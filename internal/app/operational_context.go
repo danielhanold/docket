@@ -159,8 +159,10 @@ func loadOperationalContext(ctx context.Context, client *gitcli.Client, repoDir 
 		// A resolution error blocks topology (invalid config, or an unresolvable
 		// auto integration branch) — an invalid-input condition, reported BEFORE
 		// classification so a broken configuration never masks as (or collapses
-		// into) a topology remedy.
-		return oc, fmt.Errorf("%w: %v", ErrStatusInvalidInput, err)
+		// into) a topology remedy. The typed errInvalidConfiguration carries the
+		// resolver's diagnostics for the refusal to lift, and classifies as
+		// ErrStatusInvalidInput so every existing errors.Is caller is unchanged.
+		return oc, &errInvalidConfiguration{diagnostics: diags, err: err}
 	}
 	oc.snapshot = *snap
 	oc.diags = diags
