@@ -30,8 +30,12 @@ func (e *errInvalidConfiguration) Unwrap() error        { return e.err }
 func (e *errInvalidConfiguration) Is(target error) bool { return target == ErrStatusInvalidInput }
 
 // ConfigDiagnostics returns the resolver diagnostics an invalid-configuration
-// refusal carries, in resolver order, or nil when err is not such a refusal
-// (or the refusal predates resolution and carries none).
+// refusal carries, or nil when err is not such a refusal (or the refusal
+// predates resolution and carries none). config.Resolve emits diagnostics in its
+// one presentation order — severity, then path, then code — on BOTH the success
+// and the refusal path (its done() sorts every exit), so these arrive already
+// sorted to match every healthy status/inspection surface; the lift below does
+// not reorder them.
 func ConfigDiagnostics(err error) []config.Diagnostic {
 	var rre *RepoResolutionError
 	if errors.As(err, &rre) && len(rre.Diagnostics) > 0 {
@@ -73,7 +77,10 @@ func configDiagnosticParts(d config.Diagnostic) configFindingParts {
 }
 
 // configDiagnosticFindings lifts resolver diagnostics into the repository
-// family's finding shape, one finding per diagnostic, in resolver order.
+// family's finding shape, one finding per diagnostic, preserving the sorted
+// order config.Resolve already imposes (severity, path, code) so the refusal
+// findings match the healthy path — see ConfigDiagnostics for the ordering
+// contract, pinned by TestRefusalFindingsSortedLikeHealthyPath.
 // Warnings ride along so the reader sees the whole resolver verdict; the
 // operation's result and exit are decided by the error, never by these.
 // Repairable stays nil: config findings are never auto-repairable.
@@ -153,23 +160,38 @@ func ConfigDiagnosticLine(d config.Diagnostic) string {
 	return b.String()
 }
 
+// appendFindingBlock writes one finding's human block to b, led by a newline:
+// "- [severity] code", an optional " (ref)", then the message and the remedy
+// each on their own indented continuation line. It is the SINGLE per-finding
+// renderer that RepositoryCheckResult.HumanText's healthy loop and
+// appendConfigFindingBlock's refusal loop both call, so the healthy and refusal
+// blocks cannot drift by hand-copy (change 0403; finding: the two loops were
+// duplicated). RepositoryPrepareResult.HumanText deliberately renders without the
+// "(ref)" clause and is not a caller — its refusal path still routes config
+// findings through appendConfigFindingBlock (with the ref), so this shared
+// renderer governs every surface that prints the ref.
+func appendFindingBlock(b *strings.Builder, f reposetup.Finding) {
+	fmt.Fprintf(b, "\n- [%s] %s", f.Severity, f.Code)
+	if f.Ref != "" {
+		fmt.Fprintf(b, " (%s)", f.Ref)
+	}
+	if f.Message != "" {
+		fmt.Fprintf(b, "\n  %s", f.Message)
+	}
+	if f.Remedy != "" {
+		fmt.Fprintf(b, "\n  remedy: %s", f.Remedy)
+	}
+}
+
 // appendConfigFindingBlock appends the shared per-finding human block to a
 // refusal's existing header line — the same "- [severity] code (ref)" block
-// RepositoryCheckResult.HumanText emits on the healthy classification path.
+// RepositoryCheckResult.HumanText emits on the healthy classification path,
+// rendered through the shared appendFindingBlock so the two cannot drift.
 func appendConfigFindingBlock(header string, findings []reposetup.Finding) string {
 	var b strings.Builder
 	b.WriteString(header)
 	for _, f := range findings {
-		fmt.Fprintf(&b, "\n- [%s] %s", f.Severity, f.Code)
-		if f.Ref != "" {
-			fmt.Fprintf(&b, " (%s)", f.Ref)
-		}
-		if f.Message != "" {
-			fmt.Fprintf(&b, "\n  %s", f.Message)
-		}
-		if f.Remedy != "" {
-			fmt.Fprintf(&b, "\n  remedy: %s", f.Remedy)
-		}
+		appendFindingBlock(&b, f)
 	}
 	return b.String()
 }

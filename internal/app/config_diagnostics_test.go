@@ -192,6 +192,62 @@ func TestAppendConfigFindingBlock(t *testing.T) {
 	}
 }
 
+// The refusal block and the healthy check block are rendered by the same
+// per-finding writer (appendFindingBlock), so their per-finding bytes must be
+// identical for the same findings. This guard reddens if either owner's
+// per-finding rendering is edited without the other — the hand-copy drift the
+// extraction removed (change 0403). Mutation-verified: making appendFindingBlock
+// drop the "(ref)" clause reds both this and TestAppendConfigFindingBlock.
+func TestRefusalAndCheckShareFindingRenderer(t *testing.T) {
+	findings := []reposetup.Finding{
+		{Code: "unknown-key", Severity: reposetup.Severity("error"), Ref: ".docket.yml:2",
+			Message: "bogus_key: is not a docket configuration setting"},
+		{Code: "obsolete-setting", Severity: reposetup.Severity("warning"),
+			Message: "runtime.bash: ignored", Remedy: "remove it"},
+		{Code: "bare", Severity: reposetup.Severity("error")}, // no ref/message/remedy
+	}
+	// The healthy check renders "repository check: <result> (<state>)" then one
+	// block per finding; with a zero-value result the header is fixed, so the
+	// trailing per-finding bytes are exactly the refusal block appended to "".
+	check := RepositoryCheckResult{Findings: findings}
+	const header = "repository check:  ()"
+	full := check.HumanText()
+	if !strings.HasPrefix(full, header) {
+		t.Fatalf("check header changed: %q", full)
+	}
+	healthyBlocks := strings.TrimPrefix(full, header)
+	refusalBlocks := appendConfigFindingBlock("", findings)
+	if refusalBlocks != healthyBlocks {
+		t.Errorf("refusal and healthy per-finding blocks diverged:\nrefusal: %q\nhealthy: %q", refusalBlocks, healthyBlocks)
+	}
+}
+
+// config.Resolve emits diagnostics in its one presentation order (severity,
+// then path, then code) on the refusal path exactly as on the success path, so
+// the lifted findings arrive already sorted to match every healthy surface. Pin
+// the observed order over the shared invalid fixture so a regression that stops
+// sorting the refusal path reddens here. Mutation-verified: removing
+// config.done()'s sortDiagnostics call reds this test.
+func TestRefusalFindingsSortedLikeHealthyPath(t *testing.T) {
+	sources := []config.Source{{Layer: config.LayerRepository, Name: ".docket.yml", Data: []byte(invalidConfigYML)}}
+	_, diags, err := config.Resolve(sources, config.ResolveContext{DefaultBranch: "main"})
+	if !errors.Is(err, config.ErrInvalidConfig) {
+		t.Fatalf("Resolve err = %v, want ErrInvalidConfig", err)
+	}
+	got := configDiagnosticFindings(diags)
+	// Sorted by path: agents.claude.adr.model, auto_capture, bogus_key — NOT
+	// document order (lines 2, 6, 7 → unknown-key, invalid-type, invalid-value).
+	wantCodes := []string{"invalid-type", "invalid-value", "unknown-key"}
+	if len(got) != len(wantCodes) {
+		t.Fatalf("lifted %d findings (%+v), want %d", len(got), got, len(wantCodes))
+	}
+	for i, code := range wantCodes {
+		if got[i].Code != code {
+			t.Errorf("finding[%d].Code = %q, want %q (sorted order)", i, got[i].Code, code)
+		}
+	}
+}
+
 // invalidConfigYML is the shared invalid fixture (spec §Testing): three
 // defects at known lines — unknown-key at 2, invalid-type at 6,
 // invalid-value at 7.
