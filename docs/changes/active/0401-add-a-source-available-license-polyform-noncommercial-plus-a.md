@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/add-a-source-available-license-polyform-noncommercial-plus-a'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-04T01:08:36Z'
+reconciled: true
+claimed_at: '2026-09-04T01:12:46Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ Exact clause wording lives in the linked spec; the builder must not improvise le
 - A contributor license agreement or DCO process (no external contributors exist today).
 - Changing the `install.sh` / distribution mechanics or the Go module path.
 - Choosing or negotiating commercial license pricing or terms; the notice only says how to ask.
+
+## Reconcile log
+
+### 2026-09-04
+
+2026-09-04 — Reconciled against current main. Confirmed the repo still has no LICENSE file at root, README.md ends at the `## Status` section with no `## License` section, and no license test exists under tests/. Scope unchanged: add LICENSE (PolyForm Noncommercial 1.0.0 verbatim + Required Notice + pointer line), LICENSE-ADDITIONAL-PERMISSIONS.md, a README `## License` section, and tests/test_license_files.sh. No dependency or ADR relations required; spec legal wording is authoritative and will not be improvised.
