@@ -1,6 +1,6 @@
 # Backlog
 
-**405 changes** — 🟢 2 in progress · 🔵 3 built · 🟣 9 groomed · 🟡 23 proposed · ⚪ 5 deferred · ✅ 250 done · 🗑️ 113 killed
+**406 changes** — 🟢 2 in progress · 🔵 3 built · 🟣 9 groomed · 🟡 24 proposed · ⚪ 5 deferred · ✅ 250 done · 🗑️ 113 killed
 
 ## 🟢 In progress (2)
 
@@ -31,10 +31,11 @@
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (23)
+## 🟡 Proposed (24)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0406](active/0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) | Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite | `medium` | `fix` | needs-brainstorm |
 | [0405](active/0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | `medium` | `fix` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
 | [0398](active/0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) | Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages | `medium` | `chore` | needs-brainstorm |
@@ -113,6 +114,7 @@ graph TD
   0403
   0404
   0405
+  0406
   0192:::done
   0251:::done
   0370:::done
