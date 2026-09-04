@@ -43,7 +43,7 @@ import (
 //     the Built State column carries the awaiting-merge wording. Emoji/title
 //     per group: 🟢 In progress, 🔵 Built, 🔴 Blocked, 🟣 Groomed,
 //     🟡 Proposed, ⚪ Deferred. Column layouts per group:
-//     in-progress: # | Title | Priority | Type | Spec | Branch
+//     in-progress: # | Title | Priority | Type | Spec | Branch | Readiness
 //     built:       # | Title | Priority | Type | PR | State
 //     blocked:     # | Title | Priority | Type | PR | Reason
 //     groomed:     # | Title | Priority | Type | Spec
@@ -57,7 +57,11 @@ import (
 //     change. The Blocked Reason cell is the stored blocked_by text for a
 //     lifecycle-blocked change and "finalize blocked — needs you" for a
 //     finalize-blocked implemented change; its PR cell comes from boardPRCell
-//     (empty when no pr:). The Proposed Readiness cell:
+//     (empty when no pr:).
+//     The In progress Readiness cell is "run halted — needs you" when the
+//     change carries the bare "## Run halted" body section (HasRunHalted),
+//     else empty.
+//     The Proposed Readiness cell:
 //     build-ready                                    → "build-ready" / "build-ready (trivial)"
 //     needs-brainstorm                               → "needs-brainstorm"
 //     auto-groom-blocked                             → "auto-groom blocked — needs you"
@@ -517,8 +521,9 @@ func boardSectionRow(in BoardInput, s BoardSection, c domain.Change) (string, er
 
 	switch s {
 	case BoardSectionInProgress:
-		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | [spec](%s) | `%s` |\n",
-			id, base, title, priority, ctype, boardSpecLink(c.Spec().Value), c.Branch().Value), nil
+		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | [spec](%s) | `%s` | %s |\n",
+			id, base, title, priority, ctype, boardSpecLink(c.Spec().Value), c.Branch().Value,
+			boardInProgressReadinessCell(c)), nil
 	case BoardSectionBuilt:
 		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | %s | %s |\n",
 			id, base, title, priority, ctype, boardPRCell(c), boardBuiltStateCell(c)), nil
@@ -562,6 +567,18 @@ func boardBlockedReasonCell(c domain.Change) string {
 		return "finalize blocked — needs you"
 	}
 	return c.BlockedBy().Value
+}
+
+// boardInProgressReadinessCell renders the In progress Readiness cell: an
+// in-progress change carrying the bare "## Run halted" body section (0237's
+// stop + surface disposition, decoded as HasRunHalted) surfaces the call to
+// action in the family idiom of boardBlockedReasonCell's
+// "finalize blocked — needs you"; every other row renders an empty cell.
+func boardInProgressReadinessCell(c domain.Change) string {
+	if c.HasRunHalted() {
+		return "run halted — needs you"
+	}
+	return ""
 }
 
 // boardReadinessCell renders the proposed-section Readiness cell from the
@@ -651,7 +668,7 @@ func boardTypeCell(c domain.Change) string {
 func boardSectionTableHeader(s BoardSection) string {
 	switch s {
 	case BoardSectionInProgress:
-		return "| # | Title | Priority | Type | Spec | Branch |\n|---|-------|----------|------|------|--------|\n"
+		return "| # | Title | Priority | Type | Spec | Branch | Readiness |\n|---|-------|----------|------|------|--------|-----------|\n"
 	case BoardSectionBuilt:
 		return "| # | Title | Priority | Type | PR | State |\n|---|-------|----------|------|----|-------|\n"
 	case BoardSectionBlocked:
