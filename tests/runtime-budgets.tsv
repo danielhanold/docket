@@ -54,6 +54,7 @@ tests/test_go_race.sh	60	parallel
 tests/test_go_toolchain.sh	55	parallel
 tests/test_release_partition_fidelity.sh	10	parallel
 tests/test_install_bootstrap.sh	10	parallel
+tests/test_license_files.sh	15	parallel
 tests/test_release_downloader.sh	10	parallel
 tests/test_release_downloader_converge.sh	10	parallel
 tests/test_release_downloader_refusals.sh	10	parallel
