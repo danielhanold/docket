@@ -119,3 +119,21 @@ docket-mode — planning metadata on its own orphan `docket` branch — is the s
 branch. Five documented features are deferred from Go v1 and activate nothing today:
 `auto_capture`, `terminal_publish`, the automated learnings harvest/index/promotion,
 `dummy_mode`, and `github_project`.
+
+## License
+
+docket is **source-available, not open source**. It is licensed under the
+[PolyForm Noncommercial License 1.0.0](LICENSE) with
+[additional permissions](LICENSE-ADDITIONAL-PERMISSIONS.md). In short:
+
+- **Personal and noncommercial use is free.** Individuals, charities, schools,
+  public research, and government may use docket without asking.
+- **Individuals working alone may use it commercially.** A freelancer or solo
+  consultant with no employees or contractors is covered by the additional
+  permissions.
+- **Any other commercial use needs written permission.** Companies and other
+  organizations must obtain explicit written permission or a separate license
+  from the owner; see the additional-permissions file for how to ask.
+
+The license applies to the whole history of this repository, including every
+commit made before the license was added.
