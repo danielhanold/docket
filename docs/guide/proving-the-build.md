@@ -1,4 +1,4 @@
-# Proving the build
+# Test gate: Proving the build
 
 By the end of this page you will know how a finished branch earns the right to be reviewed and
 merged: the one test run that certifies it, the durable record that run leaves behind, how the run is

@@ -1,7 +1,7 @@
 # Codex CLI live-validation runbook
 
-This is the live-execution counterpart to the Codex section of the harness guide page,
-`../../guide/running-on-your-harness.md`. That page covers *static* Codex setup — opt-in scopes,
+This is the live-execution counterpart to the Codex install page,
+`../../install/codex.md`. That page covers *static* Codex setup — opt-in scopes,
 model pinning, and its *Restart after (re)generating* step. This runbook is the
 checklist a human runs, by hand, inside a real Codex CLI session, to confirm the whole docket
 loop actually works there: skills load, scripts run under Codex's own sandbox, generated
@@ -227,7 +227,7 @@ fresh shell of Phase 1 step 1** — that is the only way `DOCKET_SCRIPTS_DIR` re
   the facade — `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight` — executing
   under **Codex's own sandbox** (not Claude Code's). This is the bash-compatibility smoke test:
   Cursor needed a dedicated sandbox/permissions guide at exactly this step — see the Cursor
-  section of the harness guide page, `../../guide/running-on-your-harness.md`, for the shape that
+  install page, `../../install/cursor.md`, for the shape that
   guidance took there.
 
 - [ ] 3. Record verbatim: every approval prompt, sandbox denial, or path/permission error, and
@@ -255,8 +255,8 @@ Precondition: Phase 1 step 6 showed every wrapper carrying your pinned slug. If 
 
 - [ ] 1. **Restart the Codex session first.** Codex registers agents at process start, so a
   session that has been open since before Phase 1 holds stale definitions — see the
-  *Restart after (re)generating* section of the Codex part of the harness guide page,
-  `../../guide/running-on-your-harness.md`. Restart from the same fresh
+  *Restart after (re)generating* section of the Codex install page,
+  `../../install/codex.md`. Restart from the same fresh
   shell, so `DOCKET_SCRIPTS_DIR` is still inherited.
 
 - [ ] 2. Directly invoke a skill with a pinned wrapper — `docket-status` — the same way you did
@@ -342,8 +342,8 @@ proves the root → coordinator → named-leaf composition round-trips a sentine
 staging a live docket composition by hand; that README owns the install, the scratch-repo staging
 for entry path A, and the teardown. Run it in a **disposable fixture repo** — never the real docket
 backlog. Install the build under test first (Phase 1), then start a **fresh Codex process** (see
-the *Restart after (re)generating* section of the Codex part of the harness guide page,
-`../../guide/running-on-your-harness.md` — a conversation opened in an already-running
+the *Restart after (re)generating* section of the Codex install page,
+`../../install/codex.md` — a conversation opened in an already-running
 process holds stale definitions and certifies nothing; each `codex exec` invocation is itself a
 fresh process, so a scripted probe satisfies this automatically).
 

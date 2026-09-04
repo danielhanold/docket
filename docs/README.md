@@ -1,52 +1,74 @@
 # Docket documentation
 
-Docket's documentation is organised into three tiers, each answering a different kind of question.
-The **guide** answers *how do I do the thing* — one goal per page, end to end; **concepts** explain
-*what each piece is and why* it is shaped the way it is; and **reference** lists the *exact fields,
-keys, and owners*, each pointing at the surface that holds the current value.
+Docket's documentation starts with an **install and configure** section — getting docket onto your
+machine and set up for your harness — and is then organised into three tiers, each answering a
+different kind of question. The **guide** answers *how do I do the thing* — one goal per page, end
+to end, each titled by the docket component it is about; **concepts** explain *what each piece is
+and why* it is shaped the way it is; and **reference** lists the *exact fields, keys, and owners*,
+each pointing at the surface that holds the current value.
 
 ## Start here
 
-Follow the daily loop, then read the page for the step you are on:
+Install, configure, then follow the daily loop and read the page for the step you are on:
 
+[Installing docket](install/install.md) → [Global config](install/global-config.md) → your
+harness page ([Claude Code](install/claude-code.md), [Cursor](install/cursor.md),
+[Codex](install/codex.md), or [opencode](install/opencode.md)) →
 [The daily loop](guide/daily-loop.md) → [Capturing work](guide/capturing-work.md) →
 [Building without supervision](guide/building-without-supervision.md) →
 [Landing changes](guide/landing-changes.md)
+
+## Install and configure
+
+Index: [install/README.md](install/README.md)
+
+- [Installing docket](install/install.md) — what you need first, the one-command install, and the
+  two notes that trip people up after it.
+- [Keeping docket current](install/keeping-current.md) — why every pull is followed by a re-install,
+  and what silently stays stale if it is not.
+- [Global config](install/global-config.md) — the machine-wide file at
+  `~/.config/docket/config.yml`: what belongs there, and how to enable a second harness.
+- [Repo config](install/config-layers.md) — `.docket.yml` and `.docket.local.yml`, the four-layer
+  precedence, the coordination fence, and what happens when a file is misplaced or malformed.
+- [Workflow roles](install/workflow-roles.md) — rebind any of the five workflow steps to a
+  different skill, or to none, with the `skills:` map.
+- [Models](install/models-and-effort.md) — run each docket skill at its own model and effort
+  instead of one session-wide tier, and how the pin survives a direct invocation.
+- [Delegation](install/delegating-across-harnesses.md) — hand an agent's whole run to a different
+  harness with its own subscription and models.
+- Harnesses — one page each: [Claude Code](install/claude-code.md), [Cursor](install/cursor.md),
+  [Codex](install/codex.md), [opencode](install/opencode.md).
 
 ## Guide — how do I
 
 Index: [guide/README.md](guide/README.md)
 
-- [The daily loop](guide/daily-loop.md) — the handful of steps you run by name in a day of docket
-  work, and which page covers each one in full.
-- [Capturing work that outlives the session](guide/capturing-work.md) — turn an idea into a tracked
-  unit of work that survives the session it occurred to you in, so you (or the autonomous loop) can
-  pick it up weeks later without re-explaining it.
-- [Designing before building](guide/designing-before-building.md) — take a half-formed stub through
-  the step between capturing and building, until an autonomous run can implement it without guessing.
-- [Building without supervision](guide/building-without-supervision.md) — hand a designed piece of
-  work to an autonomous loop and get back an open pull request, and learn what it checks, how hard it
-  works on each part, and where it stops and waits for you.
-- [Proving the build](guide/proving-the-build.md) — how a finished branch earns the right to be
+- [The daily loop](guide/daily-loop.md) — the handful of steps you run by name in a day of docket work,
+  and which page covers each one in full.
+- [Change: Capturing work that outlives the session](guide/capturing-work.md) — turn an idea into a
+  tracked unit of work that survives the session it occurred to you in, so you (or the autonomous
+  loop) can pick it up weeks later without re-explaining it.
+- [Groom: Designing before building](guide/designing-before-building.md) — take a half-formed stub through
+  the step between capturing and building, until an autonomous run can implement it without
+  guessing.
+- [Build: Building without supervision](guide/building-without-supervision.md) — hand a designed piece of
+  work to an autonomous loop and get back an open pull request, and learn what it checks, how hard
+  it works on each part, and where it stops and waits for you.
+- [Test gate: Proving the build](guide/proving-the-build.md) — how a finished branch earns the right to be
   reviewed and merged: the test run that certifies it and the durable record that run leaves behind.
-- [Reviewing before the human does](guide/reviewing-before-the-human.md) — what happens to a finished
-  branch between its last build commit and the pull request you read, and who touches it on the way.
-- [Landing changes safely](guide/landing-changes.md) — how an approved change gets from an open pull
-  request into your mainline and out of your backlog, hands-off across a whole set of changes.
-- [Keeping the backlog honest](guide/keeping-the-backlog-honest.md) — tell whether your backlog still
-  reflects reality, and fix it when it does not: the routine sweep versus the checks that flag a
-  human.
-- [Remembering why](guide/remembering-why.md) — where docket keeps the decisions it made and the
-  lessons it learned, why they are kept apart, and how a lesson becomes a rule the tools always
-  follow.
-- [Governing through configuration](guide/governing-through-configuration.md) — change docket's
-  behavior without editing its code: where a setting can live, which one wins, and how to rebind any
-  step.
-- [Running on your harness](guide/running-on-your-harness.md) — install docket on your machine, keep
-  it current, and make each unit of work run at its own model and effort under whichever agent tool
-  you use.
-- [Where the metadata lives](guide/where-the-metadata-lives.md) — where docket keeps its planning
-  records and why they sit apart from your code, across the two branches it uses.
+- [Review: Reviewing before the human does](guide/reviewing-before-the-human.md) — what happens to a
+  finished branch between its last build commit and the pull request you read, and who touches it on
+  the way.
+- [Finalize: Landing changes safely](guide/landing-changes.md) — how an approved change gets from an open
+  pull request into your mainline and out of your backlog, hands-off across a whole set of changes.
+- [Status: Keeping the backlog honest](guide/keeping-the-backlog-honest.md) — tell whether your backlog
+  still reflects reality, and fix it when it does not: the routine sweep versus the checks that flag
+  a human.
+- [ADRs and learnings: Remembering why](guide/remembering-why.md) — where docket keeps the decisions it
+  made and the lessons it learned, why they are kept apart, and how a lesson becomes a rule the tools
+  always follow.
+- [Metadata branch: Where the metadata lives](guide/where-the-metadata-lives.md) — where docket keeps its
+  planning records and why they sit apart from your code, across the two branches it uses.
 
 ## Concepts — what is it and why
 

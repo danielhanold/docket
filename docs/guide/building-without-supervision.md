@@ -1,4 +1,4 @@
-# Building without supervision
+# Build: Building without supervision
 
 By the end of this page you can hand a designed piece of work to an autonomous loop and get back an
 open pull request, without babysitting it — and you will understand what the loop checks before it

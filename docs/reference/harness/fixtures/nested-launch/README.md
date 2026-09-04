@@ -65,8 +65,8 @@ done
 ## Fresh-process restart is mandatory
 
 Codex registers agent definitions **once, at process start** — see the
-*Restart after (re)generating* section of the Codex part of the harness guide page,
-[`../../../../guide/running-on-your-harness.md`](../../../../guide/running-on-your-harness.md). After installing (or changing)
+*Restart after (re)generating* section of the Codex install page,
+[`../../../../install/codex.md`](../../../../install/codex.md). After installing (or changing)
 the probe TOMLs, every probe must run in a **genuinely fresh Codex process**; a new conversation
 inside an already-running process registers nothing. Each `codex exec` invocation is itself a fresh
 process, so a scripted probe satisfies this automatically; an interactive TUI session must be

@@ -1,4 +1,4 @@
-# Capturing work that outlives the session
+# Change: Capturing work that outlives the session
 
 By the end of this page you can turn an idea into a tracked unit of work that survives the
 session it occurred to you in — write it down once, keep working, and pick it up (or let the
@@ -177,8 +177,7 @@ allowed to make someone else's work unreadable.
   configuration errors. `all` and `untyped` are reserved: they are query pseudo-values, never
   stored types.
 - **Global-able.** Set it per-repo, in your global config, or in the machine-local layer — the
-  layer model is covered in [Governing through
-  configuration](./governing-through-configuration.md).
+  layer model is covered in [Repo config](../install/config-layers.md).
 
 ```yaml
 # global config — drop a built-in, add your own; the list REPLACES the default
