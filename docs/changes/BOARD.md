@@ -1,6 +1,6 @@
 # Backlog
 
-**404 changes** — 🟢 1 in progress · 🔵 4 built · 🟣 9 groomed · 🟡 23 proposed · ⚪ 5 deferred · ✅ 249 done · 🗑️ 113 killed
+**404 changes** — 🟢 1 in progress · 🔵 4 built · 🟣 10 groomed · 🟡 22 proposed · ⚪ 5 deferred · ✅ 249 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -17,10 +17,11 @@
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `high` | `fix` | [#276](https://github.com/danielhanold/docket/pull/276) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (9)
+## 🟣 Groomed (10)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0404](active/0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | `high` | `docs` | [spec](../superpowers/specs/2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |
 | [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | [spec](../superpowers/specs/2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md) |
@@ -31,11 +32,10 @@
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (23)
+## 🟡 Proposed (22)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0404](active/0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | `high` | `docs` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
 | [0398](active/0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) | Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages | `medium` | `chore` | needs-brainstorm |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | needs-brainstorm |
