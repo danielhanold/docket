@@ -2,11 +2,11 @@
 id: 402
 slug: 'restructure-the-technical-docs-into-goal-organised-guide-con'
 title: 'Restructure the technical docs into goal-organised guide, concepts, and reference tiers'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-03'
-updated: '2026-09-03'
+updated: '2026-09-04'
 depends_on: [400]
 stacked_on:
 related: [385, 283]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/restructure-the-technical-docs-into-goal-organised-guide-con'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-04T01:09:10Z'
 ---
 
 ## Artifacts
