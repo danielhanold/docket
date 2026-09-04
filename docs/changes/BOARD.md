@@ -1,19 +1,19 @@
 # Backlog
 
-**403 changes** — 🟢 2 in progress · 🔵 3 built · 🟣 9 groomed · 🟡 22 proposed · ⚪ 5 deferred · ✅ 249 done · 🗑️ 113 killed
+**403 changes** — 🟢 1 in progress · 🔵 4 built · 🟣 9 groomed · 🟡 22 proposed · ⚪ 5 deferred · ✅ 249 done · 🗑️ 113 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | [spec](../superpowers/specs/2026-09-03-restructure-the-technical-docs-into-goal-organised-guide-con-design.md) | `docs/restructure-the-technical-docs-into-goal-organised-guide-con` |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) | `feat/give-run-halted-a-board-surface-and-a-health-check-like-its` |
 
-## 🔵 Built (3)
+## 🔵 Built (4)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0403](active/0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | `medium` | `fix` | [#277](https://github.com/danielhanold/docket/pull/277) | awaiting merge |
+| [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | [#278](https://github.com/danielhanold/docket/pull/278) | awaiting merge |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `high` | `fix` | [#276](https://github.com/danielhanold/docket/pull/276) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
