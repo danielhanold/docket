@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0392 — Installer-tolerant config read: break the schema-bump bootstrap deadlock](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md)**
+> ↩ **[Change 0392 — Installer-tolerant config read: break the schema-bump bootstrap deadlock](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-04-0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md)**
 <!-- docket:backlink:end -->
 # Installer-Tolerant Config Read Implementation Plan
 
