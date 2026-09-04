@@ -2,7 +2,7 @@
 id: 404
 slug: 'relicense-docket-under-the-apache-license-2-0'
 title: 'Relicense docket under the Apache License 2.0'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'docs'
 created: '2026-09-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/relicense-docket-under-the-apache-license-2-0'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-04T17:39:29Z'
 ---
 
 ## Artifacts
