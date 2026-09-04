@@ -77,7 +77,7 @@ var proseContracts = []proseContract{
 	// tests/test_consultant_brainstorm.sh — single-dispatch consultant flow (change 0056).
 	{sentinel: "test_consultant_brainstorm", file: "skills/docket-brainstorm/SKILL.md",
 		present: []string{"docket-brainstorm-consultant"}},
-	{sentinel: "test_consultant_brainstorm", file: "docs/guide/README.md",
+	{sentinel: "test_consultant_brainstorm", file: "docs/guide/designing-before-building.md",
 		present: []string{"brainstorm: docket-brainstorm"}},
 	// tests/test_convention_extraction.sh — operating skills carry the load-first line
 	// and never copy the convention (the begin marker is a copy tell).
@@ -135,7 +135,7 @@ var proseContracts = []proseContract{
 	{sentinel: "test_role_skill_self_description", file: "skills/docket-convention/SKILL.md",
 		present: []string{"skills.<role>"}},
 	// tests/test_skill_fork_dispatch.sh — fork-dispatch README contract.
-	{sentinel: "test_skill_fork_dispatch", file: "docs/guide/README.md",
+	{sentinel: "test_skill_fork_dispatch", file: "docs/guide/running-on-your-harness.md",
 		present: []string{"completed (forked execution)"}},
 	{sentinel: "test_skill_fork_dispatch", file: "README.md",
 		present: []string{"The right model for each step."}},
@@ -143,10 +143,12 @@ var proseContracts = []proseContract{
 	{sentinel: "test_skill_handoff_precedence", file: "skills/docket-convention/SKILL.md",
 		present: []string{"never outranks", "DIRECTED to:"}},
 	// tests/test_readme_finalize_docs.sh — README finalize/auto-mode docs.
-	{sentinel: "test_readme_finalize_docs", file: "docs/guide/README.md",
-		present: []string{"auto-mode classifier", "Fork-exclusion principle"}},
+	{sentinel: "test_readme_finalize_docs", file: "docs/guide/landing-changes.md",
+		present: []string{"auto-mode classifier"}},
+	{sentinel: "test_readme_finalize_docs", file: "docs/guide/running-on-your-harness.md",
+		present: []string{"Fork-exclusion principle"}},
 	// tests/test_readme_skill_catalog.sh — count-free catalog heading, no stale anchor.
-	{sentinel: "test_readme_skill_catalog", file: "docs/guide/README.md",
+	{sentinel: "test_readme_skill_catalog", file: "docs/reference/skills-and-agents.md",
 		present: []string{"## Skills"}, absent: []string{"#the-eight-skills"}},
 	// tests/test_cursor_dispatch_rule.sh — cursor dispatch head contract.
 	{sentinel: "test_cursor_dispatch_rule", file: "cursor-rules/dispatch.head.md",
@@ -191,7 +193,7 @@ var proseContracts = []proseContract{
 	{sentinel: "test_docket_example_yml", file: ".docket.example.yml",
 		present: []string{"board_surfaces", "agent_harnesses", "finalize:"}},
 	// tests/test_typed_changes_docs.sh — README typed-change vocabulary rule.
-	{sentinel: "test_typed_changes_docs", file: "docs/guide/README.md",
+	{sentinel: "test_typed_changes_docs", file: "docs/guide/capturing-work.md",
 		present: []string{"untyped set can only shrink"}},
 	// tests/test_change_types.sh — the change template still ships a type placeholder.
 	{sentinel: "test_change_types", file: "skills/docket-new-change/change-template.md",
