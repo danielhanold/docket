@@ -22,7 +22,7 @@ branch: 'docs/restructure-the-technical-docs-into-goal-organised-guide-con'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T01:12:12Z'
+claimed_at: '2026-09-04T01:13:42Z'
 ---
 
 ## Artifacts
