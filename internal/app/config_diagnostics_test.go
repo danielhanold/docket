@@ -12,7 +12,7 @@ import (
 func sampleDiags() []config.Diagnostic {
 	return []config.Diagnostic{
 		{Code: "unknown-key", Severity: config.SeverityError, Path: "bogus_key",
-			Message: "is not a docket configuration setting",
+			Message:    "is not a docket configuration setting",
 			Provenance: &config.Provenance{Layer: config.LayerRepository, Source: ".docket.yml", Line: 2, Column: 1}},
 		{Code: "obsolete-setting", Severity: config.SeverityWarning, Path: "runtime.bash",
 			Message: "ignored", Remedy: "remove runtime.bash from this file",
@@ -67,7 +67,7 @@ func TestErrInvalidConfigurationCompatibility(t *testing.T) {
 func TestConfigDiagnosticFindingsMapping(t *testing.T) {
 	diags := []config.Diagnostic{
 		{Code: "invalid-type", Severity: config.SeverityError, Path: "agents.claude.adr.model",
-			Message: `expects a string, got int "42"`,
+			Message:    `expects a string, got int "42"`,
 			Provenance: &config.Provenance{Source: ".docket.yml", Line: 6}},
 		{Code: "invalid-yaml", Severity: config.SeverityError,
 			Message:    "broken document",
@@ -203,7 +203,7 @@ func TestConfigDiagnosticLine(t *testing.T) {
 	}{
 		{"full with line", config.Diagnostic{
 			Code: "invalid-type", Severity: config.SeverityError, Path: "agents.claude.adr.model",
-			Message: `expects a string, got int "42"`,
+			Message:    `expects a string, got int "42"`,
 			Provenance: &config.Provenance{Source: ".docket.yml", Line: 6},
 		}, `error    invalid-type  agents.claude.adr.model  .docket.yml:6  expects a string, got int "42"`},
 		{"warning with remedy", config.Diagnostic{
