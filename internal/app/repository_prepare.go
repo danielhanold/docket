@@ -701,11 +701,20 @@ func prepareGatherFailure(err error) RepositoryPrepareResult {
 	var rre *RepoResolutionError
 	switch {
 	case errors.As(err, &rre):
+		// Lift the resolver's diagnostics into the structured findings the
+		// Step-0 contract promises, and name each defect's file:line in the
+		// human text (change 0403). Disposition and result are unchanged.
+		// A RepoResolutionError with nil Diagnostics (e.g. a LoadFilesystemSources
+		// failure) yields nil findings and appendConfigFindingBlock returns the
+		// bare header, so that path stays byte-identical to before.
+		findings := configDiagnosticFindings(rre.Diagnostics)
 		out := RepositoryPrepareResult{
 			Envelope:    NewEnvelope(OperationRepositoryPrepare, ResultUnsupportedConfig),
 			Disposition: PrepareDispositionRefused,
+			Findings:    findings,
 		}
-		out.human = fmt.Sprintf("repository prepare: %s: %s", PrepareDispositionRefused, rre.Error())
+		out.human = appendConfigFindingBlock(
+			fmt.Sprintf("repository prepare: %s: %s", PrepareDispositionRefused, rre.Error()), findings)
 		return out
 	case errors.Is(err, ErrStatusInvalidInput):
 		out := RepositoryPrepareResult{
