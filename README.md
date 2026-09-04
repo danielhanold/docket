@@ -122,18 +122,17 @@ branch. Five documented features are deferred from Go v1 and activate nothing to
 
 ## License
 
-docket is **source-available, not open source**. It is licensed under the
-[PolyForm Noncommercial License 1.0.0](LICENSE) with
-[additional permissions](LICENSE-ADDITIONAL-PERMISSIONS.md). In short:
+docket is open source under the [Apache License 2.0](LICENSE). The
+[NOTICE](NOTICE) file carries the attribution that section 4(d) of the license
+asks redistributors to preserve.
 
-- **Personal and noncommercial use is free.** Individuals, charities, schools,
-  public research, and government may use docket without asking.
-- **Individuals working alone may use it commercially.** A freelancer or solo
-  consultant with no employees or contractors is covered by the additional
-  permissions.
-- **Any other commercial use needs written permission.** Companies and other
-  organizations must obtain explicit written permission or a separate license
-  from the owner; see the additional-permissions file for how to ask.
+- **Files docket generates in your repository are yours.** Change documents,
+  specs, plans, results, decision records, and configuration belong to you; the
+  license places no condition on them.
+- **The license grants no rights in the docket name.** Use the software freely;
+  do not present a modified version as docket itself.
+- **Contributions** are accepted under the Developer Certificate of Origin; see
+  [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The license applies to the whole history of this repository, including every
-commit made before the license was added.
+commit made before it was added.

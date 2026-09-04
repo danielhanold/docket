@@ -75,15 +75,16 @@ func TestLicenseFiles(t *testing.T) {
 }
 
 // TestLicenseReadmeSection guards the README's License section: the heading is
-// present and the section links to both license files (change 0401). The link
-// targets are matched as markdown link destinations, so a rewrite that keeps
-// the words but drops the links reddens.
+// present and the section links to LICENSE, NOTICE, and CONTRIBUTING.md
+// (change 0404). The link targets are matched as markdown link destinations,
+// so a rewrite that keeps the words but drops the links reddens.
 func TestLicenseReadmeSection(t *testing.T) {
 	readme := readRepoFile(t, "README.md")
 	for _, want := range []string{
 		"## License",
 		"](LICENSE)",
-		"](LICENSE-ADDITIONAL-PERMISSIONS.md)",
+		"](NOTICE)",
+		"](CONTRIBUTING.md)",
 	} {
 		if !strings.Contains(readme, want) {
 			t.Errorf("README.md does not contain %q", want)
