@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'critical'
 type: 'chore'
 created: '2026-08-29'
-updated: '2026-08-30'
+updated: '2026-09-04'
 depends_on: [370]
 stacked_on:
-related: [317, 318, 322, 326, 352, 361, 363, 369, 370, 371, 372]
+related: [317, 318, 322, 326, 352, 361, 363, 369, 370, 371, 372, 374, 377, 384, 392, 393, 394, 399, 401]
 discovered_from: [318]
-adrs: [95, 96, 99]
-spec:
+adrs: [95, 96, 99, 100, 102, 103, 104]
+spec: 'docs/superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md'
 plan:
 results:
 trivial: false
@@ -29,24 +29,54 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
+| Spec | [2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
+| ADRs | [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0100](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md), [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md), [ADR-0103](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0103-enter-codex-coordinator-roles-through-app-server-root-thread.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Changes 0318, 0369, 0371, 0372, and 0370 will make the reviewed source Go-only through independently
-mergeable stages, but source acceptance is not release acceptance. The exact merged 0370 candidate
-still needs human-attended proof across native targets and genuinely fresh harness processes, an
-isolated rollback rehearsal, explicit migration-ledger dispositions, and irreversible publication.
+The Go-only source cutover is complete — 0318, 0369, 0371, 0372, and 0370 are all done, and
+fourteen further changes have merged since — but source acceptance is not release acceptance. No
+Go binary has been published: the latest tag is still `v0.9.3`, a Bash-era release with no assets.
+The exact candidate commit still needs human-attended proof across the four native targets and
+four genuinely fresh harness processes, a Bash-install upgrade probe, an isolated `v0.9.2` rollback
+rehearsal, explicit migration-ledger dispositions, and then irreversible publication as
+`v1.0.0-beta1` — the first public build of the Go product, released as a beta to gather feedback
+from the existing user base before stable `v1.0.0`.
+
+The three protocol sections that follow `## Out of scope` below predate this groom (2026-09-03)
+and still name `v1.0.0-rc1` and the exact 0370 merge commit; the linked spec supersedes them,
+re-anchored on the current tip of `main` and on `v1.0.0-beta1`.
 
 ## What changes
 
-- Audit and disposition the complete active migration backlog through the installed Go product, preserving independent post-Go work and recording manual migration learnings.
-- Package one candidate from the exact merged 0370 commit and use the same checksum-identified bytes for all native tuple, self-host, rollback, publication, and public-install gates.
-- Run Darwin/Linux on amd64/arm64 native smokes, then complete the retained mutating lifecycle plus restart/resume recovery in genuinely fresh Claude, Codex, Cursor, and OpenCode sessions.
-- Rehearse an isolated v0.9.2 rollback without introducing a runtime fallback.
-- At an explicit human irreversible boundary, create and verify the v1.0.0-rc1 tag, GitHub Release, assets, checksums, and clean public installation.
-- Collate durable evidence and close the migration/release metadata only after every gate passes.
+- Decide the pre-cut agenda with the human (0393, 0401, 0392, held PRs), then cut one candidate
+  from the current tip of `origin/main` and hold a quiescence window until closeout.
+- Close the migration ledger item by item through the installed Go product, using the program
+  map's five disposition rules, and record migration learnings manually.
+- Package once by dispatching the non-publishing candidate workflow for `v1.0.0-beta1` at the
+  candidate commit; keep one immutable, checksum-identified copy that every later gate reads.
+- Take the workflow's four native tuple smokes as tuple evidence, plus an operator-machine run.
+- In a fresh host, install the accepted bytes and drive one complete retained mutating lifecycle —
+  create, groom, implement with a restart/resume interruption, finalize, archive — through fresh
+  Claude, Codex, Cursor, and OpenCode processes, each against its own disposable private remote.
+- Probe upgrades from `v0.9.2` and `v0.9.3` Bash installs; rehearse an isolated `v0.9.2` rollback
+  and a read-only cross-compatibility check, without any runtime fallback.
+- At an explicit human boundary, create the annotated tag, the draft pre-release, the six verified
+  assets, publish, and verify a clean public installation from the release URL.
+- Collate the evidence bundle under `docs/release/v1.0.0-beta1/` and close out through the
+  normal PR, finalize, and sweep path.
+
+Design decisions (detail in the spec): the candidate is cut from the current tip of `main`, not
+from 0370's merge commit, because the repository's own configuration and the skills' Step-0 verbs
+already depend on changes merged after it. The pre-release is `v1.0.0-beta1` (dotted, as the
+packager's version grammar requires); `rc` is reserved for a feature-frozen candidate of stable
+`v1.0.0`. Publication stays human-typed `gh` at an explicit boundary — no workflow carries a write
+token. Fresh-host proof runs in a fresh macOS user account so the Cursor IDE and the CLI harnesses
+alike load only the candidate's assets, with one disposable private GitHub repository per harness
+and one shared terminal predicate. The ledger audit table in the spec is the agenda; every rule-5
+item waits for the human. `v0.9.2` remains the documented rollback artifact per the program map,
+with `v0.9.3` recorded as the last Bash-era tag.
 
 ## Human-attended protocol to preserve
 
@@ -116,28 +146,13 @@ claim cannot substitute for direct observation. Missing or ambiguous evidence fa
 - Do not run a maintenance sweep during the bounded interval between merging 0370 and completing
   this release metadata closeout.
 
-## Open questions
-
-- What exact operator checklist and quiescence proof will bracket the post-0370 release window?
-- Which disposable Git hosting arrangement and transcript location will supply durable evidence
-  without leaking credentials, private paths, or unrelated user configuration?
-- What is the exact lifecycle fixture and success predicate shared by all four harnesses while
-  still proving each harness's native loading and dispatch boundary?
-- Which active backlog items are expected migration-ledger candidates when the audit begins, and
-  what human decision rule settles items that mix a retired mechanism with an independent product
-  invariant?
-- What are the exact retry rules after a matching tag exists but the Release or asset set is only
-  partially present?
-- How are the three source changes' terminal states and this successor's metadata sequenced so no normal sweep closes
-  the source change before its release evidence is durably attached?
-- What final release-note language distinguishes the first Go candidate, the four supported native
-  targets and harnesses, the two retained POSIX products, and the separate `v0.9.2` rollback path?
-
 ## Out of scope
 
-Source-cutover implementation owned by 0318, 0369, 0371, 0372, and 0370; changes to the accepted candidate after
-packaging; rebuilding or substituting bytes mid-protocol; a Bash fallback or compatibility launcher;
-stable v1.0.0 promotion; Homebrew, Windows, signing/notarization, SBOM or provenance signing;
-uninstall or version-tree garbage collection; and redesign of Docket storage, JSON protocol, harness
-topology, or Git/GitHub adapters. A source defect found during acceptance returns to a separate
-reviewed code change and invalidates the candidate rather than being repaired inline.
+Source changes of any kind — a defect found during acceptance returns to a separate reviewed
+change and invalidates the candidate; changes to the accepted candidate after packaging;
+rebuilding or substituting bytes mid-protocol; a Bash fallback or compatibility launcher; stable
+`v1.0.0` promotion; a tag-triggered publishing workflow; public-install documentation in the README
+or `docs/guide/` (a separate docs change); widening ADR-0096's frozen corpus to `v0.9.3`;
+Homebrew, Windows, signing/notarization, SBOM or provenance signing; uninstall or version-tree
+collection (0323); and any redesign of storage, the JSON protocol, harness topology, or the
+Git/GitHub adapters.
