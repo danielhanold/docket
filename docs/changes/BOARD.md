@@ -4,9 +4,9 @@
 
 ## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0404](active/0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | `high` | `docs` | [spec](../superpowers/specs/2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md) | `docs/relicense-docket-under-the-apache-license-2-0` |
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0404](active/0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | `high` | `docs` | [spec](../superpowers/specs/2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md) | `docs/relicense-docket-under-the-apache-license-2-0` | run halted — needs you |
 
 ## 🔵 Built (2)
 

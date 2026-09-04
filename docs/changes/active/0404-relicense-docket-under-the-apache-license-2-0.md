@@ -22,7 +22,7 @@ branch: 'docs/relicense-docket-under-the-apache-license-2-0'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T17:54:03Z'
+claimed_at: '2026-09-04T18:55:50Z'
 ---
 
 ## Artifacts
@@ -61,32 +61,3 @@ docket ships under PolyForm Noncommercial 1.0.0 plus a bespoke additional-permis
 
 2026-09-04: Reconciled against origin/main. Confirmed change 0401 is merged and current: LICENSE carries PolyForm Noncommercial 1.0.0 with the Required Notice and the pointer to LICENSE-ADDITIONAL-PERMISSIONS.md; that file exists at the repo root; the README ## License section (lines 123-139) links to both PolyForm files; and internal/repoguard/license_test.go + tests/test_license_files.sh target the PolyForm artifacts. All of the spec's premises hold exactly, so the plan is unchanged: replace LICENSE with verbatim Apache 2.0, add NOTICE and CONTRIBUTING.md, delete LICENSE-ADDITIONAL-PERMISSIONS.md, rewrite the README License section, and retarget the guard test + wrapper header. No scope change, no new dependencies, no ADR (decision recorded in ## Why and the spec, matching 0401).
 
-## Run halted
-
-### 2026-09-04
-
-2026-09-04: Autonomous implement-next run halted at Step 5 (build) — build-profile worker dispatch is unavailable due to intermittent auto-mode classifier denials, and `skills.build` resolves to `docket-build` (not `auto`), so per Dispatch-capability resolution Tier C the build role is abort-and-report rather than inline. A human (or a re-dispatch once the classifier is healthy) can resume; the run is very close to done.
-
-### What is already complete (verified from git)
-
-- **Claim, reconcile, plan** all landed on `docket`: status `in-progress`, `reconciled: true` with a `## Reconcile log` entry, and `plan:` set to `docs/superpowers/plans/2026-09-04-relicense-docket-under-the-apache-license-2-0.md` (committed on the feature branch at plan commit 2844831 with a valid backlink and `Docket-Plan-Path:` trailer).
-- **Task 1 file work is done and GREEN-verified.** The feature worktree (`.worktrees/relicense-docket-under-the-apache-license-2-0`, branch `docs/relicense-docket-under-the-apache-license-2-0`) holds, uncommitted:
-  - `LICENSE` replaced with the verbatim Apache License 2.0 (11358 bytes, byte-identical to https://www.apache.org/licenses/LICENSE-2.0.txt).
-  - `NOTICE` (new) and `CONTRIBUTING.md` (new), matching the spec blocks.
-  - `LICENSE-ADDITIONAL-PERMISSIONS.md` staged for deletion.
-  - `internal/repoguard/license_test.go` with the retargeted `TestLicenseFiles` (+ `errors`/`io/fs` imports); `readRepoFile` and `TestLicenseReadmeSection` untouched.
-  - The controller ran `TestLicenseFiles` through the native gate driver (`gate.drive.start --owner task`) at this tree and observed **PASSED**. gofmt is clean per the prior worker.
-  - These files are **uncommitted** — the prior worker returned BLOCKED without committing (correct), and the controller must not adopt/commit a worker's files.
-
-### What remains
-
-- Commit Task 1 (its paths are placed), then Task 2 (README `## License` rewrite + retarget `TestLicenseReadmeSection`) and Task 3 (wrapper header comment rewrite + the 7-row mutation table + the full-suite build gate). Then Step 6 review, Step 7 PR.
-
-### Why it halted (root cause)
-
-- The auto-mode classifier is intermittently unavailable/denying. It timed out on the controller's first Bash call, flagged the first Task-1 worker ("SECURITY WARNING … Blocked by classifier") so that worker could not run its focused `go test` and returned BLOCKED, and then **denied the `docket-build-standard` dispatch twice** (the mandated single retry included). Two explicit policy denials establish the profile-worker dispatch as unavailable.
-- Separately confirmed and documented as **change 0405**: the `gate.drive.prepare-scope` -> `gate.drive.start` handshake rejects a build-task worker's own focused gate with `invalid-request` (one-start-per-scope). The blessed workaround (per 0405, used cleanly by the change-402 build on these same license-guard tests) is for workers to run their sub-second focused `go test` directly in the foreground; the controller's own `--owner build` full-suite gate is unaffected. The re-dispatch was written to instruct exactly this workaround, but the dispatch itself was classifier-denied before it could run.
-
-### Resume instructions
-
-Re-dispatch `docket-implement-next` for change 404 once the classifier is healthy. Task 1's edits are already in the worktree and verified GREEN — a resuming worker should inspect/own the inherited uncommitted files, run focused tests via plain `go test` (per 0405), commit Task 1, then complete Tasks 2 and 3, and the controller runs the full-suite gate via `gate.drive.start --owner build`. No metadata damage; branch and workspace are intact.
