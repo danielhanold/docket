@@ -3,6 +3,7 @@
 package app
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -101,5 +102,35 @@ func TestIntegrationRepoPrepareInvalidConfigDiagnostics(t *testing.T) {
 	if !strings.HasPrefix(human, "repository prepare: "+PrepareDispositionRefused+": ") {
 		t.Errorf("human header changed: %q", human)
 	}
+	assertConfigRefusalFindings(t, res.Findings, human)
+}
+
+// TestIntegrationRepoSetupInitInvalidConfigDiagnostics: init still refuses
+// unsupported-config, now with the lifted findings and human refs.
+func TestIntegrationRepoSetupInitInvalidConfigDiagnostics(t *testing.T) {
+	r := newInitRepo(t, invalidConfigYML, nil)
+	res := r.runInit(t)
+
+	if res.Result != ResultUnsupportedConfig {
+		t.Fatalf("result = %q (%s), want %q", res.Result, res.HumanText(), ResultUnsupportedConfig)
+	}
+	human := res.HumanText()
+	if !strings.HasPrefix(human, string(OperationRepositoryInit)+": "+string(ResultUnsupportedConfig)+": ") {
+		t.Errorf("human header changed: %q", human)
+	}
+	assertConfigRefusalFindings(t, res.Findings, human)
+}
+
+// TestIntegrationRepoMigrationInvalidConfigDiagnostics: migrate still refuses
+// unsupported-config, now with the lifted findings (a new field on its result
+// document) and human refs.
+func TestIntegrationRepoMigrationInvalidConfigDiagnostics(t *testing.T) {
+	r := newInitRepo(t, invalidConfigYML, nil)
+	res := RunRepositoryMigrate(context.Background(), SetupDeps{Git: newGitClient(t), RepoDir: r.invocation}, MigrateOptions{})
+
+	if res.Result != ResultUnsupportedConfig {
+		t.Fatalf("result = %q (%s), want %q", res.Result, res.HumanText(), ResultUnsupportedConfig)
+	}
+	human := res.HumanText()
 	assertConfigRefusalFindings(t, res.Findings, human)
 }
