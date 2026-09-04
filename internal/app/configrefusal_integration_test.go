@@ -83,3 +83,23 @@ func TestIntegrationRepoCheckInvalidConfigDiagnostics(t *testing.T) {
 	}
 	assertConfigRefusalFindings(t, res.Findings, human)
 }
+
+// TestIntegrationRepoPrepareInvalidConfigDiagnostics: prepare still refuses
+// (unsupported-config / refused), and now carries the structured findings the
+// Step-0 contract promises, plus the refs in its human text.
+func TestIntegrationRepoPrepareInvalidConfigDiagnostics(t *testing.T) {
+	r := newInitRepo(t, invalidConfigYML, nil)
+	res := runPrepareAt(t, r.invocation)
+
+	if res.Result != ResultUnsupportedConfig {
+		t.Fatalf("result = %q (%s), want %q", res.Result, res.HumanText(), ResultUnsupportedConfig)
+	}
+	if res.Disposition != PrepareDispositionRefused {
+		t.Errorf("disposition = %q, want refused", res.Disposition)
+	}
+	human := res.HumanText()
+	if !strings.HasPrefix(human, "repository prepare: "+PrepareDispositionRefused+": ") {
+		t.Errorf("human header changed: %q", human)
+	}
+	assertConfigRefusalFindings(t, res.Findings, human)
+}
