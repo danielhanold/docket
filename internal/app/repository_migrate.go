@@ -70,7 +70,10 @@ type RepositoryMigrateResult struct {
 	Repairs         []reposetup.RepairFinding `json:"repairs,omitempty"`
 	RepairedViews   []string                  `json:"repaired_views,omitempty"`
 	PendingLocal    []string                  `json:"pending_local,omitempty"`
-	human           string
+	// Findings carries the diagnosis a refusal lifts from the resolver — one
+	// finding per config diagnostic (change 0403); empty on success.
+	Findings []reposetup.Finding `json:"findings,omitempty"`
+	human    string
 }
 
 // HumanText renders the human summary: a refusal or preview carries its full
@@ -1133,8 +1136,13 @@ func migrateRefusal(state reposetup.State, remedy string) RepositoryMigrateResul
 func migrateGatherFailure(err error) RepositoryMigrateResult {
 	var rre *RepoResolutionError
 	if errors.As(err, &rre) {
-		out := newMigrateResult(ResultUnsupportedConfig, RepositoryMigrateResult{})
-		out.human = fmt.Sprintf("%s: %s: %s", OperationRepositoryMigrate, ResultUnsupportedConfig, rre.Error())
+		// An invalid configuration carries the resolver's own diagnostics: lift
+		// them into findings and append the shared block, so the refusal names
+		// each defect's .docket.yml:<line> (change 0403). The result is unchanged.
+		findings := configDiagnosticFindings(rre.Diagnostics)
+		out := newMigrateResult(ResultUnsupportedConfig, RepositoryMigrateResult{Findings: findings})
+		out.human = appendConfigFindingBlock(
+			fmt.Sprintf("%s: %s: %s", OperationRepositoryMigrate, ResultUnsupportedConfig, rre.Error()), findings)
 		return out
 	}
 	if errors.Is(err, ErrStatusInvalidInput) {

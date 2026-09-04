@@ -542,8 +542,13 @@ func initRefusal(state reposetup.State, remedy string) RepositoryOpResult {
 func repositoryGatherFailure(operation string, err error) RepositoryOpResult {
 	var rre *RepoResolutionError
 	if errors.As(err, &rre) {
-		out := newRepositoryOpResult(operation, ResultUnsupportedConfig, RepositoryOpResult{})
-		out.human = fmt.Sprintf("%s: %s: %s", operation, ResultUnsupportedConfig, rre.Error())
+		// An invalid configuration carries the resolver's own diagnostics: lift
+		// them into findings and append the shared block, so the refusal names
+		// each defect's .docket.yml:<line> (change 0403). The result is unchanged.
+		findings := configDiagnosticFindings(rre.Diagnostics)
+		out := newRepositoryOpResult(operation, ResultUnsupportedConfig, RepositoryOpResult{Findings: findings})
+		out.human = appendConfigFindingBlock(
+			fmt.Sprintf("%s: %s: %s", operation, ResultUnsupportedConfig, rre.Error()), findings)
 		return out
 	}
 	if errors.Is(err, ErrStatusInvalidInput) {
