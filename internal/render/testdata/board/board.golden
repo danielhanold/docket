@@ -1,12 +1,13 @@
 # Backlog
 
-**9 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 1 groomed · 🟡 2 proposed · ⚪ 1 deferred · ✅ 1 done · 🗑️ 1 killed
+**10 changes** — 🟢 2 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 1 groomed · 🟡 2 proposed · ⚪ 1 deferred · ✅ 1 done · 🗑️ 1 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0001](active/0001-inline-board-in-progress.md) | Inline board work in progress | `high` | `feat` | [spec](../superpowers/specs/2026-08-01-inline-board-design.md) | `feat/inline-board` |  |
+| [0008](active/0008-run-halted-in-progress.md) | An in-progress run that halted for a human | `high` | `feat` | [spec](../superpowers/specs/2026-08-05-run-halted-design.md) | `feat/run-halted-in-progress` | run halted — needs you |
 
 ## 🔵 Built (1)
 
@@ -48,6 +49,7 @@ graph TD
   0005
   0006
   0007
+  0008
   0009:::done
   classDef done fill:#d3f9d8;
 ```
