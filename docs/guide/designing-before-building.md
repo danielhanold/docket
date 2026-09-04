@@ -1,4 +1,4 @@
-# Designing before building
+# Groom: Designing before building
 
 Some work you capture is fully thought through; most of it is a rough idea you jotted down to
 get it out of your head. This page is about the step in between capturing and building: turning a
@@ -107,8 +107,8 @@ mid-level engineer who knows architecture, has working-level fluency in any one 
 told every project-internal term with a gloss on first use.
 
 `enabled` is `false` by default, and the key is global-able: set it per-repo, in your global
-config, or in the machine-local layer (the layer model lives in [Governing through
-configuration](./governing-through-configuration.md)). It is *primarily* a per-repo setting,
+config, or in the machine-local layer (the layer model lives in
+[Repo config](../install/config-layers.md)). It is *primarily* a per-repo setting,
 since the same person is an expert in one repo's domain and a novice in another's.
 
 **Five surfaces are eligible**, in two modes:

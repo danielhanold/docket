@@ -1,4 +1,4 @@
-# Where the metadata lives
+# Metadata branch: Where the metadata lives
 
 By the end of this page you will know where docket keeps its planning records and why they sit
 apart from your code: the two branches it uses, which record lives on which one, how your code
@@ -72,7 +72,7 @@ That is what lets docket serve trunk-based (`main`) and **GitFlow** (`develop`) 
 caveat: `auto` follows the repo's *default* branch, so a GitFlow repository whose default branch is
 `main` but whose real integration line is `develop` must set `integration_branch: develop`
 explicitly. `integration_branch` is a shared coordination key — set it only in the committed
-`.docket.yml`, per [Governing through configuration](./governing-through-configuration.md).
+`.docket.yml`, per [Repo config](../install/config-layers.md).
 
 ## The `.docket/` metadata worktree
 

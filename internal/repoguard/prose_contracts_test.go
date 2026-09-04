@@ -135,7 +135,7 @@ var proseContracts = []proseContract{
 	{sentinel: "test_role_skill_self_description", file: "skills/docket-convention/SKILL.md",
 		present: []string{"skills.<role>"}},
 	// tests/test_skill_fork_dispatch.sh — fork-dispatch README contract.
-	{sentinel: "test_skill_fork_dispatch", file: "docs/guide/running-on-your-harness.md",
+	{sentinel: "test_skill_fork_dispatch", file: "docs/install/models-and-effort.md",
 		present: []string{"completed (forked execution)"}},
 	{sentinel: "test_skill_fork_dispatch", file: "README.md",
 		present: []string{"The right model for each step."}},
@@ -145,7 +145,7 @@ var proseContracts = []proseContract{
 	// tests/test_readme_finalize_docs.sh — README finalize/auto-mode docs.
 	{sentinel: "test_readme_finalize_docs", file: "docs/guide/landing-changes.md",
 		present: []string{"auto-mode classifier"}},
-	{sentinel: "test_readme_finalize_docs", file: "docs/guide/running-on-your-harness.md",
+	{sentinel: "test_readme_finalize_docs", file: "docs/install/models-and-effort.md",
 		present: []string{"Fork-exclusion principle"}},
 	// tests/test_readme_skill_catalog.sh — count-free catalog heading, no stale anchor.
 	{sentinel: "test_readme_skill_catalog", file: "docs/reference/skills-and-agents.md",
@@ -158,10 +158,10 @@ var proseContracts = []proseContract{
 	{sentinel: "test_cursor_contract_docs", file: "docs/reference/harness/validation.md",
 		present: []string{"## The merge-gate obligation"}},
 	// tests/test_cursor_permissions_docs.sh — the permissions guidance survives on the
-	// harness guide page, which must link the example JSONs in the harness reference.
-	// Change 0402 folded docs/cursor/permissions.md into the guide page, so this
+	// Cursor install page, which must link the example JSONs in the harness reference.
+	// Change 0402 folded docs/cursor/permissions.md into that page, so this
 	// sentinel's two rows collapse to one file; both invariants are kept as phrases.
-	{sentinel: "test_cursor_permissions_docs", file: "docs/guide/running-on-your-harness.md",
+	{sentinel: "test_cursor_permissions_docs", file: "docs/install/cursor.md",
 		present: []string{"permissions.example.json", "](../reference/harness/"}},
 	// tests/test_codex_runbook.sh — codex runbook slug-derivation + no fabricated path
 	// (moved to the harness reference by change 0402).

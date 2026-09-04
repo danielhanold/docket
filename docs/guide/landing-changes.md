@@ -1,4 +1,4 @@
-# Landing changes safely
+# Finalize: Landing changes safely
 
 By the end of this page you will know how an approved change gets from an open pull request into your
 mainline and out of your backlog: what the close-out step does in order, how to run it hands-off

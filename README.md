@@ -23,7 +23,7 @@ CLI to install.
   Claude Code, Cursor, Codex, and opencode are first-class.
 - **The right model for each step.** Every autonomous skill is pinned to its own model and
   effort, so a board refresh runs at a cheap tier while a build runs at a top one — see
-  [Tuning agent models & effort](docs/guide/running-on-your-harness.md#tuning-models-and-effort-per-task).
+  [Models: tuning model and effort per task](docs/install/models-and-effort.md).
 
 ## The committed artifact chain
 
@@ -83,7 +83,7 @@ bash install.sh
 ```
 
 Re-run `install.sh` after every update — it is idempotent and machine-global. Full
-prerequisites and what an install run does: [Install](docs/guide/running-on-your-harness.md). To adopt
+prerequisites and what an install run does: [Installing docket](docs/install/install.md). To adopt
 docket in an existing repo, run `docket repository migrate` from inside it
 ([Migration](docs/guide/where-the-metadata-lives.md)).
 
@@ -104,8 +104,8 @@ The daily loop, one skill per step
   and [reference](docs/reference/README.md) (exact fields, keys, and owners).
 - **[How docket maps to the six-stage model](docs/comparison/ai-native-sdlc-playbook.md)** —
   the dated stage-by-stage comparison this page's framing rests on.
-- **Harness setup** — [Running on your harness](docs/guide/running-on-your-harness.md) and the
-  [harness runbooks and examples](docs/reference/harness/README.md).
+- **Harness setup** — [Install and configure](docs/install/README.md), one page per harness, and
+  the [harness runbooks and examples](docs/reference/harness/README.md).
 - **[Configuration reference](.docket.example.yml)** — every key, its default, and its scope.
 - **[ADR index](docs/adrs/README.md)** — the immutable decision ledger.
 - **[Test suite](tests/README.md)** — how docket's own suite runs and where a new test

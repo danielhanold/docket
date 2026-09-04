@@ -3,7 +3,7 @@
 Reference material for validating docket on a specific harness (the tool that runs the agent:
 Claude Code, Cursor, Codex, or opencode). These are the live-execution checklists and example
 files that back up the setup prose. For how to install, configure, and tune docket on your
-harness, start at the guide page [Running on your harness](../../guide/running-on-your-harness.md);
+harness, start at [Install and configure](../../install/README.md) and its per-harness pages;
 these files are what it points you to when you need the exact procedure.
 
 - [`validation.md`](validation.md) — the Cursor validation runbook: the best-effort `cursor-agent`
