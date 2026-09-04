@@ -693,3 +693,17 @@ func TestDiagnosticConfigStaysStrictOnUnknownKeys(t *testing.T) {
 		t.Fatalf("diagnostics = %v, want an unknown-key ERROR", got.Diagnostics)
 	}
 }
+
+// The diagnostic-config human surface now names the offending file:line.
+func TestConfigInspectionHumanTextNamesFileLine(t *testing.T) {
+	r := ConfigInspectionResult{
+		Diagnostics: []config.Diagnostic{{
+			Code: "invalid-type", Severity: config.SeverityError, Path: "agents.claude.adr.model",
+			Message:    "expects a string",
+			Provenance: &config.Provenance{Source: ".docket.yml", Line: 6},
+		}},
+	}
+	if h := r.HumanText(); !strings.Contains(h, ".docket.yml:6") {
+		t.Errorf("HumanText lacks the .docket.yml:6 ref:\n%s", h)
+	}
+}

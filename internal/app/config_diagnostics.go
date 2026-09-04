@@ -117,6 +117,30 @@ func configDiagnosticStatusFindings(diags []config.Diagnostic) []StatusFinding {
 	return out
 }
 
+// ConfigDiagnosticLine renders one config diagnostic the way every human
+// surface prints it: severity (padded to the width of "warning"), code, key
+// path, <file>:<line>, message — fields two-space separated, omitted when
+// empty — with the remedy appended as " | remedy: ..." (spec: one shared
+// human rendering, change 0403). The <file>:<line> follows the same ref rule
+// as configDiagnosticParts: file alone at line 0, nothing without provenance.
+func ConfigDiagnosticLine(d config.Diagnostic) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%-7s  %s", string(d.Severity), d.Code)
+	if d.Path != "" {
+		fmt.Fprintf(&b, "  %s", d.Path)
+	}
+	if ref := configDiagnosticParts(d).ref; ref != "" {
+		fmt.Fprintf(&b, "  %s", ref)
+	}
+	if d.Message != "" {
+		fmt.Fprintf(&b, "  %s", d.Message)
+	}
+	if d.Remedy != "" {
+		fmt.Fprintf(&b, " | remedy: %s", d.Remedy)
+	}
+	return b.String()
+}
+
 // appendConfigFindingBlock appends the shared per-finding human block to a
 // refusal's existing header line — the same "- [severity] code (ref)" block
 // RepositoryCheckResult.HumanText emits on the healthy classification path.

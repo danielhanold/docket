@@ -191,3 +191,37 @@ func TestInvalidConfigFixtureSemantics(t *testing.T) {
 		t.Errorf("expected error code %q missing", code)
 	}
 }
+
+// ConfigDiagnosticLine (spec §3): severity padded to width of "warning",
+// then code, key path, <file>:<line>, message, each omitted when empty and
+// separated by two spaces; remedy appended as " | remedy: ...".
+func TestConfigDiagnosticLine(t *testing.T) {
+	cases := []struct {
+		name string
+		d    config.Diagnostic
+		want string
+	}{
+		{"full with line", config.Diagnostic{
+			Code: "invalid-type", Severity: config.SeverityError, Path: "agents.claude.adr.model",
+			Message: `expects a string, got int "42"`,
+			Provenance: &config.Provenance{Source: ".docket.yml", Line: 6},
+		}, `error    invalid-type  agents.claude.adr.model  .docket.yml:6  expects a string, got int "42"`},
+		{"warning with remedy", config.Diagnostic{
+			Code: "obsolete-setting", Severity: config.SeverityWarning, Path: "runtime.bash",
+			Message: "it is ignored", Remedy: "remove runtime.bash from this file",
+			Provenance: &config.Provenance{Source: "/Users/x/.config/docket/config.yml", Line: 3},
+		}, "warning  obsolete-setting  runtime.bash  /Users/x/.config/docket/config.yml:3  it is ignored | remedy: remove runtime.bash from this file"},
+		{"line zero keeps file alone", config.Diagnostic{
+			Code: "invalid-yaml", Severity: config.SeverityError, Message: "broken",
+			Provenance: &config.Provenance{Source: ".docket.yml"},
+		}, "error    invalid-yaml  .docket.yml  broken"},
+		{"no provenance", config.Diagnostic{
+			Code: "unknown-key", Severity: config.SeverityError, Path: "bogus_key", Message: "not a setting",
+		}, "error    unknown-key  bogus_key  not a setting"},
+	}
+	for _, c := range cases {
+		if got := ConfigDiagnosticLine(c.d); got != c.want {
+			t.Errorf("%s:\n got %q\nwant %q", c.name, got, c.want)
+		}
+	}
+}
