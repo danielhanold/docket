@@ -2,11 +2,11 @@
 id: 261
 slug: give-run-halted-a-board-surface-and-a-health-check-like-its
 title: 'Give ''## Run halted'' a board surface and a health check, like its two family members'
-status: proposed
+status: 'in-progress'
 priority: high
 type: feat
 created: 2026-08-07
-updated: 2026-08-16
+updated: '2026-09-04'
 depends_on: []
 related: [222]
 discovered_from: [237]
@@ -16,10 +16,11 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: 'feat/give-run-halted-a-board-surface-and-a-health-check-like-its'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-04T01:09:43Z'
 ---
 
 ## Artifacts

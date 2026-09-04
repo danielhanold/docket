@@ -1,8 +1,8 @@
 # Backlog
 
-**403 changes** — 🟢 4 in progress · 🔵 1 built · 🟣 10 groomed · 🟡 22 proposed · ⚪ 5 deferred · ✅ 248 done · 🗑️ 113 killed
+**403 changes** — 🟢 5 in progress · 🔵 1 built · 🟣 9 groomed · 🟡 22 proposed · ⚪ 5 deferred · ✅ 248 done · 🗑️ 113 killed
 
-## 🟢 In progress (4)
+## 🟢 In progress (5)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
@@ -10,6 +10,7 @@
 | [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | [spec](../superpowers/specs/2026-09-03-restructure-the-technical-docs-into-goal-organised-guide-con-design.md) | `docs/restructure-the-technical-docs-into-goal-organised-guide-con` |
 | [0401](active/0401-add-a-source-available-license-polyform-noncommercial-plus-a.md) | Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption | `medium` | `docs` | [spec](../superpowers/specs/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md) | `docs/add-a-source-available-license-polyform-noncommercial-plus-a` |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `high` | `fix` | [spec](../superpowers/specs/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md) | `fix/installer-tolerant-config-read-break-the-schema-bump-bootstr` |
+| [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) | `feat/give-run-halted-a-board-surface-and-a-health-check-like-its` |
 
 ## 🔵 Built (1)
 
@@ -17,12 +18,11 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (10)
+## 🟣 Groomed (9)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
-| [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |
 | [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | [spec](../superpowers/specs/2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md) |
 | [0263](active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md) | Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown | `medium` | `chore` | [spec](../superpowers/specs/2026-08-09-guard-the-remaining-agents-md-shell-rules-across-scripts-tes-design.md) |
