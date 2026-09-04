@@ -201,11 +201,7 @@ func (r ConfigInspectionResult) HumanText() string {
 	if len(r.Diagnostics) > 0 {
 		b.WriteString("\ndiagnostics:\n")
 		for _, d := range r.Diagnostics {
-			fmt.Fprintf(&b, "  %-7s %s", d.Severity, d.Code)
-			if d.Path != "" {
-				fmt.Fprintf(&b, " %s", d.Path)
-			}
-			fmt.Fprintf(&b, " — %s\n", d.Message)
+			fmt.Fprintf(&b, "  %s\n", ConfigDiagnosticLine(d))
 		}
 	}
 
