@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0404 — Relicense docket under the Apache License 2.0](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0404-relicense-docket-under-the-apache-license-2-0.md)**
+> ↩ **[Change 0404 — Relicense docket under the Apache License 2.0](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-06-0404-relicense-docket-under-the-apache-license-2-0.md)**
 <!-- docket:backlink:end -->
 
 # Apache License 2.0 for docket — design

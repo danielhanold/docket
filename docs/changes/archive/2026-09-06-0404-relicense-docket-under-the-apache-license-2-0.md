@@ -2,11 +2,11 @@
 id: 404
 slug: 'relicense-docket-under-the-apache-license-2-0'
 title: 'Relicense docket under the Apache License 2.0'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'docs'
 created: '2026-09-04'
-updated: '2026-09-04'
+updated: '2026-09-06'
 depends_on: []
 stacked_on:
 related: [401]
@@ -22,7 +22,7 @@ branch: 'docs/relicense-docket-under-the-apache-license-2-0'
 pr: 'https://github.com/danielhanold/docket/pull/280'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T18:55:50Z'
+claimed_at:
 ---
 
 ## Artifacts
