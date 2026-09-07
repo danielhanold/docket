@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/app"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestRepositoryCommandsRegistered proves `docket repository` carries exactly the
@@ -305,7 +306,7 @@ func (r fakeSyncResult) HumanText() string { return "sync-human" }
 // SetupDeps.RepoDir, dispatches the sync runner with it, and presents the
 // runner's result.
 func TestRepositorySyncIntegrationDispatch(t *testing.T) {
-	tmp := t.TempDir()
+	tmp := testsupport.TempDir(t)
 	var gotRepoDir string
 	var calls int
 	old := repositorySyncIntegrationRunner
