@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:5f3b86e1787618b892fecc0ce8dcf2f554184f9ddabebad98e0d8370282ead05",
+  "asset_set_id": "sha256:0260605046ebedb3cb1e1f051d04e4439924301df4a535e51ff336faf87dc32d",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -301,15 +301,15 @@
       "path": "skills/docket-build-task/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 9878,
-      "sha256": "4267096b403e13ac44c249985aba9bb57c16a1ac166577c838dc73f1e8c42079"
+      "size": 10341,
+      "sha256": "be3e3e0fdf216876c81f9ddccedfe0b0946327f1cfc25bd975f45b151879384b"
     },
     {
       "path": "skills/docket-build/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 25589,
-      "sha256": "c09c81275b17a5b2b44b004407fd4a9d29e7298e4a539ad447adb22ab84aaa19"
+      "size": 26094,
+      "sha256": "659cdfcabf363e108e571a585b3dab1cc415a6087d27981ce8364042c1ac5f7a"
     },
     {
       "path": "skills/docket-build/references/delegation-execution.md",
@@ -322,8 +322,8 @@
       "path": "skills/docket-build/references/gate-caller-loop.md",
       "role": "skill",
       "mode": 420,
-      "size": 8003,
-      "sha256": "e0e1013770bf0911dc4c581495532488da9eb42924ef26ca7005542fc17e0e8e"
+      "size": 9399,
+      "sha256": "3f942aec994e68c60c89c2be60cba979b687d13469669ca3fb7549a4afffc04b"
     },
     {
       "path": "skills/docket-build/references/gate-execution-evidence.md",
@@ -420,8 +420,8 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 48225,
-      "sha256": "36ac96d65257858af80cfd7b870dd2049207c0caed088de34b78f637c281410a"
+      "size": 48497,
+      "sha256": "acd24118962c83c4dd89e8cda20a1f31d812afc29e253450ea42fc0557f89970"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
