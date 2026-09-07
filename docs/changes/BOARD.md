@@ -1,6 +1,6 @@
 # Backlog
 
-**408 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 8 groomed · 🟡 18 proposed · ⚪ 8 deferred · ✅ 259 done · 🗑️ 113 killed
+**408 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 9 groomed · 🟡 17 proposed · ⚪ 8 deferred · ✅ 259 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -14,12 +14,13 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (8)
+## 🟣 Groomed (9)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | [spec](../superpowers/specs/2026-09-07-finalize-rebuilds-binary-from-unpulled-source-tree-design.md) |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-stack-closeout-must-prove-integration-reachability-design.md) |
+| [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |
 | [0263](active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md) | Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown | `medium` | `chore` | [spec](../superpowers/specs/2026-08-09-guard-the-remaining-agents-md-shell-rules-across-scripts-tes-design.md) |
@@ -27,7 +28,7 @@
 | [0248](active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md) | Role self-description: enforce the positive half and harden the guard | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-role-self-description-enforce-the-positive-half-and-harden-t-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (18)
+## 🟡 Proposed (17)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -44,7 +45,6 @@
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | needs-brainstorm |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | needs-brainstorm |
-| [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0292](active/0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | `high` | `feat` | needs-brainstorm |
