@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T01:44:14Z'
+reconciled: true
+claimed_at: '2026-09-07T01:46:59Z'
 ---
 
 ## Artifacts
@@ -49,3 +49,7 @@ Remove the dead metadata-fetch diagnostic append in `augmentCheckFacts`, preserv
 - Changes to the ownership verifier, stale-object safety, or repository preparation.
 
 ## Reconcile log
+
+### 2026-09-07
+
+2026-09-06: Reconciled against current internal/app code. Confirmed the dead append is still live at repository_check.go:193 inside augmentCheckFacts, which receives setupContext by value (line 168) and is called by value from RunRepositoryCheck (line 92); sc.diagnostics is written only at line 193 in that file and never read there. The consumed setupContext.diagnostics producer lives in repository_facts.go and feeds prepareNotices independently of the augmentCheckFacts value-copy, so the append remains dead — not made live by change 0403's separate config-error path. Design remains accurate: delete only the metadata-fetch append, preserving the RootUnknown assignment, fetch control flow, and all public output. related:[377,378] and discovered_from:[377] remain correct; depends_on/adrs stay empty. No scope change.
