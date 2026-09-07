@@ -95,6 +95,7 @@ var operationBindings = []OperationBinding{
 	{ID: "repository.init", Request: nil, Result: RepositoryOpResult{}},                                            // RunRepositoryInit
 	{ID: "repository.migrate", Request: nil, Result: RepositoryMigrateResult{}},                                    // RunRepositoryMigrate
 	{ID: "repository.prepare", Request: nil, Result: RepositoryPrepareResult{}},                                    // RunRepositoryPrepare
+	{ID: "repository.sync-integration", Request: nil, Result: RepositorySyncResult{}},                              // RunRepositorySyncIntegration
 	{ID: "run.gate-before", Request: nil, Result: RunGateBeforeResult{}},                                           // RunGateBefore
 	{ID: "run.gate-claim", Request: nil, Result: RunGateClaimResult{}},                                             // RunGateClaim
 	{ID: "run.gate-verdict", Request: nil, Result: RunGateVerdictResult{}},                                         // RunGateVerdict (observe mode returns RunGateVerdictObserveResult)

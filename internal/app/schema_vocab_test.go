@@ -172,6 +172,7 @@ func TestVocabularyConstCompleteness(t *testing.T) {
 		{vocab: "closeout_dispositions", byPrefix: "CloseoutDisp"},
 		{vocab: "merge_dispositions", byPrefix: "MergeDisp"},
 		{vocab: "publish_dispositions", byPrefix: "PublishDisp"},
+		{vocab: "sync_dispositions", byPrefix: "SyncDisp"},
 	}
 
 	for _, s := range specs {
