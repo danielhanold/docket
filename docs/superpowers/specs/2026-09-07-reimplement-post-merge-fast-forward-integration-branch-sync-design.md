@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0388 — Reimplement post-merge fast-forward integration-branch sync as a native Go verb](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md)**
+> ↩ **[Change 0388 — Reimplement post-merge fast-forward integration-branch sync as a native Go verb](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-07-0388-reimplement-post-merge-fast-forward-integration-branch-sync.md)**
 <!-- docket:backlink:end -->
 
 # Native post-merge integration checkout sync
