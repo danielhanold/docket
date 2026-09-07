@@ -13,7 +13,7 @@ related: [375, 405]
 discovered_from: [372]
 adrs: [107]
 spec:
-plan:
+plan: 'docs/superpowers/plans/2026-09-07-gate-drive-start-human-output-omits-drive-id-generation.md'
 results:
 trivial: true
 auto_groomable:
@@ -29,6 +29,7 @@ claimed_at: '2026-09-07T14:50:53Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Plan | [2026-09-07-gate-drive-start-human-output-omits-drive-id-generation.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-07-gate-drive-start-human-output-omits-drive-id-generation.md) |
 | ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
 <!-- docket:artifacts:end -->
 
