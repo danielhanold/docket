@@ -2,7 +2,7 @@
 id: 388
 slug: 'reimplement-post-merge-fast-forward-integration-branch-sync'
 title: 'Reimplement post-merge fast-forward integration-branch sync as a native Go verb'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-08-31'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/reimplement-post-merge-fast-forward-integration-branch-sync'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-07T01:42:05Z'
 ---
 
 ## Artifacts
