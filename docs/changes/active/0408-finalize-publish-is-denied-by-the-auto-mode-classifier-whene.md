@@ -2,7 +2,7 @@
 id: 408
 slug: 'finalize-publish-is-denied-by-the-auto-mode-classifier-whene'
 title: 'Finalize publish is denied by the auto-mode classifier whenever the gate rebases'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-06'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/finalize-publish-is-denied-by-the-auto-mode-classifier-whene'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-07T01:47:59Z'
 ---
 
 ## Artifacts
