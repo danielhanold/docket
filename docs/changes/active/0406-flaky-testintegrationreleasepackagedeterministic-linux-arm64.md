@@ -2,7 +2,7 @@
 id: 406
 slug: 'flaky-testintegrationreleasepackagedeterministic-linux-arm64'
 title: 'Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/flaky-testintegrationreleasepackagedeterministic-linux-arm64'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/283'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-07T01:59:57Z'
