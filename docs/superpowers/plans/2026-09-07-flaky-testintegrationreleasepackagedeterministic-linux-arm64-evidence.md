@@ -168,3 +168,72 @@ ok  	github.com/danielhanold/docket/internal/release	0.710s
 The mutation reddens at the same immunity assert (`build_determinism_integration_test.go:110`) and no
 other; the restore greens. This is the spec's revert/restore proof — the repair (`-buildvcs=false`) is
 the exact thing the regression pins.
+
+## Task 5 Step 1 — Post-repair repetition (exactly 5 isolated + 1 suite-load)
+
+The reproduction conditions were repeated on the post-repair branch (HEAD `7a3f3ec1`, the
+`-buildvcs=false` fix commit), observationally with `-count=1` per the repo's cache-defeat rule.
+
+### Isolated reproduction — exactly 5 runs
+
+```bash
+for i in 1 2 3 4 5; do
+  go test -tags integration -count=1 -run '^TestIntegrationReleasePackageDeterministic$' ./internal/release/
+done
+```
+
+Verbatim per-run outcomes:
+
+| Run | Outcome | Wall |
+|-----|---------|------|
+| 1   | `ok  github.com/danielhanold/docket/internal/release` (exit 0) | 10.371s |
+| 2   | `ok  github.com/danielhanold/docket/internal/release` (exit 0) | 9.164s |
+| 3   | `ok  github.com/danielhanold/docket/internal/release` (exit 0) | 9.107s |
+| 4   | `ok  github.com/danielhanold/docket/internal/release` (exit 0) | 8.986s |
+| 5   | `ok  github.com/danielhanold/docket/internal/release` (exit 0) | 9.221s |
+
+All 5 PASS. No mismatch reproduced; no failing output to preserve.
+
+### Suite-load reproduction — exactly 1 whole-suite run
+
+```bash
+go run ./cmd/docket development test
+```
+
+`SUITE files=40 passed=37 failed=3 asserts=368 wall=208s` (suite exit status 1).
+
+- **Determinism target passed.** The `test_go_integration_release` shard — which owns
+  `TestIntegrationReleasePackageDeterministic` — is NOT among the failing rows; it passed. No
+  determinism mismatch occurred, and there is no failing determinism output to preserve.
+- **The 3 red rows are not determinism reproductions and are not from Task 5's edit.** They are
+  deterministic source-level failures introduced by change 0406's earlier build tasks, not flake or
+  machine-saturation noise, and belong to the Task 6 whole-suite gate to resolve:
+  - `test_release_partition_fidelity` (`rc=1 ok=7 notok=1`): the reverse-direction check reports the
+    new tests added by Task 2 and Task 4 as `unmapped` —
+    `TestDiffArchivesGzipHeaderOnly TestDiffArchivesIdentical TestDiffArchivesPayload
+    TestDiffArchivesTarMetadata TestDiffBundlesNamesAffectedFiles
+    TestIntegrationReleaseBuildIgnoresAmbientGitState` — i.e. they are absent from the release
+    partition map.
+  - `test_go_race` and `test_go_toolchain`: both run `go test ./...` variants, which fail because
+    `internal/repoguard` rejects Task 2's `internal/release/diff_test.go` for using bare
+    `t.TempDir()` (4 occurrences) instead of `testsupport.TempDir(t)`.
+
+The Task 6 gate run is a second suite-load data point and should be cited alongside this one once it
+runs; it is expected to remain red on the same three rows until they are repaired.
+
+Per the spec's framing on finite post-repair repetition:
+finite passing repetitions support the mechanism-based regression; they are not proof by themselves.
+
+## Task 5 Step 2 — Causal status
+
+**Repair on a demonstrated mechanism:** The wild 0403-gate event was not re-reproduced within the
+bounded experiment (10 isolated + 3 suite-load runs). A mechanism producing exactly this symptom
+class — ambient VCS state as an undeclared build input, embedded in the release binaries and volatile
+across a Package run — was demonstrated red-to-green on a hermetic fixture and closed with
+`-buildvcs=false`. Whether that mechanism caused the specific 2026-09-03 event is consistent with the
+evidence (linux_arm64 is the last-built tuple; a transient tree-state flip covering one of the eight
+builds reproduces the exact observed pattern) but is not directly confirmed.
+
+The 10 isolated + 3 suite-load count aggregates the base-state runs (Task 1: 5 isolated + 2
+suite-load) with this task's post-repair runs (Task 5: 5 isolated + 1 suite-load); no determinism
+mismatch occurred in any of them.
