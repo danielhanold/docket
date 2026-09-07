@@ -115,6 +115,15 @@ finalize:
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   require_pr_approval: false
 
+  # resolver_max_attempts — how many times finalize may send in the conflict-resolver during a
+  # single rebase before it stops and hands the conflict back to you. Each successive conflicting
+  # commit the resolver clears costs one attempt. 3 (the default) suits most rebases; lower it for a
+  # stricter ceiling, raise it when a long-lived branch routinely conflicts on many commits. Must be
+  # a whole number of 1 or more. A change to this value takes effect on the next finalize you start,
+  # never on a rebase already in progress.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  resolver_max_attempts: 3
+
   # skip_results_only_delta — saves a redundant test run before merging (change 0190).
   # Before merging, finalize re-runs the test suite unless it can prove the tests already passed on
   # exactly this code. By default, "proof" means an exact match: the commit that was tested IS the

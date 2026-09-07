@@ -210,7 +210,7 @@ func buildRegistry() []pathSpec {
 		{path: "results_dir", kind: kindString, def: "docs/results",
 			merge: mergeScalar, scope: scopeRepoFenced, disp: dispSupported, validate: dirLeaf},
 
-		// 7-10: finalize.
+		// 7-11: finalize.
 		{path: "finalize.gate", kind: kindString, enum: []string{"local", "ci", "both", "off"}, def: "local",
 			merge: mergeScalar, scope: scopeAny, disp: dispDeferredByValue,
 			validate: enumLeaf("local", "ci", "both", "off")},
@@ -219,6 +219,8 @@ func buildRegistry() []pathSpec {
 			validate: stringLeaf(false, false, false)},
 		{path: "finalize.require_pr_approval", kind: kindBool, def: false,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
+		{path: "finalize.resolver_max_attempts", kind: kindInt, def: 3,
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
 		{path: "finalize.skip_results_only_delta", kind: kindBool, def: false,
 			merge: mergeScalar, scope: scopeRepoFenced, disp: dispDeferred, validate: boolLeaf()},
 
