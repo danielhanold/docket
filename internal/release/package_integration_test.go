@@ -225,7 +225,25 @@ func TestIntegrationReleasePackageDeterministic(t *testing.T) {
 		t.Fatalf("read checksums B: %v", err)
 	}
 	if !bytes.Equal(a, b) {
-		t.Fatalf("checksums.txt differ between runs; bundle is not deterministic:\nA:\n%s\nB:\n%s", a, b)
+		// Preserve the evidence before TempDir cleanup destroys it: copy both
+		// bundles to a directory the test framework does not remove, and name
+		// it in the failure output. Failure-only work — the passing path does
+		// nothing extra.
+		keep, kerr := os.MkdirTemp("", "docket-0406-determinism-mismatch-*")
+		if kerr == nil {
+			for _, cp := range []struct{ src, dst string }{
+				{dirA, filepath.Join(keep, "bundleA")},
+				{dirB, filepath.Join(keep, "bundleB")},
+			} {
+				if err := os.CopyFS(cp.dst, os.DirFS(cp.src)); err != nil {
+					t.Logf("preserve %s: %v", cp.src, err)
+				}
+			}
+		} else {
+			keep = "(preservation failed: " + kerr.Error() + ")"
+		}
+		report := DiffBundles(dirA, dirB, distributableNames(itVersion))
+		t.Fatalf("checksums.txt differ between runs; bundle is not deterministic:\nA:\n%s\nB:\n%s\nlayer report:\n%s\npreserved bundles: %s", a, b, report, keep)
 	}
 }
 
