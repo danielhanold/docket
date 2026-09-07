@@ -146,6 +146,54 @@ The `finalize.cleanup` operation with `--id <id>`. An ordered, independently ret
 
 After the batch's closeout and cleanup attempts (including already-merged recovery and any pending-retained cleanup), run the `repository.sync-integration` operation once (resolve its argv from the capability catalog) with `--repo-dir <primary checkout path from the Step-0 `repository.prepare` context>` and `--json`. Use the primary-checkout path from that Step-0 prepare context, not a feature or `.docket` worktree — a path that survives feature-worktree removal, since cleanup (step 10) may already have deleted the change's own worktree. Surface its outcome separately from the merge/closeout report. Posture: **best-effort.** A sync refusal or failure is reported but never undoes or replaces a completed merge, closeout, or cleanup result, never writes a `## Finalize blocked` marker, and never suppresses unrelated work. If the batch halted after earlier verified merges, still run this suffix when the repository context is valid and execution is not cancelled, and preserve the original halt verdict — the sync outcome never changes it. Never run it through a failed bootstrap or an unknown repository identity. A stacked child never makes its parent branch the target: the operation always resolves the configured integration branch itself. Do **not** add this sync to the per-change merge or closeout steps (8–9); it is the whole run's single end-of-run suffix, run once regardless of how many changes the run closed out.
 
+### 12. Repository-required post-merge rebuild — after sync, verified
+
+Some repositories' agent-instruction files require rebuilding or reinstalling a tool after a merge
+to the integration branch. When such a requirement applies, it runs **after** step 11's integration
+sync — never before it, and never per-change inside steps 8–9 — and a rebuild is authorized only
+when that sync's document reported disposition `advanced` or `already-current` with valid
+`primary_path` / `integration_branch` / target facts. A `skipped`, `refused`, or `failed` sync,
+missing facts, malformed output, or an unobservable outcome leaves the rebuild not performed — a
+clean process exit on a deliberate skip is not authorization.
+
+Retain the actual merge-commit ids from step 8's authoritative merge verification (including
+already-merged recovery); a feature branch's original head is never a substitute — rebase and
+squash change commit identity. A stacked-only merge into a live parent's branch does not trigger an
+integration-merge rebuild rule.
+
+Before installing, verify the exact source directory the repository policy names for the install:
+
+- Its canonical identity must be the synced primary checkout, on the expected integration branch,
+  with no unfinished Git operation and a clean index and worktree including non-ignored untracked
+  files. Read and retain its full HEAD commit id `S`; require `S` to equal the sync document's
+  target/after commit ids. Unknown or changed state does not authorize installation.
+- Prove every retained merge commit is contained in that source: run
+  `git merge-base --is-ancestor <merge-commit> <S>` in the source repository, treating a
+  negative answer and a failed probe as two distinct outcomes — neither permits the rebuild. This
+  proves the source install reads, not merely a remote-tracking ref or a feature worktree.
+
+Then run the repository's named install operation (argv resolved from the capability catalog) with
+its stated source argument; a single successful rebuild may satisfy every verified integration
+merge in the batch, and a failed install is never silently retried through another build method.
+After a successful install, re-check that the source branch, cleanliness, and HEAD still equal the
+observations for `S`, then read the installed executable's own identity — the version operation of
+the binary at the destination the install actually updated. Require its full, clean commit
+identity to equal `S` exactly. A timestamp, a version label, a short-prefix comparison, or the
+identity of an older running process proves nothing; unknown, dirty, mismatching, or unreadable
+identity is verification failure. The success report names the verified installed commit; observed
+source movement is reported honestly as an unverified rebuild — an installation may already have
+changed, so never claim it was untouched and never attempt a rollback.
+
+**Failure posture — report separately, reverse nothing.** Any unmet condition keeps every verified
+merged change `done` and is reported separately as **binary rebuild incomplete**, naming the failed
+condition and the source path. A failed rebuild never reverses a merge, revives a terminal change,
+writes a `## Finalize blocked` marker, rewrites frozen records or closeout notes, or changes an
+earlier halt verdict. Never stash, switch branches, reset, discard files, or build from another
+checkout to force the rebuild. State the specific obstacle and the recovery sequence: resolve the
+reported source state, rerun integration sync, then repeat the proof, install, and identity check —
+the bare install command alone is never a sufficient remedy for stale source. A repository whose
+instructions carry no such requirement skips this step entirely.
+
 ## Identity repair checkpoint
 
 Two skip reasons from `context.finalize` name a mismatch between the recorded `branch:` and the PR's identity rather than an ordinary blocker. Each is `halted` for a non-interactive caller and a human-gated repair for an attended one. **Never reconstruct a branch name and never search for a likely branch or PR** — the only names offered come from the recorded field and the exact PR the prober read.
