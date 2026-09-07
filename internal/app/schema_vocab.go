@@ -115,6 +115,10 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 		PublishDispPublished, PublishDispNoop, PublishDispContended,
 		PublishDispUnknown, PublishDispBlocked,
 	}}
+	v["sync_dispositions"] = Vocabulary{Members: []string{
+		SyncDispAdvanced, SyncDispAlreadyCurrent, SyncDispFailed,
+		SyncDispRefused, SyncDispSkipped,
+	}}
 
 	return v
 }
