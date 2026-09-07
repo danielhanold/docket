@@ -305,7 +305,10 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneCont
 func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	ev := string(prEvidenceBytes(t, f.head))
-	key := gateMintArmed(t, f.repo.invocation, nil, 1)
+	// Resume-verified shape (AttributedID set, no claim binding): ownership resolves
+	// immediately for both concurrent calls, so the only resource they contend on is
+	// the on-disk retry CAS — exactly what this test guards (change 0407).
+	key := gateMintAttributed(t, f.repo.invocation, 3)
 
 	// Each goroutine gets its OWN deps triple: in production the two concurrent
 	// verdict calls are separate processes, each with its own reader/workspace/

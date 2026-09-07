@@ -2795,47 +2795,6 @@ func TestIntegrationChangeRunGateBeforeUnreadableChangesDir(t *testing.T) {
 	}
 }
 
-// TestRunGateVerdictAmbiguousClaims: two survivors cannot be told apart, so the
-// gate refuses with a terminal ambiguous-claims listing every survivor id.
-func TestIntegrationChangeRunGateVerdictAmbiguousClaims(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := gateLightDeps(t, []StatusBlob{
-		gateInProgressBlob(7, "bravo", "keep"),
-		gateInProgressBlob(3, "alpha", "keep"),
-	})
-	key := gateMintArmed(t, repo, nil, 1)
-
-	res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
-	if got, want := res.HumanText(), "gate-stop "+key+" ambiguous-claims 3 7"; got != want {
-		t.Fatalf("HumanText = %q, want %q (survivors sorted)", got, want)
-	}
-	if !res.Terminal {
-		t.Errorf("ambiguous-claims is terminal, got Terminal=false")
-	}
-}
-
-// TestRunGateVerdictClaimAtDispatchEpochAttributes: the filter is >= (claimed_at
-// AT the dispatch epoch is attributable, not before it). A claim exactly at the
-// epoch survives — proving the boundary is inclusive — and, being the sole
-// survivor over a not-implemented run, yields gate-retry-once.
-func TestIntegrationChangeRunGateVerdictClaimAtDispatchEpochAttributes(t *testing.T) {
-	f := newRunVerifyFixture(t, true)
-	deps, wdeps, gdeps := f.deps(
-		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
-	)
-	// DispatchEpoch equal to the claim instant: the >= filter admits it.
-	key := gateMintArmed(t, f.repo.invocation, nil, gateClaimEpoch(t))
-
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res.AttributedID != 3 {
-		t.Fatalf("AttributedID = %d, want 3 (claim at the epoch is attributable)", res.AttributedID)
-	}
-	if res.Decision != GateDecisionRetryOnce {
-		t.Fatalf("Decision = %q, want %q", res.Decision, GateDecisionRetryOnce)
-	}
-}
-
 // TestRunGateVerdictLoadErrorsFailClosed: every store load fault maps to a
 // terminal gate-stop gate-unavailable carrying the store's typed reason token —
 // never a retry.
@@ -2862,7 +2821,7 @@ func TestIntegrationChangeRunGateVerdictLoadErrorsFailClosed(t *testing.T) {
 
 	t.Run("corrupt record", func(t *testing.T) {
 		repo := newGateRepo(t)
-		key := gateMintArmed(t, repo, nil, 1)
+		key := gateMintArmed(t, repo, nil, 1, "")
 		root, err := gateRoot(repo)
 		if err != nil {
 			t.Fatalf("gateRoot: %v", err)
@@ -2879,7 +2838,7 @@ func TestIntegrationChangeRunGateVerdictLoadErrorsFailClosed(t *testing.T) {
 	t.Run("wrong repo", func(t *testing.T) {
 		repoA := newGateRepo(t)
 		repoB := newGateRepo(t)
-		key := gateMintArmed(t, repoA, nil, 1)
+		key := gateMintArmed(t, repoA, nil, 1, "")
 		rootA, _ := gateRoot(repoA)
 		rootB, _ := gateRoot(repoB)
 		if err := os.MkdirAll(filepath.Join(rootB, key), 0o755); err != nil {
@@ -2897,35 +2856,6 @@ func TestIntegrationChangeRunGateVerdictLoadErrorsFailClosed(t *testing.T) {
 			t.Fatalf("HumanText = %q, want %q", got, want)
 		}
 	})
-}
-
-// TestRunGateVerdictNoAttributableClaim: with every in-progress id already in the
-// before-set, zero claims are attributable and the gate reports a terminal
-// gate-done no-attributable-claim.
-func TestIntegrationChangeRunGateVerdictNoAttributableClaim(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := gateLightDeps(t, []StatusBlob{gateInProgressBlob(3, "alpha", "keep")})
-	key := gateMintArmed(t, repo, []int{3}, 1)
-
-	res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
-
-	if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
-		t.Fatalf("HumanText = %q, want %q", got, want)
-	}
-	if !res.Terminal {
-		t.Errorf("no-attributable-claim is terminal, got Terminal=false")
-	}
-	if code := ExitCode(res.Env().Result); code != 0 {
-		t.Errorf("exit code = %d, want 0 (report line)", code)
-	}
-	// The durable record records the terminal disposition.
-	rec, err := LoadGateRecord(repo, key)
-	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
-	}
-	if !rec.Terminal {
-		t.Errorf("record Terminal = false, want true after a terminal outcome")
-	}
 }
 
 // TestRunGateVerdictObserveEmptyBacklogNoCurrentRun: no in-progress ids and no
@@ -3046,8 +2976,11 @@ func TestIntegrationChangeRunGateVerdictRestartDurability(t *testing.T) {
 		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	// Simulate the arming process: mint and forget (nothing carried in memory).
-	key := gateMintArmed(t, f.repo.invocation, nil, 1)
+	// Simulate the arming process: mint and forget (nothing carried in memory). The
+	// resume-verified shape (AttributedID set, no claim binding) is the durable state
+	// gate-before --resume leaves; a fresh verdict call resolves it from the record
+	// alone (change 0407).
+	key := gateMintAttributed(t, f.repo.invocation, 3)
 
 	// A fresh call sharing only repoDir + key attributes and reports.
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
@@ -3097,7 +3030,7 @@ func TestIntegrationChangeRunGateVerdictRunHalted(t *testing.T) {
 		Data:     []byte(src),
 	}}
 	deps := gateLightDeps(t, corpus)
-	key := gateMintArmed(t, repo, nil, 1)
+	key := gateMintAttributed(t, repo, 3)
 
 	res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
 	if got, want := res.HumanText(), "gate-stop "+key+" run-halted 3"; got != want {
@@ -3119,7 +3052,7 @@ func TestIntegrationChangeRunGateVerdictRunIncompleteRetryThenStop(t *testing.T)
 		gateIncompleteRecord(),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	key := gateMintArmed(t, f.repo.invocation, nil, 1)
+	key := gateMintAttributed(t, f.repo.invocation, 3)
 
 	res1 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if got, want := res1.HumanText(), "gate-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
@@ -3175,7 +3108,7 @@ func TestIntegrationChangeRunGateVerdictRunWaiting(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
 	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
-	key := gateMintArmed(t, f.repo.invocation, nil, 1)
+	key := gateMintAttributed(t, f.repo.invocation, 3)
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res.ContinuationID == "" {
@@ -3192,38 +3125,6 @@ func TestIntegrationChangeRunGateVerdictRunWaiting(t *testing.T) {
 	}
 }
 
-// TestRunGateVerdictThreeFilters: each attribution filter rejects its candidate
-// independently, collapsing to no-attributable-claim.
-func TestIntegrationChangeRunGateVerdictThreeFilters(t *testing.T) {
-	claimEpoch := gateClaimEpoch(t)
-	rows := []struct {
-		name          string
-		claimedAt     string
-		beforeIDs     []int
-		dispatchEpoch int64
-	}{
-		{name: "id present in before-set", claimedAt: "keep", beforeIDs: []int{3}, dispatchEpoch: 1},
-		{name: "claimed_at missing", claimedAt: "", beforeIDs: nil, dispatchEpoch: 1},
-		{name: "claimed_at malformed", claimedAt: "not-a-timestamp", beforeIDs: nil, dispatchEpoch: 1},
-		{name: "claimed_at before dispatch", claimedAt: "keep", beforeIDs: nil, dispatchEpoch: claimEpoch + 1},
-	}
-	for _, row := range rows {
-		t.Run(row.name, func(t *testing.T) {
-			repo := newGateRepo(t)
-			deps := gateLightDeps(t, []StatusBlob{gateInProgressBlob(3, "alpha", row.claimedAt)})
-			key := gateMintArmed(t, repo, row.beforeIDs, row.dispatchEpoch)
-
-			res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
-			if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
-				t.Fatalf("HumanText = %q, want %q", got, want)
-			}
-			if res.AttributedID != 0 {
-				t.Errorf("AttributedID = %d, want 0 (nothing attributed)", res.AttributedID)
-			}
-		})
-	}
-}
-
 // TestRunGateVerdictTwoKeysIsolated: two distinct keys in one repository hold
 // independent retry permits — consuming one never touches the other.
 func TestIntegrationChangeRunGateVerdictTwoKeysIsolated(t *testing.T) {
@@ -3232,8 +3133,8 @@ func TestIntegrationChangeRunGateVerdictTwoKeysIsolated(t *testing.T) {
 		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	keyA := gateMintArmed(t, f.repo.invocation, nil, 1)
-	keyB := gateMintArmed(t, f.repo.invocation, nil, 1)
+	keyA := gateMintAttributed(t, f.repo.invocation, 3)
+	keyB := gateMintAttributed(t, f.repo.invocation, 3)
 
 	resA := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, keyA)
 	resB := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, keyB)

@@ -35,7 +35,7 @@ func (s *fakeClaimSeam) Claim(driveID, handoffToken string) (GateClaimOutcome, e
 // a gate-continue verdict leaves for the resumed controller to redeem.
 func gateMintWithContinuation(t *testing.T, repoDir, cid, drive, handoff string) string {
 	t.Helper()
-	key := gateMintArmed(t, repoDir, nil, 1)
+	key := gateMintArmed(t, repoDir, nil, 1, "")
 	rec, err := LoadGateRecord(repoDir, key)
 	if err != nil {
 		t.Fatalf("LoadGateRecord: %v", err)
@@ -125,7 +125,7 @@ func TestGateClaimSingleUse(t *testing.T) {
 // to no-continuation and never touches the drive layer.
 func TestGateClaimNoContinuation(t *testing.T) {
 	repo := newGateRepo(t)
-	key := gateMintArmed(t, repo, nil, 1) // armed, no triple
+	key := gateMintArmed(t, repo, nil, 1, "") // armed, no triple
 	seam := &fakeClaimSeam{}
 
 	res := RunGateClaim(repo, key, "cid-abc", seam)
