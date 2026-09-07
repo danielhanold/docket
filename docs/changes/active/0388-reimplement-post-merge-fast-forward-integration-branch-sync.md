@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/reimplement-post-merge-fast-forward-integration-branch-sync'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T01:42:05Z'
+reconciled: true
+claimed_at: '2026-09-07T01:43:59Z'
 ---
 
 ## Artifacts
@@ -49,3 +49,9 @@ Change 0370 removed the Bash post-merge integration sync without a native replac
 ## Out of scope
 
 Bash restoration; non-fast-forward updates, branch switching, resets, stashing, or user-edit recovery; background scheduling and retry queues; new lifecycle states; automatic binary reinstall or updating a separate Docket installation; terminal publication; live-session skill reload; and restoring main-mode compatibility. ADR-0099's existing legacy-repository refusal applies.
+
+## Reconcile log
+
+### 2026-09-07
+
+2026-09-07: Reconciled against current main (effc9a6d). Design is current — spec was authored 2026-09-07 against this exact base. Confirmed the primitives the spec depends on are present: gitcli.Client.FastForwardWorktree (internal/gitcli/fastforward.go, from change 0364) and Repository.PrimaryWorktree. No native repository.sync-integration operation exists yet, so this is a clean addition, not a re-do. Related changes 0029/0041/0364/0370/0389 all done; no unmet dependency or stacking. Scope, ADR references (0099/0101/0104/0109), and out-of-scope boundaries hold as written. No section or relation changes required.
