@@ -91,21 +91,8 @@ func Package(in Inputs, goBin string) error {
 	for _, t := range Tuples() {
 		tmpBin := filepath.Join(buildDir, "docket-"+t.OS+"-"+t.Arch)
 
-		cmd := exec.Command(goBin, "build", "-trimpath", "-ldflags", ldflags, "-o", tmpBin, "./cmd/docket")
-		cmd.Dir = in.SourceRoot
-		// CGO_ENABLED=0 keeps the binaries static and cross-buildable and out of
-		// the host C toolchain; GOOS/GOARCH select the tuple; GOFLAGS is cleared
-		// so an ambient -mod/-tags value cannot enter the release bytes. These
-		// appended entries win over any ambient copy in os.Environ() because
-		// exec honors the last occurrence.
-		cmd.Env = append(os.Environ(),
-			"CGO_ENABLED=0",
-			"GOOS="+t.OS,
-			"GOARCH="+t.Arch,
-			"GOFLAGS=",
-		)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("build %s/%s: %w\n%s", t.OS, t.Arch, err, out)
+		if err := buildTuple(goBin, in.SourceRoot, "./cmd/docket", ldflags, t, tmpBin); err != nil {
+			return err
 		}
 
 		binary, err := os.ReadFile(tmpBin)
@@ -157,6 +144,28 @@ func Package(in Inputs, goBin string) error {
 		return fmt.Errorf("validate checksums: %w", err)
 	}
 
+	return nil
+}
+
+// buildTuple cross-compiles mainPkg at sourceRoot for tuple t into outPath
+// with the release flag set: -trimpath and -buildvcs=false so the produced
+// bytes depend only on the declared inputs (sources, ldflags identity,
+// toolchain) and never on ambient repository VCS state; CGO_ENABLED=0 keeps
+// the binaries static; GOFLAGS is cleared so an ambient -mod/-tags value
+// cannot enter the release bytes. These appended env entries win over any
+// ambient copy in os.Environ() because exec honors the last occurrence.
+func buildTuple(goBin, sourceRoot, mainPkg, ldflags string, t Tuple, outPath string) error {
+	cmd := exec.Command(goBin, "build", "-trimpath", "-buildvcs=false", "-ldflags", ldflags, "-o", outPath, mainPkg)
+	cmd.Dir = sourceRoot
+	cmd.Env = append(os.Environ(),
+		"CGO_ENABLED=0",
+		"GOOS="+t.OS,
+		"GOARCH="+t.Arch,
+		"GOFLAGS=",
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("build %s/%s: %w\n%s", t.OS, t.Arch, err, out)
+	}
 	return nil
 }
 

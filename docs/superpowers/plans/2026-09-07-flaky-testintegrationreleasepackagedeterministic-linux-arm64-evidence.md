@@ -91,3 +91,80 @@ mechanism's precondition (ambient git state embedded in the release binaries) is
 environment; whether that mechanism caused the wild 0403-gate event remains for Task 4's controlled
 demonstration to address (per the plan's Global Constraints, the fix ships only if that demonstration
 reddens).
+
+## Task 4 Step 3 — Mechanism demonstration (red-first, with positive control)
+
+Mechanism demonstrated on a hermetic fixture: an ambient tree-state change alters the built bytes
+under the current release flag set. The regression test `TestIntegrationReleaseBuildIgnoresAmbientGitState`
+builds a committed single-file Go module in its own git repo, then dirties the tree via a tracked
+NON-Go file (`README.md`) so `vcs.modified` flips while every compile input stays identical. The
+**positive control** (`buildDefault`, plain `go build -trimpath` at default `-buildvcs`) confirms the
+mechanism is live before the immunity assert runs.
+
+Command:
+
+```bash
+go test -tags integration -count=1 -run '^TestIntegrationReleaseBuildIgnoresAmbientGitState$' ./internal/release/
+```
+
+Verbatim failing output (before the `-buildvcs=false` fix):
+
+```
+=== RUN   TestIntegrationReleaseBuildIgnoresAmbientGitState
+    build_determinism_integration_test.go:110: buildTuple output depends on ambient git state: clean and dirty-tree builds differ (1749266 vs 1749266 bytes)
+--- FAIL: TestIntegrationReleaseBuildIgnoresAmbientGitState (0.58s)
+FAIL
+FAIL	github.com/danielhanold/docket/internal/release	0.815s
+FAIL
+```
+
+The failure is at the **immunity assert** (`buildTuple output depends on ambient git state`), NOT the
+positive control. The control passed — i.e. the clean vs dirty binaries under default `-buildvcs`
+genuinely differ — so the assert is not vacuous: `buildTuple`'s output (today's release flag set,
+`-trimpath` but no `-buildvcs=false`) is byte-sensitive to ambient repository tree state. The two
+binaries are the same size (1749266 bytes) but differ in content, consistent with a differing embedded
+`vcs.modified` buildinfo stamp rather than a code-size change. This is the red-first demonstration the
+Global Constraints gate requires before shipping the fix.
+
+## Task 4 Step 5 — Fix applied
+
+`-buildvcs=false` was added to `buildTuple`'s `go build` argv (after `-trimpath`); the doc comment was
+finalized to state that the produced bytes depend only on the declared inputs and never on ambient
+repository VCS state. With the fix in place:
+
+```bash
+go test -tags integration -count=1 -run '^TestIntegrationReleaseBuildIgnoresAmbientGitState$' ./internal/release/
+# ok  github.com/danielhanold/docket/internal/release  1.008s   (regression now PASSES)
+
+go test -tags integration -count=1 -run '^TestIntegrationRelease' ./internal/release/
+# ok  github.com/danielhanold/docket/internal/release  17.831s  (all four tuples: e2e + determinism + collision + checksums)
+```
+
+## Task 4 Step 7 — Repair-linkage mutation test (remove → red, restore → green)
+
+The fix is causally linked to the regression: removing `-buildvcs=false` reddens the immunity assert
+for the intended reason, and restoring it greens.
+
+**Remove `-buildvcs=false`, re-run:**
+
+```
+=== RUN   TestIntegrationReleaseBuildIgnoresAmbientGitState
+    build_determinism_integration_test.go:110: buildTuple output depends on ambient git state: clean and dirty-tree builds differ (1749266 vs 1749266 bytes)
+--- FAIL: TestIntegrationReleaseBuildIgnoresAmbientGitState (0.57s)
+FAIL
+FAIL	github.com/danielhanold/docket/internal/release	0.783s
+FAIL
+```
+
+**Restore `-buildvcs=false`, re-run:**
+
+```
+=== RUN   TestIntegrationReleaseBuildIgnoresAmbientGitState
+--- PASS: TestIntegrationReleaseBuildIgnoresAmbientGitState (0.49s)
+PASS
+ok  	github.com/danielhanold/docket/internal/release	0.710s
+```
+
+The mutation reddens at the same immunity assert (`build_determinism_integration_test.go:110`) and no
+other; the restore greens. This is the spec's revert/restore proof — the repair (`-buildvcs=false`) is
+the exact thing the regression pins.
