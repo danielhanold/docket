@@ -1,6 +1,6 @@
 # Backlog
 
-**409 changes** — 🟢 5 in progress · 🔵 2 built · 🟣 5 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 259 done · 🗑️ 113 killed
+**410 changes** — 🟢 5 in progress · 🔵 2 built · 🟣 5 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 259 done · 🗑️ 113 killed
 
 ## 🟢 In progress (5)
 
@@ -29,10 +29,11 @@
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (14)
+## 🟡 Proposed (15)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0410](active/0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | `medium` | `feat` | needs-brainstorm |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | ⏳ waiting on #393 — needs your merge |
 | [0405](active/0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | `medium` | `fix` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
@@ -104,6 +105,7 @@ graph TD
   0405
   0408
   0409
+  0410
   0192:::done
   0251:::done
   0370:::done
