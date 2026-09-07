@@ -83,8 +83,20 @@ means), this file does not restate them.
 ## Rebuild the binary after a merge to main
 
 - Whenever a PR is successfully merged into `main`, rebuild the `docket` binary so the installed
-  tool matches source: resolve the `development.install` operation from the capability catalog and
-  run it with `--source /Users/homer/dev/docket`.
+  tool matches source — from a source tree **proven** to contain the merge, never blindly. First
+  run the `repository.sync-integration` operation (argv resolved from the capability catalog) with
+  `--repo-dir /Users/homer/dev/docket --json`; proceed only on disposition `advanced` or
+  `already-current` — a `skipped`, `refused`, or `failed` sync leaves the rebuild incomplete.
+  Confirm the checkout is clean on `main` with its full HEAD equal to the sync target, and prove
+  each merge landed in it: `git merge-base --is-ancestor <merge-commit> HEAD` (a negative answer
+  and a failed probe are different outcomes; neither permits the install). Then resolve the
+  `development.install` operation from the capability catalog, run it with
+  `--source /Users/homer/dev/docket`, and confirm the installed binary's `version` operation
+  reports the same full, clean commit id as that HEAD — a fresh timestamp, a short prefix, or an
+  older running process proves nothing. On any failed condition, report `binary rebuild
+  incomplete` naming it, keep the merged change done, and never stash, reset, or switch branches
+  to force the rebuild — fix the reported source state, re-sync, and repeat the
+  proof/install/identity sequence.
 - A merged change that **extends the `.docket.yml` schema** no longer blocks this: since change
   0392 the install path tolerates unknown configuration keys (surfaced as warnings), so the tracked
   `development.install` reinstall works directly with the pre-schema binary — no out-of-band
