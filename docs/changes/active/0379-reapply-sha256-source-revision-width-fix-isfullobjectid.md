@@ -21,7 +21,7 @@ branch: 'fix/reapply-sha256-source-revision-width-fix-isfullobjectid'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T01:46:55Z'
+claimed_at: '2026-09-07T01:48:50Z'
 ---
 
 ## Artifacts
