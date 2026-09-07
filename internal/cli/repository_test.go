@@ -292,6 +292,83 @@ func TestRepositoryPrepareUnknownFlagFails(t *testing.T) {
 	}
 }
 
+// fakeSyncResult is a stub sync OperationResult a stubbed sync-integration
+// runner returns so a test can drive the presenter without a real repository.
+type fakeSyncResult struct {
+	app.Envelope
+}
+
+func (r fakeSyncResult) HumanText() string { return "sync-human" }
+
+// TestRepositorySyncIntegrationDispatch proves `docket repository
+// sync-integration --repo-dir <tmp>` resolves the invocation directory into
+// SetupDeps.RepoDir, dispatches the sync runner with it, and presents the
+// runner's result.
+func TestRepositorySyncIntegrationDispatch(t *testing.T) {
+	tmp := t.TempDir()
+	var gotRepoDir string
+	var calls int
+	old := repositorySyncIntegrationRunner
+	repositorySyncIntegrationRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
+		calls++
+		gotRepoDir = d.RepoDir
+		return fakeSyncResult{Envelope: app.NewEnvelope("repository.sync-integration", app.ResultApplied)}
+	}
+	defer func() { repositorySyncIntegrationRunner = old }()
+
+	out, _, code := runCLI(t, "repository", "sync-integration", "--repo-dir", tmp)
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if calls != 1 {
+		t.Fatalf("runner called %d times, want exactly one", calls)
+	}
+	if gotRepoDir != tmp {
+		t.Errorf("runner RepoDir = %q, want the resolved --repo-dir %q", gotRepoDir, tmp)
+	}
+	if !strings.Contains(out, "sync-human") {
+		t.Errorf("presenter did not print the runner result: %q", out)
+	}
+}
+
+// TestRepositorySyncIntegrationJSONFlowsToPresenter proves --json selects the
+// JSON transport carrying the repository.sync-integration operation key.
+func TestRepositorySyncIntegrationJSONFlowsToPresenter(t *testing.T) {
+	old := repositorySyncIntegrationRunner
+	repositorySyncIntegrationRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
+		return fakeSyncResult{Envelope: app.NewEnvelope("repository.sync-integration", app.ResultApplied)}
+	}
+	defer func() { repositorySyncIntegrationRunner = old }()
+
+	out, _, code := runCLI(t, "repository", "sync-integration", "--json")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(out), "{") || !strings.Contains(out, `"operation":"repository.sync-integration"`) {
+		t.Fatalf("--json did not flow to the presenter: %q", out)
+	}
+}
+
+// TestRepositorySyncIntegrationAnnotation proves the subcommand carries the
+// capability id repository.sync-integration with exactly the local-write
+// effect, and a --repo-dir flag.
+func TestRepositorySyncIntegrationAnnotation(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"repository", "sync-integration"})
+	if err != nil || cmd == nil || cmd.Name() != "sync-integration" {
+		t.Fatalf("repository sync-integration not registered: cmd=%v err=%v", cmd, err)
+	}
+	if got := cmd.Annotations[capAnnotationID]; got != "repository.sync-integration" {
+		t.Errorf("capability id = %q, want repository.sync-integration", got)
+	}
+	if got := cmd.Annotations[capAnnotationEffects]; got != string(EffectLocalWrite) {
+		t.Errorf("effects = %q, want exactly %q", got, EffectLocalWrite)
+	}
+	if cmd.Flags().Lookup("repo-dir") == nil {
+		t.Errorf("repository sync-integration: missing --repo-dir flag")
+	}
+}
+
 // TestRepositoryMigrateRepairFlagFlows proves --repair-frontmatter flows into
 // MigrateOptions on both the preview and the authorized pass.
 func TestRepositoryMigrateRepairFlagFlows(t *testing.T) {
