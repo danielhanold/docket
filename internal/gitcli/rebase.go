@@ -13,6 +13,7 @@ import (
 const (
 	rebaseBeginOp    Operation = "rebase-begin"
 	rebaseStateOp    Operation = "rebase-state"
+	rebaseStoppedOp  Operation = "rebase-stopped-commit"
 	rebaseContinueOp Operation = "rebase-continue"
 	rebaseAbortOp    Operation = "rebase-abort"
 	setOwnedRefOp    Operation = "set-owned-ref"
@@ -172,6 +173,36 @@ func (c *Client) RebaseState(ctx context.Context, worktreeDir string) (RebaseSta
 		return RebaseStatus{Disposition: RebaseConflicted, HeadOID: head, UnmergedPaths: paths}, nil
 	}
 	return RebaseStatus{Disposition: RebaseInProgressForeign, HeadOID: head}, nil
+}
+
+// StoppedRebaseCommit resolves REBASE_HEAD to the full object id of the commit
+// the in-progress rebase is stopped on, via `rev-parse --verify REBASE_HEAD` in
+// worktreeDir. It follows worktreeHead's exec/classification style: a non-zero
+// exit (no rebase in progress, or REBASE_HEAD otherwise unresolvable) is an
+// invalid-repository failure and a malformed id is invalid-output. An error is
+// NEVER a clean "not stopped" — callers that need to distinguish "no rebase"
+// from "stopped on a commit" ask RebaseState. The returned id passes the same
+// validateObjectID shape check classifyRebaseResult relies on via worktreeHead.
+func (c *Client) StoppedRebaseCommit(ctx context.Context, worktreeDir string) (ObjectID, error) {
+	if worktreeDir == "" {
+		return "", newFailure(rebaseStoppedOp, KindInvalidRequest, "worktree dir is empty", nil)
+	}
+	res, f := c.run(ctx, runRequest{op: rebaseStoppedOp, dir: worktreeDir, args: []string{"rev-parse", "--verify", "REBASE_HEAD"}})
+	if f != nil {
+		return "", f
+	}
+	if res.exitCode != 0 {
+		return "", newFailure(rebaseStoppedOp, KindInvalidRepository, "cannot resolve REBASE_HEAD (no rebase stopped on a commit): "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
+	lines := stdoutLines(res.stdout)
+	if len(lines) != 1 {
+		return "", newFailure(rebaseStoppedOp, KindInvalidOutput, "unexpected rev-parse REBASE_HEAD output", nil)
+	}
+	id := ObjectID(lines[0])
+	if err := validateObjectID(id); err != nil {
+		return "", newFailure(rebaseStoppedOp, KindInvalidOutput, "rev-parse produced a malformed REBASE_HEAD object id", err)
+	}
+	return id, nil
 }
 
 // StageAndContinueRebase stages EXACTLY the given repo-relative paths (the caller
