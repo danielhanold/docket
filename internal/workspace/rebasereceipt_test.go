@@ -193,3 +193,84 @@ func TestRebaseReceiptGatePair(t *testing.T) {
 		}
 	})
 }
+
+// checkpointReceipt is sampleReceipt carrying a fully-set publish checkpoint:
+// the completed-gate evidence for a rebased head, recorded so a denied publish
+// can resume without re-running the suite (change 0408).
+func checkpointReceipt() RebaseReceipt {
+	r := sampleReceipt()
+	r.PublishCheckpointHead = strings.Repeat("d", 40)
+	r.PublishCheckpointBaseHead = strings.Repeat("c", 40)
+	r.PublishCheckpointCommand = "go test ./..."
+	r.PublishCheckpointGate = "local"
+	r.PublishCheckpointPRNumber = "7"
+	r.PublishCheckpointEvidence = "<!-- evidence -->\nresult: green\n"
+	return r
+}
+
+// TestRebaseReceiptPublishCheckpoint proves the optional publish checkpoint:
+// fully-set round-trips byte-identically, fully-empty serializes no
+// publish_checkpoint_* keys, a partially-set checkpoint is refused on write,
+// a malformed member (bad head, non-positive PR number) is refused, and a
+// checkpoint coexisting with a live gate-continuation pair is refused — a
+// completed terminal and a live drive are mutually exclusive states.
+func TestRebaseReceiptPublishCheckpoint(t *testing.T) {
+	svc := plainService(t)
+	ctx := context.Background()
+
+	t.Run("fully-set-round-trips", func(t *testing.T) {
+		dir := testsupport.TempDir(t)
+		r := checkpointReceipt()
+		if err := svc.WriteRebaseReceipt(ctx, dir, r); err != nil {
+			t.Fatalf("WriteRebaseReceipt with checkpoint: %v", err)
+		}
+		got, found, err := svc.ReadRebaseReceipt(ctx, dir)
+		if err != nil || !found {
+			t.Fatalf("ReadRebaseReceipt: found=%v err=%v", found, err)
+		}
+		if got != r {
+			t.Fatalf("round trip mutated the receipt:\n got %+v\nwant %+v", got, r)
+		}
+	})
+
+	t.Run("empty-checkpoint-serializes-no-keys", func(t *testing.T) {
+		dir := testsupport.TempDir(t)
+		if err := svc.WriteRebaseReceipt(ctx, dir, sampleReceipt()); err != nil {
+			t.Fatalf("WriteRebaseReceipt: %v", err)
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, "rebase-receipt.json"))
+		if err != nil {
+			t.Fatalf("reading receipt file: %v", err)
+		}
+		if strings.Contains(string(raw), "publish_checkpoint") {
+			t.Errorf("empty checkpoint serialized publish_checkpoint keys: %s", raw)
+		}
+	})
+
+	t.Run("partial-and-malformed-refused-on-write", func(t *testing.T) {
+		for name, mut := range map[string]func(*RebaseReceipt){
+			"head-only":        func(r *RebaseReceipt) { *r = sampleReceipt(); r.PublishCheckpointHead = strings.Repeat("d", 40) },
+			"missing-evidence": func(r *RebaseReceipt) { *r = checkpointReceipt(); r.PublishCheckpointEvidence = "" },
+			"bad-head":         func(r *RebaseReceipt) { *r = checkpointReceipt(); r.PublishCheckpointHead = "not-a-sha" },
+			"bad-base-head":    func(r *RebaseReceipt) { *r = checkpointReceipt(); r.PublishCheckpointBaseHead = "nope" },
+			"zero-pr-number":   func(r *RebaseReceipt) { *r = checkpointReceipt(); r.PublishCheckpointPRNumber = "0" },
+			"non-numeric-pr":   func(r *RebaseReceipt) { *r = checkpointReceipt(); r.PublishCheckpointPRNumber = "seven" },
+			"live-drive-coexists": func(r *RebaseReceipt) {
+				*r = checkpointReceipt()
+				r.GateDriveID, r.GateOwnerGeneration = "drive-01", "gen-01"
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				dir := testsupport.TempDir(t)
+				var r RebaseReceipt
+				mut(&r)
+				if err := svc.WriteRebaseReceipt(ctx, dir, r); err == nil {
+					t.Errorf("invalid checkpoint written without refusal")
+				}
+				if _, found, err := svc.ReadRebaseReceipt(ctx, dir); err != nil || found {
+					t.Errorf("receipt present after refused write: found=%v err=%v", found, err)
+				}
+			})
+		}
+	})
+}
