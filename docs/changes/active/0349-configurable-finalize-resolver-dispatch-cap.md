@@ -21,7 +21,7 @@ branch: 'feat/configurable-finalize-resolver-dispatch-cap'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T15:07:56Z'
+claimed_at: '2026-09-07T16:17:24Z'
 ---
 
 ## Artifacts
