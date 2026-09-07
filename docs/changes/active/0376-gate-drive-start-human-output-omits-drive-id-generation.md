@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/gate-drive-start-human-output-omits-drive-id-generation'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T14:43:55Z'
+reconciled: true
+claimed_at: '2026-09-07T14:50:10Z'
 ---
 
 ## Artifacts
@@ -71,3 +71,7 @@ The human-approved decision is settled: this is a bounded clarification of the t
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-09-07
+
+2026-09-07: Reconciled against current main (origin/main @ 0d1a7e1b). Confirmed the approved caller-guidance scope is still accurate: `GateDriveResult.HumanText` prints `drive_id` and deliberately omits the ownership generation, and the shared caller contract mentions `--json` only in passing without requiring capture of the first response. Whole-repo search located the maintained caller instruction surfaces to update: skills/docket-build/references/gate-caller-loop.md (shared contract), skills/docket-build-task/SKILL.md, skills/docket-build/SKILL.md, and skills/docket-implement-next/SKILL.md (Step 6 evidence re-mint / re-gate). Embedded distribution copies under internal/assets/embedded/tree/ are byte-identical to source and MUST be regenerated via the genassets generator (go generate ./internal/assets/...), not hand-edited, or the DiffTree check fails. No scope change and no relation change (related: [375,405], discovered_from: [372], adrs: [107] all still correct); 375 (idempotent start / duplicate-drive prevention) and 405 (prepare-scope/start handshake) remain out of scope. Proceeding to plan + build.
