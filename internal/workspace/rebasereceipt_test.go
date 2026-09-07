@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,6 +42,134 @@ func sampleReceipt() RebaseReceipt {
 		BaseHead:       strings.Repeat("c", 40),
 		Attempt:        "attempt-01",
 		CreatedUTC:     time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+// fullOID is a well-formed full (40-hex) object id for the resolver-budget
+// reservation fixtures — the same shape validObjectID accepts for the heads.
+var fullOID = strings.Repeat("d", 40)
+
+// withBudget returns a mutator stamping the six resolver-budget fields onto a
+// receipt, so a table can assemble a whole group in one call. An empty string
+// leaves the corresponding field cleared.
+func withBudget(version, limit, used, token, stopped, continuation string) func(*RebaseReceipt) {
+	return func(r *RebaseReceipt) {
+		r.ResolverBudgetVersion = version
+		r.ResolverLimit = limit
+		r.ResolverUsed = used
+		r.ResolverReservationToken = token
+		r.ResolverReservationStopped = stopped
+		r.ResolverContinuationStarted = continuation
+	}
+}
+
+// TestRebaseReceiptResolverBudgetValidation exercises the whole-group resolver
+// budget rule from BOTH directions the shared validator governs: WriteRebaseReceipt
+// must refuse an invalid group (and round-trip a valid one byte-identically), and
+// ReadRebaseReceipt of a hand-written file carrying an invalid group must return an
+// error — never clean absence (learnings: probe-error-is-not-clean-absence). A
+// legacy receipt (whole group absent) stays valid, never corrupt.
+func TestRebaseReceiptResolverBudgetValidation(t *testing.T) {
+	svc := plainService(t)
+	ctx := context.Background()
+
+	cases := []struct {
+		name   string
+		mutate func(*RebaseReceipt)
+		ok     bool
+	}{
+		{"legacy all-empty group", func(r *RebaseReceipt) {}, true},
+		{"complete budget no reservation", withBudget("1", "3", "1", "", "", ""), true},
+		{"outstanding reservation", withBudget("1", "3", "1", "tok-1", fullOID, ""), true},
+		{"continuation started", withBudget("1", "3", "1", "tok-1", fullOID, "1"), true},
+		{"used equals limit", withBudget("1", "3", "3", "", "", ""), true},
+		{"unsupported version", withBudget("2", "3", "1", "", "", ""), false},
+		{"limit zero", withBudget("1", "0", "0", "", "", ""), false},
+		{"used exceeds limit", withBudget("1", "2", "3", "", "", ""), false},
+		{"used negative", withBudget("1", "3", "-1", "", "", ""), false},
+		{"non-decimal limit", withBudget("1", "three", "0", "", "", ""), false},
+		{"partial group limit only", func(r *RebaseReceipt) { r.ResolverLimit = "3" }, false},
+		{"token without stopped commit", withBudget("1", "3", "1", "tok-1", "", ""), false},
+		{"stopped commit without token", withBudget("1", "3", "1", "", fullOID, ""), false},
+		{"short stopped commit", withBudget("1", "3", "1", "tok-1", "abc123", ""), false},
+		{"continuation without reservation", withBudget("1", "3", "1", "", "", "1"), false},
+		{"continuation marker not 0/1 shape", withBudget("1", "3", "1", "tok-1", fullOID, "yes"), false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := sampleReceipt()
+			tc.mutate(&r)
+
+			// Write gate: valid groups round-trip byte-identically; invalid ones
+			// are refused and leave nothing behind.
+			dir := testsupport.TempDir(t)
+			werr := svc.WriteRebaseReceipt(ctx, dir, r)
+			if tc.ok {
+				if werr != nil {
+					t.Fatalf("WriteRebaseReceipt refused a valid budget group: %v", werr)
+				}
+				got, found, rerr := svc.ReadRebaseReceipt(ctx, dir)
+				if rerr != nil || !found {
+					t.Fatalf("ReadRebaseReceipt after valid write: found=%v err=%v", found, rerr)
+				}
+				if got != r {
+					t.Fatalf("round trip mutated the receipt:\n got %+v\nwant %+v", got, r)
+				}
+			} else {
+				if werr == nil {
+					t.Errorf("WriteRebaseReceipt persisted an invalid budget group without refusal")
+				}
+				if _, found, rerr := svc.ReadRebaseReceipt(ctx, dir); rerr != nil || found {
+					t.Errorf("receipt present after refused write: found=%v err=%v", found, rerr)
+				}
+			}
+
+			// Read gate: a hand-written file (marshaled directly, bypassing the
+			// write validator) carrying an invalid group must read back as an
+			// error, never clean absence; a valid one reads back present.
+			rdir := testsupport.TempDir(t)
+			data, err := json.MarshalIndent(r, "", "  ")
+			if err != nil {
+				t.Fatalf("marshal fixture: %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(rdir, "rebase-receipt.json"), append(data, '\n'), 0o600); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+			_, found, rerr := svc.ReadRebaseReceipt(ctx, rdir)
+			if tc.ok {
+				if rerr != nil || !found {
+					t.Errorf("ReadRebaseReceipt of a valid hand-written group: found=%v err=%v; want present", found, rerr)
+				}
+			} else {
+				if rerr == nil || found {
+					t.Errorf("ReadRebaseReceipt of an invalid hand-written group: found=%v err=%v; want error", found, rerr)
+				}
+			}
+		})
+	}
+}
+
+// TestRebaseReceiptResolverBudgetHelpers proves HasResolverBudget distinguishes a
+// legacy receipt from a budgeted one and ResolverBudget decodes the stored
+// limit/used pair.
+func TestRebaseReceiptResolverBudgetHelpers(t *testing.T) {
+	legacy := sampleReceipt()
+	if legacy.HasResolverBudget() {
+		t.Errorf("legacy receipt reports HasResolverBudget=true; want false")
+	}
+
+	budgeted := sampleReceipt()
+	withBudget("1", "3", "2", "", "", "")(&budgeted)
+	if !budgeted.HasResolverBudget() {
+		t.Errorf("budgeted receipt reports HasResolverBudget=false; want true")
+	}
+	limit, used, err := budgeted.ResolverBudget()
+	if err != nil {
+		t.Fatalf("ResolverBudget: %v", err)
+	}
+	if limit != 3 || used != 2 {
+		t.Errorf("ResolverBudget = (%d, %d); want (3, 2)", limit, used)
 	}
 }
 

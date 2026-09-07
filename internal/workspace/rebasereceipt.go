@@ -78,6 +78,88 @@ type RebaseReceipt struct {
 	PublishCheckpointPRNumber string `json:"publish_checkpoint_pr_number,omitempty"`
 	PublishCheckpointEvidence string `json:"publish_checkpoint_evidence,omitempty"`
 	CreatedUTC                string `json:"created_utc"`
+
+	// Resolver-budget group (change 0349). All six empty == legacy receipt (a
+	// pre-budget binary wrote it): recognizable, never corrupt, never freshly
+	// budgeted. When present: ResolverBudgetVersion is "1";
+	// ResolverLimit/ResolverUsed are decimal ints with limit >= 1 and
+	// 0 <= used <= limit. ResolverReservationToken/ResolverReservationStopped
+	// record the outstanding reservation (both-empty or both-set, with the
+	// stopped commit a full object id); ResolverContinuationStarted ("" or "1")
+	// may be set only while a reservation is outstanding. Every field stays a
+	// scalar string so the whole receipt stays comparable and byte-comparable.
+	ResolverBudgetVersion       string `json:"resolver_budget_version,omitempty"`
+	ResolverLimit               string `json:"resolver_limit,omitempty"`
+	ResolverUsed                string `json:"resolver_used,omitempty"`
+	ResolverReservationToken    string `json:"resolver_reservation_token,omitempty"`
+	ResolverReservationStopped  string `json:"resolver_reservation_stopped,omitempty"`  // full object id of the stopped commit
+	ResolverContinuationStarted string `json:"resolver_continuation_started,omitempty"` // "" | "1"
+}
+
+// HasResolverBudget reports whether the receipt carries the resolver-budget group
+// (change 0349). A legacy receipt written by a pre-budget binary has the whole
+// group absent, so the version field alone distinguishes budgeted from legacy.
+func (r RebaseReceipt) HasResolverBudget() bool {
+	return r.ResolverBudgetVersion != ""
+}
+
+// ResolverBudget decodes the stored limit and used counts. Only call it when
+// HasResolverBudget reports true; on a legacy receipt the empty fields fail to
+// parse and it returns an error rather than a misleading zero budget.
+func (r RebaseReceipt) ResolverBudget() (limit, used int, err error) {
+	limit, err = strconv.Atoi(r.ResolverLimit)
+	if err != nil {
+		return 0, 0, fmt.Errorf("decoding resolver limit: %w", err)
+	}
+	used, err = strconv.Atoi(r.ResolverUsed)
+	if err != nil {
+		return 0, 0, fmt.Errorf("decoding resolver used: %w", err)
+	}
+	return limit, used, nil
+}
+
+// validateResolverBudget enforces the whole-group rule: the six fields are either
+// all empty (a legacy receipt — valid, never budgeted) or a well-formed budget
+// group. It is a conjunct of validateRebaseReceipt, so the same rule gates both
+// the write and the read.
+func validateResolverBudget(r RebaseReceipt) error {
+	if r.ResolverBudgetVersion == "" && r.ResolverLimit == "" && r.ResolverUsed == "" &&
+		r.ResolverReservationToken == "" && r.ResolverReservationStopped == "" &&
+		r.ResolverContinuationStarted == "" {
+		return nil // legacy receipt: whole group absent
+	}
+	if r.ResolverBudgetVersion != "1" {
+		return fmt.Errorf("unsupported resolver budget version %q", r.ResolverBudgetVersion)
+	}
+	limit, err := strconv.Atoi(r.ResolverLimit)
+	if err != nil {
+		return fmt.Errorf("resolver limit is not a decimal integer: %q", r.ResolverLimit)
+	}
+	used, err := strconv.Atoi(r.ResolverUsed)
+	if err != nil {
+		return fmt.Errorf("resolver used is not a decimal integer: %q", r.ResolverUsed)
+	}
+	if limit < 1 {
+		return fmt.Errorf("resolver limit must be >= 1, got %d", limit)
+	}
+	if used < 0 || used > limit {
+		return fmt.Errorf("resolver used out of range: got %d, want 0..%d", used, limit)
+	}
+	if (r.ResolverReservationToken == "") != (r.ResolverReservationStopped == "") {
+		return fmt.Errorf("half-set resolver reservation: token and stopped commit must both be empty or both be set")
+	}
+	if r.ResolverReservationStopped != "" && !validObjectID(gitcli.ObjectID(r.ResolverReservationStopped)) {
+		return fmt.Errorf("invalid resolver reservation stopped commit")
+	}
+	switch r.ResolverContinuationStarted {
+	case "", "1":
+	default:
+		return fmt.Errorf("invalid resolver continuation marker %q: must be \"\" or \"1\"", r.ResolverContinuationStarted)
+	}
+	if r.ResolverContinuationStarted == "1" && r.ResolverReservationToken == "" {
+		return fmt.Errorf("resolver continuation started without an outstanding reservation")
+	}
+	return nil
 }
 
 // validateRebaseReceipt rejects every malformed field so an invalid receipt is
@@ -140,6 +222,9 @@ func validateRebaseReceipt(r RebaseReceipt) error {
 	}
 	if _, err := time.Parse(time.RFC3339, r.CreatedUTC); err != nil {
 		return fmt.Errorf("invalid created_utc")
+	}
+	if err := validateResolverBudget(r); err != nil {
+		return err
 	}
 	return nil
 }
