@@ -2,7 +2,7 @@
 id: 346
 slug: finalize-rebuilds-binary-from-unpulled-source-tree
 title: "Finalize's post-merge binary rebuild runs against an unpulled source tree"
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: fix
 created: 2026-08-25
@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'fix/finalize-rebuilds-binary-from-unpulled-source-tree'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/286'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-07T17:02:37Z'
