@@ -88,7 +88,10 @@ means), this file does not restate them.
   `--repo-dir /Users/homer/dev/docket --json`; proceed only on disposition `advanced` or
   `already-current` — a `skipped`, `refused`, or `failed` sync leaves the rebuild incomplete.
   Confirm the checkout is clean on `main` with its full HEAD equal to the sync target, and prove
-  each merge landed in it: `git merge-base --is-ancestor <merge-commit> HEAD` (a negative answer
+  each merge landed in it: `git merge-base --is-ancestor <landed-commit> HEAD`, where
+  `<landed-commit>` is the commit the merge produced on `main` — the rebased or squashed tip this
+  repo's `gh pr merge --rebase` flow writes, **not** the PR's feature-branch head, which is never an
+  ancestor of the rebased HEAD (a negative answer
   and a failed probe are different outcomes; neither permits the install). Then resolve the
   `development.install` operation from the capability catalog, run it with
   `--source /Users/homer/dev/docket`, and confirm the installed binary's `version` operation
