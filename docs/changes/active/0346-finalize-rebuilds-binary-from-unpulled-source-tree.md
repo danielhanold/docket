@@ -20,7 +20,7 @@ branch: 'fix/finalize-rebuilds-binary-from-unpulled-source-tree'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T15:00:26Z'
+claimed_at: '2026-09-07T16:21:45Z'
 ---
 
 ## Artifacts
