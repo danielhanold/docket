@@ -1,8 +1,8 @@
 # Backlog
 
-**408 changes** — 🟢 4 in progress · 🔵 1 built · 🟣 11 groomed · 🟡 20 proposed · ⚪ 5 deferred · ✅ 254 done · 🗑️ 113 killed
+**408 changes** — 🟢 5 in progress · 🔵 1 built · 🟣 10 groomed · 🟡 20 proposed · ⚪ 5 deferred · ✅ 254 done · 🗑️ 113 killed
 
-## 🟢 In progress (4)
+## 🟢 In progress (5)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
@@ -10,6 +10,7 @@
 | [0406](active/0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) | Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite | `medium` | `fix` | [spec](../superpowers/specs/2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64-design.md) | `fix/flaky-testintegrationreleasepackagedeterministic-linux-arm64` |  |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-reimplement-post-merge-fast-forward-integration-branch-sync-design.md) | `feat/reimplement-post-merge-fast-forward-integration-branch-sync` |  |
 | [0383](active/0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | `low` | `fix` | [spec](../superpowers/specs/2026-09-07-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts-design.md) | `fix/remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts` |  |
+| [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | [spec](../superpowers/specs/2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md) | `fix/reapply-sha256-source-revision-width-fix-isfullobjectid` |  |
 
 ## 🔵 Built (1)
 
@@ -17,12 +18,11 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (11)
+## 🟣 Groomed (10)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0408](active/0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-finalize-publish-is-denied-by-the-auto-mode-classifier-whene-design.md) |
-| [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | [spec](../superpowers/specs/2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |
 | [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | [spec](../superpowers/specs/2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md) |
