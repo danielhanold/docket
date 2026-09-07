@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/danielhanold/docket/internal/gitcli"
@@ -60,7 +61,23 @@ type RebaseReceipt struct {
 	// resume); a half-set pair is malformed on write and on read alike.
 	GateDriveID         string `json:"gate_drive_id,omitempty"`
 	GateOwnerGeneration string `json:"gate_owner_generation,omitempty"`
-	CreatedUTC          string `json:"created_utc"`
+	// PublishCheckpoint* persist the COMPLETED-gate publish checkpoint (change
+	// 0408): when finalize's local gate reaches PASSED for a real (rewritten)
+	// rebase, the tested head, the effective base head, the byte-exact resolved
+	// finalize.test_command, the gate policy, the open PR number, and the green
+	// evidence block are recorded so a resume after a denied publish can reuse
+	// the still-valid evidence instead of re-running the suite. The field rule
+	// is all-empty (no checkpoint) or all-set (a completed gate to reuse); a
+	// partially-set checkpoint is malformed on write and on read alike, and a
+	// checkpoint never coexists with a live gate-continuation pair — a terminal
+	// and a live drive are mutually exclusive.
+	PublishCheckpointHead     string `json:"publish_checkpoint_head,omitempty"`
+	PublishCheckpointBaseHead string `json:"publish_checkpoint_base_head,omitempty"`
+	PublishCheckpointCommand  string `json:"publish_checkpoint_command,omitempty"`
+	PublishCheckpointGate     string `json:"publish_checkpoint_gate,omitempty"`
+	PublishCheckpointPRNumber string `json:"publish_checkpoint_pr_number,omitempty"`
+	PublishCheckpointEvidence string `json:"publish_checkpoint_evidence,omitempty"`
+	CreatedUTC                string `json:"created_utc"`
 }
 
 // validateRebaseReceipt rejects every malformed field so an invalid receipt is
@@ -93,6 +110,33 @@ func validateRebaseReceipt(r RebaseReceipt) error {
 	}
 	if (r.GateDriveID == "") != (r.GateOwnerGeneration == "") {
 		return fmt.Errorf("half-set gate continuation pair: drive id and owner generation must both be empty or both be set")
+	}
+	cpFields := []string{
+		r.PublishCheckpointHead, r.PublishCheckpointBaseHead, r.PublishCheckpointCommand,
+		r.PublishCheckpointGate, r.PublishCheckpointPRNumber, r.PublishCheckpointEvidence,
+	}
+	set := 0
+	for _, f := range cpFields {
+		if f != "" {
+			set++
+		}
+	}
+	if set != 0 && set != len(cpFields) {
+		return fmt.Errorf("partially-set publish checkpoint: all checkpoint fields must be empty or all set")
+	}
+	if set != 0 {
+		if !validObjectID(gitcli.ObjectID(r.PublishCheckpointHead)) {
+			return fmt.Errorf("invalid publish checkpoint head")
+		}
+		if !validObjectID(gitcli.ObjectID(r.PublishCheckpointBaseHead)) {
+			return fmt.Errorf("invalid publish checkpoint base head")
+		}
+		if n, err := strconv.Atoi(r.PublishCheckpointPRNumber); err != nil || n <= 0 {
+			return fmt.Errorf("invalid publish checkpoint pr number")
+		}
+		if r.GateDriveID != "" {
+			return fmt.Errorf("publish checkpoint cannot coexist with a live gate continuation")
+		}
 	}
 	if _, err := time.Parse(time.RFC3339, r.CreatedUTC); err != nil {
 		return fmt.Errorf("invalid created_utc")
