@@ -6,12 +6,12 @@ status: proposed
 priority: high
 type: feat
 created: 2026-08-25
-updated: 2026-08-26
-depends_on: []
-related: []
+updated: '2026-09-07'
+depends_on: [393, 407]
+related: [334, 359, 371, 405]
 discovered_from: [342]
-adrs: []
-spec:
+adrs: [24, 26, 60, 84, 100, 103, 111]
+spec: 'docs/superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md'
 plan:
 results:
 trivial: false
@@ -25,60 +25,38 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
+| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0026-fork-dispatch-opacity-two-invocation-paths.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0084](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md), [ADR-0100](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0100-native-host-dispatch-is-authoritative-for-registered-docket.md), [ADR-0103](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0103-enter-codex-coordinator-roles-through-app-server-root-thread.md), [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-When a human launches an implement run with the `/docket-implement-next <id>` slash command, the
-harness forks the subagent directly from that command. There is no assistant turn between the human
-typing the command and the fork launching, so the parent session never gets to run the pre-dispatch
-half of the run gate: it cannot re-sync, snapshot the in-progress before-set, or stamp a dispatch
-epoch (`date -u +%s`) *before* launch.
+User-invoked implement commands can launch the worker before the parent has armed the run gate. The original observation was a Claude slash-command fork during change 0342: an overloaded run left a claimed-but-unbuilt change that the parent could only report. Command entry should reach the same attribution and safe recovery path as an ordinary assistant-owned dispatch across every supported harness.
 
-The run gate already classifies this as **unattributed mode** — "a slash-command launch, a
-notification-first session, or any dispatch you did not snapshot." In that mode the parent can only
-**verify-and-report**: it may run `verify-run <id>` and relay the verdict, but it must NEVER
-auto-re-dispatch, because a timestamp alone cannot prove an in-progress id is *this* run's dead claim
-versus a concurrent live agent's claim (`claimed_at` re-stamps at every phase boundary).
+Change 0407 has since replaced snapshot/timestamp inference with durable proof binding a dispatch context to its successful claim. The remaining gap is creating that context before command-launched work, retaining the parent's gate key, passing the context into the worker, and reaching the post-run verdict loop. Timestamps, launch shape, and child prose cannot supply missing ownership authority.
 
-The consequence is a reliability asymmetry the human feels directly: an implement run launched by
-slash command that dies early or returns `run-incomplete` cannot be autonomously recovered — the
-human must confirm each re-dispatch. A run the agent dispatches from a normal turn (able to capture
-before-set + epoch first) recovers on its own. Observed live on change 342: the first dispatch died
-on a 529 and left a claimed-but-unbuilt change that the agent could only surface, not re-drive.
-
-The slash command is the *natural, ergonomic* way a human kicks off a run — pushing humans toward
-prose invocation to regain attributability is a workaround, not a fix. The dispatch mechanism should
-not silently downgrade the run gate.
+Claude, Codex, Cursor, and OpenCode are all required delivery targets. Codex's compositional implementer also requires change 0393's native root-coordinator entry, which is implemented but awaiting merge at grooming time.
 
 ## What changes
 
-Make a slash-command-launched implement dispatch behave — for run-gate purposes — the same as an
-agent-owned one, so the parent can attribute and (where safe) autonomously recover it. Candidate
-directions to evaluate at brainstorm time (not yet decided):
+- Keep the existing public implement workflow and ergonomic native command/skill invocation. Run a short coordinator in the current parent session to arm the gate, enter the named implementer with the exact context, and follow the gate's return decision.
+- Separate the public entry procedure from the canonical autonomous worker procedure. Assigned workers execute their own charter without self-dispatch or a second gate; preserve native role identity, model/effort settings, permissions, selection scope, and existing implementation depth.
+- Deliver the entry contract for Claude, Codex, Cursor, and OpenCode through their native adapters. Use change 0393's required root-coordinator entry for Codex and preserve its working directory and permission context.
+- Reuse change 0407's claim receipts and existing retry/continuation accounting. Permit only the gate-authorized bounded retry or exact continuation; retain observe-only behavior when attribution is unavailable and stop on unsafe ownership.
+- Update maintained skills, agent wrappers, dispatch surfaces, installer-owned command assets where needed, embedded assets, and documentation together. Require regression coverage and fresh native-session acceptance for all four harnesses, including Cursor IDE.
 
-- **Catch/intercept** the slash-command launch so an attribution anchor (before-set + dispatch
-  epoch, or a dispatch nonce written into the claim) is captured at or before fork time.
-- **Stamp a dispatch token** into the claim itself (e.g. a run/dispatch id the child writes on
-  claim) so attribution no longer depends on a wall-clock epoch that re-stamps.
-- **Document** the limitation crisply and, if no reliable capture exists, codify the
-  verify-and-report-only posture as the intended contract for slash launches — with clear human
-  guidance on when prose invocation is preferable.
+The linked spec contains the selected architecture, failure boundaries, implementation surfaces, alternatives, and acceptance criteria. Change 0345 remains proposed and waits for dependency 0393 to reach done before implementation.
 
 ## Out of scope
 
-- Changing the run gate's core safety invariant (never re-dispatch onto a change a live agent may
-  hold). Any fix must preserve it, not relax it.
-- The 529/overload retry behavior itself — that's an orthogonal transient-failure concern.
-
-## Open questions
-
-- Can the harness expose a pre-fork hook (or a synchronous parent turn) for slash-command launches
-  at all, or is the fork-from-command genuinely atomic with no interposition point?
-- Is a claim-embedded dispatch nonce a cleaner attribution primitive than the before-set + epoch
-  pair, and would it also improve attributability for the notification-first and detached cases?
-- Does this belong in docket (the skill/agent contract) or in harness configuration, and how
-  portable is any fix across the shipped harnesses?
+- Relaxing the run gate's ownership invariant or authorizing work on a claim another live agent may hold.
+- New claim/token formats, a parallel attribution mechanism, or new retry accounting.
+- Vendor 529/overload and pre-claim transport-retry behavior.
+- Change 0405's test-drive prepare-scope/start handshake investigation.
+- Cross-machine recovery, recovery after loss of the parent's gate key, additional harnesses, new supervisor agents, or cross-harness runner fallbacks.
+- Changing human merge approval, provider permissions, or implementing/build-planning this change during grooming.
 
 ## Reconcile log
 
