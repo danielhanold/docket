@@ -134,8 +134,13 @@ type syncSeams struct {
 	fastForward func(ctx context.Context, worktreeDir, target string) (bool, error)
 }
 
-// syncContext is the loader's slice the ladder needs.
+// syncContext is the loader's slice the ladder needs. repo is the ONE discovered
+// repository identity the whole invocation decides and acts on — carried here so
+// the ancestry seam reuses the single discovery loadOperationalContext already
+// performed rather than issuing a second one (learning
+// decide-and-act-on-the-same-copy).
 type syncContext struct {
+	repo                gitcli.Repository
 	primaryWorktree     string
 	integrationBranch   string // short name, e.g. main
 	integrationRevision string // pinned, freshly fetched object id
@@ -273,4 +278,53 @@ func repositorySyncIntegration(ctx context.Context, seams syncSeams) RepositoryS
 	out.Disposition = SyncDispAdvanced
 	out.AfterOID = target
 	return newRepositorySyncResult(ResultApplied, RepositorySyncResult{SyncOutcome: out})
+}
+
+// RunRepositorySyncIntegration wires the safety ladder over the live loader and
+// Git adapter. loadOperationalContext supplies discovery, pinned-blob config
+// resolution, the legacy-topology refusal, and the freshly fetched pinned
+// integration revision — the sync never calls the mutating repository.prepare
+// workflow and never reads stale remote-tracking state. It returns the concrete
+// RepositorySyncResult (an OperationResult) so callers that embed the outcome
+// need no type assertion.
+//
+// Exactly one discovery is performed: loadOperationalContext discovers once, and
+// the resolved gitcli.Repository is threaded into the ancestry seam through the
+// closure environment (also carried on syncContext) so IsAncestor decides and
+// acts on the same repository copy the rest of the ladder does — never a second
+// Discover.
+func RunRepositorySyncIntegration(ctx context.Context, d SetupDeps) RepositorySyncResult {
+	var repo gitcli.Repository // filled by load, before the ancestry seam can run
+	return repositorySyncIntegration(ctx, syncSeams{
+		load: func(ctx context.Context) (syncContext, error) {
+			oc, err := loadOperationalContext(ctx, d.Git, d.RepoDir)
+			if err != nil {
+				return syncContext{}, err
+			}
+			repo = oc.repo
+			return syncContext{
+				repo:                oc.repo,
+				primaryWorktree:     oc.repo.PrimaryWorktree,
+				integrationBranch:   oc.integrationBranch,
+				integrationRevision: oc.integrationRevision,
+			}, nil
+		},
+		state: d.Git.WorktreeCheckoutState,
+		dirty: func(ctx context.Context, dir string) (bool, error) {
+			// ChangedPaths reports tracked/index/non-ignored-untracked dirt via
+			// status --porcelain=v2 --untracked-files=all (WITHOUT --ignored), so an
+			// ignored-only working tree is clean and never blocks the advance.
+			changes, err := d.Git.ChangedPaths(ctx, dir)
+			if err != nil {
+				return false, err
+			}
+			return len(changes) > 0, nil
+		},
+		isAncestor: func(ctx context.Context, ancestor, descendant string) (bool, error) {
+			return d.Git.IsAncestor(ctx, repo, gitcli.ObjectID(ancestor), gitcli.ObjectID(descendant))
+		},
+		fastForward: func(ctx context.Context, dir, target string) (bool, error) {
+			return d.Git.FastForwardWorktree(ctx, dir, gitcli.ObjectID(target))
+		},
+	})
 }
