@@ -30,7 +30,7 @@ Invoke the `docket-convention` skill via the Skill tool first — unless already
 
 The **read is separate from the mutation.** The human `status` read stays read-only: it
 reports the backlog and never merges, archives, reclaims, or cleans up. When the caller explicitly
-asks to refresh or clean up — a post-merge cleanup, an out-of-band merge to recover — run the `maintenance.sweep` operation (resolve argv from the capability catalog, scope per *Mode choice*) **before** the read, then read the refreshed state.
+asks to refresh or clean up — a post-merge cleanup, an out-of-band merge to recover — run the `maintenance.sweep` operation (resolve argv from the capability catalog, scope per *Mode choice*) **before** the read, then read the refreshed state. Both maintenance-sweep scopes (full and implementation) run the `repository.sync-integration` operation once as their end-of-run suffix; status itself stays read-only and relies on maintenance's embedded sync when it requests a sweep, and it must not invoke a duplicate `repository.sync-integration`.
 
 The `maintenance.sweep` operation pins an initial inventory, walks it in deterministic order, and reloads
 fresh authority before **every** mutation. It closes out each `implemented` change whose PR merged
