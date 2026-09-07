@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"strings"
@@ -708,4 +709,73 @@ func TestIntegrationFinalizeRebaseResponseLossRecovery(t *testing.T) {
 	if recSecond.Attempt != recFirst.Attempt {
 		t.Errorf("the replay minted a new attempt token %q; want the owned %q", recSecond.Attempt, recFirst.Attempt)
 	}
+}
+
+// TestIntegrationFinalizeRebasePassedRecordsPublishCheckpoint proves a PASSED
+// local gate for a REAL rewrite records the completed-gate publish checkpoint
+// in the owned receipt — tested head, base head, resolved command, gate
+// policy, PR number, and evidence that verifies green for the rebased head —
+// with the gate-continuation pair clear; and that a PASSED gate for a NO-OP
+// rebase records no checkpoint.
+func TestIntegrationFinalizeRebasePassedRecordsPublishCheckpoint(t *testing.T) {
+	requireRealGit(t)
+	main := planRepoModes()[0]
+
+	t.Run("real-rewrite-records", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		f.advanceBase(t)
+		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+		gate := &headEvidenceGate{t: t}
+		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		if res.Result != ResultApplied || res.Disposition != RebaseDispRebased {
+			t.Fatalf("rebase = %q disp %q (reason %q msg %q), want applied/rebased", res.Result, res.Disposition, res.Reason, res.Message)
+		}
+		rewritten := f.localHead()
+		rec, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		if err != nil || !present {
+			t.Fatalf("receipt after PASSED gate: present=%v err=%v", present, err)
+		}
+		if rec.PublishCheckpointHead != rewritten {
+			t.Errorf("checkpoint head = %q, want the rewritten head %q", rec.PublishCheckpointHead, rewritten)
+		}
+		if rec.PublishCheckpointBaseHead != rec.BaseHead {
+			t.Errorf("checkpoint base head = %q, want the receipt base head %q", rec.PublishCheckpointBaseHead, rec.BaseHead)
+		}
+		if rec.PublishCheckpointCommand != "go test ./..." {
+			t.Errorf("checkpoint command = %q, want the resolved finalize.test_command", rec.PublishCheckpointCommand)
+		}
+		if rec.PublishCheckpointGate != "local" {
+			t.Errorf("checkpoint gate policy = %q, want %q", rec.PublishCheckpointGate, "local")
+		}
+		if rec.PublishCheckpointPRNumber != "1" {
+			t.Errorf("checkpoint pr number = %q, want %q", rec.PublishCheckpointPRNumber, "1")
+		}
+		if v := evidence.Verify([]byte(rec.PublishCheckpointEvidence), rewritten); v != evidence.VerdictVerified {
+			t.Errorf("checkpoint evidence verdict for the rewritten head = %q, want verified", v)
+		}
+		if rec.GateDriveID != "" || rec.GateOwnerGeneration != "" {
+			t.Errorf("gate pair not cleared at the PASSED terminal: (%q, %q)", rec.GateDriveID, rec.GateOwnerGeneration)
+		}
+	})
+
+	t.Run("noop-rebase-records-nothing", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		// No advanceBase: the feature already sits on the base; the gate still runs
+		// (no PR evidence waives it) but the pass is for a no-op rebase.
+		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+		gate := &headEvidenceGate{t: t}
+		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		if res.Disposition != RebaseDispUnchanged {
+			t.Fatalf("disp = %q (reason %q), want unchanged", res.Disposition, res.Reason)
+		}
+		rec, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		if err != nil || !present {
+			t.Fatalf("receipt: present=%v err=%v", present, err)
+		}
+		if rec.PublishCheckpointHead != "" || rec.PublishCheckpointEvidence != "" {
+			t.Errorf("a no-op rebase recorded a publish checkpoint: %+v", rec)
+		}
+	})
 }

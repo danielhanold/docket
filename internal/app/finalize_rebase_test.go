@@ -93,6 +93,25 @@ func (g *fakeGate) RunLocalGate(_ context.Context, _ LocalGateRequest) (LocalGat
 	return g.result, nil
 }
 
+// headEvidenceGate is a passing FinalizeGate that mints green evidence
+// certifying the EXACT head each request names — the way the production seam
+// does (EvidenceRecord is handed req.Head) — so a recorded publish checkpoint
+// verifies against the rebased head. It counts calls like fakeGate so skip
+// paths can assert the suite never ran.
+type headEvidenceGate struct {
+	t     *testing.T
+	calls int
+}
+
+func (g *headEvidenceGate) RunLocalGate(_ context.Context, req LocalGateRequest) (LocalGateResult, error) {
+	g.calls++
+	rec, err := evidence.NewRecord("go test ./...", strings.ToLower(req.Head), time.Date(2026, 9, 7, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		g.t.Fatalf("evidence.NewRecord: %v", err)
+	}
+	return LocalGateResult{Outcome: FinalizeGatePassed, Evidence: evidence.Render(rec), RunDir: "/run/x"}, nil
+}
+
 // seqGate is a FinalizeGate that returns a scripted sequence of results, one per
 // call, and records every request it received — so a test can assert the second
 // slice RESUMED with the exact continuation the first (WAITING) slice returned

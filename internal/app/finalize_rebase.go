@@ -877,7 +877,6 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 
 	evidenceHead, evidenceCommand, evidenceGreen := prBodyEvidence(pr)
 	resolvedCommand, resolvedGatePolicy := resolvedFinalizeGateConfig(ctx, deps, repoDir)
-	_ = resolvedGatePolicy // consumed by the PASSED-terminal checkpoint recording (next task)
 	skip, permit := false, ""
 	if cont.DriveID == "" {
 		skip, permit = gateDecision(noop, evidenceHead, currentHead, evidenceGreen, evidenceCommand, resolvedCommand)
@@ -925,7 +924,7 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	case FinalizeGatePassed:
 		base.Gate.Evidence = gres.Evidence
 		out := newRebaseResult(op, ResultApplied, base)
-		clearGateContinuation(ctx, deps, rc, rec, &out)
+		recordGatePassedReceipt(ctx, deps, rc, rec, noop, pr, currentHead, resolvedCommand, resolvedGatePolicy, gres.Evidence, &out)
 		return out
 	case FinalizeGateWaiting:
 		// Persist the continuation into the owned receipt so the WAITING re-entry is
@@ -972,19 +971,56 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	}
 }
 
-// clearGateContinuation rewrites the receipt with the gate pair emptied after a
-// terminal gate outcome, so a dead continuation never wedges the receipt: the
-// driver's Advance on a terminal drive could never mint evidence again (its run
-// root is removed at the terminal). Best-effort by design: the outcome is already
-// mapped, so a clear failure is reported in the result message and does not change
-// the disposition — the next re-run's Advance on the terminal drive halts and the
-// clear is retried then.
-func clearGateContinuation(ctx context.Context, deps FinalizeDeps, rc *rebaseContext, rec workspace.RebaseReceipt, res *FinalizeRebaseResult) {
-	if rec.GateDriveID == "" && rec.GateOwnerGeneration == "" {
-		return
-	}
+// recordGatePassedReceipt persists the PASSED terminal into the owned receipt
+// in ONE atomic write: the live gate-continuation pair is cleared (the drive is
+// terminal), and — for a real rewrite whose PR identity is known and whose gate
+// configuration resolved — the completed-gate publish checkpoint is recorded so
+// a denied publish can resume without re-running the suite (change 0408). A
+// no-op rebase records no checkpoint (its skip waiver is the PR-body evidence
+// gateDecision already honors). Best-effort like clearGateContinuation: the
+// gate outcome is already mapped, so a write failure is appended to the result
+// message and never changes the disposition — the resume simply re-runs the
+// gate, fail-closed.
+func recordGatePassedReceipt(ctx context.Context, deps FinalizeDeps, rc *rebaseContext, rec workspace.RebaseReceipt, noop bool, pr githubcli.PullRequest, currentHead, resolvedCommand, gatePolicy, evidenceBlock string, res *FinalizeRebaseResult) {
 	updated := rec
 	updated.GateDriveID, updated.GateOwnerGeneration = "", ""
+	updated.PublishCheckpointHead, updated.PublishCheckpointBaseHead = "", ""
+	updated.PublishCheckpointCommand, updated.PublishCheckpointGate = "", ""
+	updated.PublishCheckpointPRNumber, updated.PublishCheckpointEvidence = "", ""
+	if !noop && pr.Number > 0 && resolvedCommand != "" && gatePolicy != "" && evidenceBlock != "" {
+		updated.PublishCheckpointHead = currentHead
+		updated.PublishCheckpointBaseHead = rec.BaseHead
+		updated.PublishCheckpointCommand = resolvedCommand
+		updated.PublishCheckpointGate = gatePolicy
+		updated.PublishCheckpointPRNumber = strconv.Itoa(pr.Number)
+		updated.PublishCheckpointEvidence = evidenceBlock
+	}
+	if updated == rec {
+		return
+	}
+	if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, updated); err != nil {
+		res.Message = strings.TrimSpace(res.Message +
+			" (persisting the gate terminal to the rebase receipt failed: " + err.Error() + ")")
+	}
+}
+
+// clearGateContinuation rewrites the receipt with the gate pair AND any publish
+// checkpoint emptied at a non-passed terminal, so a dead continuation never
+// wedges the receipt: the driver's Advance on a terminal drive could never mint
+// evidence again (its run root is removed at the terminal), and every transition
+// out of the checkpoint state removes it (presence-encoded state discipline).
+// Best-effort by design: the outcome is already mapped, so a clear failure is
+// reported in the result message and does not change the disposition — the next
+// re-run's Advance on the terminal drive halts and the clear is retried then.
+func clearGateContinuation(ctx context.Context, deps FinalizeDeps, rc *rebaseContext, rec workspace.RebaseReceipt, res *FinalizeRebaseResult) {
+	updated := rec
+	updated.GateDriveID, updated.GateOwnerGeneration = "", ""
+	updated.PublishCheckpointHead, updated.PublishCheckpointBaseHead = "", ""
+	updated.PublishCheckpointCommand, updated.PublishCheckpointGate = "", ""
+	updated.PublishCheckpointPRNumber, updated.PublishCheckpointEvidence = "", ""
+	if updated == rec {
+		return
+	}
 	if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, updated); err != nil {
 		res.Message = strings.TrimSpace(res.Message +
 			" (clearing the gate continuation from the rebase receipt failed: " + err.Error() + ")")
