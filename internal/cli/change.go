@@ -106,8 +106,10 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	claim := changeIDVersionSubcommand("claim",
 		"Claim a build-ready change at an exact version, moving it to in-progress",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
+			req.GateContext, _ = c.Flags().GetString("gate-context")
 			setResult(app.ChangeClaim(c.Context(), deps, repoDir, req))
 		}, EffectMetadataWrite)
+	claim.Flags().String("gate-context", "", "run-gate dispatch context `token` from gate-before, binding this claim to its armed gate (optional; omitted for an ungated claim)")
 
 	refreshClaim := changeIDVersionSubcommand("refresh-claim",
 		"Re-stamp an in-progress change's claim lease at an exact version",
