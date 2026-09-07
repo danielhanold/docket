@@ -2,7 +2,7 @@
 id: 383
 slug: 'remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts'
 title: 'Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts'
-status: proposed
+status: 'in-progress'
 priority: low
 type: fix
 created: '2026-08-31'
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'fix/remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-07T01:44:14Z'
 ---
 
 ## Artifacts
