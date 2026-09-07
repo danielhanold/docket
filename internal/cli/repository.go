@@ -44,6 +44,9 @@ var (
 	repositoryConfigureTestsRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
 		return app.RunRepositoryConfigureTests(ctx, d)
 	}
+	repositorySyncIntegrationRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
+		return app.RunRepositorySyncIntegration(ctx, d)
+	}
 )
 
 // repositoryConfirmInteractive reports whether migrate may prompt for
@@ -110,7 +113,16 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		// never commits, never stages.
 		EffectLocalWrite)
 
-	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, prepareCmd, configureTestsCmd)
+	syncIntegrationCmd := repositorySubcommand("sync-integration",
+		"Fast-forward the primary checkout to the freshly fetched integration tip when it is safe (explicit skips otherwise)",
+		func(c *cobra.Command, deps app.SetupDeps) {
+			setResult(repositorySyncIntegrationRunner(c.Context(), deps))
+		},
+		// local-write: fetches objects/remote-tracking state and may fast-forward
+		// the primary checkout; it never pushes and changes no planning metadata.
+		EffectLocalWrite)
+
+	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, prepareCmd, configureTestsCmd, syncIntegrationCmd)
 	return repositoryCmd
 }
 

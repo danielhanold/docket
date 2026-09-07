@@ -29,95 +29,96 @@ import (
 // `docket`. TestAssetIndependentSetExact holds the correspondence with the
 // Cobra tree in both directions.
 var assetIndependent = map[string]bool{
-	"":                           true, // bare `docket`: reports a missing command
-	"help":                       true,
-	"capabilities":               true, // the capability bootstrap must answer before any installation exists
-	"schema":                     true, // the schema surface is a pure read of the live Go types; no installed assets
-	"version":                    true,
-	"status":                     true,
-	"change":                     true, // the group itself; it reports a missing command
-	"change create":              true,
-	"change groom":               true,
-	"change block":               true,
-	"change defer":               true,
-	"change kill":                true,
-	"change claim":               true,
-	"change refresh-claim":       true,
-	"change reconcile":           true,
-	"change attach-plan":         true,
-	"change attach-results":      true,
-	"change halt":                true,
-	"change resume-halted":       true,
-	"change reclaim":             true,
-	"change mark-implemented":    true,
-	"change repair-identity":     true,
-	"context":                    true, // the group itself; it reports a missing command
-	"context implementation":     true,
-	"context finalize":           true,
-	"artifact":                   true, // the group itself; it reports a missing command
-	"artifact backlink":          true,
-	"workspace":                  true, // the group itself; it reports a missing command
-	"workspace prepare":          true,
-	"workspace inspect":          true,
-	"workspace publish":          true,
-	"evidence":                   true, // the group itself; it reports a missing command
-	"evidence record":            true,
-	"evidence verify":            true,
-	"pr":                         true, // the group itself; it reports a missing command
-	"pr publish":                 true,
-	"run":                        true, // the group itself; it reports a missing command
-	"run verify":                 true,
-	"run gate-before":            true,
-	"run gate-verdict":           true,
-	"run gate-claim":             true,
-	"learning":                   true, // the group itself; it reports a missing command
-	"learning record":            true,
-	"learning update":            true,
-	"adr":                        true, // the group itself; it reports a missing command
-	"adr record":                 true,
-	"adr supersede":              true,
-	"adr reverse":                true,
-	"gate":                       true, // the group itself; it reports a missing command
-	"gate launch":                true,
-	"gate observe":               true,
-	"gate stop":                  true,
-	"gate recover":               true,
-	"gate cleanup":               true,
-	"gate drive":                 true, // the group itself; it reports a missing command
-	"gate drive start":           true,
-	"gate drive advance":         true,
-	"gate drive handoff":         true,
-	"gate drive claim":           true,
-	"gate drive prepare-scope":   true,
-	"gate drive takeover":        true,
-	"finalize":                   true, // the group itself; it reports a missing command
-	"finalize retarget-children": true,
-	"finalize rebase":            true,
-	"finalize rebase-continue":   true,
-	"finalize rebase-abort":      true,
-	"finalize publish":           true,
-	"finalize block":             true,
-	"finalize clear-block":       true,
-	"finalize merge":             true,
-	"finalize closeout":          true,
-	"finalize cleanup":           true,
-	"maintenance":                true, // the group itself; it reports a missing command
-	"maintenance sweep":          true,
-	"maintenance preflight":      true,
-	"repository":                 true, // the group itself; it reports a missing command
-	"repository init":            true,
-	"repository check":           true,
-	"repository migrate":         true,
-	"repository prepare":         true,
-	"repository configure-tests": true,
-	"diagnostic":                 true, // the group itself; it reports a missing command
-	"diagnostic runtime":         true,
-	"diagnostic config":          true,
-	"install":                    true,
-	"install check":              true,
-	"development":                true,
-	"development install":        true,
-	"development test":           true, // the Go-native whole-suite runner reads this checkout, never installed assets (change 0318)
+	"":                            true, // bare `docket`: reports a missing command
+	"help":                        true,
+	"capabilities":                true, // the capability bootstrap must answer before any installation exists
+	"schema":                      true, // the schema surface is a pure read of the live Go types; no installed assets
+	"version":                     true,
+	"status":                      true,
+	"change":                      true, // the group itself; it reports a missing command
+	"change create":               true,
+	"change groom":                true,
+	"change block":                true,
+	"change defer":                true,
+	"change kill":                 true,
+	"change claim":                true,
+	"change refresh-claim":        true,
+	"change reconcile":            true,
+	"change attach-plan":          true,
+	"change attach-results":       true,
+	"change halt":                 true,
+	"change resume-halted":        true,
+	"change reclaim":              true,
+	"change mark-implemented":     true,
+	"change repair-identity":      true,
+	"context":                     true, // the group itself; it reports a missing command
+	"context implementation":      true,
+	"context finalize":            true,
+	"artifact":                    true, // the group itself; it reports a missing command
+	"artifact backlink":           true,
+	"workspace":                   true, // the group itself; it reports a missing command
+	"workspace prepare":           true,
+	"workspace inspect":           true,
+	"workspace publish":           true,
+	"evidence":                    true, // the group itself; it reports a missing command
+	"evidence record":             true,
+	"evidence verify":             true,
+	"pr":                          true, // the group itself; it reports a missing command
+	"pr publish":                  true,
+	"run":                         true, // the group itself; it reports a missing command
+	"run verify":                  true,
+	"run gate-before":             true,
+	"run gate-verdict":            true,
+	"run gate-claim":              true,
+	"learning":                    true, // the group itself; it reports a missing command
+	"learning record":             true,
+	"learning update":             true,
+	"adr":                         true, // the group itself; it reports a missing command
+	"adr record":                  true,
+	"adr supersede":               true,
+	"adr reverse":                 true,
+	"gate":                        true, // the group itself; it reports a missing command
+	"gate launch":                 true,
+	"gate observe":                true,
+	"gate stop":                   true,
+	"gate recover":                true,
+	"gate cleanup":                true,
+	"gate drive":                  true, // the group itself; it reports a missing command
+	"gate drive start":            true,
+	"gate drive advance":          true,
+	"gate drive handoff":          true,
+	"gate drive claim":            true,
+	"gate drive prepare-scope":    true,
+	"gate drive takeover":         true,
+	"finalize":                    true, // the group itself; it reports a missing command
+	"finalize retarget-children":  true,
+	"finalize rebase":             true,
+	"finalize rebase-continue":    true,
+	"finalize rebase-abort":       true,
+	"finalize publish":            true,
+	"finalize block":              true,
+	"finalize clear-block":        true,
+	"finalize merge":              true,
+	"finalize closeout":           true,
+	"finalize cleanup":            true,
+	"maintenance":                 true, // the group itself; it reports a missing command
+	"maintenance sweep":           true,
+	"maintenance preflight":       true,
+	"repository":                  true, // the group itself; it reports a missing command
+	"repository init":             true,
+	"repository check":            true,
+	"repository migrate":          true,
+	"repository prepare":          true,
+	"repository configure-tests":  true,
+	"repository sync-integration": true,
+	"diagnostic":                  true, // the group itself; it reports a missing command
+	"diagnostic runtime":          true,
+	"diagnostic config":           true,
+	"install":                     true,
+	"install check":               true,
+	"development":                 true,
+	"development install":         true,
+	"development test":            true, // the Go-native whole-suite runner reads this checkout, never installed assets (change 0318)
 }
 
 // commandKey is a command's path with the root's own name stripped, which is
