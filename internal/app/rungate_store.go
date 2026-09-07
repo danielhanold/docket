@@ -52,10 +52,14 @@ import (
 // carrying any other version fails closed as a corrupt record — never a
 // best-effort migration. Bumped to 2 for change 0359: the record grows the outer
 // recovery-scope binding (ScopeID/ParentCap/ChildContextHash) and the
-// continuation triple. A schema-1 record therefore fails closed here — an
-// in-flight pre-upgrade record halting after merge is correct fail-closed
-// behavior, never a silent migration.
-const gateSchemaVersion = 2
+// continuation triple. Bumped to 3 for change 0407: the record grows the
+// claim-binding proof MIRROR fields (BoundRequestID/BoundRevision) and the store
+// grows a per-key claim-binding file. A v2 record — whose AttributedID may be a
+// snapshot-inferred guess, the exact defect of change 0407 — therefore fails
+// closed here with the schema-mismatch diagnostic; the supported recovery is a
+// newly armed `gate-before --resume` for a still-valid in-progress change, never a
+// silent migration that blesses an old guessed id.
+const gateSchemaVersion = 3
 
 // Retry permit states recorded in a GateRecord. The one-retry permit is unused
 // until ConsumeGateRetry spends it; the marker file, not this field, is the
@@ -66,11 +70,20 @@ const (
 )
 
 // recordFileName is the atomic record within a key directory; retryMarkerName is
-// the O_EXCL compare-and-swap marker whose creation grants the single retry.
+// the O_EXCL compare-and-swap marker whose creation grants the single retry;
+// gateClaimBindingName is the bind-once claim-binding file whose os.Link
+// hard-link create is the compare-and-swap serializing competing claim bindings
+// (change 0407).
 const (
-	gateRecordFileName  = "record.json"
-	gateRetryMarkerName = "retry-consumed"
+	gateRecordFileName   = "record.json"
+	gateRetryMarkerName  = "retry-consumed"
+	gateClaimBindingName = "claim-binding.json"
 )
+
+// bindingSchemaVersion is the on-disk schema of a GateClaimBinding. A binding
+// carrying any other value fails closed as a corrupt record on load — never a
+// best-effort migration (change 0407).
+const bindingSchemaVersion = 1
 
 // gateRetentionEnv is the retention-window knob, shared with the dispatch dir's
 // semantics (default 7 days; a non-numeric value disables age-pruning entirely).
@@ -121,6 +134,47 @@ type GateRecord struct {
 	ContinuationID      string `json:"continuation_id,omitempty"`
 	ContinuationDrive   string `json:"continuation_drive,omitempty"`
 	ContinuationHandoff string `json:"continuation_handoff,omitempty"`
+
+	// Claim-binding proof MIRROR (change 0407, schema v3). BoundRequestID and
+	// BoundRevision are the local reflection of the confirmed claim binding — the
+	// committed claim receipt (a Docket-Result trailer on the metadata branch) is
+	// the authority; these two are a readable convenience mirrored by
+	// ConfirmGateClaim. They are ALL-EMPTY or ALL-SET (gateBoundPairOK): a partial
+	// pair is a corrupt record on read AND on write, so a half-written mirror can
+	// never be loaded or persisted. BoundRequestID is the claim's request id;
+	// BoundRevision is the commit that carries the confirmed claim receipt.
+	BoundRequestID string `json:"bound_request_id,omitempty"`
+	BoundRevision  string `json:"bound_revision,omitempty"`
+}
+
+// gateBoundPairOK reports whether rec's claim-binding mirror pair is well formed:
+// BoundRequestID and BoundRevision must be ALL-EMPTY or ALL-SET (0396's pair rule
+// applied to the change-0407 mirror). A partial pair is a corrupt record — the
+// store refuses it on both the read and the write boundary so a half-written
+// mirror can never be loaded or persisted.
+func gateBoundPairOK(rec GateRecord) bool {
+	set := 0
+	if rec.BoundRequestID != "" {
+		set++
+	}
+	if rec.BoundRevision != "" {
+		set++
+	}
+	return set == 0 || set == 2
+}
+
+// GateClaimBinding is the durable, bind-once record of which (change, claim
+// request) a gate key's dispatch context is bound to (change 0407). It is written
+// by ReserveGateClaim through an os.Link hard-link create (the compare-and-swap
+// that serializes competing binding attempts with whole-file atomicity) and
+// finalized by ConfirmGateClaim. Schema is stamped authoritatively; a load fails
+// closed on any other value.
+type GateClaimBinding struct {
+	Schema    int    `json:"schema"`
+	ChangeID  int    `json:"change_id"`
+	RequestID string `json:"request_id"`
+	Confirmed bool   `json:"confirmed"`
+	Revision  string `json:"revision,omitempty"`
 }
 
 // gateContinuationTripleOK reports whether rec's continuation triple is well
@@ -165,6 +219,15 @@ const (
 	ErrGateUnavailable GateStoreErrorKind = "gate-unavailable"
 	// ErrGateIO: an underlying filesystem or randomness operation failed.
 	ErrGateIO GateStoreErrorKind = "io"
+	// ErrGateBindingConflict: a competing binding attempt for a different claim
+	// under one dispatch context — the claim-binding file already binds a different
+	// (change, request), or a confirm named fields that disagree with the reserved
+	// binding. Bind-once: a later attempt can never overwrite the first (change 0407).
+	ErrGateBindingConflict GateStoreErrorKind = "binding-conflict"
+	// ErrGateContextAmbiguous: more than one live (non-terminal) gate record claims
+	// one dispatch-context hash, so ownership cannot be resolved to a single record.
+	// Fail closed (change 0407).
+	ErrGateContextAmbiguous GateStoreErrorKind = "context-ambiguous"
 )
 
 // GateStoreError is the store's typed failure carrying a stable kind and stage.
@@ -335,6 +398,12 @@ func LoadGateRecord(repoDir, key string) (GateRecord, error) {
 		return GateRecord{}, gateErr(ErrGateCorruptRecord, "load",
 			errors.New("partial continuation triple"))
 	}
+	// A partial claim-binding mirror pair is a corrupt record: fail closed on read
+	// so a half-written mirror is never handed to the verdict path.
+	if !gateBoundPairOK(rec) {
+		return GateRecord{}, gateErr(ErrGateCorruptRecord, "load",
+			errors.New("partial claim-binding mirror pair"))
+	}
 	// The marker is authority; reflect it into the readable mirror on read so a
 	// crash between the O_EXCL create and the JSON flip still reads as consumed.
 	if _, serr := os.Stat(filepath.Join(dir, gateRetryMarkerName)); serr == nil {
@@ -372,6 +441,11 @@ func writeGateRecordAtomic(dir string, rec GateRecord) error {
 	// half-written continuation never reaches disk.
 	if !gateContinuationTripleOK(rec) {
 		return gateErr(ErrGateCorruptRecord, "write", errors.New("partial continuation triple"))
+	}
+	// A partial claim-binding mirror pair is a corrupt record: refuse to persist one
+	// so a half-written mirror never reaches disk.
+	if !gateBoundPairOK(rec) {
+		return gateErr(ErrGateCorruptRecord, "write", errors.New("partial claim-binding mirror pair"))
 	}
 	buf, err := json.Marshal(rec)
 	if err != nil {
@@ -432,6 +506,254 @@ func ConsumeGateRetry(repoDir, key string) (bool, error) {
 		_ = SaveGateRecord(repoDir, key, rec)
 	}
 	return true, nil
+}
+
+// gateKeyDir validates key and resolves its record directory under the
+// repository's rungate root, requiring the directory to already exist (minted).
+// It is the shared preamble of the claim-binding primitives.
+func gateKeyDir(repoDir, key, op string) (string, error) {
+	if err := validateGateKey(key); err != nil {
+		return "", err
+	}
+	common, err := gateGitCommonDir(repoDir)
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(common, "docket", "rungate", key)
+	if fi, serr := os.Stat(dir); serr != nil || !fi.IsDir() {
+		return "", gateErr(ErrGateNotFound, op, serr)
+	}
+	return dir, nil
+}
+
+// readGateClaimBinding reads the claim-binding file at dir. A missing file is
+// (GateClaimBinding{}, false, nil); unparseable bytes or a bad schema fail closed
+// as corrupt-record; a well-formed binding is (b, true, nil).
+func readGateClaimBinding(dir, op string) (GateClaimBinding, bool, error) {
+	buf, err := os.ReadFile(filepath.Join(dir, gateClaimBindingName))
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return GateClaimBinding{}, false, nil
+		}
+		return GateClaimBinding{}, false, gateErr(ErrGateIO, op, err)
+	}
+	var b GateClaimBinding
+	if err := json.Unmarshal(buf, &b); err != nil {
+		return GateClaimBinding{}, false, gateErr(ErrGateCorruptRecord, op, err)
+	}
+	if b.Schema != bindingSchemaVersion {
+		return GateClaimBinding{}, false, gateErr(ErrGateCorruptRecord, op,
+			fmt.Errorf("binding schema version %d, want %d", b.Schema, bindingSchemaVersion))
+	}
+	return b, true, nil
+}
+
+// ReserveGateClaim binds key's dispatch context to (changeID, requestID) exactly
+// once, before the claim's metadata transaction. The os.Link hard-link create is
+// the compare-and-swap: the reservation is written to a same-directory temp file
+// and hard-linked into place, so of any number of concurrent callers exactly one
+// creates the binding with whole-file atomicity (never a partially-written CAS
+// winner). An existing binding for the same (changeID, requestID) is an idempotent
+// replay (nil); an existing binding for a different claim is ErrGateBindingConflict
+// — bind-once, a later attempt can never overwrite the first.
+func ReserveGateClaim(repoDir, key string, changeID int, requestID string) error {
+	dir, err := gateKeyDir(repoDir, key, "reserve")
+	if err != nil {
+		return err
+	}
+	// The os.Link hard-link create below is the sole authoritative CAS — there is no
+	// short-circuiting pre-read, so the exists-decision always flows through the
+	// fs.ErrExist re-load branch and the atomicity guard stays load-bearing (a
+	// pre-read that answered match-or-conflict on its own would make the CAS
+	// untestable and would race a concurrent writer). This mirrors the
+	// bindScopeDrive CAS discipline: the compare-and-swap is authority.
+	buf, err := json.Marshal(GateClaimBinding{Schema: bindingSchemaVersion, ChangeID: changeID, RequestID: requestID, Confirmed: false})
+	if err != nil {
+		return gateErr(ErrGateIO, "reserve", err)
+	}
+	tmp, err := os.CreateTemp(dir, "."+gateClaimBindingName+".tmp-*")
+	if err != nil {
+		return gateErr(ErrGateIO, "reserve", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName) // no-op after the temp name is unlinked below
+	if _, err := tmp.Write(buf); err != nil {
+		tmp.Close()
+		return gateErr(ErrGateIO, "reserve", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return gateErr(ErrGateIO, "reserve", err)
+	}
+	// The hard-link create is the CAS: it fails fs.ErrExist if a concurrent
+	// reservation already won. On a win the temp name is removed; on a loss re-load
+	// and apply the same match-or-conflict rule as the fast path.
+	final := filepath.Join(dir, gateClaimBindingName)
+	if err := os.Link(tmpName, final); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			b, ok, berr := readGateClaimBinding(dir, "reserve")
+			if berr != nil {
+				return berr
+			}
+			if !ok {
+				return gateErr(ErrGateIO, "reserve", errors.New("binding vanished after link conflict"))
+			}
+			return reserveMatchOrConflict(b, changeID, requestID)
+		}
+		return gateErr(ErrGateIO, "reserve", err)
+	}
+	return nil
+}
+
+// reserveMatchOrConflict is the bind-once decision on an existing binding: the
+// same (changeID, requestID) is an idempotent replay (nil); any other pairing is
+// ErrGateBindingConflict.
+func reserveMatchOrConflict(b GateClaimBinding, changeID int, requestID string) error {
+	if b.ChangeID == changeID && b.RequestID == requestID {
+		return nil
+	}
+	return gateErr(ErrGateBindingConflict, "reserve", nil)
+}
+
+// ConfirmGateClaim finalizes key's reserved binding after the claim's metadata
+// transaction applied, recording revision (the commit carrying the confirmed
+// claim receipt) and mirroring AttributedID/BoundRequestID/BoundRevision onto the
+// record. An absent binding is ErrGateNotFound — a failed or absent reservation
+// can never become a confirmed binding. A binding whose (changeID, requestID)
+// disagrees is ErrGateBindingConflict, as is a re-confirm carrying a different
+// revision — a later verdict or replay can never overwrite a confirmed binding. A
+// re-confirm with identical fields is an idempotent no-op. The mirror save's error
+// is returned (callers may treat it as best-effort; the binding file already made
+// the confirm durable).
+func ConfirmGateClaim(repoDir, key string, changeID int, requestID, revision string) error {
+	dir, err := gateKeyDir(repoDir, key, "confirm")
+	if err != nil {
+		return err
+	}
+	b, ok, berr := readGateClaimBinding(dir, "confirm")
+	if berr != nil {
+		return berr
+	}
+	if !ok {
+		return gateErr(ErrGateNotFound, "confirm", nil)
+	}
+	if b.ChangeID != changeID || b.RequestID != requestID {
+		return gateErr(ErrGateBindingConflict, "confirm", nil)
+	}
+	if b.Confirmed {
+		// Already confirmed: identical revision is idempotent; a differing revision
+		// can never overwrite the confirmed binding.
+		if b.Revision == revision {
+			return nil
+		}
+		return gateErr(ErrGateBindingConflict, "confirm", nil)
+	}
+
+	confirmed := GateClaimBinding{Schema: bindingSchemaVersion, ChangeID: changeID, RequestID: requestID, Confirmed: true, Revision: revision}
+	if err := writeGateClaimBindingAtomic(dir, confirmed); err != nil {
+		return err
+	}
+
+	// Mirror onto the record: the committed claim receipt is authority, this is the
+	// readable local reflection. A mirror-save failure is returned but does not
+	// un-confirm — the binding file already made the confirm durable.
+	rec, lerr := LoadGateRecord(repoDir, key)
+	if lerr != nil {
+		return lerr
+	}
+	rec.AttributedID = changeID
+	rec.BoundRequestID = requestID
+	rec.BoundRevision = revision
+	return SaveGateRecord(repoDir, key, rec)
+}
+
+// writeGateClaimBindingAtomic writes b at dir/claim-binding.json through a
+// same-directory temp file followed by os.Rename — the atomic-adjacent
+// replacement rule, matching writeGateRecordAtomic. It is the confirm rewrite; the
+// bind-once create goes through ReserveGateClaim's os.Link CAS instead.
+func writeGateClaimBindingAtomic(dir string, b GateClaimBinding) error {
+	buf, err := json.Marshal(b)
+	if err != nil {
+		return gateErr(ErrGateIO, "write-binding", err)
+	}
+	tmp, err := os.CreateTemp(dir, "."+gateClaimBindingName+".tmp-*")
+	if err != nil {
+		return gateErr(ErrGateIO, "write-binding", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName) // no-op after a successful rename
+	if _, err := tmp.Write(buf); err != nil {
+		tmp.Close()
+		return gateErr(ErrGateIO, "write-binding", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return gateErr(ErrGateIO, "write-binding", err)
+	}
+	if err := os.Rename(tmpName, filepath.Join(dir, gateClaimBindingName)); err != nil {
+		return gateErr(ErrGateIO, "write-binding", err)
+	}
+	return nil
+}
+
+// LoadGateClaimBinding reads the claim binding for key. A missing binding file is
+// (GateClaimBinding{}, false, nil); unparseable bytes or a bad schema fail closed
+// as corrupt-record; a well-formed binding is (b, true, nil).
+func LoadGateClaimBinding(repoDir, key string) (GateClaimBinding, bool, error) {
+	dir, err := gateKeyDir(repoDir, key, "load-binding")
+	if err != nil {
+		return GateClaimBinding{}, false, err
+	}
+	return readGateClaimBinding(dir, "load-binding")
+}
+
+// FindGateRecordByContextHash resolves the single live (non-terminal) gate record
+// whose ChildContextHash equals contextHash. It reads the rungate root and skips
+// any sibling whose record fails to load — a foreign-repo or corrupt sibling never
+// blocks an unrelated claim. Zero matches is ErrGateNotFound; more than one is
+// ErrGateContextAmbiguous; exactly one returns (key, record, nil). An empty
+// contextHash never matches.
+func FindGateRecordByContextHash(repoDir, contextHash string) (string, GateRecord, error) {
+	if contextHash == "" {
+		return "", GateRecord{}, gateErr(ErrGateNotFound, "find-context", nil)
+	}
+	root, err := gateRoot(repoDir)
+	if err != nil {
+		return "", GateRecord{}, err
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", GateRecord{}, gateErr(ErrGateNotFound, "find-context", err)
+		}
+		return "", GateRecord{}, gateErr(ErrGateIO, "find-context", err)
+	}
+	var (
+		matchKey string
+		matchRec GateRecord
+		matches  int
+	)
+	for _, e := range entries {
+		if !e.IsDir() || validateGateKey(e.Name()) != nil {
+			continue
+		}
+		rec, lerr := LoadGateRecord(repoDir, e.Name())
+		if lerr != nil {
+			continue // a foreign-repo or corrupt sibling never blocks an unrelated claim
+		}
+		if rec.Terminal || rec.ChildContextHash != contextHash {
+			continue
+		}
+		matchKey = e.Name()
+		matchRec = rec
+		matches++
+	}
+	switch {
+	case matches == 0:
+		return "", GateRecord{}, gateErr(ErrGateNotFound, "find-context", nil)
+	case matches > 1:
+		return "", GateRecord{}, gateErr(ErrGateContextAmbiguous, "find-context", nil)
+	default:
+		return matchKey, matchRec, nil
+	}
 }
 
 // PruneGateRecords removes terminal records whose record file has aged past the
