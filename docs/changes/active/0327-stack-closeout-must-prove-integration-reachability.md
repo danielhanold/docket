@@ -21,7 +21,7 @@ branch: 'fix/stack-closeout-must-prove-integration-reachability'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T14:54:58Z'
+claimed_at: '2026-09-07T15:08:29Z'
 ---
 
 ## Artifacts
