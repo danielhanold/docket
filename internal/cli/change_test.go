@@ -160,6 +160,26 @@ func TestChangeClaimCommandsRegistered(t *testing.T) {
 	}
 }
 
+// TestChangeClaimGateContextFlag: claim registers the optional --gate-context
+// flag and refresh-claim does NOT (refresh re-proves nothing about ownership).
+func TestChangeClaimGateContextFlag(t *testing.T) {
+	root := captureTree(t)
+	claimCmd, _, err := root.Find([]string{"change", "claim"})
+	if err != nil {
+		t.Fatalf("find claim: %v", err)
+	}
+	if claimCmd.Flags().Lookup("gate-context") == nil {
+		t.Fatalf("change claim must register --gate-context")
+	}
+	refreshCmd, _, err := root.Find([]string{"change", "refresh-claim"})
+	if err != nil {
+		t.Fatalf("find refresh-claim: %v", err)
+	}
+	if refreshCmd.Flags().Lookup("gate-context") != nil {
+		t.Fatalf("refresh-claim must not register --gate-context")
+	}
+}
+
 // TestChangeReconcileRegistered proves reconcile is wired as a change subcommand
 // carrying the scalar --input request-file flag (authored Markdown rides in the
 // JSON body, never shell-escaped flags).
