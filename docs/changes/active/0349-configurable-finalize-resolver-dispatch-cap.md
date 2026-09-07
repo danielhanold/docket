@@ -2,7 +2,7 @@
 id: 349
 slug: configurable-finalize-resolver-dispatch-cap
 title: Make the finalize rebase-resolver dispatch cap configurable
-status: proposed
+status: 'in-progress'
 priority: medium
 type: feat
 created: 2026-08-26
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/configurable-finalize-resolver-dispatch-cap'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-07T14:52:45Z'
 ---
 
 ## Artifacts
