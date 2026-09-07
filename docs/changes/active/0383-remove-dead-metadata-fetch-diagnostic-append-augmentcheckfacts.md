@@ -21,7 +21,7 @@ branch: 'fix/remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T01:46:59Z'
+claimed_at: '2026-09-07T01:48:41Z'
 ---
 
 ## Artifacts
