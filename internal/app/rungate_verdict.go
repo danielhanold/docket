@@ -25,16 +25,20 @@ import (
 // unrecognized verdict, maps to `gate-stop <key> gate-unavailable <reason>` and
 // never authorizes a retry.
 //
-// ATTRIBUTION (spec §gate-verdict). If the record already names an AttributedID,
-// that id is verified directly — attribution never re-runs against a later claim
-// set, so a claim that appears after the first verdict can never be mistaken for
-// this run's. Otherwise the current in-progress claim set is read fresh (the same
-// PinContext/ReadCorpus/BuildSnapshot plumbing gate-before uses) and each
-// candidate passes THREE filters: (a) its id is absent from the record's
-// before-set; (b) its claimed_at parses (a domain FieldPresent stamp — an absent
-// or unparseable stamp is excluded); (c) its claimed_at is at or after the record's
-// DispatchEpoch. Zero survivors → no-attributable-claim; more than one →
-// ambiguous-claims; exactly one → attribute, persist, delegate.
+// OWNERSHIP (spec §gate-verdict, change 0407). A fresh gate resolves the verified
+// dispatch-to-claim binding — never a before-set/cardinality snapshot — so a keyed
+// verdict can never attribute a concurrent loop's change. resolveGateOwnership
+// (below) "replace[s] before-set/cardinality attribution with the verified
+// dispatch-to-claim binding": a confirmed binding's continuity is checked against
+// committed claim proofs, an unconfirmed reservation recovers only from its exact
+// committed receipt, an absent binding adopts the SOLE proof matching the record's
+// context hash, and every missing / conflicting / corrupt / unprovable case fails
+// CLOSED to gate-stop gate-unavailable (or gate-done no-attributable-claim for a
+// provably absent claim). The record's BeforeIDs and DispatchEpoch are retained as
+// diagnostics only and can never create retry authority. A record that already
+// names an AttributedID with no claim binding is the `gate-before --resume` shape:
+// its id was pre-bound by verified WorkspaceInspect identity, so ownership returns
+// it directly and continuity is RunVerify's job, exactly as today.
 //
 // RETRY ORDERING (spec: "a lost retry is the safe failure"). On a run-incomplete
 // verdict the retry permit is consumed BEFORE the report is chosen, and the CAS
@@ -81,6 +85,28 @@ const GateReasonUnknownVerdict = "unknown-verdict"
 // gateReasonStoreError is the fallback reason for a non-typed store error; every
 // real store fault is a *GateStoreError whose Kind is the token.
 const gateReasonStoreError = "store-error"
+
+// The fail-closed ownership-resolution reason tokens (change 0407). Each names a
+// case where the verified dispatch-to-claim binding cannot be resolved, so the
+// verdict refuses to authorize anything: no retry, no sibling id, no fallback to
+// global claim inference.
+const (
+	// ReasonGateBindingUnreadable: the durable claim-binding file exists but could
+	// not be read or parsed — never a silent fall-through to attribution.
+	ReasonGateBindingUnreadable = "binding-unreadable"
+	// ReasonGateBindingConflict: more than one committed claim proof matches the
+	// record's context hash with no binding to arbitrate — unsafe ownership.
+	ReasonGateBindingConflict = "binding-conflict"
+	// ReasonGateClaimReplaced: the bound change was reclaimed and re-claimed by
+	// another run — the old gate must detect that replacement and cannot retry or
+	// take over the new claim (spec: "the old gate must detect that replacement and
+	// cannot retry or take over the new claim").
+	ReasonGateClaimReplaced = "claim-replaced"
+	// ReasonGateProofUnavailable: committed claim proofs could not be read (no
+	// scanner wired, a scan fault, or the binding's own receipt unseeable) — without
+	// proof access ownership can never proceed.
+	ReasonGateProofUnavailable = "proof-unavailable"
+)
 
 // RunGateVerdictResult is the protocol-v1 document `run gate-verdict` returns. It
 // renders exactly one attributed report line and always exits 0 (a produced
@@ -181,45 +207,11 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 		})
 	}
 
-	// Attribute a claim if one is not already bound to this record.
-	if rec.AttributedID == 0 {
-		survivors, reason := attributeGateClaim(ctx, deps, repoDir, rec)
-		if reason != "" {
-			return persistGateVerdict(repoDir, key, rec,
-				gateVerdictLine(key, GateDecisionStop, GateOutcomeUnavailable, 0, true, func(r *RunGateVerdictResult) {
-					r.Reason = reason
-				}))
-		}
-		switch len(survivors) {
-		case 0:
-			return persistGateVerdict(repoDir, key, rec,
-				gateVerdictLine(key, GateDecisionDone, GateOutcomeNoAttributableClaim, 0, true, nil))
-		case 1:
-			// Store the attribution BEFORE delegating (spec) so the binding is
-			// durable even if the delegation or the final save is interrupted.
-			rec.AttributedID = survivors[0]
-			_ = SaveGateRecord(repoDir, key, rec)
-			// Defense-in-depth (spec §3): a fresh run's outer scope begins unbound and
-			// binds ONCE to the one claim this conservative attribution rule accepts, so
-			// a later outer takeover's scopeIdentityMatch pins the change id instead of
-			// skipping the check on an empty scope field. This is the ONLY point a fresh
-			// run resolves a claim: a continuation enters with AttributedID already set
-			// and never reaches here (bind-once), and on `--resume` gate-before pre-binds
-			// the scope, so a redundant same-id bind is an idempotent no-op. The bind is
-			// best-effort — like the attribution mirror save above, it never gates the
-			// verdict (production is already protected by the attributed change id +
-			// context-hash filter and the verified parent capability). [MUTATION:
-			// dropping this call leaves the fresh-run scope unbound — see
-			// TestVerdictFreshRunBindsScopeChange.]
-			if rec.ScopeID != "" && wdeps.Continuation != nil {
-				_ = wdeps.Continuation.BindScopeChange(rec.ScopeID, survivors[0])
-			}
-		default:
-			return persistGateVerdict(repoDir, key, rec,
-				gateVerdictLine(key, GateDecisionStop, GateOutcomeAmbiguousClaims, 0, true, func(r *RunGateVerdictResult) {
-					r.AmbiguousIDs = survivors
-				}))
-		}
+	// Resolve ownership from the verified dispatch-to-claim binding (change 0407)
+	// before delegating. A non-nil return is the terminal report to emit; nil means
+	// the bound change is resolved and rec now carries its AttributedID.
+	if stop := resolveGateOwnership(ctx, wdeps, repoDir, key, &rec); stop != nil {
+		return *stop
 	}
 
 	id := rec.AttributedID
@@ -398,53 +390,166 @@ func gateStopUnavailable(repoDir, key string, rec GateRecord, id int, reason str
 		}))
 }
 
-// attributeGateClaim reads the current in-progress claim set fresh and applies the
-// three attribution filters against rec's before-set and dispatch epoch. It
-// returns the surviving candidate ids (sorted) or, on a re-sync / corpus-read
-// fault, a non-empty gate-unavailable reason token (fail closed). It writes
-// nothing.
-func attributeGateClaim(ctx context.Context, deps PlanningDeps, repoDir string, rec GateRecord) (survivors []int, reason string) {
-	pin, err := deps.Reader.PinContext(ctx, repoDir)
-	if err != nil {
-		return nil, ReasonGateSyncFailed
-	}
-	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
-	if err != nil {
-		return nil, ReasonGateChangesUnreadable
-	}
-	inputs, _ := parseCorpus(blobs)
-	build, err := repository.BuildSnapshot(repository.BuildInput{Config: pin.Config.Effective, Documents: inputs})
-	if err != nil {
-		return nil, ReasonGateChangesUnreadable
+// resolveGateOwnership resolves the ONE change this dispatched run owns, from the
+// verified dispatch-to-claim binding and the committed claim proofs — never from a
+// before-set/cardinality snapshot of the current claim set (change 0407). It
+// mutates rec in place to carry the resolved AttributedID (and, for a lagging
+// record, the mirror + scope bind) and returns nil when ownership is established;
+// otherwise it returns the terminal report to emit. Every missing / conflicting /
+// corrupt / unprovable case fails CLOSED — no retry, no sibling id, no fallback to
+// global claim inference.
+func resolveGateOwnership(ctx context.Context, wdeps WorkspaceDeps, repoDir, key string, rec *GateRecord) *RunGateVerdictResult {
+	// Resume-verified shape: an AttributedID with no claim binding was pre-bound by
+	// `gate-before --resume` through WorkspaceInspect identity. Continuity for it is
+	// RunVerify's job, exactly as today — the proof continuity check never runs.
+	if rec.AttributedID != 0 && rec.BoundRequestID == "" {
+		return nil
 	}
 
-	before := make(map[int]bool, len(rec.BeforeIDs))
-	for _, id := range rec.BeforeIDs {
-		before[id] = true
+	// Load the durable claim binding. An unreadable/corrupt binding fails closed —
+	// never a silent fall-through to inference.
+	binding, hasBinding, berr := LoadGateClaimBinding(repoDir, key)
+	if berr != nil {
+		return gateOwnershipStop(repoDir, key, *rec, ReasonGateBindingUnreadable)
 	}
-	for _, c := range build.Snapshot.Changes() {
-		if c.Status() != domain.StatusInProgress {
-			continue
-		}
-		id := int(c.ID())
-		// (a) A claim already present in the before-set is not this run's.
-		if before[id] {
-			continue
-		}
-		// (b) claimed_at must parse: a domain FieldPresent stamp. An absent or
-		// unparseable (FieldAbsent / FieldEmpty / FieldMalformed) stamp is excluded.
-		ca := c.ClaimedAt()
-		if ca.State != domain.FieldPresent {
-			continue
-		}
-		// (c) The claim must be at or after the dispatch epoch.
-		if ca.Value.Unix() < rec.DispatchEpoch {
-			continue
-		}
-		survivors = append(survivors, id)
+
+	// Every remaining branch resolves ownership from committed claim proofs, so scan
+	// once up front. Unlike the continuation seam, ownership can never proceed
+	// without proof access: a nil scanner or a scan fault fails closed.
+	if wdeps.ClaimProofs == nil {
+		return gateOwnershipStop(repoDir, key, *rec, ReasonGateProofUnavailable)
 	}
-	sort.Ints(survivors)
-	return survivors, ""
+	proofs, serr := wdeps.ClaimProofs.ScanClaimProofs(ctx, repoDir)
+	if serr != nil {
+		return gateOwnershipStop(repoDir, key, *rec, ReasonGateProofUnavailable)
+	}
+
+	switch {
+	case hasBinding && binding.Confirmed:
+		// Continuity: the NEWEST proof naming the bound change must still be this
+		// binding's own claim. A newer proof under a different request id means the
+		// change was reclaimed and re-claimed by another run.
+		newest, found := gateNewestProofForChange(proofs, binding.ChangeID)
+		if !found {
+			// The binding's own confirmed receipt could not even be seen (truncated
+			// history): fail closed, no retry.
+			return gateOwnershipStop(repoDir, key, *rec, ReasonGateProofUnavailable)
+		}
+		if newest.RequestID != binding.RequestID {
+			return gateOwnershipStop(repoDir, key, *rec, ReasonGateClaimReplaced)
+		}
+		gateAdoptOwnership(wdeps, repoDir, key, rec, binding.ChangeID, binding.RequestID, binding.Revision)
+		return nil
+
+	case hasBinding: // an unconfirmed reservation
+		// Recover ONLY from the exact committed receipt for this dispatch (same
+		// request id, same context hash).
+		proof, found := gateProofForClaim(proofs, binding.RequestID, rec.ChildContextHash)
+		if !found {
+			// The reserved claim never committed. Leave the reservation refused — never
+			// released, never confirmed — and report no attributable claim.
+			return gateOwnershipDone(repoDir, key, *rec)
+		}
+		// The committed receipt is authority, so a confirm error still proceeds on the
+		// proof (best-effort mirror).
+		_ = ConfirmGateClaim(repoDir, key, binding.ChangeID, binding.RequestID, proof.Revision)
+		gateAdoptOwnership(wdeps, repoDir, key, rec, binding.ChangeID, binding.RequestID, proof.Revision)
+		return nil
+
+	default: // no binding file
+		// A hashless record cannot prove ownership from a committed receipt.
+		if rec.ChildContextHash == "" {
+			return gateOwnershipStop(repoDir, key, *rec, ReasonGateProofUnavailable)
+		}
+		matches := gateProofsForContext(proofs, rec.ChildContextHash)
+		switch len(matches) {
+		case 0:
+			return gateOwnershipDone(repoDir, key, *rec)
+		case 1:
+			p := matches[0]
+			// Adopt the sole proof: reserve + confirm best-effort, then mirror.
+			_ = ReserveGateClaim(repoDir, key, p.ChangeID, p.RequestID)
+			_ = ConfirmGateClaim(repoDir, key, p.ChangeID, p.RequestID, p.Revision)
+			gateAdoptOwnership(wdeps, repoDir, key, rec, p.ChangeID, p.RequestID, p.Revision)
+			return nil
+		default:
+			return gateOwnershipStop(repoDir, key, *rec, ReasonGateBindingConflict)
+		}
+	}
+}
+
+// gateNewestProofForChange returns the first (newest, since proofs are newest-first)
+// committed proof naming changeID.
+func gateNewestProofForChange(proofs []ClaimProof, changeID int) (ClaimProof, bool) {
+	for _, p := range proofs {
+		if p.ChangeID == changeID {
+			return p, true
+		}
+	}
+	return ClaimProof{}, false
+}
+
+// gateProofForClaim returns the committed proof for exactly this dispatch's claim:
+// the same request id under the same context hash.
+func gateProofForClaim(proofs []ClaimProof, requestID, contextHash string) (ClaimProof, bool) {
+	for _, p := range proofs {
+		if p.RequestID == requestID && p.GateContextHash == contextHash {
+			return p, true
+		}
+	}
+	return ClaimProof{}, false
+}
+
+// gateProofsForContext returns every committed proof carrying contextHash — the
+// filter that keeps a keyed verdict off a concurrent loop's claim (a sibling
+// dispatch's proof carries a DIFFERENT context hash).
+func gateProofsForContext(proofs []ClaimProof, contextHash string) []ClaimProof {
+	var out []ClaimProof
+	for _, p := range proofs {
+		if p.GateContextHash == contextHash {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// gateAdoptOwnership sets the resolved change id on rec and, ONLY when the record
+// lags (AttributedID still 0 — the confirmed-binding mirror never persisted, or an
+// adopted proof), mirrors the binding fields and binds the outer recovery scope.
+// Defense-in-depth (spec §3): a fresh run's outer scope begins unbound and binds
+// ONCE to the resolved claim, so a later outer takeover's scopeIdentityMatch pins
+// the change id instead of skipping the check on an empty scope field. The mirror
+// save and the bind are best-effort — the committed claim receipt is authority, and
+// production is already protected by the resolved change id + context-hash filter
+// and the verified parent capability. [MUTATION: dropping the BindScopeChange call
+// leaves the fresh-run scope unbound — see TestVerdictFreshRunBindsScopeChange.]
+func gateAdoptOwnership(wdeps WorkspaceDeps, repoDir, key string, rec *GateRecord, changeID int, requestID, revision string) {
+	if rec.AttributedID != 0 {
+		return
+	}
+	rec.AttributedID = changeID
+	rec.BoundRequestID = requestID
+	rec.BoundRevision = revision
+	_ = SaveGateRecord(repoDir, key, *rec)
+	if rec.ScopeID != "" && wdeps.Continuation != nil {
+		_ = wdeps.Continuation.BindScopeChange(rec.ScopeID, changeID)
+	}
+}
+
+// gateOwnershipStop builds the terminal gate-stop gate-unavailable report for a
+// fail-closed ownership case, persists it, and returns it. It never consumes the
+// retry permit.
+func gateOwnershipStop(repoDir, key string, rec GateRecord, reason string) *RunGateVerdictResult {
+	res := gateStopUnavailable(repoDir, key, rec, rec.AttributedID, reason)
+	return &res
+}
+
+// gateOwnershipDone builds the terminal gate-done no-attributable-claim report for a
+// dispatch that provably claimed nothing, persists it, and returns it.
+func gateOwnershipDone(repoDir, key string, rec GateRecord) *RunGateVerdictResult {
+	res := persistGateVerdict(repoDir, key, rec,
+		gateVerdictLine(key, GateDecisionDone, GateOutcomeNoAttributableClaim, 0, true, nil))
+	return &res
 }
 
 // gateUnmetTokens projects RunVerify's unmet conjuncts onto their stable reason

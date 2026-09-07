@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,16 +82,20 @@ func gateLightDeps(t *testing.T, corpus []StatusBlob) PlanningDeps {
 }
 
 // gateMintArmed mints an armed record (Retry unused, no attribution yet) with the
-// given before-set and dispatch epoch, as gate-before would.
-func gateMintArmed(t *testing.T, repoDir string, beforeIDs []int, dispatchEpoch int64) string {
+// given before-set, dispatch epoch, and child-context hash, as gate-before would.
+// Since change 0407 the before-set and dispatch epoch are diagnostics only (they
+// no longer create attribution); hash is the record's ChildContextHash, the seam
+// the verdict path's proof filter keys on.
+func gateMintArmed(t *testing.T, repoDir string, beforeIDs []int, dispatchEpoch int64, hash string) string {
 	t.Helper()
 	key, err := MintGateRecord(repoDir, GateRecord{
-		Target:        "docket-implement-next",
-		CreatedAt:     1,
-		DispatchEpoch: dispatchEpoch,
-		BeforeIDs:     beforeIDs,
-		Retry:         RetryUnused,
-		Disposition:   "gate-armed",
+		Target:           "docket-implement-next",
+		CreatedAt:        1,
+		DispatchEpoch:    dispatchEpoch,
+		BeforeIDs:        beforeIDs,
+		ChildContextHash: hash,
+		Retry:            RetryUnused,
+		Disposition:      "gate-armed",
 	})
 	if err != nil {
 		t.Fatalf("MintGateRecord: %v", err)
@@ -102,7 +107,7 @@ func gateMintArmed(t *testing.T, repoDir string, beforeIDs []int, dispatchEpoch 
 // gate-verdict call reads after a first call attributed the claim.
 func gateMintAttributed(t *testing.T, repoDir string, id int) string {
 	t.Helper()
-	key := gateMintArmed(t, repoDir, nil, 1)
+	key := gateMintArmed(t, repoDir, nil, 1, "")
 	rec, err := LoadGateRecord(repoDir, key)
 	if err != nil {
 		t.Fatalf("LoadGateRecord: %v", err)
@@ -242,7 +247,7 @@ func (r gatedWaitingReader) Read(_ context.Context, _ string, _ int) (WaitingRec
 // implement-next run, so the verdict path's outer-takeover branch is reachable.
 func gateMintArmedScoped(t *testing.T, repoDir, scopeID, parentCap, childContextHash string) string {
 	t.Helper()
-	key := gateMintArmed(t, repoDir, nil, 1)
+	key := gateMintArmed(t, repoDir, nil, 1, "")
 	rec, err := LoadGateRecord(repoDir, key)
 	if err != nil {
 		t.Fatalf("LoadGateRecord: %v", err)
@@ -254,6 +259,38 @@ func gateMintArmedScoped(t *testing.T, repoDir, scopeID, parentCap, childContext
 		t.Fatalf("SaveGateRecord: %v", err)
 	}
 	return key
+}
+
+// gateMintAttributedScoped mints a scoped record already attributed to id — the
+// resume-verified shape (AttributedID set, BoundRequestID empty) a continuation of
+// a scoped dispatch reads. resolveGateOwnership returns immediately for this shape
+// (change 0407: continuity for a resume-bound id is RunVerify's job), so it reaches
+// the unchanged continuation and retry paths exactly as a first verdict's
+// attribution used to.
+func gateMintAttributedScoped(t *testing.T, repoDir, scopeID, parentCap, childContextHash string, id int) string {
+	t.Helper()
+	key := gateMintArmedScoped(t, repoDir, scopeID, parentCap, childContextHash)
+	rec, err := LoadGateRecord(repoDir, key)
+	if err != nil {
+		t.Fatalf("LoadGateRecord: %v", err)
+	}
+	rec.AttributedID = id
+	if err := SaveGateRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveGateRecord: %v", err)
+	}
+	return key
+}
+
+// fakeProofScanner is the injected ClaimProofScanner for the verdict path's
+// ownership resolution (change 0407): it returns canned proofs newest-first, or an
+// error. A nil scanner (not this fake) is the fail-closed proof-unavailable case.
+type fakeProofScanner struct {
+	proofs []ClaimProof
+	err    error
+}
+
+func (f *fakeProofScanner) ScanClaimProofs(context.Context, string) ([]ClaimProof, error) {
+	return f.proofs, f.err
 }
 
 // gateRetryMarkerExists reports whether the O_EXCL retry marker for key exists on
@@ -279,7 +316,9 @@ func TestVerdictWaitingIsNonterminalContinue(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
 	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
-	key := gateMintArmed(t, f.repo.invocation, nil, 1)
+	// Resume-verified shape (AttributedID set, no binding): ownership resolution
+	// returns immediately and the run-waiting continuation maps unchanged.
+	key := gateMintAttributed(t, f.repo.invocation, 3)
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res.Decision != GateDecisionContinue {
@@ -327,7 +366,7 @@ func TestVerdictIncompleteWithTrackedDriveContinuesWithoutRetry(t *testing.T) {
 		handoffToken: "h0token",
 		onTakeover:   func() { tookOver = true },
 	}
-	key := gateMintArmedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
+	key := gateMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res.Decision != GateDecisionContinue {
@@ -362,7 +401,7 @@ func TestVerdictIncompleteQuiescentStillRetriesOnce(t *testing.T) {
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
 	wdeps.Continuation = &fakeContinuationSeam{candidates: nil} // zero candidates
-	key := gateMintArmedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
+	key := gateMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
 	res1 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if got, want := res1.HumanText(), "gate-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
@@ -391,7 +430,7 @@ func TestVerdictAmbiguousDrivesStops(t *testing.T) {
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
 	wdeps.Continuation = &fakeContinuationSeam{candidates: []string{"a", "b"}}
-	key := gateMintArmedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
+	key := gateMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
@@ -421,7 +460,7 @@ func TestVerdictTakeoverHaltStops(t *testing.T) {
 		takeoverHalt:  true,
 		takeoverCause: "identity-mismatch",
 	}
-	key := gateMintArmedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
+	key := gateMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
@@ -463,21 +502,27 @@ func TestVerdictContinueNeverAuthorizesNewClaim(t *testing.T) {
 }
 
 // TestVerdictFreshRunBindsScopeChange: on a FRESH run (no pre-attributed id), when
-// attribution first resolves exactly one claim the verdict path binds that change
-// id into the outer recovery scope (spec §3 defense-in-depth) so a later outer
-// takeover's scopeIdentityMatch pins the change rather than skipping it on an empty
-// scope field. Mutation target: dropping the BindScopeChange call at the attribution
-// point reddens the bindCalls assertion below.
+// ownership resolution adopts the sole matching claim proof the verdict path binds
+// that change id into the outer recovery scope (spec §3 defense-in-depth) so a later
+// outer takeover's scopeIdentityMatch pins the change rather than skipping it on an
+// empty scope field. Mutation target: dropping the BindScopeChange call at the
+// adoption point reddens the bindCalls assertion below.
 func TestVerdictFreshRunBindsScopeChange(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	seam := &fakeContinuationSeam{} // no candidates: attribution runs, then the
-	// run-incomplete path finds zero tracked drives and takes the ordinary retry
-	// route — but the bind already fired at the attribution point.
+	seam := &fakeContinuationSeam{} // no candidates: ownership adopts the sole proof,
+	// then the run-incomplete path finds zero tracked drives and takes the ordinary
+	// retry route — but the bind already fired at the adoption point.
 	wdeps.Continuation = seam
+	// One committed proof matches the record's context hash, so the no-binding branch
+	// adopts it and mirrors the change id onto the still-lagging record (AttributedID
+	// 0 → 3), firing the scope bind.
+	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ctxhash-1", Revision: "r1"},
+	}}
 	// A scoped, unattributed record: ScopeID present, AttributedID == 0 (fresh run).
 	key := gateMintArmedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
 
@@ -541,5 +586,309 @@ func TestVerdictObservePathStillCannotContinue(t *testing.T) {
 	}
 	if !strings.HasPrefix(line, GateDecisionObserve) {
 		t.Errorf("observe line must start with %q; got %q", GateDecisionObserve, line)
+	}
+}
+
+// --- ownership from proof, never inference (change 0407) --------------------
+//
+// resolveGateOwnership replaces the before-set/cardinality attribution with the
+// verified dispatch-to-claim binding: a confirmed binding's continuity is checked
+// against committed proofs, an unconfirmed reservation recovers only from its exact
+// receipt, an absent binding adopts the sole matching proof, and every missing /
+// conflicting / unprovable case fails CLOSED to a non-authorizing report. The
+// before-set and dispatch epoch are diagnostics only and can never grant a retry.
+
+// TestVerdictConfirmedBindingResolvesBoundChange: a confirmed binding whose newest
+// proof for the id matches the bound request id resolves the bound change and
+// delegates unchanged to RunVerify — a completed run reports run-complete even
+// though the claim left the change in-progress.
+func TestVerdictConfirmedBindingResolvesBoundChange(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
+	if err := ReserveGateClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := ConfirmGateClaim(f.repo.invocation, key, 3, "claim-3-v", "r1"); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+	}}
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if res.AttributedID != 3 {
+		t.Errorf("AttributedID = %d, want 3 (bound change resolved)", res.AttributedID)
+	}
+}
+
+// TestVerdictNoBindingNoProofIsNoAttributableClaim: a dispatch that claims nothing
+// resolves to no-attributable-claim and never acquires a sibling's claim — a proof
+// under a DIFFERENT context hash is filtered out, the retry is never spent, and the
+// sibling id never appears in the report.
+func TestVerdictNoBindingNoProofIsNoAttributableClaim(t *testing.T) {
+	repo := newGateRepo(t)
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "x", ChangeID: 9, GateContextHash: "OTHER"},
+	}}}
+
+	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if !res.Terminal {
+		t.Errorf("no-attributable-claim is terminal")
+	}
+	if res.AttributedID != 0 {
+		t.Errorf("AttributedID = %d, want 0 (nothing adopted)", res.AttributedID)
+	}
+	if len(res.AmbiguousIDs) != 0 {
+		t.Errorf("no id may be named on a no-attributable-claim; got AmbiguousIDs=%v", res.AmbiguousIDs)
+	}
+	if gateRetryMarkerExists(t, repo, key) {
+		t.Errorf("no-attributable-claim must never spend the retry")
+	}
+}
+
+// TestVerdictUnconfirmedReservationRecoversFromExactReceipt: a reservation whose
+// confirm was interrupted recovers from the exact committed receipt (same request
+// id, same context hash), confirms the binding, and delegates to the bound id.
+func TestVerdictUnconfirmedReservationRecoversFromExactReceipt(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
+	if err := ReserveGateClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+	}}
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q (recovered from the exact receipt)", got, want)
+	}
+	b, ok, err := LoadGateClaimBinding(f.repo.invocation, key)
+	if err != nil || !ok || !b.Confirmed || b.ChangeID != 3 {
+		t.Fatalf("binding = %+v ok=%v err=%v, want confirmed change 3", b, ok, err)
+	}
+}
+
+// TestVerdictUnconfirmedReservationWithoutReceiptStops: an unconfirmed reservation
+// with no matching committed receipt never became a real claim — the verdict is
+// no-attributable-claim and the reservation is left refused (never released so a
+// different claim can take it, never confirmed).
+func TestVerdictUnconfirmedReservationWithoutReceiptStops(t *testing.T) {
+	repo := newGateRepo(t)
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: nil}}
+
+	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	b, ok, err := LoadGateClaimBinding(repo, key)
+	if err != nil || !ok || b.Confirmed || b.ChangeID != 3 || b.RequestID != "claim-3-v" {
+		t.Fatalf("binding = %+v ok=%v err=%v, want the unconfirmed reservation intact", b, ok, err)
+	}
+}
+
+// TestVerdictAbsentBindingAdoptsSoleProof: with no binding file at all, a single
+// committed proof matching the record's context hash is adopted (reserved,
+// confirmed, mirrored) and delegation proceeds; two matching proofs are unsafe
+// ownership and fail closed to binding-conflict.
+func TestVerdictAbsentBindingAdoptsSoleProof(t *testing.T) {
+	t.Run("sole proof adopted", func(t *testing.T) {
+		f := newRunVerifyFixture(t, true)
+		deps, wdeps, gdeps := f.deps(
+			rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+			rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+		)
+		key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
+		wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
+			{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		}}
+
+		res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+		if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+			t.Fatalf("HumanText = %q, want %q", got, want)
+		}
+		b, ok, err := LoadGateClaimBinding(f.repo.invocation, key)
+		if err != nil || !ok || !b.Confirmed || b.ChangeID != 3 {
+			t.Fatalf("binding = %+v ok=%v err=%v, want confirmed change 3 after adoption", b, ok, err)
+		}
+	})
+
+	t.Run("two proofs is binding-conflict", func(t *testing.T) {
+		repo := newGateRepo(t)
+		key := gateMintArmed(t, repo, nil, 1, "ha")
+		wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+			{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+			{RequestID: "claim-4-v", ChangeID: 4, GateContextHash: "ha", Revision: "r2"},
+		}}}
+
+		res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+		if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateBindingConflict {
+			t.Fatalf("got %q/%q/%q, want gate-stop/gate-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateBindingConflict)
+		}
+		if !res.Terminal {
+			t.Errorf("binding-conflict is terminal")
+		}
+	})
+}
+
+// TestVerdictClaimReplacedStops: a confirmed binding whose bound change carries a
+// NEWER proof under a different request id means the change was reclaimed and
+// re-claimed by another run — the old gate must neither retry nor take over the
+// replacement. The binding is left unchanged and the retry is never spent.
+func TestVerdictClaimReplacedStops(t *testing.T) {
+	repo := newGateRepo(t)
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+	if err := ReserveGateClaim(repo, key, 3, "claim-3-v1"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v1", "r1"); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v2", ChangeID: 3, GateContextHash: ""},
+		{RequestID: "claim-3-v1", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+	}}}
+
+	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateClaimReplaced {
+		t.Fatalf("got %q/%q/%q, want gate-stop/gate-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateClaimReplaced)
+	}
+	if gateRetryMarkerExists(t, repo, key) {
+		t.Errorf("a replaced claim must never spend the retry")
+	}
+	b, _, err := LoadGateClaimBinding(repo, key)
+	if err != nil {
+		t.Fatalf("load binding: %v", err)
+	}
+	if b.RequestID != "claim-3-v1" || !b.Confirmed || b.Revision != "r1" {
+		t.Errorf("binding = %+v, want the original confirmed claim-3-v1@r1 unchanged", b)
+	}
+}
+
+// TestVerdictNilProofScannerFailsClosed: a claim-bound gate with no proof access
+// cannot verify continuity — unlike the continuation seam, ownership can never
+// proceed without proofs, so it fails closed to proof-unavailable.
+func TestVerdictNilProofScannerFailsClosed(t *testing.T) {
+	repo := newGateRepo(t)
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1"); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: nil}, GitHubDeps{}, repo, key)
+	if res.Decision != GateDecisionStop || res.Reason != ReasonGateProofUnavailable {
+		t.Fatalf("got %q/%q, want gate-stop/%s", res.Decision, res.Reason, ReasonGateProofUnavailable)
+	}
+	if gateRetryMarkerExists(t, repo, key) {
+		t.Errorf("proof-unavailable must never spend the retry")
+	}
+}
+
+// TestVerdictProofScanErrorFailsClosed: a proof-scan error fails closed to
+// proof-unavailable and never consumes a retry.
+func TestVerdictProofScanErrorFailsClosed(t *testing.T) {
+	repo := newGateRepo(t)
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1"); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{err: errors.New("boom")}}
+	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	if res.Decision != GateDecisionStop || res.Reason != ReasonGateProofUnavailable {
+		t.Fatalf("got %q/%q, want gate-stop/%s", res.Decision, res.Reason, ReasonGateProofUnavailable)
+	}
+	if gateRetryMarkerExists(t, repo, key) {
+		t.Errorf("a scan error must never spend the retry")
+	}
+}
+
+// TestVerdictCorruptBindingFailsClosed: an unparseable binding file is a typed
+// binding-unreadable stop — never a silent (ok=false) fall-through to attribution.
+func TestVerdictCorruptBindingFailsClosed(t *testing.T) {
+	repo := newGateRepo(t)
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+	common, err := gateGitCommonDir(repo)
+	if err != nil {
+		t.Fatalf("gateGitCommonDir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(common, "docket", "rungate", key, gateClaimBindingName), []byte("{not json"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: &fakeProofScanner{}}, GitHubDeps{}, repo, key)
+	if res.Decision != GateDecisionStop || res.Reason != ReasonGateBindingUnreadable {
+		t.Fatalf("got %q/%q, want gate-stop/%s", res.Decision, res.Reason, ReasonGateBindingUnreadable)
+	}
+}
+
+// TestVerdictResumeBindingSkipsContinuity: a gate-before --resume record
+// (AttributedID set, BoundRequestID empty) is pre-bound by verified identity — the
+// continuity check never runs, so a scanner that WOULD report a replacement still
+// delegates to RunVerify (preserved verified-resume behavior).
+func TestVerdictResumeBindingSkipsContinuity(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	key := gateMintAttributed(t, f.repo.invocation, 3)
+	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v2", ChangeID: 3, GateContextHash: ""},
+	}}
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q (resume-bound id delegates, never claim-replaced)", got, want)
+	}
+	if res.Reason == ReasonGateClaimReplaced {
+		t.Errorf("a resume-bound verdict must never stop on continuity")
+	}
+}
+
+// TestVerdictOwnershipIgnoresBeforeSetAndEpoch pins the 0407 defect: a sibling
+// in-progress claim the OLD before-set/epoch filters would have attributed sits in
+// the corpus, but ownership reads only committed proofs. With no proof carrying the
+// record's context hash, the verdict is no-attributable-claim — never the sibling.
+// Mutation partner: re-introducing epoch/before-set inference reddens exactly this.
+func TestVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := gateLightDeps(t, []StatusBlob{gateInProgressBlob(9, "sibling", "keep")})
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "sib", ChangeID: 9, GateContextHash: "OTHER"},
+	}}}
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, GitHubDeps{}, repo, key)
+	if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
+		t.Fatalf("HumanText = %q, want %q (never the sibling)", got, want)
+	}
+	if res.AttributedID != 0 {
+		t.Errorf("AttributedID = %d, want 0 (the sibling id 9 must never be attributed)", res.AttributedID)
+	}
+	if len(res.AmbiguousIDs) != 0 {
+		t.Errorf("no id may be named; got AmbiguousIDs=%v", res.AmbiguousIDs)
 	}
 }

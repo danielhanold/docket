@@ -159,8 +159,11 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 	// CreatedAt is stamped at the start of the arm; DispatchEpoch is captured
 	// AFTER the before-read below, so a claim landing at or after the dispatch is
 	// distinguishable from one already present. Both are real wall-clock stamps
-	// (never the injected transaction clock): downstream attribution compares
-	// DispatchEpoch against a claim's real claimed_at time.
+	// (never the injected transaction clock). Since change 0407 the verdict path
+	// binds ownership at claim time (the verified dispatch-to-claim binding), so
+	// DispatchEpoch and BeforeIDs no longer feed attribution — they are retained as
+	// diagnostics for a human reading the record and can never create retry
+	// authority.
 	createdAt := time.Now().Unix()
 
 	// (1) Re-sync the metadata worktree to fresh origin. PinContext advances the
@@ -197,8 +200,9 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 
 	// (3) Capture the dispatch epoch AFTER the before-read. A resume never touches
 	// this ordering: the resumed change stays in BeforeIDs and DispatchEpoch stays
-	// post-read, because attribution is bound by verified identity below, not by a
-	// timestamp comparison.
+	// post-read. Neither value is consulted by the verdict path any more (change
+	// 0407: keyed attribution binds at claim time); they are recorded as diagnostics
+	// only, and a resumed change's ownership is bound below by verified identity.
 	dispatchEpoch := time.Now().Unix()
 
 	// (4) Verify an explicit resume id, if requested. Attribution is pre-bound ONLY
