@@ -21,7 +21,7 @@ branch: 'fix/gate-drive-start-human-output-omits-drive-id-generation'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T14:50:10Z'
+claimed_at: '2026-09-07T14:50:53Z'
 ---
 
 ## Artifacts
