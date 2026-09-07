@@ -2,7 +2,7 @@
 id: 327
 slug: stack-closeout-must-prove-integration-reachability
 title: 'Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata'
-status: proposed
+status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-18
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'fix/stack-closeout-must-prove-integration-reachability'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-07T14:51:12Z'
 ---
 
 ## Artifacts
