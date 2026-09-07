@@ -140,6 +140,13 @@ type sweepOps struct {
 	// orchestration tests exercise dispatch order and isolation without the filter.
 	// Production wires it in MaintenanceSweep; it is consulted only in full scope.
 	assessHistorical func(ctx context.Context, inv sweepInventory, pin StatusPin, historical []sweepWorkItem) (entries []MaintenanceEntry, actionable []sweepWorkItem)
+	// syncIntegration runs the repository.sync-integration operation once, after
+	// the item loop, for BOTH scopes (change 0388). It is bounded, repository-level
+	// Git work — no per-item invocation, nothing that scales with archive size.
+	// Production wires it to RunRepositorySyncIntegration over the shared git
+	// client; an orchestration test injects a counting fake or leaves it nil (the
+	// pre-0388 shape). A nil seam runs no sync and leaves IntegrationSync nil.
+	syncIntegration func(ctx context.Context) *SyncOutcome
 }
 
 // MaintenanceEntry is one item's structured outcome. Disposition is a closed
@@ -178,6 +185,14 @@ type MaintenanceResult struct {
 	Findings                   []StatusFinding    `json:"findings"`
 	Scope                      string             `json:"scope"`
 	DeferredHistoricalCleanups int                `json:"deferred_historical_cleanups"`
+	// IntegrationSync carries the once-per-scope repository.sync-integration
+	// outcome (change 0388), additively and omitempty: nil on every whole-sweep
+	// refusal and on a cancelled context, populated otherwise. It rides here — never
+	// an entries row — and never inflates the entry-derived applied count. A sync
+	// advance may upgrade an otherwise no-op envelope to applied; a sync failure
+	// never downgrades or overwrites the entry-derived result. The enum tag on
+	// SyncOutcome.Disposition (enum=sync_dispositions) rides in through this field.
+	IntegrationSync *SyncOutcome `json:"integration_sync,omitempty"`
 }
 
 // HumanText renders a one-line summary naming the entry count and the mutated
@@ -187,25 +202,35 @@ func (r MaintenanceResult) HumanText() string {
 	if r.Scope != "" {
 		op = fmt.Sprintf("%s (scope %s)", r.Operation, r.Scope)
 	}
-	if r.Result == ResultApplied || r.Result == ResultNoOp {
+	var out string
+	switch {
+	case r.Result == ResultApplied || r.Result == ResultNoOp:
 		applied := 0
 		for _, e := range r.Entries {
 			if e.Disposition == SweepDispApplied {
 				applied++
 			}
 		}
-		out := fmt.Sprintf("%s: %d item(s), %d applied", op, len(r.Entries), applied)
+		out = fmt.Sprintf("%s: %d item(s), %d applied", op, len(r.Entries), applied)
 		if r.Scope == string(SweepScopeImplementation) {
 			// A count of candidates deliberately NOT probed — never a claim
 			// they are dirty or blocked; explicit full maintenance owns them.
 			out += fmt.Sprintf("; %d historical cleanup(s) deferred to `docket maintenance sweep --scope full`", r.DeferredHistoricalCleanups)
 		}
-		return out
+	case r.Reason != "":
+		out = fmt.Sprintf("%s: %s (%s)", op, r.Result, r.Reason)
+	default:
+		out = fmt.Sprintf("%s: %s", op, r.Result)
 	}
-	if r.Reason != "" {
-		return fmt.Sprintf("%s: %s (%s)", op, r.Result, r.Reason)
+	// The once-per-scope integration sync, when it ran, is reported separately —
+	// never folded into the item counts (change 0388).
+	if r.IntegrationSync != nil {
+		out += fmt.Sprintf("; integration sync: %s", r.IntegrationSync.Disposition)
+		if r.IntegrationSync.Reason != "" {
+			out += fmt.Sprintf(" (%s)", r.IntegrationSync.Reason)
+		}
 	}
-	return fmt.Sprintf("%s: %s", op, r.Result)
+	return out
 }
 
 // newMaintenanceResult stamps the envelope and normalizes nil collections so the
@@ -315,6 +340,23 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, sc
 			// records that warrant a fresh cleanup attempt.
 			shared := gatherSweepSharedFacts(ctx, deps, inv, historical)
 			return sweepAssessHistorical(ctx, deps, wdeps, inv, pin, shared, historical)
+		},
+		syncIntegration: func(ctx context.Context) *SyncOutcome {
+			// Bounded, repository-level Git work run once per scope: fast-forward the
+			// primary checkout to the freshly fetched integration tip when it is safe,
+			// explicit skips otherwise. A nil git client fails closed with a `failed`
+			// outcome rather than panicking. RunRepositorySyncIntegration returns the
+			// concrete RepositorySyncResult (Task 4), so no type assertion is needed.
+			if deps.Planning.Client == nil {
+				return &SyncOutcome{
+					Disposition: SyncDispFailed,
+					Reason:      "internal-error",
+					Message:     "no git client is wired for the integration sync",
+				}
+			}
+			res := RunRepositorySyncIntegration(ctx, SetupDeps{Git: deps.Planning.Client, RepoDir: repoDir})
+			out := res.SyncOutcome
+			return &out
 		},
 	}
 	return maintenanceSweep(ctx, deps, repoDir, ops, scope)
@@ -435,9 +477,27 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 			break
 		}
 	}
+
+	// Integration sync, once per scope, after the item loop and its assess
+	// entries (change 0388). Every whole-sweep refusal path returned BEFORE this
+	// point, so a populated IntegrationSync only ever accompanies a run that
+	// initialized. A cancelled context skips it entirely (no detached work), and a
+	// nil seam (an orchestration test, or a caller with no sync wired) runs nothing.
+	var sync *SyncOutcome
+	if ops.syncIntegration != nil && ctx.Err() == nil {
+		sync = ops.syncIntegration(ctx)
+	}
+	// A sync advance upgrades an otherwise no-op envelope to applied; a sync
+	// failure NEVER downgrades or overwrites the entry-derived result. The applied
+	// count HumanText derives stays entry-only — the sync outcome rides
+	// IntegrationSync, never an entries row.
+	if sync != nil && sync.Disposition == SyncDispAdvanced && result == ResultNoOp {
+		result = ResultApplied
+	}
+
 	// Discovery diagnostics ride the result even when no operation was selected —
 	// silent omission is not success.
-	return stamp(newMaintenanceResult(result, MaintenanceResult{Entries: entries, Findings: factFindings}), deferredHistorical)
+	return stamp(newMaintenanceResult(result, MaintenanceResult{Entries: entries, Findings: factFindings, IntegrationSync: sync}), deferredHistorical)
 }
 
 // sweepInventory is one authoritative read: the built snapshot plus the exact
