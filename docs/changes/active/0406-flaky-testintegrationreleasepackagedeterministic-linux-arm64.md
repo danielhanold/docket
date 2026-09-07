@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-04'
-updated: '2026-09-04'
+updated: '2026-09-07'
 depends_on: []
 stacked_on:
-related: []
+related: [317, 366]
 discovered_from: [403]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
