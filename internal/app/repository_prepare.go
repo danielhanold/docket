@@ -93,6 +93,11 @@ type PrepareFinalize struct {
 	Gate              string `json:"gate"`
 	TestCommand       string `json:"test_command"`
 	RequirePRApproval bool   `json:"require_pr_approval"`
+	// ResolverMaxAttempts is the resolved finalize.resolver_max_attempts cap
+	// (change 0349): how many resolver dispatches finalize may reserve per owned
+	// rebase attempt. Mirrored from config so the finalize skill reads it here
+	// rather than counting dispatches itself.
+	ResolverMaxAttempts int `json:"resolver_max_attempts"`
 }
 
 // PrepareBuild mirrors exactly the supported config.Effective build fields
@@ -448,9 +453,10 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 		AdrsDir:                   cfg.ADRsDir.Value,
 		ResultsDir:                cfg.ResultsDir.Value,
 		Finalize: PrepareFinalize{
-			Gate:              cfg.Finalize.Gate.Value,
-			TestCommand:       cfg.Finalize.TestCommand.Value,
-			RequirePRApproval: cfg.Finalize.RequirePRApproval.Value,
+			Gate:                cfg.Finalize.Gate.Value,
+			TestCommand:         cfg.Finalize.TestCommand.Value,
+			RequirePRApproval:   cfg.Finalize.RequirePRApproval.Value,
+			ResolverMaxAttempts: cfg.Finalize.ResolverMaxAttempts.Value,
 		},
 		Build: PrepareBuild{
 			Gate:        cfg.Build.Gate.Value,

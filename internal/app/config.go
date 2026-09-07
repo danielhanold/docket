@@ -243,6 +243,7 @@ func effectiveLines(eff *config.Effective) []effectiveLine {
 		leafLine("finalize.gate", textValue(eff.Finalize.Gate.Value), eff.Finalize.Gate.Provenance),
 		leafLine("finalize.test_command", textValue(eff.Finalize.TestCommand.Value), eff.Finalize.TestCommand.Provenance),
 		leafLine("finalize.require_pr_approval", strconv.FormatBool(eff.Finalize.RequirePRApproval.Value), eff.Finalize.RequirePRApproval.Provenance),
+		leafLine("finalize.resolver_max_attempts", strconv.Itoa(eff.Finalize.ResolverMaxAttempts.Value), eff.Finalize.ResolverMaxAttempts.Provenance),
 		leafLine("build.gate", textValue(eff.Build.Gate.Value), eff.Build.Gate.Provenance),
 		leafLine("build.test_command", textValue(eff.Build.TestCommand.Value), eff.Build.TestCommand.Provenance),
 		leafLine("learnings.enabled", strconv.FormatBool(eff.Learnings.Enabled.Value), eff.Learnings.Enabled.Provenance),
