@@ -2,7 +2,7 @@
 id: 407
 slug: 'keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent'
 title: 'Keyed gate-verdict misattributes its verdict to a concurrent loop''s change id under parallel implement-next runs'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/285'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-07T02:05:12Z'
