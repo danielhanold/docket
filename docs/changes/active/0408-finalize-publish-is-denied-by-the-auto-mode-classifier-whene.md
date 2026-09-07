@@ -22,7 +22,7 @@ branch: 'fix/finalize-publish-is-denied-by-the-auto-mode-classifier-whene'
 pr:
 blocked_by:
 reconciled: false
-claimed_at: '2026-09-07T01:47:59Z'
+claimed_at: '2026-09-07T14:53:29Z'
 ---
 
 ## Artifacts
@@ -47,12 +47,6 @@ Persist a completed-gate publish checkpoint in the owned rebase receipt when the
 ## Out of scope
 
 The retired historical-version comparison (the 2.1.259 / 2.1.260 / current matrix) and the live classifier acceptance activity. Any change to Claude Code, branch protection, merge method, or bot approvals. Any broad permission grant or user-settings change. A Go primitive distinguishing a host denial from a Go result — a host denial means the binary never ran, so that distinction lives in the finalize skill and harness. A split publisher or a general recovery subsystem beyond the receipt checkpoint.
-
-## Run halted
-
-### 2026-09-07
-
-2026-09-07 — Autonomous implement-next halted at the spec's investigation decision gate.
 
 ## Why this run halts (not a defect, not an invalidated design)
 
