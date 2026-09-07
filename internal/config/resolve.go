@@ -288,6 +288,7 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 	set(assign(&eff.Finalize.Gate, r.declared, "finalize.gate"))
 	set(assign(&eff.Finalize.TestCommand, r.declared, "finalize.test_command"))
 	set(assign(&eff.Finalize.RequirePRApproval, r.declared, "finalize.require_pr_approval"))
+	set(assign(&eff.Finalize.ResolverMaxAttempts, r.declared, "finalize.resolver_max_attempts"))
 	set(assign(&eff.Build.Gate, r.declared, "build.gate"))
 	set(assign(&eff.Build.TestCommand, r.declared, "build.test_command"))
 	set(assign(&eff.Learnings.Enabled, r.declared, "learnings.enabled"))

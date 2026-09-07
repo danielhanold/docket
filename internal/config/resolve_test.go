@@ -74,6 +74,8 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.Finalize.TestCommand.Value, eff.Finalize.TestCommand.Provenance, eff.Finalize.TestCommand.Explicit
 	case "finalize.require_pr_approval":
 		return eff.Finalize.RequirePRApproval.Value, eff.Finalize.RequirePRApproval.Provenance, eff.Finalize.RequirePRApproval.Explicit
+	case "finalize.resolver_max_attempts":
+		return eff.Finalize.ResolverMaxAttempts.Value, eff.Finalize.ResolverMaxAttempts.Provenance, eff.Finalize.ResolverMaxAttempts.Explicit
 	case "learnings.enabled":
 		return eff.Learnings.Enabled.Value, eff.Learnings.Enabled.Provenance, eff.Learnings.Enabled.Explicit
 	case "reclaim.lease_ttl":
@@ -96,6 +98,10 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 }
 
 func leaseTTL(n int) string { return fmt.Sprintf("reclaim:\n  lease_ttl: %d\n", n) }
+
+func resolverMax(n int) string {
+	return fmt.Sprintf("finalize:\n  resolver_max_attempts: %d\n", n)
+}
 
 // TestResolveBoardDefaults pins the built-in board presentation: the canonical
 // six-token permutation, and one updated/desc sort per section, all
@@ -336,6 +342,41 @@ func TestPrecedencePerLeaf(t *testing.T) {
 			}
 			if got.Explicit != tc.explicit {
 				t.Errorf("lease_ttl explicit = %v, want %v", got.Explicit, tc.explicit)
+			}
+		})
+	}
+}
+
+// TestPrecedenceResolverMaxAttempts pins finalize.resolver_max_attempts through
+// the full four-layer precedence (repository-local > repository-committed >
+// global > built-in), the same shape as reclaim.lease_ttl and its finalize
+// sibling finalize.require_pr_approval.
+func TestPrecedenceResolverMaxAttempts(t *testing.T) {
+	cases := []struct {
+		name     string
+		sources  []Source
+		want     int
+		layer    LayerKind
+		explicit bool
+	}{
+		{"nothing declared wins the built-in default", nil, 3, LayerBuiltIn, false},
+		{"global alone", []Source{srcG(resolverMax(4))}, 4, LayerGlobal, true},
+		{"repository beats global", []Source{srcG(resolverMax(4)), srcR(resolverMax(5))}, 5, LayerRepository, true},
+		{"repository-local beats everything", []Source{srcG(resolverMax(4)), srcR(resolverMax(5)), srcL(resolverMax(6))}, 6, LayerRepositoryLocal, true},
+		{"repository-local beats global with no repository layer", []Source{srcG(resolverMax(4)), srcL(resolverMax(6))}, 6, LayerRepositoryLocal, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := mustResolve(t, tc.sources, mainCtx)
+			got := res.effective.Finalize.ResolverMaxAttempts
+			if got.Value != tc.want {
+				t.Errorf("resolver_max_attempts = %d, want %d", got.Value, tc.want)
+			}
+			if got.Provenance.Layer != tc.layer {
+				t.Errorf("resolver_max_attempts provenance layer = %q, want %q", got.Provenance.Layer, tc.layer)
+			}
+			if got.Explicit != tc.explicit {
+				t.Errorf("resolver_max_attempts explicit = %v, want %v", got.Explicit, tc.explicit)
 			}
 		})
 	}

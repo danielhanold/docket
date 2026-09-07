@@ -145,6 +145,10 @@ type Finalize struct {
 	Gate              Value[string] `json:"gate"`         // local|off (ci/both classify deferred-active)
 	TestCommand       Value[string] `json:"test_command"` // "" == unconfigured (legacy `auto` resolves away)
 	RequirePRApproval Value[bool]   `json:"require_pr_approval"`
+	// ResolverMaxAttempts caps durable resolver dispatch reservations per owned
+	// rebase attempt (change 0349). Positive; snapshotted into the rebase
+	// receipt when a fresh attempt begins.
+	ResolverMaxAttempts Value[int] `json:"resolver_max_attempts"`
 }
 
 // Build is the build role's OWN gate policy (change 0374). It resolves

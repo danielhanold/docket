@@ -31,9 +31,10 @@ func builtinEffective() Effective {
 		ADRsDir:           builtinValue("docs/adrs"),
 		ResultsDir:        builtinValue("docs/results"),
 		Finalize: Finalize{
-			Gate:              builtinValue("local"),
-			TestCommand:       builtinValue(""),
-			RequirePRApproval: builtinValue(false),
+			Gate:                builtinValue("local"),
+			TestCommand:         builtinValue(""),
+			RequirePRApproval:   builtinValue(false),
+			ResolverMaxAttempts: builtinValue(3),
 		},
 		Build: Build{
 			Gate:        builtinValue("local"),
