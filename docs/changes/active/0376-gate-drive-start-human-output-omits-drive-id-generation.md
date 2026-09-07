@@ -2,7 +2,7 @@
 id: 376
 slug: gate-drive-start-human-output-omits-drive-id-generation
 title: '`docket gate drive start` human-readable output omits drive_id/generation'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-30
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: 'fix/gate-drive-start-human-output-omits-drive-id-generation'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-07T14:43:55Z'
 ---
 
 ## Artifacts
