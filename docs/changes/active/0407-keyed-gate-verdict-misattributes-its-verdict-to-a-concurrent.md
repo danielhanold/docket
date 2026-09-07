@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T01:41:30Z'
+reconciled: true
+claimed_at: '2026-09-07T01:45:30Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ Cover overlapping runs, completion before the first verdict, failed and interrup
 ## Out of scope
 
 Slash-command interception and creation of attribution context for change 0345; the test-drive prepare-scope/start handshake seam in change 0405; scheduling or serializing concurrent implement-next loops; the release-determinism failure in change 0406; and unrelated lifecycle or disposition redesign.
+
+## Reconcile log
+
+### 2026-09-07
+
+2026-09-06 — Reconciled against current source. Diagnosis confirmed in HEAD: internal/app/rungate_before.go leaves fresh dispatches' AttributedID unset (attribution deferred to verdict time), and internal/app/rungate_verdict.go attributeGateClaim still infers ownership from the pre-hand-off in-progress set minus a before-set with a claimed_at window, so a completed intended change drops out and a lone surviving concurrent claim is misattributed — exactly the failure class Why/spec describe. RunGateBefore already mints a dispatch context (DispatchContext / ChildContextHash) but change.claim (internal/app/change_claim.go ChangeClaimRequest/Result) records no dispatch identity, so the bind-at-claim seam the spec calls for is still absent. Related siblings unchanged and out of scope: 345 (slash-command attribution, proposed), 405 (test-drive prepare-scope/start handshake, proposed), 406 (release-determinism flake, in-progress); discovery provenance 403 and 402 are archived done. ADR-0075 remains Accepted; this change will record a successor ADR superseding its snapshot/cardinality attribution mechanism while preserving its conservative safety principle. Scope, relations, and acceptance criteria stand as written; no adjustment required.
