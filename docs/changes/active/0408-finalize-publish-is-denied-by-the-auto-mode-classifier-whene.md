@@ -2,7 +2,7 @@
 id: 408
 slug: 'finalize-publish-is-denied-by-the-auto-mode-classifier-whene'
 title: 'Finalize publish is denied by the auto-mode classifier whenever the gate rebases'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-06'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/finalize-publish-is-denied-by-the-auto-mode-classifier-whene'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/287'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-07T23:19:05Z'
