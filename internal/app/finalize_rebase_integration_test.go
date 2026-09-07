@@ -881,9 +881,9 @@ func TestIntegrationFinalizeRebaseCheckpointInvalidation(t *testing.T) {
 	})
 
 	tamperCases := map[string]func(*workspace.RebaseReceipt){
-		"changed-command":  func(r *workspace.RebaseReceipt) { r.PublishCheckpointCommand = "make other-suite" },
-		"changed-gate":     func(r *workspace.RebaseReceipt) { r.PublishCheckpointGate = "off" },
-		"different-pr":     func(r *workspace.RebaseReceipt) { r.PublishCheckpointPRNumber = "99" },
+		"changed-command": func(r *workspace.RebaseReceipt) { r.PublishCheckpointCommand = "make other-suite" },
+		"changed-gate":    func(r *workspace.RebaseReceipt) { r.PublishCheckpointGate = "off" },
+		"different-pr":    func(r *workspace.RebaseReceipt) { r.PublishCheckpointPRNumber = "99" },
 		"wrong-head-evidence": func(r *workspace.RebaseReceipt) {
 			r.PublishCheckpointEvidence = strings.ReplaceAll(
 				r.PublishCheckpointEvidence, r.PublishCheckpointHead, r.OrigHead)
