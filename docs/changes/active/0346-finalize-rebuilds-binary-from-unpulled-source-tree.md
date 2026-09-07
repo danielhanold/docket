@@ -19,8 +19,8 @@ auto_groomable:
 branch: 'fix/finalize-rebuilds-binary-from-unpulled-source-tree'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T14:57:04Z'
+reconciled: true
+claimed_at: '2026-09-07T14:58:53Z'
 ---
 
 ## Artifacts
@@ -53,3 +53,7 @@ Removing the rebuild-after-merge requirement; reimplementing integration sync; n
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-09-07
+
+2026-09-07 — Reconciled against current main (0d1a7e1b) and docket metadata. Change 0388 is done: finalize's SKILL.md already runs the once-per-run `repository.sync-integration` suffix after batch closeout/cleanup (SKILL.md "After the batch's closeout and cleanup attempts ... run the `repository.sync-integration` operation once"). Related 0340 (build-identity stamping) and 0392 (installer-tolerant config read) are done, so their outputs are available as building blocks. The design's chosen approach (workflow + AGENTS.md policy correction plus Go regression guards in internal/repoguard, no new production CLI surface) remains valid and unchanged. Scope, relations (depends_on [388], related [283, 340, 392], discovered_from [342], adrs [99, 104]), and out-of-scope stand as authored; no obsolete work found, no fold-ins required.
