@@ -706,6 +706,33 @@ func TestVerdictUnconfirmedReservationWithoutReceiptStops(t *testing.T) {
 	}
 }
 
+// TestVerdictUnconfirmedReservationSiblingContextHashIsNoAttributableClaim: an
+// unconfirmed reservation whose only committed proof shares the request id but
+// carries a DIFFERENT context hash is a sibling collision, not this dispatch's
+// receipt. gateProofForClaim's `&& p.GateContextHash == contextHash` clause must
+// reject it, so the verdict is no-attributable-claim and nothing is adopted.
+// Dropping that clause reddens this test (mutation-load-bearing) — neither
+// RecoversFromExactReceipt (matching hash) nor WithoutReceiptStops (no proofs)
+// exercises the same-request-id sibling.
+func TestVerdictUnconfirmedReservationSiblingContextHashIsNoAttributableClaim(t *testing.T) {
+	repo := newGateRepo(t)
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "hb"},
+	}}}
+
+	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
+		t.Fatalf("HumanText = %q, want %q (sibling context hash must not recover)", got, want)
+	}
+	if res.AttributedID != 0 {
+		t.Errorf("AttributedID = %d, want 0 (the sibling proof must never be attributed)", res.AttributedID)
+	}
+}
+
 // TestVerdictAbsentBindingAdoptsSoleProof: with no binding file at all, a single
 // committed proof matching the record's context hash is adopted (reserved,
 // confirmed, mirrored) and delegation proceeds; two matching proofs are unsafe
