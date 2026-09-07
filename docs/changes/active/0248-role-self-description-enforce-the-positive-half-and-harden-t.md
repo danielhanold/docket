@@ -2,11 +2,11 @@
 id: 248
 slug: role-self-description-enforce-the-positive-half-and-harden-t
 title: 'Role self-description: enforce the positive half and harden the guard'
-status: proposed
+status: 'deferred'
 priority: low
 type: chore
 created: 2026-08-07
-updated: 2026-08-09
+updated: '2026-09-07'
 depends_on: []
 related: [194]
 discovered_from: [198, 199]
@@ -59,3 +59,10 @@ All matcher shapes were empirically verified against the current tree under both
 
 - **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: `skills/docket-review/SKILL.md` still has zero occurrences of `skills.review`, so the prose fix stands. The guard the spec hardens (`tests/test_role_skill_self_description.sh`, `claim_hits()`, `ROLE_SKILLS=`) is deleted; move the positive-half assert to `internal/repoguard/prose_contracts_test.go`, deriving role names from `internal/config`.
 
+## Why deferred
+
+2026-09-07 — Deferred at the user's request following review of the groomed backlog against the current Go source. The near-term priorities are Go beta acceptance and observed workflow reliability.
+
+The missing skills.review mention in the review skill is real, but the proposal establishes a documentation-conformance issue, not a demonstrated dispatch failure. Most of the designed work hardens tests/test_role_skill_self_description.sh and its shell matchers/population machinery, all of which were deleted during the Go migration. Porting that machinery as a standalone project is disproportionate to the presently established defect.
+
+Revival criterion: when role documentation next changes, add the small binding-key correction with proportionate Go coverage derived from the current role model. Reassess any broader default-claim scanner against current occurrences and failure evidence; do not mechanically port the deleted guard. The linked August spec must be re-groomed before implementation.
