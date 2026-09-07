@@ -2,11 +2,11 @@
 id: 263
 slug: guard-the-remaining-agents-md-shell-rules-across-scripts-tes
 title: 'Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown'
-status: proposed
+status: 'deferred'
 priority: medium
 type: chore
 created: 2026-08-08
-updated: 2026-08-09
+updated: '2026-09-07'
 depends_on: []
 related: [262, 253]
 discovered_from: [254]
@@ -116,3 +116,12 @@ All guards `/usr/bin/grep`-pinned, floored, mutation-tested, budgets-registered.
 ## Open questions
 - **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Narrow to two legs: the leading-`--` grep pattern and the awk `[^ ]` literal-space class, as additions to `internal/repoguard/shellshape_test.go`. The pipefail-markdown and word-boundary legs already landed there (TestPipeShapes, TestGrepPortability). `depends_on: [172]` cleared — 0172 was killed as already fixed in Go.
 
+## Why deferred
+
+2026-09-07 — Deferred at the user's request following review of the groomed backlog against the current Go source. The near-term priorities are Go beta acceptance and observed workflow reliability.
+
+The original offending Bash-test population has disappeared. A bounded static scan of maintained shell files and scripts/skills recipes found no word-boundary or awk literal-space candidate, only a commented early-exit pipeline example, and three leading-double-dash grep candidates that already use --. This is source-inspection evidence, not an exhaustive semantic proof or a fresh runtime test. The broad scanner work is preventive hardening with less immediate value than observed workflow failures.
+
+Correction to the 2026-09-02 migration note: the pipefail-markdown and single-backslash word-boundary legs are NOT fully implemented. In internal/repoguard/shellshape_test.go, TestPipeShapes uses shellScriptCorpus and excludes command markdown; TestGrepPortability explicitly accepts the single-backslash spelling while rejecting the double-backslash form. The leading-double-dash pattern and awk-class guard gaps remain too. Deferral therefore does not mean completion or supersession.
+
+Revival criterion: a current offending case or a small, clearly bounded Go guard proposal establishes the benefit. Re-derive the executable population and all remaining coverage gaps, preserve the existing AGENTS.md rules while they guide ad hoc agent commands, and re-groom against current Go guard owners instead of the deleted Bash guard files.
