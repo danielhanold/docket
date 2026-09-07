@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0407 — Keyed gate-verdict misattributes its verdict to a concurrent loop's change id under parallel implement-next runs](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0407-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md)**
+> ↩ **[Change 0407 — Keyed gate-verdict misattributes its verdict to a concurrent loop's change id under parallel implement-next runs](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-07-0407-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md)**
 <!-- docket:backlink:end -->
 # Keyed gate-verdict misattributes its verdict to a concurrent loop — results
 Change: #407 · Branch: fix/keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent · PR: <pending> · Plan: docs/superpowers/plans/2026-09-07-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md · ADRs: 75, 111
