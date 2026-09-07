@@ -1,8 +1,8 @@
 # Backlog
 
-**408 changes** — 🟢 5 in progress · 🔵 2 built · 🟣 9 groomed · 🟡 20 proposed · ⚪ 5 deferred · ✅ 254 done · 🗑️ 113 killed
+**408 changes** — 🟢 4 in progress · 🔵 3 built · 🟣 9 groomed · 🟡 20 proposed · ⚪ 5 deferred · ✅ 254 done · 🗑️ 113 killed
 
-## 🟢 In progress (5)
+## 🟢 In progress (4)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
@@ -10,13 +10,13 @@
 | [0407](active/0407-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md) | Keyed gate-verdict misattributes its verdict to a concurrent loop's change id under parallel implement-next runs | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent-design.md) | `fix/keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent` |  |
 | [0406](active/0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) | Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite | `medium` | `fix` | [spec](../superpowers/specs/2026-09-07-flaky-testintegrationreleasepackagedeterministic-linux-arm64-design.md) | `fix/flaky-testintegrationreleasepackagedeterministic-linux-arm64` |  |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-reimplement-post-merge-fast-forward-integration-branch-sync-design.md) | `feat/reimplement-post-merge-fast-forward-integration-branch-sync` |  |
-| [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | [spec](../superpowers/specs/2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md) | `fix/reapply-sha256-source-revision-width-fix-isfullobjectid` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (3)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0383](active/0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | `low` | `fix` | [#281](https://github.com/danielhanold/docket/pull/281) | awaiting merge |
+| [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | [#282](https://github.com/danielhanold/docket/pull/282) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (9)
