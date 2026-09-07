@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/flaky-testintegrationreleasepackagedeterministic-linux-arm64'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T01:42:15Z'
+reconciled: true
+claimed_at: '2026-09-07T01:45:41Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Root-cause the nondeterminism in the linux_arm64 release tarball build and make 
 ## Out of scope
 
 Relaxing, skipping, or quarantining TestIntegrationReleasePackageDeterministic (the test is correct — the artifact is nondeterministic). Changes to the other three target tuples' packaging beyond what a shared fix requires. Suite-runner or gate changes to tolerate flakes generally. Any change to change 0403's diff (config diagnostics, internal/app) — this is unrelated follow-up.
+
+## Reconcile log
+
+### 2026-09-07
+
+2026-09-06: Reconciled against current source at origin/main effc9a6d. internal/release/archive.go still pins every tar/gzip metadata field (ModTime=epoch, gzip OS=0xFF, empty Name/uname/gname, fixed mode/uid/gid), and internal/release/package.go builds every tuple through one loop with CGO_ENABLED=0, -trimpath, cleared GOFLAGS, and a fixed injected ldflags identity — matching the spec's stated current implementation. TestIntegrationReleasePackageDeterministic (internal/release/package_integration_test.go) is unchanged: two Package calls, byte-compare of checksums.txt. No dependency, relation, or scope change is required; related [317,366] and discovered_from [403] remain context-only, no depends_on, no stacked_on. The archive layer being fully pinned confirms the spec's framing that the differing bytes must originate in the compiled linux_arm64 binary or its packaging inputs rather than in archive metadata — the investigation-and-repair scope stands as groomed.
