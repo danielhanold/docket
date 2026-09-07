@@ -8,6 +8,7 @@ import (
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/workspace"
 	"strings"
 	"testing"
 )
@@ -776,6 +777,143 @@ func TestIntegrationFinalizeRebasePassedRecordsPublishCheckpoint(t *testing.T) {
 		}
 		if rec.PublishCheckpointHead != "" || rec.PublishCheckpointEvidence != "" {
 			t.Errorf("a no-op rebase recorded a publish checkpoint: %+v", rec)
+		}
+	})
+}
+
+// setupPassedRebaseCheckpoint drives a real rewrite to a PASSED gate whose
+// publish checkpoint is recorded (the state a denied publish leaves behind),
+// returning the fixture, the gate fake (for call counting), the deps, and the
+// rewritten head.
+func setupPassedRebaseCheckpoint(t *testing.T) (*rebaseFixture, *headEvidenceGate, FinalizeDeps, string) {
+	t.Helper()
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	f.advanceBase(t)
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	gate := &headEvidenceGate{t: t}
+	deps := f.finalizeDeps(gh, gate)
+	res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if res.Disposition != RebaseDispRebased || gate.calls != 1 {
+		t.Fatalf("setup rebase = disp %q gate calls %d (reason %q), want rebased with one gate run", res.Disposition, gate.calls, res.Reason)
+	}
+	rewritten := f.localHead()
+	rec, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !present || rec.PublishCheckpointHead != rewritten {
+		t.Fatalf("setup did not record a checkpoint for the rewritten head: present=%v err=%v cp=%q", present, err, rec.PublishCheckpointHead)
+	}
+	return f, gate, deps, rewritten
+}
+
+// tamperCheckpoint rewrites the on-disk receipt with one checkpoint field
+// mutated — a still-VALID receipt whose recorded identity no longer matches
+// current reality — so a resume must invalidate it and re-run the gate.
+func tamperCheckpoint(t *testing.T, f *rebaseFixture, mut func(*workspace.RebaseReceipt)) {
+	t.Helper()
+	rec, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("reading receipt to tamper: present=%v err=%v", present, err)
+	}
+	mut(&rec)
+	if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, rec); err != nil {
+		t.Fatalf("writing tampered receipt: %v", err)
+	}
+}
+
+// TestIntegrationFinalizeRebaseCheckpointReuse proves the marquee behavior: a
+// resume after a denied publish (completed rewrite, checkpoint recorded, remote
+// and PR untouched) reuses the recorded evidence and publishes-readies WITHOUT
+// invoking the suite — the gate report is skipped, carries the recorded
+// evidence verifying the rewritten head, and the gate seam is never called a
+// second time.
+func TestIntegrationFinalizeRebaseCheckpointReuse(t *testing.T) {
+	requireRealGit(t)
+	f, gate, deps, rewritten := setupPassedRebaseCheckpoint(t)
+
+	res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+
+	if res.Result != ResultApplied || res.Disposition != RebaseDispRebased {
+		t.Fatalf("resume = %q disp %q (reason %q msg %q), want applied/rebased", res.Result, res.Disposition, res.Reason, res.Message)
+	}
+	if gate.calls != 1 {
+		t.Fatalf("gate calls = %d, want 1 — a valid checkpoint must never re-run the suite", gate.calls)
+	}
+	if res.Gate == nil || res.Gate.Compose != gateComposeSkipped {
+		t.Fatalf("gate report = %+v, want compose skipped", res.Gate)
+	}
+	if res.Gate.Permit != rewritten {
+		t.Errorf("skip permit = %q, want the rewritten head %q", res.Gate.Permit, rewritten)
+	}
+	if v := evidence.Verify([]byte(res.Gate.Evidence), rewritten); v != evidence.VerdictVerified {
+		t.Errorf("reused evidence verdict = %q, want verified for the rewritten head", v)
+	}
+	if res.Head != rewritten || res.Attempt == "" {
+		t.Errorf("resume head/attempt = %q/%q, want the rewritten head and the owned attempt", res.Head, res.Attempt)
+	}
+}
+
+// TestIntegrationFinalizeRebaseCheckpointInvalidation proves every recorded
+// identity is load-bearing: a moved local head, a changed recorded command, a
+// changed gate policy, a different PR, and evidence for the wrong head each
+// invalidate the checkpoint — the gate re-runs and the receipt's checkpoint is
+// rewritten by the new terminal, never reused stale. A moved BASE keeps its
+// existing refusal ahead of any reuse.
+func TestIntegrationFinalizeRebaseCheckpointInvalidation(t *testing.T) {
+	requireRealGit(t)
+
+	t.Run("moved-local-head-reruns", func(t *testing.T) {
+		f, gate, deps, _ := setupPassedRebaseCheckpoint(t)
+		// The head moves past the checkpoint (still descending the base).
+		writeRepoFile(t, f.wp, "more.txt", "more work\n")
+		runGit(t, f.wp, "add", "-A")
+		runGit(t, f.wp, "commit", "-q", "-m", "extra work after the pass")
+		moved := f.localHead()
+		res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		if res.Disposition != RebaseDispRebased || gate.calls != 2 {
+			t.Fatalf("resume = disp %q gate calls %d, want rebased with the gate re-run", res.Disposition, gate.calls)
+		}
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		if rec.PublishCheckpointHead != moved {
+			t.Errorf("checkpoint after re-run = %q, want re-recorded for the moved head %q", rec.PublishCheckpointHead, moved)
+		}
+	})
+
+	tamperCases := map[string]func(*workspace.RebaseReceipt){
+		"changed-command":  func(r *workspace.RebaseReceipt) { r.PublishCheckpointCommand = "make other-suite" },
+		"changed-gate":     func(r *workspace.RebaseReceipt) { r.PublishCheckpointGate = "off" },
+		"different-pr":     func(r *workspace.RebaseReceipt) { r.PublishCheckpointPRNumber = "99" },
+		"wrong-head-evidence": func(r *workspace.RebaseReceipt) {
+			r.PublishCheckpointEvidence = strings.ReplaceAll(
+				r.PublishCheckpointEvidence, r.PublishCheckpointHead, r.OrigHead)
+		},
+	}
+	for name, mut := range tamperCases {
+		mut := mut
+		t.Run(name+"-reruns", func(t *testing.T) {
+			f, gate, deps, rewritten := setupPassedRebaseCheckpoint(t)
+			tamperCheckpoint(t, f, mut)
+			res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+				FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+			if res.Disposition != RebaseDispRebased || gate.calls != 2 {
+				t.Fatalf("resume = disp %q gate calls %d (reason %q), want rebased with the gate re-run", res.Disposition, gate.calls, res.Reason)
+			}
+			rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+			if rec.PublishCheckpointHead != rewritten || rec.PublishCheckpointCommand != "go test ./..." {
+				t.Errorf("stale checkpoint not replaced by the re-run terminal: %+v", rec)
+			}
+		})
+	}
+
+	t.Run("moved-base-still-blocks-ahead-of-reuse", func(t *testing.T) {
+		f, gate, deps, _ := setupPassedRebaseCheckpoint(t)
+		f.advanceBase(t)
+		res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseMovedBase)
+		if gate.calls != 1 {
+			t.Errorf("gate calls = %d, want 1 — a moved base neither reuses nor re-runs", gate.calls)
 		}
 	})
 }

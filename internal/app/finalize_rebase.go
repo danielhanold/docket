@@ -681,6 +681,39 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			"an owned attempt exists but the workspace head does not descend the base; retained for abort", id)
 	}
 	noop := string(localHead) == rec.OrigHead
+	// A completed-gate publish checkpoint (change 0408): when the recorded
+	// identities all still match current reality — tested head, base head,
+	// resolved command, gate policy, PR — and the recorded evidence re-verifies
+	// green for this exact head, the suite is NOT re-run; the recorded evidence
+	// is returned so the caller proceeds straight to publish. Any mismatch
+	// invalidates: the checkpoint is cleared (on disk AND in the copy handed to
+	// composeLocalGate, so no later receipt write resurrects stale evidence)
+	// and the gate re-runs exactly as today. A live continuation pair never
+	// coexists with a checkpoint (receipt validation), so reuse never strands a
+	// running drive.
+	if !noop && rec.GateDriveID == "" {
+		if cp, ok := publishCheckpointOf(rec); ok {
+			currentHead := strings.ToLower(string(localHead))
+			resolvedCommand, resolvedGatePolicy := resolvedFinalizeGateConfig(ctx, deps, repoDir)
+			verified := evidence.Verify([]byte(cp.Evidence), currentHead) == evidence.VerdictVerified
+			if checkpointDecision(cp, currentHead, string(baseHead), resolvedCommand, resolvedGatePolicy, pr.Number, verified) {
+				return newRebaseResult(op, ResultApplied, FinalizeRebaseResult{
+					ID: id, Disposition: RebaseDispRebased, Head: string(localHead), OrigHead: rec.OrigHead,
+					Base: rc.base.Branch, BaseHead: rec.BaseHead, Attempt: rec.Attempt,
+					Gate: &GateReport{Compose: gateComposeSkipped, Permit: currentHead, Evidence: cp.Evidence},
+				})
+			}
+			// Stale checkpoint: reuse applies only to still-valid evidence. Clear it
+			// before the gate re-runs; a clear that cannot be persisted is a blocked
+			// receipt write, not a silent proceed over stale durable state.
+			rec.PublishCheckpointHead, rec.PublishCheckpointBaseHead = "", ""
+			rec.PublishCheckpointCommand, rec.PublishCheckpointGate = "", ""
+			rec.PublishCheckpointPRNumber, rec.PublishCheckpointEvidence = "", ""
+			if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, rec); err != nil {
+				return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, err.Error(), id)
+			}
+		}
+	}
 	// The receipt's pair may be set (a prior WAITING to resume) or empty (a crash
 	// before WAITING, or a cleared terminal); composeLocalGate derives the
 	// continuation from rec, so both are correct as-is.
