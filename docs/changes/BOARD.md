@@ -1,6 +1,6 @@
 # Backlog
 
-**408 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 9 groomed · 🟡 20 proposed · ⚪ 5 deferred · ✅ 258 done · 🗑️ 113 killed
+**408 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 9 groomed · 🟡 20 proposed · ⚪ 5 deferred · ✅ 259 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,10 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0408](active/0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-finalize-publish-is-denied-by-the-auto-mode-classifier-whene-design.md) | `fix/finalize-publish-is-denied-by-the-auto-mode-classifier-whene` | run halted — needs you |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | [#282](https://github.com/danielhanold/docket/pull/282) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (9)
@@ -95,7 +94,6 @@ graph TD
   0368
   0375
   0376
-  0379
   0380
   0382
   0387
@@ -109,7 +107,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (371)</summary>
+<details><summary>✅🗑️ Archive — done + killed (372)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -117,6 +115,7 @@ graph TD
 | [0406](archive/2026-09-07-0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) | Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite | 2026-09-07 |
 | [0388](archive/2026-09-07-0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | 2026-09-07 |
 | [0383](archive/2026-09-07-0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | 2026-09-07 |
+| [0379](archive/2026-09-07-0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | 2026-09-07 |
 | [0404](archive/2026-09-06-0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | 2026-09-06 |
 | [0403](archive/2026-09-04-0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | 2026-09-04 |
 | [0402](archive/2026-09-04-0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | 2026-09-04 |
@@ -155,7 +154,6 @@ graph TD
 | [0150](archive/2026-09-03-0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | 2026-09-03 |
 | [0397](archive/2026-09-02-0397-run-the-implementation-preflight-as-one-deterministic-operat.md) | Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default | 2026-09-02 |
 | [0396](archive/2026-09-02-0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | 2026-09-02 |
-| [0395](archive/2026-09-02-0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | 2026-09-02 |
 | [0381](archive/2026-09-02-0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | 2026-09-02 |
 | [0252](archive/2026-09-01-0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | 2026-09-01 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
@@ -246,7 +244,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 7 done |
+| [2026-09](archive/) | 8 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

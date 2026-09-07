@@ -2,7 +2,7 @@
 id: 379
 slug: 'reapply-sha256-source-revision-width-fix-isfullobjectid'
 title: 'Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID'
-status: 'implemented'
+status: 'done'
 priority: medium
 type: fix
 created: '2026-08-30'
@@ -21,7 +21,7 @@ branch: 'fix/reapply-sha256-source-revision-width-fix-isfullobjectid'
 pr: 'https://github.com/danielhanold/docket/pull/282'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T01:54:27Z'
+claimed_at:
 ---
 
 ## Artifacts
