@@ -339,6 +339,50 @@ func gateDecision(noop bool, evidenceHead, currentHead string, evidenceGreen boo
 	return false, ""
 }
 
+// publishCheckpoint is the in-process view of a receipt's completed-gate publish
+// checkpoint (change 0408). It exists only when every member is non-empty — the
+// receipt validation enforces the same all-or-none rule at the persistence
+// boundary, so a partial value can never reach checkpointDecision.
+type publishCheckpoint struct {
+	Head, BaseHead, Command, Gate, PRNumber, Evidence string
+}
+
+// publishCheckpointOf extracts the receipt's publish checkpoint, reporting
+// presence only when all six fields are set.
+func publishCheckpointOf(rec workspace.RebaseReceipt) (publishCheckpoint, bool) {
+	cp := publishCheckpoint{
+		Head:     rec.PublishCheckpointHead,
+		BaseHead: rec.PublishCheckpointBaseHead,
+		Command:  rec.PublishCheckpointCommand,
+		Gate:     rec.PublishCheckpointGate,
+		PRNumber: rec.PublishCheckpointPRNumber,
+		Evidence: rec.PublishCheckpointEvidence,
+	}
+	if cp.Head == "" || cp.BaseHead == "" || cp.Command == "" || cp.Gate == "" || cp.PRNumber == "" || cp.Evidence == "" {
+		return publishCheckpoint{}, false
+	}
+	return cp, true
+}
+
+// checkpointDecision decides whether a completed-gate publish checkpoint may be
+// reused on a finalize resume, skipping the suite. Reuse requires re-verified
+// green evidence AND full equality on every recorded identity: the tested head
+// is the current local head, the recorded base head is the live effective base
+// head, the recorded command is byte-equal to the currently resolved
+// finalize.test_command, the gate policy is unchanged, and the open PR is the
+// recorded one. Empty-vs-empty never matches (a vacuous conjunct must not
+// skip); any mismatch means the gate re-runs — "never rerun a green gate"
+// governs valid evidence, never stale evidence. Head comparisons are
+// full-length lowercase equality; the caller normalizes.
+func checkpointDecision(cp publishCheckpoint, currentHead, liveBaseHead, resolvedCommand, resolvedGate string, prNumber int, evidenceVerified bool) bool {
+	return evidenceVerified &&
+		currentHead != "" && cp.Head == currentHead &&
+		liveBaseHead != "" && cp.BaseHead == liveBaseHead &&
+		resolvedCommand != "" && cp.Command == resolvedCommand &&
+		resolvedGate != "" && cp.Gate == resolvedGate &&
+		prNumber > 0 && cp.PRNumber == strconv.Itoa(prNumber)
+}
+
 // ---------------------------------------------------------------------------
 // rebase context
 // ---------------------------------------------------------------------------
@@ -832,7 +876,8 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	currentHead := strings.ToLower(string(head))
 
 	evidenceHead, evidenceCommand, evidenceGreen := prBodyEvidence(pr)
-	resolvedCommand := resolvedFinalizeCommand(ctx, deps, repoDir)
+	resolvedCommand, resolvedGatePolicy := resolvedFinalizeGateConfig(ctx, deps, repoDir)
+	_ = resolvedGatePolicy // consumed by the PASSED-terminal checkpoint recording (next task)
 	skip, permit := false, ""
 	if cont.DriveID == "" {
 		skip, permit = gateDecision(noop, evidenceHead, currentHead, evidenceGreen, evidenceCommand, resolvedCommand)
@@ -963,20 +1008,20 @@ func prBodyEvidence(pr githubcli.PullRequest) (evidenceHead, evidenceCommand str
 	return rec.Head, rec.Command, rec.Result == evidence.ResultGreen
 }
 
-// resolvedFinalizeCommand re-reads the authoritative finalize.test_command the
-// same way processFinalizeGate.buildDriveService pins it (deps.Planning.Reader
-// PinContext → pin.Config.Effective.Finalize.TestCommand.Value), so gateDecision
-// can require the PR-body evidence command to be byte-equal to the command
-// finalize would run now. Command selection is an explicit domain boundary; no
-// caller substitutes a command around authoritative configuration. A resolution
-// failure yields "" — gateDecision then never skips (the empty resolved command
-// fails the non-empty conjunct), so the suite runs, fail-closed.
-func resolvedFinalizeCommand(ctx context.Context, deps FinalizeDeps, repoDir string) string {
+// resolvedFinalizeGateConfig re-reads the authoritative finalize gate
+// configuration the same way processFinalizeGate.buildDriveService pins it
+// (deps.Planning.Reader PinContext → pin.Config.Effective.Finalize), returning
+// the resolved finalize.test_command and finalize.gate policy. Command
+// selection is an explicit domain boundary; no caller substitutes a command
+// around authoritative configuration. A resolution failure yields ("", "") —
+// gateDecision and checkpointDecision then never skip (their non-empty
+// conjuncts fail), so the suite runs, fail-closed.
+func resolvedFinalizeGateConfig(ctx context.Context, deps FinalizeDeps, repoDir string) (command, gate string) {
 	pin, err := deps.Planning.Reader.PinContext(ctx, repoDir)
 	if err != nil {
-		return ""
+		return "", ""
 	}
-	return pin.Config.Effective.Finalize.TestCommand.Value
+	return pin.Config.Effective.Finalize.TestCommand.Value, pin.Config.Effective.Finalize.Gate.Value
 }
 
 // ---------------------------------------------------------------------------

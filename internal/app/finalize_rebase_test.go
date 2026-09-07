@@ -409,3 +409,70 @@ func setupConflictedRebase(t *testing.T, m planRepoMode) (*rebaseFixture, Finali
 	}
 	return f, res, deps
 }
+
+// TestCheckpointDecision pins the pure publish-checkpoint reuse policy: reuse
+// requires verified evidence AND full equality on tested head, base head,
+// resolved command, gate policy, and PR number — every conjunct non-vacuous
+// (an empty resolved command or gate never matches; "never rerun a green gate"
+// governs valid evidence, never stale evidence).
+func TestCheckpointDecision(t *testing.T) {
+	head := strings.Repeat("ab", 20)
+	base := strings.Repeat("cd", 20)
+	good := publishCheckpoint{
+		Head: head, BaseHead: base, Command: "go test ./...",
+		Gate: "local", PRNumber: "7", Evidence: "block",
+	}
+	cases := []struct {
+		name        string
+		cp          publishCheckpoint
+		currentHead string
+		liveBase    string
+		resolvedCmd string
+		resolvedGt  string
+		prNumber    int
+		verified    bool
+		want        bool
+	}{
+		{"all-match-reuses", good, head, base, "go test ./...", "local", 7, true, true},
+		{"unverified-evidence-runs", good, head, base, "go test ./...", "local", 7, false, false},
+		{"moved-head-runs", good, strings.Repeat("ef", 20), base, "go test ./...", "local", 7, true, false},
+		{"moved-base-runs", good, head, strings.Repeat("ef", 20), "go test ./...", "local", 7, true, false},
+		{"changed-command-runs", good, head, base, "make check", "local", 7, true, false},
+		{"empty-resolved-command-runs", publishCheckpoint{Head: head, BaseHead: base, Command: "", Gate: "local", PRNumber: "7", Evidence: "block"}, head, base, "", "local", 7, true, false},
+		{"changed-gate-policy-runs", good, head, base, "go test ./...", "off", 7, true, false},
+		{"different-pr-runs", good, head, base, "go test ./...", "local", 8, true, false},
+		{"zero-pr-runs", good, head, base, "go test ./...", "local", 0, true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := checkpointDecision(tc.cp, tc.currentHead, tc.liveBase, tc.resolvedCmd, tc.resolvedGt, tc.prNumber, tc.verified)
+			if got != tc.want {
+				t.Fatalf("checkpointDecision = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestPublishCheckpointOf proves the presence probe: a fully-set checkpoint is
+// extracted; any empty member reads as absent (never a partial checkpoint).
+func TestPublishCheckpointOf(t *testing.T) {
+	full := workspace.RebaseReceipt{
+		PublishCheckpointHead:     strings.Repeat("ab", 20),
+		PublishCheckpointBaseHead: strings.Repeat("cd", 20),
+		PublishCheckpointCommand:  "go test ./...",
+		PublishCheckpointGate:     "local",
+		PublishCheckpointPRNumber: "7",
+		PublishCheckpointEvidence: "block",
+	}
+	if cp, ok := publishCheckpointOf(full); !ok || cp.Head != full.PublishCheckpointHead || cp.Evidence != "block" {
+		t.Fatalf("publishCheckpointOf(full) = (%+v, %v), want present with the receipt's fields", cp, ok)
+	}
+	missing := full
+	missing.PublishCheckpointEvidence = ""
+	if _, ok := publishCheckpointOf(missing); ok {
+		t.Fatalf("publishCheckpointOf with an empty member reported present; want absent")
+	}
+	if _, ok := publishCheckpointOf(workspace.RebaseReceipt{}); ok {
+		t.Fatalf("publishCheckpointOf(zero) reported present; want absent")
+	}
+}
