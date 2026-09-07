@@ -22,7 +22,7 @@ branch: 'fix/keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T01:45:30Z'
+claimed_at: '2026-09-07T01:47:34Z'
 ---
 
 ## Artifacts
