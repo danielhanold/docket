@@ -65,7 +65,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0072](0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) — Leg C's predicate is duplicated by value across two scripts, never shared (Accepted) ← change #219
 - [ADR-0073](0073-scalar-quote-predicate-has-no-flow-collection-exemption.md) — The needs-quoting predicate answers a scalar-domain question, so it carries no flow-collection exemption (Accepted) ← change #235 · relates to ADR-0065, ADR-0071
 - [ADR-0074](0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) — The build gate's verdict is tri-state — a runner-defined non-failure exit is a halt (Accepted) ← change #224
-- [ADR-0075](0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md) — The run gate attributes a claim conservatively and reports a halt with its own exit code (Accepted) ← change #237
 - [ADR-0076](0076-quote-leg-rule-binds-by-role-not-reader-shape.md) — ADR-0065's quote-leg rule binds by role, not by reader shape (Accepted) ← change #255 · relates to ADR-0065, ADR-0072
 - [ADR-0077](0077-orphan-effort-dropped-as-docket-policy-not-vendor-constraint.md) — An effort with no resolved model is dropped as docket policy, not because opencode would reject it (Accepted) ← change #245 · relates to ADR-0015, ADR-0060
 - [ADR-0078](0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) — The parent-facing gate surface for Claude Code, and the one-physical-instructions-file symlink policy (Accepted) ← change #242 · relates to ADR-0024
@@ -99,6 +98,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0108](0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) — Bound total Go test load at the runner and isolate real-process test temp dirs behind a shared fixture (Accepted) ← change #373
 - [ADR-0109](0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) — `docket schema` is a separate reflected payload-schema surface with a fail-closed fidelity boundary (Accepted) ← change #399 · relates to ADR-0104
 - [ADR-0110](0110-install-path-configuration-reads-tolerate-unknown-keys-the-s.md) — Install-path configuration reads tolerate unknown keys; the strict typo policy binds operating commands only (Accepted) ← change #392 · relates to ADR-0019, ADR-0102
+- [ADR-0111](0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) — Run-gate attribution binds a dispatch to its successful claim transaction (Accepted) ← change #407 → supersedes ADR-0075
 
 ## Superseded / Reversed
 
@@ -111,6 +111,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0042](0042-auto-approve-consent-model.md) — Auto-approve consent model — a bot approval proves docket's pipeline signed off, not human review (Reversed by ADR-0043) ← change #62 · relates to ADR-0011
 - [ADR-0048](0048-docket-yml-example-invariants.md) — .docket.yml.example is a tested canonical config reference — mirror, fidelity, must-update (Superseded by ADR-64) ← change #101 → supersedes ADR-0039 · relates to ADR-0019
 - [ADR-0063](0063-docket-owns-the-build-role-profile-routed-workers.md) — Docket owns the build role — profile-routed workers, model and effort on named agents (Superseded by ADR-0102) ← change #167 → supersedes ADR-0023 · relates to ADR-0015, ADR-0016, ADR-0018, ADR-0059
+- [ADR-0075](0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md) — The run gate attributes a claim conservatively and reports a halt with its own exit code (Superseded by ADR-0111) ← change #237
 - [ADR-0081](0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) — gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists (Superseded by ADR-95) ← change #282 · relates to ADR-0080
 - [ADR-0098](0098-structured-gate-waiting-and-ownership-handoff.md) — Gate waiting is structured, resumable, and ownership-handed-off (Superseded by ADR-0107) ← change #342 · relates to ADR-0024, ADR-0095
 

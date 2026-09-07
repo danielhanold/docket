@@ -2,7 +2,7 @@
 id: 75
 slug: run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code
 title: The run gate attributes a claim conservatively and reports a halt with its own exit code
-status: Accepted
+status: 'Superseded by ADR-0111'
 date: 2026-08-07
 supersedes: []
 reverses: []
