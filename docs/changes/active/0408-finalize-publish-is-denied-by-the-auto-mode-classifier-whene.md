@@ -36,23 +36,17 @@ claimed_at: '2026-09-07T01:47:59Z'
 
 ## Why
 
-Change 0404's finalize on 2026-09-06 passed its rebase/test gate, then Claude Code 2.1.260 denied publication through the Go binary in the finalize child, its prescribed retry, and the parent auto-mode session. The run needed a human command to proceed. This interrupts unattended close-out and can waste a completed green gate.
+A finalize that rebases runs the local gate on the rebased head, records green evidence, and then force-with-lease publishes that head. If the publish is denied — most sharply by a host permission classifier, so the Go binary never runs — the branch is rebased and the gate is green, but nothing publish-specific persisted. On resume, `recoverFromReceipt` sees the local head is no longer the receipt's `OrigHead`, treats the gate as non-noop, and re-runs the full suite. A passed green gate is discarded by exactly the interruption a durable gate should survive.
 
-The original report overstates the cause and frequency. Archived change 0100 already recorded a plain Git force-with-lease denial on 2026-07-19. Conversely, change 0403 successfully rebased and published through the Go binary on 2026-09-04 under Claude Code 2.1.259; its old head is not an ancestor of the published head, so it required a real rewrite. Go opacity, a Claude version change, effective policy, and session context remain competing explanations.
-
-The human specifically identified the 2.1.260 changelog as a lead. The linked spec records its permission-related changes and their limits. The original title is the initial failure hypothesis, not an established universal behavior. A controlled comparison must precede selection of a permission rule or runtime refactor.
+The original alarmist framing — that the classifier denies every rebased publish — did not hold. The five most recent finalizes (0379, 0383, 0388, 0406, 0407) each really rebased and published on Claude Code 2.1.263 with no denial and no human command; recovered results show the same for 0403, 0384, and 0364. The one observed denial was 0404 on 2.1.260, two versions back. The defect worth fixing is not the version-specific, non-reproducing denial but the lost green gate whenever a publish is denied.
 
 ## What changes
 
-Make the first gate a bounded controlled comparison of equivalent direct-Git and Go publication across Claude Code 2.1.259, 2.1.260, and the installed current version. Prove each trial requires an actual history rewrite, preserve the exact old-value lease, and record effective policy, model, session context, and observed external effects.
-
-Deliver a reproducible evidence report and a concrete remedy recommendation, then return to the human before changing permissions or redesigning the publisher. No autoMode.allow prerequisite or split publisher is preselected. An inconclusive or unavailable trial is reported honestly and does not certify a fix.
-
-The selected repair must preserve still-valid green gate evidence across a denied publish, provide a concrete durable resume path, and retain remote lease checks, current identity/base checks, PR evidence convergence, and repair sign-off. Detailed experimental controls, interpretation rules, and the explicit post-investigation decision gate live in the spec.
+Persist a completed-gate publish checkpoint in the owned rebase receipt when the local gate passes for the rebased head — tested head, effective base, resolved test command, gate policy, repo/change/PR identity, and green evidence. On a finalize resume with no rebase in progress and the head descending the base, reuse the checkpoint to skip the suite and go straight to publish when every recorded identity still matches; a moved head/base, a changed resolved command, or a changed policy invalidates it and the gate re-runs as today. Write-on-pass, clear-on-terminal-or-invalidation, mirroring ADR-0105's continuation discipline. Preserve `PublishRewrite`'s exact lease and response-loss behavior and `FinalizePublish`'s PR-body preservation. Record the checkpoint as a new ADR relating to 0105 and 0098.
 
 ## Out of scope
 
-Changing Claude Code, branch protection, merge methods, bot approvals, or unrelated gate scheduling. Adding broad permissions or changing user settings as part of the baseline. Treating a renamed command, alternate tool after denial, no-op push, or human shell execution as proof that auto-mode publication works. Building a new publisher or recovery subsystem before the controlled comparison supports and the human selects that design.
+The retired historical-version comparison (the 2.1.259 / 2.1.260 / current matrix) and the live classifier acceptance activity. Any change to Claude Code, branch protection, merge method, or bot approvals. Any broad permission grant or user-settings change. A Go primitive distinguishing a host denial from a Go result — a host denial means the binary never ran, so that distinction lives in the finalize skill and harness. A split publisher or a general recovery subsystem beyond the receipt checkpoint.
 
 ## Run halted
 
