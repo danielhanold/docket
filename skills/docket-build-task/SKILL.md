@@ -60,8 +60,14 @@ Where a meaningful behavioral test is possible:
 **Every test execution this task runs — baseline, RED, GREEN, focused re-run, ad-hoc
 verification — starts through the native gate driver.** Use the task-intent owner: the
 `gate.drive.start` operation with `--owner task --scope-id <id> --child-cap <token> --run-root
-<task-scratch-dir> -- <the test command>`. The scope id and child capability come in your dispatch
-prompt; the run root is a scratch dir you pick and read from. **No duration prediction, no test-command spelling list**: a
+<task-scratch-dir> --json -- <the test command>`. The scope id and child capability come in your dispatch
+prompt; the run root is a scratch dir you pick and read from.
+Capture the drive id and owner generation from that first `--json` response and validate both are
+present before any advance or handoff — human text omits the generation (the JSON-capture
+requirement in `docket-build`'s `references/gate-caller-loop.md`). A response missing them is a
+caller-contract failure: return `BLOCKED` with the missing-response reason; never rerun `start` to
+recover credentials.
+**No duration prediction, no test-command spelling list**: a
 command is a test by your running it as this task's verification; the 30-second slice is the
 *maximum* of one observation call, not a minimum — a quick test returns on the next ~250 ms
 observation. You are a dispatched worker with no resumption channel: **never yield to await the
@@ -71,8 +77,8 @@ this role's workflow API.
 By disposition: `PASSED` → self-review and commit; `FAILED` → the test completed red; read
 streams under `--run-root` and apply the existing repair discretion; `HALTED` → return `BLOCKED`
 with the typed cause; `WAITING` → **immediately** perform the `gate.drive.handoff` operation with
-`--drive-id <id> --owner-gen <gen>` and return `WAITING` naming the drive id and single-use handoff
-token. After a first `WAITING` never `advance` or restart — the controller owns the drive. `WAITING`
+`--drive-id <id> --owner-gen <gen> --json`, capture the single-use handoff token from its response,
+and return `WAITING` naming the drive id and that token. After a first `WAITING` never `advance` or restart — the controller owns the drive. `WAITING`
 consumes neither repair nor escalation budget.
 
 Two obligations the cycle does not relax:

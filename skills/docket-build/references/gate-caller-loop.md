@@ -39,6 +39,30 @@ invocation that cannot parse its arguments or read a recognized drive record is 
 failure**, distinct from a recognized workflow disposition; a recognized `FAILED` or `HALTED` drive
 is a workflow result, not an excuse to omit the document.
 
+## JSON capture — the required transport for consumed results
+
+Any invocation whose result a workflow consumes MUST pass `--json` and **capture** the emitted
+protocol-v1 document from that same first response, then **validate** that the fields the caller
+needs are present before acting on any of them:
+
+| Operation | Required from the captured first response |
+|---|---|
+| `start` | the drive identifier **and** the ownership generation |
+| `handoff` | the **single-use** handoff token |
+| `claim` / `takeover` | the **fresh** owner generation |
+| `prepare-scope` | the scope identifier and the **separated** parent and child capabilities |
+
+Human-readable output can never substitute for the captured document: it names identity and
+disposition only, deliberately omitting generations, tokens, and capabilities. Each token keeps
+its existing meaning — nothing here widens handoff, claim, or takeover authorization, and the
+parent capability from `prepare-scope` stays with the parent as before.
+
+A missing, malformed, or incomplete required response is a **caller-contract failure**, not
+permission to rerun `start` (or any sibling op) to recover credentials. The caller maps it to its
+**existing** blocked/halt posture — a build-task worker returns `BLOCKED` with the
+missing-response reason — and never invents credentials, infers them from a drive id, or mints a
+new recovery path.
+
 ## The disposition vocabulary and what each earns
 
 Every successful `start` or `advance` returns exactly one of four dispositions. The caller keys on

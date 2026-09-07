@@ -74,8 +74,11 @@ Emit one concise routing line per task naming both the profile and its reason.
 
 **Before each worker dispatch, prepare its recovery scope:** run the `gate.drive.prepare-scope`
 operation with `--change-id <id> --task-id <task-N> --phase build --branch <branch> --worktree
-<worktree> --gate-context <dispatch-context>` (the dispatch context arrived in *your* prompt from
-the gated parent — pass its value through). Then dispatch the profile agent **by name**, foreground,
+<worktree> --gate-context <dispatch-context> --json` (the dispatch context arrived in *your* prompt from
+the gated parent — pass its value through). Capture the scope id and **both** capabilities from the
+`--json` response before dispatching (per the JSON-capture requirement in
+[`references/gate-caller-loop.md`](references/gate-caller-loop.md)); the parent capability stays in
+your notes. Then dispatch the profile agent **by name**, foreground,
 one task at a time — later tasks build on earlier task commits and share the worktree, so workers
 are strictly sequential. Give the worker: the plan task text, the branch and worktree, the applicable
 repository instructions, the selected profile and routing reason, the **scope id and child
@@ -125,7 +128,8 @@ commitless `COMPLETE` does. `WAITING` is neither a completion nor a failure, and
 permission to start another task in the shared worktree.
 
 You are the nearest live owner while that worker is absent, so you **own the continuation**: run the
-`gate.drive.claim` operation on the named handoff and drive the same drive through short `gate.drive.advance`
+`gate.drive.claim` operation with `--drive-id <id> --handoff-id <token> --json` on the named handoff,
+capture the **fresh** owner generation from its response, and drive the same drive through short `gate.drive.advance`
 operation calls yourself to a terminal disposition — never a raw observe loop, background suite, or
 notification wait. When agent judgment is needed again, dispatch a fresh worker for the **same** task
 and worktree with an explicit continuation; a trusted `PASSED` is not re-driven for a changed
@@ -134,8 +138,9 @@ unwind, hand off to your parent rather than stranding the drive.
 
 **Exceptional branch — a return with no valid handoff.** When the worker's dispatch returns
 **without** a valid handoff while its scope still binds a nonterminal (or terminal-unconsumed) drive,
-run the `gate.drive.takeover` operation with `--scope-id <id> --parent-cap <token>` — authorized by
-the return event you just observed, **never** a timer, heartbeat, or quiet log — then advance that
+run the `gate.drive.takeover` operation with `--scope-id <id> --parent-cap <token> --json` — authorized by
+the return event you just observed, **never** a timer, heartbeat, or quiet log — capture the fresh
+owner generation from its response, then advance that
 same drive to a terminal disposition via `gate.drive.advance`. A takeover `HALTED` is a **halting
 condition** (unsafe ownership), never repair, escalation, or a fresh worker; a trusted terminal
 `PASSED` consumed after takeover is **not** re-run. Neither takeover nor `WAITING` consumes repair or
@@ -223,7 +228,8 @@ role reads, never a command it invents:
    **skipped** evidence via the `evidence.record` operation (no run dir) — `result: skipped` /
    `reason: build-gate-off` at the current head — and proceed to review. Nothing to run or repair.
 2. **`build_gate: local`, non-empty `build_test_command`** — drive it through the native gate
-   **driver**: the `gate.drive.start` operation with `--owner build` then `gate.drive.advance` operation slices,
+   **driver**: the `gate.drive.start` operation with `--owner build --json` — capture the drive id and
+   owner generation from that first response — then `gate.drive.advance` operation slices,
    exactly as *Gate execution posture* describes. `--owner build` resolves the build-owned command
    from config; the caller passes no suite argv.
 3. **`build_gate: local`, empty `build_test_command`** — a **configuration gap, not a red suite**:
