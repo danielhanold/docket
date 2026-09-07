@@ -233,6 +233,15 @@ var proseContracts = []proseContract{
 	{sentinel: "change_0397_preflight_op", file: "skills/docket-convention/SKILL.md",
 		present: []string{"runs the `maintenance.preflight` operation inline"},
 		absent:  []string{"dispatches the `docket-status` subagent (step 0)"}},
+	// change 0407 — implement-next's gated claim carries its dispatch context so
+	// the parent's keyed verdict resolves ownership from durable proof, and an
+	// invalid/conflicting context fails closed rather than degrading to an
+	// ungated claim.
+	{sentinel: "change_0407_gate_context_claim", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"pass it to the claim as --gate-context",
+			"an invalid or conflicting gate context is a typed refusal that writes nothing — never retried as an ungated claim",
+		}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
