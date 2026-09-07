@@ -576,7 +576,7 @@ func ReserveGateClaim(repoDir, key string, changeID int, requestID string) error
 		return gateErr(ErrGateIO, "reserve", err)
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName) // no-op after the temp name is unlinked below
+	defer os.Remove(tmpName) // removes the temp hard-link once the final link is in place (or after a link conflict)
 	if _, err := tmp.Write(buf); err != nil {
 		tmp.Close()
 		return gateErr(ErrGateIO, "reserve", err)
