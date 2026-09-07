@@ -145,6 +145,11 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			// additive: an unresolvable store/supervisor leaves it nil and the verdict
 			// takes the ordinary retry/stop path (change 0359).
 			wdeps.Continuation = newContinuationSeam(c.Context(), repoDir)
+			// Wire the claim-proof scanner so ownership resolves from committed
+			// change.claim receipts rather than a before-set/epoch snapshot (change
+			// 0407). Unlike the continuation seam, the verdict path fails closed when
+			// this is nil — ownership can never proceed without proof access.
+			wdeps.ClaimProofs = app.NewClaimProofScanner(deps)
 			unattributed, _ := c.Flags().GetBool("unattributed")
 			if unattributed {
 				// Observe-only mode: the positionals are change-id hints (zero or
