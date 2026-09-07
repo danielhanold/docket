@@ -6,13 +6,13 @@ status: proposed
 priority: medium
 type: fix
 created: '2026-08-30'
-updated: '2026-08-30'
+updated: '2026-09-07'
 depends_on: []
 stacked_on:
 related: [378]
 discovered_from: [378]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md'
 plan:
 results:
 trivial: false
@@ -26,33 +26,23 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-reapply-sha256-source-revision-width-fix-isfullobjectid-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-`isFullObjectID` accepts only the SHA-1 40-hex object-id width, so on a SHA-256 repository a
-full 64-hex object id is misjudged as not-full. This is a real, fail-safe correctness gap: the
-narrow width makes the check reject a legitimate full id rather than accept a bad one, but it
-still mis-classifies ids on any SHA-256 repo. The fix was authored during change 0378's review
-(the "important" finding) but was reverted along with the other non-blocker fixes when the
-fix-loop's post-fix suite gate reddened on an unrelated `gofmt` nit. It must be re-applied
-deliberately. The reverted commit remains in change 0378's branch history for cherry-pick, needing
-only a one-character `gofmt` fix.
+Metadata ownership verification rejects a valid migration receipt when its source revision is a full 64-character SHA-256 Git object ID. The local syntax check accepts only the 40-character SHA-1 width, even though its downstream Git reader accepts both. This produces a false foreign-metadata verdict before the existing ancestry check can run. Change #378's reverted correction is available as implementation reference; the defect remains in current main.
 
 ## What changes
 
-Widen `isFullObjectID` to accept both the SHA-1 (40-hex) and SHA-256 (64-hex) full object-id
-widths, with a focused test covering the SHA-256 case. Cherry-pick the reverted 0378 commit as the
-starting point and correct the `gofmt` alignment that tripped the original gate.
+Accept exactly 40 or 64 lowercase-hex characters in `isFullObjectID`, preserving strict character validation and all later ownership checks. Update the helper comment and add focused unit coverage for valid widths, malformed inputs, and length boundaries. Prove the width regression and character guard with mutation checks, format edited Go files, and pass the configured full build suite. The linked spec defines the complete behavior and verification contract.
 
 ## Out of scope
 
 - Any broader object-id abstraction or hash-algorithm plumbing beyond the width check.
 - The other 0378 follow-ups (descendant-receipt fixture; internal/process flake) — separate changes.
-
-## Open questions
-
-<!-- None yet — resolve the exact call sites and test placement during reconcile. -->
 
 ## Reconcile log
 
