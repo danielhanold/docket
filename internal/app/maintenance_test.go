@@ -759,6 +759,211 @@ func TestSweepHumanTextNamesScopeAndDeferred(t *testing.T) {
 	}
 }
 
+// --- integration-sync embedding (change 0388) -----------------------------
+
+// recordingSyncSeam is the counting fake for the maintenance sweep's
+// integration-sync seam: it records how many times the sweep invoked it (the
+// once-per-scope property) and answers with a scripted outcome.
+type recordingSyncSeam struct {
+	calls int
+	out   *SyncOutcome
+}
+
+func (s *recordingSyncSeam) fn() func(context.Context) *SyncOutcome {
+	return func(context.Context) *SyncOutcome {
+		s.calls++
+		return s.out
+	}
+}
+
+// TestSweepRunsIntegrationSyncOnceOnEmptyFullScope: a successfully initialized
+// full-scope sweep with zero items still runs the integration sync exactly once
+// after the (empty) item loop; the outcome rides IntegrationSync, and a skipped
+// sync never inflates the envelope past no-op.
+func TestSweepRunsIntegrationSyncOnceOnEmptyFullScope(t *testing.T) {
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: []StatusBlob{}}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
+	ops := &recordingSweepOps{}
+	seam := ops.seam(reader, prober)
+	sync := &recordingSyncSeam{out: &SyncOutcome{Disposition: SyncDispSkipped, Reason: ReasonSyncDetachedHead}}
+	seam.syncIntegration = sync.fn()
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", seam, SweepScopeFull)
+
+	if sync.calls != 1 {
+		t.Fatalf("integration sync seam called %d times, want exactly 1", sync.calls)
+	}
+	if res.IntegrationSync == nil || res.IntegrationSync.Disposition != SyncDispSkipped {
+		t.Fatalf("IntegrationSync = %+v, want a populated skipped outcome", res.IntegrationSync)
+	}
+	if res.Result != ResultNoOp {
+		t.Fatalf("result = %q, want no-op (a skipped sync never inflates the envelope)", res.Result)
+	}
+}
+
+// TestSweepRunsIntegrationSyncOncePerImplementationScope: implementation scope
+// runs the sync exactly once after the item loop, even with multiple items and a
+// per-item failure — the per-item entries and dispositions are unchanged from
+// today's expectations.
+func TestSweepRunsIntegrationSyncOncePerImplementationScope(t *testing.T) {
+	corpus := []StatusBlob{
+		finalizeBlob(70, "unknownitem", "implemented", "high", prRefFor(70), ""),
+		finalizeBlob(71, "gooditem", "implemented", "high", prRefFor(71), ""),
+	}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(70): withHead(mergedFacts(70, "main"), "feat/unknownitem"),
+		prRefFor(71): withHead(mergedFacts(71, "main"), "feat/gooditem"),
+	}}
+	ops := &recordingSweepOps{closeout: map[int]CloseoutResult{
+		70: newCloseoutResult(ResultExternalFailed, CloseoutResult{ID: 70, Disposition: CloseoutDispUnknown}),
+	}}
+	seam := ops.seam(reader, prober)
+	sync := &recordingSyncSeam{out: &SyncOutcome{Disposition: SyncDispAlreadyCurrent}}
+	seam.syncIntegration = sync.fn()
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", seam, SweepScopeImplementation)
+
+	if sync.calls != 1 {
+		t.Fatalf("integration sync seam called %d times, want exactly 1 (once per scope, after the loop)", sync.calls)
+	}
+	closeoutDisp := map[int]string{}
+	for _, e := range res.Entries {
+		if e.Kind == sweepKindCloseout {
+			closeoutDisp[e.ID] = e.Disposition
+		}
+	}
+	if closeoutDisp[70] != SweepDispUnknown || closeoutDisp[71] != SweepDispApplied {
+		t.Fatalf("per-item closeout dispositions changed by the sync embed: %+v", closeoutDisp)
+	}
+}
+
+// TestSweepIntegrationSyncAdvanceUpgradesNoOpToApplied: a sync advance upgrades
+// an otherwise no-op sweep to applied, but the sync advance is NOT an entry and
+// must never inflate the entry-derived applied count.
+func TestSweepIntegrationSyncAdvanceUpgradesNoOpToApplied(t *testing.T) {
+	corpus := []StatusBlob{sweepInProgressBlob(50, "stale")} // reclaim.auto false ⇒ skipped, no applied entry
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
+	ops := &recordingSweepOps{}
+	seam := ops.seam(reader, prober)
+	sync := &recordingSyncSeam{out: &SyncOutcome{Disposition: SyncDispAdvanced, IntegrationBranch: "main"}}
+	seam.syncIntegration = sync.fn()
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", seam, SweepScopeFull)
+
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied (a sync advance upgrades an otherwise no-op sweep)", res.Result)
+	}
+	applied := 0
+	for _, e := range res.Entries {
+		if e.Disposition == SweepDispApplied {
+			applied++
+		}
+	}
+	if applied != 0 {
+		t.Fatalf("applied ENTRY count = %d, want 0 (the sync advance rides IntegrationSync, not entries)", applied)
+	}
+}
+
+// TestSweepIntegrationSyncFailureNeverDowngradesAppliedSweep: a sync failure is
+// reported separately on IntegrationSync and NEVER downgrades or overwrites the
+// entry-derived envelope result.
+func TestSweepIntegrationSyncFailureNeverDowngradesAppliedSweep(t *testing.T) {
+	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
+	}}
+	ops := &recordingSweepOps{} // default applied closeout + applied cleanup suffix
+	seam := ops.seam(reader, prober)
+	sync := &recordingSyncSeam{out: &SyncOutcome{Disposition: SyncDispFailed, Reason: ReasonSyncUpdateFailed}}
+	seam.syncIntegration = sync.fn()
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", seam, SweepScopeFull)
+
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied (a sync failure must NEVER downgrade the entry-derived result)", res.Result)
+	}
+	if res.IntegrationSync == nil || res.IntegrationSync.Disposition != SyncDispFailed || res.IntegrationSync.Reason != ReasonSyncUpdateFailed {
+		t.Fatalf("IntegrationSync = %+v, want a separately-reported failed outcome", res.IntegrationSync)
+	}
+}
+
+// TestSweepRefusalSkipsIntegrationSync: every whole-sweep refusal returns BEFORE
+// the sync suffix, so the sync seam is never invoked and the refusal carries no
+// IntegrationSync.
+func TestSweepRefusalSkipsIntegrationSync(t *testing.T) {
+	t.Run("invalid scope", func(t *testing.T) {
+		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: nil}
+		prober := &fakeFinalizeProber{}
+		ops := &recordingSweepOps{}
+		seam := ops.seam(reader, prober)
+		sync := &recordingSyncSeam{out: &SyncOutcome{Disposition: SyncDispAdvanced}}
+		seam.syncIntegration = sync.fn()
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", seam, SweepScope("bogus"))
+		if sync.calls != 0 {
+			t.Fatalf("an invalid-scope refusal must run no integration sync; calls=%d", sync.calls)
+		}
+		if res.IntegrationSync != nil {
+			t.Fatalf("refusal must carry no IntegrationSync, got %+v", res.IntegrationSync)
+		}
+	})
+	t.Run("pin error", func(t *testing.T) {
+		reader := &fakeReader{pin: sweepPin(t, true, 24), pinErr: errors.New("boom")}
+		prober := &fakeFinalizeProber{}
+		ops := &recordingSweepOps{}
+		seam := ops.seam(reader, prober)
+		sync := &recordingSyncSeam{out: &SyncOutcome{Disposition: SyncDispAdvanced}}
+		seam.syncIntegration = sync.fn()
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", seam, SweepScopeFull)
+		if sync.calls != 0 {
+			t.Fatalf("a whole-sweep pin refusal must run no integration sync; calls=%d", sync.calls)
+		}
+		if res.IntegrationSync != nil {
+			t.Fatalf("refusal must carry no IntegrationSync, got %+v", res.IntegrationSync)
+		}
+	})
+}
+
+// TestSweepCancelledContextSkipsIntegrationSync: a cancelled context before the
+// suffix skips the sync (no detached work) and leaves IntegrationSync nil.
+func TestSweepCancelledContextSkipsIntegrationSync(t *testing.T) {
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: []StatusBlob{}}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
+	ops := &recordingSweepOps{}
+	seam := ops.seam(reader, prober)
+	sync := &recordingSyncSeam{out: &SyncOutcome{Disposition: SyncDispAdvanced}}
+	seam.syncIntegration = sync.fn()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	res := maintenanceSweep(ctx, sweepDeps(reader, prober), "repo", seam, SweepScopeFull)
+
+	if sync.calls != 0 {
+		t.Fatalf("a cancelled context must skip the integration sync; calls=%d", sync.calls)
+	}
+	if res.IntegrationSync != nil {
+		t.Fatalf("cancelled context must carry no IntegrationSync, got %+v", res.IntegrationSync)
+	}
+}
+
+// TestSweepNilIntegrationSyncSeamIsNoPanic: an orchestration seam that leaves
+// syncIntegration nil (the pre-0388 shape) runs without panic and leaves
+// IntegrationSync nil — existing orchestration tests stay green.
+func TestSweepNilIntegrationSyncSeamIsNoPanic(t *testing.T) {
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: []StatusBlob{}}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
+	ops := &recordingSweepOps{}
+	seam := ops.seam(reader, prober) // syncIntegration left nil
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", seam, SweepScopeFull)
+
+	if res.IntegrationSync != nil {
+		t.Fatalf("a nil sync seam must leave IntegrationSync nil, got %+v", res.IntegrationSync)
+	}
+}
+
 // countingReader delegates to an inner StatusReader and counts authority reads.
 // Implement EVERY method of the StatusReader interface by delegation (grep
 // `type StatusReader interface` in this package for the current method set),
