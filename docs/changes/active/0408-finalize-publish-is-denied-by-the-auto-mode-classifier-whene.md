@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'high'
 type: 'fix'
 created: '2026-09-06'
-updated: '2026-09-06'
+updated: '2026-09-07'
 depends_on: []
 stacked_on:
-related: [404]
+related: [100, 260, 316, 360, 396, 403, 404]
 discovered_from: [404]
-adrs: [40, 42, 43]
-spec:
+adrs: [43, 105]
+spec: 'docs/superpowers/specs/2026-09-07-finalize-publish-is-denied-by-the-auto-mode-classifier-whene-design.md'
 plan:
 results:
 trivial: false
@@ -29,21 +29,26 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0040](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0040-terminal-publish-default-opt-in.md), [ADR-0042](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0042-auto-approve-consent-model.md), [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
+| Spec | [2026-09-07-finalize-publish-is-denied-by-the-auto-mode-classifier-whene-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-finalize-publish-is-denied-by-the-auto-mode-classifier-whene-design.md) |
+| ADRs | [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md), [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Closing change 404 (PR #280) on 2026-09-06, `docket-finalize-change` ran the rebase-retest gate cleanly (rebased onto `main`, suite green twice) and then halted at `finalize.publish`: Claude Code's auto-mode classifier soft-denied the operation, which force-pushes the rebased head to the PR and rewrites the build-evidence block. The convention-mandated exact-command retry was denied too, and so was the same command run from the parent interactive session after explicit human intent had been stated — the July recipe (retry after intent) no longer clears it. Only a human-typed `!`-prefixed command landed the push, after which merge, closeout, and cleanup ran without any denial.
+Change 0404's finalize on 2026-09-06 passed its rebase/test gate, then Claude Code 2.1.260 denied publication through the Go binary in the finalize child, its prescribed retry, and the parent auto-mode session. The run needed a human command to proceed. This interrupts unattended close-out and can waste a completed green gate.
 
-This is not a one-off. The denial keys on the force-push shape, so it fires on every finalize whose gate actually rebases — i.e. whenever another change merged first — and it does not fire when the branch is already on top of the integration branch, which is why recent finalizes looked healthy. An autonomous finalize loop cannot type a `!` command, so today the unattended finalize path halts deterministically on exactly the case the rebase-retest gate exists for. That breaks docket's autonomous close-out end to end.
+The original report overstates the cause and frequency. Archived change 0100 already recorded a plain Git force-with-lease denial on 2026-07-19. Conversely, change 0403 successfully rebased and published through the Go binary on 2026-09-04 under Claude Code 2.1.259; its old head is not an ancestor of the published head, so it required a real rewrite. Go opacity, a Claude version change, effective policy, and session context remain competing explanations.
 
-The merge-side classifier wall was solved once before by config (ADR-0043: require-PR / 0-approvals branch protection instead of a bot approver). The publish-side wall has been observed since 2026-07-19 but never captured, and the move of the push into the Go `docket finalize publish` operation appears to have made it strictly worse: the classifier now sees an opaque binary performing an external write, and a retry no longer helps.
+The human specifically identified the 2.1.260 changelog as a lead. The linked spec records its permission-related changes and their limits. The original title is the initial failure hypothesis, not an established universal behavior. A controlled comparison must precede selection of a permission rule or runtime refactor.
 
 ## What changes
 
-Make the publish step of `docket-finalize-change` land unattended in an auto-mode session. Investigate and decide between: (a) reshaping the publish so the classifier does not see a force-push-shaped external write from an opaque binary — e.g. a receipt-leased non-force push under `--force-with-lease` spelled as a recognizable Git command, or a two-step where the Go op verifies and a plain Git push executes; (b) a documented, validated `autoMode.allow` posture (user-level settings) that clears the specific soft-deny class, with its blast radius recorded; (c) an in-run recovery contract so the halt writes a `## Finalize blocked` marker naming the exact resume command and the next attended run resumes from publish rather than re-running the gate. Whichever lands, the halt report and README must state the failure and its recovery, and the finalize agent must never re-run a green gate just to retry the push.
+Make the first gate a bounded controlled comparison of equivalent direct-Git and Go publication across Claude Code 2.1.259, 2.1.260, and the installed current version. Prove each trial requires an actual history rewrite, preserve the exact old-value lease, and record effective policy, model, session context, and observed external effects.
+
+Deliver a reproducible evidence report and a concrete remedy recommendation, then return to the human before changing permissions or redesigning the publisher. No autoMode.allow prerequisite or split publisher is preselected. An inconclusive or unavailable trial is reported honestly and does not certify a fix.
+
+The selected repair must preserve still-valid green gate evidence across a denied publish, provide a concrete durable resume path, and retain remote lease checks, current identity/base checks, PR evidence convergence, and repair sign-off. Detailed experimental controls, interpretation rules, and the explicit post-investigation decision gate live in the spec.
 
 ## Out of scope
 
-Merging without a rebase (already clean); the merge-without-review classifier (solved by ADR-0043 branch protection); the suite-gate yield-wedge where the finalize agent backgrounds the gate and waits for a notification (a separate contract violation, tracked elsewhere); any change to Claude Code itself.
+Changing Claude Code, branch protection, merge methods, bot approvals, or unrelated gate scheduling. Adding broad permissions or changing user settings as part of the baseline. Treating a renamed command, alternate tool after denial, no-op push, or human shell execution as proof that auto-mode publication works. Building a new publisher or recovery subsystem before the controlled comparison supports and the human selects that design.
