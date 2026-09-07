@@ -13,7 +13,7 @@ related: [343, 368]
 discovered_from: [351]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-07-halt-report-authoring-writes-a-duplicate-run-halted-heading-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-07-halt-report-authoring-writes-a-duplicate-run-halted-heading.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-07T15:00:13Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-07-halt-report-authoring-writes-a-duplicate-run-halted-heading-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-halt-report-authoring-writes-a-duplicate-run-halted-heading-design.md) |
+| Plan | [2026-09-07-halt-report-authoring-writes-a-duplicate-run-halted-heading.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-07-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
