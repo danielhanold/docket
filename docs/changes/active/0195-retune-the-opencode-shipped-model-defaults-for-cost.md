@@ -2,11 +2,11 @@
 id: 195
 slug: retune-the-opencode-shipped-model-defaults-for-cost
 title: Retune the opencode shipped model defaults for cost
-status: proposed
+status: 'deferred'
 priority: low
 type: chore
 created: 2026-08-02
-updated: 2026-08-09
+updated: '2026-09-07'
 depends_on: [192]
 related: [164, 166, 181]
 discovered_from: [192]
@@ -164,3 +164,13 @@ the linked spec's `## Assumptions`):
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why deferred
+
+2026-09-07 — Deferred at the user's request following review of the groomed backlog against the current Go source. The near-term priorities are Go beta acceptance and observed workflow reliability.
+
+The cost case rests on one observed review run and the user's August general-model benchmark, without representative Docket evidence about review quality, repair success, or total cost after retries. This review did not re-benchmark models or verify current provider pricing and availability; the old savings figures are not fresh measurements.
+
+The design is also no longer a values-only sidecar edit. The current runtime defaults live in internal/config/defaults.go, and TestBuiltinAgentsParityWithFrozenSidecar in internal/config/defaults_test.go requires the Go table and a newly cut versioned fixture to move with the live sidecar. The spec targets deleted Bash tests and a sixteen-row block; the current inventory has seventeen roles.
+
+Revival criterion: representative Docket runs demonstrate savings without worse task outcomes, followed by live provider/harness verification and a Go-specific redesign covering the runtime table, mirrored surfaces, and the required new versioned fixture. Preserve existing immutable fixtures and do not build the August spec unchanged.
