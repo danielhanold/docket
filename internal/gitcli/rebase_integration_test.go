@@ -344,6 +344,51 @@ func TestIntegrationRepoAbortRebaseRestoresOrig(t *testing.T) {
 	})
 }
 
+// TestIntegrationStoppedRebaseCommit proves the stopped-commit probe returns the
+// full object id (40/64 lowercase hex) of the commit an in-progress conflicted
+// rebase is stopped on — the fixture's known conflicting commit — and returns a
+// typed error (never a clean "not stopped") once the rebase is aborted and no
+// rebase is in progress.
+func TestIntegrationStoppedRebaseCommit(t *testing.T) {
+	requireGit(t)
+	ctx := context.Background()
+	c := newRealClient(t)
+	r := newMainModeRepos(t)
+
+	featHead, baseHead := conflictingBranches(t, r, []string{"conflict.txt"})
+	// featHead is the commit being replayed; a conflicting rebase stops on it, so
+	// REBASE_HEAD resolves to it.
+	wantOID := ObjectID(gitOut(t, r.Invocation, "rev-parse", string(featHead)))
+
+	st, err := c.BeginRebase(ctx, r.Invocation, featHead, baseHead, "refs/docket/finalize/10")
+	if err != nil {
+		t.Fatalf("BeginRebase: %v", err)
+	}
+	if st.Disposition != RebaseConflicted {
+		t.Fatalf("disposition = %q, want conflicted", st.Disposition)
+	}
+
+	oid, err := c.StoppedRebaseCommit(ctx, r.Invocation)
+	if err != nil {
+		t.Fatalf("StoppedRebaseCommit on a conflicted rebase: %v", err)
+	}
+	if err := validateObjectID(oid); err != nil {
+		t.Errorf("stopped commit id is not 40/64 lowercase hex: %q (%v)", oid, err)
+	}
+	if oid != wantOID {
+		t.Errorf("stopped commit = %q, want the conflicting commit %q", oid, wantOID)
+	}
+
+	if err := c.AbortRebase(ctx, r.Invocation, featHead); err != nil {
+		t.Fatalf("AbortRebase: %v", err)
+	}
+	if _, err := c.StoppedRebaseCommit(ctx, r.Invocation); err == nil {
+		t.Fatal("StoppedRebaseCommit with no rebase in progress returned nil error, want a typed error")
+	} else if _, ok := AsFailure(err); !ok {
+		t.Fatalf("error is not a *Failure: %T %v", err, err)
+	}
+}
+
 // TestOwnedRefFence proves SetOwnedRef and DeleteOwnedRef refuse any ref outside
 // refs/docket/ (a refs/heads name), touch nothing on refusal, and round-trip a
 // genuine owned ref.
