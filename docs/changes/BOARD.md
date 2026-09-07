@@ -1,6 +1,6 @@
 # Backlog
 
-**410 changes** — 🟢 5 in progress · 🔵 2 built · 🟣 6 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 259 done · 🗑️ 113 killed
+**410 changes** — 🟢 5 in progress · 🔵 1 built · 🟣 6 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 260 done · 🗑️ 113 killed
 
 ## 🟢 In progress (5)
 
@@ -12,11 +12,10 @@
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-configurable-finalize-resolver-dispatch-cap-design.md) | `feat/configurable-finalize-resolver-dispatch-cap` |  |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-stack-closeout-must-prove-integration-reachability-design.md) | `fix/stack-closeout-must-prove-integration-reachability` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | [#286](https://github.com/danielhanold/docket/pull/286) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (6)
@@ -88,7 +87,6 @@ graph TD
   0327
   0393 --> 0345
   0407 --> 0345
-  0388 --> 0346
   0349
   0350
   0354
@@ -109,12 +107,11 @@ graph TD
   0192:::done
   0251:::done
   0370:::done
-  0388:::done
   0407:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (372)</summary>
+<details><summary>✅🗑️ Archive — done + killed (373)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -123,6 +120,7 @@ graph TD
 | [0388](archive/2026-09-07-0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | 2026-09-07 |
 | [0383](archive/2026-09-07-0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | 2026-09-07 |
 | [0379](archive/2026-09-07-0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | 2026-09-07 |
+| [0346](archive/2026-09-07-0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | 2026-09-07 |
 | [0404](archive/2026-09-06-0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | 2026-09-06 |
 | [0403](archive/2026-09-04-0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | 2026-09-04 |
 | [0402](archive/2026-09-04-0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | 2026-09-04 |
@@ -160,7 +158,6 @@ graph TD
 | [0158](archive/2026-09-03-0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | 2026-09-03 |
 | [0150](archive/2026-09-03-0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | 2026-09-03 |
 | [0397](archive/2026-09-02-0397-run-the-implementation-preflight-as-one-deterministic-operat.md) | Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default | 2026-09-02 |
-| [0396](archive/2026-09-02-0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | 2026-09-02 |
 | [0381](archive/2026-09-02-0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | 2026-09-02 |
 | [0252](archive/2026-09-01-0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | 2026-09-01 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
@@ -251,7 +248,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 8 done |
+| [2026-09](archive/) | 9 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
