@@ -22,7 +22,7 @@ branch: 'fix/halt-report-authoring-writes-a-duplicate-run-halted-heading'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T14:56:45Z'
+claimed_at: '2026-09-07T15:00:13Z'
 ---
 
 ## Artifacts
