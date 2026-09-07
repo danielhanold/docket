@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0379 — Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md)**
+> ↩ **[Change 0379 — Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-07-0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md)**
 <!-- docket:backlink:end -->
 # SHA-256 Source-Revision Width Fix for isFullObjectID — Implementation Plan
 
