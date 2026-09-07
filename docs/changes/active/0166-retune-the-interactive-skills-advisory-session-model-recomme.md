@@ -2,11 +2,11 @@
 id: 166
 slug: retune-the-interactive-skills-advisory-session-model-recomme
 title: Retune the interactive skills' advisory session-model recommendation
-status: proposed
+status: 'deferred'
 priority: low
 type: chore
 created: 2026-07-28
-updated: 2026-08-09
+updated: '2026-09-07'
 depends_on: []
 related: [168, 227]
 discovered_from: [164]
@@ -78,3 +78,10 @@ Surfaces: the two advisory paragraphs, plus the Task 6 test block. Nothing else 
 
 - **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the prose edits stand (skills still recommend `claude-sonnet-5` while `agents/harness-defaults.yml` ships opus for the consultant). The drift pin named in the spec (`tests/test_sync_agents_drift_docs.sh`, `hd_field`) is deleted; anchor it in `internal/repoguard/prose_contracts_test.go` or a test reading `agents/harness-defaults.yml`, and check `internal/config/defaults.go` for the Go-side model table.
 
+## Why deferred
+
+2026-09-07 — Deferred at the user's request following review of the groomed backlog against the current Go source. The near-term priorities are Go beta acceptance and observed workflow reliability.
+
+The interactive skills still carry the older advisory, but it does not select or change the session model. Mirroring the brainstorm consultant's model and effort is a consistency preference; the proposal contains no task-specific evidence that the current recommendation harms grooming. The planned Bash drift-test surface and hd_field helper have been deleted. This remains useful guidance work, not a demonstrated execution defect or a prerequisite for release.
+
+Revival criterion: revisit the interactive guidance with task-specific evidence and current configuration semantics. Re-groom against the Go default-resolution and test surfaces, preserve the advisory boundary, and justify any model/effort recommendation independently of merely matching an autonomous role. The linked August spec is historical design context and must not be implemented unchanged.
