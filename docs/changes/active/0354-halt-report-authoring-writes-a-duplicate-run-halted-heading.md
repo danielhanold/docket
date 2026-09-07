@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/halt-report-authoring-writes-a-duplicate-run-halted-heading'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T14:52:31Z'
+reconciled: true
+claimed_at: '2026-09-07T14:56:45Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ This was observed on change 0351 on 2026-08-26 and repaired manually. The curren
 - Pre-allocation workspace recovery, tracked separately in change 0368.
 - Changes to dispatch attribution, claim semantics, or the halt/resume lifecycle and its acknowledgement, version, and workspace safeguards.
 - Replacing the Markdown parser or tightening every general section-edit caller.
+
+## Reconcile log
+
+### 2026-09-07
+
+2026-09-07: Reconciled against current main. The spec's Verified context still holds: internal/render/section.go carries scanH2Headings plus the fence helpers (fenceRun/isBareFence/codeFenceRE) that skip fenced examples, and ApplySectionEdits still rejects duplicate owned headings but not new headings introduced by replacement Markdown. internal/app/change_halt.go's validateHaltShape (checked before pin/engine/metadata effects) validates only report presence and size, and haltReportBody supplies the H2 wrapper plus dated H3. The FCInvalidSectionMarkdown finding code already exists (internal/app/finding_codes.go) and is already used with field-less findings by change_groom; this change will add a report-body validator in section.go and call it from validateHaltShape with result invalid-input, finding invalid-section-markdown, field report. Related 0351 is done (historical evidence), 0368 proposed (independent pre-allocation recovery, not a prerequisite), 0343 killed (its fence-aware scanner is what we reuse). No dependency, stack, scope, or relation changes required. Proceeding to plan and build unchanged.
