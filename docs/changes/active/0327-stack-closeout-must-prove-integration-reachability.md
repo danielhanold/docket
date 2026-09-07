@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/stack-closeout-must-prove-integration-reachability'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T14:51:12Z'
+reconciled: true
+claimed_at: '2026-09-07T14:53:33Z'
 ---
 
 ## Artifacts
@@ -62,3 +62,7 @@ Replace the fabricated-child positive fixture with a real stack, add negative an
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-09-07
+
+2026-09-07 — Reconciled against origin/main at 0d1a7e1b (the exact commit the spec's 2026-09-07 necessity assessment was groomed against; unchanged since). Confirmed the referenced Go symbols still exist and match the spec: FinalizeRebase and receipt/lease handling in internal/app/finalize_rebase.go; closeoutIntegrationDestination and DeriveRootCloseoutSet/proveCarry/probeDescendantFacts in internal/app/finalize_closeout.go and internal/domain/stackcloseout.go; the positive root-carry fixture with a fabricated child merge-result in internal/app/finalize_closeout_integration_test.go. Scope, out-of-scope, and relations (related [298,316,336,369,370] all done, adrs [92], depends_on []) hold as groomed — no adjustments needed. Proceeding to plan and build the shared Git preservation proof and its enforcement at rebase, publish, merge, and stacked/root closeout.
