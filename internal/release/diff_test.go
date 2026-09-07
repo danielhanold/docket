@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func writeFixtureArchive(t *testing.T, dir, name string, payload []byte, epoch int64) string {
@@ -17,7 +19,7 @@ func writeFixtureArchive(t *testing.T, dir, name string, payload []byte, epoch i
 }
 
 func TestDiffArchivesIdentical(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	a := writeFixtureArchive(t, dir, "a.tar.gz", []byte("same-bytes"), 1700000000)
 	b := writeFixtureArchive(t, dir, "b.tar.gz", []byte("same-bytes"), 1700000000)
 	d, err := DiffArchives(a, b)
@@ -30,7 +32,7 @@ func TestDiffArchivesIdentical(t *testing.T) {
 }
 
 func TestDiffArchivesGzipHeaderOnly(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	a := writeFixtureArchive(t, dir, "a.tar.gz", []byte("same-bytes"), 1700000000)
 	raw, err := os.ReadFile(a)
 	if err != nil {
@@ -54,7 +56,7 @@ func TestDiffArchivesGzipHeaderOnly(t *testing.T) {
 }
 
 func TestDiffArchivesTarMetadata(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	a := writeFixtureArchive(t, dir, "a.tar.gz", []byte("same-bytes"), 1700000000)
 	b := writeFixtureArchive(t, dir, "b.tar.gz", []byte("same-bytes"), 1700000001)
 	d, err := DiffArchives(a, b)
@@ -70,7 +72,7 @@ func TestDiffArchivesTarMetadata(t *testing.T) {
 }
 
 func TestDiffArchivesPayload(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	a := writeFixtureArchive(t, dir, "a.tar.gz", []byte("payload-AAAA"), 1700000000)
 	b := writeFixtureArchive(t, dir, "b.tar.gz", []byte("payload-AAAB"), 1700000000)
 	d, err := DiffArchives(a, b)
@@ -86,7 +88,7 @@ func TestDiffArchivesPayload(t *testing.T) {
 }
 
 func TestDiffBundlesNamesAffectedFiles(t *testing.T) {
-	dirA, dirB := t.TempDir(), t.TempDir()
+	dirA, dirB := testsupport.TempDir(t), testsupport.TempDir(t)
 	writeFixtureArchive(t, dirA, "x.tar.gz", []byte("same"), 1700000000)
 	writeFixtureArchive(t, dirB, "x.tar.gz", []byte("same"), 1700000000)
 	writeFixtureArchive(t, dirA, "y.tar.gz", []byte("one"), 1700000000)
