@@ -52,6 +52,13 @@ type skillBudget struct {
 // vocabulary, and where the maintenance sweep runs it. This is authored contract
 // documentation, not slack — the ceilings are pinned at the exact new word counts,
 // so the ratchet still reddens on any further regrowth.
+//
+// Change 0346 re-baselined docket-finalize-change/SKILL.md upward once to hold
+// the verified post-merge rebuild contract (step 12): the sync-disposition
+// gate, the source ancestry proof, the post-install identity check, and the
+// separate binary-rebuild-incomplete report. Authored contract documentation,
+// not slack — the ceiling is pinned at the exact new counts and the ratchet
+// stays in force.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -71,7 +78,7 @@ var skillBudgets = []skillBudget{
 	{"docket-convention/references/learnings.md", 84, 580},
 	{"docket-convention/references/stacked-changes.md", 215, 2100},
 	{"docket-convention/references/terminal-close-out.md", 240, 2150},
-	{"docket-finalize-change/SKILL.md", 190, 4344}, // 0388: +sync-integration prose (see note above)
+	{"docket-finalize-change/SKILL.md", 217, 4898}, // 0346: +verified post-merge rebuild contract prose; 0388: +sync-integration prose (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
 	{"docket-groom-next/SKILL.md", 77, 1650},
 	{"docket-implement-next/SKILL.md", 180, 6900},
