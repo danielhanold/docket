@@ -60,6 +60,15 @@ const (
 	// ClaimDispositionFailed is a transaction that failed mid-flight; the
 	// cause is carried in the envelope's failure field.
 	ClaimDispositionFailed = "failed"
+	// ClaimDispositionGateContextInvalid refuses a claim whose supplied gate
+	// context matches no live armed gate record in this repository (change 0407):
+	// an invalid context is never silently treated as an ungated claim. Doubles as
+	// the finding code.
+	ClaimDispositionGateContextInvalid = "gate-context-invalid"
+	// ClaimDispositionGateContextConflict refuses a claim whose dispatch context
+	// is already bound to a different claim — one context cannot claim two changes
+	// (change 0407). Doubles as the finding code.
+	ClaimDispositionGateContextConflict = "gate-context-conflict"
 )
 
 // ChangeClaimRequest is the closed, caller-supplied request for one claim or
@@ -68,6 +77,12 @@ const (
 type ChangeClaimRequest struct {
 	ID      int    `json:"id" docket:"required"`
 	Version string `json:"version" docket:"required"`
+	// GateContext is the run-gate dispatch context token from run.gate-before. It
+	// is optional — an ungated claim omits it. When present it is hashed at this
+	// boundary (gateHashToken), so the raw token never enters the transaction, the
+	// receipt, or any finding; only its hash is folded into the idempotency digest
+	// and recorded as the durable claim proof (change 0407).
+	GateContext string `json:"gate_context,omitempty"`
 }
 
 // claimDigestPayload is the semantic content of a claim request — everything
@@ -77,6 +92,11 @@ type ChangeClaimRequest struct {
 type claimDigestPayload struct {
 	ID      int    `json:"id"`
 	Version string `json:"version"`
+	// GateContextHash folds the hashed dispatch context into the idempotency
+	// identity so two dispatches submitting the same (id, version) under different
+	// contexts do not share the replay path (change 0407). An ungated claim leaves
+	// it "", which is the pre-0407 identity for that (id, version).
+	GateContextHash string `json:"gate_context_hash"`
 }
 
 // ChangeClaimResult is the protocol-v1 document `change claim` and
@@ -128,10 +148,17 @@ func newChangeClaimResult(opKey string, result Result, r ChangeClaimResult) Chan
 type changeClaimReceipt struct {
 	Branch    string `json:"branch"`
 	ClaimedAt string `json:"claimed_at"`
-	ID        int    `json:"id"`
-	Lease     string `json:"lease"`
-	Op        string `json:"op"`
-	Status    string `json:"status"`
+	// GateContextHash is the hashed dispatch context this claim was bound to (""
+	// for an ungated claim). It is the durable, authoritative proof the keyed
+	// verdict path resolves ownership from (change 0407). Placed between
+	// claimed_at and id so the struct's field order stays alphabetical by json key
+	// — json.Marshal then emits the canonical sorted-key form the receipt
+	// validator requires.
+	GateContextHash string `json:"gate_context_hash"`
+	ID              int    `json:"id"`
+	Lease           string `json:"lease"`
+	Op              string `json:"op"`
+	Status          string `json:"status"`
 }
 
 // ChangeClaim validates the request, pins authoritative context, fetches the
@@ -166,22 +193,51 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		return *terr
 	}
 
-	digest, derr := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: req.ID, Version: req.Version})
+	// Keyed-dispatch binding (change 0407): a supplied gate context is validated
+	// against this repository's durable gate/scope identity and reserved BEFORE the
+	// metadata transaction, so a claim's ownership is proven at claim time rather
+	// than inferred later. FindGateRecordByContextHash reads the store only (it
+	// excludes Terminal and wrong-repo records), so a supplied-but-invalid context
+	// is a typed refusal — never an ungated claim — and the gatedrive scope
+	// capability the test-drive operations consume is untouched.
+	var gateKey, gateHash string
+	if req.GateContext != "" {
+		gateHash = gateHashToken(req.GateContext)
+		key, _, ferr := FindGateRecordByContextHash(repoDir, gateHash)
+		if ferr != nil {
+			return newChangeClaimResult(OperationChangeClaim, ResultInvalidState, ChangeClaimResult{
+				Disposition: ClaimDispositionGateContextInvalid,
+				Findings: []StatusFinding{lifecycleFinding(FindingCode(ClaimDispositionGateContextInvalid),
+					"supplied gate context matches no live armed gate in this repository; refusing — an invalid context is never an ungated claim: "+ferr.Error())},
+			})
+		}
+		gateKey = key
+		if rerr := ReserveGateClaim(repoDir, gateKey, req.ID, claimRequestID(req)); rerr != nil {
+			return newChangeClaimResult(OperationChangeClaim, ResultInvalidState, ChangeClaimResult{
+				Disposition: ClaimDispositionGateContextConflict,
+				Findings: []StatusFinding{lifecycleFinding(FindingCode(ClaimDispositionGateContextConflict),
+					"this dispatch context is already bound to a different claim; one context cannot claim two changes: "+rerr.Error())},
+			})
+		}
+	}
+
+	digest, derr := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: req.ID, Version: req.Version, GateContextHash: gateHash})
 	if derr != nil {
 		return newChangeClaimResult(OperationChangeClaim, ResultInternalError,
 			ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(ReasonStatusInternalError), derr.Error())}})
 	}
 
 	op := changeClaimOp{
-		opKey:      OperationChangeClaim,
-		changeID:   req.ID,
-		facts:      facts,
-		eff:        eff,
-		clock:      deps.Clock,
-		ttlHours:   eff.Reclaim.LeaseTTL.Value,
-		inline:     inline,
-		link:       linkContextOf(pin),
-		changesDir: eff.ChangesDir.Value,
+		opKey:           OperationChangeClaim,
+		changeID:        req.ID,
+		facts:           facts,
+		eff:             eff,
+		clock:           deps.Clock,
+		ttlHours:        eff.Reclaim.LeaseTTL.Value,
+		inline:          inline,
+		link:            linkContextOf(pin),
+		changesDir:      eff.ChangesDir.Value,
+		gateContextHash: gateHash,
 	}
 
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
@@ -197,7 +253,24 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		Operation:   op,
 	})
 
-	return claimResultFromOutcome(OperationChangeClaim, res, execErr)
+	out := claimResultFromOutcome(OperationChangeClaim, res, execErr)
+	// Confirm the reserved binding after the applied outcome, recording the commit
+	// that carries the authoritative claim receipt. An `already-claimed` replay
+	// also returns ResultApplied with the replayed receipt — confirming with the
+	// same (id, request) is the idempotent no-op the store built, so a replay can
+	// confirm only its own original dispatch association. A replay whose revision
+	// is empty (older engine replays) skips Confirm rather than write an empty one.
+	if gateKey != "" && out.Result == ResultApplied && out.Revision != "" {
+		if cerr := ConfirmGateClaim(repoDir, gateKey, req.ID, claimRequestID(req), out.Revision); cerr != nil {
+			// The metadata claim is committed and authoritative; the local binding
+			// confirm is the mirror. Surface, never fail the applied claim — the
+			// verdict path recovers from the exact committed receipt (spec:
+			// "recover only from the exact committed receipt for that dispatch").
+			out.Findings = append(out.Findings, lifecycleFinding(FindingCode(ClaimDispositionGateContextConflict),
+				"claim committed but the local gate binding could not be confirmed; the keyed verdict will recover from the committed receipt: "+cerr.Error()))
+		}
+	}
+	return out
 }
 
 // ChangeRefreshClaim validates the request, pins authoritative context, and
@@ -448,6 +521,11 @@ type changeClaimOp struct {
 	inline     bool
 	link       render.LinkContext
 	changesDir string
+	// gateContextHash is the hashed dispatch context this claim is bound to (""
+	// for an ungated claim or a refresh). It is folded into the committed claim
+	// receipt as the durable ownership proof (change 0407); the raw token never
+	// reaches this struct.
+	gateContextHash string
 }
 
 func (o changeClaimOp) Key() transaction.OperationKey { return transaction.OperationKey(o.opKey) }
@@ -564,12 +642,13 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 
 	lease := string(domain.EvaluateLease(result.Change, o.clock.Now(), o.ttlHours))
 	receipt, err := json.Marshal(changeClaimReceipt{
-		Branch:    result.Change.Branch().Value,
-		ClaimedAt: result.Change.ClaimedAt().Raw,
-		ID:        o.changeID,
-		Lease:     lease,
-		Op:        o.opKey,
-		Status:    string(result.Change.Status()),
+		Branch:          result.Change.Branch().Value,
+		ClaimedAt:       result.Change.ClaimedAt().Raw,
+		GateContextHash: o.gateContextHash,
+		ID:              o.changeID,
+		Lease:           lease,
+		Op:              o.opKey,
+		Status:          string(result.Change.Status()),
 	})
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change claim: encoding receipt: %w", err)
