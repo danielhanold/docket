@@ -133,6 +133,52 @@ func TestPublishRewriteLeaseWithGatePair(t *testing.T) {
 	}
 }
 
+// TestPublishRewriteLeaseWithPublishCheckpoint proves publish still authorizes
+// a rewrite from a receipt carrying the completed-gate publish checkpoint
+// (change 0408): the on-disk receipt and the caller's expected receipt are the
+// same value, checkpoint included, so the equality gate holds — and the exact
+// lease/reprobe behavior is unchanged.
+func TestPublishRewriteLeaseWithPublishCheckpoint(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	ws := wsPathOf(repo)
+	base := gitcli.ObjectID(gitOut(t, ws, "rev-parse", "HEAD"))
+	head1 := commitInWorkspace(t, ws, "feature.txt", "feature work\n")
+
+	if res, err := publishHead(t, svc, repo, tgt); err != nil || res.Disposition != PublishPublished {
+		t.Fatalf("seed publish = %q err=%v; want published", res.Disposition, err)
+	}
+	newHead := rewriteWorkspaceHead(t, ws)
+	if newHead == head1 {
+		t.Fatalf("fixture: rewrite did not change the head")
+	}
+
+	dir := metaDirOf(repo, tgt)
+	rec := receiptFor(repo, tgt, head1, base, "attempt-01")
+	rec.PublishCheckpointHead = string(newHead)
+	rec.PublishCheckpointBaseHead = string(base)
+	rec.PublishCheckpointCommand = "go test ./..."
+	rec.PublishCheckpointGate = "local"
+	rec.PublishCheckpointPRNumber = "7"
+	rec.PublishCheckpointEvidence = "result: green\n"
+	if err := svc.WriteRebaseReceipt(context.Background(), dir, rec); err != nil {
+		t.Fatalf("WriteRebaseReceipt: %v", err)
+	}
+
+	outcome, err := svc.PublishRewrite(context.Background(), RewriteRequest{Dir: dir, Receipt: rec, NewHead: string(newHead)})
+	if err != nil {
+		t.Fatalf("PublishRewrite: %v", err)
+	}
+	if outcome != RewritePublished {
+		t.Errorf("outcome = %q; want published", outcome)
+	}
+	if got, ok := originFeatCommit(t, r); !ok || got != newHead {
+		t.Errorf("origin feat ref = %q (ok=%v); want rewritten head %q", got, ok, newHead)
+	}
+}
+
 // TestPublishRewriteNoop proves the idempotency key is the remote state: a remote
 // already holding NewHead (a completed rewrite / adopted lost response) is a noop
 // with no push issued, even though the remote no longer sits at OrigRemoteHead.
