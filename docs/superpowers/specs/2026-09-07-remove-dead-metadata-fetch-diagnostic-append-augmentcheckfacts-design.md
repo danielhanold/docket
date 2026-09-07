@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0383 — Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md)**
+> ↩ **[Change 0383 — Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-07-0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md)**
 <!-- docket:backlink:end -->
 
 # Remove the dead metadata-fetch diagnostic append
