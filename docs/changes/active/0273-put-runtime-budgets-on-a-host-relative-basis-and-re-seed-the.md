@@ -2,11 +2,11 @@
 id: 273
 slug: put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the
 title: 'Put runtime budgets on a host-relative basis and re-seed the table'
-status: proposed
+status: 'deferred'
 priority: high
 type: refactor
 created: 2026-08-08
-updated: 2026-08-09
+updated: '2026-09-07'
 depends_on: [251]
 related: [251, 229]
 discovered_from: [242]
@@ -137,3 +137,14 @@ calibrates itself; the clamp band bounds pathological readings. Couplings: `depe
 (build order — this lands on 0251's confirm regime); no coupling to #0258 (different files).
 - **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the budget regime lives in `internal/suiterunner` (budgets.go, aggregate.go) and `aggregate.go` still prints that the screening factor is calibrated to one machine. The spec's mechanics (`tests/lib/budget-canary.sh`, `run-tests.sh` exit codes, `tests/test_run_tests.sh`) and all eight measured files are deleted; re-measure against the Go wrapper rows in `tests/runtime-budgets.tsv`.
 
+## Why deferred
+
+2026-09-07 — Deferred at the user's request after reviewing the current Go implementation and recorded build evidence. Building the existing spec now is not justified.
+
+The original urgency rests on deleted Bash test files. Their recorded serial ratios (1.05–1.25 times the row ceiling) are below the current authoritative 1.5-times serial threshold introduced by #0251. The Go migration replaced the budget rows, and #0373 bounded Go test concurrency and re-seeded affected rows. Its results (docs/results/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-results.md, sections "Re-seeded budget rows" and "Stability streak") record five consecutive green full gates with no confirmed serial budget breaches; parallel screening warnings remained. This review inspected current source and historical measurements, not new benchmarks or measurements across multiple hosts.
+
+The underlying portability limitation is still present: ScreenOver and SoloOver in internal/suiterunner/budgets.go compare absolute seconds without host calibration. The change is therefore not fully superseded, but the remaining limitation alone does not support high priority. Medium priority is recommended when it is reconsidered.
+
+The linked spec is not suitable for direct implementation: it targets deleted Bash runner/test surfaces, and its fork/git/I/O canary has not been shown to represent today's mixture of Go compilation, race tests, and integration tests. A single scaling ratio requires fresh evidence rather than a mechanical port of the old design.
+
+Revival criterion: obtain repeatable false serial budget breaches on unchanged Go code that can be attributed to host speed, separating them from contention and actual test-cost growth. Re-groom against internal/suiterunner and the current tests/runtime-budgets.tsv, validate a representative calibration workload, and reassess priority before returning this change to the build queue.
