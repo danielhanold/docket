@@ -6,16 +6,16 @@ status: proposed
 priority: medium
 type: fix
 created: 2026-08-30
-updated: 2026-08-30
+updated: '2026-09-07'
 depends_on: []
 stacked_on:
-related: [375]
+related: [375, 405]
 discovered_from: [372]
-adrs: []
+adrs: [107]
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
 branch:
 pr:
@@ -26,36 +26,46 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-During the change-0372 build, the first `docket gate drive start` call's human-readable output did
-not include the `drive_id`/`generation` (owner-gen) the operator needs to drive the gate. The
-`--json` form carries them, but the default text output did not surface them. With no owner-gen in
-hand, the natural next step was to re-run `start` to obtain it — which spawned a second concurrent
-drive (#375). So this omission is the **trigger** for that more damaging failure: the interface
-doesn't hand back the identity it just minted, and the only obvious recovery re-runs a
-non-idempotent command.
+During the change-0372 build, a caller reran `gate.drive.start` to recover ownership information missing from its first human-readable response, launching a second drive (tracked separately as #375).
+
+Review against current main on 2026-09-07 confirms that `GateDriveResult.HumanText` already prints `drive_id`. It deliberately omits the ownership generation, consistent with the gate driver's existing credential boundary. The remaining defect is caller guidance: `skills/docket-build/references/gate-caller-loop.md` mentions the JSON transport, while actionable start/handoff instructions, including the build-task worker contract and implement-next's evidence re-mint, do not explicitly require capturing JSON from the first call. A drive id alone does not authorize advancement or handoff.
+
+The human approved retaining and narrowing 0376 to a caller-guidance fix on 2026-09-07. Printing credentials in human text is no longer the proposed solution.
 
 ## What changes
 
-Ensure `docket gate drive start` surfaces the `drive_id` and `generation` it mints in its default
-human-readable output — not only under `--json` — so an operator never has to re-run `start` to
-recover them. Confirm the same for any sibling `gate drive` verbs whose identity a caller must
-capture. Exact wording/format to be settled during brainstorm.
+**Approved scope: Require JSON capture for gate-drive ownership operations.**
+
+- Make the shared gate-caller contract explicitly require `--json` whenever a workflow consumes a `gate.drive` result. Capture and validate the first response before using it: the drive identifier and ownership generation from `start`, the single-use handoff token from `handoff`, the fresh generation from `claim`/`takeover`, and the scope identifier and separated capabilities from `prepare-scope`. Preserve each operation's existing token meaning and the rule that parent capability stays with the parent.
+- Derive the affected maintained caller sites from a whole-repo search, then update the actionable instructions and examples at those sites. This includes the build-task worker, the build controller, and implement-next's direct evidence re-mint/re-gate paths. Keep operation argv catalog-resolved, and regenerate any embedded distribution copies through their existing generator.
+- State that a missing, malformed, or incomplete required response is a caller-contract failure, not permission to rerun `start` to recover credentials. Use the caller's existing blocked/halt reporting posture (a build-task worker returns `BLOCKED` with the missing-response reason). Existing handoff, claim, and event-authorized takeover remain subject to their existing ownership prerequisites; the documentation must not invent credentials, infer them from a drive id, or mint a new recovery path.
+- Preserve the current human-output credential boundary and the existing driver behavior. Keep each caller's WAITING/continuation policy intact while clarifying the transport.
+
+### Acceptance criteria
+
+1. A caller following the start instructions captures the drive id and generation from that same JSON response and can supply the required values to its existing advance or handoff step without launching another drive.
+2. Every maintained gate-drive caller that consumes a returned token or capability explicitly uses JSON or directly invokes a shared requirement that does so. Sibling operations have no equivalent capture gap.
+3. The documented missing-response path maps to the caller's existing blocked/halt outcome and never recommends rerunning `start` for credential recovery.
+4. Existing credential-redaction behavior and per-role continuation rules remain intact. Review the source and generated instruction surfaces; any added or changed guard must fail when its JSON-capture requirement is removed. Run the configured whole suite at the later build gate.
+
+### Trivial rationale
+
+The human-approved decision is settled: this is a bounded clarification of the transport for existing commands and existing result fields. It introduces no CLI field, protocol, ownership transition, or architectural decision, so a separate design spec is unnecessary. Implementation can proceed from this tightened scope.
 
 ## Out of scope
 
-- Making `start` idempotent / preventing the second concurrent drive — that fix is #375. This change
-  removes the *reason* an operator re-runs `start`; #375 makes the re-run harmless if it still happens.
-
-## Open questions
-
-- Which fields does a caller actually need echoed (drive_id, generation, worktree, anything else)?
-- Should the guidance be to always pass `--json` for capture, with the text output as a human
-  convenience — or should the text output itself be reliably parseable?
-- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Partially stale: `GateDriveResult.HumanText` already prints `drive_id`; the owner generation is omitted from human text by design (ownership credentials never appear in prose). Regroom toward the second open question: document `--json` as the capture channel in the gate-caller prose (`docket-build` references, `docket-implement-next` step 5), and check whether `drive_id` alone suffices once 0375 makes re-run safe.
+- Printing ownership generations, handoff tokens, or scope capabilities in human-readable output; making that output the machine capture format.
+- Making `start` idempotent or adding worktree-wide duplicate-drive prevention (#375).
+- Repairing the prepare-scope/start handshake or concurrent-scope identity issues (#405).
+- Adding credential recovery commands, changing gate outcomes, or widening handoff/takeover authorization.
+- Rewriting frozen plans, results, historical specs, or Accepted ADR prose.
 
 ## Reconcile log
 
