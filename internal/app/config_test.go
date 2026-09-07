@@ -707,3 +707,41 @@ func TestConfigInspectionHumanTextNamesFileLine(t *testing.T) {
 		t.Errorf("HumanText lacks the .docket.yml:6 ref:\n%s", h)
 	}
 }
+
+// TestConfigDiagnosticsResolverMaxAttemptsSurface pins that the effective-config
+// diagnostics surface reports finalize.resolver_max_attempts (change 0349) on
+// both its halves — the auto-reflected `effective` JSON (config.Effective) and
+// the hand-maintained `effective (winning layer)` human block (effectiveLines).
+// It asserts the resolved value, not mere presence (learnings:
+// defaulted-param-hides-caller-wiring): the default surfaces 3, an explicit
+// repository-layer setting surfaces 4.
+func TestConfigDiagnosticsResolverMaxAttemptsSurface(t *testing.T) {
+	// Default: nothing declared → built-in 3 on both halves.
+	def := DiagnosticConfig(sparseSources(), mainCtx(), false)
+	if def.Effective == nil {
+		t.Fatal("default resolution produced no effective snapshot")
+	}
+	if got := def.Effective.Finalize.ResolverMaxAttempts.Value; got != 3 {
+		t.Errorf("effective JSON finalize.resolver_max_attempts = %d, want the built-in default 3", got)
+	}
+	if h := def.HumanText(); !strings.Contains(h, "finalize.resolver_max_attempts = 3  [built-in]") {
+		t.Errorf("human effective block lacks the built-in resolver cap line:\n%s", h)
+	}
+
+	// Explicit repository-layer setting → 4 on both halves.
+	sources := []config.Source{{
+		Layer: config.LayerRepository,
+		Name:  ".docket.yml",
+		Data:  []byte("finalize:\n  resolver_max_attempts: 4\n"),
+	}}
+	set := DiagnosticConfig(sources, mainCtx(), false)
+	if set.Effective == nil {
+		t.Fatal("explicit resolution produced no effective snapshot")
+	}
+	if got := set.Effective.Finalize.ResolverMaxAttempts.Value; got != 4 {
+		t.Errorf("effective JSON finalize.resolver_max_attempts = %d, want the resolved 4", got)
+	}
+	if h := set.HumanText(); !strings.Contains(h, "finalize.resolver_max_attempts = 4") {
+		t.Errorf("human effective block lacks the resolved resolver cap line:\n%s", h)
+	}
+}

@@ -403,6 +403,9 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	cfg.Finalize.Gate.Value = "local"
 	cfg.Finalize.TestCommand.Value = "go run ./cmd/docket development test"
 	cfg.Finalize.RequirePRApproval.Value = true
+	// Resolved non-default resolver cap (change 0349): 4, not the built-in 3, so
+	// the assertion proves the leaf is wired through rather than defaulted.
+	cfg.Finalize.ResolverMaxAttempts.Value = 4
 	// Divergent build policy: the build block mirrors build.* independently, so a
 	// build command that differs from finalize's proves the two are not aliased.
 	cfg.Build.Gate.Value = "off"
@@ -447,9 +450,10 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 			AdrsDir                   string `json:"adrs_dir"`
 			ResultsDir                string `json:"results_dir"`
 			Finalize                  struct {
-				Gate              string `json:"gate"`
-				TestCommand       string `json:"test_command"`
-				RequirePRApproval bool   `json:"require_pr_approval"`
+				Gate                string `json:"gate"`
+				TestCommand         string `json:"test_command"`
+				RequirePRApproval   bool   `json:"require_pr_approval"`
+				ResolverMaxAttempts int    `json:"resolver_max_attempts"`
 			} `json:"finalize"`
 			Build struct {
 				Gate        string `json:"gate"`
@@ -482,6 +486,9 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	if c.Finalize.TestCommand != "go run ./cmd/docket development test" || c.Finalize.Gate != "local" || !c.Finalize.RequirePRApproval {
 		t.Errorf("finalize not mirrored from config: %+v", c.Finalize)
 	}
+	if c.Finalize.ResolverMaxAttempts != 4 {
+		t.Errorf("finalize.resolver_max_attempts = %d, want the resolved non-default 4", c.Finalize.ResolverMaxAttempts)
+	}
 	if c.Build.TestCommand != "go test ./build-only" || c.Build.Gate != "off" {
 		t.Errorf("build not mirrored from config (independent of finalize): %+v", c.Build)
 	}
@@ -490,6 +497,49 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	}
 	if c.RepoRoot != "/repo" {
 		t.Errorf("repo_root = %q, want /repo", c.RepoRoot)
+	}
+}
+
+// TestRepositoryPrepareResolverCapAgreesWithConfigDiagnostics reads the resolver
+// cap (change 0349) from both surfaces off ONE resolved fixture and asserts they
+// agree (spec test 1): the prepare `context.finalize.resolver_max_attempts` and
+// the effective-config diagnostics `effective.finalize.resolver_max_attempts`
+// both report the same resolved 4. Two surfaces deriving from the same
+// config.Effective must never disagree.
+func TestRepositoryPrepareResolverCapAgreesWithConfigDiagnostics(t *testing.T) {
+	sources := []config.Source{{
+		Layer: config.LayerRepository,
+		Name:  ".docket.yml",
+		Data:  []byte("finalize:\n  resolver_max_attempts: 4\n"),
+	}}
+	snap, _, err := config.Resolve(sources, mainCtx())
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	eff := snap.Effective
+
+	// Context surface: the prepare document's context.finalize.
+	sc := setupContext{
+		cfg:               eff,
+		repo:              gitcli.Repository{PrimaryWorktree: "/repo"},
+		defaultBranch:     "main",
+		integrationBranch: "main",
+	}
+	pc := buildPrepareContext(eff, sc, preparableFacts(), "git@github.com:acme/widget.git")
+	contextVal := pc.Finalize.ResolverMaxAttempts
+
+	// Diagnostics surface: the effective-config JSON, off the same source layers.
+	diag := DiagnosticConfig(sources, mainCtx(), false)
+	if diag.Effective == nil {
+		t.Fatal("diagnostics produced no effective snapshot")
+	}
+	diagVal := diag.Effective.Finalize.ResolverMaxAttempts.Value
+
+	if contextVal != 4 {
+		t.Errorf("context.finalize.resolver_max_attempts = %d, want 4", contextVal)
+	}
+	if contextVal != diagVal {
+		t.Errorf("surfaces disagree: context %d vs diagnostics %d", contextVal, diagVal)
 	}
 }
 
