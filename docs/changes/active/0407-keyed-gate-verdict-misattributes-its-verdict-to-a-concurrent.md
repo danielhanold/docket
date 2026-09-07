@@ -13,7 +13,7 @@ related: [345, 405]
 discovered_from: [403]
 adrs: [75]
 spec: 'docs/superpowers/specs/2026-09-07-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-07-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-07T02:03:16Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-07-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent-design.md) |
+| Plan | [2026-09-07-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-07-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md) |
 | ADRs | [ADR-0075](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md) |
 <!-- docket:artifacts:end -->
 
