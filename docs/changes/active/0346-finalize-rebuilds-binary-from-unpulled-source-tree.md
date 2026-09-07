@@ -6,12 +6,12 @@ status: proposed
 priority: medium
 type: fix
 created: 2026-08-25
-updated: 2026-08-25
-depends_on: []
-related: []
+updated: '2026-09-07'
+depends_on: [388]
+related: [283, 340, 392]
 discovered_from: [342]
-adrs: []
-spec:
+adrs: [99, 104]
+spec: 'docs/superpowers/specs/2026-09-07-finalize-rebuilds-binary-from-unpulled-source-tree-design.md'
 plan:
 results:
 trivial: false
@@ -25,58 +25,29 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-07-finalize-rebuilds-binary-from-unpulled-source-tree-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-finalize-rebuilds-binary-from-unpulled-source-tree-design.md) |
+| ADRs | [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-The repo policy (AGENTS.md, "Rebuild the binary after a merge to main") requires that after a PR
-merges into `main`, the installed `docket` binary be rebuilt so the installed tool matches source:
-`docket development install --source /Users/homer/dev/docket`.
+The repository requires a binary rebuild after a PR merges into main. During change 0342's closeout, installation succeeded from a primary checkout that still predated the merge: the binary's timestamp changed while its contents stayed stale.
 
-During the close-out of change 342, `docket-finalize-change` ran that rebuild — but the merge lands
-on `origin/main` while the **primary source worktree's local `main` was never pulled**. It sat at the
-pre-merge head (`63a202e8`), behind the merge commit (`c323e266`). So the rebuild compiled
-**pre-merge source**: the binary's timestamp updated, but its contents did not include the just-merged
-change. The rule's intent — installed tool == merged source — was silently unmet, and nothing in the
-run surfaced it. A human had to pull `main` and rebuild by hand to actually satisfy the policy.
-
-This is a real close-out defect, not a one-off: finalize merges via the GitHub PR (rebase method), so
-the merge exists on the remote but not in the local primary tree unless finalize explicitly pulls it.
-Rebuilding `--source /Users/homer/dev/docket` against that stale tree will *always* miss the merge.
-The failure is invisible because the install command succeeds and the binary mtime advances — the
-staleness only shows up if someone checks `git merge-base --is-ancestor <merge> HEAD` on the source
-tree, which nobody does by default.
+Change 0388 now provides safe integration-checkout syncing at the end of finalize, but sync can deliberately skip an unsafe checkout or report a failure. The rebuild policy still needs to depend on successful sync and prove that the exact source used by install contains the merge. A successful install alone is insufficient; the installed binary's identity must also match that verified source.
 
 ## What changes
 
-Make finalize's post-merge rebuild build from a source tree that provably contains the merge.
-Candidate directions to weigh at brainstorm time (not decided):
-
-- Before the rebuild step, fast-forward the primary source tree: `git -C <source> pull --ff-only
-  origin <integration_branch>` (or fetch + ff-only merge), then assert the merge commit is an
-  ancestor of the source `HEAD` before invoking `docket development install`.
-- Rebuild from a tree finalize already knows contains the merge, rather than assuming the primary
-  worktree is current.
-- At minimum, **verify and fail loud**: after the rebuild, assert the merge commit is reachable from
-  the built source, and surface a clear error if not — never let a stale rebuild report success.
+- Run repository-required rebuilds after finalize's existing end-of-run integration sync. Keep the shipped workflow generic and the concrete Docket rebuild requirement in AGENTS.md.
+- Rebuild only after successful sync, a clean primary source checkout at the synced commit, and proof that the source contains every verified main merge handled by the run.
+- Use the existing installation and version operations, then verify that source state stayed unchanged and the installed binary reports the same full, clean commit identity.
+- Keep verified merged changes done when sync, rebuild, or verification cannot finish; report the outstanding binary rebuild and a valid recovery sequence separately.
+- Add mutation-tested regression guards for the instruction contract and regenerate affected embedded skill assets.
 
 ## Out of scope
 
-- The AGENTS.md policy itself (rebuild-after-merge stays required) — this is about finalize
-  satisfying it correctly, not changing the requirement.
-- The `docket.sh` facade vs `docket` binary verb-surface divergence noted during the same run — that
-  is a separate observation; file it independently if it warrants tracking.
-
-## Open questions
-
-- Is a `pull --ff-only` on the primary worktree always safe at finalize time, or can that tree be
-  dirty / on a non-integration branch (in which case finalize must detect and skip-with-warning
-  rather than fail the whole close-out)?
-- Does this apply only in docket-mode (separate `.docket` metadata worktree, primary tree on the
-  integration branch), or also in main-mode where the single tree already carries the merge locally?
-- Should the merge-reachable assertion be a hard failure of the close-out, or a loud warning that
-  still lets `done` stand (the merge itself already landed correctly)?
-- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the policy in AGENTS.md is unchanged and nothing in `skills/docket-finalize-change` or `internal/app/finalize_*.go` asserts merge-commit ancestry before the rebuild. Put the check in the Go finalize closeout (`finalize_closeout.go` already fetches the integration tip and has the merge commit) and/or `docket development install` (`internal/app/install.go`): assert the merge is an ancestor of the `--source` HEAD, or fast-forward the source tree first. The `docket.sh` facade aside is moot.
+Removing the rebuild-after-merge requirement; reimplementing integration sync; new production CLI operations, flags, configuration keys, or installer modes; changing ordinary developer installs; temporary source checkouts or destructive source recovery; new lifecycle states, rollback of merges or installations, or edits to frozen records; imposing Docket binary installation on consuming repositories; restoring main-mode or Bash workflows.
 
 ## Reconcile log
 
