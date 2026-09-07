@@ -1,6 +1,6 @@
 # Backlog
 
-**408 changes** — 🟢 1 in progress · 🔵 5 built · 🟣 9 groomed · 🟡 20 proposed · ⚪ 5 deferred · ✅ 255 done · 🗑️ 113 killed
+**408 changes** — 🟢 1 in progress · 🔵 4 built · 🟣 9 groomed · 🟡 20 proposed · ⚪ 5 deferred · ✅ 256 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,10 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0408](active/0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-finalize-publish-is-denied-by-the-auto-mode-classifier-whene-design.md) | `fix/finalize-publish-is-denied-by-the-auto-mode-classifier-whene` | run halted — needs you |
 
-## 🔵 Built (5)
+## 🔵 Built (4)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0407](active/0407-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md) | Keyed gate-verdict misattributes its verdict to a concurrent loop's change id under parallel implement-next runs | `high` | `fix` | [#285](https://github.com/danielhanold/docket/pull/285) | awaiting merge |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | [#284](https://github.com/danielhanold/docket/pull/284) | awaiting merge |
 | [0383](active/0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | `low` | `fix` | [#281](https://github.com/danielhanold/docket/pull/281) | awaiting merge |
 | [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | [#282](https://github.com/danielhanold/docket/pull/282) | awaiting merge |
@@ -107,7 +106,6 @@ graph TD
   0393
   0398
   0405
-  0407
   0408
   0192:::done
   0251:::done
@@ -115,10 +113,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (368)</summary>
+<details><summary>✅🗑️ Archive — done + killed (369)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0407](archive/2026-09-07-0407-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md) | Keyed gate-verdict misattributes its verdict to a concurrent loop's change id under parallel implement-next runs | 2026-09-07 |
 | [0406](archive/2026-09-07-0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) | Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite | 2026-09-07 |
 | [0404](archive/2026-09-06-0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | 2026-09-06 |
 | [0403](archive/2026-09-04-0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | 2026-09-04 |
@@ -162,7 +161,6 @@ graph TD
 | [0394](archive/2026-09-02-0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | 2026-09-02 |
 | [0381](archive/2026-09-02-0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | 2026-09-02 |
 | [0373](archive/2026-09-02-0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | 2026-09-02 |
-| [0364](archive/2026-09-02-0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | 2026-09-02 |
 | [0252](archive/2026-09-01-0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | 2026-09-01 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
@@ -252,7 +250,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 4 done |
+| [2026-09](archive/) | 5 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
