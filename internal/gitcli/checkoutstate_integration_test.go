@@ -5,6 +5,8 @@ package gitcli
 import (
 	"context"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // gitMaybe runs real git -C <dir> and tolerates a non-zero exit (e.g. a
@@ -71,7 +73,7 @@ func TestIntegrationRepoWorktreeCheckoutState(t *testing.T) {
 
 	t.Run("probe failure is an error, not a zero state", func(t *testing.T) {
 		c := newRealClient(t)
-		if _, err := c.WorktreeCheckoutState(ctx, t.TempDir()); err == nil {
+		if _, err := c.WorktreeCheckoutState(ctx, testsupport.TempDir(t)); err == nil {
 			t.Fatal("want error for a non-repository directory")
 		}
 	})

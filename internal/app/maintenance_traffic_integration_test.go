@@ -247,15 +247,38 @@ func nonActionable(e MaintenanceEntry) bool {
 	return e.Operation == "" && e.Disposition != SweepDispApplied
 }
 
+// The once-per-sweep integration sync (change 0388) runs AFTER the item loop, for
+// both scopes, and performs exactly ONE bounded operational-context load
+// (RunRepositorySyncIntegration -> loadOperationalContext): a single
+// default-branch probe (`ls-remote --symref … HEAD`) and the two repository-level
+// fetches it pins (the integration branch and the fixed metadata branch). That
+// load iterates over NOTHING in the archive — it is fixed repository-level Git
+// work, independent of the archive/history size — so the sync adds a CONSTANT to
+// each traffic count below and never a per-history amplification. The
+// history-independence of this constant is proved directly by
+// TestIntegrationSweepAssessmentTrafficConstantAcrossHistory (growing the done
+// population 1 -> 25 -> 250 changes no count); these constants let the fixed-fixture
+// tests below name the sync's contribution explicitly instead of burying it in a
+// bumped literal. The sync adds NO `ls-remote --heads`, no gh process, and no
+// per-item remote-ref probe, so those counts are unchanged by the suffix.
+const (
+	syncSuffixDefaultBranchProbes = 1 // the sync's one operational-context default-branch probe
+	syncSuffixFetches             = 2 // integration branch + metadata branch
+)
+
 // --- Step 1: discovery + assessment traffic accounting --------------------
 
 // TestIntegrationSweepDiscoveryTrafficAccounting drives one full-scope sweep over
 // a mixed corpus — several non-terminal PR-bearing records (the batch population)
 // and several terminal done records (the assessment population) — and accounts for
 // every real git/gh process by purpose. The setup pin runs exactly once; the
-// GitHub identity resolves at most once; PR requests are one batch per ≤25 unique
+// once-per-sweep integration sync (change 0388) adds exactly one more bounded
+// operational-context load after the loop (a fixed +1 default-branch probe and +2
+// fetches, never per-history — see syncSuffixDefaultBranchProbes); the GitHub
+// identity resolves at most once; PR requests are one batch per ≤25 unique
 // numbers; the shared inventory is a single `ls-remote --heads`; and NO per-item
-// remote-ref probe or metadata fetch is issued for the non-actionable history.
+// remote-ref probe or per-history metadata fetch is issued for the non-actionable
+// history.
 func TestIntegrationSweepDiscoveryTrafficAccounting(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{}
@@ -279,9 +302,12 @@ func TestIntegrationSweepDiscoveryTrafficAccounting(t *testing.T) {
 	gl := gitLogLines(t, gitLog)
 	ghl := ghLogLines(t, ghLog)
 
-	// Full setup ran ONCE: exactly one default-branch probe.
-	if got := countMatching(gl, "ls-remote", "--symref"); got != 1 {
-		t.Errorf("setup default-branch probe ran %d times, want exactly 1\n%s", got, strings.Join(gl, "\n"))
+	// Full setup ran ONCE (one default-branch probe), plus the integration-sync
+	// suffix's one bounded operational-context load — a fixed 1 + 1, never a
+	// per-history probe.
+	wantProbes := 1 + syncSuffixDefaultBranchProbes
+	if got := countMatching(gl, "ls-remote", "--symref"); got != wantProbes {
+		t.Errorf("default-branch probes ran %d times, want exactly %d (sweep setup + one bounded integration-sync load)\n%s", got, wantProbes, strings.Join(gl, "\n"))
 	}
 	// GitHub identity resolved at most once.
 	if got := countPrefix(ghl, "repo view"); got > 1 {
@@ -299,11 +325,14 @@ func TestIntegrationSweepDiscoveryTrafficAccounting(t *testing.T) {
 	if probes := featureRefProbes(gl); len(probes) != 0 {
 		t.Errorf("the sweep issued %d forbidden per-item remote-ref probe(s):\n%s", len(probes), strings.Join(probes, "\n"))
 	}
-	// No dispatched-operation metadata fetch beyond the two setup fetches
-	// (default-branch + metadata branch): nothing was actionable, so no operation
-	// prepared a fresh observation. A per-history refresh would inflate this.
-	if got := countMatching(gl, "fetch"); got != 2 {
-		t.Errorf("total fetches = %d, want exactly 2 (setup default-branch + metadata; no per-history refresh)\n%s", got, strings.Join(gl, "\n"))
+	// No dispatched-operation metadata fetch: nothing was actionable, so no operation
+	// prepared a fresh observation. The only fetches are the sweep setup's two
+	// (default-branch + metadata branch) and the integration-sync suffix's two — a
+	// fixed 2 + 2 of repository-level work. A per-history refresh would inflate this
+	// and make it scale with the archive; the sync's contribution does NOT.
+	wantFetches := 2 + syncSuffixFetches
+	if got := countMatching(gl, "fetch"); got != wantFetches {
+		t.Errorf("total fetches = %d, want exactly %d (sweep setup default-branch+metadata, plus the bounded integration-sync suffix's two; no per-history refresh)\n%s", got, wantFetches, strings.Join(gl, "\n"))
 	}
 
 	// Pin the OUTCOME, not merely that it returned: one truthful non-actionable
@@ -553,9 +582,13 @@ func TestIntegrationSweepDispatchedReclaimKeepsSetupOnce(t *testing.T) {
 		t.Fatalf("reclaim entry = %+v, want an applied change.reclaim dispatch", *reclaim)
 	}
 	gl := gitLogLines(t, gitLog)
-	// Full setup ran once even across the dispatched mutation.
-	if got := countMatching(gl, "ls-remote", "--symref"); got != 1 {
-		t.Errorf("setup default-branch probe ran %d times, want exactly 1 across a dispatched op", got)
+	// Full setup ran once even across the dispatched mutation, plus the once-per-sweep
+	// integration-sync suffix's one bounded operational-context load (change 0388) —
+	// a fixed 1 + 1. The dispatched reclaim itself adds NO setup re-probe; the extra
+	// probe is the sync suffix's, not a per-history or per-op re-pin.
+	wantProbes := 1 + syncSuffixDefaultBranchProbes
+	if got := countMatching(gl, "ls-remote", "--symref"); got != wantProbes {
+		t.Errorf("default-branch probes ran %d times, want exactly %d across a dispatched op (sweep setup + one bounded integration-sync load)", got, wantProbes)
 	}
 	// A reclaim is not a done candidate: no snapshot assessment, no shared inventory.
 	if got := countMatching(gl, "ls-remote", "--heads"); got != 0 {
@@ -604,19 +637,24 @@ func TestIntegrationSweepBlockedMetadataFetchRefusesNoMutation(t *testing.T) {
 }
 
 // TestIntegrationSweepFailFastGuardStaysGreenUnderProduction wires a fail-fast git
-// that IMMEDIATELY exits non-zero on a SECOND setup default-branch probe — a
-// redundant setup re-probe. Production issues exactly one such probe, so the sweep
-// completes normally with its expected non-actionable entry and the guard never
-// trips (zero forbidden-probe attempts). This is the phase-aware harness a mutation
-// that reintroduces a setup re-probe would trip (fail fast, never hang: learning
-// mutation-target-needs-a-forced-exit).
+// that IMMEDIATELY exits non-zero on a THIRD default-branch probe — a redundant
+// re-probe beyond the two legitimate operational-context loads. Production issues
+// exactly two such probes (the sweep's setup pin, then the once-per-sweep
+// integration-sync suffix's one bounded load, change 0388), so the sweep completes
+// normally with its expected non-actionable entry and the guard never trips (no
+// forbidden-probe attempt). This is the phase-aware harness a mutation that
+// reintroduces a redundant setup re-pin (a THIRD probe) would trip (fail fast,
+// never hang: learning mutation-target-needs-a-forced-exit). The threshold tracks
+// the fixed two-load count, not the pre-0388 single load, so it still reddens on any
+// probe the two bounded loads do not account for.
 func TestIntegrationSweepFailFastGuardStaysGreenUnderProduction(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{"docs/changes/active/0041-a.md": trafficDoneRecord(41, "a")}
 	r := trafficRepo(t, "", records)
 	gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
-	// A second `ls-remote --symref` (redundant setup probe) exits fast, non-zero.
-	fault := `case "$*" in *"ls-remote --symref"*) n=$(grep -c -- "ls-remote --symref" '` + gitLog + `'); if [ "$n" -gt 1 ]; then echo "redundant setup probe forbidden" >&2; exit 47; fi;; esac`
+	// A THIRD `ls-remote --symref` (a redundant re-probe beyond the sweep setup + the
+	// integration-sync suffix's one load) exits fast, non-zero.
+	fault := fmt.Sprintf(`case "$*" in *"ls-remote --symref"*) n=$(grep -c -- "ls-remote --symref" '%s'); if [ "$n" -gt %d ]; then echo "redundant setup probe forbidden" >&2; exit 47; fi;; esac`, gitLog, 1+syncSuffixDefaultBranchProbes)
 	deps := trafficDeps(t, trafficGit(t, gitLog, fault), trafficGH(t, filepath.Join(testsupport.TempDir(t), "gh.log")))
 
 	done := make(chan MaintenanceResult, 1)
@@ -630,10 +668,12 @@ func TestIntegrationSweepFailFastGuardStaysGreenUnderProduction(t *testing.T) {
 		t.Fatal("sweep did not return within the watchdog (hang)")
 	}
 
-	// Production tripped nothing: exactly one setup probe, terminal success, and the
-	// expected pinned entry.
-	if got := countMatching(gitLogLines(t, gitLog), "ls-remote", "--symref"); got != 1 {
-		t.Fatalf("setup default-branch probe ran %d times, want exactly 1 (the fail-fast guard should not have fired)", got)
+	// Production tripped nothing: exactly the two bounded default-branch probes (sweep
+	// setup + integration-sync suffix), terminal success, and the expected pinned
+	// entry.
+	wantProbes := 1 + syncSuffixDefaultBranchProbes
+	if got := countMatching(gitLogLines(t, gitLog), "ls-remote", "--symref"); got != wantProbes {
+		t.Fatalf("default-branch probes ran %d times, want exactly %d (the fail-fast guard should not have fired)", got, wantProbes)
 	}
 	if res.Result != ResultNoOp {
 		t.Fatalf("result = %q, want no-op; a tripped guard would have surfaced a refusal", res.Result)
@@ -692,10 +732,15 @@ func TestIntegrationSweepSecondInvocationAndRepositoryReprobes(t *testing.T) {
 		return sweepRemoteCounts(t, gitLog, ghLog)
 	}
 
+	// Each invocation runs its own full setup (one default-branch probe) plus its own
+	// once-per-sweep integration-sync load (change 0388) — a fixed 1 + 1 per
+	// invocation. The count is per-invocation constant: it does not accumulate across
+	// invocations (no captured setup leaks forward) and does not scale with history.
+	wantProbes := 1 + syncSuffixDefaultBranchProbes
 	first := run(rA)
 	second := run(rA)
-	if first.setupProbe != 1 || second.setupProbe != 1 {
-		t.Errorf("each invocation must run full setup once: first=%d second=%d probes", first.setupProbe, second.setupProbe)
+	if first.setupProbe != wantProbes || second.setupProbe != wantProbes {
+		t.Errorf("each invocation must run its full setup plus the one bounded sync load (%d probes): first=%d second=%d", wantProbes, first.setupProbe, second.setupProbe)
 	}
 	if first.sharedHeads != 1 || second.sharedHeads != 1 {
 		t.Errorf("each invocation gathers its own shared inventory: first=%d second=%d", first.sharedHeads, second.sharedHeads)
@@ -704,7 +749,7 @@ func TestIntegrationSweepSecondInvocationAndRepositoryReprobes(t *testing.T) {
 	// A second, independent repository re-runs the whole setup for itself.
 	rB := trafficRepo(t, "", map[string]string{"docs/changes/active/0060-b.md": trafficDoneRecord(60, "b")})
 	other := run(rB)
-	if other.setupProbe != 1 || other.sharedHeads != 1 {
-		t.Errorf("a second repository must run its own full setup, got %+v", other)
+	if other.setupProbe != wantProbes || other.sharedHeads != 1 {
+		t.Errorf("a second repository must run its own full setup plus the one bounded sync load (%d probes, 1 shared inventory), got %+v", wantProbes, other)
 	}
 }

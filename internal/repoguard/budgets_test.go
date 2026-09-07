@@ -43,6 +43,15 @@ type skillBudget struct {
 // construction; the mandated content cannot fit under 7750 even at minimum-faithful
 // phrasing. The ratchet stays in force at the new baselines — they catch any further
 // regrowth.
+//
+// Change 0388 re-baselined docket-convention/SKILL.md (7800 -> 7807),
+// docket-finalize-change/SKILL.md (4150 -> 4344), and docket-status/SKILL.md
+// (3050 -> 3065) upward once to hold the native post-merge integration-branch-sync
+// contract prose it wired into these three skills: the once-per-scope
+// repository.sync-integration operation, its safety ladder and closed disposition
+// vocabulary, and where the maintenance sweep runs it. This is authored contract
+// documentation, not slack — the ceilings are pinned at the exact new word counts,
+// so the ratchet still reddens on any further regrowth.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -55,14 +64,14 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 155, 1550},
-	{"docket-convention/SKILL.md", 400, 7800}, // 0399: +schema request/result contract prose (see note above)
+	{"docket-convention/SKILL.md", 400, 7807}, // 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
 	{"docket-convention/github-board-mirror.md", 19, 462},
 	{"docket-convention/references/agent-layer.md", 205, 2350},
 	{"docket-convention/references/dummy-mode.md", 85, 800},
 	{"docket-convention/references/learnings.md", 84, 580},
 	{"docket-convention/references/stacked-changes.md", 215, 2100},
 	{"docket-convention/references/terminal-close-out.md", 240, 2150},
-	{"docket-finalize-change/SKILL.md", 190, 4150},
+	{"docket-finalize-change/SKILL.md", 190, 4344}, // 0388: +sync-integration prose (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
 	{"docket-groom-next/SKILL.md", 77, 1650},
 	{"docket-implement-next/SKILL.md", 180, 6900},
@@ -72,7 +81,7 @@ var skillBudgets = []skillBudget{
 	{"docket-review/SKILL.md", 110, 900},
 	{"docket-new-change/SKILL.md", 61, 1700},
 	{"docket-new-change/change-template.md", 51, 250},
-	{"docket-status/SKILL.md", 140, 3050},
+	{"docket-status/SKILL.md", 140, 3065}, // 0388: +sync-integration prose (see note above)
 }
 
 // wcLines counts lines the way `wc -l` does: the number of newline bytes.
