@@ -175,25 +175,34 @@ type GateReport struct {
 // It holds no authored bytes and no report prose.
 type FinalizeRebaseResult struct {
 	Envelope
-	ID            int             `json:"id,omitempty"`
-	Disposition   string          `json:"disposition,omitempty"`
-	Head          string          `json:"head,omitempty"`
-	OrigHead      string          `json:"orig_head,omitempty"`
-	Base          string          `json:"base,omitempty"`
-	BaseHead      string          `json:"base_head,omitempty"`
-	Attempt       string          `json:"attempt,omitempty"`
-	UnmergedPaths []string        `json:"unmerged_paths"`
-	Gate          *GateReport     `json:"gate,omitempty"`
-	Reason        string          `json:"reason,omitempty"`
-	Message       string          `json:"message,omitempty"`
-	Findings      []StatusFinding `json:"findings"`
+	ID            int      `json:"id,omitempty"`
+	Disposition   string   `json:"disposition,omitempty"`
+	Head          string   `json:"head,omitempty"`
+	OrigHead      string   `json:"orig_head,omitempty"`
+	Base          string   `json:"base,omitempty"`
+	BaseHead      string   `json:"base_head,omitempty"`
+	Attempt       string   `json:"attempt,omitempty"`
+	UnmergedPaths []string `json:"unmerged_paths"`
+	// Resolver-budget counts (change 0349), populated on every result derived
+	// from a budgeted receipt with a live conflict or a budget exhaustion:
+	// ResolverRemaining is ResolverLimit - ResolverUsed. Zero (and thus omitted)
+	// on a legacy receipt and on non-conflict dispositions.
+	ResolverLimit     int             `json:"resolver_limit,omitempty"`
+	ResolverUsed      int             `json:"resolver_used,omitempty"`
+	ResolverRemaining int             `json:"resolver_remaining,omitempty"`
+	Gate              *GateReport     `json:"gate,omitempty"`
+	Reason            string          `json:"reason,omitempty"`
+	Message           string          `json:"message,omitempty"`
+	Findings          []StatusFinding `json:"findings"`
 }
 
 // HumanText renders a one-line summary naming identity, disposition, and the
 // gate compose only — never a report body.
 func (r FinalizeRebaseResult) HumanText() string {
-	if r.Result == ResultApplied || r.Result == ResultNoOp {
-		s := fmt.Sprintf("%s: change %04d %s", r.Operation, r.ID, r.Disposition)
+	var s string
+	switch {
+	case r.Result == ResultApplied || r.Result == ResultNoOp:
+		s = fmt.Sprintf("%s: change %04d %s", r.Operation, r.ID, r.Disposition)
 		if r.Gate != nil {
 			s += " (gate " + r.Gate.Compose
 			if r.Gate.Outcome != "" {
@@ -201,12 +210,16 @@ func (r FinalizeRebaseResult) HumanText() string {
 			}
 			s += ")"
 		}
-		return s
+	case r.Reason != "":
+		s = fmt.Sprintf("%s: %s (%s)", r.Operation, r.Result, r.Reason)
+	default:
+		s = fmt.Sprintf("%s: %s", r.Operation, r.Result)
 	}
-	if r.Reason != "" {
-		return fmt.Sprintf("%s: %s (%s)", r.Operation, r.Result, r.Reason)
+	// Resolver-budget counts (change 0349) travel on conflict/exhaustion results.
+	if r.ResolverLimit > 0 {
+		s += fmt.Sprintf(" [resolver %d/%d used, %d remaining]", r.ResolverUsed, r.ResolverLimit, r.ResolverRemaining)
 	}
-	return fmt.Sprintf("%s: %s", r.Operation, r.Result)
+	return s
 }
 
 // newRebaseResult stamps the envelope for opKey and normalizes the collections so
@@ -228,6 +241,52 @@ func rebaseRefusal(opKey string, result Result, disposition, reason, message str
 	return newRebaseResult(opKey, result, FinalizeRebaseResult{
 		ID: id, Disposition: disposition, Reason: reason, Message: message,
 	})
+}
+
+// withResolverCounts stamps the resolver-budget counts (change 0349) onto a
+// result when the owned receipt carries a budget group. ResolverRemaining is
+// limit-used. A legacy receipt (no budget group) or an undecodable one leaves the
+// omitempty count fields zero, so a pre-budget attempt reports nothing.
+func withResolverCounts(out FinalizeRebaseResult, rec workspace.RebaseReceipt) FinalizeRebaseResult {
+	if !rec.HasResolverBudget() {
+		return out
+	}
+	limit, used, err := rec.ResolverBudget()
+	if err != nil {
+		return out
+	}
+	out.ResolverLimit = limit
+	out.ResolverUsed = used
+	out.ResolverRemaining = limit - used
+	return out
+}
+
+// copyResolverBudget overlays the six resolver-budget fields (change 0349) from
+// src onto dst, leaving every other field untouched. It is the write-forward
+// primitive: a receipt rewrite that is not itself stamping a fresh budget or
+// changing a resolver field by contract copies these forward so a stale
+// in-memory receipt can never silently drop a budget the reserve/continue path
+// advanced under the operation lock.
+func copyResolverBudget(dst *workspace.RebaseReceipt, src workspace.RebaseReceipt) {
+	dst.ResolverBudgetVersion = src.ResolverBudgetVersion
+	dst.ResolverLimit = src.ResolverLimit
+	dst.ResolverUsed = src.ResolverUsed
+	dst.ResolverReservationToken = src.ResolverReservationToken
+	dst.ResolverReservationStopped = src.ResolverReservationStopped
+	dst.ResolverContinuationStarted = src.ResolverContinuationStarted
+}
+
+// resolverBudgetForWrite reloads the on-disk receipt so a gate-continuation
+// rewrite starts its resolver-budget group from durable state, never a stale
+// in-memory copy (change 0349's write-forward rule). On a read error or a cleanly
+// absent receipt it returns fallback, so the write still lands with the best
+// value the caller holds.
+func resolverBudgetForWrite(ctx context.Context, deps FinalizeDeps, metaDir string, fallback workspace.RebaseReceipt) workspace.RebaseReceipt {
+	disk, present, err := deps.Workspace.ReadRebaseReceipt(ctx, metaDir)
+	if err != nil || !present {
+		return fallback
+	}
+	return disk
 }
 
 // ---------------------------------------------------------------------------
@@ -583,25 +642,29 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 	}
 
 	// Prove every carried descendant's merged work is preserved at the agreed
-	// pre-rewrite head BEFORE any receipt is written or Git is mutated: local,
-	// remote, and PR heads all agree on req.Head here, so an unproven carry is the
-	// only reason this refuses, and a refusal leaves workspace, branch, receipt,
-	// and remote untouched. An observation failure is unknown/external (retained),
-	// never a clean unproven.
+	// pre-rewrite head BEFORE any receipt is written or Git is mutated.
 	if r := requireCarriedPreserved(ctx, deps, repoDir, op, rc, gitcli.ObjectID(req.Head)); r != nil {
 		return *r
 	}
 
+	// Snapshot the resolved resolver-dispatch cap into the fresh receipt so the
+	// stored limit governs the whole owned attempt; a mid-attempt config change
+	// applies only to the next fresh attempt (change 0349). RequirePRApproval is
+	// read from this same pin.Config.Effective.Finalize block above.
+	limit := pin.Config.Effective.Finalize.ResolverMaxAttempts.Value
 	attempt := newRebaseAttempt(deps, baseHead)
 	receipt := workspace.RebaseReceipt{
-		RepoIdentity:   rc.repo.CommonDir,
-		ChangeID:       strconv.Itoa(id),
-		OrigHead:       string(rc.insp.HeadCommit),
-		OrigRemoteHead: string(remoteHead),
-		BaseRef:        string(rc.target.BaseRef),
-		BaseHead:       string(baseHead),
-		Attempt:        attempt,
-		CreatedUTC:     deps.Planning.Clock.Now().UTC().Format("2006-01-02T15:04:05Z07:00"),
+		RepoIdentity:          rc.repo.CommonDir,
+		ChangeID:              strconv.Itoa(id),
+		OrigHead:              string(rc.insp.HeadCommit),
+		OrigRemoteHead:        string(remoteHead),
+		BaseRef:               string(rc.target.BaseRef),
+		BaseHead:              string(baseHead),
+		Attempt:               attempt,
+		CreatedUTC:            deps.Planning.Clock.Now().UTC().Format("2006-01-02T15:04:05Z07:00"),
+		ResolverBudgetVersion: "1",
+		ResolverLimit:         strconv.Itoa(limit),
+		ResolverUsed:          "0",
 	}
 	if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, receipt); err != nil {
 		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, err.Error(), id)
@@ -624,12 +687,12 @@ func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, 
 	id := int(rc.change.ID())
 	switch status.Disposition {
 	case gitcli.RebaseConflicted:
-		return newRebaseResult(op, ResultApplied, FinalizeRebaseResult{
+		return newRebaseResult(op, ResultApplied, withResolverCounts(FinalizeRebaseResult{
 			ID: id, Disposition: RebaseDispConflicted, Head: string(status.HeadOID),
 			OrigHead: rec.OrigHead, Base: rc.base.Branch, BaseHead: rec.BaseHead,
 			Attempt: rec.Attempt, UnmergedPaths: status.UnmergedPaths, Reason: ReasonRebaseConflicted,
 			Message: fmt.Sprintf("the rebase stopped at %d conflicted path(s); dispatch the resolver", len(status.UnmergedPaths)),
-		})
+		}, rec))
 	case gitcli.RebaseUnchanged, gitcli.RebaseRebased:
 		noop := status.Disposition == gitcli.RebaseUnchanged
 		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, status.HeadOID, noop)
@@ -668,13 +731,15 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	}
 	switch state.Disposition {
 	case gitcli.RebaseConflicted:
-		// The owned attempt is still mid-conflict; surface the live conflicts.
-		return newRebaseResult(op, ResultApplied, FinalizeRebaseResult{
+		// The owned attempt is still mid-conflict; surface the live conflicts. The
+		// budget counts come from the stored receipt (rec) — recovery never
+		// re-snapshots the current config (change 0349).
+		return newRebaseResult(op, ResultApplied, withResolverCounts(FinalizeRebaseResult{
 			ID: id, Disposition: RebaseDispConflicted, Head: string(state.HeadOID),
 			OrigHead: rec.OrigHead, Base: rc.base.Branch, BaseHead: string(baseHead),
 			Attempt: rec.Attempt, UnmergedPaths: state.UnmergedPaths, Reason: ReasonRebaseConflicted,
 			Message: fmt.Sprintf("the owned rebase is stopped at %d conflicted path(s); dispatch the resolver", len(state.UnmergedPaths)),
-		})
+		}, rec))
 	case gitcli.RebaseInProgressForeign:
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseForeignInProgress,
 			"a foreign rebase is in progress over the owned attempt; retained, not adopted", id)
@@ -695,16 +760,8 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			"an owned attempt exists but the workspace head does not descend the base; retained for abort", id)
 	}
 	noop := string(localHead) == rec.OrigHead
-	// A completed-gate publish checkpoint (change 0408): when the recorded
-	// identities all still match current reality — tested head, base head,
-	// resolved command, gate policy, PR — and the recorded evidence re-verifies
-	// green for this exact head, the suite is NOT re-run; the recorded evidence
-	// is returned so the caller proceeds straight to publish. Any mismatch
-	// invalidates: the checkpoint is cleared (on disk AND in the copy handed to
-	// composeLocalGate, so no later receipt write resurrects stale evidence)
-	// and the gate re-runs exactly as today. A live continuation pair never
-	// coexists with a checkpoint (receipt validation), so reuse never strands a
-	// running drive.
+	// A completed-gate publish checkpoint (change 0408) may be reused only when
+	// its evidence and every recorded identity still match current reality.
 	if !noop && rec.GateDriveID == "" {
 		if cp, ok := publishCheckpointOf(rec); ok {
 			currentHead := strings.ToLower(string(localHead))
@@ -717,12 +774,10 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 					Gate: &GateReport{Compose: gateComposeSkipped, Permit: currentHead, Evidence: cp.Evidence},
 				})
 			}
-			// Stale checkpoint: reuse applies only to still-valid evidence. Clear it
-			// before the gate re-runs; a clear that cannot be persisted is a blocked
-			// receipt write, not a silent proceed over stale durable state.
 			rec.PublishCheckpointHead, rec.PublishCheckpointBaseHead = "", ""
 			rec.PublishCheckpointCommand, rec.PublishCheckpointGate = "", ""
 			rec.PublishCheckpointPRNumber, rec.PublishCheckpointEvidence = "", ""
+			copyResolverBudget(&rec, resolverBudgetForWrite(ctx, deps, rc.metaDir, rec))
 			if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, rec); err != nil {
 				return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, err.Error(), id)
 			}
@@ -812,12 +867,12 @@ func mapContinuedRebase(ctx context.Context, deps FinalizeDeps, repoDir, op stri
 	id := int(rc.change.ID())
 	switch status.Disposition {
 	case gitcli.RebaseConflicted:
-		return newRebaseResult(op, ResultApplied, FinalizeRebaseResult{
+		return newRebaseResult(op, ResultApplied, withResolverCounts(FinalizeRebaseResult{
 			ID: id, Disposition: RebaseDispConflicted, Head: string(status.HeadOID),
 			Base: rc.base.Branch, BaseHead: rec.BaseHead, Attempt: rec.Attempt,
 			UnmergedPaths: status.UnmergedPaths, Reason: ReasonRebaseConflicted,
 			Message: fmt.Sprintf("the rebase stopped at %d further conflicted path(s); dispatch the resolver", len(status.UnmergedPaths)),
-		})
+		}, rec))
 	case gitcli.RebaseUnchanged, gitcli.RebaseRebased:
 		// The rebase-continue path only runs on a mid-conflict receipt, so the pair is
 		// empty by construction and composeLocalGate starts a fresh drive; a WAITING
@@ -902,12 +957,8 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 // ---------------------------------------------------------------------------
 
 // requireCarriedPreserved runs the shared carried-descendant preservation proof
-// (proveCarriedOnHead) against an immutable target head and maps its outcome onto
-// a rebase refusal, or nil when every promised descendant is preserved. An
-// observation/external failure maps to ResultExternalFailed (unknown, retained);
-// an observed non-preservation maps to a blocked refusal carrying the shared
-// ReasonCarryUnproven and the per-descendant findings. It never mutates Git,
-// receipts, or refs — the caller places it before the effect it gates.
+// against an immutable target head and maps its outcome onto a rebase refusal.
+// It never mutates Git, receipts, or refs.
 func requireCarriedPreserved(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, head gitcli.ObjectID) *FinalizeRebaseResult {
 	id := int(rc.change.ID())
 	proof, perr := proveCarriedOnHead(ctx, deps, repoDir, rc.repo, rc.snap, rc.change, head)
@@ -933,14 +984,8 @@ func requireCarriedPreserved(ctx context.Context, deps FinalizeDeps, repoDir, op
 // (blocked) — never a fabricated red.
 func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, head gitcli.ObjectID, noop bool) FinalizeRebaseResult {
 	id := int(rc.change.ID())
-	// "composeLocalGate decides skip-or-run after a completed rebase" — and it is
-	// the single chokepoint every post-rewrite path (the fresh begin, rebase-
-	// continue, and receipt recovery) funnels through, so the post-rewrite carried-
-	// descendant proof lives HERE. It re-discovers the carried set fresh against the
-	// completed head and never trusts a receipt boolean: a rewrite that dropped a
-	// carried child refuses. The early return sits BEFORE any receipt-pair mutation
-	// (and before the skip/run decision, so a green suite never substitutes), so a
-	// refusal retains the owned receipt and refs for the abort/repair flow.
+	// The single post-rewrite chokepoint re-proves carried descendants against the
+	// completed head before any gate or receipt transition can proceed.
 	if r := requireCarriedPreserved(ctx, deps, repoDir, op, rc, head); r != nil {
 		return *r
 	}
@@ -1015,6 +1060,10 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 		// receipt-private — it never enters the document.
 		c := gres.Continuation
 		updated := rec
+		// Copy the resolver-budget group forward from the freshly reloaded on-disk
+		// receipt so persisting the WAITING continuation never clobbers a budget a
+		// reserve/continue advanced since rec was loaded (change 0349).
+		copyResolverBudget(&updated, resolverBudgetForWrite(ctx, deps, rc.metaDir, rec))
 		updated.GateDriveID, updated.GateOwnerGeneration = c.DriveID, c.Generation
 		if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, updated); werr != nil {
 			base.Disposition = RebaseDispBlocked
@@ -1065,6 +1114,7 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 // gate, fail-closed.
 func recordGatePassedReceipt(ctx context.Context, deps FinalizeDeps, rc *rebaseContext, rec workspace.RebaseReceipt, noop bool, pr githubcli.PullRequest, currentHead, resolvedCommand, gatePolicy, evidenceBlock string, res *FinalizeRebaseResult) {
 	updated := rec
+	copyResolverBudget(&updated, resolverBudgetForWrite(ctx, deps, rc.metaDir, rec))
 	updated.GateDriveID, updated.GateOwnerGeneration = "", ""
 	updated.PublishCheckpointHead, updated.PublishCheckpointBaseHead = "", ""
 	updated.PublishCheckpointCommand, updated.PublishCheckpointGate = "", ""
@@ -1088,21 +1138,16 @@ func recordGatePassedReceipt(ctx context.Context, deps FinalizeDeps, rc *rebaseC
 
 // clearGateContinuation rewrites the receipt with the gate pair AND any publish
 // checkpoint emptied at a non-passed terminal, so a dead continuation never
-// wedges the receipt: the driver's Advance on a terminal drive could never mint
-// evidence again (its run root is removed at the terminal), and every transition
-// out of the checkpoint state removes it (presence-encoded state discipline).
-// Best-effort by design: the outcome is already mapped, so a clear failure is
-// reported in the result message and does not change the disposition — the next
-// re-run's Advance on the terminal drive halts and the clear is retried then.
+// wedges the receipt or revives stale completed-gate evidence.
 func clearGateContinuation(ctx context.Context, deps FinalizeDeps, rc *rebaseContext, rec workspace.RebaseReceipt, res *FinalizeRebaseResult) {
 	updated := rec
+	// Copy the resolver-budget group forward from durable state so this terminal
+	// transition cannot clobber a reservation advanced since rec was loaded.
+	copyResolverBudget(&updated, resolverBudgetForWrite(ctx, deps, rc.metaDir, rec))
 	updated.GateDriveID, updated.GateOwnerGeneration = "", ""
 	updated.PublishCheckpointHead, updated.PublishCheckpointBaseHead = "", ""
 	updated.PublishCheckpointCommand, updated.PublishCheckpointGate = "", ""
 	updated.PublishCheckpointPRNumber, updated.PublishCheckpointEvidence = "", ""
-	if updated == rec {
-		return
-	}
 	if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, updated); err != nil {
 		res.Message = strings.TrimSpace(res.Message +
 			" (clearing the gate continuation from the rebase receipt failed: " + err.Error() + ")")
@@ -1127,13 +1172,8 @@ func prBodyEvidence(pr githubcli.PullRequest) (evidenceHead, evidenceCommand str
 }
 
 // resolvedFinalizeGateConfig re-reads the authoritative finalize gate
-// configuration the same way processFinalizeGate.buildDriveService pins it
-// (deps.Planning.Reader PinContext → pin.Config.Effective.Finalize), returning
-// the resolved finalize.test_command and finalize.gate policy. Command
-// selection is an explicit domain boundary; no caller substitutes a command
-// around authoritative configuration. A resolution failure yields ("", "") —
-// gateDecision and checkpointDecision then never skip (their non-empty
-// conjuncts fail), so the suite runs, fail-closed.
+// configuration the same way processFinalizeGate.buildDriveService pins it,
+// returning the resolved finalize.test_command and finalize.gate policy.
 func resolvedFinalizeGateConfig(ctx context.Context, deps FinalizeDeps, repoDir string) (command, gate string) {
 	pin, err := deps.Planning.Reader.PinContext(ctx, repoDir)
 	if err != nil {

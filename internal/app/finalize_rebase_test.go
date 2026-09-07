@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/danielhanold/docket/internal/domain"
@@ -94,10 +95,9 @@ func (g *fakeGate) RunLocalGate(_ context.Context, _ LocalGateRequest) (LocalGat
 }
 
 // headEvidenceGate is a passing FinalizeGate that mints green evidence
-// certifying the EXACT head each request names — the way the production seam
-// does (EvidenceRecord is handed req.Head) — so a recorded publish checkpoint
-// verifies against the rebased head. It counts calls like fakeGate so skip
-// paths can assert the suite never ran.
+// certifying the EXACT head each request names, so a recorded publish checkpoint
+// verifies against the rebased head. It counts calls like fakeGate so skip paths
+// can assert the suite never ran.
 type headEvidenceGate struct {
 	t     *testing.T
 	calls int
@@ -430,17 +430,12 @@ func setupConflictedRebase(t *testing.T, m planRepoMode) (*rebaseFixture, Finali
 }
 
 // TestCheckpointDecision pins the pure publish-checkpoint reuse policy: reuse
-// requires verified evidence AND full equality on tested head, base head,
-// resolved command, gate policy, and PR number — every conjunct non-vacuous
-// (an empty resolved command or gate never matches; "never rerun a green gate"
-// governs valid evidence, never stale evidence).
+// requires verified evidence and full equality on tested head, base head,
+// command, gate policy, and PR number.
 func TestCheckpointDecision(t *testing.T) {
 	head := strings.Repeat("ab", 20)
 	base := strings.Repeat("cd", 20)
-	good := publishCheckpoint{
-		Head: head, BaseHead: base, Command: "go test ./...",
-		Gate: "local", PRNumber: "7", Evidence: "block",
-	}
+	good := publishCheckpoint{Head: head, BaseHead: base, Command: "go test ./...", Gate: "local", PRNumber: "7", Evidence: "block"}
 	cases := []struct {
 		name        string
 		cp          publishCheckpoint
@@ -464,8 +459,7 @@ func TestCheckpointDecision(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := checkpointDecision(tc.cp, tc.currentHead, tc.liveBase, tc.resolvedCmd, tc.resolvedGt, tc.prNumber, tc.verified)
-			if got != tc.want {
+			if got := checkpointDecision(tc.cp, tc.currentHead, tc.liveBase, tc.resolvedCmd, tc.resolvedGt, tc.prNumber, tc.verified); got != tc.want {
 				t.Fatalf("checkpointDecision = %v, want %v", got, tc.want)
 			}
 		})
@@ -473,7 +467,7 @@ func TestCheckpointDecision(t *testing.T) {
 }
 
 // TestPublishCheckpointOf proves the presence probe: a fully-set checkpoint is
-// extracted; any empty member reads as absent (never a partial checkpoint).
+// extracted; any empty member reads as absent.
 func TestPublishCheckpointOf(t *testing.T) {
 	full := workspace.RebaseReceipt{
 		PublishCheckpointHead:     strings.Repeat("ab", 20),
@@ -494,4 +488,261 @@ func TestPublishCheckpointOf(t *testing.T) {
 	if _, ok := publishCheckpointOf(workspace.RebaseReceipt{}); ok {
 		t.Fatalf("publishCheckpointOf(zero) reported present; want absent")
 	}
+}
+
+// --- resolver-budget snapshot (change 0349) -------------------------------
+
+// setResolverConfig writes a repository-local `.docket.local.yml` that resolves
+// finalize.resolver_max_attempts through the repository-local layer (scopeAny),
+// so a test can exercise a NON-DEFAULT resolved cap without touching the pinned
+// committed .docket.yml.
+func setResolverConfig(t *testing.T, f *rebaseFixture, limit int) {
+	t.Helper()
+	writeRepoFile(t, f.repo.invocation, ".docket.local.yml",
+		fmt.Sprintf("finalize:\n  resolver_max_attempts: %d\n", limit))
+}
+
+// beginConflictedWithLimit drives a fresh owned rebase into a live conflict with
+// the resolved cap set to limit through the repository-local layer, returning the
+// fixture, the conflicted begin result, and the deps.
+func beginConflictedWithLimit(t *testing.T, limit int) (*rebaseFixture, FinalizeRebaseResult, FinalizeDeps) {
+	t.Helper()
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	// A conflicting base edit guarantees BeginRebase stops at the feature file.
+	f.repo.writerAdvance(t, "main", map[string]string{"feature.txt": "conflicting base content\n"})
+	setResolverConfig(t, f, limit)
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
+	deps := f.finalizeDeps(gh, gate)
+	res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if res.Disposition != RebaseDispConflicted {
+		t.Fatalf("fresh rebase = disp %q (reason %q msg %q), want conflicted", res.Disposition, res.Reason, res.Message)
+	}
+	return f, res, deps
+}
+
+// TestFinalizeRebaseResolverBudgetSnapshot proves a fresh owned rebase snapshots
+// the RESOLVED finalize.resolver_max_attempts into the receipt as a versioned
+// budget group (version "1", the resolved non-default limit, used 0, no
+// outstanding reservation), and that the conflicted result surfaces the counts in
+// both its JSON document and its human text.
+func TestFinalizeRebaseResolverBudgetSnapshot(t *testing.T) {
+	f, res, _ := beginConflictedWithLimit(t, 2)
+
+	// The receipt carries the versioned budget group at the resolved non-default.
+	rec, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("receipt after fresh rebase: present=%v err=%v", present, err)
+	}
+	if rec.ResolverBudgetVersion != "1" || rec.ResolverLimit != "2" || rec.ResolverUsed != "0" {
+		t.Fatalf("receipt budget = ver %q limit %q used %q, want 1/2/0 (the resolved non-default 2, not the built-in 3)",
+			rec.ResolverBudgetVersion, rec.ResolverLimit, rec.ResolverUsed)
+	}
+	if rec.ResolverReservationToken != "" || rec.ResolverReservationStopped != "" || rec.ResolverContinuationStarted != "" {
+		t.Errorf("fresh receipt carried a reservation: token %q stopped %q cont %q",
+			rec.ResolverReservationToken, rec.ResolverReservationStopped, rec.ResolverContinuationStarted)
+	}
+
+	// The conflicted result carries the counts (2/0/2).
+	if res.ResolverLimit != 2 || res.ResolverUsed != 0 || res.ResolverRemaining != 2 {
+		t.Fatalf("result counts = %d/%d/%d, want 2/0/2", res.ResolverLimit, res.ResolverUsed, res.ResolverRemaining)
+	}
+	buf, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var doc struct {
+		ResolverLimit     int `json:"resolver_limit"`
+		ResolverRemaining int `json:"resolver_remaining"`
+	}
+	if err := json.Unmarshal(buf, &doc); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if doc.ResolverLimit != 2 || doc.ResolverRemaining != 2 {
+		t.Errorf("JSON counts = limit %d remaining %d, want 2/2 (raw %s)", doc.ResolverLimit, doc.ResolverRemaining, buf)
+	}
+	if !strings.Contains(string(buf), `"resolver_limit":2`) || !strings.Contains(string(buf), `"resolver_remaining":2`) {
+		t.Errorf("JSON document missing resolver counts: %s", buf)
+	}
+	if h := res.HumanText(); !strings.Contains(h, "0/2") || !strings.Contains(h, "2 remaining") {
+		t.Errorf("HumanText does not mention the resolver counts: %q", h)
+	}
+}
+
+// TestFinalizeRebaseResolverBudgetRecoveryNoResnapshot proves recoverFromReceipt
+// adopts the receipt's stored budget and NEVER re-snapshots the current config: a
+// mid-attempt config change (2 -> 5) does not apply to an owned attempt.
+func TestFinalizeRebaseResolverBudgetRecoveryNoResnapshot(t *testing.T) {
+	f, first, deps := beginConflictedWithLimit(t, 2)
+	if first.ResolverLimit != 2 {
+		t.Fatalf("fresh conflicted limit = %d, want 2", first.ResolverLimit)
+	}
+	// The operator raises the cap mid-attempt; the owned attempt must ignore it.
+	setResolverConfig(t, f, 5)
+	second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if second.Disposition != RebaseDispConflicted {
+		t.Fatalf("recovery = disp %q (reason %q), want conflicted", second.Disposition, second.Reason)
+	}
+	if second.ResolverLimit != 2 {
+		t.Fatalf("recovery reported limit %d; the mid-attempt config change to 5 must NOT apply — want the receipt's 2", second.ResolverLimit)
+	}
+	rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if rec.ResolverLimit != "2" || rec.ResolverUsed != "0" {
+		t.Errorf("recovery re-snapshotted the receipt budget to limit %q used %q; want the owned 2/0", rec.ResolverLimit, rec.ResolverUsed)
+	}
+}
+
+// staleFirstReadWorkspace wraps a FinalizeWorkspace to prove every
+// gate-continuation receipt rewrite reloads the resolver-budget group from disk
+// (change 0349's write-forward rule). Its FIRST ReadRebaseReceipt serves a STALE
+// copy — the budget as it stood before a reserve/continue advanced it — so the
+// operation's in-memory `rec` is stale; every later read (the write path's
+// reload) delegates to the real store. A write path that copies the six resolver
+// fields forward from the reloaded receipt survives; one that trusts the stale
+// in-memory copy silently loses the advanced budget and reddens the test.
+type staleFirstReadWorkspace struct {
+	FinalizeWorkspace
+	served bool
+	stale  workspace.RebaseReceipt
+}
+
+func (w *staleFirstReadWorkspace) ReadRebaseReceipt(ctx context.Context, dir string) (workspace.RebaseReceipt, bool, error) {
+	if !w.served {
+		w.served = true
+		return w.stale, true, nil
+	}
+	return w.FinalizeWorkspace.ReadRebaseReceipt(ctx, dir)
+}
+
+// assertResolverFieldsEqual fails unless the six resolver-budget fields of got
+// match want byte-identically.
+func assertResolverFieldsEqual(t *testing.T, when string, want, got workspace.RebaseReceipt) {
+	t.Helper()
+	if got.ResolverBudgetVersion != want.ResolverBudgetVersion ||
+		got.ResolverLimit != want.ResolverLimit ||
+		got.ResolverUsed != want.ResolverUsed ||
+		got.ResolverReservationToken != want.ResolverReservationToken ||
+		got.ResolverReservationStopped != want.ResolverReservationStopped ||
+		got.ResolverContinuationStarted != want.ResolverContinuationStarted {
+		t.Fatalf("%s: resolver fields drifted:\n got ver=%q limit=%q used=%q tok=%q stopped=%q cont=%q\nwant ver=%q limit=%q used=%q tok=%q stopped=%q cont=%q",
+			when,
+			got.ResolverBudgetVersion, got.ResolverLimit, got.ResolverUsed, got.ResolverReservationToken, got.ResolverReservationStopped, got.ResolverContinuationStarted,
+			want.ResolverBudgetVersion, want.ResolverLimit, want.ResolverUsed, want.ResolverReservationToken, want.ResolverReservationStopped, want.ResolverContinuationStarted)
+	}
+}
+
+// completedBudgetedReceipt drives a fresh real rewrite to a valid completed
+// receipt, then seeds its resolver-budget group with a consumed opportunity and
+// an outstanding reservation (as the reserve/continue path would), returning the
+// fixture, the fake GitHub, and the seeded on-disk receipt.
+func completedBudgetedReceipt(t *testing.T, seed func(*workspace.RebaseReceipt)) (*rebaseFixture, *fakeRebaseGitHub, workspace.RebaseReceipt) {
+	t.Helper()
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	f.advanceBase(t) // a real rewrite (never a no-op) so the gate composes.
+	ctx := context.Background()
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	first := FinalizeRebase(ctx, f.finalizeDeps(gh, &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}),
+		f.repo.invocation, FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if first.Disposition != RebaseDispRebased {
+		t.Fatalf("first rebase = %q, want rebased", first.Disposition)
+	}
+	rec, present, err := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("receipt after first rebase: present=%v err=%v", present, err)
+	}
+	rec.ResolverBudgetVersion = "1"
+	rec.ResolverLimit = "3"
+	rec.ResolverUsed = "1"
+	rec.ResolverReservationToken = "tok-1"
+	rec.ResolverReservationStopped = strings.Repeat("a", 40)
+	seed(&rec)
+	if err := f.svc.WriteRebaseReceipt(ctx, f.metaDir, rec); err != nil {
+		t.Fatalf("seed budgeted receipt: %v", err)
+	}
+	real, _, _ := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+	return f, gh, real
+}
+
+// TestFinalizeRebaseResolverBudgetWaitingReloadsForward proves the WAITING
+// gate-continuation write copies the resolver-budget group forward from the
+// freshly reloaded on-disk receipt, not from a stale in-memory copy.
+func TestFinalizeRebaseResolverBudgetWaitingReloadsForward(t *testing.T) {
+	f, gh, real := completedBudgetedReceipt(t, func(*workspace.RebaseReceipt) {}) // no gate pair
+	ctx := context.Background()
+
+	// Stale = the budget rolled back to its pre-reserve state; the gate pair is
+	// empty so the recovery composes the gate afresh.
+	stale := real
+	stale.ResolverUsed = "0"
+	stale.ResolverReservationToken = ""
+	stale.ResolverReservationStopped = ""
+	wrap := &staleFirstReadWorkspace{FinalizeWorkspace: f.svc, stale: stale}
+	deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: wrap,
+		Gate: &fakeGate{result: LocalGateResult{Outcome: FinalizeGateWaiting, Continuation: GateContinuation{DriveID: "drive-1", Generation: "gen-1"}}}}
+
+	res := FinalizeRebase(ctx, deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if res.Disposition != RebaseDispWaiting {
+		t.Fatalf("waiting slice = %q (reason %q msg %q), want waiting", res.Disposition, res.Reason, res.Message)
+	}
+	after, present, err := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("receipt after WAITING: present=%v err=%v", present, err)
+	}
+	if after.GateDriveID != "drive-1" || after.GateOwnerGeneration != "gen-1" {
+		t.Fatalf("WAITING did not set the gate pair: %q/%q", after.GateDriveID, after.GateOwnerGeneration)
+	}
+	assertResolverFieldsEqual(t, "after WAITING set", real, after)
+}
+
+// TestFinalizeRebaseResolverBudgetClearReloadsForward proves the terminal
+// gate-continuation clear copies the resolver-budget group forward from the
+// freshly reloaded on-disk receipt, not from a stale in-memory copy.
+func TestFinalizeRebaseResolverBudgetClearReloadsForward(t *testing.T) {
+	f, gh, real := completedBudgetedReceipt(t, func(r *workspace.RebaseReceipt) {
+		// A recorded WAITING drive so the recovery advances and then CLEARS it.
+		r.GateDriveID = "drive-9"
+		r.GateOwnerGeneration = "gen-9"
+	})
+	ctx := context.Background()
+
+	// Stale = the budget rolled back to its pre-reserve state; the gate pair is
+	// retained so composeLocalGate advances the recorded drive to its terminal.
+	stale := real
+	stale.ResolverUsed = "0"
+	stale.ResolverReservationToken = ""
+	stale.ResolverReservationStopped = ""
+	wrap := &staleFirstReadWorkspace{FinalizeWorkspace: f.svc, stale: stale}
+	deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: wrap,
+		Gate: &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}}
+
+	res := FinalizeRebase(ctx, deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if res.Result != ResultApplied || res.Gate == nil || res.Gate.Evidence == "" {
+		t.Fatalf("passed slice = %q gate %+v (reason %q), want applied with evidence", res.Result, res.Gate, res.Reason)
+	}
+	after, present, err := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("receipt after terminal: present=%v err=%v", present, err)
+	}
+	if after.GateDriveID != "" || after.GateOwnerGeneration != "" {
+		t.Fatalf("terminal did not clear the gate pair: %q/%q", after.GateDriveID, after.GateOwnerGeneration)
+	}
+	assertResolverFieldsEqual(t, "after terminal clear", real, after)
+}
+
+// TestFinalizeRebaseGateOffCreatesNoReceipt pins that finalize.gate: off skips
+// the rebase entirely — no receipt, hence no resolver budget, is created.
+func TestFinalizeRebaseGateOffCreatesNoReceipt(t *testing.T) {
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	writeRepoFile(t, f.repo.invocation, ".docket.local.yml", "finalize:\n  gate: \"off\"\n")
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if res.Result != ResultNoOp || res.Reason != ReasonRebaseGateOff {
+		t.Fatalf("gate off = %q reason %q, want no-op/gate-off", res.Result, res.Reason)
+	}
+	f.receiptAbsent(t)
 }
