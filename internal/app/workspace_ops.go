@@ -105,6 +105,10 @@ type WorkspaceDeps struct {
 	Service      WorkspaceService
 	Waiting      WaitingReceiptReader
 	Continuation ContinuationSeam
+	// ClaimProofs reads committed change.claim receipts for the verdict path's
+	// ownership resolution (change 0407). A nil scanner fails closed there —
+	// unlike Continuation, ownership can never proceed without proof access.
+	ClaimProofs ClaimProofScanner
 }
 
 // WorkspaceOpResult is the protocol-v1 document the three workspace operations
