@@ -2,11 +2,11 @@
 id: 257
 slug: clear-the-residual-review-findings-from-0193-and-0201
 title: 'Clear the residual review findings from 0193 and 0201'
-status: proposed
+status: 'deferred'
 priority: low
 type: chore
 created: 2026-08-07
-updated: 2026-08-09
+updated: '2026-09-07'
 depends_on: []
 related: [253, 260]
 discovered_from: [197, 204]
@@ -63,3 +63,10 @@ Coupling: `related: [253]` — 0253 rewrites prose-anchored guards in the same t
 
 - **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Narrow to E2 (convention `unset key = the superpowers default shown`), E6 (gate-failure deadlock clause), E7 (AGENTS.md whitespace-class/read-back rule), E8 (bounded rationale-loss sweep). E1 is already fixed; E3/E4/E5 targeted deleted Bash tests.
 
+## Why deferred
+
+2026-09-07 — Deferred at the user's request following review of the groomed backlog against the current Go source. The near-term priorities are Go beta acceptance and observed workflow reliability.
+
+The original eight-edit bundle no longer describes eight live repairs. E1's README problem has been addressed; E3, E4, and E5 target deleted Bash tests. The surviving work is the convention's stale default comment, rationale restoration, ad hoc shell-edit guidance, and another documentation audit. The current finalize reference already states the named-id override and clearing behavior; the residual E6 request is its explanatory rationale, not a missing retry mechanism.
+
+Revival criterion: consolidate the still-valid corrections into a current documentation pass, potentially retained change 0154, and explicitly account for each surviving item. Do not run the original eight-edit spec as a standalone implementation, revive deleted tests, or silently declare remaining rationale/guidance work completed.
