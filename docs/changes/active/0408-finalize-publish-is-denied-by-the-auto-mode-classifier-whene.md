@@ -22,7 +22,7 @@ branch: 'fix/finalize-publish-is-denied-by-the-auto-mode-classifier-whene'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T15:02:34Z'
+claimed_at: '2026-09-07T15:04:10Z'
 ---
 
 ## Artifacts
