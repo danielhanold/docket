@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/finalize-publish-is-denied-by-the-auto-mode-classifier-whene'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T14:53:29Z'
+reconciled: true
+claimed_at: '2026-09-07T15:02:34Z'
 ---
 
 ## Artifacts
@@ -47,3 +47,9 @@ Persist a completed-gate publish checkpoint in the owned rebase receipt when the
 ## Out of scope
 
 The retired historical-version comparison (the 2.1.259 / 2.1.260 / current matrix) and the live classifier acceptance activity. Any change to Claude Code, branch protection, merge method, or bot approvals. Any broad permission grant or user-settings change. A Go primitive distinguishing a host denial from a Go result — a host denial means the binary never ran, so that distinction lives in the finalize skill and harness. A split publisher or a general recovery subsystem beyond the receipt checkpoint.
+
+## Reconcile log
+
+### 2026-09-07
+
+2026-09-07: Reconciled against current HEAD (main @ 0d1a7e1b). The rewritten spec ("Preserve a still-valid green gate across a denied finalize publish") matches the live code: internal/app/finalize_rebase.go still carries recoverFromReceipt (the noop := string(localHead) == rec.OrigHead derivation), composeLocalGate, and the pure gateDecision skip policy; internal/workspace/rebasereceipt.go's RebaseReceipt is the all-scalar ==-comparable effect record with the ADR-0105 GateDriveID/GateOwnerGeneration continuation pair the checkpoint must mirror; PublishRewrite (internal/workspace/rewrite.go) and FinalizePublish (internal/app/finalize_publish.go) hold the lease/response-loss and PR-body-preservation behavior the change must leave untouched. ADR-0105 and ADR-0098 both exist and are Accepted; the new completed-evidence checkpoint decision extends 0105 and refines 0098. No scope change; the investigation-first framing is already retired in the spec. Relations (related, adrs:[43,105], discovered_from:[404]) already reflect reality and are left unchanged. Building from scratch: no plan, no branch commits, no PR exist yet.
