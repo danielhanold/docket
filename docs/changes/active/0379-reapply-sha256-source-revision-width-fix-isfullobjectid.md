@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/reapply-sha256-source-revision-width-fix-isfullobjectid'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-07T01:44:43Z'
+reconciled: true
+claimed_at: '2026-09-07T01:46:55Z'
 ---
 
 ## Artifacts
@@ -48,3 +48,7 @@ Accept exactly 40 or 64 lowercase-hex characters in `isFullObjectID`, preserving
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-09-07
+
+2026-09-06 — Reconciled against current main (effc9a6d). Confirmed the defect is still present and unfixed: internal/app/metadata_ownership.go isFullObjectID still gates on len==40 only, so a 64-hex SHA-256 source revision yields a false RootForeign verdict before the ancestry check runs. Downstream internal/gitcli validateObjectID already accepts 40 or 64 lowercase hex — the width mismatch is app-side. internal/app/metadata_ownership_test.go does not yet exist, so the focused table-driven coverage will be created new. related/discovered_from [378] is done; no dependencies, no stack parent, no ADR needed. Scope, boundaries, and verification contract from the spec remain accurate and unchanged.
