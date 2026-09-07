@@ -11,7 +11,7 @@ depends_on: []
 related: [263, 154]
 discovered_from: []
 adrs: []
-spec: docs/superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md
+spec:
 plan:
 results:
 trivial: false
