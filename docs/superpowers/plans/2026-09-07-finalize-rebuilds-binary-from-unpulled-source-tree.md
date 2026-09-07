@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0346 — Finalize's post-merge binary rebuild runs against an unpulled source tree](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md)**
+> ↩ **[Change 0346 — Finalize's post-merge binary rebuild runs against an unpulled source tree](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-07-0346-finalize-rebuilds-binary-from-unpulled-source-tree.md)**
 <!-- docket:backlink:end -->
 # Verified Post-Merge Binary Rebuild Implementation Plan
 
