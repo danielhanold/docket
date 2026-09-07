@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0406 — Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md)**
+> ↩ **[Change 0406 — Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-07-0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md)**
 <!-- docket:backlink:end -->
 # Deterministic release bundles (change 0406) Implementation Plan
 
