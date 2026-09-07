@@ -13,7 +13,7 @@ related: [291, 334, 392, 396, 399, 403]
 discovered_from: [334]
 adrs: [10, 19, 105, 109]
 spec: 'docs/superpowers/specs/2026-09-07-configurable-finalize-resolver-dispatch-cap-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-07-configurable-finalize-resolver-dispatch-cap.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-09-07T15:07:56Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-07-configurable-finalize-resolver-dispatch-cap-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-configurable-finalize-resolver-dispatch-cap-design.md) |
+| Plan | [2026-09-07-configurable-finalize-resolver-dispatch-cap.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-07-configurable-finalize-resolver-dispatch-cap.md) |
 | ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0109](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) |
 <!-- docket:artifacts:end -->
 
