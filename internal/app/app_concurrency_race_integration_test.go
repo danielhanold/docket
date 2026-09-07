@@ -49,6 +49,55 @@ func TestRaceIntegrationAppConcurrencyGateRetryConcurrentExactlyOne(t *testing.T
 	}
 }
 
+// race shard (change 0407): N goroutines call ReserveGateClaim with DISTINCT
+// (changeID, requestID) under ONE key; -race guards the os.Link hard-link create
+// that serializes competing binding attempts (the bind-once compare-and-swap).
+// Exactly one caller must create the binding (return nil) and every other must
+// lose the CAS and return ErrGateBindingConflict. Defeating the CAS — e.g. a
+// short-circuiting pre-read that answers match-or-conflict on its own, or a
+// non-exclusive create — lets two distinct claims both bind and reddens here.
+func TestRaceIntegrationAppConcurrencyReserveGateClaimBindsExactlyOnce(t *testing.T) {
+	repo := newGateRepo(t)
+	key := mintPlainGate(t, repo)
+
+	const n = 16
+	var wg sync.WaitGroup
+	results := make(chan error, n)
+	start := make(chan struct{})
+	for i := 0; i < n; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			// DISTINCT (changeID, requestID) per goroutine: no two attempts are an
+			// idempotent replay, so exactly one may bind and the rest must conflict.
+			results <- ReserveGateClaim(repo, key, i+1, fmt.Sprintf("claim-%08d", i+1))
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	won, conflicts := 0, 0
+	for err := range results {
+		switch {
+		case err == nil:
+			won++
+		default:
+			gse, ok := AsGateStoreError(err)
+			if !ok || gse.Kind != ErrGateBindingConflict {
+				t.Errorf("unexpected reserve error: %v", err)
+				continue
+			}
+			conflicts++
+		}
+	}
+	if won != 1 || conflicts != n-1 {
+		t.Fatalf("concurrent ReserveGateClaim: bound=%d conflicts=%d, want exactly 1 and %d", won, conflicts, n-1)
+	}
+}
+
 // race shard (change 0333): two goroutines allocate ADR IDs concurrently; -race guards the shared allocation path.
 func TestRaceIntegrationAppConcurrencyPlanningConcurrentADRRecordsAllocateDistinctIDs(t *testing.T) {
 	requireRealGit(t)
