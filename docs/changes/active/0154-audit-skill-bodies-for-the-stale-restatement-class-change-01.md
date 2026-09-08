@@ -1,7 +1,7 @@
 ---
 id: 154
 slug: audit-skill-bodies-for-the-stale-restatement-class-change-01
-title: Audit skill bodies for the stale-restatement class change 0145 closed in one file
+title: 'Remove stale Bash instructions and duplicated runtime contracts from Docket skills'
 status: proposed
 priority: medium
 type: docs
@@ -11,7 +11,7 @@ depends_on: []
 related: [111, 144, 157, 159]
 discovered_from: [145]
 adrs: []
-spec: docs/superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md
+spec:
 plan:
 results:
 trivial: false
@@ -99,4 +99,3 @@ duplication is report-only) under one decision rule, disposition preference stri
 ## Open questions
 
 - **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the named hits (scripts/*.md contracts, docket-status.md line cites, 0111/0145/0170 Bash guards) are deleted. Re-derive the hit list against the Go capability catalog (`docket capabilities`) and `internal/config`; docket-status still cites `board-refresh.sh` / `github-mirror.sh` / `render-board.sh`. Guard home is `internal/repoguard/prose_contracts_test.go`. Sweep the sunset `github` mirror / `issue:` prose while there.
-
