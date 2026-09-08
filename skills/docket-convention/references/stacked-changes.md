@@ -160,10 +160,9 @@ no change is a typed refusal, never an all-clear. `descendants` carries the whol
   the cleanup step for it and say so in the report. A retained branch is a tidiness cost a human
   clears in a minute; a deleted one closes its children's PRs and loses their review history.
 
-A child already at `stacked-merged` blocks nothing — its merged code is meant to ride the parent's
-branch through the merge, and the stack close-out then promotes it, but only after proving in Git that
-it actually did: the merged destination establishes the carry relationship, and the close-out verifies
-the content against the root's merge result before archiving, never on the destination record alone.
+A child already at `stacked-merged` blocks nothing — its merged code rides the parent's branch
+through the merge, which the stack close-out then promotes, but only after proving in Git it did: the
+merged destination establishes the carry relationship, never that the content shipped.
 
 ## When a parent is killed
 
@@ -189,11 +188,10 @@ When a stack **root** merges, the typed close-out — the `finalize.closeout` op
 disposition — archives the root and every carried `stacked-merged` descendant to `done` in **one
 transaction**, all under the **root's** merge date, and renders the root's marker-bounded **Stack
 carried** table on the root's archived record. A descendant counts as *carried* only when **both**
-hold: its chain of merged PR destinations establishes the carry **relationship** into the root, **and**
-its merged work is proven still present in Git — reachable in the pinned integration history, or
-exact-content preserved at the root's own merge result. A merged destination alone is a relationship,
-never evidence the content shipped: a stale-worktree rebase can rewrite the carrying branch and drop a
-descendant's work while every destination record still reads merged, so the Git carry is the promotion
+hold: its merged PR destinations establish the carry **relationship** into the root, **and** its work
+is proven still present in Git — reachable in the pinned integration history, or exact-content at the
+root's merge result. A merged destination alone is only a relationship: a stale-worktree rebase can
+drop a descendant's work while every record still reads merged, so the Git carry is the promotion
 condition. One unproven descendant leaves the root recoverable with zero descendant writes
 (fail-closed).
 

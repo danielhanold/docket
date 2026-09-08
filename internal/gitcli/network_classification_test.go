@@ -30,6 +30,7 @@ func TestEveryNetworkSiteIsReadWriteClassified(t *testing.T) {
 	classified := map[string]bool{
 		"RemoteDefaultBranch":  false, // ls-remote --symref … HEAD
 		"FetchBranch":          false, // fetch
+		"resolveCommitFetching": false, // fetch <exact-object> (read: fetches objects from the remote, never pushes)
 		"classifyFetchFailure": false, // ls-remote failure-classification probe
 		"ProbeRemoteBranch":    false, // ls-remote <ref>
 		"ListRemoteHeads":      false, // ls-remote --heads
