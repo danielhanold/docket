@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-18
-updated: '2026-09-07'
+updated: '2026-09-08'
 depends_on: []
 stacked_on:
 related: [298, 316, 336, 369, 370]
@@ -21,7 +21,7 @@ branch: 'fix/stack-closeout-must-prove-integration-reachability'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T15:08:29Z'
+claimed_at: '2026-09-08T09:34:02Z'
 ---
 
 ## Artifacts
