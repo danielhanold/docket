@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [102]
 spec: 'docs/superpowers/specs/2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md'
 plan: 'docs/superpowers/plans/2026-09-08-require-durable-results-artifacts-with-human-testing-and-coo.md'
-results:
+results: 'docs/results/2026-09-08-require-durable-results-artifacts-with-human-testing-and-coo-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-08T20:08:30Z'
 |---|---|
 | Spec | [2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md) |
 | Plan | [2026-09-08-require-durable-results-artifacts-with-human-testing-and-coo.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-08-require-durable-results-artifacts-with-human-testing-and-coo.md) |
+| Results | [2026-09-08-require-durable-results-artifacts-with-human-testing-and-coo-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-08-require-durable-results-artifacts-with-human-testing-and-coo-results.md) |
 | ADRs | [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
