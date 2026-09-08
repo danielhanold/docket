@@ -364,3 +364,52 @@ and `go run ./cmd/genassets -check` passed (67 entries,
 so this maintained-source-only repair required no generated-asset update. The
 following commit records this results-only evidence and is not the tested source
 head.
+
+## 2026-09-08 Task 13 final-review round 3 — launch-matrix operator-prose repair
+
+Tested source head: `3a6ba8badd5fd4d76d32d70104fe7805d739bf01`.
+The following commit is results-only and therefore is not the source-tested head.
+
+`docs/install/codex.md` now states the typed Codex matrix without a role roster:
+root-coordinator → foreground `agent.enter` at the caller cwd; feature → foreground
+`agent.enter` with verified canonical `--worktree` and unchanged structured payload;
+unmarked metadata ordinary child → native named-agent dispatch. The agent-layer
+reference now distinguishes the caller cwd for root-coordinator entry from the
+verified feature-worktree root used as both process and thread cwd for feature-child
+entry. The validation runbook removes its duplicated `Ordinary` token. The embedded
+agent-layer asset and manifest were regenerated through `go run ./cmd/genassets`.
+
+`TestCodexLaunchMatrixOperatorProse` is an inventory-abstraction guard: it names
+only the route markers and scopes, not roles or counts. It requires all three
+operator-matrix clauses, requires the distinct root/feature cwd clauses, rejects
+the retired unconditional native-dispatch wording, and rejects the duplicated
+runbook span. Each mutation below was restored immediately and used `-count=1`:
+
+```text
+go test ./internal/repoguard -run '^TestCodexLaunchMatrixOperatorProse$' -count=1
+```
+
+- Before the repair, RED: the new guard reported the missing root, feature, and
+  metadata route clauses; the old unconditional direct named-agent statement;
+  and the missing root/feature cwd clauses.
+- Removing the root-coordinator route, feature route, and metadata route from the
+  install matrix separately each REDDened on that missing route.
+- Replacing feature-child's verified canonical worktree cwd with caller cwd
+  REDDened on the missing feature-cwd clause.
+- Restoring `Ordinary` before the runbook's metadata clause REDDened on the
+  forbidden `Ordinary\nMetadata-scoped ordinary child roles` span.
+
+After every restoration, the focused guards and directly affected harness tests
+were green:
+
+```text
+go test ./internal/repoguard -run '^(TestCodexLaunchMatrixOperatorProse|TestCommittedCodexDispatchMatchesGenerator|TestCommittedCodexDispatchRoutesEveryScope|TestProseContracts)$' -count=1
+go test ./internal/harness/codex -run '^(TestCodexContractsDeriveScopeAwareRoutesFromInventory|TestCodexNestedDispatchBoundary)$' -count=1
+go run ./cmd/genassets -check
+git diff --check
+```
+
+Both Go commands passed; the asset check reported 67 matching entries with asset
+set `sha256:5869eb0141b70cb5680464e640c367742e81510acb40021a728df09c9b57345d`;
+and `git diff --check` was silent. No full suite was run in this round: the
+controller owns the exact-final-head full gate.
