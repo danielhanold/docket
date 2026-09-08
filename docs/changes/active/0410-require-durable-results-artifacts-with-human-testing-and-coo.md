@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/require-durable-results-artifacts-with-human-testing-and-coo'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-08T17:00:55Z'
+reconciled: true
+claimed_at: '2026-09-08T17:03:32Z'
 ---
 
 ## Artifacts
@@ -49,3 +49,9 @@ Enforce required results through the shared Go completion checks and shared work
 ## Out of scope
 
 Implementing the feature in this grooming session; automatic follow-up change creation or learnings promotion; retrospective rewriting or backfilling of historical results; post-merge results edits; new lifecycle states, background autosave services, per-observation capture, transcript archives, or additional agent/review rounds; new results-only evidence permits or changes to finalize gate policy.
+
+## Reconcile log
+
+### 2026-09-08
+
+2026-09-08 — Reconciled against current main (9e82cc47). The spec inspected main at 0d1a7e1b; the 27 intervening commits are terminal-backlink retargets with no material bearing on this change. Confirmed all named surfaces still exist and match the spec's description: skills/docket-implement-next/SKILL.md (Step 6.5 optional results, Step 7 optional-results postcondition), skills/docket-implement-next/results-template.md (still the three-section Verify/Findings/Follow-ups template to be replaced), internal/app/change_attach.go (ChangeAttachResults), internal/app/change_implemented.go (ChangeMarkImplemented), internal/app/run_verify.go (RunVerify), ADR-0102, and the four-harness adapter registry under internal/harness (claude, codex, cursor, opencode). No design invalidation, no scope change, no relations change; adrs already cites ADR-0102. Proceeding to plan and build the change as specified.
