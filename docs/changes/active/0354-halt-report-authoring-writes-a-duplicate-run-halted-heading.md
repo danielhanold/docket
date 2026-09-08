@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-08-26'
-updated: '2026-09-07'
+updated: '2026-09-08'
 depends_on: []
 stacked_on:
 related: [343, 368]
@@ -22,7 +22,7 @@ branch: 'fix/halt-report-authoring-writes-a-duplicate-run-halted-heading'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T15:00:13Z'
+claimed_at: '2026-09-08T07:32:24Z'
 ---
 
 ## Artifacts
