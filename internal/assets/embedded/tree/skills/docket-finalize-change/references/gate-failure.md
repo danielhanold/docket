@@ -25,12 +25,16 @@ effect. Report bodies are redaction-only and are never echoed into a result docu
    returns a versioned `ResolverReport` JSON document — no argv. Its fields:
    `change_id` (int), `attempt` (the owned rebase attempt token from the conflicted result),
    `disposition` (`resolved` | `stuck`), `summary` (bounded prose), `touched_paths` and
-   `conflicted_paths` (repo-relative), `observed_head`, `observed_base`, and `recommended_action`.
+   `conflicted_paths` (repo-relative), `observed_head`, `observed_base`, `recommended_action`, and
+   `resolver_reservation` (the reservation token from the `reserved` result, echoed back verbatim).
    The controller feeds a `resolved` report to the `finalize.rebase-continue` operation with `--id <id>
    --attempt <attempt> --input <report>`, which stages exactly the reported-and-verified paths and
    continues; a `stuck` report, or paths outside the live unmerged set (refused `report-not-resolved`),
    routes to the `finalize.rebase-abort` operation with `--id <id> --attempt <attempt> --input <report>` and a
-   `halted` outcome. The resolver gets **at most two dispatches, enforced by the skill**.
+   `halted` outcome. Each resolver dispatch is **admitted by a durable `finalize.resolver-reserve`
+   reservation** — Go enforces the configured `finalize.resolver_max_attempts` budget (default 3),
+   not a skill-side counter; a spent budget surfaces as reserve `exhausted` or continue
+   `resolver-budget-exhausted`.
 2. **The repair agent** root-causes the red rebased suite, authors a **bounded** minimal fix in at
    most two attempts, commits it on the feature branch, and returns a report naming its **claimed
    commits** and `repaired` | `stuck`; it never weakens a test, never runs the rebase, and never
@@ -54,8 +58,9 @@ A repair is code the human's PR approval predated, so it never merges unseen:
 
 Each maps to the **`halted`** disposition and leaves the **PR open** and the change **`implemented`**:
 
-- an **ambiguous rebase conflict** — the resolver returns `stuck`, or is still `conflicted` after
-  its second dispatch; the owned rebase is restored via the `finalize.rebase-abort` operation;
+- an **ambiguous rebase conflict** — the resolver returns `stuck`, or the resolver budget is spent
+  (`finalize.resolver-reserve` returns `exhausted`, or a continue returns `resolver-budget-exhausted`);
+  the owned rebase is restored via the `finalize.rebase-abort` operation;
 - a **red rebased suite the repair cannot green** in ≤2 attempts (`stuck`);
 - an **authored repair under autonomous finalize** — the sign-off rule above (`repair-needs-signoff`);
 - an **unresolved effective base, foreign in-progress rebase, moved base, or dirty workspace** —
