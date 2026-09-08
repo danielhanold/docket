@@ -71,6 +71,7 @@ var operationBindings = []OperationBinding{
 	{ID: "finalize.rebase", Request: FinalizeRebaseRequest{}, Result: FinalizeRebaseResult{}},                      // FinalizeRebase
 	{ID: "finalize.rebase-abort", Request: nil, Result: FinalizeRebaseResult{}},                                    // FinalizeRebaseAbort
 	{ID: "finalize.rebase-continue", Request: nil, Result: FinalizeRebaseResult{}},                                 // FinalizeRebaseContinue
+	{ID: "finalize.resolver-reserve", Request: nil, Result: FinalizeReserveResult{}},                               // FinalizeResolverReserve
 	{ID: "finalize.retarget-children", Request: RetargetChildrenRequest{}, Result: RetargetChildrenResult{}},       // FinalizeRetargetChildren
 	{ID: "gate.cleanup", Request: nil, Result: CleanupOpResult{}},                                                  // GateCleanup
 	{ID: "gate.drive.advance", Request: nil, Result: GateDriveResult{}},                                            // GateDriveService.Advance

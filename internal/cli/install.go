@@ -95,6 +95,7 @@ var assetIndependent = map[string]bool{
 	"finalize rebase":             true,
 	"finalize rebase-continue":    true,
 	"finalize rebase-abort":       true,
+	"finalize resolver-reserve":   true,
 	"finalize publish":            true,
 	"finalize block":              true,
 	"finalize clear-block":        true,
