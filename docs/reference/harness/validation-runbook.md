@@ -350,7 +350,7 @@ fresh process, so a scripted probe satisfies this automatically).
 The historical synthetic probe establishes only that its tested host/version exposed collaboration
 controls to its child. It does not establish a universal launch contract. For inventory roles marked
 `launch: root-coordinator`, certify Docket's supported entry directly with `docket agent enter` and
-exercise a real composition edge such as `docket-implement-next → docket-plan-writer`. Ordinary
+exercise a real composition edge such as `docket-implement-next → docket-plan-writer`.
 Metadata-scoped ordinary child roles may continue to use direct registered-agent invocation.
 Feature-scoped ordinary child roles must enter through foreground `agent.enter` with `--worktree`
 set to the absolute canonical feature-worktree root and carry the unchanged structured payload.

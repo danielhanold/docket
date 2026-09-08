@@ -132,11 +132,13 @@ The scope matrix is harness-neutral: root coordinators use a native root-entry p
 receive `Feature worktree: <absolute canonical feature-worktree root>` in the owner's payload; metadata
 children use native named-agent dispatch. Codex realizes the first two through catalog-resolved
 `agent.enter [--worktree <dir>]`: it resolves the typed installed role contract, launches
-`codex app-server --stdio`, starts a root thread with the caller's absolute cwd, approval policy, and
-sandbox, and passes an unchanged request file as the root turn. A feature role carries
-`[docket worktree: feature]`, so Codex supplies the canonical payload root through `--worktree`; its
-request bytes remain unchanged. Other harnesses preserve their native worktree mechanisms. No route
-falls back to `codex exec`, another harness, a shell relay, or an ordinary child launch.
+`codex app-server --stdio`. Root-coordinator entry starts its root thread at the caller's absolute
+cwd, with the caller's approval policy and sandbox, and passes an unchanged request file as the root
+turn. Feature-child entry validates `--worktree`, then starts its root thread at the verified canonical
+feature-worktree root — both the process and thread cwd — and supplies that same root through
+`--worktree`; its request bytes remain unchanged. Metadata children continue through native named-agent
+dispatch. Other harnesses preserve their native worktree mechanisms. No route falls back to `codex exec`,
+another harness, a shell relay, or an ordinary child launch.
 
 Before launch, root entry compares the selected installed role with the registration planner's
 output and its preloaded skill files with the same asset catalog. A missing, edited, or stale

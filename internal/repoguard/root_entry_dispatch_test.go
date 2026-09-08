@@ -54,3 +54,62 @@ func TestCommittedCodexDispatchRoutesEveryScope(t *testing.T) {
 		}
 	}
 }
+
+// TestCodexLaunchMatrixOperatorProse keeps the executable operator guidance
+// aligned with the typed Codex entry boundary: root coordinators retain the
+// caller cwd, feature children enter their verified worktree with an unchanged
+// payload, and only metadata children use native named-agent dispatch. The
+// clauses intentionally name route markers and scope types, never a roster of
+// roles, so the guard follows the inventory-owned abstraction.
+func TestCodexLaunchMatrixOperatorProse(t *testing.T) {
+	root := guardRoot(t)
+	for _, contract := range []struct {
+		file    string
+		present []string
+		absent  []string
+	}{
+		{
+			file: "docs/install/codex.md",
+			present: []string{
+				"`[docket launch: root-coordinator]` → foreground `agent.enter` at the\ncaller's cwd",
+				"`[docket worktree: feature]` → foreground `agent.enter` with a verified canonical\n`--worktree` and the unchanged structured payload",
+				"unmarked metadata-scoped ordinary child →\nnative named-agent dispatch",
+			},
+			absent: []string{
+				"nested dispatch uses Codex's direct named-agent dispatch from the active top-level\ntool surface",
+			},
+		},
+		{
+			file: "skills/docket-convention/references/agent-layer.md",
+			present: []string{
+				"Root-coordinator entry starts its root thread at the caller's absolute\ncwd",
+				"Feature-child entry validates `--worktree`, then starts its root thread at the verified canonical\nfeature-worktree root",
+				"both the process and thread cwd",
+			},
+			absent: []string{
+				"starts a root thread with the caller's absolute cwd, approval policy, and\nsandbox, and passes an unchanged request file as the root turn. A feature role carries",
+			},
+		},
+		{
+			file: "docs/reference/harness/validation-runbook.md",
+			present: []string{
+				"Metadata-scoped ordinary child roles may continue to use direct registered-agent invocation.",
+			},
+			absent: []string{
+				"Ordinary\nMetadata-scoped ordinary child roles",
+			},
+		},
+	} {
+		content := readMaintained(t, root, contract.file)
+		for _, clause := range contract.present {
+			if !strings.Contains(content, clause) {
+				t.Errorf("%s lacks Codex launch-matrix clause %q", contract.file, clause)
+			}
+		}
+		for _, retired := range contract.absent {
+			if strings.Contains(content, retired) {
+				t.Errorf("%s retains obsolete Codex launch-matrix clause %q", contract.file, retired)
+			}
+		}
+	}
+}
