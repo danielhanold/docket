@@ -2644,6 +2644,127 @@ func TestIntegrationChangeResumeHalted(t *testing.T) {
 	}
 }
 
+// TestIntegrationChangeHaltResumeCycle proves the whole contract over real git:
+// a real halt write on a record that already carries a halted marker AND a
+// section AFTER it (so fence or boundary leakage cannot pass unnoticed)
+// replaces the section in place — one structural halt heading, one
+// operation-generated date wrapper, the authored fenced example intact — and
+// an authorized quiescent resume then removes the COMPLETE report, fenced
+// bytes included, preserving the surrounding sections byte-for-byte
+// (change 0354).
+func TestIntegrationChangeHaltResumeCycle(t *testing.T) {
+	for _, m := range planRepoModes() {
+		t.Run(m.name, func(t *testing.T) {
+			f := setupHaltedFixture(t, m)
+			recPath := groomPath(f.id, f.slug)
+
+			// Seed a section AFTER the halt section: the leakage tripwire.
+			pre, _ := originFile(t, f.repo.origin, f.branch, recPath)
+			f.repo.writerAdvance(t, f.branch, map[string]string{
+				recPath: strings.TrimRight(pre, "\n") + "\n\n## Follow-up notes\n\nKeep me byte-identical.\n",
+			})
+			f.version = blobVersionAt(t, f.repo.origin, f.branch, recPath)
+
+			// Re-halt with a valid body carrying a fenced heading example.
+			report := "Wedged on resume.\n\n```\n## Run halted\n```\n"
+			halted := ChangeHalt(context.Background(), f.deps, f.repo.invocation,
+				HaltRequest{ID: f.id, Version: f.version, Report: report})
+			if halted.Result != ResultApplied || halted.Disposition != HaltDispHalted {
+				t.Fatalf("halt: result=%q disp=%q reason=%q", halted.Result, halted.Disposition, halted.Reason)
+			}
+
+			rec, _ := originFile(t, f.repo.origin, f.branch, recPath)
+			// A structural H2 heading is always preceded by a blank line ("\n\n"),
+			// so this counts only the operation-owned heading — the fenced
+			// "## Run halted" example is preceded by its fence-open line and is
+			// excluded, while a duplicate structural heading still reddens this.
+			if got := strings.Count(rec, "\n\n## Run halted\n"); got != 1 {
+				t.Errorf("structural halt headings = %d, want 1:\n%s", got, rec)
+			}
+			if got := strings.Count(rec, "\n### 2026-08-16\n"); got != 1 {
+				t.Errorf("operation date wrappers = %d, want exactly 1:\n%s", got, rec)
+			}
+			for _, want := range []string{"Wedged on resume.", "```\n## Run halted\n```", "## Follow-up notes\n\nKeep me byte-identical.\n"} {
+				if !strings.Contains(rec, want) {
+					t.Errorf("halt lost content %q:\n%s", want, rec)
+				}
+			}
+
+			// Authorized quiescent resume removes the COMPLETE report.
+			version := blobVersionAt(t, f.repo.origin, f.branch, recPath)
+			resumed := ChangeResumeHalted(context.Background(), f.deps,
+				WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
+				ResumeRequest{ID: f.id, Version: version, AcknowledgeQuiescent: true})
+			if resumed.Result != ResultApplied || resumed.Disposition != HaltDispResumed {
+				t.Fatalf("resume: result=%q disp=%q reason=%q", resumed.Result, resumed.Disposition, resumed.Reason)
+			}
+			final, _ := originFile(t, f.repo.origin, f.branch, recPath)
+			for _, gone := range []string{"## Run halted", "Wedged on resume.", "```"} {
+				if strings.Contains(final, gone) {
+					t.Errorf("resume left report residue %q:\n%s", gone, final)
+				}
+			}
+			for _, kept := range []string{"## Why\n\nOriginal why.", "## Follow-up notes\n\nKeep me byte-identical.\n"} {
+				if !strings.Contains(final, kept) {
+					t.Errorf("resume lost surrounding content %q:\n%s", kept, final)
+				}
+			}
+		})
+	}
+}
+
+// TestIntegrationChangeHaltMalformedReportHasNoEffects proves the refusal is
+// effect-free over real git: an invalid-input halt leaves the origin record
+// byte-identical and creates no commit (change 0354).
+func TestIntegrationChangeHaltMalformedReportHasNoEffects(t *testing.T) {
+	for _, m := range planRepoModes() {
+		t.Run(m.name, func(t *testing.T) {
+			f := setupRebaseFixtureStatus(t, m, "in-progress")
+			recPath := groomPath(f.id, f.slug)
+			before, _ := originFile(t, f.repo.origin, f.branch, recPath)
+			got := ChangeHalt(context.Background(), f.deps, f.repo.invocation,
+				HaltRequest{ID: f.id, Version: f.version, Report: "## Run halted\n\ndoubled\n"})
+			if got.Result != ResultInvalidInput {
+				t.Fatalf("result=%q, want %q", got.Result, ResultInvalidInput)
+			}
+			if got.Revision != "" {
+				t.Errorf("a refused halt reported a committed revision %q", got.Revision)
+			}
+			after, _ := originFile(t, f.repo.origin, f.branch, recPath)
+			if before != after {
+				t.Errorf("refused halt changed the record:\nbefore:\n%s\nafter:\n%s", before, after)
+			}
+		})
+	}
+}
+
+// TestIntegrationChangeHaltCorruptedRecordStillRefused proves the existing
+// duplicate-owned-heading guard survives: a record SEEDED with two halt
+// sections (the historical corruption this change prevents, not repairs)
+// still refuses a new, valid halt write and writes nothing (change 0354).
+func TestIntegrationChangeHaltCorruptedRecordStillRefused(t *testing.T) {
+	for _, m := range planRepoModes() {
+		t.Run(m.name, func(t *testing.T) {
+			f := setupRebaseFixtureStatus(t, m, "in-progress")
+			recPath := groomPath(f.id, f.slug)
+			corrupted := strings.TrimRight(lifecycleChange(f.id, f.slug, "in-progress"), "\n") +
+				"\n\n## Run halted\n\n### 2026-08-14\n\nFirst.\n\n## Run halted\n\n### 2026-08-15\n\nSecond.\n"
+			f.repo.writerAdvance(t, f.branch, map[string]string{recPath: corrupted})
+			f.version = blobVersionAt(t, f.repo.origin, f.branch, recPath)
+
+			got := ChangeHalt(context.Background(), f.deps, f.repo.invocation,
+				HaltRequest{ID: f.id, Version: f.version, Report: "A valid body.\n"})
+			if got.Result == ResultApplied || got.Disposition == HaltDispHalted {
+				t.Fatalf("halt applied over a corrupted record: result=%q disp=%q", got.Result, got.Disposition)
+			}
+			after, _ := originFile(t, f.repo.origin, f.branch, recPath)
+			if after != corrupted {
+				t.Errorf("refused halt changed the corrupted record")
+			}
+		})
+	}
+}
+
 // TestRunGateBeforeArmsWithLoadableKey: a successful arm prints `gate-armed
 // <key>`, the record loads, and its BeforeIDs are exactly the fixture's
 // in-progress ids with the store-owned target and an unused retry permit.
