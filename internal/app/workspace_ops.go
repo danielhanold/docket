@@ -161,6 +161,10 @@ type workspaceContext struct {
 	version string
 	base    domain.EffectiveBase
 	repo    gitcli.Repository
+	// snap is the authoritative corpus snapshot the context was resolved from. The
+	// carried-descendant preservation gate (proveCarriedOnHead) reads the live
+	// stacked_on graph from it, so a caller need not rebuild the snapshot.
+	snap domain.Snapshot
 }
 
 // loadWorkspaceContext performs the shared read every workspace operation needs:
@@ -232,6 +236,7 @@ func loadWorkspaceContext(ctx context.Context, deps PlanningDeps, repoDir string
 		version: version,
 		base:    domain.ResolveEffectiveBase(snap, c, facts),
 		repo:    repo,
+		snap:    snap,
 	}, nil
 }
 

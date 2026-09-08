@@ -400,6 +400,9 @@ type rebaseContext struct {
 	insp    workspace.Inspection
 	wsDir   string
 	metaDir string
+	// snap is the corpus snapshot the context was resolved from; the carried-
+	// descendant preservation gate reads the live stacked_on graph from it.
+	snap domain.Snapshot
 }
 
 // loadRebaseContext resolves the shared rebase context or a typed refusal. It
@@ -430,6 +433,7 @@ func loadRebaseContext(ctx context.Context, deps FinalizeDeps, repoDir string, o
 		insp:    insp,
 		wsDir:   insp.Path,
 		metaDir: workspace.MetaDir(wc.repo.CommonDir, target.FeatureRef),
+		snap:    wc.snap,
 	}, nil
 }
 
@@ -576,6 +580,16 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 	if string(remoteHead) != req.Head {
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseRemoteHeadMismatch,
 			"the remote feature head is not the expected head; local, remote, and PR heads must agree before a rebase", id)
+	}
+
+	// Prove every carried descendant's merged work is preserved at the agreed
+	// pre-rewrite head BEFORE any receipt is written or Git is mutated: local,
+	// remote, and PR heads all agree on req.Head here, so an unproven carry is the
+	// only reason this refuses, and a refusal leaves workspace, branch, receipt,
+	// and remote untouched. An observation failure is unknown/external (retained),
+	// never a clean unproven.
+	if r := requireCarriedPreserved(ctx, deps, repoDir, op, rc, gitcli.ObjectID(req.Head)); r != nil {
+		return *r
 	}
 
 	attempt := newRebaseAttempt(deps, baseHead)
@@ -887,6 +901,30 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 // gate composition
 // ---------------------------------------------------------------------------
 
+// requireCarriedPreserved runs the shared carried-descendant preservation proof
+// (proveCarriedOnHead) against an immutable target head and maps its outcome onto
+// a rebase refusal, or nil when every promised descendant is preserved. An
+// observation/external failure maps to ResultExternalFailed (unknown, retained);
+// an observed non-preservation maps to a blocked refusal carrying the shared
+// ReasonCarryUnproven and the per-descendant findings. It never mutates Git,
+// receipts, or refs — the caller places it before the effect it gates.
+func requireCarriedPreserved(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, head gitcli.ObjectID) *FinalizeRebaseResult {
+	id := int(rc.change.ID())
+	proof, perr := proveCarriedOnHead(ctx, deps, repoDir, rc.repo, rc.snap, rc.change, head)
+	if perr != nil {
+		r := rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonCarryUnproven,
+			"carried-descendant preservation could not be established: "+perr.Error(), id)
+		return &r
+	}
+	if !proof.Proven {
+		r := rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonCarryUnproven,
+			"a carried descendant's merged work is not preserved at the target head; refusing to rewrite", id)
+		r.Findings = append(r.Findings, proof.Findings...)
+		return &r
+	}
+	return nil
+}
+
 // composeLocalGate decides skip-or-run after a completed rebase and maps the gate
 // outcome. It skips only on a no-op rebase with exact-head green PR evidence whose
 // recorded command is byte-equal to the resolved finalize.test_command;
@@ -895,6 +933,17 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 // (blocked) — never a fabricated red.
 func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, head gitcli.ObjectID, noop bool) FinalizeRebaseResult {
 	id := int(rc.change.ID())
+	// "composeLocalGate decides skip-or-run after a completed rebase" — and it is
+	// the single chokepoint every post-rewrite path (the fresh begin, rebase-
+	// continue, and receipt recovery) funnels through, so the post-rewrite carried-
+	// descendant proof lives HERE. It re-discovers the carried set fresh against the
+	// completed head and never trusts a receipt boolean: a rewrite that dropped a
+	// carried child refuses. The early return sits BEFORE any receipt-pair mutation
+	// (and before the skip/run decision, so a green suite never substitutes), so a
+	// refusal retains the owned receipt and refs for the abort/repair flow.
+	if r := requireCarriedPreserved(ctx, deps, repoDir, op, rc, head); r != nil {
+		return *r
+	}
 	// The attempt, base head, orig head, and gate continuation all derive from the
 	// owned receipt this composition runs under — the callers already guarantee they
 	// agree with the live rewrite (change 0396).
