@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
@@ -728,12 +729,267 @@ func TestIntegrationFinalizeRebaseResponseLossRecovery(t *testing.T) {
 	}
 }
 
-// TestIntegrationFinalizeRebasePassedRecordsPublishCheckpoint proves a PASSED
-// local gate for a REAL rewrite records the completed-gate publish checkpoint
-// in the owned receipt — tested head, base head, resolved command, gate
-// policy, PR number, and evidence that verifies green for the rebased head —
-// with the gate-continuation pair clear; and that a PASSED gate for a NO-OP
-// rebase records no checkpoint.
+// --- resolver budget end-to-end (change 0349, Task 8) ---------------------
+
+// beginSuccessiveConflicts builds a real feature workspace whose feature branch
+// carries one commit per (setup + extra) entry — each rewriting feature.txt (and
+// whatever else the entry names) — over a base that conflictingly wrote the same
+// file, so a rebase onto the base stops on each feature commit in turn. limit > 0
+// resolves finalize.resolver_max_attempts through the repository-local layer; limit
+// == 0 leaves the built-in default (3) in force. It publishes the multi-commit head,
+// begins the owned rebase from it, and returns the fixture, the deps, the authorized
+// head, and the conflicted begin result.
+func beginSuccessiveConflicts(t *testing.T, limit int, extra []map[string]string, baseFiles map[string]string) (*rebaseFixture, FinalizeDeps, string, FinalizeRebaseResult) {
+	t.Helper()
+	f := setupRebaseFixture(t, planRepoModes()[0]) // c1: feature.txt="feature work\n", published at f.head
+	for i, files := range extra {
+		for name, content := range files {
+			writeRepoFile(t, f.wp, name, content)
+		}
+		runGit(t, f.wp, "add", "-A")
+		runGit(t, f.wp, "commit", "-q", "-m", fmt.Sprintf("feature step %d", i+2))
+	}
+	head := runGit(t, f.wp, "rev-parse", "HEAD")
+	// Re-publish the (possibly multi-commit) head so the remote feature ref agrees
+	// with the local head the request authorizes.
+	runGit(t, f.wp, "push", "-f", "-q", "origin", "HEAD:refs/heads/feat/"+f.slug)
+	// The base conflictingly writes the same file(s) the feature commits touch.
+	f.repo.writerAdvance(t, "main", baseFiles)
+	if limit > 0 {
+		setResolverConfig(t, f, limit)
+	}
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(head, "")}}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, head), RunDir: "/run/x"}}
+	deps := f.finalizeDeps(gh, gate)
+	begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+	if begin.Disposition != RebaseDispConflicted {
+		t.Fatalf("begin = disp %q (reason %q msg %q), want conflicted", begin.Disposition, begin.Reason, begin.Message)
+	}
+	return f, deps, head, begin
+}
+
+// reserveResolveContinue runs one full reserve -> resolve -> continue cycle against a
+// live conflicted rebase: it durably reserves one dispatch, writes reconciled content
+// to every reported unmerged path, echoes the reservation token in the resolver
+// report, and feeds it back through the real FinalizeRebaseContinue. It returns both
+// results so a caller can assert the disposition of each.
+func reserveResolveContinue(t *testing.T, f *rebaseFixture, deps FinalizeDeps, attempt string, unmerged []string, cycle int) (FinalizeReserveResult, FinalizeRebaseResult) {
+	t.Helper()
+	ctx := context.Background()
+	reserve := FinalizeResolverReserve(ctx, deps, f.repo.invocation, f.id, attempt)
+	if reserve.Disposition != ReserveReserved || reserve.Reservation == "" {
+		t.Fatalf("cycle %d reserve = disp %q token %q (reason %q), want reserved with a token", cycle, reserve.Disposition, reserve.Reservation, reserve.Reason)
+	}
+	resolved := fmt.Sprintf("reconciled content for cycle %d\n", cycle)
+	for _, p := range unmerged {
+		writeRepoFile(t, f.wp, p, resolved)
+	}
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: unmerged, ResolverReservation: reserve.Reservation}
+	cont := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	return reserve, cont
+}
+
+// TestIntegrationResolverBudgetSuccessiveConflicts drives the whole reserve ->
+// dispatch-once -> verified-continue loop end to end over a real multi-commit
+// conflicting rebase (spec test 2): the default budget completes three successive
+// conflicts, a lowered budget exhausts and then aborts cleanly, a raised budget
+// completes a fourth, a single multi-file resolution consumes exactly one
+// reservation, and the reservation survives a process restart via the on-disk
+// receipt.
+func TestIntegrationResolverBudgetSuccessiveConflicts(t *testing.T) {
+	requireRealGit(t)
+
+	// Default limit 3: three successive conflicts, reserve->resolve->continue each,
+	// the rebase completes and the gate composes.
+	t.Run("default-limit-3-three-conflicts-completes", func(t *testing.T) {
+		f, deps, _, begin := beginSuccessiveConflicts(t, 0,
+			[]map[string]string{{"feature.txt": "feature v2\n"}, {"feature.txt": "feature v3\n"}},
+			map[string]string{"feature.txt": "conflicting base content\n"})
+		if begin.ResolverLimit != 3 || begin.ResolverUsed != 0 {
+			t.Fatalf("begin counts = %d/%d, want limit 3 (built-in default) used 0", begin.ResolverLimit, begin.ResolverUsed)
+		}
+		attempt := begin.Attempt
+		unmerged := begin.UnmergedPaths
+		var cont FinalizeRebaseResult
+		for cycle := 1; cycle <= 3; cycle++ {
+			_, cont = reserveResolveContinue(t, f, deps, attempt, unmerged, cycle)
+			if cycle < 3 {
+				if cont.Disposition != RebaseDispConflicted {
+					t.Fatalf("cycle %d continue = disp %q (reason %q), want conflicted", cycle, cont.Disposition, cont.Reason)
+				}
+				unmerged = cont.UnmergedPaths
+			}
+		}
+		if cont.Result != ResultApplied || cont.Disposition != RebaseDispRebased {
+			t.Fatalf("final continue = (%q, %q) reason %q msg %q, want applied/rebased", cont.Result, cont.Disposition, cont.Reason, cont.Message)
+		}
+		if cont.Gate == nil || cont.Gate.Evidence == "" {
+			t.Errorf("the completed rebase did not compose the gate: %+v", cont.Gate)
+		}
+		if st, _ := f.deps.Client.RebaseState(context.Background(), f.wp); st.Disposition != gitcli.RebaseUnchanged {
+			t.Errorf("a rebase is still in progress after completion: %q", st.Disposition)
+		}
+		rec := reloadReceipt(t, f)
+		if rec.ResolverUsed != "3" || rec.ResolverReservationToken != "" || rec.ResolverContinuationStarted != "" {
+			t.Errorf("final receipt = used %q token %q cont %q, want used 3 and no outstanding reservation",
+				rec.ResolverUsed, rec.ResolverReservationToken, rec.ResolverContinuationStarted)
+		}
+	})
+
+	// Lowered limit 2: the second continuation's next (third) conflict is refused
+	// blocked/resolver-budget-exhausted, a fresh reservation is exhausted, and abort
+	// restores the original head.
+	t.Run("limit-2-exhausts-then-abort-restores-orig-head", func(t *testing.T) {
+		f, deps, head, begin := beginSuccessiveConflicts(t, 2,
+			[]map[string]string{{"feature.txt": "feature v2\n"}, {"feature.txt": "feature v3\n"}},
+			map[string]string{"feature.txt": "conflicting base content\n"})
+		if begin.ResolverLimit != 2 {
+			t.Fatalf("begin limit = %d, want the resolved non-default 2", begin.ResolverLimit)
+		}
+		attempt := begin.Attempt
+		ctx := context.Background()
+
+		_, c1 := reserveResolveContinue(t, f, deps, attempt, begin.UnmergedPaths, 1)
+		if c1.Disposition != RebaseDispConflicted || c1.ResolverUsed != 1 {
+			t.Fatalf("cycle 1 continue = disp %q used %d (reason %q), want conflicted used 1", c1.Disposition, c1.ResolverUsed, c1.Reason)
+		}
+		_, c2 := reserveResolveContinue(t, f, deps, attempt, c1.UnmergedPaths, 2)
+		if c2.Result != ResultBlocked || c2.Disposition != RebaseDispBlocked || c2.Reason != ReasonResolverBudgetExhausted {
+			t.Fatalf("cycle 2 continue = (%q, %q, %q), want blocked/blocked/%q", c2.Result, c2.Disposition, c2.Reason, ReasonResolverBudgetExhausted)
+		}
+		if c2.ResolverLimit != 2 || c2.ResolverUsed != 2 || c2.ResolverRemaining != 0 {
+			t.Errorf("exhausted counts = %d/%d/%d, want 2/2/0", c2.ResolverLimit, c2.ResolverUsed, c2.ResolverRemaining)
+		}
+		// A fresh reservation refuses: the stored budget is spent.
+		fresh := FinalizeResolverReserve(ctx, deps, f.repo.invocation, f.id, attempt)
+		if fresh.Disposition != ReserveExhausted || fresh.Reason != ReasonResolverBudgetExhausted {
+			t.Fatalf("fresh reserve = disp %q reason %q, want exhausted/%q", fresh.Disposition, fresh.Reason, ReasonResolverBudgetExhausted)
+		}
+		// Abort is always available: it restores the recorded original head.
+		abort := FinalizeRebaseAbort(ctx, deps, f.repo.invocation, f.id, attempt,
+			ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverStuck})
+		if abort.Result != ResultApplied || abort.Disposition != RebaseDispBlocked {
+			t.Fatalf("abort = (%q, %q) reason %q, want applied/blocked", abort.Result, abort.Disposition, abort.Reason)
+		}
+		if f.localHead() != head {
+			t.Errorf("abort did not restore the original head: %q != %q", f.localHead(), head)
+		}
+		if st, _ := f.deps.Client.RebaseState(ctx, f.wp); st.Disposition != gitcli.RebaseUnchanged {
+			t.Errorf("a rebase is still in progress after abort: %q", st.Disposition)
+		}
+	})
+
+	// Raised limit 4 with a fourth conflicting commit completes.
+	t.Run("limit-4-with-a-fourth-conflict-completes", func(t *testing.T) {
+		f, deps, _, begin := beginSuccessiveConflicts(t, 4,
+			[]map[string]string{{"feature.txt": "feature v2\n"}, {"feature.txt": "feature v3\n"}, {"feature.txt": "feature v4\n"}},
+			map[string]string{"feature.txt": "conflicting base content\n"})
+		if begin.ResolverLimit != 4 {
+			t.Fatalf("begin limit = %d, want the resolved 4", begin.ResolverLimit)
+		}
+		attempt := begin.Attempt
+		unmerged := begin.UnmergedPaths
+		var cont FinalizeRebaseResult
+		for cycle := 1; cycle <= 4; cycle++ {
+			_, cont = reserveResolveContinue(t, f, deps, attempt, unmerged, cycle)
+			if cycle < 4 {
+				if cont.Disposition != RebaseDispConflicted {
+					t.Fatalf("cycle %d continue = disp %q (reason %q), want conflicted", cycle, cont.Disposition, cont.Reason)
+				}
+				unmerged = cont.UnmergedPaths
+			}
+		}
+		if cont.Result != ResultApplied || cont.Disposition != RebaseDispRebased {
+			t.Fatalf("final continue = (%q, %q) reason %q, want applied/rebased", cont.Result, cont.Disposition, cont.Reason)
+		}
+		if rec := reloadReceipt(t, f); rec.ResolverUsed != "4" {
+			t.Errorf("used = %q after four resolutions, want 4", rec.ResolverUsed)
+		}
+	})
+
+	// One resolver report listing multiple conflicted files consumes exactly one
+	// reservation: the fixture folds a second file into the single feature commit.
+	t.Run("one-report-multiple-files-consumes-one-reservation", func(t *testing.T) {
+		f := setupRebaseFixture(t, planRepoModes()[0])
+		// Fold a second file into the single feature commit (amend) so one conflicting
+		// commit touches two files.
+		writeRepoFile(t, f.wp, "other.txt", "feature other\n")
+		runGit(t, f.wp, "add", "-A")
+		runGit(t, f.wp, "commit", "-q", "--amend", "--no-edit")
+		head := runGit(t, f.wp, "rev-parse", "HEAD")
+		runGit(t, f.wp, "push", "-f", "-q", "origin", "HEAD:refs/heads/feat/"+f.slug)
+		// The base conflictingly writes BOTH files.
+		f.repo.writerAdvance(t, "main", map[string]string{
+			"feature.txt": "conflicting base content\n", "other.txt": "conflicting base other\n"})
+		setResolverConfig(t, f, 3)
+		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(head, "")}}
+		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, head), RunDir: "/run/x"}}
+		deps := f.finalizeDeps(gh, gate)
+		begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		if begin.Disposition != RebaseDispConflicted {
+			t.Fatalf("begin = %q (reason %q), want conflicted", begin.Disposition, begin.Reason)
+		}
+		if len(begin.UnmergedPaths) != 2 {
+			t.Fatalf("begin unmerged = %v, want two conflicted files", begin.UnmergedPaths)
+		}
+		_, cont := reserveResolveContinue(t, f, deps, begin.Attempt, begin.UnmergedPaths, 1)
+		if cont.Result != ResultApplied || cont.Disposition != RebaseDispRebased {
+			t.Fatalf("continue = (%q, %q) reason %q, want applied/rebased", cont.Result, cont.Disposition, cont.Reason)
+		}
+		if rec := reloadReceipt(t, f); rec.ResolverUsed != "1" {
+			t.Errorf("used = %q after one multi-file resolution, want exactly 1 reservation", rec.ResolverUsed)
+		}
+	})
+
+	// A process restart between reserve and continue: rebuilding the workspace
+	// Service (and every dep) drops all in-memory state, yet the reservation survives
+	// via the on-disk receipt and the continue completes with the pre-restart token.
+	t.Run("process-restart-preserves-limit-used-reservation", func(t *testing.T) {
+		f, deps, head, begin := beginSuccessiveConflicts(t, 3, nil,
+			map[string]string{"feature.txt": "conflicting base content\n"})
+		attempt := begin.Attempt
+		ctx := context.Background()
+
+		reserve := FinalizeResolverReserve(ctx, deps, f.repo.invocation, f.id, attempt)
+		if reserve.Disposition != ReserveReserved || reserve.Reservation == "" {
+			t.Fatalf("reserve = disp %q token %q (reason %q), want reserved with a token", reserve.Disposition, reserve.Reservation, reserve.Reason)
+		}
+
+		// Simulate a process restart: a brand-new workspace.Service and fresh deps,
+		// so nothing in memory carries limit/used/reservation across.
+		svc2, err := workspace.NewService(f.deps.Client)
+		if err != nil {
+			t.Fatalf("rebuild workspace service: %v", err)
+		}
+		gh2 := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(head, "")}}
+		gate2 := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, head), RunDir: "/run/x"}}
+		deps2 := FinalizeDeps{Planning: f.deps, GitHub: gh2, Workspace: svc2, Gate: gate2}
+
+		// The reservation survived the restart via the receipt.
+		rec := reloadReceipt(t, f)
+		if rec.ResolverLimit != "3" || rec.ResolverUsed != "1" || rec.ResolverReservationToken != reserve.Reservation {
+			t.Fatalf("post-restart receipt = limit %q used %q token %q, want 3/1/%q",
+				rec.ResolverLimit, rec.ResolverUsed, rec.ResolverReservationToken, reserve.Reservation)
+		}
+
+		// Continue with the fresh deps and the pre-restart reservation.
+		for _, p := range begin.UnmergedPaths {
+			writeRepoFile(t, f.wp, p, "reconciled after restart\n")
+		}
+		report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+			ConflictedPaths: begin.UnmergedPaths, ResolverReservation: reserve.Reservation}
+		cont := FinalizeRebaseContinue(ctx, deps2, f.repo.invocation, f.id, attempt, report)
+		if cont.Result != ResultApplied || cont.Disposition != RebaseDispRebased {
+			t.Fatalf("post-restart continue = (%q, %q) reason %q, want applied/rebased", cont.Result, cont.Disposition, cont.Reason)
+		}
+		if after := reloadReceipt(t, f); after.ResolverUsed != "1" || after.ResolverReservationToken != "" {
+			t.Errorf("post-continue receipt = used %q token %q, want used 1 preserved and reservation cleared", after.ResolverUsed, after.ResolverReservationToken)
+		}
+	})
+}
 func TestIntegrationFinalizeRebasePassedRecordsPublishCheckpoint(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]

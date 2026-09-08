@@ -141,7 +141,9 @@ func TestFinalizeRebaseRegistered(t *testing.T) {
 
 // TestFinalizeRebaseResolverSubcommandsRegistered proves rebase-continue and
 // rebase-abort are wired with the scalar identity (id, attempt) on flags and the
-// authored resolver report in --input (never argv).
+// authored resolver report in --input (never argv), and that resolver-reserve is
+// wired with the same scalar identity but NO authored report (--input): identity
+// rides on flags, and reserve has no request body (change 0349).
 func TestFinalizeRebaseResolverSubcommandsRegistered(t *testing.T) {
 	root := captureTree(t)
 	for _, name := range []string{"rebase-continue", "rebase-abort"} {
@@ -155,15 +157,65 @@ func TestFinalizeRebaseResolverSubcommandsRegistered(t *testing.T) {
 			}
 		}
 	}
+	// resolver-reserve carries the scalar identity (id, attempt) but no --input:
+	// there is no authored report, so a request body must not exist.
+	reserve, _, err := root.Find([]string{"finalize", "resolver-reserve"})
+	if err != nil || reserve == nil || reserve.Name() != "resolver-reserve" {
+		t.Fatalf("finalize resolver-reserve not registered: cmd=%v err=%v", reserve, err)
+	}
+	for _, flag := range []string{"id", "attempt", "repo-dir"} {
+		if reserve.Flags().Lookup(flag) == nil {
+			t.Errorf("finalize resolver-reserve: missing --%s flag", flag)
+		}
+	}
+	if reserve.Flags().Lookup("input") != nil {
+		t.Errorf("finalize resolver-reserve grew a --input flag; reserve carries no authored report")
+	}
 }
 
 // TestFinalizeRebaseSubcommandsAssetIndependent guards the install.go registration
-// for the three rebase subcommands: they read the repository, never installed assets.
+// for the rebase and resolver-reserve subcommands: they read the repository, never
+// installed assets.
 func TestFinalizeRebaseSubcommandsAssetIndependent(t *testing.T) {
-	for _, key := range []string{"finalize rebase", "finalize rebase-continue", "finalize rebase-abort"} {
+	for _, key := range []string{"finalize rebase", "finalize rebase-continue", "finalize rebase-abort", "finalize resolver-reserve"} {
 		if !assetIndependent[key] {
 			t.Errorf("%q is not registered asset-independent", key)
 		}
+	}
+}
+
+// TestFinalizeResolverReserveFlagsRequired proves --id and --attempt are required:
+// omitting them is an argument error (exit 2) before any operation runs.
+func TestFinalizeResolverReserveFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "finalize", "resolver-reserve")
+	if code != 2 || errS == "" {
+		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
+	}
+	for _, flag := range []string{"id", "attempt"} {
+		if !strings.Contains(errS, flag) {
+			t.Errorf("required-flag error does not name %q: %q", flag, errS)
+		}
+	}
+}
+
+// TestFinalizeResolverReserveReachesOperation proves the command decodes its flags
+// and reaches the operation, which emits exactly one protocol-v1 document naming it.
+// A bare tempdir is no docket repo, so the operation refuses past its shape check —
+// but only after naming itself.
+func TestFinalizeResolverReserveReachesOperation(t *testing.T) {
+	out, errS, _ := runCLI(t, "finalize", "resolver-reserve",
+		"--id", "7", "--attempt", "tok", "--repo-dir", testsupport.TempDir(t), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"finalize.resolver-reserve"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if !strings.Contains(out, `"protocol_version":1`) {
+		t.Fatalf("missing protocol version: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
 	}
 }
 

@@ -39,6 +39,7 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	finalizeCmd.AddCommand(newFinalizeRebaseSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeRebaseContinueSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeRebaseAbortSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizeResolverReserveSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizePublishSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeBlockSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeClearBlockSubcommand(setResult))
@@ -476,6 +477,45 @@ func newFinalizeRebaseAbortSubcommand(setResult func(app.OperationResult)) *cobr
 		},
 	}
 	finalizeReportFlags(cmd)
+	return cmd
+}
+
+// newFinalizeResolverReserveSubcommand builds `finalize resolver-reserve`: it
+// durably reserves exactly one conflict-resolver dispatch for an owned rebase under
+// the per-workspace operation lock, incrementing the receipt's used count and
+// recording the reservation token before returning `reserved`. It copies
+// rebase-continue's shape minus the authored report (--input): identity rides on
+// the scalar flags, and there is no request body — the operation launches nothing,
+// stages nothing, and runs no suite.
+func newFinalizeResolverReserveSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "resolver-reserve",
+		Short: "Durably reserve one conflict-resolver dispatch for an owned rebase",
+		Args:  cobra.NoArgs,
+		// local-write only: increments the owned receipt's used count and records
+		// the reservation token; it launches nothing, stages nothing, runs no suite,
+		// and writes no remote or metadata.
+		Annotations: capability("finalize.resolver-reserve", EffectLocalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			id, _ := c.Flags().GetInt("id")
+			attempt, _ := c.Flags().GetString("attempt")
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeResolverReserve(c.Context(), deps, repoDir, id, attempt))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change `id` whose owned rebase reserves a resolver dispatch (required)")
+	cmd.Flags().String("attempt", "", "the owned rebase attempt `token` from the conflicted result (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("attempt")
 	return cmd
 }
 
