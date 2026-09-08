@@ -917,3 +917,241 @@ func TestIntegrationFinalizeRebaseCheckpointInvalidation(t *testing.T) {
 		}
 	})
 }
+
+// --- carried-descendant preservation gate (Task 6) ------------------------
+
+// fakeRebaseCarryGitHub serves the two GitHub reads a carry-gated rebase makes:
+// the parent's open PR (FindOpenPullRequestsByHead, for probeRebasePR) and each
+// stacked descendant's merged reprobe (ProbeMerged, for probeDescendantFacts).
+// Every other finalize-half method panics so an accidental call is loud. It
+// composes the two seams a plain fakeRebaseGitHub and fakeCloseoutGitHub each
+// cover alone, so one fixture exercises the pre-rewrite proof end to end.
+type fakeRebaseCarryGitHub struct {
+	repo   githubcli.Repository
+	prs    []githubcli.PullRequest
+	merged map[int]closeoutProbe
+	probes int
+}
+
+func (f *fakeRebaseCarryGitHub) DiscoverRepository(context.Context, string) (githubcli.Repository, error) {
+	return f.repo, nil
+}
+func (f *fakeRebaseCarryGitHub) FindOpenPullRequestsByHead(_ context.Context, _ githubcli.Repository, headBranch string) ([]githubcli.PullRequest, error) {
+	var out []githubcli.PullRequest
+	for _, pr := range f.prs {
+		if pr.HeadBranch == headBranch {
+			out = append(out, pr)
+		}
+	}
+	return out, nil
+}
+func (f *fakeRebaseCarryGitHub) ProbeMerged(_ context.Context, _ githubcli.Repository, number int) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+	f.probes++
+	p, ok := f.merged[number]
+	if !ok {
+		return githubcli.MergeNotMergeable, githubcli.MergedFacts{}, nil
+	}
+	return p.outcome, p.facts, nil
+}
+func (f *fakeRebaseCarryGitHub) ViewPullRequest(context.Context, githubcli.Repository, int) (githubcli.PullRequest, error) {
+	panic("ViewPullRequest: carry-gated rebase must not call this")
+}
+func (f *fakeRebaseCarryGitHub) RetargetPullRequest(context.Context, githubcli.Repository, int, string, string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {
+	panic("RetargetPullRequest: carry-gated rebase must not call this")
+}
+func (f *fakeRebaseCarryGitHub) EnsureComment(context.Context, githubcli.Repository, int, string, string) (githubcli.CommentOutcome, string, error) {
+	panic("EnsureComment: carry-gated rebase must not call this")
+}
+func (f *fakeRebaseCarryGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
+	panic("FindComment: carry-gated rebase must not call this")
+}
+func (f *fakeRebaseCarryGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
+	panic("MergePullRequest: carry-gated rebase must not call this")
+}
+
+// seedRebaseCarryChild seeds a stacked-merged descendant (id 6, gadget, PR #8)
+// stacked on the rebase fixture's parent (id 5) onto the metadata branch, so the
+// snapshot the rebase reads promises to carry the child's merged work.
+func seedRebaseCarryChild(t *testing.T, f *rebaseFixture) {
+	t.Helper()
+	recPath := groomPath(6, "gadget")
+	desc := closeoutRecord(6, "gadget", "stacked-merged", "github.com/acme/widget#8", "",
+		"docs/superpowers/plans/2026-08-16-gadget-plan.md", "")
+	desc = strings.Replace(desc, "stacked_on:\n", "stacked_on: 5\n", 1)
+	f.repo.writerAdvance(t, f.branch, map[string]string{recPath: desc})
+}
+
+// carryDroppedCommit builds a real commit on a branch off main in the writer,
+// pushes it to origin, fetches it into the invocation store, and returns its
+// OID — a real object that EXISTS yet is NOT carried on feat/widget, so a
+// preservation proof against the feature head observes a DROP, distinct from a
+// missing object (green-suite-untested-branch: the discriminating input is a
+// real dropped object).
+func carryDroppedCommit(t *testing.T, f *rebaseFixture, files map[string]string) string {
+	t.Helper()
+	w := f.repo.writer
+	runGit(t, w, "checkout", "-q", "-b", "carry-dropped", "main")
+	for rel, content := range files {
+		writeRepoFile(t, w, rel, content)
+	}
+	runGit(t, w, "add", "-A")
+	runGit(t, w, "commit", "-q", "-m", "child merge dropped from parent")
+	runGit(t, w, "push", "-q", "origin", "carry-dropped")
+	oid := runGit(t, w, "rev-parse", "HEAD")
+	runGit(t, f.repo.invocation, "fetch", "-q", "origin", "+refs/heads/*:refs/remotes/origin/*")
+	return oid
+}
+
+// TestIntegrationFinalizeRebaseCarryPreservation proves the two enforcement
+// points FinalizeRebase adds: the fresh-path PRE-rewrite gate (refuse before any
+// receipt/rewrite when a carried descendant's merged work is not preserved at the
+// agreed head) and the POST-rewrite chokepoint at composeLocalGate (refuse a
+// completed rewrite that dropped a carried child, retaining the owned receipt for
+// the abort/repair flow). Every refusal fixture builds local/remote/PR heads that
+// AGREE by construction, so a refusal exercises the NEW carry proof, not the
+// existing head-mismatch guard, and a green suite never substitutes for it.
+func TestIntegrationFinalizeRebaseCarryPreservation(t *testing.T) {
+	requireRealGit(t)
+	main := planRepoModes()[0]
+	ctx := context.Background()
+
+	t.Run("pre-rewrite-refusal-leaves-receipt-workspace-remote-untouched", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		seedRebaseCarryChild(t, f)
+		dropped := carryDroppedCommit(t, f, map[string]string{"catalog.yaml": "Y\n"})
+		// The dropped merge object EXISTS (a drop, not a missing object): pins that
+		// the refusal is an observed non-preservation, not an observation error.
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", dropped); err != nil {
+			t.Fatalf("the child merge object must exist to pin a drop (not a missing object): %v", err)
+		}
+		gh := &fakeRebaseCarryGitHub{
+			repo:   retargetRepo(),
+			prs:    []githubcli.PullRequest{f.prForHead(f.head, "")},
+			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}},
+		}
+		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
+		res := FinalizeRebase(ctx, f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+
+		assertRebaseRefused(t, res, ResultBlocked, ReasonCarryUnproven)
+		if len(res.Findings) == 0 {
+			t.Errorf("a carry refusal carried no findings naming the unproven descendant")
+		}
+		// The missing effects: no owned receipt, workspace head unchanged, remote
+		// feature ref untouched — a pre-rewrite refusal leaves Git untouched.
+		f.receiptAbsent(t)
+		if f.localHead() != f.head {
+			t.Errorf("a pre-rewrite carry refusal moved the workspace head: %q -> %q", f.head, f.localHead())
+		}
+		if after := originTip(t, f.repo.origin, "feat/"+f.slug); after != remoteBefore {
+			t.Errorf("a pre-rewrite carry refusal touched the remote feature ref: %q -> %q", remoteBefore, after)
+		}
+	})
+
+	t.Run("pre-rewrite-pass-through-when-carry-preserved", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		seedRebaseCarryChild(t, f)
+		// The child's merge-result is an ancestor of the feature head (a real object
+		// preserved by ancestry), so the proof passes and the operation proceeds to a
+		// normal rebase outcome — never a carry refusal.
+		gh := &fakeRebaseCarryGitHub{
+			repo:   retargetRepo(),
+			prs:    []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))},
+			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", f.baseTip)}},
+		}
+		res := FinalizeRebase(ctx, f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		if res.Reason == ReasonCarryUnproven {
+			t.Fatalf("a preserved carry was refused: reason %q msg %q", res.Reason, res.Message)
+		}
+		if res.Result != ResultNoOp && res.Result != ResultApplied {
+			t.Fatalf("pass-through = %q disp %q (reason %q msg %q), want a normal rebase outcome", res.Result, res.Disposition, res.Reason, res.Message)
+		}
+	})
+
+	t.Run("post-rewrite-refusal-retains-receipt-and-orig-head", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		seedRebaseCarryChild(t, f)
+		dropped := carryDroppedCommit(t, f, map[string]string{"catalog.yaml": "Z\n"})
+		baseHead := originTip(t, f.repo.origin, "main")
+		// Pre-create an owned receipt for a COMPLETED no-op rebase so FinalizeRebase
+		// takes the recovery path (which skips the pre-rewrite gate) and reaches
+		// composeLocalGate — the single chokepoint all post-rewrite paths funnel
+		// through. The rewrite dropped the carried child (its merge object exists but
+		// is absent from the head), so gate (b) refuses.
+		rec := workspace.RebaseReceipt{
+			RepoIdentity:   f.gitrepo.CommonDir,
+			ChangeID:       "5",
+			OrigHead:       f.head,
+			OrigRemoteHead: f.head,
+			BaseRef:        string(f.target.BaseRef),
+			BaseHead:       baseHead,
+			Attempt:        "manual-carry-attempt",
+			CreatedUTC:     "2026-09-07T00:00:00Z",
+		}
+		if err := f.svc.WriteRebaseReceipt(ctx, f.metaDir, rec); err != nil {
+			t.Fatalf("write receipt: %v", err)
+		}
+		gate := &fakeGate{}
+		gh := &fakeRebaseCarryGitHub{
+			repo:   retargetRepo(),
+			prs:    []githubcli.PullRequest{f.prForHead(f.head, "")},
+			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}},
+		}
+		res := FinalizeRebase(ctx, f.finalizeDeps(gh, gate), f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+
+		assertRebaseRefused(t, res, ResultBlocked, ReasonCarryUnproven)
+		// The owned receipt and its orig head survive: the abort/repair flow stays
+		// available (a post-rewrite refusal never clears the receipt).
+		recAfter, present, err := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+		if err != nil || !present {
+			t.Fatalf("the post-rewrite carry refusal cleared the receipt (present=%v err=%v)", present, err)
+		}
+		if recAfter.OrigHead != f.head {
+			t.Errorf("the post-rewrite carry refusal lost the receipt orig head: %q, want %q", recAfter.OrigHead, f.head)
+		}
+		// Gate (b) refuses before the suite composes: the seam never ran.
+		if gate.calls != 0 {
+			t.Errorf("the gate seam ran %d time(s) on a carry refusal; want 0", gate.calls)
+		}
+	})
+
+	t.Run("green-suite-does-not-substitute-for-the-carry-proof", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		seedRebaseCarryChild(t, f)
+		dropped := carryDroppedCommit(t, f, map[string]string{"catalog.yaml": "Q\n"})
+		baseHead := originTip(t, f.repo.origin, "main")
+		rec := workspace.RebaseReceipt{
+			RepoIdentity:   f.gitrepo.CommonDir,
+			ChangeID:       "5",
+			OrigHead:       f.head,
+			OrigRemoteHead: f.head,
+			BaseRef:        string(f.target.BaseRef),
+			BaseHead:       baseHead,
+			Attempt:        "manual-carry-attempt",
+			CreatedUTC:     "2026-09-07T00:00:00Z",
+		}
+		if err := f.svc.WriteRebaseReceipt(ctx, f.metaDir, rec); err != nil {
+			t.Fatalf("write receipt: %v", err)
+		}
+		// Exact-head GREEN evidence on the PR body would otherwise skip the local
+		// suite; the carry proof runs before and independently of that decision, so
+		// the refusal is the carry reason, never a skipped success.
+		gate := &fakeGate{}
+		gh := &fakeRebaseCarryGitHub{
+			repo:   retargetRepo(),
+			prs:    []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))},
+			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}},
+		}
+		res := FinalizeRebase(ctx, f.finalizeDeps(gh, gate), f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		assertRebaseRefused(t, res, ResultBlocked, ReasonCarryUnproven)
+		if res.Gate != nil && res.Gate.Compose == gateComposeSkipped {
+			t.Errorf("green evidence substituted for the carry proof: the gate skipped instead of refusing")
+		}
+		if gate.calls != 0 {
+			t.Errorf("the gate seam ran %d time(s) on a carry refusal; want 0", gate.calls)
+		}
+	})
+}
