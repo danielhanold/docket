@@ -160,13 +160,15 @@ docket's five workflow steps are **pluggable roles**: the optional `skills:` map
 <adrs_dir>/               # default docs/adrs/  — flat; ADRs are NEVER archived
   <NNNN>-<slug>.md        # immutable once Accepted (only its status: line ever changes)
   README.md               # generated ADR index
-<results_dir>/            # default docs/results/  — optional close-out artifacts (feature-branch build files; NEVER archived)
+<results_dir>/            # default docs/results/  — required close-out artifacts (one per implemented change, trivial included; change 0410) (feature-branch build files; NEVER archived)
   <YYYY-MM-DD>-<slug>-results.md
 ```
 
 The `archive/` filename date prefix is **UTC**: the **merge commit's** date for `done`, the **kill commit's** date for `killed`.
 
 In `docket`-mode all of the above lives on the `docket` branch, written through the persistent, gitignored **`.docket/` metadata worktree** (deliberately not under `.worktrees/` — slug collisions, prune blast radius; see *Branch model*).
+
+**Results artifact shape and lifecycle.** The results file is a required close-out artifact for every implemented change, trivial included (change 0410). Its template carries a required `## Outcome` section and the conditional sections `## Human testing`, `## Verification performed`, `## Findings and limitations`, and `## Follow-ups` — omit any conditional section, subsections and all, when it would hold no substantive content, and never pad one with `None`/`N/A` filler. The results **file** lives on the feature branch at `<results_dir>/<YYYY-MM-DD>-<slug>-results.md`; the `results:` **field** is set only in the main tree through the `change.attach-results` operation — never cross the streams. The coordinator captures findings at defined checkpoints during implementation (docket-implement-next's Step 6.5 is normative), not in a single final pass. Follow-ups recorded here hold out-of-scope work for human triage — link an existing change when one is known, but never mint a change, issue, ADR, or learning automatically.
 
 ### Change manifest (frontmatter at the top of each change file)
 
@@ -187,7 +189,7 @@ discovered_from: [62]     # change id(s) whose work surfaced this one; informati
 adrs: [24]                # ADRs this change cites or produces
 spec:                     # superpowers design doc path; set at brainstorm (propose) time, on metadata_branch
 plan:                     # plan FILE lives on the feature branch; this FIELD is set in the main tree at build time
-results:                  # results FILE on the feature branch; this FIELD set in the main tree at close-out (optional)
+results:                  # results FILE on the feature branch; this FIELD set in the main tree by change.attach-results at the first checkpoint, required before the implemented transition (0410)
 trivial: false            # true = no spec needed (small mechanical change); still build-ready
 auto_groomable:           # tri-state: unset ⇒ inherit the repo's auto_groom; true/false ⇒ explicit override
 branch:                   # minted <type>/<slug> (or <branch_prefix>/<slug>) name, set on claim; sole feature-head source of truth after, never reconstructed; branch itself created at build (step 4)
