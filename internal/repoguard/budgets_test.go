@@ -53,11 +53,12 @@ type skillBudget struct {
 // documentation, not slack — the ceilings are pinned at the exact new word counts,
 // so the ratchet still reddens on any further regrowth.
 //
-// Change 0393 re-baselined docket-implement-next/SKILL.md (180 -> 184 lines)
-// and docket-finalize-change/SKILL.md (217 -> 221 lines) upward once: each
-// owner must carry standalone exact structured feature-worktree payload lines.
-// Their machine-checked line contract cannot be compacted into prose without
-// losing the supplied input shape; the ratchet remains at these exact counts.
+// Change 0393's structured feature-worktree payload lines and balanced dispatch
+// markers land atop the 0410/0349 baselines in this rebase: docket-build/SKILL.md
+// reaches 406 lines, docket-implement-next/SKILL.md 209 lines, and
+// docket-finalize-change/SKILL.md 234 lines. That machine-checked syntax cannot
+// be compacted into prose without losing the supplied input shape; the ratchet
+// remains exact.
 //
 // Change 0346 re-baselined docket-finalize-change/SKILL.md upward once to hold
 // the verified post-merge rebuild contract (step 12): the sync-disposition
@@ -121,7 +122,7 @@ var skillBudgets = []skillBudget{
 	{"docket-adr/adr-template.md", 26, 90},
 	{"docket-auto-groom/SKILL.md", 70, 1750},
 	{"docket-brainstorm/SKILL.md", 84, 692},
-	{"docket-build/SKILL.md", 404, 4054}, // 0410: +capture-ownership boundary prose; 0376: +gate.drive JSON-capture caller contract (see note above)
+	{"docket-build/SKILL.md", 406, 4054}, // 0393: +feature-dispatch marker pair atop 0410's capture-ownership boundary (see note above)
 	{"docket-build/references/delegation-execution.md", 85, 850},
 	{"docket-build/references/gate-caller-loop.md", 175, 1750},
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
@@ -135,10 +136,10 @@ var skillBudgets = []skillBudget{
 	{"docket-convention/references/learnings.md", 84, 580},
 	{"docket-convention/references/stacked-changes.md", 215, 2140}, // 0327: +carry-preservation contract prose (see note above)
 	{"docket-convention/references/terminal-close-out.md", 240, 2150},
-	{"docket-finalize-change/SKILL.md", 230, 5200},                   // 0393: +exact feature-worktree payload line; 0349: +reserve-before-dispatch resolver protocol prose after 0410's required-results baseline
+	{"docket-finalize-change/SKILL.md", 234, 5200},                   // 0393: +exact payload lines and marker pairs atop 0349/0410 (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 120, 1300}, // 0349: +reserve-before-dispatch resolver protocol prose (115 -> 120 lines)
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 201, 7530},                // 0410: +mandatory Step 6.5 checkpoint lifecycle; 0354: +halt-report body-only prose; 0376: +gate.drive JSON-capture caller contract (see note above)
+	{"docket-implement-next/SKILL.md", 209, 7530},                // 0393: +exact payload lines and marker pairs atop 0410/0354/0376 (see note above)
 	{"docket-implement-next/references/edge-paths.md", 78, 1091}, // 0410: +resume/recovery + required-results reconciliation (see note above)
 	{"docket-implement-next/references/fix-loop.md", 190, 1958},  // 0410: +findings-to-results checkpoint linkage (see note above)
 	{"docket-implement-next/results-template.md", 51, 257},       // 0410: canonical five-section required template (see note above)

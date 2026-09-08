@@ -72,6 +72,7 @@ Emit one concise routing line per task naming both the profile and its reason.
 
 ## Dispatching a task
 
+<!-- docket:feature-dispatch:start targets=docket-build-economy,docket-build-max,docket-build-premium,docket-build-standard -->
 **Before each worker dispatch, prepare its recovery scope:** run the `gate.drive.prepare-scope`
 operation with `--change-id <id> --task-id <task-N> --phase build --branch <branch> --worktree
 <worktree> --gate-context <dispatch-context> --json` (the dispatch context arrived in *your* prompt from
@@ -89,6 +90,7 @@ never dispatch two workers concurrently — that binds a controller who *believe
 is gone* exactly as it binds one dispatching deliberately. Never preload a review skill either —
 for a **named** agent the wrapper's own `skills:` frontmatter is the operative protection, so what it
 forbids is bolting a review skill or instruction onto the dispatch prompt.
+<!-- docket:feature-dispatch:end -->
 
 If profile dispatch is genuinely unavailable — established only per the convention's
 *Dispatch-capability resolution*, **never from a tool name** — this role is **Tier C,
