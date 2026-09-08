@@ -261,6 +261,60 @@ func TestIntegrationWorkflowChangeAttachPlanGitVerificationHappyPath(t *testing.
 	}
 }
 
+// TestIntegrationWorkflowChangeAttachResultsCheckpointContent proves
+// change.attach-results runs checkpoint-phase content validation AFTER the
+// backlink guard: a raw template scaffold (angle-bracket placeholders behind a
+// correct backlink) refuses with results-content-invalid and writes nothing,
+// while a truthful in-progress artifact (title + backlink + one real Outcome
+// paragraph and no other sections) attaches — the checkpoint phase never demands
+// the final content contract.
+func TestIntegrationWorkflowChangeAttachResultsCheckpointContent(t *testing.T) {
+	const resultsPath = "docs/results/2026-08-17-widget-results.md"
+
+	t.Run("raw template scaffold refuses with results-content-invalid", func(t *testing.T) {
+		f := attachSetup(t)
+		// A correct backlink (so the backlink guard passes) fronting the unfilled
+		// authoring template: the H1 and the Outcome body are angle-bracket scaffolding.
+		scaffold := attachBacklinkBlock(f.id, "A change", f.recPath) +
+			"\n# <Change title> — Results\n\n## Outcome\n\n<What was delivered and how the behavior changed.>\n"
+		head := f.commitPlan(t, map[string]string{resultsPath: scaffold}, "")
+		res := ChangeAttachResults(f.ctx, f.deps, f.wdeps, f.invocation,
+			ChangeAttachRequest{ID: f.id, Version: f.version, Path: resultsPath, Commit: head})
+		if res.Result == ResultApplied {
+			t.Fatalf("scaffold attach applied, want a refusal")
+		}
+		if res.Reason != ReasonAttachResultsContent {
+			t.Fatalf("reason = %q, want %q (msg %q)", res.Reason, ReasonAttachResultsContent, res.Message)
+		}
+		// A refusal opens no transaction: the remote record keeps no results field.
+		final, ok := originFile(t, f.repo.origin, "docket", f.recPath)
+		if ok && strings.Contains(final, "results: '") {
+			t.Errorf("a refused attach wrote the results field to the remote:\n%s", final)
+		}
+	})
+
+	t.Run("truthful in-progress artifact attaches", func(t *testing.T) {
+		f := attachSetup(t)
+		// Title + backlink + one real Outcome paragraph, no other sections: a
+		// checkpoint artifact must not be held to the final content contract.
+		artifact := attachBacklinkBlock(f.id, "A change", f.recPath) +
+			"\n# Widget — Results\n\n## Outcome\n\nDelivered the in-progress slice; behavior X now refuses Y.\n"
+		head := f.commitPlan(t, map[string]string{resultsPath: artifact}, "")
+		res := ChangeAttachResults(f.ctx, f.deps, f.wdeps, f.invocation,
+			ChangeAttachRequest{ID: f.id, Version: f.version, Path: resultsPath, Commit: head})
+		if res.Result != ResultApplied {
+			t.Fatalf("checkpoint attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
+		}
+		final, ok := originFile(t, f.repo.origin, "docket", f.recPath)
+		if !ok {
+			t.Fatalf("change record missing on origin after attach")
+		}
+		if !strings.Contains(final, "results: '"+resultsPath+"'") {
+			t.Errorf("committed record missing the results field:\n%s", final)
+		}
+	})
+}
+
 // TestClaimRaceLosesCleanly proves a claimant working from a context version that
 // the origin has since diverged past loses cleanly: its claim is refused as
 // `contended` against fresh origin state, the metadata remote holds exactly one
