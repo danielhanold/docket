@@ -2,7 +2,7 @@
 id: 154
 slug: audit-skill-bodies-for-the-stale-restatement-class-change-01
 title: 'Remove stale Bash instructions and duplicated runtime contracts from Docket skills'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: docs
 created: 2026-07-28
@@ -16,10 +16,11 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: 'docs/audit-skill-bodies-for-the-stale-restatement-class-change-01'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-08T23:57:35Z'
 ---
 
 ## Artifacts
