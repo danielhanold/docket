@@ -21,7 +21,7 @@ branch: 'fix/gate-drive-start-human-output-omits-drive-id-generation'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-08T04:35:26Z'
+claimed_at: '2026-09-08T04:37:09Z'
 ---
 
 ## Artifacts
@@ -76,3 +76,7 @@ The human-approved decision is settled: this is a bounded clarification of the t
 ### 2026-09-07
 
 2026-09-07: Reconciled against current main (origin/main @ 0d1a7e1b). Confirmed the approved caller-guidance scope is still accurate: `GateDriveResult.HumanText` prints `drive_id` and deliberately omits the ownership generation, and the shared caller contract mentions `--json` only in passing without requiring capture of the first response. Whole-repo search located the maintained caller instruction surfaces to update: skills/docket-build/references/gate-caller-loop.md (shared contract), skills/docket-build-task/SKILL.md, skills/docket-build/SKILL.md, and skills/docket-implement-next/SKILL.md (Step 6 evidence re-mint / re-gate). Embedded distribution copies under internal/assets/embedded/tree/ are byte-identical to source and MUST be regenerated via the genassets generator (go generate ./internal/assets/...), not hand-edited, or the DiffTree check fails. No scope change and no relation change (related: [375,405], discovered_from: [372], adrs: [107] all still correct); 375 (idempotent start / duplicate-drive prevention) and 405 (prepare-scope/start handshake) remain out of scope. Proceeding to plan + build.
+
+### 2026-09-08
+
+2026-09-08: Resume of an interrupted (rate-limited) implement-next run. Re-verified against current main (origin/main @ b801b8c6), which advanced from the prior reconcile base 0d1a7e1b via changes 0408 (finalize publish-checkpoint) and 0346 (verified post-merge rebuild). Neither touches this change's caller-guidance scope: the maintained files this change edits (skills/docket-build/references/gate-caller-loop.md, skills/docket-build-task/SKILL.md, skills/docket-build/SKILL.md, skills/docket-implement-next/SKILL.md) are unchanged on main across that range, and the new repoguard guard file (internal/repoguard/gatedrive_json_capture_test.go) does not collide with main's repoguard edits (budgets_test.go, finalize_rebuild_test.go). Approved scope and relations unchanged. Committed feature work (branch fix/gate-drive-start-human-output-omits-drive-id-generation): Task 1 landed at 311d52c2 (doc edits + regenerated embedded copies); Task 2's guard test is drafted but was left uncommitted by the interrupted run and will be verified (mutation-tested) and committed to complete the plan.
