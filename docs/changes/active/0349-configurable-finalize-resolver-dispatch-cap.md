@@ -75,3 +75,14 @@ Make the ceiling configurable and enforce admission in Go before each resolver d
 - Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5586140712
 
 Remedy: Make the docket-rebase-resolver dispatch available, then rerun finalize for change 349 by explicit id.
+
+### 2026-09-08 — attempt 20260908T140508Z-9e82cc47c8fc
+
+<!-- attempt:20260908T140508Z-9e82cc47c8fc -->
+
+- Reason: resolver-stuck
+- Head: c22ac9ff409caa96220a6815d54286ba86091ad6
+- PR: #288
+- Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5586452852
+
+Remedy: A human must inspect the feature worktree and re-run finalize for change 349 after resolving the rebase-worktree discrepancy.
