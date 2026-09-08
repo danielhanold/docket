@@ -87,6 +87,7 @@ The `finalize.rebase` operation with `--id <id> --version <version> --head <feat
 - `contended` — a lost race (the base or remote head moved, or the record version drifted). Re-read `context.finalize`; the disposition is `contended`, never `halted`.
 - `blocked` — retained foreign rebase state, a moved base, an unresolved effective base, a dirty workspace, or a precondition failure the receipt was **not** written for. A human is needed: `halted`.
 
+<!-- docket:feature-dispatch:start targets=docket-rebase-resolver -->
 **Resolver loop (Go-enforced budget).** On `conflicted`, first run the `finalize.resolver-reserve` operation with `--id <id> --attempt <attempt>` — it durably admits one resolver dispatch under the owned attempt, before anything is launched, and is the ONLY thing that authorizes a dispatch. Route on its `disposition`:
 
 - `reserved` — authorizes exactly ONE `docket-rebase-resolver` dispatch (foreground, at the model/effort its wrapper resolves). Its dispatch payload includes the returned `reservation` token and contains:
@@ -99,6 +100,7 @@ The resolver echoes the token back as the report's `resolver_reservation` field.
 Feed the resolver's report back with the `finalize.rebase-continue` operation with `--id <id> --attempt <attempt> --input <report>`, which validates the reported paths against the live unmerged set (paths outside it → refusal `report-not-resolved`), stages exactly them, and continues. A continue may return `conflicted` again (the next commit's conflict — return to the reserve step above; the next dispatch requires a fresh reservation), `unchanged`/`rebased` (completed, gate composed), `failed`/`gate-failed` (completed, suite red → step 5), or `blocked` with `resolver-budget-exhausted` (the last permitted continuation surfaced another conflict → enter the abort flow). Never count resolver dispatches yourself, and never abort-and-restart to replenish a budget.
 
 A resolver that returns `disposition: stuck`, or a resolver dispatch that is unavailable (the carve-out below), is `halted` through the abort flow. **Abort flow:** before running the `finalize.rebase-abort` operation on a workspace that might still hold a live resolver child, establish that child's completion through the harness — inability to establish it is itself `halted`, with the workspace retained. Then run the `finalize.rebase-abort` operation with `--id <id> --attempt <attempt> --input <report>` to restore the recorded original head under the owned attempt, record the `## Finalize blocked` marker (step 8), and stop. `rebase-abort` verifies restoration; a failed restoration is itself `halted`.
+<!-- docket:feature-dispatch:end -->
 
 ### 4. The local gate
 
@@ -108,9 +110,11 @@ The gate is composed into `finalize.rebase`/`rebase-continue`: a completed rebas
 
 ### 5. Repair a red gate
 
+<!-- docket:feature-dispatch:start targets=docket-integration-repair -->
 A red suite after the rebase is repair work, regardless of cause. Dispatch `docket-integration-repair` (foreground, at the model/effort its wrapper resolves). Its dispatch payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
 Red-test root cause, bounded two-attempt feature-branch fix, and claimed commits plus `repaired`/`stuck`; it never rebases, merges, or transitions metadata. Then re-run the gate on the repaired head: `gate.launch` with `--root <run-root> --cwd <feature worktree> -- <resolved suite>`, then `gate.observe` with `<run-dir>`, under `docket-build`'s gate-execution posture. On a `passed` terminal observation whose head equals repaired head, `evidence.record --id <id> --run <absolute-run-dir> --head <repaired head>` returns the immutable block — no agent-supplied `passed` boolean; a failed/running/stopped/vanished/malformed/head-mismatched run produces none, and a repair that cannot reach green in two attempts, or unavailable repair dispatch, is `halted`.
+<!-- docket:feature-dispatch:end -->
 
 ### 6. Sign-off on an authored repair
 
