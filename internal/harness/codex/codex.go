@@ -85,6 +85,7 @@ type RoleContract struct {
 	Name                  string
 	Description           string
 	LaunchPosture         harness.LaunchPosture
+	WorktreeScope         harness.WorktreeScope
 	Model                 string
 	Effort                string
 	Skills                []string
@@ -184,6 +185,7 @@ func roleContract(s harness.AgentSource, agents config.AgentsTable) RoleContract
 		Name:                  s.Name,
 		Description:           description,
 		LaunchPosture:         s.LaunchPosture,
+		WorktreeScope:         s.WorktreeScope,
 		Model:                 model,
 		Effort:                effort,
 		Skills:                append([]string(nil), s.Skills...),
