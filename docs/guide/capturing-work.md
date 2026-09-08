@@ -25,8 +25,9 @@ write in prose. As you meet them, the manifest fields are:
 - `type` — which category of work this is (see [Typing your work](#typing-your-work), below).
 - `depends_on` — the ids of other changes that must merge before this one can start.
 - `spec`, `plan`, `results` — the design document a change links to, written before building;
-  the task-by-task breakdown a build follows, written on the feature branch; and the optional
-  close-out record of what a build actually did. Filled in as the change moves through its life.
+  the task-by-task breakdown a build follows, written on the feature branch; and the required
+  close-out record of what a build actually did (one per implemented change, trivial included).
+  Filled in as the change moves through its life.
 - `trivial` — a flag that says "this is small and mechanical enough to skip the design step."
 - `branch`, `pr` — the feature branch and pull request, recorded once the build starts.
 
