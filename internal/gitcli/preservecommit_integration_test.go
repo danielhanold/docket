@@ -271,3 +271,621 @@ func gitHashObject(t *testing.T, dir, content string) string {
 	writeWorktreeFile(t, dir, "loose-blob.bin", content)
 	return gitOut(t, dir, "hash-object", "-w", "loose-blob.bin")
 }
+
+// assertProof pins the full outcome of a ProvePreserved verdict — Outcome, Kind,
+// Detail, and membership of every wanted diagnostic path — never a bare
+// "not proven" (learning assert-pins-outcome-not-mechanism). Kind is asserted
+// even when unproven ("" — set only on a proven verdict), and every wantPath
+// must appear in Paths.
+func assertProof(t *testing.T, got PreservationCheck, outcome PreservationOutcome, kind PreservationKind, detail string, wantPaths ...RepoPath) {
+	t.Helper()
+	if got.Outcome != outcome {
+		t.Fatalf("Outcome = %q, want %q (full: %+v)", got.Outcome, outcome, got)
+	}
+	if got.Kind != kind {
+		t.Fatalf("Kind = %q, want %q (full: %+v)", got.Kind, kind, got)
+	}
+	if got.Detail != detail {
+		t.Fatalf("Detail = %q, want %q (full: %+v)", got.Detail, detail, got)
+	}
+	for _, wp := range wantPaths {
+		if !containsPath(got.Paths, wp) {
+			t.Fatalf("Paths %v does not contain %q (full: %+v)", got.Paths, wp, got)
+		}
+	}
+}
+
+// containsPath reports whether paths contains p.
+func containsPath(paths []RepoPath, p RepoPath) bool {
+	for _, q := range paths {
+		if q == p {
+			return true
+		}
+	}
+	return false
+}
+
+// commitAll stages every worktree change and commits it with subject, returning
+// the resulting commit OID — the multi-path sibling of commitFile.
+func commitAll(t *testing.T, dir, subject string) ObjectID {
+	t.Helper()
+	gitOut(t, dir, "add", "-A")
+	gitOut(t, dir, "commit", "-q", "-m", subject)
+	return ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+}
+
+// TestIntegrationPreserveCommitProve is the preservation-primitive matrix: every
+// row builds a real repository and asserts ProvePreserved's exact verdict.
+// Ancestry proves directly; otherwise the base->source tracked-entry delta must
+// match target exactly (oid+mode, and a source deletion requires absence). The
+// rows cover the spec's proof/refusal vocabulary end to end — a rewrite that
+// preserves content, a drop, a partial loss, an overlapping edit, deletions,
+// renames (rename detection OFF), mode changes, the hostile object shapes
+// (symlink, binary, gitlink, dir<->file, unusual path), the base-count refusals,
+// an empty delta, a missing object error, and a custom merge driver that cannot
+// manufacture proof.
+func TestIntegrationPreserveCommitProve(t *testing.T) {
+	ctx := context.Background()
+	c := newRealClient(t)
+
+	// Row 1: source is an ancestor of target -> proven by ancestry, no delta walk.
+	t.Run("ancestral", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		commitFile(t, dir, "a.txt", "a\n", "c0")
+		source := commitFile(t, dir, "b.txt", "b\n", "c1")
+		target := commitFile(t, dir, "c.txt", "c\n", "c2")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByAncestry, "")
+	})
+
+	// Row 2: a rebase rewrites the child onto an advanced main — new commit ids,
+	// identical blobs -> proven by exact content.
+	t.Run("rebase-rewrite", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		source := commitFile(t, dir, "catalog.yaml", "items: [a, b]\n", "add catalog")
+		gitOut(t, dir, "checkout", "-q", "main")
+		commitFile(t, dir, "other.txt", "other\n", "advance main")
+		gitOut(t, dir, "checkout", "-q", "child")
+		gitOut(t, dir, "rebase", "main")
+		target := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	// Row 3: two child commits squashed into one on the target line -> proven by
+	// exact content.
+	t.Run("squash-rewrite", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		commitFile(t, dir, "f1.txt", "one\n", "add f1")
+		source := commitFile(t, dir, "f2.txt", "two\n", "add f2")
+		gitOut(t, dir, "checkout", "-q", "-b", "squashed", string(b0))
+		writeWorktreeFile(t, dir, "f1.txt", "one\n")
+		writeWorktreeFile(t, dir, "f2.txt", "two\n")
+		target := commitAll(t, dir, "squash f1+f2")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	// Row 4: like row 2, plus target advances further touching only OTHER files —
+	// extra target changes outside the delta are allowed -> proven by content.
+	t.Run("unrelated-destination-advance", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		source := commitFile(t, dir, "catalog.yaml", "items\n", "add catalog")
+		gitOut(t, dir, "checkout", "-q", "main")
+		commitFile(t, dir, "other.txt", "other\n", "advance main")
+		gitOut(t, dir, "checkout", "-q", "child")
+		gitOut(t, dir, "rebase", "main")
+		commitFile(t, dir, "more.txt", "more\n", "post-rewrite unrelated advance")
+		target := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	// Row 5: the target line omits catalog.yaml entirely — the source blob EXISTS
+	// (asserted below), pinning a DROP versus a missing object -> unproven,
+	// entry-differs, catalog.yaml differs.
+	t.Run("content-dropped", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		source := commitFile(t, dir, "catalog.yaml", "items\n", "add catalog")
+		// The source's blob is present — this is a drop, not a missing object.
+		gitOut(t, dir, "cat-file", "-e", string(source)+":catalog.yaml")
+		gitOut(t, dir, "checkout", "-q", "main")
+		target := commitFile(t, dir, "other.txt", "other\n", "advance without catalog")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "catalog.yaml")
+	})
+
+	// Row 6: two changed files, one preserved one dropped -> unproven, and only
+	// the dropped path is reported differing.
+	t.Run("partial-loss", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		writeWorktreeFile(t, dir, "keep.txt", "keep\n")
+		writeWorktreeFile(t, dir, "drop.txt", "drop\n")
+		source := commitAll(t, dir, "add keep+drop")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		writeWorktreeFile(t, dir, "keep.txt", "keep\n")
+		target := commitAll(t, dir, "carry keep only")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "drop.txt")
+		if containsPath(got.Paths, "keep.txt") {
+			t.Fatalf("keep.txt was preserved but appears in differing Paths %v", got.Paths)
+		}
+	})
+
+	// Row 7: target carries catalog.yaml with DIFFERENT bytes — matched on oid,
+	// not filename presence -> unproven, entry-differs (spec §10 ambiguity refuses).
+	t.Run("overlapping-edit", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		source := commitFile(t, dir, "catalog.yaml", "items: original\n", "add catalog")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		target := commitFile(t, dir, "catalog.yaml", "items: edited differently\n", "add edited catalog")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "catalog.yaml")
+	})
+
+	// Row 8a: source deletes a file; target absent it too -> proven by content
+	// (a source deletion requires absence).
+	t.Run("deletion-preserved", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		writeWorktreeFile(t, dir, "doomed.txt", "bye\n")
+		writeWorktreeFile(t, dir, "keep.txt", "stay\n")
+		b0 := commitAll(t, dir, "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		gitOut(t, dir, "rm", "-q", "doomed.txt")
+		source := commitAll(t, dir, "delete doomed")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		gitOut(t, dir, "rm", "-q", "doomed.txt")
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "delete doomed on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	// Row 8b: source deletes a file; target still HAS it -> unproven, entry-differs.
+	// This is the row the second hostile probe (flip the 'D' match to true) reddens.
+	t.Run("deletion-lost", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		writeWorktreeFile(t, dir, "doomed.txt", "bye\n")
+		writeWorktreeFile(t, dir, "keep.txt", "stay\n")
+		b0 := commitAll(t, dir, "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		gitOut(t, dir, "rm", "-q", "doomed.txt")
+		source := commitAll(t, dir, "delete doomed")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "keep doomed on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "doomed.txt")
+	})
+
+	// Row 9a: source renames old->new (rename detection OFF: delete + add); target
+	// preserves both sides -> proven by content.
+	t.Run("rename-preserved", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		writeWorktreeFile(t, dir, "old.txt", "content\n")
+		b0 := commitAll(t, dir, "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		gitOut(t, dir, "mv", "old.txt", "new.txt")
+		source := commitAll(t, dir, "rename old->new")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		gitOut(t, dir, "mv", "old.txt", "new.txt")
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "rename old->new on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	// Row 9b: source renames old->new; target keeps the OLD name only -> unproven,
+	// both the vanished-delete and the missing-add surface.
+	t.Run("rename-lost", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		writeWorktreeFile(t, dir, "old.txt", "content\n")
+		b0 := commitAll(t, dir, "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		gitOut(t, dir, "mv", "old.txt", "new.txt")
+		source := commitAll(t, dir, "rename old->new")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "keep old name on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "old.txt", "new.txt")
+	})
+
+	// Row 10a: chmod +x preserved (same blob oid, mode 100755) -> proven by content.
+	t.Run("mode-change-preserved", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		writeWorktreeFile(t, dir, "script.sh", "#!/bin/sh\necho hi\n")
+		b0 := commitAll(t, dir, "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		if err := os.Chmod(filepath.Join(dir, "script.sh"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		source := commitAll(t, dir, "chmod +x script")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		if err := os.Chmod(filepath.Join(dir, "script.sh"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "chmod +x on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	// Row 10b: chmod +x lost — target keeps mode 100644 (same blob) -> unproven,
+	// the exact mode mismatch is reported.
+	t.Run("mode-change-lost", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		writeWorktreeFile(t, dir, "script.sh", "#!/bin/sh\necho hi\n")
+		b0 := commitAll(t, dir, "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		if err := os.Chmod(filepath.Join(dir, "script.sh"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		source := commitAll(t, dir, "chmod +x script")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "leave mode unchanged on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "script.sh")
+	})
+
+	// Row 11a: symlink preserved vs lost (mode 120000).
+	t.Run("symlink-preserved", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "target-file.txt", "data\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		if err := os.Symlink("target-file.txt", filepath.Join(dir, "link")); err != nil {
+			t.Fatal(err)
+		}
+		source := commitAll(t, dir, "add symlink")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		if err := os.Symlink("target-file.txt", filepath.Join(dir, "link")); err != nil {
+			t.Fatal(err)
+		}
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "add symlink on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	t.Run("symlink-lost", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "target-file.txt", "data\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		if err := os.Symlink("target-file.txt", filepath.Join(dir, "link")); err != nil {
+			t.Fatal(err)
+		}
+		source := commitAll(t, dir, "add symlink")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		target := commitFile(t, dir, "extra.txt", "x\n", "no symlink on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "link")
+	})
+
+	// Row 11b: binary blob (embedded NUL bytes) preserved vs lost.
+	t.Run("binary-blob-preserved", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		bin := "\x00\x01\x02\xff\xfe\x00payload\x00\n"
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		writeWorktreeFile(t, dir, "blob.bin", bin)
+		source := commitAll(t, dir, "add binary")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		writeWorktreeFile(t, dir, "blob.bin", bin)
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "add binary on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	t.Run("binary-blob-lost", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		writeWorktreeFile(t, dir, "blob.bin", "\x00\x01\x02original\x00\n")
+		source := commitAll(t, dir, "add binary")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		writeWorktreeFile(t, dir, "blob.bin", "\x00\x01\x02DIFFERENT\x00\n")
+		target := commitAll(t, dir, "add different binary on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "blob.bin")
+	})
+
+	// Row 11c: gitlink (submodule pin, mode 160000) preserved vs lost. The pinned
+	// commit id need not be a present object — it is recorded in the tree.
+	t.Run("gitlink-preserved", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		sub := "1111111111111111111111111111111111111111"
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		gitOut(t, dir, "update-index", "--add", "--cacheinfo", "160000,"+sub+",sub")
+		gitOut(t, dir, "commit", "-q", "-m", "add gitlink")
+		source := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		gitOut(t, dir, "update-index", "--add", "--cacheinfo", "160000,"+sub+",sub")
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		gitOut(t, dir, "add", "extra.txt")
+		gitOut(t, dir, "commit", "-q", "-m", "add gitlink on dest line")
+		target := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	t.Run("gitlink-lost", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		gitOut(t, dir, "update-index", "--add", "--cacheinfo", "160000,1111111111111111111111111111111111111111,sub")
+		gitOut(t, dir, "commit", "-q", "-m", "add gitlink")
+		source := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		gitOut(t, dir, "update-index", "--add", "--cacheinfo", "160000,2222222222222222222222222222222222222222,sub")
+		gitOut(t, dir, "commit", "-q", "-m", "different gitlink pin on dest line")
+		target := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "sub")
+	})
+
+	// Row 11d: a file->directory transition. Framed as a directory replaced by a
+	// file at the same path so the delta is {xfd/inner.txt D, xfd A(blob)}: the
+	// preserved target carries the file; the lost target keeps the directory, whose
+	// ls-tree tree entry (mode 040000) can never equal the delta's blob mode.
+	t.Run("file-to-directory-preserved", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		writeWorktreeFile(t, dir, "xfd/inner.txt", "inner\n")
+		b0 := commitAll(t, dir, "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		gitOut(t, dir, "rm", "-q", "xfd/inner.txt")
+		writeWorktreeFile(t, dir, "xfd", "now a file\n")
+		source := commitAll(t, dir, "dir xfd becomes a file")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		gitOut(t, dir, "rm", "-q", "xfd/inner.txt")
+		writeWorktreeFile(t, dir, "xfd", "now a file\n")
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "same transition on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	t.Run("file-to-directory-lost", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		writeWorktreeFile(t, dir, "xfd/inner.txt", "inner\n")
+		b0 := commitAll(t, dir, "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		gitOut(t, dir, "rm", "-q", "xfd/inner.txt")
+		writeWorktreeFile(t, dir, "xfd", "now a file\n")
+		source := commitAll(t, dir, "dir xfd becomes a file")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "keep xfd directory on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		// Both the delete (xfd/inner.txt still present) and the add (xfd is a
+		// directory, mode 040000 != a blob mode) surface as differing.
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "xfd/inner.txt", "xfd")
+	})
+
+	// Row 11e: an unusual path (space + UTF-8) preserved vs lost.
+	t.Run("unusual-path-preserved", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		odd := "my dir/naïve café.txt"
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		writeWorktreeFile(t, dir, odd, "hi\n")
+		source := commitAll(t, dir, "add unusual path")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		writeWorktreeFile(t, dir, odd, "hi\n")
+		writeWorktreeFile(t, dir, "extra.txt", "x\n")
+		target := commitAll(t, dir, "add unusual path on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByContent, "")
+	})
+
+	t.Run("unusual-path-lost", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		odd := "my dir/naïve café.txt"
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		writeWorktreeFile(t, dir, odd, "hi\n")
+		source := commitAll(t, dir, "add unusual path")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		target := commitFile(t, dir, "extra.txt", "x\n", "no unusual path on dest line")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, RepoPath(odd))
+	})
+
+	// Row 12: an orphan target root shares no history -> unproven, no-common-base.
+	t.Run("no-common-base", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		source := commitFile(t, dir, "a.txt", "a\n", "main root")
+		gitOut(t, dir, "checkout", "-q", "--orphan", "other")
+		gitOut(t, dir, "rm", "-rfq", "--cached", ".")
+		target := commitFile(t, dir, "b.txt", "b\n", "orphan root")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveNoCommonBase)
+	})
+
+	// Row 13: a criss-cross with two merge bases -> unproven, multiple-bases (never
+	// pick an arbitrary base). This is the row the first hostile probe reddens.
+	t.Run("multiple-bases", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		commitFile(t, dir, "root.txt", "root\n", "root")
+		root := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+		gitOut(t, dir, "checkout", "-q", "-b", "x", string(root))
+		a := commitFile(t, dir, "a.txt", "a\n", "a")
+		gitOut(t, dir, "checkout", "-q", "-b", "y", string(root))
+		b := commitFile(t, dir, "b.txt", "b\n", "b")
+		gitOut(t, dir, "checkout", "-q", "x")
+		gitOut(t, dir, "merge", "--no-ff", "--no-edit", string(b))
+		source := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+		gitOut(t, dir, "checkout", "-q", "y")
+		gitOut(t, dir, "merge", "--no-ff", "--no-edit", string(a))
+		target := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveMultipleBases)
+	})
+
+	// Row 14: source is an empty commit on the sole merge base (equal tree) and is
+	// not an ancestor of target -> unproven, empty-delta (never manufacture proof
+	// from an empty population).
+	t.Run("empty-delta-non-ancestral", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		gitOut(t, dir, "commit", "-q", "--allow-empty", "-m", "empty child commit")
+		source := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		target := commitFile(t, dir, "advance.txt", "adv\n", "advance dest")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEmptyDelta)
+	})
+
+	// Row 15: a 40-hex source absent everywhere is an observation ERROR from input
+	// resolution — never an outcome.
+	t.Run("missing-source-object", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		target := commitFile(t, dir, "a.txt", "a\n", "c0")
+		absent := ObjectID("0123456789012345678901234567890123456789")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", absent, target)
+		if err == nil {
+			t.Fatalf("ProvePreserved with an absent source object returned nil error, want an observation error (got %+v)", got)
+		}
+	})
+
+	// Row 16: a custom merge driver that would "resolve" anything cannot
+	// manufacture proof — re-run the overlapping edit; the comparison never invokes
+	// merge machinery (spec §9).
+	t.Run("merge-driver-cannot-help", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		gitOut(t, dir, "config", "merge.alwaysours.driver", "true")
+		writeWorktreeFile(t, dir, ".gitattributes", "* merge=alwaysours\n")
+		writeWorktreeFile(t, dir, "base.txt", "base\n")
+		b0 := commitAll(t, dir, "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		source := commitFile(t, dir, "catalog.yaml", "items: original\n", "add catalog")
+		gitOut(t, dir, "checkout", "-q", "-b", "dest", string(b0))
+		target := commitFile(t, dir, "catalog.yaml", "items: edited differently\n", "add edited catalog")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "catalog.yaml")
+	})
+}

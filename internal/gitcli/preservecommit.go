@@ -261,6 +261,148 @@ func parseDiffTreeRawZ(out []byte) ([]deltaEntry, error) {
 	return entries, nil
 }
 
+// PreservationOutcome is the closed top-level verdict of a preservation query.
+type PreservationOutcome string
+
+const (
+	// PreservationProven: source's work is demonstrably present in target.
+	PreservationProven PreservationOutcome = "proven"
+	// PreservationUnproven: the query completed but could not demonstrate
+	// preservation. Uncertainty is unproven — never a fabricated proof, never an
+	// error.
+	PreservationUnproven PreservationOutcome = "unproven"
+)
+
+// PreservationKind names HOW a proven verdict was established; it is set only
+// when the outcome is PreservationProven.
+type PreservationKind string
+
+const (
+	// PreservationByAncestry: source is an ancestor of target, so every one of
+	// source's objects is reachable from target unchanged.
+	PreservationByAncestry PreservationKind = "ancestry"
+	// PreservationByContent: source is not an ancestor, but the complete
+	// base->source tracked-entry delta reproduces exactly in target (oid+mode,
+	// deletions absent).
+	PreservationByContent PreservationKind = "exact-content"
+)
+
+// Closed unproven-detail tokens — stable machine strings a caller may branch on.
+// Detail carries exactly one of these when the outcome is unproven; it is "" on
+// a proven verdict.
+const (
+	// PreserveNoCommonBase: source and target share no common ancestor, so there
+	// is no base against which to compare a delta.
+	PreserveNoCommonBase = "no-common-base"
+	// PreserveMultipleBases: source and target have more than one merge base
+	// (criss-cross history); picking an arbitrary base could manufacture a false
+	// proof, so the query refuses rather than choose.
+	PreserveMultipleBases = "multiple-bases"
+	// PreserveEmptyDelta: source changes nothing relative to the sole base, so
+	// there is no work to prove preserved; a proof from an empty population would
+	// be vacuous.
+	PreserveEmptyDelta = "empty-delta"
+	// PreserveEntryDiffers: at least one base->source changed entry is absent or
+	// differs (by oid or mode) in target; the differing paths are in Paths.
+	PreserveEntryDiffers = "entry-differs"
+)
+
+// PreservationCheck is the full result of a preservation query: the verdict, how
+// a proof was reached, a closed detail token when unproven, and a bounded set of
+// differing diagnostic paths.
+type PreservationCheck struct {
+	Outcome PreservationOutcome
+	Kind    PreservationKind // set only when proven
+	Detail  string           // closed token when unproven; "" when proven
+	Paths   []RepoPath       // bounded diagnostic (<= 8 differing paths)
+}
+
+// maxDifferingPaths bounds the diagnostic Paths slice; a mismatch beyond the cap
+// is still recorded as a mismatch (the outcome stays unproven), only its path is
+// omitted from the diagnostic.
+const maxDifferingPaths = 8
+
+// ProvePreserved reports whether source's work (source = a child's authoritative
+// merge-result commit) is preserved in target. Ancestry proves outright:
+// everything source holds is reachable from target. Otherwise the FULL
+// base->source tracked-entry delta must reproduce exactly in target — every
+// changed entry present at the same oid and mode, and every source deletion
+// absent — where base is the SINGLE merge base of source and target. Zero, or
+// more than one, merge base is an unproven refusal (never an arbitrary pick), as
+// is an empty delta. Uncertainty is unproven; inability to observe an operand
+// (invalid, missing, non-commit, or shallow) is an error, never a verdict. The
+// comparison reads Git objects only — no merge drivers, filters, or rename
+// detection can manufacture a proof.
+func (c *Client) ProvePreserved(ctx context.Context, repo Repository, remote RemoteName, source, target ObjectID) (PreservationCheck, error) {
+	if f := c.ensurePreservationInputs(ctx, repo, remote, source, target); f != nil {
+		return PreservationCheck{}, f
+	}
+	ok, err := c.IsAncestor(ctx, repo, source, target)
+	if err != nil {
+		return PreservationCheck{}, err
+	}
+	if ok {
+		return PreservationCheck{Outcome: PreservationProven, Kind: PreservationByAncestry}, nil
+	}
+	bases, f := c.mergeBasesAll(ctx, repo, source, target)
+	if f != nil {
+		return PreservationCheck{}, f
+	}
+	if len(bases) == 0 {
+		return PreservationCheck{Outcome: PreservationUnproven, Detail: PreserveNoCommonBase}, nil
+	}
+	if len(bases) > 1 {
+		return PreservationCheck{Outcome: PreservationUnproven, Detail: PreserveMultipleBases}, nil
+	}
+	delta, f := c.commitDelta(ctx, repo, bases[0], source)
+	if f != nil {
+		return PreservationCheck{}, f
+	}
+	if len(delta) == 0 {
+		// Conservative: never manufacture proof from an empty population.
+		return PreservationCheck{Outcome: PreservationUnproven, Detail: PreserveEmptyDelta}, nil
+	}
+	paths := make([]RepoPath, 0, len(delta))
+	for _, d := range delta {
+		paths = append(paths, d.Path)
+	}
+	entries, err := c.TreeEntryIDs(ctx, repo, target, paths)
+	if err != nil {
+		return PreservationCheck{}, err
+	}
+	// A directory-valued path (a file->directory transition) yields a single
+	// `tree` entry whose mode 040000 can never equal a blob's NewMode, so the
+	// comparison below stays conservative for it.
+	at := make(map[RepoPath]TreeEntry, len(entries))
+	for _, e := range entries {
+		at[e.Path] = e
+	}
+	// Track "a mismatch exists" separately from the bounded diagnostic slice: the
+	// path cap must never shorten the verdict — even a mismatch past the cap keeps
+	// the outcome unproven.
+	mismatched := false
+	var differing []RepoPath
+	for _, d := range delta {
+		e, present := at[d.Path]
+		match := false
+		if d.Status == 'D' {
+			match = !present // a source deletion requires absence in target
+		} else {
+			match = present && e.ObjectID == d.NewOID && e.Mode == d.NewMode
+		}
+		if !match {
+			mismatched = true
+			if len(differing) < maxDifferingPaths {
+				differing = append(differing, d.Path)
+			}
+		}
+	}
+	if mismatched {
+		return PreservationCheck{Outcome: PreservationUnproven, Detail: PreserveEntryDiffers, Paths: differing}, nil
+	}
+	return PreservationCheck{Outcome: PreservationProven, Kind: PreservationByContent}, nil
+}
+
 // isAllZeroOID reports whether id is the all-zero object id git emits for an
 // absent side of a raw diff record (40 or 64 zeros); it is legal on a source
 // deletion only.
