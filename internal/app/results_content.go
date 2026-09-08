@@ -310,17 +310,35 @@ func parseResultsHeading(text string) (level int, htext string, ok bool) {
 	return n, htext, true
 }
 
-// isResultsPlaceholderLine reports whether a line is unfilled authoring
-// scaffolding: (a) any whole-word placeholder token (reusing change_attach.go's
-// placeholderTokenRE alternation verbatim), or (b) a line whose text — after
-// stripping leading heading/list markers and whitespace — begins with `<` and is
-// neither an HTML comment (`<!--`) nor an autolink (`<http`).
+// isResultsPlaceholderLine reports whether a line is unfilled scaffolding from
+// the canonical results template (skills/docket-implement-next/results-template.md).
+//
+// Detection is keyed on the template's own placeholder-instruction SHAPE: after
+// stripping leading heading/list markers and whitespace, an angle bracket
+// immediately followed by an uppercase ASCII letter — the capitalized English
+// instruction phrases the template emits (`<Change title>`, `<What was
+// delivered…>`, `<Finding>`, `<Human action.>`, `<Actionable follow-up>`).
+//
+// It deliberately does NOT match on the bare content-word tokens
+// TODO/FIXME/TBD/XXX/TKTK/PLACEHOLDER: results prose legitimately discusses those
+// (e.g. "address the FIXME in retry logic", "the TODO is deferred to change
+// 0NNN"), especially in ## Findings and limitations and ## Follow-ups, and a
+// content word is not scaffolding. That vocabulary (change_attach.go's
+// placeholderTokenRE) governs plans — where those words mean unfinished work —
+// not results, and is intentionally not consulted here.
+//
+// Keying on the UPPERCASE first letter is also what separates real scaffolding
+// from legitimate inline HTML (<details>, <summary>, <br>, <sub>) and non-http
+// autolinks (<mailto:…>, <tel:…>): those lead with a lowercase tag name or URI
+// scheme, so they are not matched. HTML comments (`<!--`) and http autolinks
+// (`<http…>`) fall out of the same rule (`!` and `h` are not uppercase letters).
 func isResultsPlaceholderLine(text string) bool {
-	if placeholderTokenRE.MatchString(text) {
-		return true
-	}
 	s := stripResultsLeadMarkers(text)
-	return strings.HasPrefix(s, "<") && !strings.HasPrefix(s, "<!--") && !strings.HasPrefix(s, "<http")
+	if len(s) < 2 || s[0] != '<' {
+		return false
+	}
+	c := s[1]
+	return c >= 'A' && c <= 'Z'
 }
 
 // stripResultsLeadMarkers removes leading whitespace, heading markers, and one
