@@ -77,18 +77,18 @@ operation with `--change-id <id> --task-id <task-N> --phase build --branch <bran
 <worktree> --gate-context <dispatch-context> --json` (the dispatch context arrived in *your* prompt from
 the gated parent — pass its value through). Capture the scope id and **both** capabilities from the
 `--json` response before dispatching (the shared JSON-capture requirement); the parent capability
-stays in your notes. Then dispatch the profile agent **by name**, foreground,
-one task at a time — later tasks build on earlier task commits and share the worktree, so workers
-are strictly sequential. Give the worker: the plan task text, the branch and worktree, the applicable
-repository instructions, the selected profile and routing reason, the **scope id and child
-capability only**, and the completion schema; the parent capability stays in your notes and never
-enters any prompt, log, or report. Never dispatch a task reviewer, and
+stays in your notes. Then dispatch the selected profile agent **by name** — one of
+`docket-build-economy`, `docket-build-standard`, `docket-build-premium`, or `docket-build-max` —
+foreground, one task at a time; later tasks build on earlier task commits and share the worktree, so
+workers are strictly sequential. Its dispatch payload contains:
+Feature worktree: <absolute canonical feature-worktree root>
+It also gives the worker the plan task text, branch, applicable repository instructions, selected
+profile and routing reason, **scope id and child capability only**, and completion schema; the parent
+capability stays in your notes and never enters any prompt, log, or report. Never dispatch a task reviewer, and
 never dispatch two workers concurrently — that binds a controller who *believes the first worker
 is gone* exactly as it binds one dispatching deliberately. Never preload a review skill either —
 for a **named** agent the wrapper's own `skills:` frontmatter is the operative protection, so what it
 forbids is bolting a review skill or instruction onto the dispatch prompt.
-A worker reached through a runner delegation receives its worktree through the facade's
-`--worktree` flag, not through the prompt body alone.
 
 If profile dispatch is genuinely unavailable — established only per the convention's
 *Dispatch-capability resolution*, **never from a tool name** — this role is **Tier C,

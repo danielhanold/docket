@@ -10,11 +10,11 @@ are not auto-loaded with the skill.
 `docket-rebase-resolver` resolves conflicts *during* the rebase and never runs Git rebase mechanics
 or tests; `docket-integration-repair` owns the **red suite** *after* the rebase lands, regardless of
 cause. Neither wraps a skill (only `docket-convention`); both are dispatched **foreground at the
-model/effort its wrapper resolves** — never a literal tier. Name the **feature worktree** in the
-dispatch payload for either agent — both are feature-scoped, so reached through a runner delegation
-each receives that worktree through the facade's `--worktree` flag, and a delegated dispatch that
-names none is refused. An authored repair from `docket-integration-repair` is what fires the
-sign-off rule below; pure conflict resolution does not.
+model/effort its wrapper resolves** — never a literal tier. Either dispatch payload includes:
+Feature worktree: <absolute canonical feature-worktree root>
+This harness-neutral input serves the feature-scoped role; Codex enters it through its installed
+contract and other harnesses retain their native worktree mechanism. An authored repair from
+`docket-integration-repair` is what fires the sign-off rule below; pure conflict resolution does not.
 
 Both agents return an **authored hint, never authority**: the controller feeds it to the matching
 `docket` operation, which verifies every mechanical claim against live Git — the reported paths
