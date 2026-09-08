@@ -48,11 +48,15 @@ import (
 //   3. Stack root carry: the destination is the integration branch AND the change
 //      roots a stack of stacked-merged descendants. domain.DeriveRootCloseoutSet
 //      proves, from the authoritative graph and live PR facts, the chain of merged
-//      destinations that carried every descendant into the root. One transaction
-//      archives the root plus every proven descendant using the ROOT's merge date
-//      for every archive filename, and renders one board over the final
-//      population. A single unproven descendant keeps the whole root recoverable —
-//      zero descendant writes.
+//      destinations that establishes the carry RELATIONSHIP for every descendant
+//      into the root; each descendant is then proven in Git — its merge result
+//      reachable in the pinned integration history, or exact-content preserved at
+//      the root's own merge result — before any archive write, because a merged
+//      destination is a relationship, never evidence the content survived a
+//      stale-worktree rewrite. One transaction archives the root plus every proven
+//      descendant using the ROOT's merge date for every archive filename, and
+//      renders one board over the final population. A single unproven descendant
+//      keeps the whole root recoverable — zero descendant writes.
 //
 // Backlinks across the one topology: the metadata transaction lands first and
 // retargets every backlink block resident ON the metadata ref (the spec). The

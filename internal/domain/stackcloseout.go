@@ -1,11 +1,13 @@
 package domain
 
 // CarriedDescendant is one stacked descendant's share of a root closeout. Proof
-// is empty when the descendant's stacked-merged code is proven to have been
-// carried into the root through a chain of merged PR destinations; otherwise it
-// is a closed refusal token naming the first broken link. The descendant is
-// always surfaced — a refusal is reported, never dropped — so the caller can
-// keep the whole root recoverable.
+// is empty when the descendant's carry RELATIONSHIP into the root is
+// established — an unbroken chain of merged PR destinations matching the recorded
+// parent branches; otherwise it is a closed refusal token naming the first broken
+// link. A merged-destination chain proves that relationship only: that the code
+// actually survived into the carrying head is proven separately, in Git, by the
+// caller. The descendant is always surfaced — a refusal is reported, never
+// dropped — so the caller can keep the whole root recoverable.
 type CarriedDescendant struct {
 	ID    ChangeID
 	Proof string // "" when proven; else closed refusal token
@@ -24,8 +26,12 @@ const (
 )
 
 // DeriveRootCloseoutSet verifies, for every change stacked transitively on root,
-// the chain of merged pull-request destinations that carried its stacked-merged
-// code up into the root. The returned slice is parent-first (StackDescendantsParentFirst
+// the chain of merged pull-request destinations that establishes its
+// stacked-merged code's carry RELATIONSHIP up into the root. A merged destination
+// proves that relationship only; that the code was actually preserved in Git —
+// reachable in the pinned integration history, or exact-content at the root's own
+// merge result — is the caller's separate obligation before any archive write.
+// The returned slice is parent-first (StackDescendantsParentFirst
 // order); each entry's Proof is empty when proven or a closed refusal token
 // otherwise. facts supplies each change's live PR state; a missing or unknown
 // entry is treated as an unconfirmable merge (pr-unknown), never a clean carry.

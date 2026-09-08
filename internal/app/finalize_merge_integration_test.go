@@ -758,3 +758,158 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		}
 	})
 }
+
+// --- transitive / open-intermediate carry proof (Task 11) -----------------
+
+// seedMergeCarryGrandchild seeds a stacked-merged grandchild (id 7, gizmo, PR #9)
+// stacked on the carry child (id 6, gadget) whose recorded branch is feat/gadget,
+// so a carried set derived from the root descends transitively through id 6 into
+// id 7 — the grandchild the root's branch also promises to carry.
+func seedMergeCarryGrandchild(t *testing.T, f *rebaseFixture) {
+	t.Helper()
+	recPath := groomPath(7, "gizmo")
+	desc := closeoutRecord(7, "gizmo", "stacked-merged", "github.com/acme/widget#9", "",
+		"docs/superpowers/plans/2026-08-16-gizmo-plan.md", "")
+	desc = strings.Replace(desc, "stacked_on:\n", "stacked_on: 6\n", 1)
+	f.repo.writerAdvance(t, f.branch, map[string]string{recPath: desc})
+}
+
+// seedMergeOpenIntermediate seeds an OPEN (in-progress) intermediate child (id 6,
+// gadget, no merged PR) directly on the merge root, so the carried-set walk stops
+// at it and never descends into the grandchild beneath — that grandchild is not
+// yet promised by the root's branch pre-merge.
+func seedMergeOpenIntermediate(t *testing.T, f *rebaseFixture) {
+	t.Helper()
+	recPath := groomPath(6, "gadget")
+	rec := lifecycleChange(6, "gadget", "in-progress")
+	rec = strings.Replace(rec, "stacked_on:\n", "stacked_on: 5\n", 1)
+	f.repo.writerAdvance(t, f.branch, map[string]string{recPath: rec})
+}
+
+// commitOntoFeature adds files as one real commit on the fixture's feature
+// branch, pushes it, and ADVANCES f.head to the new tip (so carryFake, the merge
+// request, and the green evidence all track the live head). The returned oid is
+// an ancestor of every later feature tip, so a preservation proof against a later
+// head proves it by ancestry — the carried commit really rides the feature head.
+func (f *mergeFixture) commitOntoFeature(t *testing.T, files map[string]string) string {
+	t.Helper()
+	for rel, content := range files {
+		writeRepoFile(t, f.wp, rel, content)
+	}
+	runGit(t, f.wp, "add", "-A")
+	runGit(t, f.wp, "commit", "-q", "-m", "carry commit onto feature")
+	commit := runGit(t, f.wp, "rev-parse", "HEAD")
+	runGit(t, f.wp, "push", "-q", "origin", "feat/"+f.slug)
+	f.head = commit
+	return commit
+}
+
+// TestIntegrationFinalizeMergeCarryTransitive proves the merge boundary verifies
+// EVERY descendant the root's branch promises to carry, transitively down the
+// stacked-merged chain (root <- A <- B), and that it stops at an OPEN intermediate
+// (root <- C(open) <- D) because a grandchild merged into a still-open child is not
+// yet promised by the root pre-merge.
+func TestIntegrationFinalizeMergeCarryTransitive(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	ctx := context.Background()
+
+	t.Run("drop-of-transitive-grandchild-refuses-naming-it", func(t *testing.T) {
+		// root(id5) <- A(id6, present on the feature head) <- B(id7, dropped). A's
+		// merged content rides the feature head (ancestry-proven); B's merge object
+		// EXISTS but its content was never carried onto the feature head. The refusal
+		// must name B — proving the proof reached the grandchild through A.
+		f := setupMergeFixture(t, m)
+		seedRebaseCarryChild(t, f.rebaseFixture)  // id 6 (gadget), stacked-merged, PR #8
+		seedMergeCarryGrandchild(t, f.rebaseFixture) // id 7 (gizmo), stacked-merged, PR #9
+		aMerge := f.commitOntoFeature(t, map[string]string{"gadget.yaml": "A\n"})
+		bDropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"gizmo.yaml": "B\n"})
+		// B's merge object exists (a drop, not a missing object): pins the refusal is
+		// an observed non-preservation, never an observation error.
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", bDropped); err != nil {
+			t.Fatalf("the grandchild merge object must exist to pin a drop: %v", err)
+		}
+		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", aMerge)}
+		gh.merged[9] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/gadget", bDropped)}
+		gh.mergeOutcome = githubcli.MergeMerged
+		gh.mergeFacts = mergedFactsFor(f.head, "main", aMerge)
+
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Reason != ReasonCarryUnproven || res.Result != ResultBlocked || res.Disposition != MergeDispBlocked {
+			t.Fatalf("dropped-grandchild merge = result %q disp %q reason %q, want blocked/blocked/%s", res.Result, res.Disposition, res.Reason, ReasonCarryUnproven)
+		}
+		if gh.mergeCalls != 0 {
+			t.Fatalf("a transitive carry refusal issued %d merge call(s); want 0", gh.mergeCalls)
+		}
+		namesB, namesA := false, false
+		for _, fnd := range res.Findings {
+			if strings.Contains(fnd.Message, "change 0007") {
+				namesB = true
+			}
+			if strings.Contains(fnd.Message, "change 0006") {
+				namesA = true
+			}
+		}
+		if !namesB {
+			t.Fatalf("no finding named the dropped grandchild (change 0007); findings=%v", res.Findings)
+		}
+		if namesA {
+			t.Fatalf("a finding spuriously named the preserved child (change 0006); findings=%v", res.Findings)
+		}
+	})
+
+	t.Run("all-present-through-the-chain-merges", func(t *testing.T) {
+		// root(id5) <- A(id6) <- B(id7), every descendant's merged content riding the
+		// feature head: the transitive proof clears and the merge lands.
+		f := setupMergeFixture(t, m)
+		seedRebaseCarryChild(t, f.rebaseFixture)
+		seedMergeCarryGrandchild(t, f.rebaseFixture)
+		aMerge := f.commitOntoFeature(t, map[string]string{"gadget.yaml": "A\n"})
+		bMerge := f.commitOntoFeature(t, map[string]string{"gizmo.yaml": "B\n"})
+		f.commitOntoFeature(t, map[string]string{"feature-more.txt": "more\n"}) // both carried commits are now strict ancestors
+		mergeCommit := f.mergeFeatureIntoBase(t)
+		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", aMerge)}
+		gh.merged[9] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/gadget", bMerge)}
+		gh.mergeOutcome = githubcli.MergeMerged
+		gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Result != ResultApplied || res.Disposition != MergeDispMerged || res.Merge == nil {
+			t.Fatalf("all-present transitive merge = %q disp %q merge %v (reason %q), want applied/merged verified", res.Result, res.Disposition, res.Merge, res.Reason)
+		}
+		if gh.mergeCalls != 1 {
+			t.Fatalf("the proven transitive merge issued %d merge call(s); want exactly 1", gh.mergeCalls)
+		}
+	})
+
+	t.Run("open-intermediate-does-not-promise-its-grandchild", func(t *testing.T) {
+		// root(id5) <- C(id6, OPEN) <- D(id7, stacked-merged into C). D's content is
+		// absent from the root head, yet the merge proceeds: the carried-set walk stops
+		// at the open intermediate, so D is not promised by the root pre-merge. The
+		// intermediate presents no open PR against the root branch, so the open-child
+		// gate stays clear and this case isolates the carry derivation.
+		f := setupMergeFixture(t, m)
+		seedMergeOpenIntermediate(t, f.rebaseFixture) // id 6 (gadget), in-progress
+		seedMergeCarryGrandchild(t, f.rebaseFixture)  // id 7 (gizmo), stacked-merged into id 6
+		mergeCommit := f.mergeFeatureIntoBase(t)
+		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		// D's PR #9 reprobes merged into C's branch, but D is never reached (C is open),
+		// so its dropped content never gates the merge.
+		gh.merged[9] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/gadget", strings.Repeat("c", 40))}
+		gh.mergeOutcome = githubcli.MergeMerged
+		gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Result != ResultApplied || res.Disposition != MergeDispMerged || res.Merge == nil {
+			t.Fatalf("open-intermediate merge = %q disp %q merge %v (reason %q), want applied/merged (the grandchild is not promised)", res.Result, res.Disposition, res.Merge, res.Reason)
+		}
+		if res.Reason == ReasonCarryUnproven {
+			t.Fatalf("the open-intermediate merge ran a carry proof on the un-promised grandchild")
+		}
+		if gh.mergeCalls != 1 {
+			t.Fatalf("the open-intermediate merge issued %d merge call(s); want exactly 1", gh.mergeCalls)
+		}
+	})
+}
