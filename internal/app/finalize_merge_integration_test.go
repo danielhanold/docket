@@ -547,3 +547,214 @@ func TestIntegrationFinalizeMergeVerification(t *testing.T) {
 		}
 	})
 }
+
+// --- carried-descendant preservation gate (Task 8) ------------------------
+
+// fakeMergeCarryGitHub serves the GitHub reads a carry-gated merge makes: the
+// parent's open PR and open-child probe (FindOpenPullRequestsByHead), each
+// stack descendant's merged reprobe AND the parent's already-merged short
+// circuit (ProbeMerged, keyed by number), and the parent MergePullRequest whose
+// call count is the witness a refused merge issued ZERO external merges. Every
+// other finalize-half method panics so an accidental call is loud. It keys
+// ProbeMerged by number (unlike fakeMergeGitHub's single scripted value) so the
+// parent #7 can stay unmerged while a stacked child #8 reprobes already-merged.
+type fakeMergeCarryGitHub struct {
+	repo       githubcli.Repository
+	openByHead map[string][]githubcli.PullRequest
+	merged     map[int]closeoutProbe
+
+	mergeOutcome githubcli.MergeOutcome
+	mergeMethod  githubcli.MergeMethod
+	mergeFacts   githubcli.MergedFacts
+	mergeCalls   int
+	probes       int
+}
+
+func (f *fakeMergeCarryGitHub) DiscoverRepository(context.Context, string) (githubcli.Repository, error) {
+	return f.repo, nil
+}
+func (f *fakeMergeCarryGitHub) ProbeMerged(_ context.Context, _ githubcli.Repository, number int) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+	f.probes++
+	p, ok := f.merged[number]
+	if !ok {
+		return githubcli.MergeNotMergeable, githubcli.MergedFacts{}, nil
+	}
+	return p.outcome, p.facts, nil
+}
+func (f *fakeMergeCarryGitHub) FindOpenPullRequestsByHead(_ context.Context, _ githubcli.Repository, head string) ([]githubcli.PullRequest, error) {
+	return f.openByHead[head], nil
+}
+func (f *fakeMergeCarryGitHub) MergePullRequest(_ context.Context, _ githubcli.Repository, _ int, _ githubcli.ObjectRef, _ bool) (githubcli.MergeResult, error) {
+	f.mergeCalls++
+	return githubcli.MergeResult{Outcome: f.mergeOutcome, Method: f.mergeMethod, Facts: f.mergeFacts}, nil
+}
+func (f *fakeMergeCarryGitHub) ViewPullRequest(context.Context, githubcli.Repository, int) (githubcli.PullRequest, error) {
+	panic("ViewPullRequest: carry-gated merge must not call this")
+}
+func (f *fakeMergeCarryGitHub) RetargetPullRequest(context.Context, githubcli.Repository, int, string, string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {
+	panic("RetargetPullRequest: carry-gated merge must not call this")
+}
+func (f *fakeMergeCarryGitHub) EnsureComment(context.Context, githubcli.Repository, int, string, string) (githubcli.CommentOutcome, string, error) {
+	panic("EnsureComment: carry-gated merge must not call this")
+}
+func (f *fakeMergeCarryGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
+	panic("FindComment: carry-gated merge must not call this")
+}
+
+// carryFake builds a carry-gated fake whose parent PR (#7) carries prBody (green
+// evidence, or "" when the gate is off) and passes every non-carry conjunct;
+// tests seed the child #8 reprobe and the merge outcome onto it.
+func (f *mergeFixture) carryFake(prBody string) *fakeMergeCarryGitHub {
+	return &fakeMergeCarryGitHub{
+		repo:       retargetRepo(),
+		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.parentPR(f.head, prBody)}},
+		merged:     map[int]closeoutProbe{},
+	}
+}
+
+// TestIntegrationFinalizeMergeCarryPreservation proves FinalizeMerge proves every
+// carried descendant's merged work is preserved at the verified PR head BEFORE
+// the external merge, and that the new gate COMPLEMENTS the existing conjuncts
+// (it never runs before the head/lease conjunct, and never displaces the
+// already-merged short circuit closeout owns the post-merge proof for).
+func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	ctx := context.Background()
+
+	t.Run("all-conjuncts-hold-but-carried-child-lost-refuses-zero-merge-calls", func(t *testing.T) {
+		f := setupMergeFixture(t, m)
+		seedRebaseCarryChild(t, f.rebaseFixture)
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "Y\n"})
+		// The child merge object EXISTS (a drop, not a missing object): pins the
+		// refusal is an observed non-preservation, never an observation error.
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", dropped); err != nil {
+			t.Fatalf("the child merge object must exist to pin a drop: %v", err)
+		}
+		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
+		// A real merge outcome would otherwise land: the witness is that the gate
+		// refuses BEFORE any MergePullRequest, leaving zero merge calls.
+		gh.mergeOutcome = githubcli.MergeMerged
+		gh.mergeFacts = mergedFactsFor(f.head, "main", dropped)
+
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Reason != ReasonCarryUnproven || res.Result != ResultBlocked || res.Disposition != MergeDispBlocked {
+			t.Fatalf("carry-lost merge = result %q disp %q reason %q, want blocked/blocked/%s", res.Result, res.Disposition, res.Reason, ReasonCarryUnproven)
+		}
+		if res.Merge != nil {
+			t.Fatalf("a carry refusal carried a VerifiedMerge")
+		}
+		if len(res.Findings) == 0 {
+			t.Fatalf("a carry refusal carried no findings naming the unproven descendant")
+		}
+		if gh.mergeCalls != 0 {
+			t.Fatalf("a carry refusal issued %d merge call(s); want 0 (witness: no external merge)", gh.mergeCalls)
+		}
+	})
+
+	t.Run("ordinary-change-merges-witness-fires-on-happy-path", func(t *testing.T) {
+		// No stack descendants: the proof is vacuously satisfied with zero probes and
+		// the merge lands, so the MergePullRequest witness fires exactly once — the
+		// companion that proves the zero-call assertion above is not vacuous.
+		f := setupMergeFixture(t, m)
+		mergeCommit := f.mergeFeatureIntoBase(t)
+		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh.mergeOutcome = githubcli.MergeMerged
+		gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Result != ResultApplied || res.Disposition != MergeDispMerged || res.Merge == nil {
+			t.Fatalf("ordinary merge = %q disp %q merge %v (reason %q), want applied/merged verified", res.Result, res.Disposition, res.Merge, res.Reason)
+		}
+		if gh.mergeCalls != 1 {
+			t.Fatalf("the happy-path witness issued %d merge call(s); want exactly 1", gh.mergeCalls)
+		}
+	})
+
+	t.Run("gate-off-enforces-the-same-proof", func(t *testing.T) {
+		f := setupMergeFixture(t, m)
+		seedRebaseCarryChild(t, f.rebaseFixture)
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "G\n"})
+		// finalize.gate: off — the gate conjunct is satisfied by config, not by
+		// green PR evidence, so the merge reaches the proof through the gate-off
+		// route. The proof still runs and refuses: gate mode cannot disable it.
+		f.repo.writerAdvance(t, "main", map[string]string{
+			".docket.yml": "integration_branch: main\nbuild:\n  test_command: 'go test ./...'\nfinalize:\n  gate: \"off\"\n  test_command: 'go test ./...'\n",
+		})
+		gh := f.carryFake("") // NO green evidence: only gate-off lets the gate conjunct pass
+		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
+		gh.mergeOutcome = githubcli.MergeMerged
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Reason != ReasonCarryUnproven {
+			t.Fatalf("gate-off carry-lost merge = reason %q (result %q msg %q), want %s (gate mode cannot disable the proof)", res.Reason, res.Result, res.Message, ReasonCarryUnproven)
+		}
+		if gh.mergeCalls != 0 {
+			t.Fatalf("gate-off carry refusal issued %d merge call(s); want 0", gh.mergeCalls)
+		}
+	})
+
+	t.Run("direct-merge-explicit-id-enforces-the-proof", func(t *testing.T) {
+		// An explicit-id request reaches FinalizeMerge directly, with no prior rebase
+		// receipt: the proof still gates the external merge.
+		f := setupMergeFixture(t, m)
+		seedRebaseCarryChild(t, f.rebaseFixture)
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "D\n"})
+		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
+		gh.mergeOutcome = githubcli.MergeMerged
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Reason != ReasonCarryUnproven || res.Result != ResultBlocked {
+			t.Fatalf("direct explicit-id carry-lost merge = result %q reason %q, want blocked/%s", res.Result, res.Reason, ReasonCarryUnproven)
+		}
+		if gh.mergeCalls != 0 {
+			t.Fatalf("direct-merge carry refusal issued %d merge call(s); want 0", gh.mergeCalls)
+		}
+	})
+
+	t.Run("concurrent-head-move-fails-the-existing-conjunct-first", func(t *testing.T) {
+		// The PR head no longer matches the requested head: the EXISTING
+		// exact-head/lease conjunct rejects the movement BEFORE the carry proof, so
+		// the reason is the existing head-moved token, not the carry reason — proving
+		// the new gate complements, not replaces, the head/lease authorization.
+		f := setupMergeFixture(t, m)
+		seedRebaseCarryChild(t, f.rebaseFixture)
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "H\n"})
+		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
+		gh.mergeOutcome = githubcli.MergeMerged
+		other := strings.Repeat("b", 40)
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, other, true, false))
+		if res.Reason != "head-moved" {
+			t.Fatalf("concurrent head move = reason %q, want the existing head-moved conjunct (carry gate must not preempt it)", res.Reason)
+		}
+		if res.Reason == ReasonCarryUnproven {
+			t.Fatalf("the carry gate preempted the existing head/lease conjunct")
+		}
+		if gh.mergeCalls != 0 {
+			t.Fatalf("a head-moved refusal issued %d merge call(s); want 0", gh.mergeCalls)
+		}
+	})
+
+	t.Run("already-merged-short-circuit-unchanged-no-new-proof", func(t *testing.T) {
+		// An already-merged exact PR is a verified no-op probed BEFORE the conjunct
+		// recheck and the carry proof; closeout owns the post-merge proof, so a lost
+		// carried child does not turn the short circuit into a carry refusal.
+		f := setupMergeFixture(t, m)
+		mergeCommit := f.mergeFeatureIntoBase(t)
+		seedRebaseCarryChild(t, f.rebaseFixture)
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "A\n"})
+		gh := f.carryFake(greenEvidenceFor(t, f.head))
+		gh.merged[7] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", mergeCommit)}
+		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
+		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		if res.Result != ResultNoOp || res.Disposition != MergeDispAlreadyMerged || res.Merge == nil {
+			t.Fatalf("already-merged short circuit = %q disp %q merge %v (reason %q), want no-op/already-merged verified", res.Result, res.Disposition, res.Merge, res.Reason)
+		}
+		if res.Reason == ReasonCarryUnproven {
+			t.Fatalf("the already-merged short circuit ran the carry proof; closeout owns the post-merge proof")
+		}
+		if gh.mergeCalls != 0 {
+			t.Fatalf("an already-merged PR issued %d merge call(s); want 0", gh.mergeCalls)
+		}
+	})
+}
