@@ -6,9 +6,9 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
+| [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-configurable-finalize-resolver-dispatch-cap-design.md) | `feat/configurable-finalize-resolver-dispatch-cap` |  |
 | [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | [spec](../) | `fix/gate-drive-start-human-output-omits-drive-id-generation` |  |
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-halt-report-authoring-writes-a-duplicate-run-halted-heading-design.md) | `fix/halt-report-authoring-writes-a-duplicate-run-halted-heading` |  |
-| [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-configurable-finalize-resolver-dispatch-cap-design.md) | `feat/configurable-finalize-resolver-dispatch-cap` |  |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-stack-closeout-must-prove-integration-reachability-design.md) | `fix/stack-closeout-must-prove-integration-reachability` |  |
 
 ## 🔵 Built (1)

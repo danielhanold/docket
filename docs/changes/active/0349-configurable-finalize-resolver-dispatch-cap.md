@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: medium
 type: feat
 created: 2026-08-26
-updated: '2026-09-07'
+updated: '2026-09-08'
 depends_on: []
 stacked_on:
 related: [291, 334, 392, 396, 399, 403]
@@ -21,7 +21,7 @@ branch: 'feat/configurable-finalize-resolver-dispatch-cap'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T16:17:24Z'
+claimed_at: '2026-09-08T03:39:25Z'
 ---
 
 ## Artifacts
