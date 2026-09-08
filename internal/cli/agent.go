@@ -70,7 +70,12 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 				setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultInvalidState), Role: role, Reason: reason, Message: agentEntryRefusalMessage(reason)})
 				return nil
 			}
-			if err := validateInstalledRole(opts, contract); err != nil {
+			contract, rolePath, err := resolveInstalledRoleContract(c.Context(), git, opts, contract, effectiveCWD)
+			if err != nil {
+				setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultInvalidState), Role: role, Reason: "role-contract-unavailable", Message: err.Error()})
+				return nil
+			}
+			if err := validateInstalledRole(opts, contract, rolePath); err != nil {
 				setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultInvalidState), Role: role, Reason: "role-contract-unavailable", Message: err.Error()})
 				return nil
 			}
@@ -185,10 +190,42 @@ func agentEntryRefusalMessage(reason string) string {
 }
 
 // Protocol compatibility alone cannot prove that the role Codex registered is
-// the one this binary will enter. Compare the selected installed target with
-// the same planner used by install, and compare its preloads with the catalog.
-// This reads only: edited or stale contracts require an explicit reinstall.
-func validateInstalledRole(opts install.Options, contract codex.RoleContract) error {
+// the one this binary will enter. The native role is selected using Codex's
+// repository-before-global precedence and parsed into the inventory contract.
+func resolveInstalledRoleContract(ctx context.Context, git *gitcli.Client, opts install.Options, inventory codex.RoleContract, effectiveCWD string) (codex.RoleContract, string, error) {
+	globalPath := filepath.Join(opts.Roots.Home, ".codex", "agents", inventory.Name+".toml")
+	rolePath := globalPath
+	if git == nil {
+		var err error
+		git, err = gitcli.NewClient()
+		if err != nil {
+			return codex.RoleContract{}, "", fmt.Errorf("creating git client: %w", err)
+		}
+	}
+	if wt, err := git.DiscoverWorktree(ctx, gitcli.DiscoverOptions{InvocationPath: effectiveCWD}); err == nil {
+		repoPath := filepath.Join(wt.Root, ".codex", "agents", inventory.Name+".toml")
+		if _, statErr := os.Stat(repoPath); statErr == nil {
+			rolePath = repoPath
+		} else if !os.IsNotExist(statErr) {
+			return codex.RoleContract{}, "", fmt.Errorf("inspecting repository role contract at %s: %w", repoPath, statErr)
+		}
+	}
+	data, err := os.ReadFile(rolePath)
+	if err != nil {
+		return codex.RoleContract{}, "", fmt.Errorf("installed role contract unavailable at %s: %w; run docket install", rolePath, err)
+	}
+	contract, err := codex.RoleContractFromDefinition(data, inventory)
+	if err != nil {
+		return codex.RoleContract{}, "", fmt.Errorf("installed role contract invalid at %s: %w; run docket install", rolePath, err)
+	}
+	return contract, rolePath, nil
+}
+
+// validateInstalledRole proves the global fallback byte-for-byte against the
+// installer plan and every skill preload against the catalog. Repository roles
+// are already syntax- and identity-checked by resolveInstalledRoleContract;
+// their native values are deliberately allowed to differ from the global plan.
+func validateInstalledRole(opts install.Options, contract codex.RoleContract, rolePath string) error {
 	targets, err := codex.New().Plan(harness.PlanInput{
 		Roots: opts.Roots, Assets: opts.Catalog, Agents: opts.Config.Effective.Agents,
 		AssetsDir: opts.Roots.VersionDir(opts.Catalog.Manifest.AssetSetID),
@@ -210,8 +247,14 @@ func validateInstalledRole(opts install.Options, contract codex.RoleContract) er
 	for _, target := range targets {
 		if target.Kind == install.KindFile && filepath.Base(target.Path) == contract.Name+".toml" {
 			found = true
-			if err := check(target.Path, target.Content); err != nil {
-				return err
+			// The planner proves the global fallback byte-for-byte. A repository
+			// definition is Codex's higher-precedence registered source and was
+			// parsed and identity-checked above; comparing it to the global plan
+			// would erase the precedence this command must preserve.
+			if rolePath == target.Path {
+				if err := check(target.Path, target.Content); err != nil {
+					return err
+				}
 			}
 			break
 		}
