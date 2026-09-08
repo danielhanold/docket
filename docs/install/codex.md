@@ -88,12 +88,14 @@ a workaround, and neither requires flipping a workflow's `skills:` binding to `a
 
 Either way, the wrapper you land in may need to dispatch further docket agents — planning, build,
 review, grooming's critic, finalize's resolver and repair. Every generated Codex wrapper carries the
-rule for that: **nested dispatch uses Codex's direct named-agent dispatch from the active top-level
-tool surface.** A tool inventory read from *inside* another tool (a nested orchestration namespace)
-intentionally omits Codex's top-level collaboration controls, so an agent must never conclude from
-such an inventory that dispatch is unavailable — only a failed direct attempt or an explicit policy
-denial establishes that. The harness-neutral statement of this rule lives in the `docket-convention`
-skill's *Dispatch-capability resolution* section.
+same typed routing rule: **`[docket launch: root-coordinator]` → foreground `agent.enter` at the
+caller's cwd; `[docket worktree: feature]` → foreground `agent.enter` with a verified canonical
+`--worktree` and the unchanged structured payload; an unmarked metadata-scoped ordinary child →
+native named-agent dispatch.** For that native named-agent leg, a tool inventory read from *inside*
+another tool (a nested orchestration namespace) intentionally omits Codex's top-level collaboration
+controls, so an agent must never conclude from such an inventory that dispatch is unavailable — only
+a failed direct attempt or an explicit policy denial establishes that. The harness-neutral statement
+of this rule lives in the `docket-convention` skill's *Dispatch-capability resolution* section.
 
 The proven nested-launch mechanics (codex-cli 0.151.0, `multi_agent = true`), the exact `spawn_agent`
 / `wait_agent` calls, the app-server entry path, and the rejected launch candidates are recorded in
