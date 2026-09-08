@@ -361,10 +361,13 @@ func TestIntegrationFinalizeCloseoutNotesRootCarryNoPropagation(t *testing.T) {
 	// First: close out the CHILD (id 6) as stacked-merged into the root's branch,
 	// carrying its OWN notes.
 	childNotes := CloseoutNotes{LateFindings: []string{"child-owned note"}}
+	// The child's PR #8 merged its work into the root's live branch (feat/widget);
+	// its merge result is that branch's head, so requireStackedPreservation proves
+	// it preserved there by ancestry (a real object, not a fabricated one).
 	ghChild := &fakeCloseoutGitHub{
 		repo: retargetRepo(),
 		merged: map[int]closeoutProbe{
-			8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(strings.Repeat("c", 40), "feat/widget", strings.Repeat("b", 40))},
+			8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", f.head)},
 		},
 	}
 	childRes := FinalizeCloseout(context.Background(), f.closeoutDeps(ghChild), f.repo.invocation, 6, childNotes)
@@ -377,7 +380,7 @@ func TestIntegrationFinalizeCloseoutNotesRootCarryNoPropagation(t *testing.T) {
 		repo: retargetRepo(),
 		merged: map[int]closeoutProbe{
 			closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", mergeCommit)},
-			8:          {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(strings.Repeat("c", 40), "feat/widget", strings.Repeat("b", 40))},
+			8:          {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", f.head)},
 		},
 	}
 	rootRes := FinalizeCloseout(context.Background(), f.closeoutDeps(ghRoot), f.repo.invocation, f.id, closeoutTestNotes())
@@ -415,18 +418,12 @@ func TestIntegrationFinalizeCloseoutNotesStackedInPlace(t *testing.T) {
 	m := planRepoModes()[0]
 	f := setupCloseoutFixture(t, m)
 
-	recPath := groomPath(f.id, f.slug)
-	child := closeoutRecord(f.id, f.slug, "implemented", closeoutRef, f.specPath, f.planPath, f.resultsPath)
-	child = strings.Replace(child, "stacked_on:\n", "stacked_on: 4\n", 1)
-	f.repo.writerAdvance(t, f.branch, map[string]string{
-		groomPath(4, "parent"): lifecycleChange(4, "parent", "in-progress"),
-		recPath:                child,
-	})
+	recPath, mc := f.carryLiveParent(t, "implemented", "feat/parent")
 
 	gh := &fakeCloseoutGitHub{
 		repo: retargetRepo(),
 		merged: map[int]closeoutProbe{
-			closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/parent", strings.Repeat("a", 40))},
+			closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/parent", mc)},
 		},
 	}
 	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, closeoutTestNotes())
@@ -685,25 +682,48 @@ func TestIntegrationFinalizeCloseoutRootCarry(t *testing.T) {
 // TestCloseoutStackedMerged proves a change whose verified PR destination is its
 // live parent's branch is marked stacked-merged IN PLACE — not archived, its
 // feature branch and workspace retained — and the board is rerendered.
+// seedStackedChild patches the fixture child (id 5) to stack on a live parent
+// (id 4) recorded with parentBranch at childStatus, writing only metadata. The
+// parent's Git branch (and the merge commit it carries) is built separately by a
+// carry helper so requireStackedPreservation reads a REAL parent head.
+func (f *closeoutFixture) seedStackedChild(t *testing.T, childStatus, parentBranch string) string {
+	t.Helper()
+	recPath := groomPath(f.id, f.slug)
+	child := closeoutRecord(f.id, f.slug, childStatus, closeoutRef, f.specPath, f.planPath, f.resultsPath)
+	child = strings.Replace(child, "stacked_on:\n", "stacked_on: 4\n", 1)
+	parent := strings.Replace(lifecycleChange(4, "parent", "in-progress"), "branch: feat/parent\n", "branch: "+parentBranch+"\n", 1)
+	f.repo.writerAdvance(t, f.branch, map[string]string{
+		groomPath(4, "parent"): parent,
+		recPath:                child,
+	})
+	return recPath
+}
+
+// carryLiveParent seeds the stack (child at childStatus on parentBranch) and
+// builds parentBranch on origin so its head IS the child's merge-result commit
+// (proven by ancestry), returning the record path and that real merge id.
+func (f *closeoutFixture) carryLiveParent(t *testing.T, childStatus, parentBranch string) (string, string) {
+	t.Helper()
+	recPath := f.seedStackedChild(t, childStatus, parentBranch)
+	mc := f.carryCommit(t, parentBranch, "main", map[string]string{"parent-carry.txt": "carried\n"})
+	f.fetchAllIntoInvocation(t)
+	return recPath, mc
+}
+
 func TestIntegrationFinalizeCloseoutStackedMerged(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 	f := setupCloseoutFixture(t, m)
 
 	// A live parent (id 4) the fixture child (id 5) stacks on; the child's PR
-	// merged into the parent's feature branch feat/parent.
-	recPath := groomPath(f.id, f.slug)
-	child := closeoutRecord(f.id, f.slug, "implemented", closeoutRef, f.specPath, f.planPath, f.resultsPath)
-	child = strings.Replace(child, "stacked_on:\n", "stacked_on: 4\n", 1)
-	f.repo.writerAdvance(t, f.branch, map[string]string{
-		groomPath(4, "parent"): lifecycleChange(4, "parent", "in-progress"),
-		recPath:                child,
-	})
+	// merged into the parent's feature branch feat/parent, which really carries
+	// the merge (requireStackedPreservation proves it by ancestry).
+	recPath, mc := f.carryLiveParent(t, "implemented", "feat/parent")
 
 	gh := &fakeCloseoutGitHub{
 		repo: retargetRepo(),
 		merged: map[int]closeoutProbe{
-			closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/parent", strings.Repeat("a", 40))},
+			closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/parent", mc)},
 		},
 	}
 	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
@@ -754,12 +774,11 @@ func TestIntegrationFinalizeCloseoutStackedParentBranchIdentity(t *testing.T) {
 
 	t.Run("non-derived-parent-branch-honored", func(t *testing.T) {
 		f := setupCloseoutFixture(t, m)
-		parent := strings.Replace(lifecycleChange(4, "parent", "in-progress"), "branch: feat/parent\n", "branch: feature/live-parent\n", 1)
-		recPath := seedChild(t, f, parent)
+		recPath, mc := f.carryLiveParent(t, "implemented", "feature/live-parent")
 		gh := &fakeCloseoutGitHub{
 			repo: retargetRepo(),
 			merged: map[int]closeoutProbe{
-				closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feature/live-parent", strings.Repeat("a", 40))},
+				closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feature/live-parent", mc)},
 			},
 		}
 		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
@@ -789,6 +808,147 @@ func TestIntegrationFinalizeCloseoutStackedParentBranchIdentity(t *testing.T) {
 		rec, ok := originFile(t, f.repo.origin, f.branch, recPath)
 		if !ok || strings.Contains(rec, "stacked-merged") {
 			t.Errorf("a refused stacked closeout must leave the child record untouched (never marked stacked-merged):\n%s", rec)
+		}
+	})
+}
+
+// carryStackDroppedContent seeds the stack (child at childStatus on parentBranch)
+// and builds two real siblings off main: the child's merge-result commit (which
+// EXISTS on its own origin branch, so it is a dropped object, not a missing one)
+// carrying catalog.yaml, and parentBranch WITHOUT that content. Returns the
+// record path and the surviving merge id.
+func (f *closeoutFixture) carryStackDroppedContent(t *testing.T, childStatus, parentBranch string) (string, string) {
+	t.Helper()
+	recPath := f.seedStackedChild(t, childStatus, parentBranch)
+	mc := f.carryCommit(t, "mc-keep", "main", map[string]string{"catalog.yaml": "child-work\n"})
+	f.carryCommit(t, parentBranch, "main", map[string]string{"other.txt": "unrelated\n"})
+	f.fetchAllIntoInvocation(t)
+	return recPath, mc
+}
+
+// carryStackRebasedPreserved seeds the stack and builds two siblings off main
+// both adding catalog.yaml with identical bytes: the child's merge-result commit
+// (mc) and parentBranch's head. mc is NOT an ancestor of the parent head (a
+// legitimate rebase rewrote the commit id), but the content reproduces exactly —
+// the exact-content preservation arm proves it. Returns the record path and mc.
+func (f *closeoutFixture) carryStackRebasedPreserved(t *testing.T, childStatus, parentBranch string) (string, string) {
+	t.Helper()
+	recPath := f.seedStackedChild(t, childStatus, parentBranch)
+	mc := f.carryCommit(t, "mc-keep", "main", map[string]string{"catalog.yaml": "X\n"})
+	f.carryCommit(t, parentBranch, "main", map[string]string{"catalog.yaml": "X\n"})
+	f.fetchAllIntoInvocation(t)
+	return recPath, mc
+}
+
+// TestIntegrationFinalizeCloseoutStackedPreservation proves the stacked-merged
+// closeout path (fresh marking AND the already-stacked-merged replay) refuses
+// unless the child's merge result is preserved at the parent's freshly pinned
+// remote head — a historical PR destination is a relationship, never evidence the
+// parent still carries the merge (change 0327).
+func TestIntegrationFinalizeCloseoutStackedPreservation(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+
+	factsFor := func(mc string) *fakeCloseoutGitHub {
+		return &fakeCloseoutGitHub{
+			repo: retargetRepo(),
+			merged: map[int]closeoutProbe{
+				closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor("headoid", "feat/parent", mc)},
+			},
+		}
+	}
+
+	t.Run("fresh-marking-content-dropped-refuses", func(t *testing.T) {
+		f := setupCloseoutFixture(t, m)
+		recPath, mc := f.carryStackDroppedContent(t, "implemented", "feat/parent")
+		// The source merge object EXISTS (a dropped object, not a missing one).
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", mc); err != nil {
+			t.Fatalf("the child merge object must exist to pin a drop (not a missing object): %v", err)
+		}
+		before := originTip(t, f.repo.origin, f.branch)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(factsFor(mc)), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result != ResultBlocked || res.Disposition != CloseoutDispBlocked || res.Reason != ReasonCloseoutStackedUnpreserved {
+			t.Fatalf("dropped-content fresh marking = %q disp %q reason %q, want blocked/%s/%s", res.Result, res.Disposition, res.Reason, CloseoutDispBlocked, ReasonCloseoutStackedUnpreserved)
+		}
+		if after := originTip(t, f.repo.origin, f.branch); after != before {
+			t.Errorf("a refused stacked marking moved the metadata ref: %q -> %q", before, after)
+		}
+		rec, ok := originFile(t, f.repo.origin, f.branch, recPath)
+		if !ok || !strings.Contains(rec, "status: implemented") || strings.Contains(rec, "stacked-merged") {
+			t.Errorf("a refused fresh marking must leave the child implemented and untouched:\n%s", rec)
+		}
+	})
+
+	t.Run("fresh-marking-content-preserved-after-rebase-applies", func(t *testing.T) {
+		f := setupCloseoutFixture(t, m)
+		_, mc := f.carryStackRebasedPreserved(t, "implemented", "feat/parent")
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(factsFor(mc)), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result != ResultApplied || res.Disposition != CloseoutDispStackedMerged {
+			t.Fatalf("content-preserved rebase = %q disp %q reason %q, want applied/%s (the exact-content arm accepts a legitimate rewrite)", res.Result, res.Disposition, res.Reason, CloseoutDispStackedMerged)
+		}
+	})
+
+	t.Run("replay-content-dropped-refuses", func(t *testing.T) {
+		// The record is ALREADY stacked-merged; the parent has since dropped the
+		// content. The proof gates the replay too, so it refuses instead of
+		// returning a verified no-op (spec: "This also applies to the replay path").
+		f := setupCloseoutFixture(t, m)
+		_, mc := f.carryStackDroppedContent(t, "stacked-merged", "feat/parent")
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(factsFor(mc)), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result != ResultBlocked || res.Disposition != CloseoutDispBlocked || res.Reason != ReasonCloseoutStackedUnpreserved {
+			t.Fatalf("dropped-content replay = %q disp %q reason %q, want blocked/%s/%s (never a verified no-op)", res.Result, res.Disposition, res.Reason, CloseoutDispBlocked, ReasonCloseoutStackedUnpreserved)
+		}
+		if res.Disposition == CloseoutDispAlready {
+			t.Fatalf("a replay whose parent dropped the content must not report %q", CloseoutDispAlready)
+		}
+	})
+
+	t.Run("replay-content-intact-stays-idempotent", func(t *testing.T) {
+		// Already stacked-merged AND the parent still carries the merge: idempotency
+		// is preserved — the promise still holds, so the replay is a verified no-op.
+		f := setupCloseoutFixture(t, m)
+		_, mc := f.carryLiveParent(t, "stacked-merged", "feat/parent")
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(factsFor(mc)), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Disposition != CloseoutDispAlready || res.Result == ResultApplied {
+			t.Fatalf("content-intact replay = %q disp %q, want a no-op %s", res.Result, res.Disposition, CloseoutDispAlready)
+		}
+	})
+
+	t.Run("unusable-merge-id-distinguishes-missing-evidence", func(t *testing.T) {
+		// An unusable merge id is missing evidence (CarryFindingMissingMerge), NOT
+		// an observed content mismatch. reprobeMerged's "no usable merge commit or
+		// merge date" guard catches it upstream of requireStackedPreservation, so the
+		// closeout is retained as unverified-merge and never reaches — or is confused
+		// with — the stacked-unpreserved content proof.
+		f := setupCloseoutFixture(t, m)
+		recPath, _ := f.carryLiveParent(t, "implemented", "feat/parent")
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(factsFor("not-a-full-object-id")), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result == ResultApplied || res.Result == ResultNoOp {
+			t.Fatalf("an unusable merge id let the stacked closeout proceed: %q", res.Result)
+		}
+		if res.Reason != ReasonCloseoutUnverifiedMerge {
+			t.Fatalf("unusable merge id reason = %q, want %q (missing evidence, distinct from %q)", res.Reason, ReasonCloseoutUnverifiedMerge, ReasonCloseoutStackedUnpreserved)
+		}
+		rec, ok := originFile(t, f.repo.origin, f.branch, recPath)
+		if !ok || strings.Contains(rec, "stacked-merged") {
+			t.Errorf("a retained closeout must leave the child untouched:\n%s", rec)
+		}
+	})
+
+	t.Run("parent-branch-fetch-error-is-unknown", func(t *testing.T) {
+		// The parent's recorded branch was never pushed to origin: routing still
+		// reaches the stacked path (the destination matches the recorded branch), but
+		// FetchBranch fails, so the preservation query cannot run — an observation
+		// failure is retained as unknown, never blocked and never applied.
+		f := setupCloseoutFixture(t, m)
+		recPath := f.seedStackedChild(t, "implemented", "feat/parent")
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(factsFor(strings.Repeat("a", 40))), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result != ResultExternalFailed || res.Disposition != CloseoutDispUnknown {
+			t.Fatalf("missing parent branch = %q disp %q reason %q, want external-failed/%s", res.Result, res.Disposition, res.Reason, CloseoutDispUnknown)
+		}
+		rec, ok := originFile(t, f.repo.origin, f.branch, recPath)
+		if !ok || strings.Contains(rec, "stacked-merged") {
+			t.Errorf("an unknown-outcome closeout must leave the child untouched:\n%s", rec)
 		}
 	})
 }
