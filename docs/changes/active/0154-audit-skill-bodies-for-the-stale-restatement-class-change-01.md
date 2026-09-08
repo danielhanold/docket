@@ -19,8 +19,8 @@ auto_groomable: true
 branch: 'docs/audit-skill-bodies-for-the-stale-restatement-class-change-01'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-08T23:57:35Z'
+reconciled: true
+claimed_at: '2026-09-08T23:59:54Z'
 ---
 
 ## Artifacts
@@ -54,3 +54,8 @@ Runtime, CLI/schema/config behavior, defaults, permissions, and feature support;
 
 Only the configuration-sketch item shared with deferred 0257 is covered. Its remaining rationale/guidance work stays deferred. No implementation plan or code is produced by this regroom.
 
+## Reconcile log
+
+### 2026-09-08
+
+2026-09-08: Reconciled against HEAD d7363492 on main after claim. The spec was regroomed earlier today (2026-09-08) with a fresh necessity review, so it already reflects current reality: the Go migration owns the runtime, the Bash/board-mirror/main-mode surfaces are retired, and the discovery channels are capability + schema + config operations. Confirmed the in-scope population is the 29 git-tracked Markdown files under skills/ (discovered from the checkout, not hard-coded). Predecessors 0363/0370/0372/0377/0394/0399 are done, so depends_on stays empty and no stacked base is needed; related/discovered_from/adrs relations remain accurate. No scope or relation adjustment required. Seed defects are verified at build time against their named current owners (internal/app/status_result.go, status_human.go, planning.go, derived_views.go, internal/config/schema.go, capability.go, .docket.example.yml) rather than reapplying the obsolete August edits; deferred 0257's single sketch-comment item is folded in per the spec, with its remaining rationale work left deferred.
