@@ -153,3 +153,108 @@ dispatch-context token reaches the root coordinator unchanged and is used by its
 - **Reconciliation opportunity:** current main's change-0407 claim binding is the first repair to
   test after rebase and should supersede the earlier suggestion to infer newly implemented records
   or parse the root coordinator's output.
+
+
+## Inline continuation — 2026-09-08
+
+The human explicitly authorized inline continuation because the workflow being repaired could
+not safely bootstrap its own coordinator. The branch now contains integration base
+`b801b8c6dd23f55b23d1edecc373039e04ffe96c`, including change 0407's claim-transaction binding.
+The earlier observations above are historical; this section records the rebased continuation.
+
+### Repairs and review dispositions
+
+- Restored the agent command, capability registration and result schema lost during reconciliation.
+  Required flags now have required, semantically named capability signatures.
+- Made the generated Codex clause explicitly take precedence over general native-child wording.
+  It preserves the user's request, dispatch context, resume/continuation ids and gate key, and
+  requires the parent's keyed verdict after the foreground return.
+- Regenerated embedded assets and this repository's committed managed dispatch block from their
+  Go sources. A red-before-regeneration repository guard now detects stale committed policy.
+  The dispatch word budget changed from 400 to 650 for the 636-word generated policy; no runtime
+  budget changed. The policy remains smaller than the retired 1,156-word roster.
+- Added installed-contract validation using the same Codex planner as installation. Missing or
+  edited role TOML and stale skill preloads refuse before process launch. Mutation tests remove
+  or edit those inputs and establish the distinct `role-contract-unavailable` result.
+- Server requests needing interactive approval/input now fail explicitly instead of hanging.
+  Root output selects the actual final-answer phase; explicit commentary cannot masquerade as
+  the final result. Scripted tests cover both behaviors, including red-before-fix observations.
+- Whole-branch inline review found and repaired the above issues. The initial full source suite
+  passed 40 of 42 files; the two failing files reported capability-literal and bare temporary-dir
+  guards in the new changes. Those guards were repaired, and the focused packages passed.
+  Final publication is conditional on a new full source suite and evidence for the final head.
+
+### Claim-binding regression and mutation
+
+`TestIntegrationWorkflowRootEntryGateAttribution` crosses the real root-entry client with only
+its model/server transport scripted. The request received at `turn/start` drives the existing
+real-Git claim-to-implemented workflow, real evidence/publication adapters with a stateful local
+GitHub fixture, and the real claim-proof scanner. The parent asks for its keyed verdict only
+after root entry closes. Deliberately misleading output says sibling change 999 completed;
+it cannot influence attribution.
+
+The preserved-context case requires exactly `gate-done <key> run-complete 3`. The removed-context
+case completes the same change but requires `gate-done <key> no-attributable-claim`. Both passed
+on the reviewed branch. A separate mutation of production `turn/start` request forwarding
+removed the context: the positive case failed specifically because its actual verdict was
+`no-attributable-claim` instead of `run-complete 3`. Restoring the production bridge returned
+the test to green.
+
+### Live certification scope and binary provenance
+
+The ordinary-prose test used an isolated Codex home with the user's configured model/effort pins,
+the actual installed Docket roles, a real local Git origin, and a stateful local GitHub fixture.
+No production backlog or GitHub PR was used for the synthetic sentinel change. A fresh generic
+Codex parent received exactly `Please implement change 1.`; its request did not prescribe
+root entry or explicitly select a child. The installed binary was built from the rebased
+change-393 source corresponding to repair commit `615f5fdede07da193b54b95959a9a9e6a73bc092`
+(SHA-256 `37f1dd641f22032955dc9351cc7ffd6515f0baa064a383c3a2340465c3d08d9d`).
+
+The parent automatically selected the catalog-resolved root-entry operation and carried its
+gate context into the actual claim. The following identities are diagnostic trace pointers;
+the terminal keyed gate proof, not these ids or agent prose, establishes attribution:
+
+- Fresh parent: `01a07ec4-145b-72a0-9434-3dfb9e94f9b8`.
+- Entered root: `01a07ec4-aa94-7bd0-bcb4-4b62fcef6491`.
+- Registered plan writer: `01a07ec9-8986-7320-b35d-fc2c71e51c2d`, a depth-1 child of that root.
+  It returned `PLAN_PATH=docs/superpowers/plans/2026-09-07-write-root-entry-sentinel.md`;
+  the verified plan commit is `d783b075c7b0653fcd91c1f6f8529dc05dc85c1b`.
+- Registered build worker: `01a07ed0-5b85-7792-b54f-bc2baf6fea4f` (`docket-build-economy`).
+  It observed the missing-sentinel red baseline and committed the passing implementation at
+  `cafed7660e75edcf0da2e51e140bd01aa93a9c2d`.
+- Registered reviewer: `01a07ed9-0c66-7b03-a909-4a6717432963` (`docket-review-lean`), clean.
+
+An earlier isolated attempt halted before claim because the synthetic repository explicitly
+configured unsupported `skills.*: auto` bindings. Removing those fixture-only overrides allowed
+the normal registered roles to run. That preclaim halt is not counted as completion evidence.
+
+Subsequent contract-validation and final-message repairs were also exercised against a clean,
+explicitly stamped candidate built from `d95b046d5b9e01872047ae0cb99a3a6982999391`, source tree
+`01a11c6e3f2f1dcb22c108c004f422322d0bb26f`
+(SHA-256 `181af9089c815bd33161334e02fac4e347b77735d9be84608b8abfbbeaffcadc`).
+The build disabled automatic VCS stamping and set the verified full source commit explicitly,
+because Go's automatic metadata identified the enclosing main checkout for this linked worktree.
+A second isolated real root launch returned `applied`, and its output exactly matched the actual
+session's final-answer message. Its transport-only marker expectation failed: the higher-priority
+role contract ran repository preparation and correctly halted in the non-repository fixture.
+This is launch/final-return evidence, not another successful implementation or full live rerun
+of the later candidate. The final full suite separately certifies all code at the published head.
+
+
+The claim transaction `f93121b61fb61f547592853f64951b22f6b9f59c` records change 1 and a
+`gate_context_hash` matching the SHA-256 of the outer dispatch context. After the coordinator
+published fixture PR 1 and marked the change implemented, its own `run.verify` returned
+`run-complete` at `cafed7660e75edcf0da2e51e140bd01aa93a9c2d` with no unmet conjuncts.
+The foreground command then returned, and the fresh parent's actual command output was:
+
+```text
+gate-done implement-next-20260908t020638z-97715-2227 run-complete 1
+```
+
+This satisfies the ordinary-prose routing, real planner, unchanged claim context, foreground
+completion and exact parent-attribution boundaries that remained unproven in the earlier report.
+The context-removal mutation supplies the negative control. The later repairs and all final
+source changes remain subject to the full configured suite; its immutable exact-head record
+belongs in PR #265's managed build-evidence block. Publication must also re-establish change
+393's own `run-complete` receipt. The synthetic change's successful receipt does not substitute
+for either final publication check.
