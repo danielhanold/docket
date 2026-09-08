@@ -50,6 +50,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
 	)
 	recPath := groomPath(id, slug)
 	planPath := "docs/superpowers/plans/2026-08-17-widget-plan.md"
+	resultsPath := "docs/results/2026-08-17-" + slug + "-results.md"
 
 	// A resolved build.test_command is required so EvidenceRecord (build-owned
 	// since change 0374) records a real observed gate command rather than
@@ -130,11 +131,27 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
 		t.Fatalf("attach plan = %q (reason %q msg %q findings %v)", attach.Result, attach.Reason, attach.Message, attach.Findings)
 	}
 
-	// (7) The implementation commit advances the feature head.
+	// (7) The implementation commit advances the feature head. A results artifact is
+	// REQUIRED at the implemented boundary (change 0410), so it rides this commit
+	// with its deterministic backlink stamped through the artifact-backlink
+	// operation, and is attached below.
 	writeRepoFile(t, wp, "widget.go", "package widget\n")
+	writeRepoFile(t, wp, resultsPath, "# Widget — Results\n\n## Outcome\n\nDelivered the widget end to end; the gate certifies this head.\n")
+	blR := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: resultsPath, ChangePath: recPath})
+	if blR.Result != ResultApplied {
+		t.Fatalf("artifact backlink (results) = %q (reason %q msg %q)", blR.Result, blR.Reason, blR.Message)
+	}
 	runGit(t, wp, "add", "-A")
 	runGit(t, wp, "commit", "-q", "-m", "implement the widget")
 	head := runGit(t, wp, "rev-parse", "HEAD")
+
+	// (7b) Attach the results artifact so the record carries results: — the
+	// mark-implemented results conjunct (change 0410) requires it.
+	attachR := ChangeAttachResults(ctx, node.deps, wdeps, node.dir,
+		ChangeAttachRequest{ID: id, Version: ver(), Path: resultsPath, Commit: head})
+	if attachR.Result != ResultApplied {
+		t.Fatalf("attach results = %q (reason %q msg %q findings %v)", attachR.Result, attachR.Reason, attachR.Message, attachR.Findings)
+	}
 
 	// (8) Launch the real trivially-passing gate through the native supervisor and
 	// observe it to a passed terminal.
@@ -222,7 +239,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
 	// transitions are exactly the operations that ran — no direct skill-owned
 	// metadata write slipped in.
 	assertEngineOnlyMetadataCommits(t, repo.origin, m.branch, baseTip,
-		[]string{"change.attach-plan", "change.claim", "change.mark-implemented", "change.reconcile"})
+		[]string{"change.attach-plan", "change.attach-results", "change.claim", "change.mark-implemented", "change.reconcile"})
 }
 
 // buildConfiguredRepo builds the docket-topology bare remote with resolved

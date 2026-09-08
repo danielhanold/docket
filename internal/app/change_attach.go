@@ -530,10 +530,38 @@ func verifyPathTrailer(ctx context.Context, deps PlanningDeps, repo gitcli.Repos
 	return &r
 }
 
+// backlinkTargets reports whether artifactBytes carries a balanced docket:backlink
+// managed block whose interior equals the backlink rendered for ch under link. It
+// is the shared backlink-identity check both change.attach-results (verifyBacklink)
+// and change.mark-implemented (verifyImplementedResults) apply to an artifact's own
+// bytes. A malformed managed-block population or a backlink-render failure is
+// returned as the error (the caller classifies it); an artifact with no backlink
+// block, or one whose interior names a DIFFERENT change, is (false, nil).
+func backlinkTargets(artifactBytes []byte, ch domain.Change, link render.LinkContext) (bool, error) {
+	doc, err := document.Parse(artifactBytes)
+	if err != nil {
+		return false, err
+	}
+	block, ok := doc.Block(backlinkBlockName)
+	if !ok {
+		return false, nil
+	}
+	expected, err := render.BacklinkContent(ch, link)
+	if err != nil {
+		return false, err
+	}
+	got := strings.TrimRight(string(artifactBytes[block.Interior.Start:block.Interior.End]), "\n")
+	return got == backlinkInterior(expected), nil
+}
+
 // verifyBacklink proves the artifact carries a balanced docket:backlink block
 // whose interior targets THIS change. A malformed managed-block population fails
 // the parse (unbalanced-backlink); an absent block is missing-backlink; a block
-// naming a different change is backlink-mismatch.
+// naming a different change is backlink-mismatch. It classifies the parse and
+// presence cases here — each is its own stable attach reason — before delegating
+// the interior comparison to backlinkTargets (which re-parses; the redundant parse
+// is cheap and keeps the shared helper self-contained for the mark-implemented
+// caller that wants a single yes/no).
 func verifyBacklink(opKey, kind string, artifactBytes []byte, ac attachChange) *ChangeAttachResult {
 	doc, err := document.Parse(artifactBytes)
 	if err != nil {
@@ -541,19 +569,18 @@ func verifyBacklink(opKey, kind string, artifactBytes []byte, ac attachChange) *
 			fmt.Sprintf("the artifact has a malformed managed-block population: %v", err))
 		return &r
 	}
-	block, ok := doc.Block(backlinkBlockName)
-	if !ok {
+	if _, ok := doc.Block(backlinkBlockName); !ok {
 		r := attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachMissingBacklink,
 			"the artifact carries no docket:backlink block")
 		return &r
 	}
-	expected, err := render.BacklinkContent(ac.change, ac.link)
+	ok, err := backlinkTargets(artifactBytes, ac.change, ac.link)
 	if err != nil {
+		// The parse above already succeeded, so this is a backlink-render failure.
 		r := attachRefusal(opKey, ResultInternalError, kind, ReasonStatusInternalError, err.Error())
 		return &r
 	}
-	got := strings.TrimRight(string(artifactBytes[block.Interior.Start:block.Interior.End]), "\n")
-	if got != backlinkInterior(expected) {
+	if !ok {
 		r := attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachBacklinkMismatch,
 			"the artifact's backlink targets a different change than the one being attached")
 		return &r
