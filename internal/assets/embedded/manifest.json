@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:cffbdd7253e8bd419641799afec00af2953e7f42b61d2f63d5cf75c44b06f529",
+  "asset_set_id": "sha256:31b3547b44a0fcc3a3377012fe9613738fc60cb4bbc098bea45b97270815a469",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -385,8 +385,8 @@
       "path": "skills/docket-convention/references/stacked-changes.md",
       "role": "skill",
       "mode": 420,
-      "size": 14136,
-      "sha256": "519a8c37c0021606f1b9b95f90cde262d424b96c3fe781faf808087c034ff67f"
+      "size": 13907,
+      "sha256": "2eba288cd93c9d65cf41d5cc5f1edbe11e814b798baf6def166d72b76d64b2ea"
     },
     {
       "path": "skills/docket-convention/references/terminal-close-out.md",
