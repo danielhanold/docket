@@ -182,6 +182,40 @@ func TestAgentEnterCLIUsesEffectiveRepositoryRoleBeforeGlobal(t *testing.T) {
 	}
 }
 
+// This catches falling through to and entering the global role when a
+// higher-precedence repository role is present as a dangling symlink.
+func TestAgentEnterCLIRejectsDanglingRepositoryRoleBeforeGlobal(t *testing.T) {
+	paths := newAgentEntryWorktrees(t)
+	seedAgentInstallation(t)
+	dir := testsupport.TempDir(t)
+	invoked := filepath.Join(dir, "app-server-invoked")
+	stub := "#!/bin/sh\n: > '" + strings.ReplaceAll(invoked, "'", "'\\''") + "'\nexit 99\n"
+	if err := os.WriteFile(filepath.Join(dir, "codex"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	repoRoleDir := filepath.Join(paths.a, ".codex", "agents")
+	if err := os.MkdirAll(repoRoleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rolePath := filepath.Join(repoRoleDir, "docket-implement-next.toml")
+	if err := os.Symlink(filepath.Join(dir, "missing-role.toml"), rolePath); err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, _ := runCLI(t, "agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", paths.a, "--approval-policy", "never", "--sandbox", "workspace-write", "--json")
+	var result app.AgentEnterResult
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Result != app.ResultInvalidState || result.Reason != "role-contract-unavailable" {
+		t.Fatalf("dangling repository role must refuse before global entry: %+v", result)
+	}
+	if _, err := os.Stat(invoked); !os.IsNotExist(err) {
+		t.Fatalf("app server was invoked through the global role: %v", err)
+	}
+}
+
 func writeAgentTestRole(t *testing.T, repo, role, model, effort, developer string) {
 	t.Helper()
 	dir := filepath.Join(repo, ".codex", "agents")

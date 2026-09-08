@@ -505,3 +505,88 @@ $ git diff --check
 
 No full suite was run in this round; the controller owns the exact-final-head
 gate.
+
+## 2026-09-08 Task 13 fix round 6 — dangling repository role symlink
+
+Fix base: `fad2dc212f37f4963652d47e150b2fc78ce00047`. The repository-role
+presence probe used `os.Stat`, so a present dangling
+`.codex/agents/<role>.toml` symlink appeared absent and silently selected the
+valid global role. The fix changes only that probe to `os.Lstat`; a genuinely
+missing repository path still falls back globally, while a dangling symlink is
+selected and the existing read-error path refuses entry.
+
+The public-CLI regression creates a valid global installation and a dangling
+higher-precedence repository definition, then proves both the
+`role-contract-unavailable` refusal and the absence of the marker that the
+Codex app-server stub writes if invoked. Exact RED before the production change:
+
+```text
+$ go test ./internal/cli -run '^TestAgentEnterCLIRejectsDanglingRepositoryRoleBeforeGlobal$' -count=1
+--- FAIL: TestAgentEnterCLIRejectsDanglingRepositoryRoleBeforeGlobal (0.77s)
+    agent_test.go:212: dangling repository role must refuse before global entry: {Envelope:{ProtocolVersion:1 Operation:agent.enter Result:external-failed Failure:<nil>} Role:docket-implement-next ThreadID: TurnID: Output: Reason:root-entry-failed Message:initialize ended before its response: EOF}
+FAIL
+FAIL github.com/danielhanold/docket/internal/cli 1.108s
+FAIL
+```
+
+This is the intended failure: production fell through to and entered the global
+role. The initial fixture attempt isolated `PATH` too aggressively and passed
+vacuously because Git was unavailable; restoring the original `PATH` after the
+Codex stub exposed the production failure above. Exact GREEN and focused checks:
+
+```text
+$ go test ./internal/cli -run '^TestAgentEnterCLIRejectsDanglingRepositoryRoleBeforeGlobal$' -count=1
+ok github.com/danielhanold/docket/internal/cli 0.644s
+$ go test ./internal/cli -run '^(TestAgentEnterCLIPreservesRequestAndReceipt|TestAgentEnterCLIUsesEffectiveRepositoryRoleBeforeGlobal|TestAgentEnterCLIRejectsDanglingRepositoryRoleBeforeGlobal|TestAgentEnterRejectsInstalledContractDrift)$' -count=1
+ok github.com/danielhanold/docket/internal/cli 1.569s
+$ go test ./internal/cli ./internal/codexentry ./internal/harness/codex -count=1
+ok github.com/danielhanold/docket/internal/cli 11.465s
+ok github.com/danielhanold/docket/internal/codexentry 0.470s
+ok github.com/danielhanold/docket/internal/harness/codex 0.724s
+$ go fmt ./internal/...
+$ git diff --check
+$ go run ./cmd/genassets -check
+genassets: internal/assets/embedded matches the authored roots (67 entries, sha256:a5ea77d353898b0c185d3da70155dc48cff22ec31d3c5573a80d96ce170df2d9)
+```
+
+The first configured full gate found one load-sensitive, unrelated race-shard
+failure: `TestRecoverLeavesUnprovableGroupForInspection` saw a durable terminal
+record instead of the fixture's unprovable group. The exact focused follow-ups
+were green once and then ten consecutive times:
+
+```text
+$ go test -race ./internal/process -run '^TestRecoverLeavesUnprovableGroupForInspection$' -count=1
+ok github.com/danielhanold/docket/internal/process 1.332s
+$ go test -race ./internal/process -run '^TestRecoverLeavesUnprovableGroupForInspection$' -count=10
+ok github.com/danielhanold/docket/internal/process 2.388s
+```
+
+The clean full-gate rerun passed:
+
+```text
+$ go run ./cmd/docket development test
+SUITE files=43 passed=43 failed=0 asserts=387 wall=308s
+```
+
+It emitted no `SERIAL CONFIRMED OVER BUDGET:` line. Screening diagnostics were:
+
+```text
+PARALLEL-SENSITIVE: tests/test_go_finalize_e2e.sh — 142s under -j11; last solo measurement 26s; recheck progress 5/10
+BUDGET WATCH: tests/test_go_integration_app_change.sh — 156s under -j11; consecutive parallel-overrun streak 2/5
+BUDGET WATCH: tests/test_go_integration_app_cleanup.sh — 108s under -j11; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_closeout.sh — 106s under -j11; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_merge.sh — 100s under -j11; consecutive parallel-overrun streak 1/5
+PARALLEL-SENSITIVE: tests/test_go_integration_app_rebase.sh — 195s under -j11; last solo measurement 63s; recheck progress 4/10
+BUDGET WATCH: tests/test_go_integration_app_repocheck.sh — 52s under -j11; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_repomigration.sh — 58s under -j11; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_repoownership.sh — 84s under -j11; consecutive parallel-overrun streak 1/5
+BUDGET WATCH: tests/test_go_integration_app_reporecovery.sh — 52s under -j11; consecutive parallel-overrun streak 1/5
+PARALLEL-SENSITIVE: tests/test_go_integration_app_workflow.sh — 148s under -j11; last solo measurement 50s; recheck progress 3/10
+BUDGET WATCH: tests/test_go_integration_gitcli_repo.sh — 100s under -j11; consecutive parallel-overrun streak 1/5
+PARALLEL-SENSITIVE: tests/test_go_race.sh — 308s under -j11; last solo measurement 83s; recheck progress 8/10
+PARALLEL-SENSITIVE: tests/test_go_toolchain.sh — 258s under -j11; last solo measurement 58s; recheck progress 7/10
+```
+
+Files changed are `internal/cli/agent.go`, `internal/cli/agent_test.go`, and this
+results record. The final exact-commit gate reruns the same configured command
+after this evidence append; its outcome is reported in the Task 13 fix report.
