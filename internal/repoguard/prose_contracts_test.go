@@ -167,6 +167,15 @@ var proseContracts = []proseContract{
 	// (moved to the harness reference by change 0402).
 	{sentinel: "test_codex_runbook", file: "docs/reference/harness/validation-runbook.md",
 		present: []string{"codex debug models"}, absent: []string{"scripts/sync-agents.sh"}},
+	// change 0393 amendment — ordinary children split by typed worktree scope:
+	// metadata remains native, while feature roles use foreground root entry with
+	// the canonical worktree and unchanged workflow payload.
+	{sentinel: "change_0393_feature_child_entry", file: "docs/reference/harness/validation-runbook.md",
+		present: []string{
+			"Metadata-scoped ordinary child roles may continue to use direct registered-agent invocation.",
+			"Feature-scoped ordinary child roles must enter through foreground `agent.enter` with `--worktree`\nset to the absolute canonical feature-worktree root and carry the unchanged structured payload.",
+		},
+		absent: []string{"Ordinary child roles may continue to use direct registered-agent invocation."}},
 	// tests/test_docket_build.sh — the per-task worker contract.
 	{sentinel: "test_docket_build", file: "skills/docket-build-task/SKILL.md",
 		present: []string{"self-review is part of", "Implement only that task"}},
