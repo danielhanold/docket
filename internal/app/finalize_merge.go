@@ -524,6 +524,28 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		return mergeRefusal(result, disp, token, mergeConjunctMessage(token, id), id)
 	}
 
+	// Every conjunct holds — including the exact-head/lease conjunct, so req.Head is
+	// the verified PR head. Before the irreversible external merge, prove in Git that
+	// every descendant this branch promises to carry is still preserved at that head:
+	// a merged PR destination proves a relationship only, never that the content
+	// survived a stale-worktree rewrite. This gate COMPLEMENTS the head/lease
+	// conjunct (which already rejected any head movement above) and runs regardless
+	// of the gate mode. An observation error is unknown (retain, reprobe); an
+	// observed non-preservation is a retained block that issues no merge call.
+	proof, perr := proveCarriedOnHead(ctx, deps, repoDir, mc.repo, mc.snap, mc.change, gitcli.ObjectID(req.Head))
+	if perr != nil {
+		return newMergeResult(ResultExternalFailed, FinalizeMergeResult{
+			ID: id, Disposition: MergeDispUnknown, Number: canonicalN, Reason: ReasonCarryUnproven,
+			Message: "carried-descendant preservation could not be established: " + perr.Error(),
+		})
+	}
+	if !proof.Proven {
+		r := mergeRefusal(ResultBlocked, MergeDispBlocked, ReasonCarryUnproven,
+			"a carried descendant's merged work is not preserved at the verified PR head; refusing to merge", id)
+		r.Findings = append(r.Findings, proof.Findings...)
+		return r
+	}
+
 	// Every conjunct holds. Issue the expected-head merge. Admin is honored only
 	// with an explicit id (already gated above) — the AND is belt-and-braces so no
 	// path can pass admin without it.
