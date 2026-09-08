@@ -13,7 +13,7 @@ related: [1, 170, 190, 218, 330, 360, 374]
 discovered_from: []
 adrs: [102]
 spec: 'docs/superpowers/specs/2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-08-require-durable-results-artifacts-with-human-testing-and-coo.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-08T17:14:45Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md) |
+| Plan | [2026-09-08-require-durable-results-artifacts-with-human-testing-and-coo.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-08-require-durable-results-artifacts-with-human-testing-and-coo.md) |
 | ADRs | [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
