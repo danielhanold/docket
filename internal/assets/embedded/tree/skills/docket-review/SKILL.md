@@ -93,6 +93,12 @@ N findings: B blocker, I important, M minor
 An empty list with the `clean` verdict is a valid and expected return. Do not manufacture findings
 to look thorough; do not suppress a blocker to look agreeable.
 
+Findings return through this report and no further: **the reviewer never writes the results
+artifact** — that is the coordinator's alone. So each finding should carry the evidence, its
+impact, and any actionable out-of-scope framing the coordinator needs to preserve it durably;
+the dispositions themselves land later, through the fix loop and the coordinator's checkpoint, not
+here. This adds nothing to your write surface — the read-only boundary above still holds.
+
 ## Halting
 
 An unmet precondition or a blocking ambiguity is **abort-and-report**: stop, state plainly what
