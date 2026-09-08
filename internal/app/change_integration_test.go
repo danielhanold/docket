@@ -1543,12 +1543,12 @@ func TestIntegrationChangeLifecycleRefusedMapsInvalidState(t *testing.T) {
 func TestIntegrationChangeMarkImplementedAppliesEndToEnd(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
-	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
+	head := miAdvanceHead(t, repo)
 	client := newGitClient(t)
 	pr := prRepo().Spec() + "#42"
 
 	deps, wdeps, gdeps, inv, req, engine := buildMI(t, client, repo.invocation, miKit{
-		reconciled: true, plan: miPlanPath(), version: miVersion, reqVersion: miVersion,
+		reconciled: true, plan: miPlanPath(), results: miResultsPath, version: miVersion, reqVersion: miVersion,
 		reqHead: head, localHead: head, evidence: prEvidenceBytes(t, head),
 		probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: pr,
 	})
@@ -1579,7 +1579,7 @@ func TestIntegrationChangeMarkImplementedAppliesEndToEnd(t *testing.T) {
 func TestIntegrationChangeMarkImplementedConjuncts(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
-	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
+	head := miAdvanceHead(t, repo)
 	client := newGitClient(t)
 	pr := prRepo().Spec() + "#42"
 	other := prOtherHead
@@ -1587,7 +1587,7 @@ func TestIntegrationChangeMarkImplementedConjuncts(t *testing.T) {
 	// happy returns the all-pass kit; each row mutates one field.
 	happy := func() miKit {
 		return miKit{
-			reconciled: true, plan: miPlanPath(), version: miVersion, reqVersion: miVersion,
+			reconciled: true, plan: miPlanPath(), results: miResultsPath, version: miVersion, reqVersion: miVersion,
 			reqHead: head, localHead: head, evidence: prEvidenceBytes(t, head),
 			probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: pr,
 		}
@@ -1648,6 +1648,32 @@ func TestIntegrationChangeMarkImplementedConjuncts(t *testing.T) {
 			},
 			reason: ReasonImplementedPRReferenceMismatch,
 		},
+		{ // conjunct 5 — required (change 0410): an empty results field refuses,
+			// trivial changes included (there is no trivial exemption to remove).
+			name:   "no results artifact is attached",
+			mutate: func(k *miKit) { k.results = "" },
+			reason: ReasonImplementedResultsMissing,
+		},
+		{ // conjunct 5 — required for a trivial change too (pin, not a branch change).
+			name: "trivial change with no results artifact still refuses",
+			mutate: func(k *miKit) {
+				k.results = ""
+				k.trivial = true
+			},
+			reason: ReasonImplementedResultsMissing,
+		},
+		{ // conjunct 5 — the attached path is a tracked regular file with the correct
+			// backlink, but its FINAL content is filler (## Findings and limitations → None.).
+			name:   "attached results fail the final content contract",
+			mutate: func(k *miKit) { k.results = miResultsInvalidPath },
+			reason: ReasonImplementedResultsInvalid,
+		},
+		{ // conjunct 5 — the attached artifact's backlink targets a different change:
+			// broken results identity, distinct from a content-prose defect.
+			name:   "attached results backlink targets another change",
+			mutate: func(k *miKit) { k.results = miResultsMismatchPath },
+			reason: ReasonImplementedResultsIdentity,
+		},
 		{ // conjunct 5
 			name:   "attached results path no longer tracked at head",
 			mutate: func(k *miKit) { k.results = "docs/changes/results/0003-widget-ghost.md" },
@@ -1684,7 +1710,7 @@ func TestIntegrationChangeMarkImplementedConjuncts(t *testing.T) {
 func TestIntegrationChangeMarkImplementedIdentityForms(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
-	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
+	head := miAdvanceHead(t, repo)
 	client := newGitClient(t)
 
 	cases := []struct {
@@ -1701,7 +1727,7 @@ func TestIntegrationChangeMarkImplementedIdentityForms(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			deps, wdeps, gdeps, inv, req, engine := buildMI(t, client, repo.invocation, miKit{
-				reconciled: true, plan: miPlanPath(), version: miVersion, reqVersion: miVersion,
+				reconciled: true, plan: miPlanPath(), results: miResultsPath, version: miVersion, reqVersion: miVersion,
 				reqHead: head, localHead: head, evidence: prEvidenceBytes(t, head),
 				probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: tc.reqPR,
 			})
@@ -1734,12 +1760,12 @@ func TestIntegrationChangeMarkImplementedIdentityForms(t *testing.T) {
 func TestIntegrationChangeMarkImplementedRecordsURL(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
-	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
+	head := miAdvanceHead(t, repo)
 	client := newGitClient(t)
 	shorthand := prRepo().Spec() + "#42" // the caller may still assert the shorthand
 
 	deps, wdeps, gdeps, inv, req, engine := buildMI(t, client, repo.invocation, miKit{
-		reconciled: true, plan: miPlanPath(), version: miVersion, reqVersion: miVersion,
+		reconciled: true, plan: miPlanPath(), results: miResultsPath, version: miVersion, reqVersion: miVersion,
 		reqHead: head, localHead: head, evidence: prEvidenceBytes(t, head),
 		probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: shorthand,
 	})

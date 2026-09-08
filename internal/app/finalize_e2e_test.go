@@ -392,10 +392,25 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 		t.Fatalf("attach plan id %d = %q (reason %q findings %v)", id, attach.Result, attach.Reason, attach.Findings)
 	}
 
+	// A results artifact is REQUIRED at the implemented boundary (change 0410): it
+	// rides the implementation commit with its stamped backlink and is attached
+	// before mark-implemented.
+	resultsPath := "docs/results/2026-08-17-" + slug + "-results.md"
 	writeRepoFile(t, wp, slug+".go", "package "+slug+"\n")
+	writeRepoFile(t, wp, resultsPath, "# "+title+" — Results\n\n## Outcome\n\nDelivered "+slug+" end to end; the gate certifies this head.\n")
+	blR := ArtifactBacklink(e.ctx, e.node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: resultsPath, ChangePath: recPath})
+	if blR.Result != ResultApplied {
+		t.Fatalf("artifact backlink (results) id %d = %q (reason %q)", id, blR.Result, blR.Reason)
+	}
 	runGit(t, wp, "add", "-A")
 	runGit(t, wp, "commit", "-q", "-m", "implement "+slug)
 	head := runGit(t, wp, "rev-parse", "HEAD")
+
+	attachR := ChangeAttachResults(e.ctx, e.node.deps, e.wdeps, e.node.dir,
+		ChangeAttachRequest{ID: id, Version: ver(), Path: resultsPath, Commit: head})
+	if attachR.Result != ResultApplied {
+		t.Fatalf("attach results id %d = %q (reason %q findings %v)", id, attachR.Result, attachR.Reason, attachR.Findings)
+	}
 
 	gateRoot := testsupport.TempDir(t)
 	launch := GateLaunch(gateRoot, wp, []string{passingGateScript(t)})

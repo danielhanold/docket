@@ -18,10 +18,13 @@ const miVersion = "1234123412341234123412341234123412341234"
 
 // miRecord renders an in-progress change record with the given plan/results
 // linkage and reconciled flag — the shape mark-implemented reprobes.
-func miRecord(id int, slug, plan, results string, reconciled bool) string {
+func miRecord(id int, slug, plan, results string, reconciled, trivial bool) string {
 	src := lifecycleChange(id, slug, "in-progress")
 	if !reconciled {
 		src = strings.Replace(src, "reconciled: true", "reconciled: false", 1)
+	}
+	if trivial {
+		src = strings.Replace(src, "trivial: false", "trivial: true", 1)
 	}
 	if plan != "" {
 		src = strings.Replace(src, "plan:\n", "plan: '"+plan+"'\n", 1)
@@ -75,7 +78,7 @@ func TestMarkImplementedApplies(t *testing.T) {
 	recPath := groomPath(3, "widget")
 	planPath := "docs/superpowers/plans/2026-08-17-widget-plan.md"
 	files := map[string]string{
-		recPath:                 miRecord(3, "widget", planPath, "", true),
+		recPath:                 miRecord(3, "widget", planPath, "", true, false),
 		"docs/changes/BOARD.md": "# Backlog\n\nold\n",
 	}
 	plan, opRes := implementedPlanFor(t, files, baseImplementedOp([]string{"inline"}, 3, "github.com/acme/widget#42"))
@@ -108,11 +111,73 @@ func TestMarkImplementedApplies(t *testing.T) {
 
 // --- reprobe fixture --------------------------------------------------------
 
+// The results artifact paths the mark-implemented fixtures commit at the feature
+// head. A results artifact is REQUIRED at the implemented boundary since change
+// 0410, so every happy fixture attaches miResultsPath; the -invalid / -mismatch
+// variants ride the same head so a conjunct-5 row can point k.results at them.
+const (
+	miResultsPath         = "docs/results/2026-08-17-widget-results.md"
+	miResultsInvalidPath  = "docs/results/2026-08-17-widget-invalid.md"
+	miResultsMismatchPath = "docs/results/2026-08-17-widget-mismatch.md"
+)
+
+// miResultsArtifact is a FINAL-valid results artifact for change 3: the correct
+// repo-relative backlink (mainPin carries no RepoWebURL, so the block matches
+// render.BacklinkContent's repo-relative form via attachBacklinkBlock) fronting a
+// title and a substantive ## Outcome. It passes ValidateResultsContent at both
+// phases.
+func miResultsArtifact() string {
+	return attachBacklinkBlock(3, "A change", groomPath(3, miSlug)) +
+		"\n# Widget — Results\n\n## Outcome\n\nDelivered the widget; behavior X now refuses Y.\n"
+}
+
+// miResultsFinalInvalid carries the correct backlink and a real ## Outcome but a
+// whole-section filler body (## Findings and limitations → None.): it passes the
+// checkpoint phase yet fails the FINAL content contract (results-content-invalid).
+func miResultsFinalInvalid() string {
+	return attachBacklinkBlock(3, "A change", groomPath(3, miSlug)) +
+		"\n# Widget — Results\n\n## Outcome\n\nReal outcome prose.\n\n## Findings and limitations\n\nNone.\n"
+}
+
+// miResultsBacklinkMismatch carries a well-formed backlink that targets a DIFFERENT
+// change id, so its results identity is broken at the head (results-identity-broken)
+// even though its prose would satisfy the final content contract.
+func miResultsBacklinkMismatch() string {
+	return attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md") +
+		"\n# Widget — Results\n\n## Outcome\n\nReal outcome prose.\n"
+}
+
+// miHeadFiles is the feature-head file set the happy mark-implemented fixtures
+// commit: the implementation file plus every results artifact variant the
+// conjunct-5 rows reference.
+func miHeadFiles() map[string]string {
+	return map[string]string{
+		"impl.go":             "package impl\n",
+		miResultsPath:         miResultsArtifact(),
+		miResultsInvalidPath:  miResultsFinalInvalid(),
+		miResultsMismatchPath: miResultsBacklinkMismatch(),
+	}
+}
+
+// miAdvanceHead commits the happy feature head (the implementation file plus the
+// results artifact variants) in the writer clone, pushes it to origin, and fetches
+// it into the invocation clone so the mark-implemented client can read the results
+// blob at that head LOCALLY — as the primary tree can in a real run. The invocation
+// clone is created before writerAdvance's push, so without this fetch the head's
+// objects are remote-only and OpenObjectSource fails ref-unavailable.
+func miAdvanceHead(t *testing.T, repo *gitRepo) string {
+	t.Helper()
+	head := repo.writerAdvance(t, "feat/"+miSlug, miHeadFiles())
+	runGit(t, repo.invocation, "fetch", "-q", "origin", "feat/"+miSlug)
+	return head
+}
+
 // miKit is the happy configuration of every reprobe input; each conjunct row
 // overrides exactly one field and asserts the operation refuses with that
 // conjunct's stable reason, having never called the engine.
 type miKit struct {
 	reconciled bool
+	trivial    bool
 	plan       string
 	results    string
 	version    string // corpus blob version
@@ -138,7 +203,7 @@ func buildMI(t *testing.T, client *gitcli.Client, invocation string, k miKit) (
 		Location: repository.LocationActive,
 		Path:     groomPath(3, miSlug),
 		Version:  k.version,
-		Data:     []byte(miRecord(3, miSlug, k.plan, k.results, k.reconciled)),
+		Data:     []byte(miRecord(3, miSlug, k.plan, k.results, k.reconciled, k.trivial)),
 	}
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{blob}, facts: domain.NewBranchFacts(nil)}
 	engine := &recordingEngine{result: transaction.Result{
@@ -186,12 +251,12 @@ func firstStatusFindingCode(findings []StatusFinding) string {
 func TestMarkImplementedAcceptsSkippedEvidence(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
-	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
+	head := miAdvanceHead(t, repo)
 	client := newGitClient(t)
 	pr := prRepo().Spec() + "#42"
 
 	deps, wdeps, gdeps, inv, req, _ := buildMI(t, client, repo.invocation, miKit{
-		reconciled: true, plan: miPlanPath(), version: miVersion, reqVersion: miVersion,
+		reconciled: true, plan: miPlanPath(), results: miResultsPath, version: miVersion, reqVersion: miVersion,
 		reqHead: head, localHead: head, evidence: prSkippedEvidenceBytes(t, head),
 		probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: pr,
 	})
