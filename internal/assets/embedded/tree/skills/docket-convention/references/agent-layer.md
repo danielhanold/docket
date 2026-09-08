@@ -129,12 +129,16 @@ multi-agent sequencing and therefore requires native collaboration controls at e
 parser rejects unknown posture values, and correspondence tests derive the marked set from the
 role's same-name skill contract rather than maintaining a filename allowlist.
 
-Codex realizes `root-coordinator` through `docket agent enter`: the command resolves the same typed
+Codex realizes `root-coordinator` through the catalog-resolved `agent.enter` operation: the command resolves the same typed
 role contract used to generate its TOML registration, launches `codex app-server --stdio` directly,
 starts a root thread with the caller's absolute cwd, approval policy, and sandbox, and supplies the
 unchanged request as the root turn. It never falls back to `codex exec`, another harness, a shell
 relay, or an ordinary child launch. Other harnesses may ignore the posture until they implement a
 corresponding native entry path; the source remains harness-neutral.
+
+Before launch, root entry compares the selected installed role with the registration planner's
+output and its preloaded skill files with the same asset catalog. A missing, edited, or stale
+contract is refused with `role-contract-unavailable`; it is never silently repaired during entry.
 
 The parent includes the run gate's dispatch context unchanged in the request file, alongside the
 user's unchanged request and any resume/continuation identity. The entered coordinator uses that

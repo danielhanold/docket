@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Docket agents — dispatch only
 
-Docket generates a subagent wrapper per docket agent into `.cursor/agents/docket-*.md`. It ships
+Docket generates a subagent wrapper per Docket role into `.cursor/agents/docket-*.md`. It ships
 validated Cursor model IDs for **every** wrapper — including all four build-profile workers,
 `docket-build-economy`, `docket-build-standard`, `docket-build-premium`, and `docket-build-max` — so each
 one is generated pinned unless a config layer overrides it.
@@ -17,7 +17,7 @@ conversation in every case. Always dispatch to the matching subagent instead.
 
 ## Required dispatch pattern
 
-For every docket agent named below:
+For every Docket role named below:
 
 1. Do **NOT** run the skill inline in this chat.
 2. Dispatch to the subagent `docket-<name>` using this mode's subagent-launch mechanism,

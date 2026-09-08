@@ -12,6 +12,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/app"
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestAgentEnterCommandRegistered(t *testing.T) {
@@ -36,9 +37,8 @@ func TestAgentEnterCommandRegistered(t *testing.T) {
 // Exercise CLI parsing, stdin, installed-contract selection, process launch and
 // final receipt together. The subprocess scripts only Codex's protocol boundary.
 func TestAgentEnterCLIPreservesRequestAndReceipt(t *testing.T) {
-	pinInstallEnv(t)
-	writeInstallState(t, assets.AssetProtocol)
-	dir := t.TempDir()
+	seedAgentInstallation(t)
+	dir := testsupport.TempDir(t)
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -73,6 +73,54 @@ func TestAgentEnterCLIPreservesRequestAndReceipt(t *testing.T) {
 		} else if out.String() != "ROOT RESULT\n" {
 			t.Fatalf("human receipt: %q", out.String())
 		}
+	}
+}
+
+func seedAgentInstallation(t *testing.T) string {
+	t.Helper()
+	home := pinInstallEnv(t)
+	t.Chdir(testsupport.TempDir(t))
+	if out, stderr, code := runCLI(t, "install", "--harness", "codex", "--json"); code != 0 {
+		t.Fatalf("install: code=%d out=%s stderr=%s", code, out, stderr)
+	}
+	return home
+}
+
+func TestAgentEnterRejectsInstalledContractDrift(t *testing.T) {
+	for _, mutate := range []string{"missing-role", "edited-role", "edited-skill"} {
+		t.Run(mutate, func(t *testing.T) {
+			home := seedAgentInstallation(t)
+			// No real Codex process may run in this refusal fixture, even if
+			// the contract guard is removed by a mutation.
+			t.Setenv("PATH", testsupport.TempDir(t))
+			role := filepath.Join(home, ".codex", "agents", "docket-implement-next.toml")
+			switch mutate {
+			case "missing-role":
+				if err := os.Remove(role); err != nil {
+					t.Fatal(err)
+				}
+			case "edited-role":
+				if err := os.WriteFile(role, []byte("name = \"different-role\"\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			case "edited-skill":
+				p := filepath.Join(home, ".agents", "skills", "docket-implement-next", "SKILL.md")
+				if err := os.Chmod(p, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(p, []byte("# Stale contract\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			out, _, _ := runCLI(t, "agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", testsupport.TempDir(t), "--approval-policy", "never", "--sandbox", "workspace-write", "--json")
+			var res app.AgentEnterResult
+			if err := json.Unmarshal([]byte(out), &res); err != nil {
+				t.Fatal(err)
+			}
+			if res.Reason != "role-contract-unavailable" {
+				t.Fatalf("%s: %+v", mutate, res)
+			}
+		})
 	}
 }
 
@@ -137,7 +185,7 @@ func TestAgentEnterRefusesNonCoordinatorRoles(t *testing.T) {
 	pinInstallEnv(t)
 	writeInstallState(t, assets.AssetProtocol)
 	for _, tc := range []struct{ role, reason string }{{"docket-missing", "unknown-role"}, {"docket-plan-writer", "ordinary-child-role"}} {
-		out, _, _ := runCLI(t, "agent", "enter", "--role", tc.role, "--request", "-", "--cwd", t.TempDir(), "--approval-policy", "never", "--sandbox", "workspace-write", "--json")
+		out, _, _ := runCLI(t, "agent", "enter", "--role", tc.role, "--request", "-", "--cwd", testsupport.TempDir(t), "--approval-policy", "never", "--sandbox", "workspace-write", "--json")
 		var res app.AgentEnterResult
 		if err := json.Unmarshal([]byte(out), &res); err != nil {
 			t.Fatal(err)
@@ -168,7 +216,7 @@ func TestAgentEnterRequiresClosedExecutionContext(t *testing.T) {
 		t.Fatalf("missing flags: stderr=%q code=%d", errS, code)
 	}
 
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	base := []string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", dir}
 	cases := []struct {
 		name string
