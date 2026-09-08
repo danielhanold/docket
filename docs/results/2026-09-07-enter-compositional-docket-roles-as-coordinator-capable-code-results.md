@@ -448,3 +448,60 @@ $ git diff --check
 ```
 
 No full suite was run in this round; the controller owns that gate.
+
+## 2026-09-08 Task 13 fix round 5 — repository Codex role precedence
+
+Tested source head: `451746f8a396e1834284c97a08ab8a2c3f0b449d`.
+The following commit is results-only and is therefore not the source-tested head.
+
+Root cause: `agent.enter` resolved only the global configuration snapshot and
+validated only `~/.codex/agents/<role>.toml`. It never selected Codex's
+higher-precedence native definition from the effective repository, and role
+selection therefore could not follow feature entry into its verified target
+worktree. The repaired path resolves cwd first, selects
+`<effective-worktree>/.codex/agents/<role>.toml` when present, parses that native
+TOML into the inventory-derived typed contract, and uses the user-global file
+only as an explicit absence fallback. Inventory remains authoritative for launch
+posture, worktree scope, and skills. A present malformed, incomplete, or
+identity-mismatched repository definition fails closed rather than falling back.
+
+Exact RED before production changes:
+
+```text
+$ go test ./internal/cli -run '^TestAgentEnterCLIUsesEffectiveRepositoryRoleBeforeGlobal$' -count=1
+--- FAIL: TestAgentEnterCLIUsesEffectiveRepositoryRoleBeforeGlobal (1.20s)
+    --- FAIL: TestAgentEnterCLIUsesEffectiveRepositoryRoleBeforeGlobal/root_uses_caller_repository (0.22s)
+        agent_test.go:170: code=1 out="{\"protocol_version\":1,\"operation\":\"agent.enter\",\"result\":\"external-failed\",\"role\":\"docket-implement-next\",\"reason\":\"root-entry-failed\",\"message\":\"root-thread creation ended before its response: EOF\"}\n" stderr=""
+    --- FAIL: TestAgentEnterCLIUsesEffectiveRepositoryRoleBeforeGlobal/feature_uses_target_worktree_repository (0.17s)
+        agent_test.go:170: code=1 out="{\"protocol_version\":1,\"operation\":\"agent.enter\",\"result\":\"external-failed\",\"role\":\"docket-rebase-resolver\",\"reason\":\"root-entry-failed\",\"message\":\"root-thread creation ended before its response: EOF\"}\n" stderr=""
+FAIL
+FAIL github.com/danielhanold/docket/internal/cli 1.768s
+FAIL
+```
+
+The regression uses a real temporary repository with two linked feature
+worktrees. Global and repository definitions carry recognizable, conflicting
+model, effort, and developer-instruction values. The root row requires the
+caller repository definition; the feature row additionally places a wrong
+definition in the coordinator worktree and requires the verified target
+worktree's definition.
+
+Fresh GREEN and focused verification at the tested source head:
+
+```text
+$ go fmt ./internal/...
+$ go test ./internal/cli ./internal/codexentry ./internal/config ./internal/harness ./internal/harness/codex -count=1
+ok github.com/danielhanold/docket/internal/cli 11.384s
+ok github.com/danielhanold/docket/internal/codexentry 0.420s
+ok github.com/danielhanold/docket/internal/config 1.024s
+ok github.com/danielhanold/docket/internal/harness 0.848s
+ok github.com/danielhanold/docket/internal/harness/codex 0.266s
+$ go test ./internal/repoguard -run '^(TestSkillSizeBudgets|TestProseContracts|TestCommittedCodexDispatchMatchesGenerator|TestCommittedCodexDispatchRoutesEveryScope|TestCodexLaunchMatrixOperatorProse)$' -count=1
+ok github.com/danielhanold/docket/internal/repoguard 0.274s
+$ go run ./cmd/genassets -check
+genassets: internal/assets/embedded matches the authored roots (67 entries, sha256:a5ea77d353898b0c185d3da70155dc48cff22ec31d3c5573a80d96ce170df2d9)
+$ git diff --check
+```
+
+No full suite was run in this round; the controller owns the exact-final-head
+gate.
