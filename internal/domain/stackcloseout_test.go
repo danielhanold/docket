@@ -233,3 +233,234 @@ func TestDeriveRootCloseoutSetRootNotFound(t *testing.T) {
 		t.Fatalf("carried set = %v; want nil for an unresolved root", set)
 	}
 }
+
+func TestDeriveCarriedSetTransitiveChain(t *testing.T) {
+	// parent(1) <- A(2, stacked-merged into feat/1) <- B(3, stacked-merged into
+	// feat/2): the live parent branch promises to carry both, proven, in
+	// parent-first order (spec Tests §6).
+	s := stackSnapshot(
+		stackSpec{id: 1, status: StatusImplemented, branch: "feat/1"},
+		stackSpec{id: 2, status: StatusStackedMerged, parent: parentEdge(1), branch: "feat/2"},
+		stackSpec{id: 3, status: StatusStackedMerged, parent: parentEdge(2), branch: "feat/3"},
+	)
+	facts := map[ChangeID]PRFacts{
+		2: mergedInto("feat/1"),
+		3: mergedInto("feat/2"),
+	}
+
+	set, fail := DeriveCarriedSet(s, 1, facts)
+	if fail != nil {
+		t.Fatalf("DeriveCarriedSet returned policy failure %+v; want nil", fail)
+	}
+	if want := []ChangeID{2, 3}; !slices.Equal(idsOf(set), want) {
+		t.Fatalf("carried ids = %v; want %v (both descendants promised)", idsOf(set), want)
+	}
+	for _, d := range set {
+		if d.Proof != "" {
+			t.Fatalf("descendant %d proof = %q; want proven (empty)", d.ID, d.Proof)
+		}
+	}
+	if !RootCloseoutProven(set) {
+		t.Fatalf("RootCloseoutProven = false; want true for a fully carried chain")
+	}
+}
+
+func TestDeriveCarriedSetOpenIntermediateStopsDescent(t *testing.T) {
+	// parent(1) <- A(2, in-progress) <- B(3, stacked-merged into A): B's code is
+	// merged into a STILL-OPEN child, so the parent branch does not yet promise
+	// it. A claims no carry (not stacked-merged) and is not descended, so the
+	// set is empty (spec Tests §6).
+	s := stackSnapshot(
+		stackSpec{id: 1, status: StatusImplemented, branch: "feat/1"},
+		stackSpec{id: 2, status: StatusInProgress, parent: parentEdge(1), branch: "feat/2"},
+		stackSpec{id: 3, status: StatusStackedMerged, parent: parentEdge(2), branch: "feat/3"},
+	)
+	facts := map[ChangeID]PRFacts{
+		2: mergedInto("feat/1"),
+		3: mergedInto("feat/2"),
+	}
+
+	set, fail := DeriveCarriedSet(s, 1, facts)
+	if fail != nil {
+		t.Fatalf("policy failure %+v; want nil", fail)
+	}
+	if len(set) != 0 {
+		t.Fatalf("carried set = %v; want empty (open intermediate blocks descent)", idsOf(set))
+	}
+}
+
+func TestDeriveCarriedSetSurfacedRefusals(t *testing.T) {
+	tests := []struct {
+		name   string
+		specs  []stackSpec
+		facts  map[ChangeID]PRFacts
+		parent ChangeID
+		check  ChangeID
+		reason string
+	}{
+		{
+			name: "stacked-merged child with no facts is pr-unknown",
+			specs: []stackSpec{
+				{id: 1, status: StatusImplemented, branch: "feat/1"},
+				{id: 2, status: StatusStackedMerged, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:  map[ChangeID]PRFacts{},
+			parent: 1,
+			check:  2,
+			reason: "pr-unknown",
+		},
+		{
+			name: "merged into the wrong branch is destination-mismatch",
+			specs: []stackSpec{
+				{id: 1, status: StatusImplemented, branch: "feat/1"},
+				{id: 2, status: StatusStackedMerged, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:  map[ChangeID]PRFacts{2: mergedInto("feat/wrong")},
+			parent: 1,
+			check:  2,
+			reason: "destination-mismatch",
+		},
+		{
+			name: "an absent parent branch field is destination-mismatch",
+			specs: []stackSpec{
+				{id: 1, status: StatusImplemented},
+				{id: 2, status: StatusStackedMerged, parent: parentEdge(1), branch: "feat/2"},
+			},
+			facts:  map[ChangeID]PRFacts{2: mergedInto("feat/1")},
+			parent: 1,
+			check:  2,
+			reason: "destination-mismatch",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := stackSnapshot(tc.specs...)
+			set, fail := DeriveCarriedSet(s, tc.parent, tc.facts)
+			if fail != nil {
+				t.Fatalf("policy failure %+v; want nil (per-descendant refusal expected)", fail)
+			}
+			if got := proofOf(set, tc.check); got != tc.reason {
+				t.Fatalf("descendant %d proof = %q; want %q", tc.check, got, tc.reason)
+			}
+			if RootCloseoutProven(set) {
+				t.Fatalf("RootCloseoutProven = true; want false when a descendant is unproven")
+			}
+		})
+	}
+}
+
+func TestDeriveCarriedSetBrokenLinkNotDescended(t *testing.T) {
+	// parent(1) <- A(2, stacked-merged, pr-unknown) <- B(3, stacked-merged into
+	// A): A's carry cannot be confirmed, so it is surfaced with its token and NOT
+	// descended — B never appears. The whole set already blocks.
+	s := stackSnapshot(
+		stackSpec{id: 1, status: StatusImplemented, branch: "feat/1"},
+		stackSpec{id: 2, status: StatusStackedMerged, parent: parentEdge(1), branch: "feat/2"},
+		stackSpec{id: 3, status: StatusStackedMerged, parent: parentEdge(2), branch: "feat/3"},
+	)
+	facts := map[ChangeID]PRFacts{
+		3: mergedInto("feat/2"), // A (2) has no facts -> pr-unknown; B (3) would prove if reached
+	}
+
+	set, fail := DeriveCarriedSet(s, 1, facts)
+	if fail != nil {
+		t.Fatalf("policy failure %+v; want nil", fail)
+	}
+	if got := proofOf(set, 2); got != "pr-unknown" {
+		t.Fatalf("descendant 2 proof = %q; want %q", got, "pr-unknown")
+	}
+	if got := proofOf(set, 3); got != "<absent>" {
+		t.Fatalf("descendant 3 proof = %q; want <absent> (a broken link is not descended)", got)
+	}
+	if RootCloseoutProven(set) {
+		t.Fatalf("RootCloseoutProven = true; want false when a link is unproven")
+	}
+}
+
+func TestDeriveCarriedSetCycleTerminates(t *testing.T) {
+	// 1 <-> 2 mutual stacked_on: walking from parent(1) reaches 2, then 2's
+	// child is 1 again — the revisited node reports cycle and derivation
+	// terminates instead of looping.
+	s := stackSnapshot(
+		stackSpec{id: 1, status: StatusImplemented, parent: parentEdge(2), branch: "feat/1"},
+		stackSpec{id: 2, status: StatusStackedMerged, parent: parentEdge(1), branch: "feat/2"},
+	)
+	facts := map[ChangeID]PRFacts{2: mergedInto("feat/1")}
+
+	set, fail := DeriveCarriedSet(s, 1, facts)
+	if fail != nil {
+		t.Fatalf("policy failure %+v; want nil", fail)
+	}
+	if got := proofOf(set, 1); got != "cycle" {
+		t.Fatalf("revisited node 1 proof = %q; want %q", got, "cycle")
+	}
+	if RootCloseoutProven(set) {
+		t.Fatalf("RootCloseoutProven = true; want false when the graph cycles")
+	}
+}
+
+func TestDeriveCarriedSetParentNotResolved(t *testing.T) {
+	t.Run("absent parent", func(t *testing.T) {
+		s := stackSnapshot(stackSpec{id: 1, status: StatusImplemented, branch: "feat/1"})
+		set, fail := DeriveCarriedSet(s, 99, nil)
+		if fail == nil {
+			t.Fatalf("DeriveCarriedSet(absent parent) returned nil failure; want a policy failure")
+		}
+		if fail.Kind != FailInvalidInput {
+			t.Fatalf("failure kind = %q; want %q", fail.Kind, FailInvalidInput)
+		}
+		if set != nil {
+			t.Fatalf("carried set = %v; want nil for an unresolved parent", set)
+		}
+	})
+	t.Run("ambiguous parent", func(t *testing.T) {
+		s := stackSnapshot(
+			stackSpec{id: 5, status: StatusImplemented, branch: "feat/5a"},
+			stackSpec{id: 5, status: StatusStackedMerged, branch: "feat/5b"},
+		)
+		set, fail := DeriveCarriedSet(s, 5, nil)
+		if fail == nil {
+			t.Fatalf("DeriveCarriedSet(ambiguous parent) returned nil failure; want a policy failure")
+		}
+		if fail.Kind != FailInvalidInput {
+			t.Fatalf("failure kind = %q; want %q", fail.Kind, FailInvalidInput)
+		}
+		if set != nil {
+			t.Fatalf("carried set = %v; want nil for an ambiguous parent", set)
+		}
+	})
+}
+
+func TestDeriveCarriedSetKilledOrProposedChildContributesNothing(t *testing.T) {
+	tests := []struct {
+		name   string
+		status Status
+	}{
+		{name: "killed child", status: StatusKilled},
+		{name: "proposed child", status: StatusProposed},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// The non-stacked-merged child (2) claims no carry and is not
+			// descended, so its own stacked-merged grandchild (3) never surfaces.
+			s := stackSnapshot(
+				stackSpec{id: 1, status: StatusImplemented, branch: "feat/1"},
+				stackSpec{id: 2, status: tc.status, parent: parentEdge(1), branch: "feat/2"},
+				stackSpec{id: 3, status: StatusStackedMerged, parent: parentEdge(2), branch: "feat/3"},
+			)
+			facts := map[ChangeID]PRFacts{
+				2: mergedInto("feat/1"),
+				3: mergedInto("feat/2"),
+			}
+
+			set, fail := DeriveCarriedSet(s, 1, facts)
+			if fail != nil {
+				t.Fatalf("policy failure %+v; want nil", fail)
+			}
+			if len(set) != 0 {
+				t.Fatalf("carried set = %v; want empty (a %s child carries nothing)", idsOf(set), tc.status)
+			}
+		})
+	}
+}
