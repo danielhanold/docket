@@ -2,6 +2,8 @@ package render_test
 
 import (
 	"bytes"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/render"
@@ -244,5 +246,69 @@ func TestApplySectionEditsNonReplaceRejectsMarkdown(t *testing.T) {
 		{Heading: "## Why", Intent: render.SectionRemove, Markdown: "nope\n"},
 	}); err == nil {
 		t.Fatalf("remove carrying Markdown should error")
+	}
+}
+
+// --- ValidateSectionBody ----------------------------------------------------
+
+// TestValidateSectionBody proves the report-body validator applies the exact
+// fence-aware rules the section scanner uses: a column-zero "## " heading
+// outside fenced code is rejected wherever it appears, heading-shaped text
+// inside a properly closed backtick or tilde fence is content, and a fence
+// left open at end of body is rejected so it cannot hide a following section
+// from the recovery scanner. LF and CRLF, and scanner-sensitive fence-length
+// cases, are exercised on both sides.
+func TestValidateSectionBody(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want error
+	}{
+		{"empty", "", nil},
+		{"prose", "Paused pending infra; suite red on internal/app.\n", nil},
+		{"list-and-h3", "### 2026-08-26\n\n- first\n- second\n\n#### deeper\n\ntail\n", nil},
+		{"inline-mention", "the `## Run halted` section is removed on resume\n", nil},
+		{"blockquote-heading-shape", "> ## quoted heading shape\n", nil},
+		{"indented-heading-is-content", "    ## deeply indented\n", nil},
+		{"fenced-backtick-heading", "```\n## Run halted\n```\n", nil},
+		{"fenced-tilde-heading", "~~~\n## Run halted\n~~~\n", nil},
+		{"fenced-crlf-heading", "```\r\n## Run halted\r\n```\r\n", nil},
+		{"longer-fence-swallows-shorter-close", "````\n```\n## inside\n````\n", nil},
+		{"other-char-run-does-not-close", "```\n~~~\n## inside\n```\n", nil},
+		{"close-may-be-longer-than-open", "```\ntext\n`````\n### fine\n", nil},
+
+		{"leading-bare-halt-heading", "## Run halted\n\nreport\n", render.ErrSectionBodyHeading},
+		{"later-bare-halt-heading", "prose first\n\n## Run halted\n\nmore\n", render.ErrSectionBodyHeading},
+		{"dated-halt-heading", "## Run halted — 2026-08-26\n\nreport\n", render.ErrSectionBodyHeading},
+		{"arbitrary-structural-h2", "report\n\n## Notes\n", render.ErrSectionBodyHeading},
+		{"crlf-structural-h2", "report\r\n\r\n## Notes\r\n", render.ErrSectionBodyHeading},
+		{"heading-after-closed-fence", "```\nx\n```\n## Escaped\n", render.ErrSectionBodyHeading},
+
+		{"unterminated-backtick-fence", "```\n## hidden\n", render.ErrSectionBodyUnterminatedFence},
+		{"unterminated-tilde-fence", "~~~\ntext\n", render.ErrSectionBodyUnterminatedFence},
+		{"inner-shorter-run-never-closes", "````\ntext\n```\n", render.ErrSectionBodyUnterminatedFence},
+		{"unterminated-crlf-fence", "```\r\ntext\r\n", render.ErrSectionBodyUnterminatedFence},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := render.ValidateSectionBody([]byte(tc.body)); !errors.Is(got, tc.want) {
+				t.Errorf("ValidateSectionBody(%q) = %v, want %v", tc.body, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestValidateSectionBodyErrorsCarryNoBodyContent proves the sentinel error
+// strings are static: an authored marker string never appears in the error a
+// caller might surface (redaction is a diagnostics contract, not a courtesy).
+func TestValidateSectionBodyErrorsCarryNoBodyContent(t *testing.T) {
+	for _, body := range []string{"## zz-authored-marker-zz\n", "```\nzz-authored-marker-zz\n"} {
+		err := render.ValidateSectionBody([]byte(body))
+		if err == nil {
+			t.Fatalf("body %q unexpectedly valid", body)
+		}
+		if strings.Contains(err.Error(), "zz-authored-marker-zz") {
+			t.Errorf("error echoes body content: %q", err.Error())
+		}
 	}
 }
