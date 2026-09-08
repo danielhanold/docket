@@ -39,6 +39,7 @@ tests/test_go_integration_app_sync.sh	55	parallel
 tests/test_go_integration_contract.sh	15	parallel
 tests/test_go_integration_gitcli_concurrency.sh	10	parallel
 tests/test_go_integration_gitcli_history.sh	10	parallel
+tests/test_go_integration_gitcli_preserve.sh	15	parallel
 tests/test_go_integration_gitcli_process.sh	15	parallel
 tests/test_go_integration_gitcli_repo.sh	30	parallel
 tests/test_go_integration_gitcli_setuptree.sh	10	parallel
