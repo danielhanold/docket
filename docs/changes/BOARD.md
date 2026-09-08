@@ -1,25 +1,30 @@
 # Backlog
 
-**412 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 6 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 263 done · 🗑️ 113 killed
+**412 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 2 blocked · 🟣 5 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 263 done · 🗑️ 113 killed
 
-## 🔵 Built (2)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0410](active/0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md) | `feat/require-durable-results-artifacts-with-human-testing-and-coo` |  |
+
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | [#291](https://github.com/danielhanold/docket/pull/291) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🔴 Blocked (1)
+## 🔴 Blocked (2)
 
 | # | Title | Priority | Type | PR | Reason |
 |---|-------|----------|------|----|--------|
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [#288](https://github.com/danielhanold/docket/pull/288) | finalize blocked — needs you |
+| [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | [#291](https://github.com/danielhanold/docket/pull/291) | finalize blocked — needs you |
 
-## 🟣 Groomed (6)
+## 🟣 Groomed (5)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0410](active/0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-slim-agents-md-to-an-effective-claude-md-design.md) |

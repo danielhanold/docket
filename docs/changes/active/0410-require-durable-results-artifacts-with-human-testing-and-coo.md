@@ -2,11 +2,11 @@
 id: 410
 slug: 'require-durable-results-artifacts-with-human-testing-and-coo'
 title: 'Require durable results artifacts with human testing and coordinator findings'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-07'
-updated: '2026-09-07'
+updated: '2026-09-08'
 depends_on: []
 stacked_on:
 related: [1, 170, 190, 218, 330, 360, 374]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/require-durable-results-artifacts-with-human-testing-and-coo'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-08T17:00:55Z'
 ---
 
 ## Artifacts
