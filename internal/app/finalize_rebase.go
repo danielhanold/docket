@@ -112,6 +112,12 @@ const (
 	ReasonRebaseReportPaths       = "report-path-not-unmerged" // a reported path is not a live unmerged path
 	ReasonRebaseNoConflict        = "no-conflict-to-continue"  // continue with no rebase in progress
 	ReasonRebaseAbortRestore      = "abort-restore-failed"     // abort did not restore the recorded orig head
+	// Resolver-budget continue refusals (change 0349). ReasonResolverBudgetExhausted
+	// (post-continuation exhaustion) and ReasonResolverBudgetUnavailable (legacy
+	// receipt) are reused from finalize_reserve.go.
+	ReasonRebaseReservationMissing    = "reservation-missing"    // no outstanding reservation, or a report with no token
+	ReasonRebaseReservationStale      = "reservation-stale"      // the report's token, or the reservation's bound stopped commit, does not match live state
+	ReasonRebaseContinuationAmbiguous = "continuation-ambiguous" // a started continuation cannot be safely replayed; retain for abort/human
 	// Gate-composition outcomes.
 	ReasonRebaseGateFailed  = "gate-failed"  // the local suite failed; repair work
 	ReasonRebaseGateHalted  = "gate-halted"  // the run was not a decidable pass/fail; a human is needed
@@ -136,15 +142,22 @@ type FinalizeRebaseRequest struct {
 // prose (Summary, RecommendedAction) is redaction-only and never echoed into a
 // result.
 type ResolverReport struct {
-	ChangeID          int      `json:"change_id"`
-	Attempt           string   `json:"attempt"`
-	Disposition       string   `json:"disposition"` // "resolved" | "stuck"
-	Summary           string   `json:"summary"`
-	TouchedPaths      []string `json:"touched_paths"`
-	ConflictedPaths   []string `json:"conflicted_paths"`
-	ObservedHead      string   `json:"observed_head"`
-	ObservedBase      string   `json:"observed_base"`
-	RecommendedAction string   `json:"recommended_action"`
+	ChangeID int    `json:"change_id"`
+	Attempt  string `json:"attempt"`
+	// ResolverReservation echoes, verbatim, the reservation token the
+	// finalize.resolver-reserve `reserved` result minted and the dispatch payload
+	// carried (change 0349). FinalizeRebaseContinue verifies it against the owned
+	// receipt's outstanding reservation before staging; a missing or foreign token
+	// refuses. It is an authored echo, not authority: Go still verifies the live
+	// stopped commit and unmerged paths.
+	ResolverReservation string   `json:"resolver_reservation"`
+	Disposition         string   `json:"disposition"` // "resolved" | "stuck"
+	Summary             string   `json:"summary"`
+	TouchedPaths        []string `json:"touched_paths"`
+	ConflictedPaths     []string `json:"conflicted_paths"`
+	ObservedHead        string   `json:"observed_head"`
+	ObservedBase        string   `json:"observed_base"`
+	RecommendedAction   string   `json:"recommended_action"`
 }
 
 // The closed resolver-report dispositions.
@@ -218,6 +231,11 @@ func (r FinalizeRebaseResult) HumanText() string {
 	// Resolver-budget counts (change 0349) travel on conflict/exhaustion results.
 	if r.ResolverLimit > 0 {
 		s += fmt.Sprintf(" [resolver %d/%d used, %d remaining]", r.ResolverUsed, r.ResolverLimit, r.ResolverRemaining)
+	}
+	// A post-continuation exhaustion names the config knob and when a raised limit
+	// takes effect, so the one-line human summary is actionable on its own.
+	if r.Reason == ReasonResolverBudgetExhausted {
+		s += "; raise finalize.resolver_max_attempts for the next explicit finalize attempt"
 	}
 	return s
 }
@@ -793,12 +811,56 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 // finalize rebase-continue
 // ---------------------------------------------------------------------------
 
+// FinalizeContinueGit is the narrow Git seam finalize.rebase-continue's budgeted,
+// reservation-verified path (change 0349) drives its live-rebase probes and the
+// staged continue through: the conflict-state probe, the stopped-commit probe whose
+// full object id the reservation is verified against, and the staged continue
+// itself. *gitcli.Client satisfies it; a unit test injects a fake that counts the
+// staged continue, observes the receipt's continuation-started marker at staging
+// time, or scripts a synthetic next-conflict outcome without a real multi-commit
+// fixture. It is nil in production wiring; continue falls back to the concrete
+// Planning.Client via continueGit.
+type FinalizeContinueGit interface {
+	RebaseState(ctx context.Context, worktreeDir string) (gitcli.RebaseStatus, error)
+	StoppedRebaseCommit(ctx context.Context, worktreeDir string) (gitcli.ObjectID, error)
+	StageAndContinueRebase(ctx context.Context, worktreeDir string, paths []string) (gitcli.RebaseStatus, error)
+}
+
+// continueGit returns the injected continue Git seam, or the concrete
+// Planning.Client when none is wired (production leaves ContinueGit unset).
+func continueGit(deps FinalizeDeps) FinalizeContinueGit {
+	if deps.ContinueGit != nil {
+		return deps.ContinueGit
+	}
+	return deps.Planning.Client
+}
+
+// clearResolverReservation consumes/clears the outstanding reservation (change
+// 0349): it empties the reservation token, its bound stopped commit, and the
+// continuation-started marker, preserving the used count and the rest of the budget
+// group. Every transition out of "reservation outstanding" runs through here so the
+// presence-encoded reservation state is always reconciled (never orphaned).
+func clearResolverReservation(rec workspace.RebaseReceipt) workspace.RebaseReceipt {
+	rec.ResolverReservationToken = ""
+	rec.ResolverReservationStopped = ""
+	rec.ResolverContinuationStarted = ""
+	return rec
+}
+
 // FinalizeRebaseContinue validates a resolver report against the live rebase
 // state, stages exactly the reported (and verified) paths, continues the owned
 // rebase non-interactively, and returns the next conflict or composes the local
 // gate on completion. The attempt token must match the owned receipt; a report
 // that names a change other than the receipt's, a non-resolved disposition, or a
 // path outside the live unmerged set refuses without touching Git.
+//
+// On a budgeted receipt (change 0349) it additionally verifies the report's
+// reservation against the owned receipt's OUTSTANDING reservation — a missing,
+// foreign, previously consumed, or stale reservation (one bound to a different
+// stopped commit than the live rebase) refuses BEFORE staging, spending and
+// refunding nothing; identical conflicted paths on two different commits cannot
+// reuse an old report. A legacy receipt (no budget group) cannot verify a
+// reservation, so it refuses the continuation (abort remains available).
 func FinalizeRebaseContinue(ctx context.Context, deps FinalizeDeps, repoDir string, id int, attempt string, report ResolverReport) FinalizeRebaseResult {
 	op := OperationFinalizeRebaseContinue
 	rc, refusal := loadRebaseContext(ctx, deps, repoDir, op, id)
@@ -811,6 +873,14 @@ func FinalizeRebaseContinue(ctx context.Context, deps FinalizeDeps, repoDir stri
 		return *refusal
 	}
 
+	// A legacy receipt (whole budget group absent) authorizes no resolver, so a
+	// budgeted continue cannot verify a reservation against it. Refuse regardless of
+	// the report; owned abort stays available (prohibition-needs-a-return-value).
+	if !rec.HasResolverBudget() {
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonResolverBudgetUnavailable,
+			"this owned rebase predates the resolver budget; route it through finalize.rebase-abort (a budgeted continue cannot verify a reservation)", id)
+	}
+
 	if report.ChangeID != id {
 		return rebaseRefusal(op, ResultInvalidInput, "", ReasonRebaseReportChangeID,
 			"the resolver report names a change other than the one being continued", id)
@@ -820,13 +890,97 @@ func FinalizeRebaseContinue(ctx context.Context, deps FinalizeDeps, repoDir stri
 			"a non-resolved report cannot continue a rebase; route an ambiguous report through rebase-abort", id)
 	}
 
-	state, err := deps.Planning.Client.RebaseState(ctx, rc.wsDir)
+	return finalizeRebaseContinueBudgeted(ctx, deps, repoDir, op, rc, attempt, report)
+}
+
+// finalizeRebaseContinueBudgeted runs the reservation-verified continue under the
+// per-workspace operation lock (change 0349): it reloads the owned receipt, proves
+// the report echoes the outstanding reservation and the reservation is bound to the
+// live stopped commit, durably marks the continuation started BEFORE staging,
+// continues the rebase, and reconciles (clears) the reservation once the Git
+// outcome is known — all under the lock so two concurrent continues cannot stage or
+// continue twice. The lock is released BEFORE composing the local gate (never held
+// across a suite slice). A prior continuation-started marker routes to reconciliation
+// rather than a blind Git replay.
+func finalizeRebaseContinueBudgeted(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, attempt string, report ResolverReport) FinalizeRebaseResult {
+	id := int(rc.change.ID())
+
+	release, err := deps.Workspace.AcquireOperationLock(rc.metaDir)
 	if err != nil {
-		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, err.Error(), id)
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe,
+			"could not acquire the workspace operation lock: "+err.Error(), id)
+	}
+	released := false
+	releaseLock := func() {
+		if !released {
+			released = true
+			release()
+		}
+	}
+	defer releaseLock()
+
+	// Reload under the lock: a concurrent continue may have marked the continuation
+	// started or advanced the budget since requireOwnedAttempt read it lock-free.
+	rec, present, rerr := deps.Workspace.ReadRebaseReceipt(ctx, rc.metaDir)
+	if rerr != nil {
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptRead, rerr.Error(), id)
+	}
+	if !present {
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseNoReceipt,
+			"no owned rebase attempt is recorded for this change; nothing to continue", id)
+	}
+	if rec.ChangeID != strconv.Itoa(id) || rec.Attempt != attempt {
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseAttemptMismatch,
+			"the supplied attempt token does not match the owned rebase receipt", id)
+	}
+	if !rec.HasResolverBudget() {
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonResolverBudgetUnavailable,
+			"this owned rebase predates the resolver budget; route it through finalize.rebase-abort", id)
+	}
+	limit, used, berr := rec.ResolverBudget()
+	if berr != nil {
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonResolverBudgetUnavailable,
+			"the resolver budget on the owned receipt is unreadable: "+berr.Error(), id)
+	}
+
+	// Verify the reservation: one must be outstanding, and the report must echo its
+	// exact token. A missing or foreign token refuses BEFORE any Git mutation and
+	// spends/refunds nothing.
+	if rec.ResolverReservationToken == "" || report.ResolverReservation == "" {
+		return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseReservationMissing,
+			"no resolver reservation is outstanding for this attempt; run finalize.resolver-reserve before continuing", id), rec)
+	}
+	if report.ResolverReservation != rec.ResolverReservationToken {
+		return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseReservationStale,
+			"the report's reservation token does not match the outstanding reservation; refusing to continue", id), rec)
+	}
+
+	git := continueGit(deps)
+
+	// A prior continuation already marked started: reconcile against the recorded
+	// stopped commit and live Git rather than replaying the stage/continue blindly.
+	if rec.ResolverContinuationStarted == "1" {
+		return finalizeRebaseReconcileStarted(ctx, deps, repoDir, op, rc, rec, limit, used, git, releaseLock)
+	}
+
+	// The reservation must be bound to the commit the live rebase is stopped on;
+	// identical conflicted paths on a DIFFERENT commit cannot rescue a stale
+	// reservation.
+	state, serr := git.RebaseState(ctx, rc.wsDir)
+	if serr != nil {
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, serr.Error(), id)
 	}
 	if state.Disposition != gitcli.RebaseConflicted {
-		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseNoConflict,
-			fmt.Sprintf("no resolvable conflict is in progress (state %q); nothing to continue", state.Disposition), id)
+		return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseNoConflict,
+			fmt.Sprintf("no resolvable conflict is in progress (state %q); nothing to continue", state.Disposition), id), rec)
+	}
+	stopped, cerr := git.StoppedRebaseCommit(ctx, rc.wsDir)
+	if cerr != nil {
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, cerr.Error(), id)
+	}
+	if string(stopped) != rec.ResolverReservationStopped {
+		return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseReservationStale,
+			"the reservation is bound to a different stopped commit than the live rebase; identical paths cannot reuse it", id), rec)
 	}
 
 	// Validate every reported path against the LIVE unmerged set before staging.
@@ -846,38 +1000,134 @@ func FinalizeRebaseContinue(ctx context.Context, deps FinalizeDeps, repoDir stri
 		}
 	}
 
-	status, err := deps.Planning.Client.StageAndContinueRebase(ctx, rc.wsDir, stage)
-	if err != nil {
-		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, err.Error(), id)
+	// Durably mark the continuation started BEFORE staging so a lost response is
+	// reconciled, never blindly replayed (reload-modify-write under the lock).
+	started := rec
+	started.ResolverContinuationStarted = "1"
+	if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, started); werr != nil {
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, werr.Error(), id)
 	}
 
-	// A continue that completes was never a no-op (a conflict implies a rewrite), so
-	// the gate always runs. Probe the PR only for the result's identity fields.
-	pr, _ := probeRebasePR(ctx, deps, repoDir, rc, string(rc.insp.HeadCommit))
-	if pr.Number == 0 {
-		pr = githubcli.PullRequest{}
+	status, gerr := git.StageAndContinueRebase(ctx, rc.wsDir, stage)
+	if gerr != nil {
+		// The staged continue failed structurally; the reservation is retained
+		// (continuation-started), so the abort/human path recovers it. No refund.
+		return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, gerr.Error(), id), started)
 	}
-	return mapContinuedRebase(ctx, deps, repoDir, op, rc, pr, rec, status)
+
+	// The Git outcome is known: reconcile (clear the reservation, keep used) under
+	// the lock, then release before the local gate runs.
+	reconciled := clearResolverReservation(started)
+	if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, reconciled); werr != nil {
+		return withResolverCounts(rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite,
+			"the continue completed but the reservation could not be reconciled on the receipt: "+werr.Error(), id), started)
+	}
+	releaseLock()
+
+	return mapContinuedRebase(ctx, deps, repoDir, op, rc, reconciled, limit, used, status)
 }
 
-// mapContinuedRebase maps a StageAndContinueRebase status: another conflict
-// surfaces its paths; a completed rebase composes the gate (never a no-op). The
-// base head, attempt, and orig head derive from the owned receipt (rec).
-func mapContinuedRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, status gitcli.RebaseStatus) FinalizeRebaseResult {
+// finalizeRebaseReconcileStarted recovers a response-lost continuation (change
+// 0349): the receipt says a continuation started, so it reconciles against the
+// recorded stopped commit and live Git rather than replaying the stage/continue. A
+// rebase still stopped on the SAME commit (or in an unresolvable state) is ambiguous
+// — retained and blocked, with no second continue or new reservation. A provably
+// advanced (stopped on a different commit) or completed (clean, head descends the
+// base) rebase is recovered WITHOUT another charge: the reservation is reconciled
+// and the outcome mapped. It runs under the caller's operation lock, releasing it
+// (via releaseLock) before composing the local gate.
+func finalizeRebaseReconcileStarted(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, rec workspace.RebaseReceipt, limit, used int, git FinalizeContinueGit, releaseLock func()) FinalizeRebaseResult {
+	id := int(rc.change.ID())
+	state, serr := git.RebaseState(ctx, rc.wsDir)
+	if serr != nil {
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, serr.Error(), id)
+	}
+	switch state.Disposition {
+	case gitcli.RebaseConflicted:
+		stopped, cerr := git.StoppedRebaseCommit(ctx, rc.wsDir)
+		if cerr != nil {
+			return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, cerr.Error(), id)
+		}
+		if string(stopped) == rec.ResolverReservationStopped {
+			// Unchanged stopped commit: the started continuation cannot be safely
+			// replayed. Retain (no second continue, no new reservation) and direct to
+			// abort/human — conservative recovery, never a filename-matched retry.
+			return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseContinuationAmbiguous,
+				"a resolver continuation already started and the rebase is still stopped on the same commit; route it through finalize.rebase-abort", id), rec)
+		}
+		// Provably advanced to a new conflict: the started continuation completed a
+		// step. Reconcile (clear the reservation, keep used) and surface the new
+		// conflict; the next dispatch requires a fresh reserve.
+		reconciled := clearResolverReservation(rec)
+		if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, reconciled); werr != nil {
+			return withResolverCounts(rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, werr.Error(), id), rec)
+		}
+		releaseLock()
+		return mapContinuedRebase(ctx, deps, repoDir, op, rc, reconciled, limit, used, state)
+	case gitcli.RebaseUnchanged:
+		// No rebase in progress: prove the rewrite landed (head descends the base)
+		// before treating a started continuation as completed.
+		localHead := rc.insp.HeadCommit
+		descends, aerr := deps.Planning.Client.IsAncestor(ctx, rc.repo, gitcli.ObjectID(rec.BaseHead), localHead)
+		if aerr != nil {
+			return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, aerr.Error(), id)
+		}
+		if !descends {
+			return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseContinuationAmbiguous,
+				"a resolver continuation already started but the workspace head does not descend the base; retained for abort", id), rec)
+		}
+		reconciled := clearResolverReservation(rec)
+		if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, reconciled); werr != nil {
+			return withResolverCounts(rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, werr.Error(), id), rec)
+		}
+		releaseLock()
+		return mapContinuedRebase(ctx, deps, repoDir, op, rc, reconciled, limit, used,
+			gitcli.RebaseStatus{Disposition: gitcli.RebaseRebased, HeadOID: localHead})
+	default: // RebaseInProgressForeign / RebaseFailed
+		return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseContinuationAmbiguous,
+			"a resolver continuation already started and the rebase is in an unresolvable state; retained for abort", id), rec)
+	}
+}
+
+// mapContinuedRebase maps a StageAndContinueRebase (or reconciled-recovery) status
+// against the reconciled receipt: another conflict surfaces its paths and the
+// resolver-budget counts; the LAST permitted continuation (used == limit) that
+// surfaces another conflict routes to the existing rebase disposition `blocked` with
+// reason resolver-budget-exhausted (the rebase disposition vocabulary does not
+// grow); a completed rebase composes the gate (never a no-op). The base head,
+// attempt, and orig head derive from the owned receipt (rec), whose reservation the
+// caller has already cleared.
+func mapContinuedRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, rec workspace.RebaseReceipt, limit, used int, status gitcli.RebaseStatus) FinalizeRebaseResult {
 	id := int(rc.change.ID())
 	switch status.Disposition {
 	case gitcli.RebaseConflicted:
-		return newRebaseResult(op, ResultApplied, withResolverCounts(FinalizeRebaseResult{
+		base := withResolverCounts(FinalizeRebaseResult{
 			ID: id, Disposition: RebaseDispConflicted, Head: string(status.HeadOID),
 			Base: rc.base.Branch, BaseHead: rec.BaseHead, Attempt: rec.Attempt,
-			UnmergedPaths: status.UnmergedPaths, Reason: ReasonRebaseConflicted,
-			Message: fmt.Sprintf("the rebase stopped at %d further conflicted path(s); dispatch the resolver", len(status.UnmergedPaths)),
-		}, rec))
+			UnmergedPaths: status.UnmergedPaths,
+		}, rec)
+		if used >= limit {
+			// The last permitted continuation surfaced another conflict: used == limit
+			// prohibits the NEXT reservation, not this completed work. Block with the
+			// exhaustion reason and let the existing abort-and-block flow handle it.
+			base.Disposition = RebaseDispBlocked
+			base.Reason = ReasonResolverBudgetExhausted
+			base.Message = fmt.Sprintf(
+				"the last permitted resolver continuation surfaced %d further conflicted path(s); the finalize.resolver_max_attempts budget is spent (%d/%d used)",
+				len(status.UnmergedPaths), used, limit)
+			return newRebaseResult(op, ResultBlocked, base)
+		}
+		base.Reason = ReasonRebaseConflicted
+		base.Message = fmt.Sprintf("the rebase stopped at %d further conflicted path(s); reserve and dispatch the resolver", len(status.UnmergedPaths))
+		return newRebaseResult(op, ResultApplied, base)
 	case gitcli.RebaseUnchanged, gitcli.RebaseRebased:
-		// The rebase-continue path only runs on a mid-conflict receipt, so the pair is
-		// empty by construction and composeLocalGate starts a fresh drive; a WAITING
-		// slice is resumed by re-entering FinalizeRebase (which recovers from the
-		// receipt), not this operation.
+		// A continue that completes was never a no-op (a conflict implies a rewrite),
+		// so the gate always runs. Probe the PR only for the result's identity
+		// fields; a mismatch yields an empty PR (no evidence) and the suite runs.
+		pr, _ := probeRebasePR(ctx, deps, repoDir, rc, string(rc.insp.HeadCommit))
+		if pr.Number == 0 {
+			pr = githubcli.PullRequest{}
+		}
 		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, status.HeadOID, false)
 	default: // RebaseInProgressForeign / RebaseFailed
 		return rebaseRefusal(op, ResultBlocked, RebaseDispFailed, ReasonRebaseGitFailed,

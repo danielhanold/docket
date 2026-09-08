@@ -746,3 +746,342 @@ func TestFinalizeRebaseGateOffCreatesNoReceipt(t *testing.T) {
 	}
 	f.receiptAbsent(t)
 }
+
+// --- reservation-verified continue (change 0349, Task 7) -------------------
+
+var errStageSeamBoom = errors.New("stage-and-continue seam boom")
+
+// stageSeam wraps the real continue Git seam so a continue test can COUNT
+// StageAndContinueRebase calls, capture the receipt's continuation-started marker
+// AT staging time (the durable mark must land before the Git mutation), and — when
+// scripted — return a synthetic next-conflict/rebased status without a real
+// multi-commit fixture. RebaseState and StoppedRebaseCommit delegate to the real
+// client so the reservation's stopped-commit verification runs against live Git.
+type stageSeam struct {
+	FinalizeContinueGit
+	f          *rebaseFixture
+	calls      int
+	contAtCall string               // ResolverContinuationStarted read when staging is invoked
+	script     *gitcli.RebaseStatus // when non-nil, returned instead of delegating to real Git
+	scriptErr  error
+}
+
+func (g *stageSeam) StageAndContinueRebase(ctx context.Context, dir string, paths []string) (gitcli.RebaseStatus, error) {
+	g.calls++
+	if g.f != nil {
+		rec, _, _ := g.f.svc.ReadRebaseReceipt(ctx, g.f.metaDir)
+		g.contAtCall = rec.ResolverContinuationStarted
+	}
+	if g.scriptErr != nil {
+		return gitcli.RebaseStatus{}, g.scriptErr
+	}
+	if g.script != nil {
+		return *g.script, nil
+	}
+	return g.FinalizeContinueGit.StageAndContinueRebase(ctx, dir, paths)
+}
+
+// reserveOnConflict drives a fresh owned rebase into a live conflict with the given
+// resolver cap, then durably reserves ONE dispatch (real FinalizeResolverReserve),
+// returning the fixture, deps, the owned attempt, the reserved token, and the live
+// stopped commit the reservation is bound to (used == 1 afterwards).
+func reserveOnConflict(t *testing.T, limit int) (f *rebaseFixture, deps FinalizeDeps, attempt, token, stopped string) {
+	t.Helper()
+	f, begin, deps := beginConflictedWithLimit(t, limit)
+	attempt = begin.Attempt
+	stopped = liveStoppedCommit(t, f)
+	res := FinalizeResolverReserve(context.Background(), deps, f.repo.invocation, f.id, attempt)
+	if res.Disposition != ReserveReserved || res.Reservation == "" {
+		t.Fatalf("reserve on conflict = disp %q token %q (reason %q), want reserved with a token", res.Disposition, res.Reservation, res.Reason)
+	}
+	return f, deps, attempt, res.Reservation, stopped
+}
+
+// TestFinalizeRebaseContinueReservationMissing proves a report that carries no
+// resolver_reservation is refused BEFORE staging (reservation-missing), spends
+// nothing, and leaves the outstanding reservation and the receipt untouched.
+func TestFinalizeRebaseContinueReservationMissing(t *testing.T) {
+	f, deps, attempt, _, _ := reserveOnConflict(t, 2)
+	ctx := context.Background()
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps.ContinueGit = seam
+	before := reloadReceipt(t, f)
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved, ConflictedPaths: []string{"feature.txt"}}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultBlocked || res.Reason != ReasonRebaseReservationMissing {
+		t.Fatalf("continue = (%q, %q), want blocked/%q", res.Result, res.Reason, ReasonRebaseReservationMissing)
+	}
+	if seam.calls != 0 {
+		t.Errorf("a reservation-missing refusal staged %d time(s); want 0", seam.calls)
+	}
+	if after := reloadReceipt(t, f); after != before {
+		t.Fatalf("a reservation-missing refusal mutated the receipt:\n before %+v\n after  %+v", before, after)
+	}
+}
+
+// TestFinalizeRebaseContinueReservationStaleToken proves a report echoing a foreign
+// token is refused (reservation-stale) before staging. (Mutation cell a: dropping
+// the token comparison lets this continue reach staging and reddens here.)
+func TestFinalizeRebaseContinueReservationStaleToken(t *testing.T) {
+	f, deps, attempt, _, _ := reserveOnConflict(t, 2)
+	ctx := context.Background()
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps.ContinueGit = seam
+	// Resolve the file so that, if the guard were dropped, the continue would
+	// complete (applied) rather than merely erroring — a cleaner mutation signal.
+	writeRepoFile(t, f.wp, "feature.txt", "reconciled content\n")
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: "not-the-reserved-token"}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultBlocked || res.Reason != ReasonRebaseReservationStale {
+		t.Fatalf("continue = (%q, %q), want blocked/%q", res.Result, res.Reason, ReasonRebaseReservationStale)
+	}
+	if seam.calls != 0 {
+		t.Errorf("a foreign-token refusal staged %d time(s); want 0", seam.calls)
+	}
+}
+
+// TestFinalizeRebaseContinueReservationStaleCommit proves a correct token bound to
+// a DIFFERENT stopped commit than the live rebase is refused (reservation-stale):
+// identical conflicted paths must NOT rescue a stale reservation. (Mutation cell b:
+// dropping the stopped-commit comparison lets this continue proceed and reddens.)
+func TestFinalizeRebaseContinueReservationStaleCommit(t *testing.T) {
+	f, deps, attempt, token, _ := reserveOnConflict(t, 2)
+	ctx := context.Background()
+	// Rebind the reservation to a different (but valid) stopped commit; the live
+	// rebase remains stopped on the real feature commit, so the identities diverge
+	// while the conflicted path (feature.txt) is byte-identical.
+	seedReserveReceipt(t, f, func(r *workspace.RebaseReceipt) {
+		r.ResolverReservationStopped = strings.Repeat("b", 40)
+	})
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps.ContinueGit = seam
+	writeRepoFile(t, f.wp, "feature.txt", "reconciled content\n")
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultBlocked || res.Reason != ReasonRebaseReservationStale {
+		t.Fatalf("continue = (%q, %q), want blocked/%q (identical paths must not rescue a stale reservation)", res.Result, res.Reason, ReasonRebaseReservationStale)
+	}
+	if seam.calls != 0 {
+		t.Errorf("a stale-commit refusal staged %d time(s); want 0", seam.calls)
+	}
+}
+
+// TestFinalizeRebaseContinueMarksStartedBeforeStaging proves the continuation-started
+// marker is durably written BEFORE StageAndContinueRebase runs, and that a completed
+// continue clears the reservation while preserving used. (Mutation cell c: skipping
+// the continuation-started write reddens the contAtCall assertion.)
+func TestFinalizeRebaseContinueMarksStartedBeforeStaging(t *testing.T) {
+	f, deps, attempt, token, _ := reserveOnConflict(t, 2)
+	ctx := context.Background()
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps.ContinueGit = seam
+	writeRepoFile(t, f.wp, "feature.txt", "reconciled content\n")
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultApplied || res.Disposition != RebaseDispRebased {
+		t.Fatalf("continue = (%q, %q) reason %q msg %q, want applied/rebased", res.Result, res.Disposition, res.Reason, res.Message)
+	}
+	if seam.calls != 1 {
+		t.Fatalf("staging calls = %d, want exactly 1", seam.calls)
+	}
+	if seam.contAtCall != "1" {
+		t.Fatalf("continuation-started marker at staging time = %q, want %q (the mark must be durable before the Git mutation)", seam.contAtCall, "1")
+	}
+	// The completed continue composed the gate and cleared the reservation, keeping used.
+	if res.Gate == nil || res.Gate.Evidence == "" {
+		t.Errorf("a completed continue did not compose the gate: %+v", res.Gate)
+	}
+	rec := reloadReceipt(t, f)
+	if rec.ResolverReservationToken != "" || rec.ResolverReservationStopped != "" || rec.ResolverContinuationStarted != "" {
+		t.Errorf("a completed continue left the reservation outstanding: token %q stopped %q cont %q",
+			rec.ResolverReservationToken, rec.ResolverReservationStopped, rec.ResolverContinuationStarted)
+	}
+	if rec.ResolverUsed != "1" {
+		t.Errorf("used = %q after a completed continue, want 1 preserved", rec.ResolverUsed)
+	}
+}
+
+// TestFinalizeRebaseContinueNextConflictUnderBudget proves a continuation that
+// surfaces the NEXT conflict with used < limit returns a conflicted result carrying
+// the counts, with the (now-spent) reservation reconciled/cleared.
+func TestFinalizeRebaseContinueNextConflictUnderBudget(t *testing.T) {
+	f, deps, attempt, token, _ := reserveOnConflict(t, 2) // used becomes 1
+	ctx := context.Background()
+	// Script the staged continue to surface another conflict without a real
+	// multi-commit fixture (the real e2e is Task 8).
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f,
+		script: &gitcli.RebaseStatus{Disposition: gitcli.RebaseConflicted, HeadOID: gitcli.ObjectID(strings.Repeat("c", 40)), UnmergedPaths: []string{"feature.txt"}}}
+	deps.ContinueGit = seam
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultApplied || res.Disposition != RebaseDispConflicted || res.Reason != ReasonRebaseConflicted {
+		t.Fatalf("continue = (%q, %q, %q), want applied/conflicted/%q", res.Result, res.Disposition, res.Reason, ReasonRebaseConflicted)
+	}
+	if res.ResolverLimit != 2 || res.ResolverUsed != 1 || res.ResolverRemaining != 1 {
+		t.Errorf("counts = %d/%d/%d, want 2/1/1", res.ResolverLimit, res.ResolverUsed, res.ResolverRemaining)
+	}
+	rec := reloadReceipt(t, f)
+	if rec.ResolverReservationToken != "" || rec.ResolverContinuationStarted != "" {
+		t.Errorf("the next-conflict outcome left the reservation outstanding: token %q cont %q", rec.ResolverReservationToken, rec.ResolverContinuationStarted)
+	}
+	if rec.ResolverUsed != "1" {
+		t.Errorf("used = %q, want 1 preserved", rec.ResolverUsed)
+	}
+}
+
+// TestFinalizeRebaseContinueNextConflictExhausted proves the last permitted
+// continuation (used == limit) that surfaces another conflict routes to the
+// existing rebase disposition `blocked` with reason resolver-budget-exhausted and
+// carries the counts; the rebase disposition vocabulary does not grow. The
+// exhaustion HumanText names finalize.resolver_max_attempts, the used/limit, and
+// the next explicit finalize attempt.
+func TestFinalizeRebaseContinueNextConflictExhausted(t *testing.T) {
+	f, deps, attempt, token, _ := reserveOnConflict(t, 1) // used becomes 1 == limit
+	ctx := context.Background()
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f,
+		script: &gitcli.RebaseStatus{Disposition: gitcli.RebaseConflicted, HeadOID: gitcli.ObjectID(strings.Repeat("c", 40)), UnmergedPaths: []string{"feature.txt"}}}
+	deps.ContinueGit = seam
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultBlocked || res.Disposition != RebaseDispBlocked || res.Reason != ReasonResolverBudgetExhausted {
+		t.Fatalf("continue = (%q, %q, %q), want blocked/blocked/%q", res.Result, res.Disposition, res.Reason, ReasonResolverBudgetExhausted)
+	}
+	if res.ResolverLimit != 1 || res.ResolverUsed != 1 || res.ResolverRemaining != 0 {
+		t.Errorf("counts = %d/%d/%d, want 1/1/0", res.ResolverLimit, res.ResolverUsed, res.ResolverRemaining)
+	}
+	h := res.HumanText()
+	if !strings.Contains(h, "finalize.resolver_max_attempts") || !strings.Contains(h, "next explicit finalize attempt") || !strings.Contains(h, "1/1") {
+		t.Errorf("exhaustion HumanText %q does not name finalize.resolver_max_attempts + used/limit + next explicit finalize attempt", h)
+	}
+}
+
+// TestFinalizeRebaseContinueLegacyRefuses proves a legacy receipt (no budget group)
+// refuses any continue with resolver-budget-unavailable, while FinalizeRebaseAbort
+// on the SAME legacy receipt still succeeds (abort is reservation-agnostic).
+func TestFinalizeRebaseContinueLegacyRefuses(t *testing.T) {
+	f, _, deps := beginConflictedWithLimit(t, 2)
+	ctx := context.Background()
+	attempt := reloadReceipt(t, f).Attempt
+	// Strip the whole budget group -> a legacy receipt (still valid: all six empty).
+	seedReserveReceipt(t, f, func(r *workspace.RebaseReceipt) {
+		r.ResolverBudgetVersion = ""
+		r.ResolverLimit = ""
+		r.ResolverUsed = ""
+		r.ResolverReservationToken = ""
+		r.ResolverReservationStopped = ""
+		r.ResolverContinuationStarted = ""
+	})
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved, ConflictedPaths: []string{"feature.txt"}}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultBlocked || res.Reason != ReasonResolverBudgetUnavailable {
+		t.Fatalf("legacy continue = (%q, %q), want blocked/%q", res.Result, res.Reason, ReasonResolverBudgetUnavailable)
+	}
+	// Abort on the same legacy receipt still succeeds.
+	abort := FinalizeRebaseAbort(ctx, deps, f.repo.invocation, f.id, attempt,
+		ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverStuck})
+	if abort.Result != ResultApplied || abort.Disposition != RebaseDispBlocked {
+		t.Fatalf("legacy abort = (%q, %q), want applied/blocked", abort.Result, abort.Disposition)
+	}
+	f.receiptAbsent(t)
+}
+
+// TestFinalizeRebaseContinueRepeatedConsumedReservation proves a repeated continue
+// with an already-consumed reservation cannot advance a later commit: the second
+// call refuses (reservation-missing, the reservation was cleared) and stages nothing.
+func TestFinalizeRebaseContinueRepeatedConsumedReservation(t *testing.T) {
+	f, deps, attempt, token, _ := reserveOnConflict(t, 2)
+	ctx := context.Background()
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps.ContinueGit = seam
+	writeRepoFile(t, f.wp, "feature.txt", "reconciled content\n")
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	first := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if first.Result != ResultApplied {
+		t.Fatalf("first continue = %q (reason %q), want applied", first.Result, first.Reason)
+	}
+	if seam.calls != 1 {
+		t.Fatalf("first continue staged %d time(s), want 1", seam.calls)
+	}
+	// Replaying the same (now consumed) reservation must not stage again.
+	second := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if second.Result != ResultBlocked || second.Reason != ReasonRebaseReservationMissing {
+		t.Fatalf("repeated continue = (%q, %q), want blocked/%q", second.Result, second.Reason, ReasonRebaseReservationMissing)
+	}
+	if seam.calls != 1 {
+		t.Fatalf("repeated continue staged again (calls = %d); a consumed reservation cannot advance a later commit", seam.calls)
+	}
+}
+
+// TestFinalizeRebaseContinueStartedAmbiguousRetains proves a response-lost
+// continuation (continuation-started marked, live rebase still stopped on the SAME
+// commit) is retained and blocked with no second continue — never blindly replayed.
+func TestFinalizeRebaseContinueStartedAmbiguousRetains(t *testing.T) {
+	f, deps, attempt, token, stopped := reserveOnConflict(t, 2)
+	ctx := context.Background()
+	// The prior continuation marked started but its response was lost; the live
+	// rebase is still stopped on the reserved commit (stopped == X).
+	before := seedReserveReceipt(t, f, func(r *workspace.RebaseReceipt) {
+		r.ResolverReservationStopped = stopped
+		r.ResolverContinuationStarted = "1"
+	})
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps.ContinueGit = seam
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultBlocked || res.Reason != ReasonRebaseContinuationAmbiguous {
+		t.Fatalf("ambiguous recovery = (%q, %q), want blocked/%q", res.Result, res.Reason, ReasonRebaseContinuationAmbiguous)
+	}
+	if seam.calls != 0 {
+		t.Errorf("an ambiguous recovery staged %d time(s); want 0 (no second continue)", seam.calls)
+	}
+	if after := reloadReceipt(t, f); after != before {
+		t.Fatalf("an ambiguous recovery mutated the receipt:\n before %+v\n after  %+v", before, after)
+	}
+}
+
+// TestFinalizeRebaseContinueStartedCompletedRecovers proves a response-lost
+// continuation whose rebase provably completed (RebaseState clean, head descends
+// the base) is recovered WITHOUT another charge: the reservation is reconciled, the
+// gate composes, and used is preserved — no second StageAndContinueRebase.
+func TestFinalizeRebaseContinueStartedCompletedRecovers(t *testing.T) {
+	f, gh, real := completedBudgetedReceipt(t, func(r *workspace.RebaseReceipt) {
+		r.ResolverContinuationStarted = "1" // a started continuation whose response was lost
+	})
+	ctx := context.Background()
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps := f.finalizeDeps(gh, &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}})
+	deps.ContinueGit = seam
+
+	report := ResolverReport{ChangeID: f.id, Attempt: real.Attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: real.ResolverReservationToken}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, real.Attempt, report)
+	if res.Result != ResultApplied || res.Gate == nil || res.Gate.Evidence == "" {
+		t.Fatalf("completed recovery = %q gate %+v (reason %q), want applied with gate evidence", res.Result, res.Gate, res.Reason)
+	}
+	if seam.calls != 0 {
+		t.Errorf("a completed recovery staged %d time(s); want 0 (recover without another continue)", seam.calls)
+	}
+	rec := reloadReceipt(t, f)
+	if rec.ResolverReservationToken != "" || rec.ResolverContinuationStarted != "" {
+		t.Errorf("a completed recovery left the reservation outstanding: token %q cont %q", rec.ResolverReservationToken, rec.ResolverContinuationStarted)
+	}
+	if rec.ResolverUsed != real.ResolverUsed {
+		t.Errorf("used = %q after recovery, want %q preserved (no new charge)", rec.ResolverUsed, real.ResolverUsed)
+	}
+}

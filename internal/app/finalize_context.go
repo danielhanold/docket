@@ -160,6 +160,15 @@ type FinalizeDeps struct {
 	// test injects a fake that faults exactly one probe to prove the operation
 	// refuses and never increments the budget on an unprovable probe.
 	ReserveGit FinalizeReserveGit
+	// ContinueGit is the narrow Git seam finalize.rebase-continue's reservation-
+	// verified budgeted path (change 0349) drives its live-state probes and the
+	// staged continue through: RebaseState, StoppedRebaseCommit, and
+	// StageAndContinueRebase. It is nil in every other operation's wiring; the
+	// continue operation falls back to the concrete Planning.Client when it is nil,
+	// so production may leave it unset. A unit test injects a fake that counts the
+	// staged continue, observes the receipt's continuation-started marker at staging
+	// time, or scripts a synthetic next-conflict outcome.
+	ContinueGit FinalizeContinueGit
 }
 
 // FinalizeContextRequest is the closed request. ID==0 applies the deterministic
