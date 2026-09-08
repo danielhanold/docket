@@ -1,6 +1,6 @@
 # Backlog
 
-**413 changes** — 🟢 1 in progress · 🔵 2 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 264 done · 🗑️ 113 killed
+**414 changes** — 🟢 1 in progress · 🔵 2 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 264 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -30,10 +30,11 @@
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (17)
+## 🟡 Proposed (18)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0414](active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | `low` | `chore` | needs-brainstorm |
 | [0413](active/0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md) | Finalize rebase gate cannot clear derived embedded-asset manifest collisions | `medium` | `fix` | needs-brainstorm |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `high` | `fix` | needs-brainstorm |
 | [0411](active/0411-steer-post-completion-durable-write-failures-to-rebase-conti.md) | Steer post-completion durable-write failures to rebase-continue, not abort | `low` | `docs` | needs-brainstorm |
@@ -107,6 +108,7 @@ graph TD
   0411
   0412
   0413
+  0414
   0192:::done
   0251:::done
   0370:::done
