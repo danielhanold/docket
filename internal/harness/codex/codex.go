@@ -56,19 +56,17 @@ const (
 	skillsPreambleFormat = "Before acting, load these docket skills from your linked Codex skills directory: %s."
 )
 
-// codexDispatchBoundary is the Codex-specific nested-dispatch boundary
-// (change 0365). It is emitted into EVERY generated agent, unconditionally:
-// composition is a property of the invoked skill and may change through
-// configuration, so an allowlist of today's dispatching wrappers would
-// silently miss a future custom binding, while a leaf agent receiving a
-// conditional instruction incurs no behavioral change. It is Codex-specific
-// tool placement (ADR-0060), so it lives in this renderer — the shared agent
-// bodies stay harness-neutral. It closes the false-negative shape a live run
-// hit: a parent inspected a nested JavaScript tool inventory, found no
-// dispatch entry there, and halted without ever attempting the registered
-// dispatch (see the convention's "Dispatch-capability resolution" section for
-// the harness-neutral rule this instantiates).
-const codexDispatchBoundary = "When your active charter requires another agent, dispatch it with Codex's direct named-agent dispatch from your active top-level tool surface. Nested orchestration inventories — tool lists read from inside another tool — omit top-level collaboration controls, so absence from such a nested inventory cannot establish dispatch unavailability; only a failed direct dispatch attempt or an explicit policy denial does."
+// codexTargetRouting is emitted into EVERY generated agent. The target's
+// registered description is the typed, installed routing authority: a root
+// launch marker takes precedence, a feature marker selects worktree entry, and
+// an unmarked metadata child remains a native child. It stays in the Codex
+// renderer because this is Codex-specific tool placement; the shared agent
+// bodies remain harness-neutral.
+const codexTargetRouting = "When your active charter requires another agent, inspect the registered target's description markers. `[docket launch: root-coordinator]` takes precedence: enter it as a foreground root thread through catalog-resolved `agent.enter` at the caller cwd. Otherwise `[docket worktree: feature]` requires foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`; an unmarked metadata child uses direct native named-agent dispatch. Nested orchestration inventories — tool lists read from inside another tool — omit top-level collaboration controls, so absence from such a nested inventory cannot establish dispatch unavailability; only a failed direct dispatch attempt or an explicit policy denial does. Never substitute `codex exec`, a shell runner, another harness, a generic agent, or a relay."
+
+// featureWorktreeStartupGuard makes an accidental native launch fail before a
+// feature role can inspect or mutate the coordinator's tree.
+const featureWorktreeStartupGuard = "Before any read or write, locate the `Feature worktree: <absolute-path>` input, canonicalize it and the process cwd, require equality at the worktree root, and halt visibly if it is missing, relative, nonexistent, nested, or mismatched."
 
 // ErrRender is the sentinel for a rendering that cannot be expressed — an
 // input whose value would not survive its own serialization. It is a defect in
@@ -176,10 +174,22 @@ func roleContract(s harness.AgentSource, agents config.AgentsTable) RoleContract
 	if len(s.Skills) > 0 {
 		dev = fmt.Sprintf(skillsPreambleFormat, strings.Join(s.Skills, ", ")) + "\n\n" + body
 	}
-	dev = harness.RecursionGuard(s.Name) + "\n\n" + codexDispatchBoundary + "\n\n" + dev
+	contractPreamble := []string{harness.RecursionGuard(s.Name)}
+	if s.WorktreeScope == harness.WorktreeScopeFeature {
+		contractPreamble = append(contractPreamble, featureWorktreeStartupGuard)
+	}
+	contractPreamble = append(contractPreamble, codexTargetRouting)
+	dev = strings.Join(append(contractPreamble, dev), "\n\n")
 	description := s.Description
+	var markers []string
 	if s.LaunchPosture == harness.LaunchRootCoordinator {
-		description = "[docket launch: root-coordinator] " + description
+		markers = append(markers, "[docket launch: root-coordinator]")
+	}
+	if s.WorktreeScope == harness.WorktreeScopeFeature {
+		markers = append(markers, "[docket worktree: feature]")
+	}
+	if len(markers) > 0 {
+		description = strings.Join(markers, " ") + " " + description
 	}
 	return RoleContract{
 		Name:                  s.Name,
@@ -245,10 +255,9 @@ func renderAgent(contract RoleContract) []byte {
 	// frontmatter/heading, ahead of the body (skills preamble included) this
 	// renderer already emits. harness.RecursionGuard is the shared emitter, so the
 	// paragraph is byte-identical across all four harnesses.
-	// The dispatch boundary is the SECOND paragraph: the recursion guard keeps
-	// its cross-harness first-paragraph position, and the boundary sits ahead
-	// of the skills preamble and body so it reads as harness contract, not
-	// role prose.
+	// Target routing follows the cross-harness recursion guard; feature roles
+	// place their worktree startup guard between them. Both stay ahead of skills
+	// and body prose as renderer-owned contract.
 	b.WriteString("developer_instructions = \"\"\"\n" + escapeMultiline(contract.DeveloperInstructions) + "\n\"\"\"\n")
 
 	return []byte(b.String())

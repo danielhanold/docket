@@ -94,12 +94,11 @@ func DispatchInterior(runGate []byte) string {
 }
 
 // CodexRootEntryClause is appended only to repository AGENTS.md surfaces for
-// repos that opt into Codex. The role registry exposes the posture marker in
-// the coordinator's description; ordinary registered roles retain native
-// named-child launch.
+// repos that opt into Codex. Registered description markers expose the closed
+// root, feature, and metadata launch routes without a role-name roster.
 const CodexRootEntryClause = "### Codex root-coordinator entry\n\n" +
-	"For Codex, this clause selects the native launch mechanism and takes precedence over the general named-child dispatch wording above. A registered Docket role whose description begins `[docket launch: root-coordinator]` must be entered as a foreground root thread through the catalog-resolved `agent.enter` operation. Do not launch that role as an ordinary child. Registered roles without that marker continue through native named-agent child dispatch.\n\n" +
-	"For implement-next, arm the run gate first as specified above. Write a request file containing the user's request unchanged plus the gate's dispatch-context token unchanged, explicitly labeled as dispatch context for `change.claim --gate-context` and the run's gate-drive operations. Preserve any resume id, continuation id, and gate key in that request too. Pass the file through `--request`, the registered role name through `--role`, and the active absolute cwd, approval policy, and sandbox through their corresponding flags. Never omit the dispatch context merely because entry runs in the foreground.\n\n" +
+	"For Codex, inspect a registered Docket role's description markers to select its native launch; this takes precedence over the general named-child wording above. `[docket launch: root-coordinator]` takes precedence: foreground catalog-resolved `agent.enter` at the caller cwd enters it as a root thread. Otherwise `[docket worktree: feature]` requires foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`; an unmarked metadata child uses direct native named-agent dispatch.\n\n" +
+	"For any `agent.enter` route, do the following. Write a request file containing the user's request unchanged; for implement-next, also include the gate's dispatch-context token unchanged, explicitly labeled for `change.claim --gate-context` and the run's gate-drive operations. Preserve any resume id, continuation id, and gate key. Pass the file through `--request`, the registered role through `--role`, and the active absolute caller `--cwd`, approval policy, and sandbox through their corresponding flags; add the owning workflow's exact `--worktree` explicitly for feature children. Never omit dispatch context because entry is foreground.\n\n" +
 	"Wait for root entry's final return, then run the parent's keyed `run.gate-verdict` and obey its report as specified above. The coordinator's prose, thread id, turn id, and process exit code are not gate ownership or completion evidence. Do not substitute `codex exec`, another harness, a generic agent, or a parent relay."
 
 func CodexDispatchInterior(runGate []byte) string {

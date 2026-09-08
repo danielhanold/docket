@@ -504,7 +504,7 @@ func TestOpencodeYAMLEscaping(t *testing.T) {
 	const name = "docket-" + short
 	files := map[string]string{
 		"agents/" + name + ".md": "---\nname: " + name +
-			"\ndescription: 'a: b # c ''quoted'' and a back\\slash'\nskills: [docket-build-task]\n---\nBody line.\n",
+			"\ndescription: 'a: b # c ''quoted'' and a back\\slash'\nskills: [docket-build-task]\nworktree-scope: metadata\n---\nBody line.\n",
 	}
 	targets, err := New().Plan(harness.PlanInput{
 		Assets:    syntheticAgentCatalog(files),
@@ -599,7 +599,7 @@ func TestOpencodeInventoryAdditionPropagates(t *testing.T) {
 	before := planFixture(t)
 
 	const extraPath = "agents/docket-zzz-synthetic.md"
-	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\n---\nSynthetic body.\n"
+	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\nworktree-scope: metadata\n---\nSynthetic body.\n"
 
 	base := in.Assets
 	m := base.Manifest

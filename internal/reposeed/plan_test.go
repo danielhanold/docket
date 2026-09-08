@@ -312,6 +312,32 @@ func TestPlanDispatchInteriorWordingConstraint(t *testing.T) {
 	}
 }
 
+// TestCodexRootEntryPolicyRoutesByRegistrationMarkers catches a stale policy
+// that routes every non-root role as a native child instead of selecting the
+// foreground worktree entry from the installed feature marker.
+func TestCodexRootEntryPolicyRoutesByRegistrationMarkers(t *testing.T) {
+	targets, _ := mustPlan(t, PlanInput{
+		WorktreeRoot: worktreeRoot,
+		Harnesses:    []string{"codex"},
+		RunGate:      runGate,
+	})
+	content := string(byPath(targets)[agentsMD()].Content)
+	for _, clause := range []string{
+		"`[docket launch: root-coordinator]` takes precedence",
+		"foreground catalog-resolved `agent.enter` at the caller cwd",
+		"`[docket worktree: feature]`",
+		"foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`",
+		"unmarked metadata child uses direct native named-agent dispatch",
+		"Write a request file containing the user's request unchanged",
+		"caller `--cwd`",
+		"the owning workflow's exact `--worktree` explicitly for feature children",
+	} {
+		if !strings.Contains(content, clause) {
+			t.Errorf("Codex dispatch policy lacks %q", clause)
+		}
+	}
+}
+
 // TestPlanTargetsSorted proves the plan is deterministic — targets ascend by
 // path and owner slices are sorted.
 func TestPlanTargetsSorted(t *testing.T) {

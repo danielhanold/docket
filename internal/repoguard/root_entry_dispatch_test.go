@@ -2,6 +2,7 @@ package repoguard
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/assets"
@@ -34,5 +35,22 @@ func TestCommittedCodexDispatchMatchesGenerator(t *testing.T) {
 	}
 	if !bytes.Equal(src, want) {
 		t.Fatal("AGENTS.md dispatch block is stale; regenerate it from harness.CodexDispatchInterior")
+	}
+}
+
+// TestCommittedCodexDispatchRoutesEveryScope catches an AGENTS.md update that
+// keeps the root coordinator path but loses the feature-worktree or metadata
+// branch of the generated marker policy.
+func TestCommittedCodexDispatchRoutesEveryScope(t *testing.T) {
+	content := readMaintained(t, guardRoot(t), "AGENTS.md")
+	for _, clause := range []string{
+		"`[docket launch: root-coordinator]` takes precedence",
+		"foreground catalog-resolved `agent.enter` at the caller cwd",
+		"`[docket worktree: feature]` requires foreground catalog-resolved `agent.enter`",
+		"exact `--worktree`; an unmarked metadata child uses direct native named-agent dispatch",
+	} {
+		if !strings.Contains(content, clause) {
+			t.Errorf("AGENTS.md Codex dispatch policy lacks %q", clause)
+		}
 	}
 }
