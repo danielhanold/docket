@@ -2,11 +2,11 @@
 id: 283
 slug: slim-agents-md-to-an-effective-claude-md
 title: 'Slim AGENTS.md to an effective, lean always-in-context file'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: docs
 created: 2026-08-09
-updated: '2026-09-07'
+updated: '2026-09-08'
 depends_on: []
 related: [154, 257, 263]
 discovered_from: []
@@ -16,10 +16,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'docs/slim-agents-md-to-an-effective-claude-md'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-08T20:35:22Z'
 ---
 
 ## Artifacts

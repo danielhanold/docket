@@ -1,12 +1,13 @@
 # Backlog
 
-**413 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 5 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 264 done · 🗑️ 113 killed
+**413 changes** — 🟢 2 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 264 done · 🗑️ 113 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0410](active/0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md) | `feat/require-durable-results-artifacts-with-human-testing-and-coo` |  |
+| [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-slim-agents-md-to-an-effective-claude-md-design.md) | `docs/slim-agents-md-to-an-effective-claude-md` |  |
 
 ## 🔵 Built (1)
 
@@ -20,13 +21,12 @@
 |---|-------|----------|------|----|--------|
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [#288](https://github.com/danielhanold/docket/pull/288) | finalize blocked — needs you |
 
-## 🟣 Groomed (5)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) |
-| [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-slim-agents-md-to-an-effective-claude-md-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
