@@ -68,18 +68,30 @@ type skillBudget struct {
 // refused invalid-input (invalid-section-markdown, field report). Minimum-faithful
 // phrasing exceeds the prior 6900 ceiling; the new baseline is pinned at the exact
 // word count so the ratchet still reddens on any further regrowth.
+//
+// Change 0376 re-baselined docket-build/SKILL.md (385/3850 -> 390/3907),
+// docket-build-task/SKILL.md (155/1550 -> 160/1605), and
+// docket-implement-next/SKILL.md (word ceiling 6956 -> 6991; line ceiling
+// unchanged) upward once to hold the required gate.drive JSON-capture caller
+// contract: every credential-consuming invocation must pass --json and capture
+// the first response before acting. This is authored contract documentation, not
+// slack — the ceilings are pinned at the exact new counts (after trimming
+// per-caller repetition of what the shared contract already states), so the
+// ratchet still reddens on any further regrowth. The docket-implement-next word
+// ceiling carries both re-baselines: 0354's halt-report prose and 0376's
+// JSON-capture prose now coexist in the file.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
 	{"docket-auto-groom/SKILL.md", 70, 1750},
 	{"docket-brainstorm/SKILL.md", 84, 692},
-	{"docket-build/SKILL.md", 385, 3850},
+	{"docket-build/SKILL.md", 390, 3907}, // 0376: +gate.drive JSON-capture caller contract (see note above)
 	{"docket-build/references/delegation-execution.md", 85, 850},
 	{"docket-build/references/gate-caller-loop.md", 175, 1750},
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
-	{"docket-build-task/SKILL.md", 155, 1550},
+	{"docket-build-task/SKILL.md", 160, 1605}, // 0376: +gate.drive JSON-capture caller contract (see note above)
 	{"docket-convention/SKILL.md", 400, 7807}, // 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
 	{"docket-convention/github-board-mirror.md", 19, 462},
 	{"docket-convention/references/agent-layer.md", 205, 2350},
@@ -90,7 +102,7 @@ var skillBudgets = []skillBudget{
 	{"docket-finalize-change/SKILL.md", 217, 4898}, // 0346: +verified post-merge rebuild contract prose; 0388: +sync-integration prose (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 180, 6956},
+	{"docket-implement-next/SKILL.md", 180, 6991}, // 0354: +halt-report body-only prose; 0376: +gate.drive JSON-capture caller contract (see note above)
 	{"docket-implement-next/references/edge-paths.md", 58, 800},
 	{"docket-implement-next/references/fix-loop.md", 185, 1900},
 	{"docket-implement-next/results-template.md", 25, 250},

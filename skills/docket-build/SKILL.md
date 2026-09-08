@@ -76,9 +76,8 @@ Emit one concise routing line per task naming both the profile and its reason.
 operation with `--change-id <id> --task-id <task-N> --phase build --branch <branch> --worktree
 <worktree> --gate-context <dispatch-context> --json` (the dispatch context arrived in *your* prompt from
 the gated parent — pass its value through). Capture the scope id and **both** capabilities from the
-`--json` response before dispatching (per the JSON-capture requirement in
-[`references/gate-caller-loop.md`](references/gate-caller-loop.md)); the parent capability stays in
-your notes. Then dispatch the profile agent **by name**, foreground,
+`--json` response before dispatching (the shared JSON-capture requirement); the parent capability
+stays in your notes. Then dispatch the profile agent **by name**, foreground,
 one task at a time — later tasks build on earlier task commits and share the worktree, so workers
 are strictly sequential. Give the worker: the plan task text, the branch and worktree, the applicable
 repository instructions, the selected profile and routing reason, the **scope id and child
