@@ -258,3 +258,44 @@ source changes remain subject to the full configured suite; its immutable exact-
 belongs in PR #265's managed build-evidence block. Publication must also re-establish change
 393's own `run-complete` receipt. The synthetic change's successful receipt does not substitute
 for either final publication check.
+
+## 2026-09-08 Task 13 verification continuation
+
+Initial tested HEAD: `12e3d1d1a25a3bb45ab8fd999ba0fb5d550a62ce`.
+`go fmt ./internal/...` left the clean tree unchanged and `git diff --check` was silent.
+The focused command below passed, as did the asset check (67 entries,
+`da3513307f640a2b9cf257046c04d292ad23d066dd112b76b360c8d0f7415402`):
+
+```text
+go test -count=1 ./internal/harness/... ./internal/codexentry ./internal/cli ./internal/reposeed ./internal/repoguard ./internal/assets
+go run ./cmd/genassets -check
+```
+
+The first full source-gate run exposed a real integration-partition defect:
+`internal/cli/agent_worktree_integration_test.go` lacked the required
+`//go:build integration` line, so its `TestIntegration…` leaked into the default corpus.
+The test was split into an ordinary helper/unit file and a tagged resolver regression; the new
+CLI integration shard and runtime-budget row establish one tagged runner. The repaired checks
+passed:
+
+```text
+go test -count=1 ./internal/cli
+go test -count=3 -tags integration ./internal/cli -run '^TestIntegrationAgentEnterFeatureResolverObservesSelectedWorktreeConflict$'
+bash tests/test_go_integration_contract.sh
+```
+
+The named guard-focused green controls passed: inventory closed-scope parsing, inventory-derived
+scope-aware routing, feature-dispatch payload coverage, and the three-run resolver regression.
+They retain the Task 7--11 red mutations: missing/unknown scope, caller cwd in place of the
+resolved worktree, native feature routing, deleted owner payload line, and coordinator cwd in the
+resolver conflict regression. No mutation was left in the tree.
+
+Final-diff checks found no authored Claude/Cursor/OpenCode renderer change, no hand-edited embedded
+asset (the generator check above is clean), no Accepted/archived historical edit, and no request
+rewriting. Scope coverage is derived by `ParseInventory` and its guards, not a role-name population
+count. The successor verification commit also contains this results-only evidence plus the
+integration-partition repair. The final `go run ./cmd/docket development test` passed: 43/43
+files, 387 assertions, exit 0. Screening diagnostics (not authoritative breaches) were:
+`BUDGET WATCH` for finalize-e2e (113s), integration-app-rebase (148s), and
+integration-app-workflow (120s); `PARALLEL-SENSITIVE` for go-race (268s; prior solo 83s)
+and go-toolchain (205s; prior solo 58s). No `SERIAL CONFIRMED OVER BUDGET` line occurred.
