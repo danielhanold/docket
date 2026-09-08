@@ -127,7 +127,7 @@ var skillBudgets = []skillBudget{
 	{"docket-finalize-change/SKILL.md", 217, 4946}, // 0346: +verified post-merge rebuild contract prose; 0388: +sync-integration prose; 0327: +carry-preservation prose (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 201, 7530}, // 0410: +mandatory Step 6.5 checkpoint lifecycle; 0354: +halt-report body-only prose; 0376: +gate.drive JSON-capture caller contract (see note above)
+	{"docket-implement-next/SKILL.md", 201, 7530},                // 0410: +mandatory Step 6.5 checkpoint lifecycle; 0354: +halt-report body-only prose; 0376: +gate.drive JSON-capture caller contract (see note above)
 	{"docket-implement-next/references/edge-paths.md", 78, 1091}, // 0410: +resume/recovery + required-results reconciliation (see note above)
 	{"docket-implement-next/references/fix-loop.md", 190, 1958},  // 0410: +findings-to-results checkpoint linkage (see note above)
 	{"docket-implement-next/results-template.md", 51, 257},       // 0410: canonical five-section required template (see note above)
