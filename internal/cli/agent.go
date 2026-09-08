@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"github.com/danielhanold/docket/internal/codexentry"
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/harness/codex"
+	"github.com/danielhanold/docket/internal/install"
 )
 
 func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *cobra.Command {
@@ -55,6 +57,10 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 				setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultInvalidState), Role: role, Reason: "ordinary-child-role", Message: "role is registered for ordinary child launch"})
 				return nil
 			}
+			if err := validateInstalledRole(opts, contract); err != nil {
+				setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultInvalidState), Role: role, Reason: "role-contract-unavailable", Message: err.Error()})
+				return nil
+			}
 			skills := make([]codexentry.SkillInput, 0, len(contract.Skills))
 			for _, name := range contract.Skills {
 				skills = append(skills, codexentry.SkillInput{Name: name, Path: filepath.Join(opts.Roots.Home, ".agents", "skills", name, "SKILL.md")})
@@ -78,4 +84,51 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 	}
 	group.AddCommand(enter)
 	return group
+}
+
+// Protocol compatibility alone cannot prove that the role Codex registered is
+// the one this binary will enter. Compare the selected installed target with
+// the same planner used by install, and compare its preloads with the catalog.
+// This reads only: edited or stale contracts require an explicit reinstall.
+func validateInstalledRole(opts install.Options, contract codex.RoleContract) error {
+	targets, err := codex.New().Plan(harness.PlanInput{
+		Roots: opts.Roots, Assets: opts.Catalog, Agents: opts.Config.Effective.Agents,
+		AssetsDir: opts.Roots.VersionDir(opts.Catalog.Manifest.AssetSetID),
+	})
+	if err != nil {
+		return err
+	}
+	check := func(path string, expected []byte) error {
+		actual, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("installed role contract unavailable at %s: %w; run docket install", path, err)
+		}
+		if !bytes.Equal(actual, expected) {
+			return fmt.Errorf("installed role contract differs at %s; run docket install before root entry", path)
+		}
+		return nil
+	}
+	found := false
+	for _, target := range targets {
+		if target.Kind == install.KindFile && filepath.Base(target.Path) == contract.Name+".toml" {
+			found = true
+			if err := check(target.Path, target.Content); err != nil {
+				return err
+			}
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("installed role target unavailable for %s", contract.Name)
+	}
+	for _, name := range contract.Skills {
+		expected, err := opts.Catalog.Bytes("skills/" + name + "/SKILL.md")
+		if err != nil {
+			return err
+		}
+		if err := check(filepath.Join(opts.Roots.Home, ".agents", "skills", name, "SKILL.md"), expected); err != nil {
+			return err
+		}
+	}
+	return nil
 }
