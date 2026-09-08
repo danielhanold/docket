@@ -353,6 +353,19 @@ harness docket ships, are quarantined in
 [`references/gate-execution.md`](references/gate-execution.md) — **read it now (blocking) before
 starting the gate.**
 
+### Build-findings checkpoint
+
+When docket-build runs as the invoked build role for a coordinator that owns a results artifact,
+the controller **may** perform the build-findings checkpoint on that coordinator's behalf, under
+the explicit caller contract that grants it that authority — consolidating the build findings
+available at this point (the material TDD exceptions, residual risks, and worker-surfaced findings
+above) before the final full-suite gate where the ordering permits, so the gate certifies the
+checkpoint-containing head. **Task workers never edit the results file**, there are **never
+concurrent writers**, and **a checkpoint never independently launches tests** — it records what is
+already known and moves no gate of its own. A custom build skill bound in this role's place owns
+none of this: it returns its findings through its own contract, and the coordinator captures them at
+the next safe boundary it controls.
+
 ## Review boundary
 
 This build performs **no per-task independent review** and **no final review of its own**. The
@@ -386,5 +399,6 @@ Emit concise, stable lines and nothing more: task-to-profile selection and reaso
 reason; worker outcome and commit; focused verification; full-suite command and result; the
 build-evidence record on green; the terminal build disposition (**role-scoped** — a build
 disposition, never a run disposition). Write no verbose task artifact unless `BUILD_CHECKPOINT` is
-`true`; material TDD exceptions and residual risks flow into the PR description or the results
-artifact, not into per-task files.
+`true`; material TDD exceptions, residual risks, and worker-surfaced findings flow to the
+coordinator's results artifact (and the PR description where evidence belongs), not into per-task
+files.
