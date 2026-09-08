@@ -204,7 +204,7 @@ func resolveInstalledRoleContract(ctx context.Context, git *gitcli.Client, opts 
 	}
 	if wt, err := git.DiscoverWorktree(ctx, gitcli.DiscoverOptions{InvocationPath: effectiveCWD}); err == nil {
 		repoPath := filepath.Join(wt.Root, ".codex", "agents", inventory.Name+".toml")
-		if _, statErr := os.Stat(repoPath); statErr == nil {
+		if _, statErr := os.Lstat(repoPath); statErr == nil {
 			rolePath = repoPath
 		} else if !os.IsNotExist(statErr) {
 			return codex.RoleContract{}, "", fmt.Errorf("inspecting repository role contract at %s: %w", repoPath, statErr)
