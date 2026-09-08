@@ -59,6 +59,15 @@ type skillBudget struct {
 // separate binary-rebuild-incomplete report. Authored contract documentation,
 // not slack — the ceiling is pinned at the exact new counts and the ratchet
 // stays in force.
+//
+// Change 0354 re-baselined docket-implement-next/SKILL.md (6900 -> 6956) upward once
+// to hold the halt-report body-only contract prose in the Step-3 "FUNDAMENTALLY
+// invalidated" escape hatch: change.halt owns the `## Run halted` heading and dated
+// `###` sub-heading, so the caller-authored report is the section body only, and a
+// body with its own column-zero `## ` heading or an unterminated code fence is
+// refused invalid-input (invalid-section-markdown, field report). Minimum-faithful
+// phrasing exceeds the prior 6900 ceiling; the new baseline is pinned at the exact
+// word count so the ratchet still reddens on any further regrowth.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -81,7 +90,7 @@ var skillBudgets = []skillBudget{
 	{"docket-finalize-change/SKILL.md", 217, 4898}, // 0346: +verified post-merge rebuild contract prose; 0388: +sync-integration prose (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 180, 6900},
+	{"docket-implement-next/SKILL.md", 180, 6956},
 	{"docket-implement-next/references/edge-paths.md", 58, 800},
 	{"docket-implement-next/references/fix-loop.md", 185, 1900},
 	{"docket-implement-next/results-template.md", 25, 250},
