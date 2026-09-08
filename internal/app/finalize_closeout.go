@@ -548,12 +548,21 @@ func closeoutIntegrationDestination(ctx context.Context, deps FinalizeDeps, cc *
 			return closeoutRefusal(ResultBlocked, CloseoutDispBlocked, ReasonCloseoutChildUnproven,
 				fmt.Sprintf("change %04d: %s: no usable merge-result commit id; the root stays recoverable", int(d.ID), CarryFindingMissingMerge), id)
 		}
-		reach, err := deps.Planning.Client.IsAncestor(ctx, cc.repo, gitcli.ObjectID(mergeID), rev.Commit)
-		if err != nil {
-			return newCloseoutResult(ResultExternalFailed, CloseoutResult{ID: id,
-				Disposition: CloseoutDispUnknown, Reason: ReasonCloseoutDestinationProbe, Message: err.Error()})
-		}
-		if reach {
+		// Ancestry fast-path: a bare `merge-base --is-ancestor` runs with NO fetch, so
+		// it can only affirm reachability for a merge object already in the local
+		// store. A clean true short-circuits the descendant as proven. A clean false
+		// AND an error both FALL THROUGH to ProvePreserved: the error case is exactly
+		// the stale-worktree-clobber anomaly this change targets, where the dropped
+		// child's merge object is absent locally and git exits 128. Returning
+		// ResultExternalFailed here would short-circuit BEFORE ProvePreserved, which is
+		// the one call that fetches the object by sha (ensurePreservationInputs) and
+		// renders a real verdict — mis-filing a permanent unproven condition as a
+		// retryable transient. Falling through loses nothing: ProvePreserved re-runs
+		// the ancestry proof once its operands are fetched, and still maps a genuine
+		// observation failure (an object absent from repo AND remote) to
+		// unknown/retained below, so the fail-closed guarantee is unchanged.
+		// (proveCarriedOnHead carries no such naked pre-ProvePreserved probe.)
+		if reach, err := deps.Planning.Client.IsAncestor(ctx, cc.repo, gitcli.ObjectID(mergeID), rev.Commit); err == nil && reach {
 			continue
 		}
 		check, perr := deps.Planning.Client.ProvePreserved(ctx, cc.repo, originRemote,

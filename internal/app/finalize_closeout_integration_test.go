@@ -791,6 +791,55 @@ func TestIntegrationFinalizeCloseoutRootCarry(t *testing.T) {
 		}
 	})
 
+	t.Run("descendant-merge-object-absent-locally-but-fetchable-refuses", func(t *testing.T) {
+		// The stale-worktree-clobber anomaly this change targets: the child's REAL
+		// merge-result commit is pushed to origin (a branch tip, fetchable by sha) but
+		// is NOT reachable from the root's integration merge and is NEVER fetched into
+		// the local invocation store. The naked ancestry fast-path
+		// (`merge-base --is-ancestor`) runs with no fetch, so git exits 128 on the
+		// absent object. Before the fix that error returned unknown/retained,
+		// mis-filing a PERMANENT drop as a retryable transient; the fix falls through
+		// to ProvePreserved, which fetches the object by sha and renders the true
+		// verdict — the content is dropped, so the carry is unproven and the whole
+		// root stays recoverable with zero descendant writes.
+		f := seed(t, "stacked-merged")
+		childMerge := f.carryCommit(t, "gadget-mc", "main", map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		// Deliberately DO NOT fetch the child merge object into the invocation store:
+		// it must be absent locally (so the fast-path errors) yet present on origin.
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", childMerge); err == nil {
+			t.Fatalf("the child merge object must be ABSENT from the local store to pin the fast-path 128 (an absent-locally object, not a present one)")
+		}
+		if _, err := tryGit(f.repo.origin, "cat-file", "-e", childMerge); err != nil {
+			t.Fatalf("the child merge object must exist on origin so ProvePreserved can fetch it by sha: %v", err)
+		}
+		before := originTip(t, f.repo.origin, f.branch)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(rootFake(f, mergeCommit, childMerge)), f.repo.invocation, f.id, CloseoutNotes{})
+		// The fall-through reached ProvePreserved and rendered a crisp unproven
+		// refusal — NOT the retryable unknown/retained the naked fast-path produced.
+		if res.Result != ResultBlocked || res.Disposition != CloseoutDispBlocked || res.Reason != ReasonCloseoutChildUnproven {
+			t.Fatalf("absent-locally dropped descendant = %q disp %q reason %q, want blocked/%s/%s (the ancestry fast-path must fall through to ProvePreserved, never return unknown/retained)",
+				res.Result, res.Disposition, res.Reason, CloseoutDispBlocked, ReasonCloseoutChildUnproven)
+		}
+		// Zero writes: the metadata ref is byte-identical and both active records survive.
+		if after := originTip(t, f.repo.origin, f.branch); after != before {
+			t.Errorf("a refused root carry moved the metadata ref: %q -> %q", before, after)
+		}
+		for _, p := range []string{
+			"docs/changes/archive/2026-08-18-0005-widget.md",
+			"docs/changes/archive/2026-08-18-0006-gadget.md",
+		} {
+			if _, ok := originFile(t, f.repo.origin, f.branch, p); ok {
+				t.Errorf("a refused root carry archived %q", p)
+			}
+		}
+		for _, p := range []string{groomPath(5, "widget"), groomPath(6, "gadget")} {
+			if _, ok := originFile(t, f.repo.origin, f.branch, p); !ok {
+				t.Errorf("a refused root carry removed the active record %q", p)
+			}
+		}
+	})
+
 	t.Run("squash-rewrite-archives", func(t *testing.T) {
 		// The child's merge id is squashed away: NOT an ancestor of the root merge
 		// result, but the identical gadget.txt bytes are carried onto the root
