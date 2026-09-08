@@ -452,6 +452,28 @@ func TestChangeHaltReachesOperation(t *testing.T) {
 	}
 }
 
+// TestChangeHaltRejectsStructuralReport proves the end-to-end diagnostic: a
+// report body carrying its own structural "## " heading is refused as
+// invalid-input with the invalid-section-markdown finding on field "report",
+// before any repository work (the repo-dir is an empty temp dir), and the
+// document never echoes the authored report bytes (change 0354).
+func TestChangeHaltRejectsStructuralReport(t *testing.T) {
+	out, errS, _ := runCLIStdin(t, `{"report":"## Run halted\n\nzz-authored-marker-zz\n"}`, "change", "halt",
+		"--id", "3", "--version", "1234123412341234123412341234123412341234",
+		"--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	for _, want := range []string{`"result":"invalid-input"`, `"code":"invalid-section-markdown"`, `"field":"report"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("document missing %s: %q", want, out)
+		}
+	}
+	if strings.Contains(out, "zz-authored-marker-zz") {
+		t.Errorf("document echoes the authored report: %q", out)
+	}
+}
+
 // TestChangeResumeHaltedRegistered proves `change resume-halted` is wired with the
 // scalar identity flags and the --acknowledge-quiescent gate flag, and is
 // asset-independent.
