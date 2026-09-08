@@ -116,6 +116,75 @@ func TestResumeQuiescenceMapping(t *testing.T) {
 
 // --- resume: reprobe then recover (real git) -------------------------------
 
+// --- halt report-body validation (change 0354) ------------------------------
+
+// TestValidateHaltShapeRejectsStructuralReport proves the report-body gate: a
+// report that would create another structural H2 (bare or dated halt heading,
+// or any other column-zero "## " heading outside fenced code) or leave a fence
+// unterminated yields exactly one invalid-section-markdown finding on field
+// "report", and the diagnostic never echoes the authored bytes.
+func TestValidateHaltShapeRejectsStructuralReport(t *testing.T) {
+	cases := map[string]string{
+		"leading-bare-halt-heading": "## Run halted\n\nzz-authored-marker-zz\n",
+		"later-bare-halt-heading":   "zz-authored-marker-zz\n\n## Run halted\n",
+		"dated-halt-heading":        "## Run halted — 2026-08-26\n\nzz-authored-marker-zz\n",
+		"arbitrary-structural-h2":   "zz-authored-marker-zz\n\n## Notes\n",
+		"unterminated-fence":        "```\nzz-authored-marker-zz\n",
+	}
+	for name, report := range cases {
+		t.Run(name, func(t *testing.T) {
+			findings := validateHaltShape(HaltRequest{ID: 3, Version: blobV, Report: report})
+			if len(findings) != 1 {
+				t.Fatalf("findings = %+v, want exactly one", findings)
+			}
+			f := findings[0]
+			if f.Code != string(FCInvalidSectionMarkdown) || f.Field != "report" {
+				t.Errorf("finding code=%q field=%q, want %q/report", f.Code, f.Field, FCInvalidSectionMarkdown)
+			}
+			if strings.Contains(f.Message, "zz-authored-marker-zz") {
+				t.Errorf("diagnostic echoes authored report: %q", f.Message)
+			}
+		})
+	}
+}
+
+// TestValidateHaltShapeAcceptsValidBodies proves the body-only contract's
+// positive side: prose, lists, H3-or-deeper subsections, and heading examples
+// inside closed backtick and tilde fences (LF and CRLF, scanner-sensitive
+// fence lengths) pass the shape check untouched.
+func TestValidateHaltShapeAcceptsValidBodies(t *testing.T) {
+	cases := map[string]string{
+		"prose":                "Suite red on internal/app; see run 7.\n",
+		"list-and-h3":          "### Symptoms\n\n- red suite\n- stale lease\n",
+		"fenced-backtick":      "example:\n\n```\n## Run halted\n```\n",
+		"fenced-tilde":         "~~~\n## Run halted\n~~~\n",
+		"fenced-crlf":          "```\r\n## Run halted\r\n```\r\n",
+		"fence-length-shelter": "````\n```\n## inside\n````\n",
+	}
+	for name, report := range cases {
+		t.Run(name, func(t *testing.T) {
+			if findings := validateHaltShape(HaltRequest{ID: 3, Version: blobV, Report: report}); len(findings) != 0 {
+				t.Errorf("valid body refused: %+v", findings)
+			}
+		})
+	}
+}
+
+// TestChangeHaltValidatesBeforeAnyEffect proves ordering: with ZERO deps (a nil
+// Reader, Engine, and Client — any pin, corpus read, or engine touch would
+// panic), a malformed report still returns a clean invalid-input envelope, so
+// the validation runs before repository preparation and the transaction engine.
+func TestChangeHaltValidatesBeforeAnyEffect(t *testing.T) {
+	got := ChangeHalt(context.Background(), PlanningDeps{}, "",
+		HaltRequest{ID: 3, Version: blobV, Report: "## Run halted\n\nzz-authored-marker-zz\n"})
+	if got.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want %q", got.Result, ResultInvalidInput)
+	}
+	if len(got.Findings) != 1 || got.Findings[0].Code != string(FCInvalidSectionMarkdown) || got.Findings[0].Field != "report" {
+		t.Fatalf("findings = %+v, want one invalid-section-markdown on field report", got.Findings)
+	}
+}
+
 // setupHaltedFixture builds a coherent in-progress feature workspace whose record
 // carries a durable "## Run halted" section — the state resume-halted recovers.
 func setupHaltedFixture(t *testing.T, m planRepoMode) *rebaseFixture {
