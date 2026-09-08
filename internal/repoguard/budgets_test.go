@@ -80,6 +80,17 @@ type skillBudget struct {
 // ratchet still reddens on any further regrowth. The docket-implement-next word
 // ceiling carries both re-baselines: 0354's halt-report prose and 0376's
 // JSON-capture prose now coexist in the file.
+//
+// Change 0327 re-baselined docket-convention/references/stacked-changes.md and
+// docket-finalize-change/SKILL.md upward once to hold the carry-preservation
+// contract prose it wired into stacked close-out: a merged PR destination
+// establishes the carry RELATIONSHIP, while the descendant's merged work must be
+// separately proven still present in Git (ancestry in the pinned integration
+// history, or exact-content at the root's merge result) before any archive. This is
+// authored contract documentation, not slack. The finalize ceiling here is the
+// exact count of the file that now carries 0327's carry-preservation prose on top of
+// main's 0346/0388 re-baselines, so the ratchet still reddens on any further
+// regrowth.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -97,9 +108,9 @@ var skillBudgets = []skillBudget{
 	{"docket-convention/references/agent-layer.md", 205, 2350},
 	{"docket-convention/references/dummy-mode.md", 85, 800},
 	{"docket-convention/references/learnings.md", 84, 580},
-	{"docket-convention/references/stacked-changes.md", 215, 2100},
+	{"docket-convention/references/stacked-changes.md", 215, 2140}, // 0327: +carry-preservation contract prose (see note above)
 	{"docket-convention/references/terminal-close-out.md", 240, 2150},
-	{"docket-finalize-change/SKILL.md", 217, 4898}, // 0346: +verified post-merge rebuild contract prose; 0388: +sync-integration prose (see note above)
+	{"docket-finalize-change/SKILL.md", 217, 4946}, // 0346: +verified post-merge rebuild contract prose; 0388: +sync-integration prose; 0327: +carry-preservation prose (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
 	{"docket-groom-next/SKILL.md", 77, 1650},
 	{"docket-implement-next/SKILL.md", 180, 6991}, // 0354: +halt-report body-only prose; 0376: +gate.drive JSON-capture caller contract (see note above)
