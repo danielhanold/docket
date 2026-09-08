@@ -1,6 +1,6 @@
 # Backlog
 
-**414 changes** — 🟢 1 in progress · 🔵 2 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 264 done · 🗑️ 113 killed
+**414 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 265 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,10 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-slim-agents-md-to-an-effective-claude-md-design.md) | `docs/slim-agents-md-to-an-effective-claude-md` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0410](active/0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | `medium` | `feat` | [#292](https://github.com/danielhanold/docket/pull/292) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🔴 Blocked (1)
@@ -104,7 +103,6 @@ graph TD
   0398
   0405
   0409
-  0410
   0411
   0412
   0413
@@ -116,10 +114,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (377)</summary>
+<details><summary>✅🗑️ Archive — done + killed (378)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0410](archive/2026-09-08-0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | 2026-09-08 |
 | [0408](archive/2026-09-08-0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | 2026-09-08 |
 | [0376](archive/2026-09-08-0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | 2026-09-08 |
 | [0354](archive/2026-09-08-0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | 2026-09-08 |
@@ -134,7 +133,6 @@ graph TD
 | [0403](archive/2026-09-04-0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | 2026-09-04 |
 | [0402](archive/2026-09-04-0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | 2026-09-04 |
 | [0401](archive/2026-09-04-0401-add-a-source-available-license-polyform-noncommercial-plus-a.md) | Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption | 2026-09-04 |
-| [0400](archive/2026-09-04-0400-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md) | Rewrite the README as a goal-first landing page and relocate its technical body to docs/ | 2026-09-04 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -253,7 +251,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 13 done |
+| [2026-09](archive/) | 14 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
