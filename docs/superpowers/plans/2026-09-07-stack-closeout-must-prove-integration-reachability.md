@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0327 — Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0327-stack-closeout-must-prove-integration-reachability.md)**
+> ↩ **[Change 0327 — Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-08-0327-stack-closeout-must-prove-integration-reachability.md)**
 <!-- docket:backlink:end -->
 # Stack Closeout Git Preservation Proof — Implementation Plan
 
