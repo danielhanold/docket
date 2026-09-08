@@ -22,7 +22,7 @@ branch: 'feat/require-durable-results-artifacts-with-human-testing-and-coo'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-08T17:03:32Z'
+claimed_at: '2026-09-08T17:06:21Z'
 ---
 
 ## Artifacts
