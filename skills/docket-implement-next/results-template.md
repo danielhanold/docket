@@ -1,23 +1,51 @@
-<!-- results-template.md — close-out artifact for a change. OPTIONAL: write one only when at least
-     one is true: (a) the human must run interactive/manual checks at the merge gate beyond automated
-     tests, (b) the build surfaced findings worth recording (incl. any that became ADRs), or
-     (c) there are follow-ups / notable plan deviations. Otherwise skip it — the PR + green CI are the
-     receipt. Authored in the feature worktree and committed on <type>/<slug> (a build artifact, like the
-     plan); keep build-receipt detail in the PR description, not here. -->
-# <title> — results
-Change: #<id> · Branch: <type>/<slug> · PR: <url> · Plan: <path> · ADRs: <ids>
+<!-- results-template.md — REQUIRED close-out artifact for every implemented change (trivial
+     included; change 0410). Authored and consolidated by the coordinator in the FEATURE worktree,
+     committed on <type>/<slug> at each checkpoint and finally before the implemented transition.
+     Angle-bracket instructions are authoring guidance only — remove them from actual artifacts.
+     Omit an entire optional section, including its subsections, when there is no substantive
+     content; Outcome is required at finalization. The generated docket:backlink block above the
+     title is owned by the artifact.backlink operation — never hand-author its markers, and do not
+     add empty header fields for unavailable links. Content rules and the checkpoint lifecycle are
+     normative in docket-implement-next's Step 6.5. -->
+# <Change title> — Results
 
-## Verify (human)
+## Outcome
 
-<!-- GENUINELY MANUAL checks for the merge gate — things no automated test can reach. Each item
-     PENDING until checked. A fixed finding never belongs here: the fix plus the green suite is its
-     verification, and the PR body's disposition table is where its outcome is read. -->
-- [ ] …
+<What was delivered and how the behavior changed.
+Explain any material departures from the spec and why.>
 
-## Findings
+## Human testing
 
-<!-- Discoveries during the build; note which became ADRs. Delete if none. -->
+### <Functional scenario not covered by automated tests>
+
+<Prerequisites and setup needed for this scenario.>
+
+1. <Human action.>
+   Expected: <Observable behavior.>
+2. <Human action.>
+   Expected: <Observable behavior.>
+
+<Cleanup instructions, only when needed.>
+
+## Verification performed
+
+<Concise account of checks the agents actually performed,
+their outcomes, and links to supporting evidence.
+Identify skipped, failed, or incomplete verification explicitly.
+Do not reproduce test logs or individual automated test cases.>
+
+## Findings and limitations
+
+### <Finding>
+
+<What was observed, supporting evidence, and practical impact.
+Distinguish confirmed problems from suspected issues.
+Explain any workaround or remaining limitation.>
 
 ## Follow-ups
 
-<!-- Deferred items / new proposed changes. Delete if none. -->
+### <Actionable follow-up>
+
+<Problem or opportunity, supporting evidence or reproduction
+details, why it falls outside this change, and suggested next action.
+Link an existing change when available.>
