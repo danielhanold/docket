@@ -213,7 +213,7 @@ func TestSkillSizeBudgets(t *testing.T) {
 const (
 	dispatchStart  = "docket:dispatch:start"
 	dispatchEnd    = "docket:dispatch:end"
-	dispatchBudget = 400  // NEW actual (352 at 0334, 369 now) rounded up to a multiple of 50.
+	dispatchBudget = 650  // Change 0393 adds root-entry routing/context obligations (636 words), still below the retired roster.
 	dispatchOld    = 1156 // pre-0334 roster block; the ceiling must stay strictly below it.
 )
 

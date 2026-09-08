@@ -15,6 +15,9 @@ harness's native agent registry is authoritative for agent names, descriptions, 
 this block does not restate it. If no same-name agent is registered, do not invent one; follow the
 workflow's own inline or unavailable-capability contract. Dispatch through the harness's native
 named-agent dispatch, and pass the request through unchanged, including any change or ADR id.
+Never reroute a registered workflow through a shell runner, another harness, a generic agent, or
+an inline reconstruction of its contract — a missing registration is a visible capability
+failure, not a fallback trigger.
 
 ## Run gate — bracket a dispatched implement-next run with the gate facade
 
@@ -41,6 +44,14 @@ never rebuild the gate by hand.
    or dispatch `docket-implement-next` again with the explicit change id, the continuation id, and the
    same key, and run `run.gate-verdict` with `<key>` again. Every `gate-stop` and every
    `gate-observe` forbids re-dispatch; `run-halted` means a human is needed.
+
+### Codex root-coordinator entry
+
+For Codex, this clause selects the native launch mechanism and takes precedence over the general named-child dispatch wording above. A registered Docket role whose description begins `[docket launch: root-coordinator]` must be entered as a foreground root thread through the catalog-resolved `agent.enter` operation. Do not launch that role as an ordinary child. Registered roles without that marker continue through native named-agent child dispatch.
+
+For implement-next, arm the run gate first as specified above. Write a request file containing the user's request unchanged plus the gate's dispatch-context token unchanged, explicitly labeled as dispatch context for `change.claim --gate-context` and the run's gate-drive operations. Preserve any resume id, continuation id, and gate key in that request too. Pass the file through `--request`, the registered role name through `--role`, and the active absolute cwd, approval policy, and sandbox through their corresponding flags. Never omit the dispatch context merely because entry runs in the foreground.
+
+Wait for root entry's final return, then run the parent's keyed `run.gate-verdict` and obey its report as specified above. The coordinator's prose, thread id, turn id, and process exit code are not gate ownership or completion evidence. Do not substitute `codex exec`, another harness, a generic agent, or a parent relay.
 <!-- docket:dispatch:end -->
 
 ## Rebuild the binary after a merge to main
