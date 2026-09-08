@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -420,14 +421,33 @@ func resumeQuiescenceRefusal(state string) (reason, message string) {
 }
 
 // validateHaltShape runs the configuration-independent request checks for
-// `change halt`.
+// `change halt`. Beyond presence and size, the report BODY must be embeddable
+// as one owned section: the operation alone owns the "## Run halted" H2 and
+// the dated sub-heading, so a body carrying its own structural H2 or an
+// unterminated code fence is refused here — before repository preparation,
+// the transaction engine, or any metadata effect (change 0354).
 func validateHaltShape(req HaltRequest) []StatusFinding {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
 	if strings.TrimSpace(req.Report) == "" {
 		findings = append(findings, lifecycleFinding(FCEmptyReport, "report must be a non-empty authored bounded halt report"))
 	}
 	boundAuthored(&findings, "report", req.Report)
+	if err := render.ValidateSectionBody([]byte(req.Report)); err != nil {
+		f := lifecycleFinding(FCInvalidSectionMarkdown, haltReportBodyDiagnostic(err))
+		f.Field = "report"
+		findings = append(findings, f)
+	}
 	return findings
+}
+
+// haltReportBodyDiagnostic maps a section-body validation error onto an
+// actionable diagnostic. The text is static by contract — it never echoes the
+// authored report (HaltResult redaction).
+func haltReportBodyDiagnostic(err error) string {
+	if errors.Is(err, render.ErrSectionBodyUnterminatedFence) {
+		return "report leaves a code fence unterminated; close the fence so the sections after the halt marker stay visible to recovery"
+	}
+	return "report carries a column-zero \"## \" heading outside fenced code; the operation owns the \"## Run halted\" heading and its dated sub-heading — author body text, lists, or \"###\"-or-deeper subsections, and put heading examples inside closed code fences"
 }
 
 // validateResumeShape runs the configuration-independent request checks for
