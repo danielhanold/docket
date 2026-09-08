@@ -76,11 +76,10 @@ repo-committed > global > built-in** without the generator hand-merging the two 
 harness/agent pair with no entry in any layer — user or shipped — omits the field: the wrapper carries no
 `model`/`effort`, and the harness applies its own default.
 
-**Cross-harness delegation is retired (change 0371).** An agent entry carries no `runner:` key on the
-maintained surface: a parent invokes a registered `docket-*` agent through its own harness's native
-named-agent dispatch — the generated `docket:dispatch` block is the contract — and a workflow with no
-registration on the current host fails visibly rather than falling back to a shell runner, another
-harness, or a generic agent.
+**Cross-harness delegation is retired (change 0371).** An agent entry carries no `runner:` key. The
+scope matrix is: root coordinator → native root entry; feature role → owner's canonical worktree
+input; metadata child → native named-agent dispatch. Missing registration fails visibly — never a
+shell runner, another harness, or a generic agent.
 
 ## Generation scope: agent_harnesses
 
@@ -129,12 +128,15 @@ multi-agent sequencing and therefore requires native collaboration controls at e
 parser rejects unknown posture values, and correspondence tests derive the marked set from the
 role's same-name skill contract rather than maintaining a filename allowlist.
 
-Codex realizes `root-coordinator` through the catalog-resolved `agent.enter` operation: the command resolves the same typed
-role contract used to generate its TOML registration, launches `codex app-server --stdio` directly,
-starts a root thread with the caller's absolute cwd, approval policy, and sandbox, and supplies the
-unchanged request as the root turn. It never falls back to `codex exec`, another harness, a shell
-relay, or an ordinary child launch. Other harnesses may ignore the posture until they implement a
-corresponding native entry path; the source remains harness-neutral.
+The scope matrix is harness-neutral: root coordinators use a native root-entry path; feature roles
+receive `Feature worktree: <absolute canonical feature-worktree root>` in the owner's payload; metadata
+children use native named-agent dispatch. Codex realizes the first two through catalog-resolved
+`agent.enter [--worktree <dir>]`: it resolves the typed installed role contract, launches
+`codex app-server --stdio`, starts a root thread with the caller's absolute cwd, approval policy, and
+sandbox, and passes an unchanged request file as the root turn. A feature role carries
+`[docket worktree: feature]`, so Codex supplies the canonical payload root through `--worktree`; its
+request bytes remain unchanged. Other harnesses preserve their native worktree mechanisms. No route
+falls back to `codex exec`, another harness, a shell relay, or an ordinary child launch.
 
 Before launch, root entry compares the selected installed role with the registration planner's
 output and its preloaded skill files with the same asset catalog. A missing, edited, or stale
