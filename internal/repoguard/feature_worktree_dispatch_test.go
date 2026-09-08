@@ -150,8 +150,8 @@ func discoverDirectFeatureDispatches(rel, content string, targets map[string]boo
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if inComment {
-			if strings.Contains(line, "-->") {
-				inComment = false
+			if commentEnd := strings.Index(line, "-->"); commentEnd >= 0 {
+				inComment = opensUnclosedHTMLComment(line[commentEnd+len("-->"):])
 			}
 			continue
 		}
@@ -164,28 +164,50 @@ func discoverDirectFeatureDispatches(rel, content string, targets map[string]boo
 		}
 
 		match := directFeatureDispatch.FindStringSubmatch(line)
-		if commentStart := strings.Index(line, "<!--"); commentStart >= 0 && (match == nil || commentStart == 0) {
-			if !strings.Contains(line[commentStart+len("<!--"):], "-->") {
-				inComment = true
-			}
-			continue
-		}
 		if !markdownParagraphLine(line) || markdownTableRow(lines, i) || setextHeadingLine(lines, i) {
+			inComment = opensUnclosedHTMLComment(line)
 			continue
 		}
 		if match != nil && targets[match[1]] {
 			sites = append(sites, directFeatureDispatchSite{rel: rel, line: i + 1, target: match[1]})
 		}
+		inComment = opensUnclosedHTMLComment(line)
 	}
 	return sites
+}
+
+func opensUnclosedHTMLComment(line string) bool {
+	for {
+		start := strings.Index(line, "<!--")
+		if start < 0 {
+			return false
+		}
+		line = line[start+len("<!--"):]
+		end := strings.Index(line, "-->")
+		if end < 0 {
+			return true
+		}
+		line = line[end+len("-->"):]
+	}
 }
 
 func markdownTableRow(lines []string, index int) bool {
 	if !strings.Contains(lines[index], "|") {
 		return false
 	}
-	return (index > 0 && markdownTableDivider.MatchString(lines[index-1])) ||
-		(index+1 < len(lines) && markdownTableDivider.MatchString(lines[index+1]))
+	for divider := 1; divider < len(lines); divider++ {
+		if !markdownTableDivider.MatchString(lines[divider]) {
+			continue
+		}
+		end := divider
+		for end+1 < len(lines) && strings.Contains(lines[end+1], "|") && strings.TrimSpace(lines[end+1]) != "" {
+			end++
+		}
+		if index >= divider-1 && index <= end {
+			return true
+		}
+	}
+	return false
 }
 
 func setextHeadingLine(lines []string, index int) bool {
@@ -332,6 +354,16 @@ func TestFeatureDispatchPayloadsCarryCanonicalWorktree(t *testing.T) {
 			t.Errorf("unpiped Markdown table row was treated as direct dispatch: %+v", got)
 		}
 
+		laterTableRow := "instruction | details\n--- | ---\nplain | row\nDispatch `" + target + "` | details"
+		if got := discoverDirectFeatureDispatches("fixture.md", laterTableRow, map[string]bool{target: true}); len(got) != 0 {
+			t.Errorf("later Markdown table row was treated as direct dispatch: %+v", got)
+		}
+
+		tableThenParagraph := laterTableRow + "\n\nDispatch `" + target + "` foreground | retain this ordinary instruction."
+		if got := discoverDirectFeatureDispatches("fixture.md", tableThenParagraph, map[string]bool{target: true}); len(got) != 1 {
+			t.Errorf("ordinary paragraph after Markdown table boundary was hidden: %+v", got)
+		}
+
 		setextHeading := "Dispatch `" + target + "`\n===\n\nDispatch `" + target + "`\n---"
 		if got := discoverDirectFeatureDispatches("fixture.md", setextHeading, map[string]bool{target: true}); len(got) != 0 {
 			t.Errorf("setext heading was treated as direct dispatch: %+v", got)
@@ -340,6 +372,16 @@ func TestFeatureDispatchPayloadsCarryCanonicalWorktree(t *testing.T) {
 		inlineCommentedExplanation := "Explanatory note <!-- begins a multi-line comment\nDispatch `" + target + "` foreground.\n-->"
 		if got := discoverDirectFeatureDispatches("fixture.md", inlineCommentedExplanation, map[string]bool{target: true}); len(got) != 0 {
 			t.Errorf("inline-opened explanatory comment was treated as direct dispatch: %+v", got)
+		}
+
+		directThenComment := "Dispatch `" + target + "` <!-- begins a multi-line comment\nDispatch `" + target + "` foreground.\n-->"
+		if got := discoverDirectFeatureDispatches("fixture.md", directThenComment, map[string]bool{target: true}); len(got) != 1 || got[0].line != 1 {
+			t.Errorf("inline comment after direct dispatch did not hide only its body: %+v", got)
+		}
+
+		sameLineComment := "Dispatch `" + target + "` <!-- explanation -->\nDispatch `" + target + "` foreground."
+		if got := discoverDirectFeatureDispatches("fixture.md", sameLineComment, map[string]bool{target: true}); len(got) != 2 {
+			t.Errorf("same-line comment closure hid subsequent direct dispatch: %+v", got)
 		}
 
 		ordinaryPunctuation := "Dispatch `" + target + "` foreground | retain this ordinary instruction."
