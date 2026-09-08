@@ -20,7 +20,7 @@ branch: 'docs/slim-agents-md-to-an-effective-claude-md'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-08T20:36:51Z'
+claimed_at: '2026-09-08T20:39:03Z'
 ---
 
 ## Artifacts
