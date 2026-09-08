@@ -2,7 +2,7 @@
 id: 103
 slug: 'enter-codex-coordinator-roles-through-app-server-root-thread'
 title: 'Enter Codex coordinator roles through app-server root threads'
-status: 'Accepted'
+status: 'Superseded by ADR-0114'
 date: '2026-09-01'
 supersedes: []
 reverses: []

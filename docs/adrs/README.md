@@ -90,7 +90,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0100](0100-native-host-dispatch-is-authoritative-for-registered-docket.md) — Native host dispatch is authoritative for registered docket agents (Accepted) ← change #371 → supersedes ADR-0037 · relates to ADR-0036, ADR-0074
 - [ADR-0101](0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md) — Maintenance sweep scope: defer historical cleanup out of implementation startup (Accepted) ← change #389 · relates to ADR-0012, ADR-0024
 - [ADR-0102](0102-build-and-finalize-own-independent-gate-and-test-command-con.md) — Build and finalize own independent gate and test-command configuration (Accepted) ← change #374 → supersedes ADR-0063 · relates to ADR-0074, ADR-0095, ADR-0099
-- [ADR-0103](0103-enter-codex-coordinator-roles-through-app-server-root-thread.md) — Enter Codex coordinator roles through app-server root threads (Accepted) ← change #393 · relates to ADR-0036, ADR-0059, ADR-0060, ADR-0094
 - [ADR-0104](0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) — The capability catalog is the authoritative executable CLI surface (Accepted) ← change #394 · relates to ADR-0003, ADR-0020, ADR-0036
 - [ADR-0105](0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md) — Finalize's local-gate continuation is persisted in the owned rebase receipt (Accepted) ← change #396 · relates to ADR-0098
 - [ADR-0106](0106-implementation-preflight-is-a-deterministic-operation-not-a.md) — Implementation preflight is a deterministic operation, not a composition dispatch (Accepted) ← change #397 · relates to ADR-0012, ADR-0024, ADR-0101
@@ -101,6 +100,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0111](0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) — Run-gate attribution binds a dispatch to its successful claim transaction (Accepted) ← change #407 → supersedes ADR-0075
 - [ADR-0112](0112-a-completed-gate-publish-checkpoint-is-persisted-in-the-owne.md) — A completed-gate publish checkpoint is persisted in the owned rebase receipt (Accepted) ← change #408 · relates to ADR-0105, ADR-0098
 - [ADR-0113](0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) — Resolver dispatches are admitted by durable pre-dispatch reservation (Accepted) ← change #349 · relates to ADR-0010, ADR-0019, ADR-0105
+- [ADR-0114](0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) — Anchor Codex feature-scoped role entry to the owning worktree (Accepted) ← change #393 → supersedes ADR-0103 · relates to ADR-0083, ADR-0103
 
 ## Superseded / Reversed
 
@@ -116,6 +116,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0075](0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md) — The run gate attributes a claim conservatively and reports a halt with its own exit code (Superseded by ADR-0111) ← change #237
 - [ADR-0081](0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) — gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists (Superseded by ADR-95) ← change #282 · relates to ADR-0080
 - [ADR-0098](0098-structured-gate-waiting-and-ownership-handoff.md) — Gate waiting is structured, resumable, and ownership-handed-off (Superseded by ADR-0107) ← change #342 · relates to ADR-0024, ADR-0095
+- [ADR-0103](0103-enter-codex-coordinator-roles-through-app-server-root-thread.md) — Enter Codex coordinator roles through app-server root threads (Superseded by ADR-0114) ← change #393 · relates to ADR-0036, ADR-0059, ADR-0060, ADR-0094
 
 ## Deprecated
 
