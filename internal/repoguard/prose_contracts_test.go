@@ -242,6 +242,48 @@ var proseContracts = []proseContract{
 			"pass it to the claim as --gate-context",
 			"an invalid or conflicting gate context is a typed refusal that writes nothing — never retried as an ungated claim",
 		}},
+	// change 0410 — the canonical five-section required-results template. Each
+	// present phrase is one section heading on its own unwrapped line; the two
+	// absent phrases are the removed optional-template triggers (assert the state
+	// that was REMOVED, not just the new words — assert-detects-removal).
+	{sentinel: "change_0410_results_template", file: "skills/docket-implement-next/results-template.md",
+		present: []string{
+			"## Outcome",
+			"## Human testing",
+			"## Verification performed",
+			"## Findings and limitations",
+			"## Follow-ups",
+		},
+		absent: []string{"OPTIONAL: write one only", "## Verify (human)"}},
+	// change 0410 — implement-next Step 6.5 is mandatory, not an optional close-out.
+	// The present phrases bind the required-results obligation and the
+	// never-commit-under-a-live-gate checkpoint clause (each an unwrapped
+	// sub-clause of its sentence); the absent phrase is the retired optional label.
+	{sentinel: "change_0410_implement_next_results", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"Step 6.5 — Results (required)",
+			"required for every change, trivial included",
+			"never commit or move HEAD beneath a live gate, a running worker, or a transferred drive",
+		},
+		absent: []string{"Results close-out (optional)"}},
+	// change 0410 — the convention now describes results as a REQUIRED close-out
+	// artifact in both the directory-map row and the lifecycle paragraph. (The
+	// existing frozen-records row above — sentinel test_results_artifact — is left
+	// untouched and still pins "Merged plans and results are frozen build records.")
+	{sentinel: "change_0410_convention_results", file: "skills/docket-convention/SKILL.md",
+		present: []string{
+			"required close-out artifacts (one per implemented change, trivial included; change 0410)",
+			"required close-out artifact for every implemented change, trivial included (change 0410)",
+		}},
+	// change 0410 — docket-build's end-of-build capture ownership: the controller
+	// may checkpoint on the coordinator's behalf, but task workers never write the
+	// results file and a checkpoint never independently launches tests (each an
+	// unwrapped sub-clause).
+	{sentinel: "change_0410_build_results", file: "skills/docket-build/SKILL.md",
+		present: []string{
+			"Task workers never edit the results file",
+			"a checkpoint never independently launches tests",
+		}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
