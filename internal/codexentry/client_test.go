@@ -147,6 +147,31 @@ func TestEnterSurfacesStartFailure(t *testing.T) {
 	}
 }
 
+func TestEnterRequiresFinalAnswerRatherThanCommentary(t *testing.T) {
+	for _, finalPresent := range []bool{false, true} {
+		tr := &scriptedTransport{recv: []string{
+			`{"id":1,"result":{}}`,
+			`{"id":2,"result":{"thread":{"id":"t"}}}`,
+			`{"id":3,"result":{"turn":{"id":"u"}}}`,
+		}}
+		if finalPresent {
+			tr.recv = append(tr.recv, `{"method":"item/completed","params":{"threadId":"t","turnId":"u","item":{"type":"agentMessage","phase":"final_answer","text":"FINAL"}}}`)
+		}
+		tr.recv = append(tr.recv,
+			`{"method":"item/completed","params":{"threadId":"t","turnId":"u","item":{"type":"agentMessage","phase":"commentary","text":"still working"}}}`,
+			`{"method":"turn/completed","params":{"threadId":"t","turn":{"id":"u","status":"completed","items":[{"type":"agentMessage","phase":"commentary","text":"still working"}]}}}`)
+		c := Client{Start: func(context.Context, string) (Transport, error) { return tr, nil }}
+		got, err := c.Enter(context.Background(), validRequest())
+		if finalPresent {
+			if err != nil || got.Output != "FINAL" {
+				t.Fatalf("final answer overwritten: %+v %v", got, err)
+			}
+		} else if err == nil || !strings.Contains(err.Error(), "without a final agent message") {
+			t.Fatalf("commentary passed as final answer: %+v %v", got, err)
+		}
+	}
+}
+
 func TestValidateExecutionContextRejectsUnknownValues(t *testing.T) {
 	cases := []struct {
 		approval string
