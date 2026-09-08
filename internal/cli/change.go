@@ -229,9 +229,11 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 }
 
 // changeHaltInput is the bounded request-file payload for `change halt`: the
-// authored run-halted report. The scalar identity (id, version) rides on flags —
-// only the authored Markdown travels through the request file (Global
-// Constraints).
+// authored run-halted report — the section body only (the operation owns the
+// "## Run halted" heading and dated sub-heading; a body with its own
+// column-zero "## " heading or an open code fence is refused). The scalar
+// identity (id, version) rides on flags — only the authored Markdown travels
+// through the request file (Global Constraints).
 type changeHaltInput struct {
 	Report string `json:"report"`
 }
