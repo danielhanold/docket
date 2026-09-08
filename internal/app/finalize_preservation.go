@@ -52,8 +52,8 @@ type carryProof struct {
 }
 
 // proveCarriedOnHead proves every descendant the parent's branch promises to
-// carry is preserved at exactly the immutable target commit. An empty carried set
-// is vacuously proven with ZERO external probes. A returned error is an
+// carry is preserved at exactly the immutable target commit. No stack descendants
+// means nothing to carry — vacuously proven with ZERO external probes. A returned error is an
 // observation/external failure the caller maps to unknown and retains; it is
 // never a verdict, and it carries no findings. Findings distinguish a missing
 // carry relationship (CarryFindingRelationship) and missing merge evidence
