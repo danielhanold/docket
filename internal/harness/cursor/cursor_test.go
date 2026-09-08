@@ -453,7 +453,7 @@ func TestCursorInventoryAdditionPropagates(t *testing.T) {
 	before := planFixture(t)
 
 	const extraPath = "agents/docket-zzz-synthetic.md"
-	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\n---\nSynthetic body.\n"
+	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\nworktree-scope: metadata\n---\nSynthetic body.\n"
 
 	base := in.Assets
 	m := base.Manifest

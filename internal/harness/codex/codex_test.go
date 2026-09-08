@@ -408,6 +408,65 @@ func TestCodexAgentMirrorsSource(t *testing.T) {
 	}
 }
 
+// TestCodexContractsDeriveScopeAwareRoutesFromInventory catches the routing
+// regression where a feature child is registered as an ordinary native child:
+// every real feature source must carry the entry marker, worktree startup
+// guard, and foreground agent.enter route derived from its typed scope.
+func TestCodexContractsDeriveScopeAwareRoutesFromInventory(t *testing.T) {
+	in := fixtureInput(t)
+	sources, err := harness.ParseInventory(in.Assets)
+	if err != nil {
+		t.Fatalf("ParseInventory: %v", err)
+	}
+
+	const (
+		featureMarker = "[docket worktree: feature]"
+		featureGuard  = "Before any read or write, locate the `Feature worktree: <absolute-path>` input, canonicalize it and the process cwd, require equality at the worktree root, and halt visibly if it is missing, relative, nonexistent, nested, or mismatched."
+		featureRoute  = "foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`"
+		metadataRoute = "direct native named-agent dispatch"
+	)
+
+	var featureCount, metadataCount int
+	for _, s := range sources {
+		contract, err := RoleContractFor(in, s.Name)
+		if err != nil {
+			t.Fatalf("RoleContractFor(%s): %v", s.Name, err)
+		}
+		switch s.WorktreeScope {
+		case harness.WorktreeScopeFeature:
+			featureCount++
+			if !strings.HasPrefix(contract.Description, featureMarker+" ") {
+				t.Errorf("feature role %s description = %q, want %q first", s.Name, contract.Description, featureMarker)
+			}
+			if !strings.Contains(contract.DeveloperInstructions, featureGuard) {
+				t.Errorf("feature role %s lacks the worktree startup guard", s.Name)
+			}
+			if !strings.Contains(contract.DeveloperInstructions, featureRoute) {
+				t.Errorf("feature role %s lacks the foreground worktree-entry route", s.Name)
+			}
+		case harness.WorktreeScopeMetadata:
+			metadataCount++
+			if strings.Contains(contract.Description, featureMarker) {
+				t.Errorf("metadata role %s carries feature marker: %q", s.Name, contract.Description)
+			}
+			if strings.Contains(contract.DeveloperInstructions, featureGuard) {
+				t.Errorf("metadata role %s carries the feature startup guard", s.Name)
+			}
+			if !strings.Contains(contract.DeveloperInstructions, metadataRoute) {
+				t.Errorf("metadata role %s lacks the native-child route", s.Name)
+			}
+			if s.LaunchPosture == harness.LaunchRootCoordinator && !strings.HasPrefix(contract.Description, "[docket launch: root-coordinator] ") {
+				t.Errorf("root coordinator %s lost its first description marker: %q", s.Name, contract.Description)
+			}
+		default:
+			t.Fatalf("%s has unsupported worktree scope %q", s.Name, s.WorktreeScope)
+		}
+	}
+	if featureCount == 0 || metadataCount == 0 {
+		t.Fatalf("scope coverage is vacuous: feature=%d metadata=%d", featureCount, metadataCount)
+	}
+}
+
 func TestRoleContractForSharesTheRegistrationSource(t *testing.T) {
 	in := fixtureInput(t)
 	in.Agents["codex"]["implement-next"] = config.AgentSetting{
@@ -426,7 +485,7 @@ func TestRoleContractForSharesTheRegistrationSource(t *testing.T) {
 	}
 	for _, want := range []string{
 		harness.RecursionGuard("docket-implement-next"),
-		codexDispatchBoundary,
+		"inspect the registered target's description markers",
 		"Before acting, load these docket skills from your linked Codex skills directory: docket-implement-next, docket-convention.",
 		"Execute docket-implement-next to drain the next build-ready change.",
 	} {
@@ -490,7 +549,7 @@ func TestCodexTOMLEscaping(t *testing.T) {
 		t.Fatalf("no rendered agent file")
 	}
 
-	wantDesc := "description = \"a \\\"quoted\\\" thing and a back\\\\slash\"\n"
+	wantDesc := "description = \"[docket worktree: feature] a \\\"quoted\\\" thing and a back\\\\slash\"\n"
 	if !strings.Contains(content, wantDesc) {
 		t.Errorf("description not escaped as a TOML basic string.\ngot:\n%s\nwant line:\n%s", content, wantDesc)
 	}
@@ -621,10 +680,10 @@ func TestCodexNestedDispatchBoundary(t *testing.T) {
 
 	// The three semantic clauses, as literal behavioral text.
 	clauses := []string{
-		"direct named-agent dispatch",              // (1) how to dispatch
-		"active top-level tool surface",            // (1) from where
-		"omit top-level collaboration controls",    // (2) what nested inventories lack
-		"cannot establish dispatch unavailability", // (3) what absence proves: nothing
+		"inspect the registered target's description markers", // (1) choose the registered route
+		"direct native named-agent dispatch",                  // (1) metadata route
+		"omit top-level collaboration controls",               // (2) what nested inventories lack
+		"cannot establish dispatch unavailability",            // (3) what absence proves: nothing
 	}
 	for _, s := range sources {
 		p := filepath.Join(fakeHome, ".codex", "agents", s.Name+".toml")

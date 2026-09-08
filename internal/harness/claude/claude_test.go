@@ -434,7 +434,7 @@ func TestClaudeEscaping(t *testing.T) {
 		// quote is doubled), so the hostile description reaches ParseInventory
 		// intact; the assertion below is on what the RENDERER writes back.
 		fmDesc := "'" + strings.ReplaceAll(desc, "'", "''") + "'"
-		files["agents/"+name+".md"] = "---\nname: " + name + "\ndescription: " + fmDesc + "\nskills: [docket-build-task]\n---\n" + body
+		files["agents/"+name+".md"] = "---\nname: " + name + "\ndescription: " + fmDesc + "\nskills: [docket-build-task]\nworktree-scope: metadata\n---\n" + body
 
 		c := syntheticAgentCatalog(files)
 		targets, err := New().Plan(harness.PlanInput{
@@ -520,7 +520,7 @@ func TestInventoryAdditionPropagates(t *testing.T) {
 	before := planFixture(t)
 
 	const extraPath = "agents/docket-zzz-synthetic.md"
-	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\n---\nSynthetic body.\n"
+	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\nworktree-scope: metadata\n---\nSynthetic body.\n"
 
 	base := in.Assets
 	m := base.Manifest
