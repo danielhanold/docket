@@ -91,9 +91,14 @@ const (
 )
 
 // HaltRequest is the closed request for `change halt`. ID and Version pin the
-// exact submitted record; Report is the authored bounded halt report recorded in
-// the marker. The authored report rides inside the JSON and never reaches a
-// shell or Git argument.
+// exact submitted record; Report is the authored bounded halt report recorded
+// in the marker — the section BODY only, starting with prose, a list, or a
+// "###"-or-deeper subsection. The operation alone owns the "## Run halted"
+// heading and the dated sub-heading; a body carrying its own column-zero "## "
+// heading outside fenced code, or an unterminated code fence, is refused as
+// invalid-input (invalid-section-markdown, field "report") before any effect.
+// The authored report rides inside the JSON and never reaches a shell or Git
+// argument.
 type HaltRequest struct {
 	ID      int    `json:"id" docket:"required"`
 	Version string `json:"version" docket:"required"`
