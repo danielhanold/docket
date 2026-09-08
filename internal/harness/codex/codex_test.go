@@ -435,8 +435,9 @@ func TestCodexContractsDeriveScopeAwareRoutesFromInventory(t *testing.T) {
 		switch s.WorktreeScope {
 		case harness.WorktreeScopeFeature:
 			featureCount++
-			if !strings.HasPrefix(contract.Description, featureMarker+" ") {
-				t.Errorf("feature role %s description = %q, want %q first", s.Name, contract.Description, featureMarker)
+			wantPrefix := descriptionMarkerPrefix(s)
+			if !strings.HasPrefix(contract.Description, wantPrefix+" ") {
+				t.Errorf("feature role %s description = %q, want marker prefix %q", s.Name, contract.Description, wantPrefix)
 			}
 			if !strings.Contains(contract.DeveloperInstructions, featureGuard) {
 				t.Errorf("feature role %s lacks the worktree startup guard", s.Name)
@@ -465,6 +466,38 @@ func TestCodexContractsDeriveScopeAwareRoutesFromInventory(t *testing.T) {
 	if featureCount == 0 || metadataCount == 0 {
 		t.Fatalf("scope coverage is vacuous: feature=%d metadata=%d", featureCount, metadataCount)
 	}
+
+	// Today's built-in root coordinators are metadata-scoped, so a typed fixture
+	// covers the valid future root+feature combination. Root must remain first
+	// for parent-facing launch selection, with feature immediately after it.
+	rootFeature := harness.AgentSource{
+		Name:          "docket-root-feature",
+		Description:   "Typed root-feature fixture.",
+		LaunchPosture: harness.LaunchRootCoordinator,
+		WorktreeScope: harness.WorktreeScopeFeature,
+	}
+	contract := roleContract(rootFeature, nil)
+	wantPrefix := "[docket launch: root-coordinator] " + featureMarker
+	if got := descriptionMarkerPrefix(rootFeature); got != wantPrefix {
+		t.Fatalf("fixture marker prefix = %q, want %q", got, wantPrefix)
+	}
+	if !strings.HasPrefix(contract.Description, wantPrefix+" ") {
+		t.Errorf("root+feature description = %q, want marker prefix %q", contract.Description, wantPrefix)
+	}
+}
+
+// descriptionMarkerPrefix independently derives the required registration
+// ordering from typed source fields: root launch selection precedes feature
+// worktree selection, rather than assuming today's roles use one scope each.
+func descriptionMarkerPrefix(s harness.AgentSource) string {
+	var markers []string
+	if s.LaunchPosture == harness.LaunchRootCoordinator {
+		markers = append(markers, "[docket launch: root-coordinator]")
+	}
+	if s.WorktreeScope == harness.WorktreeScopeFeature {
+		markers = append(markers, "[docket worktree: feature]")
+	}
+	return strings.Join(markers, " ")
 }
 
 func TestRoleContractForSharesTheRegistrationSource(t *testing.T) {
