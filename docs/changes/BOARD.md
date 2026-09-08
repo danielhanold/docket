@@ -1,19 +1,19 @@
 # Backlog
 
-**410 changes** — 🟢 3 in progress · 🔵 2 built · 🟣 6 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 261 done · 🗑️ 113 killed
+**410 changes** — 🟢 2 in progress · 🔵 3 built · 🟣 6 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 261 done · 🗑️ 113 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | [spec](../) | `fix/gate-drive-start-human-output-omits-drive-id-generation` |  |
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-halt-report-authoring-writes-a-duplicate-run-halted-heading-design.md) | `fix/halt-report-authoring-writes-a-duplicate-run-halted-heading` |  |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-stack-closeout-must-prove-integration-reachability-design.md) | `fix/stack-closeout-must-prove-integration-reachability` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (3)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | [#289](https://github.com/danielhanold/docket/pull/289) | awaiting merge |
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [#288](https://github.com/danielhanold/docket/pull/288) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
