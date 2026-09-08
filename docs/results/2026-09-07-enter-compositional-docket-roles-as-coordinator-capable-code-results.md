@@ -344,3 +344,23 @@ finalize-e2e serial confirmation due and deferred rebase confirmation because
 the confirmation slot was consumed; the direct serial `tests/test_go_finalize_e2e.sh`
 check then passed all 6 assertions in 26.8s, clearing the only due confirmation
 without a breach.
+
+## 2026-09-08 Task 13 final-review round 2 — child-scope runbook repair
+
+Tested source head: `b0b8eedb5f302715fc3c076d40c60f3ae26724db`.
+The Codex validation runbook now separates ordinary children by typed worktree
+scope: metadata-scoped children retain native registered-agent invocation;
+feature-scoped children use foreground `agent.enter` with the absolute canonical
+feature worktree and the unchanged structured payload. `TestProseContracts`
+guards both clauses.
+
+The mutation removed the feature-scoped route from the runbook. With `-count=1`
+to defeat Go test caching, `go test ./internal/repoguard/ -run
+'^TestProseContracts$' -count=1` failed because the required feature-scoped
+`agent.enter`/`--worktree` clause was missing. The route was restored immediately;
+`go test ./internal/repoguard/ -count=1` passed. `git diff --check` was silent,
+and `go run ./cmd/genassets -check` passed (67 entries,
+`sha256:43cb21a47c767cbeccc1ed745bef6f2cf8acc83bdf5601352454730e8eb9d478`),
+so this maintained-source-only repair required no generated-asset update. The
+following commit records this results-only evidence and is not the tested source
+head.
