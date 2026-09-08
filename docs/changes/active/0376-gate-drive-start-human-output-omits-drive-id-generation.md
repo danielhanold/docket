@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-30
-updated: '2026-09-07'
+updated: '2026-09-08'
 depends_on: []
 stacked_on:
 related: [375, 405]
@@ -21,7 +21,7 @@ branch: 'fix/gate-drive-start-human-output-omits-drive-id-generation'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-07T14:59:01Z'
+claimed_at: '2026-09-08T04:35:26Z'
 ---
 
 ## Artifacts
