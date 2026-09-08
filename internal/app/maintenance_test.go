@@ -1048,8 +1048,9 @@ func TestSweepSelectionUsesBatchedFactsNotPerChangeProbe(t *testing.T) {
 // historical done population 0 -> 300 -> 1000 must not change the cleanup
 // dispatch count, the per-item authority reload count, or the remote probe
 // count in implementation scope. Reading/parsing the larger corpus is allowed —
-// the invariant is per-item work, not corpus size. Full scope on the same
-// corpora DOES grow, proving the filter is scope-keyed rather than dead.
+// the invariant is per-item work, not corpus size. A smaller full-scope corpus
+// DOES grow, proving the filter is scope-keyed rather than dead without making
+// the test rebuild a large snapshot once per deliberately dispatched cleanup.
 func TestSweepImplementationScopeDoesNotGrowWithHistory(t *testing.T) {
 	type counts struct{ cleanups, pins, probes, deferred int }
 	measure := func(t *testing.T, historical int, scope SweepScope) counts {
@@ -1088,9 +1089,14 @@ func TestSweepImplementationScopeDoesNotGrowWithHistory(t *testing.T) {
 		}
 	}
 
-	// Scope-keyed, not dead: full scope grows with the archive.
-	full0, full300 := measure(t, 0, SweepScopeFull), measure(t, 300, SweepScopeFull)
-	if full300.cleanups-full0.cleanups != 300 {
-		t.Errorf("full scope must retain historical retries: cleanups %d -> %d", full0.cleanups, full300.cleanups)
+	// Scope-keyed, not dead: full scope grows with the archive. Thirty records
+	// prove the branch while avoiding quadratic test-only snapshot rebuilding;
+	// the implementation-scope scaling guard above retains its 300/1000 rows.
+	full0, full30 := measure(t, 0, SweepScopeFull), measure(t, 30, SweepScopeFull)
+	if full30.cleanups-full0.cleanups != 30 {
+		t.Errorf("full scope must retain historical retries: cleanups %d -> %d", full0.cleanups, full30.cleanups)
+	}
+	if full30.cleanups <= base.cleanups {
+		t.Errorf("full scope must exercise more historical cleanups than implementation scope: full=%d implementation=%d", full30.cleanups, base.cleanups)
 	}
 }
