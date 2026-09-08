@@ -2,7 +2,7 @@
 id: 354
 slug: 'halt-report-authoring-writes-a-duplicate-run-halted-heading'
 title: 'Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-08-26'
@@ -22,7 +22,7 @@ branch: 'fix/halt-report-authoring-writes-a-duplicate-run-halted-heading'
 pr: 'https://github.com/danielhanold/docket/pull/290'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-08T08:01:23Z'
+claimed_at:
 ---
 
 ## Artifacts
