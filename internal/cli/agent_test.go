@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/danielhanold/docket/internal/app"
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/harness"
+	"github.com/danielhanold/docket/internal/harness/codex"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -21,7 +24,7 @@ func TestAgentEnterCommandRegistered(t *testing.T) {
 	if err != nil || cmd == nil || cmd.Name() != "enter" {
 		t.Fatalf("agent enter not registered: cmd=%v err=%v", cmd, err)
 	}
-	for _, flag := range []string{"role", "request", "cwd", "approval-policy", "sandbox"} {
+	for _, flag := range []string{"role", "request", "cwd", "approval-policy", "sandbox", "worktree"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("agent enter: missing --%s flag", flag)
 		}
@@ -52,6 +55,9 @@ func TestAgentEnterCLIPreservesRequestAndReceipt(t *testing.T) {
 	request := "Please implement change 393.\nDispatch context: opaque-token\nPreserve `literal` and $bytes.\n"
 	t.Setenv("DOCKET_AGENT_TEST_REQUEST", request)
 	t.Setenv("DOCKET_AGENT_TEST_CWD", dir)
+	t.Setenv("DOCKET_AGENT_TEST_ROLE", "docket-implement-next")
+	t.Setenv("DOCKET_AGENT_TEST_SKILL", "docket-implement-next")
+	t.Setenv("DOCKET_AGENT_TEST_DEVELOPER", installedAgentTestContract(t, "docket-implement-next").DeveloperInstructions)
 	for _, jsonMode := range []bool{false, true} {
 		args := []string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", dir, "--approval-policy", "never", "--sandbox", "workspace-write"}
 		if jsonMode {
@@ -74,6 +80,57 @@ func TestAgentEnterCLIPreservesRequestAndReceipt(t *testing.T) {
 			t.Fatalf("human receipt: %q", out.String())
 		}
 	}
+}
+
+// This reaches the app-server protocol through the CLI and demonstrates that
+// the target feature worktree, rather than the dispatcher's checkout, becomes
+// both the server process cwd and thread/start cwd.
+func TestAgentEnterCLIUsesVerifiedFeatureWorktree(t *testing.T) {
+	paths := newAgentEntryWorktrees(t)
+	seedAgentInstallation(t)
+	dir := testsupport.TempDir(t)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stub := "#!/bin/sh\nexec '" + strings.ReplaceAll(exe, "'", "'\\''") + "' -test.run=^TestAgentEnterServerProcess$ -- \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "codex"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("DOCKET_AGENT_TEST_SERVER", "1")
+	request := "Resolve this rebase exactly.\nOpaque dispatch context: `unchanged`.\n"
+	t.Setenv("DOCKET_AGENT_TEST_REQUEST", request)
+	t.Setenv("DOCKET_AGENT_TEST_CWD", paths.b)
+	t.Setenv("DOCKET_AGENT_TEST_ROLE", "docket-rebase-resolver")
+	t.Setenv("DOCKET_AGENT_TEST_SKILL", "docket-convention")
+	t.Setenv("DOCKET_AGENT_TEST_DEVELOPER", installedAgentTestContract(t, "docket-rebase-resolver").DeveloperInstructions)
+
+	var out, stderr bytes.Buffer
+	code := Run([]string{"agent", "enter", "--role", "docket-rebase-resolver", "--request", "-", "--cwd", paths.a, "--worktree", paths.b, "--approval-policy", "never", "--sandbox", "workspace-write", "--json"}, strings.NewReader(request), &out, &stderr, devInfo(), hostFacts())
+	if code != 0 || stderr.Len() != 0 {
+		t.Fatalf("code=%d out=%q stderr=%q", code, out.String(), stderr.String())
+	}
+	var result app.AgentEnterResult
+	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Result != app.ResultApplied || result.Role != "docket-rebase-resolver" || result.ThreadID != "root" || result.TurnID != "turn" {
+		t.Fatalf("receipt: %+v", result)
+	}
+}
+
+func installedAgentTestContract(t *testing.T, role string) codex.RoleContract {
+	t.Helper()
+	opts, refusal := installOptions(context.Background(), []string{"codex"}, "", false, devInfo())
+	if refusal != nil {
+		t.Fatal(refusal)
+	}
+	contract, err := codex.RoleContractFor(harness.PlanInput{Assets: opts.Catalog, Agents: opts.Config.Effective.Agents}, role)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return contract
 }
 
 func seedAgentInstallation(t *testing.T) string {
@@ -144,6 +201,10 @@ func TestAgentEnterServerProcess(t *testing.T) {
 		case "initialize":
 			fmt.Println(`{"id":1,"result":{}}`)
 		case "thread/start":
+			processCWD, err := os.Getwd()
+			if err != nil || processCWD != os.Getenv("DOCKET_AGENT_TEST_CWD") {
+				os.Exit(4)
+			}
 			for key, want := range map[string]string{"cwd": os.Getenv("DOCKET_AGENT_TEST_CWD"), "approvalPolicy": "never", "sandbox": "workspace-write", "threadSource": "vscode"} {
 				var got string
 				_ = json.Unmarshal(msg.Params[key], &got)
@@ -154,7 +215,7 @@ func TestAgentEnterServerProcess(t *testing.T) {
 			}
 			var dev string
 			_ = json.Unmarshal(msg.Params["developerInstructions"], &dev)
-			if !strings.Contains(dev, "docket-implement-next") || !strings.Contains(dev, "Before acting, load these docket skills") {
+			if dev != os.Getenv("DOCKET_AGENT_TEST_DEVELOPER") {
 				os.Exit(5)
 			}
 			fmt.Println(`{"id":2,"result":{"thread":{"id":"root"}}}`)
@@ -167,7 +228,7 @@ func TestAgentEnterServerProcess(t *testing.T) {
 				if input.Type == "text" {
 					text += input.Text
 				}
-				if input.Type == "skill" && input.Name == "docket-implement-next" && filepath.IsAbs(input.Path) {
+				if input.Type == "skill" && input.Name == os.Getenv("DOCKET_AGENT_TEST_SKILL") && filepath.IsAbs(input.Path) {
 					skill = true
 				}
 			}
@@ -184,7 +245,7 @@ func TestAgentEnterServerProcess(t *testing.T) {
 func TestAgentEnterRefusesNonCoordinatorRoles(t *testing.T) {
 	pinInstallEnv(t)
 	writeInstallState(t, assets.AssetProtocol)
-	for _, tc := range []struct{ role, reason string }{{"docket-missing", "unknown-role"}, {"docket-plan-writer", "ordinary-child-role"}} {
+	for _, tc := range []struct{ role, reason string }{{"docket-missing", "unknown-role"}, {"docket-brainstorm-consultant", "ordinary-child-role"}} {
 		out, _, _ := runCLI(t, "agent", "enter", "--role", tc.role, "--request", "-", "--cwd", testsupport.TempDir(t), "--approval-policy", "never", "--sandbox", "workspace-write", "--json")
 		var res app.AgentEnterResult
 		if err := json.Unmarshal([]byte(out), &res); err != nil {
@@ -202,7 +263,7 @@ func TestAgentEnterCapabilitySignature(t *testing.T) {
 		t.Fatal(err)
 	}
 	entry, ok := entryByID(entries, "agent.enter")
-	want := "--approval-policy <policy> --cwd <dir> --request <file> --role <name> --sandbox <mode>"
+	want := "--approval-policy <policy> --cwd <dir> --request <file> --role <name> --sandbox <mode> [--worktree <dir>]"
 	if !ok || entry.Signature != want {
 		t.Fatalf("agent.enter signature = %q, present=%v; want %q", entry.Signature, ok, want)
 	}

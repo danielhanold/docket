@@ -1,7 +1,7 @@
-// Package codexentry enters compositional Docket roles as Codex root threads
-// over the native app-server protocol. It is deliberately narrower than a
-// generic Codex runner: one root-coordinator role, one foreground turn, one
-// final message, and no fallback transport.
+// Package codexentry enters compositional Docket roles as Codex app-server
+// threads over the native protocol. It is deliberately narrower than a generic
+// Codex runner: one eligible role, one foreground turn, one final message, and
+// no fallback transport.
 package codexentry
 
 import (
@@ -76,8 +76,8 @@ func (c Client) Enter(ctx context.Context, req Request) (Result, error) {
 	if err := ValidateExecutionContext(req.ApprovalPolicy, req.Sandbox); err != nil {
 		return Result{}, err
 	}
-	if req.Contract.LaunchPosture != harness.LaunchRootCoordinator {
-		return Result{}, fmt.Errorf("role %q has launch posture %q, not %q", req.Contract.Name, req.Contract.LaunchPosture, harness.LaunchRootCoordinator)
+	if req.Contract.LaunchPosture != harness.LaunchRootCoordinator && !(req.Contract.LaunchPosture == harness.LaunchChild && req.Contract.WorktreeScope == harness.WorktreeScopeFeature) {
+		return Result{}, fmt.Errorf("role %q is not eligible for app-server entry", req.Contract.Name)
 	}
 	start := c.Start
 	if start == nil {

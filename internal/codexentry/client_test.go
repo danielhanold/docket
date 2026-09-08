@@ -109,6 +109,27 @@ func TestEnterMapsContractAndWaitsForRootCompletion(t *testing.T) {
 	}
 }
 
+// This catches an entry client that continues to reject the verified feature
+// child mode before it can start the app-server protocol.
+func TestEnterAcceptsFeatureChildRole(t *testing.T) {
+	req := validRequest()
+	req.Contract.Name = "docket-rebase-resolver"
+	req.Contract.LaunchPosture = harness.LaunchChild
+	req.Contract.WorktreeScope = harness.WorktreeScopeFeature
+	tr := &scriptedTransport{recv: []string{
+		`{"id":1,"result":{}}`,
+		`{"id":2,"result":{"thread":{"id":"root-thread"}}}`,
+		`{"id":3,"result":{"turn":{"id":"root-turn"}}}`,
+		`{"method":"item/completed","params":{"threadId":"root-thread","turnId":"root-turn","item":{"type":"agentMessage","phase":"final_answer","text":"FEATURE RESULT"}}}`,
+		`{"method":"turn/completed","params":{"threadId":"root-thread","turn":{"id":"root-turn","status":"completed","items":[]}}}`,
+	}}
+	c := Client{Start: func(context.Context, string) (Transport, error) { return tr, nil }}
+	got, err := c.Enter(context.Background(), req)
+	if err != nil || got.Output != "FEATURE RESULT" {
+		t.Fatalf("Enter feature child = %+v, %v", got, err)
+	}
+}
+
 func TestEnterClassifiesProtocolFailures(t *testing.T) {
 	cases := []struct {
 		name string
