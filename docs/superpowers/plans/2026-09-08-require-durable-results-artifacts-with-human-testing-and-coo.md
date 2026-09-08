@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0410 — Require durable results artifacts with human testing and coordinator findings](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0410-require-durable-results-artifacts-with-human-testing-and-coo.md)**
+> ↩ **[Change 0410 — Require durable results artifacts with human testing and coordinator findings](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-08-0410-require-durable-results-artifacts-with-human-testing-and-coo.md)**
 <!-- docket:backlink:end -->
 # Require Durable Results Artifacts Implementation Plan
 
