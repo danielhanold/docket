@@ -61,7 +61,15 @@ func TestIntegrationFinalizeRebaseContinueValidatesReport(t *testing.T) {
 	attempt := conflicted.Attempt
 	ctx := context.Background()
 
-	goodReport := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved, ConflictedPaths: []string{"feature.txt"}}
+	// A budgeted continue requires an outstanding reservation (change 0349): reserve
+	// one dispatch first, then echo its token in the report.
+	reserve := FinalizeResolverReserve(ctx, deps, f.repo.invocation, f.id, attempt)
+	if reserve.Disposition != ReserveReserved || reserve.Reservation == "" {
+		t.Fatalf("reserve = disp %q token %q (reason %q), want reserved with a token", reserve.Disposition, reserve.Reservation, reserve.Reason)
+	}
+	token := reserve.Reservation
+	goodReport := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
 
 	// A wrong attempt token refuses.
 	wrong := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, "not-the-attempt", goodReport)
@@ -69,12 +77,12 @@ func TestIntegrationFinalizeRebaseContinueValidatesReport(t *testing.T) {
 
 	// A non-resolved report refuses (route through abort).
 	stuck := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt,
-		ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverStuck, ConflictedPaths: []string{"feature.txt"}})
+		ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverStuck, ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token})
 	assertRebaseRefused(t, stuck, ResultInvalidInput, ReasonRebaseReportDisposition)
 
-	// A path outside the live unmerged set refuses.
+	// A path outside the live unmerged set refuses (the reservation is valid).
 	badPaths := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt,
-		ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved, ConflictedPaths: []string{"not-conflicted.txt"}})
+		ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved, ConflictedPaths: []string{"not-conflicted.txt"}, ResolverReservation: token})
 	assertRebaseRefused(t, badPaths, ResultInvalidInput, ReasonRebaseReportPaths)
 
 	// The rebase is still live and conflicted: the refusals staged nothing.
@@ -90,6 +98,14 @@ func TestIntegrationFinalizeRebaseContinueValidatesReport(t *testing.T) {
 	}
 	if st, _ := f.deps.Client.RebaseState(ctx, f.wp); st.Disposition != gitcli.RebaseUnchanged {
 		t.Errorf("the rebase did not complete; state %q", st.Disposition)
+	}
+	// The completed continue reconciled (cleared) the reservation, keeping used.
+	rec, _, _ := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+	if rec.ResolverReservationToken != "" || rec.ResolverContinuationStarted != "" {
+		t.Errorf("a completed continue left the reservation outstanding: token %q cont %q", rec.ResolverReservationToken, rec.ResolverContinuationStarted)
+	}
+	if rec.ResolverUsed != "1" {
+		t.Errorf("used = %q after continue, want 1 preserved", rec.ResolverUsed)
 	}
 }
 
