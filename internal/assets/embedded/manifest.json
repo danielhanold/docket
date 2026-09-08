@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:0260605046ebedb3cb1e1f051d04e4439924301df4a535e51ff336faf87dc32d",
+  "asset_set_id": "sha256:d5eae30a1a6f62f2e2d1d3ef2fb44ef34d982bb259088cf4e33e163bad5ab288",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -301,15 +301,15 @@
       "path": "skills/docket-build-task/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 10341,
-      "sha256": "be3e3e0fdf216876c81f9ddccedfe0b0946327f1cfc25bd975f45b151879384b"
+      "size": 10309,
+      "sha256": "315bc6f662bd1914ddf26474b9a187253400f1dd2293fb469465681349c14735"
     },
     {
       "path": "skills/docket-build/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 26094,
-      "sha256": "659cdfcabf363e108e571a585b3dab1cc415a6087d27981ce8364042c1ac5f7a"
+      "size": 26027,
+      "sha256": "56b20b863a9c5178eef0f9fba662e45c156bf21b142c511dc5afed21ef60381f"
     },
     {
       "path": "skills/docket-build/references/delegation-execution.md",
@@ -420,8 +420,8 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 48497,
-      "sha256": "acd24118962c83c4dd89e8cda20a1f31d812afc29e253450ea42fc0557f89970"
+      "size": 48451,
+      "sha256": "82dcdbfa8a59749be891da264c4ac388b5dd9609f82c20f449be9781cd08ca73"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",

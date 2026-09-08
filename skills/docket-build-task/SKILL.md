@@ -62,11 +62,10 @@ verification — starts through the native gate driver.** Use the task-intent ow
 `gate.drive.start` operation with `--owner task --scope-id <id> --child-cap <token> --run-root
 <task-scratch-dir> --json -- <the test command>`. The scope id and child capability come in your dispatch
 prompt; the run root is a scratch dir you pick and read from.
-Capture the drive id and owner generation from that first `--json` response and validate both are
-present before any advance or handoff — human text omits the generation (the JSON-capture
-requirement in `docket-build`'s `references/gate-caller-loop.md`). A response missing them is a
-caller-contract failure: return `BLOCKED` with the missing-response reason; never rerun `start` to
-recover credentials.
+Capture the drive id and owner generation from that `--json` response before any advance or handoff
+(the shared JSON-capture requirement in `docket-build`'s `references/gate-caller-loop.md`; human
+text omits the generation). A response missing them is a caller-contract failure: return `BLOCKED`
+with the missing-response reason; never rerun `start` to recover credentials.
 **No duration prediction, no test-command spelling list**: a
 command is a test by your running it as this task's verification; the 30-second slice is the
 *maximum* of one observation call, not a minimum — a quick test returns on the next ~250 ms
