@@ -299,3 +299,48 @@ files, 387 assertions, exit 0. Screening diagnostics (not authoritative breaches
 `BUDGET WATCH` for finalize-e2e (113s), integration-app-rebase (148s), and
 integration-app-workflow (120s); `PARALLEL-SENSITIVE` for go-race (268s; prior solo 83s)
 and go-toolchain (205s; prior solo 58s). No `SERIAL CONFIRMED OVER BUDGET` line occurred.
+
+## 2026-09-08 Task 13 rebase verification — final-review round 1
+
+This round rebased old feature head `95a20a6f4c269fe5163d0c79b4ab071d4b6ea3ce`
+(old merge base `b801b8c6dd23f55b23d1edecc373039e04ffe96c`) onto
+`origin/main` `9e82cc47c8fc27579f6e32abd84a99e9e609b28e`. The exact source
+head tested below is `18a18b8de053ac6fd3fd5bfd029573ebccdd8c49`, whose
+merge base is that same `origin/main` commit. The results-only commit following
+this section does not change the tested implementation.
+
+The review's red condition was the integrated branch's missing `--json` capture
+in the feature-worktree dispatch contract, which current main's
+`TestGateDriveJSONCapture` rejects. Rebase resolution preserved both intents:
+the `gate.drive.prepare-scope` call captures credentials from `--json`, while
+the dispatch payload retains the canonical `Feature worktree:` line. Generated
+embedded assets and manifest were then regenerated only through
+`go run ./cmd/genassets` (67 entries,
+`sha256:43cb21a47c767cbeccc1ed745bef6f2cf8acc83bdf5601352454730e8eb9d478`).
+
+Green evidence at the tested source head:
+
+```text
+go fmt ./internal/...
+git diff --check
+go test -count=1 ./internal/harness/... ./internal/codexentry ./internal/cli ./internal/reposeed ./internal/repoguard ./internal/assets
+go run ./cmd/genassets -check
+go test -count=1 -tags=integration ./internal/app -run TestIntegrationWorkflowRootEntryGateAttribution
+go test -count=1 ./internal/codexentry -run TestEnterMapsContractAndWaitsForRootCompletion
+go test -count=1 ./internal/cli -run 'TestAgentEnterCLIUsesVerifiedFeatureWorktree|TestResolveAgentEntryCWDRejectsInvalidFeatureWorktrees'
+go test -count=1 ./internal/repoguard -run 'TestGateDriveJSONCapture|TestFeatureDispatchPayloadsCarryCanonicalWorktree|TestSkillSizeBudgets|TestRuntimeBudgetsCorrespondence|TestCommittedCodexDispatchRoutesEveryScope'
+go run ./cmd/docket development test
+tests/test_go_finalize_e2e.sh
+```
+
+The configured full gate exited 0: 43/43 files passed, 387 assertions, 0
+failures, wall 281s. It emitted no `SERIAL CONFIRMED OVER BUDGET` breach.
+Screening-only diagnostics were `PARALLEL-SENSITIVE` for finalize-e2e (117s;
+last solo 26s), go-race (281s; last solo 83s), and go-toolchain (216s; last
+solo 58s); and `BUDGET WATCH` for integration-app-merge (77s, streak 2/5),
+integration-app-rebase (156s, streak 5/5), integration-app-workflow (124s,
+streak 3/5), and integration-gitcli-repo (77s, streak 2/5). The runner marked
+finalize-e2e serial confirmation due and deferred rebase confirmation because
+the confirmation slot was consumed; the direct serial `tests/test_go_finalize_e2e.sh`
+check then passed all 6 assertions in 26.8s, clearing the only due confirmation
+without a breach.
