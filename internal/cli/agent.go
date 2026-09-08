@@ -144,7 +144,7 @@ func resolveAgentEntryCWD(ctx context.Context, git *gitcli.Client, contract code
 	if discoverErr != nil {
 		return "", "worktree-unregistered", nil
 	}
-	canonicalRequested, canonicalErr := filepath.EvalSymlinks(requestedWorktree)
+	canonicalRequested, canonicalErr := canonicalAgentEntryWorktreePath(requestedWorktree)
 	if canonicalErr != nil {
 		return "", "worktree-not-directory", nil
 	}
@@ -159,7 +159,7 @@ func resolveAgentEntryCWD(ctx context.Context, git *gitcli.Client, contract code
 		return "", "worktree-registration-unavailable", nil
 	}
 	for _, info := range registered {
-		canonicalRegistered, canonicalErr := filepath.EvalSymlinks(info.Path)
+		canonicalRegistered, canonicalErr := canonicalAgentEntryWorktreePath(info.Path)
 		if canonicalErr == nil && canonicalRegistered == target.Root {
 			return target.Root, "", nil
 		}
@@ -170,6 +170,14 @@ func resolveAgentEntryCWD(ctx context.Context, git *gitcli.Client, contract code
 func isDirectory(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
+}
+
+func canonicalAgentEntryWorktreePath(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(abs)
 }
 
 func agentEntryRefusalMessage(reason string) string {

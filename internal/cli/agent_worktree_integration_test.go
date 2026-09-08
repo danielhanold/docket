@@ -119,6 +119,22 @@ func TestResolveAgentEntryCWDRejectsInvalidFeatureWorktrees(t *testing.T) {
 	}
 }
 
+// ListWorktrees permits a relative Path spelling. The registration comparison
+// must convert that spelling to the same absolute canonical root used by
+// DiscoverWorktree before deciding whether a target remains registered.
+func TestCanonicalAgentEntryWorktreePathMakesRelativeRegistrationAbsolute(t *testing.T) {
+	paths := newAgentEntryWorktrees(t)
+	t.Chdir(paths.root)
+	registration := gitcli.WorktreeInfo{Path: "b"}
+	got, err := canonicalAgentEntryWorktreePath(registration.Path)
+	if err != nil {
+		t.Fatalf("canonicalAgentEntryWorktreePath(%q): %v", registration.Path, err)
+	}
+	if got != paths.b {
+		t.Fatalf("canonical registration path = %q, want %q", got, paths.b)
+	}
+}
+
 type agentEntryWorktrees struct {
 	root, primary, a, b, unregistered, foreign string
 }
