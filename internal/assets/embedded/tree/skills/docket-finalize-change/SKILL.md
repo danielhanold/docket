@@ -90,7 +90,8 @@ The `finalize.rebase` operation with `--id <id> --version <version> --head <feat
 <!-- docket:feature-dispatch:start targets=docket-rebase-resolver -->
 **Resolver loop (Go-enforced budget).** On `conflicted`, first run the `finalize.resolver-reserve` operation with `--id <id> --attempt <attempt>` — it durably admits one resolver dispatch under the owned attempt, before anything is launched, and is the ONLY thing that authorizes a dispatch. Route on its `disposition`:
 
-- `reserved` — authorizes exactly ONE `docket-rebase-resolver` dispatch (foreground, at the model/effort its wrapper resolves). Its dispatch payload includes the returned `reservation` token and contains:
+- `reserved` — authorizes exactly ONE resolver dispatch. Its payload includes the returned `reservation` token and contains:
+Dispatch `docket-rebase-resolver` foreground at the model/effort its wrapper resolves.
 Feature worktree: <absolute canonical feature-worktree root>
 The resolver echoes the token back as the report's `resolver_reservation` field. It edits only the conflicted regions in the returned workspace and returns a versioned `ResolverReport` (fields in step 3 of *The two agents* in `references/gate-failure.md`) — it never runs the rebase mechanics or the suite.
 - `pending` — a reservation is already outstanding: dispatch NOTHING new. If the child it belongs to is yours and identifiable, wait for it or feed its matching report to `finalize.rebase-continue`; if you cannot establish dispatch ownership, this is `halted` with the reservation retained.
@@ -111,7 +112,8 @@ The gate is composed into `finalize.rebase`/`rebase-continue`: a completed rebas
 ### 5. Repair a red gate
 
 <!-- docket:feature-dispatch:start targets=docket-integration-repair -->
-A red suite after the rebase is repair work, regardless of cause. Dispatch `docket-integration-repair` (foreground, at the model/effort its wrapper resolves). Its dispatch payload contains:
+A red suite after the rebase is repair work, regardless of cause.
+Dispatch `docket-integration-repair` foreground at the model/effort its wrapper resolves. Its payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
 Red-test root cause, bounded two-attempt feature-branch fix, and claimed commits plus `repaired`/`stuck`; it never rebases, merges, or transitions metadata. Then re-run the gate on the repaired head: `gate.launch` with `--root <run-root> --cwd <feature worktree> -- <resolved suite>`, then `gate.observe` with `<run-dir>`, under `docket-build`'s gate-execution posture. On a `passed` terminal observation whose head equals repaired head, `evidence.record --id <id> --run <absolute-run-dir> --head <repaired head>` returns the immutable block — no agent-supplied `passed` boolean; a failed/running/stopped/vanished/malformed/head-mismatched run produces none, and a repair that cannot reach green in two attempts, or unavailable repair dispatch, is `halted`.
 <!-- docket:feature-dispatch:end -->

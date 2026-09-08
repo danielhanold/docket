@@ -20,7 +20,11 @@ const (
 	featureDispatchEnd          = "<!-- docket:feature-dispatch:end -->"
 )
 
-var featureDispatchStart = regexp.MustCompile(`^<!-- docket:feature-dispatch:start targets=([a-z0-9-]+(?:,[a-z0-9-]+)*) -->$`)
+var (
+	featureDispatchStart  = regexp.MustCompile(`^<!-- docket:feature-dispatch:start targets=([a-z0-9-]+(?:,[a-z0-9-]+)*) -->$`)
+	directFeatureDispatch = regexp.MustCompile("^Dispatch `(" + `docket-[a-z0-9-]+` + ")`")
+	orderedMarkdownList   = regexp.MustCompile(`^[0-9]+\.\s`)
+)
 
 type featureDispatchSite struct {
 	rel     string
@@ -28,6 +32,12 @@ type featureDispatchSite struct {
 	end     int
 	targets []string
 	lines   []string
+}
+
+type directFeatureDispatchSite struct {
+	rel    string
+	line   int
+	target string
 }
 
 // featureDispatchTargets reads the closed role scope from ParseInventory; a
@@ -123,6 +133,59 @@ func hasExactFeatureWorktreeLine(lines []string) bool {
 	return false
 }
 
+// discoverDirectFeatureDispatches recognizes docket's direct-dispatch grammar
+// only in ordinary Markdown paragraph lines. Headings, tables, lists,
+// blockquotes, indented/fenced code, and HTML-marker lines are structurally
+// non-executable, so explanatory material cannot be mistaken for a dispatch.
+// Indirect selection has no direct target token; its marker targets remain the
+// authoritative, exhaustively checked declaration.
+func discoverDirectFeatureDispatches(rel, content string, targets map[string]bool) []directFeatureDispatchSite {
+	var sites []directFeatureDispatchSite
+	inFence := false
+	inComment := false
+	for i, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if inComment {
+			if strings.Contains(line, "-->") {
+				inComment = false
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "<!--") {
+			if !strings.Contains(trimmed, "-->") {
+				inComment = true
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			inFence = !inFence
+			continue
+		}
+		if inFence || !markdownParagraphLine(line) {
+			continue
+		}
+		match := directFeatureDispatch.FindStringSubmatch(line)
+		if match != nil && targets[match[1]] {
+			sites = append(sites, directFeatureDispatchSite{rel: rel, line: i + 1, target: match[1]})
+		}
+	}
+	return sites
+}
+
+func markdownParagraphLine(line string) bool {
+	if line == "" || strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
+		return false
+	}
+	trimmed := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmed, "<!--") || strings.HasPrefix(trimmed, "#") ||
+		strings.HasPrefix(trimmed, ">") || strings.HasPrefix(trimmed, "|") ||
+		strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") ||
+		strings.HasPrefix(trimmed, "+ ") {
+		return false
+	}
+	return !orderedMarkdownList.MatchString(trimmed)
+}
+
 func featureDispatchProblems(sites []featureDispatchSite, targets map[string]bool) []string {
 	seen := map[string]bool{}
 	var problems []string
@@ -147,10 +210,34 @@ func featureDispatchProblems(sites []featureDispatchSite, targets map[string]boo
 	return problems
 }
 
+func directFeatureDispatchProblems(direct []directFeatureDispatchSite, bounded []featureDispatchSite) []string {
+	var problems []string
+	for _, dispatch := range direct {
+		matches := 0
+		declared := false
+		for _, block := range bounded {
+			if dispatch.rel != block.rel || dispatch.line <= block.start || dispatch.line >= block.end {
+				continue
+			}
+			matches++
+			for _, target := range block.targets {
+				if target == dispatch.target {
+					declared = true
+				}
+			}
+		}
+		if matches != 1 || !declared {
+			problems = append(problems, fmt.Sprintf("%s:%d direct feature dispatch %q is not inside exactly one marker-delimited block naming that target", dispatch.rel, dispatch.line, dispatch.target))
+		}
+	}
+	return problems
+}
+
 func TestFeatureDispatchPayloadsCarryCanonicalWorktree(t *testing.T) {
 	root := guardRoot(t)
 	targets := featureDispatchTargets(t)
 	var sites []featureDispatchSite
+	var direct []directFeatureDispatchSite
 	var problems []string
 	for _, rel := range maintainedPop(t, root) {
 		if !strings.HasPrefix(rel, "skills/") || !strings.HasSuffix(rel, ".md") {
@@ -158,11 +245,16 @@ func TestFeatureDispatchPayloadsCarryCanonicalWorktree(t *testing.T) {
 		}
 		found, parseProblems := parseFeatureDispatches(rel, readMaintained(t, root, rel), targets)
 		sites = append(sites, found...)
+		direct = append(direct, discoverDirectFeatureDispatches(rel, readMaintained(t, root, rel), targets)...)
 		problems = append(problems, parseProblems...)
 	}
 	problems = append(problems, featureDispatchProblems(sites, targets)...)
+	problems = append(problems, directFeatureDispatchProblems(direct, sites)...)
 	if len(sites) == 0 {
 		t.Error("feature-dispatch population is empty")
+	}
+	if len(direct) == 0 {
+		t.Error("direct feature-dispatch population is empty")
 	}
 	if len(problems) != 0 {
 		t.Errorf("feature worktree dispatch contract violations (%d):\n%s", len(problems), strings.Join(problems, "\n"))
@@ -195,6 +287,24 @@ func TestFeatureDispatchPayloadsCarryCanonicalWorktree(t *testing.T) {
 		problems = append(problems, featureDispatchProblems(sites, map[string]bool{target: true})...)
 		if len(problems) == 0 {
 			t.Error("indented worktree line was accepted as raw payload input")
+		}
+
+		markedAndUnmarked := start + "\nDispatch `" + target + "` foreground.\n" + featureWorktreeDispatchLine + "\n" + featureDispatchEnd + "\nDispatch `" + target + "` foreground again."
+		sites, problems = parseFeatureDispatches("fixture.md", markedAndUnmarked, map[string]bool{target: true})
+		direct := discoverDirectFeatureDispatches("fixture.md", markedAndUnmarked, map[string]bool{target: true})
+		problems = append(problems, directFeatureDispatchProblems(direct, sites)...)
+		if len(problems) == 0 {
+			t.Error("unmarked direct dispatch for an already-covered feature role was accepted")
+		}
+
+		explanatoryStructure := "# Dispatch `" + target + "`\n\n| instruction | target |\n|---|---|\n| Dispatch | `" + target + "` |\n\n```text\nDispatch `" + target + "` foreground.\n```"
+		if got := discoverDirectFeatureDispatches("fixture.md", explanatoryStructure, map[string]bool{target: true}); len(got) != 0 {
+			t.Errorf("structurally explanatory Markdown was treated as direct dispatch: %+v", got)
+		}
+
+		commentedExplanation := "<!-- explanatory dispatch discussion\nDispatch `" + target + "` foreground.\n-->"
+		if got := discoverDirectFeatureDispatches("fixture.md", commentedExplanation, map[string]bool{target: true}); len(got) != 0 {
+			t.Errorf("bounded explanatory comment was treated as direct dispatch: %+v", got)
 		}
 	})
 }
