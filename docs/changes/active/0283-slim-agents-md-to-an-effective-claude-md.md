@@ -19,8 +19,8 @@ auto_groomable:
 branch: 'docs/slim-agents-md-to-an-effective-claude-md'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-08T20:35:22Z'
+reconciled: true
+claimed_at: '2026-09-08T20:36:51Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,7 @@ Removing or relocating operational safeguards; editing the managed dispatch bloc
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-09-08
+
+2026-09-08 — Reconciled against main at 19faaf60. Design and spec remain valid and in scope; no re-brainstorm needed. Updated baseline: AGENTS.md now measures 144 lines / ~1603 whitespace-delimited words (the spec's 129 lines / 1409 words were dated observations against base 9cce7f98). The managed docket:dispatch block is intact at lines 108–144 with balanced markers; CLAUDE.md remains a symlink to AGENTS.md. Related changes 154 (skill audit), 257 (frontmatter guidance), 263 (deferred shell guards) stay independent and out of scope; ADRs 41/54/71/104/111 remain intact with no reversal. Draft word reductions are targets to beat, not quotas — meaning outranks count. The final wording will be re-measured against the actual implementation base and every original obligation verified against the shortened text.
