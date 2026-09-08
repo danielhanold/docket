@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0354 — Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md)**
+> ↩ **[Change 0354 — Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-08-0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md)**
 <!-- docket:backlink:end -->
 # Halt-Report Body Validation Implementation Plan
 
