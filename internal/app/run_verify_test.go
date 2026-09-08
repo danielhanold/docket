@@ -20,10 +20,24 @@ import (
 // operational errors exit non-zero).
 
 const (
-	rvSlug        = "widget"
-	rvPlanPath    = "docs/superpowers/plans/2026-08-17-widget-plan.md"
-	rvResultsPath = "docs/changes/results/0003-widget-results.md"
+	rvSlug               = "widget"
+	rvPlanPath           = "docs/superpowers/plans/2026-08-17-widget-plan.md"
+	rvResultsPath        = "docs/changes/results/0003-widget-results.md"
+	rvResultsInvalidPath = "docs/changes/results/0003-widget-invalid-results.md"
 )
+
+// rvResultsValidContent is a minimal FINAL-valid results artifact: an H1 title
+// and a substantive ## Outcome. ValidateResultsContent(..., ResultsPhaseFinal)
+// accepts it, so run verify's results content check adds no conjunct — the
+// fixture head must carry a genuinely valid results file now that a linked
+// results path is content-validated at the final boundary (change 0410).
+const rvResultsValidContent = "# Widget — Results\n\n## Outcome\n\nDelivered the widget behavior; the run now refuses the old path.\n"
+
+// rvResultsInvalidContent is a FINAL-invalid artifact: a whole-section filler
+// body (`None.`) under a real section, which ValidateResultsContent reports as
+// results-filler-section. The linked-but-invalid results path resolves to a
+// tracked regular file, so identity holds and only the content contract fails.
+const rvResultsInvalidContent = "# Widget — Results\n\n## Outcome\n\nReal outcome prose describing the delivered behavior.\n\n## Findings and limitations\n\nNone.\n"
 
 func rvRecordedPR() string { return prRepo().Spec() + "#42" }
 
@@ -78,7 +92,8 @@ func newRunVerifyFixture(t *testing.T, publish bool) *rvFixture {
 
 	runGit(t, repo.invocation, "checkout", "-q", "-b", "feat/"+rvSlug)
 	writeRepoFile(t, repo.invocation, rvPlanPath, "# plan\n")
-	writeRepoFile(t, repo.invocation, rvResultsPath, "# results\n")
+	writeRepoFile(t, repo.invocation, rvResultsPath, rvResultsValidContent)
+	writeRepoFile(t, repo.invocation, rvResultsInvalidPath, rvResultsInvalidContent)
 	runGit(t, repo.invocation, "add", "-A")
 	runGit(t, repo.invocation, "commit", "-q", "-m", "feature work")
 	head := runGit(t, repo.invocation, "rev-parse", "HEAD")
@@ -256,6 +271,98 @@ func TestRunVerifyHaltedVerdict(t *testing.T) {
 	}
 	if got.Result != ResultApplied {
 		t.Errorf("result=%q, want a success-shaped verdict envelope", got.Result)
+	}
+}
+
+// TestRunVerifyMissingResultsIsUnmetConjunct: an otherwise-complete implemented
+// run whose change carries no linked results artifact is NOT complete — a green
+// PR plus verified evidence and a tracked plan can never certify a run with no
+// durable results (change 0410, criterion 1). The missing-results conjunct
+// (results-unlinked) is enumerated on run-incomplete.
+func TestRunVerifyMissingResultsIsUnmetConjunct(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, "", rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+	if res.Verdict != VerdictRunIncomplete {
+		t.Fatalf("verdict = %q, want %q (missing results must not certify complete; unmet %v)", res.Verdict, VerdictRunIncomplete, unmetReasons(res))
+	}
+	if got := unmetReasons(res); len(got) != 1 || got[0] != ReasonRunResultsUnlinked {
+		t.Fatalf("unmet = %v, want exactly [%s]", got, ReasonRunResultsUnlinked)
+	}
+}
+
+// TestRunVerifyInvalidResultsContentIsUnmetConjunct: a linked results path that
+// resolves to a tracked regular file whose FINAL content contract fails (a
+// whole-section filler body) is an unmet results-content-invalid conjunct whose
+// Observed detail names the offending path.
+func TestRunVerifyInvalidResultsContentIsUnmetConjunct(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsInvalidPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+	if res.Verdict != VerdictRunIncomplete {
+		t.Fatalf("verdict = %q, want %q (unmet %v)", res.Verdict, VerdictRunIncomplete, unmetReasons(res))
+	}
+	if got := unmetReasons(res); len(got) != 1 || got[0] != ReasonRunResultsInvalid {
+		t.Fatalf("unmet = %v, want exactly [%s]", got, ReasonRunResultsInvalid)
+	}
+	var observed string
+	for _, u := range res.Unmet {
+		if u.Reason == ReasonRunResultsInvalid {
+			observed = u.Observed
+		}
+	}
+	if !strings.HasPrefix(observed, rvResultsInvalidPath) {
+		t.Fatalf("observed = %q, want it to name path %q", observed, rvResultsInvalidPath)
+	}
+}
+
+// TestRunVerifyHaltedPrecedesMissingResults: a change carrying the durable
+// "## Run halted" marker and NO results still short-circuits to run-halted — the
+// missing-results conjunct (change 0410, hoisted outside the blob-read guard)
+// never runs before the halted verdict, so no unmet conjunct leaks into the
+// terminal report. Pins that the persisted halt stays terminal.
+func TestRunVerifyHaltedPrecedesMissingResults(t *testing.T) {
+	src := strings.TrimRight(lifecycleChange(3, "widget", "in-progress"), "\n") +
+		"\n\n## Run halted\n\n### 2026-08-14\n\nPaused.\n"
+	corpus := []StatusBlob{{
+		Kind:     repository.KindChange,
+		Location: repository.LocationActive,
+		Path:     groomPath(3, "widget"),
+		Version:  "v3",
+		Data:     []byte(src),
+	}}
+	fake := &fakeReader{pin: docketPin(t), corpus: corpus}
+	got := RunVerify(context.Background(), PlanningDeps{Reader: fake, Clock: testClock()},
+		WorkspaceDeps{}, GitHubDeps{}, "", RunVerifyRequest{ID: 3})
+	if got.Verdict != VerdictRunHalted {
+		t.Fatalf("verdict = %q, want %q (a persisted halt precedes the missing-results conjunct)", got.Verdict, VerdictRunHalted)
+	}
+	if len(got.Unmet) != 0 {
+		t.Fatalf("halted verdict carried unmet conjuncts %v; the missing-results conjunct must not run before the halt short-circuit", unmetReasons(got))
+	}
+}
+
+// TestRunVerifyWaitingSurvivesMissingResults: the missing-results conjunct adds
+// to unmet without suppressing a valid local waiting receipt. Waiting evaluation
+// runs precisely because unmet is nonempty, so an in-progress run with a
+// fully-agreeing handoff and NO results still reports run-waiting (change 0410
+// preserves waiting precedence).
+func TestRunVerifyWaitingSurvivesMissingResults(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvInProgressRecord(rvPlanPath, "", "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	wdeps.Waiting = fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true}
+	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+	if res.Verdict != VerdictRunWaiting {
+		t.Fatalf("verdict = %q, want %q (a valid waiting receipt outranks the missing-results conjunct; unmet %v)", res.Verdict, VerdictRunWaiting, unmetReasons(res))
 	}
 }
 
