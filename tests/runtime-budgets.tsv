@@ -24,6 +24,7 @@ tests/test_go_integration_app_closeout.sh	40	parallel
 tests/test_go_integration_app_concurrency.sh	25	parallel
 tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	45	parallel
+tests/test_go_integration_app_resolverbudget.sh	20	parallel
 tests/test_go_integration_app_repocheck.sh	20	parallel
 tests/test_go_integration_app_repocontention.sh	15	parallel
 tests/test_go_integration_app_repomigration.sh	20	parallel
@@ -42,6 +43,7 @@ tests/test_go_integration_gitcli_history.sh	10	parallel
 tests/test_go_integration_gitcli_preserve.sh	15	parallel
 tests/test_go_integration_gitcli_process.sh	15	parallel
 tests/test_go_integration_gitcli_repo.sh	30	parallel
+tests/test_go_integration_gitcli_stoppedcommit.sh	10	parallel
 tests/test_go_integration_gitcli_setuptree.sh	10	parallel
 tests/test_go_integration_gitcli_source.sh	10	parallel
 tests/test_go_integration_gitcli_remoteheads.sh	10	parallel

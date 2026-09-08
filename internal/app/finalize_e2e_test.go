@@ -695,13 +695,28 @@ func TestE2EConflictAndRepair(t *testing.T) {
 		t.Fatalf("rebase conflict did not report widget.go unmerged: %v", unmerged)
 	}
 
-	// (2) The resolver resolves the conflict in the workspace and reports it; the
-	// continue stages exactly the reported paths and completes the rebase, whose
-	// gate then runs RED (no `.repaired` yet) — repair work.
+	// (2) A budgeted continue requires an outstanding reservation (change 0349):
+	// the fresh rebase receipt carries a resolver budget, so before dispatching the
+	// resolver the operator durably reserves one dispatch and threads the returned
+	// token into the resolver report as resolver_reservation.
+	rsv := s.dk(t, "", "finalize", "resolver-reserve", "--id", strconv.Itoa(s.id), "--attempt", attempt)
+	if rsv.str("disposition") != "reserved" {
+		t.Fatalf("resolver-reserve disposition = %q, want reserved\n%s", rsv.str("disposition"), rsv.stdout)
+	}
+	token := rsv.str("reservation")
+	if token == "" {
+		t.Fatalf("resolver-reserve returned an empty reservation token\n%s", rsv.stdout)
+	}
+
+	// The resolver resolves the conflict in the workspace and reports it (echoing
+	// the reservation token); the continue verifies the reservation, stages exactly
+	// the reported paths, and completes the rebase, whose gate then runs RED (no
+	// `.repaired` yet) — repair work.
 	writeRepoFile(t, s.wp, "widget.go", "package widget\n// resolved: upstream + feature\n")
 	report := `{"change_id":` + strconv.Itoa(s.id) + `,"attempt":"` + attempt +
 		`","disposition":"resolved","summary":"merged upstream and feature","touched_paths":["widget.go"],` +
-		`"conflicted_paths":["widget.go"],"observed_head":"","observed_base":"","recommended_action":"continue"}`
+		`"conflicted_paths":["widget.go"],"observed_head":"","observed_base":"","recommended_action":"continue",` +
+		`"resolver_reservation":"` + token + `"}`
 	reportPath := s.writeInput(t, "resolver.json", report)
 	cont := s.dk(t, "", "finalize", "rebase-continue", "--id", strconv.Itoa(s.id), "--attempt", attempt, "--input", reportPath)
 	if cont.str("disposition") != "failed" {
