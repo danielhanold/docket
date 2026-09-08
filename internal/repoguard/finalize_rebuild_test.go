@@ -96,7 +96,11 @@ const (
 	rebuildStepAnchor  = "### 12. Repository-required post-merge rebuild"
 	rebuildTerminator  = "## Identity repair checkpoint"
 	agentsRebuildStart = "## Rebuild the binary after a merge to main"
-	agentsTerminator   = "<!-- docket:dispatch:start"
+	// The rebuild section is bounded by the heading that follows it. AGENTS.md
+	// leads with the managed dispatch block, so the rebuild rule sits between
+	// that block and the "## Shell" section — the terminator tracks that next
+	// heading, not the dispatch marker.
+	agentsTerminator = "## Shell"
 )
 
 // TestFinalizeRebuildContract pins the maintained finalize skill's step-12
