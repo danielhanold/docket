@@ -62,3 +62,16 @@ Make the ceiling configurable and enforce admission in Go before each resolver d
 ### 2026-09-07
 
 2026-09-07 — Reconciled against current source. No drift; scope stands. Verified: the target clause "Resolver loop (skill-enforced ≤2 attempts)" and "The skill counts resolver dispatches and allows at most two" is present at skills/docket-finalize-change/SKILL.md:90 (mirrored in references/gate-failure.md). No resolver_max_attempts / resolver-reserve / resolver_reservation work exists anywhere in source yet. Foundations are merged: change 396 (done) added the WAITING continuation to internal/workspace/rebasereceipt.go (RebaseReceipt) — the ownership boundary this change extends with the resolver-budget group; changes 334, 392, 399, 403 all done; 291 remains separate (still proposed) and is not a dependency, so depends_on stays empty. Cited ADRs 10/19/105/109 all Accepted. internal/config Finalize struct (config.go:144) is ready for the new positive-int leaf ResolverMaxAttempts; internal/gitcli present for the additional stopped-commit probe; internal/app finalize_rebase.go owns FinalizeRebaseContinue/receipt read-write. No new relations required.
+
+## Finalize blocked
+
+### 2026-09-08 — attempt 20260908T134349Z-9e82cc47c8fc
+
+<!-- attempt:20260908T134349Z-9e82cc47c8fc -->
+
+- Reason: resolver-dispatch-unavailable
+- Head: c22ac9ff409caa96220a6815d54286ba86091ad6
+- PR: #288
+- Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5586140712
+
+Remedy: Make the docket-rebase-resolver dispatch available, then rerun finalize for change 349 by explicit id.
