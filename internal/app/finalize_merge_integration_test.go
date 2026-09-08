@@ -820,7 +820,7 @@ func TestIntegrationFinalizeMergeCarryTransitive(t *testing.T) {
 		// EXISTS but its content was never carried onto the feature head. The refusal
 		// must name B — proving the proof reached the grandchild through A.
 		f := setupMergeFixture(t, m)
-		seedRebaseCarryChild(t, f.rebaseFixture)  // id 6 (gadget), stacked-merged, PR #8
+		seedRebaseCarryChild(t, f.rebaseFixture)     // id 6 (gadget), stacked-merged, PR #8
 		seedMergeCarryGrandchild(t, f.rebaseFixture) // id 7 (gizmo), stacked-merged, PR #9
 		aMerge := f.commitOntoFeature(t, map[string]string{"gadget.yaml": "A\n"})
 		bDropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"gizmo.yaml": "B\n"})

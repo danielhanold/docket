@@ -28,15 +28,15 @@ func TestEveryNetworkSiteIsReadWriteClassified(t *testing.T) {
 	// enclosing function -> isWrite, derived from this package's `network: true`
 	// sites. false = read budget, true = write budget.
 	classified := map[string]bool{
-		"RemoteDefaultBranch":  false, // ls-remote --symref … HEAD
-		"FetchBranch":          false, // fetch
+		"RemoteDefaultBranch":   false, // ls-remote --symref … HEAD
+		"FetchBranch":           false, // fetch
 		"resolveCommitFetching": false, // fetch <exact-object> (read: fetches objects from the remote, never pushes)
-		"classifyFetchFailure": false, // ls-remote failure-classification probe
-		"ProbeRemoteBranch":    false, // ls-remote <ref>
-		"ListRemoteHeads":      false, // ls-remote --heads
-		"PushLease":            true,  // push --force-with-lease
-		"PushCreateLease":      true,  // push (create)
-		"DeleteRemoteRefLease": true,  // push --delete (lease)
+		"classifyFetchFailure":  false, // ls-remote failure-classification probe
+		"ProbeRemoteBranch":     false, // ls-remote <ref>
+		"ListRemoteHeads":       false, // ls-remote --heads
+		"PushLease":             true,  // push --force-with-lease
+		"PushCreateLease":       true,  // push (create)
+		"DeleteRemoteRefLease":  true,  // push --delete (lease)
 	}
 	assertNetworkSitesClassified(t, classified)
 }
