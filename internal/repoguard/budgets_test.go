@@ -91,19 +91,33 @@ type skillBudget struct {
 // exact count of the file that now carries 0327's carry-preservation prose on top of
 // main's 0346/0388 re-baselines, so the ratchet still reddens on any further
 // regrowth.
+//
+// Change 0410 re-baselined the required-results workflow surfaces upward once to
+// hold the durable-results contract prose (results are now a REQUIRED close-out
+// artifact for every implemented change, trivial included; the mandatory Step 6.5
+// checkpoint lifecycle; and the build/review capture-ownership boundaries):
+// docket-build/SKILL.md (390/3907 -> 404/4054), docket-convention/SKILL.md (word
+// 7807 -> 7969), docket-implement-next/SKILL.md (180/6991 -> 201/7530),
+// docket-implement-next/references/edge-paths.md (58/800 -> 78/1091),
+// docket-implement-next/references/fix-loop.md (185/1900 -> 190/1958),
+// docket-implement-next/results-template.md (25/250 -> 51/257 — the five-section
+// canonical template replaced the terse optional stub), and
+// docket-review/SKILL.md (word 900 -> 913). Authored contract documentation, not
+// slack — the ceilings are pinned at the exact new counts, so the ratchet still
+// reddens on any further regrowth.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
 	{"docket-auto-groom/SKILL.md", 70, 1750},
 	{"docket-brainstorm/SKILL.md", 84, 692},
-	{"docket-build/SKILL.md", 390, 3907}, // 0376: +gate.drive JSON-capture caller contract (see note above)
+	{"docket-build/SKILL.md", 404, 4054}, // 0410: +capture-ownership boundary prose; 0376: +gate.drive JSON-capture caller contract (see note above)
 	{"docket-build/references/delegation-execution.md", 85, 850},
 	{"docket-build/references/gate-caller-loop.md", 175, 1750},
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 160, 1605}, // 0376: +gate.drive JSON-capture caller contract (see note above)
-	{"docket-convention/SKILL.md", 400, 7807}, // 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
+	{"docket-convention/SKILL.md", 400, 7969}, // 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
 	{"docket-convention/github-board-mirror.md", 19, 462},
 	{"docket-convention/references/agent-layer.md", 205, 2350},
 	{"docket-convention/references/dummy-mode.md", 85, 800},
@@ -113,11 +127,11 @@ var skillBudgets = []skillBudget{
 	{"docket-finalize-change/SKILL.md", 217, 4946}, // 0346: +verified post-merge rebuild contract prose; 0388: +sync-integration prose; 0327: +carry-preservation prose (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 180, 6991}, // 0354: +halt-report body-only prose; 0376: +gate.drive JSON-capture caller contract (see note above)
-	{"docket-implement-next/references/edge-paths.md", 58, 800},
-	{"docket-implement-next/references/fix-loop.md", 185, 1900},
-	{"docket-implement-next/results-template.md", 25, 250},
-	{"docket-review/SKILL.md", 110, 900},
+	{"docket-implement-next/SKILL.md", 201, 7530}, // 0410: +mandatory Step 6.5 checkpoint lifecycle; 0354: +halt-report body-only prose; 0376: +gate.drive JSON-capture caller contract (see note above)
+	{"docket-implement-next/references/edge-paths.md", 78, 1091}, // 0410: +resume/recovery + required-results reconciliation (see note above)
+	{"docket-implement-next/references/fix-loop.md", 190, 1958},  // 0410: +findings-to-results checkpoint linkage (see note above)
+	{"docket-implement-next/results-template.md", 51, 257},       // 0410: canonical five-section required template (see note above)
+	{"docket-review/SKILL.md", 110, 913},                         // 0410: +findings-return capture contract (see note above)
 	{"docket-new-change/SKILL.md", 61, 1700},
 	{"docket-new-change/change-template.md", 51, 250},
 	{"docket-status/SKILL.md", 140, 3065}, // 0388: +sync-integration prose (see note above)
