@@ -205,7 +205,7 @@ func waitTurn(tr Transport, threadID, turnID string) (string, error) {
 		switch env.Method {
 		case "item/completed":
 			var p completedItemParams
-			if json.Unmarshal(env.Params, &p) == nil && p.ThreadID == threadID && p.TurnID == turnID && p.Item.Type == "agentMessage" {
+			if json.Unmarshal(env.Params, &p) == nil && p.ThreadID == threadID && p.TurnID == turnID && isFinalMessage(p.Item.Type, p.Item.Phase) {
 				final = p.Item.Text
 			}
 		case "turn/completed":
@@ -217,7 +217,7 @@ func waitTurn(tr Transport, threadID, turnID string) (string, error) {
 				continue
 			}
 			for _, item := range p.Turn.Items {
-				if item.Type == "agentMessage" {
+				if isFinalMessage(item.Type, item.Phase) {
 					final = item.Text
 				}
 			}
@@ -234,6 +234,12 @@ func waitTurn(tr Transport, threadID, turnID string) (string, error) {
 			return final, nil
 		}
 	}
+}
+
+// Older app-server versions omit phase. Explicit commentary is never the
+// coordinator's final return, even if it is the last message in the turn.
+func isFinalMessage(kind, phase string) bool {
+	return kind == "agentMessage" && (phase == "" || phase == "final_answer")
 }
 
 // A server request needs a reply before the turn can proceed. This foreground

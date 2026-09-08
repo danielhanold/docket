@@ -32,8 +32,9 @@ type completedItemParams struct {
 	ThreadID string `json:"threadId"`
 	TurnID   string `json:"turnId"`
 	Item     struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
+		Type  string `json:"type"`
+		Text  string `json:"text"`
+		Phase string `json:"phase"`
 	} `json:"item"`
 }
 
@@ -46,8 +47,9 @@ type completedTurnParams struct {
 			Message string `json:"message"`
 		} `json:"error"`
 		Items []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
+			Type  string `json:"type"`
+			Text  string `json:"text"`
+			Phase string `json:"phase"`
 		} `json:"items"`
 	} `json:"turn"`
 }
