@@ -1,18 +1,13 @@
 # Backlog
 
-**414 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 265 done · 🗑️ 113 killed
+**414 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 265 done · 🗑️ 113 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-slim-agents-md-to-an-effective-claude-md-design.md) | `docs/slim-agents-md-to-an-effective-claude-md` |  |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
+| [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [#293](https://github.com/danielhanold/docket/pull/293) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
