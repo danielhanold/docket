@@ -21,9 +21,11 @@ const (
 )
 
 var (
-	featureDispatchStart  = regexp.MustCompile(`^<!-- docket:feature-dispatch:start targets=([a-z0-9-]+(?:,[a-z0-9-]+)*) -->$`)
-	directFeatureDispatch = regexp.MustCompile("^Dispatch `(" + `docket-[a-z0-9-]+` + ")`")
-	orderedMarkdownList   = regexp.MustCompile(`^[0-9]+\.\s`)
+	featureDispatchStart   = regexp.MustCompile(`^<!-- docket:feature-dispatch:start targets=([a-z0-9-]+(?:,[a-z0-9-]+)*) -->$`)
+	directFeatureDispatch  = regexp.MustCompile("^Dispatch `(" + `docket-[a-z0-9-]+` + ")`")
+	orderedMarkdownList    = regexp.MustCompile(`^[0-9]+\.\s`)
+	markdownTableDivider   = regexp.MustCompile(`^[[:space:]]*:?-{3,}:?[[:space:]]*(?:\|[[:space:]]*:?-{3,}:?[[:space:]]*)+$`)
+	setextHeadingUnderline = regexp.MustCompile(`^[[:space:]]{0,3}(?:=+|-+)[[:space:]]*$`)
 )
 
 type featureDispatchSite struct {
@@ -134,16 +136,18 @@ func hasExactFeatureWorktreeLine(lines []string) bool {
 }
 
 // discoverDirectFeatureDispatches recognizes docket's direct-dispatch grammar
-// only in ordinary Markdown paragraph lines. Headings, tables, lists,
-// blockquotes, indented/fenced code, and HTML-marker lines are structurally
-// non-executable, so explanatory material cannot be mistaken for a dispatch.
+// only in ordinary Markdown paragraph lines. Headings (including setext),
+// tables, lists, blockquotes, indented/fenced code, and HTML comments are
+// structurally non-executable, so explanatory material cannot be mistaken for
+// a dispatch.
 // Indirect selection has no direct target token; its marker targets remain the
 // authoritative, exhaustively checked declaration.
 func discoverDirectFeatureDispatches(rel, content string, targets map[string]bool) []directFeatureDispatchSite {
 	var sites []directFeatureDispatchSite
+	lines := strings.Split(content, "\n")
 	inFence := false
 	inComment := false
-	for i, line := range strings.Split(content, "\n") {
+	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if inComment {
 			if strings.Contains(line, "-->") {
@@ -151,25 +155,41 @@ func discoverDirectFeatureDispatches(rel, content string, targets map[string]boo
 			}
 			continue
 		}
-		if strings.HasPrefix(trimmed, "<!--") {
-			if !strings.Contains(trimmed, "-->") {
-				inComment = true
-			}
-			continue
-		}
 		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
 			inFence = !inFence
 			continue
 		}
-		if inFence || !markdownParagraphLine(line) {
+		if inFence {
 			continue
 		}
+
 		match := directFeatureDispatch.FindStringSubmatch(line)
+		if commentStart := strings.Index(line, "<!--"); commentStart >= 0 && (match == nil || commentStart == 0) {
+			if !strings.Contains(line[commentStart+len("<!--"):], "-->") {
+				inComment = true
+			}
+			continue
+		}
+		if !markdownParagraphLine(line) || markdownTableRow(lines, i) || setextHeadingLine(lines, i) {
+			continue
+		}
 		if match != nil && targets[match[1]] {
 			sites = append(sites, directFeatureDispatchSite{rel: rel, line: i + 1, target: match[1]})
 		}
 	}
 	return sites
+}
+
+func markdownTableRow(lines []string, index int) bool {
+	if !strings.Contains(lines[index], "|") {
+		return false
+	}
+	return (index > 0 && markdownTableDivider.MatchString(lines[index-1])) ||
+		(index+1 < len(lines) && markdownTableDivider.MatchString(lines[index+1]))
+}
+
+func setextHeadingLine(lines []string, index int) bool {
+	return index+1 < len(lines) && setextHeadingUnderline.MatchString(lines[index+1])
 }
 
 func markdownParagraphLine(line string) bool {
@@ -305,6 +325,26 @@ func TestFeatureDispatchPayloadsCarryCanonicalWorktree(t *testing.T) {
 		commentedExplanation := "<!-- explanatory dispatch discussion\nDispatch `" + target + "` foreground.\n-->"
 		if got := discoverDirectFeatureDispatches("fixture.md", commentedExplanation, map[string]bool{target: true}); len(got) != 0 {
 			t.Errorf("bounded explanatory comment was treated as direct dispatch: %+v", got)
+		}
+
+		unpipedTable := "instruction | details\n--- | ---\nDispatch `" + target + "` | details"
+		if got := discoverDirectFeatureDispatches("fixture.md", unpipedTable, map[string]bool{target: true}); len(got) != 0 {
+			t.Errorf("unpiped Markdown table row was treated as direct dispatch: %+v", got)
+		}
+
+		setextHeading := "Dispatch `" + target + "`\n===\n\nDispatch `" + target + "`\n---"
+		if got := discoverDirectFeatureDispatches("fixture.md", setextHeading, map[string]bool{target: true}); len(got) != 0 {
+			t.Errorf("setext heading was treated as direct dispatch: %+v", got)
+		}
+
+		inlineCommentedExplanation := "Explanatory note <!-- begins a multi-line comment\nDispatch `" + target + "` foreground.\n-->"
+		if got := discoverDirectFeatureDispatches("fixture.md", inlineCommentedExplanation, map[string]bool{target: true}); len(got) != 0 {
+			t.Errorf("inline-opened explanatory comment was treated as direct dispatch: %+v", got)
+		}
+
+		ordinaryPunctuation := "Dispatch `" + target + "` foreground | retain this ordinary instruction."
+		if got := discoverDirectFeatureDispatches("fixture.md", ordinaryPunctuation, map[string]bool{target: true}); len(got) != 1 {
+			t.Errorf("ordinary direct dispatch with incidental punctuation was hidden: %+v", got)
 		}
 	})
 }
