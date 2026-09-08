@@ -114,6 +114,7 @@ var excludedResultTypes = map[string]string{
 	"SweepPRSetResult":            "internal batched-PR-read seam return (ProbePRSet); carries no Envelope, is not an op document",
 	"RunGateVerdictObserveResult": "run.gate-verdict's observe-mode (--unattributed) result variant; the op binds its attributed result RunGateVerdictResult",
 	"SchemaResult":                "the schema document's own container; self-referential (FieldDescriptor nests []FieldDescriptor) and carries map[string]Vocabulary, so it is unreflectable and deliberately unbound — the wired `schema` op is the cli-side selfReferentialSchemaOps exception",
+	"FinalizeReserveResult":       "finalize.resolver-reserve's result (change 0349); the app operation lands in Task 6 but the CLI subcommand/capability/schema binding is Task 8 — this exclusion drops out (reddens as reachable) once that binding wires it",
 }
 
 // TestEveryRequestAndResultStructIsBound is the two-direction registry-accounting

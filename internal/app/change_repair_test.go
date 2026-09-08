@@ -95,6 +95,9 @@ func (f *fakeRepairWorkspace) PublishHead(context.Context, workspace.PublishRequ
 func (f *fakeRepairWorkspace) Cleanup(context.Context, workspace.CleanupRequest) (workspace.CleanupResult, error) {
 	panic("Cleanup: repair must not call this")
 }
+func (f *fakeRepairWorkspace) AcquireOperationLock(string) (func(), error) {
+	panic("AcquireOperationLock: repair must not call this")
+}
 
 // --- fixtures --------------------------------------------------------------
 
