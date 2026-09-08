@@ -117,6 +117,10 @@ const (
 	// ReasonAttachArtifactUnreadable: the verified commit or its blob could not be
 	// read for a reason other than plain absence.
 	ReasonAttachArtifactUnreadable = "artifact-unreadable"
+	// ReasonAttachResultsContent: a results artifact fails checkpoint-phase content
+	// validation (raw template scaffolding, a missing title, or a malformed
+	// document). The FINAL content contract binds at mark-implemented, not here.
+	ReasonAttachResultsContent = "results-content-invalid"
 )
 
 // placeholderTokenRE matches an unresolved planning placeholder token as a
@@ -192,10 +196,12 @@ func ChangeAttachPlan(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 	return changeAttach(ctx, deps, wdeps, repoDir, req, attachKindPlan)
 }
 
-// ChangeAttachResults verifies an optional authored results record from Git and
-// links it to the change. It applies the canonical-path, containment,
-// tracked-file, backlink, exact-head, and version rules — a results document is
-// never gate evidence, so it carries no single-artifact/trailer/descent proof.
+// ChangeAttachResults verifies an authored results record (required at
+// completion since change 0410) from Git and links it to the change. It applies
+// the canonical-path, containment, tracked-file, backlink, exact-head, and
+// version rules — a results document is never gate evidence, so it carries no
+// single-artifact/trailer/descent proof; checkpoint attaches validate
+// checkpoint-phase content.
 func ChangeAttachResults(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req ChangeAttachRequest) ChangeAttachResult {
 	return changeAttach(ctx, deps, wdeps, repoDir, req, attachKindResults)
 }
@@ -290,6 +296,17 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 	// (10) The artifact carries a balanced backlink targeting THIS change.
 	if r := verifyBacklink(opKey, kind, blob.Blob.Bytes, ac); r != nil {
 		return *r
+	}
+
+	// (11b, results only) checkpoint-phase content sanity: a truthful in-progress
+	// artifact passes; raw template scaffolding, a missing title, or a malformed
+	// document refuses. The FINAL content contract binds at mark-implemented, not
+	// here — the phase is explicit so checkpoint attachment can never claim it.
+	if kind == attachKindResults {
+		if fs := ValidateResultsContent(blob.Blob.Bytes, ResultsPhaseCheckpoint); len(fs) > 0 {
+			return attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachResultsContent,
+				fmt.Sprintf("the results artifact fails checkpoint content validation: %s: %s", fs[0].Reason, fs[0].Message))
+		}
 	}
 
 	// (11, plan only) The plan carries no unresolved placeholder token.
