@@ -6,12 +6,12 @@ status: proposed
 priority: medium
 type: docs
 created: 2026-07-28
-updated: 2026-08-07
+updated: '2026-09-08'
 depends_on: []
-related: [111, 144, 157, 159]
+related: [111, 144, 157, 159, 257, 363, 370, 372, 377, 394, 399]
 discovered_from: [145]
-adrs: []
-spec:
+adrs: [3, 12, 54, 99, 104, 109]
+spec: 'docs/superpowers/specs/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md'
 plan:
 results:
 trivial: false
@@ -27,75 +27,29 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
+| Spec | [2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
+| ADRs | [ADR-0003](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0003-convention-reference-loading.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0054](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0054-cross-reference-anchor-style.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md), [ADR-0109](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Change 0145 removed a stale check-id restatement from `skills/docket-status/SKILL.md` — a count
-word, a five-item check-id list, and a hand-run `docket.sh board-checks` invocation block, all of
-which had drifted from the real thirteen-id vocabulary while change 0111's correspondence guard
-stayed green (the guard pins four surfaces, and SKILL.md was not one of them).
+Agents currently receive contradictory instructions from Docket's skills. The Go runtime uses typed operations and structured reports, but parts of the skills still describe deleted Bash scripts, the former line-oriented status report, an active GitHub board mirror, and retired configuration behavior. These copies can misdirect an agent even when the implementation's tests pass.
 
-The removal was scoped deliberately to that one section in that one file, and 0145's `## Out of
-scope` named the rest: **no other skill file was audited for the same restatement class.** The
-failure is structural rather than a one-off — any skill body that copies a script's flag list,
-enumerates a closed vocabulary, or restates a count is an unpinned surface that drifts silently.
-0145 also turned up two collateral instances outside the target file: an assert in
-`tests/test_results_artifact.sh` pinned prose that lived in the deleted block, and one in
-`tests/test_docket_metadata_branch.sh` depended on a phrase that only appeared inside it.
-
-**Absorbed #0159 (2026-08-07 triage).** One named instance of exactly this class: 
-`skills/docket-status/SKILL.md:35`'s normal-outcomes enumeration omits the `health checks failed
-<exit>` warn-only line that 0144 added — a reader can mistake it for a hard error. The line is
-real and documented on the script side (`docket-status.sh:949`, `docket-status.md:219,:448`,
-pinned by `test_docket_status.sh:3981-4030`). Fix it under this sweep's rule: either point at the
-owning contract or add the one line with the wording `docket-status.md:448` already fixes.
-
-Known live hits to seed the sweep (verified 2026-08-07): `skills/docket-status/SKILL.md:90`
-(~400-word restatement of the sweep's failure-reason vocabulary, near-verbatim from
-`docket-status.md:180-196`); `skills/docket-convention/SKILL.md:191` (mark-publish-deferred
-marker semantics + check id); `skills/docket-convention/SKILL.md:54,62` (coordination-key fence
-list and `board_surfaces` token semantics, owned by `docket-config.md`).
+Change 0145 exposed the underlying problem: copying a runtime-owned list or explanation into a skill creates another place that can drift. The 2026-09-08 review confirmed that the wider cleanup remains necessary, while the August design's Bash targets and guard exemptions are obsolete. This regroom replaces that design with an audit of today's installed skill instructions and their current Go owners.
 
 ## What changes
 
-Groomed 2026-08-07 (auto-groom; two critic passes — all eleven assumptions sound). The linked spec
-settles scope, the per-hit decision rule, the named dispositions, and the guard question; this body
-stays at proposal altitude.
+One documentation PR audits all maintained Markdown under `skills/`, including references and templates, and removes stale runtime instructions and unnecessary copies of runtime contracts.
 
-One docs-type PR sweeping every markdown file under `skills/` (the 12 SKILL.md files plus skill
-references; `scripts/*.md` contracts are the *owners* and are out of the sweep — contract-to-contract
-duplication is report-only) under one decision rule, disposition preference strictly
-**delete-and-point > compress-to-owned-judgment > pin** (expected pins: zero).
+Prefer deletion plus a usable reference, then compression to the judgment the caller owns; retain an enumeration only when it is necessary and protected against a current owner. Use the capability/schema channels for runtime discovery, and verify configuration claims against the Go resolver and shipped reference. Preserve the authority checks, completion checks, and distinct failure behavior that agents need.
 
-- **Named hits, committed:** `skills/docket-status/SKILL.md:35` (outcome + error-cause
-  enumerations → delete-and-point, which absorbs killed #0159 by construction — no list, nothing
-  to omit) and `:90` (the ~400-word sweep-posture restatement → compress to the judgment kernel
-  the skill owns + pointer); `skills/docket-convention/SKILL.md:55` (fence-key list → delete, but
-  the surviving sentence keeps `terminal_publish` named beside the fence phrase — two test pins
-  constrain it) and `:63` (`board_surfaces` → keep the definitional sentence, repoint/relocate the
-  restated resolver behaviors to their actual owners; one behavior is stated nowhere else and must
-  be relocated, never deleted).
-- **Exempt, verified:** single-item cross-references (e.g. `publish-deferred`,
-  `stale-finalize-blocked` mentions) and the convention's Agent-layer wrapper counts, which are an
-  **already-pinned surface** (`test_finalize_gate.sh:152-156`, change 0170) — left alone.
-- **Generalized guard: NO** — a repo-wide check-id lint needs its own drifting sanction list;
-  removal plus the existing guards (0111's four surfaces, 0145's section guard, 0170's count pins)
-  covers what survives.
-- **Collateral-test protocol, mandatory per edit:** grep `tests/` for a block's distinctive
-  phrases before deleting it; retarget pins to surviving text, never to vacuity (0145 precedent).
-- The build completes the inventory mechanically (token sets sourced from the owning lib/contracts,
-  never hand-copied) plus one full manual read; results recorded in the plan/results artifacts.
+The linked replacement spec commits the current seed repairs: status's obsolete report grammar and sweep narrative; missing Bash references; the disabled-board contradiction; active GitHub-mirror/write-back claims; the convention's copied configuration rules, obsolete main-mode advice, and stale counts. The convention's config sketch is included, with one overlapping item from deferred 0257 explicitly accounted for.
+
+The build records the full inventory, updates affected Go guards without weakening their surviving invariants, regenerates installed assets, verifies reference usability, and runs the full configured suite. Existing metadata status, type, and priority remain appropriate: proposed, docs, medium.
 
 ## Out of scope
 
-- Changing any vocabulary, exit code, or script behavior.
-- Re-litigating the four surfaces change 0111 already pins, 0145's guarded `### Health checks`
-  section, or 0170's count pins.
-- `scripts/*.md` contract-to-contract duplication and the convention's `.docket.yml` schema
-  snippet (verify + report only).
+Runtime, CLI/schema/config behavior, defaults, permissions, and feature support; restoring Bash, GitHub mirroring, terminal publication, or main-mode; a generic prose-lint framework; unrelated documentation rewrites; and modernizing historical specs, archived records, merged build artifacts, or Accepted ADR bodies.
 
-## Open questions
+Only the configuration-sketch item shared with deferred 0257 is covered. Its remaining rationale/guidance work stays deferred. No implementation plan or code is produced by this regroom.
 
-- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the named hits (scripts/*.md contracts, docket-status.md line cites, 0111/0145/0170 Bash guards) are deleted. Re-derive the hit list against the Go capability catalog (`docket capabilities`) and `internal/config`; docket-status still cites `board-refresh.sh` / `github-mirror.sh` / `render-board.sh`. Guard home is `internal/repoguard/prose_contracts_test.go`. Sweep the sunset `github` mirror / `issue:` prose while there.
