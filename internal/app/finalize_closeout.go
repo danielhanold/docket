@@ -527,6 +527,44 @@ func closeoutIntegrationDestination(ctx context.Context, deps FinalizeDeps, cc *
 			fmt.Sprintf("change %04d has a descendant whose carry into the root is not proven; the root stays recoverable", id), id)
 	}
 
+	// Relationship proven; now prove CONTENT in Git for every carried descendant.
+	// Direct ancestry in the pinned integration history suffices; otherwise the
+	// child's merge result must be exactly preserved at the ROOT's verified merge
+	// result (facts.MergeCommit) — proving what the root delivered, immune to later
+	// integration commits touching the same files. Content similarity never rescues
+	// a failed relationship proof (that returned above). Missing evidence (an
+	// unusable merge id) and an unobservable object are observation failures, never
+	// a clean "unproven". The proofs sit BEFORE runCloseoutArchiveTransaction, so a
+	// contended transaction — which mapOutcome returns as ResultContended for the
+	// caller to re-invoke FinalizeCloseout — re-enters here and redoes every proof
+	// on the fresh snapshot, never narrowing the target set.
+	for _, d := range set {
+		mergeID := descFacts[d.ID].MergeCommit
+		if !validFullObjectID(mergeID) {
+			return closeoutRefusal(ResultBlocked, CloseoutDispBlocked, ReasonCloseoutChildUnproven,
+				fmt.Sprintf("change %04d: %s: no usable merge-result commit id; the root stays recoverable", int(d.ID), CarryFindingMissingMerge), id)
+		}
+		reach, err := deps.Planning.Client.IsAncestor(ctx, cc.repo, gitcli.ObjectID(mergeID), rev.Commit)
+		if err != nil {
+			return newCloseoutResult(ResultExternalFailed, CloseoutResult{ID: id,
+				Disposition: CloseoutDispUnknown, Reason: ReasonCloseoutDestinationProbe, Message: err.Error()})
+		}
+		if reach {
+			continue
+		}
+		check, perr := deps.Planning.Client.ProvePreserved(ctx, cc.repo, originRemote,
+			gitcli.ObjectID(mergeID), gitcli.ObjectID(facts.MergeCommit))
+		if perr != nil {
+			return newCloseoutResult(ResultExternalFailed, CloseoutResult{ID: id,
+				Disposition: CloseoutDispUnknown, Reason: ReasonCloseoutDestinationProbe, Message: perr.Error()})
+		}
+		if check.Outcome != gitcli.PreservationProven {
+			return closeoutRefusal(ResultBlocked, CloseoutDispBlocked, ReasonCloseoutChildUnproven,
+				fmt.Sprintf("change %04d: %s: %s%s [source %s -> target %s]; the root stays recoverable",
+					int(d.ID), CarryFindingUnpreserved, check.Detail, pathsSuffix(check.Paths), mergeID, facts.MergeCommit), id)
+		}
+	}
+
 	archiveDate, ok := archiveDateFromMerge(facts.MergedAtUTC)
 	if !ok {
 		return newCloseoutResult(ResultExternalFailed, CloseoutResult{

@@ -595,18 +595,46 @@ func TestIntegrationFinalizeCloseoutRefusals(t *testing.T) {
 	})
 }
 
+// carryOntoRootFeature commits files onto the ROOT's real feature branch
+// (feat/<slug>) on origin, extending f.head, and returns the new commit OID. The
+// root merge (mergeIntoBase) then carries these files into main, so the returned
+// commit is a real ancestor of the integration tip — the child's authoritative
+// merge result really shipped through the root.
+func (f *closeoutFixture) carryOntoRootFeature(t *testing.T, files map[string]string) string {
+	t.Helper()
+	w := f.repo.writer
+	runGit(t, w, "fetch", "-q", "origin", "feat/"+f.slug)
+	runGit(t, w, "checkout", "-q", "-B", "feat/"+f.slug, "FETCH_HEAD")
+	for rel, content := range files {
+		writeRepoFile(t, w, rel, content)
+	}
+	runGit(t, w, "add", "-A")
+	runGit(t, w, "commit", "-q", "-m", "carry onto feat/"+f.slug)
+	mc := runGit(t, w, "rev-parse", "HEAD")
+	runGit(t, w, "push", "-q", "origin", "feat/"+f.slug)
+	return mc
+}
+
 // TestCloseoutRootCarry proves a stack root merged to integration archives the
 // root plus every proven carried descendant in ONE transaction using the root's
 // merge date for every filename; a single unproven descendant keeps the root
-// recoverable with zero descendant writes.
+// recoverable with zero descendant writes; and — the change-0327 headline — the
+// archive is refused unless every carried descendant's merged work is proven
+// PRESENT IN GIT (ancestry in the pinned integration history, or exact content at
+// the ROOT's merge result), never inferred from a metadata destination.
+//
+// The safety-net sweep reaches this same enforcement: its only closeout action is
+// the verbatim call `return FinalizeCloseout(ctx, depsFor(obs), repoDir, id,
+// CloseoutNotes{})` (internal/app/maintenance.go), so a direct FinalizeCloseout
+// invocation exercises the exact path the sweep drives (maintenance-sweep-same-refusal).
 func TestIntegrationFinalizeCloseoutRootCarry(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0] // main mode: one ref carries every backlink
 
 	descPlan := "docs/superpowers/plans/2026-08-16-gadget-plan.md"
 
-	// carriedDescendant returns a descendant record (id 6, gadget) stacked on the
-	// root (id 5) with the given status.
+	// seed returns a descendant record (id 6, gadget) stacked on the root (id 5)
+	// with the given status, carrying PR #8 whose destination is the root's branch.
 	seed := func(t *testing.T, descStatus string) *closeoutFixture {
 		f := setupCloseoutFixture(t, m)
 		recPath := groomPath(6, "gadget")
@@ -619,17 +647,20 @@ func TestIntegrationFinalizeCloseoutRootCarry(t *testing.T) {
 		return f
 	}
 
-	t.Run("all-proven-archives-root-and-descendants", func(t *testing.T) {
-		f := seed(t, "stacked-merged")
-		mergeCommit := f.mergeIntoBase(t)
-		gh := &fakeCloseoutGitHub{
+	// rootFake scripts PR #7 (root) merged into main at rootMerge and PR #8
+	// (descendant id 6) merged into the root's branch at childMerge.
+	rootFake := func(f *closeoutFixture, rootMerge, childMerge string) *fakeCloseoutGitHub {
+		return &fakeCloseoutGitHub{
 			repo: retargetRepo(),
 			merged: map[int]closeoutProbe{
-				closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", mergeCommit)},
-				8:          {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(strings.Repeat("c", 40), "feat/widget", strings.Repeat("b", 40))},
+				closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", rootMerge)},
+				8:          {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(childMerge, "feat/widget", childMerge)},
 			},
 		}
-		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+	}
+
+	assertBothArchived := func(t *testing.T, f *closeoutFixture, res CloseoutResult) {
+		t.Helper()
 		if res.Result != ResultApplied || res.Disposition != CloseoutDispRootArchived {
 			t.Fatalf("root carry = %q disp %q (reason %q msg %q)", res.Result, res.Disposition, res.Reason, res.Message)
 		}
@@ -650,6 +681,18 @@ func TestIntegrationFinalizeCloseoutRootCarry(t *testing.T) {
 			t.Errorf("carried ids = %v, want [6]", got)
 		}
 		assertBoardMatchesCommitted(t, f.repo.origin, f.branch, f.repo.invocation)
+	}
+
+	t.Run("all-proven-archives-root-and-descendants", func(t *testing.T) {
+		f := seed(t, "stacked-merged")
+		// Descendant id 6's PR merged its gadget.txt into the ROOT's own feature
+		// branch; the root merge then carries it into main, so the child's real
+		// merge result is an ancestor of the integration tip (proven by ancestry).
+		childMerge := f.carryOntoRootFeature(t, map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.fetchAllIntoInvocation(t)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(rootFake(f, mergeCommit, childMerge)), f.repo.invocation, f.id, CloseoutNotes{})
+		assertBothArchived(t, f, res)
 	})
 
 	t.Run("one-unproven-descendant-keeps-root-recoverable", func(t *testing.T) {
@@ -675,6 +718,128 @@ func TestIntegrationFinalizeCloseoutRootCarry(t *testing.T) {
 		}
 		if _, ok := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)); !ok {
 			t.Errorf("the recoverable root was archived away")
+		}
+	})
+
+	t.Run("absent-merge-object-refuses", func(t *testing.T) {
+		// The carry RELATIONSHIP is proven (PR #8 merged into the root's branch),
+		// but the recorded child merge id is well-formed and NONEXISTENT: the Git
+		// proof cannot observe it, so the closeout is retained as unknown and
+		// archives nothing (green-suite-untested-branch: a fabricated id must no
+		// longer pass — distinct from a real object that is dropped).
+		f := seed(t, "stacked-merged")
+		mergeCommit := f.mergeIntoBase(t)
+		before := originTip(t, f.repo.origin, f.branch)
+		gh := rootFake(f, mergeCommit, strings.Repeat("b", 40))
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result == ResultApplied || res.Result == ResultNoOp {
+			t.Fatalf("a fabricated child merge id let the root close out: %q disp %q", res.Result, res.Disposition)
+		}
+		if res.Disposition != CloseoutDispUnknown {
+			t.Fatalf("absent merge object = disp %q reason %q, want %q (an unobservable object is a retained observation failure)", res.Disposition, res.Reason, CloseoutDispUnknown)
+		}
+		if after := originTip(t, f.repo.origin, f.branch); after != before {
+			t.Errorf("a retained closeout moved the metadata ref: %q -> %q", before, after)
+		}
+		for _, p := range []string{groomPath(5, "widget"), groomPath(6, "gadget")} {
+			if _, ok := originFile(t, f.repo.origin, f.branch, p); !ok {
+				t.Errorf("a retained closeout archived %q away", p)
+			}
+		}
+	})
+
+	t.Run("descendant-dropped-refuses", func(t *testing.T) {
+		// A REAL child merge commit adds gadget.txt on a side branch (so the object
+		// survives), but the root branch never carries the content — mergeIntoBase
+		// ships only feature.txt. The Git proof observes the drop and blocks; the
+		// root stays fully recoverable. This is the discriminating fixture the
+		// fabricated `bbbb…` positive used to hide (green-suite-untested-branch).
+		f := seed(t, "stacked-merged")
+		childMerge := f.carryCommit(t, "gadget-mc", "main", map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.fetchAllIntoInvocation(t)
+		// The source merge object EXISTS (a dropped object, not a missing one).
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", childMerge); err != nil {
+			t.Fatalf("the child merge object must exist to pin a drop (not a missing object): %v", err)
+		}
+		before := originTip(t, f.repo.origin, f.branch)
+		featBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(rootFake(f, mergeCommit, childMerge)), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result != ResultBlocked || res.Disposition != CloseoutDispBlocked || res.Reason != ReasonCloseoutChildUnproven {
+			t.Fatalf("dropped descendant = %q disp %q reason %q, want blocked/%s/%s", res.Result, res.Disposition, res.Reason, CloseoutDispBlocked, ReasonCloseoutChildUnproven)
+		}
+		// Pin the missing effects: metadata ref byte-identical, no archive files,
+		// the child's carrier ref untouched.
+		if after := originTip(t, f.repo.origin, f.branch); after != before {
+			t.Errorf("a refused root carry moved the metadata ref: %q -> %q", before, after)
+		}
+		if after := originTip(t, f.repo.origin, "feat/"+f.slug); after != featBefore {
+			t.Errorf("a refused root carry moved the child's feature ref: %q -> %q", featBefore, after)
+		}
+		for _, p := range []string{
+			"docs/changes/archive/2026-08-18-0005-widget.md",
+			"docs/changes/archive/2026-08-18-0006-gadget.md",
+		} {
+			if _, ok := originFile(t, f.repo.origin, f.branch, p); ok {
+				t.Errorf("a refused root carry archived %q", p)
+			}
+		}
+		for _, p := range []string{groomPath(5, "widget"), groomPath(6, "gadget")} {
+			if _, ok := originFile(t, f.repo.origin, f.branch, p); !ok {
+				t.Errorf("a refused root carry removed the active record %q", p)
+			}
+		}
+	})
+
+	t.Run("squash-rewrite-archives", func(t *testing.T) {
+		// The child's merge id is squashed away: NOT an ancestor of the root merge
+		// result, but the identical gadget.txt bytes are carried onto the root
+		// branch, so the exact-content arm proves preservation against the ROOT's
+		// merge result and the root archives.
+		f := seed(t, "stacked-merged")
+		childMerge := f.carryCommit(t, "gadget-mc", "main", map[string]string{"gadget.txt": "X\n"})
+		f.carryOntoRootFeature(t, map[string]string{"gadget.txt": "X\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.fetchAllIntoInvocation(t)
+		// The child merge id must NOT be an ancestor of the root merge result, or
+		// the ancestry arm — not the content arm — would carry the proof.
+		if _, err := tryGit(f.repo.invocation, "merge-base", "--is-ancestor", childMerge, mergeCommit); err == nil {
+			t.Fatalf("the squash fixture requires the child merge id NOT be an ancestor of the root merge result (content arm must carry the proof)")
+		}
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(rootFake(f, mergeCommit, childMerge)), f.repo.invocation, f.id, CloseoutNotes{})
+		assertBothArchived(t, f, res)
+	})
+
+	t.Run("integration-advanced-after-root-merge", func(t *testing.T) {
+		// After the root merge, integration advances with an unrelated commit that
+		// EDITS gadget.txt. The content fallback must target the ROOT's merge
+		// result, not the moving integration tip, so preservation still holds — this
+		// reddens if the implementation compares against the tip.
+		f := seed(t, "stacked-merged")
+		childMerge := f.carryCommit(t, "gadget-mc", "main", map[string]string{"gadget.txt": "X\n"})
+		f.carryOntoRootFeature(t, map[string]string{"gadget.txt": "X\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.carryCommit(t, "main", "main", map[string]string{"gadget.txt": "Y (edited downstream)\n"})
+		f.fetchAllIntoInvocation(t)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(rootFake(f, mergeCommit, childMerge)), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result != ResultApplied || res.Disposition != CloseoutDispRootArchived {
+			t.Fatalf("advanced-integration carry = %q disp %q (reason %q msg %q); the fallback must target the ROOT merge result, not the tip", res.Result, res.Disposition, res.Reason, res.Message)
+		}
+	})
+
+	t.Run("maintenance-sweep-same-refusal", func(t *testing.T) {
+		// The safety-net sweep's only closeout action is the verbatim call
+		// `return FinalizeCloseout(ctx, depsFor(obs), repoDir, id, CloseoutNotes{})`
+		// (internal/app/maintenance.go), so this direct invocation exercises the
+		// exact path the sweep drives: the root-carry Git proof refuses a dropped
+		// descendant identically whether reached from the CLI or the sweep.
+		f := seed(t, "stacked-merged")
+		childMerge := f.carryCommit(t, "gadget-mc", "main", map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.fetchAllIntoInvocation(t)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(rootFake(f, mergeCommit, childMerge)), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result != ResultBlocked || res.Disposition != CloseoutDispBlocked || res.Reason != ReasonCloseoutChildUnproven {
+			t.Fatalf("sweep-entry closeout = %q disp %q reason %q, want blocked/%s/%s", res.Result, res.Disposition, res.Reason, CloseoutDispBlocked, ReasonCloseoutChildUnproven)
 		}
 	})
 }
