@@ -121,6 +121,8 @@ func TestEnterClassifiesProtocolFailures(t *testing.T) {
 		{"turn failed", []string{`{"jsonrpc":"2.0","id":1,"result":{}}`, `{"jsonrpc":"2.0","id":2,"result":{"thread":{"id":"t"}}}`, `{"jsonrpc":"2.0","id":3,"result":{"turn":{"id":"u"}}}`, `{"jsonrpc":"2.0","method":"turn/completed","params":{"threadId":"t","turn":{"id":"u","status":"failed","error":{"message":"boom"},"items":[]}}}`}, "failed"},
 		{"missing output", []string{`{"jsonrpc":"2.0","id":1,"result":{}}`, `{"jsonrpc":"2.0","id":2,"result":{"thread":{"id":"t"}}}`, `{"jsonrpc":"2.0","id":3,"result":{"turn":{"id":"u"}}}`, `{"jsonrpc":"2.0","method":"turn/completed","params":{"threadId":"t","turn":{"id":"u","status":"completed","items":[]}}}`}, "without a final agent message"},
 		{"malformed frame", []string{`not-json`}, "malformed"},
+		{"interactive initialization", []string{`{"id":10,"method":"item/commandExecution/requestApproval","params":{}}`}, "interactive request"},
+		{"interactive turn", []string{`{"id":1,"result":{}}`, `{"id":2,"result":{"thread":{"id":"t"}}}`, `{"id":3,"result":{"turn":{"id":"u"}}}`, `{"id":10,"method":"item/tool/requestUserInput","params":{}}`}, "interactive request"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

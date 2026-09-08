@@ -370,16 +370,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	finalizeCmd := newFinalizeCommand(func(r app.OperationResult) { result = r })
 	maintenanceCmd := newMaintenanceCommand(func(r app.OperationResult) { result = r })
 	repositoryCmd := newRepositoryCommand(func(r app.OperationResult) { result = r })
+	agentCmd := newAgentCommand(info, func(r app.OperationResult) { result = r })
 
 	installCmd.AddCommand(installCheckCmd)
 	developmentCmd.AddCommand(developmentInstallCmd, developmentTestCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, agentCmd, diagnosticCmd, installCmd, developmentCmd)
 	root.AddCommand(extra...)
 
-	// The asset-dependence guard. Everything docket ships today is registered
-	// as asset-independent, which is the point: a command that reads installed
-	// assets must be added to the set deliberately or be refused, and a
+	// The asset-dependence guard. Commands that do not read installed assets
+	// are explicitly asset-independent. Other commands require a compatible
+	// installation; a
 	// forgotten command fails closed rather than reading a version tree that
 	// may not exist or may speak a protocol this binary does not.
 	root.PersistentPreRunE = func(c *cobra.Command, _ []string) error {

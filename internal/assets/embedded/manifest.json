@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:ee9553b8847216ae502c00dbd266692d175d56f495edacf32f600191da66dc05",
+  "asset_set_id": "sha256:ebcbb3075bde425319bd49253315e30a7f7d8f1699890cae4299114bbd470efb",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -28,8 +28,8 @@
       "path": "agents/docket-auto-groom.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 888,
-      "sha256": "16efa7d4cdd23c7f9e42f603c406b2a5b254e2d56fcd2569aeff86bf7beec275"
+      "size": 913,
+      "sha256": "016e01866f4d0abc7caf72025de73dc24aff205e82c3fd81460d32a526c1f363"
     },
     {
       "path": "agents/docket-brainstorm-consultant.md",
@@ -70,15 +70,15 @@
       "path": "agents/docket-finalize-change.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 789,
-      "sha256": "9d061281879fdb49383ab1d4a0339938bff062149c905ef479b35bb3ff6aafd4"
+      "size": 814,
+      "sha256": "d74a4cb0cb11cf2abafadd7b9908923600e53b0a01b8d39f7a3d4ef1cf56c5b3"
     },
     {
       "path": "agents/docket-implement-next.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 733,
-      "sha256": "f752983100cc034b2ad7cf79fd9ea610aad216dc888dff2f2148b3f166b269a2"
+      "size": 758,
+      "sha256": "8a8f3044e472af16458388a127d5f14685aeac5046e8bebc9e346e45cb2a54f6"
     },
     {
       "path": "agents/docket-integration-repair.md",
@@ -364,8 +364,8 @@
       "path": "skills/docket-convention/references/agent-layer.md",
       "role": "skill",
       "mode": 420,
-      "size": 14695,
-      "sha256": "90fcf844f17b01a099c09f08c58ddbae819015b6680feb6b025b1f907738838d"
+      "size": 16499,
+      "sha256": "1f9e01b3a423088e7228ae53c3638f4e507e2690779e9216002210e7fdf903f5"
     },
     {
       "path": "skills/docket-convention/references/dummy-mode.md",

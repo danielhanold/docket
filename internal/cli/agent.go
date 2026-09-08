@@ -21,6 +21,8 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 		Use:   "enter",
 		Short: "Enter a compositional Codex role as a foreground root thread",
 		Args:  cobra.NoArgs,
+		Annotations: capability("agent.enter", EffectProcessControl,
+			EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			if role == "" || requestSource == "" || cwd == "" || approval == "" || sandbox == "" {
 				return fmt.Errorf("--role, --request, --cwd, --approval-policy, and --sandbox are required")
@@ -66,11 +68,14 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			return nil
 		},
 	}
-	enter.Flags().StringVar(&role, "role", "", "registered docket role name (required)")
-	enter.Flags().StringVar(&requestSource, "request", "", "request file, or - for stdin (required)")
-	enter.Flags().StringVar(&cwd, "cwd", "", "absolute repository working directory (required)")
-	enter.Flags().StringVar(&approval, "approval-policy", "", "caller approval policy (required)")
-	enter.Flags().StringVar(&sandbox, "sandbox", "", "caller sandbox mode (required)")
+	enter.Flags().StringVar(&role, "role", "", "registered docket role `name` (required)")
+	enter.Flags().StringVar(&requestSource, "request", "", "request `file`, or - for stdin (required)")
+	enter.Flags().StringVar(&cwd, "cwd", "", "absolute repository working `dir` (required)")
+	enter.Flags().StringVar(&approval, "approval-policy", "", "caller approval `policy` (required)")
+	enter.Flags().StringVar(&sandbox, "sandbox", "", "caller sandbox `mode` (required)")
+	for _, flag := range []string{"role", "request", "cwd", "approval-policy", "sandbox"} {
+		_ = enter.MarkFlagRequired(flag)
+	}
 	group.AddCommand(enter)
 	return group
 }

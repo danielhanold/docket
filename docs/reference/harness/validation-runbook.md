@@ -374,6 +374,18 @@ child roles may continue to use direct registered-agent invocation.
   Codex session, issue the plain-prose request that block routes, same sentinel protocol. Expected:
   the same full round-trip.
 
+  For production Docket routing, install the candidate's Codex assets and generated `AGENTS.md`
+  into a disposable repository, then start a fresh Codex parent with only an ordinary prose request
+  such as "Please implement change 1." Do not tell that parent to invoke `agent.enter` or choose a
+  registered child. Observe it arm `run.gate-before`, choose the marked role's root-entry operation,
+  and carry the emitted dispatch context unchanged into the request file. Require a real
+  `docket-plan-writer` child and a verified plan attachment, then complete the change. After the
+  foreground root returns, require the parent's exact keyed report
+  `gate-done <key> run-complete <change-id>`. `no-attributable-claim` fails this completion check.
+  Record whether GitHub is real or a local stateful fixture; neither coordinator prose nor a fake
+  model substitutes for the live routing/composition proof. Use supported configuration defaults
+  in this fixture: explicit `skills.*` bindings are deferred by the current Go mutation surface.
+
 - [ ] 5. **BINDING OBSERVATION PROTOCOL — adjudicate from the thread store, never the item
   stream.** Judge pass/fail **only** from the Codex thread store
   (`~/.codex/sessions/<date>/rollout-*.jsonl`: `session_meta.source.subagent.thread_spawn`,

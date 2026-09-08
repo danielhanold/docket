@@ -136,6 +136,14 @@ unchanged request as the root turn. It never falls back to `codex exec`, another
 relay, or an ordinary child launch. Other harnesses may ignore the posture until they implement a
 corresponding native entry path; the source remains harness-neutral.
 
+The parent includes the run gate's dispatch context unchanged in the request file, alongside the
+user's unchanged request and any resume/continuation identity. The entered coordinator uses that
+context in its claim transaction. After foreground completion, the parent asks the same keyed gate
+for the verdict; thread/turn ids and coordinator prose are diagnostic output, never claim proof.
+If Codex requests interactive approval or user input, root entry reports an explicit unsupported
+interaction error: this foreground transport has no approval/input channel and cannot approve or
+answer on the caller's behalf.
+
 ## Always-full-set generation + the Cursor dispatch rule
 
 The **per-repo pass writes the full built-in agent set** for every harness in `agent_harnesses` — the `agents:`
