@@ -20,7 +20,7 @@ import (
 // nothing, stages nothing, and touches no Git or metadata: it is a receipt-only
 // admission decision. A reserved opportunity is never refunded, so a lost dispatch
 // or lost response can only cost an opportunity, never overrun the configured
-// bound (ADR context: reserve-before-dispatch in Go because a continue-time check
+// bound (ADR-0113: reserve-before-dispatch in Go because a continue-time check
 // cannot bound dispatches).
 
 // OperationFinalizeResolverReserve is the operation key this operation records.
