@@ -133,21 +133,21 @@ receive `Feature worktree: <absolute canonical feature-worktree root>` in the ow
 children use native named-agent dispatch. Codex realizes the first two through catalog-resolved
 `agent.enter [--worktree <dir>]`: it resolves the typed installed role contract, launches
 `codex app-server --stdio`. Root-coordinator entry starts its root thread at the caller's absolute
-cwd, with the caller's approval policy and sandbox, and passes an unchanged request file as the root
-turn. Feature-child entry validates `--worktree`, then starts its root thread at the verified canonical
-feature-worktree root — both the process and thread cwd — and supplies that same root through
-`--worktree`; its request bytes remain unchanged. Metadata children continue through native named-agent
-dispatch. Other harnesses preserve their native worktree mechanisms. No route falls back to `codex exec`,
-another harness, a shell relay, or an ordinary child launch.
+cwd, retaining caller's approval policy and sandbox, and passes an unchanged request file as root turn.
+Feature-child entry validates `--worktree`, then starts its root thread at the verified canonical
+feature-worktree root — both the process and thread cwd — and supplies it through `--worktree`; its
+request bytes are unchanged. Metadata children use native named-agent dispatch. Other harnesses retain
+native worktree mechanisms. No route falls back to `codex exec`, another harness, a shell relay,
+or ordinary child launch.
 
-Before launch, root entry compares the selected installed role with the registration planner's
-output and its preloaded skill files with the same asset catalog. A missing, edited, or stale
+Before launch, root entry compares the selected installed role and preloaded skill files against the
+registration planner's output and asset catalog. A missing, edited, or stale
 contract is refused with `role-contract-unavailable`; it is never silently repaired during entry.
 
 The parent includes the run gate's dispatch context unchanged in the request file, alongside the
-user's unchanged request and any resume/continuation identity. The entered coordinator uses that
-context in its claim transaction. After foreground completion, the parent asks the same keyed gate
-for the verdict; thread/turn ids and coordinator prose are diagnostic output, never claim proof.
+user's unchanged request and any resume/continuation identity. The coordinator uses it in its claim
+transaction. After foreground completion, the parent asks the same keyed gate for the verdict;
+thread/turn ids and coordinator prose are diagnostic output, never claim proof.
 If Codex requests interactive approval or user input, root entry reports an explicit unsupported
 interaction error: this foreground transport has no approval/input channel and cannot approve or
 answer on the caller's behalf.
@@ -193,8 +193,8 @@ Identical-on-every-clone pinning is retired (a deliberate trade-off); team defau
 
 ## Wrapper generation and the drift-check gate
 
-The Go install runs **on demand** (install time, and after editing any config layer) — the same mental model as
-`link-skills.sh`; it does NOT hook session start (silently regenerating mid-session would be surprising, and per-repo
+The Go install runs **on demand** at install time and after config edits; it does NOT hook session start
+(mid-session regeneration would surprise, and per-repo
 files are gitignored, so no commit to race). The drift backstop is the **`install.check`** operation,
 a CI gate with three legs: (1) the managed docket `.gitignore` block is present and current, and (2) no generated
 agent or dispatch-rule file is tracked by git — both **CI-meaningful** (`rc != 0`); (3) whether the local files match
