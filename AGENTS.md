@@ -5,91 +5,6 @@ could catch a mistake. Promotion into this file is a human decision; detailed hi
 the learnings ledger on the `docket` branch, and the docket-convention skill's *Learnings
 ledger* section owns the promotion mechanics.
 
-## Shell
-
-- Under `set -o pipefail`, never pipe a producer into an early-exiting consumer such as
-  `grep -q`, `head`, or `head -n1`: the producer takes SIGPIPE and the 141 becomes an
-  intermittent failure. Capture into a variable first, then `grep <<<"$var"`.
-- Declare a grep pattern that leads with `--`: `grep -E -e "<pat>"` or `grep -qF -- "<pat>"`.
-  A bare leading `--` parses as an option (exit 2), and inside a negated assert (`! grep …`)
-  that error inverts into a permanently green, vacuous guard.
-- awk indent classes are `[^[:space:]]`, never `[^ ]` — a literal-space class silently drops
-  tab-indented input.
-- Always `mv -f` on install/replace paths: BSD `mv` on an unwritable destination with a tty
-  prompts, self-answers `n` at EOF, and exits 0, so `|| die` guards never fire and the write is
-  silently lost. `git mv` is excepted — there `-f` means force-overwrite a tracked target.
-- Always template `mktemp`, with or without `-d`: `"${TMPDIR:-/tmp}/<name>.XXXXXX"` — bare
-  macOS `mktemp` ignores `TMPDIR`. When the temp file must sit beside its destination for a
-  same-filesystem atomic rename, template it there instead.
-
-## Frontmatter and generated blocks
-
-- Anchor a frontmatter-field edit to the first `---…---` block, never a bare column-0 line
-  match: change/ADR bodies discuss `status:`/`updated:` in prose.
-- Quote any YAML scalar carrying a colon-space, a trailing colon, a ` #`, a leading indicator
-  character, or a boolean keyword (`on/off/yes/no/true/false`) — whoever writes it, model or
-  script. A script writing free-text prose into frontmatter quotes unconditionally at the
-  write boundary rather than predicating on shape (ADR-0071). Scalars only: a flow collection
-  (`depends_on: [3]`, `adrs: [71]`) is not a scalar, and quoting one is a defect — it changes
-  the parsed type from a sequence to a string.
-- Before rewriting a marker-delimited managed block, validate marker order and balance —
-  refuse on dangling/out-of-order/nested markers and leave the file untouched. Presence alone
-  is not enough; an unbounded range consumes to EOF and eats the user's content.
-
-## Guards and tests
-
-- A guard is code: mutation-test it — strip the thing it guards, watch it redden — or it is
-  decoration. A mutation that leaves an assert green is a defect until proven otherwise.
-- Key a guard on syntactic shape, never an enumerated list of spellings. The spelling you miss
-  is the target file's own house idiom.
-- Never hand-list the sites of a literal or an operation you are gating — derive them from a
-  whole-repo grep, then sort them into prose vs executable; only the executable ones can
-  violate a gate.
-- Run the whole suite at the build gate, never only the tests the spec enumerated. The BUILD
-  gate's command is whatever `build.test_command` resolves to and finalize's is whatever
-  `finalize.test_command` resolves to — read each from config, never from a second copy —
-  entered from source so the gate tests the exact checkout under review. The Go runner
-  (`internal/suiterunner`) is the sole channel; there is no separate Bash oracle.
-  `tests/README.md` covers how to run the suite and where a new test belongs.
-- Read the budget report even on a green run: a `BUDGET WATCH:` / `PARALLEL-SENSITIVE:` line
-  is a screening finding, and a `SERIAL CONFIRMED OVER BUDGET:` line is an authoritative
-  breach to act on. Neither fails the run by default (a parallel wall-clock number is
-  machine-dependent, so a real breach is confirmed serially; see `tests/README.md`), so
-  nothing else will catch them for you.
-
-## Comments and cross-references
-
-- A cross-reference in maintained source anchors on a symbol name or a verbatim-quoted
-  clause — never a line number, which nothing can check and which rots fastest in the files
-  that move most (ADR-0054). `TestCommentAnchorStyle` (`internal/repoguard/anchors_test.go`)
-  rejects the filename-plus-line-number form only; the bare colon-number and prose "line N"
-  forms rest on this rule.
-- This binds maintained source only. Point-in-time records — results files, archived changes,
-  specs, and Accepted ADRs — keep whatever pointer was true when written; rewriting them
-  falsifies history.
-
-## Rebuild the binary after a merge to main
-
-- Whenever a PR is successfully merged into `main`, rebuild the installed `docket` binary from
-  a source tree proven to contain the merge, never blindly. First run the
-  `repository.sync-integration` operation (argv resolved from the capability catalog) with
-  `--repo-dir /Users/homer/dev/docket --json`; proceed only on disposition `advanced` or
-  `already-current` — a `skipped`, `refused`, or `failed` sync leaves the rebuild incomplete.
-  Confirm the checkout is clean on `main` with its full HEAD equal to the sync target, and
-  prove each merge landed in it: `git merge-base --is-ancestor <landed-commit> HEAD`, where
-  `<landed-commit>` is the commit the merge produced on `main` — the rebased or squashed tip,
-  never the PR's feature-branch head. A negative answer and a failed probe are different
-  outcomes; neither permits the install. Then resolve the `development.install` operation from
-  the capability catalog, run it with `--source /Users/homer/dev/docket`, and confirm the
-  installed binary's `version` operation reports the same full, clean commit id as that HEAD —
-  a fresh timestamp, a short prefix, or an older running process proves nothing. On any failed
-  condition, report `binary rebuild incomplete` naming it, keep the merged change done, and
-  never stash, reset, or switch branches to force the rebuild — fix the reported source state,
-  re-sync, and repeat.
-- A merged change that extends the `.docket.yml` schema no longer blocks this: since change
-  0392 the install path tolerates unknown configuration keys (surfaced as warnings), so the
-  tracked `development.install` reinstall works directly with the pre-schema binary.
-
 <!-- docket:dispatch:start (managed by docket — do not hand-edit) -->
 ## Docket agents — dispatch, don't run inline
 
@@ -127,3 +42,86 @@ never rebuild the gate by hand.
    same key, and run `run.gate-verdict` with `<key>` again. Every `gate-stop` and every
    `gate-observe` forbids re-dispatch; `run-halted` means a human is needed.
 <!-- docket:dispatch:end -->
+
+## Rebuild the binary after a merge to main
+
+- Whenever a PR is successfully merged into `main`, rebuild the installed `docket` binary from
+  a source tree proven to contain the merge, never blindly. First run the
+  `repository.sync-integration` operation (argv resolved from the capability catalog) with
+  `--repo-dir /Users/homer/dev/docket --json`; proceed only on disposition `advanced` or
+  `already-current` — a `skipped`, `refused`, or `failed` sync leaves the rebuild incomplete.
+  Confirm the checkout is clean on `main` with its full HEAD equal to the sync target, and
+  prove each merge landed in it: `git merge-base --is-ancestor <landed-commit> HEAD`, where
+  `<landed-commit>` is the commit the merge produced on `main` — the rebased or squashed tip,
+  never the PR's feature-branch head. A negative answer and a failed probe are different
+  outcomes; neither permits the install. Then resolve the `development.install` operation from
+  the capability catalog, run it with `--source /Users/homer/dev/docket`, and confirm the
+  installed binary's `version` operation reports the same full, clean commit id as that HEAD —
+  a fresh timestamp, a short prefix, or an older running process proves nothing. On any failed
+  condition, report `binary rebuild incomplete` naming it, keep the merged change done, and
+  never stash, reset, or switch branches to force the rebuild — fix the reported source state,
+  re-sync, and repeat.
+- A merged change that extends the `.docket.yml` schema no longer blocks this: since change
+  0392 the install path tolerates unknown configuration keys (surfaced as warnings), so the
+  tracked `development.install` reinstall works directly with the pre-schema binary.
+
+## Shell
+
+- Under `set -o pipefail`, never pipe a producer into an early-exiting consumer such as
+  `grep -q`, `head`, or `head -n1`: the producer takes SIGPIPE and the 141 becomes an
+  intermittent failure. Capture into a variable first, then `grep <<<"$var"`.
+- Declare a grep pattern that leads with `--`: `grep -E -e "<pat>"` or `grep -qF -- "<pat>"`.
+  A bare leading `--` parses as an option (exit 2), and inside a negated assert (`! grep …`)
+  that error inverts into a permanently green, vacuous guard.
+- awk indent classes are `[^[:space:]]`, never `[^ ]` — a literal-space class silently drops
+  tab-indented input.
+- Always `mv -f` on install/replace paths: BSD `mv` on an unwritable destination with a tty
+  prompts, self-answers `n` at EOF, and exits 0, so `|| die` guards never fire and the write is
+  silently lost. `git mv` is excepted — there `-f` means force-overwrite a tracked target.
+- Always template `mktemp`, with or without `-d`: `"${TMPDIR:-/tmp}/<name>.XXXXXX"` — bare
+  macOS `mktemp` ignores `TMPDIR`. When the temp file must sit beside its destination for a
+  same-filesystem atomic rename, template it there instead.
+
+## Frontmatter and generated blocks
+
+- Anchor a frontmatter-field edit to the first `---…---` block, never a bare column-0 line
+  match: change/ADR bodies discuss `status:`/`updated:` in prose.
+- The docket writer guarantees YAML validity by construction (ADR-0071), single-quoting every
+  unsafe scalar at the write boundary — so trust it rather than pre-quoting fields it owns.
+  Hand-editing, the trap is the inverse: a flow collection (`depends_on: [3]`, `adrs: [71]`) is
+  a sequence, not a scalar; quoting it is a defect that retypes it to a string.
+- Before rewriting a marker-delimited managed block by hand, validate marker order and
+  balance — refuse on dangling/out-of-order/nested markers and leave the file untouched.
+  Presence alone is not enough; an unbounded range consumes to EOF and eats the user's content.
+
+## Guards and tests
+
+- A guard is code: mutation-test it — strip the thing it guards, watch it redden — or it is
+  decoration. A mutation that leaves an assert green is a defect until proven otherwise.
+- Key a guard on syntactic shape, never an enumerated list of spellings. The spelling you miss
+  is the target file's own house idiom.
+- Never hand-list the sites of a literal or an operation you are gating — derive them from a
+  whole-repo grep, then sort them into prose vs executable; only the executable ones can
+  violate a gate.
+- Run the whole suite at the build gate, never only the tests the spec enumerated. The BUILD
+  gate's command is whatever `build.test_command` resolves to and finalize's is whatever
+  `finalize.test_command` resolves to — read each from config, never from a second copy —
+  entered from source so the gate tests the exact checkout under review. The Go runner
+  (`internal/suiterunner`) is the sole channel; there is no separate Bash oracle.
+  `tests/README.md` covers how to run the suite and where a new test belongs.
+- Read the budget report even on a green run: a `BUDGET WATCH:` / `PARALLEL-SENSITIVE:` line
+  is a screening finding, and a `SERIAL CONFIRMED OVER BUDGET:` line is an authoritative
+  breach to act on. Neither fails the run by default (a parallel wall-clock number is
+  machine-dependent, so a real breach is confirmed serially; see `tests/README.md`), so
+  nothing else will catch them for you.
+
+## Comments and cross-references
+
+- A cross-reference in maintained source anchors on a symbol name or a verbatim-quoted
+  clause — never a line number, which nothing can check and which rots fastest in the files
+  that move most (ADR-0054). `TestCommentAnchorStyle` (`internal/repoguard/anchors_test.go`)
+  rejects the filename-plus-line-number form only; the bare colon-number and prose "line N"
+  forms rest on this rule.
+- This binds maintained source only. Point-in-time records — results files, archived changes,
+  specs, and Accepted ADRs — keep whatever pointer was true when written; rewriting them
+  falsifies history.
