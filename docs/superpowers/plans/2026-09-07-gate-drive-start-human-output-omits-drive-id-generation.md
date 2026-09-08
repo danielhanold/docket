@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0376 — `docket gate drive start` human-readable output omits drive_id/generation](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0376-gate-drive-start-human-output-omits-drive-id-generation.md)**
+> ↩ **[Change 0376 — `docket gate drive start` human-readable output omits drive_id/generation](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-08-0376-gate-drive-start-human-output-omits-drive-id-generation.md)**
 <!-- docket:backlink:end -->
 # Gate-Drive JSON Capture Guidance Implementation Plan
 
