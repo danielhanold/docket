@@ -12,7 +12,7 @@ related: [154, 257, 263]
 discovered_from: []
 adrs: [41, 54, 71, 104, 111]
 spec: 'docs/superpowers/specs/2026-09-07-slim-agents-md-to-an-effective-claude-md-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-08-slim-agents-md-to-an-effective-claude-md.md'
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ claimed_at: '2026-09-08T20:39:03Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-07-slim-agents-md-to-an-effective-claude-md-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-slim-agents-md-to-an-effective-claude-md-design.md) |
+| Plan | [2026-09-08-slim-agents-md-to-an-effective-claude-md.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-08-slim-agents-md-to-an-effective-claude-md.md) |
 | ADRs | [ADR-0041](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0041-learnings-findings-directory-and-promotion-valve.md), [ADR-0054](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0054-cross-reference-anchor-style.md), [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md), [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) |
 <!-- docket:artifacts:end -->
 
