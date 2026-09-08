@@ -2,7 +2,7 @@
 id: 410
 slug: 'require-durable-results-artifacts-with-human-testing-and-coo'
 title: 'Require durable results artifacts with human testing and coordinator findings'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-07'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/require-durable-results-artifacts-with-human-testing-and-coo'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/292'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-08T20:08:30Z'

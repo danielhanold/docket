@@ -1,18 +1,18 @@
 # Backlog
 
-**413 changes** — 🟢 2 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 264 done · 🗑️ 113 killed
+**413 changes** — 🟢 1 in progress · 🔵 2 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 264 done · 🗑️ 113 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0410](active/0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-require-durable-results-artifacts-with-human-testing-and-coo-design.md) | `feat/require-durable-results-artifacts-with-human-testing-and-coo` |  |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-slim-agents-md-to-an-effective-claude-md-design.md) | `docs/slim-agents-md-to-an-effective-claude-md` |  |
 
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0410](active/0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | `medium` | `feat` | [#292](https://github.com/danielhanold/docket/pull/292) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🔴 Blocked (1)
