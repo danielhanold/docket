@@ -413,3 +413,38 @@ Both Go commands passed; the asset check reported 67 matching entries with asset
 set `sha256:5869eb0141b70cb5680464e640c367742e81510acb40021a728df09c9b57345d`;
 and `git diff --check` was silent. No full suite was run in this round: the
 controller owns the exact-final-head full gate.
+
+## 2026-09-08 Task 13 fix round 4 — agent-layer budget repair
+
+Tested source head: `db0571b58fb4fbb055c7cc4b6d32a2e415e21481`.
+The following commit is results-only and is therefore not the source-tested head.
+
+The agent-layer reference was slimmed from 2,371 to 2,349 words while preserving
+the distinct root-coordinator caller-cwd, feature-child verified canonical
+worktree (process and thread cwd), and metadata native-dispatch clauses. The
+2,350-word ratchet was not adjusted. Because the maintained skill source changed,
+the embedded asset and manifest were regenerated through `go run ./cmd/genassets`.
+
+Prior exact RED evidence at `9d8429c390d90c960466d0f66870e75fee4e509e`:
+
+```text
+--- FAIL: TestSkillSizeBudgets (0.01s)
+    budgets_test.go:146: skills/docket-convention/references/agent-layer.md is 2371 words, over its 2350-word budget — slim it or lower the ceiling in-diff
+FAIL
+FAIL	github.com/danielhanold/docket/internal/repoguard	0.378s
+FAIL
+```
+
+Final exact GREEN evidence at the tested source head:
+
+```text
+$ go test ./internal/repoguard -run '^(TestSkillSizeBudgets|TestCodexLaunchMatrixOperatorProse|TestCommittedCodexDispatchMatchesGenerator|TestCommittedCodexDispatchRoutesEveryScope)$' -count=1
+ok  	github.com/danielhanold/docket/internal/repoguard	0.260s
+$ go test ./internal/harness/codex -run '^(TestCodexContractsDeriveScopeAwareRoutesFromInventory|TestCodexNestedDispatchBoundary)$' -count=1
+ok  	github.com/danielhanold/docket/internal/harness/codex	0.221s
+$ go run ./cmd/genassets -check
+genassets: internal/assets/embedded matches the authored roots (67 entries, sha256:a5ea77d353898b0c185d3da70155dc48cff22ec31d3c5573a80d96ce170df2d9)
+$ git diff --check
+```
+
+No full suite was run in this round; the controller owns that gate.
