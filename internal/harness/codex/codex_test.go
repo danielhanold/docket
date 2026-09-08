@@ -375,6 +375,9 @@ func TestCodexAgentMirrorsSource(t *testing.T) {
 		if !strings.Contains(content, "description = \""+contract.Description+"\"\n") {
 			t.Errorf("%s does not carry its role-contract description", s.Name)
 		}
+		if contract.WorktreeScope != s.WorktreeScope {
+			t.Errorf("%s role-contract worktree scope = %q, source = %q", s.Name, contract.WorktreeScope, s.WorktreeScope)
+		}
 		preamble := "Before acting, load these docket skills from your linked Codex skills directory: " +
 			strings.Join(s.Skills, ", ") + "."
 		if len(s.Skills) == 0 {
@@ -415,8 +418,8 @@ func TestRoleContractForSharesTheRegistrationSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RoleContractFor: %v", err)
 	}
-	if contract.Name != "docket-implement-next" || contract.LaunchPosture != harness.LaunchRootCoordinator {
-		t.Fatalf("contract identity/posture = %+v", contract)
+	if contract.Name != "docket-implement-next" || contract.LaunchPosture != harness.LaunchRootCoordinator || contract.WorktreeScope != harness.WorktreeScopeMetadata {
+		t.Fatalf("contract identity/posture/scope = %+v", contract)
 	}
 	if contract.Model != "gpt-contract" || contract.Effort != "max" {
 		t.Fatalf("contract pins = (%q, %q)", contract.Model, contract.Effort)
@@ -465,7 +468,7 @@ func TestCodexTOMLEscaping(t *testing.T) {
 
 	files := map[string]string{
 		"agents/" + name + ".md": "---\nname: " + name +
-			"\ndescription: '" + strings.ReplaceAll(desc, "'", "''") + "'\nskills: [docket-build-task]\n---\n" + body,
+			"\ndescription: '" + strings.ReplaceAll(desc, "'", "''") + "'\nskills: [docket-build-task]\nworktree-scope: feature\n---\n" + body,
 	}
 	targets, err := New().Plan(harness.PlanInput{
 		Assets:    syntheticAgentCatalog(files),
@@ -666,7 +669,7 @@ func TestCodexInventoryAdditionPropagates(t *testing.T) {
 	before := planFixture(t)
 
 	const extraPath = "agents/docket-zzz-synthetic.md"
-	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\n---\nSynthetic body.\n"
+	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\nworktree-scope: metadata\n---\nSynthetic body.\n"
 
 	base := in.Assets
 	m := base.Manifest

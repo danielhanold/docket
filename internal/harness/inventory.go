@@ -22,6 +22,7 @@ type AgentSource struct {
 	Description   string        //
 	Skills        []string      // frontmatter `skills:` flow list; nil when the agent preloads none
 	LaunchPosture LaunchPosture // frontmatter `launch:`; absent means ordinary child
+	WorktreeScope WorktreeScope // frontmatter `worktree-scope:`; required closed worktree access
 	Body          string        // markdown body after the frontmatter, verbatim
 }
 
@@ -35,14 +36,24 @@ const (
 	LaunchRootCoordinator LaunchPosture = "root-coordinator"
 )
 
+// WorktreeScope is the closed worktree access a role requires. An agent
+// source must declare one: ADR-0083 deliberately permits no implicit scope.
+type WorktreeScope string
+
+const (
+	WorktreeScopeFeature  WorktreeScope = "feature"
+	WorktreeScopeMetadata WorktreeScope = "metadata"
+)
+
 // agentFrontmatter is the decode target: the fields docket owns. Unknown keys
-// (`worktree-scope`, whatever a newer docket adds) decode away silently, which
-// is internal/document's documented compatibility posture.
+// from a newer docket decode away silently, which is internal/document's
+// documented compatibility posture.
 type agentFrontmatter struct {
-	Name        string   `yaml:"name"`
-	Description string   `yaml:"description"`
-	Skills      []string `yaml:"skills"`
-	Launch      string   `yaml:"launch"`
+	Name          string   `yaml:"name"`
+	Description   string   `yaml:"description"`
+	Skills        []string `yaml:"skills"`
+	Launch        string   `yaml:"launch"`
+	WorktreeScope string   `yaml:"worktree-scope"`
 }
 
 // The prefix every agent definition's name carries. The short name is what the
@@ -108,6 +119,13 @@ func parseAgentSource(c assets.Catalog, p string) (AgentSource, error) {
 	if posture != LaunchChild && posture != LaunchRootCoordinator {
 		return AgentSource{}, fmt.Errorf("harness: agent source %s declares unknown launch posture %q", p, fm.Launch)
 	}
+	scope := WorktreeScope(fm.WorktreeScope)
+	if scope == "" {
+		return AgentSource{}, fmt.Errorf("harness: agent source %s declares no worktree scope", p)
+	}
+	if scope != WorktreeScopeFeature && scope != WorktreeScopeMetadata {
+		return AgentSource{}, fmt.Errorf("harness: agent source %s declares unknown worktree scope %q", p, fm.WorktreeScope)
+	}
 	text, err := bodyAfterFrontmatter(doc)
 	if err != nil {
 		return AgentSource{}, fmt.Errorf("harness: agent source %s: %w", p, err)
@@ -118,6 +136,7 @@ func parseAgentSource(c assets.Catalog, p string) (AgentSource, error) {
 		Description:   fm.Description,
 		Skills:        fm.Skills,
 		LaunchPosture: posture,
+		WorktreeScope: scope,
 		Body:          text,
 	}, nil
 }

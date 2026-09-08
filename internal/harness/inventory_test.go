@@ -176,6 +176,30 @@ func TestInventoryLaunchPostureCorrespondsToDispatchOwningSkill(t *testing.T) {
 	}
 }
 
+func TestInventoryWorktreeScopeIsClosedAndComplete(t *testing.T) {
+	c := embeddedCatalog(t)
+	sources, err := ParseInventory(c)
+	if err != nil {
+		t.Fatalf("ParseInventory: %v", err)
+	}
+
+	byScope := map[WorktreeScope][]string{
+		WorktreeScopeFeature:  nil,
+		WorktreeScopeMetadata: nil,
+	}
+	for _, s := range sources {
+		names, ok := byScope[s.WorktreeScope]
+		if !ok {
+			t.Errorf("%s has unknown worktree scope %q", s.Name, s.WorktreeScope)
+			continue
+		}
+		byScope[s.WorktreeScope] = append(names, s.Name)
+	}
+	if got := len(byScope[WorktreeScopeFeature]) + len(byScope[WorktreeScopeMetadata]); got != len(c.EntriesByRole(assets.RoleAgentSource)) {
+		t.Fatalf("scope partition has %d sources, catalog has %d (feature=%v metadata=%v)", got, len(c.EntriesByRole(assets.RoleAgentSource)), byScope[WorktreeScopeFeature], byScope[WorktreeScopeMetadata])
+	}
+}
+
 func TestParseInventoryDeterministic(t *testing.T) {
 	c := embeddedCatalog(t)
 	first, err := ParseInventory(c)
@@ -192,7 +216,7 @@ func TestParseInventoryDeterministic(t *testing.T) {
 }
 
 func TestParseInventoryRejects(t *testing.T) {
-	const good = "---\nname: docket-alpha\ndescription: Alpha agent.\nskills: [docket-build-task]\n---\nBody.\n"
+	const good = "---\nname: docket-alpha\ndescription: Alpha agent.\nskills: [docket-build-task]\nworktree-scope: feature\n---\nBody.\n"
 
 	cases := []struct {
 		name  string
@@ -203,6 +227,8 @@ func TestParseInventoryRejects(t *testing.T) {
 		{"invalid yaml", map[string]string{"agents/docket-alpha.md": "---\nname: [unclosed\n---\nBody.\n"}, "agents/docket-alpha.md"},
 		{"missing name", map[string]string{"agents/docket-alpha.md": "---\ndescription: Alpha.\n---\nBody.\n"}, "name"},
 		{"missing description", map[string]string{"agents/docket-alpha.md": "---\nname: docket-alpha\n---\nBody.\n"}, "description"},
+		{"missing worktree scope", map[string]string{"agents/docket-alpha.md": "---\nname: docket-alpha\ndescription: Alpha.\n---\nBody.\n"}, "worktree scope"},
+		{"unknown worktree scope", map[string]string{"agents/docket-alpha.md": "---\nname: docket-alpha\ndescription: Alpha.\nworktree-scope: workspace\n---\nBody.\n"}, "worktree scope"},
 		{"name lacks prefix", map[string]string{"agents/alpha.md": "---\nname: alpha\ndescription: Alpha.\n---\nBody.\n"}, "docket-"},
 		{"name disagrees with filename", map[string]string{"agents/docket-beta.md": good}, "docket-beta.md"},
 		{"unknown launch posture", map[string]string{"agents/docket-alpha.md": "---\nname: docket-alpha\ndescription: Alpha.\nlaunch: sidecar\n---\nBody.\n"}, "launch"},
@@ -235,8 +261,8 @@ func TestParseInventoryRejects(t *testing.T) {
 
 func TestParseInventoryAcceptsSynthetic(t *testing.T) {
 	c := syntheticCatalog(map[string]string{
-		"agents/docket-alpha.md": "---\nname: docket-alpha\ndescription: \"Alpha: does things.\"\nskills: [docket-build-task, docket-convention]\nlaunch: root-coordinator\n---\nFirst line.\n\nSecond line.\n",
-		"agents/docket-zeta.md":  "---\nname: docket-zeta\ndescription: Zeta.\n---\nZeta body.\n",
+		"agents/docket-alpha.md": "---\nname: docket-alpha\ndescription: \"Alpha: does things.\"\nskills: [docket-build-task, docket-convention]\nlaunch: root-coordinator\nworktree-scope: feature\n---\nFirst line.\n\nSecond line.\n",
+		"agents/docket-zeta.md":  "---\nname: docket-zeta\ndescription: Zeta.\nworktree-scope: metadata\n---\nZeta body.\n",
 	}, assets.RoleAgentSource)
 
 	got, err := ParseInventory(c)
@@ -244,10 +270,10 @@ func TestParseInventoryAcceptsSynthetic(t *testing.T) {
 		t.Fatalf("ParseInventory: %v", err)
 	}
 	want := []AgentSource{
-		{ShortName: "alpha", Name: "docket-alpha", Description: "Alpha: does things.", LaunchPosture: LaunchRootCoordinator,
+		{ShortName: "alpha", Name: "docket-alpha", Description: "Alpha: does things.", LaunchPosture: LaunchRootCoordinator, WorktreeScope: WorktreeScopeFeature,
 			Skills: []string{"docket-build-task", "docket-convention"},
 			Body:   "First line.\n\nSecond line.\n"},
-		{ShortName: "zeta", Name: "docket-zeta", Description: "Zeta.", LaunchPosture: LaunchChild, Body: "Zeta body.\n"},
+		{ShortName: "zeta", Name: "docket-zeta", Description: "Zeta.", LaunchPosture: LaunchChild, WorktreeScope: WorktreeScopeMetadata, Body: "Zeta body.\n"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ParseInventory = %#v, want %#v", got, want)
