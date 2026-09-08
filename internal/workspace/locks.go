@@ -110,6 +110,16 @@ func acquireOperationLock(dir string) (func(), error) {
 	return lk.release, nil
 }
 
+// AcquireOperationLock exposes the per-workspace operation lock to an app-layer
+// caller that must serialize a receipt reload-check-write across processes
+// (finalize.resolver-reserve, change 0349). It blocks until the lock guarding dir
+// is free, creates dir at 0700 first, and returns the release. It is the same
+// flock acquireOperationLock takes, so two callers passing the same dir are
+// mutually exclusive even across processes (flock is per open file description).
+func (s *Service) AcquireOperationLock(dir string) (func(), error) {
+	return acquireOperationLock(dir)
+}
+
 // tryOperationLock probes the per-workspace operation lock without blocking. When
 // another process holds it, it returns (nil, true, nil). When it is free, it
 // acquires it and returns (release, false, nil). A genuine acquisition or probe

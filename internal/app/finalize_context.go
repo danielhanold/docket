@@ -76,6 +76,13 @@ type FinalizeWorkspace interface {
 	ReadRebaseReceipt(ctx context.Context, dir string) (workspace.RebaseReceipt, bool, error)
 	WriteRebaseReceipt(ctx context.Context, dir string, r workspace.RebaseReceipt) error
 	ClearRebaseReceipt(ctx context.Context, dir string) error
+	// AcquireOperationLock takes the per-workspace operation lock guarding dir,
+	// blocking until it is free, and returns a release. finalize.resolver-reserve
+	// (change 0349) holds it around its whole receipt reload-check-write so
+	// concurrent reservations serialize and admit at most one dispatch per
+	// outstanding reservation. *workspace.Service satisfies it; a fake that must
+	// not be reserved against panics.
+	AcquireOperationLock(dir string) (func(), error)
 	PublishRewrite(ctx context.Context, req workspace.RewriteRequest) (workspace.RewriteOutcome, error)
 	PublishHead(ctx context.Context, req workspace.PublishRequest) (workspace.PublishResult, error)
 	// Cleanup is the landed, manifest-fact-driven, non-forcing removal of one
@@ -146,6 +153,13 @@ type FinalizeDeps struct {
 	// other operation's wiring; the cleanup operation falls back to
 	// Planning.Client when it is nil, so production may leave it unset.
 	CleanupGit FinalizeCleanupGit
+	// ReserveGit is the narrow read-only Git seam finalize.resolver-reserve
+	// (change 0349) probes the live rebase through. It is nil in every other
+	// operation's wiring; the reserve operation falls back to the concrete
+	// Planning.Client when it is nil, so production may leave it unset. A unit
+	// test injects a fake that faults exactly one probe to prove the operation
+	// refuses and never increments the budget on an unprovable probe.
+	ReserveGit FinalizeReserveGit
 }
 
 // FinalizeContextRequest is the closed request. ID==0 applies the deterministic
@@ -759,6 +773,7 @@ var (
 	_ FinalizeWorkspace  = (*workspace.Service)(nil)
 	_ FinalizePRProber   = (*githubFinalizeProber)(nil)
 	_ FinalizeCleanupGit = (*gitcli.Client)(nil)
+	_ FinalizeReserveGit = (*gitcli.Client)(nil)
 	_ SweepPRBatchReader = (*sweepPRBatchReader)(nil)
 	_ sweepGitHub        = (*githubcli.Client)(nil)
 )
