@@ -2,6 +2,7 @@ package render
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -112,6 +113,15 @@ type h2Heading struct {
 // skipping fenced code blocks so that marker-shaped or heading-shaped example
 // text inside a fence is treated as authored content.
 func scanH2Headings(src []byte) []h2Heading {
+	heads, _ := scanH2HeadingsFinalFence(src)
+	return heads
+}
+
+// scanH2HeadingsFinalFence is scanH2Headings plus the scanner's final fence
+// state: the still-open fence's delimiter run at end of input, or "" when every
+// fence closed. ValidateSectionBody keys its unterminated-fence rejection on
+// this so "closed" means exactly what the section scanner would treat as closed.
+func scanH2HeadingsFinalFence(src []byte) ([]h2Heading, string) {
 	var heads []h2Heading
 	fence := ""          // the open fence's delimiter run; "" when not inside a fence
 	fenceChar := byte(0) // '`' or '~'
@@ -133,7 +143,38 @@ func scanH2Headings(src []byte) []h2Heading {
 			heads = append(heads, h2Heading{heading: string(text), start: ln.start})
 		}
 	}
-	return heads
+	return heads, fence
+}
+
+// Section-body validation sentinels. The strings are static by contract: a
+// caller may surface them verbatim, so they must never carry authored content.
+var (
+	// ErrSectionBodyHeading: the body carries a column-zero "## " heading the
+	// section scanner would recognize outside fenced code — it would become a
+	// structural section of its own, escaping the enclosing owned section.
+	ErrSectionBodyHeading = errors.New("section body carries a column-zero \"## \" heading outside fenced code")
+	// ErrSectionBodyUnterminatedFence: a code fence is still open at end of
+	// body — once embedded, it would swallow the next section's heading and
+	// hide it from the recovery scanner.
+	ErrSectionBodyUnterminatedFence = errors.New("section body leaves a code fence unterminated at end of input")
+)
+
+// ValidateSectionBody reports whether body is safe to embed as ONE owned
+// section's body: no structural top-level heading outside fenced code, and no
+// fence left open at end of input. It applies the same scanner ApplySectionEdits
+// uses (scanH2Headings' fence-aware rules), so "valid" means the recovery
+// scanner will later see exactly one section. Errors are errors.Is-comparable
+// sentinels and never echo body content. ApplySectionEdits itself is unchanged:
+// callers opt in at their own write boundary.
+func ValidateSectionBody(body []byte) error {
+	heads, fence := scanH2HeadingsFinalFence(body)
+	if len(heads) > 0 {
+		return ErrSectionBodyHeading
+	}
+	if fence != "" {
+		return ErrSectionBodyUnterminatedFence
+	}
+	return nil
 }
 
 // ApplySectionEdits splices edits into src, touching only owned sections.
