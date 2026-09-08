@@ -4,7 +4,9 @@ package gitcli
 
 import (
 	"context"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -180,6 +182,86 @@ func TestIntegrationPreserveCommitEnsureInputs(t *testing.T) {
 			t.Fatalf("Kind = %q, want %q (shallow history)", f.Kind, KindInvalidRepository)
 		}
 	})
+}
+
+// TestIntegrationPreserveCommitDelta proves commitDelta reports the exact
+// source-side delta of a real base->source pair, rename detection disabled: an
+// add, a content modify, a delete (all-zero new side, "000000" mode), a
+// mode-only change (chmod +x, same blob oid), and a new symlink (mode 120000).
+// Expected new oids come from git rev-parse <source>:<path> — the plumbing
+// oracle — never a fabricated constant.
+func TestIntegrationPreserveCommitDelta(t *testing.T) {
+	ctx := context.Background()
+	c := newRealClient(t)
+	dir, repo := historyRepo(t)
+
+	// base: files that will be modified, deleted, and chmod'd at source.
+	writeWorktreeFile(t, dir, "mod.txt", "v1\n")
+	writeWorktreeFile(t, dir, "del.txt", "bye\n")
+	writeWorktreeFile(t, dir, "exe.sh", "#!/bin/sh\necho hi\n")
+	gitOut(t, dir, "add", "-A")
+	gitOut(t, dir, "commit", "-q", "-m", "base")
+	base := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+
+	// source: add new.txt, modify mod.txt, delete del.txt, chmod +x exe.sh
+	// (content unchanged so the blob oid is stable), add a symlink.
+	writeWorktreeFile(t, dir, "new.txt", "brand new\n")
+	writeWorktreeFile(t, dir, "mod.txt", "v2\n")
+	if err := os.Remove(filepath.Join(dir, "del.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Join(dir, "exe.sh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("mod.txt", filepath.Join(dir, "link")); err != nil {
+		t.Fatal(err)
+	}
+	gitOut(t, dir, "add", "-A")
+	gitOut(t, dir, "commit", "-q", "-m", "source")
+	source := ObjectID(gitOut(t, dir, "rev-parse", "HEAD"))
+
+	entries, f := c.commitDelta(ctx, repo, base, source)
+	if f != nil {
+		t.Fatalf("commitDelta: %v", f)
+	}
+
+	zero := ObjectID(strings.Repeat("0", len(string(source))))
+	revOID := func(path string) ObjectID {
+		return ObjectID(gitOut(t, dir, "rev-parse", "--verify", string(source)+":"+path))
+	}
+	want := map[RepoPath]deltaEntry{
+		"new.txt": {Path: "new.txt", Status: 'A', NewMode: "100644", NewOID: revOID("new.txt")},
+		"mod.txt": {Path: "mod.txt", Status: 'M', NewMode: "100644", NewOID: revOID("mod.txt")},
+		"del.txt": {Path: "del.txt", Status: 'D', NewMode: "000000", NewOID: zero},
+		"exe.sh":  {Path: "exe.sh", Status: 'M', NewMode: "100755", NewOID: revOID("exe.sh")},
+		"link":    {Path: "link", Status: 'A', NewMode: "120000", NewOID: revOID("link")},
+	}
+
+	if len(entries) != len(want) {
+		t.Fatalf("commitDelta returned %d entries, want %d: %+v", len(entries), len(want), entries)
+	}
+	got := make(map[RepoPath]deltaEntry, len(entries))
+	for _, e := range entries {
+		got[e.Path] = e
+	}
+	for path, w := range want {
+		g, ok := got[path]
+		if !ok {
+			t.Fatalf("commitDelta missing entry for %q; got %+v", path, entries)
+		}
+		if g != w {
+			t.Errorf("entry for %q = %+v, want %+v", path, g, w)
+		}
+	}
+
+	// exe.sh is a pure mode change: same blob oid on both sides.
+	if got["exe.sh"].NewOID != base && got["exe.sh"].NewOID != revOID("exe.sh") {
+		t.Fatalf("exe.sh oid = %q; expected the unchanged blob oid", got["exe.sh"].NewOID)
+	}
+	baseExe := ObjectID(gitOut(t, dir, "rev-parse", "--verify", string(base)+":exe.sh"))
+	if got["exe.sh"].NewOID != baseExe {
+		t.Errorf("chmod exe.sh oid = %q, want the unchanged base blob %q", got["exe.sh"].NewOID, baseExe)
+	}
 }
 
 // gitHashObject writes a loose blob into the repo at dir and returns its OID,
