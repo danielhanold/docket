@@ -2,7 +2,7 @@
 id: 327
 slug: stack-closeout-must-prove-integration-reachability
 title: 'Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata'
-status: 'implemented'
+status: 'done'
 priority: high
 type: fix
 created: 2026-08-18
@@ -21,7 +21,7 @@ branch: 'fix/stack-closeout-must-prove-integration-reachability'
 pr: 'https://github.com/danielhanold/docket/pull/291'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-08T14:56:31Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -68,15 +68,3 @@ Replace the fabricated-child positive fixture with a real stack, add negative an
 
 2026-09-07 — Reconciled against origin/main at 0d1a7e1b (the exact commit the spec's 2026-09-07 necessity assessment was groomed against; unchanged since). Confirmed the referenced Go symbols still exist and match the spec: FinalizeRebase and receipt/lease handling in internal/app/finalize_rebase.go; closeoutIntegrationDestination and DeriveRootCloseoutSet/proveCarry/probeDescendantFacts in internal/app/finalize_closeout.go and internal/domain/stackcloseout.go; the positive root-carry fixture with a fabricated child merge-result in internal/app/finalize_closeout_integration_test.go. Scope, out-of-scope, and relations (related [298,316,336,369,370] all done, adrs [92], depends_on []) hold as groomed — no adjustments needed. Proceeding to plan and build the shared Git preservation proof and its enforcement at rebase, publish, merge, and stacked/root closeout.
 
-## Finalize blocked
-
-### 2026-09-08 — attempt 20260908T155303Z-9e82cc47c8fc
-
-<!-- attempt:20260908T155303Z-9e82cc47c8fc -->
-
-- Reason: rebase-conflicts-unresolved
-- Head: 3e8f4238f1a1c46f439a08c18dc5a98a7821b1cc
-- PR: #291
-- Comment: https://github.com/danielhanold/docket/pull/291#issuecomment-5588082171
-
-Remedy: Rebase fix/stack-closeout-must-prove-integration-reachability onto origin/main locally, resolving internal/assets/embedded/manifest.json by regenerating it from the merged embedded tree (or squash the branch's manifest-touching commits so it regenerates once), push the rebased head, then re-run docket-finalize-change naming change id 327.
