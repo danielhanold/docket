@@ -590,3 +590,104 @@ PARALLEL-SENSITIVE: tests/test_go_toolchain.sh — 258s under -j11; last solo me
 Files changed are `internal/cli/agent.go`, `internal/cli/agent_test.go`, and this
 results record. The final exact-commit gate reruns the same configured command
 after this evidence append; its outcome is reported in the Task 13 fix report.
+
+## 2026-09-08 Task 13 fix round 7 — race-gate serial budget repair
+
+Fix base: `def65ef156f6d7a22706b361f267d1fd9aaba91d`. The controller's
+authoritative finding was:
+
+```text
+SERIAL CONFIRMED OVER BUDGET: tests/test_go_race.sh — 282s under -j11; 91s solo; solo threshold 90s
+```
+
+The breach reproduced directly without changing the whole-module contract:
+
+```text
+$ /usr/bin/time -p bash tests/test_go_race.sh
+ok - a Go toolchain is on PATH (the module pins its version)
+ok - go test -race -count=1 ./... (the whole module) passes
+real 91.29
+user 145.64
+sys 97.76
+```
+
+Package timing isolated `internal/app` as the wall-clock limiter at 91.027s;
+`internal/cli` was 27.563s. Change 0393's new app workflow/root-entry test is
+already integration-tagged and absent from the default race corpus. Individual
+test timing found the concrete cause in the pre-existing
+`TestSweepImplementationScopeDoesNotGrowWithHistory`: 40.52s reported by
+`go test -json`, and 43.82s real in isolation under `-race`. Its required
+implementation-scope scaling rows (0/300/1000 historical records) rebuild only
+one snapshot each and were retained unchanged. Its companion full-scope
+anti-vacuity row used 300 historical records; correct full-scope behavior then
+prepared a fresh snapshot for each of 300 dispatched cleanups, creating
+quadratic test-fixture work unrelated to the linear-scaling assertion.
+
+The minimal test-only repair changes only the companion full-scope sample from
+300 to 30. The exact cleanup delta remains asserted as 30, and a separate
+comparison proves full scope exercises more historical cleanup work than
+implementation scope. The test still runs the real orchestration seam. Focused
+GREEN:
+
+```text
+$ /usr/bin/time -p go test -race ./internal/app -run '^TestSweepImplementationScopeDoesNotGrowWithHistory$' -count=1
+ok github.com/danielhanold/docket/internal/app 4.152s
+real 8.64
+user 8.06
+sys 0.98
+```
+
+Mutation-changing both companion calls from `SweepScopeFull` to
+`SweepScopeImplementation` REDdened the critical anti-vacuity guard:
+
+```text
+$ go test ./internal/app -run '^TestSweepImplementationScopeDoesNotGrowWithHistory$' -count=1
+--- FAIL: TestSweepImplementationScopeDoesNotGrowWithHistory (0.20s)
+    maintenance_test.go:1097: full scope must retain historical retries: cleanups 1 -> 1
+    maintenance_test.go:1100: full scope must exercise more historical cleanups than implementation scope: full=1 implementation=1
+FAIL
+FAIL github.com/danielhanold/docket/internal/app 0.642s
+FAIL
+```
+
+After restoring full scope, the focused test and exact race shard were GREEN:
+
+```text
+$ go test ./internal/app -run '^TestSweepImplementationScopeDoesNotGrowWithHistory$' -count=1
+ok github.com/danielhanold/docket/internal/app 0.585s
+$ /usr/bin/time -p bash tests/test_go_race.sh
+ok - a Go toolchain is on PATH (the module pins its version)
+ok - go test -race -count=1 ./... (the whole module) passes
+real 69.21
+user 105.05
+sys 95.66
+$ go test ./internal/app -count=1
+ok github.com/danielhanold/docket/internal/app 27.454s
+$ go fmt ./internal/...
+$ git diff --check
+$ go run ./cmd/genassets -check
+genassets: internal/assets/embedded matches the authored roots (67 entries, sha256:a5ea77d353898b0c185d3da70155dc48cff22ec31d3c5573a80d96ce170df2d9)
+```
+
+The evidence-gathering exact full gate passed and emitted no authoritative
+serial breach:
+
+```text
+$ go run ./cmd/docket development test
+SUITE files=43 passed=43 failed=0 asserts=387 wall=252s
+```
+
+It confirmed `test_go_integration_app_change.sh` serially at 56s and deferred
+the due toolchain recheck because that run's single confirmation slot was
+consumed. Screening diagnostics were `PARALLEL-SENSITIVE` for finalize-e2e
+(133s, 8/10), integration-app-change (166s; serial 56s, 0/10),
+integration-app-rebase (181s, 7/10), integration-app-workflow (147s, 6/10),
+go-race (252s; stored prior solo 91s, 1/10), and go-toolchain (223s; stored solo
+58s, 10/10). `BUDGET WATCH` diagnostics were integration-app-cleanup (116s,
+1/5), integration-app-closeout (117s, 1/5), integration-app-merge (78s, 4/5),
+and integration-gitcli-repo (79s, 4/5). The corrected direct solo race
+measurement is 69.21s; the runner's displayed 91s is its prior persisted
+measurement and was not a new serial confirmation. The final exact-commit gate
+runs after this evidence append and is reported in the Task 13 fix report.
+
+Files changed are `internal/app/maintenance_test.go` and this results record.
