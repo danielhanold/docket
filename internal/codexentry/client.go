@@ -169,6 +169,9 @@ func waitResponse(tr Transport, id int, phase string) (json.RawMessage, error) {
 		if err := json.Unmarshal(raw, &env); err != nil {
 			return nil, fmt.Errorf("%s received a malformed JSON-RPC frame: %w", phase, err)
 		}
+		if err := rejectInteractiveRequest(env); err != nil {
+			return nil, err
+		}
 		if string(env.ID) != want {
 			continue
 		}
@@ -195,6 +198,9 @@ func waitTurn(tr Transport, threadID, turnID string) (string, error) {
 		var env rpcEnvelope
 		if err := json.Unmarshal(raw, &env); err != nil {
 			return "", fmt.Errorf("coordinator turn received a malformed JSON-RPC frame: %w", err)
+		}
+		if err := rejectInteractiveRequest(env); err != nil {
+			return "", err
 		}
 		switch env.Method {
 		case "item/completed":
@@ -228,4 +234,14 @@ func waitTurn(tr Transport, threadID, turnID string) (string, error) {
 			return final, nil
 		}
 	}
+}
+
+// A server request needs a reply before the turn can proceed. This foreground
+// adapter has no interactive approval/input channel; silently ignoring the
+// request would hang forever. Notifications carry no id and remain supported.
+func rejectInteractiveRequest(env rpcEnvelope) error {
+	if env.Method != "" && len(env.ID) != 0 && string(env.ID) != "null" {
+		return fmt.Errorf("Codex app-server requires interactive request %q; foreground root entry has no approval/input channel", env.Method)
+	}
+	return nil
 }

@@ -3,8 +3,8 @@ package app
 const OperationAgentEnter = "agent.enter"
 
 // AgentEnterResult is the foreground receipt for one coordinator root turn.
-// Human mode relays the role's final message verbatim; JSON mode retains the
-// identities needed to attribute it.
+// Human mode relays the role's final message verbatim; JSON mode retains thread
+// and turn identities for diagnostics. Run-gate claim proofs own attribution.
 type AgentEnterResult struct {
 	Envelope
 	Role     string `json:"role,omitempty"`

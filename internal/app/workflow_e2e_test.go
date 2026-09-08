@@ -42,7 +42,9 @@ import (
 // with the metadata remote left exactly where it started.
 
 // runClaimToImplemented drives the full positive sequence for one metadata mode.
-func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
+type workflowEntry func(realNode, WorkspaceDeps, func(string) GitHubDeps)
+
+func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries ...workflowEntry) {
 	t.Helper()
 	const (
 		id   = 3
@@ -76,170 +78,178 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
 	// the independent oracle each exact-version request submits.
 	ver := func() string { return blobVersionAt(t, repo.origin, m.branch, recPath) }
 
-	// (1) Authoritative implementation context.
-	ctxRes := ContextImplementation(ctx, node.deps, node.dir, ImplementationContextRequest{ID: id})
-	if ctxRes.Result != ResultApplied || ctxRes.Context == nil {
-		t.Fatalf("context implementation = %q (reason %q); want a bundle", ctxRes.Result, ctxRes.Reason)
-	}
-	if !ctxRes.Context.ClaimEligible {
-		t.Fatalf("context reports the build-ready change not claim-eligible: %q", ctxRes.Context.ClaimRefusal)
-	}
-	v := ctxRes.Context.Change.Version
-	if v != ver() {
-		t.Fatalf("context version %q disagrees with the origin oracle %q", v, ver())
-	}
+	complete := func(dispatchContext string) GitHubDeps {
+		// (1) Authoritative implementation context.
+		ctxRes := ContextImplementation(ctx, node.deps, node.dir, ImplementationContextRequest{ID: id})
+		if ctxRes.Result != ResultApplied || ctxRes.Context == nil {
+			t.Fatalf("context implementation = %q (reason %q); want a bundle", ctxRes.Result, ctxRes.Reason)
+		}
+		if !ctxRes.Context.ClaimEligible {
+			t.Fatalf("context reports the build-ready change not claim-eligible: %q", ctxRes.Context.ClaimRefusal)
+		}
+		v := ctxRes.Context.Change.Version
+		if v != ver() {
+			t.Fatalf("context version %q disagrees with the origin oracle %q", v, ver())
+		}
 
-	// (2) Claim.
-	claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: v})
-	if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
-		t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
-	}
+		// (2) Claim.
+		claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: v, GateContext: dispatchContext})
+		if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
+			t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
+		}
 
-	// (3) Reconcile: sets reconciled:true and refreshes the claim.
-	rec := ChangeReconcile(ctx, node.deps, node.dir, ChangeReconcileRequest{
-		ID: id, Version: ver(),
-		ReconcileLogEntry: "Reconciled against current reality.\n",
-	})
-	if rec.Result != ResultApplied {
-		t.Fatalf("reconcile = %q (findings %v)", rec.Result, rec.Findings)
-	}
+		// (3) Reconcile: sets reconciled:true and refreshes the claim.
+		rec := ChangeReconcile(ctx, node.deps, node.dir, ChangeReconcileRequest{
+			ID: id, Version: ver(),
+			ReconcileLogEntry: "Reconciled against current reality.\n",
+		})
+		if rec.Result != ResultApplied {
+			t.Fatalf("reconcile = %q (findings %v)", rec.Result, rec.Findings)
+		}
 
-	// (4) Prepare the feature workspace at the resolved base.
-	prep := WorkspacePrepare(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id, Version: ver()})
-	if prep.Result != ResultApplied {
-		t.Fatalf("workspace prepare = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
-	}
-	wp := prep.Path
+		// (4) Prepare the feature workspace at the resolved base.
+		prep := WorkspacePrepare(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id, Version: ver()})
+		if prep.Result != ResultApplied {
+			t.Fatalf("workspace prepare = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
+		}
+		wp := prep.Path
 
-	// (5) The plan-writer half: author the plan body, stamp the deterministic
-	// backlink through the artifact-backlink operation (writing a feature-tree
-	// file, not a metadata transaction), then commit with the ADR-0094 single
-	// artifact and plan-path trailer.
-	writeRepoFile(t, wp, planPath, "# Implementation Plan\n\nConcrete steps here.\n")
-	bl := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: planPath, ChangePath: recPath})
-	if bl.Result != ResultApplied {
-		t.Fatalf("artifact backlink = %q (reason %q msg %q)", bl.Result, bl.Reason, bl.Message)
-	}
-	runGit(t, wp, "add", "-A")
-	runGit(t, wp, "commit", "-q", "-m", "write plan", "--trailer", "Docket-Plan-Path: "+planPath)
-	planHead := runGit(t, wp, "rev-parse", "HEAD")
+		// (5) The plan-writer half: author the plan body, stamp the deterministic
+		// backlink through the artifact-backlink operation (writing a feature-tree
+		// file, not a metadata transaction), then commit with the ADR-0094 single
+		// artifact and plan-path trailer.
+		writeRepoFile(t, wp, planPath, "# Implementation Plan\n\nConcrete steps here.\n")
+		bl := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: planPath, ChangePath: recPath})
+		if bl.Result != ResultApplied {
+			t.Fatalf("artifact backlink = %q (reason %q msg %q)", bl.Result, bl.Reason, bl.Message)
+		}
+		runGit(t, wp, "add", "-A")
+		runGit(t, wp, "commit", "-q", "-m", "write plan", "--trailer", "Docket-Plan-Path: "+planPath)
+		planHead := runGit(t, wp, "rev-parse", "HEAD")
 
-	// (6) Attach the verified plan.
-	attach := ChangeAttachPlan(ctx, node.deps, wdeps, node.dir,
-		ChangeAttachRequest{ID: id, Version: ver(), Path: planPath, Commit: planHead})
-	if attach.Result != ResultApplied {
-		t.Fatalf("attach plan = %q (reason %q msg %q findings %v)", attach.Result, attach.Reason, attach.Message, attach.Findings)
-	}
+		// (6) Attach the verified plan.
+		attach := ChangeAttachPlan(ctx, node.deps, wdeps, node.dir,
+			ChangeAttachRequest{ID: id, Version: ver(), Path: planPath, Commit: planHead})
+		if attach.Result != ResultApplied {
+			t.Fatalf("attach plan = %q (reason %q msg %q findings %v)", attach.Result, attach.Reason, attach.Message, attach.Findings)
+		}
 
-	// (7) The implementation commit advances the feature head. A results artifact is
-	// REQUIRED at the implemented boundary (change 0410), so it rides this commit
-	// with its deterministic backlink stamped through the artifact-backlink
-	// operation, and is attached below.
-	writeRepoFile(t, wp, "widget.go", "package widget\n")
-	writeRepoFile(t, wp, resultsPath, "# Widget — Results\n\n## Outcome\n\nDelivered the widget end to end; the gate certifies this head.\n")
-	blR := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: resultsPath, ChangePath: recPath})
-	if blR.Result != ResultApplied {
-		t.Fatalf("artifact backlink (results) = %q (reason %q msg %q)", blR.Result, blR.Reason, blR.Message)
-	}
-	runGit(t, wp, "add", "-A")
-	runGit(t, wp, "commit", "-q", "-m", "implement the widget")
-	head := runGit(t, wp, "rev-parse", "HEAD")
+		// (7) The implementation commit advances the feature head. A results artifact is
+		// REQUIRED at the implemented boundary (change 0410), so it rides this commit
+		// with its deterministic backlink stamped through the artifact-backlink
+		// operation, and is attached below.
+		writeRepoFile(t, wp, "widget.go", "package widget\n")
+		writeRepoFile(t, wp, resultsPath, "# Widget — Results\n\n## Outcome\n\nDelivered the widget end to end; the gate certifies this head.\n")
+		blR := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: resultsPath, ChangePath: recPath})
+		if blR.Result != ResultApplied {
+			t.Fatalf("artifact backlink (results) = %q (reason %q msg %q)", blR.Result, blR.Reason, blR.Message)
+		}
+		runGit(t, wp, "add", "-A")
+		runGit(t, wp, "commit", "-q", "-m", "implement the widget")
+		head := runGit(t, wp, "rev-parse", "HEAD")
 
-	// (7b) Attach the results artifact so the record carries results: — the
-	// mark-implemented results conjunct (change 0410) requires it.
-	attachR := ChangeAttachResults(ctx, node.deps, wdeps, node.dir,
-		ChangeAttachRequest{ID: id, Version: ver(), Path: resultsPath, Commit: head})
-	if attachR.Result != ResultApplied {
-		t.Fatalf("attach results = %q (reason %q msg %q findings %v)", attachR.Result, attachR.Reason, attachR.Message, attachR.Findings)
-	}
+		// (7b) Attach the results artifact so the record carries results: — the
+		// mark-implemented results conjunct (change 0410) requires it.
+		attachR := ChangeAttachResults(ctx, node.deps, wdeps, node.dir,
+			ChangeAttachRequest{ID: id, Version: ver(), Path: resultsPath, Commit: head})
+		if attachR.Result != ResultApplied {
+			t.Fatalf("attach results = %q (reason %q msg %q findings %v)", attachR.Result, attachR.Reason, attachR.Message, attachR.Findings)
+		}
 
-	// (8) Launch the real trivially-passing gate through the native supervisor and
-	// observe it to a passed terminal.
-	gateRoot := testsupport.TempDir(t)
-	launch := GateLaunch(gateRoot, wp, []string{passingGateScript(t)})
-	if launch.Result != ResultApplied || launch.RunDir == "" {
-		t.Fatalf("gate launch = %q (reason %q)", launch.Result, launch.Reason)
-	}
-	pollGatePassed(t, launch.RunDir)
+		// (8) Launch the real trivially-passing gate through the native supervisor and
+		// observe it to a passed terminal.
+		gateRoot := testsupport.TempDir(t)
+		launch := GateLaunch(gateRoot, wp, []string{passingGateScript(t)})
+		if launch.Result != ResultApplied || launch.RunDir == "" {
+			t.Fatalf("gate launch = %q (reason %q)", launch.Result, launch.Reason)
+		}
+		pollGatePassed(t, launch.RunDir)
 
-	// (9) Evidence is derived from the passed terminal observation at the current
-	// feature head — never an agent-supplied command or boolean.
-	evd := EvidenceRecord(ctx, node.deps, wdeps, node.dir, EvidenceRecordRequest{ID: id, RunDir: launch.RunDir, Head: head})
-	if evd.Result != ResultApplied || evd.Block == "" {
-		t.Fatalf("evidence record = %q (reason %q msg %q)", evd.Result, evd.Reason, evd.Message)
-	}
-	evidenceBytes := []byte(evd.Block)
+		// (9) Evidence is derived from the passed terminal observation at the current
+		// feature head — never an agent-supplied command or boolean.
+		evd := EvidenceRecord(ctx, node.deps, wdeps, node.dir, EvidenceRecordRequest{ID: id, RunDir: launch.RunDir, Head: head})
+		if evd.Result != ResultApplied || evd.Block == "" {
+			t.Fatalf("evidence record = %q (reason %q msg %q)", evd.Result, evd.Reason, evd.Message)
+		}
+		evidenceBytes := []byte(evd.Block)
 
-	// (10) Verify the record against the exact head (the invalidate-on-fix pin).
-	if v := EvidenceVerify(EvidenceVerifyRequest{RecordFile: evidenceBytes, Head: head}); v.Result != ResultApplied {
-		t.Fatalf("evidence verify = %q (verdict %q reason %q)", v.Result, v.Verdict, v.Reason)
-	}
+		// (10) Verify the record against the exact head (the invalidate-on-fix pin).
+		if v := EvidenceVerify(EvidenceVerifyRequest{RecordFile: evidenceBytes, Head: head}); v.Result != ResultApplied {
+			t.Fatalf("evidence verify = %q (verdict %q reason %q)", v.Result, v.Verdict, v.Reason)
+		}
 
-	// (11) Publish the feature head to the remote.
-	pub := WorkspacePublish(ctx, node.deps, wdeps, node.dir, WorkspacePublishRequest{ID: id, Head: head})
-	if pub.Result != ResultApplied {
-		t.Fatalf("workspace publish = %q (reason %q msg %q)", pub.Result, pub.Reason, pub.Message)
-	}
+		// (11) Publish the feature head to the remote.
+		pub := WorkspacePublish(ctx, node.deps, wdeps, node.dir, WorkspacePublishRequest{ID: id, Head: head})
+		if pub.Result != ResultApplied {
+			t.Fatalf("workspace publish = %q (reason %q msg %q)", pub.Result, pub.Reason, pub.Message)
+		}
 
-	// The GitHub seam: a real githubcli.Client over the fake gh, told the exact
-	// published head so its created PR reports it as headRefOid.
-	stateFile := filepath.Join(testsupport.TempDir(t), "gh-state.json")
-	ghEnv := append(os.Environ(),
-		"FAKE_GH_STATE="+stateFile,
-		"FAKE_GH_REPO_URL=https://github.com/acme/widget",
-		"FAKE_GH_OWNER=acme",
-		"FAKE_GH_NAME=widget",
-		"FAKE_GH_HEAD="+head,
-	)
-	ghClient, err := githubcli.NewClient(githubcli.WithExecutable(ghBin), githubcli.WithBaseEnvironment(ghEnv))
-	if err != nil {
-		t.Fatalf("githubcli.NewClient over fake gh: %v", err)
-	}
-	gdeps := GitHubDeps{Service: ghClient}
+		// The GitHub seam: a real githubcli.Client over the fake gh, told the exact
+		// published head so its created PR reports it as headRefOid.
+		stateFile := filepath.Join(testsupport.TempDir(t), "gh-state.json")
+		ghEnv := append(os.Environ(),
+			"FAKE_GH_STATE="+stateFile,
+			"FAKE_GH_REPO_URL=https://github.com/acme/widget",
+			"FAKE_GH_OWNER=acme",
+			"FAKE_GH_NAME=widget",
+			"FAKE_GH_HEAD="+head,
+		)
+		ghClient, err := githubcli.NewClient(githubcli.WithExecutable(ghBin), githubcli.WithBaseEnvironment(ghEnv))
+		if err != nil {
+			t.Fatalf("githubcli.NewClient over fake gh: %v", err)
+		}
+		gdeps := GitHubDeps{Service: ghClient}
 
-	// (12) Publish the pull request with authored prose; the operation weaves in
-	// the backlink and evidence blocks and drives the real probe/act/verify path.
-	pr := PRPublish(ctx, node.deps, wdeps, gdeps, node.dir, PRPublishRequest{
-		ID:             id,
-		Head:           head,
-		Title:          "Add the widget",
-		Body:           "Authored PR prose for the widget.\n",
-		EvidenceRecord: evidenceBytes,
-	})
-	if pr.Result != ResultApplied || pr.Disposition != string(githubcli.EnsureCreated) {
-		t.Fatalf("pr publish = %q (disposition %q reason %q msg %q)", pr.Result, pr.Disposition, pr.Reason, pr.Message)
-	}
-	if pr.Head != head || pr.Base == "" || pr.Reference == "" {
-		t.Fatalf("pr snapshot did not round-trip: %+v", pr)
-	}
+		// (12) Publish the pull request with authored prose; the operation weaves in
+		// the backlink and evidence blocks and drives the real probe/act/verify path.
+		pr := PRPublish(ctx, node.deps, wdeps, gdeps, node.dir, PRPublishRequest{
+			ID:             id,
+			Head:           head,
+			Title:          "Add the widget",
+			Body:           "Authored PR prose for the widget.\n",
+			EvidenceRecord: evidenceBytes,
+		})
+		if pr.Result != ResultApplied || pr.Disposition != string(githubcli.EnsureCreated) {
+			t.Fatalf("pr publish = %q (disposition %q reason %q msg %q)", pr.Result, pr.Disposition, pr.Reason, pr.Message)
+		}
+		if pr.Head != head || pr.Base == "" || pr.Reference == "" {
+			t.Fatalf("pr snapshot did not round-trip: %+v", pr)
+		}
 
-	// (13) Mark implemented after reprobing every published effect.
-	mi := ChangeMarkImplemented(ctx, node.deps, wdeps, gdeps, node.dir, MarkImplementedRequest{
-		ID:             id,
-		Version:        ver(),
-		Head:           head,
-		PR:             pr.Reference,
-		EvidenceRecord: evidenceBytes,
-	})
-	if mi.Result != ResultApplied || mi.Status != string("implemented") {
-		t.Fatalf("mark implemented = %q (status %q findings %v)", mi.Result, mi.Status, mi.Findings)
-	}
+		// (13) Mark implemented after reprobing every published effect.
+		mi := ChangeMarkImplemented(ctx, node.deps, wdeps, gdeps, node.dir, MarkImplementedRequest{
+			ID:             id,
+			Version:        ver(),
+			Head:           head,
+			PR:             pr.Reference,
+			EvidenceRecord: evidenceBytes,
+		})
+		if mi.Result != ResultApplied || mi.Status != string("implemented") {
+			t.Fatalf("mark implemented = %q (status %q findings %v)", mi.Result, mi.Status, mi.Findings)
+		}
 
-	// (14) Read-only run verification: every postcondition holds ⇒ run-complete.
-	rv := RunVerify(ctx, node.deps, wdeps, gdeps, node.dir, RunVerifyRequest{ID: id})
-	if rv.Result != ResultApplied || rv.Verdict != VerdictRunComplete {
-		t.Fatalf("run verify = %q verdict %q, want applied/run-complete (unmet %v)", rv.Result, rv.Verdict, rv.Unmet)
-	}
-	if len(rv.Unmet) != 0 {
-		t.Errorf("run-complete carried unmet conjuncts: %v", rv.Unmet)
-	}
+		// (14) Read-only run verification: every postcondition holds ⇒ run-complete.
+		rv := RunVerify(ctx, node.deps, wdeps, gdeps, node.dir, RunVerifyRequest{ID: id})
+		if rv.Result != ResultApplied || rv.Verdict != VerdictRunComplete {
+			t.Fatalf("run verify = %q verdict %q, want applied/run-complete (unmet %v)", rv.Result, rv.Verdict, rv.Unmet)
+		}
+		if len(rv.Unmet) != 0 {
+			t.Errorf("run-complete carried unmet conjuncts: %v", rv.Unmet)
+		}
 
-	// Negative half: every metadata-remote commit past the fixture base is an
-	// engine transaction (carries Docket-Transaction-ID), and the four durable
-	// transitions are exactly the operations that ran — no direct skill-owned
-	// metadata write slipped in.
-	assertEngineOnlyMetadataCommits(t, repo.origin, m.branch, baseTip,
-		[]string{"change.attach-plan", "change.attach-results", "change.claim", "change.mark-implemented", "change.reconcile"})
+		// Negative half: every metadata-remote commit past the fixture base is an
+		// engine transaction (carries Docket-Transaction-ID), and the durable
+		// transitions are exactly the operations that ran — no direct skill-owned
+		// metadata write slipped in.
+		assertEngineOnlyMetadataCommits(t, repo.origin, m.branch, baseTip,
+			[]string{"change.attach-plan", "change.attach-results", "change.claim", "change.mark-implemented", "change.reconcile"})
+		return gdeps
+	}
+	if len(entries) == 0 {
+		complete("")
+	} else {
+		entries[0](node, wdeps, complete)
+	}
 }
 
 // buildConfiguredRepo builds the docket-topology bare remote with resolved
