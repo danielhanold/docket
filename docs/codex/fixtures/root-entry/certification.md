@@ -55,3 +55,28 @@ used for this certification.
 The managed app-server proxy control socket was also spiked and failed after initialization with a
 broken pipe. Direct `codex app-server --stdio` completed the same protocol. Production therefore
 uses the direct, closed argv `codex app-server --stdio` and has no proxy or `codex exec` fallback.
+
+## 2026-09-08 — cross-worktree resolver regression
+
+This certification used a disposable real-Git topology only: a primary worktree,
+coordinator worktree A, and feature worktree B. A rebase deliberately conflicted
+in B on conflict.txt; git -C B ls-files -u -- conflict.txt returned two live
+stage entries while the same read-only probe in A returned no entries. It did not
+start, resolve, or continue any production rebase.
+
+The public command entered the actual generated docket-rebase-resolver
+registration with --cwd A --worktree B. Its unchanged request included the
+standalone field Feature worktree: <absolute canonical B>. The scripted
+app-server consumed the selected installed resolver contract and used its
+received thread/start.cwd for the unmerged-index probe. The fixed route observed
+canonical B and B's non-empty conflict.txt entries through a terminal
+agentMessage.
+
+For the failed-current mutation, the feature-child entry route was temporarily
+changed to pass A as thread/start.cwd. The same regression failed with
+resolver observed no unmerged entries from <A>; original cross-worktree symptom;
+the production route was restored immediately.
+
+- Codex CLI: codex-cli 0.153.4
+- Tested source HEAD: 6ea27f6796be26146e9484312adff6866617d99e
+- Green command: go test -count=3 ./internal/cli -run 'TestIntegrationAgentEnterFeatureResolverObservesSelectedWorktreeConflict'

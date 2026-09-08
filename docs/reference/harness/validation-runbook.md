@@ -416,10 +416,63 @@ the Codex version and `multi_agent` setting are recorded in the results doc. A r
 rejection or explicit policy denial of an actually-attempted dispatch is the only valid
 unavailable verdict.
 
+## Phase 8 — Feature resolver worktree conflict probe
+
+This is a local, production-shaped regression fixture for the feature-scoped
+docket-rebase-resolver entry boundary. It does not start, resolve, continue,
+or make any claim about a real production rebase.
+
+- [ ] 1. Create a disposable Git repository with a primary worktree, coordinator
+  worktree **A**, and feature worktree **B**. Commit conflicting additions of
+  conflict.txt on A and B, then run git -C B rebase feature-a and leave the
+  expected conflict in place. Confirm the distinction before entry:
+  ~~~sh
+  git -C A ls-files -u -- conflict.txt  # expect no output
+  git -C B ls-files -u -- conflict.txt  # expect non-empty stage entries
+  ~~~
+
+- [ ] 2. Seed the generated docket-rebase-resolver registration into an
+  isolated home. Enter the public operation with A as caller context and B as
+  the explicit runtime authority. Keep the request bytes unchanged, including
+  this standalone field:
+  ~~~text
+  Feature worktree: <absolute canonical B>
+  ~~~
+  ~~~sh
+  docket agent enter \
+    --role docket-rebase-resolver \
+    --request <unchanged-request-file> \
+    --cwd <absolute-A> \
+    --worktree <absolute-canonical-B> \
+    --approval-policy never \
+    --sandbox workspace-write
+  ~~~
+
+- [ ] 3. A scripted app-server may replace only model reasoning. It must consume
+  the installed resolver contract and, from the received thread/start.cwd,
+  execute the read-only probe git -C <thread-start-cwd> ls-files -u --
+  conflict.txt. Pass only when the normal terminal agentMessage names B's
+  canonical root and returns B's non-empty unmerged set.
+
+- [ ] 4. Mutation-check the entry route by temporarily passing A as the
+  thread/start.cwd. The regression must fail because the observed unmerged set
+  is empty, then restore the B route. Use disposable worktrees and abort the
+  rebase/remove linked worktrees in failure-safe cleanup.
+
+**Pass when:** the same public feature-child entry that receives --cwd A
+--worktree B starts the app-server process and thread at canonical B, preserves
+the request bytes, and observes B's live unmerged index. This is a boundary
+probe only; it is not evidence that any production rebase was resolved.
+
+**Recorded implementation evidence (2026-09-08):** the focused command
+go test -count=3 ./internal/cli -run
+'TestIntegrationAgentEnterFeatureResolverObservesSelectedWorktreeConflict'
+passed at source HEAD 6ea27f6796be26146e9484312adff6866617d99e.
+
 ## Pass criteria
 
 The runbook as a whole **passes** when:
-- Phases 1, 2, 3, 6, and 7 pass as stated above, **and**
+- Phases 1, 2, 3, 6, 7, and 8 pass as stated above, **and**
 - Phases 4 and 5 each have a **definitive observed answer**, whether that answer is yes or no.
 
 A "no" on Phase 4 or Phase 5 is a valid, recordable outcome — it is not a runbook failure, it
