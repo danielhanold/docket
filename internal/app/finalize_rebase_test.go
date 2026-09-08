@@ -237,6 +237,27 @@ func (f *rebaseFixture) finalizeDeps(gh FinalizeGitHub, gate FinalizeGate) Final
 	}
 }
 
+// freshFinalizeDeps builds a fully independent FinalizeDeps over the SAME on-disk
+// repository as the fixture: its own gitcli.Client, its own StatusReader, its own
+// workspace.Service, and fresh fakes — no in-process state shared with any other
+// deps. It models a separate OS process (docket runs one operation per process, so
+// gitStatusReader is constructed fresh per operation). Two of these racing share
+// only the on-disk repo and its per-workspace flock (keyed on the metaDir), so a
+// concurrency test proves the file lock — not shared Go memory — is what serializes
+// admission, and never trips the race detector on a reader field no real deployment
+// shares.
+func (f *rebaseFixture) freshFinalizeDeps(t *testing.T) FinalizeDeps {
+	t.Helper()
+	node := planningDepsFor(t, f.repo.invocation)
+	svc, err := workspace.NewService(node.deps.Client)
+	if err != nil {
+		t.Fatalf("workspace.NewService: %v", err)
+	}
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
+	return FinalizeDeps{Planning: node.deps, GitHub: gh, Workspace: svc, Gate: gate}
+}
+
 // prForHead builds an open PR for the feature head, targeting main, with the
 // given body (empty for no evidence).
 func (f *rebaseFixture) prForHead(head, body string) githubcli.PullRequest {

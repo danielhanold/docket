@@ -105,6 +105,11 @@ type skillBudget struct {
 // docket-review/SKILL.md (word 900 -> 913). Authored contract documentation, not
 // slack — the ceilings are pinned at the exact new counts, so the ratchet still
 // reddens on any further regrowth.
+//
+// Change 0349's reserve-before-dispatch prose follows the 0410 baseline. Together
+// they bring docket-finalize-change/SKILL.md to 226 lines and 5179 words, so its
+// rounded ceilings remain a durable ratchet rather than silently dropping either
+// change's contract.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -124,8 +129,8 @@ var skillBudgets = []skillBudget{
 	{"docket-convention/references/learnings.md", 84, 580},
 	{"docket-convention/references/stacked-changes.md", 215, 2140}, // 0327: +carry-preservation contract prose (see note above)
 	{"docket-convention/references/terminal-close-out.md", 240, 2150},
-	{"docket-finalize-change/SKILL.md", 217, 4946}, // 0346: +verified post-merge rebuild contract prose; 0388: +sync-integration prose; 0327: +carry-preservation prose (see note above)
-	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
+	{"docket-finalize-change/SKILL.md", 230, 5200},                   // 0349: +reserve-before-dispatch resolver protocol prose after 0410's required-results baseline
+	{"docket-finalize-change/references/gate-failure.md", 120, 1300}, // 0349: +reserve-before-dispatch resolver protocol prose (115 -> 120 lines)
 	{"docket-groom-next/SKILL.md", 77, 1650},
 	{"docket-implement-next/SKILL.md", 201, 7530},                // 0410: +mandatory Step 6.5 checkpoint lifecycle; 0354: +halt-report body-only prose; 0376: +gate.drive JSON-capture caller contract (see note above)
 	{"docket-implement-next/references/edge-paths.md", 78, 1091}, // 0410: +resume/recovery + required-results reconciliation (see note above)

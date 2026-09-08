@@ -339,7 +339,17 @@ func TestFinalizeResolverReserveWriteFailureNoAdmission(t *testing.T) {
 // `pending` (or contended), and the final used count is exactly 1 — no double
 // admission.
 func TestFinalizeResolverReserveConcurrent(t *testing.T) {
-	f, begin, deps := beginConflictedWithLimit(t, 3)
+	f, begin, _ := beginConflictedWithLimit(t, 3)
+
+	// Each racing reservation gets its OWN process-like deps (own reader, service,
+	// and client) over the SAME on-disk repo, so the only thing they share is the
+	// per-workspace flock on the metaDir — exactly how two concurrent `docket
+	// finalize resolver-reserve` OS processes contend. Sharing one in-process deps
+	// (and thus one gitStatusReader) would trip the race detector on a reader field
+	// no real deployment shares, and would test shared Go memory rather than the
+	// file lock this test is about. Build both deps here (on the test goroutine) so
+	// no t.Fatalf runs off it.
+	perGoroutineDeps := []FinalizeDeps{f.freshFinalizeDeps(t), f.freshFinalizeDeps(t)}
 
 	var wg sync.WaitGroup
 	results := make([]FinalizeReserveResult, 2)
@@ -347,7 +357,7 @@ func TestFinalizeResolverReserveConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			results[i] = FinalizeResolverReserve(context.Background(), deps, f.repo.invocation, f.id, begin.Attempt)
+			results[i] = FinalizeResolverReserve(context.Background(), perGoroutineDeps[i], f.repo.invocation, f.id, begin.Attempt)
 		}(i)
 	}
 	wg.Wait()
