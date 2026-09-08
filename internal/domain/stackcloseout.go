@@ -77,6 +77,70 @@ func RootCloseoutProven(set []CarriedDescendant) bool {
 	return true
 }
 
+// DeriveCarriedSet selects, for a LIVE carrying change (a branch about to be
+// rewritten, published, or merged), every descendant whose stacked-merged code
+// that branch currently PROMISES to carry: children connected by an unbroken
+// chain of stacked-merged changes whose verified PR destinations match their
+// recorded parent branches. It stops descending into an open intermediate
+// child — grandchildren merged into a still-open child are not yet promised by
+// this branch. A purported carried link (a stacked-merged child) with unknown
+// or mismatched facts is surfaced with a refusal token, never omitted.
+// A merged PR destination proves a RELATIONSHIP only; Git preservation of the
+// content is the caller's separate obligation.
+//
+// The *PolicyFailure return is reserved for a structural problem with the
+// parent argument itself — an absent or ambiguous record — and is nil once the
+// parent resolves, in which case every per-descendant outcome travels through
+// Proof. The walk is guarded by a visited set (seeded with the parent) so a
+// malformed graph terminates, the revisited node reporting cycle.
+func DeriveCarriedSet(s Snapshot, parent ChangeID, facts map[ChangeID]PRFacts) ([]CarriedDescendant, *PolicyFailure) {
+	pc, out := s.Change(parent)
+	switch out {
+	case LookupAbsent:
+		return nil, &PolicyFailure{Kind: FailInvalidInput, Change: parent, Reason: "parent-not-found"}
+	case LookupAmbiguous:
+		return nil, &PolicyFailure{Kind: FailInvalidInput, Change: parent, Reason: "parent-ambiguous"}
+	}
+
+	set := []CarriedDescendant{}
+	visited := map[ChangeID]bool{parent: true}
+	var walk func(p Change)
+	walk = func(p Change) {
+		for _, cid := range StackChildren(s, p.ID()) {
+			if visited[cid] {
+				set = append(set, CarriedDescendant{ID: cid, Proof: carryCycle})
+				continue
+			}
+			visited[cid] = true
+			c, out := s.Change(cid)
+			if out != LookupFound {
+				set = append(set, CarriedDescendant{ID: cid, Proof: carryChainBroken})
+				continue
+			}
+			if c.Status() != StatusStackedMerged {
+				// An open or terminal child claims no carry for this parent
+				// branch; grandchildren beneath it are not descended.
+				continue
+			}
+			token := ""
+			f, ok := facts[cid]
+			branch := p.Branch()
+			switch {
+			case !ok || f.State != prStateMerged:
+				token = carryPRUnknown
+			case branch.State != FieldPresent || branch.Value == "" || f.BaseRef != branch.Value:
+				token = carryDestinationMismatch
+			}
+			set = append(set, CarriedDescendant{ID: cid, Proof: token})
+			if token == "" {
+				walk(c)
+			}
+		}
+	}
+	walk(pc)
+	return set, nil
+}
+
 // proveCarry walks id's stacked_on chain up toward root, verifying at each link
 // that the node's merged PR landed on its parent's branch, that no intermediate
 // is killed, and that every intermediate is itself a carried stacked-merged
