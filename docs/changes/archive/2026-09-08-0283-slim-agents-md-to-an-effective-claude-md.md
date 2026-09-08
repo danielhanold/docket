@@ -2,7 +2,7 @@
 id: 283
 slug: slim-agents-md-to-an-effective-claude-md
 title: 'Slim AGENTS.md to an effective, lean always-in-context file'
-status: 'implemented'
+status: 'done'
 priority: medium
 type: docs
 created: 2026-08-09
@@ -20,7 +20,7 @@ branch: 'docs/slim-agents-md-to-an-effective-claude-md'
 pr: 'https://github.com/danielhanold/docket/pull/293'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-08T20:46:02Z'
+claimed_at:
 ---
 
 ## Artifacts

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0283 — Slim AGENTS.md to an effective, lean always-in-context file](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0283-slim-agents-md-to-an-effective-claude-md.md)**
+> ↩ **[Change 0283 — Slim AGENTS.md to an effective, lean always-in-context file](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-08-0283-slim-agents-md-to-an-effective-claude-md.md)**
 <!-- docket:backlink:end -->
 
 # Slim AGENTS.md while preserving its operational safeguards
