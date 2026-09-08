@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pelletier/go-toml/v2"
+
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/install"
@@ -88,6 +90,35 @@ type RoleContract struct {
 	Effort                string
 	Skills                []string
 	DeveloperInstructions string
+}
+
+// RoleContractFromDefinition reads the native definition Codex registered and
+// overlays its launch values on the inventory-derived contract. Launch posture,
+// worktree scope, and skill bindings remain typed inventory facts; the native
+// file is authoritative for the values app-server itself resolves from the
+// repository-before-global agent registry.
+func RoleContractFromDefinition(data []byte, inventory RoleContract) (RoleContract, error) {
+	var definition struct {
+		Name                  string `toml:"name"`
+		Description           string `toml:"description"`
+		Model                 string `toml:"model"`
+		Effort                string `toml:"model_reasoning_effort"`
+		DeveloperInstructions string `toml:"developer_instructions"`
+	}
+	if err := toml.Unmarshal(data, &definition); err != nil {
+		return RoleContract{}, fmt.Errorf("%w: invalid installed role definition: %v", ErrRender, err)
+	}
+	if definition.Name != inventory.Name {
+		return RoleContract{}, fmt.Errorf("%w: installed role name %q does not match requested role %q", ErrRender, definition.Name, inventory.Name)
+	}
+	if definition.Description == "" || definition.DeveloperInstructions == "" {
+		return RoleContract{}, fmt.Errorf("%w: installed role %q omits its description or developer instructions", ErrRender, inventory.Name)
+	}
+	inventory.Description = definition.Description
+	inventory.Model = definition.Model
+	inventory.Effort = definition.Effort
+	inventory.DeveloperInstructions = definition.DeveloperInstructions
+	return inventory, nil
 }
 
 // New returns the Codex adapter.

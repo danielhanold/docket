@@ -550,6 +550,42 @@ func TestRoleContractForRejectsUnknownRole(t *testing.T) {
 	}
 }
 
+func TestRoleContractFromDefinitionPreservesInventoryRouting(t *testing.T) {
+	inventory := RoleContract{
+		Name: "docket-rebase-resolver", LaunchPosture: harness.LaunchChild,
+		WorktreeScope: harness.WorktreeScopeFeature, Skills: []string{"docket-convention"},
+	}
+	definition := []byte("name = \"docket-rebase-resolver\"\ndescription = \"repo role\"\nmodel = \"repo-model\"\nmodel_reasoning_effort = \"high\"\ndeveloper_instructions = \"repo developer\"\n")
+	got, err := RoleContractFromDefinition(definition, inventory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Model != "repo-model" || got.Effort != "high" || got.DeveloperInstructions != "repo developer" || got.Description != "repo role" {
+		t.Fatalf("native values not preserved: %+v", got)
+	}
+	if got.LaunchPosture != inventory.LaunchPosture || got.WorktreeScope != inventory.WorktreeScope || len(got.Skills) != 1 || got.Skills[0] != "docket-convention" {
+		t.Fatalf("inventory routing not preserved: %+v", got)
+	}
+}
+
+func TestRoleContractFromDefinitionFailsClosed(t *testing.T) {
+	inventory := RoleContract{Name: "docket-status"}
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{"malformed", []byte("name = [\n")},
+		{"wrong identity", []byte("name = \"docket-adr\"\ndescription = \"x\"\ndeveloper_instructions = \"y\"\n")},
+		{"missing contract prose", []byte("name = \"docket-status\"\n")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := RoleContractFromDefinition(tc.data, inventory); err == nil {
+				t.Fatal("invalid native role definition accepted")
+			}
+		})
+	}
+}
+
 // TOML basic-string escaping for the scalar keys, and the multi-line
 // terminator defence for the instructions body.
 func TestCodexTOMLEscaping(t *testing.T) {

@@ -97,6 +97,13 @@ controls, so an agent must never conclude from such an inventory that dispatch i
 a failed direct attempt or an explicit policy denial establishes that. The harness-neutral statement
 of this rule lives in the `docket-convention` skill's *Dispatch-capability resolution* section.
 
+`agent.enter` resolves the native role definition with the same precedence Codex applies to the
+entered thread: `<effective-worktree>/.codex/agents/<role>.toml` first, then the user-level
+`~/.codex/agents/<role>.toml` as an explicit fallback. “Effective” means the caller repository for a
+root coordinator and the verified `--worktree` for a feature child. A present but malformed or
+identity-mismatched repository definition is refused; it never silently falls back to the global
+role.
+
 The proven nested-launch mechanics (codex-cli 0.151.0, `multi_agent = true`), the exact `spawn_agent`
 / `wait_agent` calls, the app-server entry path, and the rejected launch candidates are recorded in
 the live runbook and its fixtures — see [the Codex live-validation

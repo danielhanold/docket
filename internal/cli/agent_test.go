@@ -120,6 +120,80 @@ func TestAgentEnterCLIUsesVerifiedFeatureWorktree(t *testing.T) {
 	}
 }
 
+// Codex resolves a registered role from the thread's repository before the
+// user-global registry. agent.enter must seed the root thread from that same
+// definition, and feature entry must anchor the lookup in the verified target
+// worktree rather than the coordinator's checkout.
+func TestAgentEnterCLIUsesEffectiveRepositoryRoleBeforeGlobal(t *testing.T) {
+	paths := newAgentEntryWorktrees(t)
+	home := seedAgentInstallation(t)
+	writeAgentTestRole(t, home, "docket-implement-next", "global-root-model", "minimal", "GLOBAL ROOT DEVELOPER")
+	writeAgentTestRole(t, home, "docket-rebase-resolver", "global-feature-model", "medium", "GLOBAL FEATURE DEVELOPER")
+	dir := testsupport.TempDir(t)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stub := "#!/bin/sh\nexec '" + strings.ReplaceAll(exe, "'", "'\\''") + "' -test.run=^TestAgentEnterServerProcess$ -- \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "codex"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("DOCKET_AGENT_TEST_SERVER", "1")
+	request := "Preserve repository role precedence.\n"
+	t.Setenv("DOCKET_AGENT_TEST_REQUEST", request)
+
+	for _, tc := range []struct {
+		name, role, caller, worktree, skill, model, effort, developer string
+	}{
+		{"root uses caller repository", "docket-implement-next", paths.a, "", "docket-implement-next", "repo-root-model", "high", "REPOSITORY ROOT DEVELOPER"},
+		{"feature uses target worktree repository", "docket-rebase-resolver", paths.a, paths.b, "docket-convention", "repo-feature-model", "low", "REPOSITORY FEATURE DEVELOPER"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			effective := tc.caller
+			if tc.worktree != "" {
+				effective = tc.worktree
+				writeAgentTestRole(t, tc.caller, tc.role, "wrong-caller-model", "minimal", "WRONG CALLER DEVELOPER")
+			}
+			writeAgentTestRole(t, effective, tc.role, tc.model, tc.effort, tc.developer)
+			t.Setenv("DOCKET_AGENT_TEST_CWD", effective)
+			t.Setenv("DOCKET_AGENT_TEST_ROLE", tc.role)
+			t.Setenv("DOCKET_AGENT_TEST_SKILL", tc.skill)
+			t.Setenv("DOCKET_AGENT_TEST_DEVELOPER", tc.developer)
+			t.Setenv("DOCKET_AGENT_TEST_MODEL", tc.model)
+			t.Setenv("DOCKET_AGENT_TEST_EFFORT", tc.effort)
+			args := []string{"agent", "enter", "--role", tc.role, "--request", "-", "--cwd", tc.caller, "--approval-policy", "never", "--sandbox", "workspace-write", "--json"}
+			if tc.worktree != "" {
+				args = append(args, "--worktree", tc.worktree)
+			}
+			var out, stderr bytes.Buffer
+			code := Run(args, strings.NewReader(request), &out, &stderr, devInfo(), hostFacts())
+			if code != 0 || stderr.Len() != 0 {
+				t.Fatalf("code=%d out=%q stderr=%q", code, out.String(), stderr.String())
+			}
+			var result app.AgentEnterResult
+			if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			if result.Result != app.ResultApplied {
+				t.Fatalf("receipt: %+v", result)
+			}
+		})
+	}
+}
+
+func writeAgentTestRole(t *testing.T, repo, role, model, effort, developer string) {
+	t.Helper()
+	dir := filepath.Join(repo, ".codex", "agents")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := fmt.Sprintf("name = %q\ndescription = %q\nmodel = %q\nmodel_reasoning_effort = %q\ndeveloper_instructions = %q\n", role, "repository role", model, effort, developer)
+	if err := os.WriteFile(filepath.Join(dir, role+".toml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func installedAgentTestContract(t *testing.T, role string) codex.RoleContract {
 	t.Helper()
 	opts, refusal := installOptions(context.Background(), []string{"codex"}, "", false, devInfo())
@@ -127,6 +201,14 @@ func installedAgentTestContract(t *testing.T, role string) codex.RoleContract {
 		t.Fatal(refusal)
 	}
 	contract, err := codex.RoleContractFor(harness.PlanInput{Assets: opts.Catalog, Agents: opts.Config.Effective.Agents}, role)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := os.ReadFile(filepath.Join(opts.Roots.Home, ".codex", "agents", role+".toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract, err = codex.RoleContractFromDefinition(definition, contract)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,8 +300,22 @@ func TestAgentEnterServerProcess(t *testing.T) {
 			if dev != os.Getenv("DOCKET_AGENT_TEST_DEVELOPER") {
 				os.Exit(5)
 			}
+			if want := os.Getenv("DOCKET_AGENT_TEST_MODEL"); want != "" {
+				var model string
+				_ = json.Unmarshal(msg.Params["model"], &model)
+				if model != want {
+					os.Exit(5)
+				}
+			}
 			fmt.Println(`{"id":2,"result":{"thread":{"id":"root"}}}`)
 		case "turn/start":
+			if want := os.Getenv("DOCKET_AGENT_TEST_EFFORT"); want != "" {
+				var effort string
+				_ = json.Unmarshal(msg.Params["effort"], &effort)
+				if effort != want {
+					os.Exit(5)
+				}
+			}
 			var inputs []struct{ Type, Text, Name, Path string }
 			_ = json.Unmarshal(msg.Params["input"], &inputs)
 			var text string
