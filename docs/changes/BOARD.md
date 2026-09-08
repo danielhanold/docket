@@ -1,6 +1,6 @@
 # Backlog
 
-**410 changes** — 🟢 4 in progress · 🔵 2 built · 🟣 6 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 260 done · 🗑️ 113 killed
+**410 changes** — 🟢 4 in progress · 🔵 1 built · 🟣 6 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 261 done · 🗑️ 113 killed
 
 ## 🟢 In progress (4)
 
@@ -11,11 +11,10 @@
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-configurable-finalize-resolver-dispatch-cap-design.md) | `feat/configurable-finalize-resolver-dispatch-cap` |  |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | [spec](../superpowers/specs/2026-09-07-stack-closeout-must-prove-integration-reachability-design.md) | `fix/stack-closeout-must-prove-integration-reachability` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0408](active/0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | `high` | `fix` | [#287](https://github.com/danielhanold/docket/pull/287) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (6)
@@ -101,7 +100,6 @@ graph TD
   0393
   0398
   0405
-  0408
   0409
   0410
   0192:::done
@@ -111,10 +109,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (373)</summary>
+<details><summary>✅🗑️ Archive — done + killed (374)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0408](archive/2026-09-08-0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | 2026-09-08 |
 | [0407](archive/2026-09-07-0407-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md) | Keyed gate-verdict misattributes its verdict to a concurrent loop's change id under parallel implement-next runs | 2026-09-07 |
 | [0406](archive/2026-09-07-0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) | Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite | 2026-09-07 |
 | [0388](archive/2026-09-07-0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | 2026-09-07 |
@@ -157,7 +156,6 @@ graph TD
 | [0160](archive/2026-09-03-0160-a-committed-too-deep-runtime-bash-lost-its-machine-local-ign.md) | A committed too-deep runtime.bash lost its machine-local ignored advisory | 2026-09-03 |
 | [0158](archive/2026-09-03-0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | 2026-09-03 |
 | [0150](archive/2026-09-03-0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | 2026-09-03 |
-| [0397](archive/2026-09-02-0397-run-the-implementation-preflight-as-one-deterministic-operat.md) | Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default | 2026-09-02 |
 | [0381](archive/2026-09-02-0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | 2026-09-02 |
 | [0252](archive/2026-09-01-0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | 2026-09-01 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
@@ -248,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 9 done |
+| [2026-09](archive/) | 10 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

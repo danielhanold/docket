@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0408 — Finalize publish is denied by the auto-mode classifier whenever the gate rebases](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md)**
+> ↩ **[Change 0408 — Finalize publish is denied by the auto-mode classifier whenever the gate rebases](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-08-0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md)**
 <!-- docket:backlink:end -->
 
 # Change 0408 — Preserve a still-valid green gate across a denied finalize publish
