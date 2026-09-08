@@ -9,6 +9,7 @@ import (
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/evidence"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
 )
@@ -274,6 +275,27 @@ func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req
 	if receipt.ChangeID != strconv.Itoa(id) || receipt.Attempt != req.Attempt {
 		return publishRefusal(ResultBlocked, PublishDispBlocked, ReasonPublishForeignAttempt,
 			"the supplied attempt token does not match the owned rebase receipt; refusing to push", id)
+	}
+
+	// Prove every carried descendant's merged work is preserved at the publication
+	// head BEFORE any remote rewrite: the content proof only ADDS a conjunct and
+	// changes nothing about the receipt-scoped lease plumbing below (it never
+	// authorizes a different head or broadens the lease). An unproven carry refuses
+	// before PublishRewrite, so nothing is pushed; an observation failure is
+	// unknown/external (retained), never a clean unproven.
+	proof, perr := proveCarriedOnHead(ctx, deps, repoDir, wc.repo, wc.snap, wc.change, gitcli.ObjectID(req.Head))
+	if perr != nil {
+		return newPublishResult(ResultExternalFailed, FinalizePublishResult{
+			ID: id, Disposition: PublishDispUnknown, Head: req.Head,
+			Reason:  ReasonCarryUnproven,
+			Message: "carried-descendant preservation could not be established: " + perr.Error(),
+		})
+	}
+	if !proof.Proven {
+		r := publishRefusal(ResultBlocked, PublishDispBlocked, ReasonCarryUnproven,
+			"a carried descendant's merged work is not preserved at the publication head; refusing to push", id)
+		r.Findings = append(r.Findings, proof.Findings...)
+		return r
 	}
 
 	// Publish the rewrite under the receipt's exact lease. This probes the remote

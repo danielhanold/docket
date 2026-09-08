@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/workspace"
 	"strings"
 	"testing"
 )
@@ -579,4 +580,175 @@ func TestIntegrationFinalizeStatePublishUnknownStops(t *testing.T) {
 	if tip := f.remoteFeatureTip(t); tip != f.rewritten {
 		t.Errorf("remote tip = %q, want the rewritten head (the push is not rolled back)", tip)
 	}
+}
+
+// --- carried-descendant preservation gate at publish (Task 7) -------------
+
+// publishRewriteWitness wraps a real FinalizeWorkspace and counts PublishRewrite
+// calls so a test can PIN that a carry refusal never reaches the receipt-scoped
+// remote rewrite (zero calls) while the happy path DOES (one call). Every other
+// method delegates unchanged to the wrapped service.
+type publishRewriteWitness struct {
+	FinalizeWorkspace
+	calls int
+}
+
+func (w *publishRewriteWitness) PublishRewrite(ctx context.Context, req workspace.RewriteRequest) (workspace.RewriteOutcome, error) {
+	w.calls++
+	return w.FinalizeWorkspace.PublishRewrite(ctx, req)
+}
+
+// fakePublishCarryGitHub is fakePublishGitHub plus a live ProbeMerged so one fake
+// serves both the publish PR reprobe/edit AND the stacked descendant's merged
+// reprobe (probeDescendantFacts). The embedded fake's ProbeMerged panics; this
+// override shadows it, so a fixture with a carried child can drive the gate end
+// to end while an ordinary-change fixture keeps the loud panic.
+type fakePublishCarryGitHub struct {
+	*fakePublishGitHub
+	merged map[int]closeoutProbe
+	probes int
+}
+
+func (f *fakePublishCarryGitHub) ProbeMerged(_ context.Context, _ githubcli.Repository, number int) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+	f.probes++
+	p, ok := f.merged[number]
+	if !ok {
+		return githubcli.MergeNotMergeable, githubcli.MergedFacts{}, nil
+	}
+	return p.outcome, p.facts, nil
+}
+
+// TestIntegrationFinalizeStatePublishCarriedDescendant proves the FinalizePublish
+// carry gate: a receipt/attempt-authorized publish whose branch lost a carried
+// child's merged work refuses with ReasonCarryUnproven BEFORE any remote rewrite
+// (zero PublishRewrite calls, the remote feature ref untouched), even in a
+// crash-replay-shaped fixture; a preserved carry publishes and fires the rewrite
+// witness; and an ordinary no-descendant change publishes with zero GitHub
+// descendant probes. Every refusal fixture builds a real merge object that EXISTS
+// yet is DROPPED at the publication head, so the refusal is an observed
+// non-preservation, not a missing-object observation error.
+func TestIntegrationFinalizeStatePublishCarriedDescendant(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	ctx := context.Background()
+
+	t.Run("dropped-carry-refuses-before-rewrite-zero-pushcalls-remote-unchanged", func(t *testing.T) {
+		f := setupPublishFixture(t, m)
+		// Crash-replay shape: an owned receipt is present and the remote feature ref
+		// still holds the original (pre-rewrite) head — exactly the state a resumed
+		// publish observes. The gate must sit before the rewrite here too.
+		remoteBefore := f.remoteFeatureTip(t)
+		if remoteBefore != f.origHead {
+			t.Fatalf("precondition: remote tip = %q, want the original pre-rewrite head", remoteBefore)
+		}
+		seedRebaseCarryChild(t, f.rebaseFixture)
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "Y\n"})
+		if _, err := tryGit(f.repo.invocation, "cat-file", "-e", dropped); err != nil {
+			t.Fatalf("the child merge object must exist to pin a drop (not a missing object): %v", err)
+		}
+		gh := &fakePublishCarryGitHub{
+			fakePublishGitHub: &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, authoredPRBody(t, f.origHead))},
+			merged:            map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.rewritten, "feat/widget", dropped)}},
+		}
+		witness := &publishRewriteWitness{FinalizeWorkspace: f.svc}
+		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: witness}
+		_, evBytes := recFor(t, f.rewritten)
+		res := FinalizePublish(ctx, deps, f.repo.invocation,
+			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
+
+		if res.Result != ResultBlocked || res.Reason != ReasonCarryUnproven {
+			t.Fatalf("refusal = (%q, %q), want (%q, %q) [disp %q msg %q]", res.Result, res.Reason, ResultBlocked, ReasonCarryUnproven, res.Disposition, res.Message)
+		}
+		if res.Disposition != PublishDispBlocked {
+			t.Errorf("disposition = %q, want %q", res.Disposition, PublishDispBlocked)
+		}
+		if len(res.Findings) == 0 {
+			t.Errorf("a carry refusal carried no findings naming the unproven descendant")
+		}
+		if witness.calls != 0 {
+			t.Errorf("PublishRewrite ran %d time(s) on a carry refusal; want 0 (gate must precede the rewrite)", witness.calls)
+		}
+		if after := f.remoteFeatureTip(t); after != remoteBefore {
+			t.Errorf("a carry refusal touched the remote feature ref: %q -> %q", remoteBefore, after)
+		}
+	})
+
+	t.Run("preserved-carry-publishes-and-fires-the-rewrite-witness", func(t *testing.T) {
+		f := setupPublishFixture(t, m)
+		seedRebaseCarryChild(t, f.rebaseFixture)
+		// The child's merge-result is an ancestor of the publication head (a real
+		// object preserved by ancestry), so the proof passes and the publish proceeds
+		// through the receipt-scoped rewrite — the witness fires exactly once.
+		gh := &fakePublishCarryGitHub{
+			fakePublishGitHub: &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, authoredPRBody(t, f.origHead))},
+			merged:            map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.rewritten, "feat/widget", f.baseTip)}},
+		}
+		witness := &publishRewriteWitness{FinalizeWorkspace: f.svc}
+		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: witness}
+		_, evBytes := recFor(t, f.rewritten)
+		res := FinalizePublish(ctx, deps, f.repo.invocation,
+			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
+
+		if res.Reason == ReasonCarryUnproven {
+			t.Fatalf("a preserved carry was refused: reason %q msg %q", res.Reason, res.Message)
+		}
+		if res.Result != ResultApplied || res.Disposition != PublishDispPublished {
+			t.Fatalf("preserved carry publish = (%q, %q) reason %q msg %q, want (%q, %q)", res.Result, res.Disposition, res.Reason, res.Message, ResultApplied, PublishDispPublished)
+		}
+		if witness.calls != 1 {
+			t.Errorf("PublishRewrite ran %d time(s) on the happy path; want 1 (the witness must fire)", witness.calls)
+		}
+		if gh.probes == 0 {
+			t.Errorf("the descendant merged reprobe never ran; the carry gate did not probe the promised child")
+		}
+	})
+
+	t.Run("crash-replay-remote-at-new-head-still-refuses-before-rewrite", func(t *testing.T) {
+		f := setupPublishFixture(t, m)
+		// Land the push out of band so the remote already holds the rewritten head — a
+		// crash-after-push replay. The carry gate must still refuse before the rewrite
+		// (which would otherwise be a no-op resuming the PR update).
+		runGit(t, f.wp, "push", "--force", "-q", "origin", "HEAD:refs/heads/feat/"+f.slug)
+		if tip := f.remoteFeatureTip(t); tip != f.rewritten {
+			t.Fatalf("precondition: remote tip = %q, want the rewritten head", tip)
+		}
+		seedRebaseCarryChild(t, f.rebaseFixture)
+		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "Z\n"})
+		gh := &fakePublishCarryGitHub{
+			fakePublishGitHub: &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, authoredPRBody(t, f.origHead))},
+			merged:            map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.rewritten, "feat/widget", dropped)}},
+		}
+		witness := &publishRewriteWitness{FinalizeWorkspace: f.svc}
+		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: witness}
+		_, evBytes := recFor(t, f.rewritten)
+		res := FinalizePublish(ctx, deps, f.repo.invocation,
+			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
+
+		if res.Result != ResultBlocked || res.Reason != ReasonCarryUnproven {
+			t.Fatalf("replay-shaped refusal = (%q, %q), want (%q, %q)", res.Result, res.Reason, ResultBlocked, ReasonCarryUnproven)
+		}
+		if witness.calls != 0 {
+			t.Errorf("PublishRewrite ran %d time(s) on a replay-shaped carry refusal; want 0", witness.calls)
+		}
+	})
+
+	t.Run("ordinary-no-descendant-change-publishes-with-zero-descendant-probes", func(t *testing.T) {
+		f := setupPublishFixture(t, m)
+		// No stacked descendant: the carry gate is vacuously proven with ZERO GitHub
+		// descendant probes. The plain fake panics on ProbeMerged, so any descendant
+		// probe would be loud; the publish proceeds exactly as before.
+		gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, authoredPRBody(t, f.origHead))}
+		witness := &publishRewriteWitness{FinalizeWorkspace: f.svc}
+		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: witness}
+		_, evBytes := recFor(t, f.rewritten)
+		res := FinalizePublish(ctx, deps, f.repo.invocation,
+			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
+
+		if res.Result != ResultApplied || res.Disposition != PublishDispPublished {
+			t.Fatalf("ordinary publish = (%q, %q) reason %q, want (%q, %q)", res.Result, res.Disposition, res.Reason, ResultApplied, PublishDispPublished)
+		}
+		if witness.calls != 1 {
+			t.Errorf("PublishRewrite ran %d time(s); want 1", witness.calls)
+		}
+	})
 }
