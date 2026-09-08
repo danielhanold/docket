@@ -146,6 +146,10 @@ const (
 	// carries notes that differ from the terminal record; refused — a terminal
 	// record is never rewritten.
 	ReasonCloseoutNotesFrozen = "terminal-notes-frozen"
+	// ReasonCloseoutStackedUnpreserved: the child's merge result is not preserved
+	// at the parent's freshly pinned remote head; a historical PR destination is
+	// not evidence the parent currently carries the merge.
+	ReasonCloseoutStackedUnpreserved = "stacked-merge-not-preserved"
 )
 
 // closeoutBacklinkArtifactHeadings is the marker heading set the closeout record
@@ -627,12 +631,57 @@ func probeDescendantFacts(ctx context.Context, deps FinalizeDeps, ghRepo githubc
 	return facts, nil
 }
 
+// requireStackedPreservation pins the parent's remote branch head and proves the
+// child's merge-result commit is preserved there. It gates BOTH the fresh
+// stacked-merged marking and the already-stacked-merged replay: a historical PR
+// destination is a relationship, not evidence the parent still carries the work
+// (spec "Stacked and root closeout" ¶1). A fetch or preservation-observation
+// error is unknown (retained, never a terminal write); an unproven verdict is a
+// blocked refusal. `reprobeMerged` already refused any facts whose merge commit
+// fails validFullObjectID (its "no usable merge commit or merge date" guard runs
+// before this on every path), so a usable merge id is a precondition here rather
+// than a re-checked predicate — duplicated-gate-copies-the-whole-predicate warns
+// that a partial re-copy would drift from that upstream guard.
+func requireStackedPreservation(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, parentBranch string, facts githubcli.MergedFacts) *CloseoutResult {
+	id := int(cc.change.ID())
+	rev, err := deps.Planning.Client.FetchBranch(ctx, cc.repo, originRemote, gitcli.RefName(branchRefPrefix+parentBranch))
+	if err != nil {
+		r := newCloseoutResult(ResultExternalFailed, CloseoutResult{
+			ID: id, Disposition: CloseoutDispUnknown, Reason: ReasonCloseoutDestinationProbe, Message: err.Error(),
+		})
+		return &r
+	}
+	check, perr := deps.Planning.Client.ProvePreserved(ctx, cc.repo, originRemote, gitcli.ObjectID(facts.MergeCommit), rev.Commit)
+	if perr != nil {
+		r := newCloseoutResult(ResultExternalFailed, CloseoutResult{
+			ID: id, Disposition: CloseoutDispUnknown, Reason: ReasonCloseoutDestinationProbe, Message: perr.Error(),
+		})
+		return &r
+	}
+	if check.Outcome != gitcli.PreservationProven {
+		r := closeoutRefusal(ResultBlocked, CloseoutDispBlocked, ReasonCloseoutStackedUnpreserved,
+			fmt.Sprintf("change %04d's merge result %s is not preserved at parent branch %q head %s (%s%s); a historical PR destination is not evidence the parent still carries the merge",
+				id, facts.MergeCommit, parentBranch, rev.Commit, check.Detail, pathsSuffix(check.Paths)), id)
+		return &r
+	}
+	return nil
+}
+
 // closeoutStacked applies MarkStackedMerged in place, clears any stale
 // finalize-blocked marker, and rerenders the board — never archiving. A change
 // already stacked-merged whose destination is still its parent's branch is a
 // verified no-op.
 func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, parentBranch string, facts githubcli.MergedFacts, notes CloseoutNotes) CloseoutResult {
 	id := int(cc.change.ID())
+
+	// Prove the child's merge survives at the parent's pinned head BEFORE the
+	// already-stacked-merged replay short-circuit and before the transaction: one
+	// call gates both the fresh marking and the replay, so a stale-worktree rebase
+	// that clobbered the child can never be stamped (or re-stamped) stacked-merged.
+	if refusal := requireStackedPreservation(ctx, deps, cc, parentBranch, facts); refusal != nil {
+		return *refusal
+	}
+
 	if cc.change.Status() == domain.StatusStackedMerged {
 		// Replay against the terminal in-place record's own bytes: identical notes
 		// (or none) are a byte-level no-op; different notes cannot rewrite it.
