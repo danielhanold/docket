@@ -9,7 +9,7 @@
 > failure posture differs per caller (table below). This file owns ordering and posture; each
 > script's mechanics live in its co-located contract (`scripts/<name>.md`).
 
-Contents: [The sequence](#the-sequence-docket-mode) · [main-mode degradation](#main-mode-degradation) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
+Contents: [The sequence](#the-sequence-docket-mode) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
 
 ## The sequence (docket-mode)
 
@@ -120,17 +120,6 @@ before the first read; every commit pushes immediately.
    the sole writer; a caller neither invokes a board renderer nor follows the typed mutation with a
    second board commit. `BOARD.md` is the live planning view and is never published to the
    integration branch.
-
-## main-mode degradation
-
-In single-branch/`main`-mode the metadata working tree *is* the integration branch, so the step-1
-archive commit is itself the terminal record: terminal publication stays a deferred no-op, and the
-step-1 transaction re-points the `## Artifacts` block and every back-link in place within that same
-commit (there is no separate step-2 commit). Step 4 is unchanged; step 5's board render rides the
-step-1 commit.
-
-The `terminal_publish` knob (change 0064) is likewise inert in `main`-mode — the mode guard already
-makes the publish a no-op, so there is no surface for the knob to act on.
 
 ## Failure posture — per caller
 

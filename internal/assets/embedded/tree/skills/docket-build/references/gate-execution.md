@@ -5,7 +5,7 @@ capability and stays harness-neutral; every product-specific name, setting, and 
 quarantined here. That quarantine is what lets the rule stay actionable without the contract naming
 a tool.
 
-## The six required capabilities
+## The required capabilities
 
 These are required **capabilities**, not required mechanisms — each harness may satisfy them
 differently.
@@ -130,9 +130,9 @@ sections above are point-in-time records and are untouched by this gate.
 | Codex | `0.150.1` | named dispatch, same-agent resume when available, fresh continuation fallback | `unverified — 0359 re-probe pending (human, pre-merge)` |
 | OpenCode | `1.18.23` | named dispatch + continuation dispatch | `unverified — 0359 re-probe pending (human, pre-merge)` |
 
-### The seven probe scenarios
+### The probe scenarios
 
-Each harness must be observed against all seven:
+Each harness must be observed against all of them:
 
 1. a fast test that returns before 30 seconds;
 2. a test spanning the first slice, with deterministic worker-to-controller handoff;

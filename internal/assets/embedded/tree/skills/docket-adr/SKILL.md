@@ -71,8 +71,6 @@ ADRs and their index are authored and live on `metadata_branch` (`docket`). term
 
 Records already published onto the integration branch by an earlier tool version are left untouched as history: a status flip to such an ADR leaves the previously published copy in place, and the `adr-unpublished` health check keeps that drift visible (the marker is *read*; acting on it is deferred). The frozen Bash publisher is not a supported fallback, and an enabled `terminal_publish:` key activates nothing.
 
-In `main`-mode the metadata working tree *is* the integration branch, so writing the ADR there is itself the record — there is nothing to publish and nothing deferred.
-
 ### Index / validate
 
 Every ADR transaction (record / supersede / reverse) re-renders `<adrs_dir>/README.md` atomically inside its own commit, so there is **no follow-up index render** after an ADR operation — the index is current the instant the transaction lands.
