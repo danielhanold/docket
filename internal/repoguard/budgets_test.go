@@ -123,7 +123,9 @@ var skillBudgets = []skillBudget{
 	{"docket-auto-groom/SKILL.md", 70, 1750},
 	{"docket-brainstorm/SKILL.md", 84, 692},
 	{"docket-build/SKILL.md", 406, 4054}, // 0393: +feature-dispatch marker pair atop 0410's capture-ownership boundary (see note above)
-	{"docket-build/references/delegation-execution.md", 85, 850},
+	// 0154: docket-build/references/delegation-execution.md removed — it was the
+	// evidence record for the Bash delegation facade that change 0370 deleted; its
+	// budget row is deleted with it.
 	{"docket-build/references/gate-caller-loop.md", 175, 1750},
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},

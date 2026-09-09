@@ -4,12 +4,9 @@ This reference is the **caller-side contract for driving the native gate**: the 
 operations a caller invokes, the disposition vocabulary those operations return, and the ownership
 handoff a departing caller must perform. It is a **caller contract, not a harness quarantine** —
 that axis separates it from [`gate-execution.md`](gate-execution.md), which holds the measured
-per-harness capability verdicts and mechanism detail read once, ahead of the act. Change 0271 drew
-the same line when it created `references/delegation-execution.md` rather than folding caller-facing
-content into `gate-execution.md`.
+per-harness capability verdicts and mechanism detail read once, ahead of the act.
 
-Change 0342 retired the executable Bash observe loop this file used to publish. A caller no longer
-sleeps and re-parses raw observation documents by hand; it makes **short, slice-bounded,
+A caller makes **short, slice-bounded,
 synchronous** calls to the native gate **driver**, which composes the raw supervisor,
 persists one deadline and one execution identity, and returns one of four typed dispositions per
 call. No caller runs a shell poll loop, backgrounds the suite, subscribes to a notification, or
@@ -118,7 +115,7 @@ The raw verbs — `gate.launch`, `gate.observe`, `gate.stop`,
 `gate.recover`, and `gate.cleanup` — retain their narrow primitive meanings and remain
 callable by the **driver implementation, primitive-level tests, diagnostics, recovery, cleanup, and
 operator workflows**. They are **not** high-level workflow APIs. A workflow caller never composes
-them directly and never recreates the retired observe/sleep loop — every build task worker, the
+them directly and never recreates a shell observe/sleep poll loop — every build task worker, the
 build controller's final gate, implement-next's evidence re-mint and re-gates, and finalize's local
 gate drive the gate through the `gate.drive` operations above instead. The raw verbs are
 documented as primitives in the operator-facing gate documentation, not here.

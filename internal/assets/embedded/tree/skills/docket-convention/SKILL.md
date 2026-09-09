@@ -17,7 +17,6 @@ Read at startup by every docket skill. Absent ⇒ all defaults. It is **committe
 
 ```yaml
 # .docket.yml — committed on the repo's DEFAULT branch (origin/HEAD); read by every docket skill at startup
-metadata_branch: docket      # obsolete tombstone (change 0363; ADR-0099 one topology): docket is the sole metadata topology — any value is warned-and-ignored, never resolved
 integration_branch: auto     # auto (→origin/HEAD, fallback main) | main | develop  — where code lands; feature branches cut from origin/<this>
 changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
@@ -25,22 +24,21 @@ results_dir: docs/results    # default  — close-out 'results' artifacts (build
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
 change_types: [chore, docs, feat, fix, refactor, perf]  # a higher layer REPLACES this list, never merges
 auto_capture:                # parseable; capture itself is deferred from Go v1 (activates nothing)
-  enabled: false             # a MAP since change 0127 — the old scalar `auto_capture: true` is a hard error
+  enabled: false             # bare scalar `auto_capture: true` is a hard error
   types: all                 # `all` or a change_types subset; leaves resolve independently
-board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md); [] = none  (the github surface is dropped — see "board_surfaces" below)
+board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md); [] = none
 terminal_publish: false      # parseable; publication itself is deferred from Go v1 (activates nothing)
                              # terminal records stay on the metadata branch. Per-repo-only (coordination-key fenced)
 build:                       # build's OWN gate pair, independent of finalize
   gate: local                # local (default) | off
   test_command: ""           # "" = unconfigured; `docket repository configure-tests`
 finalize:                    # merge gate: rebase onto base + re-test before merge
-  gate: local                # local (default, on) | ci | both | off  — off = pre-0015 (trust the PR's CI)
-  test_command: ""           # "" = unconfigured; ditto (legacy `auto`)
+  gate: local                # local (default, on) | ci | both | off  — off = trust the PR's CI
+  test_command: ""           # "" = unconfigured; ditto
   skip_results_only_delta: false  # arms the gate's docs-only post-gate skip. Per-repo-only (fenced)
 learnings:                   # the build-loop memory subsystem (change 0067)
   enabled: true              # default. false = whole subsystem off (read/write gate, never a purge)
   cap: 300                   # default. active-finding count past the human-read curation threshold
-github_project:              # {owner, number} intended for the dropped github surface; inert — read by nothing today, never minted or written back (internal/config schema)
 agent_harnesses: [claude]    # harnesses the per-repo agent pass generates wrapper files for;
                              # default [claude], e.g. [claude, cursor] for a Cursor repo.
 agents:                      # harness-first per-skill subagent model/effort — write values unquoted and space-free, no `#` inside the `{…}` flow map; see "Agent layer" below
@@ -62,7 +60,7 @@ This resolution — repair `origin/HEAD`, read `.docket.yml`, apply defaults, re
 
 **Script contracts (`scripts/<name>.md`).** Every `scripts/<name>.sh` has a co-located `scripts/<name>.md` contract — its authoritative spec (Purpose / Usage / Behavior / Exit codes / Invariants). Read it for a script's internals; reach it from a consuming repo the same way as the script.
 
-**`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render. `inline` (the committed, offline-safe `BOARD.md`) is the one supported surface; default `[inline]`. **`[]` disables the board entirely** — the change files plus git history remain fully authoritative. An unknown token is warned-and-ignored (a typo must never abort a build). The `github` surface is **dropped**: a repository `github` token is classified unsupported and mutation-blocking — discoverable via the `diagnostic.config` operation (see *GitHub board mirror*) — so no surface is rendered for it and `github_project` (inert, read by nothing today) is never minted or written back.
+**`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render. `inline` (the committed, offline-safe `BOARD.md`) is the one supported surface; default `[inline]`. **`[]` disables the board entirely** — the change files plus git history remain fully authoritative. An unknown token is warned-and-ignored (a typo must never abort a build).
 
 **`finalize` — the rebase-retest merge gate.** `finalize.gate` governs `docket-finalize-change`'s
 merge step — rebase onto `origin/<integration_branch>`, re-validate, merge only if green: `local`
@@ -196,7 +194,6 @@ branch:                   # minted <type>/<slug> (or <branch_prefix>/<slug>) nam
 branch_prefix:            # optional one unqualified branch-path component; overrides <type> at mint, consumed only at claim, inert once branch: is populated, survives reclaim
 claimed_at:               # UTC ISO-8601 claim lease (YYYY-MM-DDTHH:MM:SSZ); stamped at claim, refreshed at phase boundaries, cleared on leaving in-progress
 pr:                       # set when the PR is opened
-issue:                    # historical GitHub mirror issue number (mirror retired — see *GitHub board mirror*; preserved as data, never acted on); shape of pr:
 blocked_by:               # free text; set only when status: blocked
 reconciled: false         # set true after the just-in-time reconcile pass
 ---
@@ -364,11 +361,9 @@ Compressed rules (detail in the reference): the promotion tiering criterion is
 over its human-read curation threshold, never auto-merging its own memory; `learnings.enabled: false` is
 a no-op **read/write gate, never a purge** — existing files stay byte-untouched, re-enabling resumes.
 
-### GitHub board mirror (shared definition)
+### Derived views (shared definition)
 
-The `github` board surface is **obsolete**: a repository `github` board-surface request is classified unsupported and mutation-blocking, and docket refuses to modify the repository while the token is present — the classification is discoverable via the `diagnostic.config` operation (implemented in `internal/config/capability.go`) — so nothing is mirrored or recorded back, and historical `issue:` frontmatter is preserved as data, never acted on.
-
-**Derived views.** The derived views over the change files — the `inline` board, each change's `## Artifacts` link block, and the reciprocal per-artifact `docket:backlink` block — are rendered by the **Go app inside the owning metadata transaction** (the board and `## Artifacts` block re-render atomically in the same commit that writes the record they reflect) or via the **`artifact.backlink` operation** for the backlink blocks (change 0369). Each generated block still has a **sole writer** and is **never hand-edited** — the ADR-0012 script-vs-model boundary as it has evolved: the model, not a Bash renderer, now owns the write.
+The derived views over the change files — the `inline` board, each change's `## Artifacts` link block, and the reciprocal per-artifact `docket:backlink` block — are rendered by the **Go app inside the owning metadata transaction** (the board and `## Artifacts` block re-render atomically in the same commit that writes the record they reflect) or via the **`artifact.backlink` operation** for the backlink blocks (change 0369). Each generated block has a **sole writer** and is **never hand-edited** (ADR-0012).
 
 ### Bootstrap guard (`docket`-mode first-run safety)
 

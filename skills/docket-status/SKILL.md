@@ -110,8 +110,6 @@ Renders each surface in `board_surfaces` (config; default `[inline]`) from the s
 
 When `board_surfaces` includes `inline`, the docket app is the single gated writer of `BOARD.md`: every board-authoritative typed mutation re-renders it inside the owning metadata transaction and commits the result to `metadata_branch` in the same commit as the record it reflects, only when it actually changed, so nothing else ever touches the file. This skill **never hand-edits `BOARD.md`, never hand-renders it, and never 3-way merges it**; on a rebase conflict, let the owning operation regenerate it — never a hand-merge — and continue. When `board_surfaces` omits `inline`, there is simply no board. Where present, `BOARD.md` is the live planning view and stays on `docket` — never published to the integration branch.
 
-The `github` board surface is retired: a repository `github` board-surface request is classified unsupported and mutation-blocking — a repo requesting it is refused before any transaction, and the classification is discoverable via the `diagnostic.config` operation — so this skill renders no mirror and records nothing back. See the convention's *GitHub board mirror* note for the compatibility statement.
-
 ### Merge sweep
 
 The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no terminal record is copied onto the `integration_branch`. Runs inside the `maintenance.preflight` operation at implementation scope (`docket-implement-next` Step 0 runs that operation inline), and in full scope on any explicit refresh/cleanup invocation.

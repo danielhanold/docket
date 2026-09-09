@@ -17,7 +17,7 @@ All metadata writes happen in the metadata working tree (`.docket/`), synced to 
 before the first read; every commit pushes immediately.
 
 1. **Archive on `docket` first.** The two terminal outcomes split here: `done` runs the Go
-   `finalize.closeout` transaction; `killed` stays on the frozen Bash archiver (`finalize.closeout`
+   `finalize.closeout` transaction; `killed` runs the Go `change.kill` transaction (`finalize.closeout`
    does not cover the `killed` outcome — change 0369).
 
    **Done drivers** (`docket-finalize-change`'s close-out, the `docket-status` merge sweep) archive
@@ -95,8 +95,8 @@ before the first read; every commit pushes immediately.
    that specifically requires *published* terminal artifacts on the integration branch stops
    **before** claiming that outcome, even when the metadata transaction itself succeeded. Existing
    published records and any existing `## Publish deferred` markers remain untouched historical
-   evidence — the `publish-deferred` health check keeps them visible. The frozen Bash publisher is
-   **not** a supported fallback, and an enabled `terminal_publish:` key activates nothing.
+   evidence — the `publish-deferred` health check keeps them visible. An enabled `terminal_publish:`
+   key activates nothing.
 
 4. **Clean up the feature branch + worktree.**
 
