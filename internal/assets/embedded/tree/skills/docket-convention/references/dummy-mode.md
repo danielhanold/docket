@@ -9,7 +9,7 @@ changes, and only on the surfaces below.
 ## Surface tokens (v1)
 
 `DUMMY_MODE_SURFACES` is the literal `all` (every token, including ones added later) or a
-space-separated subset of these five. An unknown token is warned-and-ignored by the resolver; an
+space-separated subset of these. An unknown token is warned-and-ignored by the resolver; an
 empty value means no surface is eligible, which is equivalent to being off.
 
 | Token | Covers | Mode |
@@ -61,7 +61,7 @@ starting an interactive skill or mid-session.
   evidence, and script contracts keep full technical density. A spec is human-approved but
   agent-consumed, and the resolution is to simplify the *walkthrough dialogue* only: the human
   approves in plain-language conversation while the file stays dense.
-- **Script-generated views:** `BOARD.md`, GitHub mirror issue bodies, `## Artifacts` and backlink
+- **Script-generated views:** `BOARD.md`, `## Artifacts` and backlink
   blocks, index READMEs, `## Reclaim log` and `## Publish deferred` entries. Deterministic renderer
   output, out of scope.
 - **The change body's `## Why`** — already the PM-altitude plain layer.

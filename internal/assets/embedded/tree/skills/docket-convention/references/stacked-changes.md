@@ -18,7 +18,7 @@ destroys the path by which reachability was going to arrive.
 
 `stacked_on: <parent id>` on the child names exactly one parent, as a single **integer scalar**
 (never a flow collection, never quoted). It is the sole source of truth for the relationship: the
-parent-side **Stacked children** row is derived at render time by `render-change-links.sh`, and no
+parent-side **Stacked children** row is rendered by the Go link-block renderer, and no
 `stacked_children:` field exists. The parent id is never copied into `related:` or `depends_on:`.
 That row is a **human view, not an oracle**: it is regenerated when something writes the parent, so
 it can lag a child added later. Anything that decides — a gate, a report, a close-out — reads the
@@ -47,7 +47,7 @@ transition yet to publish.
 What it satisfies:
 
 - **`verify-run`** — an implement-next run that reached it is complete; the change is not unclaimed.
-- **The board and the mirror** — it renders in its own section and keeps its issue **open**.
+- **The board** — it renders in its own section.
 
 What it does **not** satisfy:
 

@@ -1,7 +1,7 @@
 # Gate execution — probe evidence
 
 **This file is evidence, not instruction, and is not read before a gate run.** The rules an agent
-needs at gate time — the six required capabilities, the mitigation, and each harness's verdict —
+needs at gate time — the required capabilities, the mitigation, and each harness's verdict —
 are in [`gate-execution.md`](gate-execution.md). This file records how those verdicts were
 obtained, so a reader can judge what they are worth and re-probe when a version moves.
 

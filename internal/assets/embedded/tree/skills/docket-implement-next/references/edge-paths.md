@@ -6,8 +6,7 @@ demand; sibling files are not auto-loaded with the skill.
 
 ## Reconcile-kill (Step 3, change OBSOLETE)
 
-The convention's terminal close-out reference owns invocations, ordering, and the `main`-mode
-degradation; this skill's posture is CALLER-side only: trust each exit code, a failure aborts the
+The convention's terminal close-out reference owns invocations and ordering; this skill's posture is CALLER-side only: trust each exit code, a failure aborts the
 kill and is surfaced. The reference's cleanup step prunes any feature worktree/branch already
 created. Terminal publication is deferred from Go v1 — the kill archives on `docket` via the frozen
 `archive-change` leg and copies nothing onto the integration branch.
@@ -71,7 +70,7 @@ to force a workspace, a commit, or a HEAD move.
 
 ## PR-body assembly (Step 7)
 
-**Best-effort PR→issue reference (when the `github` board surface is enabled).** If the change carries an `issue:`, add a plain `#<issue>` reference to the PR body — but **never `Closes #N`**: the mirror sync stays the sole writer of issue state and close reason. Skip silently when `issue:` is unset — the reference is a one-time courtesy, not a build gate.
+**Best-effort PR→issue reference.** If the change carries an `issue:` value (historical data — the `github` mirror is retired and mints none), add a plain `#<issue>` reference to the PR body — but **never `Closes #N`**, so merging the PR never auto-closes the referenced issue. Skip silently when `issue:` is unset — the reference is a one-time courtesy, not a build gate.
 
 **PR-body back-link (change 0136).** When docket authors the PR body, prepend a **back-link line** pointing home to the change on `metadata_branch` — a first body line of the shape `↩ Change <padded-id> — <title>` linking to the change file on `docket` (built with the same blob-or-bare-path logic; skill-side, since the renderer's contract excludes the PR body). Best-effort — never block the PR on it.
 
