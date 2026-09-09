@@ -52,7 +52,7 @@ skills:                      # pluggable workflow skills; unset key = the defaul
   finish:     superpowers:finishing-a-development-branch
 ```
 
-`.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit values verbatim) resolves where code lands. A genuinely absent file ⇒ defaults apply; an unreachable `origin` is never silently treated as "file absent." **Backward-compatible opt-out:** pinning `metadata_branch: main` (with `integration_branch: main`) reproduces single-branch behavior exactly — no `docket` branch, no `.docket/` worktree.
+`.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit values verbatim) resolves where code lands. A genuinely absent file ⇒ defaults apply; an unreachable `origin` is never silently treated as "file absent."
 
 **Config layers.** Two more optional layers: a **user-level** `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` (full `.docket.yml` schema; every repo on this machine) and a **machine-local** `<repo>/.docket.local.yml` (gitignored; this repo, this machine only). Every key resolves **per-field**: **repo-local > repo-committed > global > built-in** (map-valued `skills:`/`agents:` merge field-by-field). **Coordination-key fence:** a key whose effect writes shared, non-re-derivable state is per-repo-only — set in either machine-scoped file it is loudly warned-and-ignored, never honored, never fatal (ADR-0019). Everything else is global-able. Which keys are fenced (the per-key classification table) and the misplaced/malformed-file postures are authoritative in docket's config schema (`internal/config`) and discoverable via the `diagnostic.config` / schema operations — not restated here; the legacy `agents.yaml` auto-migration is owned by the Go install.
 
@@ -196,7 +196,7 @@ branch:                   # minted <type>/<slug> (or <branch_prefix>/<slug>) nam
 branch_prefix:            # optional one unqualified branch-path component; overrides <type> at mint, consumed only at claim, inert once branch: is populated, survives reclaim
 claimed_at:               # UTC ISO-8601 claim lease (YYYY-MM-DDTHH:MM:SSZ); stamped at claim, refreshed at phase boundaries, cleared on leaving in-progress
 pr:                       # set when the PR is opened
-issue:                    # GitHub mirror issue number; minted on first `github` sync (one-way), shape of pr:
+issue:                    # historical GitHub mirror issue number (mirror retired per capability.go; preserved as data, never acted on); shape of pr:
 blocked_by:               # free text; set only when status: blocked
 reconciled: false         # set true after the just-in-time reconcile pass
 ---
@@ -224,7 +224,7 @@ change, never in the merged artifact.
 - `## Open questions` — unknowns to resolve during reconcile/design.
 - `## Reconcile log` — dated entries appended by the implementer's reconcile pass.
 - `## Closeout notes` — terminal-only, **optional**, and the **final authored body section** of a terminal record. Written solely by the `finalize.closeout` operation from its structured request (`verification_outcomes` / `late_findings`, rendered as `### Verification` / `### Late findings` bullet lists); never hand-edited, copied to a stacked descendant, or a link-bearing artifact. The merged `results:` file stays a frozen build record — the freeze rule above is unchanged.
-- `## Reclaim log` — dated entries appended by `reclaim-claims.sh` when an expired-lease, no-branch claim self-heals back to `proposed`.
+- `## Reclaim log` — dated entries appended by the `change.reclaim` operation when an expired-lease, no-branch claim self-heals back to `proposed`.
 - `## Auto-groom blocked` — dated abstain record appended by `docket-auto-groom`; contents and lifecycle (including removal on re-arm) are defined by the *Autonomous grooming* shared definition below.
 - `## Publish deferred` — dated record left by earlier docket versions when a terminal close-out's publish step was expected but deferred or blocked (change 0083). **Read-only historical evidence:** publication-deferral marking is deferred from Go v1 — existing `publish-deferred` markers remain as historical evidence, and the `publish-deferred` health check keeps them visible; no maintained script writes or removes one. Never hand-authored.
 - `## Finalize blocked` — dated record appended by `docket-finalize-change` when a gate failure leaves a change needing a human; presence drives the board's `finalize blocked — needs you` cell and makes later **auto-detect** finalize runs skip the change. A human retries a marked change by **naming its id**, which overrides the skip. The clearing rule is owned by `docket-finalize-change` and not restated here.
@@ -386,7 +386,7 @@ This 2×2 is the spec the config resolver computes as its `BOOTSTRAP=` verdict �
 
 ### Branch model
 
-Metadata (change files, `BOARD.md`, ADRs, specs) commits to `metadata_branch` (default `docket`) via the **metadata working tree** — the primary working tree on the integration branch in single-branch (`main`) mode, the persistent `.docket/` worktree in `docket`-mode — and is **always pushed to its remote immediately** (the planning surface stays browsable on the remote).
+Metadata (change files, `BOARD.md`, ADRs, specs) commits to `metadata_branch` (default `docket`) via the **metadata working tree** — the persistent `.docket/` worktree (ADR-0099: docket is the sole metadata topology) — and is **always pushed to its remote immediately** (the planning surface stays browsable on the remote).
 
 A change's feature branch is minted at claim as `<type>/<slug>`, or `<branch_prefix>/<slug>` when the override is present; after claim the recorded `branch:` is the sole source of truth and is never reconstructed. That branch is **ALWAYS cut from `origin/<integration_branch>`** — `metadata_branch` only redirects bookkeeping commits, never where code branches start — with **one exception, stated here rather than left to contradict this rule**: a change carrying `stacked_on:` is cut from its **resolved effective base** (its parent's unmerged branch), and its PR targets that base. The resolution, the `stacked-merged` state, the parent's finalize gate, and the killed-parent policy are owned by [`references/stacked-changes.md`](references/stacked-changes.md) — **when the change at hand carries `stacked_on:` or has stacked children, read it now (blocking)**. The feature branch adds only the plan + results + code and **never modifies** docket metadata.
 

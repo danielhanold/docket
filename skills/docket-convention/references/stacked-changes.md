@@ -47,7 +47,7 @@ transition yet to publish.
 What it satisfies:
 
 - **`verify-run`** — an implement-next run that reached it is complete; the change is not unclaimed.
-- **The board and the mirror** — it renders in its own section and keeps its issue **open**.
+- **The board** — it renders in its own section.
 
 What it does **not** satisfy:
 
