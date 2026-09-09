@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: medium
 type: docs
 created: 2026-07-28
-updated: '2026-09-08'
+updated: '2026-09-09'
 depends_on: []
 related: [111, 144, 157, 159, 257, 363, 370, 372, 377, 394, 399]
 discovered_from: [145]
@@ -20,7 +20,7 @@ branch: 'docs/audit-skill-bodies-for-the-stale-restatement-class-change-01'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-08T23:59:54Z'
+claimed_at: '2026-09-09T00:01:44Z'
 ---
 
 ## Artifacts
