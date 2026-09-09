@@ -1,13 +1,12 @@
 # Backlog
 
-**415 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 266 done · 🗑️ 113 killed
+**415 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 267 done · 🗑️ 113 killed
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Remove stale Bash instructions and duplicated runtime contracts from Docket skills | `medium` | `docs` | [#294](https://github.com/danielhanold/docket/pull/294) | awaiting merge |
-| [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [#288](https://github.com/danielhanold/docket/pull/288) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
@@ -84,7 +83,6 @@ graph TD
   0323
   0393 --> 0345
   0407 --> 0345
-  0349
   0350
   0360
   0370 --> 0366
@@ -109,10 +107,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (379)</summary>
+<details><summary>✅🗑️ Archive — done + killed (380)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0349](archive/2026-09-09-0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | 2026-09-09 |
 | [0410](archive/2026-09-08-0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | 2026-09-08 |
 | [0408](archive/2026-09-08-0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | 2026-09-08 |
 | [0376](archive/2026-09-08-0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | 2026-09-08 |
@@ -127,7 +126,6 @@ graph TD
 | [0346](archive/2026-09-07-0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | 2026-09-07 |
 | [0404](archive/2026-09-06-0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | 2026-09-06 |
 | [0403](archive/2026-09-04-0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | 2026-09-04 |
-| [0402](archive/2026-09-04-0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | 2026-09-04 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -246,7 +244,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 15 done |
+| [2026-09](archive/) | 16 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

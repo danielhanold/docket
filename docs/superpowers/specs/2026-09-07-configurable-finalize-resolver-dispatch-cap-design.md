@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0349 — Make the finalize rebase-resolver dispatch cap configurable](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0349-configurable-finalize-resolver-dispatch-cap.md)**
+> ↩ **[Change 0349 — Make the finalize rebase-resolver dispatch cap configurable](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-09-0349-configurable-finalize-resolver-dispatch-cap.md)**
 <!-- docket:backlink:end -->
 
 # Configurable, durable finalize resolver budget

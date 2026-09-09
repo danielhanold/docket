@@ -2,11 +2,11 @@
 id: 349
 slug: configurable-finalize-resolver-dispatch-cap
 title: Make the finalize rebase-resolver dispatch cap configurable
-status: 'implemented'
+status: 'done'
 priority: medium
 type: feat
 created: 2026-08-26
-updated: '2026-09-08'
+updated: '2026-09-09'
 depends_on: []
 stacked_on:
 related: [291, 334, 392, 396, 399, 403]
@@ -21,7 +21,7 @@ branch: 'feat/configurable-finalize-resolver-dispatch-cap'
 pr: 'https://github.com/danielhanold/docket/pull/288'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-08T03:39:25Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -63,15 +63,3 @@ Make the ceiling configurable and enforce admission in Go before each resolver d
 
 2026-09-07 — Reconciled against current source. No drift; scope stands. Verified: the target clause "Resolver loop (skill-enforced ≤2 attempts)" and "The skill counts resolver dispatches and allows at most two" is present at skills/docket-finalize-change/SKILL.md:90 (mirrored in references/gate-failure.md). No resolver_max_attempts / resolver-reserve / resolver_reservation work exists anywhere in source yet. Foundations are merged: change 396 (done) added the WAITING continuation to internal/workspace/rebasereceipt.go (RebaseReceipt) — the ownership boundary this change extends with the resolver-budget group; changes 334, 392, 399, 403 all done; 291 remains separate (still proposed) and is not a dependency, so depends_on stays empty. Cited ADRs 10/19/105/109 all Accepted. internal/config Finalize struct (config.go:144) is ready for the new positive-int leaf ResolverMaxAttempts; internal/gitcli present for the additional stopped-commit probe; internal/app finalize_rebase.go owns FinalizeRebaseContinue/receipt read-write. No new relations required.
 
-## Finalize blocked
-
-### 2026-09-09 — attempt 20260909T133321Z-d73634925bc4
-
-<!-- attempt:20260909T133321Z-d73634925bc4 -->
-
-- Reason: repair-needs-signoff
-- Head: 03c0ad2a4258a118deb28997d3bc5bcbd6639a76
-- PR: #288
-- Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5603468784
-
-Remedy: Review the published repair commit and rerun finalize for change 349 after sign-off; do not merge the repaired head before that review.
