@@ -15,7 +15,7 @@ adrs: [107]
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
 branch_prefix:
 branch:
@@ -38,7 +38,20 @@ Change 0323 halted before its first implementation task because the dispatched b
 
 ## What changes
 
-Update the build controller's task dispatch payload to carry one explicit, complete start-ready scope tuple: change id, task id, phase, branch, worktree, scope id, child capability, and outer gate context when present. Update the build-task worker contract so every task-owned gate.drive.start passes that tuple unchanged, including the required identity flags and gate context. Add a whole-repository syntactic guard over scoped task-start instruction sites that derives the required identity shape and fails when any required field is omitted; mutation-test each protected field so the guard cannot pass vacuously. Regenerate embedded skill assets through the existing generator and verify the installed/generated surfaces remain aligned. Acceptance requires a worker-following round trip to bind a drive and the old omitted-field shape to remain fail-closed. This is a bounded caller-contract repair: it changes no CLI field, protocol, driver transition, or authorization rule, so no separate architecture decision is needed.
+Require the build controller to include one complete start-ready scope bundle in every scoped task dispatch: the canonical feature worktree, change id, task id, phase, branch, scope id, child capability, and outer gate context when present. Require the build-task worker to start each task-owned drive from that worktree and pass the bundle unchanged to `gate.drive.start`, including `--repo-dir`, `--change-id`, `--task-id`, `--phase`, `--branch`, `--scope-id`, `--child-cap`, and `--gate-context` when present. The parent capability remains parent-only.
+
+Add a whole-repository syntactic guard over maintained scoped task-start instructions so an instruction site cannot omit any pinned identity field or the gate-context pass-through. Derive the sites from repository search, mutation-test every protected field, and regenerate the embedded skill assets through the existing generator. Keep the existing fail-closed driver behavior and JSON capture contract.
+
+### Acceptance criteria
+
+1. A build-task worker following the maintained dispatch and start instructions binds a scoped task-owned drive whose repository, worktree, change, task, phase, branch, and gate-context identity matches the prepared scope.
+2. The former worker call shape that supplies only scope id, child capability, and run root remains rejected before launch; supplying the complete documented bundle produces an applied drive and preserves parent takeover attribution.
+3. A whole-repository guard covers every maintained scoped task-start instruction site, and removing each required identity or gate-context field makes the guard fail for the intended reason.
+4. Source and generated skill surfaces remain byte-aligned, and the configured whole suite passes at the build gate.
+
+### Trivial rationale
+
+The driver, CLI fields, ownership transition, and authorization rule already implement the intended behavior. The defect is a mechanically incomplete caller contract: the controller pins identity that its worker instructions do not pass back. The reproduced omitted-field failure and successful complete-field round trip settle the design, so no separate specification or ADR is needed. Broader concurrent-scope and duplicate-drive behavior remains with change 0405.
 
 ## Out of scope
 

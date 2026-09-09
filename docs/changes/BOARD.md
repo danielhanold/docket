@@ -20,7 +20,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0416](active/0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | `high` | `fix` | needs-brainstorm |
+| [0416](active/0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | `high` | `fix` | build-ready (trivial) |
 | [0415](active/0415-support-in-place-build-evidence-re-certification-for-an-impl.md) | Support in-place build-evidence re-certification for an implemented change | `medium` | `feat` | needs-brainstorm |
 | [0414](active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | `low` | `chore` | needs-brainstorm |
 | [0413](active/0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md) | Finalize rebase gate cannot clear derived embedded-asset manifest collisions | `medium` | `fix` | needs-brainstorm |
