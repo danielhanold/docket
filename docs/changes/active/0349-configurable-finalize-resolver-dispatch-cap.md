@@ -119,3 +119,14 @@ Remedy: Resolve the remaining rebase conflicts in the feature branch, push the r
 - Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5594955231
 
 Remedy: Review and resolve the remaining rebase conflicts, then rerun finalize for change 349 by naming its id.
+
+### 2026-09-09 — attempt 20260909T133321Z-d73634925bc4
+
+<!-- attempt:20260909T133321Z-d73634925bc4 -->
+
+- Reason: gate-repair-required
+- Head: f6368cb658765da16f65eee12385f0d28105724d
+- PR: #288
+- Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5603468784
+
+Remedy: A human must reproduce and inspect the full local gate failure, review or fix it on the feature branch, then rerun finalize for change 349 by explicit id.
