@@ -55,6 +55,23 @@ func TestCommittedCodexDispatchRoutesEveryScope(t *testing.T) {
 	}
 }
 
+// TestCommittedCodexDispatchObservesYieldedEntrySession catches a parent that
+// mistakes a shell-tool liveness yield for agent.enter's terminal return and
+// advances while the original foreground task is still running.
+func TestCommittedCodexDispatchObservesYieldedEntrySession(t *testing.T) {
+	content := readMaintained(t, guardRoot(t), "AGENTS.md")
+	for _, clause := range []string{
+		"shell-tool yield carrying a live task/session identity is a liveness transition, not completion",
+		"retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism",
+		"Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved",
+		"Only after terminal output is collected may implement-next run the parent's keyed `run.gate-verdict`",
+	} {
+		if !strings.Contains(content, clause) {
+			t.Errorf("AGENTS.md Codex dispatch policy lacks yielded-session barrier %q", clause)
+		}
+	}
+}
+
 // TestCodexLaunchMatrixOperatorProse keeps the executable operator guidance
 // aligned with the typed Codex entry boundary: root coordinators retain the
 // caller cwd, feature children enter their verified worktree with an unchanged

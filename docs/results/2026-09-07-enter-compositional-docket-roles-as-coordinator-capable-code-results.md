@@ -691,3 +691,87 @@ measurement and was not a new serial confirmation. The final exact-commit gate
 runs after this evidence append and is reported in the Task 13 fix report.
 
 Files changed are `internal/app/maintenance_test.go` and this results record.
+
+## 2026-09-08 Task 13 fix round 8 — yielded agent-entry completion barrier
+
+Fix base: `2217ca644f8e946cb4919dbf8945972d08393ed2`. Dogfood proved the
+`agent.enter` process did not return early: the outer shell tool yielded a live
+task/session handle, and the caller mistook that liveness transition for the
+foreground command's terminal return. The canonical parent contract said only
+“Wait for root entry's final return,” leaving the yielded-session observation
+barrier implicit.
+
+The generated-surface guard was added first. Exact RED:
+
+```text
+$ go test ./internal/repoguard -run '^TestCommittedCodexDispatchObservesYieldedEntrySession$' -count=1
+--- FAIL: TestCommittedCodexDispatchObservesYieldedEntrySession (0.00s)
+    root_entry_dispatch_test.go:70: AGENTS.md Codex dispatch policy lacks yielded-session barrier "shell-tool yield carrying a live task/session identity is a liveness transition, not completion"
+    root_entry_dispatch_test.go:70: AGENTS.md Codex dispatch policy lacks yielded-session barrier "retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism"
+    root_entry_dispatch_test.go:70: AGENTS.md Codex dispatch policy lacks yielded-session barrier "Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved"
+    root_entry_dispatch_test.go:70: AGENTS.md Codex dispatch policy lacks yielded-session barrier "Only after terminal output is collected may implement-next run the parent's keyed `run.gate-verdict`"
+FAIL
+FAIL github.com/danielhanold/docket/internal/repoguard 0.406s
+FAIL
+```
+
+`internal/harness/dispatch.go` now states all four conjuncts for every Codex
+`agent.enter` route. Existing route/request clauses were compacted without
+changing their guarded meaning, keeping the managed block at 646 words under
+its unchanged 650-word ceiling. `AGENTS.md` was regenerated from
+`harness.CodexDispatchInterior` through the repository-owned
+`document.PatchSet` marker-validating renderer; the managed block was never
+hand-edited. Both cataloged install probes correctly refused/declined repo
+reconciliation because this worktree has no explicit `agent_harnesses` and no
+per-worktree ownership receipt. A temporary config probe was restored
+immediately, and `.docket.yml` remains byte-identical to HEAD.
+
+Mutation evidence: removing only “and final output” from the canonical clause,
+regenerating the surface, and rerunning the guard REDdened exactly the missing
+conjunct:
+
+```text
+$ go test ./internal/repoguard -run '^TestCommittedCodexDispatchObservesYieldedEntrySession$' -count=1
+--- FAIL: TestCommittedCodexDispatchObservesYieldedEntrySession (0.00s)
+    root_entry_dispatch_test.go:70: AGENTS.md Codex dispatch policy lacks yielded-session barrier "retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism"
+FAIL
+FAIL github.com/danielhanold/docket/internal/repoguard 0.238s
+FAIL
+```
+
+After restoration, focused GREEN:
+
+```text
+$ go fmt ./internal/...
+$ go test ./internal/harness ./internal/reposeed ./internal/repoguard -count=1
+ok github.com/danielhanold/docket/internal/harness 0.722s
+ok github.com/danielhanold/docket/internal/reposeed 0.253s
+ok github.com/danielhanold/docket/internal/repoguard 3.133s
+$ git diff --check
+$ go run ./cmd/genassets -check
+genassets: internal/assets/embedded matches the authored roots (67 entries, sha256:a5ea77d353898b0c185d3da70155dc48cff22ec31d3c5573a80d96ce170df2d9)
+```
+
+The evidence-gathering exact full gate passed:
+
+```text
+$ go run ./cmd/docket development test
+SUITE files=43 passed=43 failed=0 asserts=387 wall=281s
+```
+
+It emitted no `SERIAL CONFIRMED OVER BUDGET:` line. It confirmed finalize-e2e
+serially at 29s and deferred due rechecks for integration-app-rebase and
+integration-app-workflow because the single confirmation slot was consumed.
+Screening diagnostics were `PARALLEL-SENSITIVE` for finalize-e2e (156s, 0/10),
+integration-app-change (171s, 4/10), integration-app-merge (90s, 2/10),
+integration-app-rebase (197s, 11/10), integration-app-workflow (160s, 10/10),
+integration-gitcli-repo (91s, 1/10), go-race (281s; persisted pre-fix solo 91s,
+5/10), and go-toolchain (253s, 3/10). `BUDGET WATCH` diagnostics were
+integration-app-cleanup (117s, 1/5) and integration-app-closeout (114s, 1/5).
+The final exact-commit gate runs after this evidence append and is reported in
+the Task 13 fix report.
+
+Files changed are `internal/harness/dispatch.go`, generated `AGENTS.md`,
+`internal/repoguard/root_entry_dispatch_test.go`,
+`internal/repoguard/budgets_test.go`, and this results record. Production
+`agent.enter` transport was not modified, and change 349 was not touched.
