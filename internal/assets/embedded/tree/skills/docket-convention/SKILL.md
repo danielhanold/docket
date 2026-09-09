@@ -62,7 +62,7 @@ This resolution — repair `origin/HEAD`, read `.docket.yml`, apply defaults, re
 
 **Script contracts (`scripts/<name>.md`).** Every `scripts/<name>.sh` has a co-located `scripts/<name>.md` contract — its authoritative spec (Purpose / Usage / Behavior / Exit codes / Invariants). Read it for a script's internals; reach it from a consuming repo the same way as the script.
 
-**`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render. `inline` (the committed, offline-safe `BOARD.md`) is the one supported surface; default `[inline]`. **`[]` disables the board entirely** — the change files plus git history remain fully authoritative. An unknown token is warned-and-ignored (a typo must never abort a build). The `github` surface is **dropped**: `internal/config/capability.go` classifies a repository `github` token as unsupported and mutation-blocking (see *GitHub board mirror*), so no surface is rendered for it and `github_project` (inert, read by nothing today) is never minted or written back.
+**`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render. `inline` (the committed, offline-safe `BOARD.md`) is the one supported surface; default `[inline]`. **`[]` disables the board entirely** — the change files plus git history remain fully authoritative. An unknown token is warned-and-ignored (a typo must never abort a build). The `github` surface is **dropped**: a repository `github` token is classified unsupported and mutation-blocking — discoverable via the `diagnostic.config` operation (see *GitHub board mirror*) — so no surface is rendered for it and `github_project` (inert, read by nothing today) is never minted or written back.
 
 **`finalize` — the rebase-retest merge gate.** `finalize.gate` governs `docket-finalize-change`'s
 merge step — rebase onto `origin/<integration_branch>`, re-validate, merge only if green: `local`
@@ -196,7 +196,7 @@ branch:                   # minted <type>/<slug> (or <branch_prefix>/<slug>) nam
 branch_prefix:            # optional one unqualified branch-path component; overrides <type> at mint, consumed only at claim, inert once branch: is populated, survives reclaim
 claimed_at:               # UTC ISO-8601 claim lease (YYYY-MM-DDTHH:MM:SSZ); stamped at claim, refreshed at phase boundaries, cleared on leaving in-progress
 pr:                       # set when the PR is opened
-issue:                    # historical GitHub mirror issue number (mirror retired per capability.go; preserved as data, never acted on); shape of pr:
+issue:                    # historical GitHub mirror issue number (mirror retired — see *GitHub board mirror*; preserved as data, never acted on); shape of pr:
 blocked_by:               # free text; set only when status: blocked
 reconciled: false         # set true after the just-in-time reconcile pass
 ---
@@ -366,7 +366,7 @@ a no-op **read/write gate, never a purge** — existing files stay byte-untouche
 
 ### GitHub board mirror (shared definition)
 
-The `github` board surface is **obsolete**: `internal/config/capability.go` classifies a repository `github` board-surface request as unsupported and mutation-blocking — docket refuses to modify the repository while the token is present (the mutation preflight's `diagnostic.config` operation surfaces the classification) — so nothing is mirrored or recorded back, and historical `issue:` frontmatter is preserved as data, never acted on.
+The `github` board surface is **obsolete**: a repository `github` board-surface request is classified unsupported and mutation-blocking, and docket refuses to modify the repository while the token is present — the classification is discoverable via the `diagnostic.config` operation (implemented in `internal/config/capability.go`) — so nothing is mirrored or recorded back, and historical `issue:` frontmatter is preserved as data, never acted on.
 
 **Derived views.** The derived views over the change files — the `inline` board, each change's `## Artifacts` link block, and the reciprocal per-artifact `docket:backlink` block — are rendered by the **Go app inside the owning metadata transaction** (the board and `## Artifacts` block re-render atomically in the same commit that writes the record they reflect) or via the **`artifact.backlink` operation** for the backlink blocks (change 0369). Each generated block still has a **sole writer** and is **never hand-edited** — the ADR-0012 script-vs-model boundary as it has evolved: the model, not a Bash renderer, now owns the write.
 
