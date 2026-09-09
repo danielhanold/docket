@@ -1,0 +1,102 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0154 — Remove stale Bash instructions and duplicated runtime contracts from Docket skills](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md)**
+<!-- docket:backlink:end -->
+# Change 0154 — Skill-body audit inventory
+
+The reviewable per-file audit record for change 0154. Every task appends dispositions to the
+rows below; Task 9 verifies no `pending` row remains. One row per tracked Markdown file under
+`skills/`.
+
+## Header — baseline and discovery
+
+- **Baseline HEAD (feature checkout):** `f0673b5e233a24caa41038a9a5afbc8d8576712f`
+  (feature branch `docs/audit-skill-bodies-for-the-stale-restatement-class-change-01`; branched
+  from the change-0154 baseline `d7363492` named in the plan's Global Constraints).
+- **Discovery command:** `git ls-files 'skills/**/*.md' 'skills/*.md' | sort`
+- **File count:** 29 (matches the plan's expected shape of 29 at baseline).
+- **Reference-op population** (for later owner-verification, Task 4/etc.): captured from
+  `docket capabilities | awk '{print $1}' | sort -u` — 72 operations. Snapshot lives in the
+  build scratch dir (`cap-ops.txt`); re-derive from the running catalog when verifying, never from
+  this note.
+
+### Mechanical seed scans are seeds, not a parse
+
+The columns below attach the raw hits from the Task 1 mechanical seed scans (removed script-tree
+refs, count words, old report grammar, retired surfaces) plus their whitespace-collapsed variants.
+**These scans are sampling, not a full read.** Per the plan, **every file still gets a full manual
+read in Task 7**, and a `no-hit (mechanical)` row is not yet a cleared row — its disposition stays
+`pending` until a task (2–6 for the seeded files, 7 for the rest) records a verdict. Anchors are
+quoted clauses / section names, never line numbers (ADR-0054); parenthetical line numbers are
+baseline reading aids only.
+
+### Seed legend
+
+- **Seed 1** — status report grammar (`backlog <status>`, `change <id> …`, `ready […]`, `pass ok`,
+  `harvest <id>`).
+- **Seed 2** — sweep posture.
+- **Seed 3** — board / GitHub-mirror claims (`board-refresh.sh`, `render-board.sh`, `github-mirror.sh`,
+  `issue-minted`/`project-minted`, `write-back` marker, `github-board-mirror.md`).
+- **Seed 4** — convention config copies (`.docket.yml` sketch, config-layer key list, `board_surfaces`).
+- **Seed 5** — legacy explanations / counts (`nine`/`eight` etc., derived-view script family, main-mode).
+
+### Mechanical scan commands (recorded for reproducibility)
+
+```bash
+# A: removed script-tree references (retired Bash owners)
+/usr/bin/grep -rn -E '(docket-status|board-checks|board-refresh|render-board|github-mirror|render-change-links|render-artifact-backlink)\.(md|sh)' skills/
+# B: copied count words / enumerations
+/usr/bin/grep -rn -E '\b(nine|eight|seven|six|five)\b' skills/
+# C: old report grammar tokens
+/usr/bin/grep -rn -E 'pass ok|harvest <id>|backlog <status>|swept <id>|issue-minted|project-minted' skills/
+# D: retired surfaces
+/usr/bin/grep -rn -E 'main-mode|main mode|github-mirror|Projects v2|write-back' skills/
+# Whitespace-collapsed variant: per file, tr -s '[:space:]' ' ' then /usr/bin/grep -qF each phrase
+# (surfaced the same file set as the line-based scans — no wrapped-prose-only hits were hidden)
+```
+
+## Inventory
+
+| path | disposition | hits (section / quoted clause) | owner verified against | notes |
+| --- | --- | --- | --- | --- |
+| `skills/docket-status/SKILL.md` | pending | **Seed 1/2/3.** Scan A: "The per-line shapes and failure postures stay documented in `scripts/docket-status.md`" (Overview ~l12); "see `scripts/docket-status.md` for the output-line shapes and failure postures" (~l63); "`board-refresh.sh` is its only writer" (~l87); "the orchestrator (contract: `scripts/docket-status.md`)" (~l107); "`board-refresh.sh` (contract: `scripts/board-refresh.md`) … the pure renderer `/render-board.sh` (contract: `scripts/render-board.md`)" (~l113); "`github-mirror.sh`, mechanics in `skills/docket-convention/github-board-mirror.md`" (~l115); "`scripts/board-checks.md`, and the `check <check-id>` report-line row in `scripts/docket-status.md`" (~l131). Scan C: "`backlog <status> <count>` and `change <id> <status> <readiness> <slug>` lines, plus a trailing `ready [<id> …]`" (~l12, ~l80); "**`pass ok`**" (~l82); "**`harvest <id> <path>` lines**" (~l93); "`issue-minted`/`project-minted` lines to record back" (~l115). Scan D: "`minted issue <id> <n>` / `minted project <owner> <n>` lines" (~l96); "one-way Issues + Projects v2 mirror" + `write-back` marker (~l115). | pending | Primary target of Tasks 2 (seeds 1–2) and 3 (seed 3 board/mirror). Harvest bullet (~l93) also cross-checked by Task 6. |
+| `skills/docket-convention/SKILL.md` | pending | **Seed 3/4/5.** Scan A: "The one writer allowed to touch them afterward is `render-artifact-backlink.sh`" (~l211); "rendered by `render-change-links.sh` from frontmatter" + "written solely by `render-artifact-backlink.sh`" (`## Artifacts`, ~l220); mirror section "owned by the deterministic `github-mirror.sh`" (~l369); "**Derived-view script family**" listing `board-refresh.sh`/`render-board.sh`/`github-mirror.sh`/`render-change-links.sh`/`render-artifact-backlink.sh` (~l371). Scan B: "**Seven skills** get a wrapper"/"except **nine**"/"Those **eight** wrapper-bearing exceptions" (~l113); "superpowers for … docket's own for `build`/`review`" five-step (~l123); "### Lifecycle — eight states" (~l258); "author any of the five surfaces" (~l336); "status→issue mapping across all eight states" (~l369). Scan D: "`github_project:` … auto-create on first github sync" (~l43); mirror paragraph "Projects v2" (~l369); "surviving for frozen / main-mode paths" (~l371); "`PROCEED` (migrated or main-mode)" + "The guard is a no-op in `main`-mode" (~l385). | pending | Tasks 3 (seed 3 mirror ~l369), 4 (seed 4 config sketch/layers/`board_surfaces`), 5 (seed 5 counts ~l113/258, script family ~l371, main-mode ~l385). |
+| `skills/docket-convention/github-board-mirror.md` | pending | **Seed 3/5.** Scan A/D: whole file is the active GitHub Issues + Projects v2 mirror recipe — "The `github` board surface mirrors each change to one GitHub issue (and one Projects v2 item)" (~l7); "`github-mirror.sh`" external-write owner (~l7); "**Projects v2.** … writes its `{owner, number}` back into `.docket.yml`" + `write-back` marker (~l17); "logs the skipped status (`scripts/github-mirror.md`)" (~l17). Scan B: "**Status → issue mapping (all eight).**" (~l11). | pending | Task 3 Step 4: retire (preferred, delete) or reduce to a compatibility statement; verify no maintained incoming links remain. |
+| `skills/docket-convention/references/stacked-changes.md` | pending | **Seed 5.** Scan A: "parent-side **Stacked children** row is derived at render time by `render-change-links.sh`" (~l21). | pending | Task 5/6: `render-change-links.sh` is a retired Bash owner; current owner is the Go link-block renderer. |
+| `skills/docket-convention/references/terminal-close-out.md` | pending | **Seed 5.** Scan D: TOC entry "· [main-mode degradation](#main-mode-degradation) ·" (~l12); "## main-mode degradation" section (~l124). | pending | Task 5 Step 2: delete the `## main-mode degradation` section + its TOC entry; no dangling anchors. |
+| `skills/docket-convention/references/dummy-mode.md` | pending | **Seed 5 (count word).** Scan B: "space-separated subset of these **five**" (~l12). | pending | Task 5 Step 3: check whether the count merely restates an adjacent list (delete) or a Go guard floors it (keep + name guard). |
+| `skills/docket-finalize-change/references/gate-failure.md` | pending | **Seed 5 (count word).** Scan B: "force every derived view to say **six** different things about one label" (~l95). | pending | Task 6 triage: likely prose describing label mapping, verify against current reality. |
+| `skills/docket-build/references/delegation-execution.md` | pending | **Seed 5 (count word).** Scan B: "until change 0370 deletes it. The **six**…" (~l5). | pending | Task 6 triage. |
+| `skills/docket-build/references/gate-execution.md` | pending | **Seed 5 (count word).** Scan B: "## The **six** required capabilities" (~l8); "### The **seven** probe scenarios" (~l133); "observed against all **seven**" (~l135). | pending | Task 6 triage: counts floored by a guard? verify. |
+| `skills/docket-build/references/gate-execution-evidence.md` | pending | **Seed 5 (count word).** Scan B: "the **six** required capabilities, the mitigation, and each harness's verdict" (~l4). | pending | Task 6 triage. |
+| `skills/docket-build/references/gate-caller-loop.md` | pending | **Seed 5 (count word).** Scan B: "The **five** raw verbs — `gate.launch`, `gate.observe`, `gate.stop`, …" (~l117). | pending | Task 6 triage: count restates an adjacent enumerated list. |
+| `skills/docket-adr/adr-template.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-adr/SKILL.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-auto-groom/SKILL.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-brainstorm/SKILL.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-build-task/SKILL.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-build/references/task-routing.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-build/SKILL.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-convention/references/agent-layer.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-convention/references/learnings.md` | pending | no-hit (mechanical) | pending | Task 6 names "harvest is deferred from Go v1" wording (~l48) to verify as current guidance; else Task 7. |
+| `skills/docket-finalize-change/SKILL.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-groom-next/SKILL.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-implement-next/references/edge-paths.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-implement-next/references/fix-loop.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-implement-next/results-template.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-implement-next/SKILL.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-new-change/change-template.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+| `skills/docket-new-change/SKILL.md` | pending | no-hit (mechanical) | pending | Task 6 names "scan harvest" (~l51) as judgment vocabulary (likely no-hit); confirm in Task 6/7. |
+| `skills/docket-review/SKILL.md` | pending | no-hit (mechanical) | pending | Full manual read — Task 7. |
+
+## Disposition vocabulary (for tasks 2–7)
+
+Each row's final disposition is one of:
+
+- `hit: fixed` — a genuine stale/duplicated-contract defect of this change's class, corrected here
+  (with the guard reconciliation recorded).
+- `hit: reported (out of scope)` — a real defect outside this change's class; recorded with its
+  existing change id when known, not fixed here.
+- `no hit: verified current` — read in full and confirmed accurate against the named current owner
+  (a true statement about a deferred feature counts as current guidance, not staleness).
+
+No row may remain `pending` after Task 7 (Task 9 verifies).
