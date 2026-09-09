@@ -2,11 +2,11 @@
 id: 393
 slug: 'enter-compositional-docket-roles-as-coordinator-capable-code'
 title: 'Enter compositional Docket roles as coordinator-capable Codex root threads'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-01'
-updated: '2026-09-08'
+updated: '2026-09-09'
 depends_on: []
 stacked_on:
 related: [364, 365, 384]
@@ -22,7 +22,7 @@ branch: 'fix/enter-compositional-docket-roles-as-coordinator-capable-code'
 pr: 'https://github.com/danielhanold/docket/pull/265'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-01T14:45:38Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -83,15 +83,3 @@ Run 393 in the environment where its deliverable lives and can be proven: a live
 
 Reconciled against main at 4e510f735d5bf249a17e7f91f58455889791271c and Codex CLI 0.152.0. The Go harness adapter is currently installation-only, so this change must add an explicit runtime entry boundary rather than overload wrapper rendering. The managed app-server control-socket proxy rejected a live initialize attempt with Broken pipe, while the already-spiked direct app-server protocol remains the supported root-thread route; implement the adapter over that native protocol and retain fail-closed rejection of codex exec, ordinary-child fallback, and typed relay. The pre-workspace resume command also misclassified an absent manifest/path/ref as a foreign active writer; the verified empty state is safe for this explicitly authorized inline continuation and is reported as separate follow-up work.
 
-## Finalize blocked
-
-### 2026-09-09 — attempt workspace-dirty
-
-<!-- attempt:workspace-dirty -->
-
-- Reason: workspace-dirty
-- Head: 19a5d39dcc8f086d8b34c08299cde5d571e99ccd
-- PR: #265
-- Comment: https://github.com/danielhanold/docket/pull/265#issuecomment-5604250796
-
-Remedy: Clean the feature workspace, then rerun finalize for change 393 by explicit id.
