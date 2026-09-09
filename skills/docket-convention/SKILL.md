@@ -208,7 +208,7 @@ and is never copied into `related:` or `depends_on:`.
 
 **Merged plans and results are frozen build records.** Once a change's PR merges, its `plan:` and
 `results:` files are never hand-edited again — not to correct a stale line reference, not to update a
-superseded instruction. The one writer allowed to touch them afterward is `render-artifact-backlink.sh`,
+superseded instruction. The one writer allowed to touch them afterward is the `artifact.backlink` operation,
 re-stamping the generated `docket:backlink` block at terminal publish; authored content never changes.
 They record what a build was *told* to do at the time it ran, which is the
 only thing that makes a completed run auditable; editing one destroys that record while silently
@@ -217,7 +217,7 @@ change, never in the merged artifact.
 
 ### Change body sections
 
-- `## Artifacts` — **first body section** (immediately after the frontmatter closing `---`, above `## Why`). Marker-bounded (`<!-- docket:artifacts:start (generated — do not hand-edit) -->` / `<!-- docket:artifacts:end -->`); rendered by `render-change-links.sh` from frontmatter; **never hand-edited** — the renderer is the sole writer. Seeded empty by the template; regenerated after every frontmatter field write. Its **reciprocal** is the `docket:backlink` block (markers `<!-- docket:backlink:start … -->` / `<!-- docket:backlink:end -->`) stamped at the TOP of each artifact (spec, plan, results, PR body) pointing home to the change on `metadata_branch`, written solely by `render-artifact-backlink.sh` (change 0136; ADRs excluded, back-referenced by `change:`).
+- `## Artifacts` — **first body section** (immediately after the frontmatter closing `---`, above `## Why`). Marker-bounded (`<!-- docket:artifacts:start (generated — do not hand-edit) -->` / `<!-- docket:artifacts:end -->`); rendered from frontmatter by the Go app-layer link-block renderer inside the owning metadata transaction; **never hand-edited** — the renderer is the sole writer. Seeded empty by the template; regenerated after every frontmatter field write. Its **reciprocal** is the `docket:backlink` block (markers `<!-- docket:backlink:start … -->` / `<!-- docket:backlink:end -->`) stamped at the TOP of each artifact (spec, plan, results, PR body) pointing home to the change on `metadata_branch`, written solely by the `artifact.backlink` operation (change 0136; ADRs excluded, back-referenced by `change:`).
 - `## Why` — the motivation, as detailed as warranted (no length limit).
 - `## What changes` — scope of the work.
 - `## Out of scope` — explicit non-goals.

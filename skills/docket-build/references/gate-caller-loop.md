@@ -114,7 +114,7 @@ fails closed to `HALTED`, never a partial transfer.
 
 ## The raw verbs are primitive/operator APIs, not caller-loop verbs
 
-The five raw verbs — `gate.launch`, `gate.observe`, `gate.stop`,
+The raw verbs — `gate.launch`, `gate.observe`, `gate.stop`,
 `gate.recover`, and `gate.cleanup` — retain their narrow primitive meanings and remain
 callable by the **driver implementation, primitive-level tests, diagnostics, recovery, cleanup, and
 operator workflows**. They are **not** high-level workflow APIs. A workflow caller never composes
