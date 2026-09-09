@@ -117,12 +117,21 @@ type skillBudget struct {
 // they bring docket-finalize-change/SKILL.md to 226 lines and 5179 words, so its
 // rounded ceilings remain a durable ratchet rather than silently dropping either
 // change's contract.
+//
+// Change 0416 re-baselined docket-build/SKILL.md and docket-build-task/SKILL.md
+// upward once to hold the complete start-ready scope-bundle contract: the
+// controller's dispatch payload hands the worker every identity value
+// prepare-scope pinned, and the worker passes the bundle through to its scoped
+// task-owned gate.drive.start unchanged — closing the identity omission that
+// made the driver reject every scoped build-task start before its first test.
+// Authored contract documentation, not slack — the ceilings are pinned at the
+// exact new counts, so the ratchet still reddens on any further regrowth.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
 	{"docket-auto-groom/SKILL.md", 70, 1750},
 	{"docket-brainstorm/SKILL.md", 84, 692},
-	{"docket-build/SKILL.md", 406, 4054}, // 0393: +feature-dispatch marker pair atop 0410's capture-ownership boundary (see note above)
+	{"docket-build/SKILL.md", 410, 4102}, // 0416: +complete start-ready scope bundle in the worker dispatch payload (see note above)
 	// 0154: docket-build/references/delegation-execution.md removed — it was the
 	// evidence record for the Bash delegation facade that change 0370 deleted; its
 	// budget row is deleted with it.
@@ -130,7 +139,7 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
-	{"docket-build-task/SKILL.md", 160, 1605}, // 0376: +gate.drive JSON-capture caller contract (see note above)
+	{"docket-build-task/SKILL.md", 165, 1668}, // 0416: +scoped start identity bundle (see note above)
 	{"docket-convention/SKILL.md", 400, 7969}, // 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
 	// 0154: docket-convention/github-board-mirror.md removed — the GitHub mirror is
 	// retired (unsupported, mutation-blocking); its budget row is deleted with it.

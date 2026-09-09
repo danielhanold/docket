@@ -6,8 +6,9 @@ description: The compact per-task worker contract for docket's own build role �
 # docket-build-task — one plan task, one commit
 
 You own **exactly one task** from the implementation plan, handed to you in your prompt along with
-the branch, the worktree, the selected build profile, the routing reason, and the drive scope id
-and child capability for this task. You are a fresh worker: nothing carries over from earlier tasks
+the branch, the worktree, the selected build profile, the routing reason, and this task's
+start-ready drive scope bundle — its scope id, child capability, and every identity value the
+scope pinned. You are a fresh worker: nothing carries over from earlier tasks
 except the code and commits already on the branch.
 
 You do not review other tasks, and you do not dispatch anyone. Your self-review is part of
@@ -58,10 +59,14 @@ Where a meaningful behavioral test is possible:
 5. Self-review the diff, then commit.
 
 **Every test execution this task runs — baseline, RED, GREEN, focused re-run, ad-hoc
-verification — starts through the native gate driver.** Use the task-intent owner: the
-`gate.drive.start` operation with `--owner task --scope-id <id> --child-cap <token> --run-root
-<task-scratch-dir> --json -- <the test command>`. The scope id and child capability come in your dispatch
-prompt; the run root is a scratch dir you pick and read from.
+verification — starts through the native gate driver.** Start it from the canonical feature
+worktree, and use the task-intent owner: the `gate.drive.start` operation with `--owner task
+--repo-dir <feature-worktree> --change-id <id> --task-id <task-N> --phase build --branch <branch>
+--scope-id <id> --child-cap <token> --gate-context <token> --run-root
+<task-scratch-dir> --json -- <the test command>`. Every identity value comes in your dispatch
+prompt — pass the bundle through unchanged, omitting `--gate-context` only when no dispatch
+context was handed to you; the prepared scope pinned exactly this identity, and the driver
+rejects a start that omits or alters any of it. The run root is a scratch dir you pick and read from.
 Capture the drive id and owner generation from that `--json` response before any advance or handoff
 (the shared JSON-capture requirement in `docket-build`'s `references/gate-caller-loop.md`; human
 text omits the generation). A response missing them is a caller-contract failure: return `BLOCKED`
