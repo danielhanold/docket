@@ -22,7 +22,7 @@ branch: 'fix/scoped-build-task-gate-starts-omit-prepared-scope-identity'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-09T21:37:29Z'
+claimed_at: '2026-09-09T21:49:06Z'
 ---
 
 ## Artifacts
