@@ -2,7 +2,7 @@
 
 Point-in-time evidence record for the retired Bash delegation facade's adapter launch shape. The
 maintained dispatch surface is host-native (change 0371) and never invokes the facade; this page is
-kept as the measurement record behind the frozen facade until change 0370 deletes it. The six
+kept as the measurement record behind the frozen facade until change 0370 deletes it. The
 required capabilities are defined once, in [`gate-execution.md`](gate-execution.md) — this file does
 not restate them. What it adds is the evidence for a *different launch shape*: the **adapter** launch
 that starts a whole delegated agent run, rather than the **gate** launch that starts a test command.

@@ -9,7 +9,7 @@ changes, and only on the surfaces below.
 ## Surface tokens (v1)
 
 `DUMMY_MODE_SURFACES` is the literal `all` (every token, including ones added later) or a
-space-separated subset of these five. An unknown token is warned-and-ignored by the resolver; an
+space-separated subset of these. An unknown token is warned-and-ignored by the resolver; an
 empty value means no surface is eligible, which is equivalent to being off.
 
 | Token | Covers | Mode |
