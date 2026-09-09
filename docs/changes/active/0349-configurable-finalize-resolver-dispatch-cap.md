@@ -108,3 +108,14 @@ Remedy: Resolve the remaining rebase conflicts in the feature branch, push the r
 - Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5594602399
 
 Remedy: Resolve the remaining rebase conflicts in the feature branch, push the reviewed result, and rerun finalize for change 349 by naming its id.
+
+### 2026-09-09 — attempt 20260909T023446Z-d73634925bc4
+
+<!-- attempt:20260909T023446Z-d73634925bc4 -->
+
+- Reason: rebase-resolver-exhausted
+- Head: c22ac9ff409caa96220a6815d54286ba86091ad6
+- PR: #288
+- Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5594955231
+
+Remedy: Review and resolve the remaining rebase conflicts, then rerun finalize for change 349 by naming its id.
