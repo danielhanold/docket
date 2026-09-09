@@ -2,11 +2,11 @@
 id: 323
 slug: docket-uninstall-and-version-tree-collection-for-the-go-inst
 title: 'docket uninstall and version-tree collection for the Go installer'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: feat
 created: 2026-08-14
-updated: '2026-09-07'
+updated: '2026-09-09'
 depends_on: []
 stacked_on:
 related: [311, 317, 322, 351]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/docket-uninstall-and-version-tree-collection-for-the-go-inst'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-09T19:19:50Z'
 ---
 
 ## Artifacts
