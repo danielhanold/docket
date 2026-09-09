@@ -1,19 +1,19 @@
 # Backlog
 
-**415 changes** — 🔵 1 built · 🔴 2 blocked · 🟣 3 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 266 done · 🗑️ 113 killed
+**415 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 266 done · 🗑️ 113 killed
 
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Remove stale Bash instructions and duplicated runtime contracts from Docket skills | `medium` | `docs` | [#294](https://github.com/danielhanold/docket/pull/294) | awaiting merge |
+| [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [#288](https://github.com/danielhanold/docket/pull/288) | awaiting merge |
 
-## 🔴 Blocked (2)
+## 🔴 Blocked (1)
 
 | # | Title | Priority | Type | PR | Reason |
 |---|-------|----------|------|----|--------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | finalize blocked — needs you |
-| [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | [#288](https://github.com/danielhanold/docket/pull/288) | finalize blocked — needs you |
 
 ## 🟣 Groomed (3)
 
