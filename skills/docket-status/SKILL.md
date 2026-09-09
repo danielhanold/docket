@@ -76,7 +76,7 @@ When a caller dispatched this skill, the final report must name: the resolved sc
 
 The report is **self-evidencing**: it always states what it did, so you never have to go looking for corroboration.
 
-- **`board off`** — the repo sets `board_surfaces: []` and there is deliberately **no board**. This is a configuration, not a failure. Do not look for `BOARD.md`; it must not exist.
+- **`board off`** — the repo sets `board_surfaces: []` and there is deliberately **no board**. This is a configuration, not a failure. Rendering is disabled, so the pass renders and commits nothing to `BOARD.md`; a pre-existing `BOARD.md` is left untouched — disabled rendering never authorizes deleting a board. Summarize from the structured report, not the file.
 - **the backlog digest** — the `status` payload's `summary` counts, its `changes` array (one entry per displayed change, each carrying `id`, `status`, `readiness`, `unmet_dependencies`, and `ready`), and the ordered `ready` id array — present in **every** configuration. **This is your backlog-state channel.** On a full pass the read is taken **after** the sweep, so it already accounts for everything closed out: an archived change drops out of `active_changes` and `changes` (still counted in `total_changes`). Never report a swept change as still awaiting merge. `ready` is the build-ready queue in selection order (priority → created → id), an empty array when nothing is ready.
 - **learnings (deferred)** — the pass emits no learnings self-heal or advisory lines. automated learnings-index rendering, capacity, and promotion are deferred from Go v1, so the pass reads nothing and writes nothing under `learnings/` and every existing `learnings/` file stays byte-untouched. See *Learnings* below.
 - **the envelope `result`** — the top-level protocol-v1 disposition (`applied` for the read, or the sweep's terminal disposition) tells you the operation ran to completion. Key on it, never a trailing text line.
@@ -84,7 +84,7 @@ The report is **self-evidencing**: it always states what it did, so you never ha
 Two rules follow, and they are not optional:
 
 - **A thin report is the success case, not a symptom.** An empty sweep, no health findings, and `board off` together mean a healthy, board-less repo. The pass is complete. Do **not** re-run the orchestrator, trace it, or investigate — there is nothing to find.
-- **Never probe `BOARD.md`.** With the board off it must not exist; with the board on, summarize from the digest payload rather than opening the file. Reading, rendering, or hand-writing `BOARD.md` is never part of this skill's job — the docket app is its only writer, rendering it inside the owning metadata transaction.
+- **Never probe `BOARD.md`.** With the board off, disabled rendering writes nothing and never authorizes deleting an existing `BOARD.md`; with the board on, summarize from the digest payload rather than opening the file. This skill stays **read-only** over `BOARD.md` — reading, rendering, hand-writing, or deleting it is never part of its job; the docket app is its only writer, rendering it inside the owning metadata transaction (the convention's *Board refresh on status writes* owns the property).
 
 ## Judgment follow-ups (stay in-model — the script does not do these)
 
@@ -93,12 +93,10 @@ Drive these off the entries and findings the `maintenance.sweep` and `status` op
 - **learnings harvest is deferred from Go v1** — the pass emits no harvest entries and fabricates no empty harvest result; its absence is never a sweep failure. Record or update findings by editing `learnings/` files directly.
 - **`stacked-merged` / `promote-failed` / `stack-carried-failed` entries, or a `check stack-invalid` / `check stack-parent-killed` finding** — **read [`../docket-convention/references/stacked-changes.md`](../docket-convention/references/stacked-changes.md) now (blocking)** before explaining or acting on one: it owns what the state means, why nothing was archived, and which remedies are a human's rather than a retry's.
 - **a change reported with `status: blocked`** — re-examine that change's `blocked_by:` free text; flag to the user if the referenced issue/PR/event appears resolved. This is judgment, not a git probe — never scripted.
-- **`minted issue <id> <n>` / `minted project <owner> <n>` lines** — write the value back into the change file (`issue:`) or `.docket.yml` (`github_project: {owner, number}`) on `metadata_branch`, following normal push discipline (re-run the `repository.prepare` operation to re-sync, commit, push). **Stage by explicit path** — that tree is shared, so a bare `add -A` commits another agent's staged work under your message. <!-- docket:config-read-channel: write-back -->
-- **`github` mirror reachability** — only when `board_surfaces` includes `github`: warn on a change carrying an `issue:` whose mirror looks unreachable. Best-effort visibility flag, like the other checks — never auto-fix.
 
 ## Final summary
 
-Close with a short human-facing summary: backlog state (counts/highlights, read from the digest payload — never from the board file), what was swept to done (if anything), and any health-check findings or judgment flags raised above. When the `inline` board is enabled, point the user at `BOARD.md` (or the GitHub mirror, if enabled) for the full picture rather than reproducing it inline. When the report says `board off`, there is no board to point at — the digest-derived summary **is** the deliverable, and that is the intended, complete outcome.
+Close with a short human-facing summary: backlog state (counts/highlights, read from the digest payload — never from the board file), what was swept to done (if anything), and any health-check findings or judgment flags raised above. When the `inline` board is enabled, point the user at `BOARD.md` for the full picture rather than reproducing it inline. When the report says `board off`, there is no board to point at — the digest-derived summary **is** the deliverable, and that is the intended, complete outcome.
 
 **Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (Step-0 export), write this summary and every other part of the run's `reports` calibrated to `DUMMY_MODE_PERSONA`, per the convention's *Dummy mode* shared definition.
 
@@ -112,7 +110,7 @@ Renders each surface in `board_surfaces` (config; default `[inline]`) from the s
 
 When `board_surfaces` includes `inline`, the docket app is the single gated writer of `BOARD.md`: every board-authoritative typed mutation re-renders it inside the owning metadata transaction and commits the result to `metadata_branch` in the same commit as the record it reflects, only when it actually changed, so nothing else ever touches the file. This skill **never hand-edits `BOARD.md`, never hand-renders it, and never 3-way merges it**; on a rebase conflict, let the owning operation regenerate it — never a hand-merge — and continue. When `board_surfaces` omits `inline`, there is simply no board. Where present, `BOARD.md` is the live planning view and stays on `docket` — never published to the integration branch.
 
-`github` is the one-way Issues + Projects v2 mirror (`github-mirror.sh`, mechanics in `skills/docket-convention/github-board-mirror.md`), best-effort — runs only when `board_surfaces` includes `github`; a fresh mint prints `issue-minted`/`project-minted` lines to record back into the change file / `.docket.yml`. <!-- docket:config-read-channel: write-back -->
+The `github` board surface is retired: `internal/config/capability.go` classifies a repository `github` board-surface request as unsupported and mutation-blocking (a repo requesting it is refused before any transaction), so this skill renders no mirror and records nothing back. See the convention's *GitHub board mirror* note for the compatibility statement.
 
 ### Merge sweep
 
@@ -130,4 +128,4 @@ The rebase-onto-base + re-run-tests gate lives in `docket-finalize-change`'s mer
 
 Flag what the pass reports (do not auto-fix unless asked): mechanical, git-only, warn-only checks over stale claims, broken spec/plan/results links, and dependency stalls. This skill never runs the checker directly — it invokes the `maintenance.sweep` / `status` operations, which run it. The closed check-id set and each check's meaning live where they are owned: the checker itself and the `findings` shape in the `status` / `maintenance.sweep` payloads, discoverable through the `schema` operation.
 
-Two judgment checks stay in-model, on top of the script: `blocked_by:` re-examination and `github` mirror reachability (see *Judgment follow-ups* above) — both warn-only, never auto-fix.
+One judgment check stays in-model, on top of the script: `blocked_by:` re-examination (see *Judgment follow-ups* above) — warn-only, never auto-fix.
