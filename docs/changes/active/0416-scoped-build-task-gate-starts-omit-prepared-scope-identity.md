@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/scoped-build-task-gate-starts-omit-prepared-scope-identity'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-09T21:30:10Z'
+reconciled: true
+claimed_at: '2026-09-09T21:35:53Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ The driver, CLI fields, ownership transition, and authorization rule already imp
 ## Out of scope
 
 Changing the gate driver to infer or hydrate omitted scope identity; weakening scopeIdentityMatch; changing capability, handoff, takeover, or credential-redaction semantics; redesigning the invalid-request error vocabulary; resolving broader concurrent-scope or duplicate-drive questions tracked by change 0405; and resuming or implementing change 0323.
+
+## Reconcile log
+
+### 2026-09-09
+
+Reconciled against current source. Design holds unchanged. The gate.drive.start CLI already accepts every identity flag (--repo-dir/--change-id/--task-id/--phase/--branch/--scope-id/--child-cap/--gate-context), and gate.drive.prepare-scope pins them, so the defect is purely a mechanically incomplete caller contract: skills/docket-build-task/SKILL.md instructs the worker to start the task-owned drive with only --owner task --scope-id --child-cap --run-root --json, and skills/docket-build/SKILL.md hands the worker only scope-id + child-cap. Clarification of the change body's 'source, embedded, and installed worker contracts' wording: there are two checked-in copies — the source skill under skills/ and its byte-identical embed under internal/assets/embedded/tree/skills/ — and the 'installed' surface is written verbatim from the embed at install time (internal/cli/install.go via internal/assets/embedded.go), so fixing source + running `go generate ./internal/assets/` covers all three. The whole-repo syntactic guard will live in internal/repoguard as a new *_test.go modeled on the existing TestGateDriveJSONCapture (gatedrive_json_capture_test.go), scanning maintained workflow markdown (isWorkflowMD corpus, which already includes the embedded mirror) with a population/coverage floor and mutation-tested required-field regexes. Related 405 (broader concurrent-scope / duplicate-drive questions) and resuming/implementing 323 remain out of scope.
