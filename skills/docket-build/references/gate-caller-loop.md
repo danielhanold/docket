@@ -23,7 +23,7 @@ copy):
 
 | Operation | What it does |
 |---|---|
-| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. Optional `--scope-id <id> --child-cap <token> --gate-context <token>` bind the new drive into a recovery scope. |
+| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A scope-bound start passes the complete identity the scope pinned — `--repo-dir <worktree> --change-id <id> --task-id <id> --phase <name> --branch <name> --scope-id <id> --child-cap <token>`, plus `--gate-context <token>` when the dispatch carried one — and the driver rejects a start whose identity does not match the prepared scope. |
 | `advance` | Resume the current attempt of a drive (by opaque drive id + owner generation) through one more slice. |
 | `handoff` | Prove current ownership, revalidate repository + process identity, invalidate the current owner, and mint a **single-use** handoff token — the only way a departing owner transfers a live drive. |
 | `claim` | Recompute identity, consume a handoff token with a compare-and-swap, and return a **fresh** owner generation the claimant advances with. |

@@ -83,8 +83,12 @@ stays in your notes. Then dispatch the selected profile agent **by name** — on
 foreground, one task at a time; later tasks build on earlier task commits and share the worktree, so
 workers are strictly sequential. Its dispatch payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
-It also gives the worker the plan task text, branch, applicable repository instructions, selected
-profile and routing reason, **scope id and child capability only**, and completion schema; the parent
+It also gives the worker the plan task text, applicable repository instructions, selected
+profile and routing reason, the completion schema, and one **complete start-ready scope bundle**:
+the change id, task id, phase (`build`), branch, scope id, child capability, and the dispatch
+context when your prompt carried one — each value exactly as `prepare-scope` pinned it, for the
+worker to pass through to `gate.drive.start` unchanged. Of the two capabilities the worker
+receives the child capability only; the parent
 capability stays in your notes and never enters any prompt, log, or report. Never dispatch a task reviewer, and
 never dispatch two workers concurrently — that binds a controller who *believes the first worker
 is gone* exactly as it binds one dispatching deliberately. Never preload a review skill either —
