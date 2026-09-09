@@ -20,7 +20,7 @@ branch: 'docs/audit-skill-bodies-for-the-stale-restatement-class-change-01'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-09T01:58:38Z'
+claimed_at: '2026-09-09T02:15:38Z'
 ---
 
 ## Artifacts
