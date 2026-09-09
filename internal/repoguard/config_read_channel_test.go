@@ -165,26 +165,34 @@ func TestConfigReadChannel(t *testing.T) {
 	}
 	// ...while a NON-excluded sibling under the same directory prefix IS scanned
 	// (guards against an exclusion match that is accidentally a prefix match).
-	if !inCorpus("skills/docket-convention/github-board-mirror.md") {
+	// (0154 deleted the former probe target github-board-mirror.md with the retired
+	// mirror; any non-excluded docket-convention sibling proves the same property.)
+	if !inCorpus("skills/docket-convention/references/stacked-changes.md") {
 		t.Errorf("population: a non-excluded docket-convention sibling was not scanned")
 	}
 
 	s := scanConfigReadChannel(t, root, corpus)
 
-	// At least three occurrences were reached and classified (the two docket-status
-	// write-backs + the board-mirror reference — the true current count; a floor on
-	// the scan reaching real occurrences, not a pin of the exact number).
-	if len(s.classified) < 3 {
-		t.Fatalf("population: only %d classified occurrences (expected >= 3) — scan reached too little", len(s.classified))
+	// Reader-liveness floor. Change 0154 retired the GitHub board mirror, removing
+	// the three config-read-channel occurrences the mirror recipe and the status
+	// skill carried (the two docket-status write-backs + the board-mirror
+	// reference). The SCANNED corpus now names the config file NOWHERE, so the rule
+	// below is green because there is nothing left to classify — NOT because the
+	// walk silently found nothing. The occurrence floor that used to prove the
+	// reader reaches real content therefore moves off the (now-empty) scanned
+	// population and onto a probe of an EXCLUDED convention body, which by design
+	// still names the config file: it proves classifyConfigLine reaches and counts
+	// real tree content even though no scanned skill mentions the file. A future
+	// author who adds an UNMARKED occurrence to a scanned skill still reddens the
+	// rule; a MARKED write-back is still classified (non_vacuity proves the class).
+	probe := readMaintained(t, root, "skills/docket-convention/SKILL.md")
+	probeOcc := 0
+	for _, line := range strings.Split(probe, "\n") {
+		occ, _ := classifyConfigLine(line)
+		probeOcc += occ
 	}
-	writeBacks := 0
-	for _, c := range s.classified {
-		if c == "write-back" {
-			writeBacks++
-		}
-	}
-	if writeBacks < 1 {
-		t.Errorf("coverage: no write-back occurrence exists in the real tree (expected >= 1)")
+	if probeOcc < 3 {
+		t.Fatalf("reader-liveness: classifier found only %d config-token occurrences in the excluded convention body (expected >= 3) — the reader/classifier path may be broken", probeOcc)
 	}
 
 	// THE RULE: every occurrence in a scanned skill file is classified.

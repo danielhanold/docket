@@ -130,7 +130,8 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 160, 1605}, // 0376: +gate.drive JSON-capture caller contract (see note above)
 	{"docket-convention/SKILL.md", 400, 7969}, // 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
-	{"docket-convention/github-board-mirror.md", 19, 462},
+	// 0154: docket-convention/github-board-mirror.md removed — the GitHub mirror is
+	// retired (unsupported, mutation-blocking); its budget row is deleted with it.
 	{"docket-convention/references/agent-layer.md", 205, 2350},
 	{"docket-convention/references/dummy-mode.md", 85, 800},
 	{"docket-convention/references/learnings.md", 84, 580},
