@@ -13,7 +13,7 @@ related: [311, 317, 322, 351]
 discovered_from: [311]
 adrs: [96, 110]
 spec: 'docs/superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-09-docket-uninstall-and-version-tree-collection.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-09-09T19:43:37Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) |
+| Plan | [2026-09-09-docket-uninstall-and-version-tree-collection.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-09-docket-uninstall-and-version-tree-collection.md) |
 | ADRs | [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0110](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0110-install-path-configuration-reads-tolerate-unknown-keys-the-s.md) |
 <!-- docket:artifacts:end -->
 
