@@ -13,7 +13,7 @@ discovered_from: [145]
 adrs: [3, 12, 54, 99, 104, 109]
 spec: 'docs/superpowers/specs/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md'
 plan: 'docs/superpowers/plans/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01.md'
-results:
+results: 'docs/results/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-results.md'
 trivial: false
 auto_groomable: true
 branch: 'docs/audit-skill-bodies-for-the-stale-restatement-class-change-01'
@@ -30,6 +30,7 @@ claimed_at: '2026-09-09T02:15:38Z'
 |---|---|
 | Spec | [2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 | Plan | [2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) |
+| Results | [2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-results.md) |
 | ADRs | [ADR-0003](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0003-convention-reference-loading.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0054](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0054-cross-reference-anchor-style.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md), [ADR-0109](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) |
 <!-- docket:artifacts:end -->
 
