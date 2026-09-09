@@ -1,13 +1,18 @@
 # Backlog
 
-**416 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 269 done · 🗑️ 113 killed
+**416 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 269 done · 🗑️ 113 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0416](active/0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | `high` | `fix` | [spec](../) | `fix/scoped-build-task-gate-starts-omit-prepared-scope-identity` |  |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0416](active/0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | `high` | `fix` | [#295](https://github.com/danielhanold/docket/pull/295) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
