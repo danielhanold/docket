@@ -27,7 +27,7 @@ change_types: [chore, docs, feat, fix, refactor, perf]  # a higher layer REPLACE
 auto_capture:                # parseable; capture itself is deferred from Go v1 (activates nothing)
   enabled: false             # a MAP since change 0127 — the old scalar `auto_capture: true` is a hard error
   types: all                 # `all` or a change_types subset; leaves resolve independently
-board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md) and/or github; [] = none
+board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md); [] = none  (the github surface is dropped — see "board_surfaces" below)
 terminal_publish: false      # parseable; publication itself is deferred from Go v1 (activates nothing)
                              # terminal records stay on the metadata branch. Per-repo-only (coordination-key fenced)
 build:                       # build's OWN gate pair, independent of finalize
@@ -40,11 +40,11 @@ finalize:                    # merge gate: rebase onto base + re-test before mer
 learnings:                   # the build-loop memory subsystem (change 0067)
   enabled: true              # default. false = whole subsystem off (read/write gate, never a purge)
   cap: 300                   # default. active-finding count past the human-read curation threshold
-github_project:              # {owner, number} of the auto-managed Projects v2 board; unset ⇒ auto-create on first github sync
+github_project:              # {owner, number} intended for the dropped github surface; inert — read by nothing today, never minted or written back (internal/config schema)
 agent_harnesses: [claude]    # harnesses the per-repo agent pass generates wrapper files for;
                              # default [claude], e.g. [claude, cursor] for a Cursor repo.
 agents:                      # harness-first per-skill subagent model/effort — write values unquoted and space-free, no `#` inside the `{…}` flow map; see "Agent layer" below
-skills:                      # pluggable workflow skills; unset key = the superpowers default shown
+skills:                      # pluggable workflow skills; unset key = the default shown (superpowers for brainstorm/plan/finish, docket's own for build/review — change 0193)
   brainstorm: superpowers:brainstorming
   plan:       superpowers:writing-plans
   build:      docket-build   # e.g. `auto` to build inline with no fan-out
@@ -54,7 +54,7 @@ skills:                      # pluggable workflow skills; unset key = the superp
 
 `.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit values verbatim) resolves where code lands. A genuinely absent file ⇒ defaults apply; an unreachable `origin` is never silently treated as "file absent." **Backward-compatible opt-out:** pinning `metadata_branch: main` (with `integration_branch: main`) reproduces single-branch behavior exactly — no `docket` branch, no `.docket/` worktree.
 
-**Config layers.** Two more optional layers: a **user-level** `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` (full `.docket.yml` schema; every repo on this machine) and a **machine-local** `<repo>/.docket.local.yml` (gitignored; this repo, this machine only). Every key resolves **per-field**: **repo-local > repo-committed > global > built-in** (map-valued `skills:`/`agents:` merge field-by-field). **Coordination-key fence:** a key whose effect writes shared, non-re-derivable state (`metadata_branch`, `integration_branch`, `changes_dir`/`adrs_dir`/`results_dir`, `github_project`, `terminal_publish`, `finalize.skip_results_only_delta`, and `board_surfaces`' `github` token) is per-repo-only — set in either machine-scoped file it is loudly warned-and-ignored, never honored, never fatal (ADR-0019). Everything else is global-able. The per-key classification table and the misplaced/malformed-file postures are authoritative in docket's config schema (`internal/config`); the legacy `agents.yaml` auto-migration is owned by the Go install.
+**Config layers.** Two more optional layers: a **user-level** `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` (full `.docket.yml` schema; every repo on this machine) and a **machine-local** `<repo>/.docket.local.yml` (gitignored; this repo, this machine only). Every key resolves **per-field**: **repo-local > repo-committed > global > built-in** (map-valued `skills:`/`agents:` merge field-by-field). **Coordination-key fence:** a key whose effect writes shared, non-re-derivable state is per-repo-only — set in either machine-scoped file it is loudly warned-and-ignored, never honored, never fatal (ADR-0019). Everything else is global-able. Which keys are fenced (the per-key classification table) and the misplaced/malformed-file postures are authoritative in docket's config schema (`internal/config`) and discoverable via the `diagnostic.config` / schema operations — not restated here; the legacy `agents.yaml` auto-migration is owned by the Go install.
 
 This resolution — repair `origin/HEAD`, read `.docket.yml`, apply defaults, resolve `integration_branch` — runs deterministically inside the **`repository.prepare`** operation (the *Step-0 preamble*), exporting the resolved values to skill runtime.
 
@@ -62,7 +62,7 @@ This resolution — repair `origin/HEAD`, read `.docket.yml`, apply defaults, re
 
 **Script contracts (`scripts/<name>.md`).** Every `scripts/<name>.sh` has a co-located `scripts/<name>.md` contract — its authoritative spec (Purpose / Usage / Behavior / Exit codes / Invariants). Read it for a script's internals; reach it from a consuming repo the same way as the script.
 
-**`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render: `inline` (the committed, offline-safe `BOARD.md`) and `github` (the one-way mirror, see *GitHub board mirror*); default `[inline]`. **`[]` disables the board entirely** — the change files plus git history remain fully authoritative. An unknown token is warned-and-ignored (a typo must never abort a build); a non-GitHub remote silently drops `github`; `github_project` is consulted only when `github` is enabled, minted-and-written-back on first sync if unset.
+**`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render. `inline` (the committed, offline-safe `BOARD.md`) is the one supported surface; default `[inline]`. **`[]` disables the board entirely** — the change files plus git history remain fully authoritative. An unknown token is warned-and-ignored (a typo must never abort a build). The `github` surface is **dropped**: `internal/config/capability.go` classifies a repository `github` token as unsupported and mutation-blocking (see *GitHub board mirror*), so no surface is rendered for it and `github_project` (inert, read by nothing today) is never minted or written back.
 
 **`finalize` — the rebase-retest merge gate.** `finalize.gate` governs `docket-finalize-change`'s
 merge step — rebase onto `origin/<integration_branch>`, re-validate, merge only if green: `local`
