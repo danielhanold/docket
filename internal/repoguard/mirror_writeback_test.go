@@ -8,9 +8,11 @@ import (
 )
 
 // Change 0154 retired the GitHub board mirror from the skill bodies: the `github`
-// board surface is classified unsupported and mutation-blocking by
-// internal/config/capability.go (fenceBoardSurface refuses any transaction while a
-// `github` token is present), so no skill may teach an agent to run the mirror and
+// board surface is refused before any transaction — fenceBoardSurface (in
+// internal/app/planning.go) returns the planningError that refuses to proceed while a
+// `github` token is present, and dispSupportedOrDropped (in
+// internal/config/capability.go) classifies the surface as unsupported and emits the
+// mutation-blocking diagnostic — so no skill may teach an agent to run the mirror and
 // record its minted identifiers back into a change file or `.docket.yml`.
 //
 // This guard is the standing floor that keeps that recipe from creeping back. It is
