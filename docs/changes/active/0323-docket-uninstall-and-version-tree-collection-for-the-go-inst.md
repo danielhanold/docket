@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/docket-uninstall-and-version-tree-collection-for-the-go-inst'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-09T19:19:50Z'
+reconciled: true
+claimed_at: '2026-09-09T19:23:34Z'
 ---
 
 ## Artifacts
@@ -48,3 +48,9 @@ Release installs accumulate immutable asset versions, and users have no command 
 ## Out of scope
 
 Removing development or release CLI binaries; deleting global configuration or source checkouts; changing repository-local instruction surfaces, metadata, or ownership records; force/purge switches; scanning the user's home or repositories for arbitrary references; and background scheduling. The release downloader's separate binary ownership lifecycle remains unchanged.
+
+## Reconcile log
+
+### 2026-09-09
+
+2026-09-09 — Reconciled against origin/main at 881d7cfb. Changes 0311, 0317, 0322, and 0351 are merged and archived; the Go installer, release/development installation, ownership records, legacy reproducer, and global-dispatch retirement foundations described by the spec are present. Change 0323 remains the focused follow-up for uninstall, reference-derived version-tree collection, resumable collection journaling, and associated CLI/schema/documentation/tests. No dependency, stack base, relation, or scope adjustment is required; no adjacent follow-up work was surfaced beyond already-tracked changes.
