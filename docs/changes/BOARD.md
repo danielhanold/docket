@@ -1,6 +1,6 @@
 # Backlog
 
-**414 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 266 done · 🗑️ 113 killed
+**415 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 266 done · 🗑️ 113 killed
 
 ## 🔵 Built (2)
 
@@ -23,10 +23,11 @@
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (18)
+## 🟡 Proposed (19)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0415](active/0415-support-in-place-build-evidence-re-certification-for-an-impl.md) | Support in-place build-evidence re-certification for an implemented change | `medium` | `feat` | needs-brainstorm |
 | [0414](active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | `low` | `chore` | needs-brainstorm |
 | [0413](active/0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md) | Finalize rebase gate cannot clear derived embedded-asset manifest collisions | `medium` | `fix` | needs-brainstorm |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `high` | `fix` | needs-brainstorm |
@@ -100,6 +101,7 @@ graph TD
   0412
   0413
   0414
+  0415
   0192:::done
   0251:::done
   0370:::done
