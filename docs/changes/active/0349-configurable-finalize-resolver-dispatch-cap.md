@@ -86,3 +86,14 @@ Remedy: Make the docket-rebase-resolver dispatch available, then rerun finalize 
 - Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5586452852
 
 Remedy: A human must inspect the feature worktree and re-run finalize for change 349 after resolving the rebase-worktree discrepancy.
+
+### 2026-09-09 — attempt 20260909T010010Z-d73634925bc4
+
+<!-- attempt:20260909T010010Z-d73634925bc4 -->
+
+- Reason: rebase-conflicted
+- Head: c22ac9ff409caa96220a6815d54286ba86091ad6
+- PR: #288
+- Comment: https://github.com/danielhanold/docket/pull/288#issuecomment-5594191005
+
+Remedy: Resolve the remaining rebase conflicts in the feature branch, push the reviewed result, and rerun finalize for change 349 by naming its id.
