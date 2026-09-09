@@ -2,7 +2,7 @@
 id: 154
 slug: audit-skill-bodies-for-the-stale-restatement-class-change-01
 title: 'Remove stale Bash instructions and duplicated runtime contracts from Docket skills'
-status: 'implemented'
+status: 'done'
 priority: medium
 type: docs
 created: 2026-07-28
@@ -20,7 +20,7 @@ branch: 'docs/audit-skill-bodies-for-the-stale-restatement-class-change-01'
 pr: 'https://github.com/danielhanold/docket/pull/294'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-09T02:15:38Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -62,15 +62,3 @@ Only the configuration-sketch item shared with deferred 0257 is covered. Its rem
 
 2026-09-08: Reconciled against HEAD d7363492 on main after claim. The spec was regroomed earlier today (2026-09-08) with a fresh necessity review, so it already reflects current reality: the Go migration owns the runtime, the Bash/board-mirror/main-mode surfaces are retired, and the discovery channels are capability + schema + config operations. Confirmed the in-scope population is the 29 git-tracked Markdown files under skills/ (discovered from the checkout, not hard-coded). Predecessors 0363/0370/0372/0377/0394/0399 are done, so depends_on stays empty and no stacked base is needed; related/discovered_from/adrs relations remain accurate. No scope or relation adjustment required. Seed defects are verified at build time against their named current owners (internal/app/status_result.go, status_human.go, planning.go, derived_views.go, internal/config/schema.go, capability.go, .docket.example.yml) rather than reapplying the obsolete August edits; deferred 0257's single sketch-comment item is folded in per the spec, with its remaining rationale work left deferred.
 
-## Finalize blocked
-
-### 2026-09-09 — attempt 20260909T164355Z-77849d583f3f
-
-<!-- attempt:20260909T164355Z-77849d583f3f -->
-
-- Reason: resolver-capability-missing
-- Head: dc84a95dfb6dd26ccad8ff6ae2b3ab0bdad6192c
-- PR: #294
-- Comment: https://github.com/danielhanold/docket/pull/294#issuecomment-5605464417
-
-Remedy: Update or reinstall Docket so its validated capability catalog provides finalize.resolver-reserve, then retry finalize by explicitly naming change 154. Keep the PR open; do not resolve or merge this conflict manually.

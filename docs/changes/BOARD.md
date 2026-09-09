@@ -1,12 +1,6 @@
 # Backlog
 
-**415 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 268 done · 🗑️ 113 killed
-
-## 🔴 Blocked (1)
-
-| # | Title | Priority | Type | PR | Reason |
-|---|-------|----------|------|----|--------|
-| [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Remove stale Bash instructions and duplicated runtime contracts from Docket skills | `medium` | `docs` | [#294](https://github.com/danielhanold/docket/pull/294) | finalize blocked — needs you |
+**415 changes** — 🟣 4 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 269 done · 🗑️ 113 killed
 
 ## 🟣 Groomed (4)
 
@@ -62,7 +56,6 @@ graph TD
   0008
   0009
   0010
-  0154
   0166
   0192 --> 0195
   0248
@@ -101,12 +94,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (381)</summary>
+<details><summary>✅🗑️ Archive — done + killed (382)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0393](archive/2026-09-09-0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | 2026-09-09 |
 | [0349](archive/2026-09-09-0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | 2026-09-09 |
+| [0154](archive/2026-09-09-0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Remove stale Bash instructions and duplicated runtime contracts from Docket skills | 2026-09-09 |
 | [0410](archive/2026-09-08-0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | 2026-09-08 |
 | [0408](archive/2026-09-08-0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | 2026-09-08 |
 | [0376](archive/2026-09-08-0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | 2026-09-08 |
@@ -119,7 +113,6 @@ graph TD
 | [0383](archive/2026-09-07-0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | 2026-09-07 |
 | [0379](archive/2026-09-07-0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | 2026-09-07 |
 | [0346](archive/2026-09-07-0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | 2026-09-07 |
-| [0404](archive/2026-09-06-0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | 2026-09-06 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -238,7 +231,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 17 done |
+| [2026-09](archive/) | 18 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

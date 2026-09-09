@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0154 — Remove stale Bash instructions and duplicated runtime contracts from Docket skills](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md)**
+> ↩ **[Change 0154 — Remove stale Bash instructions and duplicated runtime contracts from Docket skills](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-09-0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md)**
 <!-- docket:backlink:end -->
 
 # Remove stale Bash instructions and duplicated runtime contracts from Docket skills
