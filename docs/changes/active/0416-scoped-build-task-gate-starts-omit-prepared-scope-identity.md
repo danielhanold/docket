@@ -2,7 +2,7 @@
 id: 416
 slug: 'scoped-build-task-gate-starts-omit-prepared-scope-identity'
 title: 'Scoped build-task gate starts omit prepared scope identity'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-09'
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/scoped-build-task-gate-starts-omit-prepared-scope-identity'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-09T21:30:10Z'
 ---
 
 ## Artifacts
