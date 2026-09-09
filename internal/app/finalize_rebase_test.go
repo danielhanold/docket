@@ -724,6 +724,9 @@ func TestFinalizeRebaseResolverBudgetWaitingReloadsForward(t *testing.T) {
 func TestFinalizeRebaseResolverBudgetClearReloadsForward(t *testing.T) {
 	f, gh, real := completedBudgetedReceipt(t, func(r *workspace.RebaseReceipt) {
 		// A recorded WAITING drive so the recovery advances and then CLEARS it.
+		r.PublishCheckpointHead, r.PublishCheckpointBaseHead = "", ""
+		r.PublishCheckpointCommand, r.PublishCheckpointGate = "", ""
+		r.PublishCheckpointPRNumber, r.PublishCheckpointEvidence = "", ""
 		r.GateDriveID = "drive-9"
 		r.GateOwnerGeneration = "gen-9"
 	})
