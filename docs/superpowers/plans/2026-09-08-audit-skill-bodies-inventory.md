@@ -100,3 +100,106 @@ Each row's final disposition is one of:
   (a true statement about a deferred feature counts as current guidance, not staleness).
 
 No row may remain unresolved after Task 7 (Task 9 verifies).
+
+## Evidence appendix (Task 9)
+
+Consolidated close-out evidence for change 0154. The per-file rows above are the source; this
+appendix summarizes the change-wide guard-mutation matrix, the asset-correspondence proof, the
+absorbed 0257 disposition, the out-of-scope findings referred for human triage, and the suite-gate
+attribution. Nothing here is re-run — each item is drawn from the commit that produced it
+(`git log --oneline d73634925..HEAD`) and the row that recorded it.
+
+### Guard-mutation matrix (whole change)
+
+Every new or changed guard, the mutation applied to it, and that RED was observed. All mutations
+were driven through the per-task gate and counted with `/usr/bin/grep -cF` on whitespace-flattened
+copies before and after.
+
+**Task 2 — `docs(0154): status skill …` (2423a611).** No new guard file; surviving-property
+guards over `skills/docket-status/SKILL.md` reconciled by editing prose, not the assert:
+
+- `TestSkillSizeBudgets` (status-skill word ceiling): mutated by leaving the file over budget —
+  **RED at 3134 words**, **green at 3056 words** (ceiling 3065).
+- `TestCapabilitySurface` (migrate-pin + no-new-`docket <argv>`-literal): mutated by injecting a
+  `docket schema --operation` literal and dropping the migrate count to 8 — **RED**; green after
+  removing the injected literal and restoring the migrate occurrence.
+- `TestProseContracts` `change_0389` sweep-scope sentinel: mutated by stripping the guarded clause
+  "never that every item succeeded" — **RED**; restored to green from the edited copy.
+- capability-surface migrate pin (count = 9): mutated by dropping one occurrence to count 8 —
+  **RED**; restored to green.
+
+**Task 3 — `docs(0154): board/mirror claims …` (c7588a1f).** One new guard added, one guard file
+reconciled for the removed marker population:
+
+- `TestNoActiveMirrorWriteBack` (**new**, `internal/repoguard/mirror_writeback_test.go`): no line
+  under `skills/` names a minted mirror identifier and a record-it-back obligation on the same line.
+  Mutated by planting `issue-minted … record … back` — **RED (1 violation)**; green after removal.
+  Carries a non-vacuity subtest that exercises the classifier so the rule cannot pass by matching
+  nothing.
+- `internal/repoguard/config_read_channel_test.go`: the removed `docket:config-read-channel:
+  write-back` marker emptied the former occurrence floors (`classified >= 3` / `writeBacks >= 1`),
+  which were retired and replaced by a **reader-liveness floor** probing the excluded convention
+  body for `>= 3` real config-file-token occurrences, plus a retargeted deleted-file sibling probe
+  (`references/stacked-changes.md`). Mutations: (a) the marker RULE — planted an unmarked
+  `.docket.yml` config read → **RED**, restored; (b) reader-liveness floor — pointed the probe at a
+  token-free file → **RED (0 < 3)**, restored; (c) sibling check — retargeted to a nonexistent
+  sibling → **RED**, restored.
+- budget forward-check: mutated by leaving the stale `github-board-mirror.md` budget row after the
+  file was deleted → **RED (missing file)**; green after removing the row.
+
+`go test ./internal/repoguard/ -count=1` green at the end of Task 3.
+
+**Tasks 4–7 (10b74373, b6c22f59, 7d55fd66, a2426189).** No guard file changed in any of these
+tasks. Each was docs-only prose editing with no executable behavior change, so a literal RED/GREEN
+guard mutation was unsuitable; the substitute verification was the whole-package
+`go test ./internal/repoguard/ -count=1` kept green, every preserved `TestProseContracts` sentinel
+confirmed still anchored on surviving wording (verbatim), and every `TestSkillSizeBudgets` ceiling
+confirmed satisfied after each net-deletion edit. For every removed clause, the whole test surface
+(`internal/`, `tests/`, including whitespace-flattened copies) was searched first and confirmed to
+carry no dependent assert keyed on the retired copy — the residual risk was the embedded bundle
+diverging from `skills/` until Task 8 regenerated it, which Task 8 closed.
+
+### Asset-correspondence proof (Task 8 — `docs(0154): regenerate embedded skills bundle`, a68097e2)
+
+- Regenerated through the owner only: `go generate ./internal/assets` (never hand-edited).
+- `go test ./internal/assets/ -count=1` **passed** — the authored `skills/` tree and the embedded
+  `internal/assets/embedded/tree/**` copy are byte-identical.
+- `github-board-mirror.md` (deleted in Task 3) is gone from **both** trees: the commit drops
+  `internal/assets/embedded/tree/skills/docket-convention/github-board-mirror.md` (17 lines
+  removed) and updates `manifest.json`; every other embedded delta corresponds one-to-one to an
+  authored edit from Tasks 2–7.
+
+### Absorbed change-0257 item — disposition
+
+**Fixed (Task 4, 10b74373).** The `skills:` block comment in the convention's `.docket.yml` sketch
+formerly read "unset key = the superpowers default shown." That is stale: since change 0193 the
+`build` and `review` roles default to docket's **own** roles, not superpowers. Corrected to name
+the real per-role defaults — "the default shown (superpowers for brainstorm/plan/finish, docket's
+own for build/review — change 0193)." This is the single 0257 item this change absorbed; 0257's
+remaining scope stays deferred (see out-of-scope findings).
+
+### Out-of-scope findings referred for human triage
+
+Recorded, not fixed here — each is outside this change's dead-owner / stale-restatement class:
+
+1. **Shipped `.docket.example.yml` still carries a live single-branch `metadata_branch`
+   narrative** (the `| main` main-mode comment and single-branch opt-out prose), which 0363 /
+   ADR-0099 retired. It sits outside the `skills/` population, so no `skills/` edit here reached it.
+   Recommend a coordinated doc sweep across the skill prose and the example config in one change.
+   **No existing change id.**
+2. **Typed `learning.record` / `learning.update` operations are surfaced nowhere in `skills/`
+   prose.** These manual-authoring ops predate the baseline; the "edit `learnings/` files directly"
+   framing omits them. Enriching the prose to name them is a docs-enrichment task, not a
+   stale-restatement fix. **Pre-existing; no change id.**
+3. **Deferred change 0257's remaining rationale / shell-guidance work stays deferred.** Only the
+   single "superpowers default shown" comment was absorbed here (above); the rest of 0257 is
+   untouched. **Change 0257.**
+
+### Suite-gate attribution
+
+The final full-suite certification for this branch is **not** run inside this task. The build
+controller performs it on the head that contains this appendix commit, via
+`go run ./cmd/docket development test` (the resolved `build.test_command`), and records the SUITE
+result and any budget report (`BUDGET WATCH:` / `PARALLEL-SENSITIVE:` screening lines,
+`SERIAL CONFIRMED OVER BUDGET:` breaches) in the PR build-evidence block. No suite SHA or
+pass/fail verdict is minted here — the controller's gate owns that attribution.
