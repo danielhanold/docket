@@ -55,3 +55,11 @@ Removing development or release CLI binaries; deleting global configuration or s
 ### 2026-09-09
 
 2026-09-09 — Reconciled against origin/main at 881d7cfb. Changes 0311, 0317, 0322, and 0351 are merged and archived; the Go installer, release/development installation, ownership records, legacy reproducer, and global-dispatch retirement foundations described by the spec are present. Change 0323 remains the focused follow-up for uninstall, reference-derived version-tree collection, resumable collection journaling, and associated CLI/schema/documentation/tests. No dependency, stack base, relation, or scope adjustment is required; no adjacent follow-up work was surfaced beyond already-tracked changes.
+
+## Run halted
+
+### 2026-09-09
+
+The build halted at Task 1 before implementation. The dispatched `docket-build-standard` worker attempted the required native `gate.drive.start` for its focused test command, but the driver returned `result: invalid-input` with `reason: invalid-request` and supplied neither a drive identifier nor an owner generation. The worker therefore could not safely observe or continue the required test gate and returned `BLOCKED` under the docket-build-task contract.
+
+The feature worktree `/Users/homer/dev/docket/.worktrees/docket-uninstall-and-version-tree-collection-for-the-go-inst` remains clean at `626a1f1aa5d825e17e2f54809ffdfdea3f1cc8db`; no Task 1 files were modified and no task commit was created. A human must repair or revalidate the native gate-driver request/installation before resuming change 323.
