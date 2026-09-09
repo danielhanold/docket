@@ -1,17 +1,12 @@
 # Backlog
 
-**414 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 266 done · 🗑️ 113 killed
+**414 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 266 done · 🗑️ 113 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Remove stale Bash instructions and duplicated runtime contracts from Docket skills | `medium` | `docs` | [spec](../superpowers/specs/2026-09-08-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) | `docs/audit-skill-bodies-for-the-stale-restatement-class-change-01` |  |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Remove stale Bash instructions and duplicated runtime contracts from Docket skills | `medium` | `docs` | [#294](https://github.com/danielhanold/docket/pull/294) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🔴 Blocked (1)
