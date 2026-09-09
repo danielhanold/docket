@@ -14,7 +14,7 @@ discovered_from: [323]
 adrs: [107]
 spec:
 plan: 'docs/superpowers/plans/2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity.md'
-results:
+results: 'docs/results/2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity-results.md'
 trivial: true
 auto_groomable:
 branch_prefix:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-09T21:49:06Z'
 | Artifact | Link |
 |---|---|
 | Plan | [2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) |
+| Results | [2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-09-scoped-build-task-gate-starts-omit-prepared-scope-identity-results.md) |
 | ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
 <!-- docket:artifacts:end -->
 
