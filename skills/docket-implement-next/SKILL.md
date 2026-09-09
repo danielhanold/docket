@@ -61,7 +61,7 @@ Two escape hatches:
 
 ### Step 4 — Worktree + plan
 
-CONFIRM the step-3 reconcile push has landed on the **metadata branch** before continuing — by **SHA-compare**, not "the push exited 0": after a re-sync, the local metadata tip must equal the remote tip (`docket`-mode: re-run the `repository.prepare` operation, assert `git -C .docket rev-parse @ == git rev-parse origin/docket`; `main`-mode: the primary tree's tip equals `origin/<integration_branch>`). If they differ (a concurrent writer rejected the push): re-sync, re-push — loop until the SHAs match, so the build never reads bytes older than origin. Then prepare the owned feature workspace:
+CONFIRM the step-3 reconcile push has landed on the **metadata branch** before continuing — by **SHA-compare**, not "the push exited 0": after a re-sync, the local metadata tip must equal the remote tip (re-run the `repository.prepare` operation, assert `git -C .docket rev-parse @ == git rev-parse origin/docket`). If they differ (a concurrent writer rejected the push): re-sync, re-push — loop until the SHAs match, so the build never reads bytes older than origin. Then prepare the owned feature workspace:
 
 ```
 workspace.prepare  --id <id> --version <entity-version>   # resolve argv from the capability catalog
@@ -203,7 +203,7 @@ Every change-file field write in this run (claim's `status:`/`branch:`, reconcil
 
 ### Feature branch invariants
 
-New change ⇒ the `workspace.prepare` operation with `--id <id> --version <entity-version>`, which cuts `<type>/<slug>` from the resolved effective base — `origin/<integration_branch>` in BOTH modes, except for a change carrying `stacked_on:`, whose base is the parent's effective base per the convention's *Branch model* exception and its stacked-changes reference. The workspace is prepared AFTER claim + reconcile, adds only plan + results + code, and **never modifies** docket metadata (the change file, `BOARD.md`, ADRs) — at merge, the 3-way merge takes the integration branch's side for the change file unconditionally, so there is no conflict and no revert needed. (In `docket`-mode the change file may not even exist on `origin/<integration_branch>`; change 0084.)
+New change ⇒ the `workspace.prepare` operation with `--id <id> --version <entity-version>`, which cuts `<type>/<slug>` from the resolved effective base — `origin/<integration_branch>` in the ordinary case, except for a change carrying `stacked_on:`, whose base is the parent's effective base per the convention's *Branch model* exception and its stacked-changes reference. The workspace is prepared AFTER claim + reconcile, adds only plan + results + code, and **never modifies** docket metadata (the change file, `BOARD.md`, ADRs) — at merge, the 3-way merge takes the integration branch's side for the change file unconditionally, so there is no conflict and no revert needed. (In `docket`-mode the change file may not even exist on `origin/<integration_branch>`; change 0084.)
 
 Metadata commits (per the **field-write rule**) happen in the metadata working tree; code and plan/results *file* commits happen in the **feature worktree** on `<type>/<slug>` — the `plan:`/`results:` *fields* are always written on `metadata_branch`, never the feature worktree. Never cross these streams — a metadata write landing in the feature worktree silently diverges or conflicts at merge. (The single deliberate cross-tree touch is step 4's spec **read** — a read across trees, never a metadata write into the feature tree.)
 

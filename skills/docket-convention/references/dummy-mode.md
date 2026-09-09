@@ -61,7 +61,7 @@ starting an interactive skill or mid-session.
   evidence, and script contracts keep full technical density. A spec is human-approved but
   agent-consumed, and the resolution is to simplify the *walkthrough dialogue* only: the human
   approves in plain-language conversation while the file stays dense.
-- **Script-generated views:** `BOARD.md`, GitHub mirror issue bodies, `## Artifacts` and backlink
+- **Script-generated views:** `BOARD.md`, `## Artifacts` and backlink
   blocks, index READMEs, `## Reclaim log` and `## Publish deferred` entries. Deterministic renderer
   output, out of scope.
 - **The change body's `## Why`** — already the PM-altitude plain layer.
