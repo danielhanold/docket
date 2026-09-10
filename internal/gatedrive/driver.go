@@ -381,6 +381,11 @@ func (d *Driver) startScoped(req StartRequest, rec driveRecord, ownerGen string)
 		return DriveDoc{}, err
 	}
 	if rerr := d.store.reserveScopeDrive(req.ScopeID, req.ChildCapability, id, receipt); rerr != nil {
+		// The reservation never won the slot, so the just-minted reserved record is a
+		// pure orphan (no launch, no scope binding). Remove it best-effort so its
+		// nonterminal outcome never lingers as a spurious FindScopeDriveIDs recovery
+		// candidate that would fail an outer takeover closed on ambiguity (removeReservedDrive).
+		_ = d.store.removeReservedDrive(id)
 		return DriveDoc{}, rerr
 	}
 
@@ -393,9 +398,16 @@ func (d *Driver) startScoped(req StartRequest, rec driveRecord, ownerGen string)
 	// The exit is parent recovery, never a blind retry or a fabricated second launch.
 	if !receipt.empty() {
 		if rerr := d.store.retirePredecessor(receipt.DriveID, receipt.OwnerGen); rerr != nil {
+			// The reservation won the slot but the predecessor could not be retired: the
+			// slot is left reserved+pending-ack, an unresolved launch transition every
+			// consumer (Start, Takeover, Acknowledge) fails closed on WITHOUT loading the
+			// reserved record. So removing that never-launched record severs no live
+			// recovery; it only spares outer enumeration a spurious candidate (removeReservedDrive).
+			_ = d.store.removeReservedDrive(id)
 			return DriveDoc{}, ownershipErr(ErrUnresolvedLaunchTransition, "start")
 		}
 		if cerr := d.store.clearPendingAck(req.ScopeID, receipt.DriveID); cerr != nil {
+			_ = d.store.removeReservedDrive(id)
 			return DriveDoc{}, ownershipErr(ErrUnresolvedLaunchTransition, "start")
 		}
 	}
