@@ -99,6 +99,7 @@ type preImage struct {
 	Backup     string        `json:"backup,omitempty"`      // slash-relative path inside the journal
 	Mode       uint32        `json:"mode,omitempty"`        // file only: the permissions to restore
 	LinkTarget string        `json:"link_target,omitempty"` // symlink only: the raw link text
+	Digest     string        `json:"digest,omitempty"`      // file only: sha256 of the exact captured bytes
 }
 
 // journalStep is one ordered apply step as the journal records it. It carries
@@ -152,7 +153,14 @@ type Txn struct {
 	journal journal  // exactly what plan.json holds
 	targets []Target // desired state, parallel to journal.Steps; never persisted
 	phase   txnPhase
+	applied int // successful steps in this process; recovery still trusts only the journal
 }
+
+// txnBeforeApply is the deterministic inspection-to-apply race seam. Tests
+// replace it to change a captured destination at the last instant before the
+// whole-plan pre-image pass; production leaves it inert.
+var txnBeforeApply = func() {}
+var txnBeforeRemovalApply = func(string) {}
 
 // ID is the transaction identifier, which is also the journal directory name a
 // later recovery names.
@@ -243,6 +251,7 @@ func (t *Txn) Apply() error {
 	if t.phase != phaseOpen {
 		return fmt.Errorf("install: transaction %s is not open for apply", t.journal.TxnID)
 	}
+	txnBeforeApply()
 	if err := t.verifyPreImages(); err != nil {
 		// Nothing has been applied — the check runs before the first step — so
 		// there is nothing to undo, and undoing anyway would be destructive: a
@@ -258,6 +267,13 @@ func (t *Txn) Apply() error {
 		return err
 	}
 	if err := t.applySteps(); err != nil {
+		if errors.Is(err, ErrPlanStale) && t.applied == 0 {
+			t.phase = phaseFinished
+			if rmErr := removeTree(t.fs, t.dir); rmErr != nil {
+				return errors.Join(err, fmt.Errorf("install: removing transaction %s: %w", t.journal.TxnID, rmErr))
+			}
+			return err
+		}
 		applyErr := fmt.Errorf("%w: %w", ErrApplyFailed, err)
 		if rbErr := t.Rollback(); rbErr != nil {
 			return errors.Join(applyErr, rbErr)
@@ -287,29 +303,54 @@ func (t *Txn) Apply() error {
 // its step.
 func (t *Txn) verifyPreImages() error {
 	for _, step := range t.journal.Steps {
-		if step.Remove && step.Kind != KindManagedBlock {
-			// A whole-file removal deletes whatever it finds and restores what it
-			// captured; a target that vanished on its own has simply arrived early.
-			// A managed-block removal is exempt from that exemption: it rewrites the
-			// file in place, so it is verified like an update — the destination must
-			// still hold what the journal recorded, or the rewrite has nothing it
-			// can safely undo.
-			continue
+		if err := verifyStepPreImage(t.dir, step); err != nil {
+			return err
 		}
-		info, err := os.Lstat(step.Path)
-		switch {
-		case errors.Is(err, fs.ErrNotExist):
-			if step.PreImage.State != preAbsent {
-				return fmt.Errorf("%w: %s held %s when the transaction began, and holds nothing now",
-					ErrPlanStale, step.Path, describePreImageState(step.PreImage.State))
+	}
+	return nil
+}
+
+func verifyStepPreImage(journalDir string, step journalStep) error {
+	info, err := os.Lstat(step.Path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		if step.PreImage.State != preAbsent {
+			return fmt.Errorf("%w: %s held %s when the transaction began, and holds nothing now",
+				ErrPlanStale, step.Path, describePreImageState(step.PreImage.State))
+		}
+	case err != nil:
+		return fmt.Errorf("install: inspecting %s: %w", step.Path, err)
+	default:
+		if have := observedPreImageState(info); have != step.PreImage.State {
+			return fmt.Errorf("%w: %s held %s when the transaction began, and holds %s now",
+				ErrPlanStale, step.Path,
+				describePreImageState(step.PreImage.State), describePreImageState(have))
+		}
+		switch step.PreImage.State {
+		case preFile:
+			data, err := os.ReadFile(step.Path)
+			if err != nil {
+				return fmt.Errorf("install: reading %s: %w", step.Path, err)
 			}
-		case err != nil:
-			return fmt.Errorf("install: inspecting %s: %w", step.Path, err)
-		default:
-			if have := observedPreImageState(info); have != step.PreImage.State {
-				return fmt.Errorf("%w: %s held %s when the transaction began, and holds %s now",
-					ErrPlanStale, step.Path,
-					describePreImageState(step.PreImage.State), describePreImageState(have))
+			if step.PreImage.Digest == "" || hashBytes(data) != step.PreImage.Digest {
+				return fmt.Errorf("%w: %s no longer has its captured contents", ErrPlanStale, step.Path)
+			}
+			if step.PreImage.Backup != "" {
+				backup, err := os.ReadFile(filepath.Join(journalDir, filepath.FromSlash(step.PreImage.Backup)))
+				if err != nil {
+					return fmt.Errorf("%w: reading rollback material for %s: %v", ErrJournalInvalid, step.Path, err)
+				}
+				if hashBytes(backup) != step.PreImage.Digest {
+					return fmt.Errorf("%w: rollback material for %s no longer matches its digest", ErrJournalInvalid, step.Path)
+				}
+			}
+		case preSymlink:
+			dest, err := os.Readlink(step.Path)
+			if err != nil {
+				return fmt.Errorf("install: reading link %s: %w", step.Path, err)
+			}
+			if dest != step.PreImage.LinkTarget {
+				return fmt.Errorf("%w: %s no longer has its captured link destination", ErrPlanStale, step.Path)
 			}
 		}
 	}
@@ -350,9 +391,24 @@ func describePreImageState(s preImageState) string {
 // on disk and nobody left to undo it.
 func (t *Txn) applySteps() error {
 	for i := range t.journal.Steps {
+		if t.journal.Steps[i].Remove {
+			txnBeforeRemovalApply(t.journal.Steps[i].Path)
+			// Revalidate every removal still ahead, not just the next one. If a
+			// later target changed after the whole-plan pass, discovering it before
+			// an earlier deletion avoids a rollback that would overwrite the
+			// intruder with captured bytes.
+			for j := i; j < len(t.journal.Steps); j++ {
+				if t.journal.Steps[j].Remove {
+					if err := verifyStepPreImage(t.dir, t.journal.Steps[j]); err != nil {
+						return fmt.Errorf("step %d (%s): %w", t.journal.Steps[j].Seq, t.journal.Steps[j].Path, err)
+					}
+				}
+			}
+		}
 		if err := t.applyStep(i); err != nil {
 			return fmt.Errorf("step %d (%s): %w", t.journal.Steps[i].Seq, t.journal.Steps[i].Path, err)
 		}
+		t.applied++
 	}
 	return nil
 }
@@ -362,6 +418,12 @@ func (t *Txn) applyStep(i int) error {
 	target := t.targets[i]
 
 	if step.Remove {
+		// The whole-plan pass prevents any earlier removal when a captured target
+		// already drifted. This second proof is adjacent to the destructive
+		// primitive and narrows the remaining race to the primitive itself.
+		if err := verifyStepPreImage(t.dir, *step); err != nil {
+			return err
+		}
 		if step.Kind == KindManagedBlock {
 			// A managed-block removal rewrites the file with only that block's
 			// lines gone, keeping every surrounding byte; it is not a whole-file
@@ -658,7 +720,7 @@ func captureDoc(fsops FSOps, dir string, doc *journalStep, backupName string) er
 	if err := fsops.WriteFile(filepath.Join(dir, filepath.FromSlash(rel)), data, 0o600); err != nil {
 		return fmt.Errorf("install: recording rollback material for %s: %w", doc.Path, err)
 	}
-	doc.PreImage = preImage{State: preFile, Backup: rel, Mode: uint32(info.Mode().Perm())}
+	doc.PreImage = preImage{State: preFile, Backup: rel, Mode: uint32(info.Mode().Perm()), Digest: hashBytes(data)}
 	doc.Action = actionUpdate
 	return nil
 }
@@ -1056,7 +1118,7 @@ func capturePreImage(fsops FSOps, dir string, step *journalStep) error {
 		if err := fsops.WriteFile(filepath.Join(dir, filepath.FromSlash(rel)), data, 0o600); err != nil {
 			return fmt.Errorf("install: recording rollback material for %s: %w", step.Path, err)
 		}
-		step.PreImage = preImage{State: preFile, Backup: rel, Mode: uint32(info.Mode().Perm())}
+		step.PreImage = preImage{State: preFile, Backup: rel, Mode: uint32(info.Mode().Perm()), Digest: hashBytes(data)}
 		return nil
 
 	default:

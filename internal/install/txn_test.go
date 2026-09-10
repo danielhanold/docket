@@ -569,6 +569,7 @@ func TestCommitRemovesJournal(t *testing.T) {
 		if err != nil {
 			t.Fatalf("RecordFor(%s): %v", insp.Target.Path, err)
 		}
+		rec.Harness = "claude"
 		records = append(records, rec)
 	}
 	state := &State{
@@ -1247,18 +1248,228 @@ func TestTxnRemovalsAreExemptFromDispositionAgreement(t *testing.T) {
 	if err := os.Remove(removals[1].Path); err != nil {
 		t.Fatalf("Remove(%s): %v", removals[1].Path, err)
 	}
-	if err := txn.Apply(); err != nil {
-		t.Fatalf("Apply refused a removal whose target vanished mid-transaction: %v", err)
+	if err := txn.Apply(); !errors.Is(err, ErrPlanStale) {
+		t.Fatalf("Apply err = %v, want ErrPlanStale for a removal that vanished after capture", err)
 	}
-	for _, rec := range removals {
-		if _, err := os.Lstat(rec.Path); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("%s survived its removal step: %v", rec.Path, err)
+	if _, err := os.Lstat(removals[0].Path); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("already-absent removal unexpectedly reappeared: %v", err)
+	}
+	if _, err := os.Lstat(f.path("agents", "new-agent.md")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("a write ran before removal pre-image refusal: %v", err)
+	}
+	if _, found, err := DetectRecovery(f.roots); err != nil || found {
+		t.Errorf("refused removal left recovery = (%v, %v)", found, err)
+	}
+}
+
+func TestRemovalPreImageDriftRefusesBeforeAnyRemoval(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*testing.T, string)
+	}{
+		{"file bytes", func(t *testing.T, path string) { writeFileOrDie(t, path, "intruder\n") }},
+		{"kind", func(t *testing.T, path string) {
+			if err := os.Remove(path); err != nil {
+				t.Fatal(err)
+			}
+			symlinkOrDie(t, filepath.Join(filepath.Dir(path), "dangling"), path)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			first := f.path("agents", "old-agent.md")
+			last := f.path("dispatch", "zzz-owned.md")
+			writeFileOrDie(t, last, "owned\n")
+			removals := []TargetRecord{
+				{Path: first, Kind: KindFile, SHA256: digestOf("old\n"), Role: "agent"},
+				{Path: last, Kind: KindFile, SHA256: digestOf("owned\n"), Role: "agent"},
+			}
+			txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, removals)
+			if err != nil {
+				t.Fatal(err)
+			}
+			oldHook := txnBeforeApply
+			txnBeforeApply = func() { tc.change(t, last) }
+			t.Cleanup(func() { txnBeforeApply = oldHook })
+			if err := txn.Apply(); !errors.Is(err, ErrPlanStale) {
+				t.Fatalf("Apply = %v", err)
+			}
+			if got := readOrDie(t, first); got != "old\n" {
+				t.Fatalf("earlier removal ran: %q", got)
+			}
+			if tc.name == "file bytes" && readOrDie(t, last) != "intruder\n" {
+				t.Fatal("refusal overwrote the intruder")
+			}
+			if _, found, err := DetectRecovery(f.roots); err != nil || found {
+				t.Fatalf("journal retained: %v %v", found, err)
+			}
+		})
+	}
+}
+
+func TestRemovalPreImageLinkDestinationDriftRefuses(t *testing.T) {
+	f := newFixture(t)
+	path := f.path("links", "owned")
+	oldDest := f.path("assets", "old")
+	newDest := f.path("assets", "new")
+	symlinkOrDie(t, oldDest, path)
+	txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{{Path: path, Kind: KindSymlink, LinkTarget: oldDest, Role: "skill"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldHook := txnBeforeApply
+	txnBeforeApply = func() {
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(newDest, path); err != nil {
+			t.Fatal(err)
 		}
 	}
-	// The rest of the plan still landed: the exemption is for removals alone.
-	if got := readOrDie(t, f.path("agents", "new-agent.md")); got != "new agent\n" {
-		t.Errorf("new-agent.md = %q, want the plan applied around the removals", got)
+	t.Cleanup(func() { txnBeforeApply = oldHook })
+	if err := txn.Apply(); !errors.Is(err, ErrPlanStale) {
+		t.Fatalf("Apply = %v", err)
 	}
+	if got, _ := os.Readlink(path); got != newDest {
+		t.Fatalf("intruder link = %q", got)
+	}
+}
+
+func TestRemovalPreImageManagedBlockDriftRefuses(t *testing.T) {
+	f := newFixture(t)
+	path := f.path("dispatch", "managed.md")
+	txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{{Path: path, Kind: KindManagedBlock, BlockName: "dispatch", SHA256: interiorDigest([]byte("old interior\n")), Role: "dispatch"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldHook := txnBeforeApply
+	txnBeforeApply = func() { writeFileOrDie(t, path, managedFile("intruder\n")) }
+	t.Cleanup(func() { txnBeforeApply = oldHook })
+	if err := txn.Apply(); !errors.Is(err, ErrPlanStale) {
+		t.Fatalf("Apply = %v", err)
+	}
+	if got := readOrDie(t, path); got != managedFile("intruder\n") {
+		t.Fatal("refusal restored over intruder")
+	}
+}
+
+func TestRemovalPreImageApplyTimeRevalidationProtectsLaterIntruder(t *testing.T) {
+	f := newFixture(t)
+	first := f.path("agents", "old-agent.md")
+	last := f.path("dispatch", "zzz-owned.md")
+	writeFileOrDie(t, last, "owned\n")
+	txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{
+		{Path: first, Kind: KindFile, SHA256: digestOf("old\n"), Role: "agent"},
+		{Path: last, Kind: KindFile, SHA256: digestOf("owned\n"), Role: "agent"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldHook := txnBeforeRemovalApply
+	changed := false
+	txnBeforeRemovalApply = func(path string) {
+		if path == first && !changed {
+			changed = true
+			writeFileOrDie(t, last, "intruder\n")
+		}
+	}
+	t.Cleanup(func() { txnBeforeRemovalApply = oldHook })
+	if err := txn.Apply(); !errors.Is(err, ErrPlanStale) {
+		t.Fatalf("Apply = %v", err)
+	}
+	if got := readOrDie(t, first); got != "old\n" {
+		t.Fatalf("earlier removal ran: %q", got)
+	}
+	if got := readOrDie(t, last); got != "intruder\n" {
+		t.Fatalf("refusal overwrote intruder: %q", got)
+	}
+	if _, found, err := DetectRecovery(f.roots); err != nil || found {
+		t.Fatalf("refused apply retained journal: %v %v", found, err)
+	}
+}
+
+func TestRemovalPreImageApplyFailureRollsBack(t *testing.T) {
+	f := newFixture(t)
+	first := f.path("agents", "old-agent.md")
+	second := f.path("dispatch", "owned.md")
+	writeFileOrDie(t, second, "owned\n")
+	before := snapshotWorld(t, f.targets)
+	ifs := &injectFS{inner: RealFS{}}
+	txn, err := BeginTxnWithRemovals(ifs, f.roots, nil, []TargetRecord{
+		{Path: first, Kind: KindFile, SHA256: digestOf("old\n"), Role: "agent"},
+		{Path: second, Kind: KindFile, SHA256: digestOf("owned\n"), Role: "agent"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ifs.fail = func(op, path string) error {
+		if op == "Remove" && path == second {
+			return errors.New("apply failed")
+		}
+		return nil
+	}
+	if err := txn.Apply(); !errors.Is(err, ErrApplyFailed) {
+		t.Fatalf("Apply = %v", err)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after removal apply rollback")
+}
+
+func TestRemovalPreImageCommitFailureRollsBack(t *testing.T) {
+	f := newFixture(t)
+	path := f.path("agents", "old-agent.md")
+	before := snapshotWorld(t, f.targets)
+	ifs := &injectFS{inner: RealFS{}}
+	txn, err := BeginTxnWithRemovals(ifs, f.roots, nil, []TargetRecord{{Path: path, Kind: KindFile, SHA256: digestOf("old\n"), Role: "agent"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := txn.Apply(); err != nil {
+		t.Fatal(err)
+	}
+	statePath := f.roots.StatePath()
+	ifs.fail = func(op, path string) error {
+		if op == "Rename" && path == statePath {
+			return errors.New("commit failed")
+		}
+		return nil
+	}
+	if err := txn.Commit(statePath, referenceState("current")); !errors.Is(err, ErrApplyFailed) {
+		t.Fatalf("Commit = %v", err)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after removal commit rollback")
+}
+
+func TestRecoveryAbruptRemoval(t *testing.T) {
+	f := newFixture(t)
+	first := f.path("agents", "old-agent.md")
+	second := f.path("dispatch", "owned.md")
+	writeFileOrDie(t, second, "owned\n")
+	before := snapshotWorld(t, f.targets)
+	ifs := &injectFS{inner: RealFS{}}
+	txn, err := BeginTxnWithRemovals(ifs, f.roots, nil, []TargetRecord{
+		{Path: first, Kind: KindFile, SHA256: digestOf("old\n"), Role: "agent"},
+		{Path: second, Kind: KindFile, SHA256: digestOf("owned\n"), Role: "agent"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ifs.fail = func(op, path string) error {
+		if op == "Remove" && path == second {
+			return errors.New("process interrupted")
+		}
+		return nil
+	}
+	if err := txn.applySteps(); err == nil {
+		t.Fatal("interrupted removal unexpectedly completed")
+	}
+	id, found, err := DetectRecovery(f.roots)
+	if err != nil || !found {
+		t.Fatalf("DetectRecovery = %q, %v, %v", id, found, err)
+	}
+	if err := Recover(RealFS{}, f.roots, id); err != nil {
+		t.Fatal(err)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after abrupt removal recovery")
 }
 
 // ---------------------------------------------------------------------------
