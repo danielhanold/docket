@@ -352,6 +352,12 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 // reservation whose later drive creation fails still counts. Any other reservation
 // error (a sub-1 limit config validation should have caught, or an IO fault) fails
 // the start closed rather than silently bypass the cap.
+//
+// The budget key carries no outer-attempt or epoch dimension, so it is scoped to the
+// change's lifetime (repo + change + "build") and is intentionally NOT refreshed or
+// reset by an outer-gate gate-retry-once re-dispatch of the same change: an outer
+// retry inherits the remaining build budget by design, and can never acquire more
+// build repairs. This errs safe.
 func (s *GateDriveService) reserveBuildSuiteAttempt(req GateDriveStartRequest) (GateDriveResult, bool) {
 	key := gatedrive.SuiteBudgetKey{
 		RepoIdentity: req.RepoDir,
