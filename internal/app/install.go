@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -23,10 +24,10 @@ import (
 // them to the protocol — one result document per operation, classified from the
 // service's stable reason rather than from any error text.
 
-// InstallResult is the document `install`, `install check`, and
-// `development install` all return. One shape across three operations is
-// deliberate: they answer the same question about the same installation, and a
-// consumer that can read one can read all three.
+// InstallResult is the document returned by the installation operations. One
+// shape across the install, uninstall, and collection paths lets consumers
+// retain their existing envelope handling while keeping reclamation facts
+// separate from the primary operation result.
 type InstallResult struct {
 	Envelope
 	Mode          string           `json:"mode"`
@@ -50,7 +51,8 @@ type InstallResult struct {
 	// install-path reads (change 0392): tolerated unknown keys, fenced
 	// settings, and the rest — everything is surfaced, because filtering would
 	// only hide information.
-	Warnings []config.Diagnostic `json:"warnings,omitempty"`
+	Warnings   []InstallWarning         `json:"warnings,omitempty"`
+	Collection []InstallCollectionEntry `json:"collection,omitempty"`
 
 	// relayed marks a development-install parent result whose candidate already
 	// printed the sole document to the shared stdout. It is unexported so it
@@ -61,16 +63,37 @@ type InstallResult struct {
 	relayExit int
 }
 
+// InstallWarning preserves configuration diagnostics and adds the retryable
+// collection warning shape without making a successful primary install or
+// uninstall look like a failed cleanup pass.
+type InstallWarning struct {
+	config.Diagnostic
+	PendingPaths []string `json:"pending_paths,omitempty"`
+	Retry        string   `json:"retry,omitempty"`
+}
+
+// InstallCollectionEntry is the protocol projection of one candidate version
+// tree. Keep these tags here rather than leaking the installer representation
+// so this public document remains stable if collection internals evolve.
+type InstallCollectionEntry struct {
+	AssetSetID string `json:"asset_set_id"`
+	Path       string `json:"path"`
+	Status     string `json:"status"`
+	Detail     string `json:"detail,omitempty"`
+}
+
 // Relay reports whether this is a development-install parent relay: when it is,
 // the candidate subprocess has already written the one result document to the
 // shared stdout, so the CLI must present nothing and exit with the returned
 // code.
 func (r InstallResult) Relay() (int, bool) { return r.relayExit, r.relayed }
 
-// The three operation names. They are protocol, so they are spelled once.
+// The installation operation names are protocol, so they are spelled once.
 const (
 	OperationInstall            = "install"
 	OperationInstallCheck       = "install.check"
+	OperationInstallCollect     = "install.collect"
+	OperationUninstall          = "uninstall"
 	OperationDevelopmentInstall = "development.install"
 )
 
@@ -83,6 +106,67 @@ func RunInstall(o install.Options) InstallResult {
 // a user-level, machine-only operation, so it carries no repository reporting.
 func RunInstallCheck(o install.Options) InstallResult {
 	return withConfigWarnings(NewInstallResult(OperationInstallCheck, install.Check(o)), o.ConfigWarnings)
+}
+
+// RunUninstall retires recorded harness integrations without consulting the
+// installed asset tree. Collection remains a post-commit concern: its entries
+// and retry warning never overwrite the primary uninstall result.
+func RunUninstall(o install.UninstallOptions) InstallResult {
+	return NewInstallResult(OperationUninstall, install.Uninstall(o))
+}
+
+// RunInstallCollect performs an explicit version-tree collection. Unlike the
+// automatic post-operation collector, unresolved candidates are this command's
+// primary result and therefore make its process exit non-zero.
+func RunInstallCollect(o install.CollectOptions) InstallResult {
+	out := install.Collect(o)
+	r := NewInstallResult(OperationInstallCollect, install.Outcome{Applied: out.Applied})
+	r.Collection = collectionEntries(out.Entries)
+	if collectionNeedsAttention(out) {
+		r.Result, r.Reason = ResultInvalidState, "collection-pending"
+		if errors.Is(out.Err, install.ErrInvalidInput) {
+			r.Result, r.Reason = ResultInvalidInput, install.ReasonInvalidOptions
+		}
+		if out.Err != nil {
+			r.Message = out.Err.Error()
+		}
+		r.Warnings = append(r.Warnings, collectionWarning(out))
+	}
+	return r
+}
+
+func collectionEntries(entries []install.CollectionEntry) []InstallCollectionEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]InstallCollectionEntry, len(entries))
+	for i, entry := range entries {
+		out[i] = InstallCollectionEntry{AssetSetID: entry.AssetSetID, Path: entry.Path, Status: entry.Status, Detail: entry.Detail}
+	}
+	return out
+}
+
+func collectionNeedsAttention(out install.CollectionOutcome) bool {
+	if out.Err != nil || len(out.Pending) != 0 {
+		return true
+	}
+	for _, entry := range out.Entries {
+		if entry.Status == install.CollectionStatusUnverified || entry.Status == install.CollectionStatusFailed {
+			return true
+		}
+	}
+	return false
+}
+
+func collectionWarning(out install.CollectionOutcome) InstallWarning {
+	pending := append([]string(nil), out.Pending...)
+	for _, entry := range out.Entries {
+		if entry.Status == install.CollectionStatusUnverified || entry.Status == install.CollectionStatusFailed {
+			pending = append(pending, entry.Path)
+		}
+	}
+	sort.Strings(pending)
+	return InstallWarning{Diagnostic: config.Diagnostic{Code: "collection-pending", Severity: config.SeverityWarning, Message: "some version trees could not be collected"}, PendingPaths: pending, Retry: "docket install collect"}
 }
 
 // RunDevelopmentInstall installs from a contributor's checkout.
@@ -119,7 +203,10 @@ func withRepoReporting(r InstallResult, phase *install.RepoPhase) InstallResult 
 // (change 0392), so the document says what the reads degraded rather than
 // discarding it.
 func withConfigWarnings(r InstallResult, warnings []config.Diagnostic) InstallResult {
-	r.Warnings = warnings
+	r.Warnings = make([]InstallWarning, len(warnings))
+	for i, warning := range warnings {
+		r.Warnings[i] = InstallWarning{Diagnostic: warning}
+	}
 	return r
 }
 
@@ -259,6 +346,16 @@ func (r InstallResult) HumanText() string {
 		}
 		b.WriteString("\n")
 	}
+	if len(r.Collection) > 0 {
+		b.WriteString("collection:\n")
+		for _, entry := range r.Collection {
+			fmt.Fprintf(&b, "  %-11s %s", entry.Status, entry.Path)
+			if entry.Detail != "" {
+				fmt.Fprintf(&b, "  (%s)", entry.Detail)
+			}
+			b.WriteString("\n")
+		}
+	}
 	if r.Reason != "" {
 		fmt.Fprintf(&b, "reason: %s\n", r.Reason)
 		if r.Message != "" {
@@ -277,6 +374,9 @@ func (r InstallResult) HumanText() string {
 			}
 			b.WriteString("\n")
 		}
+	}
+	if r.Operation == OperationUninstall {
+		b.WriteString("CLI binary and repository setup remain installed\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

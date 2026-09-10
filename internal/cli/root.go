@@ -13,6 +13,7 @@ import (
 	"github.com/danielhanold/docket/internal/buildinfo"
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/install"
 )
 
@@ -285,6 +286,43 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			return nil
 		},
 	}
+	installCollectCmd := &cobra.Command{
+		Use:         "collect",
+		Short:       "Collect verified unreferenced installed version trees",
+		Args:        cobra.NoArgs,
+		Annotations: capability("install.collect", EffectLocalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
+			if err != nil {
+				result = app.NewInstallResult(app.OperationInstallCollect, install.Outcome{Reason: install.ReasonInvalidOptions, Err: err})
+				return nil
+			}
+			dryRun, _ := c.Flags().GetBool("dry-run")
+			result = app.RunInstallCollect(install.CollectOptions{Roots: roots, FS: install.RealFS{}, DryRun: dryRun})
+			return nil
+		},
+	}
+	installCollectCmd.Flags().Bool("dry-run", false, "report collectable version trees without changing anything")
+
+	uninstallCmd := &cobra.Command{
+		Use:         "uninstall",
+		Short:       "Remove recorded harness integrations while retaining the CLI and repository setup",
+		Args:        cobra.NoArgs,
+		Annotations: capability("uninstall", EffectLocalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
+			if err != nil {
+				result = app.NewInstallResult(app.OperationUninstall, install.Outcome{Reason: install.ReasonInvalidOptions, Err: err})
+				return nil
+			}
+			harnesses, _ := c.Flags().GetStringArray("harness")
+			dryRun, _ := c.Flags().GetBool("dry-run")
+			result = app.RunUninstall(install.UninstallOptions{Roots: roots, FS: install.RealFS{}, Harnesses: harnesses, SupportedHarnesses: harness.Order, DryRun: dryRun})
+			return nil
+		},
+	}
+	uninstallCmd.Flags().StringArray("harness", nil, "harness `name` to remove: claude, codex, cursor, or opencode (repeatable; default: all recorded)")
+	uninstallCmd.Flags().Bool("dry-run", false, "report removable integrations without changing anything")
 
 	developmentCmd := &cobra.Command{
 		Use:   "development",
@@ -372,10 +410,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	repositoryCmd := newRepositoryCommand(func(r app.OperationResult) { result = r })
 	agentCmd := newAgentCommand(info, func(r app.OperationResult) { result = r })
 
-	installCmd.AddCommand(installCheckCmd)
+	installCmd.AddCommand(installCheckCmd, installCollectCmd)
 	developmentCmd.AddCommand(developmentInstallCmd, developmentTestCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, agentCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, agentCmd, diagnosticCmd, installCmd, uninstallCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Commands that do not read installed assets

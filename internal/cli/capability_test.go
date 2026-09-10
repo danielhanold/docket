@@ -53,6 +53,20 @@ func TestCollectAnnotatedParentIsAnEntry(t *testing.T) {
 	}
 }
 
+func TestCollectIncludesInstallMaintenanceLeaves(t *testing.T) {
+	root := newTestRoot()
+	install := leaf("install", "install", EffectLocalWrite)
+	install.AddCommand(leaf("collect", "install.collect", EffectLocalWrite))
+	root.AddCommand(install, leaf("uninstall", "uninstall", EffectLocalWrite))
+	entries, err := collectCapabilities(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 3 || entries[0].ID != "install" || entries[1].ID != "install.collect" || entries[2].ID != "uninstall" {
+		t.Fatalf("entries = %+v", entries)
+	}
+}
+
 func TestCollectRejectsUnclassifiedLeaf(t *testing.T) {
 	root := newTestRoot()
 	root.AddCommand(&cobra.Command{Use: "orphan", RunE: func(*cobra.Command, []string) error { return nil }})

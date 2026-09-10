@@ -92,6 +92,20 @@ func TestInstallResultClassification(t *testing.T) {
 	}
 }
 
+// TestInstallCollectionOperationsAreProtocolSurface keeps the two maintenance
+// leaves in the same typed result family as install and install check.
+func TestInstallCollectionOperationsAreProtocolSurface(t *testing.T) {
+	if OperationUninstall != "uninstall" || OperationInstallCollect != "install.collect" {
+		t.Fatalf("operation ids = %q, %q", OperationUninstall, OperationInstallCollect)
+	}
+	if got := RunUninstall(install.UninstallOptions{}); got.Operation != OperationUninstall {
+		t.Fatalf("uninstall operation = %q", got.Operation)
+	}
+	if got := RunInstallCollect(install.CollectOptions{}); got.Operation != OperationInstallCollect {
+		t.Fatalf("collect operation = %q", got.Operation)
+	}
+}
+
 // TestEveryInstallReasonClassified derives the reason vocabulary from the
 // service's own source rather than restating it: a reason added there and not
 // classified here would otherwise fall into the internal-error default and

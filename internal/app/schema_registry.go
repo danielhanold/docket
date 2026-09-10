@@ -87,6 +87,7 @@ var operationBindings = []OperationBinding{
 	{ID: "gate.stop", Request: nil, Result: GateResult{}},                                                          // GateStop
 	{ID: "install", Request: nil, Result: InstallResult{}},                                                         // RunInstall
 	{ID: "install.check", Request: nil, Result: InstallResult{}},                                                   // RunInstallCheck
+	{ID: "install.collect", Request: nil, Result: InstallResult{}},                                                 // RunInstallCollect
 	{ID: "learning.record", Request: LearningRecordRequest{}, Result: LearningResult{}},                            // LearningRecordOp
 	{ID: "learning.update", Request: LearningUpdateRequest{}, Result: LearningResult{}},                            // LearningUpdate
 	{ID: "maintenance.preflight", Request: nil, Result: MaintenancePreflightResult{}},                              // MaintenancePreflight
@@ -103,6 +104,7 @@ var operationBindings = []OperationBinding{
 	{ID: "run.gate-verdict", Request: nil, Result: RunGateVerdictResult{}},                                         // RunGateVerdict (observe mode returns RunGateVerdictObserveResult)
 	{ID: "run.verify", Request: RunVerifyRequest{}, Result: RunVerifyResult{}},                                     // RunVerify
 	{ID: "status", Request: nil, Result: StatusResult{}},                                                           // Status
+	{ID: "uninstall", Request: nil, Result: InstallResult{}},                                                       // RunUninstall
 	{ID: "version", Request: nil, Result: VersionResult{}},                                                         // Version
 	{ID: "workspace.inspect", Request: WorkspaceIDRequest{}, Result: WorkspaceOpResult{}},                          // WorkspaceInspect
 	{ID: "workspace.prepare", Request: WorkspaceIDRequest{}, Result: WorkspaceOpResult{}},                          // WorkspacePrepare

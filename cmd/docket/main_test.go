@@ -348,7 +348,11 @@ func TestInstallCommandsRegistered(t *testing.T) {
 		}
 	}
 	out, errS, code = runIn(t, home, "install", "--help")
-	if code != 0 || errS != "" || !strings.Contains(out, "check") {
+	if code != 0 || errS != "" || !strings.Contains(out, "check") || !strings.Contains(out, "collect") {
 		t.Fatalf("install help: out=%q err=%q code=%d", out, errS, code)
+	}
+	out, errS, code = runIn(t, home, "uninstall", "--help")
+	if code != 0 || errS != "" || !strings.Contains(out, "--dry-run") {
+		t.Fatalf("uninstall help: out=%q err=%q code=%d", out, errS, code)
 	}
 }

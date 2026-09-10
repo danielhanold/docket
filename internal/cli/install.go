@@ -118,6 +118,8 @@ var assetIndependent = map[string]bool{
 	"diagnostic config":           true,
 	"install":                     true,
 	"install check":               true,
+	"install collect":             true,
+	"uninstall":                   true,
 	"development":                 true,
 	"development install":         true,
 	"development test":            true, // the Go-native whole-suite runner reads this checkout, never installed assets (change 0318)
