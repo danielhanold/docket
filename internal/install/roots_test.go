@@ -229,6 +229,25 @@ func TestRootsDerivedPaths(t *testing.T) {
 	}
 }
 
+func TestCollectionRoots(t *testing.T) {
+	home := testsupport.TempDir(t)
+	roots, err := ResolveRoots(fixedHome(home), fakeEnv(nil))
+	if err != nil {
+		t.Fatalf("ResolveRoots: %v", err)
+	}
+
+	collection := filepath.Join(roots.DataRoot, "collection")
+	if got := roots.CollectionDir(); got != collection {
+		t.Errorf("CollectionDir = %q, want %q", got, collection)
+	}
+	if got, want := roots.CollectionJournalPath(), filepath.Join(collection, "journal.json"); got != want {
+		t.Errorf("CollectionJournalPath = %q, want %q", got, want)
+	}
+	if got, want := roots.CollectionQuarantineDir(), filepath.Join(collection, "quarantine"); got != want {
+		t.Errorf("CollectionQuarantineDir = %q, want %q", got, want)
+	}
+}
+
 // A version directory name is derived from an asset-set id, which is
 // attacker-irrelevant but still untrusted shape: sanitisation must keep the
 // result a single path segment no matter what arrives.
