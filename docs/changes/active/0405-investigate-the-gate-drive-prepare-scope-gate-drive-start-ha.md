@@ -13,7 +13,7 @@ related: [359, 402, 412, 416]
 discovered_from: [402]
 adrs: [107]
 spec: 'docs/superpowers/specs/2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-10-sequential-test-drives-within-one-worker-recovery-scope.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-10T08:08:50Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md) |
+| Plan | [2026-09-10-sequential-test-drives-within-one-worker-recovery-scope.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-10-sequential-test-drives-within-one-worker-recovery-scope.md) |
 | ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
 <!-- docket:artifacts:end -->
 
