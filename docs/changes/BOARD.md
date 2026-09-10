@@ -1,6 +1,6 @@
 # Backlog
 
-**422 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 273 done · 🗑️ 113 killed
+**422 changes** — 🟢 1 in progress · 🟣 5 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 273 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -8,16 +8,17 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` |  |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (5)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0417](active/0417-artifacts-block-pins-plan-results-links-to-the-docket-branch.md) | Artifacts block pins plan/results links to the docket branch, where those files never live | `medium` | `fix` | [spec](../superpowers/specs/2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md) |
+| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `critical` | `fix` | [spec](../superpowers/specs/2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (20)
+## 🟡 Proposed (19)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -25,7 +26,6 @@
 | [0419](active/0419-make-finalize-repair-attempts-configurable-with-a-default-of.md) | Make finalize repair attempts configurable with a default of six | `medium` | `feat` | build-ready (trivial) |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-brainstorm |
-| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `critical` | `fix` | needs-brainstorm |
 | [0415](active/0415-support-in-place-build-evidence-re-certification-for-an-impl.md) | Support in-place build-evidence re-certification for an implemented change | `medium` | `feat` | needs-brainstorm |
 | [0414](active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | `low` | `chore` | needs-brainstorm |
 | [0413](active/0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md) | Finalize rebase gate cannot clear derived embedded-asset manifest collisions | `medium` | `fix` | needs-brainstorm |
@@ -82,7 +82,7 @@ graph TD
   0360
   0370 --> 0366
   0368
-  0375
+  0405 --> 0375
   0380
   0382
   0387
@@ -101,6 +101,7 @@ graph TD
   0251:::done
   0370:::done
   0393:::done
+  0405:::done
   0407:::done
   classDef done fill:#d3f9d8;
 ```
