@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/investigate-the-gate-drive-prepare-scope-gate-drive-start-ha'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-10T08:03:16Z'
+reconciled: true
+claimed_at: '2026-09-10T08:07:00Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ Add behavioral regression coverage for baseline/RED/GREEN sequences, competing s
 ## Out of scope
 
 Redoing change 416's identity-bundle fix; weakening scope identity, fingerprint, capability, or parent/child ownership checks; concurrent test drives inside one worker scope; the background/yield behavior tracked by 412; run-gate attribution or retry redesign; cross-machine recovery; unrelated suite-timing findings; and implementing the change during grooming.
+
+## Reconcile log
+
+### 2026-09-10
+
+2026-09-10: Reconciled against current main (2f83683c) and origin/docket. Dependency 416 is done (archived 2026-09-10-0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md); its identity-bundle fix and tests are present and preserved. Verified the spec's three source observations still hold in internal/gatedrive: Driver.Start (driver.go:183) rejects any nonempty scope.BoundDriveID before checking whether the bound drive has finished; Store.bindScopeDrive (scope.go:167) permanently rejects a different drive id; ownership.go defines the OwnershipErrorKind vocabulary while app/gate_drive.go mapDriveFailure collapses ownership errors toward generic invalid-request; FindScopeDriveIDs-style enumeration includes terminal records with a remaining owner generation. Scope, relations (depends_on [416], related [359,402,412,416], adrs [107], discovered_from [402]), and acceptance criteria remain valid as authored; no scope adjustment needed. Proceeding to plan and build.
