@@ -15,7 +15,7 @@ adrs: [107]
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
 branch_prefix:
 branch:
@@ -39,6 +39,17 @@ A resumed change 0323 build worker captured the first gate.drive.start response 
 ## What changes
 
 Strengthen the maintained build-controller, build-task, and shared gate-caller instructions so gate responses and exit codes are captured with explicit shell-safe names such as `gate_reply` and `gate_rc`, compatible with both zsh and bash, and never assigned to zsh special parameters such as `status` or `pipestatus`. Add a whole-repository syntactic guard over maintained executable agent-facing workflow instructions that detects reserved-parameter assignments at gate-call capture sites, with a mutation test proving that inserting `status=$?` makes the guard fail. Regenerate embedded skill assets through the existing generator and keep source and distributed instruction surfaces byte-aligned.
+
+### Acceptance criteria
+
+1. A build worker following the maintained gate-start capture instructions can run under zsh without assigning a read-only special parameter and can parse the original response's drive id and owner generation.
+2. The instructions provide explicit shell-safe response and exit-code variable names and preserve the rule that a missing or malformed first response halts rather than rerunning `gate.drive.start`.
+3. A whole-repository guard covers every maintained executable gate-call capture instruction; inserting `status=$?` at a covered site makes the guard fail for the intended reason.
+4. Source and generated skill surfaces remain byte-aligned, and the configured whole suite passes at the build gate.
+
+### Trivial rationale
+
+The failure and correction are mechanically settled by the exact worker transcript: `status=$?` fails under zsh with `read-only variable: status`, while a non-reserved local such as `gate_rc` preserves the same exit code. This change adds no protocol field, state transition, or architecture decision, so a separate design specification is unnecessary.
 
 ## Out of scope
 
