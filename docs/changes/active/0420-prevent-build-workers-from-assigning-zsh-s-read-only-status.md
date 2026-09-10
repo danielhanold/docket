@@ -13,7 +13,7 @@ related: [263, 376, 416]
 discovered_from: [323]
 adrs: [107]
 spec:
-plan:
+plan: 'docs/superpowers/plans/2026-09-09-prevent-build-workers-from-assigning-zsh-reserved-status.md'
 results:
 trivial: true
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-09-10T01:18:24Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Plan | [2026-09-09-prevent-build-workers-from-assigning-zsh-reserved-status.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-09-prevent-build-workers-from-assigning-zsh-reserved-status.md) |
 | ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) |
 <!-- docket:artifacts:end -->
 
