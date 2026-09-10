@@ -62,11 +62,11 @@ func TestGateCaptureReservedShellParams(t *testing.T) {
 	// assets drift check, so the source copy is the one asserted here.
 	contract := strings.Join(strings.Fields(readMaintained(t, root, sharedContractRel)), " ")
 	for name, re := range map[string]*regexp.Regexp{
-		"reply-capture-name":  reqReplyName,
-		"rc-capture-name":     reqRcName,
-		"works-in-both":       reqBothShells,
-		"never-assign":        reqNeverAssign,
-		"abort-consequence":   reqAbortReason,
+		"reply-capture-name": reqReplyName,
+		"rc-capture-name":    reqRcName,
+		"works-in-both":      reqBothShells,
+		"never-assign":       reqNeverAssign,
+		"abort-consequence":  reqAbortReason,
 	} {
 		if !re.MatchString(contract) {
 			t.Errorf("shared contract %s lost its %s clause (pattern %v)", sharedContractRel, name, re)
@@ -135,7 +135,7 @@ func TestGateCaptureReservedShellParams(t *testing.T) {
 		if reservedAssignRe.MatchString("read the exit status of the command") {
 			t.Errorf("prose mentioning the words exit status was wrongly flagged")
 		}
-		if reservedAssignRe.MatchString(`never assign `+"`status`"+` or `+"`pipestatus`") {
+		if reservedAssignRe.MatchString(`never assign ` + "`status`" + ` or ` + "`pipestatus`") {
 			t.Errorf("a backticked parameter NAME without `=` was wrongly flagged — the contract prose itself must stay legal")
 		}
 		if reqRcName.MatchString("the exit code matters. gate_rc is discussed elsewhere") {
