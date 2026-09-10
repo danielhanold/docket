@@ -1342,6 +1342,113 @@ func TestScopedStartReleasesSlotOnTerminal(t *testing.T) {
 	}
 }
 
+// TestScopelessStartReservesBeforeLaunch proves that the finalize-style,
+// scopeless start owns a durable worktree admission slot before it asks the
+// process backend to launch. Its private RunRoot is only the supervisor's
+// allocation directory; worktree admission is keyed by Worktree.
+func TestScopelessStartReservesBeforeLaunch(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	req := sampleStart()
+
+	var atLaunch admissionRecord
+	var loadErr error
+	proc := &fakeProc{
+		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+			atLaunch, _, loadErr = store.LoadWorktreeExecution(req.Worktree)
+			return &process.LaunchOutcome{RunID: "run1", RunDir: "/runs/run1", State: process.StateRunning}, nil
+		},
+	}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+
+	doc, err := d.Start(req)
+	if loadErr != nil {
+		t.Fatalf("LoadWorktreeExecution at launch: %v", loadErr)
+	}
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if atLaunch.State != admissionReserved {
+		t.Fatalf("at launch the scopeless worktree slot must already be reserved, got %q", atLaunch.State)
+	}
+	if atLaunch.Kind != "scopeless" || atLaunch.ScopeID != "" {
+		t.Fatalf("at launch the slot must be scopeless with no scope, got kind=%q scope=%q", atLaunch.Kind, atLaunch.ScopeID)
+	}
+	if atLaunch.ReservationToken == "" {
+		t.Fatalf("at launch the slot must carry a reservation token")
+	}
+	if doc.Outcome != WAITING {
+		t.Fatalf("scopeless start over a live run must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
+	}
+	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution after Start: %v", err)
+	}
+	if slot.State != admissionExecuting || slot.RawRunID != "run1" || slot.RawRunDir != "/runs/run1" {
+		t.Fatalf("after launch the slot must be executing with the run handle, got state=%q id=%q dir=%q", slot.State, slot.RawRunID, slot.RawRunDir)
+	}
+}
+
+// TestScopelessPersistFailureReleasesOnProvenStop proves the post-launch
+// attach failure has no ambiguous-free path: a proven owned stop releases the
+// admission slot, while a stop the seam cannot prove leaves it unresolved.
+func TestScopelessPersistFailureReleasesOnProvenStop(t *testing.T) {
+	for name, stop := range map[string]func(string, string) (*process.StopOutcome, error){
+		"proven stop releases": func(runDir, reason string) (*process.StopOutcome, error) {
+			return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
+		},
+		"unproven stop leaves unresolved": func(string, string) (*process.StopOutcome, error) {
+			return nil, fmt.Errorf("gatedrive-test: stop ownership unproven")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			clk := &fakeClock{now: startEpoch()}
+			store := OpenStore(testsupport.TempDir(t))
+			req := sampleStart()
+			var recordDir string
+			proc := &fakeProc{
+				launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+					entries, err := os.ReadDir(store.root)
+					if err != nil {
+						return nil, err
+					}
+					if len(entries) != 1 || !entries[0].IsDir() {
+						t.Fatalf("the reserved drive must exist before launch, got entries=%v", entries)
+					}
+					recordDir = filepath.Join(store.root, entries[0].Name())
+					if err := os.Chmod(recordDir, 0o500); err != nil {
+						return nil, fmt.Errorf("chmod reserved drive: %w", err)
+					}
+					return &process.LaunchOutcome{RunID: "run1", RunDir: "/runs/run1", State: process.StateRunning}, nil
+				},
+				stop: stop,
+			}
+			d := scopedTestDriver(store, clk, proc, stableGit())
+
+			if _, err := d.Start(req); err == nil {
+				t.Fatalf("attach failure must return an error")
+			}
+			if recordDir == "" {
+				t.Fatalf("launch never found the reserved drive record")
+			}
+			if err := os.Chmod(recordDir, 0o700); err != nil {
+				t.Fatalf("restore reserved drive permissions: %v", err)
+			}
+			slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+			if err != nil {
+				t.Fatalf("LoadWorktreeExecution: %v", err)
+			}
+			want := admissionReleased
+			if name == "unproven stop leaves unresolved" {
+				want = admissionUnresolved
+			}
+			if slot.State != want {
+				t.Fatalf("persist failure slot state = %q, want %q", slot.State, want)
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Successor starts — the sequential handshake (change 0405 Task 4). A scope
 // carries a SEQUENCE of task-owned drives through one slot; each successor start

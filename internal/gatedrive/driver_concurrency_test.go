@@ -395,6 +395,112 @@ func TestScopedStartConcurrentAcrossScopesOneLaunch(t *testing.T) {
 	}
 }
 
+// TestMixedScopedScopelessOneWorktreeOneLaunch proves the worktree slot is the
+// outer admission authority even when only one contender has a recovery scope.
+// Both callers pass the fingerprint barrier before either can reserve; exactly
+// one may reach the backend Launch.
+func TestMixedScopedScopelessOneWorktreeOneLaunch(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	_, scoped := prepareScopedStartAt(t, store, sampleWorktree(), "0342")
+	scopeless := sampleStart()
+	scopeless.Worktree = scoped.Worktree
+	scopeless.ChangeID = "0343"
+	reqs := []StartRequest{scoped, scopeless}
+
+	proc := &countingProc{}
+	var barrier sync.WaitGroup
+	barrier.Add(2)
+	git := &barrierGit{wg: &barrier, head: "HEAD1"}
+	mkDriver := func() *Driver {
+		clk := &fakeClock{now: startEpoch()}
+		d := NewDriver(store, clk, proc, git)
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		return d
+	}
+	drivers := []*Driver{mkDriver(), mkDriver()}
+
+	docs := make([]DriveDoc, 2)
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	for i := range drivers {
+		go func(i int) {
+			defer wg.Done()
+			docs[i], errs[i] = drivers[i].Start(reqs[i])
+		}(i)
+	}
+	wg.Wait()
+
+	if got := proc.launches(); got != 1 {
+		t.Fatalf("mixed scoped/scopeless starts on one worktree must launch once, got %d", got)
+	}
+	assertOneWorktreeStartWinner(t, docs, errs)
+}
+
+// TestTwoScopelessStartsOneWorktreeOneLaunch proves that two finalize-style
+// starts contend on the same durable worktree slot despite using independent
+// private RunRoots.
+func TestTwoScopelessStartsOneWorktreeOneLaunch(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	reqA := sampleStart()
+	reqB := sampleStart()
+	reqB.ChangeID = "0343"
+	reqs := []StartRequest{reqA, reqB}
+
+	proc := &countingProc{}
+	var barrier sync.WaitGroup
+	barrier.Add(2)
+	git := &barrierGit{wg: &barrier, head: "HEAD1"}
+	mkDriver := func() *Driver {
+		clk := &fakeClock{now: startEpoch()}
+		d := NewDriver(store, clk, proc, git)
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		return d
+	}
+	drivers := []*Driver{mkDriver(), mkDriver()}
+
+	docs := make([]DriveDoc, 2)
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	for i := range drivers {
+		go func(i int) {
+			defer wg.Done()
+			docs[i], errs[i] = drivers[i].Start(reqs[i])
+		}(i)
+	}
+	wg.Wait()
+
+	if got := proc.launches(); got != 1 {
+		t.Fatalf("two scopeless starts on one worktree must launch once, got %d", got)
+	}
+	assertOneWorktreeStartWinner(t, docs, errs)
+}
+
+func assertOneWorktreeStartWinner(t *testing.T, docs []DriveDoc, errs []error) {
+	t.Helper()
+	winners := 0
+	for i, err := range errs {
+		if err == nil {
+			winners++
+			if docs[i].Outcome != WAITING {
+				t.Fatalf("winner %d must WAIT, got %s (%s)", i, docs[i].Outcome, docs[i].Cause)
+			}
+			continue
+		}
+		if !isOwnershipKind(err, ErrWorktreeBusy) {
+			t.Fatalf("loser %d must fail ErrWorktreeBusy, got %v", i, err)
+		}
+	}
+	if winners != 1 {
+		t.Fatalf("exactly one start must win, got %d", winners)
+	}
+}
+
 // TestDistinctWorktreesProgressConcurrently proves separate worktrees do NOT contend:
 // two scopes on two distinct worktrees both launch concurrently over one shared store.
 // Run under -race.
