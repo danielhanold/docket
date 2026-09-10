@@ -22,7 +22,7 @@ branch: 'feat/make-build-and-outer-run-gate-attempt-limits-configurable'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T01:22:15Z'
+claimed_at: '2026-09-10T01:24:24Z'
 ---
 
 ## Artifacts
