@@ -58,6 +58,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/danielhanold/docket/internal/process"
 )
 
 // admissionSchemaVersion is the persisted admissionRecord schema generation.
@@ -115,6 +117,12 @@ type admissionRecord struct {
 	RawRunDir string // attached at confirm
 
 	Kind string // "scoped"|"scopeless"|"raw"
+
+	// LegacyInventoried records that the pre-admission drive registry was
+	// examined before this first slot reservation. No legacy credential or owner
+	// fact is copied into this record.
+	LegacyInventoried bool
+	LegacyInventoryAt time.Time
 
 	ReservedAt time.Time
 	UpdatedAt  time.Time
@@ -174,6 +182,13 @@ func (s *Store) admissionKeyFor(worktreeRoot, op string) (canonical, key string,
 // fresh ReservationToken, clears the launch identity, and persists the slot as
 // reserved. The returned token is the sole authority for every later transition.
 func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err error) {
+	return s.reserveWorktreeExecution(rec, nil)
+}
+
+// reserveWorktreeExecution is ReserveWorktreeExecution's driver-aware form.
+// The observer is the exact ProcessSeam Observe operation, supplied by Driver
+// for legacy inventory; it is deliberately not persisted on Store.
+func (s *Store) reserveWorktreeExecution(rec admissionRecord, observe func(string) (*process.Observation, error)) (token string, err error) {
 	const op = "reserve-worktree-execution"
 	canonical, key, err := s.admissionKeyFor(rec.WorktreeRoot, op)
 	if err != nil {
@@ -190,6 +205,7 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 	defer lock.Close()
 
 	prevGen := 0
+	firstAdmission := false
 	stored, rerr := s.readStoredAdmission(dir)
 	switch {
 	case rerr == nil:
@@ -204,7 +220,13 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 			return "", ownershipErr(ErrWorktreeBusy, op)
 		}
 	case storeErrIs(rerr, ErrNotFound):
-		prevGen = 0 // a fresh slot: absence proven under the lock
+		// Inventory is inside this slot's lock so no concurrent reservation can
+		// slip a new execution between the legacy census and this reservation.
+		if err := s.inventoryLegacyDrives(canonical, observe); err != nil {
+			return "", err
+		}
+		prevGen = 0
+		firstAdmission = true
 	default:
 		return "", rerr // unknown schema / corrupt / IO — fail closed
 	}
@@ -221,6 +243,10 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 	rec.ReservationToken = token
 	rec.RawRunID = ""
 	rec.RawRunDir = ""
+	rec.LegacyInventoried = firstAdmission
+	if firstAdmission {
+		rec.LegacyInventoryAt = now
+	}
 	rec.ReservedAt = now
 	rec.UpdatedAt = now
 
@@ -232,6 +258,70 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 		return "", storeErr(ErrIO, op, err)
 	}
 	return token, nil
+}
+
+// inventoryLegacyDrives fails closed over pre-admission records. An unreadable
+// record is not evidence that it belongs elsewhere, so it blocks rather than
+// being skipped. The opaque drive id in the operation is a safe recovery
+// locator; it carries no command, environment, or credential material.
+func (s *Store) inventoryLegacyDrives(worktreeRoot string, observe func(string) (*process.Observation, error)) error {
+	entries, err := os.ReadDir(s.root)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drives")
+	}
+	for _, entry := range entries {
+		id := entry.Name()
+		if !entry.IsDir() {
+			return ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drive-"+id)
+		}
+		legacy, lerr := s.Load(id)
+		if lerr != nil {
+			return ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drive-"+id)
+		}
+		legacyRoot, _, lerr := s.admissionKeyFor(legacy.WorktreePath, "inventory-legacy-drive")
+		if lerr != nil {
+			return ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drive-"+id)
+		}
+		if legacyRoot != worktreeRoot {
+			continue
+		}
+		if !isTerminalOutcome(legacy.LastOutcome) {
+			return ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drive-"+id)
+		}
+		if legacy.LastOutcome == PASSED || legacy.LastOutcome == FAILED {
+			// A PASSED/FAILED drive outcome is committed only from the
+			// supervisor's terminal record, which proves the group ended.
+			continue
+		}
+		// HALTED is weaker than a supervisor terminal verdict: it needs an
+		// exact observation of a gone group before the worktree can admit.
+		if legacy.RawRunDir == "" || observe == nil {
+			return ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drive-"+id)
+		}
+		observation, oerr := observe(legacy.RawRunDir)
+		if oerr != nil || !admissionObservationProvesTeardown(observation) {
+			return ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drive-"+id)
+		}
+	}
+	return nil
+}
+
+// admissionObservationProvesTeardown accepts only durable terminal outcomes or
+// a supervisor observation whose process group is known gone. SIGNALED is not
+// enough: its group may still contain descendants.
+func admissionObservationProvesTeardown(observation *process.Observation) bool {
+	if observation == nil {
+		return false
+	}
+	switch observation.State {
+	case process.StatePassed, process.StateFailed, process.StateStopped, process.StateVanished:
+		return true
+	default:
+		return false
+	}
 }
 
 // ConfirmWorktreeExecution moves a reserved slot to executing once its launch is
