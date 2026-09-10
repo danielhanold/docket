@@ -2,7 +2,7 @@
 id: 421
 slug: 'make-build-and-outer-run-gate-attempt-limits-configurable'
 title: 'Make build and outer run gate attempt limits configurable'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-10'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/make-build-and-outer-run-gate-attempt-limits-configurable'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-10T01:15:38Z'
 ---
 
 ## Artifacts
