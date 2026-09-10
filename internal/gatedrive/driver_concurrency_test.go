@@ -195,3 +195,132 @@ func TestConcurrentSameOwnerAdvanceRelaunchesOnce(t *testing.T) {
 		})
 	}
 }
+
+// barrierGit blocks its first read (HeadOID, the first call ComputeFingerprint
+// makes) on a shared 2-party barrier, so two concurrent Starts both pass their
+// unlocked pre-check AND compute their fingerprint BEFORE either reserves the
+// scope slot — maximizing the reservation race window. The remaining reads are
+// fixed strings so the fingerprint is otherwise deterministic.
+type barrierGit struct {
+	wg   *sync.WaitGroup
+	head string
+}
+
+func (g *barrierGit) HeadOID(string) (string, error) {
+	g.wg.Done()
+	g.wg.Wait()
+	return g.head, nil
+}
+func (g *barrierGit) IndexEntries(string) ([]byte, error)  { return []byte("IDX1"), nil }
+func (g *barrierGit) Status(string) ([]byte, error)        { return []byte("ST1"), nil }
+func (g *barrierGit) WorktreePaths(string) ([]byte, error) { return nil, nil }
+
+// countingProc is a minimal thread-safe ProcessSeam that counts launches; every
+// launched run stays running so a winning Start reaches WAITING. It is purpose-
+// built for the empty-scope reservation race, where at most one Start launches.
+type countingProc struct {
+	mu      sync.Mutex
+	launchN int
+}
+
+func (p *countingProc) Launch(process.LaunchRequest) (*process.LaunchOutcome, error) {
+	p.mu.Lock()
+	p.launchN++
+	n := p.launchN
+	p.mu.Unlock()
+	id := fmt.Sprintf("run%d", n)
+	return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
+}
+
+func (p *countingProc) Observe(runDir string) (*process.Observation, error) {
+	return &process.Observation{State: process.StateRunning, RunDir: runDir}, nil
+}
+
+func (p *countingProc) Stop(runDir, reason string) (*process.StopOutcome, error) {
+	return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
+}
+
+func (p *countingProc) launches() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.launchN
+}
+
+// TestDriverConcurrencyScopedStartReservationRace proves the durable pre-launch
+// reservation makes an empty-scope start race admit EXACTLY ONE launch: two
+// goroutines Start the same empty scope, rendezvous at the fingerprint barrier
+// (both past their pre-check), then contend at reserveScopeDrive — exactly one
+// wins and launches, and the loser is refused with a typed ErrScopeBusy /
+// ErrScopeSecondDrive and never launches. Run under -race.
+func TestDriverConcurrencyScopedStartReservationRace(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	req := sampleStart()
+	grant, err := store.PrepareScope(scopeReqFor(req, ""))
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	req.ScopeID = grant.ScopeID
+	req.ChildCapability = grant.ChildCapability
+
+	proc := &countingProc{}
+	var barrier sync.WaitGroup
+	barrier.Add(2)
+	git := &barrierGit{wg: &barrier, head: "HEAD1"}
+
+	mkDriver := func() *Driver {
+		clk := &fakeClock{now: startEpoch()}
+		d := NewDriver(store, clk, proc, git)
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		return d
+	}
+	drivers := []*Driver{mkDriver(), mkDriver()}
+
+	docs := make([]DriveDoc, 2)
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	for i := range drivers {
+		go func(i int) {
+			defer wg.Done()
+			docs[i], errs[i] = drivers[i].Start(req)
+		}(i)
+	}
+	wg.Wait()
+
+	// Exactly one launch total — the reservation, not the launch, arbitrates.
+	if got := proc.launches(); got != 1 {
+		t.Fatalf("two concurrent empty-scope starts must admit EXACTLY ONE launch, got %d", got)
+	}
+	// Exactly one nil-error winner; the loser is a typed reservation rejection.
+	winners := 0
+	winIdx := -1
+	for i, e := range errs {
+		if e == nil {
+			winners++
+			winIdx = i
+			continue
+		}
+		if !isOwnershipKind(e, ErrScopeBusy) && !isOwnershipKind(e, ErrScopeSecondDrive) {
+			t.Fatalf("the losing start must fail ErrScopeBusy or ErrScopeSecondDrive, got %v", e)
+		}
+	}
+	if winners != 1 {
+		t.Fatalf("exactly one start must win, got %d", winners)
+	}
+	if docs[winIdx].Outcome != WAITING {
+		t.Fatalf("the winning start must WAIT, got %s (%s)", docs[winIdx].Outcome, docs[winIdx].Cause)
+	}
+	// The persisted scope names exactly the sole winner's launched drive.
+	scope, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if scope.CurrentDriveID != docs[winIdx].DriveID {
+		t.Fatalf("the scope must name the sole winner's drive %q, got %q", docs[winIdx].DriveID, scope.CurrentDriveID)
+	}
+	if scope.CurrentDriveState != scopeStateLaunched {
+		t.Fatalf("the winner's slot must be launched, got %q", scope.CurrentDriveState)
+	}
+}

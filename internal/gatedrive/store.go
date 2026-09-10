@@ -149,8 +149,31 @@ func OpenStore(gitCommonDir string) *Store {
 // NewDrive allocates an opaque high-entropy id and initial generation, stamps
 // the current schema version, and atomically persists the record in a fresh
 // owner-only directory. It returns the id and the generation a first CAS must
-// present.
+// present. It is the scopeless launch-then-persist path: the record already
+// carries its launch handle (a scoped start reserves first — see NewReservedDrive).
 func (s *Store) NewDrive(rec driveRecord) (id string, gen string, err error) {
+	return s.writeNewDrive(rec)
+}
+
+// NewReservedDrive persists a drive record BEFORE its first launch, so a scoped
+// start's durable slot precedes the process (change 0405 Task 3). It clears the
+// launch handle and any recorded outcome so a reserved record can never smuggle a
+// launch in before attachLaunch persists one; a later attachLaunch fills the raw
+// run identity under the ownership CAS. It shares NewDrive's id-minting, owner-only
+// directory, and atomic write.
+func (s *Store) NewReservedDrive(rec driveRecord) (id string, gen string, err error) {
+	rec.RawRunDir = ""
+	rec.RawOwnership = ""
+	rec.LastOutcome = ""
+	rec.LastCause = ""
+	return s.writeNewDrive(rec)
+}
+
+// writeNewDrive is the shared id-mint / private-dir / atomic-write body of NewDrive
+// and NewReservedDrive: it allocates an opaque high-entropy id and initial physical
+// generation, stamps the current schema version, and atomically persists the record
+// in a fresh owner-only directory.
+func (s *Store) writeNewDrive(rec driveRecord) (id string, gen string, err error) {
 	id, err = randomToken(idNBytes)
 	if err != nil {
 		return "", "", storeErr(ErrIO, "new-drive", err)
@@ -169,6 +192,27 @@ func (s *Store) NewDrive(rec driveRecord) (id string, gen string, err error) {
 		return "", "", storeErr(ErrIO, "new-drive", err)
 	}
 	return id, gen, nil
+}
+
+// attachLaunch persists the raw launch identity onto a reserved drive record under
+// the ownership CAS, completing the durable half of a scoped start once the process
+// exists (change 0405 Task 3). It verifies the presented owner is current and that
+// the record carries no launch handle yet (RawRunDir empty); a record that already
+// has a handle is a fail-closed ErrUnresolvedLaunchTransition, so a double-attach
+// never silently overwrites the first launch. On any rejection the persisted record
+// is untouched.
+func (s *Store) attachLaunch(id, ownerGen, rawRunDir, rawOwnership string) error {
+	return s.ownerCAS(id, func(rec *driveRecord) error {
+		if err := verifyOwner(rec, ownerGen); err != nil {
+			return err
+		}
+		if rec.RawRunDir != "" {
+			return ownershipErr(ErrUnresolvedLaunchTransition, "attach-launch")
+		}
+		rec.RawRunDir = rawRunDir
+		rec.RawOwnership = rawOwnership
+		return nil
+	})
 }
 
 // Load reads and returns the current record for id. It validates the id and
