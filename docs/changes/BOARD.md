@@ -1,6 +1,6 @@
 # Backlog
 
-**417 changes** — 🟢 1 in progress · 🟣 5 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 270 done · 🗑️ 113 killed
+**418 changes** — 🟢 1 in progress · 🟣 5 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 270 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -18,10 +18,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (17)
+## 🟡 Proposed (18)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | needs-brainstorm |
 | [0415](active/0415-support-in-place-build-evidence-re-certification-for-an-impl.md) | Support in-place build-evidence re-certification for an implemented change | `medium` | `feat` | needs-brainstorm |
 | [0414](active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | `low` | `chore` | needs-brainstorm |
 | [0413](active/0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md) | Finalize rebase gate cannot clear derived embedded-asset manifest collisions | `medium` | `fix` | needs-brainstorm |
@@ -93,6 +94,7 @@ graph TD
   0414
   0415
   0417
+  0418
   0192:::done
   0251:::done
   0370:::done
