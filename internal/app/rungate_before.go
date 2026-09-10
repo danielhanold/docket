@@ -257,11 +257,13 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		ScopeID:          grant.ScopeID,
 		ParentCap:        grant.ParentCapability,
 		ChildContextHash: gateHashToken(grant.ChildCapability),
-		// AttemptLimit snapshots run.max_attempts (change 0421). Stamped to the
-		// historical single-retry default (2) here so the v4 store guard is satisfied
-		// and today's one-retry behavior is preserved; change 0421 Task 4 threads the
-		// resolved run.max_attempts value through this mint.
-		AttemptLimit: 2,
+		// AttemptLimit snapshots run.max_attempts (change 0421) from the SAME
+		// authoritative config load the arm already performed — pin.Config.Effective is
+		// the resolved snapshot PinContext returned above and BuildSnapshot consumed, so
+		// this is not a second resolver. The value is immutable once minted: a later
+		// config edit never rewrites an already-owned budget (the snapshot rule). Config
+		// validation floors run.max_attempts at 1, so this satisfies the v4 store guard.
+		AttemptLimit: pin.Config.Effective.Run.MaxAttempts.Value,
 	})
 	if err != nil {
 		return gateUnarmed(ReasonGateMintFailed)

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository"
@@ -287,6 +288,77 @@ func TestGateBeforeNoTimestampGames(t *testing.T) {
 	if rec.AttributedID != 5 {
 		t.Errorf("AttributedID = %d, want 5", rec.AttributedID)
 	}
+}
+
+// gatePinWithRunMaxAttempts builds a StatusPin whose resolved config carries an
+// explicit repository-layer run.max_attempts, so a gate-before arm through it
+// snapshots that value into the record's AttemptLimit.
+func gatePinWithRunMaxAttempts(t *testing.T, n int) StatusPin {
+	t.Helper()
+	snap, _, err := config.Resolve([]config.Source{{
+		Layer: config.LayerRepository,
+		Name:  ".docket.yml",
+		Data:  []byte(fmt.Sprintf("run:\n  max_attempts: %d\n", n)),
+	}}, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		t.Fatalf("resolve config run.max_attempts=%d: %v", n, err)
+	}
+	p := mainPin(t)
+	p.Config = *snap
+	return p
+}
+
+// TestMintSnapshotsRunMaxAttempts: gate-before snapshots the authoritative
+// run.max_attempts into the record's AttemptLimit at mint (change 0421). A repo
+// configured run.max_attempts: 3 yields AttemptLimit == 3; the default yields 2;
+// and a later config change never rewrites an already-minted record's limit (the
+// snapshot rule — the load never re-reads config).
+func TestMintSnapshotsRunMaxAttempts(t *testing.T) {
+	t.Run("configured value is snapshotted", func(t *testing.T) {
+		repo := newGateRepo(t)
+		reader := &fakeReader{pin: gatePinWithRunMaxAttempts(t, 3), corpus: gateBeforeCorpus()}
+		deps := PlanningDeps{Reader: reader, Clock: testClock()}
+		sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+		res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+		if !res.Armed {
+			t.Fatalf("did not arm: %q", res.HumanText())
+		}
+		rec, err := LoadGateRecord(repo, res.Key)
+		if err != nil {
+			t.Fatalf("LoadGateRecord: %v", err)
+		}
+		if rec.AttemptLimit != 3 {
+			t.Errorf("AttemptLimit = %d, want 3 (snapshotted run.max_attempts)", rec.AttemptLimit)
+		}
+		// The snapshot is immutable: a re-load never re-reads config, so the limit
+		// stays 3 regardless of any later configuration change.
+		rec2, err := LoadGateRecord(repo, res.Key)
+		if err != nil {
+			t.Fatalf("LoadGateRecord (reload): %v", err)
+		}
+		if rec2.AttemptLimit != 3 {
+			t.Errorf("reloaded AttemptLimit = %d, want 3 (snapshot immutable)", rec2.AttemptLimit)
+		}
+	})
+
+	t.Run("default is 2", func(t *testing.T) {
+		repo := newGateRepo(t)
+		deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+		sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+		res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+		if !res.Armed {
+			t.Fatalf("did not arm: %q", res.HumanText())
+		}
+		rec, err := LoadGateRecord(repo, res.Key)
+		if err != nil {
+			t.Fatalf("LoadGateRecord: %v", err)
+		}
+		if rec.AttemptLimit != 2 {
+			t.Errorf("AttemptLimit = %d, want the built-in default 2", rec.AttemptLimit)
+		}
+	})
 }
 
 // TestGateRecordContinuationTripleRule: the store rejects a partial continuation
