@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/prevent-build-workers-from-assigning-zsh-s-read-only-status'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-10T01:14:46Z'
+reconciled: true
+claimed_at: '2026-09-10T01:16:22Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ The failure and correction are mechanically settled by the exact worker transcri
 ## Out of scope
 
 Changing gate-driver ownership, identity, continuation, or retry semantics; making gate starts idempotent; weakening fail-closed response validation; broadly linting immutable archives, accepted ADRs, historical plans, or unrelated shell code; and resuming or implementing change 0323 as part of this fix.
+
+## Reconcile log
+
+### 2026-09-10
+
+2026-09-09: Reconciled against current main (2f83683c). Confirmed still accurate and unbuilt: a whole-repository grep finds no `status=$?` or reserved-parameter assignment at any gate-call capture site, so the transcripted failure is unregressed but unguarded. The maintained gate-call capture instructions (docket-build SKILL, docket-build-task SKILL, docket-implement-next SKILL, and docket-build/references/gate-caller-loop.md) still describe capturing the JSON drive id and owner generation without naming shell-safe capture variables (e.g. `gate_reply`/`gate_rc`) or forbidding zsh special parameters. No repoguard test yet guards gate-call capture sites against reserved-parameter assignment. Source skills under skills/ and their embedded copies under internal/assets/embedded/tree/skills/ must stay byte-aligned via the existing generator. Scope, acceptance criteria, and out-of-scope remain correct as written; no relation changes needed.
