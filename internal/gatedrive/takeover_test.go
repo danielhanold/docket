@@ -490,8 +490,8 @@ func TestStartBindsScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadScope: %v", err)
 	}
-	if scope.BoundDriveID != started.DriveID {
-		t.Fatalf("Start must bind the drive into the scope: BoundDriveID=%q want %q", scope.BoundDriveID, started.DriveID)
+	if scope.CurrentDriveID != started.DriveID {
+		t.Fatalf("Start must bind the drive into the scope: CurrentDriveID=%q want %q", scope.CurrentDriveID, started.DriveID)
 	}
 	rec, err := store.Load(started.DriveID)
 	if err != nil {

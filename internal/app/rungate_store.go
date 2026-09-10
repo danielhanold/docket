@@ -675,7 +675,7 @@ func ReserveGateClaim(repoDir, key string, changeID int, requestID string) error
 	// fs.ErrExist re-load branch and the atomicity guard stays load-bearing (a
 	// pre-read that answered match-or-conflict on its own would make the CAS
 	// untestable and would race a concurrent writer). This mirrors the
-	// bindScopeDrive CAS discipline: the compare-and-swap is authority.
+	// reserveScopeDrive CAS discipline: the compare-and-swap is authority.
 	buf, err := json.Marshal(GateClaimBinding{Schema: bindingSchemaVersion, ChangeID: changeID, RequestID: requestID, Confirmed: false})
 	if err != nil {
 		return gateErr(ErrGateIO, "reserve", err)

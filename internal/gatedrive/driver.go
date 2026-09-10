@@ -165,10 +165,11 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 	}
 
 	// Scope pre-check BEFORE any launch: a bad capability, a closed scope, an
-	// identity that disagrees with the scope, or a scope that already binds a live
-	// drive is a command failure that never orphans a freshly launched run. The
-	// bindScopeDrive CAS after NewDrive is the authoritative single-drive gate;
-	// this pre-check only fails fast so proc.Launch is never reached on a rejection.
+	// identity that disagrees with the scope, or a scope that already holds a
+	// current drive is a command failure that never orphans a freshly launched run.
+	// The reserveScopeDrive CAS after NewDrive is the authoritative single-slot
+	// gate; this pre-check only fails fast so proc.Launch is never reached on a
+	// rejection.
 	if req.ScopeID != "" {
 		scope, serr := d.store.LoadScope(req.ScopeID)
 		if serr != nil {
@@ -180,7 +181,7 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 		if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
 			return DriveDoc{}, ownershipErr(ErrScopeCapabilityMismatch, "start")
 		}
-		if scope.BoundDriveID != "" {
+		if scope.CurrentDriveID != "" {
 			return DriveDoc{}, ownershipErr(ErrScopeSecondDrive, "start")
 		}
 		if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
@@ -250,14 +251,21 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 		return DriveDoc{}, err
 	}
 
-	// Bind the drive into its recovery scope AFTER it exists. A bind failure (a
-	// concurrent Start won the single-drive slot, the scope closed, or the
-	// capability no longer matches) means this drive never existed for the
-	// workflow: stop its freshly launched run and surface the rejection.
+	// Reserve the drive into its recovery scope's slot AFTER it exists, then confirm
+	// the launch. A reserve failure (a concurrent Start won the single-drive slot,
+	// the scope closed, or the capability no longer matches) means this drive never
+	// existed for the workflow: stop its freshly launched run and surface the
+	// rejection. This is a behavior-equivalent single-drive bind for now (an empty
+	// receipt, i.e. a first start); change 0405 Task 3 moves the reservation ahead
+	// of the launch so the durable slot precedes the process.
 	if req.ScopeID != "" {
-		if berr := d.store.bindScopeDrive(req.ScopeID, req.ChildCapability, id); berr != nil {
+		if berr := d.store.reserveScopeDrive(req.ScopeID, req.ChildCapability, id, predecessorReceipt{}); berr != nil {
 			d.stopIfOwned(out.RunDir)
 			return DriveDoc{}, berr
+		}
+		if cerr := d.store.confirmScopeLaunch(req.ScopeID, id); cerr != nil {
+			d.stopIfOwned(out.RunDir)
+			return DriveDoc{}, cerr
 		}
 	}
 

@@ -31,8 +31,8 @@ package gatedrive
 
 // Takeover performs the event-authorized exceptional transfer of a scope-bound
 // drive to a fresh owner the parent mints. driveID may be "" — then the scope's
-// BoundDriveID (a task scope bound at Start) or the unique gate-context match (an
-// outer scope resolved by FindScopeDriveIDs) resolves it. On success the returned
+// CurrentDriveID (a task scope's current slot occupant) or the unique gate-context
+// match (an outer scope resolved by FindScopeDriveIDs) resolves it. On success the returned
 // document carries, in Generation, the fresh owner generation the parent advances
 // with, and the scope is closed. Any capability failure, ambiguity, identity
 // drift, outstanding handoff, expired deadline, or lost race returns a HALTED
@@ -180,8 +180,8 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 }
 
 // resolveTakeoverDrive resolves the single drive a takeover targets. An explicit
-// driveID is used as given. Otherwise a task scope resolves to its BoundDriveID,
-// and an outer scope (no bound drive) resolves to the UNIQUE gate-context match:
+// driveID is used as given. Otherwise a task scope resolves to its CurrentDriveID,
+// and an outer scope (no current drive) resolves to the UNIQUE gate-context match:
 // its nested drives carry GateContextHash == the outer scope's child capability
 // hash (the dispatch context is the outer scope's child capability). Zero matches
 // or more than one fail closed with a distinct cause; a real scan fault is a
@@ -190,8 +190,8 @@ func (d *Driver) resolveTakeoverDrive(scope scopeRecord, driveID string) (string
 	if driveID != "" {
 		return driveID, "", nil
 	}
-	if scope.BoundDriveID != "" {
-		return scope.BoundDriveID, "", nil
+	if scope.CurrentDriveID != "" {
+		return scope.CurrentDriveID, "", nil
 	}
 	ids, err := d.store.FindScopeDriveIDs(scope.ChangeID, scope.ChildCapHash)
 	if err != nil {
