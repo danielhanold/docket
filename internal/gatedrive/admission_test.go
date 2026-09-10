@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -264,6 +265,70 @@ func TestAdmissionConcurrentReserveOneWinner(t *testing.T) {
 	}
 	if winners != 1 || losers != 1 {
 		t.Fatalf("want exactly one winner and one busy loser, got winners=%d losers=%d", winners, losers)
+	}
+}
+
+// TestFirstAdmissionInventoriesLegacyWaitingDrive proves an old drive record is
+// still admission evidence on the first use of the worktree slot. A WAITING
+// record cannot be silently bypassed merely because it predates admission.
+func TestFirstAdmissionInventoriesLegacyWaitingDrive(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	legacy := seedRecord(t)
+	legacy.WorktreePath = wt
+	legacy.LastOutcome = WAITING
+	legacy.RawRunDir = "/runs/legacy-waiting"
+	id, _, err := s.NewDrive(legacy)
+	if err != nil {
+		t.Fatalf("seed legacy drive: %v", err)
+	}
+
+	_, err = s.ReserveWorktreeExecution(sampleAdmission(wt))
+	if !isOwnership(err, ErrUnresolvedExecution) || !strings.Contains(err.Error(), id) {
+		t.Fatalf("first admission must refuse the legacy waiting drive %s, got %v", id, err)
+	}
+}
+
+// TestFirstAdmissionInventoriesLegacyTerminalProvenDead proves a terminal
+// HALTED legacy drive is admissible only when an observation proves its raw
+// execution has gone away.
+func TestFirstAdmissionInventoriesLegacyTerminalProvenDead(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	observe := func(string) (*process.Observation, error) {
+		return obs(process.StateVanished, "/runs/legacy-terminal"), nil
+	}
+	legacy := seedRecord(t)
+	legacy.WorktreePath = wt
+	legacy.LastOutcome = HALTED
+	legacy.RawRunDir = "/runs/legacy-terminal"
+	if _, _, err := s.NewDrive(legacy); err != nil {
+		t.Fatalf("seed legacy terminal drive: %v", err)
+	}
+
+	if _, err := s.reserveWorktreeExecution(sampleAdmission(wt), observe); err != nil {
+		t.Fatalf("first admission must admit a proven-dead legacy terminal drive: %v", err)
+	}
+}
+
+// TestLegacyUnreadableRecordBlocks proves the first inventory never skips a
+// malformed historical record: unreadable history is uncertainty, not a free
+// slot.
+func TestLegacyUnreadableRecordBlocks(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	const corruptID = "0123456789abcdef0123456789abcdef"
+	legacyDir := filepath.Join(s.root, corruptID)
+	if err := os.MkdirAll(legacyDir, 0o700); err != nil {
+		t.Fatalf("make corrupt legacy directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyDir, recordFileName), []byte("not-json"), 0o600); err != nil {
+		t.Fatalf("write corrupt legacy record: %v", err)
+	}
+
+	_, err := s.ReserveWorktreeExecution(sampleAdmission(wt))
+	if !isOwnership(err, ErrUnresolvedExecution) || !strings.Contains(err.Error(), corruptID) {
+		t.Fatalf("corrupt legacy record must block admission with its locator, got %v", err)
 	}
 }
 

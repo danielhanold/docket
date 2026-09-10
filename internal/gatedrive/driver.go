@@ -162,6 +162,12 @@ func NewDriver(store *Store, clock Clock, proc ProcessSeam, git GitSeam) *Driver
 	}
 }
 
+// reserveWorktreeExecution inventories legacy records with this driver's exact
+// process observer before a new slot is durably reserved.
+func (d *Driver) reserveWorktreeExecution(rec admissionRecord) (string, error) {
+	return d.store.reserveWorktreeExecution(rec, d.proc.Observe)
+}
+
 // NewSystemDriver builds a production Driver over the real monotonic clock and
 // the real git seam, composing the given store and process seam. The application
 // service seam (internal/app) uses it so an in-process caller composes the same
@@ -353,7 +359,7 @@ func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 // post-launch failure either proves the fresh process stopped before releasing
 // the slot, or marks the slot unresolved and fails future admission closed.
 func (d *Driver) startScopeless(rec driveRecord, ownerGen string) (DriveDoc, error) {
-	token, err := d.store.ReserveWorktreeExecution(admissionRecord{
+	token, err := d.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: rec.RepoIdentity,
 		WorktreeRoot: rec.WorktreePath,
 		Kind:         "scopeless",
@@ -593,7 +599,7 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 		ScopeID:      req.ScopeID,
 		Kind:         "scoped",
 	}
-	token, rerr := d.store.ReserveWorktreeExecution(rec)
+	token, rerr := d.reserveWorktreeExecution(rec)
 	if rerr == nil {
 		return token, true, true, nil // freshly reserved: this start confirms it
 	}
@@ -689,6 +695,7 @@ func (d *Driver) Advance(id, ownerGen string) (DriveDoc, error) {
 	// A terminal drive is idempotent: return the recorded verdict without
 	// re-driving the (already consumed or torn-down) run.
 	if isTerminalOutcome(rec.LastOutcome) {
+		_ = d.releaseAdmissionIfProven(rec)
 		return d.recordedDoc(id, ownerGen, rec), nil
 	}
 	var claim *relaunchClaim
@@ -860,7 +867,7 @@ func (d *Driver) driveAndPersistClaim(id, ownerGen string, rec driveRecord, clai
 			if lerr != nil {
 				return DriveDoc{}, lerr
 			}
-			d.releaseAdmissionOnTerminal(cur)
+			_ = d.releaseAdmissionIfProven(cur)
 			return d.recordedDoc(id, ownerGen, cur), nil
 		}
 		return DriveDoc{}, err
@@ -870,7 +877,7 @@ func (d *Driver) driveAndPersistClaim(id, ownerGen string, rec driveRecord, clai
 	if err != nil {
 		return DriveDoc{}, err
 	}
-	d.releaseAdmissionOnTerminal(cur)
+	_ = d.releaseAdmissionIfProven(cur)
 	return d.recordedDoc(id, ownerGen, cur), nil
 }
 
@@ -887,14 +894,37 @@ func (d *Driver) driveAndPersistClaim(id, ownerGen string, rec driveRecord, clai
 // and the legacy inventory. The release verifies the slot's reservation token and is
 // idempotent under it, so a stale drive cannot free a successor's slot and a
 // concurrent-writer race that both observe the terminal never double-frees.
-func (d *Driver) releaseAdmissionOnTerminal(rec driveRecord) {
+func (d *Driver) releaseAdmissionIfProven(rec driveRecord) error {
 	if rec.AdmissionToken == "" {
-		return
+		return nil
 	}
-	if rec.LastOutcome != PASSED && rec.LastOutcome != FAILED {
-		return
+	if rec.LastOutcome == PASSED || rec.LastOutcome == FAILED {
+		return d.store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken)
 	}
-	_ = d.store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken)
+	if rec.LastOutcome != HALTED {
+		return nil
+	}
+	// A launch failure can already have released this token after a proven
+	// never-launched resolution. A later idempotent Advance must preserve that
+	// historical release instead of converting it to uncertainty.
+	slot, _, err := d.store.LoadWorktreeExecution(rec.WorktreePath)
+	if err != nil {
+		return err
+	}
+	if slot.ReservationToken != rec.AdmissionToken || slot.State == admissionReleased {
+		return nil
+	}
+	if rec.RawRunDir == "" {
+		return d.store.MarkWorktreeExecutionUnresolved(rec.WorktreePath, rec.AdmissionToken)
+	}
+	stopped, serr := d.proc.Stop(rec.RawRunDir, "gatedrive-halt-release")
+	if serr != nil {
+		return d.store.MarkWorktreeExecutionUnresolved(rec.WorktreePath, rec.AdmissionToken)
+	}
+	if stopped != nil && (stopped.Performed || admissionObservationProvesTeardown(&process.Observation{State: stopped.State})) {
+		return d.store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken)
+	}
+	return d.store.MarkWorktreeExecutionStopping(rec.WorktreePath, rec.AdmissionToken)
 }
 
 // errAlreadyTerminal is a sentinel used inside the persist CAS to abort a write

@@ -112,6 +112,146 @@ func TestFaultAdmissionThenScopeReservationLostReleasesSlot(t *testing.T) {
 	}
 }
 
+// TestHaltedDriveDoesNotReleaseSlot proves a HALTED record does not by itself
+// prove teardown. A deadline stop whose ownership cannot be established leaves
+// the admission unresolved and blocks a second execution.
+func TestHaltedDriveDoesNotReleaseSlot(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	proc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			return obs(process.StateRunning, runDir), nil
+		},
+		stop: func(string, string) (*process.StopOutcome, error) {
+			return nil, fmt.Errorf("gatedrive-test: stop ownership unproven")
+		},
+	}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	req := sampleStart()
+	req.Budget = 0
+	doc, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if doc.Outcome != HALTED {
+		t.Fatalf("deadline stop must HALT, got %s (%s)", doc.Outcome, doc.Cause)
+	}
+
+	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if slot.State != admissionUnresolved {
+		t.Fatalf("unproven HALTED teardown must leave an unresolved slot, got %q", slot.State)
+	}
+	if _, err := store.ReserveWorktreeExecution(sampleAdmission(req.Worktree)); !isOwnership(err, ErrUnresolvedExecution) {
+		t.Fatalf("unproven HALTED teardown must block the next admission, got %v", err)
+	}
+}
+
+// TestPassedDriveReleasesSlot proves a durable PASSED supervisor result releases
+// the worktree execution slot for the next top-level drive.
+func TestPassedDriveReleasesSlot(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	d, store := newTestDriver(t, clk, passObserveProc(), stableGit())
+	req := sampleStart()
+	doc, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if doc.Outcome != PASSED {
+		t.Fatalf("positive control must pass, got %s (%s)", doc.Outcome, doc.Cause)
+	}
+	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if slot.State != admissionReleased {
+		t.Fatalf("PASSED drive must release its slot, got %q", slot.State)
+	}
+}
+
+// TestFaultCrashBetweenConfirmAndReleaseThenRestart models a process death after
+// the terminal drive outcome and admission confirmation are durable but before
+// the release write. A fresh driver must complete the idempotent release.
+func TestFaultCrashBetweenConfirmAndReleaseThenRestart(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	token, err := store.ReserveWorktreeExecution(sampleAdmission(wt))
+	if err != nil {
+		t.Fatalf("reserve admission: %v", err)
+	}
+	if err := store.ConfirmWorktreeExecution(wt, token, "run-confirmed", "/runs/confirmed"); err != nil {
+		t.Fatalf("confirm admission: %v", err)
+	}
+	rec := seedRecord(t)
+	rec.WorktreePath = wt
+	rec.RawRunDir = "/runs/confirmed"
+	rec.AdmissionToken = token
+	rec.LastOutcome = PASSED
+	id, owner := seedDrive(t, store, rec)
+
+	rd := NewDriver(reopenStore(store), &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+	if _, err := rd.Advance(id, owner); err != nil {
+		t.Fatalf("restart Advance: %v", err)
+	}
+	slot, _, err := rd.store.LoadWorktreeExecution(wt)
+	if err != nil {
+		t.Fatalf("load recovered slot: %v", err)
+	}
+	if slot.State != admissionReleased {
+		t.Fatalf("restart must release confirmed terminal slot, got %q", slot.State)
+	}
+}
+
+// TestFaultReleaseInterruptedThenRestart proves a release write that was
+// interrupted before its atomic rename leaves the durable terminal record able
+// to recover and release on the next Advance after restart.
+func TestFaultReleaseInterruptedThenRestart(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	token, err := store.ReserveWorktreeExecution(sampleAdmission(wt))
+	if err != nil {
+		t.Fatalf("reserve admission: %v", err)
+	}
+	if err := store.ConfirmWorktreeExecution(wt, token, "run-interrupted", "/runs/interrupted"); err != nil {
+		t.Fatalf("confirm admission: %v", err)
+	}
+	rec := seedRecord(t)
+	rec.WorktreePath = wt
+	rec.RawRunDir = "/runs/interrupted"
+	rec.AdmissionToken = token
+	rec.LastOutcome = PASSED
+	id, owner := seedDrive(t, store, rec)
+
+	canonical, err := filepath.EvalSymlinks(wt)
+	if err != nil {
+		t.Fatalf("canonical worktree: %v", err)
+	}
+	slotDir := filepath.Join(store.admissionRoot, admissionKey(canonical))
+	if err := os.Chmod(slotDir, 0o500); err != nil {
+		t.Fatalf("make release write fail: %v", err)
+	}
+	d := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+	if _, err := d.Advance(id, owner); err != nil {
+		t.Fatalf("Advance during interrupted release: %v", err)
+	}
+	if err := os.Chmod(slotDir, 0o700); err != nil {
+		t.Fatalf("restore admission permissions: %v", err)
+	}
+
+	rd := NewDriver(reopenStore(store), &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+	if _, err := rd.Advance(id, owner); err != nil {
+		t.Fatalf("restart Advance: %v", err)
+	}
+	slot, _, err := rd.store.LoadWorktreeExecution(wt)
+	if err != nil {
+		t.Fatalf("load recovered slot: %v", err)
+	}
+	if slot.State != admissionReleased {
+		t.Fatalf("restart must complete interrupted release, got %q", slot.State)
+	}
+}
+
 // TestFaultLaunchLostResponseLeavesUnresolved (change 0375 Task 3): a scoped start's
 // launch returns an error and ResolveReservation cannot prove the run never started
 // (a lost launch response). The worktree slot must fail CLOSED to unresolved — a
