@@ -79,14 +79,35 @@ func (d *Driver) Acknowledge(scopeID, childCapability, driveID, ownerGen string)
 		return DriveDoc{}, ownershipErr(ErrUnresolvedLaunchTransition, "acknowledge")
 	}
 
+	// Resumable-half recovery: a crash between retirePredecessor and closeScopeFinal
+	// leaves the scope's current LAUNCHED drive already owner-cleared with a durable
+	// terminal verdict while the scope is still OPEN — retirePredecessor ran, its
+	// close did not. That is the resumable second half of THIS same acknowledgement,
+	// not a fresh one: re-running retirePredecessor would misreport the cleared owner
+	// as ErrStalePredecessor and strand the scope open forever. Detect it and skip
+	// straight to the close (the resumption completing the transition). The
+	// discriminator is exact — a retired predecessor becomes PriorDriveID, never the
+	// CurrentDriveID this branch already required, so only an interrupted final ack
+	// reaches an owner-cleared current drive. An outstanding handoff excludes the
+	// state (a handed-off drive is also owner-cleared but never a terminal result).
+	rec, lerr := d.store.Load(driveID)
+	if lerr != nil {
+		return DriveDoc{}, lerr
+	}
+	resumable := rec.HandoffGeneration == "" && rec.OwnerGeneration == "" &&
+		(rec.LastOutcome == PASSED || rec.LastOutcome == FAILED)
+
 	// Retire the final drive's recovery authority: the shared predecessorReusableError
 	// authority verifies (in order) no outstanding handoff (ErrHandoffOutstanding),
 	// the presented owner is still current (ErrStalePredecessor), and a durable
 	// PASSED/FAILED outcome (ErrPredecessorNotReusable) — then clears the owner
 	// generation so the record survives only as consumed history. On any rejection
-	// nothing is written.
-	if rerr := d.store.retirePredecessor(driveID, ownerGen); rerr != nil {
-		return DriveDoc{}, rerr
+	// nothing is written. The resumable-half case skips it: its authority is already
+	// retired, so the only work left is the close.
+	if !resumable {
+		if rerr := d.store.retirePredecessor(driveID, ownerGen); rerr != nil {
+			return DriveDoc{}, rerr
+		}
 	}
 
 	// Close the scope as terminally acknowledged, revalidating the slot under the
@@ -98,7 +119,7 @@ func (d *Driver) Acknowledge(scopeID, childCapability, driveID, ownerGen string)
 	}
 
 	// Build the document from the authoritative post-retirement record.
-	rec, err := d.store.Load(driveID)
+	rec, err = d.store.Load(driveID)
 	if err != nil {
 		return DriveDoc{}, err
 	}
