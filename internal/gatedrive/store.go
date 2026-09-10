@@ -45,6 +45,10 @@ const (
 	// lockFileName is the advisory-lock file CAS serializes on. It is separate
 	// from the record so acquiring the lock never races the record's rename.
 	lockFileName = "lock"
+	// relaunchLockFileName is the short-lived liveness fence for the caller that
+	// owns a durable relaunch reservation. It is held only through resolution,
+	// launch, and attachment, never through an observation slice.
+	relaunchLockFileName = "relaunch.lock"
 	// idNBytes is the entropy of an opaque drive id: 128 bits, encoded as 32
 	// lowercase hex characters — enough that an agent cannot collide with or
 	// guess a different drive (spec "Location and privacy").
@@ -380,10 +384,10 @@ func (s *Store) readStored(dir string) (storedRecord, error) {
 		return storedRecord{}, storeErr(ErrCorruptRecord, "read", err)
 	}
 	// The current generation and the immediately-prior one both load; every other
-	// version fails closed. A v2 record from the pre-0375 binary reads with an
-	// empty AdmissionToken and is upgraded to v3 on its next write (CAS re-stamps
-	// SchemaVersion), so a live drive survives the bump. v1 and any unknown version
-	// are refused rather than best-effort migrated (change 0375).
+	// version fails closed. A v3 record reads with RelaunchReserved false and an
+	// empty RelaunchToken, then upgrades to v4 on its next write (CAS re-stamps
+	// SchemaVersion), so a live drive survives the reservation-journal bump. v2
+	// and unknown versions are refused rather than best-effort migrated.
 	if stored.Record.SchemaVersion != driveSchemaVersion && stored.Record.SchemaVersion != driveSchemaVersionLegacy {
 		return storedRecord{}, storeErr(ErrUnknownSchema, "read",
 			fmt.Errorf("schema version %d, want %d or %d", stored.Record.SchemaVersion, driveSchemaVersion, driveSchemaVersionLegacy))
@@ -494,4 +498,50 @@ func acquireExclusiveLock(path string) (*os.File, error) {
 		return nil, storeErr(ErrIO, "lock", err)
 	}
 	return f, nil
+}
+
+// tryAcquireExclusiveLock takes a non-blocking exclusive flock. Contention is
+// reported separately from IO failure so a competing Advance can return the
+// authoritative drive state while the live reservation holder finishes launch.
+func tryAcquireExclusiveLock(path string) (lock *os.File, busy bool, err error) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, false, storeErr(ErrIO, "lock-open", err)
+	}
+	if err := f.Chmod(0o600); err != nil {
+		f.Close()
+		return nil, false, storeErr(ErrIO, "lock-chmod", err)
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		f.Close()
+		if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
+			return nil, true, nil
+		}
+		return nil, false, storeErr(ErrIO, "lock", err)
+	}
+	return f, false, nil
+}
+
+type relaunchClaim struct {
+	lock  *os.File
+	token string
+}
+
+func (c *relaunchClaim) close() {
+	if c != nil && c.lock != nil {
+		_ = c.lock.Close()
+		c.lock = nil
+	}
+}
+
+func (s *Store) tryRelaunchClaim(id string) (*relaunchClaim, bool, error) {
+	dir, err := s.driveDir(id)
+	if err != nil {
+		return nil, false, err
+	}
+	lock, busy, err := tryAcquireExclusiveLock(filepath.Join(dir, relaunchLockFileName))
+	if err != nil || busy {
+		return nil, busy, err
+	}
+	return &relaunchClaim{lock: lock}, false, nil
 }

@@ -106,23 +106,22 @@ func TestDriveRecordCarriesSchemaVersion(t *testing.T) {
 	}
 }
 
-// TestDriveSchemaV1FailsClosedUnderV3 proves a two-generations-back schema is not
-// migrated: a persisted v1 record read by the v3 store fails closed with the typed
+// TestDriveSchemaV2FailsClosedUnderV4 proves a two-generations-back schema is not
+// migrated: a persisted v2 record read by the v4 store fails closed with the typed
 // unknown-schema error rather than being silently upgraded. Only the immediately-prior
-// generation (v2) is tolerated (see TestDriveSchemaV2LoadsAndUpgradesUnderV3); every
-// other version, v1 included, fails closed.
-func TestDriveSchemaV1FailsClosedUnderV3(t *testing.T) {
-	if driveSchemaVersion != 3 {
-		t.Fatalf("this fail-closed assertion is pinned to schema v3, got v%d", driveSchemaVersion)
+// generation (v3) is tolerated (see TestDriveSchemaV3LoadsAndUpgradesUnderV4).
+func TestDriveSchemaV2FailsClosedUnderV4(t *testing.T) {
+	if driveSchemaVersion != 4 {
+		t.Fatalf("this fail-closed assertion is pinned to schema v4, got v%d", driveSchemaVersion)
 	}
 	s := OpenStore(testsupport.TempDir(t))
 	id, _, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
 	}
-	// Overwrite the record with an explicit v1 schema version — two generations back.
+	// Overwrite the record with an explicit v2 schema version — two generations back.
 	rec := sampleRecord()
-	rec.SchemaVersion = 1
+	rec.SchemaVersion = 2
 	buf, err := json.Marshal(storedRecord{Generation: "x", Record: rec})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -132,28 +131,26 @@ func TestDriveSchemaV1FailsClosedUnderV3(t *testing.T) {
 	}
 	_, err = s.Load(id)
 	if se, ok := AsStoreError(err); !ok || se.Kind != ErrUnknownSchema {
-		t.Fatalf("a v1 record must fail closed as ErrUnknownSchema under v3, got %v", err)
+		t.Fatalf("a v2 record must fail closed as ErrUnknownSchema under v4, got %v", err)
 	}
 }
 
-// TestDriveSchemaV2LoadsAndUpgradesUnderV3 proves the change-0375 compatibility rule:
-// an in-flight v2 record from the pre-admission binary still LOADS (its missing
-// AdmissionToken reads as empty), and the next write stamps it forward to v3, so a
-// schema bump never bricks a live drive.
-func TestDriveSchemaV2LoadsAndUpgradesUnderV3(t *testing.T) {
-	if driveSchemaVersion != 3 || driveSchemaVersionLegacy != 2 {
-		t.Fatalf("this compatibility assertion is pinned to v3 reading v2, got v%d reading v%d", driveSchemaVersion, driveSchemaVersionLegacy)
+// TestDriveSchemaV3LoadsAndUpgradesUnderV4 proves the reservation-journal
+// compatibility rule: an in-flight v3 record still LOADS (its missing
+// RelaunchReserved reads false), and the next write stamps it forward to v4.
+func TestDriveSchemaV3LoadsAndUpgradesUnderV4(t *testing.T) {
+	if driveSchemaVersion != 4 || driveSchemaVersionLegacy != 3 {
+		t.Fatalf("this compatibility assertion is pinned to v4 reading v3, got v%d reading v%d", driveSchemaVersion, driveSchemaVersionLegacy)
 	}
 	s := OpenStore(testsupport.TempDir(t))
 	id, gen, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
 	}
-	// Overwrite with an explicit v2 record carrying no AdmissionToken — the shape a
-	// pre-0375 binary persisted.
+	// Overwrite with an explicit v3 record carrying no relaunch reservation or
+	// token — the shape persisted before the relaunch-reservation journal.
 	rec := sampleRecord()
-	rec.SchemaVersion = 2
-	rec.AdmissionToken = ""
+	rec.SchemaVersion = 3
 	buf, err := json.Marshal(storedRecord{Generation: gen, Record: rec})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -161,17 +158,20 @@ func TestDriveSchemaV2LoadsAndUpgradesUnderV3(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.root, id, recordFileName), buf, 0o600); err != nil {
 		t.Fatalf("overwrite: %v", err)
 	}
-	// A v2 record loads with an empty AdmissionToken (not a fail-closed HALT).
+	// A v3 record loads with RelaunchReserved false (not a fail-closed HALT).
 	got, err := s.Load(id)
 	if err != nil {
-		t.Fatalf("a v2 record must load under v3, got error %v", err)
+		t.Fatalf("a v3 record must load under v4, got error %v", err)
 	}
-	if got.AdmissionToken != "" {
-		t.Fatalf("a v2 record must read AdmissionToken as empty, got %q", got.AdmissionToken)
+	if got.RelaunchReserved {
+		t.Fatalf("a v3 record must read RelaunchReserved as false")
 	}
-	// The next write upgrades it to v3.
+	if got.RelaunchToken != "" {
+		t.Fatalf("a v3 record must read RelaunchToken as empty, got %q", got.RelaunchToken)
+	}
+	// The next write upgrades it to v4.
 	if _, err := s.CAS(id, gen, func(r *driveRecord) error { return nil }); err != nil {
-		t.Fatalf("CAS over a v2 record: %v", err)
+		t.Fatalf("CAS over a v3 record: %v", err)
 	}
 	upgraded, err := s.Load(id)
 	if err != nil {
