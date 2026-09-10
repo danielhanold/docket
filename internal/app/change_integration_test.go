@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/evidence"
@@ -1195,6 +1196,175 @@ func TestIntegrationChangeGateRetryConsumeOnceThenFalse(t *testing.T) {
 	}
 	if second {
 		t.Errorf("second ConsumeGateRetry = true, want false (permit already spent)")
+	}
+}
+
+// TestIntegrationChangeOuterBudgetEndToEnd drives the outer run gate end-to-end at
+// several configured run.max_attempts values (change 0421, Task 8). gate-before
+// snapshots the AUTHORITATIVE run.max_attempts into the record's AttemptLimit at
+// mint, and successive quiescent run-incomplete verdicts then grant exactly
+// AttemptLimit-1 gate-retry-once lines — each on a distinct attempt transition —
+// before the terminal gate-stop. The report-line TOKENS are asserted byte-for-byte
+// so the counted budget never changes a parsed line, and GateRetryUsage confirms the
+// on-disk marker count matches the grants. Unlike the unit-level
+// TestVerdictIncompleteRespectsAttemptLimit, the limit here flows from config through
+// the real arm, not a hand-stamped record.
+func TestIntegrationChangeOuterBudgetEndToEnd(t *testing.T) {
+	cases := []struct {
+		limit       int
+		wantRetries int
+	}{
+		{limit: 1, wantRetries: 0}, // 1 disables retries
+		{limit: 2, wantRetries: 1}, // the default: one retry then stop
+		{limit: 3, wantRetries: 2}, // configured higher: two retries then stop
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("limit-%d", tc.limit), func(t *testing.T) {
+			f := newRunVerifyFixture(t, true)
+
+			// (1) Arm through the real gate-before, whose mint snapshots the
+			// authoritative run.max_attempts into the record's AttemptLimit.
+			armReader := &fakeReader{pin: gatePinWithRunMaxAttempts(t, tc.limit), corpus: gateBeforeCorpus()}
+			armDeps := PlanningDeps{Reader: armReader, Clock: testClock()}
+			sp := &fakeScopePrep{grant: sampleScopeGrant()}
+			arm := RunGateBefore(context.Background(), armDeps, WorkspaceDeps{}, sp.deps(), f.repo.invocation, "implement-next", 0)
+			if !arm.Armed {
+				t.Fatalf("gate-before did not arm: %q", arm.HumanText())
+			}
+			key := arm.Key
+			rec, err := LoadGateRecord(f.repo.invocation, key)
+			if err != nil {
+				t.Fatalf("LoadGateRecord: %v", err)
+			}
+			if rec.AttemptLimit != tc.limit {
+				t.Fatalf("snapshotted AttemptLimit = %d, want %d (config value must reach the record)", rec.AttemptLimit, tc.limit)
+			}
+
+			// (2) Attribute the armed record to the fixture's in-progress change 3 —
+			// the state a first verdict leaves behind — keeping the snapshot intact.
+			rec.AttributedID = 3
+			if err := SaveGateRecord(f.repo.invocation, key, rec); err != nil {
+				t.Fatalf("SaveGateRecord (attribute): %v", err)
+			}
+
+			// (3) Drive successive quiescent run-incomplete verdicts (no tracked
+			// drive, so each falls through to the retry CAS).
+			deps, wdeps, gdeps := f.deps(gateIncompleteRecord(), rvPR(f.head, string(prEvidenceBytes(t, f.head))))
+			wdeps.Continuation = &fakeContinuationSeam{candidates: nil}
+
+			for i := 1; i <= tc.wantRetries; i++ {
+				res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+				if got, want := res.HumanText(), "gate-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
+					t.Fatalf("retry %d: HumanText = %q, want %q", i, got, want)
+				}
+				if res.Terminal {
+					t.Errorf("retry %d: gate-retry-once must be nonterminal", i)
+				}
+				if res.AttemptsUsed != i || res.AttemptLimit != tc.limit {
+					t.Errorf("retry %d: attempts %d/%d, want %d/%d", i, res.AttemptsUsed, res.AttemptLimit, i, tc.limit)
+				}
+			}
+
+			// The next eligible incomplete is the terminal gate-stop: budget spent.
+			stop := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+			if got, want := stop.HumanText(), "gate-stop "+key+" run-incomplete 3 not-implemented"; got != want {
+				t.Fatalf("terminal HumanText = %q, want %q", got, want)
+			}
+			if !stop.Terminal {
+				t.Errorf("exhausted gate-stop must be terminal")
+			}
+			if stop.AttemptsUsed != tc.limit || stop.AttemptLimit != tc.limit {
+				t.Errorf("terminal attempts %d/%d, want %d/%d (exhausted)", stop.AttemptsUsed, stop.AttemptLimit, tc.limit, tc.limit)
+			}
+			if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != tc.wantRetries {
+				t.Errorf("GateRetryUsage = %d,%v; want %d,nil", used, err, tc.wantRetries)
+			}
+		})
+	}
+}
+
+// TestIntegrationChangeContinuationSurvivesInterruption proves a run-waiting
+// continuation spends no outer-retry budget even across a simulated interruption
+// (change 0421, Task 8): the verdict is re-driven — each call reopens the durable
+// record from disk — both calls map to the nonterminal gate-continue, GateRetryUsage
+// stays 0, and the O_EXCL retry marker is never created. A continuation is not a
+// second attempt, so an interruption in the middle of one cannot leak a charge.
+func TestIntegrationChangeContinuationSurvivesInterruption(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
+	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
+	key := gateMintAttributed(t, f.repo.invocation, 3)
+
+	first := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if first.Decision != GateDecisionContinue {
+		t.Fatalf("first verdict Decision = %q, want gate-continue", first.Decision)
+	}
+	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
+		t.Fatalf("after first continue GateRetryUsage = %d,%v; want 0,nil", used, err)
+	}
+
+	// Simulated interruption + recovery: the record persists; a fresh verdict call
+	// reloads it from disk and must again continue without charging.
+	rec, err := LoadGateRecord(f.repo.invocation, key)
+	if err != nil {
+		t.Fatalf("reload after interruption: %v", err)
+	}
+	if rec.Retry != RetryUnused {
+		t.Errorf("persisted Retry = %q, want unused (a continuation preserves the permit)", rec.Retry)
+	}
+
+	second := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if second.Decision != GateDecisionContinue {
+		t.Fatalf("re-verdict Decision = %q, want gate-continue", second.Decision)
+	}
+	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
+		t.Errorf("after re-verdict GateRetryUsage = %d,%v; want still 0 (no charge across interruption)", used, err)
+	}
+	if gateRetryMarkerExists(t, f.repo.invocation, key) {
+		t.Errorf("retry marker present — a continuation across interruption must never reach the retry CAS")
+	}
+}
+
+// TestIntegrationChangeBuildBudgetSurvivesInterruption proves the build phase's
+// durable suite-attempt budget is preserved when the app service is reconstructed
+// over the same repository — a fresh gatedrive.Store (change 0421, Task 8). Two
+// build-owned starts reserve attempts 1 and 2; after rebuilding the service the next
+// start reserves attempt 3 (the consumed budget is neither reset nor double-counted),
+// and the preserved budget still exhausts at the snapshotted limit of 4.
+func TestIntegrationChangeBuildBudgetSurvivesInterruption(t *testing.T) {
+	svc1, eng, dir := newBudgetTestBuildService(t, 4)
+	req := buildStartReq("0421")
+
+	for i := 1; i <= 2; i++ {
+		if got := svc1.Start(req); got.Result != ResultApplied {
+			t.Fatalf("start %d: result = %s, want applied (%s)", i, got.Result, got.Reason)
+		}
+	}
+	if used, limit := suiteUsage(t, dir, "0421"); used != 2 || limit != 4 {
+		t.Fatalf("after two starts usage = (%d,%d), want (2,4)", used, limit)
+	}
+
+	// Interruption: reconstruct the build service over the SAME repo (fresh Store).
+	svc2, res, reason := NewBuildGateDriveService(dir, "/bin/true", buildEffWithMaxAttempts("go test ./...", 4))
+	if svc2 == nil {
+		t.Fatalf("reconstructed build service was nil: %s %s", res, reason)
+	}
+	svc2.engine = eng
+
+	if got := svc2.Start(req); got.Result != ResultApplied {
+		t.Fatalf("post-interruption start: result = %s, want applied (%s)", got.Result, got.Reason)
+	}
+	if used, limit := suiteUsage(t, dir, "0421"); used != 3 || limit != 4 {
+		t.Fatalf("post-interruption usage = (%d,%d), want (3,4) — attempt 3 preserved, not reset", used, limit)
+	}
+
+	// The preserved budget still exhausts at the snapshotted 4.
+	if got := svc2.Start(req); got.Result != ResultApplied {
+		t.Fatalf("fourth start: result = %s, want applied", got.Result)
+	}
+	if got := svc2.Start(req); got.Reason != "suite-attempts-exhausted" {
+		t.Fatalf("fifth start reason = %q, want suite-attempts-exhausted (preserved budget must still exhaust)", got.Reason)
 	}
 }
 
