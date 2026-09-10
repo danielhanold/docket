@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -280,6 +281,173 @@ func gateMintAttributedScoped(t *testing.T, repoDir, scopeID, parentCap, childCo
 		t.Fatalf("SaveGateRecord: %v", err)
 	}
 	return key
+}
+
+// gateMintAttributedLimit mints an UNSCOPED attributed record (AttributedID set,
+// no ScopeID) whose AttemptLimit is limit — the shape a quiescent run-incomplete
+// verdict reaches straight through to the retry CAS (ScopeID == "" skips the
+// continuation check). limit must be >= 1 (SaveGateRecord's v4 floor). It lets the
+// counted-budget tests drive successive eligible incompletes at a chosen limit.
+func gateMintAttributedLimit(t *testing.T, repoDir string, id, limit int) string {
+	t.Helper()
+	key := gateMintArmed(t, repoDir, nil, 1, "")
+	rec, err := LoadGateRecord(repoDir, key)
+	if err != nil {
+		t.Fatalf("LoadGateRecord: %v", err)
+	}
+	rec.AttributedID = id
+	rec.AttemptLimit = limit
+	if err := SaveGateRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveGateRecord: %v", err)
+	}
+	return key
+}
+
+// gateMintAttributedScopedLimit is gateMintAttributedScoped with the AttemptLimit
+// overridden to limit (>= 1) — a scoped, attributed record used by the
+// continuation-vs-budget tests.
+func gateMintAttributedScopedLimit(t *testing.T, repoDir, scopeID, parentCap, childContextHash string, id, limit int) string {
+	t.Helper()
+	key := gateMintAttributedScoped(t, repoDir, scopeID, parentCap, childContextHash, id)
+	rec, err := LoadGateRecord(repoDir, key)
+	if err != nil {
+		t.Fatalf("LoadGateRecord: %v", err)
+	}
+	rec.AttemptLimit = limit
+	if err := SaveGateRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveGateRecord: %v", err)
+	}
+	return key
+}
+
+// TestVerdictIncompleteRespectsAttemptLimit is the counted-budget heart (change
+// 0421): a quiescent run-incomplete grants at most AttemptLimit-1 gate-retry-once,
+// each on a distinct attempt transition, then a terminal gate-stop. limit 1 grants
+// none; limit 2 grants one; limit 4 grants exactly three. The report TOKENS are
+// unchanged (gate-retry-once / gate-stop … run-incomplete <id> <unmet>); the
+// used/limit surface is the additive AttemptsUsed/AttemptLimit result fields.
+func TestVerdictIncompleteRespectsAttemptLimit(t *testing.T) {
+	cases := []struct {
+		limit       int
+		wantRetries int
+	}{
+		{limit: 1, wantRetries: 0},
+		{limit: 2, wantRetries: 1},
+		{limit: 4, wantRetries: 3},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("limit-%d", tc.limit), func(t *testing.T) {
+			f := newRunVerifyFixture(t, true)
+			deps, wdeps, gdeps := f.deps(
+				gateIncompleteRecord(),
+				rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+			)
+			key := gateMintAttributedLimit(t, f.repo.invocation, 3, tc.limit)
+
+			for i := 1; i <= tc.wantRetries; i++ {
+				res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+				if res.Decision != GateDecisionRetryOnce || res.Terminal {
+					t.Fatalf("call %d: Decision=%q Terminal=%v, want gate-retry-once/false", i, res.Decision, res.Terminal)
+				}
+				if got, want := res.HumanText(), "gate-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
+					t.Fatalf("call %d: HumanText = %q, want %q", i, got, want)
+				}
+				if res.AttemptsUsed != i || res.AttemptLimit != tc.limit {
+					t.Errorf("call %d: attempts %d/%d, want %d/%d", i, res.AttemptsUsed, res.AttemptLimit, i, tc.limit)
+				}
+			}
+
+			// The next eligible incomplete is the terminal gate-stop: budget exhausted.
+			res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+			if res.Decision != GateDecisionStop || !res.Terminal {
+				t.Fatalf("terminal: Decision=%q Terminal=%v, want gate-stop/true", res.Decision, res.Terminal)
+			}
+			if got, want := res.HumanText(), "gate-stop "+key+" run-incomplete 3 not-implemented"; got != want {
+				t.Fatalf("terminal HumanText = %q, want %q", got, want)
+			}
+			if res.AttemptsUsed != tc.limit || res.AttemptLimit != tc.limit {
+				t.Errorf("terminal attempts %d/%d, want %d/%d (exhausted)", res.AttemptsUsed, res.AttemptLimit, tc.limit, tc.limit)
+			}
+			if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != tc.wantRetries {
+				t.Errorf("GateRetryUsage = %d,%v; want %d,nil", used, err, tc.wantRetries)
+			}
+		})
+	}
+}
+
+// TestVerdictIncompleteRepeatObservationDoesNotDoubleGrant: after a gate-retry-once
+// for attempt 1 (default limit 2), a second verdict call WITHOUT a new attempt
+// completing is the terminal gate-stop — the budget is spent — and GateRetryUsage
+// stays 1 (no second marker).
+func TestVerdictIncompleteRepeatObservationDoesNotDoubleGrant(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		gateIncompleteRecord(),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	key := gateMintAttributedLimit(t, f.repo.invocation, 3, 2)
+
+	res1 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res1.Decision != GateDecisionRetryOnce {
+		t.Fatalf("first: Decision = %q, want gate-retry-once", res1.Decision)
+	}
+	res2 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res2.Decision != GateDecisionStop || !res2.Terminal {
+		t.Fatalf("repeat: Decision=%q Terminal=%v, want gate-stop/true", res2.Decision, res2.Terminal)
+	}
+	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 1 {
+		t.Errorf("GateRetryUsage = %d,%v; want 1,nil (no double grant)", used, err)
+	}
+}
+
+// TestVerdictHaltPrecedenceOverBudget: a run-halted verdict against a fresh,
+// unspent limit-4 record stops terminally (gate-stop run-halted) and spends NO
+// attempt — run-halted keeps absolute precedence ahead of any counting, and the
+// attempts surface stays absent on the halt path.
+func TestVerdictHaltPrecedenceOverBudget(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := gateLightDeps(t, []StatusBlob{gateHaltedInProgressBlob(3, rvSlug)})
+	key := gateMintAttributedLimit(t, repo, 3, 4)
+
+	res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
+	if res.Decision != GateDecisionStop || res.Outcome != VerdictRunHalted {
+		t.Fatalf("Decision/Outcome = %q/%q, want gate-stop/run-halted", res.Decision, res.Outcome)
+	}
+	if !res.Terminal {
+		t.Errorf("run-halted stop must be terminal")
+	}
+	if used, err := GateRetryUsage(repo, key); err != nil || used != 0 {
+		t.Errorf("GateRetryUsage = %d,%v; want 0,nil (halt precedes counting)", used, err)
+	}
+	if res.AttemptsUsed != 0 || res.AttemptLimit != 0 {
+		t.Errorf("halt path surfaced attempts %d/%d, want 0/0 (no counting)", res.AttemptsUsed, res.AttemptLimit)
+	}
+}
+
+// TestVerdictContinuationConsumesNoAttempt: a scope-bound run-incomplete taken over
+// as a live continuation reaches gate-continue WITHOUT touching the retry CAS —
+// GateRetryUsage stays 0 even with a fresh limit-4 budget. This reddens if the CAS
+// is ever moved above the outer-takeover check.
+func TestVerdictContinuationConsumesNoAttempt(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	tookOver := false
+	reader := gatedWaitingReader{receipt: rvAgreeingReceipt(f.head), ready: &tookOver}
+	deps, wdeps, gdeps := rvWaitingDeps(t, f, reader)
+	wdeps.Continuation = &fakeContinuationSeam{
+		candidates:   []string{"d0opaque"},
+		handoffToken: "h0token",
+		onTakeover:   func() { tookOver = true },
+	}
+	key := gateMintAttributedScopedLimit(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3, 4)
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != GateDecisionContinue {
+		t.Fatalf("Decision = %q, want %q", res.Decision, GateDecisionContinue)
+	}
+	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
+		t.Errorf("GateRetryUsage = %d,%v; want 0,nil (a continuation spends no attempt)", used, err)
+	}
 }
 
 // fakeProofScanner is the injected ClaimProofScanner for the verdict path's

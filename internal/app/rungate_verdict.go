@@ -15,8 +15,8 @@ import (
 // (change 0334, Task 3): it reads the durable gate record armed by gate-before,
 // attributes exactly one new in-progress claim to the dispatched run, delegates
 // the run predicate to RunVerify, and maps that verdict onto one line of the
-// attributed vocabulary — spending the single retry permit atomically so a wrong
-// grant (the one unrecoverable move) cannot happen twice.
+// attributed vocabulary — spending from the counted retry budget atomically (change
+// 0421) so a wrong grant (the one unrecoverable move) cannot happen twice.
 //
 // It NEVER re-derives a run-* verdict: RunVerify (run_verify.go) is the sole
 // authority for run-complete / run-unclaimed / run-incomplete / run-halted /
@@ -43,9 +43,14 @@ import (
 // RETRY ORDERING (spec: "a lost retry is the safe failure"). On a run-incomplete
 // verdict the retry permit is consumed BEFORE the report is chosen, and the CAS
 // return — not the record's readable Retry mirror — decides retry-once vs stop.
-// The O_EXCL create in ConsumeGateRetry grants at most one caller across any
-// number of concurrent verdicts, so two racing calls yield exactly one
-// gate-retry-once.
+// Since change 0421 the budget is counted: the current attempt derives from the
+// marker authority (attempt = 1 + GateRetryUsage), and ConsumeGateRetry grants at
+// most AttemptLimit-1 markers (the snapshotted run.max_attempts, default 2 => one
+// retry) via a per-attempt O_EXCL create. Of any number of concurrent observers of
+// the same completed attempt exactly one creates that attempt's marker, so racing
+// verdicts yield exactly one gate-retry-once and a counted budget never spends
+// several future attempts at once. The report TOKENS are unchanged; the used/limit
+// surface is the additive AttemptsUsed/AttemptLimit result fields.
 //
 // CONTINUATION (change 0359). A tracked gate drive left live (or terminal but
 // unconsumed) is a CONTINUATION of the same attempt, not a stop: a RunVerify
@@ -127,6 +132,15 @@ type RunGateVerdictResult struct {
 	AmbiguousIDs   []int  `json:"ambiguous_ids,omitempty"`
 	Reason         string `json:"reason,omitempty"`
 	Terminal       bool   `json:"terminal"`
+	// AttemptsUsed and AttemptLimit surface the counted outer-retry budget (change
+	// 0421) on the run-incomplete path: AttemptsUsed is the 1-based attempt this
+	// verdict observed (initial dispatch plus retries granted so far, up to and
+	// including this one), and AttemptLimit is the snapshotted run.max_attempts. They
+	// are ADDITIVE diagnostics — omitempty keeps them off every other path — and never
+	// change the gate-retry-once / gate-stop report TOKENS, so existing report-line
+	// parsing is untouched.
+	AttemptsUsed int `json:"attempts_used,omitempty"`
+	AttemptLimit int `json:"attempt_limit,omitempty"`
 }
 
 // HumanText renders the single attributed report line. The field layout after
@@ -216,6 +230,16 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 
 	id := rec.AttributedID
 
+	// Capture the retry-marker count BEFORE the (comparatively slow) RunVerify
+	// delegation, so concurrent verdicts observing the SAME completed attempt capture
+	// the SAME used value and therefore target the SAME per-attempt marker — the
+	// O_EXCL CAS in ConsumeGateRetry then grants exactly one of them (change 0421).
+	// Reading it after RunVerify would let RunVerify's per-process timing skew
+	// separate the reads: a late reader would see an earlier grant's marker, derive a
+	// higher attempt number, and double-grant a FUTURE attempt at limit >= 3. It is
+	// consulted only on the quiescent run-incomplete path; usedErr is handled there.
+	usedBefore, usedErr := GateRetryUsage(repoDir, key)
+
 	// Delegate the run predicate. RunVerify is the sole authority for the run-*
 	// verdicts; this mapper never re-derives one.
 	v := RunVerify(ctx, deps, wdeps, gdeps, repoDir, RunVerifyRequest{ID: id})
@@ -250,17 +274,33 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 			}
 		}
 		unmet := gateUnmetTokens(v)
-		// Consume the retry permit BEFORE choosing the report (a lost retry is the
-		// safe failure). The CAS return decides retry-once vs stop, so two
-		// concurrent callers grant at most one retry. [MUTATION: deciding from
-		// rec.Retry and consuming afterward double-grants under concurrency — see
-		// TestRunGateVerdictConcurrentRetryGrantsOnce.]
-		// Change 0421 changed ConsumeGateRetry to a per-attempt counted CAS. This
-		// caller is minimally adapted to preserve today's single-retry behavior
-		// (attempt 1 against the snapshotted AttemptLimit); change 0421 Task 4 rewires
-		// the verdict to derive the current attempt from the marker authority and
-		// surface used/limit. rec.AttemptLimit is the snapshot (default 2 => one retry).
-		granted, cerr := ConsumeGateRetry(repoDir, key, 1, rec.AttemptLimit)
+		// Derive the current attempt from the marker authority (captured as usedBefore
+		// above, ahead of RunVerify) and consume BEFORE choosing the report (a lost
+		// retry is the safe failure). attempt = 1 + used (the initial dispatch is
+		// attempt 1; each granted retry marker moves the count forward), and the
+		// per-attempt O_CREATE|O_EXCL CAS in ConsumeGateRetry decides retry-once vs
+		// stop — of any number of concurrent observers of the SAME completed attempt
+		// exactly one creates that attempt's marker, so a counted budget grants exactly
+		// once per transition and never spends several future attempts at once.
+		// [MUTATION: choosing the report from rec.Retry and consuming afterward
+		// double-grants under concurrency — see
+		// TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce.]
+		// The budget is at most AttemptLimit-1 retries; AttemptLimit is the snapshot
+		// (default 2 => one retry). A record that somehow bypassed the save guard with
+		// AttemptLimit 0 is floored to the safe minimum 1 (no grant), never unlimited.
+		if usedErr != nil {
+			reason := gateStoreReason(usedErr)
+			return persistGateVerdict(repoDir, key, rec,
+				gateVerdictLine(key, GateDecisionStop, GateOutcomeUnavailable, id, true, func(r *RunGateVerdictResult) {
+					r.Reason = reason
+				}))
+		}
+		limit := rec.AttemptLimit
+		if limit < 1 {
+			limit = 1
+		}
+		attempt := 1 + usedBefore
+		granted, cerr := ConsumeGateRetry(repoDir, key, attempt, limit)
 		if cerr != nil {
 			reason := gateStoreReason(cerr)
 			return persistGateVerdict(repoDir, key, rec,
@@ -273,11 +313,15 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 			return persistGateVerdict(repoDir, key, rec,
 				gateVerdictLine(key, GateDecisionRetryOnce, VerdictRunIncomplete, id, false, func(r *RunGateVerdictResult) {
 					r.Unmet = unmet
+					r.AttemptsUsed = attempt
+					r.AttemptLimit = limit
 				}))
 		}
 		return persistGateVerdict(repoDir, key, rec,
 			gateVerdictLine(key, GateDecisionStop, VerdictRunIncomplete, id, true, func(r *RunGateVerdictResult) {
 				r.Unmet = unmet
+				r.AttemptsUsed = attempt
+				r.AttemptLimit = limit
 			}))
 	default:
 		// Any verdict outside the closed set — including a RunVerify operational

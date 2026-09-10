@@ -352,31 +352,39 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneCont
 	}
 }
 
-// race shard (change 0333): two concurrent RunGateVerdict calls contend on the on-disk gate record; -race guards the single-grant CAS.
-// TestRunGateVerdictConcurrentRetryGrantsOnce is the mutation target: two
-// concurrent verdict calls on one not-implemented run must grant EXACTLY ONE
-// gate-retry-once (the O_EXCL CAS in ConsumeGateRetry, consumed before the report
-// is chosen). Reversing the consume-then-emit order — deciding from the record's
-// stale Retry mirror and consuming afterward — double-grants and reddens here.
+// race shard (change 0333, generalized for change 0421): N concurrent RunGateVerdict
+// calls contend on the on-disk gate record; -race guards the single-grant CAS.
+// TestRunGateVerdictConcurrentRetryGrantsOnce is the mutation target: N concurrent
+// verdict calls observing the SAME completed attempt (attempt 1, a fresh record) at
+// limit 3 must grant EXACTLY ONE gate-retry-once — a counted budget must NOT let
+// concurrency spend several future attempts. The attempt derives from the marker
+// count captured BEFORE RunVerify, so every racer targets the SAME per-attempt
+// marker and the O_EXCL CAS admits exactly one; the rest stop. Reversing the
+// consume-then-emit order — deciding from the record's stale Retry mirror and
+// consuming afterward — double-grants and reddens here.
 func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	ev := string(prEvidenceBytes(t, f.head))
 	// Resume-verified shape (AttributedID set, no claim binding): ownership resolves
-	// immediately for both concurrent calls, so the only resource they contend on is
-	// the on-disk retry CAS — exactly what this test guards (change 0407).
-	key := gateMintAttributed(t, f.repo.invocation, 3)
+	// immediately for all concurrent calls, so the only resource they contend on is
+	// the on-disk retry CAS — exactly what this test guards (change 0407). Limit 3
+	// gives room for TWO retries across DISTINCT attempts, so a naive per-call
+	// increment would let two concurrent same-attempt observers grant twice; the
+	// budget must still yield exactly one on the single completed attempt.
+	key := gateMintAttributedLimit(t, f.repo.invocation, 3, 3)
 
-	// Each goroutine gets its OWN deps triple: in production the two concurrent
-	// verdict calls are separate processes, each with its own reader/workspace/
-	// GitHub adapters. The in-memory fakes record their calls without locks, so
-	// sharing one triple across both goroutines races under -race on that
-	// bookkeeping — a test-double artifact, not the behavior under test. The only
-	// resource the two calls genuinely contend on is the on-disk gate record under
-	// f.repo.invocation, whose single-grant guarantee is the O_EXCL CAS in
-	// ConsumeGateRetry — that contention is preserved.
+	// Each goroutine gets its OWN deps triple: in production the concurrent verdict
+	// calls are separate processes, each with its own reader/workspace/GitHub
+	// adapters. The in-memory fakes record their calls without locks, so sharing one
+	// triple would race under -race on that bookkeeping — a test-double artifact, not
+	// the behavior under test. The only resource the calls genuinely contend on is
+	// the on-disk gate record under f.repo.invocation, whose single-grant guarantee
+	// is the O_EXCL CAS in ConsumeGateRetry — that contention is preserved.
+	const n = 8
 	var wg sync.WaitGroup
-	results := make([]RunGateVerdictResult, 2)
-	for i := 0; i < 2; i++ {
+	results := make([]RunGateVerdictResult, n)
+	start := make(chan struct{})
+	for i := 0; i < n; i++ {
 		wg.Add(1)
 		deps, wdeps, gdeps := f.deps(
 			rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
@@ -384,9 +392,11 @@ func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t 
 		)
 		go func(idx int, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps) {
 			defer wg.Done()
+			<-start
 			results[idx] = RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 		}(i, deps, wdeps, gdeps)
 	}
+	close(start)
 	wg.Wait()
 
 	retryOnce, stop := 0, 0
@@ -400,7 +410,10 @@ func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t 
 			t.Fatalf("unexpected decision %q (%q)", r.Decision, r.HumanText())
 		}
 	}
-	if retryOnce != 1 || stop != 1 {
-		t.Fatalf("gate-retry-once=%d gate-stop=%d, want exactly 1 and 1 (single retry permit)", retryOnce, stop)
+	if retryOnce != 1 || stop != n-1 {
+		t.Fatalf("gate-retry-once=%d gate-stop=%d, want exactly 1 and %d (counted budget grants once per completed attempt)", retryOnce, stop, n-1)
+	}
+	if used, uerr := GateRetryUsage(f.repo.invocation, key); uerr != nil || used != 1 {
+		t.Fatalf("GateRetryUsage after race = %d,%v; want 1,nil (no future attempt spent by concurrency)", used, uerr)
 	}
 }
