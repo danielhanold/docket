@@ -1,6 +1,6 @@
 # Backlog
 
-**419 changes** — 🟢 1 in progress · 🟣 5 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 270 done · 🗑️ 113 killed
+**420 changes** — 🟢 1 in progress · 🟣 5 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 270 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -18,10 +18,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (19)
+## 🟡 Proposed (20)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0420](active/0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | `critical` | `fix` | needs-brainstorm |
 | [0419](active/0419-make-finalize-repair-attempts-configurable-with-a-default-of.md) | Make finalize repair attempts configurable with a default of six | `medium` | `feat` | build-ready (trivial) |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
 | [0415](active/0415-support-in-place-build-evidence-re-certification-for-an-impl.md) | Support in-place build-evidence re-certification for an implemented change | `medium` | `feat` | needs-brainstorm |
@@ -97,6 +98,7 @@ graph TD
   0417
   0418
   0419
+  0420
   0192:::done
   0251:::done
   0370:::done
