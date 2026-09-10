@@ -22,6 +22,26 @@
 // are persisted only as sha256 hashes (capHash) — never the raw tokens — so a
 // leaked record file discloses no authority. Unknown schema versions and corrupt
 // records fail closed with a typed StoreError, exactly as the drive store does.
+//
+// Slot lifecycle and lock order (schema v2, change 0405). A scope carries a
+// single drive slot that a SEQUENCE of drives passes through — baseline, RED,
+// GREEN, verification — at most one current execution or launch reservation at a
+// time. A start reserves the slot durably (reserveScopeDrive) BEFORE any process
+// launch, then confirms it (confirmScopeLaunch) once the launch is persisted; a
+// successor additionally journals the predecessor it must retire (the pending-ack
+// journal), which is cleared (clearPendingAck) as the second half of that one
+// logical transition. The current scope state — never a newest timestamp — is the
+// authority on which drive is current.
+//
+// When a single logical transition needs both the scope authority and a drive's
+// ownership authority, acquire the SCOPE LOCK BEFORE THE DRIVE LOCK; elsewhere the
+// acquisitions are sequential (release between). Every authority holder revalidates
+// its target after acquiring authority: Start, the final acknowledgement, and
+// Handoff/Claim/Takeover re-check the scope's current drive under the lock so a
+// stale reader cannot act on a drive a concurrent transition has already moved. A
+// reservation is never a PASSED, FAILED, or safely quiescent result; a slot that
+// is reserved or carries a pending-ack journal is an unresolved transition that
+// fails closed rather than admitting a second launch.
 package gatedrive
 
 import (
@@ -37,7 +57,40 @@ import (
 
 // scopeSchemaVersion is the persisted scopeRecord schema generation. Like the
 // drive store, an unknown version fails closed rather than being migrated.
-const scopeSchemaVersion = 1
+// Bumped to 2 by change 0405, which replaces the single bound_drive_id with the
+// slot lifecycle below (CurrentDriveID/CurrentDriveState/PriorDriveID/DriveCount
+// and the pending-ack journal). A v1 record read by a v2 store fails closed as
+// ErrUnknownSchema: an in-flight one-drive record is never silently reinterpreted
+// as a reusable sequential scope (spec "Version changed persistent formats").
+const scopeSchemaVersion = 2
+
+// scopeStateReserved marks a slot whose successor drive record and scope
+// reservation are persisted but whose process has not yet been launch-confirmed —
+// the recoverable window between reservation and confirmScopeLaunch.
+const scopeStateReserved = "reserved"
+
+// scopeStateLaunched marks a slot whose current drive's process launch has been
+// confirmed. Only a launched (and durably terminal) predecessor authorizes a
+// successor reservation.
+const scopeStateLaunched = "launched"
+
+// predecessorReceipt is the explicit acknowledgement a successor start presents:
+// the previous drive's id and its current owner generation. Both fields are set
+// for a successor, or both empty for a scope's first start. A half-filled receipt
+// is a fail-closed ErrStalePredecessor (spec "Subsequent tests").
+type predecessorReceipt struct {
+	DriveID  string
+	OwnerGen string
+}
+
+// empty reports whether the receipt carries no predecessor (a first start).
+func (r predecessorReceipt) empty() bool { return r.DriveID == "" && r.OwnerGen == "" }
+
+// halfFilled reports whether exactly one of the receipt's two fields is set — a
+// malformed receipt that names neither a complete predecessor nor a first start.
+func (r predecessorReceipt) halfFilled() bool {
+	return (r.DriveID == "") != (r.OwnerGen == "")
+}
 
 // scopeRecord is the durable, owner-private schema of one recovery scope. It
 // stores only hashes of the two capabilities and of the outer gate-context
@@ -55,8 +108,30 @@ type scopeRecord struct {
 	GateContextHash string `json:"gate_context_hash,omitempty"`
 	ChildCapHash    string `json:"child_cap_hash"`
 	ParentCapHash   string `json:"parent_cap_hash"`
-	BoundDriveID    string `json:"bound_drive_id,omitempty"`
-	Closed          bool   `json:"closed"`
+
+	// The single-slot lifecycle (schema v2). At most one current drive occupies
+	// the slot at a time; a sequence of drives passes through it, each successor
+	// acknowledging its predecessor. CurrentDriveID/CurrentDriveState name the slot
+	// occupant and whether its launch is reserved or confirmed; PriorDriveID is the
+	// immediately preceding drive (history); DriveCount is the total number of
+	// drives the scope has admitted.
+	CurrentDriveID    string `json:"current_drive_id,omitempty"`
+	CurrentDriveState string `json:"current_drive_state,omitempty"` // "" | scopeStateReserved | scopeStateLaunched
+	PriorDriveID      string `json:"prior_drive_id,omitempty"`
+	DriveCount        int    `json:"drive_count"`
+
+	// The pending-ack journal is the recoverable second-phase record of a successor
+	// transition: after a successor reservation wins the slot, these name the
+	// predecessor whose recovery authority must still be retired. They are cleared
+	// (clearPendingAck) as the journaled second half of the one logical transition.
+	PendingAckDriveID  string `json:"pending_ack_drive_id,omitempty"`
+	PendingAckOwnerGen string `json:"pending_ack_owner_gen,omitempty"`
+
+	// FinalAcked records that the scope's last result was consumed by the terminal
+	// acknowledgement (Task 5) rather than by a claim or takeover.
+	FinalAcked bool `json:"final_acked,omitempty"`
+
+	Closed bool `json:"closed"`
 }
 
 // storedScope is the on-disk envelope: the store-owned physical generation token
@@ -158,27 +233,105 @@ func (s *Store) LoadScope(id string) (scopeRecord, error) {
 	return stored.Record, nil
 }
 
-// bindScopeDrive binds a single live drive into a scope under the child
-// capability. It re-verifies inside the lock: the scope is not closed, the
-// presented capability's hash equals the stored child capability hash, and no
-// different drive is already bound. Binding the same drive id twice is an
-// idempotent no-op; a second, different drive id is refused. On any rejection
-// the persisted record is untouched.
-func (s *Store) bindScopeDrive(scopeID, childCapability, driveID string) error {
+// reserveScopeDrive persists a newDriveID into the scope's single slot under the
+// child capability, as the durable FIRST half of a start transition (the launch
+// itself follows, then confirmScopeLaunch). It is the serialization authority for
+// the slot: the scopeCAS mutate re-checks, in order — capability, closed, receipt
+// shape, then slot state — and mutates only on full agreement, so a rejected
+// reserve writes nothing.
+//
+// An EMPTY slot accepts only an empty receipt (a first start): it fills the slot
+// as reserved with drive count 1. A non-empty receipt on an empty scope is
+// ErrStalePredecessor.
+//
+// An OCCUPIED slot accepts only a successor whose receipt names the current
+// LAUNCHED drive: a reserved (unconfirmed) slot is ErrScopeBusy, a journaled
+// pending ack is ErrUnresolvedLaunchTransition, an empty receipt is
+// ErrScopeSecondDrive, and a receipt naming a non-current drive is
+// ErrStalePredecessor. On success it advances the slot to the successor
+// (reserved), records the predecessor as PriorDriveID, journals the pending ack,
+// and increments DriveCount. Retiring the predecessor's recovery authority is the
+// caller's journaled second half (Task 4 retirePredecessor + clearPendingAck).
+func (s *Store) reserveScopeDrive(scopeID, childCapability, newDriveID string, receipt predecessorReceipt) error {
 	return s.scopeCAS(scopeID, func(rec *scopeRecord) error {
 		if childCapability == "" || rec.ChildCapHash != capHash(childCapability) {
-			return ownershipErr(ErrScopeCapabilityMismatch, "bind-scope-drive")
+			return ownershipErr(ErrScopeCapabilityMismatch, "reserve-scope-drive")
 		}
 		if rec.Closed {
-			return ownershipErr(ErrScopeClosed, "bind-scope-drive")
+			return ownershipErr(ErrScopeClosed, "reserve-scope-drive")
 		}
-		if rec.BoundDriveID != "" {
-			if rec.BoundDriveID == driveID {
-				return nil // idempotent re-bind of the same drive
+		if receipt.halfFilled() {
+			return ownershipErr(ErrStalePredecessor, "reserve-scope-drive")
+		}
+		if rec.CurrentDriveID == "" {
+			// Empty slot: only a first start (empty receipt) may fill it.
+			if !receipt.empty() {
+				return ownershipErr(ErrStalePredecessor, "reserve-scope-drive")
 			}
-			return ownershipErr(ErrScopeSecondDrive, "bind-scope-drive")
+			rec.CurrentDriveID = newDriveID
+			rec.CurrentDriveState = scopeStateReserved
+			rec.DriveCount++
+			return nil
 		}
-		rec.BoundDriveID = driveID
+		// Occupied slot: a mid-transition state fails closed before the receipt is
+		// even considered, so a reservation in flight or an unretired predecessor is
+		// never overwritten.
+		if rec.CurrentDriveState == scopeStateReserved {
+			return ownershipErr(ErrScopeBusy, "reserve-scope-drive")
+		}
+		if rec.PendingAckDriveID != "" {
+			return ownershipErr(ErrUnresolvedLaunchTransition, "reserve-scope-drive")
+		}
+		if receipt.empty() {
+			return ownershipErr(ErrScopeSecondDrive, "reserve-scope-drive")
+		}
+		if receipt.DriveID != rec.CurrentDriveID {
+			return ownershipErr(ErrStalePredecessor, "reserve-scope-drive")
+		}
+		rec.PriorDriveID = rec.CurrentDriveID
+		rec.CurrentDriveID = newDriveID
+		rec.CurrentDriveState = scopeStateReserved
+		rec.PendingAckDriveID = receipt.DriveID
+		rec.PendingAckOwnerGen = receipt.OwnerGen
+		rec.DriveCount++
+		return nil
+	})
+}
+
+// confirmScopeLaunch flips the slot's current drive from reserved to launched
+// once its process launch has been persisted, completing the visible half of a
+// start. It acts only on the matching current drive id: a mismatched id is a
+// fail-closed ErrUnresolvedLaunchTransition, and an already-launched matching id
+// is an idempotent no-op. On any rejection the persisted record is untouched.
+func (s *Store) confirmScopeLaunch(scopeID, driveID string) error {
+	return s.scopeCAS(scopeID, func(rec *scopeRecord) error {
+		if rec.CurrentDriveID != driveID {
+			return ownershipErr(ErrUnresolvedLaunchTransition, "confirm-scope-launch")
+		}
+		if rec.CurrentDriveState == scopeStateLaunched {
+			return nil // idempotent: the launch is already confirmed
+		}
+		if rec.CurrentDriveState != scopeStateReserved {
+			return ownershipErr(ErrUnresolvedLaunchTransition, "confirm-scope-launch")
+		}
+		rec.CurrentDriveState = scopeStateLaunched
+		return nil
+	})
+}
+
+// clearPendingAck clears the pending-ack journal entry as the second half of a
+// successor transition, once the predecessor's recovery authority has been
+// retired. It clears only a journal entry naming predecessorID; a mismatch (a
+// different id, or an already-cleared journal) is a fail-closed
+// ErrUnresolvedLaunchTransition. On any rejection the persisted record is
+// untouched.
+func (s *Store) clearPendingAck(scopeID, predecessorID string) error {
+	return s.scopeCAS(scopeID, func(rec *scopeRecord) error {
+		if rec.PendingAckDriveID != predecessorID {
+			return ownershipErr(ErrUnresolvedLaunchTransition, "clear-pending-ack")
+		}
+		rec.PendingAckDriveID = ""
+		rec.PendingAckOwnerGen = ""
 		return nil
 	})
 }
