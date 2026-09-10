@@ -930,9 +930,57 @@ func writeInstallState(t *testing.T, protocol int) {
 		Mode:           install.ModeRelease,
 		Harnesses:      []string{"claude"},
 		AgentDigest:    "sha256:agents",
+		Targets: []install.TargetRecord{{
+			Path:    "/tmp/docket-test-agent",
+			Kind:    install.KindFile,
+			SHA256:  "agent",
+			Role:    "agent",
+			Harness: "claude",
+		}},
 	})
 	if err != nil {
 		t.Fatalf("WriteStateAtomic: %v", err)
+	}
+}
+
+func TestRequireCompatibleInstallationEmpty(t *testing.T) {
+	pinInstallEnv(t)
+	roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
+	if err != nil {
+		t.Fatalf("ResolveRoots: %v", err)
+	}
+	if err := install.WriteStateAtomic(roots.StatePath(), &install.State{
+		FormatVersion:  install.StateFormatVersion,
+		ProductVersion: "0.1.0-dev",
+		AssetProtocol:  assets.AssetProtocol,
+		AssetSetID:     "sha256:pinned",
+		Mode:           install.ModeRelease,
+		AgentDigest:    "sha256:agents",
+	}); err != nil {
+		t.Fatalf("WriteStateAtomic: %v", err)
+	}
+
+	ran := false
+	gated := &cobra.Command{
+		Use:  "gated",
+		RunE: func(*cobra.Command, []string) error { ran = true; return nil },
+	}
+	var out, errBuf bytes.Buffer
+	code := run([]string{"gated", "--json"}, strings.NewReader(""), &out, &errBuf, devInfo(), hostFacts(), gated)
+	if ran {
+		t.Fatal("the gated command's body ran against an empty installation")
+	}
+	if code != 1 || errBuf.String() != "" {
+		t.Fatalf("out=%q err=%q code=%d", out.String(), errBuf.String(), code)
+	}
+	if !strings.Contains(out.String(), `"reason":"installation-required"`) {
+		t.Fatalf("stdout = %q, want installation-required refusal", out.String())
+	}
+
+	for _, key := range []string{"install", "install check"} {
+		if !assetIndependent[key] {
+			t.Errorf("%q must remain reachable without the asset gate", key)
+		}
 	}
 }
 

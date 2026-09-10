@@ -1,6 +1,7 @@
 package install
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -29,20 +30,110 @@ func sampleState() *State {
 				BlockName: "dispatch",
 				SHA256:    "def",
 				Role:      "dispatch",
+				Harness:   "claude",
 			},
 			{
-				Path:   "/home/u/.claude/agents/docket-adr.md",
-				Kind:   KindFile,
-				SHA256: "abc",
-				Role:   "agent-source",
+				Path:    "/home/u/.claude/agents/docket-adr.md",
+				Kind:    KindFile,
+				SHA256:  "abc",
+				Role:    "agent-source",
+				Harness: "claude",
 			},
 			{
 				Path:       "/home/u/.claude/skills/docket-build",
 				Kind:       KindSymlink,
 				LinkTarget: "/data/versions/sha256-x/assets/skills/docket-build",
 				Role:       "skill",
+				Harness:    "codex",
 			},
 		},
+	}
+}
+
+func TestLoadStateStrict(t *testing.T) {
+	valid, err := json.Marshal(sampleState())
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name string
+		data string
+	}{
+		{"unknown field", `{"format_version":1,"unknown":true}`},
+		{"trailing document", string(valid) + ` {}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(testsupport.TempDir(t), "install.json")
+			if err := os.WriteFile(path, []byte(tc.data), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := LoadState(path)
+			if !errors.Is(err, ErrStateInvalid) {
+				t.Fatalf("LoadState() error = %v, want ErrStateInvalid", err)
+			}
+		})
+	}
+}
+
+func TestValidateState(t *testing.T) {
+	valid := sampleState()
+	valid.Targets[0].Harness = "claude"
+	valid.Targets[1].Harness = "claude"
+	valid.Targets[2].Harness = "codex"
+
+	for _, tc := range []struct {
+		name string
+		edit func(*State)
+	}{
+		{"unsupported mode", func(s *State) { s.Mode = "other" }},
+		{"unsupported protocol", func(s *State) { s.AssetProtocol = 0 }},
+		{"relative path", func(s *State) { s.Targets[0].Path = "relative" }},
+		{"duplicate path", func(s *State) { s.Targets[1].Path = s.Targets[0].Path }},
+		{"invalid file fields", func(s *State) { s.Targets[1].LinkTarget = "/target" }},
+		{"invalid symlink fields", func(s *State) { s.Targets[2].SHA256 = "unexpected" }},
+		{"invalid managed-block fields", func(s *State) { s.Targets[0].BlockName = "" }},
+		{"duplicate harness", func(s *State) { s.Harnesses = []string{"claude", "claude"} }},
+		{"empty harness", func(s *State) { s.Harnesses = []string{"", "codex"} }},
+		{"unknown attributed harness", func(s *State) { s.Targets[0].Harness = "unknown" }},
+		{"harness without target", func(s *State) { s.Harnesses = []string{"claude", "codex", "cursor"} }},
+		{"binary attributed to harness", func(s *State) { s.Targets[0].Role = roleBinary }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := *valid
+			got.Harnesses = append([]string(nil), valid.Harnesses...)
+			got.Targets = append([]TargetRecord(nil), valid.Targets...)
+			tc.edit(&got)
+			if err := ValidateState(&got); err == nil {
+				t.Fatal("ValidateState() error = nil, want error")
+			}
+		})
+	}
+
+	for _, tc := range []struct {
+		name  string
+		state *State
+	}{
+		{"binary only", &State{FormatVersion: StateFormatVersion, ProductVersion: "0.1.0", AssetProtocol: 1, AssetSetID: "sha256:assets", Mode: ModeRelease, AgentDigest: "sha256:agents", Targets: []TargetRecord{{Path: "/usr/local/bin/docket", Kind: KindFile, SHA256: "binary", Role: roleBinary}}}},
+		{"empty release", &State{FormatVersion: StateFormatVersion, ProductVersion: "0.1.0", AssetProtocol: 1, AssetSetID: "sha256:assets", Mode: ModeRelease, AgentDigest: "sha256:agents"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidateState(tc.state); err != nil {
+				t.Fatalf("ValidateState() error = %v", err)
+			}
+			if tc.state.Active() {
+				t.Fatal("Active() = true, want false")
+			}
+		})
+	}
+}
+
+func TestStateActive(t *testing.T) {
+	if (*State)(nil).Active() {
+		t.Fatal("nil state is active")
+	}
+	if !sampleState().Active() {
+		t.Fatal("sample state is inactive")
 	}
 }
 
