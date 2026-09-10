@@ -21,7 +21,7 @@ branch: 'fix/gate-drive-start-not-idempotent-spawns-concurrent-drive'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T16:33:13Z'
+claimed_at: '2026-09-10T16:49:14Z'
 ---
 
 ## Artifacts
