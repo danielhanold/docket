@@ -2,11 +2,11 @@
 id: 416
 slug: 'scoped-build-task-gate-starts-omit-prepared-scope-identity'
 title: 'Scoped build-task gate starts omit prepared scope identity'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-09-09'
-updated: '2026-09-09'
+updated: '2026-09-10'
 depends_on: []
 stacked_on:
 related: [359, 376, 405]
@@ -22,7 +22,7 @@ branch: 'fix/scoped-build-task-gate-starts-omit-prepared-scope-identity'
 pr: 'https://github.com/danielhanold/docket/pull/295'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-09T21:49:06Z'
+claimed_at:
 ---
 
 ## Artifacts
