@@ -864,3 +864,223 @@ func TestFreshDriverResumesFromDisk(t *testing.T) {
 func TestProcessSeamSatisfiedByRealService(t *testing.T) {
 	var _ ProcessSeam = (*process.Service)(nil)
 }
+
+// ---------------------------------------------------------------------------
+// Scoped starts reserve the scope slot durably BEFORE any launch (change 0405
+// Task 3). These prove the pinned order pre-checks → fingerprint →
+// NewReservedDrive → reserveScopeDrive → Launch → attachLaunch →
+// confirmScopeLaunch, and its two fail-closed boundaries (launch failure,
+// persist failure) that never launch a duplicate.
+// ---------------------------------------------------------------------------
+
+// prepareScopedStart prepares a task scope over store and returns the grant plus
+// a StartRequest wired to it (scope id + child capability). The caller drives the
+// Start so the fake seams can observe the scope mid-flight.
+func prepareScopedStart(t *testing.T, store *Store) (ScopeGrant, StartRequest) {
+	t.Helper()
+	req := sampleStart()
+	grant, err := store.PrepareScope(scopeReqFor(req, ""))
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	req.ScopeID = grant.ScopeID
+	req.ChildCapability = grant.ChildCapability
+	return grant, req
+}
+
+// scopedTestDriver wires a driver with the short test slice over the given store,
+// clock, proc, and git — the newTestDriver body without minting a fresh store, so
+// a scoped-start test can share one store with a scope-inspecting fake seam.
+func scopedTestDriver(store *Store, clk *fakeClock, proc ProcessSeam, git GitSeam) *Driver {
+	d := NewDriver(store, clk, proc, git)
+	d.slice = 4 * pollTick
+	d.pollInterval = pollTick
+	d.sleep = func(dur time.Duration) { clk.advance(dur) }
+	return d
+}
+
+// TestScopedStartReservesBeforeLaunch proves the scoped Start reserves the scope's
+// single slot DURABLY before any process launch: the fake seam's Launch observes
+// the scope already holding this drive id in scopeStateReserved, and after Start
+// returns the slot is scopeStateLaunched and the drive record carries the launch
+// handle.
+func TestScopedStartReservesBeforeLaunch(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	grant, req := prepareScopedStart(t, store)
+
+	var atLaunch scopeRecord
+	var loadErr error
+	proc := &fakeProc{
+		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+			// At launch time the reservation must already be durable in the scope.
+			sc, err := store.LoadScope(grant.ScopeID)
+			if err != nil {
+				loadErr = err
+			}
+			atLaunch = sc
+			return &process.LaunchOutcome{RunID: "run1", RunDir: "/runs/run1", State: process.StateRunning}, nil
+		},
+	}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+
+	doc, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if loadErr != nil {
+		t.Fatalf("LoadScope at launch: %v", loadErr)
+	}
+	if doc.Outcome != WAITING {
+		t.Fatalf("first slice must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
+	}
+	// Reservation preceded the launch: the scope named this drive as reserved.
+	if atLaunch.CurrentDriveID != doc.DriveID {
+		t.Fatalf("at launch the scope must already name this drive, got %q want %q", atLaunch.CurrentDriveID, doc.DriveID)
+	}
+	if atLaunch.CurrentDriveState != scopeStateReserved {
+		t.Fatalf("at launch the slot must be reserved (not yet launched), got %q", atLaunch.CurrentDriveState)
+	}
+	// After Start the slot is confirmed launched and the record carries the handle.
+	after, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if after.CurrentDriveState != scopeStateLaunched {
+		t.Fatalf("after Start the slot must be launched, got %q", after.CurrentDriveState)
+	}
+	rec, err := store.Load(doc.DriveID)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if rec.RawRunDir != "/runs/run1" || rec.RawOwnership != "run1" {
+		t.Fatalf("the drive record must carry the launch handle, got dir=%q id=%q", rec.RawRunDir, rec.RawOwnership)
+	}
+	if proc.launchN != 1 {
+		t.Fatalf("scoped Start must launch exactly once, got %d", proc.launchN)
+	}
+}
+
+// TestScopedStartLaunchFailureFailsClosed proves a launch failure on a scoped
+// start fails closed with NO automatic second launch: Start returns a command
+// error (not a fabricated verdict), the scope still names the reserved drive, the
+// drive record is persisted HALTED/"launch-failed" with its owner retained (a
+// terminal-unconsumed record outer recovery can see), and a subsequent Start on
+// the scope is refused ErrScopeBusy.
+func TestScopedStartLaunchFailureFailsClosed(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	grant, req := prepareScopedStart(t, store)
+
+	proc := &fakeProc{
+		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+			return nil, fmt.Errorf("gatedrive-test: launch failed")
+		},
+	}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+
+	if _, err := d.Start(req); err == nil {
+		t.Fatalf("a launch failure must be a command failure (error)")
+	}
+	// The scope still names the reserved drive — never treated as empty.
+	scope, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if scope.CurrentDriveID == "" || scope.CurrentDriveState != scopeStateReserved {
+		t.Fatalf("after a launch failure the slot must stay reserved, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
+	}
+	// The drive record is persisted HALTED/"launch-failed" with its owner retained.
+	rec, err := store.Load(scope.CurrentDriveID)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if rec.LastOutcome != HALTED || rec.LastCause != "launch-failed" {
+		t.Fatalf("launch failure must persist HALTED/launch-failed, got %s/%q", rec.LastOutcome, rec.LastCause)
+	}
+	if rec.OwnerGeneration == "" {
+		t.Fatalf("a launch-failed record must retain its owner generation for outer recovery")
+	}
+	if rec.RawRunDir != "" {
+		t.Fatalf("a launch that never returned a handle must leave RawRunDir empty, got %q", rec.RawRunDir)
+	}
+	// No automatic second launch: a subsequent start is refused ErrScopeBusy.
+	launchesBefore := proc.launchN
+	if _, err := d.Start(req); !isOwnershipKind(err, ErrScopeBusy) {
+		t.Fatalf("a subsequent start over a reserved (launch-failed) slot must fail ErrScopeBusy, got %v", err)
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("a refused subsequent start must not launch, launched %d->%d", launchesBefore, proc.launchN)
+	}
+}
+
+// TestScopedStartAttachLaunchFailureStopsOrphan proves that when persisting the
+// launch handle (attachLaunch) fails, the freshly launched run is stopped (orphan
+// control) and the scope slot is NOT treated as empty — a subsequent start is
+// refused rather than launching a duplicate.
+func TestScopedStartAttachLaunchFailureStopsOrphan(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	grant, req := prepareScopedStart(t, store)
+
+	const runDir = "/runs/run1"
+	var stopped []string
+	proc := &fakeProc{
+		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+			sc, err := store.LoadScope(grant.ScopeID)
+			if err != nil {
+				return nil, err
+			}
+			// Only when the reservation already precedes the launch (the behavior
+			// under test) do we sabotage the record dir so the attachLaunch write
+			// fails: make the reserved drive's directory read-only.
+			if sc.CurrentDriveID != "" {
+				if err := os.Chmod(filepath.Join(store.root, sc.CurrentDriveID), 0o500); err != nil {
+					return nil, err
+				}
+			}
+			return &process.LaunchOutcome{RunID: "run1", RunDir: runDir, State: process.StateRunning}, nil
+		},
+		stop: func(rd, reason string) (*process.StopOutcome, error) {
+			stopped = append(stopped, rd)
+			return &process.StopOutcome{State: process.StateStopped, RunDir: rd, Performed: true}, nil
+		},
+	}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+
+	if _, err := d.Start(req); err == nil {
+		t.Fatalf("a persist (attachLaunch) failure must be a command failure (error)")
+	}
+	// Restore perms so subsequent reads and temp cleanup work.
+	scope, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if scope.CurrentDriveID != "" {
+		if err := os.Chmod(filepath.Join(store.root, scope.CurrentDriveID), 0o700); err != nil {
+			t.Fatalf("restore perms: %v", err)
+		}
+	}
+	// The freshly launched run was stopped (orphan control).
+	foundStop := false
+	for _, rd := range stopped {
+		if rd == runDir {
+			foundStop = true
+		}
+	}
+	if !foundStop {
+		t.Fatalf("a persist failure must stop the orphaned run %q, stops=%v", runDir, stopped)
+	}
+	// The scope slot is NOT treated as empty: it stays reserved.
+	if scope.CurrentDriveID == "" || scope.CurrentDriveState != scopeStateReserved {
+		t.Fatalf("after a persist failure the slot must stay reserved, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
+	}
+	// A subsequent start is refused (never a duplicate launch).
+	launchesBefore := proc.launchN
+	if _, err := d.Start(req); !isOwnershipKind(err, ErrScopeBusy) {
+		t.Fatalf("a subsequent start over a reserved (persist-failed) slot must fail ErrScopeBusy, got %v", err)
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("a refused subsequent start must not launch, launched %d->%d", launchesBefore, proc.launchN)
+	}
+}

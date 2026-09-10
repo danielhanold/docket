@@ -166,10 +166,11 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 
 	// Scope pre-check BEFORE any launch: a bad capability, a closed scope, an
 	// identity that disagrees with the scope, or a scope that already holds a
-	// current drive is a command failure that never orphans a freshly launched run.
-	// The reserveScopeDrive CAS after NewDrive is the authoritative single-slot
-	// gate; this pre-check only fails fast so proc.Launch is never reached on a
-	// rejection.
+	// current drive short-circuits here so proc.Launch is never reached on an
+	// uncontended rejection. This unlocked block is a fast-fail ONLY;
+	// reserveScopeDrive under the scope lock (below) is the AUTHORITY on the slot —
+	// it re-checks every condition and arbitrates races, so a state observed here
+	// but changed by a concurrent transition is caught there, not trusted here.
 	if req.ScopeID != "" {
 		scope, serr := d.store.LoadScope(req.ScopeID)
 		if serr != nil {
@@ -182,6 +183,13 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 			return DriveDoc{}, ownershipErr(ErrScopeCapabilityMismatch, "start")
 		}
 		if scope.CurrentDriveID != "" {
+			// An occupied slot short-circuits with the same typed rejection
+			// reserveScopeDrive would return for a first start (empty receipt): a
+			// reserved slot is busy (an in-flight or launch-failed start owns it, so
+			// no automatic second launch), a launched slot already holds a live drive.
+			if scope.CurrentDriveState == scopeStateReserved {
+				return DriveDoc{}, ownershipErr(ErrScopeBusy, "start")
+			}
 			return DriveDoc{}, ownershipErr(ErrScopeSecondDrive, "start")
 		}
 		if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
@@ -235,9 +243,18 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 		rec.GateContextHash = capHash(req.GateContext)
 	}
 
-	// Launch the first raw run, then persist the raw run identity. On a persist
-	// failure the freshly launched run would be orphaned, so stop it best-effort
-	// before surfacing the command failure — the drive never existed.
+	if req.ScopeID == "" {
+		return d.startScopeless(rec, ownerGen)
+	}
+	return d.startScoped(req, rec, ownerGen)
+}
+
+// startScopeless launches the raw run, persists the drive record carrying its
+// launch handle, and drives the first slice. It is the pre-0359 path a scopeless
+// drive (e.g. finalize's local gate) uses unchanged: the launch precedes the
+// record, so a persist failure orphans the freshly launched run and stops it
+// best-effort — the drive never existed.
+func (d *Driver) startScopeless(rec driveRecord, ownerGen string) (DriveDoc, error) {
 	out, err := d.proc.Launch(rec.launchRequest())
 	if err != nil {
 		return DriveDoc{}, fmt.Errorf("gatedrive: start launch: %w", err)
@@ -250,25 +267,64 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 		d.stopIfOwned(out.RunDir)
 		return DriveDoc{}, err
 	}
+	return d.driveAndPersist(id, ownerGen, rec)
+}
 
-	// Reserve the drive into its recovery scope's slot AFTER it exists, then confirm
-	// the launch. A reserve failure (a concurrent Start won the single-drive slot,
-	// the scope closed, or the capability no longer matches) means this drive never
-	// existed for the workflow: stop its freshly launched run and surface the
-	// rejection. This is a behavior-equivalent single-drive bind for now (an empty
-	// receipt, i.e. a first start); change 0405 Task 3 moves the reservation ahead
-	// of the launch so the durable slot precedes the process.
-	if req.ScopeID != "" {
-		if berr := d.store.reserveScopeDrive(req.ScopeID, req.ChildCapability, id, predecessorReceipt{}); berr != nil {
-			d.stopIfOwned(out.RunDir)
-			return DriveDoc{}, berr
-		}
-		if cerr := d.store.confirmScopeLaunch(req.ScopeID, id); cerr != nil {
-			d.stopIfOwned(out.RunDir)
-			return DriveDoc{}, cerr
-		}
+// startScoped runs the pinned scoped-start order (change 0405 Task 3):
+// NewReservedDrive → reserveScopeDrive → Launch → attachLaunch →
+// confirmScopeLaunch → driveAndPersist. The durable reservation precedes the
+// process, so a crash or failure between reservation and launch leaves a
+// recoverable slot rather than a silently double-launched one, and every
+// ambiguous launch/persist failure fails closed with NO automatic second launch.
+func (d *Driver) startScoped(req StartRequest, rec driveRecord, ownerGen string) (DriveDoc, error) {
+	// Persist a RESERVED drive record (no launch handle), then durably reserve the
+	// scope's single slot. reserveScopeDrive under the scope lock is the authority
+	// that arbitrates the slot; a reserve failure (a concurrent start won the slot,
+	// the scope closed, an unresolved transition, or a capability change) means this
+	// start owns nothing and never launched, so surface the rejection.
+	id, _, err := d.store.NewReservedDrive(rec)
+	if err != nil {
+		return DriveDoc{}, err
+	}
+	if rerr := d.store.reserveScopeDrive(req.ScopeID, req.ChildCapability, id, predecessorReceipt{}); rerr != nil {
+		return DriveDoc{}, rerr
 	}
 
+	// Launch the raw run. A launch failure is a command failure that leaves the slot
+	// durably reserved (no automatic second launch): persist the drive HALTED so
+	// outer recovery can see a terminal-unconsumed record, then surface the command
+	// error. No fabricated verdict document flows.
+	out, lerr := d.proc.Launch(rec.launchRequest())
+	if lerr != nil {
+		_ = d.store.ownerCAS(id, func(r *driveRecord) error {
+			if err := verifyOwner(r, ownerGen); err != nil {
+				return err
+			}
+			if isTerminalOutcome(r.LastOutcome) {
+				return errAlreadyTerminal
+			}
+			r.LastOutcome = HALTED
+			r.LastCause = "launch-failed"
+			return nil
+		})
+		return DriveDoc{}, fmt.Errorf("gatedrive: start launch: %w", lerr)
+	}
+
+	// Persist the launch handle onto the reserved record, then confirm the slot's
+	// launch. On a persist failure the freshly launched run is orphaned: stop it
+	// best-effort. The scope slot stays reserved (never treated as empty), so a
+	// subsequent start is refused rather than launching a duplicate.
+	if aerr := d.store.attachLaunch(id, ownerGen, out.RunDir, out.RunID); aerr != nil {
+		d.stopIfOwned(out.RunDir)
+		return DriveDoc{}, aerr
+	}
+	if cerr := d.store.confirmScopeLaunch(req.ScopeID, id); cerr != nil {
+		d.stopIfOwned(out.RunDir)
+		return DriveDoc{}, cerr
+	}
+
+	rec.RawRunDir = out.RunDir
+	rec.RawOwnership = out.RunID
 	return d.driveAndPersist(id, ownerGen, rec)
 }
 
