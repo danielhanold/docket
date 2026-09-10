@@ -14,7 +14,8 @@ const abandonedCause = "supervisor lock released with no terminal record and the
 
 // RecoveryEntry is Recover's per-slot verdict. Disposition is one of
 // "live", "terminal", "stopped", "abandoned-marked", "already-abandoned",
-// "needs-inspection", "foreign", "invalid"; Reason is a bounded human note.
+// "unresolved-establishment", "needs-inspection", "foreign", "invalid";
+// Reason is a bounded human note.
 type RecoveryEntry struct {
 	RunID       string
 	RunDir      string
@@ -205,6 +206,20 @@ func (s *Service) classifyRun(runDir, name string) (RecoveryEntry, error) {
 	} else if ab != nil {
 		entry.Disposition = "already-abandoned"
 		entry.Reason = "abandoned marker already present"
+		return entry, nil
+	}
+
+	// A manifest still in the allocated phase with no supervisor pid never
+	// published an addressable group: the launcher wrote the pre-spawn record
+	// and then died (crashed, or a spawn that never established) before the
+	// supervisor stamped its identity. groupAlive(0) fails closed to
+	// probeUnknown, so without this branch the slot would land in
+	// needs-inspection only by accident of that probe; and it must never be
+	// marked abandoned, since no group ever existed to be provably gone. It is
+	// an unresolved establishment — reported, signalled and deleted nothing.
+	if m.Phase == "allocated" && m.SupervisorPID == 0 {
+		entry.Disposition = "unresolved-establishment"
+		entry.Reason = "manifest allocated with no supervisor; establishment never completed"
 		return entry, nil
 	}
 

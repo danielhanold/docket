@@ -29,8 +29,11 @@ const (
 type manifestRecord struct {
 	Schema int    `json:"schema"`
 	RunID  string `json:"run_id"`
-	// Token is reserved and unused: written but read by no code path today.
-	// See NewRunIdentity for why it is allocated but not yet gating.
+	// Token is the run's reservation token. Launch writes the caller-supplied
+	// LaunchRequest.ReservationToken here when present, otherwise the
+	// independently minted NewRunIdentity token. Service.ResolveReservation
+	// reads it to map a lost launch response back to its exact run; it is not
+	// part of the ownership conjunction.
 	Token         string `json:"token"`
 	Root          string `json:"root"`
 	RunDir        string `json:"run_dir"`

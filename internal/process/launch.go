@@ -77,6 +77,14 @@ func (s *Service) Launch(req LaunchRequest) (*LaunchOutcome, error) {
 		regLock.Close()
 		return nil, err
 	}
+	// A caller-supplied reservation token owns the manifest Token field so
+	// ResolveReservation can map a lost launch response back to this run; the
+	// minted NewRunIdentity token is only the fallback when the caller reserved
+	// nothing.
+	manifestToken := token
+	if req.ReservationToken != "" {
+		manifestToken = req.ReservationToken
+	}
 	runDir := filepath.Join(req.Root, runID)
 	if err := ensurePrivateDir(runDir); err != nil {
 		regLock.Close()
@@ -89,7 +97,7 @@ func (s *Service) Launch(req LaunchRequest) (*LaunchOutcome, error) {
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	m := &manifestRecord{
-		Schema: recordSchema, RunID: runID, Token: token, Root: req.Root, RunDir: runDir,
+		Schema: recordSchema, RunID: runID, Token: manifestToken, Root: req.Root, RunDir: runDir,
 		SupervisorPID: 0, PGID: 0, SID: 0, Phase: "allocated",
 		Cwd: req.Cwd, Argv0: filepath.Base(req.Argv[0]), Argc: len(req.Argv),
 		CreatedAt: now, UpdatedAt: now,
