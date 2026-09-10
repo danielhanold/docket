@@ -233,8 +233,9 @@ role reads, never a command it invents:
    **skipped** evidence via the `evidence.record` operation (no run dir) — `result: skipped` /
    `reason: build-gate-off` at the current head — and proceed to review. Nothing to run or repair.
 2. **`build_gate: local`, non-empty `build_test_command`** — drive it through the native gate
-   **driver**: the `gate.drive.start` operation with `--owner build --json` — capture the drive id and
-   owner generation from that first response — then `gate.drive.advance` operation slices,
+   **driver**: the `gate.drive.start` operation with `--owner build --json` — capture that first response into `gate_reply` (its exit
+   code, if needed, into `gate_rc`; never a zsh read-only special parameter such as
+   `status`) and read the drive id and owner generation from it — then `gate.drive.advance` operation slices,
    exactly as *Gate execution posture* describes. `--owner build` resolves the build-owned command
    from config; the caller passes no suite argv.
 3. **`build_gate: local`, empty `build_test_command`** — a **configuration gap, not a red suite**:
