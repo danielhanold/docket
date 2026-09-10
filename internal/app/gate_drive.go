@@ -106,6 +106,16 @@ type GateDriveService struct {
 	// behavior.
 	taskIntent bool
 	argv       []string
+	// budgetStore + maxAttempts wire the durable per-phase suite-attempt budget the
+	// BUILD owner reserves against before a change-scoped build drive is created
+	// (change 0421). budgetStore is the SAME store the engine composes; maxAttempts
+	// is the snapshotted build.max_attempts from the SAME authoritative config
+	// resolution that resolved the build-owned command — never a second resolver.
+	// Only the build owner reserves (Start keys on owner=="build"), so a
+	// finalize/task/commandless service never charges an attempt even though a
+	// finalize service also stores a non-nil budgetStore.
+	budgetStore *gatedrive.Store
+	maxAttempts int
 }
 
 // GateDriveStartRequest is the caller-supplied identity and launch context for a
@@ -156,7 +166,14 @@ func newGateDriveService(engine driveEngine, budget time.Duration, command, prov
 // role. It reads ONLY build.test_command (never finalize's) and the shared
 // observation budget, and names build.test_command in the persisted provenance.
 func NewBuildGateDriveService(gitCommonDir, exePath string, eff config.Effective) (*GateDriveService, Result, string) {
-	return newOwnedGateDriveService(gitCommonDir, exePath, eff, "build", eff.Build.TestCommand)
+	svc, res, reason := newOwnedGateDriveService(gitCommonDir, exePath, eff, "build", eff.Build.TestCommand)
+	if svc != nil {
+		// Snapshot the resolved build.max_attempts from the same authoritative
+		// config load that resolved the build-owned command. A build-owned
+		// change-scoped Start reserves one full-suite attempt against this bound.
+		svc.maxAttempts = eff.Build.MaxAttempts.Value
+	}
+	return svc, res, reason
 }
 
 // NewFinalizeGateDriveService composes the production gate-drive seam for the
@@ -195,6 +212,10 @@ func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective
 		eff.GateObservation.Provenance.Layer, owner, command.Provenance.Layer)
 	svc := newGateDriveService(engine, budget, command.Value, prov)
 	svc.owner = owner
+	// Reuse the engine's store for the build owner's suite-attempt reservation so a
+	// build drive charges the same durable budget it composes. Non-build owners set
+	// it too but never consult it (Start keys the reservation on owner=="build").
+	svc.budgetStore = store
 	return svc, "", ""
 }
 
@@ -266,6 +287,20 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 			Message:  s.unresolvedCommandMessage(),
 		}
 	}
+	// Build-owned suite-attempt reservation (change 0421). A build-role start that
+	// certifies a change (non-empty ChangeID — change 0416 guarantees a scoped start
+	// carries the full change/task/phase bundle) reserves one logical full-suite
+	// attempt against the phase budget BEFORE the drive record is created or any
+	// suite launches. This is the last common point every build-owned start flows
+	// through, so no repair worker's build-owned rerun can bypass the cap. The
+	// finalize and task owners never reach this branch (different owner), and a
+	// build-owned start with NO ChangeID (a scopeless ad-hoc drive, pre-0359
+	// behavior) is deliberately unbudgeted — both boundaries are pinned by tests.
+	if s.owner == "build" && req.ChangeID != "" {
+		if refusal, refused := s.reserveBuildSuiteAttempt(req); refused {
+			return refusal
+		}
+	}
 	// A task-intent drive is never idempotent-suite-gated: the agent runs a focused
 	// command, and no config command backs a suite-idempotency claim. The flag is
 	// forced false here regardless of what the caller requested.
@@ -293,6 +328,46 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 		GateContext:         req.GateContext,
 	})
 	return mapDriveResult(OperationGateDriveStart, doc, err)
+}
+
+// reserveBuildSuiteAttempt reserves one logical full-suite attempt for a
+// build-owned, change-scoped Start. The budget key's phase is the LITERAL "build",
+// never req.Phase, so the whole owning build phase shares one budget: a repair
+// worker's build-owned rerun in the same phase is charged, while a task-owned
+// focused-test start (a different owner) is never even reached. The limit is the
+// snapshotted build.max_attempts; the store consults it only when creating the
+// record (the phase's first reservation) and enforces the stored snapshot
+// thereafter, so a config edit mid-phase never rewrites an owned budget.
+//
+// It returns (refusal, true) when the start must be refused and (zero, false) when
+// the attempt was reserved and Start may proceed. A spent budget refuses with the
+// stable "suite-attempts-exhausted" reason and a human message naming
+// build.max_attempts and the used/limit fraction; there are no refunds, so a
+// reservation whose later drive creation fails still counts. Any other reservation
+// error (a sub-1 limit config validation should have caught, or an IO fault) fails
+// the start closed rather than silently bypass the cap.
+func (s *GateDriveService) reserveBuildSuiteAttempt(req GateDriveStartRequest) (GateDriveResult, bool) {
+	key := gatedrive.SuiteBudgetKey{
+		RepoIdentity: req.RepoDir,
+		ChangeID:     req.ChangeID,
+		Phase:        "build",
+	}
+	_, _, err := s.budgetStore.ReserveSuiteAttempt(key, s.maxAttempts)
+	if err == nil {
+		return GateDriveResult{}, false
+	}
+	if se, ok := gatedrive.AsStoreError(err); ok && se.Kind == gatedrive.ErrSuiteBudgetExhausted {
+		used, limit, _ := s.budgetStore.SuiteBudgetUsage(key)
+		return GateDriveResult{
+			Envelope: NewEnvelope(OperationGateDriveStart, ResultGateFailed),
+			Reason:   "suite-attempts-exhausted",
+			Message: fmt.Sprintf("the build full-suite attempt budget is spent (%d/%d used); "+
+				"raising build.max_attempts takes effect on the next build phase, not this one — "+
+				"halt per the build skill's halting conditions", used, limit),
+		}, true
+	}
+	res, reason := mapDriveFailure(err)
+	return GateDriveResult{Envelope: NewEnvelope(OperationGateDriveStart, res), Reason: reason}, true
 }
 
 // unresolvedCommandMessage names the owner and the setup remedy for the
