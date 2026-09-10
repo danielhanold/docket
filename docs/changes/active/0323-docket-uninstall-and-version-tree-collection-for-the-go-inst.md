@@ -21,7 +21,7 @@ branch: 'feat/docket-uninstall-and-version-tree-collection-for-the-go-inst'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T15:26:27Z'
+claimed_at: '2026-09-10T16:03:38Z'
 ---
 
 ## Artifacts
@@ -65,20 +65,3 @@ Removing development or release CLI binaries; deleting global configuration or s
 
 2026-09-10 — Reconciled against origin/main at 6f98577d. Change 0416 is merged and repairs the scoped build-task gate-start identity handoff that caused the prior Task 1 halt; changes 0420 and 0421 update gate capture and budget infrastructure without changing installer behavior. The approved spec and linked ADRs 0096 and 0110 remain current. The feature workspace already contains the committed plan and results, and the intended Task 1 state-boundary edits remain the only uncommitted code. Scope, relations, and the no-new-follow-up assessment remain unchanged.
 
-## Run halted
-
-### 2026-09-10
-
-The resumed implementation cannot continue because the configured build role's required feature-worker dispatch was refused before launch.
-
-- Change: 0323
-- Task: Task 1 — Validate Installed State and Represent an Empty Installation
-- Profile: docket-build-standard
-- Dispatch operation: agent.enter
-- Diagnostic: role-contract-unavailable — the installed role contract differs at /Users/homer/.agents/skills/docket-build-task/SKILL.md; run docket install before root entry
-- No worker or focused gate launched after this refusal.
-- The four owned Task 1 edits remain preserved and unstaged in the feature worktree.
-- The existing results checkpoint was updated, backlinked, committed, and pushed at 8e068235b9dfd860a0d7372edae620c5d0b6f48e.
-- The build binding is the shipped docket-build default, not an explicitly configured skills.build: auto fallback, so inline execution is not authorized.
-
-Required human remedy: run docket install, start a fresh session so the registered worker contract is reloaded, then resume change 0323.
