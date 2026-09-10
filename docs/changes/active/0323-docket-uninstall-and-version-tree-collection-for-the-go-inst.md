@@ -21,7 +21,7 @@ branch: 'feat/docket-uninstall-and-version-tree-collection-for-the-go-inst'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T19:52:30Z'
+claimed_at: '2026-09-10T20:15:49Z'
 ---
 
 ## Artifacts
@@ -69,15 +69,3 @@ Removing development or release CLI binaries; deleting global configuration or s
 
 2026-09-10 — Reconciled against origin/main at 0f84b9e3. Since the prior pass at 6f98577d, only change 0405's sequential gate-drive lifecycle work landed; it does not alter installer scope. The existing plan and results remain committed on the feature branch, and the owned Task 1 edits remain the only uncommitted implementation files. The approved spec, ADRs 0096/0110, relations, and focused scope remain current; no new dependency, stack-base, relation, or follow-up adjustment is required.
 
-## Run halted
-
-### 2026-09-10
-
-Task 7 cannot be completed safely because the native gate-driver handoff contract is unavailable. The standard worker's focused RED/GREEN verification passed, but its required mutation-test drive reached WAITING and the driver's JSON response omitted the single-use handoff token. The event-authorized takeover reported HALTED with cause `handoff-outstanding`; after the keyed continuation claimed the same drive, one bounded advance produced the expected mutation-test FAILED result, but the outer gate verdict was `gate-stop gate-unavailable takeover-ambiguous`.
-
-No Task 7 commit was created. The feature worktree remains owned and dirty with the nine assigned Task 7 files. The preserved deliberate mutation currently removes the `install.collect` capability annotation from `internal/cli/root.go`; restore that annotation before resuming. The prior Task 7 edits otherwise passed the focused command:
-
-- `go test -count=1 ./internal/app ./internal/cli ./cmd/docket -run 'Test(Uninstall|InstallCollect|InstallResult|Capabilities|OperationBindings|InstallCommands|AssetIndependent|Schema)'`
-- Focused RED confirmed the missing `install.collect` capability metadata; GREEN passed after restoring it.
-
-The parent gate key is terminally stopped for this run; no replacement worker, raw gate observation, fabricated handoff token, or fresh retry was started.
