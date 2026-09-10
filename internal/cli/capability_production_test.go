@@ -252,7 +252,7 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 }
 
 // TestCapabilitiesPayloadWithinByteBudget is the gating oracle for compactness:
-// the emitted catalog must fit the 14336-byte (14 KB) design ceiling, and it
+// the emitted catalog must fit the 15360-byte (15 KB) design ceiling, and it
 // must carry no human help prose — the catalog is a machine bootstrap, not a
 // second copy of --help. Growth past the ceiling is a design event (spec:
 // Compactness boundary), never a truncation or per-skill-filter opportunity.
@@ -265,15 +265,19 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 // other catalog leaf; the schemas themselves are NOT inlined into the catalog
 // (they live in the separate `docket schema` op), so this step does not carry
 // schemas inline and is not the ceiling raise the spec's non-goal forbids.
+// It was raised a third one KB step (14 KB → 15 KB) for change 0405, whose spec
+// deliberately adds the `gate.drive.acknowledge` operation (and the successor-
+// receipt flags on `gate.drive.start`) to the catalog — the identical conscious
+// design event, again one-line invocation stubs and no inlined schemas.
 func TestCapabilitiesPayloadWithinByteBudget(t *testing.T) {
 	out, errS, code := runCLI(t, "capabilities", "--json")
 	if code != 0 || errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
 	n := len(out)
-	t.Logf("capabilities payload: %d bytes (budget 14336)", n)
-	if n > 14*1024 {
-		t.Fatalf("catalog is %d bytes, over the 14KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
+	t.Logf("capabilities payload: %d bytes (budget 15360)", n)
+	if n > 15*1024 {
+		t.Fatalf("catalog is %d bytes, over the 15KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
 	}
 	// Content-exclusion: no help-prose fields. The catalog names signatures and
 	// effects, never Short/Long/Example/Help text.
@@ -321,7 +325,12 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// change 0359: the config owners run their resolved suite command; the
 		// task-intent owner (--owner task) alone takes the focused argv after a bare
 		// `--` separator, which lands last.
-		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--child-cap <token>] [--cwd <dir>] [--env-hash <hash>] [--gate-context <token>] [--idempotent-suite-gate] [--phase <name>] [--ref <ref>] [--repo-dir <dir>] [--scope-id <id>] [--task-id <id>] -- <argv...>",
+		// change 0405: gate.drive.start gains the two optional successor-receipt flags,
+		// sorted among the other optionals (after --phase, before --ref).
+		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--child-cap <token>] [--cwd <dir>] [--env-hash <hash>] [--gate-context <token>] [--idempotent-suite-gate] [--phase <name>] [--predecessor-drive-id <id>] [--predecessor-owner-gen <gen>] [--ref <ref>] [--repo-dir <dir>] [--scope-id <id>] [--task-id <id>] -- <argv...>",
+		// change 0405: terminal acknowledgement — four required credential flags,
+		// sorted, then the optional repo dir.
+		"gate.drive.acknowledge": "--child-cap <token> --drive-id <id> --owner-gen <gen> --scope-id <id> [--repo-dir <dir>]",
 		// change 0359: recovery-scope preparation (required identity flags) and the
 		// event-authorized parent takeover.
 		"gate.drive.prepare-scope": "--branch <name> --change-id <id> --phase <name> --task-id <id> --worktree <dir> [--gate-context <token>] [--repo-dir <dir>]",

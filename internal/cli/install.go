@@ -86,6 +86,7 @@ var assetIndependent = map[string]bool{
 	"gate drive":                  true, // the group itself; it reports a missing command
 	"gate drive start":            true,
 	"gate drive advance":          true,
+	"gate drive acknowledge":      true,
 	"gate drive handoff":          true,
 	"gate drive claim":            true,
 	"gate drive prepare-scope":    true,

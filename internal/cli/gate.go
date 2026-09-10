@@ -192,6 +192,18 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			default:
 				return errors.New("gate drive start takes no positional arguments before `--`; the command argv follows `--`")
 			}
+			// The successor receipt is a PAIR: both --predecessor-drive-id and
+			// --predecessor-owner-gen together (a successor start), or neither (a
+			// scope's first start). Validate the pair BEFORE any service construction
+			// or launch, so a malformed successor start never consumes the predecessor.
+			predDriveID, _ := c.Flags().GetString("predecessor-drive-id")
+			predOwnerGen, _ := c.Flags().GetString("predecessor-owner-gen")
+			switch {
+			case predDriveID != "" && predOwnerGen == "":
+				return errors.New("gate drive start --predecessor-drive-id requires --predecessor-owner-gen; the successor receipt is a pair")
+			case predOwnerGen != "" && predDriveID == "":
+				return errors.New("gate drive start --predecessor-owner-gen requires --predecessor-drive-id; the successor receipt is a pair")
+			}
 			owner, _ := c.Flags().GetString("owner")
 			var svc *app.GateDriveService
 			switch owner {
@@ -257,6 +269,8 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 				ScopeID:             scopeID,
 				ChildCapability:     childCap,
 				GateContext:         gateContext,
+				PredecessorDriveID:  predDriveID,
+				PredecessorOwnerGen: predOwnerGen,
 			})})
 			return nil
 		},
@@ -274,6 +288,8 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	start.Flags().String("scope-id", "", "recovery scope `id` to bind this drive into (from prepare-scope)")
 	start.Flags().String("child-cap", "", "child capability `token` authorizing the scope bind (from prepare-scope)")
 	start.Flags().String("gate-context", "", "outer child-context `token` linking this drive to the outer gate")
+	start.Flags().String("predecessor-drive-id", "", "successor receipt: the previous drive's `id` (with --predecessor-owner-gen; forbidden on a scope's first start)")
+	start.Flags().String("predecessor-owner-gen", "", "successor receipt: the previous drive's owner `gen`eration (with --predecessor-drive-id)")
 	start.Flags().Bool("idempotent-suite-gate", false, "mark the gate idempotent, eligible for the single relaunch")
 	_ = start.MarkFlagRequired("run-root")
 	_ = start.MarkFlagRequired("owner")
@@ -305,6 +321,41 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	advance.Flags().String("owner-gen", "", "opaque owner `gen`eration proving ownership (required)")
 	_ = advance.MarkFlagRequired("drive-id")
 	_ = advance.MarkFlagRequired("owner-gen")
+
+	acknowledge := &cobra.Command{
+		Use:   "acknowledge --scope-id <id> --child-cap <token> --drive-id <id> --owner-gen <gen>",
+		Short: "Consume the scope's final PASSED/FAILED result and close the task scope",
+		Args:  cobra.NoArgs,
+		// local-write: retires the final drive's recovery authority and closes the
+		// scope in the durable drive store; it launches no suite and controls no
+		// process, so it composes the commandless service like advance/handoff/claim.
+		Annotations: capability("gate.drive.acknowledge", EffectLocalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			svc, err := buildCommandlessGateDriveService(c.Context(), repoDir)
+			if err != nil {
+				return err
+			}
+			scopeID, _ := c.Flags().GetString("scope-id")
+			childCap, _ := c.Flags().GetString("child-cap")
+			driveID, _ := c.Flags().GetString("drive-id")
+			ownerGen, _ := c.Flags().GetString("owner-gen")
+			setResult(gateDrivePresenter{inner: svc.Acknowledge(scopeID, childCap, driveID, ownerGen)})
+			return nil
+		},
+	}
+	acknowledge.Flags().String("repo-dir", "", "repository `dir` of the drive (default: current directory)")
+	acknowledge.Flags().String("scope-id", "", "recovery scope `id` to close (required)")
+	acknowledge.Flags().String("child-cap", "", "child capability `token` authorizing the acknowledgement (required)")
+	acknowledge.Flags().String("drive-id", "", "opaque final drive `id` to acknowledge (required)")
+	acknowledge.Flags().String("owner-gen", "", "opaque owner `gen`eration proving ownership (required)")
+	_ = acknowledge.MarkFlagRequired("scope-id")
+	_ = acknowledge.MarkFlagRequired("child-cap")
+	_ = acknowledge.MarkFlagRequired("drive-id")
+	_ = acknowledge.MarkFlagRequired("owner-gen")
 
 	handoff := &cobra.Command{
 		Use:   "handoff --drive-id <id> --owner-gen <gen>",
@@ -446,7 +497,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = takeover.MarkFlagRequired("scope-id")
 	_ = takeover.MarkFlagRequired("parent-cap")
 
-	driveCmd.AddCommand(start, advance, handoff, claim, prepareScope, takeover)
+	driveCmd.AddCommand(start, advance, acknowledge, handoff, claim, prepareScope, takeover)
 	return driveCmd
 }
 

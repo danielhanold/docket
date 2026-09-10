@@ -75,6 +75,7 @@ var operationBindings = []OperationBinding{
 	{ID: "finalize.resolver-reserve", Request: nil, Result: FinalizeReserveResult{}},                               // FinalizeResolverReserve
 	{ID: "finalize.retarget-children", Request: RetargetChildrenRequest{}, Result: RetargetChildrenResult{}},       // FinalizeRetargetChildren
 	{ID: "gate.cleanup", Request: nil, Result: CleanupOpResult{}},                                                  // GateCleanup
+	{ID: "gate.drive.acknowledge", Request: nil, Result: GateDriveResult{}},                                        // GateDriveService.Acknowledge (four scalars arrive as flags, no *Request struct)
 	{ID: "gate.drive.advance", Request: nil, Result: GateDriveResult{}},                                            // GateDriveService.Advance
 	{ID: "gate.drive.claim", Request: nil, Result: GateDriveResult{}},                                              // GateDriveService.Claim
 	{ID: "gate.drive.handoff", Request: nil, Result: GateDriveResult{}},                                            // GateDriveService.Handoff
