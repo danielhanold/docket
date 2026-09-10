@@ -12,7 +12,7 @@ stacked_on:
 related: [410, 341, 136]
 discovered_from: [416]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
