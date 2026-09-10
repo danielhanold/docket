@@ -1,19 +1,19 @@
 # Backlog
 
-**422 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 271 done · 🗑️ 113 killed
+**422 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 4 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 271 done · 🗑️ 113 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0405](active/0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | `medium` | `fix` | [spec](../superpowers/specs/2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md) | `fix/investigate-the-gate-drive-prepare-scope-gate-drive-start-ha` |  |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
 
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0421](active/0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | `medium` | `feat` | [#297](https://github.com/danielhanold/docket/pull/297) | awaiting merge |
+| [0405](active/0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | `medium` | `fix` | [#298](https://github.com/danielhanold/docket/pull/298) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
@@ -31,17 +31,17 @@
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | needs-brainstorm |
 | [0419](active/0419-make-finalize-repair-attempts-configurable-with-a-default-of.md) | Make finalize repair attempts configurable with a default of six | `medium` | `feat` | build-ready (trivial) |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
+| [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-brainstorm |
+| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `critical` | `fix` | needs-brainstorm |
 | [0415](active/0415-support-in-place-build-evidence-re-certification-for-an-impl.md) | Support in-place build-evidence re-certification for an implemented change | `medium` | `feat` | needs-brainstorm |
 | [0414](active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | `low` | `chore` | needs-brainstorm |
 | [0413](active/0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md) | Finalize rebase gate cannot clear derived embedded-asset manifest collisions | `medium` | `fix` | needs-brainstorm |
-| [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `high` | `fix` | needs-brainstorm |
 | [0411](active/0411-steer-post-completion-durable-write-failures-to-rebase-conti.md) | Steer post-completion durable-write failures to rebase-continue, not abort | `low` | `docs` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
 | [0398](active/0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) | Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages | `medium` | `chore` | needs-brainstorm |
 | [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-brainstorm |
 | [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | needs-brainstorm |
 | [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-brainstorm |
-| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `medium` | `fix` | needs-brainstorm |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |

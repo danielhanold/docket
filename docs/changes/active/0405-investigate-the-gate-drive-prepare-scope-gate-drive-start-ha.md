@@ -2,7 +2,7 @@
 id: 405
 slug: 'investigate-the-gate-drive-prepare-scope-gate-drive-start-ha'
 title: 'Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker''s focused gate'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-04'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/investigate-the-gate-drive-prepare-scope-gate-drive-start-ha'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/298'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-10T13:28:41Z'
