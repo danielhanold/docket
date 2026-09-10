@@ -76,7 +76,7 @@ Every successful `start` or `advance` returns exactly one of four dispositions. 
 |---|---|---|
 | `WAITING` | The same drive is live and safe to continue, but this slice ended. | The current owner `advance`s again, or `handoff`s before it returns. |
 | `PASSED` | The suite completed green against the recorded execution identity. | Consume the raw run dir the document exposes for evidence, or continue the task phase. |
-| `FAILED` | The suite itself completed red and produced a trustworthy terminal record. | Enter the existing bounded repair policy. |
+| `FAILED` | The suite itself completed red and produced a trustworthy terminal record. | Enter the existing repair policy, bounded by the build phase's configured suite-attempt budget (`build.max_attempts`). |
 | `HALTED` | Safe automatic continuation is impossible — identity drift, uncertain ownership, deadline expiry, malformed state, or an unadmitted death. | Stop automation, retain diagnostics, surface the typed cause. |
 
 - **`WAITING` is the only nonterminal disposition, and it is not permission to replace an agent.** A

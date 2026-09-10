@@ -69,6 +69,11 @@ build that must be green before review — runs the whole suite once and records
 - The build gate is not the per-task focused tests. It is the entire suite, run
   once after the branch is assembled, because a task that passed in isolation can
   still have reddened a test it never looked at.
+- A red gate does not reach review — the build turns the failure into a bounded
+  repair cycle instead. `build.max_attempts` (default 4) caps how many full-suite
+  runs the phase may spend — the initial run plus a repair-and-rerun for each red
+  result — and once that budget is spent a still-red suite halts for a human. A
+  value of 1 disables repair: the first red run halts.
 - The gate measures each test file against a wall-clock budget. A parallel run's
   number is machine-dependent, so a budget-watch line is a screening finding to
   record, while a serially-confirmed breach is the one to act on — neither fails
