@@ -19,3 +19,7 @@ Implementation is paused before Task 1. No feature code or task commit was creat
 ### Focused gate credentials were not captured
 
 The dispatched standard worker returned `BLOCKED` before TDD because its gate-start wrapper used a reserved zsh variable and therefore did not capture the required JSON response. The scope was safely taken over and its already-started drive was not rerun. A fresh resumed run needs the worker-side gate-start capture corrected before implementation can continue.
+
+### Resume attempt — Task 1 gate request rejected
+
+The resumed standard worker used a newly prepared scope with the supplied gate context. Its focused RED drive reached the expected pre-implementation failure, but the focused GREEN gate-start request was rejected twice by the native driver as `invalid-request` before any GREEN command launched. No task commit was created. The worker left only the four assigned Task 1 files modified and unstaged for inspection on a later resume; no gate process remained live.
