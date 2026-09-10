@@ -24,6 +24,7 @@ import (
 const (
 	OperationGateDriveStart        = "gate.drive.start"
 	OperationGateDriveAdvance      = "gate.drive.advance"
+	OperationGateDriveAcknowledge  = "gate.drive.acknowledge"
 	OperationGateDriveHandoff      = "gate.drive.handoff"
 	OperationGateDriveClaim        = "gate.drive.claim"
 	OperationGateDrivePrepareScope = "gate.drive.prepare-scope"
@@ -77,6 +78,7 @@ func (r GateScopeResult) HumanText() string {
 type driveEngine interface {
 	Start(gatedrive.StartRequest) (gatedrive.DriveDoc, error)
 	Advance(id, ownerGen string) (gatedrive.DriveDoc, error)
+	Acknowledge(scopeID, childCapability, driveID, ownerGen string) (gatedrive.DriveDoc, error)
 	Handoff(id, ownerGen string) (gatedrive.DriveDoc, error)
 	Claim(id, handoffID string) (gatedrive.DriveDoc, error)
 	Takeover(scopeID, parentCap, driveID string) (gatedrive.DriveDoc, error)
@@ -143,6 +145,13 @@ type GateDriveStartRequest struct {
 	ScopeID         string
 	ChildCapability string
 	GateContext     string
+	// Successor receipt (change 0405): a scoped drive that follows a predecessor in
+	// the same recovery scope names the predecessor it acknowledges — both fields
+	// together, or both empty for a scope's first drive. They are forwarded verbatim
+	// to gatedrive.StartRequest, which retires exactly the named predecessor's
+	// recovery authority as the journaled half of one logical transition.
+	PredecessorDriveID  string
+	PredecessorOwnerGen string
 }
 
 // newGateDriveService is the seam-injecting core constructor: it binds a drive
@@ -332,6 +341,8 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 		ScopeID:             req.ScopeID,
 		ChildCapability:     req.ChildCapability,
 		GateContext:         req.GateContext,
+		PredecessorDriveID:  req.PredecessorDriveID,
+		PredecessorOwnerGen: req.PredecessorOwnerGen,
 	})
 	return mapDriveResult(OperationGateDriveStart, doc, err)
 }
@@ -399,6 +410,21 @@ func (s *GateDriveService) unresolvedCommandMessage() string {
 func (s *GateDriveService) Advance(id, ownerGen string) GateDriveResult {
 	doc, err := s.engine.Advance(id, ownerGen)
 	return mapDriveResult(OperationGateDriveAdvance, doc, err)
+}
+
+// Acknowledge consumes the scope's final drive result and closes the scope. It
+// is the final drive's "successor" — the terminal counterpart of the successor
+// receipt a Start carries — and needs no suite command or observation budget, so
+// it composes over the commandless service exactly like advance/handoff/claim.
+// The driver verifies the child capability, that driveID is the scope's current
+// launched drive with a durable PASSED/FAILED outcome and no outstanding handoff,
+// and current ownership; a byte-identical repeat after success is idempotent. Its
+// outcome maps exactly like the other drive operations: a produced document is an
+// applied result; a typed ownership rejection carries the bounded reason and its
+// next-action message.
+func (s *GateDriveService) Acknowledge(scopeID, childCap, driveID, ownerGen string) GateDriveResult {
+	doc, err := s.engine.Acknowledge(scopeID, childCap, driveID, ownerGen)
+	return mapDriveResult(OperationGateDriveAcknowledge, doc, err)
 }
 
 // Handoff transfers a live drive to a fresh owner, returning the single-use

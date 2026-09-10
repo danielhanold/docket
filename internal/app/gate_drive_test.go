@@ -27,6 +27,11 @@ type fakeDriveEngine struct {
 	grant        gatedrive.ScopeGrant
 	grantErr     error
 	lastScopeReq gatedrive.ScopeRequest
+	// lastAck records the four arguments the most recent Acknowledge call
+	// forwarded, so the seam's argument passthrough is asserted without a real
+	// driver.
+	lastAck   [4]string
+	ackCalled bool
 }
 
 func (f *fakeDriveEngine) Start(r gatedrive.StartRequest) (gatedrive.DriveDoc, error) {
@@ -50,6 +55,11 @@ func (f *fakeDriveEngine) Takeover(scopeID, parentCap, driveID string) (gatedriv
 func (f *fakeDriveEngine) PrepareScope(r gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
 	f.lastScopeReq = r
 	return f.grant, f.grantErr
+}
+func (f *fakeDriveEngine) Acknowledge(scopeID, childCap, driveID, ownerGen string) (gatedrive.DriveDoc, error) {
+	f.lastAck = [4]string{scopeID, childCap, driveID, ownerGen}
+	f.ackCalled = true
+	return f.doc, f.err
 }
 
 // TestServiceMapsEveryOutcomeIntoProtocolDoc proves each of the four driver
@@ -500,6 +510,63 @@ func TestStartForwardsScopeFields(t *testing.T) {
 	}
 	if eng.lastStart.ScopeID != "sc-1" || eng.lastStart.ChildCapability != "childcap" || eng.lastStart.GateContext != "ctx-token" {
 		t.Fatalf("Start must forward the scope fields, got %+v", eng.lastStart)
+	}
+}
+
+// TestStartForwardsPredecessorFields proves Start forwards the two successor-
+// receipt fields verbatim into gatedrive.StartRequest, so a successor start
+// acknowledges exactly the predecessor the caller named.
+func TestStartForwardsPredecessorFields(t *testing.T) {
+	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
+	svc := newGateDriveService(eng, 5*time.Minute, "go test ./...", "prov")
+	got := svc.Start(GateDriveStartRequest{
+		RepoDir:             "/repo",
+		Worktree:            "/repo",
+		ScopeID:             "sc-1",
+		ChildCapability:     "childcap",
+		PredecessorDriveID:  "prev-drive",
+		PredecessorOwnerGen: "prev-gen",
+	})
+	if got.Result != ResultApplied {
+		t.Fatalf("result = %s, want applied", got.Result)
+	}
+	if eng.lastStart.PredecessorDriveID != "prev-drive" || eng.lastStart.PredecessorOwnerGen != "prev-gen" {
+		t.Fatalf("Start must forward the predecessor fields, got %+v", eng.lastStart)
+	}
+}
+
+// TestAcknowledgeForwardsArgsAndMapsDoc proves the Acknowledge seam forwards all
+// four arguments verbatim to the engine, maps a produced document to an applied
+// result carrying the shared DriveDoc under the acknowledge operation name, and
+// maps a typed OwnershipError to the bounded reason token plus its next-action
+// message (never the generic invalid-request, never leaking wrapped text).
+func TestAcknowledgeForwardsArgsAndMapsDoc(t *testing.T) {
+	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.PASSED, DriveID: "d2", Generation: "gen2"}}
+	svc := newGateDriveService(eng, 0, "", "")
+	got := svc.Acknowledge("sc-1", "childcap", "d2", "gen2")
+	if !eng.ackCalled || eng.lastAck != [4]string{"sc-1", "childcap", "d2", "gen2"} {
+		t.Fatalf("Acknowledge must forward all four args verbatim, got called=%v args=%v", eng.ackCalled, eng.lastAck)
+	}
+	if got.Result != ResultApplied || got.Drive == nil || got.Drive.Outcome != gatedrive.PASSED {
+		t.Fatalf("acknowledge success must be an applied result carrying the doc, got %s", got.Result)
+	}
+	if got.Operation != OperationGateDriveAcknowledge {
+		t.Fatalf("operation = %q, want %q", got.Operation, OperationGateDriveAcknowledge)
+	}
+
+	// A typed ownership rejection surfaces its bounded kind token and a
+	// next-action message, exactly like the other drive operations.
+	bad := &fakeDriveEngine{err: &gatedrive.OwnershipError{Kind: gatedrive.ErrScopeClosed, Op: "acknowledge"}}
+	svc2 := newGateDriveService(bad, 0, "", "")
+	got2 := svc2.Acknowledge("sc-x", "childcap", "dx", "genx")
+	if got2.Result != ResultInvalidInput || got2.Drive != nil {
+		t.Fatalf("ownership rejection must be invalid-input with no drive, got result=%s", got2.Result)
+	}
+	if got2.Reason != string(gatedrive.ErrScopeClosed) {
+		t.Fatalf("reason = %q, want the typed kind token %q", got2.Reason, string(gatedrive.ErrScopeClosed))
+	}
+	if got2.Message == "" {
+		t.Fatalf("ownership rejection must carry a valid-next-action message")
 	}
 }
 

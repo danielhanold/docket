@@ -646,6 +646,75 @@ func TestGateDriveTakeoverRequiresFlags(t *testing.T) {
 	}
 }
 
+// TestGateDriveAcknowledgeWired proves the `gate drive acknowledge` leaf is
+// registered and reaches the app seam: it composes the commandless service and
+// emits exactly one gate.drive.acknowledge protocol document (its workflow
+// outcome — a typed refusal for a bogus scope — is the driver's concern, proved
+// in gatedrive).
+func TestGateDriveAcknowledgeWired(t *testing.T) {
+	wt := gateDriveRepo(t)
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "acknowledge",
+		"--repo-dir", wt, "--scope-id", "0123456789abcdef0123456789abcdef",
+		"--child-cap", "deadbeefdeadbeefdeadbeefdeadbeef",
+		"--drive-id", "00000000000000000000000000000000", "--owner-gen", "gen")
+	if errS != "" {
+		t.Fatalf("acknowledge: err=%q code=%d", errS, code)
+	}
+	doc := decodeOneJSON(t, out)
+	if doc["operation"] != "gate.drive.acknowledge" {
+		t.Fatalf("acknowledge operation=%v, want gate.drive.acknowledge: %v", doc["operation"], doc)
+	}
+}
+
+// TestGateDriveAcknowledgeRequiresFlags proves --scope-id, --child-cap,
+// --drive-id, and --owner-gen are each required (cobra's required-flag failure,
+// exit 2, before RunE), so an acknowledge missing any credential never reaches
+// the seam.
+func TestGateDriveAcknowledgeRequiresFlags(t *testing.T) {
+	wt := gateDriveRepo(t)
+	base := []string{"gate", "drive", "acknowledge", "--repo-dir", wt,
+		"--scope-id", "s", "--child-cap", "c", "--drive-id", "d", "--owner-gen", "g"}
+	// Drop each required flag (its name and its value) in turn.
+	for _, drop := range []string{"--scope-id", "--child-cap", "--drive-id", "--owner-gen"} {
+		var args []string
+		for i := 0; i < len(base); i++ {
+			if base[i] == drop {
+				i++ // skip the flag and its value
+				continue
+			}
+			args = append(args, base[i])
+		}
+		if _, _, code := runCLI(t, args...); code != 2 {
+			t.Fatalf("missing %s: code=%d, want 2", drop, code)
+		}
+	}
+}
+
+// TestGateDriveStartPredecessorPairBothOrNeither proves the successor-receipt
+// flags are validated as a pair BEFORE any service construction or launch: one
+// without the other is an invalid-input command failure (exit 2), so a
+// malformed successor start never consumes the predecessor.
+func TestGateDriveStartPredecessorPairBothOrNeither(t *testing.T) {
+	wt := gateDriveRepo(t)
+	root := gateTempDir(t)
+	_, errS, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt,
+		"--run-root", root, "--owner", "task", "--predecessor-drive-id", "prev", "--", "/bin/echo", "hi")
+	if code != 2 {
+		t.Fatalf("predecessor-drive-id without owner-gen: code=%d, want 2", code)
+	}
+	if !strings.Contains(errS, "--predecessor-owner-gen") {
+		t.Fatalf("message must name the missing flag: %q", errS)
+	}
+	_, errS, code = runCLI(t, "gate", "drive", "start", "--repo-dir", wt,
+		"--run-root", root, "--owner", "task", "--predecessor-owner-gen", "gen", "--", "/bin/echo", "hi")
+	if code != 2 {
+		t.Fatalf("predecessor-owner-gen without drive-id: code=%d, want 2", code)
+	}
+	if !strings.Contains(errS, "--predecessor-drive-id") {
+		t.Fatalf("message must name the missing flag: %q", errS)
+	}
+}
+
 // TestGateDriveStartOwnerTaskRunsArgv proves `--owner task` runs the agent-supplied
 // argv verbatim (the COMMAND is not resolved from config), while the observation
 // BUDGET IS resolved from authoritative config (the configured repo below carries
