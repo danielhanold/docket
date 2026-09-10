@@ -1,6 +1,6 @@
 # Backlog
 
-**421 changes** — 🟢 2 in progress · 🔵 2 built · 🟣 4 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 270 done · 🗑️ 113 killed
+**421 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 271 done · 🗑️ 113 killed
 
 ## 🟢 In progress (2)
 
@@ -9,12 +9,11 @@
 | [0405](active/0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | `medium` | `fix` | [spec](../superpowers/specs/2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md) | `fix/investigate-the-gate-drive-prepare-scope-gate-drive-start-ha` |  |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0421](active/0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | `medium` | `feat` | [#297](https://github.com/danielhanold/docket/pull/297) | awaiting merge |
-| [0420](active/0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | `critical` | `fix` | [#296](https://github.com/danielhanold/docket/pull/296) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
@@ -104,7 +103,6 @@ graph TD
   0417
   0418
   0419
-  0420
   0421
   0192:::done
   0251:::done
@@ -115,10 +113,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (383)</summary>
+<details><summary>✅🗑️ Archive — done + killed (384)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0420](archive/2026-09-10-0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | 2026-09-10 |
 | [0416](archive/2026-09-10-0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | 2026-09-10 |
 | [0393](archive/2026-09-09-0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | 2026-09-09 |
 | [0349](archive/2026-09-09-0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | 2026-09-09 |
@@ -133,7 +132,6 @@ graph TD
 | [0406](archive/2026-09-07-0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) | Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite | 2026-09-07 |
 | [0388](archive/2026-09-07-0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | 2026-09-07 |
 | [0383](archive/2026-09-07-0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | 2026-09-07 |
-| [0379](archive/2026-09-07-0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | 2026-09-07 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -252,7 +250,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 19 done |
+| [2026-09](archive/) | 20 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
