@@ -100,6 +100,22 @@ func (r UserRoots) VersionDir(assetSetID string) string {
 // TransactionsDir holds one journal directory per in-flight transaction.
 func (r UserRoots) TransactionsDir() string { return filepath.Join(r.DataRoot, "transactions") }
 
+// CollectionDir holds the single durable version-tree collection operation.
+// Collection is serialized by the installation lock, so one journal and one
+// quarantine slot are sufficient and make interrupted work unambiguous.
+func (r UserRoots) CollectionDir() string { return filepath.Join(r.DataRoot, "collection") }
+
+// CollectionJournalPath is the durable state of an interrupted collection.
+func (r UserRoots) CollectionJournalPath() string {
+	return filepath.Join(r.CollectionDir(), "journal.json")
+}
+
+// CollectionQuarantineDir is the same-filesystem destination used to detach a
+// proven version tree from the published versions namespace before deletion.
+func (r UserRoots) CollectionQuarantineDir() string {
+	return filepath.Join(r.CollectionDir(), "quarantine")
+}
+
 // StatePath is the published ownership manifest.
 func (r UserRoots) StatePath() string { return filepath.Join(r.DataRoot, "state", "install.json") }
 
