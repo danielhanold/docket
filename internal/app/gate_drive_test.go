@@ -22,6 +22,7 @@ type fakeDriveEngine struct {
 	err          error
 	lastStart    gatedrive.StartRequest
 	startCalled  bool
+	startCount   int
 	grant        gatedrive.ScopeGrant
 	grantErr     error
 	lastScopeReq gatedrive.ScopeRequest
@@ -30,6 +31,7 @@ type fakeDriveEngine struct {
 func (f *fakeDriveEngine) Start(r gatedrive.StartRequest) (gatedrive.DriveDoc, error) {
 	f.lastStart = r
 	f.startCalled = true
+	f.startCount++
 	return f.doc, f.err
 }
 func (f *fakeDriveEngine) Advance(id, ownerGen string) (gatedrive.DriveDoc, error) {
@@ -519,5 +521,216 @@ func TestTakeoverMapsDoc(t *testing.T) {
 	got2 := svc2.Takeover("sc-x", "parentcap", "dx")
 	if got2.Result != ResultInvalidInput || got2.Drive != nil || got2.Reason == "" {
 		t.Fatalf("takeover command failure must map like the other ops, got result=%s reason=%q", got2.Result, got2.Reason)
+	}
+}
+
+// --- Task 6: build-owned drive starts reserve the phase suite-attempt budget ---
+
+// buildEffWithMaxAttempts is the fixture the build-budget tests share: a
+// build-owned effective config carrying a resolved build.test_command (so Start
+// clears the unresolved-command guard), the observation budget, and the
+// build.max_attempts snapshot the reservation enforces.
+func buildEffWithMaxAttempts(command string, maxAttempts int) config.Effective {
+	eff := config.Effective{}
+	eff.GateObservation = config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.Build.TestCommand = config.Value[string]{Value: command, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.Build.MaxAttempts = config.Value[int]{Value: maxAttempts, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	return eff
+}
+
+// newBudgetTestBuildService builds a real BUILD-owned service rooted at a fresh
+// temp store dir and swaps in a scriptable fake engine, so a start's budget
+// reservation runs against the real durable store while the drive itself never
+// launches. It returns the service, the fake engine, and the store dir the test
+// re-opens to read usage.
+func newBudgetTestBuildService(t *testing.T, maxAttempts int) (*GateDriveService, *fakeDriveEngine, string) {
+	t.Helper()
+	dir := testsupport.TempDir(t)
+	svc, res, reason := NewBuildGateDriveService(dir, "/bin/true", buildEffWithMaxAttempts("go test ./...", maxAttempts))
+	if svc == nil {
+		t.Fatalf("build constructor must build a service: %s %s", res, reason)
+	}
+	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
+	svc.engine = eng
+	return svc, eng, dir
+}
+
+// buildStartReq deliberately carries a req.Phase that is NOT the literal "build"
+// (here empty). The reservation must key the budget on the literal "build" phase,
+// never req.Phase, so suiteUsage (which queries the "build" phase) sees the charge
+// only when the reservation ignores req.Phase — this is what the phase-literal
+// mutation probe reddens.
+func buildStartReq(changeID string) GateDriveStartRequest {
+	return GateDriveStartRequest{
+		RepoDir:  "/repo",
+		Worktree: "/repo",
+		ChangeID: changeID,
+		Phase:    "",
+	}
+}
+
+func suiteUsage(t *testing.T, dir, changeID string) (used, limit int) {
+	t.Helper()
+	store := gatedrive.OpenStore(dir)
+	key := gatedrive.SuiteBudgetKey{RepoIdentity: "/repo", ChangeID: changeID, Phase: "build"}
+	u, l, err := store.SuiteBudgetUsage(key)
+	if err != nil {
+		t.Fatalf("SuiteBudgetUsage(%q): %v", changeID, err)
+	}
+	return u, l
+}
+
+// TestBuildOwnedStartReservesSuiteAttempt proves a build-owned change-scoped start
+// reserves one logical full-suite attempt per call up to the snapshotted limit,
+// and that the first over-limit start is REFUSED with the exhausted reason without
+// ever reaching the engine (no fifth NewDrive) or mutating the spent budget.
+func TestBuildOwnedStartReservesSuiteAttempt(t *testing.T) {
+	svc, eng, dir := newBudgetTestBuildService(t, 4)
+	req := buildStartReq("0421")
+
+	for i := 1; i <= 4; i++ {
+		got := svc.Start(req)
+		if got.Result != ResultApplied {
+			t.Fatalf("start %d: result = %s, want applied (reason=%q)", i, got.Result, got.Reason)
+		}
+		if used, limit := suiteUsage(t, dir, "0421"); used != i || limit != 4 {
+			t.Fatalf("after start %d: usage = (%d,%d), want (%d,4)", i, used, limit, i)
+		}
+	}
+	if eng.startCount != 4 {
+		t.Fatalf("four admitted starts must each reach the engine, got %d", eng.startCount)
+	}
+
+	// The fifth start is over the budget: refused, no engine call, budget untouched.
+	eng.startCount = 0
+	got := svc.Start(req)
+	if got.Result == ResultApplied || got.Drive != nil {
+		t.Fatalf("the fifth start must be refused, got result=%s drive=%v", got.Result, got.Drive)
+	}
+	if got.Reason != "suite-attempts-exhausted" {
+		t.Fatalf("refused reason = %q, want suite-attempts-exhausted", got.Reason)
+	}
+	if eng.startCount != 0 {
+		t.Fatalf("a refused start must not reach the engine (no fifth NewDrive), got %d engine starts", eng.startCount)
+	}
+	if used, limit := suiteUsage(t, dir, "0421"); used != 4 || limit != 4 {
+		t.Fatalf("a refused start must not change the budget, got (%d,%d)", used, limit)
+	}
+}
+
+// TestBuildStartLimitOne proves build.max_attempts: 1 admits exactly the initial
+// run and refuses the second — no repair cycle.
+func TestBuildStartLimitOne(t *testing.T) {
+	svc, eng, _ := newBudgetTestBuildService(t, 1)
+	req := buildStartReq("0421")
+
+	if got := svc.Start(req); got.Result != ResultApplied {
+		t.Fatalf("first start must succeed at limit 1, got %s (%s)", got.Result, got.Reason)
+	}
+	eng.startCount = 0
+	got := svc.Start(req)
+	if got.Result == ResultApplied || got.Reason != "suite-attempts-exhausted" {
+		t.Fatalf("second start at limit 1 must be refused as exhausted, got result=%s reason=%q", got.Result, got.Reason)
+	}
+	if eng.startCount != 0 {
+		t.Fatalf("the refused second start must not reach the engine, got %d", eng.startCount)
+	}
+}
+
+// TestTaskOwnedStartNotBudgeted proves a task-owned focused-test start for the same
+// change never charges the build phase budget: usage stays 0 no matter how many
+// task-owned starts run.
+func TestTaskOwnedStartNotBudgeted(t *testing.T) {
+	dir := testsupport.TempDir(t)
+	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
+	eff := buildEffWithMaxAttempts("go test ./...", 4)
+	svc, res, reason := NewTaskGateDriveService(dir, "/bin/true", eff, argv)
+	if svc == nil {
+		t.Fatalf("task constructor must build a service: %s %s", res, reason)
+	}
+	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
+	svc.engine = eng
+
+	for i := 0; i < 3; i++ {
+		if got := svc.Start(buildStartReq("0421")); got.Result != ResultApplied {
+			t.Fatalf("task-owned start %d must be applied, got %s (%s)", i, got.Result, got.Reason)
+		}
+	}
+	if used, limit := suiteUsage(t, dir, "0421"); used != 0 || limit != 0 {
+		t.Fatalf("task-owned starts must never touch the build budget, got usage (%d,%d)", used, limit)
+	}
+}
+
+// TestScopelessBuildStartNotBudgeted proves a build-owned start with NO ChangeID
+// (a scopeless ad-hoc drive) is unbudgeted: it succeeds regardless of a spent
+// budget for some change, because it is not keyed to any phase budget.
+func TestScopelessBuildStartNotBudgeted(t *testing.T) {
+	svc, _, dir := newBudgetTestBuildService(t, 1)
+
+	// Spend the whole budget for change 0421.
+	if got := svc.Start(buildStartReq("0421")); got.Result != ResultApplied {
+		t.Fatalf("first change-scoped start must succeed, got %s", got.Result)
+	}
+	if got := svc.Start(buildStartReq("0421")); got.Reason != "suite-attempts-exhausted" {
+		t.Fatalf("the change budget must be spent, got reason %q", got.Reason)
+	}
+
+	// A build-owned start with no ChangeID is never charged: it keeps succeeding.
+	for i := 0; i < 3; i++ {
+		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: "/repo", Phase: "build"})
+		if got.Result != ResultApplied {
+			t.Fatalf("scopeless build start %d must be unbudgeted, got %s (%s)", i, got.Result, got.Reason)
+		}
+	}
+	// The scopeless starts created no record for the empty change id.
+	if used, limit := suiteUsage(t, dir, ""); used != 0 || limit != 0 {
+		t.Fatalf("a scopeless start must reserve nothing, got usage (%d,%d)", used, limit)
+	}
+}
+
+// TestAdvanceRecoverTakeoverDoNotCharge proves the non-start drive operations —
+// advance (observation), takeover (ownership transfer), and handoff/claim
+// (continuation) — never charge the budget: after one budgeted start, usage stays
+// at exactly 1 no matter how many of these resume/transfer calls run.
+func TestAdvanceRecoverTakeoverDoNotCharge(t *testing.T) {
+	svc, _, dir := newBudgetTestBuildService(t, 4)
+
+	if got := svc.Start(buildStartReq("0421")); got.Result != ResultApplied {
+		t.Fatalf("the initial start must be applied, got %s", got.Result)
+	}
+	if used, _ := suiteUsage(t, dir, "0421"); used != 1 {
+		t.Fatalf("one start reserves exactly one attempt, got used=%d", used)
+	}
+
+	// None of these consult or charge the budget.
+	svc.Advance("d1", "gen")
+	svc.Advance("d1", "gen")
+	svc.Handoff("d1", "gen")
+	svc.Claim("d1", "handoff")
+	svc.Takeover("sc-1", "parentcap", "d1")
+
+	if used, limit := suiteUsage(t, dir, "0421"); used != 1 || limit != 4 {
+		t.Fatalf("advance/handoff/claim/takeover must charge nothing, got usage (%d,%d)", used, limit)
+	}
+}
+
+// TestExhaustionDiagnosticNamesKnob proves the exhaustion refusal's human text
+// names the knob (build.max_attempts) and the used/limit fraction so a halting
+// worker can report the actionable diagnostic.
+func TestExhaustionDiagnosticNamesKnob(t *testing.T) {
+	svc, _, _ := newBudgetTestBuildService(t, 4)
+	req := buildStartReq("0421")
+	for i := 0; i < 4; i++ {
+		if got := svc.Start(req); got.Result != ResultApplied {
+			t.Fatalf("start %d must be applied, got %s", i, got.Result)
+		}
+	}
+	got := svc.Start(req)
+	human := got.HumanText()
+	if !strings.Contains(human, "build.max_attempts") {
+		t.Fatalf("exhaustion human text must name build.max_attempts, got %q", human)
+	}
+	if !strings.Contains(human, "4/4") {
+		t.Fatalf("exhaustion human text must carry the used/limit fraction 4/4, got %q", human)
 	}
 }
