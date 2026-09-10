@@ -21,7 +21,7 @@ branch: 'feat/docket-uninstall-and-version-tree-collection-for-the-go-inst'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T15:19:29Z'
+claimed_at: '2026-09-10T15:24:03Z'
 ---
 
 ## Artifacts
@@ -61,3 +61,6 @@ Removing development or release CLI binaries; deleting global configuration or s
 
 2026-09-10 — Reconciled against origin/main at 2f83683c. Change 0416 is now merged and fixes the scoped task-owned gate-start identity handshake that halted the prior build at Task 1; the existing plan can resume at that task without scope changes. The approved spec remains current, changes 0311, 0317, 0322, and 0351 remain merged, and no dependency, stack base, relation, or adjacent follow-up adjustment is required.
 
+### 2026-09-10
+
+2026-09-10 — Reconciled against origin/main at 6f98577d. Change 0416 is merged and repairs the scoped build-task gate-start identity handoff that caused the prior Task 1 halt; changes 0420 and 0421 update gate capture and budget infrastructure without changing installer behavior. The approved spec and linked ADRs 0096 and 0110 remain current. The feature workspace already contains the committed plan and results, and the intended Task 1 state-boundary edits remain the only uncommitted code. Scope, relations, and the no-new-follow-up assessment remain unchanged.
