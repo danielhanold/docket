@@ -217,6 +217,84 @@ func TestAcknowledgeIdempotentRepeat(t *testing.T) {
 	}
 }
 
+// TestAcknowledgePostRetirementOwnerGenAsymmetry pins the intentional asymmetry
+// documented in Acknowledge's Closed && FinalAcked idempotent-repeat branch and its
+// resumable-half branch: once the final drive's owner generation has been retired,
+// childCapability is the sufficient authority and the presented ownerGen is no
+// longer verified (it survives only as the returned document's Generation echo). A
+// correct childCapability with a DELIBERATELY WRONG ownerGen must be accepted by
+// both branches; a wrong childCapability must still be refused. This test would go
+// red if a future change added an ownerGen assertion to either branch (Option B),
+// making the intent explicit rather than incidental.
+func TestAcknowledgePostRetirementOwnerGenAsymmetry(t *testing.T) {
+	t.Run("idempotent repeat accepts a wrong owner gen with the right child cap", func(t *testing.T) {
+		d, _, grant, _, _, second := ackTwoDriveSequence(t)
+		if _, err := d.Acknowledge(grant.ScopeID, grant.ChildCapability, second.DriveID, second.Generation); err != nil {
+			t.Fatalf("first Acknowledge: %v", err)
+		}
+		// The owner is retired and the scope is Closed && FinalAcked. A repeat with a
+		// bogus owner gen but the correct child cap is accepted: the branch echoes the
+		// presented gen into the document without verifying it.
+		wrongGen := second.Generation + "-wrong"
+		doc, err := d.Acknowledge(grant.ScopeID, grant.ChildCapability, second.DriveID, wrongGen)
+		if err != nil {
+			t.Fatalf("idempotent-repeat with a wrong owner gen must be accepted, got %v", err)
+		}
+		if doc.Outcome != PASSED || doc.DriveID != second.DriveID {
+			t.Fatalf("idempotent-repeat must report the recorded terminal, got %s %q", doc.Outcome, doc.DriveID)
+		}
+		if doc.Generation != wrongGen {
+			t.Fatalf("idempotent-repeat echoes the presented gen, got %q want %q", doc.Generation, wrongGen)
+		}
+		// The child cap remains the authority: a wrong cap is still refused.
+		if _, err := d.Acknowledge(grant.ScopeID, "wrong-child-cap", second.DriveID, second.Generation); !isOwnershipKind(err, ErrScopeCapabilityMismatch) {
+			t.Fatalf("a wrong child cap must be refused even after close, got %v", err)
+		}
+	})
+
+	t.Run("resumable half accepts a wrong owner gen with the right child cap", func(t *testing.T) {
+		_, store, grant, _, _, second := ackTwoDriveSequence(t)
+		// Hand-drive the terminal ack's first half (retirePredecessor) and stop before
+		// closeScopeFinal, modeling a crash: the owner is cleared, the scope stays open.
+		if err := store.retirePredecessor(second.DriveID, second.Generation); err != nil {
+			t.Fatalf("retirePredecessor (first half): %v", err)
+		}
+		rstore := reopenStore(store)
+		rd := scopedTestDriver(rstore, &fakeClock{now: startEpoch()}, passObserveProc(), stableGit())
+
+		// The recovering ack presents a bogus owner gen with the correct child cap; the
+		// resumable-half branch skips retirePredecessor and completes the owner-
+		// independent close regardless.
+		wrongGen := second.Generation + "-wrong"
+		doc, err := rd.Acknowledge(grant.ScopeID, grant.ChildCapability, second.DriveID, wrongGen)
+		if err != nil {
+			t.Fatalf("resumable-half with a wrong owner gen must complete the close, got %v", err)
+		}
+		if doc.Outcome != PASSED || doc.DriveID != second.DriveID {
+			t.Fatalf("resumable-half must report the recorded terminal, got %s %q", doc.Outcome, doc.DriveID)
+		}
+		rscope, err := rstore.LoadScope(grant.ScopeID)
+		if err != nil {
+			t.Fatalf("LoadScope: %v", err)
+		}
+		if !rscope.Closed || !rscope.FinalAcked {
+			t.Fatalf("resumable-half must close the scope with FinalAcked, got Closed=%v FinalAcked=%v", rscope.Closed, rscope.FinalAcked)
+		}
+	})
+
+	t.Run("resumable half still refuses a wrong child cap", func(t *testing.T) {
+		_, store, grant, _, _, second := ackTwoDriveSequence(t)
+		if err := store.retirePredecessor(second.DriveID, second.Generation); err != nil {
+			t.Fatalf("retirePredecessor (first half): %v", err)
+		}
+		rstore := reopenStore(store)
+		rd := scopedTestDriver(rstore, &fakeClock{now: startEpoch()}, passObserveProc(), stableGit())
+		if _, err := rd.Acknowledge(grant.ScopeID, "wrong-child-cap", second.DriveID, second.Generation); !isOwnershipKind(err, ErrScopeCapabilityMismatch) {
+			t.Fatalf("a wrong child cap must be refused before recovery, got %v", err)
+		}
+	})
+}
+
 // TestAcknowledgeRefusals reproduces the acknowledgement half of spec verification
 // 4: every wrong-credential, wrong-drive, non-terminal, or mid-transition
 // acknowledgement is a typed rejection that writes NOTHING (asserted by a
