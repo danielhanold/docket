@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: medium
 type: feat
 created: 2026-08-14
-updated: '2026-09-09'
+updated: '2026-09-10'
 depends_on: []
 stacked_on:
 related: [311, 317, 322, 351]
@@ -21,7 +21,7 @@ branch: 'feat/docket-uninstall-and-version-tree-collection-for-the-go-inst'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T00:40:49Z'
+claimed_at: '2026-09-10T00:44:32Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,6 @@ Removing development or release CLI binaries; deleting global configuration or s
 
 2026-09-09 — Reconciled against origin/main at 881d7cfb. Changes 0311, 0317, 0322, and 0351 are merged and archived; the Go installer, release/development installation, ownership records, legacy reproducer, and global-dispatch retirement foundations described by the spec are present. Change 0323 remains the focused follow-up for uninstall, reference-derived version-tree collection, resumable collection journaling, and associated CLI/schema/documentation/tests. No dependency, stack base, relation, or scope adjustment is required; no adjacent follow-up work was surfaced beyond already-tracked changes.
 
+### 2026-09-10
+
+2026-09-10 — Reconciled against origin/main at 2f83683c. Change 0416 is now merged and fixes the scoped task-owned gate-start identity handshake that halted the prior build at Task 1; the existing plan can resume at that task without scope changes. The approved spec remains current, changes 0311, 0317, 0322, and 0351 remain merged, and no dependency, stack base, relation, or adjacent follow-up adjustment is required.
