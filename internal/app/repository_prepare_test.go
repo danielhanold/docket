@@ -543,6 +543,43 @@ func TestRepositoryPrepareResolverCapAgreesWithConfigDiagnostics(t *testing.T) {
 	}
 }
 
+// TestRepositoryPrepareBuildMaxAttempts asserts build.max_attempts (change 0421)
+// is mirrored into the prepare context's build block: a repo configured with a
+// non-default value surfaces it (proving the leaf is wired through rather than
+// defaulted), and a default repo surfaces the built-in 4.
+func TestRepositoryPrepareBuildMaxAttempts(t *testing.T) {
+	// Resolved non-default value proves the wiring, not just the default.
+	nonDefault := []config.Source{{
+		Layer: config.LayerRepository,
+		Name:  ".docket.yml",
+		Data:  []byte("build:\n  max_attempts: 6\n"),
+	}}
+	snap, _, err := config.Resolve(nonDefault, mainCtx())
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	sc := setupContext{
+		cfg:               snap.Effective,
+		repo:              gitcli.Repository{PrimaryWorktree: "/repo"},
+		defaultBranch:     "main",
+		integrationBranch: "main",
+	}
+	pc := buildPrepareContext(snap.Effective, sc, preparableFacts(), "git@github.com:acme/widget.git")
+	if pc.Build.MaxAttempts != 6 {
+		t.Errorf("context.build.max_attempts = %d, want the resolved non-default 6", pc.Build.MaxAttempts)
+	}
+
+	// Default repo surfaces the built-in 4.
+	defSnap, _, err := config.Resolve(nil, mainCtx())
+	if err != nil {
+		t.Fatalf("resolve defaults: %v", err)
+	}
+	defPC := buildPrepareContext(defSnap.Effective, sc, preparableFacts(), "git@github.com:acme/widget.git")
+	if defPC.Build.MaxAttempts != 4 {
+		t.Errorf("default context.build.max_attempts = %d, want the built-in 4", defPC.Build.MaxAttempts)
+	}
+}
+
 // TestRepositoryPrepareResultOmitsContextOnRefusal — a refusal carries the
 // diagnosis finding and no context.
 func TestRepositoryPrepareResultOmitsContextOnRefusal(t *testing.T) {
