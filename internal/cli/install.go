@@ -172,7 +172,7 @@ func RequireCompatibleInstallation(roots install.UserRoots) error {
 	if err != nil {
 		return &InstallRefusal{Reason: install.ReasonStateInvalid, Err: err}
 	}
-	if state == nil {
+	if state == nil || !state.Active() {
 		return &InstallRefusal{Reason: install.ReasonInstallationRequired,
 			Err: fmt.Errorf("%w: run `docket install` first", install.ErrNotInstalled)}
 	}

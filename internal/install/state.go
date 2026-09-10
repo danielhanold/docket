@@ -1,9 +1,11 @@
 package install
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -81,13 +83,141 @@ func LoadState(path string) (*State, error) {
 		return nil, fmt.Errorf("install: reading %s: %w", path, err)
 	}
 	var s State
-	if err := json.Unmarshal(data, &s); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&s); err != nil {
 		return nil, fmt.Errorf("%w: parsing %s: %s", ErrStateInvalid, path, err)
 	}
-	if s.FormatVersion != StateFormatVersion {
-		return nil, fmt.Errorf("%w: %s has format_version %d (want %d)", ErrStateInvalid, path, s.FormatVersion, StateFormatVersion)
+	if err := requireEOF(decoder); err != nil {
+		return nil, fmt.Errorf("%w: parsing %s: %s", ErrStateInvalid, path, err)
+	}
+	if err := ValidateState(&s); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrStateInvalid, path, err)
 	}
 	return &s, nil
+}
+
+func requireEOF(decoder *json.Decoder) error {
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return errors.New("multiple JSON documents")
+		}
+		return err
+	}
+	return nil
+}
+
+// ValidateState verifies that an installed-state document can safely prove
+// ownership. It intentionally does not restrict harness names to the current
+// renderer catalog: recorded names may outlive a renderer and must remain
+// removable by an all-harness uninstall.
+func ValidateState(s *State) error {
+	if s == nil {
+		return errors.New("nil state")
+	}
+	if s.FormatVersion != StateFormatVersion {
+		return fmt.Errorf("format_version %d (want %d)", s.FormatVersion, StateFormatVersion)
+	}
+	if s.AssetProtocol <= 0 {
+		return fmt.Errorf("unsupported asset_protocol %d", s.AssetProtocol)
+	}
+	switch s.Mode {
+	case ModeRelease:
+		if s.SourceRoot != "" || s.SourceDigest != "" {
+			return errors.New("release state has development source fields")
+		}
+	case ModeDevelopment:
+		if !filepath.IsAbs(s.SourceRoot) || s.SourceDigest == "" {
+			return errors.New("development state has invalid source fields")
+		}
+	default:
+		return fmt.Errorf("unsupported mode %q", s.Mode)
+	}
+
+	harnesses := make(map[string]bool, len(s.Harnesses))
+	for _, name := range s.Harnesses {
+		if name == "" {
+			return errors.New("empty harness name")
+		}
+		if harnesses[name] {
+			return fmt.Errorf("duplicate harness %q", name)
+		}
+		harnesses[name] = true
+	}
+
+	paths := make(map[string]bool, len(s.Targets))
+	attributed := make(map[string]bool, len(s.Harnesses))
+	for _, target := range s.Targets {
+		if !filepath.IsAbs(target.Path) {
+			return fmt.Errorf("target path %q is not absolute", target.Path)
+		}
+		if paths[target.Path] {
+			return fmt.Errorf("duplicate target path %q", target.Path)
+		}
+		paths[target.Path] = true
+		if target.Role == "" {
+			return fmt.Errorf("target %q has no role", target.Path)
+		}
+		if err := validateTarget(target); err != nil {
+			return fmt.Errorf("target %q: %w", target.Path, err)
+		}
+		if target.Role == roleBinary && target.Harness != "" {
+			return fmt.Errorf("binary target %q is attributed to harness %q", target.Path, target.Harness)
+		}
+		if target.Harness != "" {
+			if !harnesses[target.Harness] {
+				return fmt.Errorf("target %q names unknown harness %q", target.Path, target.Harness)
+			}
+			attributed[target.Harness] = true
+		}
+	}
+	for _, name := range s.Harnesses {
+		if !attributed[name] {
+			return fmt.Errorf("harness %q has no target", name)
+		}
+	}
+	return nil
+}
+
+func validateTarget(target TargetRecord) error {
+	switch target.Kind {
+	case KindFile:
+		if target.SHA256 == "" || target.LinkTarget != "" || target.BlockName != "" {
+			return errors.New("invalid file fields")
+		}
+	case KindSymlink:
+		if !filepath.IsAbs(target.LinkTarget) || target.SHA256 != "" || target.BlockName != "" {
+			return errors.New("invalid symlink fields")
+		}
+	case KindManagedBlock:
+		if target.SHA256 == "" || target.BlockName == "" || target.LinkTarget != "" {
+			return errors.New("invalid managed-block fields")
+		}
+	default:
+		return fmt.Errorf("unsupported target kind %q", target.Kind)
+	}
+	return nil
+}
+
+// Active reports whether this state represents a harness installation that can
+// provide installed assets. Binary-only and empty states are valid but inactive.
+func (s *State) Active() bool {
+	if s == nil || len(s.Harnesses) == 0 {
+		return false
+	}
+	attributed := make(map[string]bool, len(s.Harnesses))
+	for _, target := range s.Targets {
+		if target.Harness != "" {
+			attributed[target.Harness] = true
+		}
+	}
+	for _, name := range s.Harnesses {
+		if !attributed[name] {
+			return false
+		}
+	}
+	return true
 }
 
 // WriteStateAtomic publishes the record: it encodes canonically (sorted
