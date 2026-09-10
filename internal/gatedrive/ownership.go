@@ -106,6 +106,20 @@ const (
 	// never a blind retry (spec "Ambiguous launch or persistence failures fail
 	// closed").
 	ErrUnresolvedLaunchTransition OwnershipErrorKind = "unresolved-launch-transition"
+	// ErrWorktreeBusy: a worktree execution slot (admission.go) already holds a
+	// reserved, executing, or stopping top-level gate execution, so a second
+	// reservation for the same canonical worktree is refused. One canonical
+	// worktree carries at most one reserved-or-running gate execution across scopes,
+	// scopeless starts, and raw launches (spec "at most one reserved-or-running
+	// top-level Docket gate execution per worktree"). It confers no admission and
+	// never stops the incumbent.
+	ErrWorktreeBusy OwnershipErrorKind = "worktree-busy"
+	// ErrUnresolvedExecution: a worktree execution slot is in the unresolved state —
+	// a launch whose outcome could not be established (a lost launch response, an
+	// interrupted release). The ambiguous state fails closed: the slot blocks a new
+	// admission until recovery resolves it, never a blind re-reservation (spec
+	// "Ambiguous launch or persistence failures fail closed").
+	ErrUnresolvedExecution OwnershipErrorKind = "unresolved-execution"
 )
 
 // OwnershipError is the ownership layer's typed failure. Like StoreError it
