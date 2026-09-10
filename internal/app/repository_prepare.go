@@ -109,6 +109,11 @@ type PrepareFinalize struct {
 type PrepareBuild struct {
 	Gate        string `json:"gate"`
 	TestCommand string `json:"test_command"`
+	// MaxAttempts is the resolved build.max_attempts cap (change 0421): how many
+	// logical full-suite attempts the build phase may reserve, counting the
+	// initial run. Mirrored from config so the build skill reads it here rather
+	// than counting runs itself.
+	MaxAttempts int `json:"max_attempts"`
 }
 
 // PrepareSkills carries the resolved workflow skill-role bindings. In Go v1 the
@@ -461,6 +466,7 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 		Build: PrepareBuild{
 			Gate:        cfg.Build.Gate.Value,
 			TestCommand: cfg.Build.TestCommand.Value,
+			MaxAttempts: cfg.Build.MaxAttempts.Value,
 		},
 		// Skills roles are deferred capabilities in Go v1; a valid repository leaves
 		// them unset, so they resolve to their empty defaults today.
