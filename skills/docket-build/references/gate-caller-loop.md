@@ -15,20 +15,21 @@ authors its own liveness check — the driver owns all of that.
 ## The driver's operations
 
 The high-level surface is the `gate.drive` operation group: `gate.drive.start`,
-`gate.drive.advance`, `gate.drive.handoff`, `gate.drive.claim`, `gate.drive.prepare-scope`, and
-`gate.drive.takeover` (resolve each argv from the capability catalog). Each op is
+`gate.drive.advance`, `gate.drive.handoff`, `gate.drive.claim`, `gate.drive.prepare-scope`,
+`gate.drive.takeover`, and `gate.drive.acknowledge` (resolve each argv from the capability catalog). Each op is
 one short call that advances the same durable drive by **at most one slice** and returns the shared
 protocol-v1 outcome document (the same document the in-process app seam returns, never a re-flattened
 copy):
 
 | Operation | What it does |
 |---|---|
-| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A scope-bound start passes the complete identity the scope pinned — `--repo-dir <worktree> --change-id <id> --task-id <id> --phase <name> --branch <name> --scope-id <id> --child-cap <token>`, plus `--gate-context <token>` when the dispatch carried one — and the driver rejects a start whose identity does not match the prepared scope. |
+| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A scope-bound start passes the complete identity the scope pinned — `--repo-dir <worktree> --change-id <id> --task-id <id> --phase <name> --branch <name> --scope-id <id> --child-cap <token>`, plus `--gate-context <token>` when the dispatch carried one — and the driver rejects a start whose identity does not match the prepared scope. A **successor** start in the same scope additionally presents `--predecessor-drive-id <id> --predecessor-owner-gen <gen>` — the previous drive's captured receipt, both together — acknowledging exactly that durable `PASSED`/`FAILED` predecessor and reusing the scope's single slot; a scope's first start omits the pair, and a `WAITING`/`HALTED` or pending predecessor is refused. |
 | `advance` | Resume the current attempt of a drive (by opaque drive id + owner generation) through one more slice. |
 | `handoff` | Prove current ownership, revalidate repository + process identity, invalidate the current owner, and mint a **single-use** handoff token — the only way a departing owner transfers a live drive. |
 | `claim` | Recompute identity, consume a handoff token with a compare-and-swap, and return a **fresh** owner generation the claimant advances with. |
 | `prepare-scope` | `--change-id <id> --task-id <id> --phase <name> --branch <name> --worktree <dir> [--gate-context <token>]`: mint a recovery scope for one parent/child dispatch boundary with **separated** parent and child capabilities. The preparing parent keeps the parent capability; the child receives only the scope id and child capability. Effects: local-write. |
 | `takeover` | `--scope-id <id> --parent-cap <token> [--drive-id <id>]`: the event-authorized exceptional transfer — prove the parent capability and scope identity, atomically supersede the child's owner generation, and return a fresh generation. Effects: local-write. |
+| `acknowledge` | `--scope-id <id> --child-cap <token> --drive-id <id> --owner-gen <gen>`: consume the scope's final durable `PASSED`/`FAILED` result and close the task scope — the last drive's "successor". Idempotent on an exact repeat; refuses a live, `HALTED`, unrelated, or superseded drive. Effects: local-write. |
 
 Every op takes **opaque** drive and claim identifiers — never a PID, PGID, raw run-directory state,
 or deadline. `--json` emits the shared document; human text names identity and disposition only. An
@@ -44,10 +45,11 @@ needs are present before acting on any of them:
 
 | Operation | Required from the captured first response |
 |---|---|
-| `start` | the drive identifier **and** the ownership generation |
+| `start` | the drive identifier **and** the ownership generation — also the successor receipt for this task's next start |
 | `handoff` | the **single-use** handoff token |
 | `claim` / `takeover` | the **fresh** owner generation |
 | `prepare-scope` | the scope identifier and the **separated** parent and child capabilities |
+| `acknowledge` | the confirmation document (idempotent on an exact repeat) — nothing new to capture; the next start's receipt came from `start`'s row above |
 
 Human-readable output can never substitute for the captured document: it names identity and
 disposition only, deliberately omitting generations, tokens, and capabilities. Each token keeps

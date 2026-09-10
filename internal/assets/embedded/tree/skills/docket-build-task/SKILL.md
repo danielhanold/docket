@@ -87,6 +87,18 @@ with the typed cause; `WAITING` → **immediately** perform the `gate.drive.hand
 and return `WAITING` naming the drive id and that token. After a first `WAITING` never `advance` or restart — the controller owns the drive. `WAITING`
 consumes neither repair nor escalation budget.
 
+**Sequential drives within your scope.** Your scope carries a *sequence* of task-owned drives —
+baseline, RED, GREEN, verification — one at a time. The task's **first** test omits the predecessor
+flags; **every later** test also passes `--predecessor-drive-id <previous drive id>
+--predecessor-owner-gen <previous generation>` from the previous drive's captured `--json` response,
+acknowledging exactly the `PASSED`/`FAILED` result you received (a `WAITING` drive is never a
+predecessor — `handoff` instead). When ready to return with no further test to run, perform the
+`gate.drive.acknowledge` operation with `--scope-id <id> --child-cap <token> --drive-id <final drive
+id> --owner-gen <gen> --json` first — a `FAILED` final result is still acknowledged and does **not**
+authorize a success report, and a failed acknowledgement returns `BLOCKED` with the typed cause,
+never `COMPLETE`. Acknowledgement retires the scope's recovery authority, not your evidence: keep the
+final drive id and verdict in `VERIFICATION`/`NOTES`.
+
 Two obligations the cycle does not relax:
 
 - A bug fix requires a **failing regression test** that reproduces the bug before the fix.

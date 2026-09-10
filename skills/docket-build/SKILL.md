@@ -87,7 +87,10 @@ It also gives the worker the plan task text, applicable repository instructions,
 profile and routing reason, the completion schema, and one **complete start-ready scope bundle**:
 the change id, task id, phase (`build`), branch, scope id, child capability, and the dispatch
 context when your prompt carried one — each value exactly as `prepare-scope` pinned it, for the
-worker to pass through to `gate.drive.start` unchanged. Of the two capabilities the worker
+worker to pass through to `gate.drive.start` unchanged. One scope now carries the worker's whole
+*sequence* of task-owned drives — baseline, RED, GREEN, verification — one at a time, and the worker
+closes it with a terminal `gate.drive.acknowledge` on normal completion; your WAITING-handoff and
+takeover handling below is unchanged. Of the two capabilities the worker
 receives the child capability only; the parent
 capability stays in your notes and never enters any prompt, log, or report. Never dispatch a task reviewer, and
 never dispatch two workers concurrently — that binds a controller who *believes the first worker
