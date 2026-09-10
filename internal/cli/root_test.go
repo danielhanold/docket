@@ -444,10 +444,15 @@ func TestInstallCommandsRegistered(t *testing.T) {
 	if code != 0 || errS != "" {
 		t.Fatalf("install help: err=%q code=%d", errS, code)
 	}
-	for _, want := range []string{"check", "--harness"} {
+	for _, want := range []string{"check", "collect", "--harness"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("install help does not mention %q:\n%s", want, out)
 		}
+	}
+
+	out, errS, code = runCLI(t, "uninstall", "--help")
+	if code != 0 || errS != "" || !strings.Contains(out, "--dry-run") {
+		t.Fatalf("uninstall help: out=%q err=%q code=%d", out, errS, code)
 	}
 
 	out, errS, code = runCLI(t, "development", "install", "--help")
