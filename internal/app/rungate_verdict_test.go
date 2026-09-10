@@ -401,6 +401,37 @@ func TestVerdictIncompleteRepeatObservationDoesNotDoubleGrant(t *testing.T) {
 	}
 }
 
+// TestVerdictIncompleteNoGrantLeavesRetryMirrorUnused: an immediate-exhaustion
+// (limit 1) run-incomplete stops terminally with no retry granted and no marker
+// created, so the persisted GateRecord's readable Retry mirror must stay
+// RetryUnused — nothing was consumed. LoadGateRecord only upgrades the mirror from
+// markers and never downgrades, so a mirror set to RetryConsumed on a no-grant stop
+// would permanently misreport "consumed" though GateRetryUsage == 0. This reddens
+// if the mirror is set before branching on `granted`.
+func TestVerdictIncompleteNoGrantLeavesRetryMirrorUnused(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		gateIncompleteRecord(),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	key := gateMintAttributedLimit(t, f.repo.invocation, 3, 1)
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != GateDecisionStop || !res.Terminal {
+		t.Fatalf("Decision=%q Terminal=%v, want gate-stop/true (limit 1 grants no retry)", res.Decision, res.Terminal)
+	}
+	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
+		t.Fatalf("GateRetryUsage = %d,%v; want 0,nil (no marker on a no-grant stop)", used, err)
+	}
+	rec, err := LoadGateRecord(f.repo.invocation, key)
+	if err != nil {
+		t.Fatalf("LoadGateRecord: %v", err)
+	}
+	if rec.Retry != RetryUnused {
+		t.Errorf("persisted Retry mirror = %v, want RetryUnused (nothing was consumed)", rec.Retry)
+	}
+}
+
 // TestVerdictHaltPrecedenceOverBudget: a run-halted verdict against a fresh,
 // unspent limit-4 record stops terminally (gate-stop run-halted) and spends NO
 // attempt — run-halted keeps absolute precedence ahead of any counting, and the
