@@ -127,21 +127,19 @@ type skillBudget struct {
 // Authored contract documentation, not slack — the ceilings are pinned at the
 // exact new counts, so the ratchet still reddens on any further regrowth.
 //
-// Changes 0420 and 0421 re-baselined docket-build/SKILL.md (410/4102 ->
-// 421/4243) upward once. Change 0420 made each build-gate capture site use the
-// non-reserved `gate_reply`/`gate_rc` names, avoiding zsh's read-only special
-// parameters. Change 0421 then made the repair cycle budgeted by
-// `build_max_attempts` (default 4): each red full-suite result admits one repair
-// while budget remains, the post-fix run is the next charged attempt, and
-// exhaustion names `build.max_attempts` and used/limit. The other 0421 prose
-// surfaces remained under their existing ceilings. Pinned at the exact new
-// counts, so the ratchet still reddens on any further regrowth.
+// Change 0405 added the sequential-drive contract: one recovery scope carries a
+// sequence of task-owned drives, every successor start presents the predecessor
+// receipt, and terminal acknowledgement consumes the final PASSED/FAILED result.
+// Changes 0420 and 0421 then made build-gate capture shell-safe and bounded the
+// repair cycle with `build_max_attempts` (default 4). These ceilings include all
+// three changes and are pinned at the exact new counts, so the ratchet still
+// reddens on any further regrowth.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
 	{"docket-auto-groom/SKILL.md", 70, 1750},
 	{"docket-brainstorm/SKILL.md", 84, 692},
-	{"docket-build/SKILL.md", 421, 4243}, // 0420: shell-safe gate capture; 0421: budgeted repair-cycle contract prose (see note above)
+	{"docket-build/SKILL.md", 424, 4284}, // 0405: sequential-drive contract; 0420: shell-safe capture; 0421: budgeted repair cycle (see note above)
 	// 0154: docket-build/references/delegation-execution.md removed — it was the
 	// evidence record for the Bash delegation facade that change 0370 deleted; its
 	// budget row is deleted with it.
@@ -149,7 +147,7 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
-	{"docket-build-task/SKILL.md", 167, 1703}, // 0420: +shell-safe gate-capture naming at the scoped start site (see note above)
+	{"docket-build-task/SKILL.md", 179, 1842}, // 0405: sequential-drive receipt and acknowledgement; 0420: shell-safe capture (see note above)
 	{"docket-convention/SKILL.md", 400, 7969}, // 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
 	// 0154: docket-convention/github-board-mirror.md removed — the GitHub mirror is
 	// retired (unsupported, mutation-blocking); its budget row is deleted with it.
