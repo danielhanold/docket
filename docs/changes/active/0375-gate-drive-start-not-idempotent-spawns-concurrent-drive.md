@@ -13,7 +13,7 @@ related: [359, 376, 405, 412, 420, 421, 422]
 discovered_from: [372]
 adrs: [87, 95, 107, 111, 115, 116, 117]
 spec: 'docs/superpowers/specs/2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-09-10T16:33:13Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive-design.md) |
+| Plan | [2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) |
 | ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0115](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md), [ADR-0116](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0116-build-full-suite-repair-bound-is-a-durable-scope-owned-suite.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md) |
 <!-- docket:artifacts:end -->
 
