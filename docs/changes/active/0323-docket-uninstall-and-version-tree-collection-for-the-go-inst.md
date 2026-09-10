@@ -68,3 +68,13 @@ Removing development or release CLI binaries; deleting global configuration or s
 ### 2026-09-10
 
 2026-09-10 — Reconciled against origin/main at 0f84b9e3. Since the prior pass at 6f98577d, only change 0405's sequential gate-drive lifecycle work landed; it does not alter installer scope. The existing plan and results remain committed on the feature branch, and the owned Task 1 edits remain the only uncommitted implementation files. The approved spec, ADRs 0096/0110, relations, and focused scope remain current; no new dependency, stack-base, relation, or follow-up adjustment is required.
+
+## Run halted
+
+### 2026-09-10
+
+Task 7 halted after the standard worker's required final mutation-test gate invocation returned no protocol JSON while the test process remained live, so no drive identity or owner generation was available to the worker. The parent safely took over scope 41b036303bbb63d3bba029247ef61b5f and advanced drive 505277339b6d5b203a18447822bbfe1f to terminal outcome FAILED.
+
+No Task 7 commit was created. Tasks 1 through 6 remain committed on the feature branch, and the results checkpoint is committed at 63496c3829753d6c515c887ec449ac50658837b1. The worker's nine uncommitted Task 7 files, including the temporary removal of the uninstall capability annotation in internal/cli/root.go, are preserved in the feature workspace for inspection. Task 8 and Task 9 were not started.
+
+Resume change 323 after the native gate driver returns a valid protocol response with drive identity and owner generation; do not treat this attempt as complete.
