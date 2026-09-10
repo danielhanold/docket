@@ -1,6 +1,6 @@
 # Backlog
 
-**421 changes** — 🟢 1 in progress · 🟣 5 groomed · 🟡 21 proposed · ⚪ 11 deferred · ✅ 270 done · 🗑️ 113 killed
+**421 changes** — 🟢 1 in progress · 🟣 6 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 270 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -8,21 +8,21 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` |  |
 
-## 🟣 Groomed (5)
+## 🟣 Groomed (6)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0421](active/0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | `medium` | `feat` | [spec](../superpowers/specs/2026-09-10-make-build-and-outer-run-gate-attempt-limits-configurable-design.md) |
 | [0417](active/0417-artifacts-block-pins-plan-results-links-to-the-docket-branch.md) | Artifacts block pins plan/results links to the docket branch, where those files never live | `medium` | `fix` | [spec](../superpowers/specs/2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md) |
 | [0405](active/0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | `medium` | `fix` | [spec](../superpowers/specs/2026-09-10-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (21)
+## 🟡 Proposed (20)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0421](active/0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | `medium` | `feat` | needs-brainstorm |
 | [0420](active/0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | `critical` | `fix` | build-ready (trivial) |
 | [0419](active/0419-make-finalize-repair-attempts-configurable-with-a-default-of.md) | Make finalize repair attempts configurable with a default of six | `medium` | `feat` | build-ready (trivial) |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
