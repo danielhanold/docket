@@ -21,7 +21,7 @@ branch: 'feat/docket-uninstall-and-version-tree-collection-for-the-go-inst'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T16:06:24Z'
+claimed_at: '2026-09-10T16:08:49Z'
 ---
 
 ## Artifacts
