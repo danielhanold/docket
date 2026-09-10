@@ -324,3 +324,128 @@ func TestDriverConcurrencyScopedStartReservationRace(t *testing.T) {
 		t.Fatalf("the winner's slot must be launched, got %q", scope.CurrentDriveState)
 	}
 }
+
+// TestDriverConcurrencySuccessorStartRace reproduces spec verification 5 (successor
+// half): two goroutines present the SAME valid predecessor receipt and rendezvous
+// at the fingerprint barrier (both past their unlocked pre-check) before contending
+// at reserveScopeDrive's scope CAS. Exactly one wins and launches its successor; the
+// loser is refused with a typed ErrScopeBusy / ErrStalePredecessor and never
+// launches; and the predecessor is retired exactly once (its owner cleared, its
+// verdict intact). Run under -race.
+func TestDriverConcurrencySuccessorStartRace(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	req := sampleStart()
+	grant, err := store.PrepareScope(scopeReqFor(req, ""))
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	req.ScopeID = grant.ScopeID
+	req.ChildCapability = grant.ChildCapability
+
+	// Setup: drive the first drive to a durable PASSED with a plain passing seam.
+	setupClk := &fakeClock{now: startEpoch()}
+	setupProc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			return &process.Observation{State: process.StatePassed, RunDir: runDir}, nil
+		},
+	}
+	setupDriver := NewDriver(store, setupClk, setupProc, stableGit())
+	setupDriver.slice = 4 * pollTick
+	setupDriver.pollInterval = pollTick
+	setupDriver.sleep = func(dur time.Duration) { setupClk.advance(dur) }
+	first, err := setupDriver.Start(req)
+	if err != nil {
+		t.Fatalf("setup Start: %v", err)
+	}
+	if first.Outcome != PASSED {
+		t.Fatalf("setup first drive must PASS, got %s (%s)", first.Outcome, first.Cause)
+	}
+
+	// Race: two successors present the same valid receipt. countingProc runs stay
+	// live so the winner WAITs; barrierGit rendezvouses both past their pre-check and
+	// fingerprint before either reserves the slot.
+	succ := req
+	succ.PredecessorDriveID = first.DriveID
+	succ.PredecessorOwnerGen = first.Generation
+
+	proc := &countingProc{}
+	var barrier sync.WaitGroup
+	barrier.Add(2)
+	git := &barrierGit{wg: &barrier, head: "HEAD1"}
+
+	mkDriver := func() *Driver {
+		clk := &fakeClock{now: startEpoch()}
+		d := NewDriver(store, clk, proc, git)
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		return d
+	}
+	drivers := []*Driver{mkDriver(), mkDriver()}
+
+	docs := make([]DriveDoc, 2)
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	for i := range drivers {
+		go func(i int) {
+			defer wg.Done()
+			docs[i], errs[i] = drivers[i].Start(succ)
+		}(i)
+	}
+	wg.Wait()
+
+	// Exactly one launch total — the reservation, not the launch, arbitrates.
+	if got := proc.launches(); got != 1 {
+		t.Fatalf("two concurrent successor starts must admit EXACTLY ONE launch, got %d", got)
+	}
+	// Exactly one nil-error winner; the loser is a typed reservation rejection.
+	winners := 0
+	winIdx := -1
+	for i, e := range errs {
+		if e == nil {
+			winners++
+			winIdx = i
+			continue
+		}
+		if !isOwnershipKind(e, ErrScopeBusy) && !isOwnershipKind(e, ErrStalePredecessor) {
+			t.Fatalf("the losing successor must fail ErrScopeBusy or ErrStalePredecessor, got %v", e)
+		}
+	}
+	if winners != 1 {
+		t.Fatalf("exactly one successor must win, got %d", winners)
+	}
+	if docs[winIdx].Outcome != WAITING {
+		t.Fatalf("the winning successor must WAIT, got %s (%s)", docs[winIdx].Outcome, docs[winIdx].Cause)
+	}
+	if docs[winIdx].DriveID == first.DriveID {
+		t.Fatalf("the winning successor must be a NEW drive, got the predecessor's id")
+	}
+
+	// The predecessor was retired exactly once: owner cleared, verdict intact.
+	firstRec, err := store.Load(first.DriveID)
+	if err != nil {
+		t.Fatalf("Load predecessor: %v", err)
+	}
+	if firstRec.OwnerGeneration != "" {
+		t.Fatalf("the predecessor must be retired (owner cleared), got %q", firstRec.OwnerGeneration)
+	}
+	if firstRec.LastOutcome != PASSED {
+		t.Fatalf("the predecessor verdict must survive retirement, got %s", firstRec.LastOutcome)
+	}
+
+	// The scope names exactly the sole winner's launched successor, chained to the pred.
+	scope, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if scope.CurrentDriveID != docs[winIdx].DriveID || scope.CurrentDriveState != scopeStateLaunched {
+		t.Fatalf("the slot must name the sole winner launched, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
+	}
+	if scope.PriorDriveID != first.DriveID {
+		t.Fatalf("the prior drive must chain to the retired predecessor, got %q", scope.PriorDriveID)
+	}
+	if scope.PendingAckDriveID != "" {
+		t.Fatalf("the completed transition must leave no pending ack, got %q", scope.PendingAckDriveID)
+	}
+}

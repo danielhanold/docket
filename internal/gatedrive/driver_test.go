@@ -1084,3 +1084,442 @@ func TestScopedStartAttachLaunchFailureStopsOrphan(t *testing.T) {
 		t.Fatalf("a refused subsequent start must not launch, launched %d->%d", launchesBefore, proc.launchN)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Successor starts — the sequential handshake (change 0405 Task 4). A scope
+// carries a SEQUENCE of task-owned drives through one slot; each successor start
+// presents the predecessor receipt (drive id + owner generation) and acknowledges
+// exactly that PASSED/FAILED result before launching its own new drive.
+// ---------------------------------------------------------------------------
+
+// passObserveProc returns a fakeProc whose every run reports PASSED on the first
+// observation, so a scoped Start returns a durable PASSED in one call.
+func passObserveProc() *fakeProc {
+	return &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			return obs(process.StatePassed, runDir), nil
+		},
+	}
+}
+
+// TestScopedSequentialStarts reproduces spec verification 1: with the complete
+// identity bundle a FIRST start PASSES (the positive control proving identity is
+// not the failure), a receipt-less SECOND start over the launched slot is refused
+// with the historical scope-second-live-drive rejection, and a SECOND start that
+// presents the predecessor receipt succeeds as a NEW drive with its own id and
+// owner generation while the predecessor record survives as history with its owner
+// generation cleared.
+func TestScopedSequentialStarts(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := passObserveProc()
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	grant, req := prepareScopedStart(t, store)
+
+	first, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("first Start: %v", err)
+	}
+	if first.Outcome != PASSED {
+		t.Fatalf("first start must PASS (positive control), got %s (%s)", first.Outcome, first.Cause)
+	}
+
+	launchesBefore := proc.launchN
+	if _, err := d.Start(req); !isOwnershipKind(err, ErrScopeSecondDrive) {
+		t.Fatalf("a receipt-less second start must fail ErrScopeSecondDrive, got %v", err)
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("a rejected receipt-less second start must not launch, launched %d->%d", launchesBefore, proc.launchN)
+	}
+
+	succ := req
+	succ.PredecessorDriveID = first.DriveID
+	succ.PredecessorOwnerGen = first.Generation
+	second, err := d.Start(succ)
+	if err != nil {
+		t.Fatalf("successor Start: %v", err)
+	}
+	if second.Outcome != PASSED {
+		t.Fatalf("successor start must PASS, got %s (%s)", second.Outcome, second.Cause)
+	}
+	if second.DriveID == first.DriveID {
+		t.Fatalf("a successor must be a NEW drive, got the predecessor's id %q", second.DriveID)
+	}
+	if second.Generation == "" || second.Generation == first.Generation {
+		t.Fatalf("a successor must carry its own owner generation, got %q (predecessor %q)", second.Generation, first.Generation)
+	}
+
+	firstRec, err := store.Load(first.DriveID)
+	if err != nil {
+		t.Fatalf("Load predecessor: %v", err)
+	}
+	if firstRec.LastOutcome != PASSED {
+		t.Fatalf("the predecessor verdict must remain readable, got %s", firstRec.LastOutcome)
+	}
+	if firstRec.OwnerGeneration != "" {
+		t.Fatalf("acknowledging the predecessor must clear its owner generation, got %q", firstRec.OwnerGeneration)
+	}
+
+	scope, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if scope.CurrentDriveID != second.DriveID || scope.CurrentDriveState != scopeStateLaunched {
+		t.Fatalf("the slot must name the successor launched, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
+	}
+	if scope.PriorDriveID != first.DriveID {
+		t.Fatalf("the prior drive must chain to the predecessor, got %q", scope.PriorDriveID)
+	}
+	if scope.PendingAckDriveID != "" {
+		t.Fatalf("a completed successor transition must leave no pending ack, got %q", scope.PendingAckDriveID)
+	}
+}
+
+// TestScopedSequenceBaselineRedGreen reproduces spec verification 2 (fake seams):
+// baseline PASSED, RED FAILED, GREEN PASSED as three distinct drives under one
+// scope, with a real worktree edit between RED and GREEN (modeled by changing the
+// fake git seam's fingerprint input). Each command executes exactly once, each
+// drive keeps its own fingerprint and result, and the slot chains correctly.
+func TestScopedSequenceBaselineRedGreen(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	git := stableGit()
+	proc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			if strings.HasSuffix(runDir, "run2") {
+				return obs(process.StateFailed, runDir), nil
+			}
+			return obs(process.StatePassed, runDir), nil
+		},
+	}
+	d := scopedTestDriver(store, clk, proc, git)
+	grant, req := prepareScopedStart(t, store)
+
+	base, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("baseline Start: %v", err)
+	}
+	if base.Outcome != PASSED {
+		t.Fatalf("baseline must PASS, got %s (%s)", base.Outcome, base.Cause)
+	}
+
+	redReq := req
+	redReq.PredecessorDriveID = base.DriveID
+	redReq.PredecessorOwnerGen = base.Generation
+	red, err := d.Start(redReq)
+	if err != nil {
+		t.Fatalf("RED Start: %v", err)
+	}
+	if red.Outcome != FAILED {
+		t.Fatalf("RED must FAIL, got %s (%s)", red.Outcome, red.Cause)
+	}
+
+	git.status = "EDITED-BETWEEN-RED-AND-GREEN"
+
+	greenReq := req
+	greenReq.PredecessorDriveID = red.DriveID
+	greenReq.PredecessorOwnerGen = red.Generation
+	green, err := d.Start(greenReq)
+	if err != nil {
+		t.Fatalf("GREEN Start: %v", err)
+	}
+	if green.Outcome != PASSED {
+		t.Fatalf("GREEN must PASS, got %s (%s)", green.Outcome, green.Cause)
+	}
+
+	ids := map[string]bool{base.DriveID: true, red.DriveID: true, green.DriveID: true}
+	if len(ids) != 3 {
+		t.Fatalf("baseline/RED/GREEN must be three distinct drives, got ids %v", ids)
+	}
+	if proc.launchN != 3 {
+		t.Fatalf("each of three drives must launch exactly once, got %d launches", proc.launchN)
+	}
+	scope, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if scope.DriveCount != 3 {
+		t.Fatalf("the scope must have admitted three drives, got DriveCount=%d", scope.DriveCount)
+	}
+	if scope.CurrentDriveID != green.DriveID {
+		t.Fatalf("the current drive must be GREEN, got %q", scope.CurrentDriveID)
+	}
+	if scope.PriorDriveID != red.DriveID {
+		t.Fatalf("the prior drive must be RED, got %q", scope.PriorDriveID)
+	}
+	baseRec, _ := store.Load(base.DriveID)
+	redRec, _ := store.Load(red.DriveID)
+	greenRec, _ := store.Load(green.DriveID)
+	if !baseRec.Fingerprint.Equal(redRec.Fingerprint) {
+		t.Fatalf("baseline and RED ran over the same worktree; their fingerprints must match")
+	}
+	if greenRec.Fingerprint.Equal(redRec.Fingerprint) {
+		t.Fatalf("the edit between RED and GREEN must change the GREEN drive's fingerprint")
+	}
+	if baseRec.OwnerGeneration != "" || redRec.OwnerGeneration != "" {
+		t.Fatalf("acknowledged predecessors must have their owner generation cleared")
+	}
+	if greenRec.OwnerGeneration == "" {
+		t.Fatalf("the current (unacknowledged) GREEN drive must retain its owner generation")
+	}
+}
+
+// scopedSuccessorFixture prepares a fresh scope (pinning a gate context) over a new
+// store, drives its first drive to a durable PASSED, and returns the driver, store,
+// grant, and the base successor request carrying the complete identity bundle plus
+// the valid predecessor receipt, together with the process seam. Every run PASSES
+// immediately, so a valid successor also PASSES.
+func scopedSuccessorFixture(t *testing.T) (*Driver, *Store, ScopeGrant, StartRequest, *fakeProc) {
+	t.Helper()
+	const gateCtx = "task-4-dispatch-context"
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := passObserveProc()
+	d := scopedTestDriver(store, clk, proc, stableGit())
+
+	req := sampleStart()
+	grant, err := store.PrepareScope(scopeReqFor(req, gateCtx))
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	req.ScopeID = grant.ScopeID
+	req.ChildCapability = grant.ChildCapability
+	req.GateContext = gateCtx
+
+	first, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("first Start: %v", err)
+	}
+	if first.Outcome != PASSED {
+		t.Fatalf("first start must PASS, got %s (%s)", first.Outcome, first.Cause)
+	}
+
+	succ := req
+	succ.PredecessorDriveID = first.DriveID
+	succ.PredecessorOwnerGen = first.Generation
+	return d, store, grant, succ, proc
+}
+
+// TestScopedSuccessorRejectionMatrix reproduces spec verifications 3–4 (start half):
+// a successor request with any single identity/context/capability/receipt dimension
+// wrong is a typed rejection that launches NOTHING and does NOT consume the
+// legitimate predecessor — a correct successor still succeeds afterward.
+func TestScopedSuccessorRejectionMatrix(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(r *StartRequest)
+		want   OwnershipErrorKind
+	}{
+		{"wrong repo-dir", func(r *StartRequest) { r.RepoDir = "/other-repo" }, ErrScopeIdentityMismatch},
+		{"wrong branch", func(r *StartRequest) { r.Branch = "feat/other" }, ErrScopeIdentityMismatch},
+		{"wrong worktree", func(r *StartRequest) { r.Worktree = "/other-worktree" }, ErrScopeIdentityMismatch},
+		{"wrong change", func(r *StartRequest) { r.ChangeID = "9999" }, ErrScopeIdentityMismatch},
+		{"wrong task", func(r *StartRequest) { r.TaskID = "task-99" }, ErrScopeIdentityMismatch},
+		{"wrong phase", func(r *StartRequest) { r.Phase = "finalize" }, ErrScopeIdentityMismatch},
+		{"wrong gate context", func(r *StartRequest) { r.GateContext = "not-the-context" }, ErrScopeIdentityMismatch},
+		{"missing gate context", func(r *StartRequest) { r.GateContext = "" }, ErrScopeIdentityMismatch},
+		{"wrong capability", func(r *StartRequest) { r.ChildCapability = "wrong-capability" }, ErrScopeCapabilityMismatch},
+		{"missing predecessor id", func(r *StartRequest) { r.PredecessorDriveID = "" }, ErrStalePredecessor},
+		{"missing predecessor generation", func(r *StartRequest) { r.PredecessorOwnerGen = "" }, ErrStalePredecessor},
+		{"nonexistent predecessor id", func(r *StartRequest) { r.PredecessorDriveID = "ffffffffffffffffffffffffffffffff" }, ErrStalePredecessor},
+		{"wrong predecessor generation", func(r *StartRequest) { r.PredecessorOwnerGen = "not-the-owner" }, ErrStalePredecessor},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, store, _, base, proc := scopedSuccessorFixture(t)
+			predID := base.PredecessorDriveID
+			predGen := base.PredecessorOwnerGen
+			launchesBefore := proc.launchN
+
+			bad := base
+			tc.mutate(&bad)
+			if _, err := d.Start(bad); !isOwnershipKind(err, tc.want) {
+				t.Fatalf("%s: want %s, got %v", tc.name, tc.want, err)
+			}
+			if proc.launchN != launchesBefore {
+				t.Fatalf("%s: a rejected successor must not launch, launched %d->%d", tc.name, launchesBefore, proc.launchN)
+			}
+			prec, err := store.Load(predID)
+			if err != nil {
+				t.Fatalf("Load predecessor: %v", err)
+			}
+			if prec.OwnerGeneration != predGen {
+				t.Fatalf("%s: a rejected successor must not consume the predecessor: owner %q want %q", tc.name, prec.OwnerGeneration, predGen)
+			}
+			ok, err := d.Start(base)
+			if err != nil {
+				t.Fatalf("%s: a correct successor after a rejected one must succeed: %v", tc.name, err)
+			}
+			if ok.Outcome != PASSED || ok.DriveID == predID {
+				t.Fatalf("%s: correct successor must be a new PASSED drive, got %s id=%q", tc.name, ok.Outcome, ok.DriveID)
+			}
+		})
+	}
+}
+
+// TestScopedSuccessorPredecessorStateRejections reproduces spec verification 4
+// (predecessor-state half): a successor is refused when its predecessor is not a
+// durable reusable result — live (WAITING), HALTED, carrying an outstanding
+// handoff, under a closed scope, owned by a superseded generation, or already
+// acknowledged. Each rejection launches nothing.
+func TestScopedSuccessorPredecessorStateRejections(t *testing.T) {
+	t.Run("waiting predecessor not reusable", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		store := OpenStore(testsupport.TempDir(t))
+		proc := &fakeProc{}
+		d := scopedTestDriver(store, clk, proc, stableGit())
+		_, req := prepareScopedStart(t, store)
+		first, err := d.Start(req)
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+		if first.Outcome != WAITING {
+			t.Fatalf("want WAITING first drive, got %s", first.Outcome)
+		}
+		succ := req
+		succ.PredecessorDriveID = first.DriveID
+		succ.PredecessorOwnerGen = first.Generation
+		launchesBefore := proc.launchN
+		if _, err := d.Start(succ); !isOwnershipKind(err, ErrPredecessorNotReusable) {
+			t.Fatalf("a WAITING predecessor must reject a successor ErrPredecessorNotReusable, got %v", err)
+		}
+		if proc.launchN != launchesBefore {
+			t.Fatalf("no launch on a rejected successor, launched %d->%d", launchesBefore, proc.launchN)
+		}
+	})
+
+	t.Run("halted predecessor not reusable", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		store := OpenStore(testsupport.TempDir(t))
+		proc := &fakeProc{}
+		d := scopedTestDriver(store, clk, proc, stableGit())
+		_, req := prepareScopedStart(t, store)
+		first, err := d.Start(req)
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+		rec, err := store.Load(first.DriveID)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		rec.LastOutcome = HALTED
+		rec.LastCause = "some-halt"
+		overwriteDriveRecord(t, store, first.DriveID, rec)
+		succ := req
+		succ.PredecessorDriveID = first.DriveID
+		succ.PredecessorOwnerGen = first.Generation
+		launchesBefore := proc.launchN
+		if _, err := d.Start(succ); !isOwnershipKind(err, ErrPredecessorNotReusable) {
+			t.Fatalf("a HALTED predecessor must reject a successor ErrPredecessorNotReusable, got %v", err)
+		}
+		if proc.launchN != launchesBefore {
+			t.Fatalf("no launch on a rejected successor")
+		}
+	})
+
+	t.Run("outstanding handoff", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		store := OpenStore(testsupport.TempDir(t))
+		proc := &fakeProc{}
+		d := scopedTestDriver(store, clk, proc, stableGit())
+		_, req := prepareScopedStart(t, store)
+		first, err := d.Start(req)
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+		if _, err := d.Handoff(first.DriveID, first.Generation); err != nil {
+			t.Fatalf("Handoff: %v", err)
+		}
+		succ := req
+		succ.PredecessorDriveID = first.DriveID
+		succ.PredecessorOwnerGen = first.Generation
+		launchesBefore := proc.launchN
+		if _, err := d.Start(succ); !isOwnershipKind(err, ErrHandoffOutstanding) {
+			t.Fatalf("an outstanding handoff must reject a successor ErrHandoffOutstanding, got %v", err)
+		}
+		if proc.launchN != launchesBefore {
+			t.Fatalf("no launch on a rejected successor")
+		}
+	})
+
+	t.Run("closed scope", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		store := OpenStore(testsupport.TempDir(t))
+		proc := passObserveProc()
+		d := scopedTestDriver(store, clk, proc, stableGit())
+		grant, req := prepareScopedStart(t, store)
+		first, err := d.Start(req)
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+		if err := store.closeScope(grant.ScopeID); err != nil {
+			t.Fatalf("closeScope: %v", err)
+		}
+		succ := req
+		succ.PredecessorDriveID = first.DriveID
+		succ.PredecessorOwnerGen = first.Generation
+		launchesBefore := proc.launchN
+		if _, err := d.Start(succ); !isOwnershipKind(err, ErrScopeClosed) {
+			t.Fatalf("a closed scope must reject a successor ErrScopeClosed, got %v", err)
+		}
+		if proc.launchN != launchesBefore {
+			t.Fatalf("no launch on a rejected successor")
+		}
+	})
+
+	t.Run("superseded owner", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		store := OpenStore(testsupport.TempDir(t))
+		proc := passObserveProc()
+		d := scopedTestDriver(store, clk, proc, stableGit())
+		_, req := prepareScopedStart(t, store)
+		first, err := d.Start(req)
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+		rec, err := store.Load(first.DriveID)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		rec.OwnerGeneration = "superseded-by-a-takeover"
+		overwriteDriveRecord(t, store, first.DriveID, rec)
+		succ := req
+		succ.PredecessorDriveID = first.DriveID
+		succ.PredecessorOwnerGen = first.Generation
+		launchesBefore := proc.launchN
+		if _, err := d.Start(succ); !isOwnershipKind(err, ErrStalePredecessor) {
+			t.Fatalf("a superseded owner must reject a successor ErrStalePredecessor, got %v", err)
+		}
+		if proc.launchN != launchesBefore {
+			t.Fatalf("no launch on a rejected successor")
+		}
+	})
+
+	t.Run("acknowledged earlier drive", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		store := OpenStore(testsupport.TempDir(t))
+		proc := passObserveProc()
+		d := scopedTestDriver(store, clk, proc, stableGit())
+		_, req := prepareScopedStart(t, store)
+		first, err := d.Start(req)
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+		succ := req
+		succ.PredecessorDriveID = first.DriveID
+		succ.PredecessorOwnerGen = first.Generation
+		if _, err := d.Start(succ); err != nil {
+			t.Fatalf("successor Start: %v", err)
+		}
+		stale := req
+		stale.PredecessorDriveID = first.DriveID
+		stale.PredecessorOwnerGen = first.Generation
+		launchesBefore := proc.launchN
+		if _, err := d.Start(stale); !isOwnershipKind(err, ErrStalePredecessor) {
+			t.Fatalf("an already-acknowledged predecessor must reject a successor ErrStalePredecessor, got %v", err)
+		}
+		if proc.launchN != launchesBefore {
+			t.Fatalf("no launch on a rejected successor")
+		}
+	})
+}

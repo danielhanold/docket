@@ -100,16 +100,29 @@ type StartRequest struct {
 	IdempotentSuiteGate bool
 
 	// Recovery-scope linkage (all optional; empty = a scopeless drive, the
-	// pre-0359 behavior). ScopeID + ChildCapability bind this new drive into a
+	// pre-0359 behavior). ScopeID + ChildCapability enroll this new drive in a
 	// recovery scope so a parent can take it over later (scope.go, takeover.go):
-	// Start verifies the capability and scope identity BEFORE launching, then
-	// binds the drive after it exists. ChildCapability is the RAW capability,
-	// verified against the scope's stored hash and persisted nowhere. GateContext
-	// is the RAW outer child-context token linking a nested drive to the outer
-	// gate; it is stored only as its sha256 hash (GateContextHash). (change 0359)
+	// Start verifies the capability and scope identity BEFORE launching, reserves
+	// the scope's single slot durably, and only then launches. ChildCapability is
+	// the RAW capability, verified against the scope's stored hash and persisted
+	// nowhere. GateContext is the RAW outer child-context token linking a nested
+	// drive to the outer gate; it is stored only as its sha256 hash
+	// (GateContextHash). (change 0359)
 	ScopeID         string
 	ChildCapability string
 	GateContext     string
+
+	// Recovery-scope successor receipt (change 0405 Task 4): the previous drive's
+	// id and its current owner generation, captured from that drive's response. BOTH
+	// are required together for a successor start over an occupied scope slot and
+	// BOTH are forbidden for a scope's first start (a half-filled receipt is a
+	// fail-closed ErrStalePredecessor). A successor acknowledges exactly this
+	// predecessor result — retiring its recovery authority so it survives only as
+	// history — before launching its own new drive over the same scope slot. A scope
+	// carries a SEQUENCE of drives (baseline, RED, GREEN, verification) through one
+	// slot; the receipt is the explicit hand-off between one drive and the next.
+	PredecessorDriveID  string
+	PredecessorOwnerGen string
 }
 
 // Driver is the gate-drive state machine. It holds no mutable per-drive state:
@@ -164,36 +177,16 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 		return DriveDoc{}, fmt.Errorf("gatedrive: start requires a non-negative budget")
 	}
 
-	// Scope pre-check BEFORE any launch: a bad capability, a closed scope, an
-	// identity that disagrees with the scope, or a scope that already holds a
-	// current drive short-circuits here so proc.Launch is never reached on an
-	// uncontended rejection. This unlocked block is a fast-fail ONLY;
-	// reserveScopeDrive under the scope lock (below) is the AUTHORITY on the slot —
-	// it re-checks every condition and arbitrates races, so a state observed here
-	// but changed by a concurrent transition is caught there, not trusted here.
+	// Scope pre-check BEFORE any launch: an uncontended bad request short-circuits
+	// here so proc.Launch is never reached on it and, crucially, so it consumes
+	// nothing — no reserved drive record is minted and a legitimate predecessor
+	// keeps its recovery authority. This unlocked block is a fast-fail ONLY;
+	// reserveScopeDrive and retirePredecessor under their locks (below) are the
+	// AUTHORITY that re-check every condition and arbitrate races, so a state
+	// observed here but changed by a concurrent transition is caught there.
 	if req.ScopeID != "" {
-		scope, serr := d.store.LoadScope(req.ScopeID)
-		if serr != nil {
-			return DriveDoc{}, serr
-		}
-		if scope.Closed {
-			return DriveDoc{}, ownershipErr(ErrScopeClosed, "start")
-		}
-		if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
-			return DriveDoc{}, ownershipErr(ErrScopeCapabilityMismatch, "start")
-		}
-		if scope.CurrentDriveID != "" {
-			// An occupied slot short-circuits with the same typed rejection
-			// reserveScopeDrive would return for a first start (empty receipt): a
-			// reserved slot is busy (an in-flight or launch-failed start owns it, so
-			// no automatic second launch), a launched slot already holds a live drive.
-			if scope.CurrentDriveState == scopeStateReserved {
-				return DriveDoc{}, ownershipErr(ErrScopeBusy, "start")
-			}
-			return DriveDoc{}, ownershipErr(ErrScopeSecondDrive, "start")
-		}
-		if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
-			return DriveDoc{}, ownershipErr(ErrScopeIdentityMismatch, "start")
+		if err := d.precheckScopedStart(req); err != nil {
+			return DriveDoc{}, err
 		}
 	}
 
@@ -249,6 +242,99 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 	return d.startScoped(req, rec, ownerGen)
 }
 
+// precheckScopedStart is the unlocked fast-fail gate for a scoped Start. It is NOT
+// the authority — reserveScopeDrive (the slot) and retirePredecessor (the
+// predecessor's recovery authority) re-check every condition under their locks and
+// arbitrate races — but it rejects an uncontended bad request before any reserved
+// drive record is minted or any process is launched, so an ordinary invalid request
+// consumes nothing and a legitimate predecessor is never touched.
+//
+// A first start (empty receipt) succeeds only against an empty slot; an occupied
+// slot is ErrScopeBusy (a reserved/in-flight or launch-failed start owns it, so no
+// automatic second launch) or ErrScopeSecondDrive (a launched drive with no
+// successor receipt). A successor start (both receipt fields set) must present the
+// scope's complete pinned identity, name a scope whose slot holds a launched current
+// drive, and name a predecessor with a durable PASSED/FAILED result still owned by
+// the presented generation and carrying no outstanding handoff. A half-filled
+// receipt is a fail-closed ErrStalePredecessor.
+func (d *Driver) precheckScopedStart(req StartRequest) error {
+	scope, err := d.store.LoadScope(req.ScopeID)
+	if err != nil {
+		return err
+	}
+	if scope.Closed {
+		return ownershipErr(ErrScopeClosed, "start")
+	}
+	if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
+		return ownershipErr(ErrScopeCapabilityMismatch, "start")
+	}
+
+	receipt := predecessorReceipt{DriveID: req.PredecessorDriveID, OwnerGen: req.PredecessorOwnerGen}
+	if receipt.halfFilled() {
+		return ownershipErr(ErrStalePredecessor, "start")
+	}
+
+	if receipt.empty() {
+		// First start: an occupied slot short-circuits with the same typed rejection
+		// reserveScopeDrive returns for an empty receipt, and identity is checked only
+		// against an empty slot (a first start still fixes the scope's identity).
+		if scope.CurrentDriveID != "" {
+			if scope.CurrentDriveState == scopeStateReserved {
+				return ownershipErr(ErrScopeBusy, "start")
+			}
+			return ownershipErr(ErrScopeSecondDrive, "start")
+		}
+		if !scopedIdentityMatch(scope, req) {
+			return ownershipErr(ErrScopeIdentityMismatch, "start")
+		}
+		return nil
+	}
+
+	// Successor start: the complete pinned identity, a launched current slot, and a
+	// durable reusable predecessor the receipt names.
+	if !scopedIdentityMatch(scope, req) {
+		return ownershipErr(ErrScopeIdentityMismatch, "start")
+	}
+	if scope.CurrentDriveID == "" {
+		// A successor acknowledges a predecessor result, but the scope holds none.
+		return ownershipErr(ErrStalePredecessor, "start")
+	}
+	if scope.CurrentDriveState == scopeStateReserved {
+		return ownershipErr(ErrScopeBusy, "start")
+	}
+	if scope.PendingAckDriveID != "" {
+		return ownershipErr(ErrUnresolvedLaunchTransition, "start")
+	}
+	// Validate the CLAIMED predecessor record (cheap, consumes nothing). Whether it is
+	// the scope's CURRENT drive is reserveScopeDrive's authority — a wrong id there is
+	// refused without consuming the slot; here we reject a predecessor that is not a
+	// durable reusable result up front. A receipt naming a drive that cannot be loaded
+	// is not a reusable predecessor.
+	prec, lerr := d.store.Load(receipt.DriveID)
+	if lerr != nil {
+		if _, ok := AsStoreError(lerr); ok {
+			return ownershipErr(ErrStalePredecessor, "start")
+		}
+		return lerr
+	}
+	return predecessorReusableError(&prec, receipt.OwnerGen)
+}
+
+// scopedIdentityMatch reports whether a scoped Start request carries the scope's
+// complete pinned identity: the repo/branch/worktree/change/task/phase bundle
+// scopeIdentityMatch checks, plus the gate-context token when the scope pinned one
+// (Invariant 6 — omission or alteration must not detach a drive from outer
+// recovery). A scope that pinned no gate context accepts any (the pre-0359 default).
+func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
+	if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
+		return false
+	}
+	if scope.GateContextHash != "" && capHash(req.GateContext) != scope.GateContextHash {
+		return false
+	}
+	return true
+}
+
 // startScopeless launches the raw run, persists the drive record carrying its
 // launch handle, and drives the first slice. It is the pre-0359 path a scopeless
 // drive (e.g. finalize's local gate) uses unchanged: the launch precedes the
@@ -270,24 +356,48 @@ func (d *Driver) startScopeless(rec driveRecord, ownerGen string) (DriveDoc, err
 	return d.driveAndPersist(id, ownerGen, rec)
 }
 
-// startScoped runs the pinned scoped-start order (change 0405 Task 3):
-// NewReservedDrive → reserveScopeDrive → Launch → attachLaunch →
-// confirmScopeLaunch → driveAndPersist. The durable reservation precedes the
-// process, so a crash or failure between reservation and launch leaves a
-// recoverable slot rather than a silently double-launched one, and every
-// ambiguous launch/persist failure fails closed with NO automatic second launch.
+// startScoped runs the pinned scoped-start order (change 0405 Tasks 3–4):
+// NewReservedDrive → reserveScopeDrive → (successor: retirePredecessor →
+// clearPendingAck) → Launch → attachLaunch → confirmScopeLaunch → driveAndPersist.
+// The durable reservation precedes the process, so a crash or failure between
+// reservation and launch leaves a recoverable slot rather than a silently
+// double-launched one, and every ambiguous launch/persist failure fails closed with
+// NO automatic second launch. A first start passes an empty receipt; a successor
+// passes the predecessor receipt so reserveScopeDrive advances the slot and the
+// journaled retire/clear pair retires the predecessor as one logical transition.
 func (d *Driver) startScoped(req StartRequest, rec driveRecord, ownerGen string) (DriveDoc, error) {
+	receipt := predecessorReceipt{DriveID: req.PredecessorDriveID, OwnerGen: req.PredecessorOwnerGen}
+
 	// Persist a RESERVED drive record (no launch handle), then durably reserve the
 	// scope's single slot. reserveScopeDrive under the scope lock is the authority
-	// that arbitrates the slot; a reserve failure (a concurrent start won the slot,
-	// the scope closed, an unresolved transition, or a capability change) means this
-	// start owns nothing and never launched, so surface the rejection.
+	// that arbitrates the slot: for a first start it fills an empty slot, for a
+	// successor it advances the slot only when the receipt names the current launched
+	// drive (and journals the pending ack). A reserve failure (a concurrent start won
+	// the slot, a stale receipt, the scope closed, an unresolved transition, or a
+	// capability change) means this start owns nothing and never launched, so surface
+	// the typed rejection.
 	id, _, err := d.store.NewReservedDrive(rec)
 	if err != nil {
 		return DriveDoc{}, err
 	}
-	if rerr := d.store.reserveScopeDrive(req.ScopeID, req.ChildCapability, id, predecessorReceipt{}); rerr != nil {
+	if rerr := d.store.reserveScopeDrive(req.ScopeID, req.ChildCapability, id, receipt); rerr != nil {
 		return DriveDoc{}, rerr
+	}
+
+	// Successor: retire the predecessor's recovery authority and clear the pending-ack
+	// journal as the journaled second half of this one logical transition — both AFTER
+	// a won reservation and BEFORE any launch. A failure here is an ambiguous
+	// launch/persistence transition (a concurrent transition moved the predecessor
+	// between the unlocked pre-check and this locked retirement): fail closed
+	// ErrUnresolvedLaunchTransition with the reservation retained and nothing launched.
+	// The exit is parent recovery, never a blind retry or a fabricated second launch.
+	if !receipt.empty() {
+		if rerr := d.store.retirePredecessor(receipt.DriveID, receipt.OwnerGen); rerr != nil {
+			return DriveDoc{}, ownershipErr(ErrUnresolvedLaunchTransition, "start")
+		}
+		if cerr := d.store.clearPendingAck(req.ScopeID, receipt.DriveID); cerr != nil {
+			return DriveDoc{}, ownershipErr(ErrUnresolvedLaunchTransition, "start")
+		}
 	}
 
 	// Launch the raw run. A launch failure is a command failure that leaves the slot

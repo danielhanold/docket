@@ -215,6 +215,49 @@ func (s *Store) attachLaunch(id, ownerGen, rawRunDir, rawOwnership string) error
 	})
 }
 
+// retirePredecessor clears a predecessor drive's recovery authority as the second
+// half of a successor start's one logical transition (change 0405 Task 4). Under
+// the ownership CAS it re-verifies the predecessor is still a durable reusable
+// result — no outstanding handoff (ErrHandoffOutstanding), still owned by ownerGen
+// (ErrStalePredecessor on a mismatch or a cleared owner), and a durable PASSED/FAILED
+// LastOutcome (ErrPredecessorNotReusable otherwise) — then clears OwnerGeneration, so
+// the record survives as history (its command, fingerprint, verdict, and run dirs are
+// retained) but can no longer advance, hand off, or compete as a current recovery
+// candidate (FindScopeDriveIDs excludes an owner-cleared terminal record). On any
+// rejection the persisted record is untouched.
+func (s *Store) retirePredecessor(id, ownerGen string) error {
+	return s.ownerCAS(id, func(rec *driveRecord) error {
+		if err := predecessorReusableError(rec, ownerGen); err != nil {
+			return err
+		}
+		rec.OwnerGeneration = ""
+		return nil
+	})
+}
+
+// predecessorReusableError reports the typed reason a candidate predecessor record
+// is not a reusable result to acknowledge, or nil when it is. The check order is
+// load-bearing: an outstanding handoff is reported FIRST (a handed-off drive has its
+// owner generation cleared, so the owner check below would otherwise misreport it as
+// stale rather than as the outstanding-handoff it is); then the owner generation must
+// still match the presented receipt (a superseded/transferred or cleared owner is
+// stale); then the outcome must be a durable PASSED or FAILED (a WAITING or HALTED
+// drive is not reusable). It is the single predicate that both the unlocked
+// precheckScopedStart fast-fail and the retirePredecessor authority share, so a change
+// to reusability is enforced identically in both.
+func predecessorReusableError(rec *driveRecord, ownerGen string) error {
+	if rec.HandoffGeneration != "" {
+		return ownershipErr(ErrHandoffOutstanding, "retire-predecessor")
+	}
+	if rec.OwnerGeneration == "" || rec.OwnerGeneration != ownerGen {
+		return ownershipErr(ErrStalePredecessor, "retire-predecessor")
+	}
+	if rec.LastOutcome != PASSED && rec.LastOutcome != FAILED {
+		return ownershipErr(ErrPredecessorNotReusable, "retire-predecessor")
+	}
+	return nil
+}
+
 // Load reads and returns the current record for id. It validates the id and
 // refuses a symlinked drive directory before touching the record, decodes the
 // envelope, and fails closed on an unknown schema version. Load takes no lock:
