@@ -1,18 +1,18 @@
 # Backlog
 
-**421 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 5 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 270 done · 🗑️ 113 killed
+**421 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 5 groomed · 🟡 19 proposed · ⚪ 11 deferred · ✅ 270 done · 🗑️ 113 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0421](active/0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | `medium` | `feat` | [spec](../superpowers/specs/2026-09-10-make-build-and-outer-run-gate-attempt-limits-configurable-design.md) | `feat/make-build-and-outer-run-gate-attempt-limits-configurable` |  |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` |  |
 
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0421](active/0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | `medium` | `feat` | [#297](https://github.com/danielhanold/docket/pull/297) | awaiting merge |
 | [0420](active/0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | `critical` | `fix` | [#296](https://github.com/danielhanold/docket/pull/296) | awaiting merge |
 
 ## 🟣 Groomed (5)
