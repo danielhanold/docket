@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0416 — Scoped build-task gate starts omit prepared scope identity](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md)**
+> ↩ **[Change 0416 — Scoped build-task gate starts omit prepared scope identity](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-10-0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md)**
 <!-- docket:backlink:end -->
 # Scoped build-task gate starts omit prepared scope identity — Results
 
