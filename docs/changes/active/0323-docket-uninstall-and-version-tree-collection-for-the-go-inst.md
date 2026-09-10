@@ -69,3 +69,12 @@ Removing development or release CLI binaries; deleting global configuration or s
 
 2026-09-10 — Reconciled against origin/main at 0f84b9e3. Since the prior pass at 6f98577d, only change 0405's sequential gate-drive lifecycle work landed; it does not alter installer scope. The existing plan and results remain committed on the feature branch, and the owned Task 1 edits remain the only uncommitted implementation files. The approved spec, ADRs 0096/0110, relations, and focused scope remain current; no new dependency, stack-base, relation, or follow-up adjustment is required.
 
+## Run halted
+
+### 2026-09-10
+
+The resumed implementation stopped during Task 8 because the premium worker returned BLOCKED while its prepared focused gate drive was WAITING, but the return omitted the required single-use handoff token. The parent takeover of the exact prepared scope returned HALTED with cause `handoff-outstanding`, so the gate could not be safely advanced or replaced.
+
+The feature worktree is preserved for inspection. The worker's Task 8 implementation edits remain uncommitted in `internal/app/install.go`, `internal/install/devmode.go`, `internal/install/service.go`, `internal/install/service_test.go`, and `internal/install/uninstall.go`; they were not adopted or discarded. The results checkpoint commit `942443b0c6a98ba2f3e0fdcb09a317655f6c2b32` is local only because `workspace.publish` refused the dirty-owned workspace with `head-mismatch`.
+
+A human needs to start a fresh attributed run after the native gate handoff/ownership state is repaired. The next run must inspect the preserved Task 8 edits, re-establish a valid gate scope, and publish the results checkpoint before continuing.
