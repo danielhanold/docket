@@ -308,8 +308,14 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 					r.Reason = reason
 				}))
 		}
-		rec.Retry = RetryConsumed
 		if granted {
+			// Mirror the consumption ONLY when a retry was actually granted (a marker
+			// now exists). On a no-grant stop (e.g. AttemptLimit == 1) nothing was
+			// consumed, so leaving the mirror RetryUnused keeps the readable record
+			// honest — LoadGateRecord only ever upgrades the mirror from markers and
+			// never downgrades, so a mirror set here on a no-grant stop would read
+			// "consumed" forever though GateRetryUsage stays 0.
+			rec.Retry = RetryConsumed
 			return persistGateVerdict(repoDir, key, rec,
 				gateVerdictLine(key, GateDecisionRetryOnce, VerdictRunIncomplete, id, false, func(r *RunGateVerdictResult) {
 					r.Unmet = unmet

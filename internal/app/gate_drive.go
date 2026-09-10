@@ -297,6 +297,12 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 	// build-owned start with NO ChangeID (a scopeless ad-hoc drive, pre-0359
 	// behavior) is deliberately unbudgeted — both boundaries are pinned by tests.
 	if s.owner == "build" && req.ChangeID != "" {
+		// Reserve-before-launch is intentional and there are NO refunds: reserveBuildSuiteAttempt
+		// runs BEFORE engine.Start and any suite launch, so a build-owned start that HALTs before
+		// the suite ever launches (e.g. scope-identity-mismatch, identity drift, malformed state)
+		// still permanently spends one budgeted build.max_attempts attempt. This is the intended
+		// fail-safe: a lost launch can never overrun the bound. Do not reorder this after
+		// engine.Start or add a refund — the no-refund reservation is spec/plan-locked.
 		if refusal, refused := s.reserveBuildSuiteAttempt(req); refused {
 			return refusal
 		}
