@@ -2,7 +2,7 @@
 id: 405
 slug: 'investigate-the-gate-drive-prepare-scope-gate-drive-start-ha'
 title: 'Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker''s focused gate'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-04'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/investigate-the-gate-drive-prepare-scope-gate-drive-start-ha'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-10T08:03:16Z'
 ---
 
 ## Artifacts
