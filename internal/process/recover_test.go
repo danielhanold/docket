@@ -123,12 +123,11 @@ func TestRecoverMarksCleanlyAbandonedOwnedRun(t *testing.T) {
 // TestRecoverDoesNotProbeLiveForZeroPGID covers the leaked-slot shape the
 // finding names: spawnSupervisor failed after the allocated manifest was
 // written (PGID 0, phase "allocated") and the launcher released the live lock.
-// Recover sees a free lock, no terminal/stopped/abandoned record, and probes
-// the recorded group via the default recoverGroupProbe (groupAlive). PGID 0
-// must NOT resolve probeLive — that would address the caller's own group and
-// wedge the slot at needs-inspection-via-live-group forever. The fail-closed
-// guard routes it to probeUnknown instead, still leaving it for inspection but
-// never falsely live.
+// The allocated-with-no-supervisor branch classifies it unresolved-establishment
+// BEFORE any recorded-group probe, so group 0 is never even probed here — which
+// matters because groupAlive(0) would address the caller's own group. The
+// inline assertion below keeps proving group 0 never resolves probeLive
+// regardless of classification order.
 func TestRecoverDoesNotProbeLiveForZeroPGID(t *testing.T) {
 	svc := newTestService(t)
 	root := testsupport.TempDir(t)
@@ -154,11 +153,47 @@ func TestRecoverDoesNotProbeLiveForZeroPGID(t *testing.T) {
 	if res.Marked != 0 || len(res.Entries) != 1 {
 		t.Fatalf("recover: %+v", res)
 	}
-	if d := res.Entries[0].Disposition; d != "needs-inspection" {
-		t.Fatalf("PGID:0 slot disposition = %q, want needs-inspection", d)
+	if d := res.Entries[0].Disposition; d != "unresolved-establishment" {
+		t.Fatalf("PGID:0 slot disposition = %q, want unresolved-establishment", d)
 	}
 	if rec, _ := readAbandoned(runDir); rec != nil {
 		t.Fatal("abandoned.json written for a non-real recorded group")
+	}
+}
+
+// TestRecoverClassifiesAllocatedAsUnresolvedEstablishment pins the new Task 2
+// disposition: a manifest still in the allocated phase with no supervisor pid
+// wrote its pre-spawn record and then died (crashed launcher, or a spawn that
+// never established) before any addressable group existed. It is neither
+// cleanly abandoned (no group ever existed to be gone) nor needs-inspection
+// by accident of groupAlive(0) failing closed to probeUnknown — it is an
+// unresolved establishment, and Recover must say so and write no marker.
+func TestRecoverClassifiesAllocatedAsUnresolvedEstablishment(t *testing.T) {
+	svc := newTestService(t)
+	root := testsupport.TempDir(t)
+	id := "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+	runDir := filepath.Join(root, id)
+	if err := os.Mkdir(runDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAtomicJSON(filepath.Join(runDir, manifestFile), &manifestRecord{
+		Schema: recordSchema, RunID: id, Root: root, RunDir: runDir,
+		SupervisorPID: 0, PGID: 0, SID: 0, Phase: "allocated",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	res, err := svc.Recover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Marked != 0 || len(res.Entries) != 1 {
+		t.Fatalf("recover: %+v", res)
+	}
+	if d := res.Entries[0].Disposition; d != "unresolved-establishment" {
+		t.Fatalf("allocated slot disposition = %q, want unresolved-establishment", d)
+	}
+	if rec, _ := readAbandoned(runDir); rec != nil {
+		t.Fatal("abandoned.json written for an establishment that never completed")
 	}
 }
 

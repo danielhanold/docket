@@ -11,12 +11,24 @@ import (
 // runIDPattern is the run-ID shape: 32 lowercase hex characters (128 bits).
 var runIDPattern = regexp.MustCompile("^[0-9a-f]{32}$")
 
+// reservationTokenPattern is the caller reservation-token shape: 1..128
+// lowercase hex characters. It bounds LaunchRequest.ReservationToken and the
+// token Service.ResolveReservation resolves against — never empty, never a
+// spelling that could smuggle non-hex bytes toward a durable record.
+var reservationTokenPattern = regexp.MustCompile("^[0-9a-f]{1,128}$")
+
 // LaunchRequest is the validated input to a gate launch. It moves here so the
 // launch state machine (Task 6) and the validators share one definition.
 type LaunchRequest struct {
 	Root string
 	Cwd  string
 	Argv []string
+	// ReservationToken, when non-empty, is the caller's admission reservation
+	// token: Launch writes it into the pre-spawn manifest so a lost launch
+	// response is resolvable to its exact run via Service.ResolveReservation.
+	// Empty means the caller reserved nothing; Launch then mints the fallback
+	// token. Validated as optional lowercase hex up to 128 characters.
+	ReservationToken string
 }
 
 // validateLaunchRequest refuses a request with FailInvalidInput unless the
@@ -35,6 +47,9 @@ func validateLaunchRequest(req LaunchRequest) error {
 	}
 	if len(req.Argv) < 1 || req.Argv[0] == "" {
 		return failf(FailInvalidInput, "validate-launch", "argv must include a non-empty program")
+	}
+	if req.ReservationToken != "" && !reservationTokenPattern.MatchString(req.ReservationToken) {
+		return failf(FailInvalidInput, "validate-launch", "reservation token must be lowercase hex up to 128 characters")
 	}
 	return nil
 }
