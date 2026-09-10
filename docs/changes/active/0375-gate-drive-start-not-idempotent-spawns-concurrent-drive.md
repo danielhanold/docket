@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/gate-drive-start-not-idempotent-spawns-concurrent-drive'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-10T16:28:31Z'
+reconciled: true
+claimed_at: '2026-09-10T16:31:10Z'
 ---
 
 ## Artifacts
@@ -54,3 +54,7 @@ The underlying test-load flake; changing suite budgets or retry limits; redesign
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-09-10
+
+2026-09-10 — Reconciled against main at 0f84b9e3 (current integration HEAD), which is exactly the revision the spec records as its design baseline. Verified dependency 405 is merged/done, and related build-loop changes 359, 376, 420, 421 are all done: 405 scope reservation/acknowledgement model and 376 JSON-capture credential boundary are present in main and this change builds on them. Related 412 (forked-agent foreground/yield) and 422 (outer retry epoch accounting) remain proposed and are explicitly out of scope. Cited ADRs 0087/0095/0107/0111/0115/0116/0117 all present. No scope, relation, or spec adjustments required; design remains valid as written.
