@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/make-build-and-outer-run-gate-attempt-limits-configurable'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-10T01:15:38Z'
+reconciled: true
+claimed_at: '2026-09-10T01:22:15Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,19 @@ The build gate's fixed repair bound can stop useful work before multiple test fa
 ## Out of scope
 
 Progress-detection heuristics, unlimited retries, changing finalize repair or resolver limits (tracked separately in change 0419), altering review-fix-loop limits, resetting budgets on continuation, weakening tests, and changing attribution, permission, or human-halt rules.
+
+## Reconcile log
+
+### 2026-09-10
+
+Reconciled against current main. Spec remains accurate and in scope; no obsolescence or fundamental invalidation.
+
+Confirmed against current code:
+
+- The canonical positive-integer attempt-setting precedent to mirror is `finalize.resolver_max_attempts` (default 3, min 1), which landed under change 0349 in `internal/config/schema.go` (`intLeaf(1)` row), `defaults.go`, `resolve.go`, the `PrepareFinalize` typed-context field, and the `effectiveLines` diagnostics surface. `build.max_attempts` (default 4) and `run.max_attempts` (default 2) follow that same enumerate-each-leaf discipline. `build.max_attempts` also propagates through `PrepareBuild` typed context; the outer gate resolves `run.max_attempts` through authoritative config at the facade rather than through typed context.
+
+- The outer run-gate single retry is today a binary `retry-consumed` O_CREATE|O_EXCL CAS marker in `internal/app/rungate_store.go` (`ConsumeGateRetry`), surfaced as the `gate-retry-once` decision in `rungate_verdict.go`. Generalizing it to a counted N-1 budget requires adding attempt/limit fields to `GateRecord` and bumping the durable `gateSchemaVersion` (currently 3) with explicit legacy-record handling per the spec's version-state requirement.
+
+- The build full-suite repair bound is currently PROSE-only in `skills/docket-build/SKILL.md` (single premium->max repair path, then halt); there is no durable build full-suite attempt budget in Go today. `internal/gatedrive` `Attempt` is a one-relaunch recovery counter, not a repair budget. The scope-owned durable attempt reservation the spec requires is net-new machinery.
+
+- Related change 0419 (finalize repair attempts configurable) groomed trivial / docs-only with no code landed and does not touch the same Go files; no dependency is needed. Related changes 349/359/407 and cited ADRs 19/74/102/107/111 remain relevant. Relations left unchanged.
