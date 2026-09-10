@@ -22,7 +22,7 @@ branch: 'fix/prevent-build-workers-from-assigning-zsh-s-read-only-status'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T01:18:24Z'
+claimed_at: '2026-09-10T01:26:03Z'
 ---
 
 ## Artifacts
