@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0420 — Prevent build workers from assigning zsh's read-only status parameter](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md)**
+> ↩ **[Change 0420 — Prevent build workers from assigning zsh's read-only status parameter](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-10-0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md)**
 <!-- docket:backlink:end -->
 # Prevent Build Workers From Assigning zsh's Read-Only `status` Parameter — Implementation Plan
 
