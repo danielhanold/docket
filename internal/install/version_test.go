@@ -1,11 +1,14 @@
 package install
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -131,6 +134,21 @@ func TestEnsureVersionTreeExtractsAndVerifies(t *testing.T) {
 	if want := roots.VersionDir(m.AssetSetID); dir != want {
 		t.Fatalf("extracted to %s, want %s", dir, want)
 	}
+	canonical, err := assets.EncodeCanonical(m)
+	if err != nil {
+		t.Fatalf("EncodeCanonical: %v", err)
+	}
+	manifestPath := filepath.Join(filepath.Dir(dir), "manifest.json")
+	if got, err := os.ReadFile(manifestPath); err != nil {
+		t.Fatalf("ReadFile(%s): %v", manifestPath, err)
+	} else if !bytes.Equal(got, canonical) {
+		t.Errorf("published manifest bytes differ from canonical encoding\ngot:  %q\nwant: %q", got, canonical)
+	}
+	if info, err := os.Lstat(manifestPath); err != nil {
+		t.Fatalf("Lstat(%s): %v", manifestPath, err)
+	} else if perm := info.Mode().Perm(); perm != 0o444 {
+		t.Errorf("manifest has mode %o, want 444", perm)
+	}
 
 	for p, want := range payload {
 		full := filepath.Join(dir, filepath.FromSlash(p))
@@ -176,6 +194,122 @@ func TestEnsureVersionTreeExtractsAndVerifies(t *testing.T) {
 	if reusedDir != dir {
 		t.Errorf("reuse returned %s, want %s", reusedDir, dir)
 	}
+}
+
+func TestProveVersionTree(t *testing.T) {
+	roots := versionRoots(t)
+	payload := samplePayload()
+	m := sampleManifest(t, payload)
+	dir, _, err := EnsureVersionTree(roots, m, openFrom(payload))
+	if err != nil {
+		t.Fatalf("EnsureVersionTree: %v", err)
+	}
+	root := filepath.Dir(dir)
+
+	assertInvalid := func(t *testing.T, candidate string) {
+		t.Helper()
+		if _, err := ProveVersionTree(candidate); !errors.Is(err, ErrVersionTreeInvalid) {
+			t.Fatalf("ProveVersionTree(%s) = %v, want ErrVersionTreeInvalid", candidate, err)
+		}
+	}
+	if got, err := ProveVersionTree(root); err != nil {
+		t.Fatalf("ProveVersionTree(current) = %v", err)
+	} else if got.Root != root || got.AssetsDir != dir || got.Legacy || got.Manifest.AssetSetID != m.AssetSetID {
+		t.Errorf("current proof = %#v, want root %q, assets %q, current manifest", got, root, dir)
+	}
+
+	cases := []struct {
+		name   string
+		mutate func(t *testing.T, root, assetsDir string)
+	}{
+		{"corrupt manifest", func(t *testing.T, root, _ string) { writeIntoTree(t, root, "manifest.json", "{") }},
+		{"unknown manifest field", func(t *testing.T, root, _ string) { writeIntoTree(t, root, "manifest.json", `{ "unknown": true }`) }},
+		{"manifest identity differs from directory", func(t *testing.T, root, _ string) {
+			writeIntoTree(t, root, "manifest.json", `{"format_version":1,"asset_protocol":1,"asset_set_id":"sha256:wrong","entries":[]}`)
+		}},
+		{"missing payload", func(t *testing.T, _, assetsDir string) { removeFromTree(t, assetsDir, "skills/docket-build/SKILL.md") }},
+		{"changed payload", func(t *testing.T, _, assetsDir string) {
+			writeIntoTree(t, assetsDir, "skills/docket-build/SKILL.md", "changed\n")
+		}},
+		{"extra payload", func(t *testing.T, _, assetsDir string) {
+			writeIntoTree(t, assetsDir, "skills/docket-build/EXTRA.md", "extra\n")
+		}},
+		{"extra root file", func(t *testing.T, root, _ string) { writeIntoTree(t, root, "other", "extra\n") }},
+		{"unexpected directory", func(t *testing.T, _, assetsDir string) {
+			if err := os.Mkdir(filepath.Join(assetsDir, "unknown"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"empty directory", func(t *testing.T, _, assetsDir string) {
+			if err := os.Mkdir(filepath.Join(assetsDir, "skills", "docket-build", "empty"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"symlink file", func(t *testing.T, _, assetsDir string) {
+			full := filepath.Join(assetsDir, "skills", "docket-build", "SKILL.md")
+			if err := os.Remove(full); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink("refs/notes.md", full); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"symlink directory", func(t *testing.T, _, assetsDir string) {
+			full := filepath.Join(assetsDir, "skills")
+			if err := os.RemoveAll(full); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink("agents", full); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	}
+	if runtime.GOOS != "windows" {
+		cases = append(cases, struct {
+			name   string
+			mutate func(t *testing.T, root, assetsDir string)
+		}{"special file", func(t *testing.T, _, assetsDir string) {
+			if _, err := exec.LookPath("mkfifo"); err != nil {
+				t.Skip("mkfifo is unavailable on this platform")
+			}
+			if err := exec.Command("mkfifo", "-m", "644", filepath.Join(assetsDir, "fifo")).Run(); err != nil {
+				t.Fatal(err)
+			}
+		}})
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			caseRoots := versionRoots(t)
+			caseDir, _, err := EnsureVersionTree(caseRoots, m, openFrom(payload))
+			if err != nil {
+				t.Fatal(err)
+			}
+			caseRoot := filepath.Dir(caseDir)
+			tc.mutate(t, caseRoot, caseDir)
+			assertInvalid(t, caseRoot)
+		})
+	}
+
+	t.Run("symlink root", func(t *testing.T) {
+		linked := filepath.Join(roots.VersionsDir(), "linked")
+		if err := os.Symlink(root, linked); err != nil {
+			t.Fatal(err)
+		}
+		assertInvalid(t, linked)
+	})
+	t.Run("immediate candidate resembles asset identity", func(t *testing.T) {
+		candidate := root + "-copy"
+		if err := os.MkdirAll(candidate, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(candidate, "manifest.json"), []byte("{}"), 0o444); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(filepath.Join(candidate, "assets"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		assertInvalid(t, candidate)
+	})
 }
 
 // A published tree is immutable in its *bytes*, not in its existence: the user
@@ -306,6 +440,9 @@ func TestEnsureVersionTreeRejectsInvalidManifest(t *testing.T) {
 func writeIntoTree(t *testing.T, dir, rel, content string) {
 	t.Helper()
 	full := filepath.Join(dir, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(full), versionDirMode); err != nil {
+		t.Fatalf("MkdirAll(%s): %v", filepath.Dir(full), err)
+	}
 	_ = os.Remove(full)
 	if err := os.WriteFile(full, []byte(content), 0o444); err != nil {
 		t.Fatalf("WriteFile(%s): %v", full, err)
