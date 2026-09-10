@@ -901,6 +901,170 @@ func TestFreshDriverResumesFromDisk(t *testing.T) {
 	}
 }
 
+// TestRelaunchCrashBetweenReserveAndLaunchRecovers proves that the durable
+// relaunch reservation survives a process restart. A clean census permits the
+// one reserved replacement to launch, an identified replacement is attached
+// without another launch, and every uncertain census halts the drive closed.
+func TestRelaunchCrashBetweenReserveAndLaunchRecovers(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		resolution    *process.ReservationResolution
+		wantOutcome   Outcome
+		wantCause     string
+		wantLaunches  int
+		wantRelaunch  int
+		wantAttempt   int
+		wantReserved  bool
+		identifiedRun string
+	}{
+		{
+			name:         "never launched starts the reserved replacement",
+			resolution:   &process.ReservationResolution{Disposition: "never-launched"},
+			wantOutcome:  WAITING,
+			wantLaunches: 1,
+			wantRelaunch: 1,
+			wantAttempt:  2,
+		},
+		{
+			name: "identified replacement attaches without another launch",
+			resolution: &process.ReservationResolution{
+				Disposition: "identified", RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning,
+			},
+			wantOutcome:   WAITING,
+			wantLaunches:  0,
+			wantRelaunch:  1,
+			wantAttempt:   2,
+			identifiedRun: "/runs/run2",
+		},
+		{
+			name:         "unresolved replacement halts closed",
+			resolution:   &process.ReservationResolution{Disposition: "unresolved"},
+			wantOutcome:  HALTED,
+			wantCause:    "unresolved-execution",
+			wantLaunches: 0,
+			wantRelaunch: 0,
+			wantAttempt:  1,
+			wantReserved: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := OpenStore(testsupport.TempDir(t))
+			rec := seedRecord(t)
+			rec.AdmissionToken = "reservation-token"
+			rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
+			id, ownerGen := seedDrive(t, store, rec)
+			if err := store.ownerCAS(id, func(r *driveRecord) error {
+				r.RelaunchReserved = true
+				return nil
+			}); err != nil {
+				t.Fatalf("reserve relaunch: %v", err)
+			}
+
+			proc := &fakeProc{
+				launch: func(req process.LaunchRequest) (*process.LaunchOutcome, error) {
+					if req.ReservationToken != rec.RelaunchToken || req.ReservationToken == rec.AdmissionToken {
+						t.Fatalf("replacement token = %q, want unique relaunch token %q", req.ReservationToken, rec.RelaunchToken)
+					}
+					return &process.LaunchOutcome{RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
+				},
+				resolve: func(root, token string) (*process.ReservationResolution, error) {
+					if root != rec.RunRoot || token != rec.RelaunchToken {
+						t.Fatalf("ResolveReservation(%q, %q), want (%q, %q)", root, token, rec.RunRoot, rec.RelaunchToken)
+					}
+					return tc.resolution, nil
+				},
+				observe: func(runDir string) (*process.Observation, error) {
+					if runDir == "/runs/run1" {
+						return obs(process.StateVanished, runDir), nil
+					}
+					return obs(process.StateRunning, runDir), nil
+				},
+			}
+			clk := &fakeClock{now: startEpoch().Add(time.Second)}
+			d := NewDriver(reopenStore(store), clk, proc, stableGit())
+			d.slice = pollTick
+			d.pollInterval = pollTick
+			d.sleep = func(d time.Duration) { clk.advance(d) }
+
+			doc, err := d.Advance(id, ownerGen)
+			if err != nil {
+				t.Fatalf("Advance after restart: %v", err)
+			}
+			if doc.Outcome != tc.wantOutcome || doc.Cause != tc.wantCause {
+				t.Fatalf("outcome = %s/%q, want %s/%q", doc.Outcome, doc.Cause, tc.wantOutcome, tc.wantCause)
+			}
+			if proc.launchN != tc.wantLaunches {
+				t.Fatalf("launches = %d, want %d", proc.launchN, tc.wantLaunches)
+			}
+			got, err := store.Load(id)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if got.RelaunchCount != tc.wantRelaunch || got.Attempt != tc.wantAttempt || got.RelaunchReserved != tc.wantReserved {
+				t.Fatalf("record = relaunch=%d attempt=%d reserved=%v, want %d/%d/%v", got.RelaunchCount, got.Attempt, got.RelaunchReserved, tc.wantRelaunch, tc.wantAttempt, tc.wantReserved)
+			}
+			if tc.identifiedRun != "" && got.RawRunDir != tc.identifiedRun {
+				t.Fatalf("identified replacement was not attached: RawRunDir=%q want %q", got.RawRunDir, tc.identifiedRun)
+			}
+		})
+	}
+}
+
+// TestRelaunchReservationNotRefundedOnUncertainty proves an uncertain reserved
+// replacement permanently consumes the drive's sole relaunch. Even if a later
+// probe would report clean absence, the terminal unresolved-execution outcome
+// remains authoritative and no new backend launch is permitted.
+func TestRelaunchReservationNotRefundedOnUncertainty(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	rec := seedRecord(t)
+	rec.AdmissionToken = "reservation-token"
+	rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
+	id, ownerGen := seedDrive(t, store, rec)
+	if err := store.ownerCAS(id, func(r *driveRecord) error {
+		r.RelaunchReserved = true
+		return nil
+	}); err != nil {
+		t.Fatalf("reserve relaunch: %v", err)
+	}
+
+	resolution := "unresolved"
+	proc := &fakeProc{
+		resolve: func(root, token string) (*process.ReservationResolution, error) {
+			return &process.ReservationResolution{Disposition: resolution}, nil
+		},
+		observe: func(runDir string) (*process.Observation, error) {
+			return obs(process.StateVanished, runDir), nil
+		},
+	}
+	d := NewDriver(reopenStore(store), &fakeClock{now: startEpoch().Add(time.Second)}, proc, stableGit())
+
+	first, err := d.Advance(id, ownerGen)
+	if err != nil {
+		t.Fatalf("first Advance: %v", err)
+	}
+	if first.Outcome != HALTED || first.Cause != "unresolved-execution" {
+		t.Fatalf("uncertain replacement must halt unresolved, got %s/%q", first.Outcome, first.Cause)
+	}
+	resolution = "never-launched"
+	second, err := d.Advance(id, ownerGen)
+	if err != nil {
+		t.Fatalf("second Advance: %v", err)
+	}
+	if second.Outcome != HALTED || second.Cause != "unresolved-execution" {
+		t.Fatalf("reservation must not be refunded after uncertainty, got %s/%q", second.Outcome, second.Cause)
+	}
+	if proc.launchN != 0 || proc.resolveN != 1 {
+		t.Fatalf("a consumed uncertain reservation must not launch or re-resolve, launches=%d resolves=%d", proc.launchN, proc.resolveN)
+	}
+	got, err := store.Load(id)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !got.RelaunchReserved || got.RelaunchCount != 0 {
+		t.Fatalf("uncertainty must retain the consumed reservation, got reserved=%v relaunch=%d", got.RelaunchReserved, got.RelaunchCount)
+	}
+}
+
 // TestProcessSeamSatisfiedByRealService proves the real process.Service is a
 // drop-in ProcessSeam, so Task 7 can wire it directly.
 func TestProcessSeamSatisfiedByRealService(t *testing.T) {

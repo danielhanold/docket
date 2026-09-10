@@ -25,18 +25,20 @@ const ProtocolVersion = 1
 // change 0359, which adds ScopeID + GateContextHash; a v1 record read by a v2
 // store fails closed as ErrUnknownSchema (never migrated). Bumped to 3 by change
 // 0375, which adds AdmissionToken (the worktree execution slot's reservation
-// token threaded into the raw launch): a v2 record still LOADS (its missing
-// AdmissionToken reads as empty — see driveSchemaVersionLegacy in readStored) and
-// the next write stamps it forward to v3; a v1 record still fails closed.
-const driveSchemaVersion = 3
+// token threaded into the raw launch). Bumped to 4 by change 0375 Task 5, which
+// adds the journaled RelaunchReserved state and its unique RelaunchToken. They
+// reserve the one automatic replacement before its irreversible launch and
+// make that replacement independently resolvable. A v3 record still LOADS (the
+// missing fields read false/empty — see driveSchemaVersionLegacy in readStored)
+// and the next write stamps it forward to v4; older records still fail closed.
+const driveSchemaVersion = 4
 
-// driveSchemaVersionLegacy is the immediately-prior schema generation a v3 store
-// still reads (never writes). A v2 record carries every field a v3 reader needs
-// except AdmissionToken, which defaults to empty — an in-flight v2 drive from the
-// pre-0375 binary loads and is upgraded to v3 on its next write, so a schema bump
-// never bricks a live drive. Only the immediately-prior generation is tolerated;
-// v1 and any other version still fail closed as ErrUnknownSchema.
-const driveSchemaVersionLegacy = 2
+// driveSchemaVersionLegacy is the immediately-prior schema generation a v4 store
+// still reads (never writes). A v3 record carries every field a v4 reader needs
+// except RelaunchReserved, which defaults false. Only the immediately-prior
+// generation is tolerated; v2 and any other version still fail closed as
+// ErrUnknownSchema.
+const driveSchemaVersionLegacy = 3
 
 // Outcome is the four-way typed result of a single slice-bounded driver call.
 // It is the sole vocabulary a workflow caller keys on; the raw process state is
@@ -188,11 +190,18 @@ type driveRecord struct {
 
 	// Current raw run dir + raw ownership identity + attempt + relaunch count +
 	// terminal receipt. At most one owned raw tree is live per drive.
-	RawRunDir       string `json:"raw_run_dir"`
-	RawOwnership    string `json:"raw_ownership"`
-	Attempt         int    `json:"attempt"`
-	RelaunchCount   int    `json:"relaunch_count"`
-	TerminalReceipt string `json:"terminal_receipt"`
+	RawRunDir     string `json:"raw_run_dir"`
+	RawOwnership  string `json:"raw_ownership"`
+	Attempt       int    `json:"attempt"`
+	RelaunchCount int    `json:"relaunch_count"`
+	// RelaunchReserved journals the sole automatic replacement before Launch.
+	// RelaunchToken uniquely identifies that replacement in the process registry;
+	// it must not reuse AdmissionToken, which identifies the original launch.
+	// The state remains across a crash or uncertain launch, while relaunch.lock
+	// proves whether the reserving caller is still in the launch/attach window.
+	RelaunchReserved bool   `json:"relaunch_reserved"`
+	RelaunchToken    string `json:"relaunch_token,omitempty"`
+	TerminalReceipt  string `json:"terminal_receipt"`
 
 	// PriorRawRunDir links the dead first attempt after the one admitted
 	// relaunch, so both attempts' diagnostics are preserved (spec: "A relaunch
