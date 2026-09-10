@@ -316,8 +316,21 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 			name: "two candidate drives for one outer scope",
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
 				grant := prepareOuterScope(t, store)
-				startNested(t, d, grant.ChildCapability)
-				startNested(t, d, grant.ChildCapability)
+				first := startNested(t, d, grant.ChildCapability)
+				// The worktree admission slot deliberately forbids constructing this
+				// historical ambiguity through a second live launch. Seed the second
+				// durable recovery candidate directly so Takeover still proves that an
+				// outer scope fails closed when its candidate scan is ambiguous.
+				rec, err := store.Load(first.DriveID)
+				if err != nil {
+					t.Fatalf("Load first nested drive: %v", err)
+				}
+				rec.RawRunDir = "/runs/ambiguous-second"
+				rec.RawOwnership = "ambiguous-second"
+				rec.OwnerGeneration = "ambiguous-second-owner"
+				if _, _, err := store.NewDrive(rec); err != nil {
+					t.Fatalf("seed second nested recovery candidate: %v", err)
+				}
 				return grant.ScopeID, grant.ParentCapability, "" // resolve via gate context
 			},
 			want: CauseTakeoverAmbiguous,

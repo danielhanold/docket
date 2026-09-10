@@ -341,24 +341,71 @@ func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 	return true
 }
 
-// startScopeless launches the raw run, persists the drive record carrying its
-// launch handle, and drives the first slice. It is the pre-0359 path a scopeless
-// drive (e.g. finalize's local gate) uses unchanged: the launch precedes the
-// record, so a persist failure orphans the freshly launched run and stops it
-// best-effort — the drive never existed.
+// startScopeless runs the admission-first start order for a gate without a
+// recovery scope (for example, finalize's local gate):
+//
+//	ReserveWorktreeExecution -> NewReservedDrive -> Launch -> attachLaunch ->
+//	ConfirmWorktreeExecution -> driveAndPersist.
+//
+// RunRoot only scopes process-supervisor allocation. Worktree admission still
+// keys on WorktreePath, so independent scopeless callers cannot use distinct
+// private run roots to launch concurrently against one worktree. Every
+// post-launch failure either proves the fresh process stopped before releasing
+// the slot, or marks the slot unresolved and fails future admission closed.
 func (d *Driver) startScopeless(rec driveRecord, ownerGen string) (DriveDoc, error) {
-	out, err := d.proc.Launch(rec.launchRequest())
+	token, err := d.store.ReserveWorktreeExecution(admissionRecord{
+		RepoIdentity: rec.RepoIdentity,
+		WorktreeRoot: rec.WorktreePath,
+		Kind:         "scopeless",
+	})
 	if err != nil {
-		return DriveDoc{}, fmt.Errorf("gatedrive: start launch: %w", err)
-	}
-	rec.RawRunDir = out.RunDir
-	rec.RawOwnership = out.RunID
-
-	id, _, err := d.store.NewDrive(rec)
-	if err != nil {
-		d.stopIfOwned(out.RunDir)
 		return DriveDoc{}, err
 	}
+	rec.AdmissionToken = token
+
+	// Persist a drive with no run handle before Launch. This makes a post-launch
+	// persist error recoverable and ensures the admission reservation is never
+	// detached from the drive that carries its token.
+	id, _, err := d.store.NewReservedDrive(rec)
+	if err != nil {
+		_ = d.store.ReleaseWorktreeExecution(rec.WorktreePath, token)
+		return DriveDoc{}, err
+	}
+
+	out, lerr := d.proc.Launch(rec.launchRequest())
+	if lerr != nil {
+		// Keep the attempted drive as durable recovery evidence, mirroring the
+		// scoped launch-failure leg. ResolveReservation is the only proof that
+		// an error response means no process was launched; every other outcome
+		// leaves the worktree slot unresolved.
+		_ = d.store.ownerCAS(id, func(r *driveRecord) error {
+			if err := verifyOwner(r, ownerGen); err != nil {
+				return err
+			}
+			if isTerminalOutcome(r.LastOutcome) {
+				return errAlreadyTerminal
+			}
+			r.LastOutcome = HALTED
+			r.LastCause = "launch-failed"
+			return nil
+		})
+		d.resolveWorktreeAfterLaunchFailure(rec.WorktreePath, rec.RunRoot, token)
+		return DriveDoc{}, fmt.Errorf("gatedrive: start launch: %w", lerr)
+	}
+
+	if err := d.store.attachLaunch(id, ownerGen, out.RunDir, out.RunID); err != nil {
+		stopped := d.stopIfOwned(out.RunDir)
+		d.releaseOrUnresolveWorktree(rec.WorktreePath, token, stopped)
+		return DriveDoc{}, err
+	}
+	if err := d.store.ConfirmWorktreeExecution(rec.WorktreePath, token, out.RunID, out.RunDir); err != nil {
+		stopped := d.stopIfOwned(out.RunDir)
+		d.releaseOrUnresolveWorktree(rec.WorktreePath, token, stopped)
+		return DriveDoc{}, err
+	}
+
+	rec.RawRunDir = out.RunDir
+	rec.RawOwnership = out.RunID
 	return d.driveAndPersist(id, ownerGen, rec)
 }
 
