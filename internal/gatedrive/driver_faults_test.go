@@ -67,6 +67,92 @@ func successorReq(base StartRequest, pred DriveDoc) StartRequest {
 	return r
 }
 
+// TestFaultAdmissionThenScopeReservationLostReleasesSlot (change 0375 Task 3): a
+// first start freshly reserves the worktree execution slot, then reserveScopeDrive's
+// write fails GENUINELY (the scope directory is read-only) — no same-scope peer
+// adopted the reservation. The fresh worktree slot must be RELEASED rather than
+// leaked, so the worktree is free for a later execution; nothing launches.
+func TestFaultAdmissionThenScopeReservationLostReleasesSlot(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := passObserveProc()
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	grant, req := prepareScopedStart(t, store)
+
+	// Make the scope dir read-only so reserveScopeDrive's slot write fails AFTER the
+	// worktree slot is freshly reserved (the admission root stays writable).
+	scopeDir := filepath.Join(store.scopeRoot, grant.ScopeID)
+	if err := os.Chmod(scopeDir, 0o500); err != nil {
+		t.Fatalf("chmod scope dir read-only: %v", err)
+	}
+	_, serr := d.Start(req)
+	if cerr := os.Chmod(scopeDir, 0o700); cerr != nil {
+		t.Fatalf("restore scope dir perms: %v", cerr)
+	}
+	if serr == nil {
+		t.Fatalf("a genuine scope-reservation write failure must fail the start")
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("a reservation failure must never launch, got %d", proc.launchN)
+	}
+
+	// The fresh worktree slot is released — a genuine loss with no adopter never leaks it.
+	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if slot.State != admissionReleased {
+		t.Fatalf("a genuine scope-reservation loss must release the fresh worktree slot, got %q", slot.State)
+	}
+	// The released slot genuinely re-admits a new execution.
+	if _, rerr := store.ReserveWorktreeExecution(admissionRecord{
+		RepoIdentity: req.RepoDir, WorktreeRoot: req.Worktree, ScopeID: "other-scope", Kind: "scoped",
+	}); rerr != nil {
+		t.Fatalf("a released slot must re-admit a new execution, got %v", rerr)
+	}
+}
+
+// TestFaultLaunchLostResponseLeavesUnresolved (change 0375 Task 3): a scoped start's
+// launch returns an error and ResolveReservation cannot prove the run never started
+// (a lost launch response). The worktree slot must fail CLOSED to unresolved — a
+// possibly-live process never frees the worktree — so a later start on that worktree
+// is refused ErrUnresolvedExecution until recovery resolves it.
+func TestFaultLaunchLostResponseLeavesUnresolved(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{
+		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+			return nil, fmt.Errorf("gatedrive-test: launch response lost")
+		},
+		resolve: func(root, token string) (*process.ReservationResolution, error) {
+			return &process.ReservationResolution{Disposition: "unresolved"}, nil
+		},
+	}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	_, req := prepareScopedStart(t, store)
+
+	if _, err := d.Start(req); err == nil {
+		t.Fatalf("a lost launch response must be a command failure (error)")
+	}
+	if proc.resolveN == 0 {
+		t.Fatalf("the launch-failure leg must consult ResolveReservation")
+	}
+	// The worktree slot fails closed to unresolved.
+	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if slot.State != admissionUnresolved {
+		t.Fatalf("a lost launch response must mark the worktree slot unresolved, got %q", slot.State)
+	}
+	// A follow-up start from a DIFFERENT scope on the same worktree is refused
+	// ErrUnresolvedExecution — the ambiguous slot blocks admission until recovery.
+	_, req2 := prepareScopedStartAt(t, store, req.Worktree, "0343")
+	if _, err := d.Start(req2); !isOwnershipKind(err, ErrUnresolvedExecution) {
+		t.Fatalf("a start over an unresolved worktree slot must fail ErrUnresolvedExecution, got %v", err)
+	}
+}
+
 // TestFaultSuccessorReservationWriteFailsThenRestart (case a): a successor's
 // reservation write fails (the scope directory is read-only around
 // reserveScopeDrive). A pre-reservation failure must leave the scope AND the

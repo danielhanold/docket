@@ -43,6 +43,12 @@ type ProcessSeam interface {
 	// Stop performs an ownership-proven bounded termination, or reports the
 	// already-terminal no-op that preserves the child's own verdict.
 	Stop(runDir, reason string) (*process.StopOutcome, error)
+	// ResolveReservation answers what became of a launch handed the caller
+	// reservation token but whose response was lost — never-launched, identified,
+	// or unresolved (Task 2). The scoped-start launch-failure leg consults it to
+	// decide whether to release the worktree execution slot (a proven
+	// never-launched) or fail it closed to unresolved.
+	ResolveReservation(root, token string) (*process.ReservationResolution, error)
 }
 
 // productionSlice is the slice target: the maximum a single synchronous driver
@@ -356,21 +362,45 @@ func (d *Driver) startScopeless(rec driveRecord, ownerGen string) (DriveDoc, err
 	return d.driveAndPersist(id, ownerGen, rec)
 }
 
-// startScoped runs the pinned scoped-start order (change 0405 Tasks 3–4):
-// NewReservedDrive → reserveScopeDrive → (successor: retirePredecessor →
-// clearPendingAck) → Launch → attachLaunch → confirmScopeLaunch → driveAndPersist.
-// The durable reservation precedes the process, so a crash or failure between
-// reservation and launch leaves a recoverable slot rather than a silently
-// double-launched one, and every ambiguous launch/persist failure fails closed with
-// NO automatic second launch. A first start passes an empty receipt; a successor
-// passes the predecessor receipt so reserveScopeDrive advances the slot and the
-// journaled retire/clear pair retires the predecessor as one logical transition.
+// startScoped runs the pinned scoped-start order (change 0405 Tasks 3–4 plus
+// change 0375 worktree admission):
+//
+//	ReserveWorktreeExecution → NewReservedDrive → reserveScopeDrive →
+//	(successor: retirePredecessor → clearPendingAck) → Launch → attachLaunch →
+//	confirmScopeLaunch → ConfirmWorktreeExecution → driveAndPersist.
+//
+// The worktree execution slot (admission.go) is the OUTERMOST admission authority:
+// one canonical worktree carries at most one reserved-or-running top-level gate
+// execution across DIFFERENT scopes, scopeless starts, and raw launches. A start
+// belonging to the SAME scope as the incumbent slot — a concurrent first-start peer,
+// or a successor continuing this scope's sequence — REUSES the slot the scope
+// already holds rather than reserving a second one, so same-scope arbitration stays
+// at the scope slot (reserveScopeDrive) and only a genuine cross-scope/scopeless/raw
+// overlap is refused ErrWorktreeBusy (admitScopedWorktree). The durable reservation
+// precedes the process, so a crash or failure between reservation and launch leaves a
+// recoverable slot rather than a silently double-launched one, and every ambiguous
+// launch/persist failure fails closed with NO automatic second launch. A first start
+// passes an empty receipt; a successor passes the predecessor receipt so
+// reserveScopeDrive advances the slot and the journaled retire/clear pair retires the
+// predecessor as one logical transition.
 func (d *Driver) startScoped(req StartRequest, rec driveRecord, ownerGen string) (DriveDoc, error) {
 	receipt := predecessorReceipt{DriveID: req.PredecessorDriveID, OwnerGen: req.PredecessorOwnerGen}
 
+	// WORKTREE ADMISSION. reservedFresh marks whether THIS start minted the
+	// reservation (so a genuine pre-launch failure with no adopter releases it, while
+	// a same-scope race loss leaves the slot to the peer that adopted it). ownsSlot
+	// marks whether the slot is still RESERVED and this start must confirm it to
+	// executing and owns its post-launch failure legs; a successor reusing an
+	// already-executing slot must not re-confirm or disturb it.
+	token, reservedFresh, ownsSlot, aerr := d.admitScopedWorktree(req)
+	if aerr != nil {
+		return DriveDoc{}, aerr
+	}
+	rec.AdmissionToken = token
+
 	// Persist a RESERVED drive record (no launch handle), then durably reserve the
 	// scope's single slot. reserveScopeDrive under the scope lock is the authority
-	// that arbitrates the slot: for a first start it fills an empty slot, for a
+	// that arbitrates the SCOPE slot: for a first start it fills an empty slot, for a
 	// successor it advances the slot only when the receipt names the current launched
 	// drive (and journals the pending ack). A reserve failure (a concurrent start won
 	// the slot, a stale receipt, the scope closed, an unresolved transition, or a
@@ -378,6 +408,9 @@ func (d *Driver) startScoped(req StartRequest, rec driveRecord, ownerGen string)
 	// the typed rejection.
 	id, _, err := d.store.NewReservedDrive(rec)
 	if err != nil {
+		if reservedFresh {
+			_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
+		}
 		return DriveDoc{}, err
 	}
 	if rerr := d.store.reserveScopeDrive(req.ScopeID, req.ChildCapability, id, receipt); rerr != nil {
@@ -386,6 +419,15 @@ func (d *Driver) startScoped(req StartRequest, rec driveRecord, ownerGen string)
 		// nonterminal outcome never lingers as a spurious FindScopeDriveIDs recovery
 		// candidate that would fail an outer takeover closed on ambiguity (removeReservedDrive).
 		_ = d.store.removeReservedDrive(id)
+		// Release the worktree slot ONLY when THIS start freshly reserved it AND the
+		// loss is not a same-scope race: a same-scope peer that beat us to the scope slot
+		// has adopted our reservation (there is at most one fresh reservation per worktree
+		// at a time), so releasing it would free a slot the winner is using. A genuine
+		// failure (scope closed, an IO fault, an identity mismatch) has no adopter, so the
+		// fresh reservation must be released rather than leaked.
+		if reservedFresh && !isSameScopeRaceLoss(rerr) {
+			_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
+		}
 		return DriveDoc{}, rerr
 	}
 
@@ -404,18 +446,26 @@ func (d *Driver) startScoped(req StartRequest, rec driveRecord, ownerGen string)
 			// reserved record. So removing that never-launched record severs no live
 			// recovery; it only spares outer enumeration a spurious candidate (removeReservedDrive).
 			_ = d.store.removeReservedDrive(id)
+			if reservedFresh {
+				_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
+			}
 			return DriveDoc{}, ownershipErr(ErrUnresolvedLaunchTransition, "start")
 		}
 		if cerr := d.store.clearPendingAck(req.ScopeID, receipt.DriveID); cerr != nil {
 			_ = d.store.removeReservedDrive(id)
+			if reservedFresh {
+				_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
+			}
 			return DriveDoc{}, ownershipErr(ErrUnresolvedLaunchTransition, "start")
 		}
 	}
 
-	// Launch the raw run. A launch failure is a command failure that leaves the slot
-	// durably reserved (no automatic second launch): persist the drive HALTED so
-	// outer recovery can see a terminal-unconsumed record, then surface the command
-	// error. No fabricated verdict document flows.
+	// Launch the raw run. A launch failure is a command failure that leaves the scope
+	// slot durably reserved (no automatic second launch): persist the drive HALTED so
+	// outer recovery can see a terminal-unconsumed record. For the worktree slot this
+	// start owns, ResolveReservation decides: a proven never-launched releases it (the
+	// worktree is genuinely free), any other verdict fails it closed to unresolved so
+	// admission blocks until recovery. No fabricated verdict document flows.
 	out, lerr := d.proc.Launch(rec.launchRequest())
 	if lerr != nil {
 		_ = d.store.ownerCAS(id, func(r *driveRecord) error {
@@ -429,25 +479,136 @@ func (d *Driver) startScoped(req StartRequest, rec driveRecord, ownerGen string)
 			r.LastCause = "launch-failed"
 			return nil
 		})
+		if ownsSlot {
+			d.resolveWorktreeAfterLaunchFailure(req.Worktree, rec.RunRoot, token)
+		}
 		return DriveDoc{}, fmt.Errorf("gatedrive: start launch: %w", lerr)
 	}
 
-	// Persist the launch handle onto the reserved record, then confirm the slot's
+	// Persist the launch handle onto the reserved record, then confirm the scope slot's
 	// launch. On a persist failure the freshly launched run is orphaned: stop it
 	// best-effort. The scope slot stays reserved (never treated as empty), so a
-	// subsequent start is refused rather than launching a duplicate.
+	// subsequent start is refused rather than launching a duplicate. For the worktree
+	// slot this start owns, a proven stop releases it; an unproven stop fails it closed
+	// to unresolved (a possibly-live process never frees the slot).
 	if aerr := d.store.attachLaunch(id, ownerGen, out.RunDir, out.RunID); aerr != nil {
-		d.stopIfOwned(out.RunDir)
+		stopped := d.stopIfOwned(out.RunDir)
+		if ownsSlot {
+			d.releaseOrUnresolveWorktree(req.Worktree, token, stopped)
+		}
 		return DriveDoc{}, aerr
 	}
 	if cerr := d.store.confirmScopeLaunch(req.ScopeID, id); cerr != nil {
-		d.stopIfOwned(out.RunDir)
+		stopped := d.stopIfOwned(out.RunDir)
+		if ownsSlot {
+			d.releaseOrUnresolveWorktree(req.Worktree, token, stopped)
+		}
 		return DriveDoc{}, cerr
+	}
+
+	// Confirm the worktree slot to executing, attaching the raw run identity — but ONLY
+	// for the start that owns the reserved slot. A successor reusing an already-executing
+	// slot leaves it untouched (its stored run identity is the current sequence's, and a
+	// re-confirm with a new run id would be a fail-closed unresolved transition). A confirm
+	// failure cannot prove the run torn down, so it stops-if-owned and fails the slot
+	// closed the same way a persist failure does.
+	if ownsSlot {
+		if cerr := d.store.ConfirmWorktreeExecution(req.Worktree, token, out.RunID, out.RunDir); cerr != nil {
+			stopped := d.stopIfOwned(out.RunDir)
+			d.releaseOrUnresolveWorktree(req.Worktree, token, stopped)
+			return DriveDoc{}, cerr
+		}
 	}
 
 	rec.RawRunDir = out.RunDir
 	rec.RawOwnership = out.RunID
 	return d.driveAndPersist(id, ownerGen, rec)
+}
+
+// admitScopedWorktree reserves (or reuses) the worktree execution slot for a scoped
+// start and reports how the start relates to it. It returns the reservation token to
+// thread into the launch, whether THIS start freshly reserved the slot (reservedFresh)
+// and whether the slot is still RESERVED and this start must drive it to executing
+// (ownsSlot).
+//
+// A fresh reservation is the common first-start path: the slot was absent or released.
+// When the reserve is refused ErrWorktreeBusy, the slot may already be held by THIS
+// scope — a concurrent same-scope first-start peer that won the reservation, or the
+// predecessor whose executing slot this scope's successor continues under. Such a start
+// REUSES the incumbent token so the scope slot (not the worktree slot) arbitrates
+// same-scope races; a slot held by a DIFFERENT scope, or in a stopping/unresolved
+// state, is a genuine cross-scope refusal returned verbatim. ErrUnresolvedExecution and
+// every other error (an unresolvable worktree, an IO fault) fail closed unchanged.
+func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFresh, ownsSlot bool, err error) {
+	rec := admissionRecord{
+		RepoIdentity: req.RepoDir,
+		WorktreeRoot: req.Worktree,
+		ScopeID:      req.ScopeID,
+		Kind:         "scoped",
+	}
+	token, rerr := d.store.ReserveWorktreeExecution(rec)
+	if rerr == nil {
+		return token, true, true, nil // freshly reserved: this start confirms it
+	}
+	if oe, ok := AsOwnershipError(rerr); !ok || oe.Kind != ErrWorktreeBusy {
+		return "", false, false, rerr // unresolved / invalid / IO: fail closed
+	}
+	// Busy: reuse only when the incumbent slot belongs to THIS scope.
+	slot, _, lerr := d.store.LoadWorktreeExecution(req.Worktree)
+	if lerr != nil {
+		return "", false, false, rerr // fail closed on the original busy error
+	}
+	if slot.ScopeID != "" && slot.ScopeID == req.ScopeID {
+		switch slot.State {
+		case admissionReserved:
+			return slot.ReservationToken, false, true, nil // reuse; still confirm it
+		case admissionExecuting:
+			return slot.ReservationToken, false, false, nil // reuse; already executing
+		}
+	}
+	return "", false, false, rerr // cross-scope or non-reusable state: ErrWorktreeBusy
+}
+
+// resolveWorktreeAfterLaunchFailure consults the process backend for the fate of a
+// launch that returned an error, then releases or fails the worktree slot closed. A
+// PROVEN never-launched (a clean census carried no matching run) frees the slot — the
+// worktree is genuinely idle. Every other verdict (unresolved, an identified run from a
+// lost response, or a resolve error) fails the slot closed to unresolved, so a possibly
+// live process never frees the worktree (change 0375, fail-closed everywhere).
+func (d *Driver) resolveWorktreeAfterLaunchFailure(worktree, runRoot, token string) {
+	res, rerr := d.proc.ResolveReservation(runRoot, token)
+	if rerr == nil && res != nil && res.Disposition == "never-launched" {
+		_ = d.store.ReleaseWorktreeExecution(worktree, token)
+		return
+	}
+	_ = d.store.MarkWorktreeExecutionUnresolved(worktree, token)
+}
+
+// releaseOrUnresolveWorktree frees the worktree slot when a teardown was PROVEN and
+// fails it closed to unresolved otherwise. A post-launch persist/confirm failure orphans
+// a freshly launched run; only a stop this drive proved it owned lets the slot be
+// released, else the run might still be live and the slot must block admission until
+// recovery (change 0375).
+func (d *Driver) releaseOrUnresolveWorktree(worktree, token string, stopProven bool) {
+	if stopProven {
+		_ = d.store.ReleaseWorktreeExecution(worktree, token)
+		return
+	}
+	_ = d.store.MarkWorktreeExecutionUnresolved(worktree, token)
+}
+
+// isSameScopeRaceLoss reports whether a reserveScopeDrive rejection means a same-scope
+// peer won the scope slot (ErrScopeBusy) or a receipt-less start raced an already-launched
+// same-scope drive (ErrScopeSecondDrive) — the losses under which a same-scope peer has
+// ADOPTED this start's fresh worktree reservation, so it must not be released. Every other
+// rejection (a closed scope, an identity mismatch, an IO fault) has no adopter and its
+// fresh reservation is released rather than leaked.
+func isSameScopeRaceLoss(err error) bool {
+	oe, ok := AsOwnershipError(err)
+	if !ok {
+		return false
+	}
+	return oe.Kind == ErrScopeBusy || oe.Kind == ErrScopeSecondDrive
 }
 
 // Advance resumes a drive through at most one slice. It loads the durable record
@@ -649,6 +810,7 @@ func (d *Driver) driveAndPersist(id, ownerGen string, rec driveRecord) (DriveDoc
 			if lerr != nil {
 				return DriveDoc{}, lerr
 			}
+			d.releaseAdmissionOnTerminal(cur)
 			return d.recordedDoc(id, ownerGen, cur), nil
 		}
 		return DriveDoc{}, err
@@ -658,7 +820,31 @@ func (d *Driver) driveAndPersist(id, ownerGen string, rec driveRecord) (DriveDoc
 	if err != nil {
 		return DriveDoc{}, err
 	}
+	d.releaseAdmissionOnTerminal(cur)
 	return d.recordedDoc(id, ownerGen, cur), nil
+}
+
+// releaseAdmissionOnTerminal frees the drive's worktree execution slot once the
+// drive has committed a PASSED or FAILED verdict, so the next top-level execution —
+// a different scope, a scopeless start, or this scope's next sequential drive — can
+// admit onto the same worktree. The supervisor reports PASSED/FAILED only after it
+// has written its terminal record, so the child group has ended and the worktree is
+// genuinely idle; the release is thus proven by the same observation that produced
+// the verdict. It is deliberately narrow for change 0375 Task 3: a scopeless drive
+// (no admission token) and a HALTED verdict — whose process may still be live, so
+// teardown is not proven by the document alone — are left untouched, and Task 6 adds
+// the explicit Observe/Stop teardown proof, the HALTED stopping/unresolved handling,
+// and the legacy inventory. The release verifies the slot's reservation token and is
+// idempotent under it, so a stale drive cannot free a successor's slot and a
+// concurrent-writer race that both observe the terminal never double-frees.
+func (d *Driver) releaseAdmissionOnTerminal(rec driveRecord) {
+	if rec.AdmissionToken == "" {
+		return
+	}
+	if rec.LastOutcome != PASSED && rec.LastOutcome != FAILED {
+		return
+	}
+	_ = d.store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken)
 }
 
 // errAlreadyTerminal is a sentinel used inside the persist CAS to abort a write
@@ -916,10 +1102,15 @@ func isTerminalOutcome(o Outcome) bool {
 
 // launchRequest builds the deterministic raw launch input the drive replays on
 // the single relaunch: the same allocation root, working directory, and argv.
+// ReservationToken carries the drive's worktree admission token so a lost launch
+// response is resolvable to this exact run (ResolveReservation, change 0375); it
+// is empty for a drive that admitted through no slot (a scopeless drive in this
+// generation), which the process backend accepts as an unset optional token.
 func (rec *driveRecord) launchRequest() process.LaunchRequest {
 	return process.LaunchRequest{
-		Root: rec.RunRoot,
-		Cwd:  rec.Cwd,
-		Argv: rec.Command,
+		Root:             rec.RunRoot,
+		Cwd:              rec.Cwd,
+		Argv:             rec.Command,
+		ReservationToken: rec.AdmissionToken,
 	}
 }

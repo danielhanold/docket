@@ -23,8 +23,20 @@ const ProtocolVersion = 1
 // refuses an unknown schema version with a typed error rather than best-effort
 // migrating it, so this is bumped only on a real schema change. Bumped to 2 by
 // change 0359, which adds ScopeID + GateContextHash; a v1 record read by a v2
-// store fails closed as ErrUnknownSchema (never migrated).
-const driveSchemaVersion = 2
+// store fails closed as ErrUnknownSchema (never migrated). Bumped to 3 by change
+// 0375, which adds AdmissionToken (the worktree execution slot's reservation
+// token threaded into the raw launch): a v2 record still LOADS (its missing
+// AdmissionToken reads as empty — see driveSchemaVersionLegacy in readStored) and
+// the next write stamps it forward to v3; a v1 record still fails closed.
+const driveSchemaVersion = 3
+
+// driveSchemaVersionLegacy is the immediately-prior schema generation a v3 store
+// still reads (never writes). A v2 record carries every field a v3 reader needs
+// except AdmissionToken, which defaults to empty — an in-flight v2 drive from the
+// pre-0375 binary loads and is upgraded to v3 on its next write, so a schema bump
+// never bricks a live drive. Only the immediately-prior generation is tolerated;
+// v1 and any other version still fail closed as ErrUnknownSchema.
+const driveSchemaVersionLegacy = 2
 
 // Outcome is the four-way typed result of a single slice-bounded driver call.
 // It is the sole vocabulary a workflow caller keys on; the raw process state is
@@ -206,4 +218,14 @@ type driveRecord struct {
 	// drives (e.g. finalize's local gate). (schema v2, change 0359)
 	ScopeID         string `json:"scope_id,omitempty"`
 	GateContextHash string `json:"gate_context_hash,omitempty"`
+
+	// AdmissionToken is the worktree execution slot's reservation token this
+	// drive launched under (admission.go). It is threaded into the raw launch as
+	// LaunchRequest.ReservationToken so a lost launch response is resolvable to
+	// this exact run (ResolveReservation, Task 2), and it lets restart recovery
+	// (Task 5) resolve or release the slot the drive holds. It is the slot's own
+	// authority, never a child capability. Empty for a scopeless drive that does
+	// not admit through the slot in this generation (Task 4 wires scopeless
+	// admission). (schema v3, change 0375)
+	AdmissionToken string `json:"admission_token,omitempty"`
 }
