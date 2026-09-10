@@ -21,7 +21,7 @@ branch: 'fix/gate-drive-start-not-idempotent-spawns-concurrent-drive'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T19:53:14Z'
+claimed_at: '2026-09-10T21:14:16Z'
 ---
 
 ## Artifacts
@@ -60,8 +60,3 @@ The underlying test-load flake; changing suite budgets or retry limits; redesign
 
 2026-09-10 — Reconciled against main at 0f84b9e3 (current integration HEAD), which is exactly the revision the spec records as its design baseline. Verified dependency 405 is merged/done, and related build-loop changes 359, 376, 420, 421 are all done: 405 scope reservation/acknowledgement model and 376 JSON-capture credential boundary are present in main and this change builds on them. Related 412 (forked-agent foreground/yield) and 422 (outer retry epoch accounting) remain proposed and are explicitly out of scope. Cited ADRs 0087/0095/0107/0111/0115/0116/0117 all present. No scope, relation, or spec adjustments required; design remains valid as written.
 
-## Run halted
-
-### 2026-09-10
-
-The build role stopped before Task 7 implementation because its live focused-gate drive could not be handed off safely: the native gate-drive handoff response omitted the required single-use handoff token and exposed only an owner-generation value. Automation did not infer credentials, rerun the gate, or adopt the live drive. The feature worktree is preserved for human inspection and explicit recovery.

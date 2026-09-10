@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `critical` | `fix` | [spec](../superpowers/specs/2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive-design.md) | `fix/gate-drive-start-not-idempotent-spawns-concurrent-drive` |  |
+| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `critical` | `fix` | [spec](../superpowers/specs/2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive-design.md) | `fix/gate-drive-start-not-idempotent-spawns-concurrent-drive` | run halted — needs you |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` |  |
 
 ## 🟣 Groomed (4)
