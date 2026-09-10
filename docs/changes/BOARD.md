@@ -1,18 +1,12 @@
 # Backlog
 
-**422 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 272 done · 🗑️ 113 killed
+**422 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 273 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0405](active/0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | `medium` | `fix` | [#298](https://github.com/danielhanold/docket/pull/298) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
@@ -93,7 +87,6 @@ graph TD
   0382
   0387
   0398
-  0416 --> 0405
   0409
   0411
   0412
@@ -109,17 +102,17 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
-  0416:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (385)</summary>
+<details><summary>✅🗑️ Archive — done + killed (386)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0421](archive/2026-09-10-0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | 2026-09-10 |
 | [0420](archive/2026-09-10-0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | 2026-09-10 |
 | [0416](archive/2026-09-10-0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | 2026-09-10 |
+| [0405](archive/2026-09-10-0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | 2026-09-10 |
 | [0393](archive/2026-09-09-0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | 2026-09-09 |
 | [0349](archive/2026-09-09-0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | 2026-09-09 |
 | [0154](archive/2026-09-09-0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Remove stale Bash instructions and duplicated runtime contracts from Docket skills | 2026-09-09 |
@@ -131,7 +124,6 @@ graph TD
 | [0283](archive/2026-09-08-0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | 2026-09-08 |
 | [0407](archive/2026-09-07-0407-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md) | Keyed gate-verdict misattributes its verdict to a concurrent loop's change id under parallel implement-next runs | 2026-09-07 |
 | [0406](archive/2026-09-07-0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) | Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite | 2026-09-07 |
-| [0388](archive/2026-09-07-0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | 2026-09-07 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -250,7 +242,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 21 done |
+| [2026-09](archive/) | 22 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
