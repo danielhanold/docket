@@ -193,6 +193,18 @@ func TestEveryRequestAndResultStructIsBound(t *testing.T) {
 	}
 }
 
+func TestInstallCollectionOperationBindings(t *testing.T) {
+	found := map[string]bool{}
+	for _, binding := range OperationBindings() {
+		if binding.ID == "uninstall" || binding.ID == "install.collect" {
+			found[binding.ID] = true
+		}
+	}
+	if !found["uninstall"] || !found["install.collect"] {
+		t.Fatalf("install maintenance bindings = %v", found)
+	}
+}
+
 // embedsEnvelope reports whether t has Envelope as an anonymous (embedded) field.
 func embedsEnvelope(t reflect.Type) bool {
 	if t.Kind() != reflect.Struct {
