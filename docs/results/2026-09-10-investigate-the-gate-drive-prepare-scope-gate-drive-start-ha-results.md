@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0405 — Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md)**
+> ↩ **[Change 0405 — Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-10-0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md)**
 <!-- docket:backlink:end -->
 # Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate — Results
 
