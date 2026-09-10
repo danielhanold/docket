@@ -28,9 +28,14 @@
 // RETRY CAS: ConsumeGateRetry's exclusivity rests on os.OpenFile with
 // O_CREATE|O_EXCL: the filesystem exclusive-create is the compare-and-swap, so of
 // any number of concurrent callers exactly one creates the marker and returns
-// true. The marker file is authority; the record's Retry field is a readable
-// mirror flipped afterward, and LoadGateRecord reports consumed when EITHER says
-// so, so a crash between the two writes stays safe.
+// true. Since change 0421 the permit is per-attempt: the marker for attempt n is
+// retry-consumed-<n> (gateRetryMarkerFor), and the counted budget grants at most
+// AttemptLimit-1 markers over a record's life. The bare legacy retry-consumed name
+// (schema v3's single permit) is read as the attempt-1 marker so an already-spent
+// legacy permit can never be re-granted. Marker files remain the authority; the
+// record's Retry field is a readable mirror flipped afterward, and LoadGateRecord
+// reports consumed when ANY marker exists, so a crash between the two writes stays
+// safe.
 package app
 
 import (
@@ -54,12 +59,16 @@ import (
 // recovery-scope binding (ScopeID/ParentCap/ChildContextHash) and the
 // continuation triple. Bumped to 3 for change 0407: the record grows the
 // claim-binding proof MIRROR fields (BoundRequestID/BoundRevision) and the store
-// grows a per-key claim-binding file. A v2 record — whose AttributedID may be a
-// snapshot-inferred guess, the exact defect of change 0407 — therefore fails
-// closed here with the schema-mismatch diagnostic; the supported recovery is a
-// newly armed `gate-before --resume` for a still-valid in-progress change, never a
-// silent migration that blesses an old guessed id.
-const gateSchemaVersion = 3
+// grows a per-key claim-binding file. Bumped to 4 for change 0421: the record
+// grows the AttemptLimit snapshot (the run.max_attempts value captured at mint),
+// and the single retry permit generalizes to a counted per-attempt marker budget
+// (retry-consumed-<n>). A v3 (or older) record fails CLOSED here with the
+// schema-mismatch diagnostic — a silent v3->v4 migration is deliberately rejected
+// because an older run's consumed retry marker must NEVER be reinterpreted as
+// unused configurable budget (a re-grant of an already-spent retry). The supported
+// recovery is a newly armed `gate-before --resume` for a still-valid in-progress
+// change, exactly the 0407 precedent, never a migration that blesses old state.
+const gateSchemaVersion = 4
 
 // Retry permit states recorded in a GateRecord. The one-retry permit is unused
 // until ConsumeGateRetry spends it; the marker file, not this field, is the
@@ -69,8 +78,10 @@ const (
 	RetryConsumed = "consumed"
 )
 
-// recordFileName is the atomic record within a key directory; retryMarkerName is
-// the O_EXCL compare-and-swap marker whose creation grants the single retry;
+// recordFileName is the atomic record within a key directory; gateRetryMarkerName
+// is the bare legacy (schema v3) single-permit marker name — since change 0421 the
+// per-attempt marker is gateRetryMarkerFor(n) == "retry-consumed-<n>", and the
+// bare name is read as the attempt-1 marker for legacy compatibility;
 // gateClaimBindingName is the bind-once claim-binding file whose os.Link
 // hard-link create is the compare-and-swap serializing competing claim bindings
 // (change 0407).
@@ -79,6 +90,20 @@ const (
 	gateRetryMarkerName  = "retry-consumed"
 	gateClaimBindingName = "claim-binding.json"
 )
+
+// gateRetryMarkerPattern matches the retry-marker file shape GateRetryUsage counts:
+// the bare legacy name and the per-attempt "retry-consumed-<n>" form (change 0421).
+// It is anchored so no record.json / claim-binding.json / temp file can match.
+var gateRetryMarkerPattern = regexp.MustCompile(`^retry-consumed(-[0-9]+)?$`)
+
+// gateRetryMarkerFor names the per-attempt CAS marker: creating retry-consumed-<n>
+// with O_CREATE|O_EXCL grants the single retry that moves attempt n to n+1. The
+// bare legacy name (gateRetryMarkerName, schema v3's single permit) is read as the
+// attempt-1 marker so an already-consumed legacy permit can never be re-granted
+// (change 0421).
+func gateRetryMarkerFor(attempt int) string {
+	return fmt.Sprintf("%s-%d", gateRetryMarkerName, attempt)
+}
 
 // bindingSchemaVersion is the on-disk schema of a GateClaimBinding. A binding
 // carrying any other value fails closed as a corrupt record on load — never a
@@ -114,6 +139,15 @@ type GateRecord struct {
 	Retry         string `json:"retry"`          // RetryUnused | RetryConsumed
 	Disposition   string `json:"disposition"`    // latest gate-* report line
 	Terminal      bool   `json:"terminal"`
+
+	// AttemptLimit is the snapshotted run.max_attempts value (change 0421, schema
+	// v4): the total number of attributed implementation attempts this gate arming
+	// permits, counting the original dispatch. It is stamped at mint and is
+	// IMMUTABLE thereafter — a config edit after mint never rewrites an already-owned
+	// budget (the snapshot rule). The counted retry budget grants at most
+	// AttemptLimit-1 retries. SaveGateRecord refuses to persist a v4 record whose
+	// AttemptLimit is below the floor, so a corrupt/unstamped budget fails closed.
+	AttemptLimit int `json:"attempt_limit"`
 
 	// Outer recovery-scope binding (change 0359, schema v2). ScopeID names the
 	// recovery scope gate-before prepared for this dispatch boundary; ParentCap is
@@ -404,12 +438,39 @@ func LoadGateRecord(repoDir, key string) (GateRecord, error) {
 		return GateRecord{}, gateErr(ErrGateCorruptRecord, "load",
 			errors.New("partial claim-binding mirror pair"))
 	}
-	// The marker is authority; reflect it into the readable mirror on read so a
-	// crash between the O_EXCL create and the JSON flip still reads as consumed.
-	if _, serr := os.Stat(filepath.Join(dir, gateRetryMarkerName)); serr == nil {
+	// The markers are authority; reflect them into the readable mirror on read so a
+	// crash between an O_EXCL create and the JSON flip still reads as consumed.
+	// Consumed == at least one retry marker exists (bare legacy name or any
+	// per-attempt retry-consumed-<n>), so no JSON consumer of Retry breaks (0421).
+	if n, cerr := countGateRetryMarkers(dir); cerr == nil && n > 0 {
 		rec.Retry = RetryConsumed
 	}
 	return rec, nil
+}
+
+// countGateRetryMarkers counts the retry-marker files in a key directory: the bare
+// legacy name plus every per-attempt retry-consumed-<n> (gateRetryMarkerPattern).
+// It is the shared counter behind GateRetryUsage (the diagnostics surface) and
+// LoadGateRecord's readable-mirror reflection (change 0421). A missing directory
+// counts as zero.
+func countGateRetryMarkers(dir string) (int, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	n := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if gateRetryMarkerPattern.MatchString(e.Name()) {
+			n++
+		}
+	}
+	return n, nil
 }
 
 // SaveGateRecord persists rec for key via a same-directory temp file and an
@@ -447,6 +508,14 @@ func writeGateRecordAtomic(dir string, rec GateRecord) error {
 	if !gateBoundPairOK(rec) {
 		return gateErr(ErrGateCorruptRecord, "write", errors.New("partial claim-binding mirror pair"))
 	}
+	// A v4 record whose AttemptLimit is below the floor is corrupt/unstamped: refuse
+	// to persist it so an unstamped budget can never be loaded and mistaken for a
+	// valid snapshot (change 0421). Schema is re-stamped to gateSchemaVersion by both
+	// MintGateRecord and SaveGateRecord before this write, so this fires on every
+	// current-schema write with an unset or sub-floor limit.
+	if rec.Schema == gateSchemaVersion && rec.AttemptLimit < 1 {
+		return gateErr(ErrGateCorruptRecord, "write", errors.New("attempt_limit below floor"))
+	}
 	buf, err := json.Marshal(rec)
 	if err != nil {
 		return gateErr(ErrGateIO, "write", err)
@@ -470,15 +539,27 @@ func writeGateRecordAtomic(dir string, rec GateRecord) error {
 	return nil
 }
 
-// ConsumeGateRetry grants the single retry permit for key exactly once. The
-// os.OpenFile O_CREATE|O_EXCL create is the compare-and-swap: of any number of
-// concurrent callers exactly one creates the marker and returns true; every other
-// caller observes fs.ErrExist and returns false without granting. After winning,
-// it flips the record's Retry mirror to consumed (best-effort; the marker is
-// authority).
-func ConsumeGateRetry(repoDir, key string) (bool, error) {
+// ConsumeGateRetry grants the per-attempt retry permit that moves attempt to
+// attempt+1, from a counted budget of at most limit-1 retries (change 0421). It
+// refuses (false, nil) BEFORE any filesystem write when attempt >= limit (the
+// budget is spent, or limit 1 disables retries) or attempt < 1 (a nonsensical
+// attempt number). Otherwise the os.OpenFile O_CREATE|O_EXCL create of
+// gateRetryMarkerFor(attempt) is the compare-and-swap: of any number of concurrent
+// callers observing the same attempt transition exactly one creates the marker and
+// returns true; every other observes fs.ErrExist and returns false without
+// granting. For attempt 1 the bare legacy retry-consumed marker (schema v3's single
+// permit) is treated as already-spent so an older consumed permit can never be
+// re-granted. After winning it flips the record's Retry mirror to consumed
+// (best-effort; the marker is authority).
+func ConsumeGateRetry(repoDir, key string, attempt, limit int) (bool, error) {
 	if err := validateGateKey(key); err != nil {
 		return false, err
+	}
+	// Budget refusal happens BEFORE any filesystem write: an attempt at or above the
+	// limit is a spent budget (a lost grant is the safe failure), and a
+	// sub-one attempt number is nonsensical. Neither creates a marker.
+	if attempt >= limit || attempt < 1 {
+		return false, nil
 	}
 	common, err := gateGitCommonDir(repoDir)
 	if err != nil {
@@ -488,11 +569,18 @@ func ConsumeGateRetry(repoDir, key string) (bool, error) {
 	if fi, serr := os.Stat(dir); serr != nil || !fi.IsDir() {
 		return false, gateErr(ErrGateNotFound, "consume", serr)
 	}
-	marker := filepath.Join(dir, gateRetryMarkerName)
+	// Attempt 1 is the transition a legacy bare marker recorded: if it exists, the
+	// attempt-1 retry was already spent under schema v3 and must never be re-granted.
+	if attempt == 1 {
+		if _, serr := os.Stat(filepath.Join(dir, gateRetryMarkerName)); serr == nil {
+			return false, nil
+		}
+	}
+	marker := filepath.Join(dir, gateRetryMarkerFor(attempt))
 	f, err := os.OpenFile(marker, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 	if err != nil {
 		if errors.Is(err, fs.ErrExist) {
-			return false, nil // lost the compare-and-swap; permit already spent
+			return false, nil // lost the compare-and-swap; this attempt's permit already spent
 		}
 		return false, gateErr(ErrGateIO, "consume", err)
 	}
@@ -500,12 +588,33 @@ func ConsumeGateRetry(repoDir, key string) (bool, error) {
 
 	// Flip the readable mirror. The marker already made the grant durable, so a
 	// failure here does not un-grant — LoadGateRecord reports consumed from the
-	// marker regardless.
+	// markers regardless.
 	if rec, lerr := LoadGateRecord(repoDir, key); lerr == nil {
 		rec.Retry = RetryConsumed
 		_ = SaveGateRecord(repoDir, key, rec)
 	}
 	return true, nil
+}
+
+// GateRetryUsage reports how many retry markers key has consumed: the bare legacy
+// marker plus every per-attempt retry-consumed-<n> (change 0421). It is a
+// diagnostics surface, NOT load-bearing for grants — the per-attempt O_CREATE|O_EXCL
+// CAS in ConsumeGateRetry is the sole grant authority. A well-formed key with no
+// record directory yet reports (0, nil).
+func GateRetryUsage(repoDir, key string) (int, error) {
+	if err := validateGateKey(key); err != nil {
+		return 0, err
+	}
+	common, err := gateGitCommonDir(repoDir)
+	if err != nil {
+		return 0, err
+	}
+	dir := filepath.Join(common, "docket", "rungate", key)
+	n, cerr := countGateRetryMarkers(dir)
+	if cerr != nil {
+		return 0, gateErr(ErrGateIO, "retry-usage", cerr)
+	}
+	return n, nil
 }
 
 // gateKeyDir validates key and resolves its record directory under the

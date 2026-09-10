@@ -96,6 +96,7 @@ func gateMintArmed(t *testing.T, repoDir string, beforeIDs []int, dispatchEpoch 
 		ChildContextHash: hash,
 		Retry:            RetryUnused,
 		Disposition:      "gate-armed",
+		AttemptLimit:     2,
 	})
 	if err != nil {
 		t.Fatalf("MintGateRecord: %v", err)

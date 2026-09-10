@@ -10,7 +10,11 @@ import (
 	"testing"
 )
 
-// race shard (change 0333): 16 goroutines contend on the on-disk gate record; -race guards the O_EXCL single-grant CAS in ConsumeGateRetry.
+// race shard (change 0333, generalized for change 0421): 16 goroutines contend on
+// the on-disk gate record, all racing the SAME attempt transition (attempt 1 at
+// limit 2); -race guards the per-attempt O_EXCL single-grant CAS in
+// ConsumeGateRetry — a counted budget must not let concurrency spend several
+// future attempts, so exactly one of the racers grants attempt 1's marker.
 func TestRaceIntegrationAppConcurrencyGateRetryConcurrentExactlyOne(t *testing.T) {
 	repo := newGateRepo(t)
 	key, err := MintGateRecord(repo, sampleGateRecord())
@@ -27,7 +31,7 @@ func TestRaceIntegrationAppConcurrencyGateRetryConcurrentExactlyOne(t *testing.T
 		go func() {
 			defer wg.Done()
 			<-start
-			ok, cerr := ConsumeGateRetry(repo, key)
+			ok, cerr := ConsumeGateRetry(repo, key, 1, 2)
 			if cerr != nil {
 				t.Errorf("ConsumeGateRetry: %v", cerr)
 			}
@@ -46,6 +50,9 @@ func TestRaceIntegrationAppConcurrencyGateRetryConcurrentExactlyOne(t *testing.T
 	}
 	if trues != 1 {
 		t.Fatalf("concurrent ConsumeGateRetry granted %d permits, want exactly 1", trues)
+	}
+	if used, uerr := GateRetryUsage(repo, key); uerr != nil || used != 1 {
+		t.Fatalf("GateRetryUsage after race = %d,%v; want 1,nil", used, uerr)
 	}
 }
 

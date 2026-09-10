@@ -257,6 +257,11 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		ScopeID:          grant.ScopeID,
 		ParentCap:        grant.ParentCapability,
 		ChildContextHash: gateHashToken(grant.ChildCapability),
+		// AttemptLimit snapshots run.max_attempts (change 0421). Stamped to the
+		// historical single-retry default (2) here so the v4 store guard is satisfied
+		// and today's one-retry behavior is preserved; change 0421 Task 4 threads the
+		// resolved run.max_attempts value through this mint.
+		AttemptLimit: 2,
 	})
 	if err != nil {
 		return gateUnarmed(ReasonGateMintFailed)

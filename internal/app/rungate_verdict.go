@@ -255,7 +255,12 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 		// concurrent callers grant at most one retry. [MUTATION: deciding from
 		// rec.Retry and consuming afterward double-grants under concurrency — see
 		// TestRunGateVerdictConcurrentRetryGrantsOnce.]
-		granted, cerr := ConsumeGateRetry(repoDir, key)
+		// Change 0421 changed ConsumeGateRetry to a per-attempt counted CAS. This
+		// caller is minimally adapted to preserve today's single-retry behavior
+		// (attempt 1 against the snapshotted AttemptLimit); change 0421 Task 4 rewires
+		// the verdict to derive the current attempt from the marker authority and
+		// surface used/limit. rec.AttemptLimit is the snapshot (default 2 => one retry).
+		granted, cerr := ConsumeGateRetry(repoDir, key, 1, rec.AttemptLimit)
 		if cerr != nil {
 			reason := gateStoreReason(cerr)
 			return persistGateVerdict(repoDir, key, rec,

@@ -1171,7 +1171,7 @@ func TestIntegrationChangeGateRetryConsumeOnceThenFalse(t *testing.T) {
 		t.Fatalf("MintGateRecord: %v", err)
 	}
 
-	first, err := ConsumeGateRetry(repo, key)
+	first, err := ConsumeGateRetry(repo, key, 1, 2)
 	if err != nil {
 		t.Fatalf("ConsumeGateRetry (first): %v", err)
 	}
@@ -1189,7 +1189,7 @@ func TestIntegrationChangeGateRetryConsumeOnceThenFalse(t *testing.T) {
 		t.Errorf("Retry = %q after consume, want %q", loaded.Retry, RetryConsumed)
 	}
 
-	second, err := ConsumeGateRetry(repo, key)
+	second, err := ConsumeGateRetry(repo, key, 1, 2)
 	if err != nil {
 		t.Fatalf("ConsumeGateRetry (second): %v", err)
 	}
