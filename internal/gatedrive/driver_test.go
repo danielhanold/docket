@@ -1014,6 +1014,68 @@ func TestScopedStartLaunchFailureFailsClosed(t *testing.T) {
 	}
 }
 
+// TestScopedStartReservationFailureCleansOrphanedReservedDrive proves the change
+// 0405 review finding: a scoped start mints a reserved drive record
+// (NewReservedDrive) BEFORE reserveScopeDrive wins the scope slot, so a reservation
+// rejection must not strand that record. Left behind, its nonterminal outcome makes
+// it a spurious FindScopeDriveIDs recovery candidate — and with a sibling result >1
+// match fails the outer takeover closed on ambiguity — degrading the very
+// crash-recovery path scopes exist to provide. Here the reservation write fails (the
+// scope directory is read-only around reserveScopeDrive, after NewReservedDrive has
+// already minted the record) and the start must leave ZERO discoverable drive
+// records, having launched nothing.
+func TestScopedStartReservationFailureCleansOrphanedReservedDrive(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := passObserveProc()
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	grant, req := prepareScopedStart(t, store)
+
+	// Make the scope directory read-only so reserveScopeDrive's slot write fails
+	// AFTER NewReservedDrive has already minted the reserved drive record (the drive
+	// root stays writable). The pre-check's LoadScope still reads under r-x.
+	scopeDir := filepath.Join(store.scopeRoot, grant.ScopeID)
+	if err := os.Chmod(scopeDir, 0o500); err != nil {
+		t.Fatalf("chmod scope dir read-only: %v", err)
+	}
+	_, serr := d.Start(req)
+	// Restore perms before any read so the assertions and cleanup work.
+	if cerr := os.Chmod(scopeDir, 0o700); cerr != nil {
+		t.Fatalf("restore scope dir perms: %v", cerr)
+	}
+	if serr == nil {
+		t.Fatalf("a reservation write failure must fail the start")
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("a reservation failure must never launch, got %d", proc.launchN)
+	}
+
+	// The just-minted reserved record was never launch-confirmed into the slot, so
+	// removing it severs no live recovery — and it must not linger as a spurious
+	// recovery candidate.
+	ids, err := store.FindScopeDriveIDs(req.ChangeID, "")
+	if err != nil {
+		t.Fatalf("FindScopeDriveIDs: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("a failed reservation must leave no orphaned reserved drive candidate, got %v", ids)
+	}
+	// Belt-and-suspenders: the drive root holds no leftover drive directory at all.
+	entries, err := os.ReadDir(store.root)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("ReadDir drive root: %v", err)
+	}
+	var dirs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, e.Name())
+		}
+	}
+	if len(dirs) != 0 {
+		t.Fatalf("a failed reservation must leave no orphaned drive directory, got %v", dirs)
+	}
+}
+
 // TestScopedStartAttachLaunchFailureStopsOrphan proves that when persisting the
 // launch handle (attachLaunch) fails, the freshly launched run is stopped (orphan
 // control) and the scope slot is NOT treated as empty — a subsequent start is

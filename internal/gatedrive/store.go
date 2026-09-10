@@ -194,6 +194,23 @@ func (s *Store) writeNewDrive(rec driveRecord) (id string, gen string, err error
 	return id, gen, nil
 }
 
+// removeReservedDrive best-effort deletes a drive's whole directory. startScoped
+// calls it on the failure legs after NewReservedDrive but before the drive is a
+// scope's launch-confirmed occupant (a lost reservation, or a failed
+// retirePredecessor/clearPendingAck), so the just-minted RESERVED record — which
+// carries no launch handle and no live process — never lingers as a spurious
+// FindScopeDriveIDs recovery candidate that would fail an outer takeover closed on
+// ambiguity. It validates the id and refuses a symlinked directory before removal
+// (driveDir), then removes the directory; the returned error is for the caller to
+// discard, mirroring the best-effort stopIfOwned.
+func (s *Store) removeReservedDrive(id string) error {
+	dir, err := s.driveDir(id)
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(dir)
+}
+
 // attachLaunch persists the raw launch identity onto a reserved drive record under
 // the ownership CAS, completing the durable half of a scoped start once the process
 // exists (change 0405 Task 3). It verifies the presented owner is current and that
