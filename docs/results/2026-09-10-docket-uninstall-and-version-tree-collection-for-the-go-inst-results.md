@@ -5,7 +5,7 @@
 
 ## Outcome
 
-Implementation is paused during Task 7. Tasks 1 through 6 completed and were committed on the feature branch; Task 7 produced no accepted commit because its required final mutation-test gate returned no protocol JSON while the test process remained live. The parent takeover drove the same prepared gate to terminal outcome `FAILED`. The worker's uncommitted Task 7 edits remain preserved in the feature worktree for inspection; no later task was started.
+Implementation is paused during Task 8. Tasks 1 through 7 are committed on the feature branch, with Task 7 committed as `2056ea7c34a4f09eebde78606b9215a19c3de043` and published to its remote. The Task 8 worker confirmed the RED state and added implementation edits, but returned `BLOCKED` while its focused gate drive was waiting without a valid handoff token. Parent takeover of the same drive produced terminal `HALTED` with cause `handoff-outstanding`. No Task 8 commit was created; the worker's uncommitted edits remain preserved in the feature worktree for inspection and a later resume.
 
 ## Verification performed
 
@@ -20,6 +20,8 @@ Implementation is paused during Task 7. Tasks 1 through 6 completed and were com
 - Task 7 left nine tracked files modified and uncommitted; `git diff --check` was clean. The edits include the temporary removal of the `uninstall` capability annotation in `internal/cli/root.go` and are intentionally preserved.
 - Scope takeover returned drive `8c8311c8b894668958aa7c8d301102c0` with terminal `PASSED`; its focused command completed with exit code 0 but matched no tests.
 - No Task 1 files were modified and no Task 1 commit was created.
+- The Task 8 worker's uncommitted changes are limited to `internal/app/install.go`, `internal/install/devmode.go`, `internal/install/service.go`, `internal/install/service_test.go`, and `internal/install/uninstall.go`; they were not adopted or committed by the parent.
+- Task 8 focused gate drive `d8a602fc627bf9a08159251f694d11de` returned `WAITING`; its worker return omitted the required single-use handoff token. Parent takeover of scope `d079e194c2c103481482387451ab0e05` returned `HALTED` with cause `handoff-outstanding`.
 
 ## Findings and limitations
 
@@ -42,3 +44,7 @@ remedy is to run `docket install` and start a fresh session before dispatching t
 ### Resume attempt — Task 7 mutation gate response unavailable
 
 The standard worker completed its Task 7 RED/GREEN work, but the final required mutation-test gate invocation returned no JSON drive identity or owner generation while its test process remained live. The parent takeover of scope `41b036303bbb63d3bba029247ef61b5f` advanced drive `505277339b6d5b203a18447822bbfe1f` to terminal outcome `FAILED`. No Task 7 commit was created, and all nine uncommitted Task 7 files remain available for human inspection. A fresh run needs a valid native gate response before Task 7 can be accepted.
+
+### Resume attempt — Task 8 focused gate handoff unavailable
+
+The premium Task 8 worker confirmed the expected RED tests and added the shared post-commit collection implementation plus tests, but its native focused gate returned `WAITING` and the worker returned without the required single-use handoff token. The parent takeover of the prepared scope returned `HALTED` with cause `handoff-outstanding`. The Task 8 edits remain uncommitted and preserved; no replacement worker or rerun was started.
