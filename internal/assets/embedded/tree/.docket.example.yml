@@ -207,6 +207,27 @@ build:
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   test_command: ""
 
+  # max_attempts — how many full test-suite runs the build phase may spend before it stops and
+  # asks for help: the first run plus a repair-and-rerun for each red result. 4 (the default)
+  # allows three repairs; 1 means a red suite halts immediately with no repair attempt. Must be a
+  # whole number of 1 or more. A change to this value takes effect on the next build phase you
+  # start, never on one already in progress.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  max_attempts: 4
+
+
+# ═══ run — the autonomous implement-next run gate ══════════════════════════════════════════
+
+# The outer run gate that brackets an autonomous docket-implement-next run (change 0421).
+run:
+  # max_attempts — how many end-to-end implementation attempts an autonomous run may make on
+  # one change: the original attempt plus eligible retries after an incomplete run. 2 (the
+  # default) allows a single retry; 1 disables retries. Explicit halts always need a human
+  # regardless of this limit. Must be a whole number of 1 or more. A change to this value takes
+  # effect on the next run you arm, never on one already in progress.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  max_attempts: 2
+
 
 # ═══ review — the docket-owned review role ═════════════════════════════════════════════════
 

@@ -92,6 +92,13 @@ func decodeAcceptanceCases() []decodeCase {
 		{row: "build.test_command", path: "build.test_command",
 			block: "build:\n  test_command: \"go test ./...\"\n",
 			flow:  "build: {test_command: \"go test ./...\"}\n", value: "go test ./..."},
+		{row: "build.max_attempts", path: "build.max_attempts",
+			block: "build:\n  max_attempts: 5\n",
+			flow:  "build: {max_attempts: 5}\n", value: 5},
+
+		{row: "run.max_attempts", path: "run.max_attempts",
+			block: "run:\n  max_attempts: 3\n",
+			flow:  "run: {max_attempts: 3}\n", value: 3},
 
 		{row: "review.min_fix_severity", path: "review.min_fix_severity",
 			block: "review:\n  min_fix_severity: blocker\n",
