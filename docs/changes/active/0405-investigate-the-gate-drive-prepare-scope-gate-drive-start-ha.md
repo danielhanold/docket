@@ -22,7 +22,7 @@ branch: 'fix/investigate-the-gate-drive-prepare-scope-gate-drive-start-ha'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T08:20:29Z'
+claimed_at: '2026-09-10T13:04:36Z'
 ---
 
 ## Artifacts
