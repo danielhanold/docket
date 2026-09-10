@@ -2,7 +2,7 @@
 id: 421
 slug: 'make-build-and-outer-run-gate-attempt-limits-configurable'
 title: 'Make build and outer run gate attempt limits configurable'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-10'
@@ -22,7 +22,7 @@ branch: 'feat/make-build-and-outer-run-gate-attempt-limits-configurable'
 pr: 'https://github.com/danielhanold/docket/pull/297'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-10T03:40:37Z'
+claimed_at:
 ---
 
 ## Artifacts

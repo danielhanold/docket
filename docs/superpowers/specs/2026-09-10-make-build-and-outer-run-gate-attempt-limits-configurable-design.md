@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0421 — Make build and outer run gate attempt limits configurable](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0421-make-build-and-outer-run-gate-attempt-limits-configurable.md)**
+> ↩ **[Change 0421 — Make build and outer run gate attempt limits configurable](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-10-0421-make-build-and-outer-run-gate-attempt-limits-configurable.md)**
 <!-- docket:backlink:end -->
 
 # Configurable build and outer run gate attempt limits
