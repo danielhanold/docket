@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,8 +38,9 @@ type fakeProc struct {
 	launch  func(process.LaunchRequest) (*process.LaunchOutcome, error)
 	observe func(runDir string) (*process.Observation, error)
 	stop    func(runDir, reason string) (*process.StopOutcome, error)
+	resolve func(root, token string) (*process.ReservationResolution, error)
 
-	launchN, observeN, stopN int
+	launchN, observeN, stopN, resolveN int
 }
 
 func (f *fakeProc) Launch(r process.LaunchRequest) (*process.LaunchOutcome, error) {
@@ -64,6 +66,18 @@ func (f *fakeProc) Stop(runDir, reason string) (*process.StopOutcome, error) {
 		return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
 	}
 	return f.stop(runDir, reason)
+}
+
+// ResolveReservation defaults to a proven never-launched verdict — the natural
+// outcome of a launch that returned an error with no run dir, so the worktree
+// slot is released rather than left blocking. Tests that model a lost launch
+// response inject a closure returning "unresolved" or "identified".
+func (f *fakeProc) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
+	f.resolveN++
+	if f.resolve == nil {
+		return &process.ReservationResolution{Disposition: "never-launched"}, nil
+	}
+	return f.resolve(root, token)
 }
 
 // obs builds a running/terminal observation for a run dir.
@@ -108,11 +122,39 @@ func newTestDriver(t *testing.T, clk *fakeClock, proc *fakeProc, git GitSeam) (*
 
 func startEpoch() time.Time { return time.Unix(1_000_000, 0).UTC() }
 
+// sampleWorktreeOnce/sampleWorktreeDir back sampleWorktree: a single real,
+// canonical, existing directory used as the sample scoped-start worktree. Change
+// 0375's worktree admission derives its slot key from filepath.EvalSymlinks of the
+// worktree root, so a scoped Start now needs a resolvable path (the old "/repo"
+// sentinel cannot be symlink-resolved). One shared directory is safe across tests:
+// every test owns a fresh Store (a fresh admission root under testsupport.TempDir),
+// so its admission slot is isolated even though the worktree key is shared. The git
+// seam is faked in these tests, so ComputeFingerprint never touches the directory —
+// only admission's EvalSymlinks does.
+var (
+	sampleWorktreeOnce sync.Once
+	sampleWorktreeDir  string
+)
+
+func sampleWorktree() string {
+	sampleWorktreeOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "gatedrive-sample-worktree-")
+		if err != nil {
+			panic("gatedrive test: mkdir sample worktree: " + err.Error())
+		}
+		if resolved, rerr := filepath.EvalSymlinks(dir); rerr == nil {
+			dir = resolved
+		}
+		sampleWorktreeDir = dir
+	})
+	return sampleWorktreeDir
+}
+
 // sampleStart is a well-formed StartRequest for an idempotent suite gate.
 func sampleStart() StartRequest {
 	return StartRequest{
 		RepoDir:             "/repo",
-		Worktree:            "/repo",
+		Worktree:            sampleWorktree(),
 		ChangeID:            "0342",
 		TaskID:              "task-6",
 		Phase:               "build",
@@ -888,6 +930,24 @@ func prepareScopedStart(t *testing.T, store *Store) (ScopeGrant, StartRequest) {
 	return grant, req
 }
 
+// prepareScopedStartAt prepares a task scope pinned to a specific worktree and change
+// id, returning the grant plus a StartRequest wired to it. It lets a test place two
+// distinct scopes on one worktree (change 0375's cross-scope refusal) or two scopes on
+// distinct worktrees (concurrent progress) without reusing the sample worktree/change.
+func prepareScopedStartAt(t *testing.T, store *Store, worktree, changeID string) (ScopeGrant, StartRequest) {
+	t.Helper()
+	req := sampleStart()
+	req.Worktree = worktree
+	req.ChangeID = changeID
+	grant, err := store.PrepareScope(scopeReqFor(req, ""))
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	req.ScopeID = grant.ScopeID
+	req.ChildCapability = grant.ChildCapability
+	return grant, req
+}
+
 // scopedTestDriver wires a driver with the short test slice over the given store,
 // clock, proc, and git — the newTestDriver body without minting a fresh store, so
 // a scoped-start test can share one store with a scope-inspecting fake seam.
@@ -1144,6 +1204,141 @@ func TestScopedStartAttachLaunchFailureStopsOrphan(t *testing.T) {
 	}
 	if proc.launchN != launchesBefore {
 		t.Fatalf("a refused subsequent start must not launch, launched %d->%d", launchesBefore, proc.launchN)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Worktree execution slot admission (change 0375 Task 3). A scoped start reserves
+// the canonical worktree's single execution slot before launch, so one worktree
+// carries at most one reserved-or-running top-level gate execution across DIFFERENT
+// scopes — while a scope's own sequence reuses the slot it already holds.
+// ---------------------------------------------------------------------------
+
+// TestScopedStartReservesWorktreeSlot proves a scoped start reserves the worktree
+// execution slot and, once its run is launch-confirmed and still live (WAITING), the
+// slot is executing and carries the drive's raw run identity and scope — the durable
+// locator a later cancellation or recovery resolves the worktree by. (A PASSED/FAILED
+// terminal RELEASES the slot; that lifecycle is proven by TestScopedStartReleasesSlotOnTerminal.)
+func TestScopedStartReservesWorktreeSlot(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{} // runs stay live so the drive WAITs and holds the slot
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	_, req := prepareScopedStart(t, store)
+
+	doc, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if doc.Outcome != WAITING {
+		t.Fatalf("scoped start over a live run must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
+	}
+
+	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if slot.State != admissionExecuting {
+		t.Fatalf("while a scoped drive runs the worktree slot must be executing, got %q", slot.State)
+	}
+	rec, err := store.Load(doc.DriveID)
+	if err != nil {
+		t.Fatalf("Load drive: %v", err)
+	}
+	if slot.RawRunID != rec.RawOwnership || slot.RawRunDir != rec.RawRunDir {
+		t.Fatalf("the slot must carry the drive's raw run identity, slot=(%q,%q) drive=(%q,%q)",
+			slot.RawRunID, slot.RawRunDir, rec.RawOwnership, rec.RawRunDir)
+	}
+	if slot.ScopeID != req.ScopeID {
+		t.Fatalf("the slot must record the scope, got %q want %q", slot.ScopeID, req.ScopeID)
+	}
+	if slot.Kind != "scoped" {
+		t.Fatalf("the slot kind must be scoped, got %q", slot.Kind)
+	}
+	// The drive carries the admission token it launched under (threaded into the raw
+	// launch and used by recovery), and it is never a capability.
+	if rec.AdmissionToken == "" {
+		t.Fatalf("a scoped drive must carry its admission token")
+	}
+}
+
+// TestTwoScopesOneWorktreeSecondRefused proves the cross-scope guard: two distinct
+// scopes targeting one worktree cannot both hold it. The first scope launches and
+// WAITs (its slot stays executing); the second scope's start is refused
+// ErrWorktreeBusy, launches nothing, and its refusal leaks neither a capability token
+// nor the incumbent's owner generation.
+func TestTwoScopesOneWorktreeSecondRefused(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{} // runs stay live so the first scope WAITs and holds the slot
+	d := scopedTestDriver(store, clk, proc, stableGit())
+
+	_, reqA := prepareScopedStartAt(t, store, sampleWorktree(), "0342")
+	a, err := d.Start(reqA)
+	if err != nil {
+		t.Fatalf("scope A Start: %v", err)
+	}
+	if a.Outcome != WAITING {
+		t.Fatalf("scope A must WAIT and hold the slot, got %s (%s)", a.Outcome, a.Cause)
+	}
+
+	_, reqB := prepareScopedStartAt(t, store, sampleWorktree(), "0343")
+	launchesBefore := proc.launchN
+	_, berr := d.Start(reqB)
+	if !isOwnershipKind(berr, ErrWorktreeBusy) {
+		t.Fatalf("a second scope on one worktree must be refused ErrWorktreeBusy, got %v", berr)
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("a refused cross-scope start must not launch, launched %d->%d", launchesBefore, proc.launchN)
+	}
+	msg := berr.Error()
+	if strings.Contains(msg, reqA.ChildCapability) {
+		t.Fatalf("the refusal must not leak a capability token: %q", msg)
+	}
+	if a.Generation != "" && strings.Contains(msg, a.Generation) {
+		t.Fatalf("the refusal must not leak the incumbent owner generation: %q", msg)
+	}
+}
+
+// TestScopedStartReleasesSlotOnTerminal proves the per-drive release: a scoped drive
+// that reaches a PASSED terminal frees the worktree execution slot (the supervisor
+// reports PASSED only after tearing the child down), so a LATER, DIFFERENT scope can
+// admit onto the same worktree. Without the release a finished scope would fence the
+// worktree forever — the exact regression that would break sequential real-worktree
+// scopes.
+func TestScopedStartReleasesSlotOnTerminal(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := passObserveProc() // every run PASSES on first observation
+	d := scopedTestDriver(store, clk, proc, stableGit())
+
+	_, reqA := prepareScopedStartAt(t, store, sampleWorktree(), "0342")
+	a, err := d.Start(reqA)
+	if err != nil {
+		t.Fatalf("scope A Start: %v", err)
+	}
+	if a.Outcome != PASSED {
+		t.Fatalf("scope A must PASS, got %s (%s)", a.Outcome, a.Cause)
+	}
+	// The passed drive released the slot: the worktree is idle again.
+	slot, _, err := store.LoadWorktreeExecution(reqA.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if slot.State != admissionReleased {
+		t.Fatalf("a PASSED scoped drive must release the worktree slot, got %q", slot.State)
+	}
+	// A different scope now admits onto the same worktree and PASSES too.
+	_, reqB := prepareScopedStartAt(t, store, sampleWorktree(), "0343")
+	b, err := d.Start(reqB)
+	if err != nil {
+		t.Fatalf("scope B Start over a released worktree slot: %v", err)
+	}
+	if b.Outcome != PASSED {
+		t.Fatalf("scope B must PASS over the reused worktree, got %s (%s)", b.Outcome, b.Cause)
+	}
+	if b.DriveID == a.DriveID {
+		t.Fatalf("the second scope must be a NEW drive, got the first scope's id")
 	}
 }
 

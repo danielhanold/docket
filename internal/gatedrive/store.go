@@ -379,9 +379,14 @@ func (s *Store) readStored(dir string) (storedRecord, error) {
 	if err := json.Unmarshal(buf, &stored); err != nil {
 		return storedRecord{}, storeErr(ErrCorruptRecord, "read", err)
 	}
-	if stored.Record.SchemaVersion != driveSchemaVersion {
+	// The current generation and the immediately-prior one both load; every other
+	// version fails closed. A v2 record from the pre-0375 binary reads with an
+	// empty AdmissionToken and is upgraded to v3 on its next write (CAS re-stamps
+	// SchemaVersion), so a live drive survives the bump. v1 and any unknown version
+	// are refused rather than best-effort migrated (change 0375).
+	if stored.Record.SchemaVersion != driveSchemaVersion && stored.Record.SchemaVersion != driveSchemaVersionLegacy {
 		return storedRecord{}, storeErr(ErrUnknownSchema, "read",
-			fmt.Errorf("schema version %d, want %d", stored.Record.SchemaVersion, driveSchemaVersion))
+			fmt.Errorf("schema version %d, want %d or %d", stored.Record.SchemaVersion, driveSchemaVersion, driveSchemaVersionLegacy))
 	}
 	return stored, nil
 }
