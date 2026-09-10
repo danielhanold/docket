@@ -13,7 +13,7 @@ related: [349, 359, 407, 419]
 discovered_from: []
 adrs: [19, 74, 102, 107, 111]
 spec: 'docs/superpowers/specs/2026-09-10-make-build-and-outer-run-gate-attempt-limits-configurable-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-10-make-build-and-outer-run-gate-attempt-limits-configurable.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-10T01:24:24Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-10-make-build-and-outer-run-gate-attempt-limits-configurable-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-10-make-build-and-outer-run-gate-attempt-limits-configurable-design.md) |
+| Plan | [2026-09-10-make-build-and-outer-run-gate-attempt-limits-configurable.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-10-make-build-and-outer-run-gate-attempt-limits-configurable.md) |
 | ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md), [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) |
 <!-- docket:artifacts:end -->
 
