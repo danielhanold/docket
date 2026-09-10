@@ -97,6 +97,52 @@ func TestInstallLockRefusesRootlessOptions(t *testing.T) {
 	}
 }
 
+func TestReadOnlyInstallLockDoesNotCreateOnFreshMachine(t *testing.T) {
+	roots := lockRoots(t)
+	lk, observed, err := acquireReadOnlyInstallLock(roots)
+	if err != nil {
+		t.Fatalf("acquireReadOnlyInstallLock: %v", err)
+	}
+	if lk != nil || observed {
+		t.Fatalf("fresh probe = (%#v, %t), want no lock and no observation", lk, observed)
+	}
+	if _, err := os.Lstat(roots.DataRoot); !os.IsNotExist(err) {
+		t.Fatalf("read-only lock probe created the data root: %v", err)
+	}
+}
+
+func TestReadOnlyInstallLockObservesExistingLockAndContention(t *testing.T) {
+	roots := lockRoots(t)
+	held, err := acquireInstallLock(roots)
+	if err != nil {
+		t.Fatalf("acquireInstallLock: %v", err)
+	}
+	defer held.release()
+
+	if lk, observed, err := acquireReadOnlyInstallLock(roots); !errors.Is(err, ErrInstallLocked) || lk != nil || !observed {
+		t.Fatalf("contended read-only probe = (%#v, %t, %v), want observed ErrInstallLocked", lk, observed, err)
+	}
+	held.release()
+	lk, observed, err := acquireReadOnlyInstallLock(roots)
+	if err != nil || lk == nil || !observed || !lk.held() {
+		t.Fatalf("existing read-only probe = (%#v, %t, %v), want held observation", lk, observed, err)
+	}
+	lk.release()
+}
+
+func TestReadOnlyInstallLockRefusesMutableRootWithoutLock(t *testing.T) {
+	roots := lockRoots(t)
+	if err := os.MkdirAll(roots.VersionsDir(), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if lk, observed, err := acquireReadOnlyInstallLock(roots); err == nil || lk != nil || observed {
+		t.Fatalf("mutable lockless probe = (%#v, %t, %v), want uncertainty", lk, observed, err)
+	}
+	if _, err := os.Lstat(roots.LockPath()); !os.IsNotExist(err) {
+		t.Fatalf("read-only probe created a lock file: %v", err)
+	}
+}
+
 // Recovery is only safe because it is unreachable without the lock: a journal
 // found while holding the lock cannot belong to a live run. The guard makes
 // that a property of the function rather than of its callers' good manners.

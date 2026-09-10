@@ -110,6 +110,75 @@ func acquireInstallLock(roots UserRoots) (*installLock, error) {
 	return &installLock{path: path, f: f}, nil
 }
 
+// acquireReadOnlyInstallLock observes the installation mutex without creating
+// any of the filesystem state whose consistency it is meant to protect. The
+// boolean distinguishes a cleanly absent lock on an empty/fresh data root from
+// an existing lock that was opened and inspected (including contention).
+func acquireReadOnlyInstallLock(roots UserRoots) (*installLock, bool, error) {
+	if roots.DataRoot == "" || !filepath.IsAbs(roots.DataRoot) {
+		return nil, false, fmt.Errorf("%w: roots carry no absolute data root", ErrInvalidInput)
+	}
+	rootInfo, err := os.Lstat(roots.DataRoot)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return nil, false, nil
+	case err != nil:
+		return nil, false, fmt.Errorf("install: inspecting data root %s: %w", roots.DataRoot, err)
+	case !rootInfo.IsDir() || rootInfo.Mode()&os.ModeSymlink != 0:
+		return nil, false, fmt.Errorf("install: data root %s is not a real directory", roots.DataRoot)
+	}
+
+	path := roots.LockPath()
+	before, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		entries, readErr := os.ReadDir(roots.DataRoot)
+		if readErr != nil {
+			return nil, false, fmt.Errorf("install: reading lockless data root %s: %w", roots.DataRoot, readErr)
+		}
+		if len(entries) == 0 {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("install: cannot consistently inspect mutable data root %s without %s", roots.DataRoot, path)
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("install: inspecting installation lock %s: %w", path, err)
+	}
+	if !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 {
+		return nil, true, fmt.Errorf("install: installation lock %s is not a regular file", path)
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, true, fmt.Errorf("install: opening installation lock %s read-only: %w", path, err)
+	}
+	closeWith := func(err error) (*installLock, bool, error) {
+		_ = f.Close()
+		return nil, true, err
+	}
+	opened, err := f.Stat()
+	if err != nil {
+		return closeWith(fmt.Errorf("install: inspecting opened lock %s: %w", path, err))
+	}
+	if !os.SameFile(before, opened) {
+		return closeWith(fmt.Errorf("install: installation lock %s changed while it was opened", path))
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		if errors.Is(err, syscall.EWOULDBLOCK) {
+			return closeWith(fmt.Errorf("%w: %s is held by another docket process; wait for it to finish, then re-run", ErrInstallLocked, path))
+		}
+		return closeWith(fmt.Errorf("install: locking %s read-only: %w", path, err))
+	}
+	after, err := os.Lstat(path)
+	if err != nil || !os.SameFile(opened, after) {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		if err == nil {
+			err = errors.New("lock file was replaced")
+		}
+		return closeWith(fmt.Errorf("install: installation lock %s changed during consistency probe: %w", path, err))
+	}
+	return &installLock{path: path, f: f}, true, nil
+}
+
 // release drops the lock. Closing the descriptor would be enough — the kernel
 // releases the flock with it — but the explicit unlock states the intent, and
 // the nil-out makes a double release a no-op rather than a close of a
