@@ -60,3 +60,9 @@ Removing development or release CLI binaries; deleting global configuration or s
 ### 2026-09-10
 
 2026-09-10 — Reconciled against origin/main at 2f83683c. Change 0416 is now merged and fixes the scoped task-owned gate-start identity handshake that halted the prior build at Task 1; the existing plan can resume at that task without scope changes. The approved spec remains current, changes 0311, 0317, 0322, and 0351 remain merged, and no dependency, stack base, relation, or adjacent follow-up adjustment is required.
+
+## Run halted
+
+### 2026-09-10
+
+Task 1 could not continue under the native gate contract. The dispatched standard worker completed the focused RED drive, but the focused GREEN `gate.drive.start` request was rejected twice as `invalid-request` before launching the test command. No task commit was created. The worker left only the four assigned Task 1 files modified and unstaged in the owned feature worktree; no gate process remains live. A human must inspect and correct the rejected gate request or driver state before resuming implementation.
