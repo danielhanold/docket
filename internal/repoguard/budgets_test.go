@@ -127,19 +127,21 @@ type skillBudget struct {
 // Authored contract documentation, not slack — the ceilings are pinned at the
 // exact new counts, so the ratchet still reddens on any further regrowth.
 //
-// Change 0420 re-baselined docket-build/SKILL.md (410/4102 -> 411/4123) and
-// docket-build-task/SKILL.md (165/1668 -> 167/1703) upward once to carry the
-// shell-safe gate-capture naming: each build-gate capture site now names the
-// non-reserved `gate_reply`/`gate_rc` variables and forbids assigning a zsh
-// read-only special parameter, so a build worker running under zsh no longer
-// aborts before parsing the drive id and owner generation. Pinned at the exact
-// new counts, so the ratchet still reddens on any further regrowth.
+// Changes 0420 and 0421 re-baselined docket-build/SKILL.md (410/4102 ->
+// 421/4243) upward once. Change 0420 made each build-gate capture site use the
+// non-reserved `gate_reply`/`gate_rc` names, avoiding zsh's read-only special
+// parameters. Change 0421 then made the repair cycle budgeted by
+// `build_max_attempts` (default 4): each red full-suite result admits one repair
+// while budget remains, the post-fix run is the next charged attempt, and
+// exhaustion names `build.max_attempts` and used/limit. The other 0421 prose
+// surfaces remained under their existing ceilings. Pinned at the exact new
+// counts, so the ratchet still reddens on any further regrowth.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
 	{"docket-auto-groom/SKILL.md", 70, 1750},
 	{"docket-brainstorm/SKILL.md", 84, 692},
-	{"docket-build/SKILL.md", 411, 4123}, // 0420: +shell-safe gate-capture naming at the build-gate clause-2 site (see note above)
+	{"docket-build/SKILL.md", 421, 4243}, // 0420: shell-safe gate capture; 0421: budgeted repair-cycle contract prose (see note above)
 	// 0154: docket-build/references/delegation-execution.md removed — it was the
 	// evidence record for the Bash delegation facade that change 0370 deleted; its
 	// budget row is deleted with it.

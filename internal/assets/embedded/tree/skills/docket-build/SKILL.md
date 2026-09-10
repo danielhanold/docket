@@ -216,7 +216,9 @@ disposition.
 - **The observation budget is exhausted with no terminal gate result** — `GATE_OBSERVATION_BUDGET`
   ran out and no durable result artifact reports a terminal state. Fail closed: an unfinished run is
   not a failing suite, so never convert this into a repair task and never infer success.
-- **The suite is still red after the max repair** — there is no second repair round.
+- **The suite-attempt budget is exhausted and the suite is still red** — the last permitted
+  full-suite run failed, or `gate.drive.start` refuses with `suite-attempts-exhausted`; there is no
+  repair round beyond the budget.
 - **Continuation is unsafe** — a worker's `BLOCKED`: contradictory requirements, missing authority,
   or an absent dependency.
 
@@ -226,8 +228,8 @@ Workers run focused tests only. After every plan task has committed, apply this 
 policy. A worker's passed *task* gate does **not** substitute for this final full-suite gate: task
 gates cover only what each worker ran, and this is the one run that certifies the branch. On a final
 `PASSED`, the drive's raw run directory feeds the existing evidence operation. The policy arrives in
-the implementation context as `build_gate` and `build_test_command` — authoritative config the build
-role reads, never a command it invents:
+the implementation context as `build_gate`, `build_test_command`, and `build_max_attempts` —
+authoritative config the build role reads, never a command it invents:
 
 1. **`build_gate: off`** — the repo declares no build test gate. Run **nothing**: mint truthful
    **skipped** evidence via the `evidence.record` operation (no run dir) — `result: skipped` /
@@ -277,12 +279,20 @@ Step 6 validates it and Step 7 writes it into the PR body, then runs the resolve
 role once over the whole branch. Only a green run — or an explicit `build_gate: off` — mints a
 record: a red suite mints no evidence record at all, and enters the repair path below.
 
-**Red** → the build **never invokes review**. Turn the failure into exactly one synthetic
-integration-repair task, run through the same worker contract on the ladder `premium -> max -> halt`.
-The repair worker diagnoses the cross-task failure, adds regression coverage where appropriate, fixes
-it, re-runs the full suite, and commits the repair. That ladder starts one rung above the default
-deliberately: repair is cross-task diagnosis, never routine work. There is no repeated repair/review
-loop; failure after the max repair path halts per *Halting conditions*.
+**Red** → the build **never invokes review**. `build_max_attempts` (from the implementation context,
+default 4) caps the full-suite runs this phase may spend, counting the initial run. While the budget
+admits another attempt, each red full-suite result becomes exactly one synthetic integration-repair
+task, run through the same worker contract on the ladder `premium -> max -> halt`. The repair worker
+diagnoses the cross-task failure, adds regression coverage where appropriate, fixes it, and re-runs
+the full suite; that post-fix re-run **is** the next budgeted attempt — started build-owned through
+the same driver so the facade charges it, no bypass. That ladder starts one rung above the default
+deliberately: repair is cross-task diagnosis, never routine work. **Green at any point ends the phase
+immediately; review is never invoked while red.** A refused start (`suite-attempts-exhausted`) or a
+red final permitted run halts per *Halting conditions* with the exhaustion reason naming
+`build.max_attempts` and used/limit; `build_max_attempts: 1` means a red initial run halts with no
+repair cycle. `build_gate: off` runs no suite and spends no attempt, and an infrastructure,
+result-unavailable, configuration-gap, or observation-budget halt is unchanged and is **not** a red
+result to repair.
 
 ### Gate execution posture
 
