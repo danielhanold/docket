@@ -23,3 +23,11 @@ The dispatched standard worker returned `BLOCKED` before TDD because its gate-st
 ### Resume attempt — Task 1 gate request rejected
 
 The resumed standard worker used a newly prepared scope with the supplied gate context. Its focused RED drive reached the expected pre-implementation failure, but the focused GREEN gate-start request was rejected twice by the native driver as `invalid-request` before any GREEN command launched. No task commit was created. The worker left only the four assigned Task 1 files modified and unstaged for inspection on a later resume; no gate process remained live.
+
+### Resume attempt — worker contract unavailable
+
+The standard feature-worker entry was refused before launch because the installed
+`docket-build-task` contract differs from the source contract at
+`/Users/homer/.agents/skills/docket-build-task/SKILL.md`. No worker or focused gate started;
+the four owned Task 1 edits remain preserved and uncommitted for a later resume. The required
+remedy is to run `docket install` and start a fresh session before dispatching the worker again.
