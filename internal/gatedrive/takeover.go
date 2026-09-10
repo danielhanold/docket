@@ -79,6 +79,17 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 		return d.haltDoc(driveID, "", driveRecord{}, string(ErrScopeCapabilityMismatch)), nil
 	}
 
+	// A slot mid-transition is not a quiescent result to recover: a reservation
+	// persisted but not yet launch-confirmed (scopeStateReserved), or a pending-ack
+	// journal entry between a successor reservation and its predecessor's retirement.
+	// Taking over such a slot would resolve an unresolved launch transition — a
+	// reservation is never a PASSED, FAILED, or safely quiescent result (spec
+	// "Durable state and concurrency"). Fail closed; the parent recovers a settled
+	// slot, never a half-open one.
+	if scope.CurrentDriveState == scopeStateReserved || scope.PendingAckDriveID != "" {
+		return d.haltDoc(driveID, "", driveRecord{}, string(ErrUnresolvedLaunchTransition)), nil
+	}
+
 	resolvedID, cause, rerr := d.resolveTakeoverDrive(scope, driveID)
 	if rerr != nil {
 		return DriveDoc{}, rerr
@@ -144,7 +155,7 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 	// takeovers so EXACTLY ONE proceeds. Every fail-closed check above ran first,
 	// so a rejected takeover never spends the scope; only a fully validated one
 	// reaches this gate. Losing the race (the scope is now closed) is a HALT.
-	if cerr := d.store.claimScopeForTakeover(scopeID); cerr != nil {
+	if cerr := d.store.claimScopeForTakeover(scopeID, resolvedID); cerr != nil {
 		if oe, ok := AsOwnershipError(cerr); ok {
 			return d.haltDoc(resolvedID, "", rec, string(oe.Kind)), nil
 		}
@@ -180,14 +191,21 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 }
 
 // resolveTakeoverDrive resolves the single drive a takeover targets. An explicit
-// driveID is used as given. Otherwise a task scope resolves to its CurrentDriveID,
-// and an outer scope (no current drive) resolves to the UNIQUE gate-context match:
-// its nested drives carry GateContextHash == the outer scope's child capability
-// hash (the dispatch context is the outer scope's child capability). Zero matches
-// or more than one fail closed with a distinct cause; a real scan fault is a
-// command error.
+// driveID is used as given, but it cannot bypass the scope's current-drive
+// association: when a task scope holds a current drive, an explicit id that is not
+// that drive — an acknowledged predecessor (now PriorDriveID) or any other id — is
+// a fail-closed stale-predecessor (spec "An explicitly supplied old drive id cannot
+// bypass the current-scope association"). Otherwise a task scope resolves to its
+// CurrentDriveID, and an outer scope (no current drive) resolves to the UNIQUE
+// gate-context match: its nested drives carry GateContextHash == the outer scope's
+// child capability hash (the dispatch context is the outer scope's child
+// capability). Zero matches or more than one fail closed with a distinct cause; a
+// real scan fault is a command error.
 func (d *Driver) resolveTakeoverDrive(scope scopeRecord, driveID string) (string, string, error) {
 	if driveID != "" {
+		if scope.CurrentDriveID != "" && driveID != scope.CurrentDriveID {
+			return "", string(ErrStalePredecessor), nil
+		}
 		return driveID, "", nil
 	}
 	if scope.CurrentDriveID != "" {
@@ -228,6 +246,17 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // this is the SINGLE-USE takeover gate: under a race exactly one caller wins the
 // open→closed transition, so exactly one takeover mints a fresh owner.
 //
+// It also revalidates the resolved drive under the scope authority (spec "Durable
+// state and concurrency": "Revalidate the target after acquiring the transition's
+// authority: a takeover that read the predecessor before a successor reservation
+// must not later close the scope around the wrong drive"). A task scope's
+// driveID must still be its CurrentDriveID: a concurrent successor reservation that
+// advanced the slot to a new drive between the takeover's read and this close makes
+// the resolved id stale, so the close is refused ErrScopeBusy rather than closing
+// the scope around a drive the successor already superseded. An outer scope (no
+// current drive) resolves nested drives by gate context, so its CurrentDriveID is
+// empty and the revalidation is skipped.
+//
 // Single-use is per-scope, and a scope is minted once per gate ARMING, so the
 // outer recovery scope grants at most ONE automatic outer takeover per arming:
 // the first accepted takeover closes it, and a second detached-crash takeover
@@ -237,10 +266,13 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // re-arming a fresh scope via `gate-before --resume` — not a bug; see the spec's
 // §5 continuation clause ("remains active until implement-next reaches a true
 // terminal disposition") for the documented bound.
-func (s *Store) claimScopeForTakeover(scopeID string) error {
+func (s *Store) claimScopeForTakeover(scopeID, driveID string) error {
 	return s.scopeCAS(scopeID, func(rec *scopeRecord) error {
 		if rec.Closed {
 			return ownershipErr(ErrScopeClosed, "takeover-close")
+		}
+		if driveID != "" && rec.CurrentDriveID != "" && rec.CurrentDriveID != driveID {
+			return ownershipErr(ErrScopeBusy, "takeover-close")
 		}
 		rec.Closed = true
 		return nil

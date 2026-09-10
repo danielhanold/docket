@@ -25,6 +25,7 @@ package gatedrive
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/process"
@@ -303,4 +304,93 @@ func headOID(t *testing.T, repo string) string {
 func porcelain(t *testing.T, repo string) string {
 	t.Helper()
 	return git(t, repo, "status", "--porcelain=v2", "--untracked-files=all")
+}
+
+// TestScopedWaitingHandoffClaimClosesScope proves the WAITING → handoff → claim
+// path mid-sequence (spec verification 7): after a completed predecessor, the
+// current WAITING successor is handed off and cooperatively claimed; Claim closes
+// the child's scope (later worker dispatches get fresh scopes), so a further
+// successor start is refused ErrScopeClosed and the child's original owner
+// generation is dead.
+func TestScopedWaitingHandoffClaimClosesScope(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			if strings.HasSuffix(runDir, "run1") {
+				return obs(process.StatePassed, runDir), nil
+			}
+			return obs(process.StateRunning, runDir), nil
+		},
+	}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	req := sampleStart()
+	grant, err := store.PrepareScope(scopeReqFor(req, ""))
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	req.ScopeID = grant.ScopeID
+	req.ChildCapability = grant.ChildCapability
+
+	first, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("first Start: %v", err)
+	}
+	if first.Outcome != PASSED {
+		t.Fatalf("first drive must PASS, got %s (%s)", first.Outcome, first.Cause)
+	}
+
+	succ := req
+	succ.PredecessorDriveID = first.DriveID
+	succ.PredecessorOwnerGen = first.Generation
+	second, err := d.Start(succ)
+	if err != nil {
+		t.Fatalf("successor Start: %v", err)
+	}
+	if second.Outcome != WAITING {
+		t.Fatalf("successor drive must WAIT, got %s (%s)", second.Outcome, second.Cause)
+	}
+
+	// WAITING → handoff → claim.
+	handoff, err := d.Handoff(second.DriveID, second.Generation)
+	if err != nil {
+		t.Fatalf("Handoff: %v", err)
+	}
+	claimed, err := d.Claim(second.DriveID, handoff.Generation)
+	if err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+	if claimed.Generation == "" || claimed.Generation == second.Generation {
+		t.Fatalf("Claim must mint a fresh owner generation, got %q", claimed.Generation)
+	}
+
+	// A cooperative claim closes the child's scope.
+	scope, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if !scope.Closed {
+		t.Fatalf("a cooperative claim must close the scope")
+	}
+
+	// A further successor start under the now-closed scope is refused, launching nothing.
+	further := req
+	further.PredecessorDriveID = second.DriveID
+	further.PredecessorOwnerGen = claimed.Generation
+	launchesBefore := proc.launchN
+	if _, err := d.Start(further); !isOwnershipKind(err, ErrScopeClosed) {
+		t.Fatalf("a successor start under a claimed (closed) scope must fail ErrScopeClosed, got %v", err)
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("a rejected successor start must not launch, launched %d->%d", launchesBefore, proc.launchN)
+	}
+
+	// The child's original owner generation is dead (superseded by the handoff/claim).
+	stale, err := d.Advance(second.DriveID, second.Generation)
+	if err != nil {
+		t.Fatalf("stale Advance: %v", err)
+	}
+	if stale.Outcome != HALTED {
+		t.Fatalf("the child's original owner must be dead after handoff/claim, got %s", stale.Outcome)
+	}
 }
