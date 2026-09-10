@@ -54,6 +54,13 @@ disposition only, deliberately omitting generations, tokens, and capabilities. E
 its existing meaning — nothing here widens handoff, claim, or takeover authorization, and the
 parent capability from `prepare-scope` stays with the parent as before.
 
+**Shell-safe capture names.** Capture the emitted document into an explicitly named,
+non-reserved variable — `gate_reply` — and capture the invocation's exit code, when the
+caller needs it, into `gate_rc` on the very next line. Both names behave identically in
+zsh and bash. Never assign to a zsh read-only special parameter — `status` and
+`pipestatus` are the two a capture site reaches for — because under zsh that assignment
+aborts the caller before the captured response is parsed, stranding a live drive.
+
 A missing, malformed, or incomplete required response is a **caller-contract failure**, not
 permission to rerun `start` (or any sibling op) to recover credentials. The caller maps it to its
 **existing** blocked/halt posture — a build-task worker returns `BLOCKED` with the
