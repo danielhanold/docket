@@ -2,7 +2,7 @@
 id: 420
 slug: 'prevent-build-workers-from-assigning-zsh-s-read-only-status'
 title: 'Prevent build workers from assigning zsh''s read-only status parameter'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-10'
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/prevent-build-workers-from-assigning-zsh-s-read-only-status'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-10T01:14:46Z'
 ---
 
 ## Artifacts
