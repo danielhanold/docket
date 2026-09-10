@@ -67,10 +67,12 @@ const (
 	// hash does not match the scope's stored child (or parent) capability hash —
 	// an empty, wrong, or role-swapped token. It confers no scope authority.
 	ErrScopeCapabilityMismatch OwnershipErrorKind = "scope-capability-mismatch"
-	// ErrScopeSecondDrive: a bind was attempted on a scope that already binds a
-	// different live drive. One scope binds at most one live drive; a second is
-	// refused rather than overwriting the first (an idempotent re-bind of the
-	// same drive id is a no-op, not this error).
+	// ErrScopeSecondDrive: a receipt-less start was attempted on a scope whose slot
+	// already holds a launched drive. A scope carries a SEQUENCE of drives through
+	// one slot, at most one current at a time; a start over an occupied slot must
+	// present the predecessor receipt (a successor start) rather than silently
+	// opening a second drive. A receipt-less start is refused rather than
+	// overwriting the current one.
 	ErrScopeSecondDrive OwnershipErrorKind = "scope-second-live-drive"
 	// ErrScopeClosed: a transition was attempted on a scope already closed by a
 	// normal claim or an event-authorized takeover. A closed scope is terminal.
