@@ -76,6 +76,10 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.Finalize.RequirePRApproval.Value, eff.Finalize.RequirePRApproval.Provenance, eff.Finalize.RequirePRApproval.Explicit
 	case "finalize.resolver_max_attempts":
 		return eff.Finalize.ResolverMaxAttempts.Value, eff.Finalize.ResolverMaxAttempts.Provenance, eff.Finalize.ResolverMaxAttempts.Explicit
+	case "build.max_attempts":
+		return eff.Build.MaxAttempts.Value, eff.Build.MaxAttempts.Provenance, eff.Build.MaxAttempts.Explicit
+	case "run.max_attempts":
+		return eff.Run.MaxAttempts.Value, eff.Run.MaxAttempts.Provenance, eff.Run.MaxAttempts.Explicit
 	case "learnings.enabled":
 		return eff.Learnings.Enabled.Value, eff.Learnings.Enabled.Provenance, eff.Learnings.Enabled.Explicit
 	case "reclaim.lease_ttl":
@@ -101,6 +105,14 @@ func leaseTTL(n int) string { return fmt.Sprintf("reclaim:\n  lease_ttl: %d\n", 
 
 func resolverMax(n int) string {
 	return fmt.Sprintf("finalize:\n  resolver_max_attempts: %d\n", n)
+}
+
+func buildMax(n int) string {
+	return fmt.Sprintf("build:\n  max_attempts: %d\n", n)
+}
+
+func runMax(n int) string {
+	return fmt.Sprintf("run:\n  max_attempts: %d\n", n)
 }
 
 // TestResolveBoardDefaults pins the built-in board presentation: the canonical
@@ -377,6 +389,73 @@ func TestPrecedenceResolverMaxAttempts(t *testing.T) {
 			}
 			if got.Explicit != tc.explicit {
 				t.Errorf("resolver_max_attempts explicit = %v, want %v", got.Explicit, tc.explicit)
+			}
+		})
+	}
+}
+
+// TestPrecedenceBuildMaxAttempts pins build.max_attempts through the full
+// four-layer precedence, cloned from TestPrecedenceResolverMaxAttempts — the
+// built-in default is 4.
+func TestPrecedenceBuildMaxAttempts(t *testing.T) {
+	cases := []struct {
+		name     string
+		sources  []Source
+		want     int
+		layer    LayerKind
+		explicit bool
+	}{
+		{"nothing declared wins the built-in default", nil, 4, LayerBuiltIn, false},
+		{"global alone", []Source{srcG(buildMax(5))}, 5, LayerGlobal, true},
+		{"repository beats global", []Source{srcG(buildMax(5)), srcR(buildMax(6))}, 6, LayerRepository, true},
+		{"repository-local beats everything", []Source{srcG(buildMax(5)), srcR(buildMax(6)), srcL(buildMax(7))}, 7, LayerRepositoryLocal, true},
+		{"repository-local beats global with no repository layer", []Source{srcG(buildMax(5)), srcL(buildMax(7))}, 7, LayerRepositoryLocal, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := mustResolve(t, tc.sources, mainCtx)
+			got := res.effective.Build.MaxAttempts
+			if got.Value != tc.want {
+				t.Errorf("build.max_attempts = %d, want %d", got.Value, tc.want)
+			}
+			if got.Provenance.Layer != tc.layer {
+				t.Errorf("build.max_attempts provenance layer = %q, want %q", got.Provenance.Layer, tc.layer)
+			}
+			if got.Explicit != tc.explicit {
+				t.Errorf("build.max_attempts explicit = %v, want %v", got.Explicit, tc.explicit)
+			}
+		})
+	}
+}
+
+// TestPrecedenceRunMaxAttempts pins run.max_attempts through the full four-layer
+// precedence — the built-in default is 2.
+func TestPrecedenceRunMaxAttempts(t *testing.T) {
+	cases := []struct {
+		name     string
+		sources  []Source
+		want     int
+		layer    LayerKind
+		explicit bool
+	}{
+		{"nothing declared wins the built-in default", nil, 2, LayerBuiltIn, false},
+		{"global alone", []Source{srcG(runMax(3))}, 3, LayerGlobal, true},
+		{"repository beats global", []Source{srcG(runMax(3)), srcR(runMax(4))}, 4, LayerRepository, true},
+		{"repository-local beats everything", []Source{srcG(runMax(3)), srcR(runMax(4)), srcL(runMax(5))}, 5, LayerRepositoryLocal, true},
+		{"repository-local beats global with no repository layer", []Source{srcG(runMax(3)), srcL(runMax(5))}, 5, LayerRepositoryLocal, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := mustResolve(t, tc.sources, mainCtx)
+			got := res.effective.Run.MaxAttempts
+			if got.Value != tc.want {
+				t.Errorf("run.max_attempts = %d, want %d", got.Value, tc.want)
+			}
+			if got.Provenance.Layer != tc.layer {
+				t.Errorf("run.max_attempts provenance layer = %q, want %q", got.Provenance.Layer, tc.layer)
+			}
+			if got.Explicit != tc.explicit {
+				t.Errorf("run.max_attempts explicit = %v, want %v", got.Explicit, tc.explicit)
 			}
 		})
 	}

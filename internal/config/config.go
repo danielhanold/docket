@@ -124,6 +124,7 @@ type Effective struct {
 	ResultsDir        Value[string]   `json:"results_dir"`
 	Finalize          Finalize        `json:"finalize"`
 	Build             Build           `json:"build"`
+	Run               Run             `json:"run"`
 	Learnings         Learnings       `json:"learnings"`
 	Reclaim           Reclaim         `json:"reclaim"`
 	Review            Review          `json:"review"`
@@ -156,6 +157,18 @@ type Finalize struct {
 type Build struct {
 	Gate        Value[string] `json:"gate"`         // local|off
 	TestCommand Value[string] `json:"test_command"` // "" == unconfigured (legacy `auto` resolves away)
+	// MaxAttempts caps logical build full-suite attempts per owned build phase
+	// (change 0421), counting the initial run. Positive; snapshotted into the
+	// durable suite-attempt budget when the phase's first build-owned drive starts.
+	MaxAttempts Value[int] `json:"max_attempts"`
+}
+
+// Run is the outer implement-next run gate's own attempt policy (change 0421).
+type Run struct {
+	// MaxAttempts caps total attributed implementation attempts per gate
+	// arming, counting the original dispatch. Positive; snapshotted into the
+	// GateRecord at mint.
+	MaxAttempts Value[int] `json:"max_attempts"`
 }
 
 type Learnings struct {

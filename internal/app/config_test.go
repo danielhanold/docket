@@ -745,3 +745,58 @@ func TestConfigDiagnosticsResolverMaxAttemptsSurface(t *testing.T) {
 		t.Errorf("human effective block lacks the resolved resolver cap line:\n%s", h)
 	}
 }
+
+// TestConfigDiagnosticsAttemptLimitsSurface pins that the effective-config
+// diagnostics surface reports build.max_attempts and run.max_attempts (change
+// 0421) on both halves — the auto-reflected `effective` JSON (config.Effective)
+// and the hand-maintained `effective (winning layer)` human block
+// (effectiveLines). It asserts the resolved values, not mere presence: the
+// defaults surface 4/2, an explicit repository-layer setting surfaces 6/3.
+func TestConfigDiagnosticsAttemptLimitsSurface(t *testing.T) {
+	// Default: nothing declared → built-in 4/2 on both halves.
+	def := DiagnosticConfig(sparseSources(), mainCtx(), false)
+	if def.Effective == nil {
+		t.Fatal("default resolution produced no effective snapshot")
+	}
+	if got := def.Effective.Build.MaxAttempts.Value; got != 4 {
+		t.Errorf("effective JSON build.max_attempts = %d, want the built-in default 4", got)
+	}
+	if got := def.Effective.Run.MaxAttempts.Value; got != 2 {
+		t.Errorf("effective JSON run.max_attempts = %d, want the built-in default 2", got)
+	}
+	if h := def.HumanText(); !strings.Contains(h, "build.max_attempts = 4  [built-in]") {
+		t.Errorf("human effective block lacks the built-in build attempt-limit line:\n%s", h)
+	}
+	if h := def.HumanText(); !strings.Contains(h, "run.max_attempts = 2  [built-in]") {
+		t.Errorf("human effective block lacks the built-in run attempt-limit line:\n%s", h)
+	}
+
+	// Explicit repository-layer settings → 6/3 on both halves.
+	sources := []config.Source{{
+		Layer: config.LayerRepository,
+		Name:  ".docket.yml",
+		Data:  []byte("build:\n  max_attempts: 6\nrun:\n  max_attempts: 3\n"),
+	}}
+	set := DiagnosticConfig(sources, mainCtx(), false)
+	if set.Effective == nil {
+		t.Fatal("explicit resolution produced no effective snapshot")
+	}
+	if got := set.Effective.Build.MaxAttempts.Value; got != 6 {
+		t.Errorf("effective JSON build.max_attempts = %d, want the resolved 6", got)
+	}
+	if got := set.Effective.Run.MaxAttempts.Value; got != 3 {
+		t.Errorf("effective JSON run.max_attempts = %d, want the resolved 3", got)
+	}
+	if got := set.Effective.Build.MaxAttempts.Provenance.Layer; got != config.LayerRepository {
+		t.Errorf("build.max_attempts provenance layer = %q, want repository", got)
+	}
+	if got := set.Effective.Run.MaxAttempts.Provenance.Layer; got != config.LayerRepository {
+		t.Errorf("run.max_attempts provenance layer = %q, want repository", got)
+	}
+	if h := set.HumanText(); !strings.Contains(h, "build.max_attempts = 6") {
+		t.Errorf("human effective block lacks the resolved build attempt-limit line:\n%s", h)
+	}
+	if h := set.HumanText(); !strings.Contains(h, "run.max_attempts = 3") {
+		t.Errorf("human effective block lacks the resolved run attempt-limit line:\n%s", h)
+	}
+}

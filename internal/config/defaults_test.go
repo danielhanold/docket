@@ -150,6 +150,8 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 		"finalize.resolver_max_attempts": eff.Finalize.ResolverMaxAttempts.Value,
 		"build.gate":                     eff.Build.Gate.Value,
 		"build.test_command":             eff.Build.TestCommand.Value,
+		"build.max_attempts":             eff.Build.MaxAttempts.Value,
+		"run.max_attempts":               eff.Run.MaxAttempts.Value,
 		"learnings.enabled":              eff.Learnings.Enabled.Value,
 		"reclaim.lease_ttl":              eff.Reclaim.LeaseTTL.Value,
 		"reclaim.auto":                   eff.Reclaim.Auto.Value,

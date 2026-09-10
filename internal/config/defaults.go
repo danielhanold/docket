@@ -39,7 +39,9 @@ func builtinEffective() Effective {
 		Build: Build{
 			Gate:        builtinValue("local"),
 			TestCommand: builtinValue(""),
+			MaxAttempts: builtinValue(4),
 		},
+		Run:       Run{MaxAttempts: builtinValue(2)},
 		Learnings: Learnings{Enabled: builtinValue(true)},
 		Reclaim: Reclaim{
 			LeaseTTL: builtinValue(72),
