@@ -38,6 +38,23 @@ func newHandedOffDrive(t *testing.T) (s *Store, id, oldOwner string, receipt han
 	return s, id, oldOwner, receipt
 }
 
+// TestOwnershipKindSpellings pins the exact wire spellings of the four sequential
+// scope kinds Task 1 adds: later tasks return these and the app-layer mapping
+// surfaces them verbatim, so a rename here is a protocol break the guard catches.
+func TestOwnershipKindSpellings(t *testing.T) {
+	cases := map[OwnershipErrorKind]string{
+		ErrStalePredecessor:           "stale-predecessor",
+		ErrPredecessorNotReusable:     "predecessor-not-reusable",
+		ErrUnresolvedLaunchTransition: "unresolved-launch-transition",
+		ErrScopeBusy:                  "scope-busy",
+	}
+	for kind, want := range cases {
+		if string(kind) != want {
+			t.Fatalf("kind %v must spell %q, got %q", kind, want, string(kind))
+		}
+	}
+}
+
 // TestHandoffInvalidatesOldOwner proves the current owner can create a handoff
 // and that doing so invalidates the old owner: after the handoff the persisted
 // record no longer verifies the old generation, so an old-owner advance is

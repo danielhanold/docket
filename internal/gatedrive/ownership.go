@@ -79,6 +79,31 @@ const (
 	// identity field a takeover re-verifies) no longer matches what the caller
 	// presented — e.g. rebinding a scope to a different change. Fail closed.
 	ErrScopeIdentityMismatch OwnershipErrorKind = "scope-identity-mismatch"
+	// ErrScopeBusy: a scope transition raced another start or transition that
+	// already owns the scope's single drive slot (a reservation in flight, or a
+	// concurrent successor). The loser retreats rather than launching a second
+	// drive — the slot is not reusable until the current owner resolves it (spec
+	// "at most one current launch reservation or execution per scope").
+	ErrScopeBusy OwnershipErrorKind = "scope-busy"
+	// ErrStalePredecessor: a successor start, acknowledgement, or explicit takeover
+	// target named a predecessor drive that is not the scope's current drive — a
+	// mismatched receipt, a one-field receipt, an already-acknowledged earlier
+	// drive, or an owner a takeover has superseded. It confers no successor
+	// authority (spec "Subsequent tests").
+	ErrStalePredecessor OwnershipErrorKind = "stale-predecessor"
+	// ErrPredecessorNotReusable: the presented predecessor is the scope's current
+	// drive but has no durable PASSED/FAILED result to acknowledge — a live
+	// (WAITING) or HALTED drive. Only a durably terminal predecessor authorizes a
+	// successor or a final acknowledgement (spec "only durably PASSED/FAILED
+	// predecessors permit successors").
+	ErrPredecessorNotReusable OwnershipErrorKind = "predecessor-not-reusable"
+	// ErrUnresolvedLaunchTransition: the scope's slot is mid-transition — a
+	// reservation persisted but not yet launch-confirmed, or a pending-ack journal
+	// entry between reservation and predecessor retirement. The ambiguous state
+	// fails closed with no automatic second launch; recovery is through the parent,
+	// never a blind retry (spec "Ambiguous launch or persistence failures fail
+	// closed").
+	ErrUnresolvedLaunchTransition OwnershipErrorKind = "unresolved-launch-transition"
 )
 
 // OwnershipError is the ownership layer's typed failure. Like StoreError it

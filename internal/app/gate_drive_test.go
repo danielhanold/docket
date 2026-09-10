@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"strings"
@@ -732,5 +733,91 @@ func TestExhaustionDiagnosticNamesKnob(t *testing.T) {
 	}
 	if !strings.Contains(human, "4/4") {
 		t.Fatalf("exhaustion human text must carry the used/limit fraction 4/4, got %q", human)
+	}
+}
+
+// TestMapDriveFailureOwnershipKinds proves mapDriveFailure surfaces every known
+// OwnershipError as its typed reason token — never collapsing to the generic
+// invalid-request — while an unrecognized error still falls through to
+// invalid-request. It also proves the reason is the bounded kind token alone: the
+// wrapped error's free text (a stand-in for argv/env/path) never leaks into the
+// reason.
+func TestMapDriveFailureOwnershipKinds(t *testing.T) {
+	kinds := []gatedrive.OwnershipErrorKind{
+		gatedrive.ErrScopeIdentityMismatch,
+		gatedrive.ErrScopeCapabilityMismatch,
+		gatedrive.ErrScopeClosed,
+		gatedrive.ErrScopeSecondDrive,
+		gatedrive.ErrScopeBusy,
+		gatedrive.ErrHandoffOutstanding,
+		gatedrive.ErrStalePredecessor,
+		gatedrive.ErrPredecessorNotReusable,
+		gatedrive.ErrUnresolvedLaunchTransition,
+	}
+	const secret = "SECRET-ARGV"
+	for _, kind := range kinds {
+		t.Run(string(kind), func(t *testing.T) {
+			// Wrap the ownership error in free text that must NOT reach the reason.
+			wrapped := fmt.Errorf("launch failed with %s: %w", secret, &gatedrive.OwnershipError{Kind: kind, Op: "start"})
+			res, reason := mapDriveFailure(wrapped)
+			if res != ResultInvalidInput {
+				t.Fatalf("ownership error result = %s, want invalid-input", res)
+			}
+			if reason != string(kind) {
+				t.Fatalf("reason = %q, want the typed kind token %q (never collapsed to invalid-request)", reason, string(kind))
+			}
+			if strings.Contains(reason, secret) {
+				t.Fatalf("reason must not leak the wrapped error text %q, got %q", secret, reason)
+			}
+		})
+	}
+
+	// A plain unrecognized error still maps to the generic invalid-request.
+	res, reason := mapDriveFailure(errors.New("boom"))
+	if res != ResultInvalidInput || reason != "invalid-request" {
+		t.Fatalf("unrecognized error must map to invalid-request, got result=%s reason=%q", res, reason)
+	}
+}
+
+// TestMapDriveFailureOwnershipNextAction proves a command failure classified as an
+// ownership error carries a non-empty valid-next-action message the caller can act
+// on, distinct per kind, while the reason stays the bounded kind token. A plain
+// store failure carries no such next-action message.
+func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
+	seen := map[string]string{}
+	for _, kind := range []gatedrive.OwnershipErrorKind{
+		gatedrive.ErrScopeBusy,
+		gatedrive.ErrHandoffOutstanding,
+		gatedrive.ErrScopeClosed,
+		gatedrive.ErrStalePredecessor,
+		gatedrive.ErrPredecessorNotReusable,
+		gatedrive.ErrUnresolvedLaunchTransition,
+		gatedrive.ErrScopeCapabilityMismatch,
+		gatedrive.ErrScopeIdentityMismatch,
+		gatedrive.ErrScopeSecondDrive,
+	} {
+		eng := &fakeDriveEngine{err: &gatedrive.OwnershipError{Kind: kind, Op: "start"}}
+		svc := newGateDriveService(eng, 0, "", "")
+		got := svc.Advance("d1", "owner")
+		if got.Result != ResultInvalidInput {
+			t.Fatalf("kind %v result = %s, want invalid-input", kind, got.Result)
+		}
+		if got.Reason != string(kind) {
+			t.Fatalf("kind %v reason = %q, want %q", kind, got.Reason, string(kind))
+		}
+		if got.Message == "" {
+			t.Fatalf("kind %v must carry a valid-next-action message", kind)
+		}
+		if prev, ok := seen[got.Message]; ok {
+			t.Fatalf("next-action message %q is shared by kinds %v and %v; each state gets its own action", got.Message, prev, kind)
+		}
+		seen[got.Message] = string(kind)
+	}
+
+	// A store command failure is not an ownership error: no next-action message.
+	eng := &fakeDriveEngine{err: &gatedrive.StoreError{Kind: gatedrive.ErrNotFound, Op: "resolve"}}
+	svc := newGateDriveService(eng, 0, "", "")
+	if got := svc.Advance("d1", "owner"); got.Message != "" {
+		t.Fatalf("a store failure must carry no ownership next-action message, got %q", got.Message)
 	}
 }

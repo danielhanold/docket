@@ -468,7 +468,15 @@ func (s *GateDriveService) commandArgv() []string {
 func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResult {
 	if err != nil {
 		res, reason := mapDriveFailure(err)
-		return GateDriveResult{Envelope: NewEnvelope(op, res), Reason: reason}
+		result := GateDriveResult{Envelope: NewEnvelope(op, res), Reason: reason}
+		// A typed ownership rejection also carries a valid-next-action message so
+		// the caller knows what to do instead of retrying blindly (spec "Human
+		// messages explain the valid next action for the actual state"). The reason
+		// token stays the bounded kind; only this message explains the recourse.
+		if oe, ok := gatedrive.AsOwnershipError(err); ok {
+			result.Message = ownershipNextAction(oe.Kind)
+		}
+		return result
 	}
 	d := doc
 	return GateDriveResult{Envelope: NewEnvelope(op, ResultApplied), Drive: &d}
@@ -479,6 +487,13 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 // invalid input; any other store error is an internal error. The reason is a
 // stable kind token, never the raw error text, so no argv/env/path can leak.
 func mapDriveFailure(err error) (Result, string) {
+	// A typed ownership rejection surfaces its bounded kind token instead of
+	// collapsing to the generic invalid-request (spec "Map known ownership errors
+	// to their bounded, stable reason tokens"). The kind is the whole reason, so no
+	// wrapped free text (argv, env, path, stored error text) can leak.
+	if oe, ok := gatedrive.AsOwnershipError(err); ok {
+		return ResultInvalidInput, string(oe.Kind)
+	}
 	if se, ok := gatedrive.AsStoreError(err); ok {
 		switch se.Kind {
 		case gatedrive.ErrInvalidID, gatedrive.ErrNotFound:
@@ -488,6 +503,36 @@ func mapDriveFailure(err error) (Result, string) {
 		}
 	}
 	return ResultInvalidInput, "invalid-request"
+}
+
+// ownershipNextAction maps an ownership rejection kind to a one-line, credential-
+// free description of the caller's valid next action for that actual state (spec
+// "Human messages explain the valid next action for the actual state"). It never
+// authorizes a blind start retry or a keyless fallback. An unrecognized kind
+// yields the empty string, so callers omit the message rather than inventing one.
+func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
+	switch kind {
+	case gatedrive.ErrScopeBusy:
+		return "another start or transition owns this scope's slot; do not retry blindly"
+	case gatedrive.ErrHandoffOutstanding:
+		return "claim the outstanding handoff instead of starting or taking over"
+	case gatedrive.ErrScopeClosed:
+		return "scope authority was transferred or finished; stop and return BLOCKED"
+	case gatedrive.ErrStalePredecessor:
+		return "the presented predecessor is not the scope's current drive"
+	case gatedrive.ErrPredecessorNotReusable:
+		return "the predecessor has no durable PASSED/FAILED result to acknowledge"
+	case gatedrive.ErrUnresolvedLaunchTransition:
+		return "a prior launch transition is unresolved; recover via the parent, not a retry"
+	case gatedrive.ErrScopeCapabilityMismatch:
+		return "use the complete identity bundle from your dispatch prompt"
+	case gatedrive.ErrScopeIdentityMismatch:
+		return "the scope identity does not match; use the complete identity bundle from your dispatch prompt"
+	case gatedrive.ErrScopeSecondDrive:
+		return "the scope already holds a drive; a successor start must present the predecessor receipt"
+	default:
+		return ""
+	}
 }
 
 // HumanText renders GateDriveResult as stable labeled lines. It names the outcome
