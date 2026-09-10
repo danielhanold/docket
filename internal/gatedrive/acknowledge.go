@@ -49,6 +49,20 @@ func (d *Driver) Acknowledge(scopeID, childCapability, driveID, ownerGen string)
 	// PASSED/FAILED verdict, is the recorded terminal — return its document with no
 	// write. A scope closed by a claim or takeover (FinalAcked false), or a
 	// non-matching drive, is a fail-closed ErrScopeClosed.
+	//
+	// Intentional ownerGen asymmetry (change 0405): unlike the normal path, this
+	// branch does NOT verify the presented ownerGen — childCapability (checked above)
+	// is the sufficient authority here. The normal path's ownerGen check lives inside
+	// retirePredecessor/predecessorReusableError and exists to protect a LIVE, owned
+	// drive: only the current owner may retire a drive's recovery authority, so a
+	// stale or superseded owner cannot clear a drive a newer owner now holds. Once
+	// that authority has been retired (rec.OwnerGeneration == "", the precondition of
+	// this branch), there is nothing live left to protect and nothing to compare
+	// against — the scopeRecord does not retain the retired owner generation, so the
+	// check is not merely unnecessary but impossible without adding state whose only
+	// purpose would be to gate an already-inert operation. This branch writes NOTHING;
+	// the presented ownerGen survives only as the returned document's Generation echo
+	// (recordedDoc), the caller's own receipt, which authorizes nothing further.
 	if scope.Closed {
 		if scope.FinalAcked && scope.CurrentDriveID == driveID {
 			rec, lerr := d.store.Load(driveID)
@@ -104,6 +118,18 @@ func (d *Driver) Acknowledge(scopeID, childCapability, driveID, ownerGen string)
 	// generation so the record survives only as consumed history. On any rejection
 	// nothing is written. The resumable-half case skips it: its authority is already
 	// retired, so the only work left is the close.
+	//
+	// Intentional ownerGen asymmetry (change 0405): when the resumable-half branch
+	// skips retirePredecessor, the presented ownerGen goes unverified — deliberately,
+	// for the same reason as the Closed && FinalAcked branch above. retirePredecessor
+	// is the sole place the normal path checks ownerGen, and its purpose is to guard a
+	// still-owned drive against a stale owner. Here the owner is already cleared, so
+	// there is nothing live to protect and no persisted owner generation to compare
+	// against. The only remaining work, closeScopeFinal, is owner-INDEPENDENT by
+	// construction: it CASes the scope closed only when driveID is still the current
+	// drive, so it completes the same deterministic transition for any presented
+	// ownerGen, which reaches the returned document solely as the Generation echo.
+	// childCapability (verified at the top of Acknowledge) remains the authority.
 	if !resumable {
 		if rerr := d.store.retirePredecessor(driveID, ownerGen); rerr != nil {
 			return DriveDoc{}, rerr
