@@ -1,6 +1,6 @@
 # Backlog
 
-**424 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 21 proposed · ⚪ 11 deferred · ✅ 273 done · 🗑️ 113 killed
+**425 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 22 proposed · ⚪ 11 deferred · ✅ 273 done · 🗑️ 113 killed
 
 ## 🟢 In progress (2)
 
@@ -18,10 +18,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (21)
+## 🟡 Proposed (22)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | ⏳ waiting on #423 — not yet built |
 | [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | ⏳ waiting on #423 — not yet built |
 | [0423](active/0423-certify-native-multi-agent-v2-orchestration-through-docket-i.md) | Certify native Multi-Agent V2 orchestration through Docket ImplementNext | `critical` | `chore` | needs-brainstorm |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | needs-brainstorm |
@@ -101,6 +102,8 @@ graph TD
   0422
   0423
   0423 --> 0424
+  0423 --> 0425
+  0424 --> 0425
   0192:::done
   0251:::done
   0370:::done
