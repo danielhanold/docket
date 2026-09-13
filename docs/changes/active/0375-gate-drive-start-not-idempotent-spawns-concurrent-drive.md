@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: critical
 type: fix
 created: 2026-08-30
-updated: '2026-09-10'
+updated: '2026-09-13'
 depends_on: [405]
 stacked_on:
 related: [359, 376, 405, 412, 420, 421, 422]
@@ -21,7 +21,7 @@ branch: 'fix/gate-drive-start-not-idempotent-spawns-concurrent-drive'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-13T23:57:08Z'
+claimed_at: '2026-09-13T23:59:30Z'
 ---
 
 ## Artifacts
