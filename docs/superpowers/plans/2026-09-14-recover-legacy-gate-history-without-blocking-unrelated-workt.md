@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0428 — Recover legacy gate history without blocking unrelated worktree admission](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md)**
+> ↩ **[Change 0428 — Recover legacy gate history without blocking unrelated worktree admission](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-14-0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md)**
 <!-- docket:backlink:end -->
 # Recover Legacy Gate History Without Blocking Unrelated Worktree Admission — Implementation Plan
 
