@@ -12,7 +12,7 @@ import (
 func TestReadAssignmentRejectsChangedDuplicateAndUnknownInputs(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "assignment.json")
-	valid := `{"schema_version":1,"change_id":425,"role":"docket-build-standard","phase":"build","task_id":"task-1","mode":"fresh","primary":"/tmp/primary","feature":"/tmp/feature","common_dir":"/tmp/common","branch":"codex/change","entry_head":"0123456789012345678901234567890123456789","metadata_revision":"1123456789012345678901234567890123456789","change_path":"docs/changes/active/0425.md","docket_executable":"/tmp/docket","docket_commit":"2123456789012345678901234567890123456789","resources":[],"read_roots":["/tmp/control"],"write_paths":["internal/x"],"inherited_paths":[]}`
+	valid := `{"schema_version":1,"change_id":425,"role":"docket-build-standard","phase":"build","task_id":"task-1","mode":"fresh","primary":"/tmp/primary","feature":"/tmp/feature","common_dir":"/tmp/common","branch":"codex/change","entry_head":"0123456789012345678901234567890123456789","metadata_revision":"1123456789012345678901234567890123456789","change_path":"docs/changes/active/0425.md","docket_executable":"/tmp/docket","docket_commit":"2123456789012345678901234567890123456789","resources":[],"read_roots":["/tmp"],"write_paths":["internal/x"],"inherited_paths":[]}`
 	if err := os.WriteFile(path, []byte(valid), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -44,15 +44,17 @@ func TestReadAssignmentRejectsChangedDuplicateAndUnknownInputs(t *testing.T) {
 }
 
 func TestValidateAssignmentRejectsUnsafeRolePathsAndSecrets(t *testing.T) {
-	base := Assignment{SchemaVersion: 1, ChangeID: 425, Role: "docket-build-standard", Phase: "build", TaskID: "task-1", Mode: "fresh", Primary: "/tmp/primary", Feature: "/tmp/feature", CommonDir: "/tmp/common", Branch: "codex/change", EntryHEAD: strings.Repeat("0", 40), MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: "/tmp/docket", DocketCommit: strings.Repeat("2", 40), ReadRoots: []string{"/tmp/control"}, WritePaths: []string{"internal/x"}}
+	base := Assignment{SchemaVersion: 1, ChangeID: 425, Role: "docket-build-standard", Phase: "build", TaskID: "task-1", Mode: "fresh", Primary: "/tmp/primary", Feature: "/tmp/feature", CommonDir: "/tmp/common", Branch: "codex/change", EntryHEAD: strings.Repeat("0", 40), MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: "/tmp/docket", DocketCommit: strings.Repeat("2", 40), ReadRoots: []string{"/tmp"}, WritePaths: []string{"internal/x"}}
 	if err := ValidateAssignment(base); err != nil {
 		t.Fatalf("valid assignment: %v", err)
 	}
 	mutations := map[string]func(*Assignment){
-		"relative feature":    func(a *Assignment) { a.Feature = "feature" },
-		"escaping output":     func(a *Assignment) { a.ArtifactPath = "../primary/plan.md" },
-		"worker without task": func(a *Assignment) { a.TaskID = "" },
-		"review without pins": func(a *Assignment) { a.Mode = "review"; a.Role = "docket-review-standard"; a.TaskID = "" },
+		"relative feature":            func(a *Assignment) { a.Feature = "feature" },
+		"escaping output":             func(a *Assignment) { a.ArtifactPath = "../primary/plan.md" },
+		"executable outside boundary": func(a *Assignment) { a.ReadRoots = []string{"/var/empty"} },
+		"worker without task":         func(a *Assignment) { a.TaskID = "" },
+		"role phase mismatch":         func(a *Assignment) { a.Phase = "review" },
+		"review without pins":         func(a *Assignment) { a.Mode = "review"; a.Role = "docket-review-standard"; a.TaskID = "" },
 		"secret field in resource": func(a *Assignment) {
 			a.Resources = []Resource{{LogicalID: "gate_context", Path: "/tmp/control/key", SHA256: strings.Repeat("a", 64), Source: "package:docket"}}
 		},
@@ -65,5 +67,34 @@ func TestValidateAssignmentRejectsUnsafeRolePathsAndSecrets(t *testing.T) {
 				t.Fatal("accepted invalid assignment")
 			}
 		})
+	}
+}
+
+func TestRootIdentityDetectsPathReplacement(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitDir := filepath.Join(root, ".git")
+	if err := os.Mkdir(gitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	before, err := ObserveRootIdentity(root, gitDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved := root + "-old"
+	if err := os.Rename(root, moved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	after, err := ObserveRootIdentity(root, gitDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.Equal(after) {
+		t.Fatal("replacement retained the same root identity")
 	}
 }

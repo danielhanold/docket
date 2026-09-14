@@ -40,10 +40,12 @@ type Assignment struct {
 	DocketExecutable     string                 `json:"docket_executable"`
 	DocketCommit         string                 `json:"docket_commit"`
 	Resources            []Resource             `json:"resources"`
+	ResourceDependencies map[string][]string    `json:"resource_dependencies,omitempty"`
 	ReadRoots            []string               `json:"read_roots"`
 	WritePaths           []string               `json:"write_paths"`
 	InheritedPaths       []string               `json:"inherited_paths"`
 	InheritedFingerprint *gatedrive.Fingerprint `json:"inherited_fingerprint,omitempty"`
+	RootIdentity         *RootIdentity          `json:"root_identity,omitempty"`
 	TestArgv             []string               `json:"test_argv,omitempty"`
 	RunRoot              string                 `json:"run_root,omitempty"`
 	PlanSkill            string                 `json:"plan_skill,omitempty"`
@@ -104,6 +106,9 @@ func ValidateAssignment(a Assignment) error {
 	if !oneOf(a.Mode, "fresh", "continuation", "escalation", "review", "resolver", "repair") {
 		return fmt.Errorf("unknown assignment mode %q", a.Mode)
 	}
+	if !validRolePhaseMode(a.Role, a.Phase, a.Mode) {
+		return fmt.Errorf("role, phase, and mode are inconsistent")
+	}
 	for name, p := range map[string]string{"primary": a.Primary, "feature": a.Feature, "common_dir": a.CommonDir, "docket_executable": a.DocketExecutable} {
 		if !filepath.IsAbs(p) || filepath.Clean(p) != p {
 			return fmt.Errorf("%s must be an absolute clean path", name)
@@ -128,8 +133,14 @@ func ValidateAssignment(a Assignment) error {
 			return fmt.Errorf("read root %q is not absolute and clean", p)
 		}
 	}
+	if !withinReadRoots(a.ReadRoots, a.DocketExecutable) {
+		return fmt.Errorf("docket_executable is outside declared read roots")
+	}
 	if (strings.Contains(a.Role, "build") || a.Mode == "continuation" || a.Mode == "escalation") && a.TaskID == "" {
 		return fmt.Errorf("worker assignment requires task_id")
+	}
+	if (a.Mode == "continuation" || a.Mode == "escalation") && a.InheritedFingerprint == nil {
+		return fmt.Errorf("continued worker assignment requires inherited_fingerprint")
 	}
 	if a.Mode == "review" && (a.ReviewBase == "" || a.ReviewHEAD == "" || a.BuildEvidence == "") {
 		return fmt.Errorf("review assignment requires immutable base, head, and evidence")
@@ -141,6 +152,32 @@ func ValidateAssignment(a Assignment) error {
 		}
 	}
 	return nil
+}
+
+func validRolePhaseMode(role, phase, mode string) bool {
+	switch {
+	case role == "docket-plan-writer":
+		return phase == "plan" && mode == "fresh"
+	case strings.HasPrefix(role, "docket-build-"):
+		return phase == "build" && oneOf(mode, "fresh", "continuation", "escalation")
+	case strings.HasPrefix(role, "docket-review-"):
+		return phase == "review" && mode == "review"
+	case role == "docket-rebase-resolver":
+		return phase == "resolver" && mode == "resolver"
+	case role == "docket-integration-repair":
+		return phase == "repair" && mode == "repair"
+	default:
+		return false
+	}
+}
+
+func withinReadRoots(roots []string, path string) bool {
+	for _, root := range roots {
+		if pathWithin(root, path) {
+			return true
+		}
+	}
+	return false
 }
 
 func oneOf(v string, values ...string) bool {

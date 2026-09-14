@@ -5,12 +5,12 @@ import "github.com/danielhanold/docket/internal/codexcontract"
 const OperationAgentCheckReceipt = "agent.check-receipt"
 
 type CheckReceiptRequest struct {
-	Operation  string `json:"operation"`
-	Assignment string `json:"assignment"`
-	SHA256     string `json:"sha256"`
-	Stdout     string `json:"stdout"`
+	Operation  string `json:"operation" docket:"required"`
+	Assignment string `json:"assignment" docket:"required"`
+	SHA256     string `json:"sha256" docket:"required"`
+	Stdout     string `json:"stdout" docket:"required"`
 	Stderr     string `json:"stderr,omitempty"`
-	ExitCode   int    `json:"exit_code"`
+	ExitCode   int    `json:"exit_code" docket:"required"`
 }
 type CheckReceiptResult struct {
 	Envelope

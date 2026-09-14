@@ -42,3 +42,28 @@ func TestParseReceiptReadsScopeTopLevelShape(t *testing.T) {
 		t.Fatalf("scope receipt = %+v, %v", r, err)
 	}
 }
+
+func TestParseReceiptTransferOmitsTerminalRunRoot(t *testing.T) {
+	b := []byte(`{"protocol_version":1,"operation":"gate.drive.claim","result":"applied","drive":{"protocol_version":1,"drive_id":"d","generation":"g","deadline":"2026-09-14T12:00:00Z","outcome":"PASSED"}}`)
+	if _, err := ParseReceipt("gate.drive.claim", b, nil, 0, Assignment{RunRoot: "/private/runs"}); err != nil {
+		t.Fatalf("terminal transfer without run_root: %v", err)
+	}
+}
+
+func TestParseReceiptPassedRawRunDirStaysWithinRunRoot(t *testing.T) {
+	b := []byte(`{"protocol_version":1,"operation":"gate.drive.start","result":"applied","drive":{"protocol_version":1,"drive_id":"d","generation":"g","deadline":"2026-09-14T12:00:00Z","outcome":"PASSED","run_root":"/private/runs","raw_run_dir":"/elsewhere/run"}}`)
+	if _, err := ParseReceipt("gate.drive.start", b, nil, 0, Assignment{RunRoot: "/private/runs"}); err == nil {
+		t.Fatal("accepted PASSED raw_run_dir outside assigned run root")
+	}
+}
+
+func TestParseReceiptClassifiesDiagnosticHaltWithoutOwnership(t *testing.T) {
+	b := []byte(`{"protocol_version":1,"operation":"gate.drive.start","result":"invalid-state","reason":"run-cancelled","message":"use current epoch"}`)
+	r, err := ParseReceipt("gate.drive.start", b, []byte("diagnostic"), 1, Assignment{RunRoot: "/private/runs"})
+	if err != nil {
+		t.Fatalf("diagnostic halt: %v", err)
+	}
+	if r.Classification != "halt" || r.Reason != "run-cancelled" || r.Drive != nil || r.ExitCode != 1 {
+		t.Fatalf("halt receipt = %+v", r)
+	}
+}

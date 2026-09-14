@@ -9,7 +9,10 @@ import (
 )
 
 func TestValidateResourcesRequiresNestedDeclaredClosureAndDigests(t *testing.T) {
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	skill := filepath.Join(root, "skill")
 	if err := os.MkdirAll(filepath.Join(skill, "references", "deep"), 0o755); err != nil {
 		t.Fatal(err)
@@ -35,7 +38,10 @@ func TestValidateResourcesRequiresNestedDeclaredClosureAndDigests(t *testing.T) 
 }
 
 func TestValidateResourcesRejectsHashDriftAndSymlinkEscape(t *testing.T) {
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := filepath.Join(root, "SKILL.md")
 	if err := os.WriteFile(p, []byte("body"), 0o644); err != nil {
 		t.Fatal(err)
@@ -58,5 +64,21 @@ func TestValidateResourcesRejectsHashDriftAndSymlinkEscape(t *testing.T) {
 	a.Resources[0].SHA256 = hex.EncodeToString(s[:])
 	if err := ValidateResources(a); err == nil {
 		t.Fatal("accepted symlinked resource")
+	}
+}
+
+func TestValidateResourcesRejectsIncompleteDependencyGraph(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(root, "SKILL.md")
+	if err := os.WriteFile(p, []byte("skill\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte("skill\n"))
+	a := Assignment{ReadRoots: []string{root}, Resources: []Resource{{LogicalID: "skill", Path: p, SHA256: hex.EncodeToString(sum[:]), Source: "package:test"}}, ResourceDependencies: map[string][]string{"skill": {"missing"}}}
+	if err := ValidateResources(a); err == nil {
+		t.Fatal("accepted dependency on an undeclared resource")
 	}
 }
