@@ -1,188 +1,131 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
 > ↩ **[Change 0425 — Restore native Codex dispatch for Multi-Agent V2 Docket coordinators](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md)**
 <!-- docket:backlink:end -->
-
 # Change 0425: native Codex coordination with explicit feature-worktree binding
 
-## Goal
+## Goal and delivery order
 
-Make Codex native named-agent dispatch the production route for Docket coordinators and their planner, build, and review children when the selected model satisfies change 0424's Multi-Agent capability policy.
+Restore native named-agent dispatch for Codex Docket coordinators and feature planner, build and review children. A native child may inherit the primary checkout as its startup directory; before feature work it validates its assigned registered feature worktree, then explicitly targets feature operations there. Do not implement native child startup-directory placement, a substitute runner or a harness workaround.
 
-A Codex feature child may start with the coordinator's primary-checkout cwd because native child dispatch has no startup-directory control. Before task repository work, the child validates the assigned registered feature worktree and then explicitly targets task repository operations to it. This design adds no substitute runner, app-server root, host relocation mechanism, relay, or custom agent wrapper.
+Build 425 before 424. The only change dependency is completed 423. Until 424 delivers automated model validation, the operator configures suitable exact model and effort assignments for every role that dispatches children, including the parent session. This is an operational prerequisite, not a dependency on a registry, a new diagnostic, a typed minimum-capability field or a machine-local assertion feature. Change 424 will add those protections to the working native route afterward. Change 426 owns broader legacy retirement.
 
-## Evidence and scope correction
+## Accepted evidence and remaining proof
 
-Change 0423 corrected two premises in the proposal. First, a native Codex child on a Multi-Agent V2-capable model can dispatch registered children. Second, safety does not require the feature child to start in the feature worktree: the successful option is to validate an assigned registered feature root first and bind subsequent feature work to it.
+Change 423 was manually completed and archived on 2026-09-14. Metadata commit `8938f0a65869aa900e53110c2a353c210b70df24` packaged its final evidence; there was no production-code merge, routing installation or binary change. The standard Docket binary used was source commit `06ebb52c058894b564ac2a8432922ddf4b2d56b3`; no specialized binary is required for the proven flow.
 
-The focused POC worker regression established a Terra/low controller dispatching one registered `docket-build-standard` child resolved as Terra/medium; a real baseline/RED/GREEN sequence; a committed implementation; durable scope acknowledgement; a configured full-suite pass at the exact implementation commit; a clean feature tree; and an unchanged final primary snapshot. The POC did not establish the complete ImplementNext-to-planner-to-worker chain, hard filesystem isolation, parallel safety, or production completion. Those claims require the continuous acceptance below.
+The canonical [final report](../../codex/fixtures/native-implement-next/FINAL-RESULTS.md), [accepted evidence](../../codex/fixtures/native-implement-next/evidence/final-run/README.md), [independent review](../../codex/fixtures/native-implement-next/evidence/final-run/evidence/independent-review.md) and [package manifest](../../codex/fixtures/native-implement-next/PACKAGE-SHA256.json) are the evidence baseline. The package's copied change-0425-design.md is a historical snapshot; this linked specification is authoritative for current production work.
 
-The demonstrated assignments are Terra/low coordinator, Sol/medium planner, and Terra/medium standard worker. They are observed fixture assignments, not claims about current shipped defaults or family-level capability rules. Change 0424's exact-model registry and typed capability policy remain authoritative.
+Continuous run 04 established native parent → ImplementNext → planner/standard worker lineage, starting in primary and creating a new registered feature worktree. Observed assignments were parent/coordinator `gpt-5.6-terra` / low, planner `gpt-5.6-sol` / medium and standard worker `gpt-5.6-terra` / medium. These exact observations do not establish a capability rule for a model family or effort label.
 
-## Selected architecture
+The run committed a fresh plan (`5b1af86bb03e6ba7494ee69a86a4650b10a47143`), real TDD implementation (`9e8ac68dd82ea66c78785b4448b08d8e8b8aabd3`) and results checkpoint (`a9b1be9539b0e2078db3d1b9faca8e8473b2fe6a`). The configured full suite passed at both implementation and final results commits. The final commit was published to the fixture's local origin; plan and results were attached at authoritative metadata revision `cea1c7bcaf9836936bc87f0d66fa68e258f1a1c9`. The task scope closed with final acknowledgement. The primary audit remained unchanged and the original outer gate key reached terminal `gate-stop / run-halted` at the deliberate boundary.
 
-### Native coordinator entry
+Acceptance is `continuous-functional-passed`, with `evidence_audit_complete: false`. Native-message opacity and snapshots cannot exclude transient restored writes. Feature-only plan/results generated known metadata lookup findings despite verified Git objects and attachments. The acceptance JSON's abbreviated worker run root and template-only results reference require the independent review's canonical-path and publication/attachment evidence. Do not copy those weaknesses into new production evidence. Focused TestGreet RED/GREEN was valid task testing; full suites were separate controller-owned gates. Review, PR publication to GitHub, merge, parallel operation, WAITING paths not actually exercised, and hard isolation were not certified by that run.
 
-The caller arms the existing implement-next gate, retains its key privately, and launches the registered `docket-implement-next` role through ordinary Codex native named-agent dispatch. It passes the gate dispatch-context unchanged. If the existing gate workflow also supplies a run epoch, the caller passes that epoch through every operation whose live schema accepts it; change 0425 neither assumes every `gate-before` response contains an epoch nor manufactures one.
+No new run is needed to complete 423. Change 425 must test its generated production assets; rerunning the frozen three-role POC alone cannot certify those assets.
 
-Missing registration, an invalid coordinator model, failed capability validation, or failed/uncertain native dispatch halts visibly. There is no fallback to `agent.enter`, `codex exec`, another harness, a generic agent, inline reconstruction, relay, or a second launch. The coordinator likewise uses native registered dispatch for planner, build, and review children.
+## Native dispatch and interim model configuration
 
-### Capability policy
+The caller arms the existing implement-next gate, retains the key privately and passes its dispatch context unchanged to the registered `docket-implement-next` through native named-agent dispatch. The coordinator uses the same native mechanism for registered downstream roles. Actual feature scope remains an instruction and data contract, not a request for an unsupported native startup-directory option.
 
-The shared role inventory declares whether a role owns downstream dispatch. Codex generation and installation consume change 0424's exact-model registry:
+Remove conflicting Codex root-coordinator and feature agent.enter routing from both parent-facing generated instructions and child-facing definitions. Retain typed launch/scope metadata where other harnesses or existing contracts still use it; Codex must not interpret it as permission to enter another root process. Fix the generating sources, embedded assets, goldens and installer output together.
 
-- dispatch-owning roles require Multi-Agent V2 or newer;
-- a model known to be V1 is rejected;
-- unknown-model and machine-local assertion behavior remains owned by 0424;
-- family names and effort labels do not establish capability;
-- routing never silently changes a configured model or effort.
+Before a fresh production-validation session, the operator sets model/effort in the existing Docket configuration layers and regenerates the registered definitions. Audit the roles whose active contracts dispatch, including roles reached through configurable skills. A leaf worker that does not dispatch is not automatically required to use V2. Changing the foreground session's model does not change pinned child models; editing generated files alone is not durable across installation. Record resolved definitions and independently observed runtime values where available. Do not change the user's assignments automatically.
 
-### Static assignment and private operational payload
+Use the proven assignments above for the minimal regression. For additional dispatch-owning roles use operator-selected, verified capable exact models; do not infer capability from family names or increased effort. Change 425 adds no bundled model registry, allowlist, family heuristic, per-dispatch model catalog call, automatic model repair or unknown-model override. The operator owns this interim configuration risk. Existing host tool resolution and failure handling remain: use the agent's actual top-level native surface, not an inventory nested inside another tool. Missing required tools or registration, explicit denial, or a failed/uncertain dispatch halts visibly with configuration remedies. Do not probe by dispatching duplicate production work.
 
-Each feature child receives a static immutable assignment containing non-secret values only: change, phase, task and role identity; canonical primary and feature roots; branch and pre-dispatch feature HEAD; synchronized change/spec paths; resolved plan path when applicable; exact configured test argv; entry-checker argv; and a digest over the assignment. This file may be constructed and validated before a gate scope exists. It never contains gate context, scope capability, owner generation, handoff token, or any other credential.
+There is no automatic fallback to agent.enter, codex exec, another harness, a generic substitute, an inline reconstruction or a relay. Do not use an early-stage success message as launch authority or completion evidence.
 
-Dynamic operational values are separate and private. The coordinator obtains the real scope and child capability, then constructs and validates the final native message containing the static assignment's identity plus the exact scope, child capability, relevant predecessor/owner values, and unchanged outer gate context. The final message is dispatched only after the real scope exists. The coordinator's parent capability never enters the child message, assignment, evidence, terminal record, or searchable fixture material.
+## Assignment, binding and permitted access
 
-Protected fields in the dispatched message must equal the validated final payload. A missing, altered, duplicated, or substituted field halts before task work.
+The controller creates a per-dispatch immutable assignment from actual workspace and task state: change/role/phase/task identities, canonical primary and feature roots, branch, expected entry HEAD, prescribed artifact and skill paths, interpreter-bearing checker argv, allowed external control paths, task test argv and canonical task run root. Pin its content digest. Pin test commands by stage: focused task tests and the configured controller full suite need not be identical. Paths and commands come from resolved state, not POC constants or shell memory from another call.
 
-### Feature-worktree binding
+A child first executes the supplied read-only entry check before task repository work. Canonical feature identity must be registered, existing, non-primary, in the same Git repository and assigned to the expected change/branch. Reject foreign, escaping, symlink-redirected, missing or replaced roots. Startup may be primary or feature; equality between startup cwd and feature root is not required. Permit the exact assignment/checker and necessary Git identity reads for entry without granting broad primary access.
 
-The coordinator resolves an absolute feature root from registered Docket workspace state. It must be canonical, existing, non-primary, in the same repository, and match the assigned change and branch.
+Verify the expected HEAD and role-appropriate cleanliness on entry. After authorized edits and commits, revalidate root/branch identity and stage-specific expectations; do not compare every later operation against the original pre-dispatch HEAD or demand a clean tree during RED/GREEN edits. Continuations/escalations receive fresh assignments and explicit accounting for authorized inherited changes. This preserves existing continuation and escalation semantics rather than blocking them with a universal clean-tree rule.
 
-The child's first task action is the supplied interpreter-bearing entry argv. The checker reloads and hashes the immutable assignment and validates the registered feature root. Startup-cwd equality is not required. After binding:
+After entry, feature commands carry an explicit working directory; Git and Docket operations carry the applicable explicit root; file-tool paths are absolute and contained; feature skills receive exact roots and artifact paths. Avoid login-shell startup that changes cwd. Reload fixed values in independent shell calls. Interpreter execution of checkers is explicit, so a non-executable 0644 Python file does not accidentally become a direct shell command. Do not require Python/Node as new product dependencies merely because the POC used them: reuse the maintained Go implementation/packaging where suitable. Any helper is a local validator/data preparer, never an agent launcher or transport.
 
-- feature shell commands execute with the canonical feature root as their working directory;
-- feature file reads and writes resolve beneath that root;
-- feature Git and Docket operations receive the explicit applicable root;
-- skills that operate on feature artifacts receive the root and exact artifact paths;
-- every test invocation reloads the immutable assignment and its exact test argv;
-- the child does not infer the feature root from cwd, prose, role name, or a sibling fixture.
+Read-only control inputs may include synchronized metadata, the child's own live Docket catalog/schema, prescribed skill payloads and task-owned driver responses/logs. Declare those surfaces explicitly. Feature artifacts are written only in the feature worktree. The coordinator owns repository preparation and metadata mutation; the build worker must not run repository.prepare or write the board, change records or metadata branch. Generated Codex instructions must disclose this role-specific exception ahead of the generic convention preamble. Git administration and prescribed private gate state are distinct from primary source files. Clean primary snapshots support the stated audit result, not a hard sandbox guarantee.
 
-This rule does not prohibit role-authorized reads of synchronized metadata, the child's own live capability catalog, prescribed gate state, or other explicitly named control inputs. Such reads are identified separately from feature-artifact access. The worker does not run `repository.prepare`; repository preparation belongs to the coordinator.
+## Planner and template preparation
 
-### Planner handoff
+Resolve the real planning skill and its mandatory referenced resources before dispatch. Supply usable bounded content or a pinned explicit payload with digest, logical skill identity and provenance. Validate availability and hashes in the child's declared read boundary; a parent-only path or skill name without required content is insufficient. Missing resources halt before planner work. Preserve the plan writer's existing sole-artifact contract and return interface.
 
-After feature-worktree creation, the coordinator dispatches the registered plan writer with its static assignment, private dynamic payload, and a complete immutable snapshot of the resolved planning-skill contract. The snapshot includes the exact usable content or packaged payload, digest, logical skill identity, provenance/version, and directed inputs. The planner does not depend on a parent-only path, a stale global installation, or omitted conversational context.
+The native planner writes only the authorized plan, stamps its backlink through the supported operation, commits that artifact with its required path trailer and returns its relative path and commit. The coordinator verifies containment, single-artifact delta, trailer/backlink, ancestry and expected workspace state, then attaches it with the current metadata entity version. The coordinator must not synthesize a replacement for missing planner output.
 
-The planner binds to the feature root, invokes the supplied skill contract, writes only its authorized plan artifact there, stamps the backlink, commits only that artifact, and returns the repo-relative path and commit. The coordinator verifies containment, tracking, single-artifact delta, trailer, backlink, descendant relationship, and clean tree before attachment. Missing or mismatched skill input, digest, artifact, commit, or backlink halts; the coordinator does not recreate or repair the planner's output.
+Resolve the installed results template by its exact packaged path, including hidden skill directories. Validate the template's availability/integrity before expensive downstream work and, when supplied from the feature snapshot, after workspace creation. Carry its canonical usable path or content forward. Do not search with defaults that omit .agents and conclude it is missing; do not silently substitute an unrelated global template. A template check proves template availability only, never results creation, commit, publication or attachment.
 
-### Build-worker handoff and drive ownership
+## Worker payload and gate response handling
 
-For each plan task, the build controller prepares one normal scope, retains the parent capability, and dispatches one registered profile worker with the exact validated child payload. The worker binds first, then drives baseline, RED, GREEN, and focused verification in order using the same scope. It commits successful task work before terminal acknowledgement and acknowledges with the child capability and current owner generation.
+Static assignment files never contain gate context, scope credentials, owner generations or handoff tokens. For a build task, create one real scope using identities derived from that assignment. Retain parent authority privately in the controller. Only after scope creation, validate the final native payload with the actual child capability, scope ID, unchanged outer context, optional supplied epoch and relevant predecessor/owner values. Dispatch exactly that validated payload. The first validation/dry-run payload must not be sent in place of the completed private payload. Missing, empty, altered or substituted protected fields halt before task work.
 
-A worker `WAITING` return is valid only when it carries the drive id and single-use handoff token produced by `gate.drive.handoff`. The nearest live controller claims that handoff with `gate.drive.claim`, captures the fresh owner generation, and advances the same drive through short driver calls. The worker does not keep polling after it has handed off. When agent judgment is needed again, the controller may dispatch a fresh worker for the same task only through the existing explicit continuation contract. This is not a replacement drive and consumes neither repair nor escalation allowance.
+Do not invent a task scope or child capability for the planner/reviewer merely to give all roles the worker's payload shape. Pass only the operational authority their existing roles require. Controller-only parent capabilities never enter children, static files, reusable evidence or public terminal reports. Private dynamic payload/response retention uses appropriate protected storage outside tracked artifacts.
 
-If a worker returns without a valid handoff while its scope still owns a nonterminal or unconsumed drive, the controller uses the existing parent-capability takeover contract based on the observed return event, captures the new owner generation, and settles that same drive. It never uses a timer as takeover authority and never launches a replacement test. Invalid ownership, predecessor, generation, handoff, or acknowledgement halts.
+Each agent bootstraps its own live Docket catalog and operation schemas. A controller's cached catalog is not a child's executable authority. Use the real supported prepare-scope response and validated input identities. The POC's direct read of a pinned v3 private record was fixture instrumentation; do not ship its private filesystem path/envelope as a cross-layer production API. Reuse backend-owned scope validation. If additional identity inspection is necessary, expose the smallest typed internal seam with schema tests; do not add another launch protocol.
 
-### Review
+Every worker test uses the existing task gate driver: baseline, genuine assertion RED, GREEN and any focused verification under one sequential scope, with captured predecessors. The controller owns the configured full suite after task completion. Capture stdout, stderr and exit code from the first start call before parsing, including failures. Parse the supported nested drive response (the proven binary uses drive.drive_id, drive.generation, drive.outcome and drive.run_root); a presumed top-level drive_id/owner_generation is not a valid parser. Validate the returned canonical run root and ownership data. A nonzero exit can carry a valid FAILED test outcome. Missing/malformed receipts preserve the original diagnostic and halt; never repeat start to recover a lost token or response. Use safe shell variable names rather than zsh's read-only status parameter.
 
-Production implementation of 0425 includes normal review of the shipped change through the registered review role, bound to the exact feature root and commit. The reviewer validates its assignment before read-only repository inspection, and the coordinator verifies that the result names the expected branch and commit.
+Commit successful task work before final acknowledgement. Acknowledge the final drive with the real child authority/current generation; report task commit and sanitized terminal facts. WAITING immediately hands off the same drive with its single-use token. The controller claims it, captures the new generation and advances that drive; judgment continuation uses the existing explicit same-task continuation contract. Return without a valid handoff follows existing parent takeover based on the observed return event, not a timeout. Busy/unresolved gates, stale ownership and broken predecessors halt; no duplicate scope/test, replacement launch or hidden retry budget is introduced.
 
-The POC 0423 continuous certification stops with typed halt before review, PR, merge, or production mutation. Its purpose is to certify the native coordinator/planner/worker chain safely; it does not impersonate 0425's production review stage.
+## Artifact diagnostics and authoritative metadata
 
-### Catalog and schema use
+Plan and results are feature-branch artifacts before integration; their links live on the metadata branch. Correct diagnostics for both fields, not just plans. For active implemented work, inspect the registered owning workspace and verified feature revision/artifact identity (including persisted attachment provenance where available), rather than unconditionally looking on integration. Cover in-progress and implemented states and existing stacked-base rules. Missing/foreign workspace, wrong branch, unresolvable revision, missing or mismatched artifact remain findings; do not suppress all active-artifact errors or copy artifacts to primary.
 
-Each agent resolves the live Docket capability catalog for operations it owns. One agent's catalog is not executable authority for another agent and is not reused as a cross-agent cache. Static input may carry resolved stable data such as paths and test argv, while each child independently validates the operations it invokes.
+Use metadata revision returned by synchronized live Docket context/status, not an assumed current local docket ref. After integration, use the existing terminal/integration ownership rules. Read from pinned Git objects for reproducible evidence, not only the current filesystem. Preserve existing attachment validation and receipts; do not assume the manifest has a commit field it does not store.
 
-## Plan artifact ownership
+## Review, results and terminal sequencing
 
-The plan file intentionally exists on the feature branch until merge. Its `plan:` metadata field exists on the metadata branch. Diagnostics must therefore become ownership-aware:
+Keep the caller gate authoritative for actual ImplementNext runs. Pass the unchanged dispatch context to claim and every scope/drive operation that accepts it. Forward run epoch only when actually supplied and accepted by the operation schema. Preserve key, change, continuation and phase identity through existing retry/continuation contracts. Collect terminal native output, then obtain and obey the parent's keyed verdict.
 
-- for an in-progress change with a registered owning feature worktree, validate the attached plan at its recorded feature commit and path;
-- report a finding if the workspace is missing or foreign, or the commit/path/blob disagrees;
-- after integration, validate the plan on the integration branch under existing done-state rules;
-- never copy the plan into the primary checkout to silence a finding;
-- never suppress all missing-plan findings for in-progress changes.
+Production review uses the registered read-only review role bound to the expected feature root, branch and review HEAD. Distinguish review of the 425 source PR from testing native review dispatch on a disposable candidate. The 423 run established neither. Re-review code fixes and refresh affected gate evidence; do not claim an earlier review examined later code.
 
-Feature artifacts belong in the feature worktree. Metadata transactions in `.docket`, Git administration in `.git`, live gate state, and external evidence are separate bookkeeping surfaces whose expected access is declared and audited.
+After the implementation-stage full suite, author the real results artifact from the verified template, commit it, publish the branch and attach the committed artifact in the prescribed lifecycle order. Retain implementation-stage evidence separately. Obtain the required checkpoint gate at the clean final results HEAD; the earlier green suite is not evidence for that later commit. Avoid a self-referential results loop: final-checkpoint receipts can be durable external evidence tied to the commit, without rewriting the report just to embed its own hash. Handle any allowed results-only review delta explicitly under existing review/finalization policy.
 
-## Gate, results, and terminal sequencing
+Only verified current-head evidence, actual reviewed work, committed/attached results, correct remote head and a real PR can support production mark-implemented. A disposable acceptance run may stop by explicit typed halt after results/checkpoint or a read-only review boundary. Its gate-stop/run-halted is a correct bounded result, not production run-complete. Merging the 425 PR and installing its verified source is separate from those test runs.
 
-The caller-side implement-next gate remains authoritative. The outer dispatch context reaches claim and every nested gate operation whose schema accepts it. Any supplied run epoch follows the same rule. Continuations retain their existing key, change, continuation, phase, and epoch identities.
+## Progressive disclosure and source surfaces
 
-Build evidence for the implementation gate remains attached to the implementation HEAD it tested. Review fixes may move HEAD and require refreshed build evidence under the existing policy. The coordinator then authors, attaches, and commits the durable results artifact; because that commit moves HEAD, the earlier implementation gate is preserved as stage evidence rather than misrepresented as final-head evidence. After the final results content is committed, the coordinator obtains the normal required checkpoint/certification gate for that exact final HEAD. Any later material commit invalidates that final evidence and requires re-establishment.
+Common workflow edges and role semantics remain harness-neutral. Codex-specific mechanics live in the Codex adapter and narrowly linked skill/agent references, loaded only for Codex. Keep other harness output/behavior unchanged. Existing typed scope metadata is sufficient; a new minimum-model-capability inventory field belongs to 424, not this change.
 
-Only after the exact final head is clean, published as required, reviewed, supported by attached results and exact-head evidence, and otherwise satisfies the normal ImplementNext postconditions may 0425 mark its production implementation implemented. The parent then obtains and obeys the keyed outer verdict. Child prose, a tool exit, or an earlier green gate cannot replace it.
+Review the generating sources in internal/harness/codex, the parent dispatch block renderer, source agents, skills/docket-implement-next, skills/docket-build and skills/docket-build-task, planner and review references, installation/embedded assets and their goldens. Derive affected roles and executable sites from the actual source inventory/search rather than a handwritten three-role POC list. Other registered dispatch-owning roles must not keep contradictory Codex entry instructions.
 
-The POC 0423 packages stage evidence and terminates through a typed halt before production closeout. It does not create review, PR, merge, or implemented state.
+Record a successor ADR for the conflicting Codex route and startup-equality requirements of ADR-0114. Do not rewrite that accepted record. Retain the owning-worktree safety invariant while adopting native dispatch and explicit binding. Keep unrelated legacy runner removal in 426.
 
-## Failure posture
+## Acceptance and verification
 
-The run halts without fallback for invalid model capability, missing registration, uncertain dispatch ownership, failed worktree binding, invalid immutable input or skill snapshot, payload mismatch, leaked parent capability, missing catalog operation, broken handoff/takeover/predecessor/owner identity, unverifiable planner or worker commit, dirty or wrong-head gate execution, unsafe results checkpoint, or unattributable outer verdict.
+### Deterministic checks
 
-A halt preserves completed work and emits credential-free diagnostics. It does not weaken checks, repair child output in the parent, switch launch mechanisms, or infer authority from nearby files or recent runs.
+1. Generated Codex parent/child definitions use native registered dispatch; mutations restoring automatic agent.enter, root relocation or startup-cwd equality fail. Other harness outputs retain their behavior. Existing configuration precedence and manually chosen model/effort values survive generation/install; absence of 424 introduces no missing-registry failure.
+2. Binding tests start at primary and feature; reject invalid ownership/paths before task work. Valid task edits and a subsequent commit must not fail merely because initial HEAD or cleanliness changed. Test continuation/escalation assignments and scoped metadata-read exceptions.
+3. Mutation-test incomplete skill snapshots, lost mandatory referenced resources, exact interpreter argv and missing/changed results templates in hidden directories. Validate prerequisites before native dispatch where possible.
+4. Prove a real scope precedes final worker payload construction; omit/substitute the child capability, context, task identity or required predecessor and expect refusal. Exclude parent authority from child/public artifacts. Do not require worker scope fields on planner/reviewer messages.
+5. Exercise the actual nested drive response parser, first-response preservation on nonzero/invalid output, canonical run-root mismatch and independent-shell input reloads. Mutation-test the original wrong response shape, lost child payload and non-executable-checker invocation failures.
+6. Exercise baseline/RED/GREEN, commit/final acknowledgement, WAITING handoff/claim/continuation and return-without-handoff takeover. Reject duplicate starts/scopes, stale generations and polling after handoff. Do not infer unexercised paths from the POC pass.
+7. Exercise ownership-aware plan and results diagnostics at pinned feature/metadata revisions, stale local docket refs, missing/foreign workspaces and post-integration resolution. Verify actual artifact commit, remote publication and attachment, not a template receipt alone.
+8. Exercise native review binding, stale review inputs, results commits that advance HEAD, separate implementation/final checkpoint evidence and unchanged outer gate context/optional epochs. Keep existing continuation, retry, halt and cancellation semantics.
+9. Demonstrate that a transient restored write escapes final-snapshot comparison; auditing must report that limitation rather than pass a hard-isolation assertion. No requirement to build host tracing or a sandbox is introduced.
+10. Run the configured complete repository suite through the maintained Go runner from the reviewed source. Inspect budget reports, including serial confirmed breaches. Targeted tests supplement this gate.
 
-## Progressive disclosure and affected surfaces
+### Validation of generated production assets
 
-The neutral inventory retains typed worktree scope and downstream-dispatch capability. Codex mechanics appear only where needed:
+After implementing 425, generate/install its candidate assets into an isolated test environment and open a fresh Codex app session so old definitions are not cached. Keep the accepted 423 package and evidence frozen. Extend/reuse its generator and regressions, but load candidate production roles/skills/checkers rather than the frozen experimental three-role overrides. Record source commit, generated asset hashes, Docket/Codex versions and actual configured/observed role settings.
 
-- the Codex adapter and generated dispatch contract select native dispatch;
-- coordinator instructions disclose gate context, optional epoch, scope creation, and private payload duties;
-- feature-role instructions disclose binding and explicit feature targeting;
-- planner instructions disclose the complete skill-snapshot contract;
-- build instructions disclose static-versus-dynamic input, handoff/claim/takeover, commit, and acknowledgement;
-- review instructions disclose exact-commit read-only binding.
+From a fresh disposable primary checkout, reproduce the continuous native coordinator → fresh planner → corrected worker flow, new feature workspace, actual TDD/commit/acknowledgement, implementation full suite, committed/published/attached results and separate final checkpoint suite. Use canonical absolute runtime paths in receipts and explicit references to artifact/attachment evidence. The operator manually sets the proven exact assignments; no further Luna control or 424 registry is required.
 
-Other harness behavior and shared role semantics remain unchanged. Generated assets, embedded copies, goldens, installer ownership checks, guards, and documentation are regenerated from their existing sources.
+Exercise native read-only review with those production assets at a pinned disposable feature commit, either within the bounded run or in a separate explicitly attributed test. Stop at the declared boundary with typed halt and the parent's original keyed verdict; do not fabricate PR or merge activity for the disposable candidate. Audit primary source state separately from authorized metadata/Git/gate bookkeeping, and disclose unavailable telemetry. Full production PR publication/implemented/merge evidence belongs to the actual 425 source change or a separately authorized integration test.
 
-A successor ADR supersedes the conflicting Codex routing and startup requirements of ADR-0114 without editing that accepted historical record. It retains the safety invariant that the verified owning worktree is authoritative, while replacing actual-cwd equality and automatic feature `agent.enter` with native dispatch plus explicit binding.
+Passing 423 is reusable evidence for the design. Passing this test demonstrates the new implementation, not retroactive completion of 423. Neither certifies parallel operation or hard isolation.
 
-Change 0426 owns broader legacy `agent.enter` deprecation and retirement. Change 0425 makes native option 2 standard for this workflow and removes its automatic route here; it does not implement 0426.
+## Bootstrap implementation of 425
 
-## Acceptance criteria
+Build 425 as a human-directed coding task in a fresh Codex app session rooted in its isolated feature worktree. The top-level coding agent implements an explicit plan directly; do not invoke the installed docket-implement-next workflow, docket-build orchestration, agent.enter or an imitation of their dispatch contract to build the feature that repairs them. This is a one-time development route, not an automatic runtime fallback introduced by 425. Do not require the candidate workflow to build its own initial implementation.
 
-### Hermetic and mutation coverage
+Use normal Docket metadata operations where applicable to claim/reconcile the change, prepare its workspace and attach real artifacts, while the coding task owns implementation and tests directly under its user-authorized bootstrap scope. Preserve official validators and exact entity versions. Author and commit the implementation plan before coding; build in reviewable steps: native generated routing/binding, complete inputs and receipt/template fixes, artifact diagnostics, then production-asset acceptance and documentation/ADR updates.
 
-1. Derive coordinator roles from typed metadata and enforce 0424's exact-model capability policy. Mutations admitting V1, using family inference, or rewriting pins fail.
-2. Prove Codex coordinator, planner, build, and review routes use registered native dispatch with no reachable automatic `agent.enter`, runner, relay, generic, inline, or cross-harness fallback.
-3. Launch a child from primary cwd with a valid feature assignment and prove explicit feature targeting succeeds. Reject primary, foreign, nested, nonexistent, symlink-escaped, wrong-branch/change, unregistered, and replaced roots before task work.
-4. Derive executable feature-operation sites from repository syntax, not an enumerated spelling list. Mutations dropping explicit binding from representative shell, file, Git, Docket, and skill operations fail.
-5. Prove the static assignment is credential-free and independently hash-valid before scope creation. Prove dynamic scope, child capability, owner data, handoff data, and outer context are absent from it.
-6. Prove the final native message is constructed after real scope creation, equals the validated protected payload, contains the child capability, and excludes the parent capability.
-7. Prove exact interpreter entry. Direct invocation of a non-executable checker, wrong interpreter/path, or wrong digest fails before task work.
-8. Remove or alter the planner skill snapshot and require pre-write halt. Verify normal planner output is one committed, backlink-valid feature artifact.
-9. Prove every agent loads its own live catalog; parent-cached executable authority in a child fails.
-10. Prove the worker cannot run repository preparation, create a second scope, skip predecessors, reuse process-memory test values, acknowledge before commit, or acknowledge stale ownership.
-11. Exercise valid `WAITING` handoff, controller claim with fresh generation, advancement of the same drive, explicit same-task continuation when judgment returns, and return-without-handoff takeover. Mutations that poll after handoff or launch replacement tests fail.
-12. Exercise baseline pass, genuine assertion RED, GREEN, commit, acknowledgement, and build-owned configured full suite at the exact clean implementation commit.
-13. Exercise production review at the exact shipped commit and reject stale or dirty review input.
-14. Exercise implementation-stage evidence, a results commit that moves HEAD, and a separate exact-final-head checkpoint. Mutations reusing stale pre-results evidence or claiming a blanket single suite run fail.
-15. Exercise keyed outer verdict behavior for completion, continuation, retry, halt, cancellation, and optional epoch presence/absence without manufacturing an epoch.
-16. Exercise ownership-aware feature-only plan diagnostics, including valid feature plan, missing workspace, mismatched commit/blob, and post-integration resolution.
-17. Mutation-test integrity auditing with a transient restored write. A final snapshot alone cannot support a hard-isolation claim; results must name any host visibility limit.
-18. Run the configured complete repository suite through the maintained Go runner and inspect budget reports.
+Run meaningful TDD and the configured full repository suite, obtain independent review of the actual source change, commit results and collect final-head evidence, then open a real PR. No ordinary Codex ImplementNext run or parent keyed verdict is claimed for this manual coding task; keyed gates still bracket actual native acceptance runs. If an official lifecycle transition cannot accept truthful bootstrap evidence, report the exact unsatisfied condition and use a separately authorized metadata exception rather than inventing run or merge receipts. Unlike 423's POC-only closure, 425 requires a real production PR merge before archival as done. Follow the normal post-merge verified-source install; if that fails, retain the merged change as done and report binary rebuild incomplete separately. Do not enable the newly merged route until installation is verified.
 
-### Continuous native Codex acceptance
-
-In a fresh disposable repository and fresh Codex parent session, one continuous POC run must record exact Codex/Docket versions, source identity, role/model/effort resolution, initial checkout identities, and credential-free receipts, and demonstrate:
-
-1. native Terra/low ImplementNext coordination;
-2. unchanged outer gate context, plus run epoch only if supplied, reaching applicable claim/scope/drive operations;
-3. registered feature creation and validation while coordinator starts in primary;
-4. one native Sol/medium planner receiving the complete real skill snapshot and committing a verified plan;
-5. one native Terra/medium standard worker receiving the exact post-scope child payload, binding from inherited primary cwd, running baseline/RED/GREEN, committing, and acknowledging;
-6. correct WAITING handoff/claim behavior if WAITING occurs, with no replacement drive;
-7. build-owned configured suite evidence at the exact implementation commit;
-8. durable POC evidence packaging followed by typed halt before review, PR, merge, or production changes;
-9. clean feature state, unchanged final primary snapshot, and separate audit of feature access, synchronized metadata reads, live catalog/gate reads, bookkeeping writes, broad reads, and transient writes;
-10. no automatic `agent.enter`, runner, wrapper, host relocation, generic substitute, or duplicate launch.
-
-The report distinguishes independently observed facts, child receipts, and opaque host behavior. It makes no hard-isolation or parallel-certification claim without direct evidence. The focused worker run may be cited but does not replace this continuous chain.
-
-Production 0425 acceptance separately includes review, durable results, exact-final-head certification, publication/implemented transition under the normal workflow, and the keyed outer verdict.
-
-## Assumptions
-
-- Change 0424 lands first and supplies exact-model capability authority.
-- Change 0423 preserves POC evidence and stops through typed halt rather than acting as production implementation.
-- Native Codex dispatch preserves registered role identity, model, effort, and preload, but offers no supported nested-child startup-cwd selector.
-- The coordinator can resolve a canonical registered feature root and issue scoped child capability without disclosing its parent capability.
-- Run epoch is propagated only when the existing gate workflow actually supplies one.
-- A complete planning-skill snapshot can be passed as bounded immutable content without a new harness.
-- Ownership-aware diagnostics may inspect the registered feature worktree for an in-progress attached plan.
-- Host visibility may limit proof of broad reads and transient writes; results state those limits.
-- Parallel operation on distinct worktrees is a desired consequence, not certified by this single-run acceptance.
-- Change 426 remains responsible for broader legacy retirement.
+The operator then selects appropriate model/effort assignments, regenerates production definitions and opens a fresh session. Native ImplementNext can be used for 424 after production validation; 424 adds automated model policy without changing 425's launch architecture. The present specification update does not start implementation, change model pins or install candidate assets.
 
 ## Out of scope
 
-Implementing 426; changing other harness launch behavior; live model probing per dispatch; family capability inference; automatic model substitution; adding native startup-directory support; app-server root promotion; host relocation; custom wrapper, runner, relay, generic agent, or cross-harness fallback; redesigning planning, review severity, merge approval, or retry policy; claiming hard isolation or parallel safety; embedding POC paths, task ids, capabilities, commits, or fixture names as production constants.
+Implementing 424's registry/typed model policy/live audit/local assertions; implementing 426's broad retirement; automatic model/effort changes; changes to other harness behavior; native child startup-directory support; root relocation, custom runners, relays or generic runtime substitutes; redesigning gate ownership, review severity, merge approval or retry policy; hard-isolation or parallel-safety certification; product dependence on fixture paths, credentials, model-family guesses or historical task IDs.

@@ -7,7 +7,7 @@ priority: 'critical'
 type: 'fix'
 created: '2026-09-11'
 updated: '2026-09-14'
-depends_on: [423, 424]
+depends_on: [423]
 stacked_on:
 related: [393, 407, 412, 426]
 discovered_from: [423]
@@ -35,12 +35,14 @@ reconciled: false
 
 ## Why
 
-Docket adopted agent.enter after nested coordination and feature-placement failures were generalized into Codex limitations. The POC narrowed both: native coordination works with capable model assignments, and the accepted option2 validates an assigned feature worktree before explicitly targeting feature work. The successful focused worker evidence supports this path; the final continuous certification remains a dependency. Production should retain gate, handoff and worktree checks while using native dispatch.
+Completed POC 423 proved one continuous native ImplementNext → planner → standard worker run with a newly created feature worktree, explicit option 2 binding from inherited primary startup, real TDD, committed and attached results, configured suites at implementation and final results commits, and the original keyed terminal halt. Its accepted evidence and reusable fixture are on the metadata branch; it was manually closed without a production-code merge. Production should now replace automatic Codex agent.enter routing while retaining the verified worktree, input, gate and artifact contracts. The user explicitly chose to deliver this before 424 and configure dispatch-capable models manually.
 
 ## What changes
 
-Make native named-agent dispatch the Codex route for capable coordinators and feature planner, build and review children. Consume424 capability policy. Replace startup-cwd equality with verified explicit feature targeting; preserve credential-free fixed assignment inputs, complete real planner skill payloads, private dynamic child capabilities, outer gate context and any supplied epoch, independent catalogs, handoff/claim/acknowledgement, exact-commit gates and results checkpoints. Add ownership-aware diagnostics for correctly feature-only attached plans. Disclose mechanics through Codex-specific adapter and skill/agent references; preserve common behavior and other harnesses. Record a successor ADR to114;426 owns broader legacy retirement.
+Make native named-agent dispatch the Codex route for coordinators and feature planner, build and review children. Depend only on completed 423; use operator-managed exact model/effort assignments through existing configuration, with no 424 registry or typed model-policy prerequisite. Replace startup-cwd equality with validated explicit feature targeting. Preserve complete planner resources, interpreter-safe entry, static assignments and actual private child capabilities, unchanged gate context/optional epoch, each agent's own catalog, correct nested gate-response parsing and first-response retention, scoped TDD/commit/acknowledgement, exact results-template discovery and separate implementation/final-checkpoint gates. Correct ownership-aware diagnostics for both feature-only plans and results using authoritative metadata revisions. Disclose mechanics through Codex-only adapter/skill/agent references and preserve other harnesses.
+
+Record a successor ADR to 114. Build this bootstrap change as an ordinary human-directed coding task in an isolated Codex feature worktree, without invoking installed docket-implement-next or docket-build orchestration. Validate newly generated production assets in a fresh disposable native run and exercise native review; the accepted frozen POC is evidence, not a substitute for testing production assets. Produce a real reviewed source PR, results and final-head evidence. After merge and verified installation, native ImplementNext can build 424; 426 owns broader legacy retirement.
 
 ## Out of scope
 
-Native startup-directory support, obscure host workarounds, automatic or fallback agent.enter, custom runners/relays/root relocation/generic substitutes, changing other harnesses or gate ownership/model capability authority, per-dispatch model probing, implementing426 legacy removal, hard-isolation or parallel-certification claims. Production425 remains dependent on accepted423 evidence and424.
+Implementing 424's model registry, minimum-capability metadata, diagnostics/live audit or local assertions; automatic model/effort changes; native child startup-directory support or obscure host workarounds; automatic/fallback agent.enter, custom runners, relays, generic runtime substitutes or inline reconstruction; other-harness behavior changes; redesigning gate ownership or retry policy; 426 legacy removal; hard-isolation or parallel-certification claims; reopening completed 423 or changing its frozen evidence.

@@ -6,8 +6,8 @@ status: 'proposed'
 priority: 'critical'
 type: 'feat'
 created: '2026-09-11'
-updated: '2026-09-11'
-depends_on: [423]
+updated: '2026-09-14'
+depends_on: [423, 425]
 stacked_on:
 related: [384, 393, 412]
 discovered_from: [423]
@@ -34,12 +34,16 @@ reconciled: false
 
 ## Why
 
-Docket currently treats a role's model and launch posture as independent configuration, but Codex exposes collaboration tools to nested agents according to the selected model's multi-agent capability. That allowed docket-implement-next to be pinned to a Multi-Agent V1 leaf model even though its contract requires it to dispatch plan, build, and review children. The resulting failure was misdiagnosed as a general Codex nesting limitation and drove a much larger launch workaround. Docket needs a deterministic policy that makes known-incompatible coordinator assignments visible before they are shipped or installed without adding a live catalog probe to every workflow run.
+The original Codex nesting failure came from assigning a coordinator a model that could not perform its required native child dispatch. Completed POC 423 established the positive path with verified model assignments. The user chose to restore production native dispatch in 425 first and manually configure model/effort for dispatch-owning roles in the interim. Automated model validation is follow-up protection against configuration regressions, not a prerequisite for that working route.
 
 ## What changes
 
-Add a typed minimum multi-agent capability to the Docket agent inventory and derive the set of dispatch-owning roles from that metadata rather than maintaining a hand-written role list or scanning prose for spawn-agent spellings. Add a bundled, versioned Codex model-capability registry recording exact model identifiers, multi-agent versions, and observation provenance. Make repository guards and Codex configuration/install generation reject a known Multi-Agent V1 model for a coordinator and accept a known V2-or-newer model. Add a dedicated read-only docket repository diagnostic that validates configured Codex roles from the bundled registry without a live call by default, plus an explicit live audit/refresh mode that compares against the installed Codex CLI's model catalog and reports additions, removals, and changed capabilities. Treat an unknown coordinator model as a warning and support an exact-model, machine-local V2 assertion for newly released models; the assertion must identify its provenance, become stale across a relevant CLI-version change, and must not override a model already known to be V1. A live contradiction is an error rather than a silent override. Document the V1 leaf/V2 coordinator rule, deterministic versus live authority, refresh procedure, warning and override behavior, and failure remedies in the README and Codex installation documentation.
+After 425 lands, add automated model-capability policy to its existing native Codex route. Add a typed minimum multi-agent capability to the Docket agent inventory and derive dispatch-owning roles from that metadata. Add a bundled, versioned registry of exact model identifiers, multi-agent versions and observation provenance. Repository guards and Codex configuration/install generation reject known V1 models for dispatch-owning roles and accept known V2-or-newer assignments. Add a deterministic read-only configuration diagnostic and an explicit live catalog audit/refresh that reports additions, removals and changed capabilities. Unknown coordinator models warn; an exact-model machine-local V2 assertion carries provenance, becomes stale on relevant CLI changes and cannot override known V1 capability. A live contradiction is an error. Preserve operator-selected model/effort values and do not silently rewrite pins or the registry.
+
+Delivery order is 423 → 425 → 424. Until this change is delivered, the operator uses existing configuration layers to select and regenerate suitable exact model/effort assignments, including the foreground parent and every role that dispatches through its active skills. Leaf workers need not be V2 merely because they are children. This interim practice is documented by 425; it does not need a registry implementation or a new override system. Groom this proposal against 425's delivered role/configuration surfaces before writing its implementation plan.
+
+Document the V1 leaf/V2 coordinator distinction, deterministic versus live authority, registry refresh procedure, warnings, local assertions and remedies in the README and Codex installation documentation.
 
 ## Out of scope
 
-Querying Codex on every agent dispatch, silently rewriting model pins or the bundled registry, allowing an operator assertion to contradict a known V1 entry, treating family names such as Luna or Terra as the capability contract, restoring native coordinator routing, changing feature-worktree launch semantics, or removing agent.enter. This change provides policy, validation, diagnostics, fixtures, and documentation; production routing changes remain dependent follow-up work.
+Restoring native dispatch or implementing feature-worktree binding (425), blocking 425 on this registry, querying Codex on every dispatch, silently rewriting pins/registry, allowing assertions to contradict known V1 entries, inferring capability from model families or effort levels, changing the established native routing contract, and legacy agent.enter retirement (426). This change remains proposed and needs its own design brainstorm.
