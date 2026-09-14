@@ -174,6 +174,18 @@ type GuardianHandle struct {
 // standard streams (all routed to /dev/null), carrying no capability. On any error
 // before Start it closes every descriptor it opened.
 func SpawnAgentGuardian(executable, repoDir, gateKey, epochID, markerPath string) (*GuardianHandle, error) {
+	// Clear any pre-existing completion marker BEFORE Start, so only a marker THIS
+	// owner writes during THIS lifetime (via Complete) can suppress the guardian's
+	// fence. A stale marker left in a reused gate-key directory would otherwise
+	// pre-suppress the fence — an abrupt owner death would Stat it and exit without
+	// fencing, the exact failure the guardian exists to prevent. Fail SAFE: a remove
+	// error that is not "not exist" aborts the spawn rather than proceeding into a
+	// state where a stale marker could suppress fencing.
+	if markerPath != "" {
+		if err := os.Remove(markerPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+	}
 	pipeR, pipeW, err := os.Pipe()
 	if err != nil {
 		return nil, err
