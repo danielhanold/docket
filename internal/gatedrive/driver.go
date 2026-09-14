@@ -156,7 +156,32 @@ type Driver struct {
 	slice        time.Duration
 	pollInterval time.Duration
 	sleep        func(time.Duration)
+
+	// epochRevoked, when set, answers whether a scope's run epoch is cancelled or
+	// superseded — the state a Takeover must refuse (change 0375 Task 12: "parent
+	// takeover cannot revive a cancelled epoch"). It is an OPTIONAL seam injected by
+	// the application layer (SetEpochRevokedResolver): the gatedrive layer owns no
+	// epoch store, so the resolver reads the app-owned run-epoch registry. When nil,
+	// or when a scope carries no RunEpochID, the epoch gate is skipped and Takeover's
+	// existing ADR-0107 authorization is unchanged. A resolver error fails closed
+	// (the takeover HALTs rather than reviving a run whose epoch cannot be read).
+	epochRevoked EpochRevokedFunc
 }
+
+// EpochRevokedFunc reports whether the run epoch named by epochID is cancelled or
+// superseded. A clean "no such epoch" is (false, nil) — a locator that resolves to
+// nothing cannot prove a run was cancelled, and the takeover's other guards
+// (capability, fingerprint, deadline) still protect it; an IO/corruption fault is a
+// non-nil error the takeover treats as fail-closed. It never returns a credential.
+type EpochRevokedFunc func(epochID string) (revoked bool, err error)
+
+// SetEpochRevokedResolver injects the optional run-epoch revocation seam the
+// Takeover path consults (change 0375 Task 12). The application layer wires the
+// production resolver over its run-epoch registry after composing the driver;
+// gatedrive tests inject a fake. Passing nil clears it (the epoch gate is then
+// skipped). It is set once at composition, before any concurrent Takeover, so it
+// needs no lock.
+func (d *Driver) SetEpochRevokedResolver(fn EpochRevokedFunc) { d.epochRevoked = fn }
 
 // NewDriver builds a Driver over the composed seams with production slice bounds
 // and a real sleep. Tests set the unexported slice/pollInterval/sleep fields to

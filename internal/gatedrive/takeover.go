@@ -79,6 +79,25 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 		return d.haltDoc(driveID, "", driveRecord{}, string(ErrScopeCapabilityMismatch)), nil
 	}
 
+	// A takeover CANNOT revive a cancelled or superseded run epoch (change 0375
+	// Task 12, spec "Parent takeover cannot revive a cancelled epoch"). The parent
+	// capability authorizes recovery of HEALTHY non-cancelled work; once the run's
+	// epoch is fenced by an explicit cancellation (run.cancel) or superseded by a
+	// resume, no continuation may reattach to its drives. The epoch state lives in
+	// the app-owned registry, reached through the injected resolver; a resolver error
+	// fails closed (HALT rather than an unproven revival). A scope with no RunEpochID
+	// (a standalone gate, or a scope prepared before epoch linkage) fences nothing,
+	// so the check is skipped and ADR-0107's authorization is unchanged.
+	if d.epochRevoked != nil && scope.RunEpochID != "" {
+		revoked, eerr := d.epochRevoked(scope.RunEpochID)
+		if eerr != nil {
+			return d.haltDoc(driveID, "", driveRecord{}, CauseEpochUnreadable), nil
+		}
+		if revoked {
+			return d.haltDoc(driveID, "", driveRecord{}, string(ErrNotOwner)), nil
+		}
+	}
+
 	// A slot mid-transition is not a quiescent result to recover: a reservation
 	// persisted but not yet launch-confirmed (scopeStateReserved), or a pending-ack
 	// journal entry between a successor reservation and its predecessor's retirement.
