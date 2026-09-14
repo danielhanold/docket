@@ -2,7 +2,7 @@
 id: 428
 slug: 'recover-legacy-gate-history-without-blocking-unrelated-workt'
 title: 'Recover legacy gate history without blocking unrelated worktree admission'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-14'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/recover-legacy-gate-history-without-blocking-unrelated-workt'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-14T18:00:43Z'
 ---
 
 ## Artifacts
