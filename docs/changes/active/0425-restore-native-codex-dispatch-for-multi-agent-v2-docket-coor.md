@@ -2,7 +2,7 @@
 id: 425
 slug: 'restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
 title: 'Restore native Codex dispatch for Multi-Agent V2 Docket coordinators'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-11'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix: 'codex'
-branch:
+branch: 'codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-14T20:10:09Z'
 ---
 
 ## Artifacts
