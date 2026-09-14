@@ -13,7 +13,7 @@ related: [393, 407, 412, 426]
 discovered_from: [423]
 adrs: [114]
 spec: 'docs/superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-14-native-codex-dispatch-0425.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-14T20:26:44Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) |
+| Plan | [2026-09-14-native-codex-dispatch-0425.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-14-native-codex-dispatch-0425.md) |
 | ADRs | [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
 <!-- docket:artifacts:end -->
 
