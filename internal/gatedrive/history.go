@@ -6,7 +6,42 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/danielhanold/docket/internal/process"
 )
+
+// recoverySeam is the single process-recovery predicate the classifier
+// consults for HALTED history. *process.Service satisfies it (change 0428
+// Task 1's ClassifyRun). Keeping it an interface here lets the classifier be
+// exercised with a scripted seam without launching real processes.
+type recoverySeam interface {
+	ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error)
+}
+
+// Legacy classification classes — the four verdicts classifyLegacyDrive can
+// return for one historical record.
+const (
+	LegacyNonblocking = "nonblocking"
+	LegacyRecovered   = "recovered"
+	LegacyRecoverable = "recoverable" // dry-run only: an applied run would recover it
+	LegacyRetained    = "retained"
+)
+
+// LegacyFinding is one drive's assessment. Reason is a bounded token/phrase;
+// DriveID is always a validated id (never an arbitrary directory name).
+type LegacyFinding struct {
+	DriveID string `json:"drive_id"`
+	Class   string `json:"class"`
+	Reason  string `json:"reason"`
+}
+
+// LegacyHistorySummary is the compact recovery summary carried on successful
+// AND refused starts when legacy history was relevant.
+type LegacyHistorySummary struct {
+	Checked   int             `json:"checked"`
+	Recovered []string        `json:"recovered,omitempty"`
+	Retained  []LegacyFinding `json:"retained,omitempty"`
+}
 
 // historicalSchemaV2 is the pre-0375 drive schema this repository's history
 // can contain. It is readable for HISTORICAL ASSESSMENT ONLY — never loaded
@@ -95,4 +130,88 @@ func historicalView(id string, r driveRecord) historicalDrive {
 	return historicalDrive{ID: id, SchemaVersion: r.SchemaVersion, RepoIdentity: r.RepoIdentity,
 		WorktreePath: r.WorktreePath, LastOutcome: r.LastOutcome, RawRunDir: r.RawRunDir,
 		PriorRawRunDir: r.PriorRawRunDir, RunRoot: r.RunRoot}
+}
+
+// classifyLegacyDrive assesses one historical record. requestedWorktree is the
+// canonical root being admitted, or "" for a repository-wide (cleanup) pass.
+// apply=true may write the existing process abandoned marker via the seam;
+// apply=false previews (LegacyRecoverable instead of LegacyRecovered).
+//
+// The numbered step order is LOAD-BEARING and must not be reordered:
+//
+//  1. A supervisor-committed PASSED/FAILED outcome is durable evidence
+//     recognised BEFORE any path resolution — a removed worktree or temp dir
+//     cannot undo it, so it is nonblocking regardless of where its worktree now
+//     resolves (or whether it resolves at all).
+//  2. Only a not-conclusively-completed record establishes the worktree
+//     binding: a valid binding to a DIFFERENT worktree is irrelevant to this
+//     admission, but an unresolvable path is NOT proof of unrelatedness.
+//  3. A terminal HALTED record is assessed through the process predicate, with
+//     BOTH the current and prior recorded run dirs required to prove teardown; a
+//     probe error or missing run evidence retains — a probe error is not clean
+//     absence.
+//  4. Any other nonterminal state (WAITING or empty) is never guessed dead.
+func (s *Store) classifyLegacyDrive(h historicalDrive, requestedWorktree string, proc recoverySeam, apply bool) LegacyFinding {
+	f := LegacyFinding{DriveID: h.ID}
+	// 1. Trustworthy completed history is nonblocking BEFORE any path
+	//    resolution: a supervisor-committed PASSED/FAILED outcome is durable
+	//    evidence a removed worktree or temp dir cannot undo.
+	if h.LastOutcome == PASSED || h.LastOutcome == FAILED {
+		f.Class, f.Reason = LegacyNonblocking, "completed terminal outcome ("+string(h.LastOutcome)+")"
+		return f
+	}
+	// 2. Not conclusively completed: establish the worktree binding. A valid
+	//    binding to a DIFFERENT worktree is irrelevant to this admission; an
+	//    unresolvable path is NOT proof of unrelatedness or teardown.
+	if requestedWorktree != "" {
+		if legacyRoot, _, err := s.admissionKeyFor(h.WorktreePath, "inventory-legacy-drive"); err == nil && legacyRoot != requestedWorktree {
+			f.Class, f.Reason = LegacyNonblocking, "bound to a different worktree"
+			return f
+		}
+	}
+	// 3. Terminal HALTED: one exact-run recovery assessment through the existing
+	//    process predicate — both recorded attempts must prove teardown. A probe
+	//    error or missing evidence retains.
+	if h.LastOutcome == HALTED {
+		if proc == nil || h.RawRunDir == "" {
+			f.Class, f.Reason = LegacyRetained, "halted with no assessable run evidence"
+			return f
+		}
+		runs := []string{h.RawRunDir}
+		if h.PriorRawRunDir != "" {
+			runs = append(runs, h.PriorRawRunDir)
+		}
+		recovered := false
+		for _, runDir := range runs {
+			entry, err := proc.ClassifyRun(runDir, apply)
+			if err != nil {
+				f.Class, f.Reason = LegacyRetained, "process assessment failed; evidence unprovable"
+				return f
+			}
+			switch entry.Disposition {
+			case "terminal", "stopped", "already-abandoned":
+				// durable teardown evidence already present
+			case "abandoned-marked":
+				recovered = true
+			case "abandonable": // apply=false preview
+				recovered = true
+			default: // live, needs-inspection, invalid, foreign, unresolved-establishment
+				f.Class, f.Reason = LegacyRetained, "halted run not provably torn down ("+entry.Disposition+")"
+				return f
+			}
+		}
+		if recovered {
+			if apply {
+				f.Class, f.Reason = LegacyRecovered, "abandoned marker recorded from provable group absence"
+			} else {
+				f.Class, f.Reason = LegacyRecoverable, "provable group absence; an applied run would record the marker"
+			}
+		} else {
+			f.Class, f.Reason = LegacyNonblocking, "halted with durable teardown evidence"
+		}
+		return f
+	}
+	// 4. Live/nonterminal (WAITING or empty outcome): never guessed dead.
+	f.Class, f.Reason = LegacyRetained, "nonterminal execution state"
+	return f
 }
