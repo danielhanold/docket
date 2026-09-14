@@ -260,13 +260,14 @@ func deltaChange() domain.Change {
 // each case also proves the docket-pinned spelling is GONE for Plan/Results.
 //
 // Mutation probes (run with -count=1; cp-backup artifacts.go first):
-//   (a) in ArtifactBlockContent, pass link.MetadataBranch instead of
-//       lifecycleBranch(c, link) for the Plan and Results rows (the pre-0417
-//       hardcoding) -> the implemented and done cases must redden;
-//   (b) in lifecycleBranch, delete the StatusDone arm -> the done case must
-//       redden;
-//   (c) in lifecycleBranch, delete the empty-branch fallback -> the
-//       fallback case must redden.
+//
+//	(a) in ArtifactBlockContent, pass link.MetadataBranch instead of
+//	    lifecycleBranch(c, link) for the Plan and Results rows (the pre-0417
+//	    hardcoding) -> the implemented and done cases must redden;
+//	(b) in lifecycleBranch, delete the StatusDone arm -> the done case must
+//	    redden;
+//	(c) in lifecycleBranch, delete the empty-branch fallback -> the
+//	    fallback case must redden.
 func TestArtifactBlockLifecyclePinsPlanResults(t *testing.T) {
 	const base = "https://github.com/danielhanold/docket/blob/"
 	cases := []struct {
