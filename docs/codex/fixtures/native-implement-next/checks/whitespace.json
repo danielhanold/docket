@@ -1,0 +1,8 @@
+{
+  "status": "passed-for-authored-content",
+  "preserved_byte_exact_exceptions": [
+    "evidence/history/binding2-run-report.md",
+    "role-changes.diff"
+  ],
+  "reason": "Historical report and unified diff retain exact source bytes; no normalization of frozen evidence."
+}

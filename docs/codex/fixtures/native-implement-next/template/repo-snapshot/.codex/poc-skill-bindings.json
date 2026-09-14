@@ -1,0 +1,12 @@
+{
+  "superpowers:writing-plans": {
+    "path": ".agents/skills/superpowers-writing-plans/SKILL.md",
+    "sha256": "48508f44bbfd7d24b029fbf3a314f3cd14c9615599059366e922f47b8dc08cf2",
+    "source": "/Users/homer/.codex/plugins/cache/openai-curated-remote/superpowers/6.3.0/skills/writing-plans/SKILL.md"
+  },
+  "docket-build": {
+    "path": ".agents/skills/docket-build/SKILL.md",
+    "sha256": "4505b15a67fd24feeefeb137bbfcdfb9dd6420e98fe83919109e1c44e20f8216",
+    "source": "existing fixture snapshot"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "snapshot_primary_commit": "04b97101910977c1bdca8da82ed9a16cadd7d414",
+  "worker_source": "/Users/homer/dev/docket-poc-0423-checked.xlmwfwc4",
+  "coordinator_planner_source": "/Users/homer/dev/docket-poc-0423-binding2.653wMu",
+  "notes": "Pinned historical POC role and skill bodies with documented routing-only corrections; not byte-identical to current production installation. All dependencies needed to recreate the fixture are included.",
+  "registered_roles": [
+    "docket-implement-next",
+    "docket-plan-writer",
+    "docket-build-standard"
+  ],
+  "excluded_registrations": "Other historical roles are not installed into this bounded fixture."
+}

@@ -1,0 +1,13 @@
+{
+  "request_id": "native-poc-0423-continuous-final-v1",
+  "title": "Trim surrounding whitespace in greeting",
+  "type": "feat",
+  "priority": "critical",
+  "why": "Prove the actual native ImplementNext, planner and corrected standard worker complete one fresh continuous option-2 flow.",
+  "what_changes": "Update Greet to trim surrounding Unicode whitespace from the name before deciding whether to return Hello! for an empty name or Hello, <name>! otherwise. Preserve internal whitespace. Add meaningful table-driven cases in the same package for spaces, tabs/newlines, Unicode whitespace, whitespace-only input, and preserved internal spacing. Deliver exactly one implementation task.",
+  "out_of_scope": "No agent.enter, host relocation, launcher/tool wrappers, Luna, imported plan, production changes, parallel certification, review, PR or merge.",
+  "depends_on": [],
+  "related": [],
+  "discovered_from": [],
+  "adrs": []
+}

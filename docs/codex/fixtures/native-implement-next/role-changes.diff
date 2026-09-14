@@ -1,0 +1,22 @@
+--- observed-fixture/docket-implement-next
++++ continuous-template/docket-implement-next
+@@ -7,7 +7,7 @@
+ 
+ POC 0423 Codex option 2: use only direct native named-agent dispatch. A child may inherit primary startup cwd; explicit verified worktree targeting replaces startup equality for the actual planner and standard worker. Read this fixture's AGENTS.md, RUN.md and .codex/POC-WORKTREE.md after the entry check where required. Preserve remaining role charters and pins. No agent.enter, App Server role runner, shell agent runner, host relocation, generic substitute, parent implementation, or Luna. Use fixture skill snapshots. One continuous native plan/attach/build/gate/results chain, then deliberate halt before review/PR/merge.
+ 
+-Before acting, load these docket skills from your linked Codex skills directory: docket-implement-next, docket-convention.
++Before acting, load the fixture primary snapshots at @@FIXTURE_ROOT@@/repo/.agents/skills/docket-implement-next/SKILL.md and @@FIXTURE_ROOT@@/repo/.agents/skills/docket-convention/SKILL.md. Once the worktree is created, use only explicit FEATURE snapshot paths for build and artifact operations. Before worker scope/dispatch read FEATURE/.codex/POC-WORKER-DISPATCH.md and preserve the exact outer gate context in claim, scope and all drives. Never omit it as in the earlier worker-only regression.
+ 
+ Before planner dispatch read .codex/POC-PLAN-DISPATCH.md using the explicit feature workdir. Assemble every required field from this run, validate it with the external validate-plan-payload.py, and send the entire validated payload plus boundary labels in the native spawn message. docket-plan-writer is an agent, not a same-name skill. The actual planning skill snapshot is .agents/skills/superpowers-writing-plans/SKILL.md. Do not spawn with only a boundary bundle. Execute docket-implement-next to drain the next build-ready change. Follow the skill exactly.
+ 
+--- observed-fixture/docket-build-standard
++++ continuous-template/docket-build-standard
+@@ -7,7 +7,7 @@
+ 
+ Before repository work, obtain Task input file, Task input SHA256 and Entry checker from the dispatch. The first shell call has login false and no workdir override; execute the complete entry_argv array from the validated native message exactly as supplied. It explicitly invokes Python with the checker and exact task-input arguments. Do not reconstruct or abbreviate this command. Missing inputs or failure means BLOCKED. On BINDING_OK read the record's feature-root operation_reference. Load immutable gate values from that exact input file inside each shell invocation; do not retype paths. Dynamic scope credentials remain separate. Only the controller runs repository.prepare; the worker fetches its own catalog and operates its normal task gate driver.
+ 
+-POC 0423 FINAL FOCUSED WORKER: direct native docket-build-standard only, with explicit verified feature targeting under .codex/POC-WORKTREE.md. This replaces prior continuous-run fixture instructions. Parent dispatches only the actual standard worker; no coordinator/planner rerun, no agent.enter, no Luna. All feature skill reads use supplied absolute FEATURE paths. Fetch your own live Docket catalog before Docket operations. Search only the assigned feature tree, never the fixture parent or evidence. Preserve the remaining real worker charter.
++POC 0423 continuous run: actual native standard worker under ImplementNext. Use .codex/POC-WORKER.md after the exact entry_argv check. Preserve complete scoped credentials and outer gate context. No agent.enter, additional agents, controller metadata duties, or external searches.
+ 
+ After BINDING_OK, load the exact absolute feature-root skill paths from the fixed task-input file: docket-build-task, docket-convention, docket-build and its gate-caller-loop reference. Before the first Docket operation fetch and validate your own live docket capabilities --json response. No cached cross-agent catalog. Do not run repository.prepare or other controller/metadata operations. Reload fixed task values from the task-input JSON in every gate shell call; never retype the run-root. Do not search outside the feature tree, inspect parent evidence or use primary/global skill paths.
+ 

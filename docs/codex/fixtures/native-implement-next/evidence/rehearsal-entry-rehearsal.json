@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "scope": "actual static payload and entry command with synthetic credentials; no native dispatch or test gate",
+  "payload_roundtrip": {
+    "actual_child_value_retained": true,
+    "parent_value_absent": true,
+    "entry_argv_unchanged": true
+  },
+  "exact_payload_command": {
+    "command": "'python3' '/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/check-task-inputs.py' '--inputs' '/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/worker-inputs.json' '--sha256' '205cd9407cb2caf09d76752a92049561463d63e6cdd5baf9d23622f03fead56a'",
+    "exit_code": 0,
+    "stdout": "{\n  \"status\": \"BINDING_OK\",\n  \"startup_cwd\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/repo\",\n  \"primary\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/repo\",\n  \"feature\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/repo/.worktrees/trim-surrounding-whitespace-in-greeting\",\n  \"feature_ref\": \"refs/heads/feat/trim-surrounding-whitespace-in-greeting\",\n  \"pre_dispatch_head\": \"6e3b4c3b393d2acc60248e022f3391539608981b\",\n  \"change_id\": 1,\n  \"limitation\": \"entry check only; live Docket claim and subsequent tool targeting require separate verification\",\n  \"task_input_file\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/worker-inputs.json\",\n  \"task_input_sha256\": \"205cd9407cb2caf09d76752a92049561463d63e6cdd5baf9d23622f03fead56a\",\n  \"worker_run_root\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/evidence/worker-gates\"\n}\n",
+    "stderr": ""
+  },
+  "direct_executable_check": {
+    "command": "'/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/check-task-inputs.py' '--inputs' '/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/worker-inputs.json' '--sha256' '205cd9407cb2caf09d76752a92049561463d63e6cdd5baf9d23622f03fead56a'",
+    "exit_code": 0,
+    "stdout": "{\n  \"status\": \"BINDING_OK\",\n  \"startup_cwd\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/repo\",\n  \"primary\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/repo\",\n  \"feature\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/repo/.worktrees/trim-surrounding-whitespace-in-greeting\",\n  \"feature_ref\": \"refs/heads/feat/trim-surrounding-whitespace-in-greeting\",\n  \"pre_dispatch_head\": \"6e3b4c3b393d2acc60248e022f3391539608981b\",\n  \"change_id\": 1,\n  \"limitation\": \"entry check only; live Docket claim and subsequent tool targeting require separate verification\",\n  \"task_input_file\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/worker-inputs.json\",\n  \"task_input_sha256\": \"205cd9407cb2caf09d76752a92049561463d63e6cdd5baf9d23622f03fead56a\",\n  \"worker_run_root\": \"/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/evidence/worker-gates\"\n}\n",
+    "stderr": ""
+  },
+  "permission_regression": {
+    "nonexecutable_direct_exit": 126,
+    "mode_difference_detected": true,
+    "restored_mode": "0755",
+    "restored_exit": 0
+  },
+  "primary_cwd": "/Users/homer/dev/docket-poc-0423-continuous-rehearsal-01/repo"
+}

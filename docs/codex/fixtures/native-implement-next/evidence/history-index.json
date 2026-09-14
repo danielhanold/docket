@@ -1,0 +1,27 @@
+[
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-binding2.653wMu/evidence/run-report.md",
+    "copy": "evidence/history/binding2-run-report.md",
+    "sha256": "5aa30c406f52eb62e9e37aed7cb9e54637fe7b794617c149ced0e53d4a61bcd7"
+  },
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-binding2.653wMu/evidence/coordinator-terminal.md",
+    "copy": "evidence/history/binding2-coordinator-terminal.md",
+    "sha256": "afa6844d4094f417afb93c7357d992daefa3d36d3e58b54da6cf394ae583f9a7"
+  },
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-checked.xlmwfwc4/evidence/run-report.md",
+    "copy": "evidence/history/checked-worker-run-report.md",
+    "sha256": "611095912b71b0b130e0d7e92dd43ce39c7f5bef5bee7bcdb54ea12502725f15"
+  },
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-checked.xlmwfwc4/evidence/controller-terminal.md",
+    "copy": "evidence/history/checked-worker-controller-terminal.md",
+    "sha256": "671f2f4651c486ee839a138325e0c1ecb9c736f82b1d8d8bd7eab95b8908215c"
+  },
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-checked.xlmwfwc4/evidence/independent-review.md",
+    "copy": "evidence/history/checked-worker-independent-review.md",
+    "sha256": "41561bdb16a05f7db8d0ae430cb5c34374a785b4e7345ba3238d764ba85fa0ae"
+  }
+]

@@ -1,0 +1,14 @@
+integration_branch: main
+changes_dir: docs/changes
+adrs_dir: docs/adrs
+results_dir: docs/results
+board_surfaces: [inline]
+terminal_publish: false
+build:
+  gate: local
+  test_command: go test -count=1 ./...
+finalize:
+  gate: local
+  test_command: go test -count=1 ./...
+learnings:
+  enabled: false

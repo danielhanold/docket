@@ -1,0 +1,17 @@
+{
+  "status": "prepared-not-executed",
+  "fixture": "/Users/homer/dev/docket-poc-0423-continuous-final-01",
+  "primary_head": "4b1f5171b3ff0f2cd83eeaca06f87a4e24d4e335",
+  "binary": {
+    "version": "v0.9.3-1016-g06ebb52c",
+    "commit": "06ebb52c058894b564ac2a8432922ddf4b2d56b3",
+    "build_date": "2026-09-14T14:16:01Z"
+  },
+  "native_agents_started": false,
+  "candidate_claimed": false,
+  "workspace_allocated": false,
+  "plan_present": false,
+  "gate_armed": false,
+  "syntax_checks": "all Python/JS/CJS passed",
+  "helper_cases": 194
+}

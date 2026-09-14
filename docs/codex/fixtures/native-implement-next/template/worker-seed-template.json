@@ -1,0 +1,14 @@
+{
+  "task_input_file": "@@FIXTURE_ROOT@@/worker-inputs.json",
+  "task_input_sha256": "1c011222d260379394d1e81f02e3f521f56fda23f27095dc9e53dd8e02c2007d",
+  "entry_checker": "@@FIXTURE_ROOT@@/check-task-inputs.py",
+  "entry_argv": [
+    "python3",
+    "@@FIXTURE_ROOT@@/check-task-inputs.py",
+    "--inputs",
+    "@@FIXTURE_ROOT@@/worker-inputs.json",
+    "--sha256",
+    "1c011222d260379394d1e81f02e3f521f56fda23f27095dc9e53dd8e02c2007d"
+  ],
+  "assignment": "Your FIRST shell call must execute the complete entry_argv array from this JSON message unchanged, with login=false and NO workdir override. It explicitly invokes Python; do not reconstruct the command. Preserve BINDING_OK and startup cwd. Your scope_id and child_capability are actual authorized dynamic inputs for the task gate driver. Read the fixed task-input JSON and follow its feature operation_reference, feature AGENTS.md and the actual docket-build-task charter. Reload fixed directory/identity/test values from that JSON in EVERY test shell call, rather than retyping them. Fetch your own live catalog before Docket calls. Do not run repository.prepare or other controller/metadata operations. Use supplied feature skill paths. Implement only the one plan task in greeting.go and greeting_test.go, preserve baseline tests and the plan, and make exactly one successful task commit after real RED/GREEN. You are not alone; do not revert or adopt others edits. Preserve driver predecessor receipts; acknowledge the final scope before COMPLETE. WAITING requires handoff and immediate return. No subagents, broad external search, parent logs/capability or primary/global skill paths. Return the structured worker receipt and actual input hash/paths without publishing tokens."
+}
