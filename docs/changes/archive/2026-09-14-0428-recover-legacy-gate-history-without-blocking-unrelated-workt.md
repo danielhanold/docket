@@ -2,7 +2,7 @@
 id: 428
 slug: 'recover-legacy-gate-history-without-blocking-unrelated-workt'
 title: 'Recover legacy gate history without blocking unrelated worktree admission'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-14'
@@ -22,7 +22,7 @@ branch: 'fix/recover-legacy-gate-history-without-blocking-unrelated-workt'
 pr: 'https://github.com/danielhanold/docket/pull/300'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-14T21:33:00Z'
+claimed_at:
 ---
 
 ## Artifacts
