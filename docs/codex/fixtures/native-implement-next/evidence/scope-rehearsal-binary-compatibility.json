@@ -1,0 +1,69 @@
+{
+  "status": "passed",
+  "scope": "full Docket binary compatibility rehearsal; no native-agent certification",
+  "binary": {
+    "version": "v0.9.3-1016-g06ebb52c",
+    "commit": "06ebb52c058894b564ac2a8432922ddf4b2d56b3",
+    "build_date": "2026-09-14T14:16:01Z"
+  },
+  "tested_clean_implementation_head": "e10b63fd64b62448ea91d0c9a9dd18275b6c8dd4",
+  "final_checkpoint_head": "3624ee5bdbe55b59be0525ef10eb30f32935bc03",
+  "checkpoint_evidence": {
+    "protocol_version": 1,
+    "operation": "evidence.record",
+    "result": "applied",
+    "id": 1,
+    "command": "go test -count=1 ./...",
+    "head": "3624ee5bdbe55b59be0525ef10eb30f32935bc03",
+    "ran_at": "2026-09-14T16:40:08Z",
+    "outcome": "green",
+    "block": "<!-- docket:build-evidence:start -->\ncommand:  go test -count=1 ./...\nresult:   green\nhead_sha: 3624ee5bdbe55b59be0525ef10eb30f32935bc03\nran_at:   2026-09-14T16:40:08Z\n<!-- docket:build-evidence:end -->"
+  },
+  "outer_verdict": {
+    "protocol_version": 1,
+    "operation": "run.gate-verdict",
+    "result": "applied",
+    "key": "[REDACTED]",
+    "decision": "gate-stop",
+    "outcome": "run-halted",
+    "attributed_id": 1,
+    "terminal": true
+  },
+  "epoch_supplied": true,
+  "baseline": "PASSED",
+  "red": "genuine assertion FAILED",
+  "green": "PASSED",
+  "final_scope_acknowledgement": "applied",
+  "configured_full_suite": {
+    "protocol_version": 1,
+    "operation": "evidence.record",
+    "result": "applied",
+    "id": 1,
+    "command": "go test -count=1 ./...",
+    "head": "e10b63fd64b62448ea91d0c9a9dd18275b6c8dd4",
+    "ran_at": "2026-09-14T16:40:05Z",
+    "outcome": "green",
+    "block": "<!-- docket:build-evidence:start -->\ncommand:  go test -count=1 ./...\nresult:   green\nhead_sha: e10b63fd64b62448ea91d0c9a9dd18275b6c8dd4\nran_at:   2026-09-14T16:40:05Z\n<!-- docket:build-evidence:end -->"
+  },
+  "halt": {
+    "protocol_version": 1,
+    "operation": "change.halt",
+    "result": "applied",
+    "id": 1,
+    "disposition": "halted",
+    "committed_revision": "5ffbdb2399c97e515eddd78711947ffa08cd7bfa",
+    "findings": []
+  },
+  "primary_audit": {
+    "status": "PRIMARY_UNCHANGED",
+    "changed_paths": [],
+    "changed_state": [],
+    "limitation": "tool evidence must also exclude temporary writes"
+  },
+  "source_paths": {
+    "repo": "/Users/homer/dev/docket-poc-0423-scope-rehearsal-02/repo",
+    "feature": "/Users/homer/dev/docket-poc-0423-scope-rehearsal-02/repo/.worktrees/trim-surrounding-whitespace-in-greeting"
+  },
+  "original_manual_fixture_untouched": true,
+  "completed_at": "2026-09-14T16:40:09.564277+00:00"
+}

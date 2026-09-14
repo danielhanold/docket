@@ -1,0 +1,33 @@
+{
+  "status": "prepared-not-executed",
+  "fixture": "/Users/homer/dev/docket-poc-0423-continuous-final-02",
+  "primary_head": "bc1ab2d0ba4eca97b4c845b5dd256cffdf1fe00d",
+  "binary": {
+    "version": "v0.9.3-1016-g06ebb52c",
+    "commit": "06ebb52c058894b564ac2a8432922ddf4b2d56b3",
+    "build_date": "2026-09-14T14:16:01Z"
+  },
+  "manifest_files_verified": 68,
+  "source_template_matches": true,
+  "syntax_checks": "all Python/JS/CJS passed",
+  "candidate_unclaimed": true,
+  "workspace_absent": true,
+  "worker_inputs_absent": true,
+  "scopes_absent": true,
+  "native_test_agents_started": false,
+  "primary_audit": {
+    "status": "PRIMARY_UNCHANGED",
+    "changed_paths": [],
+    "changed_state": [],
+    "limitation": "tool evidence must also exclude temporary writes"
+  },
+  "rehearsal": "/Users/homer/dev/docket-poc-0423-scope-rehearsal-02",
+  "focused_checks": 40,
+  "other_checks": {
+    "fixed_inputs": 45,
+    "payload": 41,
+    "planner": 29,
+    "acceptance": 79
+  },
+  "actual_native_run_pending": true
+}

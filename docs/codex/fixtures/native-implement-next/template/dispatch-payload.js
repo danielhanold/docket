@@ -52,6 +52,12 @@ const dispatchRunEpoch = load('dispatch_run_epoch') ?? null;
 requireDispatch(dispatchRunEpoch === null || nonemptyString(dispatchRunEpoch), 'invalid run epoch');
 const capturedScope = load('focused_scope');
 const staticSeed = load('dispatch_seed');
+const checked = load('verified_handoff');
+requireDispatch(checked && checked.status === 'SCOPE_INPUT_OK', 'durable scope identity has not been verified');
+requireDispatch(JSON.stringify(checked.scope) === JSON.stringify(capturedScope), 'scope differs from verified grant');
+requireDispatch(JSON.stringify(checked.seed) === JSON.stringify(staticSeed), 'seed differs from exact verified file');
+requireDispatch(checked.gate_context === dispatchGateContext && checked.run_epoch === dispatchRunEpoch, 'outer attribution differs from verified scope');
+requireDispatch(checked.identity && nonemptyString(checked.identity.task_id) && nonemptyString(checked.identity.change_id) && nonemptyString(checked.identity.phase), 'verified task identity mismatch');
 validateSources(capturedScope, staticSeed);
 const nativeArguments = {
   task_name: 'focused_worker',

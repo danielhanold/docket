@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Non-certifying Docket binary rehearsal in this dedicated disposable repository."""
 from pathlib import Path
-import json,subprocess,hashlib,datetime,os,sys
+import json,subprocess,hashlib,datetime,os,sys,shlex
 ROOT=Path(sys.argv[1]).resolve();REPO=ROOT/'repo';EV=ROOT/'evidence';INPUT=json.loads((ROOT/'worker-inputs.json').read_text());FEATURE=Path(INPUT['feature_worktree'])
 ARM=json.loads((ROOT/'rehearsal-private.json').read_text())
 CONTEXT=['--gate-context',ARM['dispatch_context']] + (['--run-epoch',ARM['epoch']] if ARM.get('epoch') else [])
@@ -37,15 +37,36 @@ state=op('status',['--records']);change=next(x for x in state['changes'] if x['i
 op('change.refresh-claim',['--id','1','--version',change['version']])
 workspace=op('workspace.inspect',['--id','1']);require(workspace['path']==str(FEATURE),'workspace mismatch')
 # Normal scope grant. No scope or token is shared with the original manual fixture.
-grant=op('gate.drive.prepare-scope',['--change-id',str(INPUT['change_id']),'--task-id',INPUT['task_id'],'--phase',INPUT['phase'],'--branch',INPUT['branch'],'--worktree',str(FEATURE)]+CONTEXT)
+identity_args=json.loads((ROOT/'scope-identity-args.json').read_text())
+# op supplies repo-dir itself; keep the generated identity array otherwise exact.
+require(identity_args[-2:]==['--repo-dir',str(FEATURE)],'scope repo argument mismatch')
+grant=op('gate.drive.prepare-scope',identity_args[:-2]+CONTEXT)
 require(all(isinstance(grant.get(k),str) and grant[k] for k in ['scope_id','child_capability','parent_capability']),'incomplete grant')
+live={'scope':grant,'gate_context':ARM['dispatch_context'],'run_epoch':ARM.get('epoch')}
+checked=subprocess.run(['python3',str(ROOT/'check-worker-scope.py')],input=json.dumps(live),cwd=FEATURE,capture_output=True,text=True)
+require(checked.returncode==0,'scope predispatch check failed: '+checked.stderr)
+verified=json.loads(checked.stdout);require(verified['status']=='SCOPE_INPUT_OK','scope check receipt missing')
+(EV/'scope-input-validation.json').write_text(json.dumps({'status':verified['status'],'identity':verified['identity'],'task_input_sha256':verified['seed']['task_input_sha256']},indent=2)+'\n')
+# Exercise the actual payload body with the exact checker output, without dispatch.
+js="const fs=require('fs'),vm=require('vm');const v=JSON.parse(fs.readFileSync(0,'utf8'));const m={verified_handoff:v,focused_scope:v.scope,dispatch_seed:v.seed,dispatch_gate_context:v.gate_context,dispatch_run_epoch:v.run_epoch};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{load:k=>m[k],store:(k,v)=>m[k]=v,text:o=>{if(o.status!=='DISPATCH_INPUT_OK')throw Error('payload failed')}});console.log('DISPATCH_INPUT_OK');"
+payload=subprocess.run(['node','-e',js,str(ROOT/'dispatch-payload.js')],input=checked.stdout,capture_output=True,text=True)
+require(payload.returncode==0 and payload.stdout.strip()=='DISPATCH_INPUT_OK','actual verified grant payload failed')
 previous=None
 def start_task(label,expected):
  global previous
  args=CONTEXT+['--owner','task','--change-id',str(INPUT['change_id']),'--task-id',INPUT['task_id'],'--phase',INPUT['phase'],'--branch',INPUT['branch'],'--scope-id',grant['scope_id'],'--child-cap',grant['child_capability'],'--run-root',INPUT['worker_run_root'],'--repo-dir',str(FEATURE),'--json']
  if previous:args+=['--predecessor-drive-id',previous['drive_id'],'--predecessor-owner-gen',previous['generation']]
  # Identity/path arguments are loaded from the fixed record; no retyped run root.
- rc,out,err=shell(ops['gate.drive.start']['argv']+args+['--']+INPUT['test_argv'])
+ start_argv=ops['gate.drive.start']['argv']+args+['--']+INPUT['test_argv']
+ block=(ROOT/'WORKER.md').read_text().split('<!-- drive-capture:start -->\n```sh\n',1)[1].split('\n```',1)[0]
+ before=set(Path(INPUT['worker_run_root']).glob('start-response.*'))
+ command='worker_run_root='+shlex.quote(INPUT['worker_run_root'])+'\nstart_argv=('+shlex.join(start_argv)+')\n'+block
+ rc,out,err=shell(['/bin/zsh','-c',command])
+ captures=set(Path(INPUT['worker_run_root']).glob('start-response.*'))-before
+ require(len(captures)==1,'first response not preserved')
+ capture=captures.pop();require(rc==0,'first response rejected; inspect private '+str(capture))
+ require(out==(capture/'stdout.json').read_text(),'response altered after capture')
+ rc=int((capture/'exit-code.txt').read_text())
  d=json.loads(out);records.append({'label':label,'operation':'gate.drive.start','exit_code':rc,'response':safe(d)});save()
  require(d.get('result')=='applied' and isinstance(d.get('drive'),dict),'task drive start failed '+label)
  drive=d['drive'];require(drive.get('drive_id') and drive.get('generation'),'drive ownership missing')

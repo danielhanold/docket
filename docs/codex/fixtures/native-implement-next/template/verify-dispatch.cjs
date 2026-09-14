@@ -10,6 +10,7 @@ seed.entry_argv=['python3',seed.entry_checker,'--inputs',seed.task_input_file,'-
 const checks = [];
 function execute(sc=scope, sd=seed, gate="synthetic-outer-context", epoch="synthetic-epoch") {
   const memory = {dispatch_run_epoch:epoch,dispatch_gate_context:gate,focused_scope:sc,dispatch_seed:sd};
+  memory.verified_handoff={status:'SCOPE_INPUT_OK',scope:sc,seed:sd,gate_context:gate,run_epoch:epoch,identity:{task_id:'synthetic-task',change_id:'1',phase:'build'}};
   const emitted = [];
   const context = vm.createContext({load:k=>memory[k],store:(k,v)=>{memory[k]=v;},text:v=>emitted.push(v)});
   vm.runInContext(code, context);

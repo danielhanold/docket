@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "mutations": [
+    {
+      "mutation": "removed identity guard",
+      "exit_code": 1,
+      "failure": "AssertionError: guard accepted changed task_id"
+    },
+    {
+      "mutation": "old top-level receipt parser",
+      "exit_code": 1,
+      "failure": "AssertionError: ('nested PASSED', 'BLOCKED: first gate response retained privately at /var/folders/9k/38zqdm6j2wn82qp7mcc415d00000gn/T/docket-423-receipts-qp77gk2h/worker-gates/start-response.utwf0i (process exit 0). Do not restart.\\n', '')"
+    }
+  ],
+  "initial_red": "Unmodified dispatch-payload.js accepted a scope without verifying fixed task identity; regression exited1. Fixed body rejects it.",
+  "native_certification": false
+}

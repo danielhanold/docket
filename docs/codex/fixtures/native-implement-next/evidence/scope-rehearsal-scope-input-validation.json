@@ -1,0 +1,14 @@
+{
+  "status": "SCOPE_INPUT_OK",
+  "identity": {
+    "repo_identity": "/Users/homer/dev/docket-poc-0423-scope-rehearsal-02/repo/.git",
+    "change_id": "1",
+    "task_id": "task-1",
+    "phase": "build",
+    "branch": "feat/trim-surrounding-whitespace-in-greeting",
+    "worktree": "/Users/homer/dev/docket-poc-0423-scope-rehearsal-02/repo/.worktrees/trim-surrounding-whitespace-in-greeting",
+    "gate_context_hash": "5ec6aa0252c6a031e0aa9a36b72db4436f6e7ada31f10936b60f6016bbfa426c",
+    "run_epoch_id": "ed476b3e5d2706a61c7e84019e54a721"
+  },
+  "task_input_sha256": "642d05effd533445b379a179e8d075a38e872bdd994c19bd290a1d76bdd6a7ce"
+}

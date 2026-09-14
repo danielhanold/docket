@@ -8,5 +8,16 @@
     "docket-plan-writer",
     "docket-build-standard"
   ],
-  "excluded_registrations": "Other historical roles are not installed into this bounded fixture."
+  "excluded_registrations": "Other historical roles are not installed into this bounded fixture.",
+  "scope_receipt_revision": {
+    "reason": "continuous-final-01 scope task1 versus fixed task-1, lost first JSON, and wrong receipt field shape",
+    "changes": [
+      "Generate scope identity argv from fixed inputs",
+      "Read-only schema-pinned check of actual minted scope before dispatch",
+      "Load exact seed from file, require verified handoff in payload",
+      "Preserve complete first response and parse nested drive.generation"
+    ],
+    "binary_commit": "06ebb52c058894b564ac2a8432922ddf4b2d56b3",
+    "production_routing_changed": false
+  }
 }

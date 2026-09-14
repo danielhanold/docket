@@ -8,6 +8,7 @@ const seed=JSON.parse(fs.readFileSync(path.join(root,'dispatch-seed.json'),'utf8
 const inputs=JSON.parse(fs.readFileSync(seed.task_input_file,'utf8'));
 const scope={scope_id:'rehearsal-scope',child_capability:'rehearsal-child',parent_capability:'rehearsal-private-parent'};
 const memory={dispatch_run_epoch:"synthetic-epoch",dispatch_gate_context:"synthetic-outer-context",focused_scope:scope,dispatch_seed:seed};const outputs=[];
+memory.verified_handoff={status:'SCOPE_INPUT_OK',scope,seed,gate_context:memory.dispatch_gate_context,run_epoch:memory.dispatch_run_epoch,identity:{task_id:inputs.task_id,change_id:String(inputs.change_id),phase:inputs.phase}};
 const context=vm.createContext({load:k=>memory[k],store:(k,v)=>{memory[k]=v;},text:v=>outputs.push(v)});
 vm.runInContext(fs.readFileSync(path.join(root,'dispatch-payload.js'),'utf8'),context);
 if(outputs.length!==1 || outputs[0].status!=='DISPATCH_INPUT_OK')throw Error('payload not validated');

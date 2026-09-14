@@ -1,0 +1,74 @@
+{
+  "reviewed_at": "2026-09-14T16:07:29.292326+00:00",
+  "outcome": "certification-incomplete",
+  "root_cause": "scope task identity differs from immutable worker identity",
+  "scope_task_id": "1",
+  "worker_task_id": "task-1",
+  "credential_hash_match": true,
+  "outer_context_hash_match": true,
+  "run_epoch_match": true,
+  "started_task_drives": 0,
+  "runtime": {
+    "parent": {
+      "thread_id": "01a0a078-8f03-74a0-9a05-c0ecf6c12862",
+      "model": "gpt-5.6-terra",
+      "effort": "low",
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-01/repo",
+      "source": "cli"
+    },
+    "coordinator": {
+      "thread_id": "01a0a079-d279-7ea1-85f7-3d135da1e687",
+      "model": "gpt-5.6-terra",
+      "effort": "low",
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-01/repo",
+      "source": {
+        "subagent": {
+          "thread_spawn": {
+            "parent_thread_id": "01a0a078-8f03-74a0-9a05-c0ecf6c12862",
+            "depth": 1,
+            "agent_path": "/root/native_coordinator",
+            "agent_nickname": "Sagan",
+            "agent_role": "docket-implement-next"
+          }
+        }
+      }
+    },
+    "planner": {
+      "thread_id": "01a0a07c-362b-7e02-9597-57c76a0abbda",
+      "model": "gpt-5.6-sol",
+      "effort": "medium",
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-01/repo",
+      "source": {
+        "subagent": {
+          "thread_spawn": {
+            "parent_thread_id": "01a0a079-d279-7ea1-85f7-3d135da1e687",
+            "depth": 2,
+            "agent_path": "/root/native_coordinator/planner",
+            "agent_nickname": "Kierkegaard",
+            "agent_role": "docket-plan-writer"
+          }
+        }
+      }
+    },
+    "worker": {
+      "thread_id": "01a0a07f-a21a-7f10-8724-5f32079ad508",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-01/repo",
+      "source": {
+        "subagent": {
+          "thread_spawn": {
+            "parent_thread_id": "01a0a079-d279-7ea1-85f7-3d135da1e687",
+            "depth": 2,
+            "agent_path": "/root/native_coordinator/focused_worker",
+            "agent_nickname": "Turing",
+            "agent_role": "docket-build-standard"
+          }
+        }
+      }
+    }
+  },
+  "diagnostic_visibility": "The worker captured CLI stdout but discarded it on nonzero exit. scope-identity-mismatch is inferred from exact stored/requested identity and inspected driver source; original JSON error output was not retained.",
+  "latent_receipt_parser_bug": "Worker jq expected top-level drive_id/owner_generation; actual operation returns drive.drive_id and drive.generation.",
+  "rehearsal_gap": "The scripted rehearsal derived scope identity from the fixed record; native coordinator independently retyped task id 1. Existing payload checks compare capabilities and entry argv, not scope identity against the fixed task record."
+}

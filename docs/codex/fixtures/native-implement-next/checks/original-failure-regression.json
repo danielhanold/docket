@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "source_fixture": "/Users/homer/dev/docket-poc-0423-continuous-final-01",
+  "original_input_sha256": "4b44dd256a7d307316ffb77db8191bd1130c3c48df3602302da9255a6159c1ad",
+  "input_task_id": "task-1",
+  "actual_scope_task_id": "1",
+  "predispatch_rejection": "SCOPE_INPUT_FAIL: scope identity mismatch: task_id",
+  "original_fixture_modified": false,
+  "note": "Read-only replay of the actual stored mismatch. Rejected on task identity before capability checks; no credentials required and no scope/driver/agent started."
+}
