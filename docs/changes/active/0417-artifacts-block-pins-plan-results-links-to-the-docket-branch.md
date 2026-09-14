@@ -13,7 +13,7 @@ related: [410, 341, 136]
 discovered_from: [416]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-14T23:21:46Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-10-artifacts-block-pins-plan-results-links-to-the-docket-branch-design.md) |
+| Plan | [2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-14-artifacts-block-pins-plan-results-links-to-the-docket-branch.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
