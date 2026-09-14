@@ -247,7 +247,7 @@ func TestSkillSizeBudgets(t *testing.T) {
 const (
 	dispatchStart  = "docket:dispatch:start"
 	dispatchEnd    = "docket:dispatch:end"
-	dispatchBudget = 650  // 0393 root-entry routing plus round 8's completion barrier fit at 646 words, still below the retired roster.
+	dispatchBudget = 1110 // 0375: the always-loaded run-gate block gained the human Stop/cancel and resume-after-stop operator contract (run.cancel + resume refusals) — the change's headline capability, documented where the gate rules already ride every turn. Re-baselined at the exact new count; still strictly below the retired roster (the anti-regrowth invariant below).
 	dispatchOld    = 1156 // pre-0334 roster block; the ceiling must stay strictly below it.
 )
 
