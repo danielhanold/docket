@@ -82,6 +82,7 @@ var operationBindings = []OperationBinding{
 	{ID: "gate.drive.prepare-scope", Request: nil, Result: GateScopeResult{}},                                      // GateDriveService.PrepareScope (request is gatedrive.ScopeRequest, not an app *Request)
 	{ID: "gate.drive.start", Request: GateDriveStartRequest{}, Result: GateDriveResult{}},                          // GateDriveService.Start
 	{ID: "gate.drive.takeover", Request: nil, Result: GateDriveResult{}},                                           // GateDriveService.Takeover
+	{ID: "gate.history.cleanup", Request: GateHistoryCleanupRequest{}, Result: GateHistoryCleanupResult{}},         // GateHistoryCleanup
 	{ID: "gate.launch", Request: nil, Result: GateResult{}},                                                        // GateLaunch
 	{ID: "gate.observe", Request: nil, Result: GateResult{}},                                                       // GateObserve
 	{ID: "gate.recover", Request: nil, Result: GateRecoverResult{}},                                                // GateRecover
