@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/artifacts-block-pins-plan-results-links-to-the-docket-branch'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-14T23:18:10Z'
+reconciled: true
+claimed_at: '2026-09-14T23:20:18Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Lifecycle-pin the blob ref for the Plan and Results rows so it points where the 
 ## Out of scope
 
 Adding a PR row to the Go renderer (still deferred). Terminal publication / copying results onto the metadata branch (deferred from Go v1; approach C was declined). Changing where plan/results files physically live. The reciprocal `docket:backlink` blocks. Change 0405's separate gate-handshake investigation.
+
+## Reconcile log
+
+### 2026-09-14
+
+2026-09-14: Reconciled against current source. Confirmed the defect and design still hold verbatim: internal/render/link.go's LinkContext carries only MetadataBranch and BlobURL pins every row to blob/docket/<path>; internal/app/link_context.go's linkContextOf is the sole LinkContext constructor (hardcoding reposetup.MetadataBranchName) guarded by link_context_guard_test.go; internal/render/artifacts.go's pathRow/adrCell resolve every row via link.BlobURL, and its doc comment still names the lifecycle-pinned Plan/Results branch as deferred. Scope unchanged: lifecycle-pin Plan/Results rows to the change's feature branch (branch:) while not done, integration branch (main) once done, leaving Spec/ADR on the metadata branch; plumb integration + feature branch into the render path and select per-row by status; re-render at the existing create/implemented/closeout write sites (~18 linkContextOf call sites and 15 ArtifactBlockContent sites confirmed); cover with renderer unit tests, regenerated goldens, a mutation-tested repoguard, and a budget re-baseline if counts shift. Relations (related [410,341,136], discovered_from [416]) remain accurate; no obsolescence, no fundamental invalidation.
