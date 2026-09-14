@@ -772,6 +772,14 @@ func ConfirmGateClaim(repoDir, key string, changeID int, requestID, revision str
 	rec.AttributedID = changeID
 	rec.BoundRequestID = requestID
 	rec.BoundRevision = revision
+	// Bind the run epoch to this confirmed change instance (change 0375 Task 9). The
+	// committed claim receipt is authority (ADR-0111); the epoch's ChangeID is the
+	// readable locator a later resume/cancel resolves the run by. It is best-effort
+	// and a NO-OP when no epoch exists (a standalone or keyless dispatch), so it never
+	// fails an otherwise-confirmed claim; a genuine re-point over a different change is
+	// refused inside bindEpochChange and swallowed here (the receipt already bound the
+	// change).
+	_ = bindEpochChange(repoDir, key, strconv.Itoa(changeID))
 	return SaveGateRecord(repoDir, key, rec)
 }
 

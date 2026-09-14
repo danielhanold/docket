@@ -120,6 +120,16 @@ const (
 	// admission until recovery resolves it, never a blind re-reservation (spec
 	// "Ambiguous launch or persistence failures fail closed").
 	ErrUnresolvedExecution OwnershipErrorKind = "unresolved-execution"
+	// ErrStaleRunEpoch: a worktree execution slot is owned by a run epoch (an
+	// in-flight workflow implementation whose id the slot records) that the incoming
+	// reservation does not carry — an omitted epoch, or a different one. Omission
+	// cannot detach a workflow-owned worktree: the slot admits only that epoch's own
+	// sequential drives, so a later gate presenting a stale or empty epoch is refused
+	// rather than launched, even over a released (between-drives) slot the epoch still
+	// owns (change 0375 Task 9, spec "omission cannot detach"). A slot with no epoch
+	// (a standalone gate) fences nothing. It confers no admission and never stops the
+	// incumbent.
+	ErrStaleRunEpoch OwnershipErrorKind = "stale-run-epoch"
 )
 
 // OwnershipError is the ownership layer's typed failure. Like StoreError it

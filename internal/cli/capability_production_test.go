@@ -327,7 +327,7 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// `--` separator, which lands last.
 		// change 0405: gate.drive.start gains the two optional successor-receipt flags,
 		// sorted among the other optionals (after --phase, before --ref).
-		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--child-cap <token>] [--cwd <dir>] [--env-hash <hash>] [--gate-context <token>] [--idempotent-suite-gate] [--phase <name>] [--predecessor-drive-id <id>] [--predecessor-owner-gen <gen>] [--ref <ref>] [--repo-dir <dir>] [--scope-id <id>] [--task-id <id>] -- <argv...>",
+		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--child-cap <token>] [--cwd <dir>] [--env-hash <hash>] [--gate-context <token>] [--idempotent-suite-gate] [--phase <name>] [--predecessor-drive-id <id>] [--predecessor-owner-gen <gen>] [--ref <ref>] [--repo-dir <dir>] [--run-epoch <id>] [--scope-id <id>] [--task-id <id>] -- <argv...>",
 		// change 0405: terminal acknowledgement — four required credential flags,
 		// sorted, then the optional repo dir.
 		"gate.drive.acknowledge": "--child-cap <token> --drive-id <id> --owner-gen <gen> --scope-id <id> [--repo-dir <dir>]",
