@@ -1057,19 +1057,21 @@ func (d *Driver) driveAndPersistClaim(id, ownerGen string, rec driveRecord, clai
 	return d.recordedDoc(id, ownerGen, cur), nil
 }
 
-// releaseAdmissionOnTerminal frees the drive's worktree execution slot once the
-// drive has committed a PASSED or FAILED verdict, so the next top-level execution —
-// a different scope, a scopeless start, or this scope's next sequential drive — can
-// admit onto the same worktree. The supervisor reports PASSED/FAILED only after it
-// has written its terminal record, so the child group has ended and the worktree is
-// genuinely idle; the release is thus proven by the same observation that produced
-// the verdict. It is deliberately narrow for change 0375 Task 3: a scopeless drive
-// (no admission token) and a HALTED verdict — whose process may still be live, so
-// teardown is not proven by the document alone — are left untouched, and Task 6 adds
-// the explicit Observe/Stop teardown proof, the HALTED stopping/unresolved handling,
-// and the legacy inventory. The release verifies the slot's reservation token and is
-// idempotent under it, so a stale drive cannot free a successor's slot and a
-// concurrent-writer race that both observe the terminal never double-frees.
+// releaseAdmissionIfProven frees the drive's worktree execution slot once the
+// drive's teardown is proven, so the next top-level execution — a different scope, a
+// scopeless start, or this scope's next sequential drive — can admit onto the same
+// worktree. A drive with no admission token (a scopeless start) has no slot to free
+// and is skipped. On a PASSED or FAILED verdict the slot is released outright: the
+// supervisor reports those only after writing its terminal record, so the child
+// group has ended and the worktree is genuinely idle, and the release is proven by
+// the same observation that produced the verdict. A HALTED verdict is handled here
+// too, but its process may still be live, so the document alone does not prove
+// teardown: the slot is Observe/Stopped and released only when that proves the group
+// has ended (Stop performed, or the observation proves teardown); when it cannot be
+// resolved the slot is marked unresolved or stopping rather than freed. The release
+// verifies the slot's reservation token and is idempotent under it, so a stale drive
+// cannot free a successor's slot and a concurrent-writer race that both observe the
+// terminal never double-frees.
 func (d *Driver) releaseAdmissionIfProven(rec driveRecord) error {
 	if rec.AdmissionToken == "" {
 		return nil
