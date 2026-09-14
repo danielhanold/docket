@@ -60,10 +60,14 @@ type AgentChildInputValidator interface {
 type AgentWorkspaceValidator interface {
 	ValidateAgentWorkspace(context.Context, codexcontract.Assignment, string) error
 }
+type AgentRoleInputValidator interface {
+	ValidateRoleInputs(context.Context, codexcontract.Assignment, codexcontract.WorkerPayload, string) error
+}
 type AgentInputDeps struct {
 	Observer  AgentInputObserver
 	Scope     AgentChildInputValidator
 	Workspace AgentWorkspaceValidator
+	Role      AgentRoleInputValidator
 }
 
 func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsRequest) CheckInputsResult {
@@ -157,6 +161,13 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 			}
 			if err != nil {
 				return fail(ResultInvalidState, "scope-inputs-invalid: "+err.Error())
+			}
+		} else if p.Kind == "resolver" || p.Kind == "repair" {
+			if deps.Role == nil {
+				return fail(ResultInvalidState, "role-validator-unavailable")
+			}
+			if err := deps.Role.ValidateRoleInputs(ctx, a, p, req.RepoDir); err != nil {
+				return fail(ResultInvalidState, "role-inputs-invalid: "+err.Error())
 			}
 		}
 	}
