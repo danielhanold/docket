@@ -1,0 +1,148 @@
+{
+  "reviewed_at": "2026-09-14T18:29:47.125161+00:00",
+  "status": "continuous-functional-passed",
+  "evidence_audit_complete": false,
+  "runtime": {
+    "parent": {
+      "id": "01a0a110-496f-7f63-a3b4-e59942989076",
+      "model": "gpt-5.6-terra",
+      "effort": "low",
+      "startup_cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo",
+      "source_file": "/Users/homer/.codex/sessions/2026/09/14/rollout-2026-09-14T13-56-34-01a0a110-496f-7f63-a3b4-e59942989076.jsonl"
+    },
+    "coordinator": {
+      "id": "01a0a111-6cbe-7702-ab8f-9823d48f2c5a",
+      "model": "gpt-5.6-terra",
+      "effort": "low",
+      "startup_cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo",
+      "source_file": "/Users/homer/.codex/sessions/2026/09/14/rollout-2026-09-14T13-57-48-01a0a111-6cbe-7702-ab8f-9823d48f2c5a.jsonl",
+      "native_parent": "01a0a110-496f-7f63-a3b4-e59942989076",
+      "native_role": "docket-implement-next"
+    },
+    "planner": {
+      "id": "01a0a114-653b-7900-8a7b-a7726d54d1f8",
+      "model": "gpt-5.6-sol",
+      "effort": "medium",
+      "startup_cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo",
+      "source_file": "/Users/homer/.codex/sessions/2026/09/14/rollout-2026-09-14T14-01-03-01a0a114-653b-7900-8a7b-a7726d54d1f8.jsonl",
+      "native_parent": "01a0a111-6cbe-7702-ab8f-9823d48f2c5a",
+      "native_role": "docket-plan-writer"
+    },
+    "worker": {
+      "id": "01a0a118-3ecf-7322-b0cc-ec739e464dcb",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "startup_cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo",
+      "source_file": "/Users/homer/.codex/sessions/2026/09/14/rollout-2026-09-14T14-05-15-01a0a118-3ecf-7322-b0cc-ec739e464dcb.jsonl",
+      "native_parent": "01a0a111-6cbe-7702-ab8f-9823d48f2c5a",
+      "native_role": "docket-build-standard"
+    }
+  },
+  "plan_commit": "5b1af86bb03e6ba7494ee69a86a4650b10a47143",
+  "implementation_commit": "9e8ac68dd82ea66c78785b4448b08d8e8b8aabd3",
+  "results_checkpoint": "a9b1be9539b0e2078db3d1b9faca8e8473b2fe6a",
+  "local_origin_head": "a9b1be9539b0e2078db3d1b9faca8e8473b2fe6a",
+  "attachment_verified_at_metadata_revision": "cea1c7bcaf9836936bc87f0d66fa68e258f1a1c9",
+  "results_path": "docs/results/2026-09-14-trim-surrounding-whitespace-in-greeting-results.md",
+  "plan_path": "docs/superpowers/plans/2026-09-14-trim-surrounding-whitespace-in-greeting.md",
+  "drives": [
+    {
+      "drive_id": "c92282e9d7a59ee5dec92884b90bc703",
+      "head_oid": "9e8ac68dd82ea66c78785b4448b08d8e8b8aabd3",
+      "last_outcome": "PASSED",
+      "command": [
+        "/bin/sh",
+        "-c",
+        "go test -count=1 ./..."
+      ],
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo/.worktrees/trim-surrounding-whitespace-in-greeting",
+      "run_root": "/Users/homer/dev/docket-poc-0423-continuous-final-04/evidence/final-build-gates"
+    },
+    {
+      "drive_id": "c9c86dcae4636dbcc7d7aa7a2165ce19",
+      "head_oid": "5b1af86bb03e6ba7494ee69a86a4650b10a47143",
+      "last_outcome": "FAILED",
+      "command": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^TestGreet$",
+        "./..."
+      ],
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo/.worktrees/trim-surrounding-whitespace-in-greeting",
+      "run_root": "/Users/homer/dev/docket-poc-0423-continuous-final-04/evidence/worker-gates"
+    },
+    {
+      "drive_id": "f03d19c9548c2fed403912fe208ffd56",
+      "head_oid": "a9b1be9539b0e2078db3d1b9faca8e8473b2fe6a",
+      "last_outcome": "PASSED",
+      "command": [
+        "/bin/sh",
+        "-c",
+        "go test -count=1 ./..."
+      ],
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo/.worktrees/trim-surrounding-whitespace-in-greeting",
+      "run_root": "/Users/homer/dev/docket-poc-0423-continuous-final-04/evidence/final-checkpoint-gates"
+    },
+    {
+      "drive_id": "c8ecb2111ec0a07f29d3545648bae77f",
+      "head_oid": "5b1af86bb03e6ba7494ee69a86a4650b10a47143",
+      "last_outcome": "PASSED",
+      "command": [
+        "go",
+        "test",
+        "-count=1",
+        "./..."
+      ],
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo/.worktrees/trim-surrounding-whitespace-in-greeting",
+      "run_root": "/Users/homer/dev/docket-poc-0423-continuous-final-04/evidence/worker-gates"
+    },
+    {
+      "drive_id": "7c86487a91ad33b11b01df5b7540b876",
+      "head_oid": "5b1af86bb03e6ba7494ee69a86a4650b10a47143",
+      "last_outcome": "PASSED",
+      "command": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^TestGreet$",
+        "./..."
+      ],
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo/.worktrees/trim-surrounding-whitespace-in-greeting",
+      "run_root": "/Users/homer/dev/docket-poc-0423-continuous-final-04/evidence/worker-gates"
+    }
+  ],
+  "scope": {
+    "task_id": "task-1",
+    "drive_count": 3,
+    "closed": true,
+    "final_acked": true
+  },
+  "outer_verdict": {
+    "decision": "gate-stop",
+    "outcome": "run-halted",
+    "terminal": true,
+    "same_key_as_arm": true,
+    "same_context_hash_on_all_drives": true,
+    "source_event_index": 230
+  },
+  "primary_audit": {
+    "status": "PRIMARY_UNCHANGED",
+    "changed_paths": [],
+    "changed_state": [],
+    "limitation": "tool evidence must also exclude temporary writes"
+  },
+  "evidence_gaps": [
+    "Native message opacity and clean snapshots cannot exclude transient restored writes.",
+    "Known feature-only metadata artifact-missing diagnostics are preserved."
+  ],
+  "review_notes": [
+    "The fresh plan explicitly selected focused TestGreet commands for RED/GREEN. These covered all cases in the only test function; separate configured full suites passed at implementation and final results commits.",
+    "acceptance.json abbreviates worker run_root as evidence/worker-gates; actual durable records use the canonical absolute fixture path recorded here.",
+    "The results stage cites its template receipt in the bundle. This review independently verifies the results artifact, local-origin commit and attachment in the current metadata revision; the template alone would not prove those facts.",
+    "No further POC execution is needed for the agreed functional scope. Manual423 close-out and durable final evidence packaging remain separate from this fixture result."
+  ],
+  "original_evidence_unchanged": true
+}

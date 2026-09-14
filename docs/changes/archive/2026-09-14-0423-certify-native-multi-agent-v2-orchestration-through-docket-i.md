@@ -2,7 +2,7 @@
 id: 423
 slug: 'certify-native-multi-agent-v2-orchestration-through-docket-i'
 title: 'Certify native Multi-Agent V2 orchestration through Docket ImplementNext'
-status: 'in-progress'
+status: 'done'
 priority: 'critical'
 type: 'chore'
 created: '2026-09-11'
@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/certify-native-multi-agent-v2-orchestration-through-docket-i'
 pr:
 blocked_by:
-reconciled: true
-claimed_at: '2026-09-14T14:43:00Z'
+reconciled: false
+claimed_at:
 ---
 
 ## Artifacts
@@ -51,3 +51,13 @@ Production dispatch or model-policy implementation (425 and 424), agent.enter ca
 ### 2026-09-14
 
 User-directed 2026-09-14 scope reconciliation: option2 replaces native startup equality, Luna/control retests end, continuous corrected positive path remains required, reusable POC package is delivered manually, and done requires explicit evidence acceptance plus truthful manual metadata close-out rather than Docket build/finalize fiction. Production work feeds425; historical evidence and accepted ADRs remain unchanged.
+
+Manual POC completion
+
+Accepted and manually completed on 2026-09-14 under the user instruction: “Continue with final evidence packaging and manual closeout.” This is the approved POC lifecycle exception; no production PR, merge or Docket build/finalize run is asserted.
+
+The continuous native ImplementNext → planner → standard worker run passed the agreed option 2 contract, including real TDD, the committed and locally published results checkpoint, the configured full suite at that checkpoint, and an unchanged primary audit. The fixture then halted deliberately under its typed boundary. Acceptance is `continuous-functional-passed`, with `evidence_audit_complete: false` and the documented observation limitations accepted.
+
+The [final report and reusable evidence package](https://github.com/danielhanold/docket/blob/docket/docs/codex/fixtures/native-implement-next/FINAL-RESULTS.md) preserve the evidence, independent review, Git history, reproducible fixture and checksums. This metadata-resident POC report is intentionally linked here rather than through a main-branch lifecycle results field. The original fixtures are retained; the historical branch label remains only as provenance, with the active claim and reconciliation bookkeeping cleared.
+
+Change 424 owns production model capability policy. Change 425 consumes this evidence for Codex-only native dispatch and explicit feature-worktree binding; it still depends on 424. This POC does not certify hard isolation, parallel safety or production readiness.

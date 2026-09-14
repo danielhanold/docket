@@ -1,0 +1,9 @@
+{
+  "operation": "run.gate-verdict",
+  "decision": "gate-stop",
+  "outcome": "run-halted",
+  "terminal": true,
+  "attributed_change": 1,
+  "same_key_as_original_arm": true,
+  "redactions": ["raw gate key omitted", "dispatch context omitted", "epoch omitted"]
+}

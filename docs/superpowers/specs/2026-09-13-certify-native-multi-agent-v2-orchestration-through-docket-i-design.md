@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0423 — Certify native Multi-Agent V2 orchestration through Docket ImplementNext](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0423-certify-native-multi-agent-v2-orchestration-through-docket-i.md)**
+> ↩ **[Change 0423 — Certify native Multi-Agent V2 orchestration through Docket ImplementNext](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-14-0423-certify-native-multi-agent-v2-orchestration-through-docket-i.md)**
 <!-- docket:backlink:end -->
 
 # Certify native Multi-Agent V2 orchestration through Docket ImplementNext

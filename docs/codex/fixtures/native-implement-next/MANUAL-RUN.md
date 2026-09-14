@@ -1,11 +1,7 @@
-# Prepared final manual run
+# POC complete — historical manual launch instructions
 
-Fresh unstarted primary: `/Users/homer/dev/docket-poc-0423-continuous-final-03/repo`.
+Change 423 has an accepted continuous-functional-passed run. No further test is required for its agreed scope. See [FINAL-RESULTS.md](FINAL-RESULTS.md) and [final evidence](evidence/final-run/README.md).
 
-Open a NEW Local Codex task there, select gpt-5.6-terra / low, and send:
+The successful run used /Users/homer/dev/docket-poc-0423-continuous-final-04/repo in a fresh Local Codex task with gpt-5.6-terra / low. Original run 04 and all earlier fixtures remain preserved. Do not relaunch a used fixture.
 
-```text
-Read and execute /Users/homer/dev/docket-poc-0423-continuous-final-03/LAUNCH.md once. Run the continuous native option-2 POC with the registered ImplementNext coordinator, planner and standard worker. Run the required template preflights, use the exact feature template path, finish the results checkpoint and final gate, and finalize acceptance after the outer verdict. Preserve complete payloads, gate context and epoch, exact worktree targeting, real tests/commits/acknowledgement, results checkpoint and terminal keyed verdict. No agent.enter, Luna, review, PR, merge or production changes.
-```
-
-Expected outputs: evidence/run-report.md, evidence/coordinator-terminal.md and evidence/acceptance.json. This package was prepared without launching any native test agent.
+For a separate future experiment, setup.py can still generate a new independent destination and its own LAUNCH.md. That would be new work, not a prerequisite for closing 423.

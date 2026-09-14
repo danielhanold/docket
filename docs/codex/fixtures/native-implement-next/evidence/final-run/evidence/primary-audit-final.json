@@ -1,0 +1,6 @@
+{
+  "status": "PRIMARY_UNCHANGED",
+  "changed_paths": [],
+  "changed_state": [],
+  "limitation": "tool evidence must also exclude temporary writes"
+}

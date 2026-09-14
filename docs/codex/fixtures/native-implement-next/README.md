@@ -1,6 +1,6 @@
 # Native ImplementNext option-2 certification package
 
-This is the manually delivered POC package for change423. It contains pinned experimental role/skill source, a fresh-fixture generator, exact planner/worker handoff checks, deterministic mutation tests, sanitized historical evidence and a successful non-native backend rehearsal. It is not installed production routing and it does not mark423 complete. Production implementation is specified by425.
+This is the manually delivered POC package for change 423. It contains pinned experimental role/skill source, a fresh-fixture generator, exact planner/worker handoff checks, deterministic mutation tests, sanitized historical evidence and a successful non-native backend rehearsal. Change 423 is completed as an accepted manual POC; see FINAL-RESULTS.md and evidence/final-run/. This is not installed production routing. Production implementation is specified by 425.
 
 ## Create and launch
 
@@ -41,10 +41,14 @@ Current checks:45 fixed-input/runtime cases,41 native-payload cases including co
 
 After the live run, review evidence/run-report.md, coordinator-terminal.md, acceptance.json and their referenced raw/sanitized sources. Preserve implementation and final results-checkpoint commits separately. Any absent child-runtime or tool-path evidence remains an explicit limitation; a clean primary snapshot does not prove absence of transient restored writes. Accepting a named observability limit cannot fill a missing execution stage.
 
-See MANUAL-CLOSEOUT.md for423's truthful, user-authorized exception to the normal PR-based lifecycle. This package does not run production Docket build, implement-next or finalize on423. The final continuous result is still pending.
+See MANUAL-CLOSEOUT.md for 423's truthful, user-authorized exception to the normal PR-based lifecycle. This package does not run production Docket build, implement-next or finalize on 423. The final continuous result passed and was accepted for manual closeout on2026-09-14; see FINAL-RESULTS.md.
 
 ## Run03 correction
 
 Run02 proved the native chain through implementation. Its template was present; default file search omitted the hidden .agents directory. The new launch supplies the exact template path and hash, checks it in primary before any dispatch, checks it again in the new feature worktree before planner dispatch, and uses that path for results authoring. Setup refuses a missing packaged template. The parent now finalizes acceptance only after collecting its real outer verdict, preserving the coordinator draft. Full acceptance requirements are unchanged.
 
 The fresh complete backend rehearsal consumed the actual included results template and passed through results commit/publication/attachment and the final checkpoint suite; see evidence/results-rehearsal-binary-compatibility.json and evidence/results-rehearsal-results-template-consumption.json. The preparation is not a native certification result. The fresh manual run is described in MANUAL-RUN.md.
+
+## Final accepted outcome
+
+The successful continuous run 04 and independent review are packaged in evidence/final-run/. Both implementation and final results-checkpoint suites passed; results were committed, locally published and attached. The original outer key was verified. The user authorized manual closeout with the documented observation limits. No further POC run is required. See FINAL-RESULTS.md for the complete outcome and lifecycle exception.

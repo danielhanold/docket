@@ -1,13 +1,12 @@
 # Backlog
 
-**428 changes** — 🟢 3 in progress · 🟣 4 groomed · 🟡 23 proposed · ⚪ 11 deferred · ✅ 274 done · 🗑️ 113 killed
+**428 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 23 proposed · ⚪ 11 deferred · ✅ 275 done · 🗑️ 113 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0428](active/0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md) | Recover legacy gate history without blocking unrelated worktree admission | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md) | `fix/recover-legacy-gate-history-without-blocking-unrelated-workt` |  |
-| [0423](active/0423-certify-native-multi-agent-v2-orchestration-through-docket-i.md) | Certify native Multi-Agent V2 orchestration through Docket ImplementNext | `critical` | `chore` | [spec](../superpowers/specs/2026-09-13-certify-native-multi-agent-v2-orchestration-through-docket-i-design.md) | `chore/certify-native-multi-agent-v2-orchestration-through-docket-i` |  |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
 
 ## 🟣 Groomed (4)
@@ -24,9 +23,9 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0427](active/0427-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md) | Verdict-path gate recovery never binds the run epoch's worktree | `medium` | `fix` | needs-brainstorm |
-| [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | ⏳ waiting on #423 — not yet built |
+| [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | ⏳ waiting on #424 — not yet built |
 | [0426](active/0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | `high` | `refactor` | ⏳ waiting on #425 — not yet built |
-| [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | ⏳ waiting on #423 — not yet built |
+| [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | needs-brainstorm |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | needs-brainstorm |
 | [0419](active/0419-make-finalize-repair-attempts-configurable-with-a-default-of.md) | Make finalize repair attempts configurable with a default of six | `medium` | `feat` | build-ready (trivial) |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
@@ -101,7 +100,6 @@ graph TD
   0418
   0419
   0422
-  0423
   0423 --> 0424
   0423 --> 0425
   0424 --> 0425
@@ -113,13 +111,15 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
+  0423:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (387)</summary>
+<details><summary>✅🗑️ Archive — done + killed (388)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0423](archive/2026-09-14-0423-certify-native-multi-agent-v2-orchestration-through-docket-i.md) | Certify native Multi-Agent V2 orchestration through Docket ImplementNext | 2026-09-14 |
 | [0375](archive/2026-09-14-0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | 2026-09-14 |
 | [0421](archive/2026-09-10-0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | 2026-09-10 |
 | [0420](archive/2026-09-10-0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | 2026-09-10 |
@@ -134,7 +134,6 @@ graph TD
 | [0354](archive/2026-09-08-0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | 2026-09-08 |
 | [0327](archive/2026-09-08-0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | 2026-09-08 |
 | [0283](archive/2026-09-08-0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | 2026-09-08 |
-| [0407](archive/2026-09-07-0407-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md) | Keyed gate-verdict misattributes its verdict to a concurrent loop's change id under parallel implement-next runs | 2026-09-07 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -253,7 +252,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 23 done |
+| [2026-09](archive/) | 24 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

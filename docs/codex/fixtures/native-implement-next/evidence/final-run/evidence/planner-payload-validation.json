@@ -1,0 +1,9 @@
+{
+  "status": "PLANNER_PAYLOAD_OK",
+  "field_count": 23,
+  "plan_skill": "superpowers:writing-plans",
+  "plan_skill_file": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo/.worktrees/trim-surrounding-whitespace-in-greeting/.agents/skills/superpowers-writing-plans/SKILL.md",
+  "change_file": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo/.docket/docs/changes/active/0001-trim-surrounding-whitespace-in-greeting.md",
+  "spec_file": "/Users/homer/dev/docket-poc-0423-continuous-final-04/repo/.docket/docs/superpowers/specs/2026-09-14-trim-surrounding-whitespace-in-greeting-design.md",
+  "limitations": "coordinator separately verifies live claim, boundary, branch/HEAD and exact dispatch message"
+}
