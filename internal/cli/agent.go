@@ -21,6 +21,7 @@ import (
 func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *cobra.Command {
 	group := &cobra.Command{Use: "agent", Short: "Enter harness agent roles"}
 	var role, requestSource, cwd, approval, sandbox, worktree string
+	var runGateKey, runEpoch string
 	enter := &cobra.Command{
 		Use:   "enter",
 		Short: "Enter a compositional Codex role as a foreground root thread",
@@ -83,7 +84,29 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			for _, name := range contract.Skills {
 				skills = append(skills, codexentry.SkillInput{Name: name, Path: filepath.Join(opts.Roots.Home, ".agents", "skills", name, "SKILL.md")})
 			}
-			out, err := (codexentry.Client{}).Enter(c.Context(), codexentry.Request{Contract: contract, UserRequest: string(request), CWD: effectiveCWD, ApprovalPolicy: approval, Sandbox: sandbox, Skills: skills})
+			client := codexentry.Client{}
+			// Optional lifecycle linkage (change 0375 Task 13): register this entry's
+			// thread as a run-epoch participant, and — for a root coordinator only —
+			// connect a catchable Stop to the run's cancellation path and spawn the
+			// detached death guardian for an uncatchable death. A feature child registers
+			// but receives NO cancellation authority: the flags register, they do not
+			// confer. The epoch id is a public locator; the dispatch-context child
+			// capability continues to carry authority.
+			isRootCoordinator := contract.LaunchPosture == harness.LaunchRootCoordinator
+			if runGateKey != "" && runEpoch != "" {
+				kind := "task"
+				if isRootCoordinator {
+					kind = "coordinator"
+				}
+				client.Registrar = epochParticipantRegistrar{repoDir: effectiveCWD, gateKey: runGateKey, epochID: runEpoch, kind: kind}
+				if isRootCoordinator {
+					client.Canceller = epochLifecycleCanceller{ctx: c.Context(), repoDir: effectiveCWD, gateKey: runGateKey, epochID: runEpoch}
+					if guardian, gerr := spawnAgentDeathGuardian(effectiveCWD, runGateKey, runEpoch); gerr == nil {
+						defer guardian.Complete()
+					}
+				}
+			}
+			out, err := client.Enter(c.Context(), codexentry.Request{Contract: contract, UserRequest: string(request), CWD: effectiveCWD, ApprovalPolicy: approval, Sandbox: sandbox, Skills: skills})
 			if err != nil {
 				setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultExternalFailed), Role: role, Reason: "root-entry-failed", Message: err.Error()})
 				return nil
@@ -98,11 +121,63 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 	enter.Flags().StringVar(&approval, "approval-policy", "", "caller approval `policy` (required)")
 	enter.Flags().StringVar(&sandbox, "sandbox", "", "caller sandbox `mode` (required)")
 	enter.Flags().StringVar(&worktree, "worktree", "", "verified feature worktree `dir` (required for feature child roles)")
+	enter.Flags().StringVar(&runGateKey, "run-gate-key", "", "run gate `key` for lifecycle registration (optional; locator, not a credential)")
+	enter.Flags().StringVar(&runEpoch, "run-epoch", "", "run epoch `id` for lifecycle registration (optional; public locator, not a credential)")
 	for _, flag := range []string{"role", "request", "cwd", "approval-policy", "sandbox"} {
 		_ = enter.MarkFlagRequired(flag)
 	}
 	group.AddCommand(enter)
 	return group
+}
+
+// epochParticipantRegistrar adapts app.RegisterEpochParticipant to codexentry's
+// ParticipantRegistrar: it registers this entry's thread as a run-epoch participant
+// (change 0375 Task 13). The epoch id is presented as the expected locator so a
+// stale linkage is rejected; the registration carries no capability.
+type epochParticipantRegistrar struct {
+	repoDir, gateKey, epochID, kind string
+}
+
+func (r epochParticipantRegistrar) RegisterParticipant(handle string) error {
+	return app.RegisterEpochParticipant(r.repoDir, r.gateKey, r.epochID, app.EpochParticipant{
+		Kind:         r.kind,
+		NativeHandle: handle,
+	})
+}
+
+// epochLifecycleCanceller adapts app.RunCancel to codexentry's LifecycleCanceller
+// for a root coordinator that catches a Stop. RunCancel validates the run's own
+// authority (the record's parent capability + confirmed claim binding) — the
+// coordinator's signal cannot manufacture authority it lacks. Task 10's RunCancel
+// reconciles from the epoch journal and ignores the planning deps, so zero-value
+// deps are passed rather than requiring a GitHub client at Stop time.
+type epochLifecycleCanceller struct {
+	ctx                     context.Context
+	repoDir, gateKey, epochID string
+}
+
+func (c epochLifecycleCanceller) CancelRun(reason string) error {
+	res := app.RunCancel(c.ctx, app.PlanningDeps{}, app.WorkspaceDeps{}, c.repoDir, c.gateKey, c.epochID, reason)
+	if res.Result == app.ResultBlocked {
+		return fmt.Errorf("run cancel refused: %s", res.Disposition)
+	}
+	return nil
+}
+
+// spawnAgentDeathGuardian re-execs this binary as a detached run death guardian for
+// (gateKey, epochID) under repoDir, so an uncatchable owner death fences the epoch
+// automatically. It resolves the completion-marker path the guardian watches and
+// passes this binary's own path as the re-exec target.
+func spawnAgentDeathGuardian(repoDir, gateKey, epochID string) (*app.GuardianHandle, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	marker, err := app.AgentGuardianMarkerPath(repoDir, gateKey)
+	if err != nil {
+		return nil, err
+	}
+	return app.SpawnAgentGuardian(exe, repoDir, gateKey, epochID, marker)
 }
 
 // resolveAgentEntryCWD keeps role admission and checkout identity together at

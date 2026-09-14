@@ -10,7 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/harness/codex"
@@ -26,8 +29,37 @@ type Transport interface {
 
 type StartFunc func(context.Context, string) (Transport, error)
 
+// ParticipantRegistrar registers this entry's native task handle (its thread id)
+// as a run-epoch participant BEFORE the coordinator turn starts, so a later
+// cancellation knows the task exists. Registration is lifecycle linkage only — it
+// confers no attribution and no authority (claim proofs own attribution). The app
+// layer wires the implementation; a nil Registrar registers nothing (the honest
+// state for an entry with no run linkage).
+type ParticipantRegistrar interface {
+	RegisterParticipant(handle string) error
+}
+
+// LifecycleCanceller connects a catchable owner Stop (SIGTERM/SIGINT) to the run's
+// cancellation path: it fences the run epoch and tears the run down. It is injected
+// from the app layer ONLY for an entry that carries cancellation authority (the root
+// coordinator); a feature child registers as a participant but receives a nil
+// Canceller — the flags register, they do not confer authority.
+type LifecycleCanceller interface {
+	CancelRun(reason string) error
+}
+
 type Client struct {
 	Start StartFunc
+	// Registrar, when non-nil, registers this entry's thread as a run-epoch
+	// participant before the turn starts.
+	Registrar ParticipantRegistrar
+	// Canceller, when non-nil, is invoked once if a SIGTERM/SIGINT reaches this
+	// owner while it waits on the turn — the signal-connected cancellation path.
+	Canceller LifecycleCanceller
+	// signalSource, when non-nil, replaces OS signal notification during the turn
+	// wait so tests drive the cancellation path deterministically. Production leaves
+	// it nil and the wait subscribes to real SIGTERM/SIGINT.
+	signalSource func() (<-chan os.Signal, func())
 }
 
 type SkillInput struct {
@@ -123,6 +155,16 @@ func (c Client) Enter(ctx context.Context, req Request) (Result, error) {
 		return Result{}, fmt.Errorf("root-thread creation returned a malformed result")
 	}
 
+	// Register the native task handle (the thread id) as a run-epoch participant
+	// BEFORE the turn starts, so a cancellation that races the turn already knows the
+	// task exists. A registration failure is fatal — an unregistered turn cannot be
+	// reached by a later cancellation, so it must not start (fail closed).
+	if c.Registrar != nil {
+		if err := c.Registrar.RegisterParticipant(thread.Thread.ID); err != nil {
+			return Result{}, fmt.Errorf("registering lifecycle participant: %w", err)
+		}
+	}
+
 	inputs := make([]map[string]any, 0, len(req.Skills)+1)
 	for _, skill := range req.Skills {
 		inputs = append(inputs, map[string]any{"type": "skill", "name": skill.Name, "path": skill.Path})
@@ -147,7 +189,7 @@ func (c Client) Enter(ctx context.Context, req Request) (Result, error) {
 		return Result{}, fmt.Errorf("coordinator turn returned a malformed result")
 	}
 
-	output, err := waitTurn(tr, thread.Thread.ID, turn.Turn.ID)
+	output, err := c.waitTurn(tr, thread.Thread.ID, turn.Turn.ID)
 	if err != nil {
 		return Result{}, err
 	}
@@ -185,55 +227,115 @@ func waitResponse(tr Transport, id int, phase string) (json.RawMessage, error) {
 	}
 }
 
-func waitTurn(tr Transport, threadID, turnID string) (string, error) {
-	var final string
-	for {
-		raw, err := tr.Recv()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return "", fmt.Errorf("coordinator turn ended before completion: %w", err)
+// recvFrame carries one transport read across the receiver goroutine boundary so
+// the wait can select between an incoming frame and a delivered Stop signal.
+type recvFrame struct {
+	raw json.RawMessage
+	err error
+}
+
+// waitTurn observes the coordinator turn to completion. When a Canceller is wired
+// it also watches for a catchable Stop (SIGTERM/SIGINT): the FIRST such signal
+// invokes the run's cancellation path exactly once and then the wait KEEPS
+// observing this exact turn until it produces terminal output — a transport kill
+// alone is not a receipt, so the cancellation never truncates the turn's own record.
+func (c Client) waitTurn(tr Transport, threadID, turnID string) (string, error) {
+	frames := make(chan recvFrame, 8)
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		for {
+			raw, err := tr.Recv()
+			select {
+			case frames <- recvFrame{raw: raw, err: err}:
+			case <-done:
+				return
 			}
-			return "", fmt.Errorf("reading coordinator turn: %w", err)
+			if err != nil {
+				return
+			}
 		}
-		var env rpcEnvelope
-		if err := json.Unmarshal(raw, &env); err != nil {
-			return "", fmt.Errorf("coordinator turn received a malformed JSON-RPC frame: %w", err)
+	}()
+
+	var sigCh <-chan os.Signal
+	if c.Canceller != nil {
+		var stop func()
+		if c.signalSource != nil {
+			sigCh, stop = c.signalSource()
+		} else {
+			ch := make(chan os.Signal, 4)
+			signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
+			sigCh, stop = ch, func() { signal.Stop(ch) }
 		}
-		if err := rejectInteractiveRequest(env); err != nil {
-			return "", err
-		}
-		switch env.Method {
-		case "item/completed":
-			var p completedItemParams
-			if json.Unmarshal(env.Params, &p) == nil && p.ThreadID == threadID && p.TurnID == turnID && isFinalMessage(p.Item.Type, p.Item.Phase) {
-				final = p.Item.Text
-			}
-		case "turn/completed":
-			var p completedTurnParams
-			if err := json.Unmarshal(env.Params, &p); err != nil {
-				return "", fmt.Errorf("coordinator turn completion was malformed: %w", err)
-			}
-			if p.ThreadID != threadID || p.Turn.ID != turnID {
-				continue
-			}
-			for _, item := range p.Turn.Items {
-				if isFinalMessage(item.Type, item.Phase) {
-					final = item.Text
-				}
-			}
-			if p.Turn.Status != "completed" {
-				detail := p.Turn.Status
-				if p.Turn.Error != nil && p.Turn.Error.Message != "" {
-					detail += ": " + p.Turn.Error.Message
-				}
-				return "", fmt.Errorf("coordinator turn %s", detail)
-			}
-			if final == "" {
-				return "", fmt.Errorf("coordinator turn completed without a final agent message")
-			}
-			return final, nil
+		if stop != nil {
+			defer stop()
 		}
 	}
+
+	var final string
+	cancelled := false
+	for {
+		select {
+		case s := <-sigCh:
+			// A nil sigCh never fires; a real one fires at most usefully once. Keep
+			// observing the turn after cancelling — the transport is not the receipt.
+			if !cancelled {
+				cancelled = true
+				_ = c.Canceller.CancelRun(signalReason(s))
+			}
+		case fr := <-frames:
+			if fr.err != nil {
+				if errors.Is(fr.err, io.EOF) {
+					return "", fmt.Errorf("coordinator turn ended before completion: %w", fr.err)
+				}
+				return "", fmt.Errorf("reading coordinator turn: %w", fr.err)
+			}
+			var env rpcEnvelope
+			if err := json.Unmarshal(fr.raw, &env); err != nil {
+				return "", fmt.Errorf("coordinator turn received a malformed JSON-RPC frame: %w", err)
+			}
+			if err := rejectInteractiveRequest(env); err != nil {
+				return "", err
+			}
+			switch env.Method {
+			case "item/completed":
+				var p completedItemParams
+				if json.Unmarshal(env.Params, &p) == nil && p.ThreadID == threadID && p.TurnID == turnID && isFinalMessage(p.Item.Type, p.Item.Phase) {
+					final = p.Item.Text
+				}
+			case "turn/completed":
+				var p completedTurnParams
+				if err := json.Unmarshal(env.Params, &p); err != nil {
+					return "", fmt.Errorf("coordinator turn completion was malformed: %w", err)
+				}
+				if p.ThreadID != threadID || p.Turn.ID != turnID {
+					continue
+				}
+				for _, item := range p.Turn.Items {
+					if isFinalMessage(item.Type, item.Phase) {
+						final = item.Text
+					}
+				}
+				if p.Turn.Status != "completed" {
+					detail := p.Turn.Status
+					if p.Turn.Error != nil && p.Turn.Error.Message != "" {
+						detail += ": " + p.Turn.Error.Message
+					}
+					return "", fmt.Errorf("coordinator turn %s", detail)
+				}
+				if final == "" {
+					return "", fmt.Errorf("coordinator turn completed without a final agent message")
+				}
+				return final, nil
+			}
+		}
+	}
+}
+
+// signalReason maps a delivered Stop signal to the bounded human reason recorded on
+// the cancellation. It names only the signal, never argv, environment, or output.
+func signalReason(s os.Signal) string {
+	return "owner received " + s.String() + "; cancelling the run"
 }
 
 // Older app-server versions omit phase. Explicit commentary is never the

@@ -88,6 +88,14 @@ const (
 	// supersede transition faulted — fail closed rather than admit a replacement over
 	// an unresolvable run (change 0375 Task 12).
 	ReasonGateResumeEpochUnreadable = "resume-epoch-unreadable"
+	// ReasonOwnerLifecycleUnavailable is the honest limitation an armed gate reports
+	// (change 0375 Task 13): the default dispatch route has NO owner-death or Stop
+	// lifecycle event that would cancel the run automatically, so a Stop is the
+	// explicit `run.cancel` operation. Only the Codex `agent.enter` route carries a
+	// signal-connected cancellation and a death guardian; every other route relies on
+	// the human running `run.cancel` (named in the skills prose). It is a standing
+	// caveat, never a refusal — an armed gate still arms.
+	ReasonOwnerLifecycleUnavailable = "owner-lifecycle-unavailable"
 )
 
 // GateScopeDeps carries the outer-scope preparation seam gate-before composes
@@ -127,6 +135,12 @@ type RunGateBeforeResult struct {
 	Target          string `json:"target,omitempty"`
 	Reason          string `json:"reason,omitempty"`
 	Message         string `json:"message,omitempty"`
+	// OwnerLifecycle is the honest owner-lifecycle limitation of the dispatched
+	// route (change 0375 Task 13). On an armed gate it carries
+	// `owner-lifecycle-unavailable`: the default dispatch route has no automatic
+	// Stop/owner-death cancellation, so a Stop is the explicit `run.cancel`
+	// operation. Empty when no gate is armed.
+	OwnerLifecycle string `json:"owner_lifecycle,omitempty"`
 }
 
 // HumanText renders the one report line. An armed gate prints `gate-armed <key>
@@ -137,7 +151,13 @@ type RunGateBeforeResult struct {
 func (r RunGateBeforeResult) HumanText() string {
 	if r.Result == ResultApplied {
 		if r.Armed {
-			return "gate-armed " + r.Key + " " + r.DispatchContext
+			line := "gate-armed " + r.Key + " " + r.DispatchContext
+			if r.OwnerLifecycle != "" {
+				// Honest standing caveat: the dispatched route cancels no run on owner
+				// death; a Stop is the explicit `run.cancel` operation.
+				line += "\n" + r.OwnerLifecycle
+			}
+			return line
 		}
 		return "gate-unarmed " + r.Reason
 	}
@@ -267,6 +287,7 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 		Key:             key,
 		Target:          gateBeforeStoredTarget,
 		DispatchContext: grant.ChildCapability,
+		OwnerLifecycle:  ReasonOwnerLifecycleUnavailable,
 	})
 }
 
@@ -467,11 +488,14 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		}
 	}
 
-	// (7) Report the armed gate with its dispatch context.
+	// (7) Report the armed gate with its dispatch context and the honest
+	// owner-lifecycle caveat: the dispatched route has no automatic Stop, so a Stop
+	// is the explicit `run.cancel` operation (change 0375 Task 13).
 	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{
 		Armed:           true,
 		Key:             key,
 		Target:          gateBeforeStoredTarget,
 		DispatchContext: grant.ChildCapability,
+		OwnerLifecycle:  ReasonOwnerLifecycleUnavailable,
 	})
 }

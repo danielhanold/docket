@@ -393,7 +393,7 @@ func TestAgentEnterCapabilitySignature(t *testing.T) {
 		t.Fatal(err)
 	}
 	entry, ok := entryByID(entries, "agent.enter")
-	want := "--approval-policy <policy> --cwd <dir> --request <file> --role <name> --sandbox <mode> [--worktree <dir>]"
+	want := "--approval-policy <policy> --cwd <dir> --request <file> --role <name> --sandbox <mode> [--run-epoch <id>] [--run-gate-key <key>] [--worktree <dir>]"
 	if !ok || entry.Signature != want {
 		t.Fatalf("agent.enter signature = %q, present=%v; want %q", entry.Signature, ok, want)
 	}

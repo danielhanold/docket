@@ -133,8 +133,9 @@ func TestGateBeforePreparesOuterScope(t *testing.T) {
 	if sp.req.ChangeID != "" || sp.req.Branch != "" || sp.req.Worktree != "" {
 		t.Errorf("fresh scope request carried identity: %+v", sp.req)
 	}
-	// Armed line: gate-armed <key> <dispatch-context>.
-	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+scopeGrantChild; got != want {
+	// Armed line: gate-armed <key> <dispatch-context>, followed by the honest
+	// owner-lifecycle caveat (change 0375 Task 13).
+	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 	if res.DispatchContext != scopeGrantChild {
