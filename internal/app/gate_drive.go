@@ -42,6 +42,14 @@ type GateDriveResult struct {
 	Drive   *gatedrive.DriveDoc `json:"drive,omitempty"`
 	Reason  string              `json:"reason,omitempty"`
 	Message string              `json:"message,omitempty"`
+	// Stage + Locator carry the typed refusal site for an inventory refusal:
+	// Stage "legacy-inventory", Locator "inventory-legacy-drive-<id>" (validated
+	// id) or the safe "inventory-legacy-drives". Empty for every other refusal.
+	Stage   string `json:"stage,omitempty"`
+	Locator string `json:"locator,omitempty"`
+	// LegacyHistory mirrors the drive document's summary onto refusals, where
+	// no drive document exists.
+	LegacyHistory *gatedrive.LegacyHistorySummary `json:"legacy_history,omitempty"`
 }
 
 // GateScopeResult is the protocol document for gate.drive.prepare-scope. It
@@ -599,7 +607,17 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 		// messages explain the valid next action for the actual state"). The reason
 		// token stays the bounded kind; only this message explains the recourse.
 		if oe, ok := gatedrive.AsOwnershipError(err); ok {
-			result.Message = ownershipNextAction(oe.Kind)
+			// A legacy-inventory refusal carries the typed stage, a SAFE locator, and
+			// the mirrored recovery summary (no drive document exists on a refusal), and
+			// a cleanup-oriented message. Every other ownership kind keeps its existing
+			// slot-recovery next-action message unchanged.
+			if stage, locator, isInventory := legacyInventoryLocator(oe.Op); isInventory {
+				result.Stage, result.Locator = stage, locator
+				result.LegacyHistory = oe.Legacy
+				result.Message = "historical gate drives block this admission; inspect or recover them with docket gate history cleanup (--dry-run first); run.cancel applies only to a live run with an owning epoch"
+			} else {
+				result.Message = ownershipNextAction(oe.Kind)
+			}
 		} else if fe, ok := AsMutationFenceError(err); ok {
 			result.Message = fenceNextAction(fe.Reason)
 		}
@@ -679,6 +697,25 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	}
 }
 
+// legacyInventoryLocator recognizes the inventory refusal ops and returns a
+// SAFE locator: a drive-id-bearing op is rendered verbatim only when the id
+// validates; anything else collapses to the inventory-level locator so an
+// arbitrary directory name can never render. ok is false for a non-inventory op,
+// which keeps its existing next-action message untouched.
+func legacyInventoryLocator(op string) (stage, locator string, ok bool) {
+	const prefix = "inventory-legacy-drive-"
+	switch {
+	case op == "inventory-legacy-drives":
+		return "legacy-inventory", op, true
+	case strings.HasPrefix(op, prefix):
+		if id := strings.TrimPrefix(op, prefix); gatedrive.ValidDriveID(id) {
+			return "legacy-inventory", op, true
+		}
+		return "legacy-inventory", "inventory-legacy-drives", true
+	}
+	return "", "", false
+}
+
 // fenceNextAction maps a run-epoch mutation-fence reason (MutationFenceError.Reason)
 // to a one-line, credential-free description of the caller's valid next action. It
 // mirrors ownershipNextAction for the fence refusal family so a fenced-epoch error
@@ -722,7 +759,33 @@ func (r GateDriveResult) HumanText() string {
 	if r.Message != "" {
 		lines = append(lines, "message: "+r.Message)
 	}
+	if r.Stage != "" {
+		lines = append(lines, "stage: "+r.Stage)
+	}
+	if r.Locator != "" {
+		lines = append(lines, "locator: "+r.Locator)
+	}
+	// The legacy-history summary renders as a COMPACT counts-only line — checked,
+	// recovered, retained totals only, never per-record content — from the refusal
+	// mirror or, on a success result, the drive document's own summary.
+	if sum := r.legacySummary(); sum != nil {
+		lines = append(lines, fmt.Sprintf("legacy_history: checked %d recovered %d retained %d",
+			sum.Checked, len(sum.Recovered), len(sum.Retained)))
+	}
 	return strings.Join(lines, "\n")
+}
+
+// legacySummary returns the legacy-history summary to render: the refusal mirror
+// when set (no drive document exists on a refusal), else the success document's
+// own summary. Nil when neither carries one.
+func (r GateDriveResult) legacySummary() *gatedrive.LegacyHistorySummary {
+	if r.LegacyHistory != nil {
+		return r.LegacyHistory
+	}
+	if r.Drive != nil {
+		return r.Drive.LegacyHistory
+	}
+	return nil
 }
 
 // Compile-time seam assertions: the production driver satisfies the engine seam,
