@@ -2,7 +2,7 @@
 id: 114
 slug: 'anchor-codex-feature-scoped-role-entry-to-the-owning-worktre'
 title: 'Anchor Codex feature-scoped role entry to the owning worktree'
-status: 'Accepted'
+status: 'Superseded by ADR-0119'
 date: '2026-09-08'
 supersedes: [103]
 reverses: []

@@ -100,11 +100,11 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0111](0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) — Run-gate attribution binds a dispatch to its successful claim transaction (Accepted) ← change #407 → supersedes ADR-0075
 - [ADR-0112](0112-a-completed-gate-publish-checkpoint-is-persisted-in-the-owne.md) — A completed-gate publish checkpoint is persisted in the owned rebase receipt (Accepted) ← change #408 · relates to ADR-0105, ADR-0098
 - [ADR-0113](0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) — Resolver dispatches are admitted by durable pre-dispatch reservation (Accepted) ← change #349 · relates to ADR-0010, ADR-0019, ADR-0105
-- [ADR-0114](0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) — Anchor Codex feature-scoped role entry to the owning worktree (Accepted) ← change #393 → supersedes ADR-0103 · relates to ADR-0083, ADR-0103
 - [ADR-0115](0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md) — Outer run gate retry budget is a counted, config-snapshotted allowance (GateRecord schema v4) (Accepted) ← change #421 · relates to ADR-0074, ADR-0075, ADR-0107, ADR-0111
 - [ADR-0116](0116-build-full-suite-repair-bound-is-a-durable-scope-owned-suite.md) — Build full-suite repair bound is a durable scope-owned suite-attempt reservation (Accepted) ← change #421 · relates to ADR-0074, ADR-0102, ADR-0107, ADR-0115
 - [ADR-0117](0117-sequential-test-drives-within-one-worker-recovery-scope.md) — Sequential test drives within one worker recovery scope (Accepted) ← change #405 · relates to ADR-0107
 - [ADR-0118](0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) — Worktree-wide gate admission and explicit human-cancellation authority (Accepted) ← change #375 · relates to ADR-0087, ADR-0095, ADR-0107, ADR-0111, ADR-0117
+- [ADR-0119](0119-native-codex-dispatch-with-explicit-role-aware-feature-bindi.md) — Native Codex dispatch with explicit, role-aware feature binding (Accepted) ← change #425 → supersedes ADR-0114 · relates to ADR-0103, ADR-0083
 
 ## Superseded / Reversed
 
@@ -121,6 +121,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0081](0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) — gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists (Superseded by ADR-95) ← change #282 · relates to ADR-0080
 - [ADR-0098](0098-structured-gate-waiting-and-ownership-handoff.md) — Gate waiting is structured, resumable, and ownership-handed-off (Superseded by ADR-0107) ← change #342 · relates to ADR-0024, ADR-0095
 - [ADR-0103](0103-enter-codex-coordinator-roles-through-app-server-root-thread.md) — Enter Codex coordinator roles through app-server root threads (Superseded by ADR-0114) ← change #393 · relates to ADR-0036, ADR-0059, ADR-0060, ADR-0094
+- [ADR-0114](0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) — Anchor Codex feature-scoped role entry to the owning worktree (Superseded by ADR-0119) ← change #393 → supersedes ADR-0103 · relates to ADR-0083, ADR-0103
 
 ## Deprecated
 
