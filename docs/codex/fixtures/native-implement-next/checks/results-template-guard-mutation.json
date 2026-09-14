@@ -1,0 +1,7 @@
+{
+  "status": "passed",
+  "mutation": "removed file hash guard",
+  "regression_exit": 1,
+  "failure": "AssertionError: guard accepted modified feature template rejected",
+  "initial_setup_red": "Original setup accepted a missing mandatory results template; setup regression failed before the fix."
+}

@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "checks": [
+    "original default search omits existing hidden template",
+    "direct primary lookup passes despite hidden directory",
+    "registered feature lookup returns feature path and correct hash",
+    "missing feature template rejected",
+    "modified feature template rejected",
+    "feature symlink to primary rejected",
+    "noncanonical path rejected",
+    "outside fixture rejected",
+    "manifest digest mismatch rejected",
+    "restored template passes after mutations"
+  ],
+  "check_count": 10,
+  "scope": "read-only artifact lookup and mutation checks; no agents or Docket gates"
+}

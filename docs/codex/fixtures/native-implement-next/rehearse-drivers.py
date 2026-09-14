@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Non-certifying Docket binary rehearsal in this dedicated disposable repository."""
 from pathlib import Path
-import json,subprocess,hashlib,datetime,os,sys,shlex
+import json,subprocess,hashlib,datetime,os,sys,shlex,re
 ROOT=Path(sys.argv[1]).resolve();REPO=ROOT/'repo';EV=ROOT/'evidence';INPUT=json.loads((ROOT/'worker-inputs.json').read_text());FEATURE=Path(INPUT['feature_worktree'])
 ARM=json.loads((ROOT/'rehearsal-private.json').read_text())
 CONTEXT=['--gate-context',ARM['dispatch_context']] + (['--run-epoch',ARM['epoch']] if ARM.get('epoch') else [])
@@ -107,7 +107,22 @@ rc,current,err=shell(['git','rev-parse','HEAD']);rc2,status,err=shell(['git','st
 implementation_head=head
 results_path='docs/results/2026-09-14-nonnative-rehearsal-results.md'
 result_file=FEATURE/results_path;result_file.parent.mkdir(parents=True,exist_ok=True)
-result_file.write_text('# Non-native backend rehearsal results\n\n## Outcome\n\nKnown greeting fix completed in a separate disposable rehearsal; no native certification.\n\n## Verification performed\n\nBaseline, genuine RED, GREEN, commit/ack and implementation suite passed. The final checkpoint is tested separately after this commit.\n\n## Findings and limitations\n\nNo native agents, review, PR or merge. This plan and implementation were synthetic backend rehearsal only.\n')
+template_check=subprocess.run(['python3',str(ROOT/'check-results-template.py'),'--repo',str(FEATURE)],capture_output=True,text=True)
+require(template_check.returncode==0,'results template preflight failed')
+template_receipt=json.loads(template_check.stdout);saved_template=json.loads((EV/'results-template-feature.json').read_text())
+require(template_receipt['results_template_file']==saved_template['results_template_file'] and template_receipt['sha256']==saved_template['sha256'],'template changed since feature preflight')
+template_source=Path(template_receipt['results_template_file']).read_text()
+rendered=re.sub(r'<!--.*?-->\s*','',template_source,flags=re.S)
+rendered=re.sub(r'## Human testing\n.*?(?=## Verification performed)', '',rendered,flags=re.S)
+rendered=re.sub(r'## Follow-ups\n.*','',rendered,flags=re.S)
+rendered=rendered.replace('<Change title>','Non-native backend rehearsal')
+rendered=re.sub(r'<What was delivered.*?>','Known greeting fix completed in a separate disposable rehearsal; no native certification.',rendered,flags=re.S)
+rendered=re.sub(r'<Concise account.*?>','Baseline, genuine RED, GREEN, task commit/ack and implementation suite passed. The final results checkpoint is tested separately after this commit.',rendered,flags=re.S)
+rendered=rendered.replace('<Finding>','Native execution remains untested')
+rendered=re.sub(r'<What was observed.*?>','This plan and implementation were synthetic backend rehearsal only. No native agents, review, PR or merge.',rendered,flags=re.S)
+require('<' not in rendered and '## Outcome' in rendered,'unresolved results template guidance')
+result_file.write_text(rendered.rstrip()+'\n')
+(EV/'results-template-consumption.json').write_text(json.dumps({'status':'passed','template':template_receipt,'artifact':results_path,'rendered_from_actual_template':True},indent=2)+'\n')
 state=op('status');change=next(x for x in state['changes'] if x['id']==1)
 op('artifact.backlink',['--artifact',results_path,'--change',change['path']])
 rc,out,err=shell(['git','add','--',results_path]);require(rc==0,'results stage failed')

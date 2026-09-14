@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "template": {
+    "status": "RESULTS_TEMPLATE_OK",
+    "repo": "/Users/homer/dev/docket-poc-0423-results-rehearsal-03/repo/.worktrees/trim-surrounding-whitespace-in-greeting",
+    "location": "feature",
+    "results_template_file": "/Users/homer/dev/docket-poc-0423-results-rehearsal-03/repo/.worktrees/trim-surrounding-whitespace-in-greeting/.agents/skills/docket-implement-next/results-template.md",
+    "sha256": "66bada19d490171deca920bb5c4ed10023336ed984903c3498c5b2153f18f2b2",
+    "source_head": "9b4945002e8bcb595c778b8e243e4f6cd440991c"
+  },
+  "artifact": "docs/results/2026-09-14-nonnative-rehearsal-results.md",
+  "rendered_from_actual_template": true
+}

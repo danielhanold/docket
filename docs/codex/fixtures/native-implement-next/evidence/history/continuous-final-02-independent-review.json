@@ -1,0 +1,81 @@
+{
+  "reviewed_at": "2026-09-14T17:12:29.064680+00:00",
+  "classification": "native chain through implementation gate verified; certification-incomplete",
+  "runtime": {
+    "parent": {
+      "thread_id": "01a0a0d3-94c9-72a1-8790-71798b37bcc1",
+      "model": "gpt-5.6-terra",
+      "effort": "low",
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo",
+      "source": "/Users/homer/.codex/sessions/2026/09/14/rollout-2026-09-14T12-50-15-01a0a0d3-94c9-72a1-8790-71798b37bcc1.jsonl"
+    },
+    "coordinator": {
+      "thread_id": "01a0a0d4-be2d-7571-aa71-b7116ce40e62",
+      "model": "gpt-5.6-terra",
+      "effort": "low",
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo",
+      "source": "/Users/homer/.codex/sessions/2026/09/14/rollout-2026-09-14T12-51-32-01a0a0d4-be2d-7571-aa71-b7116ce40e62.jsonl"
+    },
+    "planner": {
+      "thread_id": "01a0a0d7-1492-7a81-b97a-7ce474b5d5de",
+      "model": "gpt-5.6-sol",
+      "effort": "medium",
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo",
+      "source": "/Users/homer/.codex/sessions/2026/09/14/rollout-2026-09-14T12-54-05-01a0a0d7-1492-7a81-b97a-7ce474b5d5de.jsonl"
+    },
+    "worker": {
+      "thread_id": "01a0a0da-7ba0-7e03-8edc-1031380bceee",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo",
+      "source": "/Users/homer/.codex/sessions/2026/09/14/rollout-2026-09-14T12-57-48-01a0a0da-7ba0-7e03-8edc-1031380bceee.jsonl"
+    }
+  },
+  "plan_commit": "ba69c31e049971138b9bbfd8235b405d31f961bb",
+  "worker_commit": "371b13e7258b60a3e61cbbd786bd180049179430",
+  "worker_outcomes": [
+    "PASSED",
+    "FAILED",
+    "PASSED"
+  ],
+  "scope_drive_count": 3,
+  "scope_closed": true,
+  "scope_final_acked": true,
+  "implementation_gate": {
+    "head_oid": "371b13e7258b60a3e61cbbd786bd180049179430",
+    "last_outcome": "PASSED",
+    "command": [
+      "/bin/sh",
+      "-c",
+      "go test -count=1 ./..."
+    ],
+    "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo/.worktrees/trim-surrounding-whitespace-in-greeting",
+    "run_root": "/Users/homer/dev/docket-poc-0423-continuous-final-02/evidence/final-build-gates/implementation"
+  },
+  "template": {
+    "path": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo/.worktrees/trim-surrounding-whitespace-in-greeting/.agents/skills/docket-implement-next/results-template.md",
+    "present_at_launch_plan_and_worker_commit": true,
+    "sha256": "66bada19d490171deca920bb5c4ed10023336ed984903c3498c5b2153f18f2b2",
+    "cause": "Coordinator used rg --files without --hidden; .agents was excluded. Its &&-chained fallback did not run after no match."
+  },
+  "outer_verdict": {
+    "decision": "gate-stop",
+    "outcome": "run-halted",
+    "terminal": true,
+    "attributed_id": 1,
+    "same_key_as_arm": true,
+    "parent_log_event_index": 226
+  },
+  "acceptance_bundle_stale": [
+    "outer_verdict is still unavailable despite terminal parent receipt",
+    "template reported absent although present since launch"
+  ],
+  "remaining": [
+    "results artifact commit and local publication/attachment",
+    "configured gate at final results checkpoint HEAD",
+    "complete acceptance bundle"
+  ],
+  "primary_audit": "PRIMARY_UNCHANGED",
+  "recommendation": "Keep native execution milestones. Make the feature results-template path explicit in coordinator inputs and validate it before dispatch. Retain full acceptance requirements; complete a fresh continuous run before manually closing423.",
+  "no_prior_evidence_modified": true
+}

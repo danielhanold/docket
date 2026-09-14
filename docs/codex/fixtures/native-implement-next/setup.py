@@ -21,13 +21,16 @@ def main():
  ops={x['id']:x for x in c['commands']};schemas={}
  for name in ['change.create','change.groom']:
   d=json.loads(run(ops['schema']['argv']+['--operation',name,'--json']));assert d['protocol_version']==1 and d['schema_version']==1 and d['result']=='applied';schemas[name]=next(x for x in d['operations'] if x['id']==name)['request']['fields']
+ resource_spec=importlib.util.spec_from_file_location('results_template',PACKAGE/'template/check-results-template.py');resource=importlib.util.module_from_spec(resource_spec);resource_spec.loader.exec_module(resource)
+ template_source=PACKAGE/'template/repo-snapshot'/resource.RELATIVE
+ assert template_source.is_file() and '## Outcome\n' in template_source.read_text(),'required packaged results template missing'
  root.mkdir();repo=root/'repo';ev=root/'evidence';ev.mkdir();origin=root/'origin.git'
  shutil.copytree(PACKAGE/'template/repo-snapshot',repo)
  for p in (PACKAGE/'template').iterdir():
   if p.is_file():shutil.copy2(p,root/p.name)
  for p in root.rglob('*'):
   if p.is_file():p.write_text(p.read_text().replace('@@FIXTURE_ROOT@@',str(root)))
- for name in ['check-boundary.py','check-task-inputs.py','check-runtime.py','primary-audit.py','validate-plan-payload.py','prepare-worker-inputs.py']:os.chmod(root/name,0o755)
+ for name in ['check-boundary.py','check-task-inputs.py','check-runtime.py','primary-audit.py','validate-plan-payload.py','prepare-worker-inputs.py','check-results-template.py']:os.chmod(root/name,0o755)
  for source,target in [('POLICY.md','AGENTS.md'),('RUN.md','RUN.md'),('CODEX-WORKTREE.md','.codex/POC-WORKTREE.md'),('WORKER.md','.codex/POC-WORKER.md'),('WORKER-DISPATCH.md','.codex/POC-WORKER-DISPATCH.md'),('PLAN-DISPATCH.md','.codex/POC-PLAN-DISPATCH.md')]:write(repo/target,(root/source).read_text())
  bindings=json.loads((repo/'.codex/poc-skill-bindings.json').read_text())
  for name,x in bindings.items():x['sha256']=hashlib.sha256((repo/x['path']).read_bytes()).hexdigest();x['source']='package pinned snapshot; see PROVENANCE.json'
@@ -56,5 +59,6 @@ def main():
  info={'status':'prepared-not-executed','repo':str(repo),'origin':str(origin),'candidate':1,'binary':c['binary'],'primary_head':run(['git','rev-parse','HEAD'],repo),'roles':roles,'gate_armed':False,'candidate_claimed':False,'workspace_allocated':False,'plan_present':False,'live_agents_started':False,'baseline_tests':baseline,'prepared_at':datetime.datetime.now(datetime.timezone.utc).isoformat()};write(root/'arm.json',info)
  immutable=[p for p in root.iterdir() if p.is_file()]+[repo/p for p in run(['git','ls-files'],repo).splitlines()]+[ev/'primary-baseline.json']
  write(ev/'launch-manifest.json',{'binary':c['binary'],'files':{str(p.relative_to(root)):{'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'mode':f'{stat.S_IMODE(p.stat().st_mode):04o}'} for p in immutable}})
+ write(ev/'preparation-results-template.json',resource.validate(repo,root))
  print(json.dumps(info,indent=2))
 if __name__=='__main__':main()

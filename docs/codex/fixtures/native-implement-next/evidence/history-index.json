@@ -43,5 +43,30 @@
     "source": "/Users/homer/dev/docket-poc-0423-continuous-final-01/evidence/failure-analysis.json",
     "copy": "evidence/history/continuous-final-01-failure-analysis.json",
     "sha256": "8a69a2843da6e52bcf30c6ae80d56b0bfa84ab6debef6c8d2c7bf81ce346e3a1"
+  },
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-continuous-final-02/evidence/run-report.md",
+    "copy": "evidence/history/continuous-final-02-run-report.md",
+    "sha256": "39e244a7c73914a0932062007e70e009fca216b6d1fc86b044228de59fe76c6f"
+  },
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-continuous-final-02/evidence/coordinator-terminal.md",
+    "copy": "evidence/history/continuous-final-02-coordinator-terminal.md",
+    "sha256": "b1bb3260aa7c0de9dc86654d7cfb3d0e1ed16149e91c8e1c78e67fe99aa7355d"
+  },
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-continuous-final-02/evidence/acceptance.json",
+    "copy": "evidence/history/continuous-final-02-acceptance.json",
+    "sha256": "ece050f1c86c9b838e83e6299d4121ef492f337c59f0c40788daba9c2d5140d5"
+  },
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-continuous-final-02/evidence/independent-review.md",
+    "copy": "evidence/history/continuous-final-02-independent-review.md",
+    "sha256": "db17f054862288253bb80ccb7d8f91f7bfd173d5e5c2fb6d85c4eba5e680347e"
+  },
+  {
+    "source": "/Users/homer/dev/docket-poc-0423-continuous-final-02/evidence/independent-review.json",
+    "copy": "evidence/history/continuous-final-02-independent-review.json",
+    "sha256": "6428eb076d8e4983a13710cb91aaf6881153ac5ab3cb40e2cd74ed29e188b4e2"
   }
 ]

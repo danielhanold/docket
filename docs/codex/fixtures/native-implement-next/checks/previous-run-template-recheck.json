@@ -1,0 +1,9 @@
+{
+  "status": "RESULTS_TEMPLATE_OK",
+  "repo": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo/.worktrees/trim-surrounding-whitespace-in-greeting",
+  "location": "feature",
+  "results_template_file": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo/.worktrees/trim-surrounding-whitespace-in-greeting/.agents/skills/docket-implement-next/results-template.md",
+  "sha256": "66bada19d490171deca920bb5c4ed10023336ed984903c3498c5b2153f18f2b2",
+  "source_head": "371b13e7258b60a3e61cbbd786bd180049179430",
+  "previous_fixture_modified": false
+}

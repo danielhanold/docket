@@ -1,0 +1,48 @@
+{
+  "status": "prepared-not-executed",
+  "fixture": "/Users/homer/dev/docket-poc-0423-continuous-final-03",
+  "binary": {
+    "version": "v0.9.3-1016-g06ebb52c",
+    "commit": "06ebb52c058894b564ac2a8432922ddf4b2d56b3",
+    "build_date": "2026-09-14T14:16:01Z"
+  },
+  "primary_head": "1bcc0d3e7dc02bd43d9a288b737707afac401070",
+  "manifest_entries_verified": 69,
+  "template_and_source_files_match": true,
+  "results_template_preflight": {
+    "status": "RESULTS_TEMPLATE_OK",
+    "repo": "/Users/homer/dev/docket-poc-0423-continuous-final-03/repo",
+    "location": "primary",
+    "results_template_file": "/Users/homer/dev/docket-poc-0423-continuous-final-03/repo/.agents/skills/docket-implement-next/results-template.md",
+    "sha256": "66bada19d490171deca920bb5c4ed10023336ed984903c3498c5b2153f18f2b2",
+    "source_head": "1bcc0d3e7dc02bd43d9a288b737707afac401070"
+  },
+  "candidate_unclaimed": true,
+  "feature_worktree_absent": true,
+  "plan_and_results_absent": true,
+  "worker_inputs_absent": true,
+  "task_scopes_absent": true,
+  "native_agents_started": false,
+  "primary_audit": {
+    "status": "PRIMARY_UNCHANGED",
+    "changed_paths": [],
+    "changed_state": [],
+    "limitation": "tool evidence must also exclude temporary writes"
+  },
+  "configured_roles": {
+    "docket-plan-writer": {
+      "model": "gpt-5.6-sol",
+      "model_reasoning_effort": "medium"
+    },
+    "docket-implement-next": {
+      "model": "gpt-5.6-terra",
+      "model_reasoning_effort": "low"
+    },
+    "docket-build-standard": {
+      "model": "gpt-5.6-terra",
+      "model_reasoning_effort": "medium"
+    }
+  },
+  "non_native_rehearsal": "/Users/homer/dev/docket-poc-0423-results-rehearsal-03",
+  "native_completion_pending": true
+}

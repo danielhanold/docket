@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "evidence_gaps": [
+    "Results template absent; no results checkpoint, attachment, publication, or final exact-head gate exists.",
+    "The parent-owned keyed outer verdict is intentionally unavailable until after coordinator terminal collection.",
+    "Opaque native dispatch/runtime behavior and transient restored writes are not independently observable."
+  ],
+  "initial": {"unclaimed": true, "plan_absent": true, "feature_absent": true, "evidence": [{"path": "run-report.md", "sha256": "39e244a7c73914a0932062007e70e009fca216b6d1fc86b044228de59fe76c6f"}]},
+  "workspace": {"created_in_run": true, "registered": true, "primary": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo", "feature": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo/.worktrees/trim-surrounding-whitespace-in-greeting", "evidence": [{"path": "workspace-created.json", "sha256": "b21625eb3bd8822a033d6f708831a7404be686f35d004a94c9c77753af57e179"}]},
+  "native": {"roles": ["docket-implement-next", "docket-plan-writer", "docket-build-standard"], "single_coordinator": true, "dispatches": 3, "terminal_collected": true, "agent_enter_calls": 0, "proof_kind": "mixed-host-and-child-receipts", "evidence": [{"path": "run-report.md", "sha256": "39e244a7c73914a0932062007e70e009fca216b6d1fc86b044228de59fe76c6f"}]},
+  "plan": {"newly_authored": true, "verified_attached": true, "task_count": 1, "commit": "ba69c31e049971138b9bbfd8235b405d31f961bb", "evidence": [{"path": "planner-payload-validation.json", "sha256": "668b26c5f0b318e60e10dc93c333cc939a991a7b44e0a38df79c14fdbbcb3459"}]},
+  "worker": {"consumed_plan_commit": "ba69c31e049971138b9bbfd8235b405d31f961bb", "outcomes": ["PASSED", "FAILED", "PASSED"], "red_assertion": true, "scope_closed": true, "final_acked": true, "changed_files": ["greeting.go", "greeting_test.go"], "input_hash_valid": true, "entry_argv_valid": true, "outer_context_preserved": true, "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo/.worktrees/trim-surrounding-whitespace-in-greeting", "run_root": "/Users/homer/dev/docket-poc-0423-continuous-final-02/evidence/worker-gates", "expected_run_root": "/Users/homer/dev/docket-poc-0423-continuous-final-02/evidence/worker-gates", "commit": "371b13e7258b60a3e61cbbd786bd180049179430", "evidence": [{"path": "run-report.md", "sha256": "39e244a7c73914a0932062007e70e009fca216b6d1fc86b044228de59fe76c6f"}]},
+  "final_gate": {"head": "", "command": "go test -count=1 ./...", "outcome": "NOT_RUN", "clean": false, "cwd": "/Users/homer/dev/docket-poc-0423-continuous-final-02/repo/.worktrees/trim-surrounding-whitespace-in-greeting", "evidence": [{"path": "run-report.md", "sha256": "39e244a7c73914a0932062007e70e009fca216b6d1fc86b044228de59fe76c6f"}]},
+  "results": {"commit": "", "attached": false, "published_to_local_origin": false, "evidence": [{"path": "coordinator-terminal.md", "sha256": "b1bb3260aa7c0de9dc86654d7cfb3d0e1ed16149e91c8e1c78e67fe99aa7355d"}]},
+  "primary": {"status": "PRIMARY_UNCHANGED", "evidence": [{"path": "run-report.md", "sha256": "39e244a7c73914a0932062007e70e009fca216b6d1fc86b044228de59fe76c6f"}]},
+  "halt": {"result": "applied", "disposition": "halted", "evidence": [{"path": "halt-request.json", "sha256": "0a1d5958d199a84e54037f53e6e142d3764ab183bbf169544ca7c1cf819de6ac"}]},
+  "outer_verdict": {"report": "unavailable", "verdict": "unavailable", "same_key": false, "evidence": [{"path": "coordinator-terminal.md", "sha256": "b1bb3260aa7c0de9dc86654d7cfb3d0e1ed16149e91c8e1c78e67fe99aa7355d"}]}
+}

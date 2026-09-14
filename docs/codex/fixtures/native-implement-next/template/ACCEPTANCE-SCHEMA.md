@@ -1,6 +1,6 @@
 # Sanitized acceptance bundle v1
 
-Write evidence/acceptance.json with schema_version 1, explicit evidence_gaps list, and the objects below. Every object requires evidence: a nonempty array of {path, sha256} references relative to evidence/. Copy only selected sanitized receipts, never raw credential-bearing records. Validate with `python3 ../validate-evidence.py acceptance.json` from evidence/. Missing facts must stay missing and result in certification-incomplete. Do not guess a field to satisfy validation.
+The coordinator writes evidence/acceptance-coordinator.json as an immutable draft. After collecting its terminal output and the actual keyed outer verdict, the parent writes final evidence/acceptance.json, resolves the outer-verdict field/gap with a sanitized receipt, and runs validation. Keep missing execution stages missing. Use schema_version 1, explicit evidence_gaps list, and the objects below. Every object requires evidence: a nonempty array of {path, sha256} references relative to evidence/. Copy only selected sanitized receipts, never raw credential-bearing records. Validate with `python3 ../validate-evidence.py acceptance.json` from evidence/. Missing facts must stay missing and result in certification-incomplete. Do not guess a field to satisfy validation.
 
 - initial: unclaimed, plan_absent, feature_absent (true, from initial status/Git evidence).
 - workspace: created_in_run, registered (true), primary and feature canonical absolute roots.

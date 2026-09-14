@@ -19,5 +19,16 @@
     ],
     "binary_commit": "06ebb52c058894b564ac2a8432922ddf4b2d56b3",
     "production_routing_changed": false
+  },
+  "results_template_revision": {
+    "reason": "Run02 default file search omitted existing hidden .agents results template; acceptance retained a stale outer verdict",
+    "changes": [
+      "Direct path and hash supplied to coordinator",
+      "Template checked before root dispatch and before child dispatch in feature",
+      "Actual template consumed in full backend rehearsal",
+      "Parent finalizes acceptance after terminal keyed verdict"
+    ],
+    "native_and_worker_routing_changed": false,
+    "production_routing_changed": false
   }
 }

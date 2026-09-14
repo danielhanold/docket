@@ -1,0 +1,8 @@
+{
+  "status": "RESULTS_TEMPLATE_OK",
+  "repo": "/Users/homer/dev/docket-poc-0423-results-rehearsal-03/repo",
+  "location": "primary",
+  "results_template_file": "/Users/homer/dev/docket-poc-0423-results-rehearsal-03/repo/.agents/skills/docket-implement-next/results-template.md",
+  "sha256": "66bada19d490171deca920bb5c4ed10023336ed984903c3498c5b2153f18f2b2",
+  "source_head": "929415beabc6901c7bf75e8354fe7445cfbf55e1"
+}
