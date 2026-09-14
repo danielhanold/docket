@@ -34,20 +34,23 @@ const (
 // This reproduces scripts/render-change-links.sh's block body for the four
 // typed rows. The Bash renderer's PR row and derived "Stacked children" row are
 // out of scope for the v1 typed renderer (PR is a later slice; stacked children
-// is a render-time directory scan) and are not emitted here. The v1 LinkContext
-// carries a single MetadataBranch, so every link resolves onto that branch;
-// the Bash renderer's lifecycle-pinned Plan/Results branch is a later concern.
+// is a render-time directory scan) and are not emitted here.
+//
+// Spec and ADR rows link the metadata branch, where those records live. Plan
+// and Results rows are lifecycle-pinned (change 0417): the feature branch
+// while the change is not yet done, the integration branch once it is —
+// see lifecycleBranch.
 func ArtifactBlockContent(c domain.Change, snap domain.Snapshot, link LinkContext) (string, error) {
 	var rows []string
 
 	if p := c.Spec().Value; p != "" {
-		rows = append(rows, pathRow("Spec", p, link))
+		rows = append(rows, pathRow("Spec", p, link.MetadataBranch, link))
 	}
 	if p := c.Plan().Value; p != "" {
-		rows = append(rows, pathRow("Plan", p, link))
+		rows = append(rows, pathRow("Plan", p, lifecycleBranch(c, link), link))
 	}
 	if p := c.Results().Value; p != "" {
-		rows = append(rows, pathRow("Results", p, link))
+		rows = append(rows, pathRow("Results", p, lifecycleBranch(c, link), link))
 	}
 
 	if adrs := c.ADRs(); len(adrs) > 0 {
@@ -71,11 +74,27 @@ func ArtifactBlockContent(c domain.Change, snap domain.Snapshot, link LinkContex
 	return b.String(), nil
 }
 
+// lifecycleBranch resolves the blob ref for a Plan/Results row (change 0417).
+// Those files never live on the metadata branch: they live on the change's
+// feature branch until the PR merges, and on the integration branch once the
+// change is done. done => IntegrationBranch; every other status — including
+// stacked-merged and killed, which get no special handling by design — uses
+// the feature branch. An unresolvable ref (unset branch:, or an empty
+// IntegrationBranch) returns "" and BlobURLOnBranch falls back to the
+// metadata branch: today's behavior, never a malformed URL.
+func lifecycleBranch(c domain.Change, link LinkContext) string {
+	if c.Status() == domain.StatusDone {
+		return link.IntegrationBranch
+	}
+	return c.Branch().Value
+}
+
 // pathRow renders a Spec/Plan/Results row. In GitHub mode the link text is the
-// path basename and the URL is the full repo-relative path on the metadata
-// branch; in repo-relative mode the cell is the backtick-quoted path.
-func pathRow(label, repoRelPath string, link LinkContext) string {
-	if url := link.BlobURL(repoRelPath); url != "" {
+// path basename and the URL is the full repo-relative path on the given
+// branch ("" falls back to the metadata branch); in repo-relative mode the
+// cell is the backtick-quoted path.
+func pathRow(label, repoRelPath, branch string, link LinkContext) string {
+	if url := link.BlobURLOnBranch(repoRelPath, branch); url != "" {
 		return fmt.Sprintf("| %s | [%s](%s) |", label, path.Base(repoRelPath), url)
 	}
 	return fmt.Sprintf("| %s | `%s` |", label, repoRelPath)
