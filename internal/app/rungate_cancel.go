@@ -92,7 +92,7 @@ const mutationStatusCompleted = "completed"
 // a child capability.
 type RunCancelResult struct {
 	Envelope
-	Disposition string   `json:"disposition,omitempty"`
+	Disposition string   `json:"disposition,omitempty" docket:"enum=cancel_dispositions"`
 	Findings    []string `json:"findings,omitempty"`
 }
 

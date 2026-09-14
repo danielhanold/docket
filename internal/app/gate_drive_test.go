@@ -960,6 +960,10 @@ func TestMapDriveFailureOwnershipKinds(t *testing.T) {
 		gatedrive.ErrStalePredecessor,
 		gatedrive.ErrPredecessorNotReusable,
 		gatedrive.ErrUnresolvedLaunchTransition,
+		// change 0375 worktree-admission ownership kinds.
+		gatedrive.ErrWorktreeBusy,
+		gatedrive.ErrUnresolvedExecution,
+		gatedrive.ErrStaleRunEpoch,
 	}
 	const secret = "SECRET-ARGV"
 	for _, kind := range kinds {
@@ -991,6 +995,7 @@ func TestMapDriveFailureOwnershipKinds(t *testing.T) {
 // on, distinct per kind, while the reason stays the bounded kind token. A plain
 // store failure carries no such next-action message.
 func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
+	const secret = "SECRET-TOKEN-deadbeefdeadbeef"
 	seen := map[string]string{}
 	for _, kind := range []gatedrive.OwnershipErrorKind{
 		gatedrive.ErrScopeBusy,
@@ -1002,8 +1007,16 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 		gatedrive.ErrScopeCapabilityMismatch,
 		gatedrive.ErrScopeIdentityMismatch,
 		gatedrive.ErrScopeSecondDrive,
+		// change 0375 worktree-admission ownership kinds — each MUST carry its own
+		// distinct next-action message.
+		gatedrive.ErrWorktreeBusy,
+		gatedrive.ErrUnresolvedExecution,
+		gatedrive.ErrStaleRunEpoch,
 	} {
-		eng := &fakeDriveEngine{err: &gatedrive.OwnershipError{Kind: kind, Op: "start"}}
+		// Wrap the ownership error in credential-shaped free text (a stand-in for a
+		// reservation token / argv) that must reach NEITHER the reason NOR the message.
+		wrapped := fmt.Errorf("launch failed carrying %s: %w", secret, &gatedrive.OwnershipError{Kind: kind, Op: "start"})
+		eng := &fakeDriveEngine{err: wrapped}
 		svc := newGateDriveService(eng, 0, "", "")
 		got := svc.Advance("d1", "owner")
 		if got.Result != ResultInvalidInput {
@@ -1014,6 +1027,11 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 		}
 		if got.Message == "" {
 			t.Fatalf("kind %v must carry a valid-next-action message", kind)
+		}
+		// Redaction: neither the reason token nor the next-action message may leak the
+		// wrapped credential (Global Constraint: diagnostics never include a token).
+		if strings.Contains(got.Message, secret) || strings.Contains(got.Reason, secret) {
+			t.Fatalf("kind %v leaked the wrapped credential; reason=%q message=%q", kind, got.Reason, got.Message)
 		}
 		if prev, ok := seen[got.Message]; ok {
 			t.Fatalf("next-action message %q is shared by kinds %v and %v; each state gets its own action", got.Message, prev, kind)
@@ -1026,5 +1044,51 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 	svc := newGateDriveService(eng, 0, "", "")
 	if got := svc.Advance("d1", "owner"); got.Message != "" {
 		t.Fatalf("a store failure must carry no ownership next-action message, got %q", got.Message)
+	}
+}
+
+// TestMapDriveFailureFenceReasons proves the run-epoch mutation-fence refusal
+// (MutationFenceError) is classified through the SAME shared mapDriveFailure
+// classifier into its bounded, stable token (run-cancelled / stale-run-epoch) with
+// a distinct valid-next-action message, and that a wrapped credential leaks into
+// neither the reason nor the message. It is the fail-safe path for a fenced-epoch
+// error that ever chains through the gate-drive seam.
+func TestMapDriveFailureFenceReasons(t *testing.T) {
+	const secret = "SECRET-TOKEN-cafebabecafebabe"
+	seen := map[string]bool{}
+	for _, tc := range []struct {
+		name string
+		err  *MutationFenceError
+	}{
+		{"run-cancelled", ErrRunCancelled},
+		{"stale-run-epoch", ErrStaleRunEpoch},
+	} {
+		wrapped := fmt.Errorf("mutation refused carrying %s: %w", secret, tc.err)
+		res, reason := mapDriveFailure(wrapped)
+		if res != ResultInvalidInput {
+			t.Fatalf("%s result = %s, want invalid-input", tc.name, res)
+		}
+		if reason != tc.name {
+			t.Fatalf("%s reason = %q, want the stable fence token %q", tc.name, reason, tc.name)
+		}
+		if strings.Contains(reason, secret) {
+			t.Fatalf("%s reason leaked the wrapped credential: %q", tc.name, reason)
+		}
+		// The service surfaces the next-action message through the same seam.
+		eng := &fakeDriveEngine{err: wrapped}
+		got := newGateDriveService(eng, 0, "", "").Advance("d1", "owner")
+		if got.Reason != tc.name {
+			t.Fatalf("%s service reason = %q, want %q", tc.name, got.Reason, tc.name)
+		}
+		if got.Message == "" {
+			t.Fatalf("%s must carry a valid-next-action message", tc.name)
+		}
+		if strings.Contains(got.Message, secret) {
+			t.Fatalf("%s leaked the wrapped credential into the message: %q", tc.name, got.Message)
+		}
+		if seen[got.Message] {
+			t.Fatalf("%s fence message is not distinct: %q", tc.name, got.Message)
+		}
+		seen[got.Message] = true
 	}
 }
