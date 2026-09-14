@@ -646,6 +646,144 @@ func TestGateDriveTakeoverRequiresFlags(t *testing.T) {
 	}
 }
 
+// makeCancelledEpoch mints a run-epoch record in wt's rungate registry through the
+// production mint path (MintGateRecord + MintEpochRecord), then flips its persisted
+// state to cancelled — the durable fence a real run.cancel leaves behind — and
+// returns the epoch's public locator. The flip is a targeted state edit that
+// preserves the minted schema version and generation, so the production loader and
+// the takeover resolver decode it as a genuine cancelled epoch rather than a corrupt
+// record.
+func makeCancelledEpoch(t *testing.T, wt string) string {
+	t.Helper()
+	key, err := app.MintGateRecord(wt, app.GateRecord{
+		Target:       "docket-implement-next",
+		AttemptLimit: 1,
+		Retry:        app.RetryUnused,
+		Disposition:  "gate-armed",
+	})
+	if err != nil {
+		t.Fatalf("MintGateRecord: %v", err)
+	}
+	rec, err := app.MintEpochRecord(wt, key, "375")
+	if err != nil {
+		t.Fatalf("MintEpochRecord: %v", err)
+	}
+	path := filepath.Join(wt, ".git", "docket", "rungate", key, "epoch.json")
+	buf, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read epoch record: %v", err)
+	}
+	var stored map[string]any
+	if err := json.Unmarshal(buf, &stored); err != nil {
+		t.Fatalf("decode epoch record: %v", err)
+	}
+	record, ok := stored["record"].(map[string]any)
+	if !ok {
+		t.Fatalf("epoch record has no record object: %s", buf)
+	}
+	record["state"] = string(app.EpochCancelled)
+	encoded, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatalf("re-encode epoch record: %v", err)
+	}
+	if err := os.WriteFile(path, encoded, 0o600); err != nil {
+		t.Fatalf("write epoch record: %v", err)
+	}
+	// Confirm the production loader reads the flipped state as cancelled, so the test
+	// exercises a genuine revoked epoch rather than a mis-shaped fixture.
+	got, _, err := app.LoadEpochRecord(wt, key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if got.State != app.EpochCancelled {
+		t.Fatalf("epoch state = %q, want cancelled", got.State)
+	}
+	return rec.EpochID
+}
+
+// TestGateDrivePrepareScopeRunEpochGatesTakeover proves the production wiring the
+// takeover epoch-revocation guard depends on: `gate drive prepare-scope --run-epoch
+// <id>` threads the run epoch onto the scope record so a later `gate drive takeover`
+// consults the app-owned run-epoch registry through the resolver
+// NewCommandlessGateDriveService wires (change 0375, acceptance criterion 7 / spec
+// "Parent takeover cannot revive a cancelled epoch"). With the scope's epoch reported
+// CANCELLED, the takeover HALTs not-owner — it refuses to revive a fenced run. The
+// control — a scope prepared with NO --run-epoch — never reaches the epoch gate and
+// HALTs for the ordinary drive-resolution reason (takeover-no-candidate), proving the
+// not-owner refusal keys on the epoch state the flag now supplies rather than on any
+// other guard. Before this wiring existed the scope carried no epoch, the guard was
+// dead code, and a parent takeover could reattach to a cancelled run.
+func TestGateDrivePrepareScopeRunEpochGatesTakeover(t *testing.T) {
+	t.Run("cancelled epoch refuses takeover", func(t *testing.T) {
+		wt := gateDriveRepo(t)
+		epochID := makeCancelledEpoch(t, wt)
+
+		out, errS, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
+			"--repo-dir", wt, "--change-id", "375", "--task-id", "task-12",
+			"--phase", "build", "--branch", "fix/x", "--worktree", wt,
+			"--run-epoch", epochID)
+		if code != 0 || errS != "" {
+			t.Fatalf("prepare-scope --run-epoch: out=%q err=%q code=%d", out, errS, code)
+		}
+		grant := decodeOneJSON(t, out)
+		scopeID, _ := grant["scope_id"].(string)
+		parentCap, _ := grant["parent_capability"].(string)
+		if scopeID == "" || parentCap == "" {
+			t.Fatalf("prepare-scope missing a grant field: %v", grant)
+		}
+
+		out, errS, _ = runCLI(t, "--json", "gate", "drive", "takeover",
+			"--repo-dir", wt, "--scope-id", scopeID, "--parent-cap", parentCap)
+		if errS != "" {
+			t.Fatalf("takeover wrote stderr: out=%q err=%q", out, errS)
+		}
+		d := driveDoc(t, decodeOneJSON(t, out))
+		if d["outcome"] != "HALTED" {
+			t.Fatalf("a takeover of a cancelled epoch must HALT, got outcome=%v: %v", d["outcome"], d)
+		}
+		if d["cause"] != "not-owner" {
+			t.Fatalf("HALT cause=%v, want not-owner (the epoch-revocation refusal): %v", d["cause"], d)
+		}
+		if gen, _ := d["generation"].(string); gen != "" {
+			t.Fatalf("a refused takeover must mint no owner generation, got %q", gen)
+		}
+	})
+
+	t.Run("no epoch skips the epoch gate", func(t *testing.T) {
+		wt := gateDriveRepo(t)
+
+		out, errS, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
+			"--repo-dir", wt, "--change-id", "375", "--task-id", "task-12",
+			"--phase", "build", "--branch", "fix/x", "--worktree", wt)
+		if code != 0 || errS != "" {
+			t.Fatalf("prepare-scope: out=%q err=%q code=%d", out, errS, code)
+		}
+		grant := decodeOneJSON(t, out)
+		scopeID, _ := grant["scope_id"].(string)
+		parentCap, _ := grant["parent_capability"].(string)
+		if scopeID == "" || parentCap == "" {
+			t.Fatalf("prepare-scope missing a grant field: %v", grant)
+		}
+
+		out, errS, _ = runCLI(t, "--json", "gate", "drive", "takeover",
+			"--repo-dir", wt, "--scope-id", scopeID, "--parent-cap", parentCap)
+		if errS != "" {
+			t.Fatalf("takeover wrote stderr: out=%q err=%q", out, errS)
+		}
+		d := driveDoc(t, decodeOneJSON(t, out))
+		if d["outcome"] != "HALTED" {
+			t.Fatalf("a takeover with no candidate drive must HALT, got %v", d["outcome"])
+		}
+		// A scope with no epoch never reaches the epoch gate: it halts at ordinary
+		// drive resolution (no candidate), so the cancelled-epoch case's not-owner is
+		// demonstrably the epoch-revocation refusal and not a byproduct of some other
+		// guard firing first.
+		if d["cause"] != "takeover-no-candidate" {
+			t.Fatalf("no-epoch takeover cause=%v, want takeover-no-candidate: %v", d["cause"], d)
+		}
+	})
+}
+
 // TestGateDriveAcknowledgeWired proves the `gate drive acknowledge` leaf is
 // registered and reaches the app seam: it composes the commandless service and
 // emits exactly one gate.drive.acknowledge protocol document (its workflow
