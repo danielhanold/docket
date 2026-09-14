@@ -12,7 +12,7 @@ stacked_on:
 related: [375, 427]
 discovered_from: [375]
 adrs: [87, 95, 118]
-spec:
+spec: 'docs/superpowers/specs/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md) |
 | ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
@@ -38,8 +39,8 @@ Testing Docket after change 0375 on an existing consumer repository exposed a fi
 
 ## What changes
 
-Provide a supported, idempotent recovery/cleanup command for legacy gate history so safely resolved history cannot permanently poison first admission of unrelated worktrees. Define explicit handling for known schema-2 records and retain fail-closed behavior for genuinely unknown, corrupt, or potentially live state; never equate an unsupported schema with a dead process. Preserve admission isolation, run cancellation authority, ownership fences, and recorded history. Carry the safe inventory-legacy-drive-<id> locator through machine-readable and human refusals and name a recovery action that works for the identified state. Scope cleanup eligibility, repeat and interrupted-run behavior, concurrency locking, and evidence retention in the design. Add regression coverage for upgrade-era repositories, unrelated first admissions, accurate locators, idempotence, ambiguous/live records, and cleanup racing admission. The user proposes a new cleanup command; exact CLI placement and default apply-versus-preview behavior remain design decisions.
+Unblock implementation starts in repositories containing completed schema-2 gate history from before change 0375. Give the existing admission inventory an explicit historical reader, recognize trustworthy completed drives before resolving potentially removed worktree paths, and reuse existing process recovery evidence for safely recoverable HALTED history. Perform this assessment inside the original admission so the implementation can reach its baseline without manual cleanup or a second start attempt. Share that assessment with a small, idempotent gate.history.cleanup command offering a specific drive selector and dry-run. Preserve original records, execution-reader schema boundaries, current admission and cancellation authority, and suite budgets. Carry the exact credential-free inventory-legacy-drive-<id> locator and a compact recovery summary through successful and refused starts. The approved spec defines the safety conditions and behavioral acceptance tests.
 
 ## Out of scope
 
-Implementing the fix during change capture; manually deleting consumer .git state or empty lock files; blanket purges, guessed schema upgrades, or treating unknown state as proof of teardown; changing gate budgets or weakening single-execution/cancellation guarantees; the separate verdict-path epoch binding fix tracked by 0427.
+Implementation or implementation planning during grooming; manually changing a consumer repository's .git state; drive retirement receipts or a new retired-drive lifecycle; a registry-wide reference census; age filters, log pruning, general garbage collection, or disk-space reclamation; schema rewrites or making schema-2 records executable; new start retry controllers, recursive cleanup, process cancellation, or changes to suite budgets and ownership fences; treating unknown or unprovable state as safely inactive; the separate verdict-path epoch binding fix tracked by 0427.
