@@ -51,7 +51,7 @@ func rewriteRecordField(t *testing.T, s *Store, id, old, newv string) {
 }
 
 func TestLoadHistoricalDriveReadsSchema2(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id := copyLegacyFixture(t, s, "passed")
 	h, err := s.loadHistoricalDrive(id)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestLoadHistoricalDriveReadsSchema2(t *testing.T) {
 }
 
 func TestLoadHistoricalDriveFailsClosed(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	for name, kind := range map[string]StoreErrorKind{
 		"schema1": ErrUnknownSchema,
 		"corrupt": ErrCorruptRecord,
@@ -82,7 +82,7 @@ func TestLoadHistoricalDriveFailsClosed(t *testing.T) {
 // A v2 document with a required identity/outcome field missing must be refused
 // as corrupt — never zero-value-decoded into a trustworthy record.
 func TestLoadHistoricalDriveValidatesRequiredFields(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id := copyLegacyFixture(t, s, "passed")
 	rewriteRecordField(t, s, id, `"worktree_path": "/repo/.worktrees/old-feature"`, `"worktree_path": ""`)
 	if _, err := s.loadHistoricalDrive(id); !isStoreKind(err, ErrCorruptRecord) {
@@ -131,7 +131,7 @@ func (f *fakeRecovery) ClassifyRun(runDir string, mark bool) (process.RecoveryEn
 // selected reasons, and — where the apply distinction matters — the exact
 // number of marking calls the seam saw.
 func TestClassifyLegacyDrive(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 
 	canon := func(p string) string {
 		t.Helper()
@@ -141,8 +141,8 @@ func TestClassifyLegacyDrive(t *testing.T) {
 		}
 		return r
 	}
-	wtA := t.TempDir()
-	wtB := t.TempDir()
+	wtA := testsupport.TempDir(t)
+	wtB := testsupport.TempDir(t)
 	canonA := canon(wtA)
 	canonB := canon(wtB)
 
