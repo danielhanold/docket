@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -202,6 +203,27 @@ func TestGateBeforeMintsEpoch(t *testing.T) {
 // TestConfirmGateClaimBindsEpochChange proves the claim confirmation binds the
 // epoch to the confirmed change instance — the readable locator a later
 // resume/cancel resolves the run by.
+// TestNoAdapterReportsLifecycleUnavailable proves an armed gate reports the honest
+// owner-lifecycle limitation (change 0375 Task 13): the default dispatch route has
+// no automatic Stop/owner-death cancellation, so a Stop is the explicit run.cancel
+// operation. The field is a standing caveat, never a refusal — the gate still arms.
+func TestNoAdapterReportsLifecycleUnavailable(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Armed {
+		t.Fatalf("gate must arm; got Armed=%v Reason=%q", res.Armed, res.Reason)
+	}
+	if res.OwnerLifecycle != ReasonOwnerLifecycleUnavailable {
+		t.Fatalf("OwnerLifecycle = %q, want %q", res.OwnerLifecycle, ReasonOwnerLifecycleUnavailable)
+	}
+	if !strings.Contains(res.HumanText(), ReasonOwnerLifecycleUnavailable) {
+		t.Fatalf("human text omits the owner-lifecycle caveat: %q", res.HumanText())
+	}
+}
+
 func TestConfirmGateClaimBindsEpochChange(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}

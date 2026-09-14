@@ -281,8 +281,48 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 		return cancelRefused(cancelEpochReason(err))
 	}
 
-	var findings []string
-	accounted := true
+	// (4)–(7) Teardown accounting over the fenced epoch: cancel native tasks, stop
+	// execution participants and the worktree slot, re-enumerate to catch a launch
+	// admitted before the fence, and reconcile the mutation journal.
+	accounted, findings, terr := reconcileEpochTeardown(seams, repoDir, key, ep)
+	if terr != nil {
+		return cancelRefused(cancelEpochReason(terr))
+	}
+
+	// (8) Verdict. Not fully accounted → cancellation-pending (durable fence held,
+	// repeatable). Fully accounted → CAS cancelling→cancelled (proven slots already
+	// released above) → cancelled.
+	if !accounted {
+		return cancelResult(CancelDispositionPending, findings)
+	}
+	if ferr := epochCAS(repoDir, key, func(r *EpochRecord) error {
+		if r.State == EpochCancelling {
+			r.State = EpochCancelled
+		}
+		return nil
+	}); ferr != nil {
+		return cancelRefused("finalize-failed")
+	}
+	return cancelResult(CancelDispositionCancelled, findings)
+}
+
+// reconcileEpochTeardown performs the cancellation teardown accounting for an
+// already-FENCED epoch — the spec's flow steps (4)–(7): cancel registered native
+// tasks through the adapter hook (an absent adapter is a bounded FINDING, not
+// silence), stop each registered execution participant and the worktree admission
+// slot on proven teardown, RE-ENUMERATE the participants after stopping (a launch
+// admitted before the fence won and can register after the first snapshot), and
+// reconcile the admitted-mutation journal (an admitted-not-completed entry keeps
+// the run pending). It returns whether the run is fully accounted, the bounded
+// credential-free findings, and a non-nil err only for an epoch re-read fault.
+//
+// It NEVER validates authority and NEVER transitions the epoch: the caller fences
+// first — run.cancel under the authority conjunction, or the detached death
+// guardian on abrupt owner death — and finalizes cancelling→cancelled after. Both
+// callers share this one accounting so the two fencing authorities reconcile a run
+// identically.
+func reconcileEpochTeardown(seams cancelSeams, repoDir, gateKey string, ep EpochRecord) (accounted bool, findings []string, err error) {
+	accounted = true
 
 	// (4) Cancel registered native tasks through the adapter hook. An absent adapter
 	// is a FINDING, not silence — the task's process teardown is still accounted by
@@ -332,9 +372,9 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 	// (6) RE-ENUMERATE after stopping: a launch admitted before the fence won and can
 	// register a participant after the snapshot in (5). Any execution participant not
 	// proven-stopped in this pass is unaccounted — a repeat resumes its cleanup.
-	reEp, _, rerr := LoadEpochRecord(repoDir, key)
+	reEp, _, rerr := LoadEpochRecord(repoDir, gateKey)
 	if rerr != nil {
-		return cancelRefused(cancelEpochReason(rerr))
+		return false, findings, rerr
 	}
 	for _, p := range reEp.Participants {
 		if isExecutionParticipant(p.Kind) && !proven[p.NativeHandle] {
@@ -353,21 +393,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 		}
 	}
 
-	// (8) Verdict. Not fully accounted → cancellation-pending (durable fence held,
-	// repeatable). Fully accounted → CAS cancelling→cancelled (proven slots already
-	// released above) → cancelled.
-	if !accounted {
-		return cancelResult(CancelDispositionPending, findings)
-	}
-	if ferr := epochCAS(repoDir, key, func(r *EpochRecord) error {
-		if r.State == EpochCancelling {
-			r.State = EpochCancelled
-		}
-		return nil
-	}); ferr != nil {
-		return cancelRefused("finalize-failed")
-	}
-	return cancelResult(CancelDispositionCancelled, findings)
+	return accounted, findings, nil
 }
 
 // isNativeParticipant reports whether a participant kind names a NATIVE task (a

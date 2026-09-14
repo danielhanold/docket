@@ -35,6 +35,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		return code
 	}
 
+	// Package-private death-guardian re-execution (change 0375): when the agent
+	// entry re-execs this binary as a detached run death guardian it must never
+	// parse public flags or touch the protocol streams — it watches its owner's
+	// pipe and fences the run epoch on an abrupt owner death.
+	if code, ok := app.MaybeRunAgentGuardian(); ok {
+		return code
+	}
+
 	prescan := DetectJSONMode(args)
 
 	var result app.OperationResult
