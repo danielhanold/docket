@@ -195,7 +195,47 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 	gateClaim.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
-	runCmd.AddCommand(verify, gateBefore, gateVerdict, gateClaim)
+	// cancel is the coordinator's explicit human Stop (change 0375): it durably
+	// fences the run epoch located by --key (validated against --epoch and a confirmed
+	// claim), tears down registered tasks and processes, reconciles admitted
+	// mutations, and reports one disposition (cancelled / already-cancelled /
+	// cancellation-pending / refused). It charges no suite attempt and resets no
+	// deadline/relaunch/budget/retry state — a child failure or ordinary dispatch
+	// return never invokes it. All three flags are required; the deps mirror the other
+	// run leaves.
+	cancel := &cobra.Command{
+		Use:   "cancel",
+		Short: "Cancel a dispatched run: fence its run epoch, tear it down, and report the disposition",
+		Args:  cobra.NoArgs,
+		// process-control: stops the run's registered native tasks and processes.
+		// local-write: transitions the durable run-epoch record and releases the
+		// worktree execution slot.
+		Annotations: capability("run.cancel", EffectLocalWrite, EffectProcessControl),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			deps, wdeps, _, err := newPRDeps()
+			if err != nil {
+				return err
+			}
+			key, _ := c.Flags().GetString("key")
+			epoch, _ := c.Flags().GetString("epoch")
+			reason, _ := c.Flags().GetString("reason")
+			setResult(app.RunCancel(c.Context(), deps, wdeps, repoDir, key, epoch, reason))
+			return nil
+		},
+	}
+	cancel.Flags().String("key", "", "durable gate `key` locating the run to cancel (required)")
+	cancel.Flags().String("epoch", "", "expected run epoch `id` (required)")
+	cancel.Flags().String("reason", "", "human `reason` for the cancellation (required)")
+	cancel.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	_ = cancel.MarkFlagRequired("key")
+	_ = cancel.MarkFlagRequired("epoch")
+	_ = cancel.MarkFlagRequired("reason")
+
+	runCmd.AddCommand(verify, gateBefore, gateVerdict, gateClaim, cancel)
 	return runCmd
 }
 
