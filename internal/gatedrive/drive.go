@@ -122,6 +122,13 @@ type DriveDoc struct {
 	// the terminal to avoid leaking one temp dir per drive across retries. Like
 	// RawRunDir it is a host path, not a secret; it carries no argv/env/credential.
 	RunRoot string `json:"run_root,omitempty"`
+	// LegacyHistory is the compact first-admission legacy-drive recovery summary,
+	// populated on a START document only and only when the census actually assessed
+	// legacy history (Checked > 0). An ordinary start over a store with no legacy
+	// records carries none (nil, omitted). It is a diagnostic surface — the counts,
+	// recovered ids, and retained findings the census produced — never a credential.
+	// An omitempty addition does not bump ProtocolVersion (see its doc comment).
+	LegacyHistory *LegacyHistorySummary `json:"legacy_history,omitempty"`
 }
 
 // driveRecord is the durable, owner-private persisted schema of one drive. It is
