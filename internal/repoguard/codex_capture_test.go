@@ -56,3 +56,48 @@ func TestCodexGateCaptureLiteralPreservesFirstResponse(t *testing.T) {
 		}
 	}
 }
+
+func TestCodexFeatureBootstrapAndPrivatePayloadContract(t *testing.T) {
+	root := guardRoot(t)
+	feature, err := os.ReadFile(filepath.Join(root, "skills", "docket-convention", "references", "codex-feature-binding.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	handoff, err := os.ReadFile(filepath.Join(root, "skills", "docket-build", "references", "codex-task-handoff.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	native, err := os.ReadFile(filepath.Join(root, "skills", "docket-convention", "references", "codex-native-dispatch.md"))
+	if err != nil { t.Fatal(err) }
+	planning, err := os.ReadFile(filepath.Join(root, "skills", "docket-implement-next", "references", "codex-planning-results.md"))
+	if err != nil { t.Fatal(err) }
+	review, err := os.ReadFile(filepath.Join(root, "skills", "docket-review", "references", "codex-review-binding.md"))
+	if err != nil { t.Fatal(err) }
+	for name, body := range map[string]string{"feature binding": string(feature), "task handoff": string(handoff)} {
+		for _, clause := range []string{"schema --operation agent.check-inputs", "--payload", "--payload-sha256", "entry_argv"} {
+			if !strings.Contains(body, clause) {
+				t.Errorf("%s omits %q", name, clause)
+			}
+		}
+	}
+	for name, body := range map[string]string{"native dispatch":string(native), "planning":string(planning)} {
+		if !strings.Contains(body,"schema --operation agent.check-inputs") { t.Errorf("%s does not point to the versioned input documents",name) }
+	}
+	if !strings.Contains(string(review),"declared resource") || !strings.Contains(string(review),"SHA-256") { t.Error("review binding omits hashed evidence construction") }
+	f := string(feature)
+	for _, forbidden := range []string{"must not run `repository.prepare`", "metadata-writing operations"} {
+		if !strings.Contains(f, forbidden) {
+			t.Errorf("feature binding omits child prohibition %q", forbidden)
+		}
+	}
+	h := string(handoff)
+	order := []string{"repository/workspace preparation", "immutable assignment", "prepare the child scope", "private payload", "at `dispatch`"}
+	last := -1
+	for _, phrase := range order {
+		i := strings.Index(h, phrase)
+		if i < 0 || i <= last {
+			t.Fatalf("task handoff construction order missing or out of order at %q", phrase)
+		}
+		last = i
+	}
+}

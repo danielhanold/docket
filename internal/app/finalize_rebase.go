@@ -1228,6 +1228,27 @@ func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir strin
 	return validateResolverEntryEvidence(rec, reservation, state, string(stopped), expectedPaths)
 }
 
+// validateRepairEntry binds an integration-repair child to the failed owned
+// finalize attempt after Git has left rebase state. It is read-only and never
+// consumes or rewrites the receipt.
+func validateRepairEntry(ctx context.Context, deps FinalizeDeps, repoDir string, id int, attempt string) error {
+	rc, refusal := loadRebaseContext(ctx, deps, repoDir, OperationAgentCheckInputs, id)
+	if refusal != nil {
+		return fmt.Errorf("%s", refusal.Reason)
+	}
+	if _, ownedRefusal := requireOwnedAttempt(ctx, deps, OperationAgentCheckInputs, rc, attempt); ownedRefusal != nil {
+		return fmt.Errorf("%s", ownedRefusal.Reason)
+	}
+	state, err := continueGit(deps).RebaseState(ctx, rc.wsDir)
+	if err != nil {
+		return fmt.Errorf("repair-rebase-state-unavailable")
+	}
+	if state.Disposition != gitcli.RebaseUnchanged {
+		return fmt.Errorf("repair-rebase-in-progress")
+	}
+	return nil
+}
+
 func validateResolverEntryEvidence(rec workspace.RebaseReceipt, reservation string, state gitcli.RebaseStatus, stopped string, expectedPaths []string) error {
 	if !rec.HasResolverBudget() || rec.ResolverReservationToken == "" || reservation != rec.ResolverReservationToken {
 		return fmt.Errorf("%s", ReasonRebaseReservationStale)

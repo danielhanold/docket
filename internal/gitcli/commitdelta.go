@@ -41,6 +41,34 @@ func (c *Client) CommitChangedPaths(ctx context.Context, repo Repository, commit
 	return paths, nil
 }
 
+// ChangedPathsBetween returns the sorted, de-duplicated path set whose tree
+// entries differ between two commits. Rename detection is disabled so both
+// sides of a move remain visible to path-ownership checks.
+func (c *Client) ChangedPathsBetween(ctx context.Context, repo Repository, base, head ObjectID) ([]RepoPath, error) {
+	if err := validateObjectID(base); err != nil {
+		return nil, newFailure(commitDeltaOp, KindInvalidRequest, "invalid base commit id", err)
+	}
+	if err := validateObjectID(head); err != nil {
+		return nil, newFailure(commitDeltaOp, KindInvalidRequest, "invalid head commit id", err)
+	}
+	res, f := c.run(ctx, runRequest{
+		op:   commitDeltaOp,
+		dir:  repo.PrimaryWorktree,
+		args: []string{"diff-tree", "--no-commit-id", "--name-only", "-r", "-z", "--no-renames", string(base), string(head)},
+	})
+	if f != nil {
+		return nil, f
+	}
+	if res.exitCode != 0 {
+		return nil, newFailure(commitDeltaOp, KindCommandFailed, "diff-tree range failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
+	paths, err := parseNulPaths(res.stdout)
+	if err != nil {
+		return nil, newFailure(commitDeltaOp, KindInvalidOutput, "malformed diff-tree range output", err)
+	}
+	return paths, nil
+}
+
 // parseNulPaths parses the NUL-delimited path list `diff-tree --name-only -z`
 // emits — each path is terminated by a NUL, so the final split element is empty
 // (a non-empty tail is a truncated record). Empty output is no paths. Results

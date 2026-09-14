@@ -24,16 +24,18 @@ type CheckInputsRequest struct {
 	RepoDir       string `json:"repo_dir,omitempty"`
 }
 type AgentRootObservation struct {
-	Primary      string                     `json:"primary"`
-	Feature      string                     `json:"feature"`
-	CommonDir    string                     `json:"common_dir"`
-	Branch       string                     `json:"branch"`
-	HEAD         string                     `json:"head"`
-	Clean        bool                       `json:"clean"`
-	CallerRoot   string                     `json:"caller_root"`
-	RootIdentity codexcontract.RootIdentity `json:"root_identity"`
-	Fingerprint  *gatedrive.Fingerprint     `json:"fingerprint,omitempty"`
-	ChangedPaths []string                   `json:"-"`
+	Primary         string                     `json:"primary"`
+	Feature         string                     `json:"feature"`
+	CommonDir       string                     `json:"common_dir"`
+	Branch          string                     `json:"branch"`
+	HEAD            string                     `json:"head"`
+	Clean           bool                       `json:"clean"`
+	CallerRoot      string                     `json:"caller_root"`
+	RootIdentity    codexcontract.RootIdentity `json:"root_identity"`
+	Fingerprint     *gatedrive.Fingerprint     `json:"fingerprint,omitempty"`
+	ChangedPaths    []string                   `json:"-"`
+	CommittedPaths  []string                   `json:"-"`
+	EntryDescendant bool                       `json:"-"`
 }
 type CheckInputsResult struct {
 	Envelope
@@ -87,14 +89,49 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 	if err := codexcontract.ValidateResources(a); err != nil {
 		return fail(ResultInvalidInput, "resources-invalid: "+err.Error())
 	}
+	payloadRequired := req.Stage == "dispatch" || (req.Stage == "entry" && assignmentRequiresPrivatePayload(a))
+	payloadSupplied := req.Payload != "" || req.PayloadSHA256 != ""
+	var payload codexcontract.WorkerPayload
+	if payloadRequired || payloadSupplied {
+		b, err := readPinnedFile(req.Payload, req.PayloadSHA256)
+		if err != nil {
+			return fail(ResultInvalidInput, "payload-invalid: "+err.Error())
+		}
+		payload, err = codexcontract.DecodeWorkerPayload(b)
+		if err != nil {
+			return fail(ResultInvalidInput, "payload-invalid: "+err.Error())
+		}
+		if payload.AssignmentPath != req.Assignment || payload.AssignmentSHA256 != req.SHA256 {
+			return fail(ResultInvalidInput, "payload-invalid: assignment digest or locator mismatch")
+		}
+		if err := codexcontract.ValidateWorkerPayload(payload, a); err != nil {
+			return fail(ResultInvalidInput, "payload-invalid: "+err.Error())
+		}
+	}
+	roleValidated := false
+	if (a.Mode == "resolver" || a.Mode == "repair") && (payloadRequired || payloadSupplied) {
+		if deps.Role == nil {
+			return fail(ResultInvalidState, "role-validator-unavailable")
+		}
+		if err := deps.Role.ValidateRoleInputs(ctx, a, payload, req.RepoDir); err != nil {
+			return fail(ResultInvalidState, "role-inputs-invalid: "+err.Error())
+		}
+		roleValidated = true
+	}
 	if deps.Observer == nil {
 		return fail(ResultInvalidState, "observer-unavailable")
 	}
-	if deps.Workspace == nil {
+	if deps.Workspace == nil && a.Mode != "resolver" {
 		return fail(ResultInvalidState, "workspace-validator-unavailable")
 	}
-	if err := deps.Workspace.ValidateAgentWorkspace(ctx, a, req.RepoDir); err != nil {
-		return fail(ResultInvalidState, "workspace-binding-invalid: "+err.Error())
+	if a.Mode == "resolver" {
+		if !roleValidated {
+			return fail(ResultInvalidState, "role-inputs-required")
+		}
+	} else {
+		if err := deps.Workspace.ValidateAgentWorkspace(ctx, a, req.RepoDir); err != nil {
+			return fail(ResultInvalidState, "workspace-binding-invalid: "+err.Error())
+		}
 	}
 	obs, err := deps.Observer.ObserveAgentInputs(ctx, a, req.RepoDir)
 	if err != nil {
@@ -111,12 +148,14 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 			return fail(ResultInvalidState, "root-identity-mismatch")
 		}
 	}
-	if req.Stage != "active" || a.Mode == "review" {
-		if obs.HEAD != a.EntryHEAD && (a.Mode != "review" || obs.HEAD != a.ReviewHEAD) {
+	if a.Mode == "review" {
+		if obs.HEAD != a.ReviewHEAD {
 			return fail(ResultInvalidState, "head-mismatch")
 		}
+	} else if req.Stage != "active" && obs.HEAD != a.EntryHEAD {
+		return fail(ResultInvalidState, "head-mismatch")
 	}
-	if (req.Stage == "entry" || req.Stage == "prepare") && (a.Mode == "fresh" || a.Mode == "review") && !obs.Clean {
+	if ((req.Stage == "entry" || req.Stage == "prepare") && a.Mode == "fresh" || a.Mode == "review") && !obs.Clean {
 		return fail(ResultInvalidState, "worktree-dirty")
 	}
 	if req.Stage == "entry" && (a.Mode == "continuation" || a.Mode == "escalation") {
@@ -128,50 +167,36 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 		}
 	}
 	if req.Stage == "active" && a.Mode != "review" {
+		if !obs.EntryDescendant {
+			return fail(ResultInvalidState, "head-not-descendant")
+		}
 		allowed := append(append([]string{}, a.WritePaths...), a.InheritedPaths...)
-		for _, path := range obs.ChangedPaths {
+		for _, path := range append(append([]string{}, obs.ChangedPaths...), obs.CommittedPaths...) {
 			if !withinOwnedPath(allowed, path) {
 				return fail(ResultInvalidState, "unowned-active-path")
 			}
 		}
 	}
-	if req.Stage == "dispatch" || (req.Stage == "entry" && req.Payload != "") {
-		b, err := readPinnedFile(req.Payload, req.PayloadSHA256)
-		if err != nil {
-			return fail(ResultInvalidInput, "payload-invalid: "+err.Error())
-		}
-		p, err := codexcontract.DecodeWorkerPayload(b)
-		if err != nil {
-			return fail(ResultInvalidInput, "payload-invalid: "+err.Error())
-		}
-		if p.AssignmentPath != req.Assignment || p.AssignmentSHA256 != req.SHA256 {
-			return fail(ResultInvalidInput, "payload-invalid: assignment digest or locator mismatch")
-		}
-		if err := codexcontract.ValidateWorkerPayload(p, a); err != nil {
-			return fail(ResultInvalidInput, "payload-invalid: "+err.Error())
-		}
-		if p.Kind == "worker" {
+	if payloadRequired || payloadSupplied {
+		if payload.Kind == "worker" {
 			if deps.Scope == nil {
 				return fail(ResultInvalidState, "scope-validator-unavailable")
 			}
-			if p.Recovered != nil {
-				err = deps.Scope.ValidateRecoveredInputs(gatedrive.RecoveredInputs{ScopeID: p.Recovered.ScopeID, DriveID: p.Recovered.DriveID, OwnerGeneration: p.Recovered.OwnerGeneration, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, GateContext: p.GateContext, RunEpochID: p.RunEpochID})
+			if payload.Recovered != nil {
+				err = deps.Scope.ValidateRecoveredInputs(gatedrive.RecoveredInputs{ScopeID: payload.Recovered.ScopeID, DriveID: payload.Recovered.DriveID, OwnerGeneration: payload.Recovered.OwnerGeneration, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, GateContext: payload.GateContext, RunEpochID: payload.RunEpochID})
 			} else {
-				err = deps.Scope.ValidateChildInputs(gatedrive.StartRequest{RepoDir: a.Feature, Worktree: a.Feature, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, Branch: a.Branch, Ref: "refs/heads/" + a.Branch, Cwd: a.Feature, RunRoot: a.RunRoot, ScopeID: p.ScopeID, ChildCapability: p.ChildCapability, GateContext: p.GateContext, RunEpochID: p.RunEpochID, PredecessorDriveID: p.PredecessorDriveID, PredecessorOwnerGen: p.PredecessorOwnerGen})
+				err = deps.Scope.ValidateChildInputs(gatedrive.StartRequest{RepoDir: a.Feature, Worktree: a.Feature, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, Branch: a.Branch, Ref: "refs/heads/" + a.Branch, Cwd: a.Feature, RunRoot: a.RunRoot, ScopeID: payload.ScopeID, ChildCapability: payload.ChildCapability, GateContext: payload.GateContext, RunEpochID: payload.RunEpochID, PredecessorDriveID: payload.PredecessorDriveID, PredecessorOwnerGen: payload.PredecessorOwnerGen})
 			}
 			if err != nil {
 				return fail(ResultInvalidState, "scope-inputs-invalid: "+err.Error())
 			}
-		} else if p.Kind == "resolver" || p.Kind == "repair" {
-			if deps.Role == nil {
-				return fail(ResultInvalidState, "role-validator-unavailable")
-			}
-			if err := deps.Role.ValidateRoleInputs(ctx, a, p, req.RepoDir); err != nil {
-				return fail(ResultInvalidState, "role-inputs-invalid: "+err.Error())
-			}
 		}
 	}
 	return CheckInputsResult{Envelope: NewEnvelope(OperationAgentCheckInputs, ResultApplied), AssignmentSHA256: req.SHA256, PayloadSHA256: req.PayloadSHA256, Observation: obs}
+}
+
+func assignmentRequiresPrivatePayload(a codexcontract.Assignment) bool {
+	return strings.HasPrefix(a.Role, "docket-build-") || a.Mode == "resolver" || a.Mode == "repair"
 }
 
 func samePaths(got, want []string) bool {

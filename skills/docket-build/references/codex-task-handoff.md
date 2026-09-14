@@ -1,6 +1,8 @@
 # Codex task handoff
 
-Keep the static assignment separate from live gate authority. Prepare a scope, capture the first JSON response and exit code once, then write the final private worker payload with the actual child capability, scope identity, unchanged optional context/epoch, and applicable predecessor. Validate its bytes and digest immediately before native dispatch. Keep the parent capability and outer gate key in controller-private storage.
+Construct a child in this order: run controller-owned repository/workspace preparation; use its returned root witness to write the immutable assignment; prepare the child scope; write the private payload with that assignment locator/digest, exact assignment-only `entry_argv`, actual child capability, scope identity, unchanged optional context/epoch, and applicable predecessor; then run `agent.check-inputs` at `dispatch` with separate assignment and payload locators/digests. Keep the parent capability and outer gate key in controller-private storage.
+
+Pass the assignment and private payload locators/digests unchanged through native dispatch. The child bootstraps the supplied executable's catalog and `schema --operation agent.check-inputs`, then runs the catalog-resolved checker at `entry`. Append `--payload <path> --payload-sha256 <digest>` to the payload's assignment-only `entry_argv`; the digest stays outside the payload bytes and cannot be circular. A missing, changed, or unvalidated private payload refuses entry.
 
 Load `gate_argv`, `first_stdout`, and `first_stderr` from pinned private inputs in this same non-login shell call:
 

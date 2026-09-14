@@ -23,23 +23,23 @@ type Resource struct {
 }
 
 type Assignment struct {
-	SchemaVersion        int                    `json:"schema_version"`
-	ChangeID             int                    `json:"change_id"`
-	Role                 string                 `json:"role"`
-	Phase                string                 `json:"phase"`
+	SchemaVersion        int                    `json:"schema_version" docket:"required"`
+	ChangeID             int                    `json:"change_id" docket:"required"`
+	Role                 string                 `json:"role" docket:"required,enum=agent_roles"`
+	Phase                string                 `json:"phase" docket:"required,enum=assignment_phases"`
 	TaskID               string                 `json:"task_id,omitempty"`
-	Mode                 string                 `json:"mode"`
-	Primary              string                 `json:"primary"`
-	Feature              string                 `json:"feature"`
-	CommonDir            string                 `json:"common_dir"`
-	Branch               string                 `json:"branch"`
-	EntryHEAD            string                 `json:"entry_head"`
-	MetadataRevision     string                 `json:"metadata_revision"`
-	ChangePath           string                 `json:"change_path"`
+	Mode                 string                 `json:"mode" docket:"required,enum=assignment_modes"`
+	Primary              string                 `json:"primary" docket:"required"`
+	Feature              string                 `json:"feature" docket:"required"`
+	CommonDir            string                 `json:"common_dir" docket:"required"`
+	Branch               string                 `json:"branch" docket:"required"`
+	EntryHEAD            string                 `json:"entry_head" docket:"required"`
+	MetadataRevision     string                 `json:"metadata_revision" docket:"required"`
+	ChangePath           string                 `json:"change_path" docket:"required"`
 	ArtifactPath         string                 `json:"artifact_path,omitempty"`
-	DocketExecutable     string                 `json:"docket_executable"`
-	DocketCommit         string                 `json:"docket_commit"`
-	Resources            []Resource             `json:"resources"`
+	DocketExecutable     string                 `json:"docket_executable" docket:"required"`
+	DocketCommit         string                 `json:"docket_commit" docket:"required"`
+	Resources            []Resource             `json:"resources" docket:"required"`
 	ResourceDependencies map[string][]string    `json:"resource_dependencies,omitempty"`
 	ReadRoots            []string               `json:"read_roots"`
 	WritePaths           []string               `json:"write_paths"`
@@ -56,6 +56,17 @@ type Assignment struct {
 	ReviewHEAD           string                 `json:"review_head,omitempty"`
 	BuildEvidence        string                 `json:"build_evidence,omitempty"`
 }
+
+var (
+	AllAgentRoles = []string{
+		"docket-plan-writer",
+		"docket-build-economy", "docket-build-standard", "docket-build-premium", "docket-build-max",
+		"docket-review-lean", "docket-review-standard", "docket-review-deep",
+		"docket-rebase-resolver", "docket-integration-repair",
+	}
+	AllAssignmentPhases = []string{"plan", "build", "review", "resolver", "repair"}
+	AllAssignmentModes  = []string{"fresh", "continuation", "escalation", "review", "resolver", "repair"}
+)
 
 func ReadAssignment(path, digest string) (Assignment, error) {
 	if !filepath.IsAbs(path) {
@@ -103,7 +114,7 @@ func ValidateAssignment(a Assignment) error {
 	if a.ChangeID <= 0 || a.Role == "" || a.Phase == "" || a.Branch == "" {
 		return fmt.Errorf("assignment identity is incomplete")
 	}
-	if !oneOf(a.Mode, "fresh", "continuation", "escalation", "review", "resolver", "repair") {
+	if !oneOf(a.Mode, AllAssignmentModes...) {
 		return fmt.Errorf("unknown assignment mode %q", a.Mode)
 	}
 	if !validRolePhaseMode(a.Role, a.Phase, a.Mode) {
@@ -142,8 +153,20 @@ func ValidateAssignment(a Assignment) error {
 	if (a.Mode == "continuation" || a.Mode == "escalation") && a.InheritedFingerprint == nil {
 		return fmt.Errorf("continued worker assignment requires inherited_fingerprint")
 	}
-	if a.Mode == "review" && (a.ReviewBase == "" || a.ReviewHEAD == "" || a.BuildEvidence == "") {
-		return fmt.Errorf("review assignment requires immutable base, head, and evidence")
+	if a.Mode == "review" {
+		if !objectID.MatchString(a.ReviewBase) || !objectID.MatchString(a.ReviewHEAD) || a.EntryHEAD != a.ReviewHEAD || a.BuildEvidence == "" {
+			return fmt.Errorf("review assignment requires identical full entry/review head, a full base, and evidence")
+		}
+		foundEvidence := false
+		for _, r := range a.Resources {
+			if r.LogicalID == a.BuildEvidence {
+				foundEvidence = true
+				break
+			}
+		}
+		if !foundEvidence {
+			return fmt.Errorf("review build_evidence must name a declared hashed resource")
+		}
 	}
 	for _, r := range a.Resources {
 		joined := strings.ToLower(r.LogicalID + " " + r.Source)
@@ -155,6 +178,9 @@ func ValidateAssignment(a Assignment) error {
 }
 
 func validRolePhaseMode(role, phase, mode string) bool {
+	if !oneOf(role, AllAgentRoles...) {
+		return false
+	}
 	switch {
 	case role == "docket-plan-writer":
 		return phase == "plan" && mode == "fresh"

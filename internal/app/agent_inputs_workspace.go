@@ -21,7 +21,7 @@ func NewAgentFinalizeInputValidator(deps FinalizeDeps) AgentRoleInputValidator {
 
 func (v agentFinalizeInputValidator) ValidateRoleInputs(ctx context.Context, a codexcontract.Assignment, p codexcontract.WorkerPayload, repoDir string) error {
 	if p.Kind == "repair" {
-		return nil
+		return validateRepairEntry(ctx, v.deps, repoDir, a.ChangeID, p.Attempt)
 	}
 	return validateResolverEntry(ctx, v.deps, repoDir, a.ChangeID, p.Attempt, p.ResolverReservation, a.WritePaths)
 }

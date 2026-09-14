@@ -31,6 +31,13 @@ type manifest struct {
 	ChangeID              int               `json:"change_id"`
 	ChangePath            string            `json:"change_path"`
 	MetadataRevision      string            `json:"metadata_revision"`
+	PrimaryHEAD           string            `json:"primary_head"`
+	BuildReady            bool              `json:"build_ready"`
+	BuildTestCommand      string            `json:"build_test_command"`
+	FinalizeTestCommand   string            `json:"finalize_test_command"`
+	BaselineCommand       string            `json:"baseline_command"`
+	BaselinePassed        bool              `json:"baseline_passed"`
+	PinsSHA256            string            `json:"pins_sha256"`
 }
 
 func main() {
@@ -127,7 +134,16 @@ func prepare(o options) error {
 	if err := writeFile(filepath.Join(primary, "README.md"), []byte("# Native Codex acceptance fixture\n"), 0o644); err != nil {
 		return err
 	}
-	if err := run(primary, "git", "add", "README.md"); err != nil {
+	for path, body := range map[string][]byte{
+		"go.mod":                []byte("module example.invalid/nativefixture\n\ngo 1.25\n"),
+		"fixture/value.go":      []byte("package fixture\n\nfunc Value() int { return 1 }\n"),
+		"fixture/value_test.go": []byte("package fixture\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { if Value() != 1 { t.Fatal(Value()) } }\n"),
+	} {
+		if err := writeFile(filepath.Join(primary, path), body, 0o644); err != nil {
+			return err
+		}
+	}
+	if err := run(primary, "git", "add", "README.md", "go.mod", "fixture"); err != nil {
 		return err
 	}
 	if err := run(primary, "git", "commit", "-m", "fixture: initialize repository"); err != nil {
@@ -138,6 +154,26 @@ func prepare(o options) error {
 	}
 	if err := runCandidate(o.Binary, primary, nil, "repository", "init", "--repo-dir", primary, "--json"); err != nil {
 		return err
+	}
+	if err := run(primary, "git", "add", ".docket.yml", ".gitignore"); err != nil {
+		return err
+	}
+	if err := run(primary, "git", "commit", "-m", "fixture: accept docket configuration"); err != nil {
+		return err
+	}
+	if err := run(primary, "git", "push", "origin", "main"); err != nil {
+		return err
+	}
+	var configured struct {
+		Result          string   `json:"result"`
+		RepositoryState string   `json:"repository_state"`
+		PendingPaths    []string `json:"pending_paths"`
+	}
+	if err := runCandidate(o.Binary, primary, &configured, "repository", "configure-tests", "--repo-dir", primary, "--json"); err != nil {
+		return err
+	}
+	if configured.Result != "applied" && configured.Result != "no-op" {
+		return fmt.Errorf("candidate repository.configure-tests did not establish test policy")
 	}
 	roots := install.UserRoots{Home: filepath.Join(o.Destination, "staging-home")}
 	targets, err := codex.New().Plan(harness.PlanInput{Assets: catalog, Mode: harness.ModeDevelopment, AssetsDir: o.Source, Roots: roots, Agents: snap.Effective.Agents})
@@ -166,17 +202,7 @@ func prepare(o options) error {
 		return err
 	}
 	files["AGENTS.md"] = hash(agents)
-	for path, body := range map[string][]byte{
-		"go.mod":                []byte("module example.invalid/nativefixture\n\ngo 1.25\n"),
-		"fixture/value.go":      []byte("package fixture\n\nfunc Value() int { return 1 }\n"),
-		"fixture/value_test.go": []byte("package fixture\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { if Value() != 1 { t.Fatal(Value()) } }\n"),
-	} {
-		if err := writeFile(filepath.Join(primary, path), body, 0o644); err != nil {
-			return err
-		}
-		files[path] = hash(body)
-	}
-	if err := run(primary, "git", "add", "AGENTS.md", ".codex", ".agents", ".gitignore", "go.mod", "fixture"); err != nil {
+	if err := run(primary, "git", "add", "AGENTS.md", ".codex", ".agents", ".gitignore", ".docket.yml"); err != nil {
 		return err
 	}
 	if err := run(primary, "git", "commit", "-m", "fixture: add candidate assets and baseline"); err != nil {
@@ -184,6 +210,10 @@ func prepare(o options) error {
 	}
 	if err := run(primary, "git", "push", "origin", "main"); err != nil {
 		return err
+	}
+	const baselineCommand = "go test ./..."
+	if err := run(primary, "go", "test", "./..."); err != nil {
+		return fmt.Errorf("fixture baseline failed: %w", err)
 	}
 	control := filepath.Join(o.Destination, "control")
 	createRequest := filepath.Join(control, "change-create.json")
@@ -202,9 +232,33 @@ func prepare(o options) error {
 	if created.Result != "applied" || created.ID <= 0 || created.Path == "" {
 		return fmt.Errorf("candidate change.create did not create the fixture change")
 	}
-	recordVersion, err := gitOut(primary, "rev-parse", "docket:"+created.Path)
+	type statusDoc struct {
+		Result  string `json:"result"`
+		Context struct {
+			MetadataRevision string `json:"metadata_revision"`
+		} `json:"context"`
+		Changes []struct {
+			ID                       int `json:"id"`
+			Path, Version, Readiness string
+		} `json:"changes"`
+	}
+	readStatus := func() (statusDoc, error) {
+		var out statusDoc
+		err := runCandidate(o.Binary, primary, &out, "status", "--repo-dir", primary, "--json")
+		return out, err
+	}
+	createdStatus, err := readStatus()
 	if err != nil {
 		return err
+	}
+	recordVersion := ""
+	for _, change := range createdStatus.Changes {
+		if change.ID == created.ID && change.Path == created.Path {
+			recordVersion = change.Version
+		}
+	}
+	if recordVersion == "" || createdStatus.Context.MetadataRevision == "" {
+		return fmt.Errorf("candidate status did not expose the created change version")
 	}
 	groomRequest := filepath.Join(control, "change-groom.json")
 	groomBody, _ := json.Marshal(map[string]any{"change_id": created.ID, "path": created.Path, "version": recordVersion, "outcome": "spec", "spec_markdown": "# Add a doubled fixture value\n\nImplement `Double() int` in `fixture/value.go` and add a focused test. Run `go test ./...`.\n"})
@@ -221,6 +275,19 @@ func prepare(o options) error {
 	if groomed.Result != "applied" || groomed.Revision == "" {
 		return fmt.Errorf("candidate change.groom did not make the fixture build-ready")
 	}
+	groomedStatus, err := readStatus()
+	if err != nil {
+		return err
+	}
+	buildReady := false
+	for _, change := range groomedStatus.Changes {
+		if change.ID == created.ID && change.Path == created.Path && change.Readiness == "build-ready" {
+			buildReady = true
+		}
+	}
+	if !buildReady || groomedStatus.Context.MetadataRevision == "" {
+		return fmt.Errorf("candidate status did not confirm the groomed change is build-ready")
+	}
 	launch := []byte("# Candidate launch\n\nOpen this disposable primary in a fresh Codex app session. Verify project agent/resource loading and use the absolute candidate executable `" + o.Binary + "` for every catalog. Stop with `codex-candidate-loading-unverified` before substantive work if parent or child provenance cannot be established. Do not modify global installations.\n")
 	if err := writeFile(filepath.Join(o.Destination, "LAUNCH.md"), launch, 0o644); err != nil {
 		return err
@@ -230,10 +297,58 @@ func prepare(o options) error {
 	if err != nil {
 		return err
 	}
-	m := manifest{SchemaVersion: 1, SourceCommit: head, Binary: o.Binary, BinarySHA256: hash(bb), Files: files, EvidenceAuditComplete: false, ChangeID: created.ID, ChangePath: created.Path, MetadataRevision: groomed.Revision}
+	configBytes, err := os.ReadFile(filepath.Join(primary, ".docket.yml"))
+	if err != nil {
+		return err
+	}
+	repoConfig, _, err := config.Resolve([]config.Source{{Layer: config.LayerRepository, Name: ".docket.yml", Data: configBytes}}, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		return fmt.Errorf("fixture config: %w", err)
+	}
+	if repoConfig.Effective.Build.TestCommand.Value == "" || repoConfig.Effective.Finalize.TestCommand.Value == "" {
+		return fmt.Errorf("fixture test policy is unconfigured")
+	}
+	primaryHead, err := gitOut(primary, "rev-parse", "HEAD")
+	if err != nil {
+		return err
+	}
+	clean, err := gitOut(primary, "status", "--porcelain=v2")
+	if err != nil {
+		return err
+	}
+	if clean != "" {
+		return fmt.Errorf("fixture primary is dirty after preparation")
+	}
+	tracked, err := trackedFileHashes(primary)
+	if err != nil {
+		return err
+	}
+	tracked["../LAUNCH.md"] = hash(launch)
+	m := manifest{SchemaVersion: 1, SourceCommit: head, Binary: o.Binary, BinarySHA256: hash(bb), Files: tracked, EvidenceAuditComplete: false, ChangeID: created.ID, ChangePath: created.Path, MetadataRevision: groomedStatus.Context.MetadataRevision, PrimaryHEAD: primaryHead, BuildReady: buildReady, BuildTestCommand: repoConfig.Effective.Build.TestCommand.Value, FinalizeTestCommand: repoConfig.Effective.Finalize.TestCommand.Value, BaselineCommand: baselineCommand, BaselinePassed: true, PinsSHA256: hash(pinsBytes)}
 	mb, _ := json.MarshalIndent(m, "", "  ")
 	mb = append(mb, '\n')
 	return writeFile(filepath.Join(o.Destination, "manifest.json"), mb, 0o644)
+}
+
+func trackedFileHashes(root string) (map[string]string, error) {
+	c := exec.Command("git", "ls-files", "-z")
+	c.Dir = root
+	b, err := c.Output()
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, raw := range strings.Split(string(b), "\x00") {
+		if raw == "" {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(raw)))
+		if err != nil {
+			return nil, err
+		}
+		out[raw] = hash(body)
+	}
+	return out, nil
 }
 func runCandidate(binary, dir string, out any, args ...string) error {
 	c := exec.Command(binary, args...)
