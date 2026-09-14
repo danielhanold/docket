@@ -268,6 +268,46 @@ func TestStartLaunchesAndFirstSliceWaits(t *testing.T) {
 	}
 }
 
+// TestStartCarriesLegacyHistorySummary proves a successful start document carries
+// the first-admission legacy recovery summary when legacy history was assessed,
+// and carries none on an ordinary start over a store with no legacy records. The
+// summary is a diagnostic surface on the START document only.
+func TestStartCarriesLegacyHistorySummary(t *testing.T) {
+	t.Run("legacy-history-present", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		proc := &fakeProc{} // default: launch running, observe running
+		d, store := newTestDriver(t, clk, proc, stableGit())
+		// A completed v2 drive bound to a since-removed worktree: assessed and
+		// counted by the first-admission census, but not blocking this start.
+		copyLegacyFixture(t, store, "passed")
+
+		doc, err := d.Start(sampleStart())
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+		if doc.LegacyHistory == nil {
+			t.Fatal("a start over a store carrying legacy history must carry the recovery summary")
+		}
+		if doc.LegacyHistory.Checked != 1 {
+			t.Fatalf("LegacyHistory.Checked = %d, want 1", doc.LegacyHistory.Checked)
+		}
+	})
+
+	t.Run("no-legacy-records-nil", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		proc := &fakeProc{}
+		d, _ := newTestDriver(t, clk, proc, stableGit())
+
+		doc, err := d.Start(sampleStart())
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+		if doc.LegacyHistory != nil {
+			t.Fatalf("a normal start with no legacy records must carry no summary narration, got %+v", doc.LegacyHistory)
+		}
+	})
+}
+
 // TestSeveralWaitingSlicesRetainDriveIdentity proves several WAITING slices keep
 // one drive, run, attempt, and fixed deadline: only the same owner advancing the
 // same live run.

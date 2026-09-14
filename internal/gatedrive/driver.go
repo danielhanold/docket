@@ -204,6 +204,17 @@ func NewDriver(store *Store, clock Clock, proc ProcessSeam, git GitSeam) *Driver
 	}
 }
 
+// startDocWithLegacy attaches a ticket's first-admission legacy recovery summary to
+// a freshly produced START document, but ONLY when the census actually assessed
+// legacy history (Checked > 0) — an ordinary start over a store with no legacy
+// records narrates nothing. A launch error propagates unchanged with no summary.
+func startDocWithLegacy(doc DriveDoc, err error, legacy *LegacyHistorySummary) (DriveDoc, error) {
+	if err == nil && legacy != nil && legacy.Checked > 0 {
+		doc.LegacyHistory = legacy
+	}
+	return doc, err
+}
+
 // reserveWorktreeExecution inventories legacy records with this driver's exact
 // process-recovery seam before a new slot is durably reserved, returning the
 // legacy history summary the census produced (nil when no legacy history was
@@ -247,6 +258,11 @@ type AdmissionTicket struct {
 	// freshly reserves and always confirms its own slot.
 	reservedFresh bool
 	ownsSlot      bool
+	// legacy is the first-admission legacy-drive recovery summary the worktree
+	// reservation produced (nil when no legacy history was relevant, or when this
+	// start reused an incumbent same-scope slot rather than freshly reserving). The
+	// launch half carries it onto the returned START document.
+	legacy *LegacyHistorySummary
 }
 
 // Start creates a drive, validates and fingerprints the execution context,
@@ -496,7 +512,7 @@ func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 // process; launchScopeless does. A NewReservedDrive failure releases the freshly
 // reserved slot before returning, so a refused admission leaks nothing.
 func (d *Driver) admitScopeless(rec driveRecord, ownerGen, runEpochID string) (*AdmissionTicket, error) {
-	token, _, err := d.reserveWorktreeExecution(admissionRecord{
+	token, legacy, err := d.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: rec.RepoIdentity,
 		WorktreeRoot: rec.WorktreePath,
 		RunEpochID:   runEpochID,
@@ -515,7 +531,7 @@ func (d *Driver) admitScopeless(rec driveRecord, ownerGen, runEpochID string) (*
 		_ = d.store.ReleaseWorktreeExecution(rec.WorktreePath, token)
 		return nil, err
 	}
-	return &AdmissionTicket{id: id, ownerGen: ownerGen, rec: rec, token: token}, nil
+	return &AdmissionTicket{id: id, ownerGen: ownerGen, rec: rec, token: token, legacy: legacy}, nil
 }
 
 // launchScopeless runs the launch half for a scopeless admission:
@@ -565,7 +581,8 @@ func (d *Driver) launchScopeless(t *AdmissionTicket) (DriveDoc, error) {
 
 	rec.RawRunDir = out.RunDir
 	rec.RawOwnership = out.RunID
-	return d.driveAndPersist(id, ownerGen, rec)
+	doc, derr := d.driveAndPersist(id, ownerGen, rec)
+	return startDocWithLegacy(doc, derr, t.legacy)
 }
 
 // admitScoped runs the pre-launch admission half of the pinned scoped-start order
@@ -599,7 +616,7 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 	// marks whether the slot is still RESERVED and this start must confirm it to
 	// executing and owns its post-launch failure legs; a successor reusing an
 	// already-executing slot must not re-confirm or disturb it.
-	token, reservedFresh, ownsSlot, aerr := d.admitScopedWorktree(req)
+	token, reservedFresh, ownsSlot, legacy, aerr := d.admitScopedWorktree(req)
 	if aerr != nil {
 		return nil, aerr
 	}
@@ -675,6 +692,7 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 		token:         token,
 		reservedFresh: reservedFresh,
 		ownsSlot:      ownsSlot,
+		legacy:        legacy,
 	}, nil
 }
 
@@ -758,7 +776,8 @@ func (d *Driver) launchScoped(t *AdmissionTicket) (DriveDoc, error) {
 
 	rec.RawRunDir = out.RunDir
 	rec.RawOwnership = out.RunID
-	return d.driveAndPersist(id, ownerGen, rec)
+	doc, derr := d.driveAndPersist(id, ownerGen, rec)
+	return startDocWithLegacy(doc, derr, t.legacy)
 }
 
 // admitScopedWorktree reserves (or reuses) the worktree execution slot for a scoped
@@ -775,7 +794,7 @@ func (d *Driver) launchScoped(t *AdmissionTicket) (DriveDoc, error) {
 // same-scope races; a slot held by a DIFFERENT scope, or in a stopping/unresolved
 // state, is a genuine cross-scope refusal returned verbatim. ErrUnresolvedExecution and
 // every other error (an unresolvable worktree, an IO fault) fail closed unchanged.
-func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFresh, ownsSlot bool, err error) {
+func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFresh, ownsSlot bool, legacy *LegacyHistorySummary, err error) {
 	rec := admissionRecord{
 		RepoIdentity: req.RepoDir,
 		WorktreeRoot: req.Worktree,
@@ -783,27 +802,28 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 		RunEpochID:   req.RunEpochID,
 		Kind:         "scoped",
 	}
-	token, _, rerr := d.reserveWorktreeExecution(rec)
+	token, legacy, rerr := d.reserveWorktreeExecution(rec)
 	if rerr == nil {
-		return token, true, true, nil // freshly reserved: this start confirms it
+		return token, true, true, legacy, nil // freshly reserved: this start confirms it
 	}
 	if oe, ok := AsOwnershipError(rerr); !ok || oe.Kind != ErrWorktreeBusy {
-		return "", false, false, rerr // unresolved / invalid / IO: fail closed
+		return "", false, false, nil, rerr // unresolved / invalid / IO: fail closed
 	}
-	// Busy: reuse only when the incumbent slot belongs to THIS scope.
+	// Busy: reuse only when the incumbent slot belongs to THIS scope. A reused slot
+	// ran no fresh census, so it carries no legacy summary.
 	slot, _, lerr := d.store.LoadWorktreeExecution(req.Worktree)
 	if lerr != nil {
-		return "", false, false, rerr // fail closed on the original busy error
+		return "", false, false, nil, rerr // fail closed on the original busy error
 	}
 	if slot.ScopeID != "" && slot.ScopeID == req.ScopeID {
 		switch slot.State {
 		case admissionReserved:
-			return slot.ReservationToken, false, true, nil // reuse; still confirm it
+			return slot.ReservationToken, false, true, nil, nil // reuse; still confirm it
 		case admissionExecuting:
-			return slot.ReservationToken, false, false, nil // reuse; already executing
+			return slot.ReservationToken, false, false, nil, nil // reuse; already executing
 		}
 	}
-	return "", false, false, rerr // cross-scope or non-reusable state: ErrWorktreeBusy
+	return "", false, false, nil, rerr // cross-scope or non-reusable state: ErrWorktreeBusy
 }
 
 // resolveWorktreeAfterLaunchFailure consults the process backend for the fate of a
