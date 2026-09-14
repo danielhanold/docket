@@ -12,15 +12,33 @@ type LinkContext struct {
 	// e.g. "https://github.com/danielhanold/docket". Empty means "render
 	// repo-relative links only" (callers without a resolvable web remote).
 	RepoWebURL string
-	// MetadataBranch is the branch blob links point at, e.g. "docket".
+	// MetadataBranch is the metadata branch blob links for metadata-branch
+	// records point at, e.g. "docket".
 	MetadataBranch string
+	// IntegrationBranch is the branch PR merges land on, e.g. "main". It is
+	// consulted only for rows whose file reaches the integration branch (the
+	// Plan/Results rows of a done change); empty falls back to MetadataBranch
+	// at the BlobURLOnBranch boundary, so a malformed URL is unrepresentable.
+	IntegrationBranch string
 }
 
-// BlobURL returns RepoWebURL + "/blob/" + MetadataBranch + "/" + repoRelPath,
-// or "" when RepoWebURL is empty.
+// BlobURL returns the blob URL on the metadata branch — correct for records
+// that live on that branch (change files, specs, ADRs) — or "" when
+// RepoWebURL is empty.
 func (l LinkContext) BlobURL(repoRelPath string) string {
+	return l.BlobURLOnBranch(repoRelPath, l.MetadataBranch)
+}
+
+// BlobURLOnBranch returns RepoWebURL + "/blob/" + branch + "/" + repoRelPath,
+// or "" when RepoWebURL is empty. An empty branch falls back to
+// MetadataBranch: the defensive default for callers whose lifecycle ref is
+// unresolvable (change 0417), never a malformed "/blob//" URL.
+func (l LinkContext) BlobURLOnBranch(repoRelPath, branch string) string {
 	if l.RepoWebURL == "" {
 		return ""
 	}
-	return l.RepoWebURL + "/blob/" + l.MetadataBranch + "/" + repoRelPath
+	if branch == "" {
+		branch = l.MetadataBranch
+	}
+	return l.RepoWebURL + "/blob/" + branch + "/" + repoRelPath
 }
