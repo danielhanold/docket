@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // legacyFixtureID maps a Task 2 legacy-v2 fixture name to the validated
@@ -29,7 +31,7 @@ var legacyFixtureID = map[string]string{
 // app-layer mapping is exercised against the same records the driver reads.
 func seedLegacyFixtures(t *testing.T, names ...string) string {
 	t.Helper()
-	gitCommonDir := t.TempDir()
+	gitCommonDir := testsupport.TempDir(t)
 	root := filepath.Join(gitCommonDir, "docket", "gate-drives", "v1")
 	for _, name := range names {
 		id, ok := legacyFixtureID[name]
@@ -55,7 +57,7 @@ func seedLegacyFixtures(t *testing.T, names ...string) string {
 // classification of the fixtures' absent run dirs never re-execs it.
 func exePathFor(t *testing.T) string {
 	t.Helper()
-	return filepath.Join(t.TempDir(), "docket")
+	return filepath.Join(testsupport.TempDir(t), "docket")
 }
 
 func TestGateHistoryCleanupAppliedRunMirrorsOutcome(t *testing.T) {
@@ -168,12 +170,12 @@ func TestGateHistoryCleanupRedactionBound(t *testing.T) {
 	doc := string(buf)
 
 	for _, banned := range []string{
-		"command",                                  // the fixtures' command argv key
-		"env",                                       // env_hash / any env leakage
+		"command", // the fixtures' command argv key
+		"env",     // env_hash / any env leakage
 		"1111111111111111111111111111111111111111", // fixture head_oid
-		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",          // fixture generation token
-		"/bin/sh",                                   // command argv content
-		"deadbeef",                                  // env_hash content
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",         // fixture generation token
+		"/bin/sh",                                  // command argv content
+		"deadbeef",                                 // env_hash content
 	} {
 		if strings.Contains(doc, banned) {
 			t.Errorf("result document leaks %q:\n%s", banned, doc)

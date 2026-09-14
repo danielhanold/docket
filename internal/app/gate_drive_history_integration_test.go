@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/gatedrive"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // requireProcessSupervisor skips on a platform where the native process supervisor
@@ -85,7 +86,7 @@ func TestBuildStartAdmitsOverLegacyPassedHistoryOneLaunch(t *testing.T) {
 	requireRealGit(t)
 	requireProcessSupervisor(t)
 	worktree, gitDir := initGitRepo(t, "")
-	runRoot := filepath.Join(t.TempDir(), "runs")
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
 
 	seedLegacyV2Passed(t, gitDir, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01")
 
