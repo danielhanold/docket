@@ -1,0 +1,11 @@
+{
+  "generation": "12341234123412341234123412341234",
+  "record": {
+    "schema_version": 2,
+    "repo_identity": "/repo/main",
+    "worktree_path": "/repo/.worktrees/old-feature",
+    "change_id": "16",
+    "task_id": "9",
+    "phase": "build",
+    "branch": "fix/old-feature",
+    "ref": "refs/heads/fix/old-fea
