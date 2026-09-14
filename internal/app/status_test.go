@@ -17,15 +17,17 @@ import (
 // or a canned error, and the calls it received are recorded so a test can prove
 // orchestration threaded the pin verbatim and asked the sources it should have.
 type fakeReader struct {
-	pin          StatusPin
-	pinErr       error
-	corpus       []StatusBlob
-	corpusErr    error
-	facts        domain.BranchFacts
-	factsErr     error
-	artifacts    map[string]bool           // "source|path" -> exists
-	artifactData map[string]StatusArtifact // "source|path" -> read bytes/version
-	artifactErr  error
+	pin                   StatusPin
+	pinErr                error
+	corpus                []StatusBlob
+	corpusErr             error
+	facts                 domain.BranchFacts
+	factsErr              error
+	artifacts             map[string]bool           // "source|path" -> exists
+	artifactData          map[string]StatusArtifact // "source|path" -> read bytes/version
+	artifactErr           error
+	changeArtifacts       map[string]ChangeArtifactObservation
+	changeArtifactTargets []ChangeArtifactTarget
 
 	pinCount     int         // records PinContext calls
 	branchAsks   [][]string  // records BranchFacts calls
@@ -69,6 +71,18 @@ func (f *fakeReader) ReadArtifact(_ context.Context, pin StatusPin, source, path
 		return StatusArtifact{Found: false}, nil
 	}
 	return art, nil
+}
+func (f *fakeReader) ReadChangeArtifact(_ context.Context, pin StatusPin, target ChangeArtifactTarget) (ChangeArtifactObservation, error) {
+	f.seenPins = append(f.seenPins, pin)
+	f.changeArtifactTargets = append(f.changeArtifactTargets, target)
+	if f.artifactErr != nil {
+		return ChangeArtifactObservation{}, f.artifactErr
+	}
+	if o, ok := f.changeArtifacts[target.Kind+"|"+target.Path]; ok {
+		return o, nil
+	}
+	found := f.artifacts[sourceIntegration+"|"+target.Path]
+	return ChangeArtifactObservation{Found: found, Regular: found, BacklinkValid: found, SourceKind: sourceIntegration, Revision: pin.IntegrationRevision}, nil
 }
 
 // --- fixtures -------------------------------------------------------------
@@ -127,6 +141,24 @@ func adrBlob(id int, slug string) StatusBlob {
 		Path:     fmt.Sprintf("docs/adrs/%04d-%s.md", id, slug),
 		Version:  fmt.Sprintf("blobadr%04d", id),
 		Data:     []byte(fm),
+	}
+}
+
+func TestStatusReadsActivePlanAndResultsFromOwningFeature(t *testing.T) {
+	b := changeBlob(425, "native-dispatch", "feat", "high", "branch: codex/native-dispatch\nplan: docs/plans/425.md\nresults: docs/results/425.md\n")
+	b.Data = []byte(strings.Replace(string(b.Data), "status: proposed", "status: in-progress", 1))
+	f := &fakeReader{pin: docketPin(t), corpus: []StatusBlob{b}, facts: domain.NewBranchFacts(map[string]bool{"codex/native-dispatch": true}), artifacts: map[string]bool{}, changeArtifacts: map[string]ChangeArtifactObservation{
+		"plan|docs/plans/425.md":      {Found: true, Regular: true, BacklinkValid: true, SourceKind: "feature", Revision: strings.Repeat("a", 40), Blob: "planblob"},
+		"results|docs/results/425.md": {Found: true, Regular: true, BacklinkValid: true, SourceKind: "feature", Revision: strings.Repeat("a", 40), Blob: "resultsblob"},
+	}}
+	r := Status(context.Background(), f, StatusOptions{})
+	for _, finding := range r.Findings {
+		if finding.Code == string(FCArtifactMissing) {
+			t.Fatalf("feature-owned artifact reported missing: %+v", finding)
+		}
+	}
+	if len(f.changeArtifactTargets) != 2 {
+		t.Fatalf("owning feature reads=%d want 2", len(f.changeArtifactTargets))
 	}
 }
 
@@ -229,20 +261,22 @@ func TestStatusSourceDistinction(t *testing.T) {
 		t.Fatalf("result = %q, want applied; message=%q", got.Result, got.Message)
 	}
 
-	var sawMetaSpec, sawIntegrationPlan bool
+	var sawMetaSpec, sawOwnedPlan bool
 	for _, ask := range fake.artifactAsks {
 		if ask == "metadata|"+specPath {
 			sawMetaSpec = true
 		}
-		if ask == "integration|"+planPath {
-			sawIntegrationPlan = true
+	}
+	for _, target := range fake.changeArtifactTargets {
+		if target.Kind == "plan" && target.Path == planPath {
+			sawOwnedPlan = true
 		}
 	}
 	if !sawMetaSpec {
 		t.Errorf("spec was not checked against the metadata source; asks=%v", fake.artifactAsks)
 	}
-	if !sawIntegrationPlan {
-		t.Errorf("plan was not checked against the integration source; asks=%v", fake.artifactAsks)
+	if !sawOwnedPlan {
+		t.Errorf("plan was not checked against its owning revision; targets=%v", fake.changeArtifactTargets)
 	}
 
 	// The pin is threaded verbatim into every post-pin reader call.
