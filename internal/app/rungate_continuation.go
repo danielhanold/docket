@@ -112,7 +112,13 @@ func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error)
 		return nil, err
 	}
 	store := gatedrive.OpenStore(gitCommonDir)
-	return &gatedriveContinuationSeam{store: store, driver: gatedrive.NewSystemDriver(store, proc)}, nil
+	driver := gatedrive.NewSystemDriver(store, proc)
+	// A parent takeover must not revive a cancelled/superseded run epoch (change 0375
+	// Task 12): the continuation seam performs the automatic outer takeover, so it
+	// carries the same run-epoch revocation resolver. It fires only for a scope that
+	// carries a RunEpochID.
+	driver.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	return &gatedriveContinuationSeam{store: store, driver: driver}, nil
 }
 
 func (s *gatedriveContinuationSeam) LocateOuterDrive(changeID int, childContextHash string) ([]string, error) {

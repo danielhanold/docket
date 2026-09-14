@@ -150,6 +150,13 @@ const (
 	// ErrEpochMismatch: a caller presented an expected epoch id that is not this
 	// record's EpochID — a stale locator. It confers no registration authority.
 	ErrEpochMismatch EpochErrorKind = "epoch-mismatch"
+	// ErrEpochNotCancelled: a resume attempted to supersede an epoch whose state is
+	// not confirmed-cancelled — resume reserves a replacement ONLY after confirmed
+	// cancellation, never over an active or still-cancelling run (change 0375 Task 12).
+	ErrEpochNotCancelled EpochErrorKind = "epoch-not-cancelled"
+	// ErrEpochAmbiguous: more than one non-superseded epoch matches one change id, so
+	// the run a resume targets cannot be resolved to a single epoch. Fail closed.
+	ErrEpochAmbiguous EpochErrorKind = "epoch-ambiguous"
 	// ErrEpochIO: an underlying filesystem, lock, or randomness operation failed.
 	ErrEpochIO EpochErrorKind = "epoch-io"
 )
@@ -397,6 +404,177 @@ func acquireEpochLock(dir string) (*os.File, error) {
 		return nil, epochErr(ErrEpochIO, "lock", err)
 	}
 	return f, nil
+}
+
+// errEpochAlreadySuperseded is the sentinel SupersedeCancelledEpoch's CAS returns
+// when a concurrent resume already superseded the epoch — the loser observes the
+// winner's reservation rather than reserving a second replacement. It is internal
+// to the supersede one-winner race and never surfaces as a typed EpochError.
+var errEpochAlreadySuperseded = errors.New("run epoch already superseded")
+
+// SupersedeCancelledEpoch atomically transitions a CONFIRMED-CANCELLED epoch to
+// superseded and records replacementKey as its one reserved replacement dispatch
+// (change 0375 Task 12, spec "After confirmed cancellation, atomically supersede
+// the old epoch and reserve one replacement dispatch. Two concurrent resumes
+// produce one winner"). The whole read-check-write runs under the epoch CAS, so two
+// concurrent resumes serialize: the WINNER sees the cancelled state, sets superseded
+// + ReplacementReserved, and returns nil; the LOSER sees the already-superseded
+// state and returns errEpochAlreadySuperseded (its caller re-reads and reports the
+// winner's reservation). Any non-cancelled state (active/cancelling) is
+// ErrEpochNotCancelled — resume never supersedes a run that has not confirmed
+// cancellation. A superseded epoch owns no worktree for the mutation fence, so its
+// Worktree is cleared as the same atomic transition.
+func SupersedeCancelledEpoch(repoDir, gateKey, replacementKey string) error {
+	return epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+		switch rec.State {
+		case EpochCancelled:
+			rec.State = EpochSuperseded
+			rec.ReplacementReserved = replacementKey
+			rec.Worktree = "" // a superseded epoch no longer owns the worktree fence
+			return nil
+		case EpochSuperseded:
+			return errEpochAlreadySuperseded
+		default:
+			return epochErr(ErrEpochNotCancelled, "supersede-epoch", nil)
+		}
+	})
+}
+
+// FindEpochByChange resolves the run epoch a resume of changeID targets by scanning
+// the repository's rungate root (each gate-key directory may hold one epoch.json).
+// It returns the matching epoch's gate key and record, found=false when no epoch
+// names the change, and a typed error for an enumeration fault or an unresolvable
+// ambiguity.
+//
+// Disambiguation across a resume chain (E1 superseded → E2 …): a matched epoch that
+// is NOT superseded is the current run and wins — exactly one such epoch must exist
+// (more is ErrEpochAmbiguous). When every match is superseded (the replacement has
+// not yet bound its own change at claim time), the unique superseded match — or, in
+// a longer chain, the tail whose ReplacementReserved points outside the matched set —
+// is returned, so a repeat resume still recovers the reservation. A missing rungate
+// root or no match is (found=false, nil); a corrupt/unreadable sibling epoch is
+// skipped, mirroring findEpochByWorktree.
+func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecord, found bool, err error) {
+	if changeID == "" {
+		return "", EpochRecord{}, false, nil
+	}
+	root, rerr := gateRoot(repoDir)
+	if rerr != nil {
+		return "", EpochRecord{}, false, rerr
+	}
+	entries, derr := os.ReadDir(root)
+	if derr != nil {
+		if errors.Is(derr, fs.ErrNotExist) {
+			return "", EpochRecord{}, false, nil // no rungate root: no epochs
+		}
+		return "", EpochRecord{}, false, epochErr(ErrEpochIO, "find-by-change", derr)
+	}
+	type matchEntry struct {
+		key string
+		rec EpochRecord
+	}
+	var matches []matchEntry
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		key := e.Name()
+		r, _, lerr := readStoredEpoch(filepath.Join(root, key), "find-by-change")
+		if lerr != nil {
+			continue // no epoch.json here, or a corrupt/unreadable sibling: cannot match
+		}
+		if r.ChangeID == changeID {
+			matches = append(matches, matchEntry{key: key, rec: r})
+		}
+	}
+	if len(matches) == 0 {
+		return "", EpochRecord{}, false, nil
+	}
+	// Prefer a non-superseded match: it is the current run for the change.
+	var live []matchEntry
+	for _, m := range matches {
+		if m.rec.State != EpochSuperseded {
+			live = append(live, m)
+		}
+	}
+	switch {
+	case len(live) == 1:
+		return live[0].key, live[0].rec, true, nil
+	case len(live) > 1:
+		return "", EpochRecord{}, false, epochErr(ErrEpochAmbiguous, "find-by-change", nil)
+	}
+	// Every match is superseded: resolve to the chain tail whose reserved replacement
+	// is not itself one of the matched (superseded) epochs.
+	if len(matches) == 1 {
+		return matches[0].key, matches[0].rec, true, nil
+	}
+	inSet := make(map[string]bool, len(matches))
+	for _, m := range matches {
+		inSet[m.key] = true
+	}
+	var tail []matchEntry
+	for _, m := range matches {
+		if !inSet[m.rec.ReplacementReserved] {
+			tail = append(tail, m)
+		}
+	}
+	if len(tail) == 1 {
+		return tail[0].key, tail[0].rec, true, nil
+	}
+	return "", EpochRecord{}, false, epochErr(ErrEpochAmbiguous, "find-by-change", nil)
+}
+
+// findEpochByID locates the epoch whose public EpochID equals epochID by scanning
+// rungateRoot (each gate-key directory may hold one epoch.json). It returns the
+// record and found=true on a match, (found=false, nil) for a clean absence, and a
+// typed error only for an enumeration fault. A corrupt/unreadable sibling is
+// skipped. It underlies the Takeover revocation resolver, which keys on a scope's
+// RunEpochID (the public locator, not the gate key).
+func findEpochByID(rungateRoot, epochID string) (EpochRecord, bool, error) {
+	if epochID == "" {
+		return EpochRecord{}, false, nil
+	}
+	entries, derr := os.ReadDir(rungateRoot)
+	if derr != nil {
+		if errors.Is(derr, fs.ErrNotExist) {
+			return EpochRecord{}, false, nil
+		}
+		return EpochRecord{}, false, epochErr(ErrEpochIO, "find-by-id", derr)
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		r, _, lerr := readStoredEpoch(filepath.Join(rungateRoot, e.Name()), "find-by-id")
+		if lerr != nil {
+			continue
+		}
+		if r.EpochID == epochID {
+			return r, true, nil
+		}
+	}
+	return EpochRecord{}, false, nil
+}
+
+// epochRevokedResolver builds the gatedrive.EpochRevokedFunc the Takeover path
+// consults (change 0375 Task 12). It reads the app-owned run-epoch registry under
+// gitCommonDir and reports revoked=true when the named epoch is cancelled or
+// superseded — the states a takeover must refuse. A clean "no such epoch" is
+// (false, nil): a locator that resolves to nothing cannot prove a run was cancelled,
+// and the takeover's other guards still protect it. An enumeration/IO fault is
+// returned so the takeover fails closed (HALT epoch-unreadable).
+func epochRevokedResolver(gitCommonDir string) func(string) (bool, error) {
+	rungateRoot := filepath.Join(gitCommonDir, "docket", "rungate")
+	return func(epochID string) (bool, error) {
+		rec, ok, err := findEpochByID(rungateRoot, epochID)
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			return false, nil
+		}
+		return rec.State == EpochCancelled || rec.State == EpochSuperseded, nil
+	}
 }
 
 // epochToken mints a random 32-hex-char token (16 crypto-random bytes) for the

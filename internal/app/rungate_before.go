@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -65,6 +66,28 @@ const (
 	// ReasonGateScopeFailed: the outer recovery scope could not be prepared, so no
 	// dispatch context exists to hand the child. No record is minted (change 0359).
 	ReasonGateScopeFailed = "scope-failed"
+	// ReasonGateResumeActiveRun: a --resume id names a change whose prior run epoch is
+	// still ACTIVE — an earlier coordinator can still act on the worktree. Resume
+	// refuses with a safe locator and the explicit cancel/continue remedy; it never
+	// shuts the incumbent down (change 0375 Task 12, spec "If the prior run is still
+	// active, refuse with its safe locator and explicit cancel/continue remedy").
+	ReasonGateResumeActiveRun = "resume-active-run"
+	// ReasonGateResumeCancellationPending: a --resume id's prior epoch is CANCELLING
+	// or otherwise unresolved — cancellation cleanup is still in progress, so no
+	// replacement is admitted (spec "If cancelling or unresolved, resume
+	// cleanup/observation and admit no replacement"). Repeatable via run.cancel.
+	ReasonGateResumeCancellationPending = CancelDispositionPending
+	// ReasonGateResumeReplacementReserved: a --resume id's prior epoch was already
+	// superseded and a replacement dispatch is reserved (a lost response, a repeat
+	// arm, or the loser of a concurrent-resume race). It observes that reservation —
+	// the reserved gate key is returned in Key — and reserves no second replacement
+	// (spec "Lost responses and repeat arms observe/recover that reservation; they do
+	// not create another epoch or re-dispatch").
+	ReasonGateResumeReplacementReserved = "resume-replacement-reserved"
+	// ReasonGateResumeEpochUnreadable: the prior run epoch could not be read or its
+	// supersede transition faulted — fail closed rather than admit a replacement over
+	// an unresolvable run (change 0375 Task 12).
+	ReasonGateResumeEpochUnreadable = "resume-epoch-unreadable"
 )
 
 // GateScopeDeps carries the outer-scope preparation seam gate-before composes
@@ -134,6 +157,117 @@ func newRunGateBeforeResult(result Result, out RunGateBeforeResult) RunGateBefor
 // (exit 0) carrying the stable reason token. It never mints a record.
 func gateUnarmed(reason string) RunGateBeforeResult {
 	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{Armed: false, Reason: reason})
+}
+
+// gateUnarmedMsg is gateUnarmed with a bounded human Message — a safe locator and
+// remedy for a resume refusal. The Message carries only public locators (a gate key,
+// a public epoch id, a change id), never a capability or reservation token.
+func gateUnarmedMsg(reason, message string) RunGateBeforeResult {
+	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{Armed: false, Reason: reason, Message: message})
+}
+
+// gateResumeObserve builds the observe-the-reservation report a repeat arm or the
+// loser of a concurrent-resume race returns: gate-unarmed with the winner's reserved
+// gate key in Key, so the caller recovers the single reserved replacement rather than
+// admitting a second (change 0375 Task 12). It mints no record and no epoch.
+func gateResumeObserve(reservedKey string) RunGateBeforeResult {
+	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{
+		Armed:   false,
+		Reason:  ReasonGateResumeReplacementReserved,
+		Key:     reservedKey,
+		Message: "a replacement dispatch is already reserved under gate key " + reservedKey + "; a second cannot be armed",
+	})
+}
+
+// resumeActiveLocator renders the safe locator and explicit cancel/continue remedy
+// a resume prints when the prior run is still active (change 0375 Task 12). It names
+// only public locators — the change id, the public epoch id, and the gate key — never
+// a capability or reservation token.
+func resumeActiveLocator(gateKey string, ep EpochRecord) string {
+	return "change " + ep.ChangeID + " has an active run (epoch " + ep.EpochID +
+		", gate key " + gateKey + "); cancel it with 'docket run cancel --key " + gateKey +
+		" --epoch " + ep.EpochID + " --reason <why>' and resume after confirmed cancellation, " +
+		"or continue the live run via 'docket run gate-verdict'"
+}
+
+// resumeReplacementParams carries the immutable arm facts armResumeReplacement mints
+// the replacement gate record from — captured before the epoch branch so the winner
+// and a repeat arm mint an identical-shaped record.
+type resumeReplacementParams struct {
+	createdAt     int64
+	dispatchEpoch int64
+	beforeIDs     []int
+	attributedID  int
+	scopeChangeID string
+	branch        string
+	worktree      string
+	attemptLimit  int
+}
+
+// armResumeReplacement admits EXACTLY ONE replacement dispatch after a confirmed
+// cancellation (change 0375 Task 12, spec "After confirmed cancellation, atomically
+// supersede the old epoch and reserve one replacement dispatch. Two concurrent
+// resumes produce one winner"). It prepares the replacement's outer scope, mints its
+// gate record, then atomically supersedes the confirmed-cancelled epoch reserving
+// THIS key. The supersede CAS is the one-winner serialization point: a loser observes
+// the winner's reservation (its own scope/record are inert orphans). The winner binds
+// a fresh active epoch to the replacement key — its ChangeID left unbound so a repeat
+// resume still resolves the superseded predecessor's reservation — and binds the
+// canonical feature worktree so the mutation fence and run.cancel activate for the
+// resumed run.
+func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p resumeReplacementParams) RunGateBeforeResult {
+	grant, serr := sdeps.Prepare(gatedrive.ScopeRequest{
+		ChangeID: p.scopeChangeID,
+		Branch:   p.branch,
+		Worktree: p.worktree,
+	})
+	if serr != nil {
+		return gateUnarmed(ReasonGateScopeFailed)
+	}
+	key, err := MintGateRecord(repoDir, GateRecord{
+		Target:           gateBeforeStoredTarget,
+		CreatedAt:        p.createdAt,
+		DispatchEpoch:    p.dispatchEpoch,
+		BeforeIDs:        p.beforeIDs,
+		AttributedID:     p.attributedID,
+		Retry:            RetryUnused,
+		Disposition:      "gate-armed",
+		ScopeID:          grant.ScopeID,
+		ParentCap:        grant.ParentCapability,
+		ChildContextHash: gateHashToken(grant.ChildCapability),
+		AttemptLimit:     p.attemptLimit,
+	})
+	if err != nil {
+		return gateUnarmed(ReasonGateMintFailed)
+	}
+	if serr2 := SupersedeCancelledEpoch(repoDir, oldKey, key); serr2 != nil {
+		if errors.Is(serr2, errEpochAlreadySuperseded) {
+			// Lost the one-winner race: recover and report the winner's reservation.
+			reserved, _, lerr := LoadEpochRecord(repoDir, oldKey)
+			if lerr != nil || reserved.ReplacementReserved == "" {
+				return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
+					"lost the replacement race but could not read the winner's reservation")
+			}
+			return gateResumeObserve(reserved.ReplacementReserved)
+		}
+		return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
+			"change "+p.scopeChangeID+" could not be superseded for resume")
+	}
+	if _, eerr := MintEpochRecord(repoDir, key, ""); eerr != nil {
+		return gateUnarmed(ReasonGateMintFailed)
+	}
+	if werr := epochCAS(repoDir, key, func(rec *EpochRecord) error {
+		rec.Worktree = p.worktree
+		return nil
+	}); werr != nil {
+		return gateUnarmed(ReasonGateMintFailed)
+	}
+	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{
+		Armed:           true,
+		Key:             key,
+		Target:          gateBeforeStoredTarget,
+		DispatchContext: grant.ChildCapability,
+	})
 }
 
 // RunGateBefore arms the implement-next run gate. On a bad target it returns a
@@ -227,6 +361,55 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		scopeChangeID = strconv.Itoa(resumeID)
 		branch = insp.FeatureRef
 		worktree = insp.Path
+
+		// (4a) Resume SHARES the run epoch's admission (change 0375 Task 12, spec
+		// "run.gate-before --resume and direct implement-next resume must share the same
+		// admission path"). Locate the change's prior epoch; its state decides whether a
+		// replacement may be admitted. No prior epoch (a legacy/pre-epoch resume, or an
+		// unclaimed run that never bound one) falls through to the existing resume arm,
+		// which shares no epoch and reserves no replacement.
+		oldKey, oldEp, foundEp, ferr := FindEpochByChange(repoDir, scopeChangeID)
+		if ferr != nil {
+			return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
+				"the prior run epoch for change "+scopeChangeID+" could not be resolved")
+		}
+		if foundEp {
+			switch oldEp.State {
+			case EpochActive:
+				// The prior run can still act on the worktree: refuse with the safe locator
+				// and the explicit cancel/continue remedy; never shut the incumbent down.
+				return gateUnarmedMsg(ReasonGateResumeActiveRun, resumeActiveLocator(oldKey, oldEp))
+			case EpochCancelling:
+				// Cancellation cleanup is still in progress: admit no replacement.
+				return gateUnarmedMsg(ReasonGateResumeCancellationPending,
+					"change "+scopeChangeID+" is cancelling (epoch "+oldEp.EpochID+
+						"); finish cancellation with 'docket run cancel' before resuming")
+			case EpochSuperseded:
+				// A replacement was already reserved (a lost response or a repeat arm):
+				// observe that reservation rather than admitting a second.
+				if oldEp.ReplacementReserved == "" {
+					return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
+						"change "+scopeChangeID+" was superseded without a recorded replacement")
+				}
+				return gateResumeObserve(oldEp.ReplacementReserved)
+			case EpochCancelled:
+				// Confirmed cancellation: atomically supersede and reserve exactly one
+				// replacement dispatch (one winner under a concurrent-resume race).
+				return armResumeReplacement(repoDir, sdeps, oldKey, resumeReplacementParams{
+					createdAt:     createdAt,
+					dispatchEpoch: dispatchEpoch,
+					beforeIDs:     beforeIDs,
+					attributedID:  attributedID,
+					scopeChangeID: scopeChangeID,
+					branch:        branch,
+					worktree:      worktree,
+					attemptLimit:  pin.Config.Effective.Run.MaxAttempts.Value,
+				})
+			default:
+				return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
+					"change "+scopeChangeID+" has an unrecognized run epoch state")
+			}
+		}
 	}
 
 	// (5) Prepare the OUTER recovery scope. The grant's ChildCapability becomes the
