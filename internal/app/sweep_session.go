@@ -186,3 +186,7 @@ func (b *boundStatusReader) ArtifactExists(ctx context.Context, pin StatusPin, s
 func (b *boundStatusReader) ReadArtifact(ctx context.Context, pin StatusPin, source, artifactPath string) (StatusArtifact, error) {
 	return b.live.ReadArtifact(ctx, pin, source, artifactPath)
 }
+
+func (b *boundStatusReader) ReadChangeArtifact(ctx context.Context, pin StatusPin, target ChangeArtifactTarget) (ChangeArtifactObservation, error) {
+	return b.live.ReadChangeArtifact(ctx, pin, target)
+}

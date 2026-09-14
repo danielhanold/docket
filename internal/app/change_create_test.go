@@ -39,6 +39,9 @@ func (r *fakeChangeReader) ArtifactExists(context.Context, StatusPin, string, st
 func (r *fakeChangeReader) ReadArtifact(context.Context, StatusPin, string, string) (StatusArtifact, error) {
 	return StatusArtifact{}, nil
 }
+func (r *fakeChangeReader) ReadChangeArtifact(context.Context, StatusPin, ChangeArtifactTarget) (ChangeArtifactObservation, error) {
+	return ChangeArtifactObservation{}, nil
+}
 
 // recordingEngine records every Execute call and returns a scripted outcome.
 type recordingEngine struct {

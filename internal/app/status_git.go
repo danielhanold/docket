@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository"
@@ -202,6 +203,56 @@ func (r *gitStatusReader) ReadArtifact(ctx context.Context, pin StatusPin, sourc
 		return StatusArtifact{Found: false}, nil
 	}
 	return StatusArtifact{Found: true, Version: string(br.Blob.ObjectID), Data: br.Blob.Bytes}, nil
+}
+
+func (r *gitStatusReader) ReadChangeArtifact(ctx context.Context, pin StatusPin, target ChangeArtifactTarget) (ChangeArtifactObservation, error) {
+	revision := pin.IntegrationRevision
+	sourceKind := sourceIntegration
+	if target.Branch != "" {
+		oid, err := r.client.FetchBranch(ctx, r.repo, originRemote, gitcli.RefName(branchRefPrefix+target.Branch))
+		if err != nil {
+			return ChangeArtifactObservation{}, classifyGitFailure(err)
+		}
+		revision = string(oid.Commit)
+		sourceKind = "feature"
+	}
+	src, err := r.openSource(ctx, revision)
+	if err != nil {
+		return ChangeArtifactObservation{}, classifyGitFailure(err)
+	}
+	results, err := src.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(target.Path)})
+	if err != nil {
+		return ChangeArtifactObservation{}, classifyGitFailure(err)
+	}
+	br := results[0]
+	obs := ChangeArtifactObservation{Found: br.Found, SourceKind: sourceKind, Revision: revision}
+	if !br.Found {
+		obs.Reason = "artifact absent from owning revision"
+		return obs, nil
+	}
+	obs.Blob = string(br.Blob.ObjectID)
+	obs.Regular = br.Blob.Mode == gitcli.FileMode("100644") || br.Blob.Mode == gitcli.FileMode("100755")
+	if !obs.Regular {
+		obs.Reason = "artifact is not a regular blob"
+		return obs, nil
+	}
+	doc, perr := document.Parse(br.Blob.Bytes)
+	if perr != nil {
+		obs.Reason = "artifact managed blocks are malformed"
+		return obs, nil
+	}
+	block, ok := doc.Block(backlinkBlockName)
+	if !ok {
+		obs.Reason = "artifact backlink is missing"
+		return obs, nil
+	}
+	interior := string(br.Blob.Bytes[block.Interior.Start:block.Interior.End])
+	needle := fmt.Sprintf("/%04d-%s.md)", target.ChangeID, target.Slug)
+	obs.BacklinkValid = strings.Contains(interior, needle)
+	if !obs.BacklinkValid {
+		obs.Reason = "artifact backlink targets another change"
+	}
+	return obs, nil
 }
 
 // openSource opens the immutable object source pinned at rev.
