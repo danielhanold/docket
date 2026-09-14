@@ -322,6 +322,11 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
 	}
+	// The run-epoch mutation fence (change 0375 Task 11) covers this implemented
+	// transition VIA the engine's AdmissionHook — the transition is one
+	// Engine.Execute, so a cancelled/superseded run epoch owning this change's
+	// worktree refuses it before any Git work. No second admission call is added here
+	// (admitWorkflowMutation is not duplicated at engine boundaries).
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository: repo,
 		Remote:     originRemote,

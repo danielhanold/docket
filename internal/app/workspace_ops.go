@@ -383,15 +383,46 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 		})
 	}
 
+	// Run-epoch mutation fence (change 0375 Task 11): before the feature-head push —
+	// an external effect on origin — admit through the owning run epoch. A cancelled
+	// or superseded epoch refuses, and NOTHING is published; an active epoch journals
+	// the admission, then this reconciles it once the push resolves (uncertain when
+	// the remote outcome could not be observed). A standalone/no-epoch run admits
+	// unfenced (the journal callback is a no-op).
+	done, ferr := admitWorkflowMutation(repoDir, OperationWorkspacePublish)
+	if ferr != nil {
+		return workspaceFenceRefusal(req.ID, ferr)
+	}
+
 	res, err := wdeps.Service.PublishHead(ctx, workspace.PublishRequest{
 		Repository: wc.repo,
 		Remote:     originRemote,
 		Target:     target,
 	})
 	if err != nil {
-		return mapWorkspaceFailure(OperationWorkspacePublish, req.ID, err)
+		out := mapWorkspaceFailure(OperationWorkspacePublish, req.ID, err)
+		done(mutationJournalStatus(out.Result))
+		return out
 	}
-	return publishResult(OperationWorkspacePublish, req.ID, target, res)
+	out := publishResult(OperationWorkspacePublish, req.ID, target, res)
+	done(mutationJournalStatus(out.Result))
+	return out
+}
+
+// workspaceFenceRefusal builds a workspace refusal for a run-epoch mutation fence:
+// the run that owns this worktree is cancelled/superseded, so the publish is blocked
+// with the stable fence reason and no push. It carries no credential — only the
+// bounded reason token.
+func workspaceFenceRefusal(id int, ferr error) WorkspaceOpResult {
+	reason := "run-cancelled"
+	if fe, ok := AsMutationFenceError(ferr); ok {
+		reason = fe.Reason
+	}
+	return newWorkspaceResult(OperationWorkspacePublish, ResultBlocked, WorkspaceOpResult{
+		ID:      id,
+		Reason:  reason,
+		Message: "the run that owns this workspace was cancelled or superseded; publish nothing",
+	})
 }
 
 // prepareResult maps a prepare disposition onto the protocol result taxonomy,

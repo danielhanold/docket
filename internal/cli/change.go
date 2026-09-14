@@ -199,7 +199,7 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 			expectHead, _ := c.Flags().GetString("expect-head")
 			adoptPR, _ := c.Flags().GetString("adopt-pr")
 			expectBranch, _ := c.Flags().GetString("expect-branch")
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -258,7 +258,7 @@ func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Comma
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			ack, _ := c.Flags().GetBool("acknowledge-quiescent")
-			deps, wdeps, err := newWorkspaceDeps()
+			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -298,7 +298,7 @@ func newReclaimSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
-			deps, wdeps, err := newWorkspaceDeps()
+			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -395,7 +395,7 @@ func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps 
 			version, _ := c.Flags().GetString("version")
 			artifactPath, _ := c.Flags().GetString("path")
 			commit, _ := c.Flags().GetString("commit")
-			deps, wdeps, err := newWorkspaceDeps()
+			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -431,7 +431,7 @@ func changeInputSubcommand(verb, short string, run func(c *cobra.Command, deps a
 			if err != nil {
 				return err
 			}
-			deps, err := newPlanningDeps()
+			deps, err := newPlanningDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -469,7 +469,7 @@ func changeIDVersionSubcommand(verb, short string, run func(c *cobra.Command, de
 			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
-			deps, err := newPlanningDeps()
+			deps, err := newPlanningDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -505,7 +505,7 @@ func changeSubcommand(group, verb, short string, run func(c *cobra.Command, deps
 			if err != nil {
 				return err
 			}
-			deps, err := newPlanningDeps()
+			deps, err := newPlanningDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -522,12 +522,12 @@ func changeSubcommand(group, verb, short string, run func(c *cobra.Command, deps
 // a real Git client, a transaction engine over that client and the system clock,
 // the Git-backed status reader, and the same clock as the operations' sole time
 // source.
-func newPlanningDeps() (app.PlanningDeps, error) {
+func newPlanningDeps(repoDir ...string) (app.PlanningDeps, error) {
 	client, err := gitcli.NewClient()
 	if err != nil {
 		return app.PlanningDeps{}, err
 	}
-	return newPlanningDepsOver(client)
+	return newPlanningDepsOver(client, repoDir...)
 }
 
 // newPlanningDepsOver assembles the read-only planning seams over an already
@@ -535,11 +535,19 @@ func newPlanningDeps() (app.PlanningDeps, error) {
 // policy (the maintenance sweep's newSweepFinalizeDeps) builds the transaction
 // engine and status reader over the exact policy-carrying client instance rather
 // than a second default one. newPlanningDeps is the default-policy entry point.
-func newPlanningDepsOver(client *gitcli.Client) (app.PlanningDeps, error) {
+func newPlanningDepsOver(client *gitcli.Client, repoDir ...string) (app.PlanningDeps, error) {
 	clock := systemClock{}
 	engine, err := transaction.NewEngine(client, clock)
 	if err != nil {
 		return app.PlanningDeps{}, err
+	}
+	// Run-epoch mutation fence (change 0375 Task 11): wire the admission hook here, at
+	// the single point where the transaction engine is assembled, so EVERY
+	// Engine.Execute caller is fenced mechanically. The hook closes over the change's
+	// feature worktree (repoDir); a caller that supplies none leaves the engine
+	// unfenced (a maintenance/standalone build that owns no implementation epoch).
+	if dir := optionalRepoDir(repoDir); dir != "" {
+		engine.AdmissionHook = app.MutationAdmissionHook(dir)
 	}
 	return app.PlanningDeps{
 		Client: client,
@@ -547,6 +555,17 @@ func newPlanningDepsOver(client *gitcli.Client) (app.PlanningDeps, error) {
 		Reader: app.NewGitStatusReader(client),
 		Clock:  clock,
 	}, nil
+}
+
+// optionalRepoDir returns the single optional repoDir a deps factory was given, or
+// "" when none was supplied. The factories accept repoDir variadically so the many
+// read-only and maintenance call sites (and the test builders) stay unchanged while
+// the mutation call sites thread their feature worktree through to the engine fence.
+func optionalRepoDir(repoDir []string) string {
+	if len(repoDir) > 0 {
+		return repoDir[0]
+	}
+	return ""
 }
 
 // decodeRequestFlag reads the command's --request source and strictly decodes

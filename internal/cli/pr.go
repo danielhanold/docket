@@ -67,7 +67,7 @@ func newPRCommand(setResult func(app.OperationResult)) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			deps, wdeps, gdeps, err := newPRDeps()
+			deps, wdeps, gdeps, err := newPRDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -98,8 +98,8 @@ func newPRCommand(setResult func(app.OperationResult)) *cobra.Command {
 // newPRDeps assembles the read-only planning seams, the landed workspace service,
 // and the githubcli adapter — the three seams `pr publish` composes. A gh that
 // cannot be resolved is an argument-time error, exactly like a Git-client failure.
-func newPRDeps() (app.PlanningDeps, app.WorkspaceDeps, app.GitHubDeps, error) {
-	deps, wdeps, err := newWorkspaceDeps()
+func newPRDeps(repoDir ...string) (app.PlanningDeps, app.WorkspaceDeps, app.GitHubDeps, error) {
+	deps, wdeps, err := newWorkspaceDeps(repoDir...)
 	if err != nil {
 		return app.PlanningDeps{}, app.WorkspaceDeps{}, app.GitHubDeps{}, err
 	}

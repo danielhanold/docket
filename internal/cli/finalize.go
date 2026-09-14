@@ -71,7 +71,7 @@ func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Co
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -123,7 +123,7 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 					return err
 				}
 			}
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -180,7 +180,7 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 			if err := decodeInputFlag(c, &in); err != nil {
 				return err
 			}
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -237,7 +237,7 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 			version, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
 			prNumber, _ := c.Flags().GetInt("pr-number")
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -286,7 +286,7 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 			version, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
 			admin, _ := c.Flags().GetBool("admin")
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -347,7 +347,7 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 			if err := decodeInputFlag(c, &input); err != nil {
 				return err
 			}
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -389,7 +389,7 @@ func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Com
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -433,7 +433,7 @@ func newFinalizeRebaseContinueSubcommand(setResult func(app.OperationResult)) *c
 			if err := decodeInputFlag(c, &report); err != nil {
 				return err
 			}
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -468,7 +468,7 @@ func newFinalizeRebaseAbortSubcommand(setResult func(app.OperationResult)) *cobr
 			if err := decodeInputFlag(c, &report); err != nil {
 				return err
 			}
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -503,7 +503,7 @@ func newFinalizeResolverReserveSubcommand(setResult func(app.OperationResult)) *
 			}
 			id, _ := c.Flags().GetInt("id")
 			attempt, _ := c.Flags().GetString("attempt")
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -546,7 +546,7 @@ func newFinalizePublishSubcommand(setResult func(app.OperationResult)) *cobra.Co
 			if err != nil {
 				return err
 			}
-			deps, err := newFinalizeDeps()
+			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -588,7 +588,7 @@ func finalizeReportFlags(cmd *cobra.Command) {
 // the read-only planning seams (reader/engine/git client/clock), the GitHub
 // client, the workspace service over the same git client, and the PR-facts
 // prober composed over the GitHub client.
-func newFinalizeDeps() (app.FinalizeDeps, error) {
+func newFinalizeDeps(repoDir ...string) (app.FinalizeDeps, error) {
 	gitClient, err := gitcli.NewClient()
 	if err != nil {
 		return app.FinalizeDeps{}, err
@@ -597,7 +597,7 @@ func newFinalizeDeps() (app.FinalizeDeps, error) {
 	if err != nil {
 		return app.FinalizeDeps{}, err
 	}
-	return newFinalizeDepsOver(gitClient, ghClient)
+	return newFinalizeDepsOver(gitClient, ghClient, repoDir...)
 }
 
 // newFinalizeDepsOver assembles the finalize seams over already constructed Git
@@ -608,8 +608,8 @@ func newFinalizeDeps() (app.FinalizeDeps, error) {
 // the PR prober, the PR batch reader, the gate, and CleanupGit — is built over
 // these exact two clients, so no reachable network path escapes the caller's
 // network policy onto a second default client.
-func newFinalizeDepsOver(gitClient *gitcli.Client, ghClient *githubcli.Client) (app.FinalizeDeps, error) {
-	planning, err := newPlanningDepsOver(gitClient)
+func newFinalizeDepsOver(gitClient *gitcli.Client, ghClient *githubcli.Client, repoDir ...string) (app.FinalizeDeps, error) {
+	planning, err := newPlanningDepsOver(gitClient, repoDir...)
 	if err != nil {
 		return app.FinalizeDeps{}, err
 	}
