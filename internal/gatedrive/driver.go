@@ -49,6 +49,12 @@ type ProcessSeam interface {
 	// decide whether to release the worktree execution slot (a proven
 	// never-launched) or fail it closed to unresolved.
 	ResolveReservation(root, token string) (*process.ReservationResolution, error)
+	// ClassifyRun assesses one raw run dir's recovery disposition, marking it
+	// abandoned when mark is true. It mirrors process.Service.ClassifyRun exactly
+	// so the real service is a drop-in seam; the first-admission legacy inventory
+	// consults it (through the recoverySeam view) to decide whether a HALTED
+	// historical drive is provably torn down.
+	ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error)
 }
 
 // productionSlice is the slice target: the maximum a single synchronous driver
@@ -199,9 +205,11 @@ func NewDriver(store *Store, clock Clock, proc ProcessSeam, git GitSeam) *Driver
 }
 
 // reserveWorktreeExecution inventories legacy records with this driver's exact
-// process observer before a new slot is durably reserved.
-func (d *Driver) reserveWorktreeExecution(rec admissionRecord) (string, error) {
-	return d.store.reserveWorktreeExecution(rec, d.proc.Observe)
+// process-recovery seam before a new slot is durably reserved, returning the
+// legacy history summary the census produced (nil when no legacy history was
+// relevant) so the start paths can carry it on the returned document.
+func (d *Driver) reserveWorktreeExecution(rec admissionRecord) (string, *LegacyHistorySummary, error) {
+	return d.store.reserveWorktreeExecution(rec, d.proc)
 }
 
 // NewSystemDriver builds a production Driver over the real monotonic clock and
@@ -488,7 +496,7 @@ func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 // process; launchScopeless does. A NewReservedDrive failure releases the freshly
 // reserved slot before returning, so a refused admission leaks nothing.
 func (d *Driver) admitScopeless(rec driveRecord, ownerGen, runEpochID string) (*AdmissionTicket, error) {
-	token, err := d.reserveWorktreeExecution(admissionRecord{
+	token, _, err := d.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: rec.RepoIdentity,
 		WorktreeRoot: rec.WorktreePath,
 		RunEpochID:   runEpochID,
@@ -775,7 +783,7 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 		RunEpochID:   req.RunEpochID,
 		Kind:         "scoped",
 	}
-	token, rerr := d.reserveWorktreeExecution(rec)
+	token, _, rerr := d.reserveWorktreeExecution(rec)
 	if rerr == nil {
 		return token, true, true, nil // freshly reserved: this start confirms it
 	}
@@ -1099,10 +1107,25 @@ func (d *Driver) releaseAdmissionIfProven(rec driveRecord) error {
 	if serr != nil {
 		return d.store.MarkWorktreeExecutionUnresolved(rec.WorktreePath, rec.AdmissionToken)
 	}
-	if stopped != nil && (stopped.Performed || admissionObservationProvesTeardown(&process.Observation{State: stopped.State})) {
+	if stopped != nil && (stopped.Performed || stopProvesTeardown(stopped.State)) {
 		return d.store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken)
 	}
 	return d.store.MarkWorktreeExecutionStopping(rec.WorktreePath, rec.AdmissionToken)
+}
+
+// stopProvesTeardown reports whether a Stop outcome's resulting process state
+// proves the child group is gone. A passed, failed, stopped, or vanished run is
+// proven torn down; a signalled run is NOT (its group may still hold
+// descendants), and a live run obviously is not. It governs only the HALTED
+// release-on-stop leg above — the legacy inventory now assesses teardown through
+// the shared classifier and the process-recovery seam, not a bare observation.
+func stopProvesTeardown(st process.State) bool {
+	switch st {
+	case process.StatePassed, process.StateFailed, process.StateStopped, process.StateVanished:
+		return true
+	default:
+		return false
+	}
 }
 
 // errAlreadyTerminal is a sentinel used inside the persist CAS to abort a write

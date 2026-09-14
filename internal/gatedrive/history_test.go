@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/process"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // copyLegacyFixture installs testdata/legacy-v2/<name>.json as drive <id>'s
@@ -333,4 +334,238 @@ func TestClassifyLegacyDrive(t *testing.T) {
 			}
 		})
 	}
+}
+
+// haltedFixtureRunDir is the raw_run_dir recorded in testdata/legacy-v2/halted.json;
+// a scripted seam keys on it to drive the HALTED assessment.
+const haltedFixtureRunDir = "/tmp/docket-gate-old/run-root/00000000000000000000000000000003"
+
+// TestReserveInventoriesLegacyHistoryThroughClassifier drives the first-admission
+// legacy census through the exact reserve chokepoint admission_test.go uses today
+// (store.reserveWorktreeExecution + mkWorktree/sampleAdmission), proving the
+// census now assesses ALL records via the shared classifier: a terminal PASSED
+// drive bound to a removed worktree no longer blocks an unrelated worktree (the
+// reported defect), completed history admits and is counted, an abandonable HALTED
+// drive is recovered under apply, and every unassessable record refuses ONCE with a
+// safe locator and the summary attached to the OwnershipError.
+func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
+	seamWith := func(entries map[string]process.RecoveryEntry) *fakeRecovery {
+		return &fakeRecovery{entries: entries}
+	}
+
+	// Case 1: THE REPORTED REFUSAL, then the FIX. A supervisor-committed PASSED
+	// drive bound to a since-removed worktree must not block an unrelated worktree.
+	t.Run("1-passed-removed-worktree-admits-unrelated", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		copyLegacyFixture(t, s, "passed") // worktree_path is a removed /repo/.worktrees/old-feature
+		wt := mkWorktree(t)               // a different, unrelated, real worktree
+		token, legacy, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
+		if err != nil {
+			t.Fatalf("a completed legacy drive bound to a removed worktree must not block an unrelated worktree, got %v", err)
+		}
+		if token == "" {
+			t.Fatal("a successful admission must mint a reservation token")
+		}
+		if legacy == nil || legacy.Checked != 1 || len(legacy.Retained) != 0 {
+			t.Fatalf("want a summary with Checked==1 and no retained findings, got %+v", legacy)
+		}
+	})
+
+	// Case 2: multiple completed legacy drives (PASSED + FAILED + terminal HALTED)
+	// all admit; every one is counted.
+	t.Run("2-multiple-completed-admit-checked-3", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		copyLegacyFixture(t, s, "passed")
+		copyLegacyFixture(t, s, "failed")
+		copyLegacyFixture(t, s, "halted")
+		wt := mkWorktree(t)
+		seam := seamWith(map[string]process.RecoveryEntry{haltedFixtureRunDir: {Disposition: "terminal"}})
+		token, legacy, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
+		if err != nil {
+			t.Fatalf("three completed legacy drives must admit, got %v", err)
+		}
+		if token == "" {
+			t.Fatal("expected a reservation token")
+		}
+		if legacy == nil || legacy.Checked != 3 || len(legacy.Retained) != 0 {
+			t.Fatalf("want Checked==3 with no retained findings, got %+v", legacy)
+		}
+	})
+
+	// Case 3: a v1 (schema-1) record is unreadable for assessment: refuse ONCE with
+	// the drive's locator and name it in the summary.
+	t.Run("3-v1-schema-refuses-with-locator", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		id := copyLegacyFixture(t, s, "schema1")
+		wt := mkWorktree(t)
+		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
+		oe, ok := AsOwnershipError(err)
+		if !ok || oe.Kind != ErrUnresolvedExecution {
+			t.Fatalf("a v1 record must refuse with ErrUnresolvedExecution, got %v", err)
+		}
+		if oe.Op != "inventory-legacy-drive-"+id {
+			t.Fatalf("locator Op = %q, want inventory-legacy-drive-%s", oe.Op, id)
+		}
+		if oe.Legacy == nil || len(oe.Legacy.Retained) != 1 || oe.Legacy.Retained[0].DriveID != id {
+			t.Fatalf("summary must name the retained drive %s, got %+v", id, oe.Legacy)
+		}
+	})
+
+	// Case 4: a corrupt record refuses with the same shape.
+	t.Run("4-corrupt-refuses-with-locator", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		id := copyLegacyFixture(t, s, "corrupt")
+		wt := mkWorktree(t)
+		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
+		oe, ok := AsOwnershipError(err)
+		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
+			t.Fatalf("a corrupt record must refuse naming its id, got %v", err)
+		}
+		if oe.Legacy == nil || len(oe.Legacy.Retained) != 1 || oe.Legacy.Retained[0].DriveID != id {
+			t.Fatalf("summary must name the retained drive, got %+v", oe.Legacy)
+		}
+	})
+
+	// Case 5: a non-directory / invalid-name entry refuses with the SAFE
+	// inventory-level locator; the raw entry name never enters a diagnostic.
+	t.Run("5-invalid-entry-uses-safe-locator", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		if err := os.MkdirAll(s.root, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		const rawName = "not-a-valid-drive-id"
+		if err := os.WriteFile(filepath.Join(s.root, rawName), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		wt := mkWorktree(t)
+		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
+		oe, ok := AsOwnershipError(err)
+		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drives" {
+			t.Fatalf("an invalid entry must refuse with the safe inventory-level locator, got %v", err)
+		}
+		if strings.Contains(err.Error(), rawName) {
+			t.Fatalf("the raw entry name must never enter a diagnostic: %q", err.Error())
+		}
+		if oe.Legacy == nil || len(oe.Legacy.Retained) != 1 || oe.Legacy.Retained[0].DriveID != "" {
+			t.Fatalf("summary must record one retained finding with no drive id, got %+v", oe.Legacy)
+		}
+	})
+
+	// Case 6: a record-less drive directory is still skipped (a concurrent
+	// first-admission creation window), so a store holding only such a directory
+	// admits with no summary narration.
+	t.Run("6-recordless-dir-skipped", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		const recordlessID = "abcdef0123456789abcdef0123456789"
+		if err := os.MkdirAll(filepath.Join(s.root, recordlessID), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		wt := mkWorktree(t)
+		token, legacy, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
+		if err != nil {
+			t.Fatalf("a record-less in-flight directory must be skipped, got %v", err)
+		}
+		if token == "" {
+			t.Fatal("expected a reservation token")
+		}
+		if legacy != nil {
+			t.Fatalf("no assessable legacy history must yield no summary, got %+v", legacy)
+		}
+	})
+
+	// Case 7: a same-worktree HALTED drive the seam reports abandonable is RECOVERED
+	// under apply; the seam sees mark=true exactly once per run dir.
+	t.Run("7-halted-abandonable-recovered", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		id := copyLegacyFixture(t, s, "halted")
+		wt := mkWorktree(t)
+		rewriteRecordField(t, s, id, `"worktree_path": "/repo/.worktrees/old-feature"`, `"worktree_path": "`+wt+`"`)
+		seam := seamWith(map[string]process.RecoveryEntry{haltedFixtureRunDir: {Disposition: "abandonable"}})
+		token, legacy, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
+		if err != nil {
+			t.Fatalf("an abandonable HALTED drive must recover and admit, got %v", err)
+		}
+		if token == "" {
+			t.Fatal("expected a reservation token")
+		}
+		if legacy == nil || legacy.Checked != 1 || len(legacy.Retained) != 0 {
+			t.Fatalf("want Checked==1 with no retained findings, got %+v", legacy)
+		}
+		if len(legacy.Recovered) != 1 || legacy.Recovered[0] != id {
+			t.Fatalf("want Recovered==[%s], got %+v", id, legacy.Recovered)
+		}
+		if len(seam.marks) != 1 || seam.marks[0] != haltedFixtureRunDir {
+			t.Fatalf("seam must mark exactly once per run dir, got %v", seam.marks)
+		}
+	})
+
+	// Case 8: a HALTED drive the seam reports needs-inspection refuses, naming the id.
+	t.Run("8-halted-needs-inspection-refuses", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		id := copyLegacyFixture(t, s, "halted")
+		wt := mkWorktree(t)
+		seam := seamWith(map[string]process.RecoveryEntry{haltedFixtureRunDir: {Disposition: "needs-inspection"}})
+		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
+		oe, ok := AsOwnershipError(err)
+		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
+			t.Fatalf("a needs-inspection HALTED drive must refuse naming its id, got %v", err)
+		}
+		if oe.Legacy == nil || len(oe.Legacy.Retained) != 1 || oe.Legacy.Retained[0].DriveID != id {
+			t.Fatalf("summary must name the retained drive, got %+v", oe.Legacy)
+		}
+	})
+
+	// Case 8b: a scripted seam PROBE ERROR is not clean absence — it refuses too.
+	t.Run("8b-halted-seam-error-refuses", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		id := copyLegacyFixture(t, s, "halted")
+		wt := mkWorktree(t)
+		seam := &fakeRecovery{err: errors.New("probe failed")}
+		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
+		oe, ok := AsOwnershipError(err)
+		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
+			t.Fatalf("a probe error must refuse naming the id, got %v", err)
+		}
+	})
+
+	// Case 9: with a nil seam (the exported ReserveWorktreeExecution), a HALTED
+	// drive fails closed unchanged.
+	t.Run("9-nil-seam-halted-refuses", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		id := copyLegacyFixture(t, s, "halted")
+		wt := mkWorktree(t)
+		_, err := s.ReserveWorktreeExecution(sampleAdmission(wt))
+		oe, ok := AsOwnershipError(err)
+		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
+			t.Fatalf("a nil seam must fail a HALTED drive closed, got %v", err)
+		}
+	})
+
+	// Case 10: the census is first-admission-only. A second reservation after a
+	// release reads the existing slot record and does NOT re-run the inventory, so
+	// the seam is never consulted again.
+	t.Run("10-second-reservation-skips-inventory", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		id := copyLegacyFixture(t, s, "halted")
+		wt := mkWorktree(t)
+		rewriteRecordField(t, s, id, `"worktree_path": "/repo/.worktrees/old-feature"`, `"worktree_path": "`+wt+`"`)
+		seam := seamWith(map[string]process.RecoveryEntry{haltedFixtureRunDir: {Disposition: "abandonable"}})
+		token, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
+		if err != nil {
+			t.Fatalf("first admission must recover the HALTED drive, got %v", err)
+		}
+		firstMarks := len(seam.marks)
+		if firstMarks != 1 {
+			t.Fatalf("first admission should have marked exactly once, got %d", firstMarks)
+		}
+		if err := s.ReleaseWorktreeExecution(wt, token); err != nil {
+			t.Fatalf("release: %v", err)
+		}
+		if _, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam); err != nil {
+			t.Fatalf("readmit over a released slot: %v", err)
+		}
+		if len(seam.marks) != firstMarks {
+			t.Fatalf("second reservation must not re-run the inventory: marks grew %d -> %d", firstMarks, len(seam.marks))
+		}
+	})
 }

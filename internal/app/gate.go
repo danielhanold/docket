@@ -165,7 +165,7 @@ func GateLaunch(root, cwd string, argv []string) GateResult {
 		if refusal, refused := rawStaleEpochRefusal(store, worktreeRoot); refused {
 			return refusal
 		}
-		t, aerr := store.ReserveRawWorktreeExecution(repoIdentity, worktreeRoot, svc.Observe)
+		t, aerr := store.ReserveRawWorktreeExecution(repoIdentity, worktreeRoot, svc)
 		if aerr != nil {
 			r, reason := mapAdmissionFailure(aerr)
 			return GateResult{Envelope: NewEnvelope(OperationGateLaunch, r), Reason: reason, Cause: incumbentLocator(store, worktreeRoot)}
@@ -313,9 +313,9 @@ func rawStopIfOwned(svc *process.Service, runDir string) bool {
 }
 
 // rawTeardownProven reports whether a run state proves its process group is gone,
-// matching gatedrive's admissionObservationProvesTeardown: a passed, failed,
-// stopped, or vanished run is proven; a signalled run is NOT (its group may still
-// hold descendants), and a running run is obviously not.
+// matching the gate driver's own stop-teardown check (stopProvesTeardown): a
+// passed, failed, stopped, or vanished run is proven; a signalled run is NOT (its
+// group may still hold descendants), and a running run is obviously not.
 func rawTeardownProven(st process.State) bool {
 	switch st {
 	case process.StatePassed, process.StateFailed, process.StateStopped, process.StateVanished:
