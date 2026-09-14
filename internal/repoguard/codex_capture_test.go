@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestCodexGateCaptureLiteralPreservesFirstResponse(t *testing.T) {
@@ -31,7 +33,7 @@ func TestCodexGateCaptureLiteralPreservesFirstResponse(t *testing.T) {
 			exit                 int
 		}{{"failed-json", `{"result":"gate-failed"}`, "diagnostic", 1}, {"invalid-json", `{`, "parse diagnostic", 2}} {
 			t.Run(shell+"/"+tc.name, func(t *testing.T) {
-				dir := t.TempDir()
+				dir := testsupport.TempDir(t)
 				gate := filepath.Join(dir, "gate")
 				body := "#!/bin/sh\nprintf '%s' '" + tc.stdout + "'\nprintf '%s' '" + tc.stderr + "' >&2\nexit " + strconv.Itoa(tc.exit) + "\n"
 				if err := os.WriteFile(gate, []byte(body), 0o755); err != nil {
