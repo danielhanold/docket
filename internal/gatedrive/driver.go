@@ -223,6 +223,19 @@ func (d *Driver) reserveWorktreeExecution(rec admissionRecord) (string, *LegacyH
 	return d.store.reserveWorktreeExecution(rec, d.proc)
 }
 
+// CleanupHistory runs the shared manual legacy-history assessment over this
+// driver's store with its own process-recovery seam (the same recoverySeam the
+// first-admission inventory consults). With an empty HistoryCleanupRequest.DriveID
+// it scans the whole drive registry in ascending id order; a non-empty DriveID
+// assesses exactly that one record. DryRun previews without writing any abandoned
+// marker. Unlike admission, it is a REPORT, never a refusal — every candidate is
+// returned with its class — and it takes NO admission/scope/drive lock: it mutates
+// no gate state, and the only write is the process layer's own lock-guarded
+// abandoned marker under apply.
+func (d *Driver) CleanupHistory(req HistoryCleanupRequest) (HistoryCleanupOutcome, error) {
+	return d.store.cleanupHistory(req, d.proc)
+}
+
 // NewSystemDriver builds a production Driver over the real monotonic clock and
 // the real git seam, composing the given store and process seam. The application
 // service seam (internal/app) uses it so an in-process caller composes the same

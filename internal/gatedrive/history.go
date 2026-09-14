@@ -2,9 +2,12 @@ package gatedrive
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/danielhanold/docket/internal/process"
@@ -214,4 +217,130 @@ func (s *Store) classifyLegacyDrive(h historicalDrive, requestedWorktree string,
 	// 4. Live/nonterminal (WAITING or empty outcome): never guessed dead.
 	f.Class, f.Reason = LegacyRetained, "nonterminal execution state"
 	return f
+}
+
+// HistoryCleanupRequest selects the manual assessment's scope. An empty DriveID
+// scans the whole registry in ascending id order; a non-empty DriveID must
+// validate (a traversal or malformed id is refused before anything is scanned).
+// DryRun previews without writing any abandoned marker.
+type HistoryCleanupRequest struct {
+	DriveID string
+	DryRun  bool
+}
+
+// HistoryCleanupOutcome reports every candidate with its class and reason. It is
+// a report, never a refusal — a mixed outcome still returns, and Retained > 0
+// means blockers remain visible rather than complete recovery. Checked counts
+// every real (readable or unreadable) record assessed; a record-less directory
+// and an unrecognised registry entry are NOT counted, mirroring the
+// first-admission inventory. The four class counters partition Findings by class.
+type HistoryCleanupOutcome struct {
+	Findings    []LegacyFinding
+	Checked     int
+	Recovered   int
+	Recoverable int
+	Retained    int
+	Nonblocking int
+}
+
+// cleanupHistory is the shared MANUAL recovery assessment behind
+// Driver.CleanupHistory. It mirrors inventoryLegacyDrives' enumeration — a sorted
+// os.ReadDir(s.root), an absent root treated as empty, a record-less directory
+// skipped, an unrecognised entry recorded as a retained finding with an empty
+// DriveID and the bounded reason "unrecognized entry in the drive registry" — but
+// with requestedWorktree=="" (worktree resolution is never required) and
+// apply=!DryRun, and it NEVER refuses: every candidate lands in Findings and the
+// counts summarise them. A non-empty DriveID validates and assesses exactly that
+// one record. It takes NO admission/scope/drive lock: it mutates no gate state; the
+// only write is the process layer's own lock-guarded abandoned marker, through the
+// seam under apply.
+func (s *Store) cleanupHistory(req HistoryCleanupRequest, proc recoverySeam) (HistoryCleanupOutcome, error) {
+	apply := !req.DryRun
+	var out HistoryCleanupOutcome
+
+	if req.DriveID != "" {
+		// A malformed or traversal id is rejected before any path is constructed or
+		// any directory is scanned.
+		if err := validateID(req.DriveID); err != nil {
+			return HistoryCleanupOutcome{}, err
+		}
+		if f, checked, present := s.assessLegacyRecord(req.DriveID, proc, apply); present {
+			out.Findings = append(out.Findings, f)
+			if checked {
+				out.Checked++
+			}
+		}
+		tallyCleanupClasses(&out)
+		return out, nil
+	}
+
+	entries, err := os.ReadDir(s.root)
+	if err != nil {
+		// An absent registry root is not an error — there is simply no history to
+		// assess. Any other read fault is surfaced (never masked as a clean absence).
+		if errors.Is(err, fs.ErrNotExist) {
+			return out, nil
+		}
+		return HistoryCleanupOutcome{}, err
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	for _, entry := range entries {
+		id := entry.Name()
+		if !entry.IsDir() || validateID(id) != nil {
+			// A non-directory or invalid-name entry is not a readable drive. Its
+			// arbitrary name never enters a diagnostic: record a retained finding that
+			// carries no drive id and the bounded reason.
+			out.Findings = append(out.Findings, LegacyFinding{DriveID: "", Class: LegacyRetained, Reason: "unrecognized entry in the drive registry"})
+			continue
+		}
+		f, checked, present := s.assessLegacyRecord(id, proc, apply)
+		if !present {
+			continue
+		}
+		out.Findings = append(out.Findings, f)
+		if checked {
+			out.Checked++
+		}
+	}
+	tallyCleanupClasses(&out)
+	return out, nil
+}
+
+// assessLegacyRecord classifies one drive id for the manual cleanup pass. present
+// is false for a record-less directory (a concurrent first-admission creation
+// window, or a crashed-mid-creation directory) — skipped and never counted, exactly
+// as the first-admission inventory does. checked reports whether the id resolved to
+// a real (readable or unreadable) record that counts toward Checked; an unreadable
+// record is a retained finding, never a free slot. The classifier is always run with
+// requestedWorktree=="" so no worktree is ever resolved.
+func (s *Store) assessLegacyRecord(id string, proc recoverySeam, apply bool) (f LegacyFinding, checked, present bool) {
+	h, lerr := s.loadHistoricalDrive(id)
+	if lerr != nil {
+		if storeErrIs(lerr, ErrNotFound) {
+			return LegacyFinding{}, false, false
+		}
+		reason := "unreadable record"
+		if storeErrIs(lerr, ErrUnknownSchema) {
+			reason = "unknown schema"
+		}
+		return LegacyFinding{DriveID: id, Class: LegacyRetained, Reason: reason}, true, true
+	}
+	return s.classifyLegacyDrive(h, "", proc, apply), true, true
+}
+
+// tallyCleanupClasses derives the per-class counters from the gathered findings, so
+// the summary always partitions Findings exactly.
+func tallyCleanupClasses(out *HistoryCleanupOutcome) {
+	for _, f := range out.Findings {
+		switch f.Class {
+		case LegacyRecovered:
+			out.Recovered++
+		case LegacyRecoverable:
+			out.Recoverable++
+		case LegacyRetained:
+			out.Retained++
+		case LegacyNonblocking:
+			out.Nonblocking++
+		}
+	}
 }

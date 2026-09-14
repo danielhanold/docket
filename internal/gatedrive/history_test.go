@@ -95,11 +95,14 @@ func TestLoadHistoricalDriveValidatesRequiredFields(t *testing.T) {
 	}
 }
 
-// fakeRecovery is a scripted recoverySeam: it records every mark=true call in
-// marks (so a preview/apply distinction is observable) and returns the entry
-// scripted for the requested runDir. An unscripted runDir yields "invalid"; a
-// non-nil err short-circuits every call — modelling a probe error that must
-// never be read as clean absence.
+// fakeRecovery is a scripted recoverySeam: it records each abandoned-marker WRITE
+// it performs in marks (an abandonable run it transitions to abandoned-marked
+// under mark=true), so a preview/apply distinction and re-apply idempotency are
+// both observable — a mark=true call over an already-terminal or already-abandoned
+// run writes nothing and records nothing. It returns the entry scripted for the
+// requested runDir. An unscripted runDir yields "invalid"; a non-nil err
+// short-circuits every call — modelling a probe error that must never be read as
+// clean absence.
 type fakeRecovery struct {
 	entries map[string]process.RecoveryEntry // key: runDir
 	err     error
@@ -107,9 +110,6 @@ type fakeRecovery struct {
 }
 
 func (f *fakeRecovery) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
-	if mark {
-		f.marks = append(f.marks, runDir)
-	}
 	if f.err != nil {
 		return process.RecoveryEntry{}, f.err
 	}
@@ -119,6 +119,7 @@ func (f *fakeRecovery) ClassifyRun(runDir string, mark bool) (process.RecoveryEn
 	}
 	if mark && e.Disposition == "abandonable" {
 		e.Disposition = "abandoned-marked"
+		f.marks = append(f.marks, runDir)
 	}
 	return e, nil
 }
@@ -568,4 +569,204 @@ func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 			t.Fatalf("second reservation must not re-run the inventory: marks grew %d -> %d", firstMarks, len(seam.marks))
 		}
 	})
+}
+
+// TestCleanupHistory drives the shared MANUAL recovery assessment (Store.cleanupHistory,
+// behind Driver.CleanupHistory). Unlike the first-admission census it NEVER refuses —
+// every candidate lands in Findings with its class — and it runs with
+// requestedWorktree=="" so worktree resolution is never required even though the
+// fixtures' worktrees do not exist.
+func TestCleanupHistory(t *testing.T) {
+	seamWith := func(entries map[string]process.RecoveryEntry) *fakeRecovery {
+		return &fakeRecovery{entries: entries}
+	}
+
+	// Case 1: repo-wide scan over five records. Findings are sorted ascending by id;
+	// classes and counts are pinned. The halted drive is recovered under apply; the
+	// waiting drive is retained as a nonterminal state; the v1 record is retained as
+	// an unknown schema. No worktree is ever resolved.
+	t.Run("1-repo-wide-scan-sorted-classified", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		idPassed := copyLegacyFixture(t, s, "passed")
+		idFailed := copyLegacyFixture(t, s, "failed")
+		idHalted := copyLegacyFixture(t, s, "halted")
+		idWaiting := copyLegacyFixture(t, s, "waiting")
+		idSchema1 := copyLegacyFixture(t, s, "schema1")
+		seam := seamWith(map[string]process.RecoveryEntry{haltedFixtureRunDir: {Disposition: "abandonable"}})
+
+		out, err := s.cleanupHistory(HistoryCleanupRequest{}, seam)
+		if err != nil {
+			t.Fatalf("a manual assessment never refuses, got %v", err)
+		}
+		wantIDs := []string{idPassed, idFailed, idHalted, idWaiting, idSchema1}
+		if len(out.Findings) != len(wantIDs) {
+			t.Fatalf("want %d findings, got %d: %+v", len(wantIDs), len(out.Findings), out.Findings)
+		}
+		for i, id := range wantIDs {
+			if out.Findings[i].DriveID != id {
+				t.Errorf("finding %d DriveID = %q, want %q (order must be ascending by id)", i, out.Findings[i].DriveID, id)
+			}
+		}
+		wantClass := []string{LegacyNonblocking, LegacyNonblocking, LegacyRecovered, LegacyRetained, LegacyRetained}
+		for i, c := range wantClass {
+			if out.Findings[i].Class != c {
+				t.Errorf("finding %d Class = %q, want %q (reason %q)", i, out.Findings[i].Class, c, out.Findings[i].Reason)
+			}
+		}
+		if !strings.Contains(out.Findings[3].Reason, "nonterminal execution state") {
+			t.Errorf("waiting reason = %q, want it to contain nonterminal execution state", out.Findings[3].Reason)
+		}
+		if !strings.Contains(out.Findings[4].Reason, "unknown schema") {
+			t.Errorf("v1 reason = %q, want it to contain unknown schema", out.Findings[4].Reason)
+		}
+		if out.Checked != 5 || out.Recovered != 1 || out.Recoverable != 0 || out.Retained != 2 || out.Nonblocking != 2 {
+			t.Fatalf("counts Checked=%d Recovered=%d Recoverable=%d Retained=%d Nonblocking=%d; want 5/1/0/2/2",
+				out.Checked, out.Recovered, out.Recoverable, out.Retained, out.Nonblocking)
+		}
+	})
+
+	// Case 2: DryRun over the same shape previews the halted drive as recoverable and
+	// writes no marker — the seam sees mark=false only.
+	t.Run("2-dry-run-previews-without-marking", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		copyLegacyFixture(t, s, "passed")
+		copyLegacyFixture(t, s, "failed")
+		idHalted := copyLegacyFixture(t, s, "halted")
+		copyLegacyFixture(t, s, "waiting")
+		copyLegacyFixture(t, s, "schema1")
+		seam := seamWith(map[string]process.RecoveryEntry{haltedFixtureRunDir: {Disposition: "abandonable"}})
+
+		out, err := s.cleanupHistory(HistoryCleanupRequest{DryRun: true}, seam)
+		if err != nil {
+			t.Fatalf("dry run never refuses, got %v", err)
+		}
+		if out.Recoverable != 1 || out.Recovered != 0 {
+			t.Fatalf("dry run must preview: Recoverable=%d Recovered=%d, want 1/0", out.Recoverable, out.Recovered)
+		}
+		var haltedF LegacyFinding
+		for _, f := range out.Findings {
+			if f.DriveID == idHalted {
+				haltedF = f
+			}
+		}
+		if haltedF.Class != LegacyRecoverable {
+			t.Fatalf("halted finding class = %q, want %q", haltedF.Class, LegacyRecoverable)
+		}
+		if len(seam.marks) != 0 {
+			t.Fatalf("dry run must write no marker, seam recorded marks %v", seam.marks)
+		}
+	})
+
+	// Case 3: an applied run recovers the halted drive; a second applied run — the
+	// seam now reporting the durable already-abandoned marker — reports it nonblocking
+	// and writes zero additional markers. Idempotent.
+	t.Run("3-applied-twice-idempotent", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		idHalted := copyLegacyFixture(t, s, "halted")
+		seam := &fakeRecovery{entries: map[string]process.RecoveryEntry{haltedFixtureRunDir: {Disposition: "abandonable"}}}
+
+		first, err := s.cleanupHistory(HistoryCleanupRequest{}, seam)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if first.Recovered != 1 {
+			t.Fatalf("first apply must recover, got %+v", first)
+		}
+		if len(seam.marks) != 1 || seam.marks[0] != haltedFixtureRunDir {
+			t.Fatalf("first apply must write exactly one marker, got %v", seam.marks)
+		}
+		firstMarks := len(seam.marks)
+
+		// The durable teardown marker is now present: the seam reports already-abandoned.
+		seam.entries[haltedFixtureRunDir] = process.RecoveryEntry{Disposition: "already-abandoned"}
+		second, err := s.cleanupHistory(HistoryCleanupRequest{}, seam)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var haltedF LegacyFinding
+		for _, f := range second.Findings {
+			if f.DriveID == idHalted {
+				haltedF = f
+			}
+		}
+		if haltedF.Class != LegacyNonblocking || !strings.Contains(haltedF.Reason, "durable teardown evidence") {
+			t.Fatalf("second run must be nonblocking with durable teardown evidence, got %+v", haltedF)
+		}
+		if len(seam.marks) != firstMarks {
+			t.Fatalf("second run must write zero additional markers: marks grew %d -> %d", firstMarks, len(seam.marks))
+		}
+	})
+
+	// Case 4: a non-empty DriveID assesses exactly that one record; a traversal id is
+	// a typed ErrInvalidID rejected before anything is scanned.
+	t.Run("4-single-drive-id-and-invalid-id", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		copyLegacyFixture(t, s, "passed")
+		idFailed := copyLegacyFixture(t, s, "failed")
+		copyLegacyFixture(t, s, "waiting")
+
+		out, err := s.cleanupHistory(HistoryCleanupRequest{DriveID: idFailed}, seamWith(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(out.Findings) != 1 || out.Findings[0].DriveID != idFailed {
+			t.Fatalf("a DriveID scope must yield exactly that one finding, got %+v", out.Findings)
+		}
+		if out.Findings[0].Class != LegacyNonblocking || out.Checked != 1 || out.Nonblocking != 1 {
+			t.Fatalf("failed drive: Class=%q Checked=%d Nonblocking=%d, want nonblocking/1/1", out.Findings[0].Class, out.Checked, out.Nonblocking)
+		}
+
+		if _, err := s.cleanupHistory(HistoryCleanupRequest{DriveID: "../evil"}, seamWith(nil)); !isStoreKind(err, ErrInvalidID) {
+			t.Fatalf("a traversal drive id must be a typed ErrInvalidID, got %v", err)
+		}
+	})
+
+	// Case 5: an empty/absent registry root yields zero findings and no error.
+	t.Run("5-empty-registry-no-error", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t)) // root directory never created
+		out, err := s.cleanupHistory(HistoryCleanupRequest{}, seamWith(nil))
+		if err != nil {
+			t.Fatalf("an absent registry root is not an error, got %v", err)
+		}
+		if len(out.Findings) != 0 || out.Checked != 0 {
+			t.Fatalf("an empty registry yields no findings, got %+v Checked=%d", out.Findings, out.Checked)
+		}
+	})
+
+	// Case 6: a record-less drive directory is skipped (a concurrent first-admission
+	// creation window) and never counted, so only the real record remains.
+	t.Run("6-recordless-dir-skipped", func(t *testing.T) {
+		s := OpenStore(testsupport.TempDir(t))
+		idPassed := copyLegacyFixture(t, s, "passed")
+		const recordlessID = "abcdef0123456789abcdef0123456789"
+		if err := os.MkdirAll(filepath.Join(s.root, recordlessID), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		out, err := s.cleanupHistory(HistoryCleanupRequest{}, seamWith(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(out.Findings) != 1 || out.Findings[0].DriveID != idPassed {
+			t.Fatalf("a record-less dir must be skipped, leaving only the real record, got %+v", out.Findings)
+		}
+		if out.Findings[0].Class != LegacyNonblocking || out.Checked != 1 {
+			t.Fatalf("only the real drive counts, got Class=%q Checked=%d", out.Findings[0].Class, out.Checked)
+		}
+	})
+}
+
+// TestDriverCleanupHistoryDelegates proves Driver.CleanupHistory runs the shared
+// assessment over the driver's own store with its own process seam. A passed
+// fixture is nonblocking without ever consulting the seam, so the default fakeProc
+// suffices to prove the wiring.
+func TestDriverCleanupHistoryDelegates(t *testing.T) {
+	d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+	id := copyLegacyFixture(t, store, "passed")
+	out, err := d.CleanupHistory(HistoryCleanupRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Findings) != 1 || out.Findings[0].DriveID != id || out.Findings[0].Class != LegacyNonblocking {
+		t.Fatalf("Driver.CleanupHistory must delegate to the shared assessment, got %+v", out.Findings)
+	}
 }
