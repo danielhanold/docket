@@ -126,7 +126,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 	for _, flag := range []string{"role", "request", "cwd", "approval-policy", "sandbox"} {
 		_ = enter.MarkFlagRequired(flag)
 	}
-	group.AddCommand(enter)
+	group.AddCommand(enter, newAgentCheckInputsCommand(setResult), newAgentCheckReceiptCommand(setResult))
 	return group
 }
 

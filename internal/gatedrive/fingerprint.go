@@ -214,6 +214,13 @@ func splitNUL(b []byte) []string {
 // paths — never file content.
 type realGit struct{}
 
+// WorktreeClean reports whether Git's complete porcelain-v2 status is empty.
+// It shares the production read-only Git seam used by ComputeFingerprint.
+func WorktreeClean(repoDir string) (bool, error) {
+	b, err := (realGit{}).Status(repoDir)
+	return len(b) == 0, err
+}
+
 // runGit executes one read-only git command in repoDir and returns its stdout.
 func (realGit) runGit(repoDir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
