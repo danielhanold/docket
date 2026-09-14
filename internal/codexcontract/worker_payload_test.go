@@ -34,3 +34,15 @@ func TestWorkerPayloadStrictDecodeRejectsParentAuthority(t *testing.T) {
 		t.Fatal("accepted parent capability in child payload")
 	}
 }
+
+func TestRepairPayloadRequiresOwnedAttemptLocator(t *testing.T) {
+	a := Assignment{Role: "docket-integration-repair", Mode: "repair", DocketExecutable: "/candidate/docket"}
+	p := WorkerPayload{SchemaVersion: 1, Kind: "repair", AssignmentPath: "/private/assignment.json", AssignmentSHA256: strings.Repeat("a", 64), EntryArgv: []string{"/candidate/docket", "agent", "check-inputs", "--assignment", "/private/assignment.json", "--sha256", strings.Repeat("a", 64), "--stage", "entry", "--json"}, TaskText: "repair integration", Attempt: "attempt-1"}
+	if err := ValidateWorkerPayload(p, a); err != nil {
+		t.Fatalf("valid repair payload: %v", err)
+	}
+	p.Attempt = ""
+	if err := ValidateWorkerPayload(p, a); err == nil {
+		t.Fatal("accepted repair payload without an owned attempt locator")
+	}
+}

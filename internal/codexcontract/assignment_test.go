@@ -70,6 +70,30 @@ func TestValidateAssignmentRejectsUnsafeRolePathsAndSecrets(t *testing.T) {
 	}
 }
 
+func TestValidateAssignmentPinsReviewHeadAndHashedEvidenceResource(t *testing.T) {
+	head := strings.Repeat("a", 40)
+	base := Assignment{SchemaVersion: 1, ChangeID: 425, Role: "docket-review-standard", Phase: "review", Mode: "review", Primary: "/tmp/primary", Feature: "/tmp/feature", CommonDir: "/tmp/common", Branch: "codex/change", EntryHEAD: head, MetadataRevision: strings.Repeat("b", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: "/tmp/docket", DocketCommit: strings.Repeat("c", 40), ReadRoots: []string{"/tmp"}, ReviewBase: strings.Repeat("d", 40), ReviewHEAD: head, BuildEvidence: "review/build-evidence", Resources: []Resource{{LogicalID: "review/build-evidence", Path: "/tmp/evidence.md", SHA256: strings.Repeat("e", 64), Source: "gate:evidence"}}}
+	if err := ValidateAssignment(base); err != nil {
+		t.Fatalf("valid review assignment: %v", err)
+	}
+	for name, mutate := range map[string]func(*Assignment){
+		"entry differs from review head": func(a *Assignment) { a.EntryHEAD = strings.Repeat("f", 40) },
+		"review base is abbreviated":     func(a *Assignment) { a.ReviewBase = "deadbeef" },
+		"review head is abbreviated":     func(a *Assignment) { a.ReviewHEAD = "deadbeef" },
+		"evidence resource is missing":   func(a *Assignment) { a.Resources = nil },
+		"evidence resource is unnamed":   func(a *Assignment) { a.BuildEvidence = "" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			a := base
+			a.Resources = append([]Resource(nil), base.Resources...)
+			mutate(&a)
+			if ValidateAssignment(a) == nil {
+				t.Fatal("accepted unpinned review assignment")
+			}
+		})
+	}
+}
+
 func TestRootIdentityDetectsPathReplacement(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {

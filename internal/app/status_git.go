@@ -11,6 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository"
+	"github.com/danielhanold/docket/internal/workspace"
 )
 
 // This file is the production StatusReader: the one seam implementation that
@@ -37,13 +38,19 @@ const branchRefPrefix = "refs/heads/"
 // object CONTENT: every read re-opens the source at the pinned (immutable)
 // revision the caller threads back in.
 type gitStatusReader struct {
-	client *gitcli.Client
-	repo   gitcli.Repository
+	client    *gitcli.Client
+	repo      gitcli.Repository
+	workspace statusWorkspaceInspector
+}
+
+type statusWorkspaceInspector interface {
+	Inspect(context.Context, workspace.InspectRequest) (workspace.Inspection, error)
 }
 
 // NewGitStatusReader returns the production StatusReader over one gitcli client.
 func NewGitStatusReader(client *gitcli.Client) StatusReader {
-	return &gitStatusReader{client: client}
+	service, _ := workspace.NewService(client)
+	return &gitStatusReader{client: client, workspace: service}
 }
 
 // PinContext is an adapter over the shared operational-repository loader
@@ -208,13 +215,33 @@ func (r *gitStatusReader) ReadArtifact(ctx context.Context, pin StatusPin, sourc
 func (r *gitStatusReader) ReadChangeArtifact(ctx context.Context, pin StatusPin, target ChangeArtifactTarget) (ChangeArtifactObservation, error) {
 	revision := pin.IntegrationRevision
 	sourceKind := sourceIntegration
-	if target.Branch != "" {
-		oid, err := r.client.FetchBranch(ctx, r.repo, originRemote, gitcli.RefName(branchRefPrefix+target.Branch))
+	var owningBefore workspace.Inspection
+	var owningTarget workspace.Target
+	activeOwned := target.Location == string(domain.LocationActive) && (target.Status == string(domain.StatusInProgress) || target.Status == string(domain.StatusImplemented))
+	if activeOwned {
+		base := domain.EffectiveBase{Kind: domain.BaseResolved, Branch: target.EffectiveBase}
+		resolved, err := workspace.NewTarget(domain.ChangeID(target.ChangeID), target.Slug, base, target.Branch)
+		if err != nil {
+			return ChangeArtifactObservation{SourceKind: "feature-workspace", Reason: "owning workspace target is invalid"}, nil
+		}
+		inspector := r.workspace
+		if inspector == nil {
+			service, err := workspace.NewService(r.client)
+			if err != nil {
+				return ChangeArtifactObservation{}, err
+			}
+			inspector = service
+		}
+		insp, err := inspector.Inspect(ctx, workspace.InspectRequest{Repository: r.repo, Target: resolved})
 		if err != nil {
 			return ChangeArtifactObservation{}, classifyGitFailure(err)
 		}
-		revision = string(oid.Commit)
-		sourceKind = "feature"
+		if !owningArtifactWorkspace(insp, resolved) {
+			return ChangeArtifactObservation{SourceKind: "feature-workspace", Reason: fmt.Sprintf("owning workspace is %s", insp.Kind)}, nil
+		}
+		owningBefore, owningTarget = insp, resolved
+		revision = string(insp.HeadCommit)
+		sourceKind = "feature-workspace"
 	}
 	src, err := r.openSource(ctx, revision)
 	if err != nil {
@@ -225,6 +252,23 @@ func (r *gitStatusReader) ReadChangeArtifact(ctx context.Context, pin StatusPin,
 		return ChangeArtifactObservation{}, classifyGitFailure(err)
 	}
 	br := results[0]
+	if activeOwned {
+		inspector := r.workspace
+		if inspector == nil {
+			service, serr := workspace.NewService(r.client)
+			if serr != nil {
+				return ChangeArtifactObservation{}, serr
+			}
+			inspector = service
+		}
+		after, ierr := inspector.Inspect(ctx, workspace.InspectRequest{Repository: r.repo, Target: owningTarget})
+		if ierr != nil {
+			return ChangeArtifactObservation{}, classifyGitFailure(ierr)
+		}
+		if !sameOwningArtifactWorkspace(owningBefore, after, owningTarget) {
+			return ChangeArtifactObservation{}, fmt.Errorf("%w: owning feature workspace changed during artifact read", ErrStatusExternal)
+		}
+	}
 	obs := ChangeArtifactObservation{Found: br.Found, SourceKind: sourceKind, Revision: revision}
 	if !br.Found {
 		obs.Reason = "artifact absent from owning revision"
@@ -253,6 +297,16 @@ func (r *gitStatusReader) ReadChangeArtifact(ctx context.Context, pin StatusPin,
 		obs.Reason = "artifact backlink targets another change"
 	}
 	return obs, nil
+}
+
+func owningArtifactWorkspace(insp workspace.Inspection, target workspace.Target) bool {
+	return (insp.Kind == workspace.StateReady || insp.Kind == workspace.StateDirty) && insp.Registered && insp.BaseReached &&
+		insp.Branch == target.FeatureRef && insp.HeadCommit != "" && insp.HeadCommit == insp.BranchHead
+}
+
+func sameOwningArtifactWorkspace(before, after workspace.Inspection, target workspace.Target) bool {
+	return owningArtifactWorkspace(after, target) && before.Path == after.Path && before.HeadCommit == after.HeadCommit &&
+		before.BranchHead == after.BranchHead && before.BaseCommit == after.BaseCommit
 }
 
 // openSource opens the immutable object source pinned at rev.

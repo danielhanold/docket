@@ -34,9 +34,69 @@ type inputWorkspace struct {
 	err   error
 }
 
+type inputRole struct {
+	calls   int
+	payload codexcontract.WorkerPayload
+}
+
+func (r *inputRole) ValidateRoleInputs(_ context.Context, _ codexcontract.Assignment, p codexcontract.WorkerPayload, _ string) error {
+	r.calls++
+	r.payload = p
+	return nil
+}
+
 func (f *inputWorkspace) ValidateAgentWorkspace(context.Context, codexcontract.Assignment, string) error {
 	f.calls++
 	return f.err
+}
+
+func TestCheckAgentInputsFinalizeRolesUsePrivateAuthorityAtEntry(t *testing.T) {
+	for _, tc := range []struct {
+		mode, role, phase, kind string
+		workspaceCalls          int
+	}{
+		{"resolver", "docket-rebase-resolver", "resolver", "resolver", 0},
+		{"repair", "docket-integration-repair", "repair", "repair", 1},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			dir, err := filepath.EvalSymlinks(testsupport.TempDir(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			docketPath := filepath.Join(dir, "docket")
+			if err := os.WriteFile(docketPath, []byte("fixture"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			identity := codexcontract.RootIdentity{Platform: "test", Device: 1, Inode: 2, GitDir: "/repo/.git/worktrees/wt"}
+			a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: tc.role, Phase: tc.phase, Mode: tc.mode, Primary: "/repo", Feature: "/repo/wt", CommonDir: "/repo/.git", Branch: "codex/change", EntryHEAD: strings.Repeat("0", 40), MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: docketPath, DocketCommit: strings.Repeat("2", 40), ReadRoots: []string{dir}, WritePaths: []string{"conflict.go"}, RootIdentity: &identity}
+			ab, _ := json.Marshal(a)
+			assignmentPath := filepath.Join(dir, "assignment.json")
+			if err := os.WriteFile(assignmentPath, ab, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			as := sha256.Sum256(ab)
+			ad := hex.EncodeToString(as[:])
+			p := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: tc.kind, AssignmentPath: assignmentPath, AssignmentSHA256: ad, EntryArgv: []string{docketPath, "agent", "check-inputs", "--assignment", assignmentPath, "--sha256", ad, "--stage", "entry", "--json"}, TaskText: "finalize child", Attempt: "attempt-1"}
+			if tc.kind == "resolver" {
+				p.ResolverReservation = "reservation-1"
+			}
+			pb, _ := json.Marshal(p)
+			payloadPath := filepath.Join(dir, "payload.json")
+			if err := os.WriteFile(payloadPath, pb, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			ps := sha256.Sum256(pb)
+			role, ws := &inputRole{}, &inputWorkspace{}
+			obs := inputObserver{out: AgentRootObservation{Primary: a.Primary, Feature: a.Feature, CommonDir: a.CommonDir, Branch: a.Branch, HEAD: a.EntryHEAD, Clean: true, RootIdentity: identity, EntryDescendant: true}}
+			r := CheckAgentInputs(context.Background(), AgentInputDeps{Observer: obs, Workspace: ws, Role: role}, CheckInputsRequest{Assignment: assignmentPath, SHA256: ad, Payload: payloadPath, PayloadSHA256: hex.EncodeToString(ps[:]), Stage: "entry", RepoDir: a.Primary})
+			if r.Result != ResultApplied {
+				t.Fatalf("result=%s reason=%s", r.Result, r.Reason)
+			}
+			if role.calls != 1 || role.payload.Attempt != "attempt-1" || ws.calls != tc.workspaceCalls {
+				t.Fatalf("role=%d workspace=%d payload=%+v", role.calls, ws.calls, role.payload)
+			}
+		})
+	}
 }
 
 func (f *inputScope) ValidateChildInputs(r gatedrive.StartRequest) error {

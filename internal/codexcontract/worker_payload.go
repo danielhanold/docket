@@ -10,12 +10,12 @@ import (
 )
 
 type WorkerPayload struct {
-	SchemaVersion       int               `json:"schema_version"`
-	Kind                string            `json:"kind"`
-	AssignmentPath      string            `json:"assignment_path"`
-	AssignmentSHA256    string            `json:"assignment_sha256"`
-	EntryArgv           []string          `json:"entry_argv"`
-	TaskText            string            `json:"task_text"`
+	SchemaVersion       int               `json:"schema_version" docket:"required"`
+	Kind                string            `json:"kind" docket:"required,enum=payload_kinds"`
+	AssignmentPath      string            `json:"assignment_path" docket:"required"`
+	AssignmentSHA256    string            `json:"assignment_sha256" docket:"required"`
+	EntryArgv           []string          `json:"entry_argv" docket:"required"`
+	TaskText            string            `json:"task_text" docket:"required"`
 	ScopeID             string            `json:"scope_id,omitempty"`
 	ChildCapability     string            `json:"child_capability,omitempty"`
 	GateContext         string            `json:"gate_context,omitempty"`
@@ -26,6 +26,8 @@ type WorkerPayload struct {
 	Attempt             string            `json:"attempt,omitempty"`
 	ResolverReservation string            `json:"resolver_reservation,omitempty"`
 }
+
+var AllPayloadKinds = []string{"planner", "review", "worker", "resolver", "repair"}
 
 type RecoveredPayload struct {
 	ScopeID         string `json:"scope_id"`
@@ -69,7 +71,7 @@ func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 		return nil
 	}
 	if p.Kind == "repair" {
-		if a.Role != "docket-integration-repair" || a.Mode != "repair" || p.ScopeID != "" || p.ChildCapability != "" || p.Recovered != nil {
+		if a.Role != "docket-integration-repair" || a.Mode != "repair" || p.Attempt == "" || p.ScopeID != "" || p.ChildCapability != "" || p.Recovered != nil {
 			return fmt.Errorf("repair payload does not match assignment")
 		}
 		return nil
