@@ -1,14 +1,19 @@
 # Backlog
 
-**428 changes** — 🟢 3 in progress · 🟣 4 groomed · 🟡 22 proposed · ⚪ 11 deferred · ✅ 275 done · 🗑️ 113 killed
+**428 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 22 proposed · ⚪ 11 deferred · ✅ 275 done · 🗑️ 113 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0428](active/0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md) | Recover legacy gate history without blocking unrelated worktree admission | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md) | `fix/recover-legacy-gate-history-without-blocking-unrelated-workt` |  |
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0428](active/0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md) | Recover legacy gate history without blocking unrelated worktree admission | `critical` | `fix` | [#300](https://github.com/danielhanold/docket/pull/300) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
