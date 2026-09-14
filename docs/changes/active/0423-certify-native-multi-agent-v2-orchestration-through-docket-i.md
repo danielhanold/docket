@@ -2,11 +2,11 @@
 id: 423
 slug: 'certify-native-multi-agent-v2-orchestration-through-docket-i'
 title: 'Certify native Multi-Agent V2 orchestration through Docket ImplementNext'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'chore'
 created: '2026-09-11'
-updated: '2026-09-13'
+updated: '2026-09-14'
 depends_on: []
 stacked_on:
 related: [323, 384, 393, 412, 424, 425, 426]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/certify-native-multi-agent-v2-orchestration-through-docket-i'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-14T14:40:52Z'
 ---
 
 ## Artifacts
