@@ -408,10 +408,8 @@ func TestCodexAgentMirrorsSource(t *testing.T) {
 	}
 }
 
-// TestCodexContractsDeriveScopeAwareRoutesFromInventory catches the routing
-// regression where a feature child is registered as an ordinary native child:
-// every real feature source must carry the entry marker, worktree startup
-// guard, and foreground agent.enter route derived from its typed scope.
+// TestCodexContractsDeriveScopeAwareRoutesFromInventory catches a regression
+// that translates descriptive markers into the retired second root process.
 func TestCodexContractsDeriveScopeAwareRoutesFromInventory(t *testing.T) {
 	in := fixtureInput(t)
 	sources, err := harness.ParseInventory(in.Assets)
@@ -420,10 +418,9 @@ func TestCodexContractsDeriveScopeAwareRoutesFromInventory(t *testing.T) {
 	}
 
 	const (
-		featureMarker = "[docket worktree: feature]"
-		featureGuard  = "Before any read or write, locate the `Feature worktree: <absolute-path>` input, canonicalize it and the process cwd, require equality at the worktree root, and halt visibly if it is missing, relative, nonexistent, nested, or mismatched."
-		featureRoute  = "foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`"
-		metadataRoute = "direct native named-agent dispatch"
+		featureMarker  = "[docket worktree: feature]"
+		featureBinding = "docket-convention/references/codex-feature-binding.md"
+		nativeRoute    = "top-level registered named-agent dispatch"
 	)
 
 	var featureCount, metadataCount int
@@ -439,28 +436,33 @@ func TestCodexContractsDeriveScopeAwareRoutesFromInventory(t *testing.T) {
 			if !strings.HasPrefix(contract.Description, wantPrefix+" ") {
 				t.Errorf("feature role %s description = %q, want marker prefix %q", s.Name, contract.Description, wantPrefix)
 			}
-			if !strings.Contains(contract.DeveloperInstructions, featureGuard) {
-				t.Errorf("feature role %s lacks the worktree startup guard", s.Name)
-			}
-			if !strings.Contains(contract.DeveloperInstructions, featureRoute) {
-				t.Errorf("feature role %s lacks the foreground worktree-entry route", s.Name)
+			if !strings.Contains(contract.DeveloperInstructions, featureBinding) {
+				t.Errorf("feature role %s lacks the checked feature-binding reference", s.Name)
 			}
 		case harness.WorktreeScopeMetadata:
 			metadataCount++
 			if strings.Contains(contract.Description, featureMarker) {
 				t.Errorf("metadata role %s carries feature marker: %q", s.Name, contract.Description)
 			}
-			if strings.Contains(contract.DeveloperInstructions, featureGuard) {
-				t.Errorf("metadata role %s carries the feature startup guard", s.Name)
-			}
-			if !strings.Contains(contract.DeveloperInstructions, metadataRoute) {
-				t.Errorf("metadata role %s lacks the native-child route", s.Name)
+			if strings.Contains(contract.DeveloperInstructions, featureBinding) {
+				t.Errorf("metadata role %s carries the feature binding", s.Name)
 			}
 			if s.LaunchPosture == harness.LaunchRootCoordinator && !strings.HasPrefix(contract.Description, "[docket launch: root-coordinator] ") {
 				t.Errorf("root coordinator %s lost its first description marker: %q", s.Name, contract.Description)
 			}
 		default:
 			t.Fatalf("%s has unsupported worktree scope %q", s.Name, s.WorktreeScope)
+		}
+		if !strings.Contains(contract.DeveloperInstructions, nativeRoute) {
+			t.Errorf("role %s lacks native registered dispatch", s.Name)
+		}
+		if strings.Contains(contract.DeveloperInstructions, "foreground catalog-resolved `agent.enter`") {
+			t.Errorf("role %s retains automatic agent.enter routing", s.Name)
+		}
+		refsAt := strings.Index(contract.DeveloperInstructions, "Codex role references")
+		skillsAt := strings.Index(contract.DeveloperInstructions, "Before acting, load these docket skills")
+		if skillsAt >= 0 && !(refsAt >= 0 && refsAt < skillsAt) {
+			t.Errorf("role %s loads generic skills before Codex references", s.Name)
 		}
 	}
 	if featureCount == 0 || metadataCount == 0 {
@@ -518,7 +520,9 @@ func TestRoleContractForSharesTheRegistrationSource(t *testing.T) {
 	}
 	for _, want := range []string{
 		harness.RecursionGuard("docket-implement-next"),
-		"inspect the registered target's description markers",
+		"top-level registered named-agent dispatch",
+		"docket-implement-next/references/codex-planning-results.md",
+		"docket-build/references/codex-task-handoff.md",
 		"Before acting, load these docket skills from your linked Codex skills directory: docket-implement-next, docket-convention.",
 		"Execute docket-implement-next to drain the next build-ready change.",
 	} {
@@ -747,12 +751,13 @@ func TestCodexNestedDispatchBoundary(t *testing.T) {
 		}
 	}
 
-	// The three semantic clauses, as literal behavioral text.
+	// Native dispatch is present in every inventory-derived definition, and a
+	// nested inventory cannot authorize a fallback route.
 	clauses := []string{
-		"inspect the registered target's description markers", // (1) choose the registered route
-		"direct native named-agent dispatch",                  // (1) metadata route
-		"omit top-level collaboration controls",               // (2) what nested inventories lack
-		"cannot establish dispatch unavailability",            // (3) what absence proves: nothing
+		"top-level registered named-agent dispatch",
+		"retain the exact native child identity until terminal return",
+		"halt with that configuration failure",
+		"Never substitute `agent.enter`",
 	}
 	for _, s := range sources {
 		p := filepath.Join(fakeHome, ".codex", "agents", s.Name+".toml")

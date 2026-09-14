@@ -86,23 +86,16 @@ a workaround, and neither requires flipping a workflow's `skills:` binding to `a
 2. **Direct invocation.** `@docket-status` (or any `@docket-…` agent) starts that same registered
    wrapper explicitly.
 
-Either way, the wrapper you land in may need to dispatch further docket agents — planning, build,
-review, grooming's critic, finalize's resolver and repair. Every generated Codex wrapper carries the
-same typed routing rule: **`[docket launch: root-coordinator]` → foreground `agent.enter` at the
-caller's cwd; `[docket worktree: feature]` → foreground `agent.enter` with a verified canonical
-`--worktree` and the unchanged structured payload; an unmarked metadata-scoped ordinary child →
-native named-agent dispatch.** For that native named-agent leg, a tool inventory read from *inside*
-another tool (a nested orchestration namespace) intentionally omits Codex's top-level collaboration
-controls, so an agent must never conclude from such an inventory that dispatch is unavailable — only
-a failed direct attempt or an explicit policy denial establishes that. The harness-neutral statement
-of this rule lives in the `docket-convention` skill's *Dispatch-capability resolution* section.
+Either way, every generated wrapper dispatches further registered roles through Codex's top-level
+native named-agent control. The launch and feature-worktree markers remain typed role metadata; they
+do not select `agent.enter` or another root process. Each child first validates its pinned assignment
+and role-specific resources, then explicitly targets the assigned feature root. This permits the
+native child to inherit the primary startup directory without treating cwd as ownership.
 
-`agent.enter` resolves the native role definition with the same precedence Codex applies to the
-entered thread: `<effective-worktree>/.codex/agents/<role>.toml` first, then the user-level
-`~/.codex/agents/<role>.toml` as an explicit fallback. “Effective” means the caller repository for a
-root coordinator and the verified `--worktree` for a feature child. A present but malformed or
-identity-mismatched repository definition is refused; it never silently falls back to the global
-role.
+The caller retains the native child identity until terminal return, keeps parent capabilities and
+the outer gate key private, and runs the keyed gate verdict itself. Missing registration, model,
+resource, or top-level dispatch control is a visible configuration failure. Docket does not fall
+back to `agent.enter`, a shell runner, another harness, or a generic child.
 
 The proven nested-launch mechanics (codex-cli 0.151.0, `multi_agent = true`), the exact `spawn_agent`
 / `wait_agent` calls, the app-server entry path, and the rejected launch candidates are recorded in
@@ -110,6 +103,8 @@ the live runbook and its fixtures — see [the Codex live-validation
 runbook](../reference/harness/validation-runbook.md), which drives skills loading, sandbox execution,
 agent listing, dispatch and pin honoring, and metadata writes landing on `origin/docket`, end to end
 in a fixture repo.
+
+For candidate builds, follow the [native Codex acceptance runbook](../reference/harness/native-codex-acceptance.md).
 
 ### Restart after (re)generating
 

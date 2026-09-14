@@ -159,12 +159,15 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-caller-loop.md", 175, 1826}, // 0375: +worktree-admission section (word ceiling 1750 -> 1826)
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},
+	{"docket-build/references/codex-task-handoff.md", 30, 350},
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 188, 1964}, // 0405: sequential-drive receipt and acknowledgement; 0420: shell-safe capture; 0375: worktree-busy-not-a-retry rule (179/1842 -> 188/1964)
 	{"docket-convention/SKILL.md", 400, 7969}, // 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
 	// 0154: docket-convention/github-board-mirror.md removed — the GitHub mirror is
 	// retired (unsupported, mutation-blocking); its budget row is deleted with it.
 	{"docket-convention/references/agent-layer.md", 205, 2350},
+	{"docket-convention/references/codex-feature-binding.md", 25, 300},
+	{"docket-convention/references/codex-native-dispatch.md", 25, 300},
 	{"docket-convention/references/dummy-mode.md", 85, 800},
 	{"docket-convention/references/learnings.md", 84, 580},
 	{"docket-convention/references/stacked-changes.md", 215, 2140}, // 0327: +carry-preservation contract prose (see note above)
@@ -175,8 +178,10 @@ var skillBudgets = []skillBudget{
 	{"docket-implement-next/SKILL.md", 210, 7547},                // 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376; 0375: +gate-epoch resume pointer (word ceiling 7530 -> 7547)
 	{"docket-implement-next/references/edge-paths.md", 93, 1261}, // 0410: +resume/recovery + required-results reconciliation; 0375: +gate-epoch resume refusals (78/1091 -> 93/1261)
 	{"docket-implement-next/references/fix-loop.md", 190, 1958},  // 0410: +findings-to-results checkpoint linkage (see note above)
-	{"docket-implement-next/results-template.md", 51, 257},       // 0410: canonical five-section required template (see note above)
-	{"docket-review/SKILL.md", 110, 913},                         // 0410: +findings-return capture contract (see note above)
+	{"docket-implement-next/references/codex-planning-results.md", 25, 300},
+	{"docket-implement-next/results-template.md", 51, 257}, // 0410: canonical five-section required template (see note above)
+	{"docket-review/SKILL.md", 110, 913},                   // 0410: +findings-return capture contract (see note above)
+	{"docket-review/references/codex-review-binding.md", 15, 180},
 	{"docket-new-change/SKILL.md", 61, 1700},
 	{"docket-new-change/change-template.md", 51, 250},
 	{"docket-status/SKILL.md", 140, 3065}, // 0388: +sync-integration prose (see note above)
