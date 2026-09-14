@@ -812,7 +812,7 @@ func TestVerdictConfirmedBindingResolvesBoundChange(t *testing.T) {
 	if err := ReserveGateClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(f.repo.invocation, key, 3, "claim-3-v", "r1"); err != nil {
+	if err := ConfirmGateClaim(f.repo.invocation, key, 3, "claim-3-v", "r1", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
@@ -987,7 +987,7 @@ func TestVerdictClaimReplacedStops(t *testing.T) {
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-v1"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v1", "r1"); err != nil {
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v1", "r1", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
@@ -1020,7 +1020,7 @@ func TestVerdictNilProofScannerFailsClosed(t *testing.T) {
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1"); err != nil {
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: nil}, GitHubDeps{}, repo, key)
@@ -1040,7 +1040,7 @@ func TestVerdictProofScanErrorFailsClosed(t *testing.T) {
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1"); err != nil {
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{err: errors.New("boom")}}

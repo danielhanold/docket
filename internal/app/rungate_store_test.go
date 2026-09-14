@@ -135,13 +135,13 @@ func TestConfirmGateClaimMirrorsRecord(t *testing.T) {
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-aaa"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef"); err != nil {
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef"); err != nil {
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err != nil {
 		t.Fatalf("re-confirm: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 4, "claim-4-bbb", "cafe"); err == nil {
+	if err := ConfirmGateClaim(repo, key, 4, "claim-4-bbb", "cafe", ""); err == nil {
 		t.Fatalf("mismatched confirm must fail")
 	}
 	b, ok, err := LoadGateClaimBinding(repo, key)
@@ -163,7 +163,7 @@ func TestConfirmGateClaimMirrorsRecord(t *testing.T) {
 func TestConfirmWithoutReservationFails(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef"); err == nil {
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err == nil {
 		t.Fatalf("confirm without reservation must fail")
 	}
 }

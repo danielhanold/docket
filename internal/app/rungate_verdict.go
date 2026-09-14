@@ -507,7 +507,9 @@ func resolveGateOwnership(ctx context.Context, wdeps WorkspaceDeps, repoDir, key
 		}
 		// The committed receipt is authority, so a confirm error still proceeds on the
 		// proof (best-effort mirror).
-		_ = ConfirmGateClaim(repoDir, key, binding.ChangeID, binding.RequestID, proof.Revision)
+		// worktree "": the verdict recovery path holds no feature worktree; the fresh
+		// claim path (change_claim.go) is where the epoch worktree is bound (change 0375).
+		_ = ConfirmGateClaim(repoDir, key, binding.ChangeID, binding.RequestID, proof.Revision, "")
 		gateAdoptOwnership(wdeps, repoDir, key, rec, binding.ChangeID, binding.RequestID, proof.Revision)
 		return nil
 
@@ -524,7 +526,8 @@ func resolveGateOwnership(ctx context.Context, wdeps WorkspaceDeps, repoDir, key
 			p := matches[0]
 			// Adopt the sole proof: reserve + confirm best-effort, then mirror.
 			_ = ReserveGateClaim(repoDir, key, p.ChangeID, p.RequestID)
-			_ = ConfirmGateClaim(repoDir, key, p.ChangeID, p.RequestID, p.Revision)
+			// worktree "": see the confirmed-binding branch above — recovery binds no worktree.
+			_ = ConfirmGateClaim(repoDir, key, p.ChangeID, p.RequestID, p.Revision, "")
 			gateAdoptOwnership(wdeps, repoDir, key, rec, p.ChangeID, p.RequestID, p.Revision)
 			return nil
 		default:

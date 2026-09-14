@@ -320,6 +320,42 @@ func bindEpochChange(repoDir, gateKey, changeID string) error {
 	return err
 }
 
+// bindEpochWorktree binds the epoch's Worktree once, at claim confirmation, so a
+// FRESH (non-resume) run's epoch is locatable by the mutation fence
+// (findEpochByWorktree) and actionable by run.cancel's worktree teardown
+// (reconcileWorktreeSlot) — the same job armResumeReplacement does for the resume path
+// (change 0375). Without it a fresh run's epoch keeps Worktree == "", which every
+// worktree-keyed consumer skips, so the fence and the teardown are inert for the common
+// first-dispatch case. The bound value is the LOGICAL feature worktree path (it need
+// not exist yet at bind time): the fence canonicalizes the stored value at COMPARE time
+// (epochOwnsWorktree), once the workspace exists, so a logical spelling resolves to the
+// same canonical worktree the mutations run in. It is a NO-OP on an empty worktree
+// (nothing to bind) and a NO-OP when no epoch exists for the key (a standalone gate
+// arms none): ErrEpochNotFound is swallowed so a claim over a keyless or epoch-less
+// dispatch is unaffected. Binding is idempotent: an already-bound identical worktree is
+// a no-op; a bind over a different worktree fails closed (ErrEpochMismatch) so a
+// confirmed claim can never silently re-point an epoch's worktree (mirroring
+// bindEpochChange). Callers treat it best-effort.
+func bindEpochWorktree(repoDir, gateKey, worktree string) error {
+	if worktree == "" {
+		return nil // nothing to bind (a keyless/standalone confirm, or an unknown path)
+	}
+	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+		if rec.Worktree != "" {
+			if rec.Worktree == worktree {
+				return nil // idempotent
+			}
+			return epochErr(ErrEpochMismatch, "bind-epoch-worktree", nil)
+		}
+		rec.Worktree = worktree
+		return nil
+	})
+	if ee, ok := AsEpochError(err); ok && ee.Kind == ErrEpochNotFound {
+		return nil // no epoch (standalone gate): nothing to bind
+	}
+	return err
+}
+
 // epochCAS runs a logical epoch transition under a flock-serialized physical
 // compare-and-swap: it acquires the per-key epoch.lock, reads the current record,
 // applies mutate to a copy, and atomically writes it back under a freshly rotated

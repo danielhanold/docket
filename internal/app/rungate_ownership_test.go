@@ -98,7 +98,7 @@ func mxBind(t *testing.T, repoDir, key string, id int, requestID, revision strin
 	if err := ReserveGateClaim(repoDir, key, id, requestID); err != nil {
 		t.Fatalf("ReserveGateClaim(%d): %v", id, err)
 	}
-	if err := ConfirmGateClaim(repoDir, key, id, requestID, revision); err != nil {
+	if err := ConfirmGateClaim(repoDir, key, id, requestID, revision, ""); err != nil {
 		t.Fatalf("ConfirmGateClaim(%d): %v", id, err)
 	}
 }
@@ -324,7 +324,7 @@ func TestLaterVerdictCannotOverwriteBinding(t *testing.T) {
 
 	// A later verdict or replay can never overwrite the confirmed binding with a
 	// different revision — the store refuses binding-conflict.
-	err := ConfirmGateClaim(f.repo.invocation, key, 3, "claim-3-v", "DIFFERENT")
+	err := ConfirmGateClaim(f.repo.invocation, key, 3, "claim-3-v", "DIFFERENT", "")
 	gse, ok := AsGateStoreError(err)
 	if !ok || gse.Kind != ErrGateBindingConflict {
 		t.Fatalf("want binding-conflict on a differing-revision confirm, got %v", err)
