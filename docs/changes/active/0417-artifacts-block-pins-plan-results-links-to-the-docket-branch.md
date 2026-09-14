@@ -2,11 +2,11 @@
 id: 417
 slug: 'artifacts-block-pins-plan-results-links-to-the-docket-branch'
 title: 'Artifacts block pins plan/results links to the docket branch, where those files never live'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-10'
-updated: '2026-09-10'
+updated: '2026-09-14'
 depends_on: []
 stacked_on:
 related: [410, 341, 136]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/artifacts-block-pins-plan-results-links-to-the-docket-branch'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-14T23:18:10Z'
 ---
 
 ## Artifacts
