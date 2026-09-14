@@ -9,6 +9,18 @@ Codex's generated Docket role definitions now use the harness's top-level native
 
 The full source verification found one in-scope integration defect: the repository's exhaustive process-exit guard had not registered the two new developer command entrypoints. Commit `e861d4968c04621ed82b18aa096bee36a28c5b1f` adds only those exact `main` packages to the guard's allowlist and documents their process-exit contracts.
 
+## Independent-review repair
+
+Commit `0424126409ebd68b4455bbbce8dbff0d49a20705` repairs all seven findings from the first phase-4 review while preserving its report and reproduction overlay:
+
+- Active plan/results reads now require the registered owning workspace for active in-progress or implemented changes, pin its immutable HEAD, reject ownership/ref drift, honor stacked effective bases, and return terminal reads to the integration revision.
+- Active child checks prove the current HEAD descends from entry and validate both committed and uncommitted paths against assigned ownership. Build, resolver, and repair entry require a separately hashed private payload.
+- The `agent.check-inputs` schema now publishes versioned assignment and worker-payload document shapes, including nested root identity/fingerprint fields and closed role, phase, mode, and payload-kind vocabularies. Installed Codex references define the controller construction order and child entry envelope.
+- Review assignments require equal full entry/review HEADs plus a declared hashed evidence resource; entry remains clean and branch-pinned. Resolver entry uses the owned conflict reservation before ordinary workspace checks, while repair entry requires the exact owned finalize attempt with no live rebase.
+- The native fixture generator commits discovered build/finalize gate configuration, obtains metadata versions from typed `status`, runs `go test ./...`, verifies build readiness and a clean primary, and records complete source, binary, pin, command, HEAD, and file-hash evidence in its manifest.
+
+Permanent regression coverage includes the original review overlay cases, real Git workspace ownership/ref/stack/terminal cases, descendant committed-path checks, review ref/evidence/dirty checks, full wired resolver and repair entry against real finalize receipts, constructible schema output, and a successful end-to-end native fixture preparation. The review overlay and focused package/tagged integration checks passed before this results update. The complete configured source suite is run from the clean commit containing this results record; its final-head receipt remains in the external launch-kit verification evidence to avoid a self-referential commit hash.
+
 ## Verification performed
 
 - The configured source command `go run ./cmd/docket development test` passed at `e861d4968c04621ed82b18aa096bee36a28c5b1f`: 46 of 46 suite files passed, with 399 assertions and no failed result markers.
