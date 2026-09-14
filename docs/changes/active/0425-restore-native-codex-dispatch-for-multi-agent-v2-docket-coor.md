@@ -21,8 +21,8 @@ branch_prefix: 'codex'
 branch: 'codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-14T20:10:09Z'
+reconciled: true
+claimed_at: '2026-09-14T20:10:45Z'
 ---
 
 ## Artifacts
@@ -47,3 +47,9 @@ Record a successor ADR to 114. Build this bootstrap change as an ordinary human-
 ## Out of scope
 
 Implementing 424's model registry, minimum-capability metadata, diagnostics/live audit or local assertions; automatic model/effort changes; native child startup-directory support or obscure host workarounds; automatic/fallback agent.enter, custom runners, relays, generic runtime substitutes or inline reconstruction; other-harness behavior changes; redesigning gate ownership or retry policy; 426 legacy removal; hard-isolation or parallel-certification claims; reopening completed 423 or changing its frozen evidence.
+
+## Reconcile log
+
+### 2026-09-14
+
+User-authorized bootstrap preparation: create the isolated codex-prefixed 425 worktree; plan directly at a capable setting, implement directly at Sol/low, and perform full-suite inline repairs in a separate phase. No installed ImplementNext/build workflow is used to build 425. The reviewed spec is accepted as the baseline. A later 424 dogfood may stack on the tested, pushed 425 PR branch after grooming and explicit dependency-to-stack conversion; it is not launched by this preparation.
