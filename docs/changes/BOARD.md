@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0428](active/0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md) | Recover legacy gate history without blocking unrelated worktree admission | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md) | `fix/recover-legacy-gate-history-without-blocking-unrelated-workt` | run halted — needs you |
+| [0428](active/0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md) | Recover legacy gate history without blocking unrelated worktree admission | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md) | `fix/recover-legacy-gate-history-without-blocking-unrelated-workt` |  |
 | [0423](active/0423-certify-native-multi-agent-v2-orchestration-through-docket-i.md) | Certify native Multi-Agent V2 orchestration through Docket ImplementNext | `critical` | `chore` | [spec](../superpowers/specs/2026-09-13-certify-native-multi-agent-v2-orchestration-through-docket-i-design.md) | `chore/certify-native-multi-agent-v2-orchestration-through-docket-i` |  |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
 

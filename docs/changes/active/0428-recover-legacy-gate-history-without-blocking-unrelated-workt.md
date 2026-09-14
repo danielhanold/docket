@@ -22,7 +22,7 @@ branch: 'fix/recover-legacy-gate-history-without-blocking-unrelated-workt'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-14T18:42:03Z'
+claimed_at: '2026-09-14T18:43:13Z'
 ---
 
 ## Artifacts
