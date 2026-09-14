@@ -18,18 +18,19 @@ var exitSiteRE = regexp.MustCompile(`\bos\.Exit\(|\blog\.Fatal`)
 // a library that exits takes the decision away from cli.Run's single-document
 // presentation contract, and an os.Exit in package code is untestable in
 // process. cmd/docket/main.go is the product's one exit site (it converts
-// cli.Run's return value); cmd/genassets/main.go is a build-time-only
-// generator with no presenter, where log.Fatalf IS its error path;
-// cmd/releasepkg/main.go is repository-owned dev/release tooling (the release
-// packager), a main-package entrypoint whose contract is a process exit code
-// (0 success / 2 usage / 1 packager error), exactly like the other two.
+// cli.Run's return value). The remaining entries are repository-owned
+// build/development/release commands whose contracts include a process exit
+// status: the embedded-assets and dispatch-block generators, the disposable
+// native-acceptance fixture preparer, and the release packager.
 //
 // The allowlist admits only main-package entrypoints — commands that ARE the
 // process — never library code.
 var exitSiteAllowed = map[string]bool{
-	"cmd/docket/main.go":     true,
-	"cmd/genassets/main.go":  true,
-	"cmd/releasepkg/main.go": true,
+	"cmd/docket/main.go":        true,
+	"cmd/genassets/main.go":     true,
+	"cmd/gendispatch/main.go":   true,
+	"cmd/nativefixture/main.go": true,
+	"cmd/releasepkg/main.go":    true,
 }
 
 func TestProcessExitSitesAreAllowlisted(t *testing.T) {
