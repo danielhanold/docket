@@ -39,12 +39,12 @@ func (p *tornDownProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEn
 	return process.RecoveryEntry{Disposition: "already-abandoned"}, nil
 }
 
-// TestConcurrentStartsOverLegacySeededStoreArbitrateAndCleanupSafe is Criterion 5:
+// TestRaceConcurrentStartsOverLegacySeededStoreArbitrateAndCleanupSafe is Criterion 5:
 // two concurrent scoped Starts on ONE worktree over a store seeded with nonblocking
 // legacy history admit exactly one launch (the loser refused ErrWorktreeBusy, never
 // a legacy-inventory refusal), and a manual CleanupHistory racing them completes
 // without deadlock and leaves every seeded record byte-identical. Run under -race.
-func TestConcurrentStartsOverLegacySeededStoreArbitrateAndCleanupSafe(t *testing.T) {
+func TestRaceConcurrentStartsOverLegacySeededStoreArbitrateAndCleanupSafe(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
 
 	// Seed nonblocking legacy history: two completed drives plus a HALTED drive the
@@ -156,7 +156,7 @@ func newCensusDriver(t *testing.T, clk *fakeClock, proc *censusCountingProc) *Dr
 	return d
 }
 
-// TestOutcomeTriggersNoLegacyCensusOrSecondStart is Criterion 7's negative space: a
+// TestIntegrationOutcomeTriggersNoLegacyCensusOrSecondStart is Criterion 7's negative space: a
 // FAILED suite verdict and a post-launch HALTED (deadline) outcome each launch
 // exactly once and consult the legacy-recovery seam ZERO times. The census is a
 // first-admission-only event (it runs under the worktree slot lock solely on the
@@ -164,7 +164,7 @@ func newCensusDriver(t *testing.T, clk *fakeClock, proc *censusCountingProc) *Dr
 // the stronger guard: the drive persists its own HALTED record before returning, so
 // any spurious outcome-driven re-inventory would enumerate that record and consult
 // the seam on its recorded run dir — which classifyN==0 forbids.
-func TestOutcomeTriggersNoLegacyCensusOrSecondStart(t *testing.T) {
+func TestIntegrationOutcomeTriggersNoLegacyCensusOrSecondStart(t *testing.T) {
 	t.Run("failed", func(t *testing.T) {
 		clk := &fakeClock{now: startEpoch()}
 		proc := &censusCountingProc{fakeProc: &fakeProc{

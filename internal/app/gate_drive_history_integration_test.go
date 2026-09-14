@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 // End-to-end acceptance tests for the legacy-history admission composition through
@@ -74,7 +76,7 @@ func seedLegacyV2Passed(t *testing.T, gitDir, id string) {
 	}
 }
 
-// TestBuildStartAdmitsOverLegacyPassedHistoryOneLaunch is Criterion 1: over a repo
+// TestIntegrationBuildStartAdmitsOverLegacyPassedHistoryOneLaunch is Criterion 1: over a repo
 // whose gate-drive store carries a completed pre-0375 (schema-2) PASSED drive bound
 // to a REMOVED worktree, one ordinary build-owned scoped Start through the REAL
 // GateDriveService (real driver, real process supervisor, fake-fast /bin/echo suite
@@ -82,7 +84,7 @@ func seedLegacyV2Passed(t *testing.T, gitDir, id string) {
 // nonblocking (Checked 1, none recovered, none retained), launches EXACTLY ONE raw
 // run, and charges EXACTLY ONE full-suite attempt. No prior manual cleanup and no
 // second start are required for the completed history to be non-blocking.
-func TestBuildStartAdmitsOverLegacyPassedHistoryOneLaunch(t *testing.T) {
+func TestIntegrationBuildStartAdmitsOverLegacyPassedHistoryOneLaunch(t *testing.T) {
 	requireRealGit(t)
 	requireProcessSupervisor(t)
 	worktree, gitDir := initGitRepo(t, "")
@@ -190,12 +192,12 @@ func driveDoneOrFail(t *testing.T, svc *GateDriveService, id, gen string) {
 	}
 }
 
-// TestBuildStartBusySlotRefusalCarriesNoInventoryStageLocator is Criterion 7's
+// TestIntegrationBuildStartBusySlotRefusalCarriesNoInventoryStageLocator is Criterion 7's
 // non-inventory negative space, exercised end-to-end through Start: a worktree-busy
 // admission refusal (a NON-inventory ownership error) carries no legacy-inventory
 // stage, locator, or summary, and keeps its existing slot-recovery next-action
 // message. It complements the inventory-refusal mapping pinned in gate_drive_test.go.
-func TestBuildStartBusySlotRefusalCarriesNoInventoryStageLocator(t *testing.T) {
+func TestIntegrationBuildStartBusySlotRefusalCarriesNoInventoryStageLocator(t *testing.T) {
 	svc, eng, _ := newBudgetTestBuildService(t, 4)
 	eng.admitErr = &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "reserve-worktree-execution"}
 
