@@ -1092,3 +1092,116 @@ func TestMapDriveFailureFenceReasons(t *testing.T) {
 		seen[got.Message] = true
 	}
 }
+
+// ownershipRefusalResult drives a fake engine that fails a resumption operation
+// with the crafted ownership error, so the tests exercise mapDriveResult's
+// ownership-error branch (stage/locator/legacy-summary propagation) directly.
+func ownershipRefusalResult(t *testing.T, oe *gatedrive.OwnershipError) GateDriveResult {
+	t.Helper()
+	eng := &fakeDriveEngine{err: oe}
+	svc := newGateDriveService(eng, 0, "", "")
+	return svc.Advance("d1", "gen1")
+}
+
+// TestLegacyInventoryRefusalCarriesStageLocatorSummary is Task 6 case 1: a
+// drive-id-bearing inventory refusal with a validated id keeps the compatible
+// unresolved-execution reason token, carries the legacy-inventory stage, the
+// drive-id-bearing locator, the mirrored summary, and the cleanup-oriented human
+// message — never the slot-recovery "this worktree" prose.
+func TestLegacyInventoryRefusalCarriesStageLocatorSummary(t *testing.T) {
+	validID := strings.Repeat("a", 32)
+	summary := &gatedrive.LegacyHistorySummary{
+		Checked:  1,
+		Retained: []gatedrive.LegacyFinding{{DriveID: validID, Class: gatedrive.LegacyRetained, Reason: "nonterminal execution state"}},
+	}
+	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrUnresolvedExecution, Op: "inventory-legacy-drive-" + validID, Legacy: summary}
+	got := ownershipRefusalResult(t, oe)
+	if got.Reason != string(gatedrive.ErrUnresolvedExecution) {
+		t.Fatalf("reason token must stay %q, got %q", gatedrive.ErrUnresolvedExecution, got.Reason)
+	}
+	if got.Stage != "legacy-inventory" {
+		t.Fatalf("stage = %q, want legacy-inventory", got.Stage)
+	}
+	if got.Locator != "inventory-legacy-drive-"+validID {
+		t.Fatalf("locator = %q, want the drive-id-bearing op", got.Locator)
+	}
+	if got.LegacyHistory == nil {
+		t.Fatalf("LegacyHistory must be mirrored onto the refusal")
+	}
+	if !strings.Contains(got.Message, "docket gate history cleanup") {
+		t.Fatalf("message must name docket gate history cleanup, got %q", got.Message)
+	}
+	if strings.Contains(got.Message, "this worktree") {
+		t.Fatalf("inventory message must not carry the slot-recovery %q prose, got %q", "this worktree", got.Message)
+	}
+}
+
+// TestLegacyInventoryLevelRefusalLocator is Task 6 case 2: the inventory-level
+// op renders itself as the locator.
+func TestLegacyInventoryLevelRefusalLocator(t *testing.T) {
+	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrUnresolvedExecution, Op: "inventory-legacy-drives",
+		Legacy: &gatedrive.LegacyHistorySummary{Checked: 2}}
+	got := ownershipRefusalResult(t, oe)
+	if got.Stage != "legacy-inventory" || got.Locator != "inventory-legacy-drives" {
+		t.Fatalf("stage/locator = %q/%q, want legacy-inventory/inventory-legacy-drives", got.Stage, got.Locator)
+	}
+}
+
+// TestNonInventoryOwnershipRefusalUnchanged is Task 6 case 3: a non-inventory
+// ownership refusal sets no stage/locator/summary and keeps the existing
+// next-action message (regression pin for the non-inventory path).
+func TestNonInventoryOwnershipRefusalUnchanged(t *testing.T) {
+	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrUnresolvedExecution, Op: "reserve-worktree-execution"}
+	got := ownershipRefusalResult(t, oe)
+	if got.Stage != "" || got.Locator != "" || got.LegacyHistory != nil {
+		t.Fatalf("non-inventory refusal must leave stage/locator/legacy empty, got %q/%q/%v", got.Stage, got.Locator, got.LegacyHistory)
+	}
+	if got.Message != ownershipNextAction(gatedrive.ErrUnresolvedExecution) {
+		t.Fatalf("non-inventory refusal must keep the existing slot-recovery message, got %q", got.Message)
+	}
+}
+
+// TestLegacyInventoryLocatorRejectsArbitraryName is Task 6 case 4: an op whose
+// trailing id fails validation collapses to the safe inventory-level locator —
+// an arbitrary name never renders.
+func TestLegacyInventoryLocatorRejectsArbitraryName(t *testing.T) {
+	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrUnresolvedExecution, Op: "inventory-legacy-drive-../evil"}
+	got := ownershipRefusalResult(t, oe)
+	if got.Stage != "legacy-inventory" {
+		t.Fatalf("stage = %q, want legacy-inventory", got.Stage)
+	}
+	if got.Locator != "inventory-legacy-drives" {
+		t.Fatalf("an unvalidated id must collapse to the inventory-level locator, got %q", got.Locator)
+	}
+}
+
+// TestGateDriveHumanTextRendersLegacyLines is Task 6 case 5: HumanText renders
+// the stage, locator, and a compact counts-only legacy_history line for a
+// refusal, and renders the same compact line from Drive.LegacyHistory on a
+// success result.
+func TestGateDriveHumanTextRendersLegacyLines(t *testing.T) {
+	validID := strings.Repeat("b", 32)
+	summary := &gatedrive.LegacyHistorySummary{
+		Checked:  1,
+		Retained: []gatedrive.LegacyFinding{{DriveID: validID, Class: gatedrive.LegacyRetained, Reason: "nonterminal execution state"}},
+	}
+	oe := &gatedrive.OwnershipError{Kind: gatedrive.ErrUnresolvedExecution, Op: "inventory-legacy-drive-" + validID, Legacy: summary}
+	human := ownershipRefusalResult(t, oe).HumanText()
+	for _, want := range []string{
+		"stage: legacy-inventory",
+		"locator: inventory-legacy-drive-" + validID,
+		"legacy_history: checked 1 recovered 0 retained 1",
+	} {
+		if !strings.Contains(human, want) {
+			t.Fatalf("refusal human text missing %q; got:\n%s", want, human)
+		}
+	}
+
+	// A SUCCESS result renders the same compact line from Drive.LegacyHistory.
+	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING, DriveID: "d9", LegacyHistory: summary}}
+	svc := newGateDriveService(eng, 0, "", "")
+	successHuman := svc.Advance("d9", "gen9").HumanText()
+	if !strings.Contains(successHuman, "legacy_history: checked 1 recovered 0 retained 1") {
+		t.Fatalf("success human text must render the compact legacy line; got:\n%s", successHuman)
+	}
+}

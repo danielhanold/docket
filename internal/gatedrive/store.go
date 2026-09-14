@@ -413,6 +413,11 @@ func validateID(id string) error {
 	return nil
 }
 
+// ValidDriveID reports whether id is a well-formed drive id (the exact shape
+// validateID enforces). It is the exported one-line predicate a caller uses to
+// decide whether a drive-id-bearing locator is safe to render verbatim.
+func ValidDriveID(id string) bool { return validateID(id) == nil }
+
 // randomToken returns nbytes of cryptographic randomness as lowercase hex.
 func randomToken(nbytes int) (string, error) {
 	buf := make([]byte, nbytes)
