@@ -1,0 +1,218 @@
+package codexcontract
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/danielhanold/docket/internal/gatedrive"
+)
+
+type Resource struct {
+	LogicalID string `json:"logical_id"`
+	Path      string `json:"path"`
+	SHA256    string `json:"sha256"`
+	Source    string `json:"source"`
+}
+
+type Assignment struct {
+	SchemaVersion        int                    `json:"schema_version"`
+	ChangeID             int                    `json:"change_id"`
+	Role                 string                 `json:"role"`
+	Phase                string                 `json:"phase"`
+	TaskID               string                 `json:"task_id,omitempty"`
+	Mode                 string                 `json:"mode"`
+	Primary              string                 `json:"primary"`
+	Feature              string                 `json:"feature"`
+	CommonDir            string                 `json:"common_dir"`
+	Branch               string                 `json:"branch"`
+	EntryHEAD            string                 `json:"entry_head"`
+	MetadataRevision     string                 `json:"metadata_revision"`
+	ChangePath           string                 `json:"change_path"`
+	ArtifactPath         string                 `json:"artifact_path,omitempty"`
+	DocketExecutable     string                 `json:"docket_executable"`
+	DocketCommit         string                 `json:"docket_commit"`
+	Resources            []Resource             `json:"resources"`
+	ReadRoots            []string               `json:"read_roots"`
+	WritePaths           []string               `json:"write_paths"`
+	InheritedPaths       []string               `json:"inherited_paths"`
+	InheritedFingerprint *gatedrive.Fingerprint `json:"inherited_fingerprint,omitempty"`
+	TestArgv             []string               `json:"test_argv,omitempty"`
+	RunRoot              string                 `json:"run_root,omitempty"`
+	PlanSkill            string                 `json:"plan_skill,omitempty"`
+	BuildSkill           string                 `json:"build_skill,omitempty"`
+	LearningsEnabled     bool                   `json:"learnings_enabled,omitempty"`
+	LearningsIndex       string                 `json:"learnings_index,omitempty"`
+	ReviewBase           string                 `json:"review_base,omitempty"`
+	ReviewHEAD           string                 `json:"review_head,omitempty"`
+	BuildEvidence        string                 `json:"build_evidence,omitempty"`
+}
+
+func ReadAssignment(path, digest string) (Assignment, error) {
+	if !filepath.IsAbs(path) {
+		return Assignment{}, fmt.Errorf("assignment path must be absolute")
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return Assignment{}, err
+	}
+	if len(b) > 1<<20 {
+		return Assignment{}, fmt.Errorf("assignment exceeds 1 MiB")
+	}
+	want, err := hex.DecodeString(digest)
+	if err != nil || len(want) != sha256.Size {
+		return Assignment{}, fmt.Errorf("assignment sha256 is invalid")
+	}
+	got := sha256.Sum256(b)
+	if !bytes.Equal(want, got[:]) {
+		return Assignment{}, fmt.Errorf("assignment sha256 mismatch")
+	}
+	if err := rejectDuplicateKeys(b); err != nil {
+		return Assignment{}, err
+	}
+	var a Assignment
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&a); err != nil {
+		return Assignment{}, fmt.Errorf("invalid assignment: %w", err)
+	}
+	if err := ensureJSONEOF(dec); err != nil {
+		return Assignment{}, err
+	}
+	if err := ValidateAssignment(a); err != nil {
+		return Assignment{}, err
+	}
+	return a, nil
+}
+
+var objectID = regexp.MustCompile(`^[0-9a-f]{40,64}$`)
+
+func ValidateAssignment(a Assignment) error {
+	if a.SchemaVersion != 1 {
+		return fmt.Errorf("unsupported assignment schema_version %d", a.SchemaVersion)
+	}
+	if a.ChangeID <= 0 || a.Role == "" || a.Phase == "" || a.Branch == "" {
+		return fmt.Errorf("assignment identity is incomplete")
+	}
+	if !oneOf(a.Mode, "fresh", "continuation", "escalation", "review", "resolver", "repair") {
+		return fmt.Errorf("unknown assignment mode %q", a.Mode)
+	}
+	for name, p := range map[string]string{"primary": a.Primary, "feature": a.Feature, "common_dir": a.CommonDir, "docket_executable": a.DocketExecutable} {
+		if !filepath.IsAbs(p) || filepath.Clean(p) != p {
+			return fmt.Errorf("%s must be an absolute clean path", name)
+		}
+	}
+	if a.Primary == a.Feature {
+		return fmt.Errorf("feature must not be the primary worktree")
+	}
+	if !objectID.MatchString(a.EntryHEAD) || !objectID.MatchString(a.MetadataRevision) || !objectID.MatchString(a.DocketCommit) {
+		return fmt.Errorf("assignment revisions must be full object ids")
+	}
+	if !safeRelative(a.ChangePath) || (a.ArtifactPath != "" && !safeRelative(a.ArtifactPath)) {
+		return fmt.Errorf("assignment artifact paths must be safe repository-relative paths")
+	}
+	for _, p := range append(append([]string{}, a.WritePaths...), a.InheritedPaths...) {
+		if !safeRelative(p) {
+			return fmt.Errorf("owned path %q is unsafe", p)
+		}
+	}
+	for _, p := range a.ReadRoots {
+		if !filepath.IsAbs(p) || filepath.Clean(p) != p {
+			return fmt.Errorf("read root %q is not absolute and clean", p)
+		}
+	}
+	if (strings.Contains(a.Role, "build") || a.Mode == "continuation" || a.Mode == "escalation") && a.TaskID == "" {
+		return fmt.Errorf("worker assignment requires task_id")
+	}
+	if a.Mode == "review" && (a.ReviewBase == "" || a.ReviewHEAD == "" || a.BuildEvidence == "") {
+		return fmt.Errorf("review assignment requires immutable base, head, and evidence")
+	}
+	for _, r := range a.Resources {
+		joined := strings.ToLower(r.LogicalID + " " + r.Source)
+		if strings.Contains(joined, "gate_context") || strings.Contains(joined, "parent_cap") || strings.Contains(joined, "child_cap") {
+			return fmt.Errorf("resource %q contains forbidden live authority", r.LogicalID)
+		}
+	}
+	return nil
+}
+
+func oneOf(v string, values ...string) bool {
+	for _, x := range values {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+func safeRelative(p string) bool {
+	return p != "" && !filepath.IsAbs(p) && filepath.Clean(p) == p && p != "." && p != ".." && !strings.HasPrefix(p, ".."+string(filepath.Separator))
+}
+
+func ensureJSONEOF(dec *json.Decoder) error {
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("multiple JSON values")
+		}
+		return err
+	}
+	return nil
+}
+
+func rejectDuplicateKeys(b []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(b))
+	var walk func() error
+	walk = func() error {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		d, ok := tok.(json.Delim)
+		if !ok {
+			return nil
+		}
+		switch d {
+		case '{':
+			seen := map[string]bool{}
+			for dec.More() {
+				kt, err := dec.Token()
+				if err != nil {
+					return err
+				}
+				k, ok := kt.(string)
+				if !ok {
+					return fmt.Errorf("object key is not a string")
+				}
+				if seen[k] {
+					return fmt.Errorf("duplicate JSON key %q", k)
+				}
+				seen[k] = true
+				if err := walk(); err != nil {
+					return err
+				}
+			}
+			_, err = dec.Token()
+			return err
+		case '[':
+			for dec.More() {
+				if err := walk(); err != nil {
+					return err
+				}
+			}
+			_, err = dec.Token()
+			return err
+		}
+		return nil
+	}
+	if err := walk(); err != nil {
+		return fmt.Errorf("invalid assignment JSON: %w", err)
+	}
+	return nil
+}
