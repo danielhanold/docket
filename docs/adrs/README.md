@@ -105,6 +105,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0117](0117-sequential-test-drives-within-one-worker-recovery-scope.md) — Sequential test drives within one worker recovery scope (Accepted) ← change #405 · relates to ADR-0107
 - [ADR-0118](0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) — Worktree-wide gate admission and explicit human-cancellation authority (Accepted) ← change #375 · relates to ADR-0087, ADR-0095, ADR-0107, ADR-0111, ADR-0117
 - [ADR-0119](0119-native-codex-dispatch-with-explicit-role-aware-feature-bindi.md) — Native Codex dispatch with explicit, role-aware feature binding (Accepted) ← change #425 → supersedes ADR-0114 · relates to ADR-0103, ADR-0083
+- [ADR-0120](0120-historical-gate-drive-schemas-are-assessed-never-executed.md) — Historical gate-drive schemas are assessed, never executed (Accepted) ← change #428 · relates to ADR-0087, ADR-0095, ADR-0118
 
 ## Superseded / Reversed
 

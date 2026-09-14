@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [375, 427]
 discovered_from: [375]
-adrs: [87, 95, 118]
+adrs: [87, 95, 118, 120]
 spec: 'docs/superpowers/specs/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md'
 plan: 'docs/superpowers/plans/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt.md'
 results: 'docs/results/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-results.md'
@@ -33,7 +33,7 @@ claimed_at: '2026-09-14T21:33:00Z'
 | Spec | [2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-design.md) |
 | Plan | [2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt.md) |
 | Results | [2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-14-recover-legacy-gate-history-without-blocking-unrelated-workt-results.md) |
-| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
+| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
