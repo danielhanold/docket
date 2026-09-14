@@ -133,7 +133,7 @@ func checkFinalizeEntry(t *testing.T, f *rebaseFixture, finalize FinalizeDeps, r
 	return CheckAgentInputs(ctx, deps, CheckInputsRequest{Assignment: ap, SHA256: ad, Payload: pp, PayloadSHA256: hex.EncodeToString(ps[:]), Stage: "entry", RepoDir: f.repo.invocation})
 }
 
-func TestIntegrationAgentInputsWiresResolverAndRepairAuthority(t *testing.T) {
+func TestIntegrationFinalizeRebaseAgentInputsWiresResolverAndRepairAuthority(t *testing.T) {
 	t.Run("resolver reservation", func(t *testing.T) {
 		f, conflicted, deps := setupConflictedRebase(t, planRepoModes()[0])
 		reserve := FinalizeResolverReserve(context.Background(), deps, f.repo.invocation, f.id, conflicted.Attempt)

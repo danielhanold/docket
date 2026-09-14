@@ -68,11 +68,17 @@ func TestCodexFeatureBootstrapAndPrivatePayloadContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	native, err := os.ReadFile(filepath.Join(root, "skills", "docket-convention", "references", "codex-native-dispatch.md"))
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	planning, err := os.ReadFile(filepath.Join(root, "skills", "docket-implement-next", "references", "codex-planning-results.md"))
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	review, err := os.ReadFile(filepath.Join(root, "skills", "docket-review", "references", "codex-review-binding.md"))
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	for name, body := range map[string]string{"feature binding": string(feature), "task handoff": string(handoff)} {
 		for _, clause := range []string{"schema --operation agent.check-inputs", "--payload", "--payload-sha256", "entry_argv"} {
 			if !strings.Contains(body, clause) {
@@ -80,10 +86,14 @@ func TestCodexFeatureBootstrapAndPrivatePayloadContract(t *testing.T) {
 			}
 		}
 	}
-	for name, body := range map[string]string{"native dispatch":string(native), "planning":string(planning)} {
-		if !strings.Contains(body,"schema --operation agent.check-inputs") { t.Errorf("%s does not point to the versioned input documents",name) }
+	for name, body := range map[string]string{"native dispatch": string(native), "planning": string(planning)} {
+		if !strings.Contains(body, "schema --operation agent.check-inputs") {
+			t.Errorf("%s does not point to the versioned input documents", name)
+		}
 	}
-	if !strings.Contains(string(review),"declared resource") || !strings.Contains(string(review),"SHA-256") { t.Error("review binding omits hashed evidence construction") }
+	if !strings.Contains(string(review), "declared resource") || !strings.Contains(string(review), "SHA-256") {
+		t.Error("review binding omits hashed evidence construction")
+	}
 	f := string(feature)
 	for _, forbidden := range []string{"must not run `repository.prepare`", "metadata-writing operations"} {
 		if !strings.Contains(f, forbidden) {
