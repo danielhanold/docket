@@ -77,6 +77,13 @@ func (r GateScopeResult) HumanText() string {
 // a real store, process supervisor, or repository.
 type driveEngine interface {
 	Start(gatedrive.StartRequest) (gatedrive.DriveDoc, error)
+	// Admit / StartAdmitted / AbandonAdmission are the two-phase split of Start: the
+	// build owner reserves one full-suite attempt BETWEEN admission and launch so a
+	// refused admission charges nothing (change 0375 Task 8). Every other owner uses
+	// the thin Start.
+	Admit(gatedrive.StartRequest) (*gatedrive.AdmissionTicket, error)
+	StartAdmitted(*gatedrive.AdmissionTicket) (gatedrive.DriveDoc, error)
+	AbandonAdmission(*gatedrive.AdmissionTicket) error
 	Advance(id, ownerGen string) (gatedrive.DriveDoc, error)
 	Acknowledge(scopeID, childCapability, driveID, ownerGen string) (gatedrive.DriveDoc, error)
 	Handoff(id, ownerGen string) (gatedrive.DriveDoc, error)
@@ -286,6 +293,12 @@ func NewTaskGateDriveService(gitCommonDir, exePath string, eff config.Effective,
 // Start begins a new drive over the resolved suite command and budget. An
 // unresolved suite command (config resolved to unset) fails closed as a command
 // failure before touching the engine — never a fabricated verdict.
+//
+// A build-owned change-scoped start is routed through startBudgetedBuild, which
+// admits BEFORE it charges a full-suite attempt so a refused admission charges
+// nothing (change 0375 Task 8). Every other owner — finalize, task-intent, the
+// commandless resumption service — never charges and composes the driver's thin
+// Start directly.
 func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 	// The task-intent owner supplies its own argv, so the unresolved-command guard
 	// applies only to the config-owned services (which have no argv).
@@ -296,34 +309,30 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 			Message:  s.unresolvedCommandMessage(),
 		}
 	}
-	// Build-owned suite-attempt reservation (change 0421). A build-role start that
-	// certifies a change (non-empty ChangeID — change 0416 guarantees a scoped start
-	// carries the full change/task/phase bundle) reserves one logical full-suite
-	// attempt against the phase budget BEFORE the drive record is created or any
-	// suite launches. This is the last common point every build-owned start flows
-	// through, so no repair worker's build-owned rerun can bypass the cap. The
-	// finalize and task owners never reach this branch (different owner), and a
-	// build-owned start with NO ChangeID (a scopeless ad-hoc drive, pre-0359
-	// behavior) is deliberately unbudgeted — both boundaries are pinned by tests.
+	startReq := s.startRequest(req)
+	// A build-role start that certifies a change (non-empty ChangeID — change 0416
+	// guarantees a scoped start carries the full change/task/phase bundle) is the
+	// only owner that charges the phase suite-attempt budget. The finalize and task
+	// owners never reach this branch (different owner), and a build-owned start with
+	// NO ChangeID (a scopeless ad-hoc drive) is deliberately unbudgeted — both
+	// boundaries are pinned by tests.
 	if s.owner == "build" && req.ChangeID != "" {
-		// Reserve-before-launch is intentional and there are NO refunds: reserveBuildSuiteAttempt
-		// runs BEFORE engine.Start and any suite launch, so a build-owned start that HALTs before
-		// the suite ever launches (e.g. scope-identity-mismatch, identity drift, malformed state)
-		// still permanently spends one budgeted build.max_attempts attempt. This is the intended
-		// fail-safe: a lost launch can never overrun the bound. Do not reorder this after
-		// engine.Start or add a refund — the no-refund reservation is spec/plan-locked.
-		if refusal, refused := s.reserveBuildSuiteAttempt(req); refused {
-			return refusal
-		}
+		return s.startBudgetedBuild(req, startReq)
 	}
-	// A task-intent drive is never idempotent-suite-gated: the agent runs a focused
-	// command, and no config command backs a suite-idempotency claim. The flag is
-	// forced false here regardless of what the caller requested.
+	doc, err := s.engine.Start(startReq)
+	return mapDriveResult(OperationGateDriveStart, doc, err)
+}
+
+// startRequest builds the native StartRequest from a caller request, injecting the
+// authoritative-config command/budget/provenance the caller can never substitute.
+// A task-intent drive is never idempotent-suite-gated: the flag is forced false
+// regardless of what the caller requested.
+func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.StartRequest {
 	idempotent := req.IdempotentSuiteGate
 	if s.taskIntent {
 		idempotent = false
 	}
-	doc, err := s.engine.Start(gatedrive.StartRequest{
+	return gatedrive.StartRequest{
 		RepoDir:             req.RepoDir,
 		Worktree:            req.Worktree,
 		ChangeID:            req.ChangeID,
@@ -343,8 +352,47 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 		GateContext:         req.GateContext,
 		PredecessorDriveID:  req.PredecessorDriveID,
 		PredecessorOwnerGen: req.PredecessorOwnerGen,
-	})
-	return mapDriveResult(OperationGateDriveStart, doc, err)
+	}
+}
+
+// startBudgetedBuild is the build owner's admission-precedes-charging start
+// (change 0375 Task 8, ADR-0116). The ordering is load-bearing:
+//
+//  1. Advisory admission precheck — a plainly busy/unresolved worktree slot
+//     short-circuits BEFORE any charge. It is advisory (WorktreeAdmissionRefusal
+//     defers to the authoritative reserve on anything it cannot read).
+//  2. Advisory budget precheck — an already-spent phase budget short-circuits
+//     before admission, so an exhausted start neither reserves the worktree slot
+//     nor mints a reserved drive it would have to abandon.
+//  3. Authoritative admission (Admit). A refusal here — a worktree-busy /
+//     unresolved-execution / scope-busy slot the advisory precheck missed under a
+//     race — charges NO suite attempt: admission precedes charging.
+//  4. Charge exactly one full-suite attempt BETWEEN admission and launch. Once
+//     charged there are NO refunds: a launch/persistence failure in StartAdmitted
+//     spends the attempt. A charge that cannot be reserved after admission (an
+//     exhausted race the peek missed, or an IO fault) abandons the admission
+//     fail-closed and refuses.
+//  5. Launch the admitted, charged drive (StartAdmitted).
+//
+// Do not reorder the charge before the admission — that is exactly the defect this
+// change fixes (a worktree-busy refusal must reserve no attempt).
+func (s *GateDriveService) startBudgetedBuild(req GateDriveStartRequest, startReq gatedrive.StartRequest) GateDriveResult {
+	if err := s.budgetStore.WorktreeAdmissionRefusal(req.Worktree); err != nil {
+		return mapDriveResult(OperationGateDriveStart, gatedrive.DriveDoc{}, err)
+	}
+	if refusal, refused := s.suiteBudgetPrecheck(req); refused {
+		return refusal
+	}
+	ticket, err := s.engine.Admit(startReq)
+	if err != nil {
+		return mapDriveResult(OperationGateDriveStart, gatedrive.DriveDoc{}, err)
+	}
+	if refusal, refused := s.reserveBuildSuiteAttempt(req); refused {
+		_ = s.engine.AbandonAdmission(ticket)
+		return refusal
+	}
+	doc, serr := s.engine.StartAdmitted(ticket)
+	return mapDriveResult(OperationGateDriveStart, doc, serr)
 }
 
 // reserveBuildSuiteAttempt reserves one logical full-suite attempt for a
@@ -381,16 +429,46 @@ func (s *GateDriveService) reserveBuildSuiteAttempt(req GateDriveStartRequest) (
 	}
 	if se, ok := gatedrive.AsStoreError(err); ok && se.Kind == gatedrive.ErrSuiteBudgetExhausted {
 		used, limit, _ := s.budgetStore.SuiteBudgetUsage(key)
-		return GateDriveResult{
-			Envelope: NewEnvelope(OperationGateDriveStart, ResultGateFailed),
-			Reason:   "suite-attempts-exhausted",
-			Message: fmt.Sprintf("the build full-suite attempt budget is spent (%d/%d used); "+
-				"raising build.max_attempts takes effect on the next build phase, not this one — "+
-				"halt per the build skill's halting conditions", used, limit),
-		}, true
+		return s.suiteExhaustedRefusal(used, limit), true
 	}
 	res, reason := mapDriveFailure(err)
 	return GateDriveResult{Envelope: NewEnvelope(OperationGateDriveStart, res), Reason: reason}, true
+}
+
+// suiteBudgetPrecheck is the ADVISORY, read-only budget short-circuit the build
+// owner consults before admission (change 0375 Task 8): an already-spent phase
+// budget refuses with the same exhausted refusal reserveBuildSuiteAttempt would,
+// so an exhausted start never admits (and so never reserves a worktree slot or
+// mints a reserved drive it would have to abandon). It never charges. A key with no
+// record yet reports (0,0) → not exhausted → proceed to admission, where the
+// authoritative ReserveSuiteAttempt creates the record. A corrupt/unknown-schema
+// budget record fails the start closed rather than admitting over an unreadable
+// budget.
+func (s *GateDriveService) suiteBudgetPrecheck(req GateDriveStartRequest) (GateDriveResult, bool) {
+	key := gatedrive.SuiteBudgetKey{RepoIdentity: req.RepoDir, ChangeID: req.ChangeID, Phase: "build"}
+	used, limit, err := s.budgetStore.SuiteBudgetUsage(key)
+	if err != nil {
+		res, reason := mapDriveFailure(err)
+		return GateDriveResult{Envelope: NewEnvelope(OperationGateDriveStart, res), Reason: reason}, true
+	}
+	if limit > 0 && used >= limit {
+		return s.suiteExhaustedRefusal(used, limit), true
+	}
+	return GateDriveResult{}, false
+}
+
+// suiteExhaustedRefusal builds the stable spent-budget refusal shared by the
+// advisory budget precheck and the authoritative reservation, so both surface the
+// identical "suite-attempts-exhausted" reason and the human message naming
+// build.max_attempts and the used/limit fraction.
+func (s *GateDriveService) suiteExhaustedRefusal(used, limit int) GateDriveResult {
+	return GateDriveResult{
+		Envelope: NewEnvelope(OperationGateDriveStart, ResultGateFailed),
+		Reason:   "suite-attempts-exhausted",
+		Message: fmt.Sprintf("the build full-suite attempt budget is spent (%d/%d used); "+
+			"raising build.max_attempts takes effect on the next build phase, not this one — "+
+			"halt per the build skill's halting conditions", used, limit),
+	}
 }
 
 // unresolvedCommandMessage names the owner and the setup remedy for the

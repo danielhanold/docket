@@ -203,7 +203,7 @@ func (s *Store) writeNewDrive(rec driveRecord) (id string, gen string, err error
 	return id, gen, nil
 }
 
-// removeReservedDrive best-effort deletes a drive's whole directory. startScoped
+// removeReservedDrive best-effort deletes a drive's whole directory. admitScoped
 // calls it on the failure legs after NewReservedDrive but before the drive is a
 // scope's launch-confirmed occupant (a lost reservation, or a failed
 // retirePredecessor/clearPendingAck), so the just-minted RESERVED record — which
