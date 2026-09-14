@@ -254,6 +254,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			scopeID, _ := c.Flags().GetString("scope-id")
 			childCap, _ := c.Flags().GetString("child-cap")
 			gateContext, _ := c.Flags().GetString("gate-context")
+			runEpoch, _ := c.Flags().GetString("run-epoch")
 			setResult(gateDrivePresenter{inner: svc.Start(app.GateDriveStartRequest{
 				RepoDir:             commonDir,
 				Worktree:            repoDir,
@@ -269,6 +270,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 				ScopeID:             scopeID,
 				ChildCapability:     childCap,
 				GateContext:         gateContext,
+				RunEpochID:          runEpoch,
 				PredecessorDriveID:  predDriveID,
 				PredecessorOwnerGen: predOwnerGen,
 			})})
@@ -288,6 +290,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	start.Flags().String("scope-id", "", "recovery scope `id` to bind this drive into (from prepare-scope)")
 	start.Flags().String("child-cap", "", "child capability `token` authorizing the scope bind (from prepare-scope)")
 	start.Flags().String("gate-context", "", "outer child-context `token` linking this drive to the outer gate")
+	start.Flags().String("run-epoch", "", "workflow run epoch `id` recorded on the worktree slot (a locator, not a credential)")
 	start.Flags().String("predecessor-drive-id", "", "successor receipt: the previous drive's `id` (with --predecessor-owner-gen; forbidden on a scope's first start)")
 	start.Flags().String("predecessor-owner-gen", "", "successor receipt: the previous drive's owner `gen`eration (with --predecessor-drive-id)")
 	start.Flags().Bool("idempotent-suite-gate", false, "mark the gate idempotent, eligible for the single relaunch")

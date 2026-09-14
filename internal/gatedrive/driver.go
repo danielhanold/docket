@@ -118,6 +118,17 @@ type StartRequest struct {
 	ChildCapability string
 	GateContext     string
 
+	// RunEpochID links this drive's top-level execution to the workflow run epoch
+	// (rungate_epoch.go) the arming gate minted, and is recorded on the worktree
+	// execution slot the start reserves (admission.go). It is a LOCATOR, never a
+	// credential: it authorizes nothing (the scope's child capability carries
+	// authority), but it fences the worktree — a later gate in the same worktree that
+	// does not carry this epoch is refused ErrStaleRunEpoch, so an omitted or stale
+	// epoch cannot detach a workflow-owned worktree from its epoch. Empty for a
+	// standalone gate that owns no implementation epoch (finalize's local gate, an
+	// ad-hoc task drive). (change 0375 Task 9)
+	RunEpochID string
+
 	// Recovery-scope successor receipt (change 0405 Task 4): the previous drive's
 	// id and its current owner generation, captured from that drive's response. BOTH
 	// are required together for a successor start over an occupied scope slot and
@@ -303,7 +314,7 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	}
 
 	if req.ScopeID == "" {
-		return d.admitScopeless(rec, ownerGen)
+		return d.admitScopeless(rec, ownerGen, req.RunEpochID)
 	}
 	return d.admitScoped(req, rec, ownerGen)
 }
@@ -451,10 +462,11 @@ func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 // private run roots to launch concurrently against one worktree. It launches no
 // process; launchScopeless does. A NewReservedDrive failure releases the freshly
 // reserved slot before returning, so a refused admission leaks nothing.
-func (d *Driver) admitScopeless(rec driveRecord, ownerGen string) (*AdmissionTicket, error) {
+func (d *Driver) admitScopeless(rec driveRecord, ownerGen, runEpochID string) (*AdmissionTicket, error) {
 	token, err := d.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: rec.RepoIdentity,
 		WorktreeRoot: rec.WorktreePath,
+		RunEpochID:   runEpochID,
 		Kind:         "scopeless",
 	})
 	if err != nil {
@@ -735,6 +747,7 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 		RepoIdentity: req.RepoDir,
 		WorktreeRoot: req.Worktree,
 		ScopeID:      req.ScopeID,
+		RunEpochID:   req.RunEpochID,
 		Kind:         "scoped",
 	}
 	token, rerr := d.reserveWorktreeExecution(rec)

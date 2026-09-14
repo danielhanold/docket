@@ -152,6 +152,11 @@ type GateDriveStartRequest struct {
 	ScopeID         string
 	ChildCapability string
 	GateContext     string
+	// RunEpochID links this drive to the workflow run epoch (change 0375 Task 9): a
+	// locator, not a credential, recorded on the worktree execution slot so an omitted
+	// or stale epoch cannot detach a workflow-owned worktree. Empty for a standalone
+	// gate (finalize's local gate, an ad-hoc task drive) that owns no epoch.
+	RunEpochID string
 	// Successor receipt (change 0405): a scoped drive that follows a predecessor in
 	// the same recovery scope names the predecessor it acknowledges — both fields
 	// together, or both empty for a scope's first drive. They are forwarded verbatim
@@ -350,6 +355,7 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 		ScopeID:             req.ScopeID,
 		ChildCapability:     req.ChildCapability,
 		GateContext:         req.GateContext,
+		RunEpochID:          req.RunEpochID,
 		PredecessorDriveID:  req.PredecessorDriveID,
 		PredecessorOwnerGen: req.PredecessorOwnerGen,
 	}

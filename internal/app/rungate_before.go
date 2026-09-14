@@ -269,6 +269,21 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		return gateUnarmed(ReasonGateMintFailed)
 	}
 
+	// (6a) A fresh (non-resume) arm binds a NEW run epoch beside the just-minted gate
+	// record, keyed by the gate key (rungate_epoch.go). The epoch is the durable
+	// coordinator fence a later human cancellation flips and a resume supersedes; its
+	// EpochID travels onto each scoped start's worktree slot so an omitted or stale
+	// epoch cannot detach the worktree. A mint failure unarms fail-closed: an armed
+	// gate must carry a live epoch (the orphan gate record left behind is inert — no
+	// key is returned, so nothing dispatches against it). A resume arm does NOT mint
+	// here: it shares the change's existing epoch, whose supersede-and-reserve is
+	// Task 12's; for change 0375 Task 9 only the fresh arm binds an epoch.
+	if resumeID == 0 {
+		if _, eerr := MintEpochRecord(repoDir, key, scopeChangeID); eerr != nil {
+			return gateUnarmed(ReasonGateMintFailed)
+		}
+	}
+
 	// (7) Report the armed gate with its dispatch context.
 	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{
 		Armed:           true,

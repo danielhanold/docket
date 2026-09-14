@@ -226,6 +226,18 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, observe func(strin
 	stored, rerr := s.readStoredAdmission(dir)
 	switch {
 	case rerr == nil:
+		// Run-epoch fence (change 0375 Task 9). A slot a workflow epoch owns admits
+		// only that epoch's own sequential drives: an incoming reservation carrying a
+		// different (or empty) epoch cannot detach the worktree from its owning epoch.
+		// The check precedes the state switch, so it governs an executing incumbent AND
+		// a released (between-drives) slot the epoch still owns — the exact detach
+		// window. A slot with no recorded epoch (a standalone gate) fences nothing, and
+		// a same-epoch reservation falls through to the normal state machine (a released
+		// slot readmits; a busy slot returns ErrWorktreeBusy so a same-scope successor
+		// can reuse it).
+		if stored.Record.RunEpochID != "" && stored.Record.RunEpochID != rec.RunEpochID {
+			return "", ownershipErr(ErrStaleRunEpoch, op)
+		}
 		switch stored.Record.State {
 		case admissionReleased:
 			prevGen = stored.Record.ExecutionGen // readmit over a released slot
