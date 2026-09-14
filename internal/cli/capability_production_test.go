@@ -322,6 +322,9 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// change 0359: gate-claim redeems a single-use continuation — the two
 		// positionals (key, continuation id) lead, the optional repo dir trails.
 		"run.gate-claim": "<key> <continuation-id> [--repo-dir <dir>]",
+		// change 0375: human Stop — the three required flags sorted, then the optional
+		// repo dir; no positional tail.
+		"run.cancel": "--epoch <id> --key <key> --reason <reason> [--repo-dir <dir>]",
 		// change 0359: the config owners run their resolved suite command; the
 		// task-intent owner (--owner task) alone takes the focused argv after a bare
 		// `--` separator, which lands last.
