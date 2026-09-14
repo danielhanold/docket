@@ -84,6 +84,8 @@ var assetIndependent = map[string]bool{
 	"gate stop":                   true,
 	"gate recover":                true,
 	"gate cleanup":                true,
+	"gate history":                true, // the group itself; it reports a missing command
+	"gate history cleanup":        true,
 	"gate drive":                  true, // the group itself; it reports a missing command
 	"gate drive start":            true,
 	"gate drive advance":          true,

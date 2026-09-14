@@ -134,7 +134,57 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 	}
 
-	gateCmd.AddCommand(launch, observe, stop, recover, cleanup, newGateDriveCommand(setResult))
+	// The `history` group carries the manual, pre-admission gate-drive history
+	// operations. Like every other command group it resolves its subcommand before
+	// Args runs, so a bare `docket gate history` falls through to the missing-command
+	// error, byte-parity with `gate` and `gate drive`.
+	histCmd := &cobra.Command{
+		Use:   "history",
+		Short: "historical gate-drive assessment and recovery",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return errors.New("missing command")
+		},
+	}
+
+	cleanupHist := &cobra.Command{
+		Use:   "cleanup --repo-dir <dir> [--drive-id <id>] [--dry-run]",
+		Short: "assess pre-admission gate-drive history; recover safely-recoverable records, retaining all evidence",
+		// process-control + local-write: composes the same native gate seam the
+		// commandless drive service does (a process-recovery seam over the resolved
+		// executable) and its only write is the process layer's lock-guarded abandoned
+		// marker on a recovered record.
+		Annotations: capability("gate.history.cleanup", EffectProcessControl, EffectLocalWrite),
+		Args:        cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			// Resolve the Git common directory (the durable drive-store root) and this
+			// binary's path exactly as the commandless/task drives do; the app
+			// operation composes the store and process seam over them.
+			commonDir, exe, err := gateDriveRepoContext(c.Context(), repoDir)
+			if err != nil {
+				return err
+			}
+			driveID, _ := c.Flags().GetString("drive-id")
+			dryRun, _ := c.Flags().GetBool("dry-run")
+			setResult(app.GateHistoryCleanup(commonDir, exe, app.GateHistoryCleanupRequest{
+				RepoDir: repoDir,
+				DriveID: driveID,
+				DryRun:  dryRun,
+			}))
+			return nil
+		},
+	}
+	cleanupHist.Flags().String("repo-dir", "", "repository `dir` whose gate-drive history to assess (required)")
+	cleanupHist.Flags().String("drive-id", "", "assess exactly this drive `id` (default: the whole registry)")
+	cleanupHist.Flags().Bool("dry-run", false, "preview the assessment without writing any abandoned marker")
+	_ = cleanupHist.MarkFlagRequired("repo-dir")
+	histCmd.AddCommand(cleanupHist)
+
+	gateCmd.AddCommand(launch, observe, stop, recover, cleanup, histCmd, newGateDriveCommand(setResult))
 	return gateCmd
 }
 
