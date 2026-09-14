@@ -21,6 +21,8 @@ Commit `0424126409ebd68b4455bbbce8dbff0d49a20705` repairs all seven findings fro
 
 Permanent regression coverage includes the original review overlay cases, real Git workspace ownership/ref/stack/terminal cases, descendant committed-path checks, review ref/evidence/dirty checks, full wired resolver and repair entry against real finalize receipts, constructible schema output, and a successful end-to-end native fixture preparation. The review overlay and focused package/tagged integration checks passed before this results update. The complete configured source suite is run from the clean commit containing this results record; its final-head receipt remains in the external launch-kit verification evidence to avoid a self-referential commit hash.
 
+The first complete post-review run found two suite-registration defects in the new tests: a default-tag real-Git file used the reserved `_integration_test.go` suffix, and the tagged finalize entry case did not match a declared shard prefix. Renaming the file and placing the tagged case under the existing finalize-rebase shard corrected the integration contract; `gofmt` also normalized the expanded reference guard before the final rerun.
+
 ## Verification performed
 
 - The configured source command `go run ./cmd/docket development test` passed at `e861d4968c04621ed82b18aa096bee36a28c5b1f`: 46 of 46 suite files passed, with 399 assertions and no failed result markers.
