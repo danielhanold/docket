@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:f62a8e752c77abfbc194484be3cdddba441ecddb2bb580f56e80f075aeef32ca",
+  "asset_set_id": "sha256:6373cfbb5df54413296f6131f9d65898e8674ff93e23bc9b17bc5bcaa5e919fd",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -312,6 +312,13 @@
       "sha256": "4505b15a67fd24feeefeb137bbfcdfb9dd6420e98fe83919109e1c44e20f8216"
     },
     {
+      "path": "skills/docket-build/references/codex-task-handoff.md",
+      "role": "skill",
+      "mode": 420,
+      "size": 896,
+      "sha256": "0ef12486172f677f28bd5cbc9c72950bc50ea07d0001cbb016ebe12c5ac7f253"
+    },
+    {
       "path": "skills/docket-build/references/gate-caller-loop.md",
       "role": "skill",
       "mode": 420,
@@ -352,6 +359,20 @@
       "mode": 420,
       "size": 17059,
       "sha256": "f4bf2f67edeafeeb5c20fb1f85feb81071ecc92bbc71afb75b515a2c04d36931"
+    },
+    {
+      "path": "skills/docket-convention/references/codex-feature-binding.md",
+      "role": "skill",
+      "mode": 420,
+      "size": 825,
+      "sha256": "395344ffacee9a8baf901b3fec48885a993adf910ee663a575859341575f3860"
+    },
+    {
+      "path": "skills/docket-convention/references/codex-native-dispatch.md",
+      "role": "skill",
+      "mode": 420,
+      "size": 836,
+      "sha256": "332a4c004ad5cb3cde6b75016266946469837edc06049cf26a20f9a698746e00"
     },
     {
       "path": "skills/docket-convention/references/dummy-mode.md",
@@ -410,6 +431,13 @@
       "sha256": "bdc87a36bd3ab0d4bb10163d5518ac6c38ceb6cd9ea6e88e876bd8783696e5c9"
     },
     {
+      "path": "skills/docket-implement-next/references/codex-planning-results.md",
+      "role": "skill",
+      "mode": 420,
+      "size": 720,
+      "sha256": "fb53b969e95582406eb7ba4bd7bc8d3672e706d69b89e5f61586e0c243b8b2ca"
+    },
+    {
       "path": "skills/docket-implement-next/references/edge-paths.md",
       "role": "skill",
       "mode": 420,
@@ -450,6 +478,13 @@
       "mode": 420,
       "size": 5553,
       "sha256": "c9c7bb42af76223cd1b1d900229e11bfda594879c2de70249033ff237741b661"
+    },
+    {
+      "path": "skills/docket-review/references/codex-review-binding.md",
+      "role": "skill",
+      "mode": 420,
+      "size": 367,
+      "sha256": "22c44eb4a86db2f0402e68d7434b4218d62dcd4ed1a589946ec11b4b7ccafdb3"
     },
     {
       "path": "skills/docket-status/SKILL.md",

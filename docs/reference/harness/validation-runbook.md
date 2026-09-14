@@ -352,7 +352,7 @@ controls to its child. It does not establish a universal launch contract. For in
 `launch: root-coordinator`, certify Docket's supported entry directly with `docket agent enter` and
 exercise a real composition edge such as `docket-implement-next → docket-plan-writer`.
 Metadata-scoped ordinary child roles may continue to use direct registered-agent invocation.
-Feature-scoped ordinary child roles must enter through foreground `agent.enter` with `--worktree`
+Feature-scoped ordinary child roles use native named-agent dispatch and validate their explicit assignment
 set to the absolute canonical feature-worktree root and carry the unchanged structured payload.
 
 - [ ] 1. **Record the Codex version** (`codex --version`) and the `multi_agent` setting in the
