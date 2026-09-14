@@ -13,6 +13,19 @@ type agentWorkspaceValidator struct {
 	workspace WorkspaceDeps
 }
 
+type agentFinalizeInputValidator struct{ deps FinalizeDeps }
+
+func NewAgentFinalizeInputValidator(deps FinalizeDeps) AgentRoleInputValidator {
+	return agentFinalizeInputValidator{deps: deps}
+}
+
+func (v agentFinalizeInputValidator) ValidateRoleInputs(ctx context.Context, a codexcontract.Assignment, p codexcontract.WorkerPayload, repoDir string) error {
+	if p.Kind == "repair" {
+		return nil
+	}
+	return validateResolverEntry(ctx, v.deps, repoDir, a.ChangeID, p.Attempt, p.ResolverReservation, a.WritePaths)
+}
+
 func NewAgentWorkspaceValidator(planning PlanningDeps, workspaceDeps WorkspaceDeps) AgentWorkspaceValidator {
 	return agentWorkspaceValidator{planning: planning, workspace: workspaceDeps}
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -1254,6 +1256,49 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 		return workspace.RebaseReceipt{}, &r
 	}
 	return rec, nil
+}
+
+// validateResolverEntry proves the existing owned attempt, outstanding
+// reservation, stopped commit, and exact unmerged path set without consuming
+// the reservation or advancing the rebase.
+func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir string, id int, attempt, reservation string, expectedPaths []string) error {
+	rc, refusal := loadRebaseContext(ctx, deps, repoDir, OperationAgentCheckInputs, id)
+	if refusal != nil {
+		return fmt.Errorf("%s", refusal.Reason)
+	}
+	rec, ownedRefusal := requireOwnedAttempt(ctx, deps, OperationAgentCheckInputs, rc, attempt)
+	if ownedRefusal != nil {
+		return fmt.Errorf("%s", ownedRefusal.Reason)
+	}
+	git := continueGit(deps)
+	state, err := git.RebaseState(ctx, rc.wsDir)
+	if err != nil {
+		return fmt.Errorf("%s", ReasonRebaseNoConflict)
+	}
+	stopped, err := git.StoppedRebaseCommit(ctx, rc.wsDir)
+	if err != nil {
+		return fmt.Errorf("%s", ReasonRebaseReservationStale)
+	}
+	return validateResolverEntryEvidence(rec, reservation, state, string(stopped), expectedPaths)
+}
+
+func validateResolverEntryEvidence(rec workspace.RebaseReceipt, reservation string, state gitcli.RebaseStatus, stopped string, expectedPaths []string) error {
+	if !rec.HasResolverBudget() || rec.ResolverReservationToken == "" || reservation != rec.ResolverReservationToken {
+		return fmt.Errorf("%s", ReasonRebaseReservationStale)
+	}
+	if state.Disposition != gitcli.RebaseConflicted {
+		return fmt.Errorf("%s", ReasonRebaseNoConflict)
+	}
+	if stopped != rec.ResolverReservationStopped {
+		return fmt.Errorf("%s", ReasonRebaseReservationStale)
+	}
+	got, want := append([]string{}, state.UnmergedPaths...), append([]string{}, expectedPaths...)
+	sort.Strings(got)
+	sort.Strings(want)
+	if !slices.Equal(got, want) {
+		return fmt.Errorf("resolver-paths-mismatch")
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------

@@ -23,6 +23,8 @@ type WorkerPayload struct {
 	PredecessorDriveID  string            `json:"predecessor_drive_id,omitempty"`
 	PredecessorOwnerGen string            `json:"predecessor_owner_gen,omitempty"`
 	Recovered           *RecoveredPayload `json:"recovered,omitempty"`
+	Attempt             string            `json:"attempt,omitempty"`
+	ResolverReservation string            `json:"resolver_reservation,omitempty"`
 }
 
 type RecoveredPayload struct {
@@ -54,6 +56,21 @@ func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 		}
 		if p.ScopeID != "" || p.ChildCapability != "" || p.PredecessorDriveID != "" || p.PredecessorOwnerGen != "" || p.Recovered != nil {
 			return fmt.Errorf("%s payload carries worker authority", p.Kind)
+		}
+		return nil
+	}
+	if p.Kind == "resolver" {
+		if a.Role != "docket-rebase-resolver" || a.Mode != "resolver" || p.Attempt == "" || p.ResolverReservation == "" {
+			return fmt.Errorf("resolver payload does not match reserved assignment")
+		}
+		if p.ScopeID != "" || p.ChildCapability != "" || p.PredecessorDriveID != "" || p.PredecessorOwnerGen != "" || p.Recovered != nil {
+			return fmt.Errorf("resolver payload carries worker authority")
+		}
+		return nil
+	}
+	if p.Kind == "repair" {
+		if a.Role != "docket-integration-repair" || a.Mode != "repair" || p.ScopeID != "" || p.ChildCapability != "" || p.Recovered != nil {
+			return fmt.Errorf("repair payload does not match assignment")
 		}
 		return nil
 	}

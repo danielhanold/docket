@@ -26,6 +26,13 @@ func newAgentCheckInputsCommand(setResult func(app.OperationResult)) *cobra.Comm
 			return fmt.Errorf("agent workspace validator: %w", err)
 		}
 		deps.Workspace = app.NewAgentWorkspaceValidator(planning, workspaceDeps)
+		if a.Mode == "resolver" || a.Mode == "repair" {
+			finalizeDeps, err := newFinalizeDeps(req.RepoDir)
+			if err != nil {
+				return fmt.Errorf("agent role validator: %w", err)
+			}
+			deps.Role = app.NewAgentFinalizeInputValidator(finalizeDeps)
+		}
 		if req.Stage == "dispatch" || (req.Stage == "entry" && req.Payload != "") {
 			deps.Scope, err = app.NewAgentScopeValidator(a.CommonDir, a.DocketExecutable)
 			if err != nil {
