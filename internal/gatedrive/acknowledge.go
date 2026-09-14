@@ -4,7 +4,7 @@
 //
 // A recovery scope carries a SEQUENCE of task-owned drives through one slot —
 // baseline, RED, GREEN, verification — each successor start acknowledging its
-// predecessor's durable PASSED/FAILED result (driver.go startScoped). The LAST
+// predecessor's durable PASSED/FAILED result (driver.go admitScoped). The LAST
 // drive has no successor start to retire it, so Driver.Acknowledge is its
 // acknowledger: it retires the final drive's recovery authority (the same
 // predecessorReusableError authority a successor start uses) and closes the scope

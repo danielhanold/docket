@@ -27,6 +27,17 @@ type fakeDriveEngine struct {
 	grant        gatedrive.ScopeGrant
 	grantErr     error
 	lastScopeReq gatedrive.ScopeRequest
+	// admitErr, when set, makes Admit refuse (the launch/StartAdmitted half is never
+	// reached). It models an admission race the app's advisory precheck missed —
+	// e.g. a worktree-busy slot — so a test can prove the charge stays AFTER Admit.
+	admitErr error
+	// startAdmittedCount and abandonCount count the two launch-half calls so a test
+	// can prove the build owner charged BETWEEN admission and launch (and abandoned
+	// on a post-admission charge failure). startCount counts Start OR Admit — the
+	// number of admissions reached — so the existing budget assertions carry over
+	// unchanged whichever half the owner used.
+	startAdmittedCount int
+	abandonCount       int
 	// lastAck records the four arguments the most recent Acknowledge call
 	// forwarded, so the seam's argument passthrough is asserted without a real
 	// driver.
@@ -34,11 +45,33 @@ type fakeDriveEngine struct {
 	ackCalled bool
 }
 
-func (f *fakeDriveEngine) Start(r gatedrive.StartRequest) (gatedrive.DriveDoc, error) {
+func (f *fakeDriveEngine) recordStart(r gatedrive.StartRequest) {
 	f.lastStart = r
 	f.startCalled = true
 	f.startCount++
+}
+
+func (f *fakeDriveEngine) Start(r gatedrive.StartRequest) (gatedrive.DriveDoc, error) {
+	f.recordStart(r)
 	return f.doc, f.err
+}
+
+func (f *fakeDriveEngine) Admit(r gatedrive.StartRequest) (*gatedrive.AdmissionTicket, error) {
+	f.recordStart(r)
+	if f.admitErr != nil {
+		return nil, f.admitErr
+	}
+	return &gatedrive.AdmissionTicket{}, nil
+}
+
+func (f *fakeDriveEngine) StartAdmitted(*gatedrive.AdmissionTicket) (gatedrive.DriveDoc, error) {
+	f.startAdmittedCount++
+	return f.doc, f.err
+}
+
+func (f *fakeDriveEngine) AbandonAdmission(*gatedrive.AdmissionTicket) error {
+	f.abandonCount++
+	return nil
 }
 func (f *fakeDriveEngine) Advance(id, ownerGen string) (gatedrive.DriveDoc, error) {
 	return f.doc, f.err
@@ -800,6 +833,113 @@ func TestExhaustionDiagnosticNamesKnob(t *testing.T) {
 	}
 	if !strings.Contains(human, "4/4") {
 		t.Fatalf("exhaustion human text must carry the used/limit fraction 4/4, got %q", human)
+	}
+}
+
+// --- Task 8: worktree admission precedes full-suite attempt charging (ADR-0116) ---
+
+// TestBusyRefusalChargesNoSuiteAttempt proves a build-owned start whose worktree
+// execution slot is already busy is refused with NO suite attempt charged — the
+// advisory admission precheck short-circuits BEFORE the charge (admission precedes
+// charging). The slot is occupied directly in the SAME durable store the service
+// charges against, so the refusal exercises real admission state, not a scripted
+// engine. Moving the charge before the admission check reddens this test.
+func TestBusyRefusalChargesNoSuiteAttempt(t *testing.T) {
+	svc, eng, dir := newBudgetTestBuildService(t, 4)
+	// A real, resolvable worktree whose execution slot we occupy in the service's
+	// own durable store before the build start runs.
+	worktree := testsupport.TempDir(t)
+	store := gatedrive.OpenStore(dir)
+	if _, err := store.ReserveRawWorktreeExecution("/repo", worktree, nil); err != nil {
+		t.Fatalf("occupy worktree slot: %v", err)
+	}
+
+	got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0421"})
+	if got.Result == ResultApplied || got.Drive != nil {
+		t.Fatalf("a busy worktree must refuse the build start, got result=%s drive=%v", got.Result, got.Drive)
+	}
+	if got.Reason != string(gatedrive.ErrWorktreeBusy) {
+		t.Fatalf("busy refusal reason = %q, want %q", got.Reason, string(gatedrive.ErrWorktreeBusy))
+	}
+	// The refusal charged NO suite attempt.
+	key := gatedrive.SuiteBudgetKey{RepoIdentity: "/repo", ChangeID: "0421", Phase: "build"}
+	if used, limit, err := store.SuiteBudgetUsage(key); err != nil || used != 0 || limit != 0 {
+		t.Fatalf("a busy-worktree refusal must charge no suite attempt, got usage (%d,%d) err=%v", used, limit, err)
+	}
+	// The advisory precheck short-circuited before the engine's admission.
+	if eng.startCount != 0 {
+		t.Fatalf("a busy refusal must not reach the engine's admission, got %d", eng.startCount)
+	}
+}
+
+// TestAdmitRefusalChargesNoSuiteAttempt proves the AUTHORITATIVE half of the
+// ordering fix: when the advisory precheck cannot see the busy slot (it cannot
+// resolve the worktree) but Admit itself refuses — a race the precheck missed — the
+// start is still refused with no suite attempt charged, because the charge sits
+// AFTER Admit. The launch half is never reached. Moving the charge before Admit
+// reddens this test.
+func TestAdmitRefusalChargesNoSuiteAttempt(t *testing.T) {
+	svc, eng, dir := newBudgetTestBuildService(t, 4)
+	eng.admitErr = &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "start"}
+
+	got := svc.Start(buildStartReq("0421"))
+	if got.Result == ResultApplied || got.Drive != nil {
+		t.Fatalf("an Admit worktree-busy refusal must refuse the start, got result=%s", got.Result)
+	}
+	if got.Reason != string(gatedrive.ErrWorktreeBusy) {
+		t.Fatalf("refusal reason = %q, want %q", got.Reason, string(gatedrive.ErrWorktreeBusy))
+	}
+	if eng.startCount != 1 {
+		t.Fatalf("Admit must be reached exactly once, got %d", eng.startCount)
+	}
+	if eng.startAdmittedCount != 0 {
+		t.Fatalf("a refused admission must never launch, got %d StartAdmitted calls", eng.startAdmittedCount)
+	}
+	if used, limit := suiteUsage(t, dir, "0421"); used != 0 || limit != 0 {
+		t.Fatalf("an Admit refusal must charge no suite attempt, got usage (%d,%d)", used, limit)
+	}
+}
+
+// TestAdmittedLaunchFailureStillCharges proves the other half of ADR-0116: once an
+// admitted start has charged its attempt, a launch/persistence failure in the
+// launch half is NOT refunded. Admission succeeds, the charge lands, StartAdmitted
+// returns a launch error, and the usage stays at one — no abandon, no refund.
+func TestAdmittedLaunchFailureStillCharges(t *testing.T) {
+	svc, eng, dir := newBudgetTestBuildService(t, 4)
+	eng.doc = gatedrive.DriveDoc{}
+	eng.err = errors.New("gatedrive: start launch: boom")
+
+	got := svc.Start(buildStartReq("0421"))
+	if got.Result == ResultApplied {
+		t.Fatalf("a launch failure is a command failure, got applied")
+	}
+	if used, limit := suiteUsage(t, dir, "0421"); used != 1 || limit != 4 {
+		t.Fatalf("an admitted-then-failed launch keeps its charge (no refund), got usage (%d,%d)", used, limit)
+	}
+	if eng.startCount != 1 || eng.startAdmittedCount != 1 {
+		t.Fatalf("the start must admit then launch exactly once, got admit=%d launch=%d", eng.startCount, eng.startAdmittedCount)
+	}
+	if eng.abandonCount != 0 {
+		t.Fatalf("a charged, admitted start must not abandon its admission, got %d", eng.abandonCount)
+	}
+}
+
+// TestCancellationDoesNotCharge is the Task-10 placeholder: observation,
+// continuation, and transfer never pass through admission, so they never charge the
+// suite budget. Cancellation (Task 10) rests on this — it drives these paths and
+// must reset no accounting.
+func TestCancellationDoesNotCharge(t *testing.T) {
+	svc, _, dir := newBudgetTestBuildService(t, 4)
+
+	svc.Advance("d1", "gen")
+	svc.Advance("d1", "gen")
+	svc.Handoff("d1", "gen")
+	svc.Claim("d1", "h")
+	svc.Takeover("sc-1", "cap", "d1")
+	svc.Acknowledge("sc-1", "cap", "d1", "gen")
+
+	if used, limit := suiteUsage(t, dir, "0421"); used != 0 || limit != 0 {
+		t.Fatalf("advance/handoff/claim/takeover/acknowledge must charge nothing, got usage (%d,%d)", used, limit)
 	}
 }
 

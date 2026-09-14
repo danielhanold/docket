@@ -445,6 +445,33 @@ func (s *Store) LoadWorktreeExecution(worktreeRoot string) (admissionRecord, str
 	return stored.Record, stored.Generation, nil
 }
 
+// WorktreeAdmissionRefusal reports the ADVISORY worktree-admission refusal for a
+// worktree, or nil when the slot is admissible or its state cannot be read. It is
+// the read-only half of the admission authority the application layer consults
+// BEFORE charging a full-suite attempt (change 0375 Task 8): a plainly busy slot
+// (reserved/executing/stopping) returns ErrWorktreeBusy and an unresolved slot
+// returns ErrUnresolvedExecution, so a plainly inadmissible start short-circuits
+// with no charge. It is deliberately ADVISORY — the authoritative admission is
+// ReserveWorktreeExecution under the slot lock — so anything it cannot determine
+// (an absent record, a worktree it cannot yet resolve, a corrupt or unknown-schema
+// record) returns nil and defers to that authority, which re-checks and fails
+// closed. It never mutates and takes no lock, mirroring LoadWorktreeExecution.
+func (s *Store) WorktreeAdmissionRefusal(worktreeRoot string) error {
+	const op = "worktree-admission-refusal"
+	slot, _, err := s.LoadWorktreeExecution(worktreeRoot)
+	if err != nil {
+		return nil // absent / unresolvable / unreadable: defer to the authoritative reserve
+	}
+	switch slot.State {
+	case admissionReserved, admissionExecuting, admissionStopping:
+		return ownershipErr(ErrWorktreeBusy, op)
+	case admissionUnresolved:
+		return ownershipErr(ErrUnresolvedExecution, op)
+	default:
+		return nil
+	}
+}
+
 // verifyAdmissionToken confirms token is the slot's current reservation token.
 // An empty presented token, an unset record token, or any mismatch is
 // ErrNotOwner — a stale caller holding a superseded reservation acquires no
