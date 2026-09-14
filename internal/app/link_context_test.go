@@ -35,18 +35,35 @@ func TestGithubWebURLAcceptedForms(t *testing.T) {
 }
 
 // TestLinkContextOfCarriesBothFields is the constructor half of the 0341
-// regression guard. Mutation probe: drop RepoWebURL from linkContextOf — this
-// test must redden.
+// regression guard, extended by 0417 with the integration branch. Mutation
+// probes: drop RepoWebURL from linkContextOf — reddens; drop the
+// IntegrationBranch assignment — reddens (defaulted-param-hides-caller-wiring:
+// the assert pins the RESOLVED non-default value).
 func TestLinkContextOfCarriesBothFields(t *testing.T) {
 	pin := StatusPin{
-		RepoWebURL: "https://github.com/owner/repo",
+		RepoWebURL:        "https://github.com/owner/repo",
+		IntegrationBranch: "main",
 	}
 	got := linkContextOf(pin)
-	want := render.LinkContext{RepoWebURL: "https://github.com/owner/repo", MetadataBranch: "docket"}
+	want := render.LinkContext{
+		RepoWebURL:        "https://github.com/owner/repo",
+		MetadataBranch:    "docket",
+		IntegrationBranch: "main",
+	}
 	if got != want {
 		t.Fatalf("linkContextOf = %+v, want %+v", got, want)
 	}
 	if url := got.BlobURL("docs/x.md"); url != "https://github.com/owner/repo/blob/docket/docs/x.md" {
 		t.Fatalf("BlobURL = %q", url)
+	}
+}
+
+// TestLinkContextOfIntegrationFallsBackToDefaultBranch mirrors
+// closeoutContext's integration-branch fallback: an unresolved
+// IntegrationBranch on the pin falls back to DefaultBranch.
+func TestLinkContextOfIntegrationFallsBackToDefaultBranch(t *testing.T) {
+	got := linkContextOf(StatusPin{DefaultBranch: "trunk"})
+	if got.IntegrationBranch != "trunk" {
+		t.Fatalf("IntegrationBranch = %q, want fallback to DefaultBranch %q", got.IntegrationBranch, "trunk")
 	}
 }

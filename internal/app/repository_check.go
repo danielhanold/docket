@@ -512,7 +512,10 @@ func readCheckCorpus(ctx context.Context, git *gitcli.Client, sc setupContext) (
 	// linkContextOf is the sole LinkContext constructor (link_context.go / the
 	// 0341 shape guard): route through it so RepoWebURL can never be silently
 	// dropped, exactly as the authoritative writers do.
-	corpus.link = linkContextOf(StatusPin{RepoWebURL: githubWebURL(remoteURL)})
+	corpus.link = linkContextOf(StatusPin{
+		RepoWebURL:        githubWebURL(remoteURL),
+		IntegrationBranch: sc.integrationBranch,
+	})
 	return corpus, nil
 }
 
