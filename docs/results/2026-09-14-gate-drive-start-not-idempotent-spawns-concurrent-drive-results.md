@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0375 — `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md)**
+> ↩ **[Change 0375 — `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-14-0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md)**
 <!-- docket:backlink:end -->
 # `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive — Results
 
