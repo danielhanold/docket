@@ -87,6 +87,10 @@ func (p *racingProc) ResolveReservation(root, token string) (*process.Reservatio
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
 }
 
+func (p *racingProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
+	return process.RecoveryEntry{Disposition: "invalid"}, nil
+}
+
 // relaunchStopCount reports how many of the runs THIS proc launched were later
 // passed to Stop — i.e. orphan cleanups, as distinct from the death-probe stops
 // of the original run.
@@ -257,6 +261,10 @@ func (p *claimWindowProc) ResolveReservation(root, token string) (*process.Reser
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
 }
 
+func (p *claimWindowProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
+	return process.RecoveryEntry{Disposition: "invalid"}, nil
+}
+
 func (p *claimWindowProc) counts() (launches, resolutions int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -383,6 +391,10 @@ func (p *countingProc) Stop(runDir, reason string) (*process.StopOutcome, error)
 
 func (p *countingProc) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
+}
+
+func (p *countingProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
+	return process.RecoveryEntry{Disposition: "invalid"}, nil
 }
 
 func (p *countingProc) launches() int {

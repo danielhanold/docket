@@ -295,9 +295,9 @@ func TestFirstAdmissionInventoriesLegacyWaitingDrive(t *testing.T) {
 func TestFirstAdmissionInventoriesLegacyTerminalProvenDead(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	wt := mkWorktree(t)
-	observe := func(string) (*process.Observation, error) {
-		return obs(process.StateVanished, "/runs/legacy-terminal"), nil
-	}
+	seam := &fakeRecovery{entries: map[string]process.RecoveryEntry{
+		"/runs/legacy-terminal": {Disposition: "terminal"},
+	}}
 	legacy := seedRecord(t)
 	legacy.WorktreePath = wt
 	legacy.LastOutcome = HALTED
@@ -306,7 +306,7 @@ func TestFirstAdmissionInventoriesLegacyTerminalProvenDead(t *testing.T) {
 		t.Fatalf("seed legacy terminal drive: %v", err)
 	}
 
-	if _, err := s.reserveWorktreeExecution(sampleAdmission(wt), observe); err != nil {
+	if _, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam); err != nil {
 		t.Fatalf("first admission must admit a proven-dead legacy terminal drive: %v", err)
 	}
 }

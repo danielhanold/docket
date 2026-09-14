@@ -80,6 +80,13 @@ func (f *fakeProc) ResolveReservation(root, token string) (*process.ReservationR
 	return f.resolve(root, token)
 }
 
+// ClassifyRun is the legacy-inventory recovery seam. These driver/admission tests
+// exercise fresh worktrees with no HALTED legacy history, so the default never
+// classifies a run dead; a test that needs otherwise scripts through fakeRecovery.
+func (f *fakeProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
+	return process.RecoveryEntry{Disposition: "invalid"}, nil
+}
+
 // obs builds a running/terminal observation for a run dir.
 func obs(state process.State, runDir string) *process.Observation {
 	return &process.Observation{State: state, RunDir: runDir}

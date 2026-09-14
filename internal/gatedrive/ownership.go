@@ -138,6 +138,12 @@ const (
 type OwnershipError struct {
 	Kind OwnershipErrorKind
 	Op   string
+	// Legacy is the first-admission legacy-history summary, populated ONLY on an
+	// inventory refusal so the caller can surface which historical drives were
+	// checked, recovered, and retained. It is nil for every other OwnershipError.
+	// Kind/Op are unchanged by its presence, so every existing consumer that keys
+	// on those compiles and behaves identically. Bounded ids and reasons only.
+	Legacy *LegacyHistorySummary
 }
 
 func (e *OwnershipError) Error() string {
