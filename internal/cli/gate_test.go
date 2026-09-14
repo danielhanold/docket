@@ -926,6 +926,67 @@ func TestGateDriveStartRejectsPositionalBeforeDash(t *testing.T) {
 	}
 }
 
+// TestGateHistoryCleanupInCatalog proves the `gate history cleanup` leaf is
+// registered and cataloged: it appears in the walker's output under the id
+// gate.history.cleanup with the full `docket gate history cleanup` argv.
+func TestGateHistoryCleanupInCatalog(t *testing.T) {
+	entries, err := collectCapabilities(productionRootForTest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, ok := entryByID(entries, "gate.history.cleanup")
+	if !ok {
+		t.Fatalf("gate.history.cleanup absent from the catalog")
+	}
+	if got := strings.Join(e.Argv, " "); got != "docket gate history cleanup" {
+		t.Fatalf("argv = %q, want %q", got, "docket gate history cleanup")
+	}
+}
+
+// TestGateHistoryCleanupJSONEnvelope drives the leaf over a real git repo whose
+// gate-drive registry is empty: the assessment applies cleanly and emits exactly
+// one gate.history.cleanup protocol document at exit 0.
+func TestGateHistoryCleanupJSONEnvelope(t *testing.T) {
+	wt := gateDriveRepo(t)
+	out, errS, code := runCLI(t, "--json", "gate", "history", "cleanup", "--repo-dir", wt)
+	if code != 0 || errS != "" {
+		t.Fatalf("history cleanup: out=%q err=%q code=%d", out, errS, code)
+	}
+	doc := decodeOneJSON(t, out)
+	if doc["operation"] != "gate.history.cleanup" || doc["result"] != "applied" {
+		t.Fatalf("history cleanup envelope: %v", doc)
+	}
+}
+
+// TestGateHistoryCleanupInvalidDriveID proves a malformed/traversal --drive-id is
+// refused with the app operation's invalid-input result and invalid-id reason
+// (exit 2), carried unchanged through the CLI adapter.
+func TestGateHistoryCleanupInvalidDriveID(t *testing.T) {
+	wt := gateDriveRepo(t)
+	out, errS, code := runCLI(t, "--json", "gate", "history", "cleanup",
+		"--repo-dir", wt, "--drive-id", "../etc/passwd")
+	if code != 2 || errS != "" {
+		t.Fatalf("invalid drive id json: out=%q err=%q code=%d", out, errS, code)
+	}
+	doc := decodeOneJSON(t, out)
+	if doc["result"] != "invalid-input" {
+		t.Fatalf("invalid drive id result=%v, want invalid-input: %v", doc["result"], doc)
+	}
+	if doc["reason"] != "invalid-id" {
+		t.Fatalf("invalid drive id reason=%v, want invalid-id: %v", doc["reason"], doc)
+	}
+}
+
+// TestGateHistoryCleanupRequiresRepoDir proves --repo-dir is a required flag:
+// omitting it is cobra's required-flag failure (exit 2, before RunE), so the
+// assessment never runs against an unintended directory.
+func TestGateHistoryCleanupRequiresRepoDir(t *testing.T) {
+	_, _, code := runCLI(t, "gate", "history", "cleanup")
+	if code != 2 {
+		t.Fatalf("missing --repo-dir: code=%d, want 2", code)
+	}
+}
+
 // TestCLIDoesNotImportProcess is the second half of the import-boundary check
 // (Task 1 owns the first): no internal/cli production file may import
 // internal/process. Same go/parser shape as the process-side guard, with a
