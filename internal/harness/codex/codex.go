@@ -60,11 +60,10 @@ const (
 )
 
 // codexTargetRouting is emitted into EVERY generated agent. The target's
-// registered description is the typed, installed routing authority: a root
-// launch marker takes precedence, a feature marker selects worktree entry, and
-// an unmarked metadata child remains a native child. It stays in the Codex
-// renderer because this is Codex-specific tool placement; the shared agent
-// bodies remain harness-neutral.
+// registered description carries typed metadata for its assignment and role
+// references; native dispatch does not translate those markers into a second
+// root process. It stays in the Codex renderer because this is Codex-specific
+// tool placement; the shared agent bodies remain harness-neutral.
 const codexTargetRouting = "When your active charter requires another registered role, use Codex's top-level registered named-agent dispatch and retain the exact native child identity until terminal return. Description launch and worktree markers are typed metadata for the child's contract; they never select a second root process. Forward the complete assignment and unchanged dispatch context, and keep parent capabilities and gate keys private. If the registered target, top-level dispatch control, required resource, or model prerequisite is absent or explicitly denied, halt with that configuration failure. Never substitute `agent.enter`, `codex exec`, a shell runner, another harness, a generic agent, or a relay."
 
 // ErrRender is the sentinel for a rendering that cannot be expressed — an
