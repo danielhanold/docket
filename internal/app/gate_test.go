@@ -2,11 +2,13 @@ package app
 
 import (
 	"encoding/json"
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestMain routes the supervisor re-exec role of the app test binary: a real
@@ -66,4 +68,137 @@ func TestGateResultHumanTextStable(t *testing.T) {
 	if r.HumanText() != want {
 		t.Fatalf("HumanText:\n got %q\nwant %q", r.HumanText(), want)
 	}
+}
+
+// --- change 0375: raw gate.launch admits through the worktree execution slot ---
+
+// TestGateLaunchInsideWorktreeReservesSlot proves a raw launch whose cwd sits
+// inside a registered worktree acquires the durable execution slot: after a PASSED
+// start the slot is executing, carries this launch's raw run identity, is Kind
+// "raw", and holds no drive id.
+func TestGateLaunchInsideWorktreeReservesSlot(t *testing.T) {
+	requireRealGit(t)
+	worktree, gitDir := initGitRepo(t, "")
+	// A raw slot holds the worktree until a GateStop-proven teardown releases it,
+	// so even a fast command keeps the slot "executing" for the assertions below.
+	res := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/echo", "hi"})
+	t.Cleanup(func() { GateStop(res.RunDir, "test cleanup") })
+	if res.Result != ResultApplied || res.RunDir == "" {
+		t.Fatalf("launch: result=%s reason=%q rundir=%q", res.Result, res.Reason, res.RunDir)
+	}
+	slot, _, err := gatedrive.OpenStore(gitDir).LoadWorktreeExecution(worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if got := string(slot.State); got != "executing" {
+		t.Fatalf("slot state = %q, want executing", got)
+	}
+	if slot.Kind != "raw" {
+		t.Fatalf("slot kind = %q, want raw", slot.Kind)
+	}
+	if slot.RawRunDir != res.RunDir || slot.RawRunID != res.RunID {
+		t.Fatalf("slot raw run = (%q,%q), want (%q,%q)", slot.RawRunID, slot.RawRunDir, res.RunID, res.RunDir)
+	}
+	if slot.DriveID != "" {
+		t.Fatalf("raw slot carries a drive id %q", slot.DriveID)
+	}
+}
+
+// TestGateLaunchSecondRefusedWhileFirstLives proves a second raw launch into a
+// worktree whose slot is live is refused worktree-busy — even from a DISTINCT run
+// root — with no process spawned, and that the refusal locates the incumbent run
+// (a safe locator) without leaking a reservation token.
+func TestGateLaunchSecondRefusedWhileFirstLives(t *testing.T) {
+	requireRealGit(t)
+	worktree, _ := initGitRepo(t, "")
+	// The first run's slot stays reserved until a GateStop-proven teardown, so it
+	// blocks a second admission regardless of the first command's own lifetime.
+	first := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/echo", "hi"})
+	t.Cleanup(func() { GateStop(first.RunDir, "test cleanup") })
+	if first.Result != ResultApplied || first.RunID == "" {
+		t.Fatalf("first launch: result=%s reason=%q", first.Result, first.Reason)
+	}
+	second := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/echo", "hi"})
+	if second.RunDir != "" {
+		GateStop(second.RunDir, "test cleanup") // never expected; avoid leaking a process
+		t.Fatalf("refused launch produced a run handle: %+v", second)
+	}
+	if second.Result != ResultBlocked {
+		t.Fatalf("second launch result = %s (reason %q), want blocked", second.Result, second.Reason)
+	}
+	if second.Reason != "worktree-busy" {
+		t.Fatalf("second launch reason = %q, want worktree-busy", second.Reason)
+	}
+	if !strings.Contains(second.Cause, first.RunID) {
+		t.Fatalf("refusal cause %q does not locate the incumbent run %q", second.Cause, first.RunID)
+	}
+}
+
+// TestGateLaunchOutsideGitUnchanged proves a launch whose cwd is outside any git
+// worktree keeps its pre-admission contract: no slot is reserved, so a second
+// launch in the same non-worktree cwd is not refused.
+func TestGateLaunchOutsideGitUnchanged(t *testing.T) {
+	cwd := testsupport.TempDir(t) // not a git worktree
+	first := GateLaunch(testsupport.TempDir(t), cwd, []string{"/bin/echo", "hi"})
+	if first.Result != ResultApplied || first.RunDir == "" {
+		t.Fatalf("first launch outside git: result=%s reason=%q", first.Result, first.Reason)
+	}
+	second := GateLaunch(testsupport.TempDir(t), cwd, []string{"/bin/echo", "hi"})
+	if second.Result != ResultApplied || second.RunDir == "" {
+		t.Fatalf("second launch outside git: result=%s reason=%q", second.Result, second.Reason)
+	}
+}
+
+// TestGateStopReleasesRawSlot proves GateStop's PROVEN teardown releases the raw
+// slot the run held, so the worktree readmits. The teardown proof is the run's own
+// terminal state: the launched command runs to completion (a no-op stop then
+// observes it passed), which is the deterministic proof of a gone process group.
+// A stop of a still-LIVE run cannot prove teardown in this supervisor-as-test-binary
+// harness (the group TERM frees the live lock before a terminal record lands, so
+// Stop is blocked — pre-existing behavior), and the fail-closed release correctly
+// leaves such a slot untouched; this test pins the provable path Task 7 adds.
+func TestGateStopReleasesRawSlot(t *testing.T) {
+	requireRealGit(t)
+	worktree, gitDir := initGitRepo(t, "")
+	store := gatedrive.OpenStore(gitDir)
+
+	res := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/echo", "hi"})
+	if res.Result != ResultApplied || res.RunDir == "" {
+		t.Fatalf("launch: result=%s reason=%q", res.Result, res.Reason)
+	}
+	// The slot is reserved and confirmed even for a fast command.
+	if slot, _, err := store.LoadWorktreeExecution(worktree); err != nil || string(slot.State) != "executing" {
+		t.Fatalf("pre-stop slot state=%q err=%v", string(slot.State), err)
+	}
+	// Let the run reach a terminal state so the stop's teardown is provable.
+	waitGateRunTerminal(t, res.RunDir)
+
+	stop := GateStop(res.RunDir, "test cleanup")
+	if stop.Result != ResultNoOp {
+		t.Fatalf("stop of a terminal run result = %s (%s), want no-op", stop.Result, stop.Reason)
+	}
+	slot, _, err := store.LoadWorktreeExecution(worktree)
+	if err != nil {
+		t.Fatalf("post-stop LoadWorktreeExecution: %v", err)
+	}
+	if got := string(slot.State); got != "released" {
+		t.Fatalf("post-stop slot state = %q, want released", got)
+	}
+	readmit := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/echo", "hi"})
+	if readmit.Result != ResultApplied {
+		t.Fatalf("readmission after release: result=%s reason=%q", readmit.Result, readmit.Reason)
+	}
+}
+
+// waitGateRunTerminal polls GateObserve until the run leaves the running state or a
+// generous deadline elapses, so a following stop is a proven-terminal no-op.
+func waitGateRunTerminal(t *testing.T, runDir string) {
+	t.Helper()
+	for i := 0; i < 300; i++ {
+		if GateObserve(runDir).State != "running" {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("run never became terminal")
 }

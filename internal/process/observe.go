@@ -18,6 +18,12 @@ type Observation struct {
 	Cause     string
 	StdoutLog string
 	StderrLog string
+	// Cwd is the run's recorded launch working directory, copied verbatim from
+	// the manifest. It is a path, no more sensitive than RunDir, and lets a
+	// caller that holds only a run dir resolve the worktree that contained the
+	// launch (change 0375: app.GateStop releases the raw worktree execution slot
+	// a stopped run occupied). Empty only when the manifest recorded no cwd.
+	Cwd string
 }
 
 // observePostProbeHook is a package-private test seam fired once in the cleanly
@@ -66,6 +72,7 @@ func (s *Service) Observe(runDir string) (*Observation, error) {
 	obs := &Observation{
 		RunID:     m.RunID,
 		RunDir:    runDir,
+		Cwd:       m.Cwd,
 		StdoutLog: filepath.Join(runDir, stdoutLogFile),
 		StderrLog: filepath.Join(runDir, stderrLogFile),
 	}
