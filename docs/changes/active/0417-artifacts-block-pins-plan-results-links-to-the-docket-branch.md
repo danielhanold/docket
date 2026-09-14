@@ -22,7 +22,7 @@ branch: 'fix/artifacts-block-pins-plan-results-links-to-the-docket-branch'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-14T23:21:46Z'
+claimed_at: '2026-09-14T23:31:34Z'
 ---
 
 ## Artifacts
