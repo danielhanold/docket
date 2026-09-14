@@ -12,7 +12,7 @@ stacked_on:
 related: [384, 393, 412]
 discovered_from: [423]
 adrs: [114]
-spec:
+spec: 'docs/superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md) |
 | ADRs | [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
 <!-- docket:artifacts:end -->
 

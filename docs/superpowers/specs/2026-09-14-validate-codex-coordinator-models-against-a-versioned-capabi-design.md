@@ -1,0 +1,61 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0424 — Validate Codex coordinator models against a versioned capability registry](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md)**
+<!-- docket:backlink:end -->
+
+# Validate Codex coordinator models against a versioned capability registry
+
+## Outcome and scope
+
+Change 424 adds model policy to 425's existing native named-agent route. A known V1 model assigned to a role that must dispatch children causes an actionable error before installation writes. A known V2-or-newer model passes. Unknown capability produces a warning, with an optional exact-model local assertion. No model or effort value is rewritten. This design does not implement routing, worktree binding, a launcher, a per-dispatch network call, or legacy runner retirement.
+
+425 must pass its source review and native acceptance before this change is launched. Preparation preserves `depends_on: [423, 425]`, no stack, and proposed/nontrivial status. The separately authorized dogfood launch converts to `depends_on: [423]` and `stacked_on: 425` immediately before explicit 424 dispatch. 424 has its own worktree, plan, results and PR against the actual remote 425 branch.
+
+## Delivered interfaces and evidence
+
+At 425 source `a3b01bafb2224902b3cd8f36f7c01cb7335e2d21`, `harness.AgentSource` and `ParseInventory` own source role metadata; `codex.roleContract`, `RoleContractFor` and `Plan` consume resolved model/effort values. `config.Resolve` owns per-field precedence and provenance. `app`/`cli` own the capability and schema catalog. `agent.check-inputs` and `agent.check-receipt` are read-only data checks and remain so. 425 review defects must be repaired upstream; they are not work for 424.
+
+Read-only local observation on 2026-09-14, Codex CLI 0.154.0: `codex debug models` returns `models[].slug` and `models[].multi_agent_version`. Exact observed V2 IDs are `gpt-6-astra`, `gpt-5.6-sol`, `gpt-5.6-terra`; V1 IDs are `gpt-reserve`, `gpt-5.6-luna`, `codex-auto-review`. `gpt-5.5` and `gpt-5.3-codex-spark` lack the capability field and are unknown. The preparation kit retains the bounded observation in `evidence/review-codex-models.json`. The implementation must recapture and pin the actual raw local output and binary identity before shipping registry data. Missing values are never converted to V1. Catalog capability is distinct from evidence that a particular role actually ran successfully.
+
+## Inventory contract
+
+Add required frontmatter `minimum-multi-agent-version: 1|2` to each Docket role source and a typed `MinimumMultiAgentVersion` to `harness.AgentSource`. Missing, noninteger, duplicate or unsupported values are bundle errors. The field is harness-neutral role metadata; enforcement in this change is Codex-only. Do not infer it from launch markers, model names, worktree scope or a hardcoded role-name list.
+
+Assign 2 to roles whose active charter dispatches children, including dispatch inside a configured skill. Inventory initialization audits all role bodies and invoked skill edges: ImplementNext, auto-groom and finalize are dispatch owners; planner behavior includes the invoked planning skill's nested review/consultation. A configurable role whose contract permits a dispatching skill receives 2 conservatively; selecting `auto` does not silently lower it. Leaf build/review/critic/consultant/status/ADR roles get 1 where their complete charter confirms no nested dispatch. Derive guard coverage from the complete inventory plus workflow-edge search and mutation-test removal of a dispatch-owner requirement. Explain each conservative assignment in a maintained capability reference anchored on symbols or quoted clauses.
+
+The interactive foreground parent is not an inventory role and cannot be inferred from child pins. Diagnostics report it as `not-observed` unless explicitly supplied by the operator or an actual runtime observation. Documentation retains the parent's manual V2 preflight. This feature makes no claim that reading config proves the active app session's model.
+
+## Bundled registry
+
+Use one embedded JSON resource at `agents/codex-model-capabilities.json`, included by the existing asset catalog/generator. Extend the catalog's typed asset role only if its existing classifications cannot represent this data without pretending it is an agent source. Schema 1 contains a monotonic `registry_version`, `observed_at` UTC timestamp, Codex CLI version and executable SHA-256, a source descriptor and raw capture SHA-256, and sorted unique exact-model records with `model`, integer `multi_agent_version` or null, and provenance. Strictly reject duplicate identifiers, malformed versions, unsupported schema and inconsistent provenance. Do not normalize away model suffixes or aliases; case-sensitive exact ID lookup only.
+
+The version is reviewed source data, not the current date used as implicit authority. Ship only observed exact IDs. Family/effort heuristics, wildcard aliases and internet-derived model guesses are prohibited. Ordinary deterministic policy reads embedded registry bytes, never the host catalog or a mutable global cache. Tests use frozen synthetic catalogs to remain offline.
+
+## Policy and local assertions
+
+For each resolved Codex role, compare its typed minimum with the exact registry entry. Minimum 1 imposes no V2 coordinator restriction. For minimum 2: known version >=2 passes; known 1 errors; unknown warns. Unpinned/inherit/auto model values remain unknown, because the eventual runtime model is not deterministically available. Unknown warnings do not silently become passes and do not prevent ordinary generation.
+
+Add a machine-local configuration map `codex_model_assertions`, keyed by exact model ID. Each value requires `multi_agent_version: 2`, `observed_at`, `codex_cli_version`, `codex_binary_sha256`, and a nonempty evidence locator/provenance note. It is accepted only in the repo-local `.docket.local.yml` layer; committed/global declarations are diagnosed and ignored. Extend the existing config schema and source-layer validation, preserving all other configuration precedence. This is operator-authored input; no automatic writer or pin repair.
+
+A local assertion can annotate an otherwise unknown minimum-2 assignment as `asserted`, never `registry-verified`. It cannot override known V1. It becomes stale when the installed CLI version or canonical binary content digest differs, when an explicit live audit contradicts it, or when its required provenance is malformed. Exact equality defines freshness; no arbitrary time expiry. Missing CLI identity makes it unverifiable and leaves the unknown warning. Identity hashing/version inspection is local; deterministic checks never invoke the live models query. If known registry evidence later says V1, return an error even if the old assertion still matches the CLI fingerprint.
+
+## Diagnostic and explicit audit
+
+Add proposed semantic operations `diagnostic.codex-models` and `diagnostic.codex-models-audit` to the capability/schema catalog. These are new 424 interfaces, not callable 425 commands. The former is read-only and reports registry version/hash, effective role pins with config provenance, minimum, capability source, verdict and remedy; stable sort by role. The latter explicitly invokes the locally supported catalog command through the existing process abstraction with bounded output/time and cancellation, then compares all pages/records with the bundled snapshot. It launches no agent. Catalog additions/removals/changed capability, unknown capability values and exact conflicts are reported separately. Missing field, malformed JSON, duplicated model or incomplete pagination fails the audit; it cannot certify a partial result. Known V1 versus V2 contradictions are errors and are never auto-resolved by preferring an assertion.
+
+The audited command is the observed `codex debug models` surface. Keep its decoder in a small Codex-specific adapter with a recorded supported wire fixture. If the surface changes, report unsupported/invalid catalog and require an explicit adapter update; do not invent another CLI or switch to an agent-entry route. Audit returns a proposed registry document/diff in its typed result. An operator can save that document and submit a normal reviewed source change; audit never overwrites the bundled registry or local assertions. Effects must disclose any local process use while retaining zero metadata/external writes.
+
+Both operations expose precise request/result fields through the schema endpoint and reuse shared policy evaluation. Findings carry stable codes for known-too-old, unknown, asserted, stale-assertion, assertion-conflict, live-conflict, missing-cli and invalid-catalog. Human output identifies role, exact model, provenance and remedy. JSON records observations without asserting active app model selection. Missing/changed live data is not a successful refresh.
+
+## Install and repository gates
+
+Evaluate Codex policy after config resolution and inventory parsing but before applying any install target. A known-too-old assignment or invalid registry must leave binary/definitions/managed blocks unchanged. Resolve all errors before the first write, including mixed-harness installs. Other harness renderers retain their output and policy. `RoleContractFor`/`Plan` must share the same evaluation boundary so developer fixture generation cannot bypass it.
+
+Retain manual exact pins and effort values byte-for-byte through successful generation. Unknown warnings include a configuration remedy and do not guess an alternative model. Guard tests read every inventory role and simulate minimum removal, a newly introduced dispatch owner, known-V1 coordinator, V1 leaf, known-V2 coordinator, unknown model, stale assertion and live contradiction. Existing caller gate/continuation/cancellation semantics remain unchanged; validation adds no per-dispatch catalog query.
+
+## Acceptance and implementation planning
+
+Native ImplementNext writes the implementation plan from the current 425 stack base. The work divides into inventory/registry parsing, policy/config assertions, install preflight, deterministic/live diagnostics, and documentation/coverage. Do not create that plan during grooming.
+
+Meaningful tests cover strict registry parsing, exact identifiers, offline determinism, source-layer precedence, assertions that cannot override V1, CLI fingerprint drift, paginated/invalid/timeout live output, no writes on install refusal, all-inventory coverage, schema/catalog effects, and unchanged non-Codex generated assets. Demonstrate the user-visible failure by assigning a synthetic known-V1 coordinator and seeing installation refuse before any destination changes; restore the fixture pin and observe unchanged chosen model/effort in the generated definition. Mutation-test each new guard. Run the full configured source suite and read its budget report through the existing Go runner at both required build/results checkpoints.
+
+Document the parent/child distinction, V1 leaves versus V2 dispatch owners, deterministic registry versus explicit live audit, exact provenance, assertion staleness, refresh review workflow and remedies in README and docs/install/codex.md. Capture a successor ADR through normal dispatch if implementation makes a non-obvious durable policy choice. 424's results must name actual source/binary/registry hashes, native lineage, independent review, gates and its own PR. Merge 425 first, preserve the parent branch while needed, then retarget/rebase/retest 424 through normal stacked-change rules. No merge is authorized by this design.
