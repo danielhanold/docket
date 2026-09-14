@@ -79,7 +79,7 @@ func (s *Service) Recover(root string) (*RecoverOutcome, error) {
 		})
 	}
 	for _, name := range snap.candidates {
-		entry, cerr := s.classifyRun(filepath.Join(root, name), name)
+		entry, cerr := s.classifyRun(filepath.Join(root, name), name, true)
 		if cerr != nil {
 			return nil, cerr
 		}
@@ -140,11 +140,30 @@ func (s *Service) recoverSnapshot(root string) (recoverSnapshotResult, error) {
 	return res, nil
 }
 
+// ClassifyRun classifies ONE run slot with the same predicate Recover applies
+// per slot. mark=false is a pure assessment: it never writes; a slot Recover
+// would mark reports "abandonable". mark=true applies the identical marker
+// write. It is the single liveness/teardown predicate — callers must never
+// reimplement it.
+func (s *Service) ClassifyRun(runDir string, mark bool) (RecoveryEntry, error) {
+	if !filepath.IsAbs(runDir) {
+		return RecoveryEntry{}, failf(FailInvalidInput, "classify-run", "run dir must be an absolute path")
+	}
+	name := filepath.Base(runDir)
+	if li, err := os.Lstat(runDir); err != nil || li.Mode()&os.ModeSymlink != 0 || !li.IsDir() || !runIDPattern.MatchString(name) {
+		return RecoveryEntry{RunID: name, RunDir: runDir, Disposition: "foreign", Reason: "not a run slot; left untouched"}, nil
+	}
+	return s.classifyRun(runDir, name, mark)
+}
+
 // classifyRun decides one run-id slot's disposition and, only for a cleanly
-// abandoned owned run, writes its marker. It never signals and never deletes.
-// A returned error is a marker write failure alone; every read failure fails
-// closed to a no-mark disposition rather than aborting the whole scan.
-func (s *Service) classifyRun(runDir, name string) (RecoveryEntry, error) {
+// abandoned owned run under mark=true, writes its marker. It never signals and
+// never deletes. Under mark=false it is a pure assessment: the slot that would
+// earn a fresh abandoned marker reports "abandonable" and nothing is written;
+// every other disposition is identical in both modes. A returned error is a
+// marker write failure alone; every read failure fails closed to a no-mark
+// disposition rather than aborting the whole scan.
+func (s *Service) classifyRun(runDir, name string, mark bool) (RecoveryEntry, error) {
 	entry := RecoveryEntry{RunID: name, RunDir: runDir}
 
 	// Manifest first: without a self-agreeing manifest there is no run identity
@@ -230,6 +249,11 @@ func (s *Service) classifyRun(runDir, name string) (RecoveryEntry, error) {
 	// mark). Both are left for inspection, signalled and deleted nothing.
 	switch recoverGroupProbe(m.PGID) {
 	case probeAbsent:
+		if !mark {
+			entry.Disposition = "abandonable"
+			entry.Reason = "recorded group provably absent; an applied recovery would write the abandoned marker"
+			return entry, nil
+		}
 		if werr := writeAtomicJSON(filepath.Join(runDir, abandonedFile), &abandonedRecord{
 			Schema:     recordSchema,
 			RunID:      m.RunID,
