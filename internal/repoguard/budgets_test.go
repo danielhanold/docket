@@ -247,7 +247,7 @@ func TestSkillSizeBudgets(t *testing.T) {
 const (
 	dispatchStart  = "docket:dispatch:start"
 	dispatchEnd    = "docket:dispatch:end"
-	dispatchBudget = 1110 // 0375: the always-loaded run-gate block gained the human Stop/cancel and resume-after-stop operator contract (run.cancel + resume refusals) — the change's headline capability, documented where the gate rules already ride every turn. Re-baselined at the exact new count; still strictly below the retired roster (the anti-regrowth invariant below).
+	dispatchBudget = 1137 // 0375: step 1 now states the arm prints the run epoch id and where it threads (run.cancel --epoch and every --run-epoch dispatch flag), so the documented human Stop path is followable; this rides atop the earlier 0375 Stop/cancel + resume-after-stop contract (was 1110). Re-baselined at the exact new count; still strictly below the retired roster (the anti-regrowth invariant below).
 	dispatchOld    = 1156 // pre-0334 roster block; the ceiling must stay strictly below it.
 )
 

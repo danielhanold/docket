@@ -133,9 +133,14 @@ func TestGateBeforePreparesOuterScope(t *testing.T) {
 	if sp.req.ChangeID != "" || sp.req.Branch != "" || sp.req.Worktree != "" {
 		t.Errorf("fresh scope request carried identity: %+v", sp.req)
 	}
-	// Armed line: gate-armed <key> <dispatch-context>, followed by the honest
-	// owner-lifecycle caveat (change 0375 Task 13).
-	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	// Armed line: gate-armed <key> <epoch> <dispatch-context>, followed by the
+	// honest owner-lifecycle caveat (change 0375 Task 13). The epoch id is minted
+	// beside the gate record and surfaced so the Stop path is followable.
+	ep, _, err := LoadEpochRecord(repo, res.Key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 	if res.DispatchContext != scopeGrantChild {
@@ -167,6 +172,42 @@ func TestGateBeforePreparesOuterScope(t *testing.T) {
 	}
 	if strings.Contains(res.HumanText(), scopeGrantParent) {
 		t.Errorf("HumanText leaks the parent capability: %q", res.HumanText())
+	}
+}
+
+// TestGateBeforeFreshArmSurfacesRunEpoch: a fresh (non-resume) arm surfaces the
+// minted run epoch's public id in the result (Epoch) and in the human report line
+// — the documented `run.cancel --epoch <id>` / `--run-epoch` value the operator and
+// the dispatcher thread through. Without it the primary human-Stop path names an
+// epoch the arm never gave (change 0375). The surfaced id must equal the id the
+// bound epoch record actually carries — the same value run.cancel cross-checks.
+func TestGateBeforeFreshArmSurfacesRunEpoch(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Armed || res.Key == "" {
+		t.Fatalf("Armed=%v Key=%q, want armed", res.Armed, res.Key)
+	}
+
+	// The arm minted an epoch beside the gate record; its id is what run.cancel and
+	// every --run-epoch flag consume, so the arm must hand it back.
+	ep, _, err := LoadEpochRecord(repo, res.Key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.EpochID == "" {
+		t.Fatalf("minted epoch has no id")
+	}
+	if res.Epoch != ep.EpochID {
+		t.Errorf("result Epoch = %q, want the minted epoch id %q", res.Epoch, ep.EpochID)
+	}
+
+	// Human report line: gate-armed <key> <epoch> <dispatch-context>, then the
+	// owner-lifecycle caveat.
+	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }
 

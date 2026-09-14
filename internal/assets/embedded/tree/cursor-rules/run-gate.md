@@ -8,10 +8,12 @@ operation below from the capability catalog. If it is missing, the install is br
 never rebuild the gate by hand.
 
 1. Before dispatching `docket-implement-next`, run `run.gate-before` with `implement-next`. It prints
-   `gate-armed <key> <dispatch-context>`; keep both (it won't survive the next tool call) and copy
-   the `<dispatch-context>` into the dispatch prompt. Add `--resume <id>` to arm for
-   resuming an already-in-progress change. `gate-unarmed` still lets you dispatch, but keyless
-   (step 2's fallback) and can never authorize a re-dispatch.
+   `gate-armed <key> <epoch> <dispatch-context>`; keep all three (they won't survive the next tool
+   call) and copy the `<dispatch-context>` into the dispatch prompt. The `<epoch>` is the run epoch id
+   you thread into `run.cancel --epoch` (below) and every `--run-epoch` dispatch flag (`agent.enter`,
+   `gate drive start`, `gate drive prepare-scope`). Add `--resume <id>` to arm for resuming an
+   already-in-progress change. `gate-unarmed` still lets you dispatch, but keyless (step 2's fallback)
+   and can never authorize a re-dispatch.
 2. After the run returns, or its completion notification arrives, run `run.gate-verdict`
    with `<key>`; without a key, run it with `--unattributed` plus any change id the notification
    names. Obey the resulting `gate-*` report line exactly, never its exit code or the child's prose.

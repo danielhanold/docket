@@ -2979,7 +2979,11 @@ func TestIntegrationChangeRunGateBeforeArmsWithLoadableKey(t *testing.T) {
 	if !res.Armed || res.Key == "" {
 		t.Fatalf("Armed=%v Key=%q, want armed with a non-empty key", res.Armed, res.Key)
 	}
-	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	ep, _, err := LoadEpochRecord(repo, res.Key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord(%q): %v", res.Key, err)
+	}
+	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 

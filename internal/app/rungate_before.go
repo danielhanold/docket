@@ -132,9 +132,17 @@ type RunGateBeforeResult struct {
 	// capability is deliberately absent from this result — it lives only in the
 	// 0600-private gate record.
 	DispatchContext string `json:"dispatch_context,omitempty"`
-	Target          string `json:"target,omitempty"`
-	Reason          string `json:"reason,omitempty"`
-	Message         string `json:"message,omitempty"`
+	// Epoch is the fresh run's PUBLIC epoch id, minted at arm time beside the gate
+	// record (rungate_epoch.go). It authorizes nothing (ADR-0111) but is the locator
+	// the operator threads into `run.cancel --epoch <id>` — the primary human Stop —
+	// and the dispatcher threads into each `--run-epoch` flag (agent.enter, gate drive
+	// start, gate drive prepare-scope). Without it the documented Stop path names an
+	// epoch the arm never surfaced (change 0375). Empty only on a legacy resume arm
+	// that shares no epoch; the resume-active locator already prints the epoch there.
+	Epoch   string `json:"epoch,omitempty"`
+	Target  string `json:"target,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
 	// OwnerLifecycle is the honest owner-lifecycle limitation of the dispatched
 	// route (change 0375 Task 13). On an armed gate it carries
 	// `owner-lifecycle-unavailable`: the default dispatch route has no automatic
@@ -144,14 +152,19 @@ type RunGateBeforeResult struct {
 }
 
 // HumanText renders the one report line. An armed gate prints `gate-armed <key>
-// <dispatch-context>`; a gate-unarmed report prints `gate-unarmed
+// <epoch> <dispatch-context>` (the epoch is omitted only on a legacy resume arm
+// that shares no epoch); a gate-unarmed report prints `gate-unarmed
 // <reason-token>`; a usage error (a non-applied result) names its reason instead
 // of a report line. The parent capability never appears here — only the child
 // dispatch context, which is meant for the child.
 func (r RunGateBeforeResult) HumanText() string {
 	if r.Result == ResultApplied {
 		if r.Armed {
-			line := "gate-armed " + r.Key + " " + r.DispatchContext
+			line := "gate-armed " + r.Key
+			if r.Epoch != "" {
+				line += " " + r.Epoch
+			}
+			line += " " + r.DispatchContext
 			if r.OwnerLifecycle != "" {
 				// Honest standing caveat: the dispatched route cancels no run on owner
 				// death; a Stop is the explicit `run.cancel` operation.
@@ -273,7 +286,8 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 		return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
 			"change "+p.scopeChangeID+" could not be superseded for resume")
 	}
-	if _, eerr := MintEpochRecord(repoDir, key, ""); eerr != nil {
+	epochRec, eerr := MintEpochRecord(repoDir, key, "")
+	if eerr != nil {
 		return gateUnarmed(ReasonGateMintFailed)
 	}
 	if werr := epochCAS(repoDir, key, func(rec *EpochRecord) error {
@@ -282,9 +296,13 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 	}); werr != nil {
 		return gateUnarmed(ReasonGateMintFailed)
 	}
+	// The replacement dispatch gets a fresh live epoch; surface its public id so the
+	// resumed run's Stop path (`run.cancel --epoch`) and `--run-epoch` flags are
+	// followable, exactly as a fresh arm's are (change 0375).
 	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{
 		Armed:           true,
 		Key:             key,
+		Epoch:           epochRec.EpochID,
 		Target:          gateBeforeStoredTarget,
 		DispatchContext: grant.ChildCapability,
 		OwnerLifecycle:  ReasonOwnerLifecycleUnavailable,
@@ -482,18 +500,26 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 	// key is returned, so nothing dispatches against it). A resume arm does NOT mint
 	// here: it shares the change's existing epoch, whose supersede-and-reserve is
 	// Task 12's; for change 0375 Task 9 only the fresh arm binds an epoch.
+	var epochID string
 	if resumeID == 0 {
-		if _, eerr := MintEpochRecord(repoDir, key, scopeChangeID); eerr != nil {
+		epochRec, eerr := MintEpochRecord(repoDir, key, scopeChangeID)
+		if eerr != nil {
 			return gateUnarmed(ReasonGateMintFailed)
 		}
+		// Surface the just-minted public epoch id so the documented Stop path is
+		// followable: `run.cancel --epoch <id>` and every `--run-epoch` dispatch flag
+		// consume exactly this value (change 0375).
+		epochID = epochRec.EpochID
 	}
 
-	// (7) Report the armed gate with its dispatch context and the honest
-	// owner-lifecycle caveat: the dispatched route has no automatic Stop, so a Stop
-	// is the explicit `run.cancel` operation (change 0375 Task 13).
+	// (7) Report the armed gate with its dispatch context, its run epoch id, and the
+	// honest owner-lifecycle caveat: the dispatched route has no automatic Stop, so a
+	// Stop is the explicit `run.cancel` operation keyed by this epoch (change 0375
+	// Task 13).
 	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{
 		Armed:           true,
 		Key:             key,
+		Epoch:           epochID,
 		Target:          gateBeforeStoredTarget,
 		DispatchContext: grant.ChildCapability,
 		OwnerLifecycle:  ReasonOwnerLifecycleUnavailable,
