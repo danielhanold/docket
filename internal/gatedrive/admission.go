@@ -308,6 +308,21 @@ func (s *Store) inventoryLegacyDrives(worktreeRoot string, observe func(string) 
 		}
 		legacy, lerr := s.Load(id)
 		if lerr != nil {
+			// A drive directory that carries no record file yet is NOT evidence
+			// of an occupying execution: writeNewDrive creates the directory
+			// before it atomically writes the record, so a concurrent FIRST
+			// admission for a DIFFERENT worktree can observe this in-flight (or a
+			// crashed-mid-creation) directory during its global census. A
+			// record-less directory has no worktree binding and has launched no
+			// process — the launch follows the record write — so it holds no
+			// worktree and is skipped rather than failing an unrelated worktree's
+			// admission closed. Same-worktree creations serialize on the worktree
+			// slot lock, so they never reach a concurrent census here. Every other
+			// load fault (a corrupt record, an unknown schema, an IO error) is a
+			// genuine unreadable drive and still fails closed.
+			if storeErrIs(lerr, ErrNotFound) {
+				continue
+			}
 			return ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drive-"+id)
 		}
 		legacyRoot, _, lerr := s.admissionKeyFor(legacy.WorktreePath, "inventory-legacy-drive")

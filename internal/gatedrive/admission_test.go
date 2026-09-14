@@ -332,6 +332,28 @@ func TestLegacyUnreadableRecordBlocks(t *testing.T) {
 	}
 }
 
+// TestLegacyRecordlessDirDoesNotBlock proves the first inventory tolerates a drive
+// directory that carries no record file yet: writeNewDrive creates the directory
+// before it atomically writes the record, so a concurrent FIRST admission for a
+// DIFFERENT worktree can observe an in-flight (or crashed-mid-creation) directory
+// during its global census. Such a directory has no worktree binding and has
+// launched no process, so it must never fail an unrelated worktree's admission
+// closed — the exact spurious worktree-busy/unresolved refusal that broke two
+// concurrent gates on distinct worktrees of one repo. Contrast
+// TestLegacyUnreadableRecordBlocks: a PRESENT but corrupt record still blocks.
+func TestLegacyRecordlessDirDoesNotBlock(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	const recordlessID = "fedcba9876543210fedcba9876543210"
+	if err := os.MkdirAll(filepath.Join(s.root, recordlessID), 0o700); err != nil {
+		t.Fatalf("make record-less legacy directory: %v", err)
+	}
+
+	if _, err := s.ReserveWorktreeExecution(sampleAdmission(wt)); err != nil {
+		t.Fatalf("first admission must skip a record-less in-flight directory, got %v", err)
+	}
+}
+
 // isOwnership reports whether err is an OwnershipError of the given kind.
 func isOwnership(err error, kind OwnershipErrorKind) bool {
 	oe, ok := AsOwnershipError(err)
