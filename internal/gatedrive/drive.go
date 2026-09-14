@@ -31,6 +31,21 @@ const ProtocolVersion = 1
 // make that replacement independently resolvable. A v3 record still LOADS (the
 // missing fields read false/empty — see driveSchemaVersionLegacy in readStored)
 // and the next write stamps it forward to v4; older records still fail closed.
+//
+// Upgrade boundary (change 0428): a retired schema below the executable range is
+// still readable by the HISTORICAL reader (loadHistoricalDrive) — but ONLY for
+// first-admission legacy-history assessment and the `docket gate history cleanup`
+// recovery command. Schema 2 (the immediately-pre-0375 generation) is the sole
+// historical schema recognised today (historicalSchemaV2, history.go). A
+// historical record is never loaded into the executable state machine, never
+// migrated, and never re-written: the execution reader (readStored) keeps
+// accepting exactly v4 + v3 and fails a v2 record closed as ErrUnknownSchema, so
+// no execution path gains schema-2 compatibility. The historical range grows only
+// by an explicit decision at each future schema bump (whether the retired version
+// joins it); there is no automatic retirement lifecycle. No claim is made that an
+// OLD binary launched concurrently over the same store honors the new admission
+// rules — the boundary governs how THIS binary reads retired history, not how a
+// prior binary behaves.
 const driveSchemaVersion = 4
 
 // driveSchemaVersionLegacy is the immediately-prior schema generation a v4 store
