@@ -22,6 +22,8 @@ type Receipt struct {
 	Stdout           []byte              `json:"stdout"`
 	Stderr           []byte              `json:"stderr"`
 	ExitCode         int                 `json:"exit_code"`
+	Reason           string              `json:"reason,omitempty"`
+	Message          string              `json:"message,omitempty"`
 }
 
 func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignment Assignment) (Receipt, error) {
@@ -34,6 +36,8 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 		ScopeID          string              `json:"scope_id,omitempty"`
 		ChildCapability  string              `json:"child_capability,omitempty"`
 		ParentCapability string              `json:"parent_capability,omitempty"`
+		Reason           string              `json:"reason,omitempty"`
+		Message          string              `json:"message,omitempty"`
 	}
 	if err := rejectDuplicateKeys(stdout); err != nil {
 		return r, fmt.Errorf("invalid receipt: %w", err)
@@ -50,19 +54,32 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 	if wire.ProtocolVersion != 1 || wire.Operation != operation || wire.Result == "" {
 		return r, fmt.Errorf("receipt envelope does not match operation")
 	}
-	r.Result, r.Drive, r.ScopeID, r.ChildCapability, r.ParentCapability = wire.Result, wire.Drive, wire.ScopeID, wire.ChildCapability, wire.ParentCapability
+	r.Result, r.Drive, r.ScopeID, r.ChildCapability, r.ParentCapability, r.Reason, r.Message = wire.Result, wire.Drive, wire.ScopeID, wire.ChildCapability, wire.ParentCapability, wire.Reason, wire.Message
 	switch operation {
 	case "gate.drive.prepare-scope":
+		if wire.Reason != "" && wire.ScopeID == "" && wire.ChildCapability == "" && wire.ParentCapability == "" {
+			r.Classification = "halt"
+			return r, nil
+		}
 		if wire.Drive != nil || wire.ScopeID == "" || wire.ChildCapability == "" || wire.ParentCapability == "" {
 			return r, fmt.Errorf("scope receipt is incomplete")
 		}
 		r.Classification = "scope"
 	case "gate.drive.start", "gate.drive.advance", "gate.drive.acknowledge", "gate.drive.handoff", "gate.drive.claim", "gate.drive.takeover":
+		if wire.Drive == nil && wire.Reason != "" {
+			r.Classification = "halt"
+			return r, nil
+		}
 		if wire.Drive == nil || wire.Drive.ProtocolVersion != 1 || wire.Drive.DriveID == "" || wire.Drive.Generation == "" {
 			return r, fmt.Errorf("drive receipt is incomplete")
 		}
 		r.Classification = string(wire.Drive.Outcome)
-		if wire.Drive.Outcome == gatedrive.WAITING {
+		transfer := operation == "gate.drive.handoff" || operation == "gate.drive.claim" || operation == "gate.drive.takeover"
+		if transfer {
+			if wire.Drive.RunRoot != "" || wire.Drive.RawRunDir != "" {
+				return r, fmt.Errorf("transfer receipt exposes run paths")
+			}
+		} else if wire.Drive.Outcome == gatedrive.WAITING {
 			if wire.Drive.RunRoot != "" {
 				return r, fmt.Errorf("WAITING receipt exposes run_root")
 			}
@@ -70,8 +87,11 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 			if !filepath.IsAbs(wire.Drive.RunRoot) {
 				return r, fmt.Errorf("terminal receipt run_root must be absolute")
 			}
-			if assignment.RunRoot != "" && !pathWithin(assignment.RunRoot, wire.Drive.RunRoot) {
+			if !filepath.IsAbs(assignment.RunRoot) || wire.Drive.RunRoot != assignment.RunRoot {
 				return r, fmt.Errorf("terminal receipt run_root does not match assignment")
+			}
+			if wire.Drive.Outcome == gatedrive.PASSED && (!filepath.IsAbs(wire.Drive.RawRunDir) || !pathWithin(wire.Drive.RunRoot, wire.Drive.RawRunDir)) {
+				return r, fmt.Errorf("PASSED receipt raw_run_dir does not match run_root")
 			}
 		}
 	default:

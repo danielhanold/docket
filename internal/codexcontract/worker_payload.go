@@ -35,8 +35,24 @@ func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 	if p.SchemaVersion != 1 {
 		return fmt.Errorf("unsupported worker payload schema_version %d", p.SchemaVersion)
 	}
+	if !filepath.IsAbs(p.AssignmentPath) || p.AssignmentSHA256 == "" || p.TaskText == "" {
+		return fmt.Errorf("payload fixed inputs are incomplete")
+	}
+	want := []string{a.DocketExecutable, "agent", "check-inputs", "--assignment", p.AssignmentPath, "--sha256", p.AssignmentSHA256, "--stage", "entry", "--json"}
+	if len(p.EntryArgv) != len(want) {
+		return fmt.Errorf("entry argv does not match the pinned checker")
+	}
+	for i := range want {
+		if p.EntryArgv[i] != want[i] {
+			return fmt.Errorf("entry argv does not match the pinned checker")
+		}
+	}
 	if p.Kind == "planner" || p.Kind == "review" {
-		if p.ScopeID != "" || p.ChildCapability != "" || p.PredecessorDriveID != "" || p.PredecessorOwnerGen != "" {
+		wantRole := p.Kind == "planner" && a.Role == "docket-plan-writer" || p.Kind == "review" && strings.HasPrefix(a.Role, "docket-review-")
+		if !wantRole {
+			return fmt.Errorf("%s payload does not match assignment role", p.Kind)
+		}
+		if p.ScopeID != "" || p.ChildCapability != "" || p.PredecessorDriveID != "" || p.PredecessorOwnerGen != "" || p.Recovered != nil {
 			return fmt.Errorf("%s payload carries worker authority", p.Kind)
 		}
 		return nil
@@ -47,20 +63,20 @@ func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 	if !strings.Contains(a.Role, "build") || a.TaskID == "" {
 		return fmt.Errorf("worker payload does not match a worker assignment")
 	}
-	if !filepath.IsAbs(p.AssignmentPath) || p.AssignmentSHA256 == "" || p.TaskText == "" || p.ScopeID == "" || p.ChildCapability == "" {
-		return fmt.Errorf("worker payload is incomplete")
-	}
 	if (p.PredecessorDriveID == "") != (p.PredecessorOwnerGen == "") {
 		return fmt.Errorf("predecessor receipt is incomplete")
 	}
-	want := []string{a.DocketExecutable, "agent", "check-inputs", "--assignment", p.AssignmentPath, "--sha256", p.AssignmentSHA256, "--stage", "entry", "--json"}
-	if len(p.EntryArgv) != len(want) {
-		return fmt.Errorf("entry argv does not match the pinned checker")
-	}
-	for i := range want {
-		if p.EntryArgv[i] != want[i] {
-			return fmt.Errorf("entry argv does not match the pinned checker")
+	if p.Recovered != nil {
+		if p.ScopeID != "" || p.ChildCapability != "" || p.PredecessorDriveID != "" || p.PredecessorOwnerGen != "" || a.Mode != "continuation" {
+			return fmt.Errorf("recovered payload carries new worker authority")
 		}
+		if p.Recovered.ScopeID == "" || p.Recovered.DriveID == "" || p.Recovered.OwnerGeneration == "" {
+			return fmt.Errorf("recovered payload is incomplete")
+		}
+		return nil
+	}
+	if p.ScopeID == "" || p.ChildCapability == "" {
+		return fmt.Errorf("worker payload is incomplete")
 	}
 	return nil
 }

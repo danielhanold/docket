@@ -61,12 +61,24 @@ func (o gitAgentInputObserver) ObserveAgentInputs(ctx context.Context, a codexco
 	if found == nil {
 		return AgentRootObservation{}, fmt.Errorf("feature is not a registered worktree")
 	}
+	rootIdentity, err := codexcontract.ObserveRootIdentity(feature.Root, feature.GitDir)
+	if err != nil {
+		return AgentRootObservation{}, err
+	}
 	branch := strings.TrimPrefix(string(found.Branch), "refs/heads/")
 	clean, err := gatedrive.WorktreeClean(a.Feature)
 	if err != nil {
 		return AgentRootObservation{}, err
 	}
-	return AgentRootObservation{Primary: primary.PrimaryWorktree, Feature: feature.Root, CommonDir: primary.CommonDir, Branch: branch, HEAD: string(found.Head), Clean: clean, CallerRoot: caller.Root}, nil
+	fingerprint, err := gatedrive.CurrentFingerprint(a.Feature)
+	if err != nil {
+		return AgentRootObservation{}, err
+	}
+	changedPaths, err := gatedrive.ChangedPaths(a.Feature)
+	if err != nil {
+		return AgentRootObservation{}, err
+	}
+	return AgentRootObservation{Primary: primary.PrimaryWorktree, Feature: feature.Root, CommonDir: primary.CommonDir, Branch: branch, HEAD: string(found.Head), Clean: clean, CallerRoot: caller.Root, RootIdentity: rootIdentity, Fingerprint: &fingerprint, ChangedPaths: changedPaths}, nil
 }
 
 func NewAgentInputDeps(executable string) (AgentInputDeps, error) {

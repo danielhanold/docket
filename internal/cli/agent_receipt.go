@@ -14,7 +14,7 @@ func newAgentCheckReceiptCommand(setResult func(app.OperationResult)) *cobra.Com
 	c.Flags().StringVar(&req.Stdout, "stdout", "", "file containing original stdout")
 	c.Flags().StringVar(&req.Stderr, "stderr", "", "file containing original stderr")
 	c.Flags().IntVar(&req.ExitCode, "exit-code", 0, "original process exit code")
-	for _, f := range []string{"operation", "assignment", "sha256", "stdout"} {
+	for _, f := range []string{"operation", "assignment", "sha256", "stdout", "exit-code"} {
 		_ = c.MarkFlagRequired(f)
 	}
 	return c

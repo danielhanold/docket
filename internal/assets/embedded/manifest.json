@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:ec2e78bbc1a6ff81c23cbe7c2c629d7bf6a5341a4d0fd98fb72160596f638f76",
+  "asset_set_id": "sha256:0560a7e0627036e0c2df3262ca65905b9ce5d1d92c1d534a5afe0de7406b6a99",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -315,8 +315,8 @@
       "path": "skills/docket-build/references/codex-task-handoff.md",
       "role": "skill",
       "mode": 420,
-      "size": 896,
-      "sha256": "0ef12486172f677f28bd5cbc9c72950bc50ea07d0001cbb016ebe12c5ac7f253"
+      "size": 2081,
+      "sha256": "fb2f01192c207a9f7f4f4deab7089761dc58f8d1f3ec33b0d17ee0ca3e018ac7"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",
