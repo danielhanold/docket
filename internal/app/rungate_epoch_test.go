@@ -235,7 +235,7 @@ func TestConfirmGateClaimBindsEpochChange(t *testing.T) {
 	if err := ReserveGateClaim(repo, res.Key, 42, "req-1"); err != nil {
 		t.Fatalf("ReserveGateClaim: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, res.Key, 42, "req-1", "revabc123"); err != nil {
+	if err := ConfirmGateClaim(repo, res.Key, 42, "req-1", "revabc123", ""); err != nil {
 		t.Fatalf("ConfirmGateClaim: %v", err)
 	}
 	ep, _, err := LoadEpochRecord(repo, res.Key)
@@ -256,7 +256,7 @@ func TestConfirmGateClaimNoEpochIsNoop(t *testing.T) {
 	if err := ReserveGateClaim(repo, key, 7, "req-x"); err != nil {
 		t.Fatalf("ReserveGateClaim: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 7, "req-x", "rev-x"); err != nil {
+	if err := ConfirmGateClaim(repo, key, 7, "req-x", "rev-x", ""); err != nil {
 		t.Fatalf("ConfirmGateClaim over a no-epoch dispatch must succeed: %v", err)
 	}
 	if _, _, err := LoadEpochRecord(repo, key); !isEpochKind(err, ErrEpochNotFound) {

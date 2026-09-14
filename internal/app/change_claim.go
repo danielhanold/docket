@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
@@ -188,7 +189,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	// resolution (an unstacked change resolves without them). This pre-read is a
 	// supporting observation; the authoritative record state is re-read fresh
 	// inside the transaction.
-	recPath, facts, terr := resolveClaimTarget(ctx, deps, pin, eff, req.ID, OperationChangeClaim)
+	recPath, slug, facts, terr := resolveClaimTarget(ctx, deps, pin, eff, req.ID, OperationChangeClaim)
 	if terr != nil {
 		return *terr
 	}
@@ -261,7 +262,14 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	// confirm only its own original dispatch association. A replay whose revision
 	// is empty (older engine replays) skips Confirm rather than write an empty one.
 	if gateKey != "" && out.Result == ResultApplied && out.Revision != "" {
-		if cerr := ConfirmGateClaim(repoDir, gateKey, req.ID, claimRequestID(req), out.Revision); cerr != nil {
+		// The LOGICAL feature worktree for this change — filepath.Join(<primary
+		// worktree>, ".worktrees", <slug>), the same derivation the workspace service
+		// uses (internal/workspace intendedPath). It need not exist yet: the mutation
+		// fence canonicalizes the stored value at compare time, once workspace.prepare
+		// has created it. Binding it here (change 0375) makes a FRESH run's mutation
+		// fence and run.cancel teardown locate the epoch, mirroring the resume path.
+		featureWorktree := filepath.Join(repo.PrimaryWorktree, ".worktrees", slug)
+		if cerr := ConfirmGateClaim(repoDir, gateKey, req.ID, claimRequestID(req), out.Revision, featureWorktree); cerr != nil {
 			// The metadata claim is committed and authoritative; the local binding
 			// confirm is the mirror. Surface, never fail the applied claim — the
 			// verdict path recovers from the exact committed receipt (spec:
@@ -293,7 +301,7 @@ func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, 
 	// Resolve the record's current path (the request carries only id + version).
 	// Refresh consults no branch facts — it re-proves nothing about readiness —
 	// so the resolved facts are discarded.
-	recPath, _, terr := resolveClaimTarget(ctx, deps, pin, eff, req.ID, OperationChangeRefreshClaim)
+	recPath, _, _, terr := resolveClaimTarget(ctx, deps, pin, eff, req.ID, OperationChangeRefreshClaim)
 	if terr != nil {
 		return *terr
 	}
@@ -379,18 +387,18 @@ func claimPreflight(ctx context.Context, deps PlanningDeps, repoDir, opKey strin
 // before any engine call, with a typed unknown-change or ambiguous-change
 // reason. This pre-read is a supporting observation; the authoritative record
 // state is re-read fresh inside the transaction.
-func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int, opKey string) (string, domain.BranchFacts, *ChangeClaimResult) {
+func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int, opKey string) (string, string, domain.BranchFacts, *ChangeClaimResult) {
 	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
-		return "", domain.BranchFacts{}, &r
+		return "", "", domain.BranchFacts{}, &r
 	}
 	inputs, _ := parseCorpus(blobs)
 	build, err := repository.BuildSnapshot(repository.BuildInput{Config: eff, Documents: inputs})
 	if err != nil {
 		r := newChangeClaimResult(opKey, ResultInternalError, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
-		return "", domain.BranchFacts{}, &r
+		return "", "", domain.BranchFacts{}, &r
 	}
 	snap := build.Snapshot
 
@@ -406,16 +414,16 @@ func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, e
 			Disposition: reason,
 			Findings:    []StatusFinding{lifecycleFinding(FindingCode(reason), msg)},
 		})
-		return "", domain.BranchFacts{}, &r
+		return "", "", domain.BranchFacts{}, &r
 	}
 
 	facts, err := deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
-		return "", domain.BranchFacts{}, &r
+		return "", "", domain.BranchFacts{}, &r
 	}
-	return c.Path(), facts, nil
+	return c.Path(), c.Slug(), facts, nil
 }
 
 // claimRequestID derives the idempotency request id for a claim from its own

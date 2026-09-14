@@ -86,7 +86,7 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 	if err := ReserveGateClaim(repo, key, 42, "req-1"); err != nil {
 		t.Fatalf("ReserveGateClaim: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 42, "req-1", "rev-1"); err != nil {
+	if err := ConfirmGateClaim(repo, key, 42, "req-1", "rev-1", ""); err != nil {
 		t.Fatalf("ConfirmGateClaim: %v", err)
 	}
 

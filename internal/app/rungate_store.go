@@ -733,7 +733,13 @@ func reserveMatchOrConflict(b GateClaimBinding, changeID int, requestID string) 
 // re-confirm with identical fields is an idempotent no-op. The mirror save's error
 // is returned (callers may treat it as best-effort; the binding file already made
 // the confirm durable).
-func ConfirmGateClaim(repoDir, key string, changeID int, requestID, revision string) error {
+//
+// worktree is the change's canonical feature worktree (the LOGICAL path — it need not
+// exist yet), bound onto the run epoch here so a FRESH run's mutation fence and
+// run.cancel teardown locate it (change 0375). It is best-effort and a NO-OP when
+// empty or when no epoch exists (see bindEpochWorktree); the claim path passes it, the
+// verdict recovery paths — which have no worktree in hand — pass "".
+func ConfirmGateClaim(repoDir, key string, changeID int, requestID, revision, worktree string) error {
 	dir, err := gateKeyDir(repoDir, key, "confirm")
 	if err != nil {
 		return err
@@ -780,6 +786,14 @@ func ConfirmGateClaim(repoDir, key string, changeID int, requestID, revision str
 	// refused inside bindEpochChange and swallowed here (the receipt already bound the
 	// change).
 	_ = bindEpochChange(repoDir, key, strconv.Itoa(changeID))
+	// Bind the run epoch's feature worktree (change 0375). A FRESH run's epoch is minted
+	// with an empty Worktree, so without this the mutation fence (findEpochByWorktree)
+	// and run.cancel's worktree teardown are inert for the common first-dispatch case —
+	// the resume path already binds it in armResumeReplacement. Best-effort and a NO-OP
+	// on an empty worktree or a keyless/epoch-less dispatch; a benign spelling difference
+	// against a resume's pre-bound worktree is refused inside bindEpochWorktree and
+	// swallowed here.
+	_ = bindEpochWorktree(repoDir, key, worktree)
 	return SaveGateRecord(repoDir, key, rec)
 }
 

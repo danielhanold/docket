@@ -279,3 +279,58 @@ func TestFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T) {
 		t.Fatalf("err = %v, want run-cancelled across the symlink alias", err)
 	}
 }
+
+// TestFreshRunClaimBindsEpochWorktreeSoFenceActs is the BLOCKER regression (change
+// 0375): a FRESH (non-resume) run's claim confirmation must bind the epoch's Worktree
+// so the mutation fence locates the epoch. It drives the REAL arm→reserve→confirm
+// production path (RunGateBefore mints the fresh epoch with Worktree == ""; the claim
+// confirmation binds it) rather than a fixture that sets r.Worktree directly, then
+// asserts both halves of the defect: the epoch worktree is bound, and a post-cancel
+// workflow mutation running in that worktree is refused run-cancelled. Before the fix
+// the fresh epoch kept Worktree == "", findEpochByWorktree skipped it, and the mutation
+// was admitted UNFENCED even after the epoch was cancelling — the fence and run.cancel
+// teardown were both inert for the common first-dispatch case.
+func TestFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+	// A FRESH arm (resumeID 0) mints a run epoch beside the gate record with Worktree "".
+	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Armed {
+		t.Fatalf("fresh arm failed: %+v", res)
+	}
+
+	// The real production claim→confirm sequence for a fresh dispatch, carrying the
+	// change's feature worktree — the same path change_claim.go drives.
+	worktree := repo
+	if err := ReserveGateClaim(repo, res.Key, 42, "req-1"); err != nil {
+		t.Fatalf("ReserveGateClaim: %v", err)
+	}
+	if err := ConfirmGateClaim(repo, res.Key, 42, "req-1", "revabc123", worktree); err != nil {
+		t.Fatalf("ConfirmGateClaim: %v", err)
+	}
+
+	// (a) The confirm bound the worktree onto the fresh run's epoch.
+	ep, _, err := LoadEpochRecord(repo, res.Key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.Worktree != worktree {
+		t.Fatalf("fresh-run claim must bind the epoch worktree, got %q want %q", ep.Worktree, worktree)
+	}
+
+	// (b) findEpochByWorktree now locates the fresh epoch: cancel it, and a workflow
+	// mutation running in that worktree is refused run-cancelled. Before the fix the
+	// empty-worktree epoch was skipped and this mutation was admitted unfenced.
+	if err := epochCAS(repo, res.Key, func(r *EpochRecord) error {
+		r.State = EpochCancelling
+		return nil
+	}); err != nil {
+		t.Fatalf("epochCAS to cancelling: %v", err)
+	}
+	_, ferr := admitWorkflowMutation(worktree, OperationPRPublish)
+	if fe, ok := AsMutationFenceError(ferr); !ok || fe.Reason != "run-cancelled" {
+		t.Fatalf("mutation after cancel = %v, want run-cancelled (the fence must locate the fresh epoch)", ferr)
+	}
+}
