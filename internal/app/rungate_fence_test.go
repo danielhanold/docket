@@ -10,6 +10,7 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
@@ -265,7 +266,7 @@ func TestFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T) {
 	}
 
 	// A symlink alias pointing at the same worktree, stored as the epoch's Worktree.
-	alias := filepath.Join(t.TempDir(), "wt-alias")
+	alias := filepath.Join(testsupport.TempDir(t), "wt-alias")
 	if err := os.Symlink(canonRepo, alias); err != nil {
 		t.Fatalf("symlink alias: %v", err)
 	}
