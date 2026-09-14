@@ -1,13 +1,18 @@
 # Backlog
 
-**426 changes** — 🟢 2 in progress · 🟣 5 groomed · 🟡 22 proposed · ⚪ 11 deferred · ✅ 273 done · 🗑️ 113 killed
+**426 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 5 groomed · 🟡 22 proposed · ⚪ 11 deferred · ✅ 273 done · 🗑️ 113 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `critical` | `fix` | [spec](../superpowers/specs/2026-09-10-gate-drive-start-not-idempotent-spawns-concurrent-drive-design.md) | `fix/gate-drive-start-not-idempotent-spawns-concurrent-drive` |  |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `critical` | `fix` | [#299](https://github.com/danielhanold/docket/pull/299) | awaiting merge |
 
 ## 🟣 Groomed (5)
 

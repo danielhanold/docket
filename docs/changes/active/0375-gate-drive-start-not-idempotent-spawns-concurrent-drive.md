@@ -2,7 +2,7 @@
 id: 375
 slug: gate-drive-start-not-idempotent-spawns-concurrent-drive
 title: '`docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive'
-status: 'in-progress'
+status: 'implemented'
 priority: critical
 type: fix
 created: 2026-08-30
@@ -18,7 +18,7 @@ results: 'docs/results/2026-09-14-gate-drive-start-not-idempotent-spawns-concurr
 trivial: false
 auto_groomable:
 branch: 'fix/gate-drive-start-not-idempotent-spawns-concurrent-drive'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/299'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-14T11:34:16Z'
