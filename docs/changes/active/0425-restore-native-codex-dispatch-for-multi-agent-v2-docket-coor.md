@@ -14,7 +14,7 @@ discovered_from: [423]
 adrs: [114, 119]
 spec: 'docs/superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md'
 plan: 'docs/superpowers/plans/2026-09-14-native-codex-dispatch-0425.md'
-results:
+results: 'docs/results/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md'
 trivial: false
 auto_groomable:
 branch_prefix: 'codex'
@@ -32,6 +32,7 @@ claimed_at: '2026-09-14T20:26:44Z'
 |---|---|
 | Spec | [2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) |
 | Plan | [2026-09-14-native-codex-dispatch-0425.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-14-native-codex-dispatch-0425.md) |
+| Results | [2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md) |
 | ADRs | [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md), [ADR-0119](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0119-native-codex-dispatch-with-explicit-role-aware-feature-bindi.md) |
 <!-- docket:artifacts:end -->
 
