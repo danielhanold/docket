@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/certify-native-multi-agent-v2-orchestration-through-docket-i'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-14T14:40:52Z'
+reconciled: true
+claimed_at: '2026-09-14T14:43:00Z'
 ---
 
 ## Artifacts
@@ -40,10 +40,14 @@ Docket adopted Codex app-server root entry after real ImplementNext runs could n
 
 ## What changes
 
-Create a repeatable, isolated disposable Docket repository with one real build-ready candidate and run the actual installed docket-implement-next role through native named-agent dispatch on a model whose live Codex catalog reports Multi-Agent V2. Prove that the actual docket-plan-writer and one actual build-profile worker are native nested children, that they operate in the correct registered feature worktree with the startup guard intact, and that ImplementNext verifies, attaches, and consumes the committed plan before consuming the worker's completed result. No invocation of agent.enter is permitted anywhere in the POC; separate root sessions, app-server role entry, substitute agents, and parent relays do not count.
-
-Use documented fixture-local native-routing overrides while preserving the real role bodies, skills, receipts, and worktree checks. Run a matched Multi-Agent V1 control, capture authoritative model-capability and top-level tool evidence, and distinguish a confirmed negative from an environmental failure or a contradicted hypothesis. Capture complete native lineage and launch evidence, role/config provenance, committed artifacts, Git/worktree identities, terminal drive receipts, and the deliberate bounded halt before review or PR creation. Include deterministic evidence validation and mutation tests. If the host cannot satisfy native dispatch and the worktree boundary together, report certification incomplete without weakening either requirement. Keep all experimental mutations inside disposable repositories and local remotes.
+Deliver a repeatable manually operated native Codex POC that runs the actual ImplementNext coordinator, actual plan writer and corrected actual standard worker continuously from a fresh primary checkout. Under user-approved option 2, feature children validate their assigned worktree and explicitly target all feature operations there even when their startup cwd is primary. Carry complete planner and child-capability payloads, the unchanged outer gate context, real TDD/commit/acknowledgement, configured exact-commit gates, a results checkpoint and terminal bounded halt. Package setup, deterministic validation and sanitized evidence. No additional Luna control, production routing change or Docket build workflow is part of 423.
 
 ## Out of scope
 
-Changing production dispatch routing or shipped model pins; adding the capability registry or repository diagnostic owned by change 0424; removing or deprecating agent.enter in production; completing the disposable candidate through review or PR creation; weakening feature-worktree startup guarantees; redesigning the run gate or implementing change 0412's supervisor; modifying historical certification records or ADRs; and resuming or mutating production backlog work. This change delivers evidence and a reusable native-only certification boundary.
+Production dispatch or model-policy implementation (425 and 424), agent.enter calls, native startup-placement workarounds, hard isolation or parallel-safety claims, further Luna/control probes, review/PR/merge of the disposable candidate, and fabricated production merge/build evidence. Manual closure follows accepted POC evidence and an explicitly documented metadata exception.
+
+## Reconcile log
+
+### 2026-09-14
+
+User-directed 2026-09-14 scope reconciliation: option2 replaces native startup equality, Luna/control retests end, continuous corrected positive path remains required, reusable POC package is delivered manually, and done requires explicit evidence acceptance plus truthful manual metadata close-out rather than Docket build/finalize fiction. Production work feeds425; historical evidence and accepted ADRs remain unchanged.
