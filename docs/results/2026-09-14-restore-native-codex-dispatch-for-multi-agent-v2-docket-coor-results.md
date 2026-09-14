@@ -23,6 +23,8 @@ Permanent regression coverage includes the original review overlay cases, real G
 
 The first complete post-review run found two suite-registration defects in the new tests: a default-tag real-Git file used the reserved `_integration_test.go` suffix, and the tagged finalize entry case did not match a declared shard prefix. Renaming the file and placing the tagged case under the existing finalize-rebase shard corrected the integration contract; `gofmt` also normalized the expanded reference guard before the final rerun.
 
+The corrected complete configured run passed at `28f0ee5cb40f6c5c69d46c215d5b486df6c44b0a`: 46 of 46 suite files, 399 assertions, zero failures, and a 271-second wall time. Its budget report classified `test_go_finalize_e2e.sh` as parallel-sensitive after a 23-second solo measurement; seven other parallel-overrun screenings were deferred by the one-confirmation-per-run limit. No `SERIAL CONFIRMED OVER BUDGET` breach was reported. This results-only commit is the final attachment checkpoint, so the same complete configured command is rerun here and recorded in the external final-head receipt.
+
 ## Verification performed
 
 - The configured source command `go run ./cmd/docket development test` passed at `e861d4968c04621ed82b18aa096bee36a28c5b1f`: 46 of 46 suite files passed, with 399 assertions and no failed result markers.
