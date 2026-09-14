@@ -48,6 +48,11 @@ type Stage string
 // The closed set of engine stages.
 const (
 	StageValidateRequest Stage = "validate-request"
+	// StageAdmission is the run-epoch mutation-admission fence (change 0375 Task 11):
+	// before any per-attempt Git work, an injected AdmissionHook may refuse the
+	// mutation because a cancelled/superseded run epoch owns the change's worktree.
+	// A refusal here mutates nothing — it precedes fetch, allocate, plan, and push.
+	StageAdmission       Stage = "admission"
 	StageFetch           Stage = "fetch"
 	StageIdempotencyScan Stage = "idempotency-scan"
 	StageAllocate        Stage = "allocate"

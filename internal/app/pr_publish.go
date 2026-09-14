@@ -222,7 +222,19 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		return prRefusal(ResultInvalidState, ReasonPRBodyAssemblyFailed, err.Error(), req.ID)
 	}
 
-	// (8) Delegate to the idempotent adapter. ExpectedHead is the requested head,
+	// (8a) Run-epoch mutation fence (change 0375 Task 11): PR creation is an external
+	// effect on GitHub, so admit through the owning run epoch before the ensure. A
+	// cancelled or superseded epoch refuses, and gh is never invoked; an active epoch
+	// journals the admission, then this reconciles it once the ensure resolves —
+	// `uncertain` on an unobserved remote outcome (an EnsureUnknown or transport
+	// failure), so a cancellation stays pending until the effect is reconciled. A
+	// standalone/no-epoch run admits unfenced (the journal callback is a no-op).
+	done, ferr := admitWorkflowMutation(repoDir, OperationPRPublish)
+	if ferr != nil {
+		return prFenceRefusal(req.ID, ferr)
+	}
+
+	// (8b) Delegate to the idempotent adapter. ExpectedHead is the requested head,
 	// so the adapter refuses any GitHub head other than the published one — that is
 	// the published-remote-head conjunct. ExpectedVersion is empty: v1 tracks no PR
 	// version, so this is the create-or-adopt face.
@@ -235,9 +247,26 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		Body:         string(body),
 	})
 	if ensErr != nil {
-		return mapGitHubFailure(ensErr, req.ID)
+		out := mapGitHubFailure(ensErr, req.ID)
+		done(mutationJournalStatus(out.Result))
+		return out
 	}
-	return prResultFromEnsure(repo, req.ID, res)
+	out := prResultFromEnsure(repo, req.ID, res)
+	done(mutationJournalStatus(out.Result))
+	return out
+}
+
+// prFenceRefusal builds a pr.publish refusal for a run-epoch mutation fence: the run
+// that owns this change's worktree is cancelled/superseded, so publication is
+// blocked with the stable fence reason and gh is never invoked. It carries no
+// credential — only the bounded reason token.
+func prFenceRefusal(id int, ferr error) PRPublishResult {
+	reason := "run-cancelled"
+	if fe, ok := AsMutationFenceError(ferr); ok {
+		reason = fe.Reason
+	}
+	return prRefusal(ResultBlocked, reason,
+		"the run that owns this change was cancelled or superseded; publish nothing", id)
 }
 
 // resolvePRChange pins context once, reads the corpus once, builds the snapshot,

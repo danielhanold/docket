@@ -49,7 +49,7 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			id, _ := c.Flags().GetInt("id")
 			run, _ := c.Flags().GetString("run")
 			head, _ := c.Flags().GetString("head")
-			deps, wdeps, err := newWorkspaceDeps()
+			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}

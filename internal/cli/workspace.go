@@ -44,7 +44,7 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
-			deps, wdeps, err := newWorkspaceDeps()
+			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -70,7 +70,7 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			deps, wdeps, err := newWorkspaceDeps()
+			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -95,7 +95,7 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			id, _ := c.Flags().GetInt("id")
 			head, _ := c.Flags().GetString("head")
-			deps, wdeps, err := newWorkspaceDeps()
+			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
@@ -116,8 +116,8 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 // newWorkspaceDeps assembles the read-only planning seams plus the landed
 // workspace service, sharing one real Git client between them.
-func newWorkspaceDeps() (app.PlanningDeps, app.WorkspaceDeps, error) {
-	deps, err := newPlanningDeps()
+func newWorkspaceDeps(repoDir ...string) (app.PlanningDeps, app.WorkspaceDeps, error) {
+	deps, err := newPlanningDeps(repoDir...)
 	if err != nil {
 		return app.PlanningDeps{}, app.WorkspaceDeps{}, err
 	}
