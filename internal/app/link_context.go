@@ -44,12 +44,20 @@ func githubWebURL(remoteURL string) string {
 }
 
 // linkContextOf is the sole constructor of the LinkContext app operations hand
-// to render: the repository web URL and the metadata branch travel together,
-// so no call site can silently omit the URL again — the exact defect 0341
-// fixes. The metadata records always live on the fixed docket branch.
+// to render: the repository web URL and the branch names travel together, so
+// no call site can silently omit a field again — the exact defect 0341 fixes.
+// The metadata records always live on the fixed docket branch; the integration
+// branch (0417: the ref for a done change's Plan/Results rows) comes from the
+// pin, falling back to the default branch exactly as finalize's
+// closeoutContext resolves it for git operations.
 func linkContextOf(pin StatusPin) render.LinkContext {
+	integration := pin.IntegrationBranch
+	if integration == "" {
+		integration = pin.DefaultBranch
+	}
 	return render.LinkContext{
-		RepoWebURL:     pin.RepoWebURL,
-		MetadataBranch: reposetup.MetadataBranchName,
+		RepoWebURL:        pin.RepoWebURL,
+		MetadataBranch:    reposetup.MetadataBranchName,
+		IntegrationBranch: integration,
 	}
 }
