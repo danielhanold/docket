@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/recover-legacy-gate-history-without-blocking-unrelated-workt'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-14T18:00:43Z'
+reconciled: true
+claimed_at: '2026-09-14T18:02:56Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Unblock implementation starts in repositories containing completed schema-2 gate
 ## Out of scope
 
 Implementation or implementation planning during grooming; manually changing a consumer repository's .git state; drive retirement receipts or a new retired-drive lifecycle; a registry-wide reference census; age filters, log pruning, general garbage collection, or disk-space reclamation; schema rewrites or making schema-2 records executable; new start retry controllers, recursive cleanup, process cancellation, or changes to suite budgets and ownership fences; treating unknown or unprovable state as safely inactive; the separate verdict-path epoch binding fix tracked by 0427.
+
+## Reconcile log
+
+### 2026-09-14
+
+2026-09-14 — Reconciled against current main (06ebb52c, identical to the spec's stated baseline; no drift since grooming). Confirmed the spec's cause is still true in source: internal/gatedrive/admission.go inventoryLegacyDrives loads each pre-admission record via s.Load(id), which fails closed on the unsupported schema-2 record (ErrUnknownSchema) before filtering by worktree, and resolves the historical worktree path (admissionKeyFor) before recognizing a terminal PASSED/FAILED drive — so a removed historical worktree or a schema-2 record blocks an unrelated admission. internal/app/gate_drive.go:667-668 emits the misleading generic 'a prior execution in this worktree is unresolved' message and drops the internal inventory-legacy-drive-<id> locator. No gate.history.cleanup operation exists yet in internal/app, internal/gatedrive, or cmd. Execution reader still accepts schemas 3/4 and rejects 2 (driver.go). ADR-0087/0095/0118 invariants unchanged and preserved. Related 375 is done; 427 remains a separate proposed change (verdict-path epoch binding) left out of scope. Scope, relations, and design remain valid as authored — no section or relation edits required.
