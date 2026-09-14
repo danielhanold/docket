@@ -185,6 +185,23 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 	return s.reserveWorktreeExecution(rec, nil)
 }
 
+// ReserveRawWorktreeExecution reserves the worktree execution slot for a raw
+// app.GateLaunch (change 0375 Task 7). It is the sole reserve entry point callable
+// from OUTSIDE this package, where the unexported admissionRecord literal is
+// unreachable: it composes a Kind "raw" record (no drive id, no scope id, no run
+// epoch) and delegates to the same reserveWorktreeExecution the driver uses, so a
+// raw launch admits through exactly one authority and one lock/CAS discipline as
+// every scoped and scopeless start. observe is the caller's process Observe, used
+// only for the first-admission legacy inventory; a nil observe fails a HALTED
+// legacy drive closed rather than probing it.
+func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, observe func(string) (*process.Observation, error)) (token string, err error) {
+	return s.reserveWorktreeExecution(admissionRecord{
+		RepoIdentity: repoIdentity,
+		WorktreeRoot: worktreeRoot,
+		Kind:         "raw",
+	}, observe)
+}
+
 // reserveWorktreeExecution is ReserveWorktreeExecution's driver-aware form.
 // The observer is the exact ProcessSeam Observe operation, supplied by Driver
 // for legacy inventory; it is deliberately not persisted on Store.

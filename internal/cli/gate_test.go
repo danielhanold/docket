@@ -824,3 +824,41 @@ func TestCLIDoesNotImportProcess(t *testing.T) {
 		t.Fatalf("population floor: only %d production files checked — the guard is scanning the wrong directory", checked)
 	}
 }
+
+// TestGateLaunchInsideWorktreeSecondRefused proves the CLI `gate launch` leaf
+// carries the worktree-admission refusal shape (change 0375): a first launch whose
+// --cwd sits inside a registered worktree reserves the slot, and a second launch
+// into the same worktree from a DISTINCT --root is refused with result "blocked",
+// reason "worktree-busy", exit 1, and no run_dir.
+func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
+
+	out1, err1, code1 := runCLI(t, "--json", "gate", "launch", "--root", gateTempDir(t), "--cwd", wt, "--", "/bin/echo", "hi")
+	if code1 != 0 || err1 != "" {
+		t.Fatalf("first launch: out=%q err=%q code=%d", out1, err1, code1)
+	}
+	doc1 := decodeOneJSON(t, out1)
+	runDir, _ := doc1["run_dir"].(string)
+	if runDir == "" {
+		t.Fatalf("first launch produced no run_dir: %v", doc1)
+	}
+	t.Cleanup(func() { runCLI(t, "gate", "stop", runDir, "cleanup") })
+
+	out2, err2, code2 := runCLI(t, "--json", "gate", "launch", "--root", gateTempDir(t), "--cwd", wt, "--", "/bin/echo", "hi")
+	if err2 != "" {
+		t.Fatalf("second launch stderr=%q", err2)
+	}
+	doc2 := decodeOneJSON(t, out2)
+	if doc2["operation"] != "gate.launch" || doc2["result"] != "blocked" {
+		t.Fatalf("second launch doc=%v, want blocked", doc2)
+	}
+	if doc2["reason"] != "worktree-busy" {
+		t.Fatalf("second launch reason=%v, want worktree-busy", doc2["reason"])
+	}
+	if code2 != 1 {
+		t.Fatalf("second launch exit code=%d, want 1", code2)
+	}
+	if rd, _ := doc2["run_dir"].(string); rd != "" {
+		t.Fatalf("refused launch produced a run_dir %q", rd)
+	}
+}
