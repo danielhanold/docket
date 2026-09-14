@@ -104,6 +104,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0115](0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md) — Outer run gate retry budget is a counted, config-snapshotted allowance (GateRecord schema v4) (Accepted) ← change #421 · relates to ADR-0074, ADR-0075, ADR-0107, ADR-0111
 - [ADR-0116](0116-build-full-suite-repair-bound-is-a-durable-scope-owned-suite.md) — Build full-suite repair bound is a durable scope-owned suite-attempt reservation (Accepted) ← change #421 · relates to ADR-0074, ADR-0102, ADR-0107, ADR-0115
 - [ADR-0117](0117-sequential-test-drives-within-one-worker-recovery-scope.md) — Sequential test drives within one worker recovery scope (Accepted) ← change #405 · relates to ADR-0107
+- [ADR-0118](0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) — Worktree-wide gate admission and explicit human-cancellation authority (Accepted) ← change #375 · relates to ADR-0087, ADR-0095, ADR-0107, ADR-0111, ADR-0117
 
 ## Superseded / Reversed
 
