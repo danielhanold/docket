@@ -84,6 +84,19 @@ A `waiting` (`reason: gate-waiting`) is not in this set either: the suite is sti
 owned receipt carries the drive continuation — re-run the identical `finalize.rebase` invocation
 (never `gate drive advance`) until a terminal disposition.
 
+## The finalize gate shares the worktree's one execution slot
+
+Finalize runs its post-rebase suite as a **scopeless** gate in the feature worktree, and that gate
+now admits through the same worktree execution slot every other gate does: one canonical worktree
+carries at most one running gate at a time. So finalize's own gate can be **refused** before it
+launches when the worktree is already busy — reason `worktree-busy` (another gate is live there) or
+`unresolved-execution` (a prior run ended without proven teardown). This is a **blocking diagnostic,
+not a rebase conflict and not a red suite**: it is in neither the abort-and-report set above nor a
+`contended`/`waiting` continuation. Do not race a second gate. The remedy is operator-side — let the
+incumbent gate finish, or stop it via the `run.cancel` operation (`--key <key> --epoch <id> --reason
+<why>`; an `unresolved-execution` slot must be recovered or cancelled, never cleared by a blind
+re-start) — then re-run finalize, which finds the slot free.
+
 **Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to
 the human (interactive) or the dispatching caller (autonomous), and the `finalize.block` operation records
 it durably — first as the owned **comment on the PR** (idempotent by the attempt marker, so a

@@ -90,6 +90,27 @@ Every successful `start` or `advance` returns exactly one of four dispositions. 
   an unfinished or ambiguous run never manufactures repair work.
 - **Only `PASSED` exposes the raw run dir**, so only a trusted pass can feed the evidence operation.
 
+## Worktree admission — one live gate per worktree, and what `worktree-busy` means
+
+A canonical feature worktree carries **at most one** running (or reserved) gate execution at a
+time. Before `gate.drive.start` launches anything, the driver reserves that worktree's execution
+slot; a second start against a worktree whose slot is already taken is **refused** — never queued,
+never silently joined to the running one. Two refusal reasons ride this boundary:
+
+- `worktree-busy` — another gate is already live in this worktree. Wait for it to finish or cancel
+  that run; **never start a second gate in the same worktree**.
+- `unresolved-execution` — a prior execution ended without proven teardown (a lost launch response,
+  a crash between launch and confirmation). The slot stays closed until that run is recovered
+  through the parent or explicitly cancelled — a blind re-start cannot clear it.
+
+Both are **command failures**, distinct from the four dispositions above: the response carries the
+bounded reason token and a next-action message naming the incumbent drive, and exposes no drive
+document to advance. A caller treats either as a **blocking diagnostic — not a retry trigger and not
+a `FAILED` result** — that reserves no suite attempt and feeds no repair loop. Map it to the
+existing blocked/halt posture (a build-task worker returns `BLOCKED`); resolving a busy or
+unresolved worktree is the operator's act (finish, recover, or `run.cancel`), never a poll loop on
+`start`.
+
 ## Handoff — the only ownership transfer
 
 Before an owner returns control while a drive is still live, it MUST call `handoff` and then perform
