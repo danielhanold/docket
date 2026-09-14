@@ -23,8 +23,8 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0427](active/0427-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md) | Verdict-path gate recovery never binds the run epoch's worktree | `medium` | `fix` | needs-brainstorm |
-| [0426](active/0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | `high` | `refactor` | ⏳ waiting on #425 — not yet built |
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | ⏳ waiting on #423 — not yet built |
+| [0426](active/0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | `high` | `refactor` | ⏳ waiting on #425 — not yet built |
 | [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | ⏳ waiting on #423 — not yet built |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | needs-brainstorm |
 | [0419](active/0419-make-finalize-repair-attempts-configurable-with-a-default-of.md) | Make finalize repair attempts configurable with a default of six | `medium` | `feat` | build-ready (trivial) |
