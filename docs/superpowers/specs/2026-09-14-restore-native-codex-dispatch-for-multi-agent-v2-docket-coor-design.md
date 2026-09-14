@@ -126,6 +126,18 @@ Run meaningful TDD and the configured full repository suite, obtain independent 
 
 The operator then selects appropriate model/effort assignments, regenerates production definitions and opens a fresh session. Native ImplementNext can be used for 424 after production validation; 424 adds automated model policy without changing 425's launch architecture. The present specification update does not start implementation, change model pins or install candidate assets.
 
+## Optional pre-merge dogfood using 424
+
+The user approved preparing 424 as a real dogfood candidate for the unmerged 425 PR. First finish 425's implementation, full-suite repair, independent review and minimal generated-asset native acceptance, then push its branch/open its PR. Groom 424 before dispatch; its current proposal is not yet a build-ready specification.
+
+At the explicit dogfood launch boundary, change 424 from `depends_on: [423, 425]` to `depends_on: [423]` plus `stacked_on: 425` through the supported metadata writer. A completed-change dependency cannot express use of an unmerged parent branch. Verify Docket resolves the exact pushed 425 branch as the effective base before creating 424's separate worktree. Until these prerequisites are met, retain the existing dependency; preparation alone does not launch or unblock 424.
+
+Run the candidate 425 binary/generated definitions in a fresh Codex session with verified operator model assignments. The candidate must come from a pinned clean 425 source commit and a dedicated installation/definition location, with an explicit loading method that demonstrably reaches both parent and children. Do not silently overwrite the global stable installation or assume PATH/environment changes in one terminal reach every native child. Resolve the candidate's own catalog/schema before mutation. No guessed future CLI or bespoke agent launcher is part of this preparation.
+
+Use normal native ImplementNext for explicit change 424, with the real outer gate, planner, worker and review flow. Keep all 424 changes in its own branch/worktree and open its PR against 425's branch. Do not merge 424 into 425 just to make the test green. A 425 runtime defect is fixed on 425, tested there, and invalidates dogfood evidence for its earlier commit; preserve 424's partial work and use existing typed halt/resume/continuation contracts when refreshing its base. Do not rewrite or reset live child work to restart it.
+
+Retain the candidate source/version and loaded-asset provenance, both branches/heads, native lineage, gate receipts, 424 task commits/results/PR and 425's primary/feature integrity audit. Building 424 exercises the actual production workflow but does not replace 425's own suite/review or required small-fixture boundary tests. Keep the PRs separate. Prefer merging 425 first; retarget 424's PR to main and rebase/retest under the normal stack-aware finalization rules before merging 424. Preserve 425's branch while it still has dependent open PRs. No merge is authorized merely by launching the dogfood test.
+
 ## Out of scope
 
 Implementing 424's registry/typed model policy/live audit/local assertions; implementing 426's broad retirement; automatic model/effort changes; changes to other harness behavior; native child startup-directory support; root relocation, custom runners, relays or generic runtime substitutes; redesigning gate ownership, review severity, merge approval or retry policy; hard-isolation or parallel-safety certification; product dependence on fixture paths, credentials, model-family guesses or historical task IDs.

@@ -17,7 +17,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch_prefix:
+branch_prefix: 'codex'
 branch:
 pr:
 blocked_by:

@@ -44,6 +44,8 @@ Delivery order is 423 → 425 → 424. Until this change is delivered, the opera
 
 Document the V1 leaf/V2 coordinator distinction, deterministic versus live authority, registry refresh procedure, warnings, local assertions and remedies in the README and Codex installation documentation.
 
+The user also approved preparing a pre-merge dogfood build on 425's tested PR branch. At that later launch boundary, first groom this change, replace its dependency on completed 425 with `stacked_on: 425`, and validate the effective base. Keep the current dependency until then. The dogfood uses a separate 424 worktree/PR and does not merge 424 into 425; production integration remains 425 first, then 424. See 425's specification for provenance, isolation, failure and finalization requirements.
+
 ## Out of scope
 
 Restoring native dispatch or implementing feature-worktree binding (425), blocking 425 on this registry, querying Codex on every dispatch, silently rewriting pins/registry, allowing assertions to contradict known V1 entries, inferring capability from model families or effort levels, changing the established native routing contract, and legacy agent.enter retirement (426). This change remains proposed and needs its own design brainstorm.
