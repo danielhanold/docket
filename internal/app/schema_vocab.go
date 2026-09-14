@@ -119,6 +119,15 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 		SyncDispAdvanced, SyncDispAlreadyCurrent, SyncDispFailed,
 		SyncDispRefused, SyncDispSkipped,
 	}}
+	// run.cancel's disposition family (change 0375 Task 10): the explicit
+	// human-cancellation report line. "cancellation-pending" is one of the stable
+	// run-admission reason tokens, published here so the whole vocabulary — the gate
+	// admission reasons on their gatedrive/app surfaces, cancellation on this one —
+	// is discoverable in the schema catalog.
+	v["cancel_dispositions"] = Vocabulary{Members: []string{
+		CancelDispositionCancelled, CancelDispositionAlreadyCancelled,
+		CancelDispositionPending, CancelDispositionRefused,
+	}}
 
 	return v
 }

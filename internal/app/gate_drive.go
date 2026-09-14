@@ -600,6 +600,8 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 		// token stays the bounded kind; only this message explains the recourse.
 		if oe, ok := gatedrive.AsOwnershipError(err); ok {
 			result.Message = ownershipNextAction(oe.Kind)
+		} else if fe, ok := AsMutationFenceError(err); ok {
+			result.Message = fenceNextAction(fe.Reason)
 		}
 		return result
 	}
@@ -618,6 +620,17 @@ func mapDriveFailure(err error) (Result, string) {
 	// wrapped free text (argv, env, path, stored error text) can leak.
 	if oe, ok := gatedrive.AsOwnershipError(err); ok {
 		return ResultInvalidInput, string(oe.Kind)
+	}
+	// A run-epoch mutation fence (rungate_fence.go) is a distinct refusal type
+	// carrying its OWN stable token — "run-cancelled" (the owning epoch is
+	// cancelling/cancelled) or "stale-run-epoch" (superseded by a resume). It never
+	// reaches the standalone gate-drive path today, but classifying it here is
+	// fail-safe: if a fenced-epoch error ever chains through this seam it surfaces its
+	// bounded token instead of leaking the wrapped refusal text or collapsing to the
+	// generic invalid-request. The Reason field is a fixed vocabulary token, never
+	// record content, argv, env, or a credential.
+	if fe, ok := AsMutationFenceError(err); ok {
+		return ResultInvalidInput, fe.Reason
 	}
 	if se, ok := gatedrive.AsStoreError(err); ok {
 		switch se.Kind {
@@ -649,12 +662,34 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 		return "the predecessor has no durable PASSED/FAILED result to acknowledge"
 	case gatedrive.ErrUnresolvedLaunchTransition:
 		return "a prior launch transition is unresolved; recover via the parent, not a retry"
+	case gatedrive.ErrWorktreeBusy:
+		return "this worktree already runs a gate execution; wait for it or cancel that run — do not start a second in the same worktree"
+	case gatedrive.ErrUnresolvedExecution:
+		return "a prior execution in this worktree is unresolved; recover it through the parent or run.cancel, never a blind re-start"
+	case gatedrive.ErrStaleRunEpoch:
+		return "an in-flight run owns this worktree; present that run's epoch or cancel it before starting"
 	case gatedrive.ErrScopeCapabilityMismatch:
 		return "use the complete identity bundle from your dispatch prompt"
 	case gatedrive.ErrScopeIdentityMismatch:
 		return "the scope identity does not match; use the complete identity bundle from your dispatch prompt"
 	case gatedrive.ErrScopeSecondDrive:
 		return "the scope already holds a drive; a successor start must present the predecessor receipt"
+	default:
+		return ""
+	}
+}
+
+// fenceNextAction maps a run-epoch mutation-fence reason (MutationFenceError.Reason)
+// to a one-line, credential-free description of the caller's valid next action. It
+// mirrors ownershipNextAction for the fence refusal family so a fenced-epoch error
+// surfaced through this seam explains the recourse rather than inviting a blind
+// retry. An unrecognized reason yields the empty string, so callers omit the message.
+func fenceNextAction(reason string) string {
+	switch reason {
+	case "run-cancelled":
+		return "the run epoch was cancelled; do not retry — a resume after confirmed cancellation admits exactly one replacement"
+	case "stale-run-epoch":
+		return "the run epoch was superseded by a resume; use the current run's identity, not this stale one"
 	default:
 		return ""
 	}
