@@ -134,6 +134,13 @@ type skillBudget struct {
 // repair cycle with `build_max_attempts` (default 4). These ceilings include all
 // three changes and are pinned at the exact new counts, so the ratchet still
 // reddens on any further regrowth.
+//
+// Change 0375 re-baselined the caller-contract surfaces that document the new
+// worktree-admission and Stop/cancel/resume contract: gate-caller-loop.md gained
+// the one-live-gate-per-worktree admission section, docket-build-task/SKILL.md the
+// worktree-busy-is-not-a-retry rule, gate-failure.md the shared-slot note for the
+// scopeless finalize gate, and both docket-implement-next surfaces the gate-epoch
+// resume refusals. Authored contract, not slack — pinned at the exact new counts.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -143,11 +150,11 @@ var skillBudgets = []skillBudget{
 	// 0154: docket-build/references/delegation-execution.md removed — it was the
 	// evidence record for the Bash delegation facade that change 0370 deleted; its
 	// budget row is deleted with it.
-	{"docket-build/references/gate-caller-loop.md", 175, 1750},
+	{"docket-build/references/gate-caller-loop.md", 175, 1826}, // 0375: +worktree-admission section (word ceiling 1750 -> 1826)
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
-	{"docket-build-task/SKILL.md", 179, 1842}, // 0405: sequential-drive receipt and acknowledgement; 0420: shell-safe capture (see note above)
+	{"docket-build-task/SKILL.md", 188, 1964}, // 0405: sequential-drive receipt and acknowledgement; 0420: shell-safe capture; 0375: worktree-busy-not-a-retry rule (179/1842 -> 188/1964)
 	{"docket-convention/SKILL.md", 400, 7969}, // 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
 	// 0154: docket-convention/github-board-mirror.md removed — the GitHub mirror is
 	// retired (unsupported, mutation-blocking); its budget row is deleted with it.
@@ -157,10 +164,10 @@ var skillBudgets = []skillBudget{
 	{"docket-convention/references/stacked-changes.md", 215, 2140}, // 0327: +carry-preservation contract prose (see note above)
 	{"docket-convention/references/terminal-close-out.md", 240, 2150},
 	{"docket-finalize-change/SKILL.md", 236, 5200},                   // 0393: +exact payload, marker, and direct-dispatch lines atop 0349/0410 (see note above)
-	{"docket-finalize-change/references/gate-failure.md", 120, 1300}, // 0349: +reserve-before-dispatch resolver protocol prose (115 -> 120 lines)
+	{"docket-finalize-change/references/gate-failure.md", 133, 1450}, // 0349: +reserve-before-dispatch resolver protocol prose; 0375: +worktree-slot note for the scopeless finalize gate (120/1300 -> 133/1450)
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 210, 7530},                // 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376 (see note above)
-	{"docket-implement-next/references/edge-paths.md", 78, 1091}, // 0410: +resume/recovery + required-results reconciliation (see note above)
+	{"docket-implement-next/SKILL.md", 210, 7547},               // 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376; 0375: +gate-epoch resume pointer (word ceiling 7530 -> 7547)
+	{"docket-implement-next/references/edge-paths.md", 93, 1261}, // 0410: +resume/recovery + required-results reconciliation; 0375: +gate-epoch resume refusals (78/1091 -> 93/1261)
 	{"docket-implement-next/references/fix-loop.md", 190, 1958},  // 0410: +findings-to-results checkpoint linkage (see note above)
 	{"docket-implement-next/results-template.md", 51, 257},       // 0410: canonical five-section required template (see note above)
 	{"docket-review/SKILL.md", 110, 913},                         // 0410: +findings-return capture contract (see note above)

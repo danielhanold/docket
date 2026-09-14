@@ -87,6 +87,15 @@ with the typed cause; `WAITING` → **immediately** perform the `gate.drive.hand
 and return `WAITING` naming the drive id and that token. After a first `WAITING` never `advance` or restart — the controller owns the drive. `WAITING`
 consumes neither repair nor escalation budget.
 
+**A `worktree-busy` refusal is a blocking diagnostic, never a retry trigger.** One canonical
+worktree carries at most one running gate at a time. If `gate.drive.start` comes back refused with
+reason `worktree-busy` (or `unresolved-execution`), another gate is already live — or was left
+unresolved — in this worktree. That refusal is a **command failure**, not a `FAILED` suite result:
+it earns no repair attempt and no re-run. Never start a second gate in the same worktree and never
+loop on the start hoping the slot frees — return `BLOCKED` naming the reason and the incumbent drive
+id the message reports. A busy slot means something outside your one task's drive holds the
+worktree, which is the human's to clear, not yours to race.
+
 **Sequential drives within your scope.** Your scope carries a *sequence* of task-owned drives —
 baseline, RED, GREEN, verification — one at a time. The task's **first** test omits the predecessor
 flags; **every later** test also passes `--predecessor-drive-id <previous drive id>
