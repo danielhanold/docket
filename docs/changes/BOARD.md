@@ -1,18 +1,12 @@
 # Backlog
 
-**427 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 5 groomed · 🟡 23 proposed · ⚪ 11 deferred · ✅ 273 done · 🗑️ 113 killed
+**427 changes** — 🟢 1 in progress · 🟣 5 groomed · 🟡 23 proposed · ⚪ 11 deferred · ✅ 274 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `critical` | `fix` | [#299](https://github.com/danielhanold/docket/pull/299) | awaiting merge |
 
 ## 🟣 Groomed (5)
 
@@ -92,7 +86,6 @@ graph TD
   0360
   0370 --> 0366
   0368
-  0405 --> 0375
   0380
   0382
   0387
@@ -117,15 +110,15 @@ graph TD
   0251:::done
   0370:::done
   0393:::done
-  0405:::done
   0407:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (386)</summary>
+<details><summary>✅🗑️ Archive — done + killed (387)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0375](archive/2026-09-14-0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | 2026-09-14 |
 | [0421](archive/2026-09-10-0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | 2026-09-10 |
 | [0420](archive/2026-09-10-0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | 2026-09-10 |
 | [0416](archive/2026-09-10-0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | 2026-09-10 |
@@ -140,7 +133,6 @@ graph TD
 | [0327](archive/2026-09-08-0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | 2026-09-08 |
 | [0283](archive/2026-09-08-0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | 2026-09-08 |
 | [0407](archive/2026-09-07-0407-keyed-gate-verdict-misattributes-its-verdict-to-a-concurrent.md) | Keyed gate-verdict misattributes its verdict to a concurrent loop's change id under parallel implement-next runs | 2026-09-07 |
-| [0406](archive/2026-09-07-0406-flaky-testintegrationreleasepackagedeterministic-linux-arm64.md) | Flaky TestIntegrationReleasePackageDeterministic — linux_arm64 bundle nondeterminism reddens the suite | 2026-09-07 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -259,7 +251,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 22 done |
+| [2026-09](archive/) | 23 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
