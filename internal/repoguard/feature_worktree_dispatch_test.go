@@ -11,8 +11,9 @@ import (
 	"github.com/danielhanold/docket/internal/harness"
 )
 
-// A feature-scoped Codex role enters through agent.enter, whose startup guard
-// reads this raw line from the unchanged request file. A marker-delimited
+// A feature-scoped role payload carries this raw line as its explicit target.
+// Native Codex children bind the same root through their checked assignment;
+// other harness routes consume the payload line directly. A marker-delimited
 // dispatch instruction makes the executable payload boundary explicit rather
 // than treating surrounding explanatory Markdown as an instruction.
 const (
