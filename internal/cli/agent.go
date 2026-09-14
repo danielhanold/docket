@@ -152,7 +152,7 @@ func (r epochParticipantRegistrar) RegisterParticipant(handle string) error {
 // reconciles from the epoch journal and ignores the planning deps, so zero-value
 // deps are passed rather than requiring a GitHub client at Stop time.
 type epochLifecycleCanceller struct {
-	ctx                     context.Context
+	ctx                       context.Context
 	repoDir, gateKey, epochID string
 }
 

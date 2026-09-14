@@ -166,7 +166,7 @@ var skillBudgets = []skillBudget{
 	{"docket-finalize-change/SKILL.md", 236, 5200},                   // 0393: +exact payload, marker, and direct-dispatch lines atop 0349/0410 (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 133, 1450}, // 0349: +reserve-before-dispatch resolver protocol prose; 0375: +worktree-slot note for the scopeless finalize gate (120/1300 -> 133/1450)
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 210, 7547},               // 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376; 0375: +gate-epoch resume pointer (word ceiling 7530 -> 7547)
+	{"docket-implement-next/SKILL.md", 210, 7547},                // 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376; 0375: +gate-epoch resume pointer (word ceiling 7530 -> 7547)
 	{"docket-implement-next/references/edge-paths.md", 93, 1261}, // 0410: +resume/recovery + required-results reconciliation; 0375: +gate-epoch resume refusals (78/1091 -> 93/1261)
 	{"docket-implement-next/references/fix-loop.md", 190, 1958},  // 0410: +findings-to-results checkpoint linkage (see note above)
 	{"docket-implement-next/results-template.md", 51, 257},       // 0410: canonical five-section required template (see note above)

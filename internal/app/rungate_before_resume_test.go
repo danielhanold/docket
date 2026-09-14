@@ -127,8 +127,16 @@ func TestResumeAfterCancelledSupersedesOnce(t *testing.T) {
 		res2    RunGateBeforeResult
 	)
 	wg.Add(2)
-	go func() { defer wg.Done(); <-barrier; res1 = RunGateBefore(context.Background(), deps1, wdeps1, sp1.deps(), repoDir, "implement-next", 5) }()
-	go func() { defer wg.Done(); <-barrier; res2 = RunGateBefore(context.Background(), deps2, wdeps2, sp2.deps(), repoDir, "implement-next", 5) }()
+	go func() {
+		defer wg.Done()
+		<-barrier
+		res1 = RunGateBefore(context.Background(), deps1, wdeps1, sp1.deps(), repoDir, "implement-next", 5)
+	}()
+	go func() {
+		defer wg.Done()
+		<-barrier
+		res2 = RunGateBefore(context.Background(), deps2, wdeps2, sp2.deps(), repoDir, "implement-next", 5)
+	}()
 	close(barrier)
 	wg.Wait()
 
