@@ -143,6 +143,7 @@ func TestCheckAgentInputsPlannerAndReviewerRequirePinnedPayloadAtEntry(t *testin
 				templateHash := sha256.Sum256(templateBody)
 				a.PlanSkill, a.BuildSkill, a.ResultsTemplate = "auto", "auto", "results-template"
 				a.Resources = []codexcontract.Resource{{LogicalID: a.ResultsTemplate, Path: templatePath, SHA256: hex.EncodeToString(templateHash[:]), Source: "package:docket-implement-next"}}
+				a.ResourceDependencies = map[string][]string{a.ResultsTemplate: {}}
 			} else {
 				evidenceBody := []byte("green at pinned head\n")
 				evidencePath := filepath.Join(dir, "build-evidence.md")

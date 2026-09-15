@@ -17,14 +17,17 @@ const SchemaVersion = 1
 // then describes the element). Enum names a document-level vocabulary. Presence
 // is "" (always may appear), "success-only", or "refusal-only" (result fields
 // only; from the docket tag). Required mirrors the docket:"required" tag.
+// Description mirrors the co-located docketdoc tag when a public construction
+// rule cannot be represented by shape alone.
 type FieldDescriptor struct {
-	Key      string            `json:"key"`
-	Type     string            `json:"type"`
-	Required bool              `json:"required,omitempty"`
-	Repeated bool              `json:"repeated,omitempty"`
-	Enum     string            `json:"enum,omitempty"`
-	Presence string            `json:"presence,omitempty"`
-	Fields   []FieldDescriptor `json:"fields,omitempty"`
+	Key         string            `json:"key"`
+	Type        string            `json:"type"`
+	Required    bool              `json:"required,omitempty"`
+	Repeated    bool              `json:"repeated,omitempty"`
+	Enum        string            `json:"enum,omitempty"`
+	Presence    string            `json:"presence,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Fields      []FieldDescriptor `json:"fields,omitempty"`
 }
 
 // TypeDescriptor is one document side (request or result body).
@@ -102,6 +105,7 @@ func reflectFields(t reflect.Type) ([]FieldDescriptor, error) {
 		if enum := docketEnumRef(f.Tag); enum != "" {
 			fd.Enum = enum
 		}
+		fd.Description = f.Tag.Get("docketdoc")
 		out = append(out, fd)
 	}
 	return out, nil

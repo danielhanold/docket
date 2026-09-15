@@ -318,6 +318,7 @@ func reflectDocumentFields(t reflect.Type) ([]FieldDescriptor, error) {
 		fd.Key = key
 		fd.Required = hasDocketOption(f.Tag, "required")
 		fd.Enum = docketEnumRef(f.Tag)
+		fd.Description = f.Tag.Get("docketdoc")
 		out = append(out, fd)
 	}
 	return out, nil

@@ -100,12 +100,14 @@ func TestPlannerResourcesRequireSelectionsAndResultsTemplate(t *testing.T) {
 	valid.PlanSkill, valid.BuildSkill, valid.ResultsTemplate = plan.LogicalID, build.LogicalID, template.LogicalID
 	valid.ReadRoots = []string{root}
 	valid.Resources = []Resource{plan, build, template}
+	valid.ResourceDependencies = map[string][]string{plan.LogicalID: {}, build.LogicalID: {}, template.LogicalID: {}}
 	if err := ValidateResources(valid); err != nil {
 		t.Fatalf("complete named planner resources: %v", err)
 	}
 	auto := valid
 	auto.PlanSkill, auto.BuildSkill = "auto", "auto"
 	auto.Resources = []Resource{template}
+	auto.ResourceDependencies = map[string][]string{template.LogicalID: {}}
 	if err := ValidateResources(auto); err != nil {
 		t.Fatalf("explicit auto planner resources: %v", err)
 	}
@@ -135,6 +137,71 @@ func TestPlannerResourcesRequireSelectionsAndResultsTemplate(t *testing.T) {
 				t.Fatal("accepted incomplete planner preparation")
 			}
 		})
+	}
+}
+
+func TestPlannerUnknownSelectorIsReportedBeforeTemplateIdentity(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "skills", "docket-implement-next", "results-template.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("results\n")
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a := reviewAssignment()
+	a.ReadRoots = []string{root}
+	a.PlanSkill = "superpowers:writing-plans"
+	a.BuildSkill = "docket-build"
+	a.ResultsTemplate = path
+	a.Resources = []Resource{{LogicalID: "results-template", Path: path, SHA256: reviewSHA256(body), Source: "fixture-manifest"}}
+	err = ValidateResources(a)
+	if err == nil || err.Error() != `selected resource "superpowers:writing-plans" is not declared` {
+		t.Fatalf("unknown selector error = %v", err)
+	}
+}
+
+func TestPlannerResourceDependenciesCoverEveryResourceAndLocalLink(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	makeResource := func(id, name, body string) Resource {
+		t.Helper()
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return Resource{LogicalID: id, Path: path, SHA256: reviewSHA256([]byte(body)), Source: "fixture-manifest"}
+	}
+	build := makeResource("build-skill", "build/SKILL.md", "Read [routing](references/task-routing.md).\n")
+	routing := makeResource("build-task-routing", "build/references/task-routing.md", "route\n")
+	template := makeResource("results-template", "skills/docket-implement-next/results-template.md", "results\n")
+	a := reviewAssignment()
+	a.ReadRoots = []string{root}
+	a.PlanSkill, a.BuildSkill, a.ResultsTemplate = "auto", build.LogicalID, template.LogicalID
+	a.Resources = []Resource{build, routing, template}
+	if err := ValidateResources(a); err == nil || !strings.Contains(err.Error(), "resource_dependencies omits resource") {
+		t.Fatalf("planner without complete dependency keys: %v", err)
+	}
+	a.ResourceDependencies = map[string][]string{
+		build.LogicalID:    {},
+		routing.LogicalID:  {},
+		template.LogicalID: {},
+	}
+	if err := ValidateResources(a); err == nil || !strings.Contains(err.Error(), "omits direct local dependency") {
+		t.Fatalf("planner without direct link edge: %v", err)
+	}
+	a.ResourceDependencies[build.LogicalID] = []string{routing.LogicalID}
+	if err := ValidateResources(a); err != nil {
+		t.Fatalf("complete planner dependency graph: %v", err)
 	}
 }
 

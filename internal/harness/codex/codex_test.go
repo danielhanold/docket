@@ -825,6 +825,43 @@ func TestControllerInstructionsPrepareAndFreezeAssignmentWithoutCircularWitness(
 	}
 }
 
+func TestPlannerContractExplainsResourceSelectorsAndCompleteClosure(t *testing.T) {
+	in := fixtureInput(t)
+	contract, err := RoleContractFor(in, "docket-plan-writer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var instructions strings.Builder
+	instructions.WriteString(contract.DeveloperInstructions)
+	sources, err := harness.ParseInventory(in.Assets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range sources {
+		if source.Name != "docket-plan-writer" {
+			continue
+		}
+		for _, ref := range codexReferences(source) {
+			body, err := in.Assets.Bytes("skills/" + ref)
+			if err != nil {
+				t.Fatal(err)
+			}
+			instructions.Write(body)
+		}
+	}
+	for _, clause := range []string{
+		`plan_skill: "plan-skill"`,
+		`build_skill: "build-skill"`,
+		`results_template: "results-template"`,
+		"every recursively linked local file",
+		"every resource, including leaf resources, appears as a resource_dependencies key",
+	} {
+		if !strings.Contains(instructions.String(), clause) {
+			t.Errorf("planner contract omits %q", clause)
+		}
+	}
+}
+
 func TestControllerInstructionsDescribeResolverBootstrapAndProducedReceipts(t *testing.T) {
 	catalog := fixtureInput(t).Assets
 	native, err := catalog.Bytes("skills/docket-convention/references/codex-native-dispatch.md")
