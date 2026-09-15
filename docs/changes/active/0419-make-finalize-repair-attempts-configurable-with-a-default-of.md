@@ -13,7 +13,7 @@ related: [349]
 discovered_from: [349]
 adrs: [10, 19]
 spec:
-plan:
+plan: 'docs/superpowers/plans/2026-09-14-make-finalize-repair-attempts-configurable-with-a-default-of.md'
 results:
 trivial: true
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-09-15T02:28:37Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Plan | [2026-09-14-make-finalize-repair-attempts-configurable-with-a-default-of.md](https://github.com/danielhanold/docket/blob/feat/make-finalize-repair-attempts-configurable-with-a-default-of/docs/superpowers/plans/2026-09-14-make-finalize-repair-attempts-configurable-with-a-default-of.md) |
 | ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
 <!-- docket:artifacts:end -->
 
