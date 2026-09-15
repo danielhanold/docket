@@ -32,15 +32,15 @@ effect. Report bodies are redaction-only and are never echoed into a result docu
    continues; a `stuck` report, or paths outside the live unmerged set (refused `report-not-resolved`),
    routes to the `finalize.rebase-abort` operation with `--id <id> --attempt <attempt> --input <report>` and a
    `halted` outcome. Each resolver dispatch is **admitted by a durable `finalize.resolver-reserve`
-   reservation** — Go enforces the configured `finalize.resolver_max_attempts` budget (default 3),
+   reservation** — Go enforces the configured `finalize.resolver_max_attempts` budget (default 10),
    not a skill-side counter; a spent budget surfaces as reserve `exhausted` or continue
    `resolver-budget-exhausted`.
-2. **The repair agent** root-causes the red rebased suite, authors a **bounded** minimal fix in at
-   most two attempts, commits it on the feature branch, and returns a report naming its **claimed
+2. **The repair agent** root-causes the red rebased suite, authors a **bounded** minimal fix within
+   the configured `finalize.repair_max_attempts` budget (default 6, the initial attempt included), commits it on the feature branch, and returns a report naming its **claimed
    commits** and `repaired` | `stuck`; it never weakens a test, never runs the rebase, and never
    merges or transitions metadata. The controller re-runs the gate on the repaired head through
    the `gate.launch`/`observe` operations and records the exact-head evidence through the
-   `evidence.record` operation — a `stuck` repair, or a repair that cannot reach green in two attempts, is `halted`.
+   `evidence.record` operation — a `stuck` repair, or a repair that cannot reach green within that budget, is `halted`.
 
 ## Sign-off on auto-authored repairs
 
@@ -61,7 +61,7 @@ Each maps to the **`halted`** disposition and leaves the **PR open** and the cha
 - an **ambiguous rebase conflict** — the resolver returns `stuck`, or the resolver budget is spent
   (`finalize.resolver-reserve` returns `exhausted`, or a continue returns `resolver-budget-exhausted`);
   the owned rebase is restored via the `finalize.rebase-abort` operation;
-- a **red rebased suite the repair cannot green** in ≤2 attempts (`stuck`);
+- a **red rebased suite the repair cannot green** within the configured repair budget (`stuck`);
 - an **authored repair under autonomous finalize** — the sign-off rule above (`repair-needs-signoff`);
 - an **unresolved effective base, foreign in-progress rebase, moved base, or dirty workspace** —
   the `finalize.rebase` operation returns `blocked`;

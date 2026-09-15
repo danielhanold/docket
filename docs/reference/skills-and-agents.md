@@ -39,7 +39,7 @@ Each line names one agent file under `agents/` and its job.
 - **docket-build-standard** — default build profile and uncertainty sink for normal tasks.
 - **docket-finalize-change** — dispatch wrapper for the finalize sequence.
 - **docket-implement-next** — dispatch wrapper for the autonomous backlog-drainer.
-- **docket-integration-repair** — re-green the suite after finalize's rebase in at most two attempts.
+- **docket-integration-repair** — re-green the suite after finalize's rebase within the configured repair-attempt budget (default 6).
 - **docket-plan-writer** — write and commit the implementation plan on the feature branch.
 - **docket-rebase-resolver** — resolve rebase conflicts during finalize's rebase gate.
 - **docket-review-deep** — the deep rung of the whole-branch reviewer.

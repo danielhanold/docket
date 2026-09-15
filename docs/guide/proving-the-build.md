@@ -92,7 +92,7 @@ that was green in isolation but conflicts with work merged since cannot land a b
 
 If that post-rebase run reds, the rebase surfaced a real integration failure, and an integration-
 repair step is what makes it green again. It root-causes the newly-red tests and writes a *minimal*
-fix — bounded to at most two attempts, and never by weakening or deleting a test to force green —
+fix — bounded to the configured `finalize.repair_max_attempts` budget (default 6), and never by weakening or deleting a test to force green —
 then hands a structured report back to the close-out sequence, which gates the merge behind sign-off
 on that repair. The full close-out flow, and what it does when repair cannot succeed, is
 [Landing changes safely](./landing-changes.md); the mechanism view is
