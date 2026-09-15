@@ -57,10 +57,7 @@ func TestIntegrationWorkflowAgentInputsAcceptsPrimaryStartupForRegisteredFeature
 		t.Fatal(err)
 	}
 	head := runGit(feature, "rev-parse", "HEAD")
-	docketPath, err := filepath.EvalSymlinks("/usr/bin/true")
-	if err != nil {
-		t.Fatal(err)
-	}
+	docketPath := writeDocketVersionStub(t, root, head)
 	identity, err := codexcontract.ObserveRootIdentity(featureWorktree.Root, featureWorktree.GitDir)
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +69,7 @@ func TestIntegrationWorkflowAgentInputsAcceptsPrimaryStartupForRegisteredFeature
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(ab)
-	deps, err := NewAgentInputDeps("/bin/true")
+	deps, err := NewAgentInputDeps(docketPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,11 +95,8 @@ func checkFinalizeEntry(t *testing.T, f *rebaseFixture, finalize FinalizeDeps, r
 	if err != nil {
 		t.Fatal(err)
 	}
-	docketPath, err := filepath.EvalSymlinks("/usr/bin/true")
-	if err != nil {
-		t.Fatal(err)
-	}
 	head := runGit(t, f.wp, "rev-parse", "HEAD")
+	docketPath := writeDocketVersionStub(t, testsupport.TempDir(t), head)
 	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: f.id, Role: role, Phase: mode, Mode: mode, Primary: f.gitrepo.PrimaryWorktree, Feature: wt.Root, CommonDir: f.gitrepo.CommonDir, Branch: f.target.FeatureBranch(), EntryHEAD: head, MetadataRevision: pin.MetadataRevision, ChangePath: groomPath(f.id, f.slug), DocketExecutable: docketPath, DocketCommit: head, ReadRoots: []string{filepath.Dir(docketPath)}, WritePaths: writePaths, RootIdentity: &identity}
 	ab, err := json.Marshal(a)
 	if err != nil {

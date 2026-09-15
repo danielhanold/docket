@@ -3,8 +3,10 @@ package codexcontract
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -12,6 +14,10 @@ import (
 
 var localMarkdownLink = regexp.MustCompile(`\[[^]]*\]\(([^)#]+)(?:#[^)]*)?\)`)
 
+// ValidateDocketExecutable proves the assigned path is canonical and executable,
+// then asks that exact program for its build identity. A path that is replaced
+// after assignment cannot enter unless the program reports the pinned full
+// source commit.
 func ValidateDocketExecutable(a Assignment) error {
 	canon, err := filepath.EvalSymlinks(a.DocketExecutable)
 	if err != nil {
@@ -26,6 +32,22 @@ func ValidateDocketExecutable(a Assignment) error {
 	}
 	if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
 		return fmt.Errorf("docket executable is not an executable regular file")
+	}
+	out, err := exec.Command(a.DocketExecutable, "version", "--json").Output()
+	if err != nil {
+		return fmt.Errorf("docket executable version: %w", err)
+	}
+	if len(out) > 1<<20 {
+		return fmt.Errorf("docket executable version output exceeds 1 MiB")
+	}
+	var version struct {
+		Commit string `json:"commit"`
+	}
+	if err := json.Unmarshal(out, &version); err != nil {
+		return fmt.Errorf("docket executable version output is invalid: %w", err)
+	}
+	if version.Commit != a.DocketCommit {
+		return fmt.Errorf("docket executable commit mismatch")
 	}
 	return nil
 }

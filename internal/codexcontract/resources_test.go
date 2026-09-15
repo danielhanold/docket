@@ -3,10 +3,38 @@ package codexcontract
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestValidateDocketExecutableBindsReportedCommit(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "docket")
+	want := strings.Repeat("a", 40)
+	write := func(commit string) {
+		t.Helper()
+		body := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' '{\"commit\":\"%s\"}'\n", commit)
+		if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(want)
+	a := Assignment{DocketExecutable: path, DocketCommit: want}
+	if err := ValidateDocketExecutable(a); err != nil {
+		t.Fatalf("matching executable: %v", err)
+	}
+
+	write(strings.Repeat("b", 40))
+	if err := ValidateDocketExecutable(a); err == nil {
+		t.Fatal("accepted a different binary at the assigned canonical path")
+	}
+}
 
 func TestValidateResourcesRequiresNestedDeclaredClosureAndDigests(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
