@@ -1,6 +1,6 @@
 # Backlog
 
-**428 changes** — 🟢 3 in progress · 🟣 3 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 278 done · 🗑️ 113 killed
+**429 changes** — 🟢 3 in progress · 🟣 3 groomed · 🟡 21 proposed · ⚪ 11 deferred · ✅ 278 done · 🗑️ 113 killed
 
 ## 🟢 In progress (3)
 
@@ -18,10 +18,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (20)
+## 🟡 Proposed (21)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0429](active/0429-fix-stacked-change-validation-after-a-manual-parent-rebase.md) | Fix stacked-change validation after a manual parent rebase | `high` | `fix` | needs-brainstorm |
 | [0427](active/0427-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md) | Verdict-path gate recovery never binds the run epoch's worktree | `medium` | `fix` | needs-brainstorm |
 | [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | ⏳ waiting on #425 — not yet built |
 | [0426](active/0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | `high` | `refactor` | ⏳ waiting on #425 — not yet built |
@@ -100,6 +101,7 @@ graph TD
   0423 --> 0425
   0425 --> 0426
   0427
+  0429
   0192:::done
   0251:::done
   0370:::done
