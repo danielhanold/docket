@@ -2,7 +2,7 @@
 id: 422
 slug: 'bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no'
 title: 'Bind outer run-gate retry consumption to a dispatch epoch, not each observation'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-10'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-15T11:31:24Z'
 ---
 
 ## Artifacts
