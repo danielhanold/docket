@@ -13,7 +13,7 @@ related: [298, 316, 327]
 discovered_from: []
 adrs: [92]
 spec: 'docs/superpowers/specs/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-15T20:32:06Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md) |
+| Plan | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md](https://github.com/danielhanold/docket/blob/fix/fix-stacked-change-validation-after-a-manual-parent-rebase/docs/superpowers/plans/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md) |
 | ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
