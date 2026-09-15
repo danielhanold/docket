@@ -124,12 +124,28 @@ func TestAgentInputReviewRegressions(t *testing.T) {
 				}
 			}
 			sum := sha256.Sum256(b)
+			digest := hex.EncodeToString(sum[:])
 			deps, err := NewAgentInputDeps(binary)
 			if err != nil {
 				t.Fatal(err)
 			}
 			deps.Workspace = &inputWorkspace{}
-			r := CheckAgentInputs(context.Background(), deps, CheckInputsRequest{Assignment: path, SHA256: hex.EncodeToString(sum[:]), Stage: stage, RepoDir: primary})
+			req := CheckInputsRequest{Assignment: path, SHA256: digest, Stage: stage, RepoDir: primary}
+			if strings.HasPrefix(scenario, "review-") {
+				payload := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: "review", AssignmentPath: path, AssignmentSHA256: digest, EntryArgv: codexcontract.EntryCheckerArgv(a, path, digest), TaskText: "review the pinned head"}
+				payloadBytes, err := json.Marshal(payload)
+				if err != nil {
+					t.Fatal(err)
+				}
+				payloadPath := filepath.Join(root, "payload.json")
+				if err := os.WriteFile(payloadPath, payloadBytes, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				payloadSum := sha256.Sum256(payloadBytes)
+				req.Payload = payloadPath
+				req.PayloadSHA256 = hex.EncodeToString(payloadSum[:])
+			}
+			r := CheckAgentInputs(context.Background(), deps, req)
 			if scenario == "committed-owned-path" && r.Result != ResultApplied {
 				t.Fatalf("valid owned descendant commit refused: result=%s reason=%s", r.Result, r.Reason)
 			}
