@@ -62,10 +62,7 @@ func TestAgentInputReviewRegressions(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			binary, err := filepath.EvalSymlinks("/usr/bin/true")
-			if err != nil {
-				t.Fatal(err)
-			}
+			binary := writeDocketVersionStub(t, root, base)
 			a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: "docket-build-standard", Phase: "build", TaskID: "task-1", Mode: "fresh", Primary: repo.PrimaryWorktree, Feature: wt.Root, CommonDir: repo.CommonDir, Branch: "codex/review", EntryHEAD: base, MetadataRevision: base, ChangePath: "docs/changes/active/0425.md", DocketExecutable: binary, DocketCommit: base, ReadRoots: []string{root, filepath.Dir(binary)}, WritePaths: []string{"owned.go"}, RootIdentity: &identity}
 			stage := "entry"
 			if scenario == "committed-owned-path" {

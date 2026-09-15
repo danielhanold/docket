@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -19,6 +20,20 @@ import (
 type inputObserver struct {
 	out AgentRootObservation
 	err error
+}
+
+func writeDocketVersionStub(t *testing.T, dir, commit string) string {
+	t.Helper()
+	canonicalDir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(canonicalDir, "docket")
+	body := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' '{\"commit\":\"%s\"}'\n", commit)
+	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 func (f inputObserver) ObserveAgentInputs(context.Context, codexcontract.Assignment, string) (AgentRootObservation, error) {
@@ -64,12 +79,10 @@ func TestCheckAgentInputsFinalizeRolesUsePrivateAuthorityAtEntry(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			docketPath := filepath.Join(dir, "docket")
-			if err := os.WriteFile(docketPath, []byte("fixture"), 0o755); err != nil {
-				t.Fatal(err)
-			}
+			commit := strings.Repeat("2", 40)
+			docketPath := writeDocketVersionStub(t, dir, commit)
 			identity := codexcontract.RootIdentity{Platform: "test", Device: 1, Inode: 2, GitDir: "/repo/.git/worktrees/wt"}
-			a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: tc.role, Phase: tc.phase, Mode: tc.mode, Primary: "/repo", Feature: "/repo/wt", CommonDir: "/repo/.git", Branch: "codex/change", EntryHEAD: strings.Repeat("0", 40), MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: docketPath, DocketCommit: strings.Repeat("2", 40), ReadRoots: []string{dir}, WritePaths: []string{"conflict.go"}, RootIdentity: &identity}
+			a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: tc.role, Phase: tc.phase, Mode: tc.mode, Primary: "/repo", Feature: "/repo/wt", CommonDir: "/repo/.git", Branch: "codex/change", EntryHEAD: strings.Repeat("0", 40), MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: docketPath, DocketCommit: commit, ReadRoots: []string{dir}, WritePaths: []string{"conflict.go"}, RootIdentity: &identity}
 			ab, _ := json.Marshal(a)
 			assignmentPath := filepath.Join(dir, "assignment.json")
 			if err := os.WriteFile(assignmentPath, ab, 0o600); err != nil {
@@ -115,12 +128,10 @@ func TestCheckAgentInputsDispatchValidatesFinalPayloadAgainstScope(t *testing.T)
 	}
 	assignmentPath := filepath.Join(dir, "assignment.json")
 	payloadPath := filepath.Join(dir, "payload.json")
-	docketPath := filepath.Join(canonicalDir, "docket")
-	if err := os.WriteFile(docketPath, []byte("fixture"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	commit := strings.Repeat("2", 40)
+	docketPath := writeDocketVersionStub(t, canonicalDir, commit)
 	identity := codexcontract.RootIdentity{Platform: "test", Device: 1, Inode: 2, GitDir: "/repo/.git/worktrees/wt"}
-	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: "docket-build-standard", Phase: "build", TaskID: "task-1", Mode: "fresh", Primary: "/repo", Feature: "/repo/wt", CommonDir: "/repo/.git", Branch: "codex/change", EntryHEAD: strings.Repeat("0", 40), MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: docketPath, DocketCommit: strings.Repeat("2", 40), ReadRoots: []string{canonicalDir}, RootIdentity: &identity}
+	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: "docket-build-standard", Phase: "build", TaskID: "task-1", Mode: "fresh", Primary: "/repo", Feature: "/repo/wt", CommonDir: "/repo/.git", Branch: "codex/change", EntryHEAD: strings.Repeat("0", 40), MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: docketPath, DocketCommit: commit, ReadRoots: []string{canonicalDir}, RootIdentity: &identity}
 	ab, _ := json.Marshal(a)
 	if err := os.WriteFile(assignmentPath, ab, 0o600); err != nil {
 		t.Fatal(err)
@@ -160,6 +171,12 @@ func TestCheckAgentInputsDispatchValidatesFinalPayloadAgainstScope(t *testing.T)
 		t.Fatal(err)
 	}
 	ps = sha256.Sum256(pb)
+	writeDocketVersionStub(t, canonicalDir, strings.Repeat("3", 40))
+	mismatch := CheckAgentInputs(context.Background(), AgentInputDeps{Observer: obs, Scope: scope, Workspace: workspace}, CheckInputsRequest{Assignment: assignmentPath, SHA256: ad, Stage: "dispatch", Payload: payloadPath, PayloadSHA256: hex.EncodeToString(ps[:]), RepoDir: a.Primary})
+	if mismatch.Result != ResultInvalidInput || !strings.Contains(mismatch.Reason, "docket executable commit mismatch") {
+		t.Fatalf("mismatched candidate binary result=%s reason=%s", mismatch.Result, mismatch.Reason)
+	}
+	writeDocketVersionStub(t, canonicalDir, commit)
 	workspace.calls = 0
 	r := CheckAgentInputs(context.Background(), AgentInputDeps{Observer: obs, Scope: scope, Workspace: workspace}, CheckInputsRequest{Assignment: assignmentPath, SHA256: ad, Stage: "dispatch", Payload: payloadPath, PayloadSHA256: hex.EncodeToString(ps[:]), RepoDir: a.Primary})
 	if r.Result != ResultApplied {

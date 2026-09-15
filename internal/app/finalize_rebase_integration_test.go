@@ -158,7 +158,7 @@ func TestIntegrationFinalizeRebaseForeignStateBlocked(t *testing.T) {
 // skip on a no-op with exact-head green evidence, passed to evidence, failed to
 // repair work, and every non-decidable observation to a retained halt — never a
 // fabricated red.
-func TestIntegrationFinalizeRebaseGateOutcomes(t *testing.T) {
+func TestIntegrationFinalizeGateOutcomes(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 
@@ -240,7 +240,7 @@ func TestIntegrationFinalizeRebaseGateOutcomes(t *testing.T) {
 // re-entering the same local-gate phase with that continuation advances the SAME
 // drive without repeating the completed rewrite, and a subsequent PASSED slice is
 // the only outcome that mints evidence.
-func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
+func TestIntegrationFinalizeGateWaiting(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 
@@ -991,7 +991,7 @@ func TestIntegrationResolverBudgetSuccessiveConflicts(t *testing.T) {
 		}
 	})
 }
-func TestIntegrationFinalizeRebasePassedRecordsPublishCheckpoint(t *testing.T) {
+func TestIntegrationFinalizeGatePassedRecordsPublishCheckpoint(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 
@@ -1093,13 +1093,13 @@ func tamperCheckpoint(t *testing.T, f *rebaseFixture, mut func(*workspace.Rebase
 	}
 }
 
-// TestIntegrationFinalizeRebaseCheckpointReuse proves the marquee behavior: a
+// TestIntegrationFinalizeGateCheckpointReuse proves the marquee behavior: a
 // resume after a denied publish (completed rewrite, checkpoint recorded, remote
 // and PR untouched) reuses the recorded evidence and publishes-readies WITHOUT
 // invoking the suite — the gate report is skipped, carries the recorded
 // evidence verifying the rewritten head, and the gate seam is never called a
 // second time.
-func TestIntegrationFinalizeRebaseCheckpointReuse(t *testing.T) {
+func TestIntegrationFinalizeGateCheckpointReuse(t *testing.T) {
 	requireRealGit(t)
 	f, gate, deps, rewritten := setupPassedRebaseCheckpoint(t)
 
@@ -1126,13 +1126,13 @@ func TestIntegrationFinalizeRebaseCheckpointReuse(t *testing.T) {
 	}
 }
 
-// TestIntegrationFinalizeRebaseCheckpointInvalidation proves every recorded
+// TestIntegrationFinalizeGateCheckpointInvalidation proves every recorded
 // identity is load-bearing: a moved local head, a changed recorded command, a
 // changed gate policy, a different PR, and evidence for the wrong head each
 // invalidate the checkpoint — the gate re-runs and the receipt's checkpoint is
 // rewritten by the new terminal, never reused stale. A moved BASE keeps its
 // existing refusal ahead of any reuse.
-func TestIntegrationFinalizeRebaseCheckpointInvalidation(t *testing.T) {
+func TestIntegrationFinalizeGateCheckpointInvalidation(t *testing.T) {
 	requireRealGit(t)
 
 	t.Run("moved-local-head-reruns", func(t *testing.T) {

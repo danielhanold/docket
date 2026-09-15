@@ -24,6 +24,7 @@ tests/test_go_integration_app_closeout.sh	40	parallel
 tests/test_go_integration_app_concurrency.sh	25	parallel
 tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	45	parallel
+tests/test_go_integration_app_rebase_gate.sh	45	parallel
 tests/test_go_integration_app_resolverbudget.sh	20	parallel
 tests/test_go_integration_app_generatedbundle.sh	20	parallel
 tests/test_go_integration_app_mixedbundle.sh	15	parallel
