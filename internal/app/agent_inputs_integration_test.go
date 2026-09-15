@@ -69,12 +69,23 @@ func TestIntegrationWorkflowAgentInputsAcceptsPrimaryStartupForRegisteredFeature
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(ab)
+	digest := hex.EncodeToString(sum[:])
+	payload := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: "planner", AssignmentPath: ap, AssignmentSHA256: digest, EntryArgv: codexcontract.EntryCheckerArgv(a, ap, digest), TaskText: "write the pinned plan"}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payloadPath := filepath.Join(root, "payload.json")
+	if err := os.WriteFile(payloadPath, payloadBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	payloadSum := sha256.Sum256(payloadBytes)
 	deps, err := NewAgentInputDeps(docketPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	deps.Workspace = &inputWorkspace{}
-	res := CheckAgentInputs(context.Background(), deps, CheckInputsRequest{Assignment: ap, SHA256: hex.EncodeToString(sum[:]), Stage: "entry", RepoDir: primary})
+	res := CheckAgentInputs(context.Background(), deps, CheckInputsRequest{Assignment: ap, SHA256: digest, Stage: "entry", Payload: payloadPath, PayloadSHA256: hex.EncodeToString(payloadSum[:]), RepoDir: primary})
 	if res.Result != ResultApplied {
 		t.Fatalf("result=%s reason=%s", res.Result, res.Reason)
 	}

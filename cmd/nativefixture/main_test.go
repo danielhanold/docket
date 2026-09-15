@@ -25,7 +25,7 @@ func TestPrepareRefusesExistingDestinationBeforeCandidateActions(t *testing.T) {
 	}
 }
 
-func TestPrepareBuildsConfiguredBuildReadyFixtureAndCompleteManifest(t *testing.T) {
+func TestPrepareBuildsConfiguredBuildReadyFixtureFromCandidateSource(t *testing.T) {
 	root := testsupport.TempDir(t)
 	source := filepath.Join(root, "source")
 	if err := os.MkdirAll(source, 0o755); err != nil {
@@ -70,6 +70,16 @@ func TestPrepareBuildsConfiguredBuildReadyFixtureAndCompleteManifest(t *testing.
 	runTest(source, "git", "init", "-b", "main")
 	runTest(source, "git", "config", "user.name", "Fixture Test")
 	runTest(source, "git", "config", "user.email", "fixture@example.invalid")
+	const sourceMarker = "source-bound-role-definition"
+	agentPath := filepath.Join(source, "agents", "docket-plan-writer.md")
+	agentBody, err := os.ReadFile(agentPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(agentPath, append(agentBody, []byte("\nCandidate source marker: "+sourceMarker+".\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runTest(source, "go", "run", "./cmd/genassets", "-repo", source)
 	runTest(source, "git", "add", "-A")
 	runTest(source, "git", "commit", "-m", "candidate")
 	head := runTest(source, "git", "rev-parse", "HEAD")
@@ -124,6 +134,9 @@ func TestPrepareBuildsConfiguredBuildReadyFixtureAndCompleteManifest(t *testing.
 		}
 		if got.Files[rel] != hash(body) {
 			t.Errorf("manifest hash for rendered agent %s = %q, want %q", rel, got.Files[rel], hash(body))
+		}
+		if agent.Name == "docket-plan-writer" && !strings.Contains(string(body), sourceMarker) {
+			t.Errorf("rendered planner definition does not come from the supplied candidate source")
 		}
 	}
 	if dirty := runTest(filepath.Join(destination, "primary"), "git", "status", "--porcelain=v2"); dirty != "" {

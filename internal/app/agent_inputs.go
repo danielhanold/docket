@@ -197,7 +197,7 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 }
 
 func assignmentRequiresPrivatePayload(a codexcontract.Assignment) bool {
-	return strings.HasPrefix(a.Role, "docket-build-") || a.Mode == "resolver" || a.Mode == "repair"
+	return a.Role == "docket-plan-writer" || strings.HasPrefix(a.Role, "docket-build-") || strings.HasPrefix(a.Role, "docket-review-") || a.Mode == "resolver" || a.Mode == "repair"
 }
 
 func samePaths(got, want []string) bool {

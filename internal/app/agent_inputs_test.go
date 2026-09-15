@@ -113,6 +113,86 @@ func TestCheckAgentInputsFinalizeRolesUsePrivateAuthorityAtEntry(t *testing.T) {
 	}
 }
 
+func TestCheckAgentInputsPlannerAndReviewerRequirePinnedPayloadAtEntry(t *testing.T) {
+	for _, tc := range []struct {
+		name, role, phase, mode, kind string
+	}{
+		{"planner", "docket-plan-writer", "plan", "fresh", "planner"},
+		{"reviewer", "docket-review-standard", "review", "review", "review"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir, err := filepath.EvalSymlinks(testsupport.TempDir(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			commit := strings.Repeat("2", 40)
+			docketPath := writeDocketVersionStub(t, dir, commit)
+			identity := codexcontract.RootIdentity{Platform: "test", Device: 1, Inode: 2, GitDir: "/repo/.git/worktrees/wt"}
+			a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: tc.role, Phase: tc.phase, Mode: tc.mode, Primary: "/repo", Feature: "/repo/wt", CommonDir: "/repo/.git", Branch: "codex/change", EntryHEAD: commit, MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: docketPath, DocketCommit: commit, ReadRoots: []string{dir}, RootIdentity: &identity}
+			if tc.kind == "planner" {
+				a.ArtifactPath = "docs/plans/425.md"
+				a.WritePaths = []string{a.ArtifactPath}
+			} else {
+				evidenceBody := []byte("green at pinned head\n")
+				evidencePath := filepath.Join(dir, "build-evidence.md")
+				if err := os.WriteFile(evidencePath, evidenceBody, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				evidenceHash := sha256.Sum256(evidenceBody)
+				a.ReviewBase = strings.Repeat("0", 40)
+				a.ReviewHEAD = commit
+				a.BuildEvidence = "build-evidence"
+				a.Resources = []codexcontract.Resource{{LogicalID: a.BuildEvidence, Path: evidencePath, SHA256: hex.EncodeToString(evidenceHash[:]), Source: "controller"}}
+			}
+			ab, err := json.Marshal(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assignmentPath := filepath.Join(dir, "assignment.json")
+			if err := os.WriteFile(assignmentPath, ab, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			assignmentSum := sha256.Sum256(ab)
+			assignmentDigest := hex.EncodeToString(assignmentSum[:])
+			payload := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: tc.kind, AssignmentPath: assignmentPath, AssignmentSHA256: assignmentDigest, EntryArgv: codexcontract.EntryCheckerArgv(a, assignmentPath, assignmentDigest), TaskText: tc.name + " assignment"}
+			payloadBytes, err := json.Marshal(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			payloadPath := filepath.Join(dir, "payload.json")
+			if err := os.WriteFile(payloadPath, payloadBytes, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			payloadSum := sha256.Sum256(payloadBytes)
+			payloadDigest := hex.EncodeToString(payloadSum[:])
+			deps := AgentInputDeps{Observer: inputObserver{out: AgentRootObservation{Primary: a.Primary, Feature: a.Feature, CommonDir: a.CommonDir, Branch: a.Branch, HEAD: a.EntryHEAD, Clean: true, RootIdentity: identity}}, Workspace: &inputWorkspace{}}
+
+			missing := CheckAgentInputs(context.Background(), deps, CheckInputsRequest{Assignment: assignmentPath, SHA256: assignmentDigest, Stage: "entry", RepoDir: a.Primary})
+			if missing.Result != ResultInvalidInput || !strings.Contains(missing.Reason, "payload-invalid") {
+				t.Fatalf("missing payload result=%s reason=%s", missing.Result, missing.Reason)
+			}
+
+			mutatedBytes := append([]byte(nil), payloadBytes...)
+			mutatedBytes[len(mutatedBytes)-2] ^= 1
+			if err := os.WriteFile(payloadPath, mutatedBytes, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			mutated := CheckAgentInputs(context.Background(), deps, CheckInputsRequest{Assignment: assignmentPath, SHA256: assignmentDigest, Stage: "entry", Payload: payloadPath, PayloadSHA256: payloadDigest, RepoDir: a.Primary})
+			if mutated.Result != ResultInvalidInput || !strings.Contains(mutated.Reason, "sha256 mismatch") {
+				t.Fatalf("mutated payload result=%s reason=%s", mutated.Result, mutated.Reason)
+			}
+
+			if err := os.WriteFile(payloadPath, payloadBytes, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			valid := CheckAgentInputs(context.Background(), deps, CheckInputsRequest{Assignment: assignmentPath, SHA256: assignmentDigest, Stage: "entry", Payload: payloadPath, PayloadSHA256: payloadDigest, RepoDir: a.Primary})
+			if valid.Result != ResultApplied {
+				t.Fatalf("valid payload result=%s reason=%s", valid.Result, valid.Reason)
+			}
+		})
+	}
+}
+
 func (f *inputScope) ValidateChildInputs(r gatedrive.StartRequest) error {
 	f.req = r
 	f.calls++

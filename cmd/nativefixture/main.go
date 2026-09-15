@@ -95,7 +95,7 @@ func prepare(o options) error {
 	if err != nil {
 		return fmt.Errorf("pins: %w", err)
 	}
-	catalog, err := assets.EmbeddedCatalog()
+	catalog, err := candidateSourceCatalog(o.Source)
 	if err != nil {
 		return err
 	}
@@ -331,6 +331,28 @@ func prepare(o options) error {
 	mb, _ := json.MarshalIndent(m, "", "  ")
 	mb = append(mb, '\n')
 	return writeFile(filepath.Join(o.Destination, "manifest.json"), mb, 0o644)
+}
+
+func candidateSourceCatalog(source string) (assets.Catalog, error) {
+	manifest, payload, err := assets.Generate(source, assets.DefaultAllowedRoots())
+	if err != nil {
+		return assets.Catalog{}, fmt.Errorf("candidate source assets: %w", err)
+	}
+	committed := filepath.Join(source, "internal", "assets", "embedded")
+	diffs, err := assets.DiffTree(committed, manifest, payload)
+	if err != nil {
+		return assets.Catalog{}, fmt.Errorf("candidate source assets: %w", err)
+	}
+	if len(diffs) != 0 {
+		return assets.Catalog{}, fmt.Errorf("candidate source embedded assets are stale: %s", strings.Join(diffs, "; "))
+	}
+	return assets.NewCatalog(manifest, func(path string) ([]byte, error) {
+		body, ok := payload[path]
+		if !ok {
+			return nil, fmt.Errorf("candidate source asset %s is missing", path)
+		}
+		return append([]byte(nil), body...), nil
+	}), nil
 }
 
 // completeManifestFiles merges Git's tracked-file inventory with files emitted
