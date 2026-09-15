@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-10'
-updated: '2026-09-14'
+updated: '2026-09-15'
 depends_on: []
 stacked_on:
 related: [410, 341, 136]
@@ -22,7 +22,7 @@ branch: 'fix/artifacts-block-pins-plan-results-links-to-the-docket-branch'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-14T23:31:34Z'
+claimed_at: '2026-09-15T00:30:18Z'
 ---
 
 ## Artifacts
