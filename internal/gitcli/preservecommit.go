@@ -398,13 +398,32 @@ func (c *Client) ProvePreserved(ctx context.Context, repo Repository, remote Rem
 		// Conservative: never manufacture proof from an empty population.
 		return PreservationCheck{Outcome: PreservationUnproven, Detail: PreserveEmptyDelta}, nil
 	}
+	ok, differing, err := c.deltaMatchesAt(ctx, repo, target, delta)
+	if err != nil {
+		return PreservationCheck{}, err
+	}
+	if !ok {
+		return PreservationCheck{Outcome: PreservationUnproven, Detail: PreserveEntryDiffers, Paths: differing}, nil
+	}
+	return PreservationCheck{Outcome: PreservationProven, Kind: PreservationByContent}, nil
+}
+
+// deltaMatchesAt reports whether the complete base->source delta reproduces
+// exactly in the tree of one commit: every changed entry present at the same
+// oid and mode, and every source deletion absent. It is the single comparison
+// both the target-tip proof and the historic-snapshot fallback use, so the two
+// proof paths can never diverge in what "exact" means. The returned paths are
+// the bounded differing diagnostic (<= maxDifferingPaths); the cap never
+// shortens the verdict — a mismatch past the cap still returns false. An
+// observation error is an error, never a verdict.
+func (c *Client) deltaMatchesAt(ctx context.Context, repo Repository, commit ObjectID, delta []deltaEntry) (bool, []RepoPath, error) {
 	paths := make([]RepoPath, 0, len(delta))
 	for _, d := range delta {
 		paths = append(paths, d.Path)
 	}
-	entries, err := c.TreeEntryIDs(ctx, repo, target, paths)
+	entries, err := c.TreeEntryIDs(ctx, repo, commit, paths)
 	if err != nil {
-		return PreservationCheck{}, err
+		return false, nil, err
 	}
 	// A directory-valued path (a file->directory transition) yields a single
 	// `tree` entry whose mode 040000 can never equal a blob's NewMode, so the
@@ -414,15 +433,14 @@ func (c *Client) ProvePreserved(ctx context.Context, repo Repository, remote Rem
 		at[e.Path] = e
 	}
 	// Track "a mismatch exists" separately from the bounded diagnostic slice: the
-	// path cap must never shorten the verdict — even a mismatch past the cap keeps
-	// the outcome unproven.
+	// path cap must never shorten the verdict.
 	mismatched := false
 	var differing []RepoPath
 	for _, d := range delta {
 		e, present := at[d.Path]
 		match := false
 		if d.Status == 'D' {
-			match = !present // a source deletion requires absence in target
+			match = !present // a source deletion requires absence
 		} else {
 			match = present && e.ObjectID == d.NewOID && e.Mode == d.NewMode
 		}
@@ -433,10 +451,7 @@ func (c *Client) ProvePreserved(ctx context.Context, repo Repository, remote Rem
 			}
 		}
 	}
-	if mismatched {
-		return PreservationCheck{Outcome: PreservationUnproven, Detail: PreserveEntryDiffers, Paths: differing}, nil
-	}
-	return PreservationCheck{Outcome: PreservationProven, Kind: PreservationByContent}, nil
+	return !mismatched, differing, nil
 }
 
 // isAllZeroOID reports whether id is the all-zero object id git emits for an
