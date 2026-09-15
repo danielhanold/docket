@@ -19,7 +19,7 @@ type Resource struct {
 	LogicalID string `json:"logical_id" docketdoc:"Unique assignment-local identifier selected by planner selector fields and dependency edges."`
 	Path      string `json:"path"`
 	SHA256    string `json:"sha256"`
-	Source    string `json:"source"`
+	Source    string `json:"source" docketdoc:"Pinned provenance. The planner results-template resource uses asset-set:<candidate asset_set_id>."`
 }
 
 type Assignment struct {
@@ -50,7 +50,7 @@ type Assignment struct {
 	RunRoot              string                 `json:"run_root,omitempty"`
 	PlanSkill            string                 `json:"plan_skill,omitempty" docketdoc:"Planner selector: a resources[].logical_id such as \"plan-skill\", or \"auto\" for built-in planning."`
 	BuildSkill           string                 `json:"build_skill,omitempty" docketdoc:"Planner selector: a resources[].logical_id such as \"build-skill\", or \"auto\" for built-in execution."`
-	ResultsTemplate      string                 `json:"results_template,omitempty" docketdoc:"Planner selector: the resources[].logical_id \"results-template\" for the packaged docket-implement-next results template; never a path."`
+	ResultsTemplate      string                 `json:"results_template,omitempty" docketdoc:"Planner selector: the resources[].logical_id \"results-template\" for the packaged docket-implement-next results template under <feature>/.agents; never a path."`
 	LearningsEnabled     bool                   `json:"learnings_enabled,omitempty"`
 	LearningsIndex       string                 `json:"learnings_index,omitempty"`
 	ReviewBase           string                 `json:"review_base,omitempty"`

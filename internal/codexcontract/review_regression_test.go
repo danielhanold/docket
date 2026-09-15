@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/assets"
 )
 
 func reviewAssignment() Assignment {
@@ -24,6 +26,26 @@ func reviewAssignment() Assignment {
 func reviewSHA256(body []byte) string {
 	sum := sha256.Sum256(body)
 	return hex.EncodeToString(sum[:])
+}
+
+func reviewPackagedResultsTemplate(t *testing.T, feature string) (Resource, []byte) {
+	t.Helper()
+	catalog, err := assets.EmbeddedCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := catalog.Bytes(plannerResultsTemplateAssetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(feature, ".agents", filepath.FromSlash(plannerResultsTemplateAssetPath))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return Resource{LogicalID: "results-template", Path: path, SHA256: reviewSHA256(body), Source: "asset-set:" + catalog.Manifest.AssetSetID}, body
 }
 
 func TestAssignmentRejectsUnsupportedFullObjectIDLengths(t *testing.T) {
@@ -94,9 +116,11 @@ func TestPlannerResourcesRequireSelectionsAndResultsTemplate(t *testing.T) {
 	}
 	plan := makeResource("plan", "plan.md", "plan\n")
 	build := makeResource("build", "build.md", "build\n")
-	template := makeResource("results-template", "skills/docket-implement-next/results-template.md", "results\n")
+	feature := filepath.Join(root, "feature")
+	template, templateBody := reviewPackagedResultsTemplate(t, feature)
 	decoy := makeResource("decoy-template", "other/results-template.md", "decoy\n")
 	valid := reviewAssignment()
+	valid.Feature = feature
 	valid.PlanSkill, valid.BuildSkill, valid.ResultsTemplate = plan.LogicalID, build.LogicalID, template.LogicalID
 	valid.ReadRoots = []string{root}
 	valid.Resources = []Resource{plan, build, template}
@@ -131,13 +155,104 @@ func TestPlannerResourcesRequireSelectionsAndResultsTemplate(t *testing.T) {
 				if err := os.WriteFile(template.Path, []byte("changed\n"), 0o600); err != nil {
 					t.Fatal(err)
 				}
-				t.Cleanup(func() { _ = os.WriteFile(template.Path, []byte("results\n"), 0o600) })
+				t.Cleanup(func() { _ = os.WriteFile(template.Path, templateBody, 0o600) })
 			}
 			if ValidateResources(a) == nil {
 				t.Fatal("accepted incomplete planner preparation")
 			}
 		})
 	}
+}
+
+func TestPlannerResultsTemplateRequiresFeaturePackageAndAssetSetProvenance(t *testing.T) {
+	catalog, err := assets.EmbeddedCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const assetPath = "skills/docket-implement-next/results-template.md"
+	body, err := catalog.Bytes(assetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	feature := filepath.Join(root, "feature")
+	packageRoot := filepath.Join(feature, ".agents", "skills", "docket-implement-next")
+	templatePath := filepath.Join(packageRoot, "results-template.md")
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(templatePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resource := Resource{
+		LogicalID: "results-template",
+		Path:      templatePath,
+		SHA256:    reviewSHA256(body),
+		Source:    "asset-set:" + catalog.Manifest.AssetSetID,
+	}
+	valid := reviewAssignment()
+	valid.Feature = feature
+	valid.ReadRoots = []string{root}
+	valid.PlanSkill, valid.BuildSkill, valid.ResultsTemplate = "auto", "auto", resource.LogicalID
+	valid.Resources = []Resource{resource}
+	valid.ResourceDependencies = map[string][]string{resource.LogicalID: {}}
+	if err := ValidateResources(valid); err != nil {
+		t.Fatalf("valid packaged template: %v", err)
+	}
+
+	t.Run("forged-matching-suffix", func(t *testing.T) {
+		forged := valid
+		forgedResource := resource
+		forgedRoot := filepath.Join(root, "controller")
+		forgedResource.Path = filepath.Join(forgedRoot, "skills", "docket-implement-next", "results-template.md")
+		if err := os.MkdirAll(filepath.Dir(forgedResource.Path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(forgedResource.Path, body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		forged.Resources = []Resource{forgedResource}
+		if ValidateResources(forged) == nil {
+			t.Fatal("accepted a results template under a controller-chosen matching suffix")
+		}
+	})
+
+	t.Run("unverified-source", func(t *testing.T) {
+		forged := valid
+		forgedResource := resource
+		forgedResource.Source = "fixture-manifest"
+		forged.Resources = []Resource{forgedResource}
+		if ValidateResources(forged) == nil {
+			t.Fatal("accepted a results template without embedded asset-set provenance")
+		}
+	})
+
+	t.Run("content-differs-from-candidate-asset", func(t *testing.T) {
+		mutatedRoot := filepath.Join(root, "mutated-feature")
+		mutatedPackageRoot := filepath.Join(mutatedRoot, ".agents", "skills", "docket-implement-next")
+		mutatedPath := filepath.Join(mutatedPackageRoot, "results-template.md")
+		mutatedBody := append(append([]byte(nil), body...), []byte("\nforged\n")...)
+		if err := os.MkdirAll(mutatedPackageRoot, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(mutatedPath, mutatedBody, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		forged := valid
+		forged.Feature = mutatedRoot
+		forged.Resources = []Resource{{
+			LogicalID: resource.LogicalID,
+			Path:      mutatedPath,
+			SHA256:    reviewSHA256(mutatedBody),
+			Source:    resource.Source,
+		}}
+		if ValidateResources(forged) == nil {
+			t.Fatal("accepted results-template bytes that differ from the candidate asset set")
+		}
+	})
 }
 
 func TestPlannerUnknownSelectorIsReportedBeforeTemplateIdentity(t *testing.T) {
@@ -183,8 +298,10 @@ func TestPlannerResourceDependenciesCoverEveryResourceAndLocalLink(t *testing.T)
 	}
 	build := makeResource("build-skill", "build/SKILL.md", "Read [routing](references/task-routing.md).\n")
 	routing := makeResource("build-task-routing", "build/references/task-routing.md", "route\n")
-	template := makeResource("results-template", "skills/docket-implement-next/results-template.md", "results\n")
+	feature := filepath.Join(root, "feature")
+	template, _ := reviewPackagedResultsTemplate(t, feature)
 	a := reviewAssignment()
+	a.Feature = feature
 	a.ReadRoots = []string{root}
 	a.PlanSkill, a.BuildSkill, a.ResultsTemplate = "auto", build.LogicalID, template.LogicalID
 	a.Resources = []Resource{build, routing, template}

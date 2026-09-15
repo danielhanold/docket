@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/codexcontract"
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
@@ -69,16 +70,25 @@ func reviewRealAssignment(t *testing.T, symlinkOutput bool) (codexcontract.Assig
 	if err != nil {
 		t.Fatal(err)
 	}
-	head := runGit(t, feature, "rev-parse", "HEAD")
-	binary := writeDocketVersionStub(t, root, head)
-	templatePath := filepath.Join(root, "skills", "docket-implement-next", "results-template.md")
+	templatePath := filepath.Join(worktree.Root, ".agents", "skills", "docket-implement-next", "results-template.md")
 	if err := os.MkdirAll(filepath.Dir(templatePath), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	templateBody := []byte("# Results\n")
+	catalog, err := assets.EmbeddedCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	templateBody, err := catalog.Bytes("skills/docket-implement-next/results-template.md")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(templatePath, templateBody, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	runGit(t, feature, "add", ".agents")
+	runGit(t, feature, "commit", "-m", "fixture: install candidate assets")
+	head := runGit(t, feature, "rev-parse", "HEAD")
+	binary := writeDocketVersionStub(t, root, head)
 	templateSum := sha256.Sum256(templateBody)
 	a := codexcontract.Assignment{
 		SchemaVersion: 1, ChangeID: 425, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh",
@@ -88,7 +98,7 @@ func reviewRealAssignment(t *testing.T, symlinkOutput bool) (codexcontract.Assig
 		DocketExecutable: binary, DocketCommit: head, ReadRoots: []string{root},
 		WritePaths: []string{"docs/plan.md"}, RootIdentity: &identity,
 		PlanSkill: "auto", BuildSkill: "auto", ResultsTemplate: "results-template",
-		Resources:            []codexcontract.Resource{{LogicalID: "results-template", Path: templatePath, SHA256: hex.EncodeToString(templateSum[:]), Source: "package:docket-implement-next"}},
+		Resources:            []codexcontract.Resource{{LogicalID: "results-template", Path: templatePath, SHA256: hex.EncodeToString(templateSum[:]), Source: "asset-set:" + catalog.Manifest.AssetSetID}},
 		ResourceDependencies: map[string][]string{"results-template": {}},
 	}
 	deps, err := NewAgentInputDeps(binary)
