@@ -8,9 +8,12 @@ package workspace
 //	   operation lock (serializing against Prepare/Inspect-refresh/Cleanup);
 //	2. reinspect the owned ready workspace: the manifest must be owned and ready,
 //	   Git must register exactly the recorded canonical path on the exact feature
-//	   ref with HEAD == the ref tip, the recorded base must still be reachable, and
-//	   the tracked/untracked delta must be empty — a dirty or inconsistent
-//	   workspace is refused (invalid-state), never repaired, published, or forced;
+//	   ref with HEAD == the ref tip, and the tracked/untracked delta must be empty —
+//	   a dirty or inconsistent workspace is refused (invalid-state), never repaired,
+//	   published, or forced. Recorded-base ancestry is NOT required for a ready
+//	   workspace: a manual parent rebase legitimately rewrites the creation base out
+//	   of the head's ancestry, and the manifest/ref/registration/head identity still
+//	   prove ownership (change 0429);
 //	3. probe the authoritative remote feature ref structurally (ProbeRemoteBranch);
 //	   an unobservable remote is `unknown` with no fabricated remote id;
 //	4. the remote already equal to the local HEAD is `already-published` (keyed on
@@ -186,8 +189,11 @@ func (s *Service) reprobeAfterPush(ctx context.Context, repo gitcli.Repository, 
 // exactly attached to the feature ref, and returns the intended local head (the
 // feature ref tip == the registered HEAD). Every inconsistency — an absent,
 // foreign, unowned, or non-ready manifest; a missing feature ref; a detached,
-// relocated, or mismatched registration; an unreachable recorded base; or a
-// non-empty dirty delta — is an invalid-state refusal. Every probe error is an
+// relocated, or mismatched registration; or a non-empty dirty delta — is an
+// invalid-state refusal. Recorded-base ancestry is not required: a manual parent
+// rebase legitimately moves the creation base out of the head's ancestry while
+// the manifest/ref/registration/head identity still prove ownership (change
+// 0429). Every probe error is an
 // external failure: an unreadable manifest or Git probe never reads as a clean,
 // publishable state (learnings: probe-error-is-not-clean-absence).
 func (s *Service) reinspectForPublish(ctx context.Context, repo gitcli.Repository, dir string, target Target, intendedPath string) (gitcli.ObjectID, *Failure) {
@@ -232,16 +238,6 @@ func (s *Service) reinspectForPublish(ctx context.Context, repo gitcli.Repositor
 	}
 	if reg.Head != branchHead {
 		return "", &Failure{Op: publishOp, Stage: "verify", Kind: KindInvalidState, Detail: "registered HEAD is not the feature ref tip"}
-	}
-
-	// The recorded base must still be reachable from the head, or the branch was
-	// moved out of band: refuse, never reset.
-	reachable, err := s.git.IsAncestor(ctx, repo, m.BaseCommit, reg.Head)
-	if err != nil {
-		return "", mapGitFailure(publishOp, "inventory", err)
-	}
-	if !reachable {
-		return "", &Failure{Op: publishOp, Stage: "verify", Kind: KindInvalidState, Detail: "recorded base is not reachable from the head"}
 	}
 
 	// Exact tracked/untracked delta: any dirty, staged, untracked, or conflicted

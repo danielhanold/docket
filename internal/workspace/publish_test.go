@@ -116,6 +116,59 @@ func TestPublishAbsentRefCreates(t *testing.T) {
 	})
 }
 
+// TestPublishReadyAfterParentRebase proves a clean, registered, on-ref ready
+// workspace publishes even when its head no longer reaches the recorded
+// creation base (a manual parent rebase). The stale-head, detached, dirty, and
+// identity refusals are unchanged (change 0429).
+func TestPublishReadyAfterParentRebase(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	ws := wsPathOf(repo)
+	head := commitInWorkspace(t, ws, "feature.txt", "feature work\n")
+
+	// Rewrite the recorded base to a commit the feature head does not reach (a
+	// later origin-main commit, fetched into the object store) — the same
+	// construction inspect_test's parent-rebase row uses, now a legitimate state.
+	c1 := r.advanceMain(t)
+	gitOut(t, r.Primary, "fetch", "-q", "origin", "main")
+	m, present, err := loadManifest(metaDirOf(repo, tgt))
+	if err != nil || !present {
+		t.Fatalf("loadManifest present=%v err=%v", present, err)
+	}
+	m.BaseCommit = c1
+	if err := writeManifest(metaDirOf(repo, tgt), m); err != nil {
+		t.Fatalf("writeManifest(rewritten base): %v", err)
+	}
+
+	// Publish must succeed exactly as it does for an untouched ready workspace
+	// (success facts lifted from TestPublishAbsentRefCreates).
+	if _, ok := originFeatCommit(t, r); ok {
+		t.Fatalf("fixture: origin feat ref already exists before publish")
+	}
+	res, err := publishHead(t, svc, repo, tgt)
+	if err != nil {
+		t.Fatalf("PublishHead: %v", err)
+	}
+	if res.Disposition != PublishPublished {
+		t.Errorf("Disposition = %q; want published", res.Disposition)
+	}
+	if res.Head != head {
+		t.Errorf("Head = %q; want local head %q", res.Head, head)
+	}
+	remote, ok := originFeatCommit(t, r)
+	if !ok {
+		t.Fatalf("origin feat ref absent after publish")
+	}
+	if remote != head {
+		t.Errorf("origin feat ref = %q; want local head %q", remote, head)
+	}
+	if res.Remote != head {
+		t.Errorf("result Remote = %q; want %q", res.Remote, head)
+	}
+}
+
 // TestPublishRepeatAlreadyPublished proves a second PublishHead with the remote
 // already at the local HEAD returns already-published and performs no second
 // update: the origin ref value is unchanged.
