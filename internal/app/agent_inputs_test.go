@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/codexcontract"
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -127,13 +128,22 @@ func TestCheckAgentInputsPlannerAndReviewerRequirePinnedPayloadAtEntry(t *testin
 			}
 			commit := strings.Repeat("2", 40)
 			docketPath := writeDocketVersionStub(t, dir, commit)
-			identity := codexcontract.RootIdentity{Platform: "test", Device: 1, Inode: 2, GitDir: "/repo/.git/worktrees/wt"}
-			a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: tc.role, Phase: tc.phase, Mode: tc.mode, Primary: "/repo", Feature: "/repo/wt", CommonDir: "/repo/.git", Branch: "codex/change", EntryHEAD: commit, MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: docketPath, DocketCommit: commit, ReadRoots: []string{dir}, RootIdentity: &identity}
+			primary := filepath.Join(dir, "repo")
+			feature := filepath.Join(primary, "wt")
+			identity := codexcontract.RootIdentity{Platform: "test", Device: 1, Inode: 2, GitDir: filepath.Join(primary, ".git", "worktrees", "wt")}
+			a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: tc.role, Phase: tc.phase, Mode: tc.mode, Primary: primary, Feature: feature, CommonDir: filepath.Join(primary, ".git"), Branch: "codex/change", EntryHEAD: commit, MetadataRevision: strings.Repeat("1", 40), ChangePath: "docs/changes/active/0425.md", DocketExecutable: docketPath, DocketCommit: commit, ReadRoots: []string{dir}, RootIdentity: &identity}
 			if tc.kind == "planner" {
 				a.ArtifactPath = "docs/plans/425.md"
 				a.WritePaths = []string{a.ArtifactPath}
-				templateBody := []byte("# Results\n")
-				templatePath := filepath.Join(dir, "skills", "docket-implement-next", "results-template.md")
+				catalog, err := assets.EmbeddedCatalog()
+				if err != nil {
+					t.Fatal(err)
+				}
+				templateBody, err := catalog.Bytes("skills/docket-implement-next/results-template.md")
+				if err != nil {
+					t.Fatal(err)
+				}
+				templatePath := filepath.Join(feature, ".agents", "skills", "docket-implement-next", "results-template.md")
 				if err := os.MkdirAll(filepath.Dir(templatePath), 0o755); err != nil {
 					t.Fatal(err)
 				}
@@ -142,7 +152,7 @@ func TestCheckAgentInputsPlannerAndReviewerRequirePinnedPayloadAtEntry(t *testin
 				}
 				templateHash := sha256.Sum256(templateBody)
 				a.PlanSkill, a.BuildSkill, a.ResultsTemplate = "auto", "auto", "results-template"
-				a.Resources = []codexcontract.Resource{{LogicalID: a.ResultsTemplate, Path: templatePath, SHA256: hex.EncodeToString(templateHash[:]), Source: "package:docket-implement-next"}}
+				a.Resources = []codexcontract.Resource{{LogicalID: a.ResultsTemplate, Path: templatePath, SHA256: hex.EncodeToString(templateHash[:]), Source: "asset-set:" + catalog.Manifest.AssetSetID}}
 				a.ResourceDependencies = map[string][]string{a.ResultsTemplate: {}}
 			} else {
 				evidenceBody := []byte("green at pinned head\n")

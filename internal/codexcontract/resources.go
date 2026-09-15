@@ -12,11 +12,15 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/danielhanold/docket/internal/assets"
 )
 
 var localMarkdownLink = regexp.MustCompile(`\[[^]]*\]\(([^)#]+)(?:#[^)]*)?\)`)
 
 const docketExecutableVersionTimeout = 5 * time.Second
+
+const plannerResultsTemplateAssetPath = "skills/docket-implement-next/results-template.md"
 
 // ValidateDocketExecutable proves the assigned path is canonical and executable,
 // then asks that exact program for its build identity. A path that is replaced
@@ -134,15 +138,36 @@ func ValidateResources(a Assignment) error {
 		}
 	}
 	if a.Role == "docket-plan-writer" {
-		var templatePath string
+		var template Resource
 		for _, resource := range a.Resources {
 			if resource.LogicalID == a.ResultsTemplate {
-				templatePath = filepath.ToSlash(resource.Path)
+				template = resource
 				break
 			}
 		}
-		if !strings.HasSuffix(templatePath, "/skills/docket-implement-next/results-template.md") {
-			return fmt.Errorf("planner results template is not the packaged docket-implement-next template")
+		manifest, err := assets.EmbeddedManifest()
+		if err != nil {
+			return fmt.Errorf("candidate asset manifest: %w", err)
+		}
+		expectedPath := filepath.Join(a.Feature, ".agents", filepath.FromSlash(plannerResultsTemplateAssetPath))
+		if template.Path != expectedPath {
+			return fmt.Errorf("planner results template is not the feature package template")
+		}
+		if template.Source != "asset-set:"+manifest.AssetSetID {
+			return fmt.Errorf("planner results template provenance does not match the candidate asset set")
+		}
+		var expectedDigest string
+		for _, entry := range manifest.Entries {
+			if entry.Path == plannerResultsTemplateAssetPath {
+				expectedDigest = entry.SHA256
+				break
+			}
+		}
+		if expectedDigest == "" {
+			return fmt.Errorf("candidate asset manifest omits the planner results template")
+		}
+		if strings.ToLower(template.SHA256) != expectedDigest {
+			return fmt.Errorf("planner results template does not match the candidate asset set")
 		}
 	}
 	directDependencies := map[string]map[string]bool{}

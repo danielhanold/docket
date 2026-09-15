@@ -27,6 +27,7 @@ type options struct {
 type manifest struct {
 	SchemaVersion         int               `json:"schema_version"`
 	SourceCommit          string            `json:"source_commit"`
+	AssetSetID            string            `json:"asset_set_id"`
 	Binary                string            `json:"binary"`
 	BinarySHA256          string            `json:"binary_sha256"`
 	Files                 map[string]string `json:"files"`
@@ -330,7 +331,7 @@ func prepare(o options) error {
 	if err != nil {
 		return err
 	}
-	m := manifest{SchemaVersion: 1, SourceCommit: head, Binary: o.Binary, BinarySHA256: hash(bb), Files: complete, EvidenceAuditComplete: false, ChangeID: created.ID, ChangePath: created.Path, MetadataRevision: groomedStatus.Context.MetadataRevision, PrimaryHEAD: primaryHead, BuildReady: buildReady, BuildTestCommand: repoConfig.Effective.Build.TestCommand.Value, FinalizeTestCommand: repoConfig.Effective.Finalize.TestCommand.Value, BaselineCommand: baselineCommand, BaselinePassed: true, PinsSHA256: hash(pinsBytes)}
+	m := manifest{SchemaVersion: 1, SourceCommit: head, AssetSetID: catalog.Manifest.AssetSetID, Binary: o.Binary, BinarySHA256: hash(bb), Files: complete, EvidenceAuditComplete: false, ChangeID: created.ID, ChangePath: created.Path, MetadataRevision: groomedStatus.Context.MetadataRevision, PrimaryHEAD: primaryHead, BuildReady: buildReady, BuildTestCommand: repoConfig.Effective.Build.TestCommand.Value, FinalizeTestCommand: repoConfig.Effective.Finalize.TestCommand.Value, BaselineCommand: baselineCommand, BaselinePassed: true, PinsSHA256: hash(pinsBytes)}
 	mb, _ := json.MarshalIndent(m, "", "  ")
 	mb = append(mb, '\n')
 	return writeFile(filepath.Join(o.Destination, "manifest.json"), mb, 0o644)

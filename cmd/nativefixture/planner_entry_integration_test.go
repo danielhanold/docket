@@ -70,15 +70,12 @@ func checkNativePlannerEntryDefaultsToStartup(t *testing.T, root, destination, b
 	}
 	readStatus()
 	checkNativePlannerResourceContract(t, root, destination, binary, fixture, workspace, status.Context.MetadataRevision)
-	template := filepath.Join(root, "skills", "docket-implement-next", "results-template.md")
-	if err := os.MkdirAll(filepath.Dir(template), 0o755); err != nil {
+	template := filepath.Join(workspace.Path, ".agents", "skills", "docket-implement-next", "results-template.md")
+	body, err := os.ReadFile(template)
+	if err != nil {
 		t.Fatal(err)
 	}
-	body := []byte("# Results\n")
-	if err := os.WriteFile(template, body, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: fixture.ChangeID, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh", Primary: primary, Feature: workspace.Path, CommonDir: filepath.Join(primary, ".git"), Branch: strings.TrimPrefix(workspace.FeatureRef, "refs/heads/"), EntryHEAD: fixture.PrimaryHEAD, MetadataRevision: status.Context.MetadataRevision, ChangePath: fixture.ChangePath, ArtifactPath: "docs/plans/native.md", DocketExecutable: binary, DocketCommit: fixture.SourceCommit, ReadRoots: []string{root}, WritePaths: []string{"docs/plans/native.md"}, PlanSkill: "auto", BuildSkill: "auto", ResultsTemplate: "template", Resources: []codexcontract.Resource{{LogicalID: "template", Path: template, SHA256: hash(body), Source: "package:docket-implement-next"}}, ResourceDependencies: map[string][]string{"template": {}}}
+	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: fixture.ChangeID, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh", Primary: primary, Feature: workspace.Path, CommonDir: filepath.Join(primary, ".git"), Branch: strings.TrimPrefix(workspace.FeatureRef, "refs/heads/"), EntryHEAD: fixture.PrimaryHEAD, MetadataRevision: status.Context.MetadataRevision, ChangePath: fixture.ChangePath, ArtifactPath: "docs/plans/native.md", DocketExecutable: binary, DocketCommit: fixture.SourceCommit, ReadRoots: []string{root}, WritePaths: []string{"docs/plans/native.md"}, PlanSkill: "auto", BuildSkill: "auto", ResultsTemplate: "template", Resources: []codexcontract.Resource{{LogicalID: "template", Path: template, SHA256: hash(body), Source: "asset-set:" + fixture.AssetSetID}}, ResourceDependencies: map[string][]string{"template": {}}}
 	assignmentPath := filepath.Join(root, "planner-assignment.json")
 	writeJSON := func(path string, v any) string {
 		t.Helper()
@@ -214,7 +211,7 @@ func checkNativePlannerResourceContract(t *testing.T, root, destination, binary 
 		resource("plan-review-prompt", planPromptPath, "planning-resources.json"),
 		resource("build-skill", filepath.Join(buildRoot, "SKILL.md"), "fixture-manifest"),
 		resource("plan-results-contract", planResultsPath, "fixture-manifest"),
-		resource("results-template", resultsTemplatePath, "fixture-manifest"),
+		resource("results-template", resultsTemplatePath, "asset-set:"+fixture.AssetSetID),
 	}
 	a := codexcontract.Assignment{
 		SchemaVersion: 1, ChangeID: fixture.ChangeID, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh",

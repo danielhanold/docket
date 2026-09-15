@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/codexcontract"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
@@ -56,22 +57,31 @@ func TestIntegrationWorkflowAgentInputsAcceptsPrimaryStartupForRegisteredFeature
 	if err != nil {
 		t.Fatal(err)
 	}
-	head := runGit(feature, "rev-parse", "HEAD")
-	docketPath := writeDocketVersionStub(t, root, head)
 	identity, err := codexcontract.ObserveRootIdentity(featureWorktree.Root, featureWorktree.GitDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	templateBody := []byte("# Results\n")
-	templatePath := filepath.Join(controlRoot, "skills", "docket-implement-next", "results-template.md")
+	catalog, err := assets.EmbeddedCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	templateBody, err := catalog.Bytes("skills/docket-implement-next/results-template.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	templatePath := filepath.Join(featureWorktree.Root, ".agents", "skills", "docket-implement-next", "results-template.md")
 	if err := os.MkdirAll(filepath.Dir(templatePath), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(templatePath, templateBody, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	runGit(feature, "add", ".agents")
+	runGit(feature, "commit", "-m", "fixture: install candidate assets")
+	head := runGit(feature, "rev-parse", "HEAD")
+	docketPath := writeDocketVersionStub(t, root, head)
 	templateHash := sha256.Sum256(templateBody)
-	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh", Primary: repo.PrimaryWorktree, Feature: featureWorktree.Root, CommonDir: repo.CommonDir, Branch: "codex/change", EntryHEAD: head, MetadataRevision: head, ChangePath: "docs/changes/active/0425.md", ArtifactPath: "docs/plans/425.md", DocketExecutable: docketPath, DocketCommit: head, ReadRoots: []string{controlRoot, filepath.Dir(docketPath)}, WritePaths: []string{"docs/plans/425.md"}, RootIdentity: &identity, PlanSkill: "auto", BuildSkill: "auto", ResultsTemplate: "results-template", Resources: []codexcontract.Resource{{LogicalID: "results-template", Path: templatePath, SHA256: hex.EncodeToString(templateHash[:]), Source: "package:docket-implement-next"}}, ResourceDependencies: map[string][]string{"results-template": {}}}
+	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: 425, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh", Primary: repo.PrimaryWorktree, Feature: featureWorktree.Root, CommonDir: repo.CommonDir, Branch: "codex/change", EntryHEAD: head, MetadataRevision: head, ChangePath: "docs/changes/active/0425.md", ArtifactPath: "docs/plans/425.md", DocketExecutable: docketPath, DocketCommit: head, ReadRoots: []string{controlRoot, filepath.Dir(docketPath)}, WritePaths: []string{"docs/plans/425.md"}, RootIdentity: &identity, PlanSkill: "auto", BuildSkill: "auto", ResultsTemplate: "results-template", Resources: []codexcontract.Resource{{LogicalID: "results-template", Path: templatePath, SHA256: hex.EncodeToString(templateHash[:]), Source: "asset-set:" + catalog.Manifest.AssetSetID}}, ResourceDependencies: map[string][]string{"results-template": {}}}
 	ab, _ := json.Marshal(a)
 	ap := filepath.Join(root, "assignment.json")
 	if err := os.WriteFile(ap, ab, 0o600); err != nil {
