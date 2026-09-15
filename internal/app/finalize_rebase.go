@@ -1210,12 +1210,12 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 // validateResolverEntry proves the existing owned attempt, outstanding
 // reservation, stopped commit, and exact unmerged path set without consuming
 // the reservation or advancing the rebase.
-func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir string, assignment codexcontract.Assignment, attempt, reservation string) error {
+func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir string, assignment codexcontract.Assignment, attempt, reservation string, provisional bool) error {
 	rc, refusal := loadRebaseContext(ctx, deps, repoDir, OperationAgentCheckInputs, assignment.ChangeID)
 	if refusal != nil {
 		return fmt.Errorf("%s", refusal.Reason)
 	}
-	if err := validateResolverAssignment(ctx, deps, repoDir, rc, assignment); err != nil {
+	if err := validateResolverAssignment(ctx, deps, repoDir, rc, assignment, provisional); err != nil {
 		return err
 	}
 	rec, ownedRefusal := requireOwnedAttempt(ctx, deps, OperationAgentCheckInputs, rc, attempt)
@@ -1242,7 +1242,7 @@ func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir strin
 // deliberately detached, so the ordinary feature-workspace validator cannot be
 // reused; every stable repository, change, ref, metadata, path, and filesystem
 // identity is compared here instead.
-func validateResolverAssignment(ctx context.Context, deps FinalizeDeps, repoDir string, rc *rebaseContext, assignment codexcontract.Assignment) error {
+func validateResolverAssignment(ctx context.Context, deps FinalizeDeps, repoDir string, rc *rebaseContext, assignment codexcontract.Assignment, provisional bool) error {
 	if assignment.Primary != rc.repo.PrimaryWorktree || assignment.CommonDir != rc.repo.CommonDir {
 		return fmt.Errorf("resolver-repository-mismatch")
 	}
@@ -1265,9 +1265,6 @@ func validateResolverAssignment(ctx context.Context, deps FinalizeDeps, repoDir 
 	if pin.MetadataRevision != rc.metadataRevision {
 		return fmt.Errorf("metadata-revision-mismatch")
 	}
-	if assignment.RootIdentity == nil {
-		return fmt.Errorf("root-identity-missing")
-	}
 	worktree, err := deps.Planning.Client.DiscoverWorktree(ctx, gitcli.DiscoverOptions{InvocationPath: rc.wsDir})
 	if err != nil {
 		return fmt.Errorf("resolver-worktree-identity: %w", err)
@@ -1278,6 +1275,12 @@ func validateResolverAssignment(ctx context.Context, deps FinalizeDeps, repoDir 
 	identity, err := codexcontract.ObserveRootIdentity(worktree.Root, worktree.GitDir)
 	if err != nil {
 		return fmt.Errorf("resolver-worktree-identity: %w", err)
+	}
+	if assignment.RootIdentity == nil {
+		if provisional {
+			return nil
+		}
+		return fmt.Errorf("root-identity-missing")
 	}
 	if !assignment.RootIdentity.Equal(identity) {
 		return fmt.Errorf("root-identity-mismatch")

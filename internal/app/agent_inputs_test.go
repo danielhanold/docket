@@ -55,7 +55,7 @@ type inputRole struct {
 	payload codexcontract.WorkerPayload
 }
 
-func (r *inputRole) ValidateRoleInputs(_ context.Context, _ codexcontract.Assignment, p codexcontract.WorkerPayload, _ string) error {
+func (r *inputRole) ValidateRoleInputs(_ context.Context, _ codexcontract.Assignment, p codexcontract.WorkerPayload, _, _ string) error {
 	r.calls++
 	r.payload = p
 	return nil
