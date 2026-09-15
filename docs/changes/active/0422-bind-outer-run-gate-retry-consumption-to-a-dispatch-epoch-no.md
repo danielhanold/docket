@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-15T11:31:24Z'
+reconciled: true
+claimed_at: '2026-09-15T11:33:51Z'
 ---
 
 ## Artifacts
@@ -49,3 +49,9 @@ Change 0421 made outer-run attempt limits configurable. At limits of three or mo
 ## Out of scope
 
 New attempt ledgers, random attempt identities, child-admission handshakes, new CLI operations, schema migrations, cancellation-reader or lock redesign, launch tracking/recovery, claim/workspace resume redesign, and exactly-once launch guarantees. Build and finalize budgets, configuration keys/defaults, report-token vocabulary, and change 0427's recovery-worktree fix remain outside this change.
+
+## Reconcile log
+
+### 2026-09-15
+
+2026-09-15: Reconciled against current source. The defect is confirmed present: RunGateVerdict (internal/app/rungate_verdict.go) derives the observed attempt as `attempt := 1 + usedBefore` where usedBefore = GateRetryUsage, so repeated verdicts of one unfinished attempt at AttemptLimit >= 3 walk successive markers and spend future allowances. The existing per-attempt CAS (ConsumeGateRetry + gateRetryMarkerFor in internal/app/rungate_store.go, schema v4) is the mechanism to reuse. CLI verdict lives in internal/cli/run.go (attributed mode, one positional key); the additive result field goes on RunGateVerdictResult. No dependency or stacked base is added. Related parent-instruction changes 0425 (in-progress) and 0426 (proposed) are unmerged, so the feature branch cut from origin/main sees neither — no base conflict. Change 0421 is done; ADR-0115 gets the successor decision recorded during implementation, preserving its accepted body. Scope, out-of-scope, and acceptance criteria remain accurate; no body edits required.
