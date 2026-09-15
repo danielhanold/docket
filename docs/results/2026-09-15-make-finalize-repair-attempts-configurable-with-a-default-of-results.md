@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0419 — Make finalize repair attempts configurable with a default of six](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0419-make-finalize-repair-attempts-configurable-with-a-default-of.md)**
+> ↩ **[Change 0419 — Make finalize repair attempts configurable with a default of six](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-15-0419-make-finalize-repair-attempts-configurable-with-a-default-of.md)**
 <!-- docket:backlink:end -->
 # Make finalize repair attempts configurable with a default of six — Results
 
