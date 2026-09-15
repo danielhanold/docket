@@ -22,7 +22,7 @@ branch: 'feat/make-finalize-repair-attempts-configurable-with-a-default-of'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T03:18:12Z'
+claimed_at: '2026-09-15T03:28:02Z'
 ---
 
 ## Artifacts
