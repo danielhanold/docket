@@ -22,7 +22,7 @@ branch: 'fix/fix-stacked-change-validation-after-a-manual-parent-rebase'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T20:32:06Z'
+claimed_at: '2026-09-15T20:40:59Z'
 ---
 
 ## Artifacts
