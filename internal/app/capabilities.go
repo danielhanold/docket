@@ -38,10 +38,9 @@ type GlobalInvocation struct {
 	Flags []GlobalFlag `json:"flags"`
 }
 
-// BinaryIdentity is the binary's build identity in the catalog. Its fields
-// mirror VersionResult's identity fields exactly (version/commit/build_date),
-// so a consumer reads one identity vocabulary across `docket version` and
-// `docket capabilities`.
+// BinaryIdentity is the binary's stamped build identity in the catalog.
+// Runtime bundle identity is available from the compact `docket version`
+// operation without enlarging every capability bootstrap document.
 type BinaryIdentity struct {
 	Version   string `json:"version"`
 	Commit    string `json:"commit"`

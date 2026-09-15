@@ -88,16 +88,6 @@ func prepare(o options) error {
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
 		return fmt.Errorf("candidate binary must be an executable regular file")
 	}
-	versionOut, err := exec.Command(o.Binary, "version", "--json").Output()
-	if err != nil {
-		return fmt.Errorf("candidate version: %w", err)
-	}
-	var version struct {
-		Commit string `json:"commit"`
-	}
-	if json.Unmarshal(versionOut, &version) != nil || version.Commit != head {
-		return fmt.Errorf("candidate binary commit does not match clean source HEAD")
-	}
 	pinsBytes, err := os.ReadFile(o.Pins)
 	if err != nil {
 		return err
@@ -108,6 +98,9 @@ func prepare(o options) error {
 	}
 	catalog, err := candidateSourceCatalog(o.Source)
 	if err != nil {
+		return err
+	}
+	if err := verifyCandidateIdentity(o.Binary, head, catalog.Manifest.AssetSetID); err != nil {
 		return err
 	}
 	sources, err := harness.ParseInventory(catalog)
@@ -335,6 +328,27 @@ func prepare(o options) error {
 	mb, _ := json.MarshalIndent(m, "", "  ")
 	mb = append(mb, '\n')
 	return writeFile(filepath.Join(o.Destination, "manifest.json"), mb, 0o644)
+}
+
+func verifyCandidateIdentity(binary, sourceCommit, sourceAssetSetID string) error {
+	versionOut, err := exec.Command(binary, "version", "--json").Output()
+	if err != nil {
+		return fmt.Errorf("candidate version: %w", err)
+	}
+	var version struct {
+		Commit     string `json:"commit"`
+		AssetSetID string `json:"asset_set_id"`
+	}
+	if err := json.Unmarshal(versionOut, &version); err != nil {
+		return fmt.Errorf("candidate version: invalid JSON: %w", err)
+	}
+	if version.Commit != sourceCommit {
+		return fmt.Errorf("candidate binary commit does not match clean source HEAD")
+	}
+	if version.AssetSetID == "" || version.AssetSetID != sourceAssetSetID {
+		return fmt.Errorf("candidate binary asset set does not match clean source assets")
+	}
+	return nil
 }
 
 func runCandidateRenderer(o options, primary string) error {

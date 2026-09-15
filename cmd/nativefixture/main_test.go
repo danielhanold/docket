@@ -21,6 +21,19 @@ func TestPrepareRefusesExistingDestinationBeforeCandidateActions(t *testing.T) {
 	}
 }
 
+func TestVerifyCandidateIdentityRejectsMismatchedAssetSet(t *testing.T) {
+	root := testsupport.TempDir(t)
+	binary := filepath.Join(root, "docket")
+	body := "#!/bin/sh\nprintf '%s\\n' '{\"commit\":\"abc123\",\"asset_set_id\":\"sha256:binary\"}'\n"
+	if err := os.WriteFile(binary, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	err := verifyCandidateIdentity(binary, "abc123", "sha256:source")
+	if err == nil || !strings.Contains(err.Error(), "asset set") {
+		t.Fatalf("verify candidate identity error=%v", err)
+	}
+}
+
 func TestCompleteManifestFilesPreservesGeneratedFilesAndRejectsDrift(t *testing.T) {
 	root := testsupport.TempDir(t)
 	rel := ".codex/agents/docket-review.toml"

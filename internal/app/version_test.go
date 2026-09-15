@@ -16,7 +16,10 @@ func TestVersionDevelopmentTextAndJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown"}`
+	if r.AssetSetID == "" {
+		t.Fatal("asset_set_id is empty")
+	}
+	want := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown","asset_set_id":"` + r.AssetSetID + `"}`
 	if string(b) != want {
 		t.Fatalf("json = %s, want %s", b, want)
 	}
