@@ -148,4 +148,36 @@ func checkNativePlannerEntryDefaultsToStartup(t *testing.T, root, destination, b
 	if got := entry(primary, false); got.Reason != "root-identity-mismatch" {
 		t.Fatalf("wrong root inode: result=%s reason=%s", got.Result, got.Reason)
 	}
+	// Continue through the real local-remote backlink/attachment/status boundary.
+	// The metadata record intentionally does not live on the feature branch.
+	planPath := "docs/superpowers/plans/native.md"
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(workspace.Path, planPath)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace.Path, planPath), []byte("# Plan\n\nAdd Double and test it.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	invoke(workspace.Path, "artifact", "backlink", "--artifact", planPath, "--change", fixture.ChangePath, "--repo-dir", workspace.Path, "--json")
+	if err := run(workspace.Path, "git", "add", planPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := run(workspace.Path, "git", "commit", "-m", "docs: native plan\n\nDocket-Plan-Path: "+planPath); err != nil {
+		t.Fatal(err)
+	}
+	head, err := gitOut(workspace.Path, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	invoke(primary, "change", "attach-plan", "--id", id, "--version", readStatus(), "--path", planPath, "--commit", head, "--repo-dir", primary, "--json")
+	for _, dir := range []string{primary, workspace.Path} {
+		var observed app.StatusResult
+		if err := json.Unmarshal(invoke(dir, "status", "--repo-dir", dir, "--json"), &observed); err != nil {
+			t.Fatal(err)
+		}
+		for _, finding := range observed.Findings {
+			if finding.Code == "artifact-missing" && finding.Path == planPath {
+				t.Errorf("official local backlink rejected after attachment from %s: %+v", dir, finding)
+			}
+		}
+	}
 }

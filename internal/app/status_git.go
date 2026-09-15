@@ -292,9 +292,10 @@ func (r *gitStatusReader) ReadChangeArtifact(ctx context.Context, pin StatusPin,
 		return obs, nil
 	}
 	interior := string(br.Blob.Bytes[block.Interior.Start:block.Interior.End])
-	activeNeedle := fmt.Sprintf("/%04d-%s.md)", target.ChangeID, target.Slug)
-	archivePattern := regexp.MustCompile(fmt.Sprintf(`/[0-9]{4}-[0-9]{2}-[0-9]{2}-%04d-%s\.md\)`, target.ChangeID, regexp.QuoteMeta(target.Slug)))
-	obs.BacklinkValid = strings.Contains(interior, activeNeedle) || archivePattern.MatchString(interior)
+	// BacklinkContent emits a Markdown URL with a web remote, or a code-quoted
+	// metadata path without one. Neither format requires that record in this tree.
+	targetPattern := regexp.MustCompile(fmt.Sprintf("/(?:[0-9]{4}-[0-9]{2}-[0-9]{2}-)?%04d-%s\\.md[)`]", target.ChangeID, regexp.QuoteMeta(target.Slug)))
+	obs.BacklinkValid = targetPattern.MatchString(interior)
 	if !obs.BacklinkValid {
 		obs.Reason = "artifact backlink targets another change"
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
@@ -14,6 +15,55 @@ type driftingStatusInspector struct {
 	inner statusWorkspaceInspector
 	drift func()
 	calls int
+}
+
+// The status consumer must accept both formats emitted by the real renderer,
+// including archive paths, without requiring metadata records in the code tree.
+func TestStatusArtifactAcceptsRenderedBacklinkFormats(t *testing.T) {
+	files := map[string]string{}
+	type scenario struct {
+		path  string
+		kind  string
+		valid bool
+	}
+	var scenarios []scenario
+	for mode, link := range map[string]render.LinkContext{
+		"local":  {},
+		"github": {RepoWebURL: "https://github.com/example/fixture", MetadataBranch: "docket"},
+	} {
+		for location, prefix := range map[string]string{"active": "", "archive": "2026-09-15-"} {
+			for _, kind := range []string{"plan", "results"} {
+				for _, slug := range []string{"native-dispatch", "native-dispatch-other"} {
+					p := "docs/" + mode + "-" + location + "-" + kind + "-" + slug + ".md"
+					change := domain.NewChange(domain.ChangeSpec{ID: 425, Slug: slug, Title: "Native dispatch", Path: "docs/changes/" + location + "/" + prefix + "0425-" + slug + ".md"})
+					block, err := render.BacklinkContent(change, link)
+					if err != nil {
+						t.Fatal(err)
+					}
+					files[p] = block + "# Artifact\n"
+					scenarios = append(scenarios, scenario{p, kind, slug == "native-dispatch"})
+				}
+			}
+		}
+	}
+	r := newWorkingRepo(t, files)
+	reader := NewGitStatusReader(newGitClient(t)).(*gitStatusReader)
+	ctx := context.Background()
+	pin, err := reader.PinContext(ctx, r.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range scenarios {
+		t.Run(s.path, func(t *testing.T) {
+			obs, err := reader.ReadChangeArtifact(ctx, pin, ChangeArtifactTarget{ChangeID: 425, Slug: "native-dispatch", Status: string(domain.StatusDone), Location: string(domain.LocationArchive), Kind: s.kind, Path: s.path})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !obs.Found || !obs.Regular || obs.BacklinkValid != s.valid {
+				t.Fatalf("rendered backlink validity want %t: %+v", s.valid, obs)
+			}
+		})
+	}
 }
 
 func (d *driftingStatusInspector) Inspect(ctx context.Context, req workspace.InspectRequest) (workspace.Inspection, error) {
