@@ -22,7 +22,7 @@ branch: 'chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T11:33:51Z'
+claimed_at: '2026-09-15T11:35:10Z'
 ---
 
 ## Artifacts
