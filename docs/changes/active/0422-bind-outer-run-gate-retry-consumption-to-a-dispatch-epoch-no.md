@@ -13,7 +13,7 @@ related: [421, 425, 426, 427]
 discovered_from: [421]
 adrs: [111, 115, 118]
 spec: 'docs/superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-15T11:35:10Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) |
+| Plan | [2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md](https://github.com/danielhanold/docket/blob/chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no/docs/superpowers/plans/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) |
 | ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0115](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
