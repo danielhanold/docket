@@ -221,6 +221,8 @@ func buildRegistry() []pathSpec {
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 		{path: "finalize.resolver_max_attempts", kind: kindInt, def: 10,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
+		{path: "finalize.repair_max_attempts", kind: kindInt, def: 6,
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
 		{path: "finalize.skip_results_only_delta", kind: kindBool, def: false,
 			merge: mergeScalar, scope: scopeRepoFenced, disp: dispDeferred, validate: boolLeaf()},
 

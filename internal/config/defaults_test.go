@@ -148,6 +148,7 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 		"finalize.test_command":          eff.Finalize.TestCommand.Value,
 		"finalize.require_pr_approval":   eff.Finalize.RequirePRApproval.Value,
 		"finalize.resolver_max_attempts": eff.Finalize.ResolverMaxAttempts.Value,
+		"finalize.repair_max_attempts":   eff.Finalize.RepairMaxAttempts.Value,
 		"build.gate":                     eff.Build.Gate.Value,
 		"build.test_command":             eff.Build.TestCommand.Value,
 		"build.max_attempts":             eff.Build.MaxAttempts.Value,
