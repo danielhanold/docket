@@ -226,15 +226,16 @@ func TestCleanupBlockedMatrix(t *testing.T) {
 		}
 	})
 
-	t.Run("moved-head-base-unreachable", func(t *testing.T) {
+	t.Run("moved-head-base-unreachable-removed", func(t *testing.T) {
 		r := mainModeRepo(t)
 		svc, repo := r.newService(t)
 		tgt := freshTarget(t, 7)
 		prepareOK(t, svc, repo, tgt)
 
-		// Rewrite the recorded base to a commit the feature head does not reach (a
-		// later origin-main commit, fetched into the object store): the workspace's
-		// head no longer reaches the recorded base — a moved-HEAD mismatch.
+		// Rewrite the recorded base to a commit the feature head does not reach —
+		// after change 0429 a manual parent rebase is a legitimate ready state, so
+		// an otherwise-eligible cleanup proceeds: removed, tombstoned, feature
+		// branch preserved.
 		c1 := r.advanceMain(t)
 		gitOut(t, r.Primary, "fetch", "-q", "origin", "main")
 		m, present, err := loadManifest(metaDirOf(repo, tgt))
@@ -246,14 +247,19 @@ func TestCleanupBlockedMatrix(t *testing.T) {
 			t.Fatalf("writeManifest(rewritten base): %v", err)
 		}
 		ws := wsPathOf(repo)
-		before := snapshotTree(t, ws)
 
-		if res := cleanupOK(t, svc, repo, tgt); res.Disposition != CleanupBlocked {
-			t.Errorf("Disposition = %q; want blocked for an unreachable recorded base", res.Disposition)
+		res := cleanupOK(t, svc, repo, tgt)
+		if res.Disposition != CleanupCleaned {
+			t.Errorf("Disposition = %q; want cleaned after a parent rebase", res.Disposition)
 		}
-		assertUnchanged(t, before, ws)
-		if !containsWorktreePath(t, gitOut(t, r.Primary, "worktree", "list", "--porcelain"), ws) {
-			t.Errorf("registration removed; must be preserved")
+		if containsWorktreePath(t, gitOut(t, r.Primary, "worktree", "list", "--porcelain"), ws) {
+			t.Errorf("registration still present; want removed")
+		}
+		if tomb, present, err := loadManifest(metaDirOf(repo, tgt)); err != nil || !present || tomb.Phase != PhaseCleaned {
+			t.Errorf("tombstone present=%v phase=%v err=%v; want present cleaned", present, tomb.Phase, err)
+		}
+		if !branchExists(r.Primary, "feat/"+prepSlug) {
+			t.Errorf("feat branch deleted; cleanup must preserve the branch")
 		}
 	})
 
