@@ -72,11 +72,11 @@ func TestCommittedCodexDispatchObservesYieldedEntrySession(t *testing.T) {
 }
 
 // TestCodexLaunchMatrixOperatorProse keeps the executable operator guidance
-// aligned with the typed Codex entry boundary: root coordinators retain the
-// caller cwd, feature children enter their verified worktree with an unchanged
-// payload, and only metadata children use native named-agent dispatch. The
-// clauses intentionally name route markers and scope types, never a roster of
-// roles, so the guard follows the inventory-owned abstraction.
+// aligned with the typed Codex entry boundary: every role uses the harness's
+// top-level native named-agent dispatch, while feature ownership comes from an
+// immutable assignment that the child validates before work. The clauses name
+// route markers and scope types, never a roster of roles, so the guard follows
+// the inventory-owned abstraction.
 func TestCodexLaunchMatrixOperatorProse(t *testing.T) {
 	root := guardRoot(t)
 	for _, contract := range []struct {
@@ -98,21 +98,25 @@ func TestCodexLaunchMatrixOperatorProse(t *testing.T) {
 		{
 			file: "skills/docket-convention/references/agent-layer.md",
 			present: []string{
-				"Root-coordinator entry starts its root thread at the caller's absolute\ncwd",
-				"Feature-child entry validates `--worktree`, then starts its root thread at the verified canonical\nfeature-worktree root",
-				"both the process and thread cwd",
+				"Codex dispatches every\nregistered role through the harness's top-level native named-agent control",
+				"Feature children receive an immutable\nassignment naming the absolute canonical feature-worktree root",
+				"validate that assignment before\nthey inspect or mutate the feature checkout",
 			},
 			absent: []string{
 				"starts a root thread with the caller's absolute cwd, approval policy, and\nsandbox, and passes an unchanged request file as the root turn. A feature role carries",
+				"agent.enter [",
 			},
 		},
 		{
 			file: "docs/reference/harness/validation-runbook.md",
 			present: []string{
+				"dispatch the registered coordinator through Codex's top-level native named-agent control",
 				"Feature-scoped ordinary child roles use native named-agent dispatch and validate their explicit assignment",
+				"dispatch the registered resolver through\n  Codex's top-level native named-agent control",
 			},
 			absent: []string{
 				"Ordinary\nMetadata-scoped ordinary child roles",
+				"docket agent enter",
 			},
 		},
 	} {
