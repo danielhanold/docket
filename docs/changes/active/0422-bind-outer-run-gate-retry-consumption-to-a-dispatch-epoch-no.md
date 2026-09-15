@@ -57,3 +57,28 @@ New attempt ledgers, random attempt identities, child-admission handshakes, new 
 
 2026-09-15: Reconciled against current source. The defect is confirmed present: RunGateVerdict (internal/app/rungate_verdict.go) derives the observed attempt as `attempt := 1 + usedBefore` where usedBefore = GateRetryUsage, so repeated verdicts of one unfinished attempt at AttemptLimit >= 3 walk successive markers and spend future allowances. The existing per-attempt CAS (ConsumeGateRetry + gateRetryMarkerFor in internal/app/rungate_store.go, schema v4) is the mechanism to reuse. CLI verdict lives in internal/cli/run.go (attributed mode, one positional key); the additive result field goes on RunGateVerdictResult. No dependency or stacked base is added. Related parent-instruction changes 0425 (in-progress) and 0426 (proposed) are unmerged, so the feature branch cut from origin/main sees neither — no base conflict. Change 0421 is done; ADR-0115 gets the successor decision recorded during implementation, preserving its accepted body. Scope, out-of-scope, and acceptance criteria remain accurate; no body edits required.
 
+## Run halted
+
+### 2026-09-15
+
+The resume reached build Task 5 with the human-supplied revised approach — compress the four hand-authored `AGENTS.md` sections (Shell; Frontmatter and generated blocks; Guards and tests; Comments and cross-references) to free budget for the additive `--attempt`/`retry_attempt` coordinator prose. That approach cannot work as specified: those four sections lie OUTSIDE the block `TestDispatchBlockBudget` measures, so trimming them is budget-neutral. A fresh human decision is required.
+
+### What was verified
+
+- `TestDispatchBlockBudget` (`internal/repoguard/budgets_test.go`) counts ONLY the words between the `docket:dispatch:start` / `docket:dispatch:end` markers in `AGENTS.md` (currently lines 9–108). With Task 5's additive prose applied, that block is 1249 words against `dispatchBudget = 1137` — overage 112. Test reruns red at exactly that count.
+- The four named sections begin at lines 133 (Shell), 150 (Frontmatter and generated blocks), 162 (Guards and tests), and 183 (Comments and cross-references) — all AFTER the end marker at line 109 (and after `Rebuild the binary after a merge to main` at line 111). They total ~640 words but contribute nothing to `dispatchBudget`; removing every one of them leaves the measured block at 1249 and the guard still red.
+- The block interior is generated, not hand-authored: `harness.DispatchInterior` / `CodexDispatchInterior` (`internal/harness/dispatch.go`) compose `dispatchPreamble` + the `cursor-rules/run-gate.md` payload + `CodexRootEntryClause`, and the committed `AGENTS.md` block is held byte-identical to that generator (`internal/harness/native_dispatch_test.go`). So the only content that counts toward `dispatchBudget` is the generated coordinator instructions themselves — editable only via those `dispatch.go` constants and `cursor-rules/run-gate.md`, never by hand-trimming `AGENTS.md`.
+
+### Why this is a fresh human decision, not autonomous work
+
+The revised decision carries three constraints that cannot all hold: (1) do not re-baseline `dispatchBudget`/`dispatchOld`; (2) do not relocate the new guidance out of the always-loaded block; (3) do not shorten the load-bearing coordinator instructions (the stated reason for redirecting to the four sections). The baseline block was already at exactly 1137 (zero headroom), so any net additive words MUST be offset by removing words from INSIDE the marker block — i.e. from the generated coordinator instructions (violating 3), because the additive prose cannot net negative. There is no budget-relevant hand-authored prose available to trim. The decision rests on the premise that the four sections sit inside the managed dispatch block; they do not.
+
+### Feasible paths (one required before resume)
+
+1. Apply the decision's own tightening criterion ("tighten wording, cut redundancy, no loss of the load-bearing rule") to the IN-BLOCK generated coordinator prose — `cursor-rules/run-gate.md`, and if needed `dispatchPreamble` / `CodexRootEntryClause` in `internal/harness/dispatch.go` — trimming ~112 words to offset the additive `--attempt` prose. Honors constraints 1 and 2; relaxes 3. This is the "judgment call about which load-bearing instructions to shorten" the original halt flagged, applied to the coordinator prose the revised decision was trying to leave untouched. Best matches the decision's ship-without-re-baseline-or-relocate intent, but needs sign-off that shortening always-loaded coordinator instructions is acceptable.
+2. Re-baseline `dispatchBudget` and `dispatchOld` past ~1249 with a dated 0422 rationale (original halt option 1). Relaxes constraint 1 — loosens the anti-regrowth ratchet the decision wished to preserve.
+3. Relocate the new coordinator guidance into `skills/docket-implement-next/SKILL.md` + `docs/concepts/run-gate.md` only (original halt option 3). Relaxes constraint 2 — a coordinator reading only the always-loaded surface would not see the `--attempt` requirement.
+
+### State left for inspection / resume
+
+Tasks 1–4 remain committed and untouched on `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` (tip a0327d35): the entire functional fix and its tests. Task 5's additive edits are still uncommitted in the feature worktree (`AGENTS.md`, `cursor-rules/run-gate.md`, `docs/concepts/run-gate.md`, `skills/docket-implement-next/SKILL.md`, and the regenerated `internal/assets/embedded/**` mirrors) — the exact additive prose the plan specified, ready for a human to inspect and adjust. No results artifact was authored and no PR was opened. The final full-suite build gate has not been run.
