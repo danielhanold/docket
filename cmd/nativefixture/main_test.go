@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -31,6 +32,45 @@ func TestVerifyCandidateIdentityRejectsMismatchedAssetSet(t *testing.T) {
 	err := verifyCandidateIdentity(binary, "abc123", "sha256:source")
 	if err == nil || !strings.Contains(err.Error(), "asset set") {
 		t.Fatalf("verify candidate identity error=%v", err)
+	}
+}
+
+func TestWriteCatalogSkillsUsesVerifiedSnapshotAfterSourceMutation(t *testing.T) {
+	root := testsupport.TempDir(t)
+	const assetPath = "skills/docket-demo/SKILL.md"
+	verified := []byte("verified snapshot\n")
+	sourcePath := filepath.Join(root, "source", filepath.FromSlash(assetPath))
+	if err := writeFile(sourcePath, verified, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog := assets.NewCatalog(assets.Manifest{Entries: []assets.Entry{{Path: assetPath, Role: assets.RoleSkill, Mode: 0o644, Size: int64(len(verified)), SHA256: hash(verified)}}}, func(path string) ([]byte, error) {
+		return append([]byte(nil), verified...), nil
+	})
+	if err := os.WriteFile(sourcePath, []byte("mutated after verification\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	primary := filepath.Join(root, "primary")
+	files := map[string]string{}
+	if err := writeCatalogSkills(catalog, primary, files); err != nil {
+		t.Fatal(err)
+	}
+	installed := filepath.Join(primary, ".agents", filepath.FromSlash(assetPath))
+	got, err := os.ReadFile(installed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(verified) {
+		t.Fatalf("installed skill=%q, want verified snapshot %q", got, verified)
+	}
+	if files[rel(primary, installed)] != hash(verified) {
+		t.Fatalf("installed skill manifest=%q, want %q", files[rel(primary, installed)], hash(verified))
+	}
+
+	corrupt := assets.NewCatalog(catalog.Manifest, func(string) ([]byte, error) {
+		return []byte("corrupt catalog bytes\n"), nil
+	})
+	if err := writeCatalogSkills(corrupt, filepath.Join(root, "corrupt-primary"), map[string]string{}); err == nil {
+		t.Fatal("installed skill bytes that differ from the verified catalog manifest")
 	}
 }
 
