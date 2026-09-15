@@ -2,7 +2,7 @@
 id: 429
 slug: 'fix-stacked-change-validation-after-a-manual-parent-rebase'
 title: 'Fix stacked-change validation after a manual parent rebase'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-15'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/fix-stacked-change-validation-after-a-manual-parent-rebase'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/304'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-15T20:40:59Z'
