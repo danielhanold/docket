@@ -69,6 +69,12 @@ The local-only fixture's later `run.verify` reported `repository-unresolved` dur
 
 ## Findings and limitations
 
+### Local-remote native plan attachment repair
+
+The next native acceptance reached a real planner commit and successful plan attachment, then halted on the status diagnostic `artifact backlink targets another change`. The official renderer emits a code-quoted metadata path when there is no web remote; status recognized only Markdown URL endings. The absence of the change record from the feature tree was expected and was not the cause: the diagnostic reads the artifact's committed bytes and supplied change identity, not the record from that tree.
+
+Status now recognizes both official backlink formats for active and dated archive paths. A renderer-to-reader matrix covers plan/results and wrong-slug controls. The real candidate-CLI integration regression generates the backlink, commits the plan, attaches it, then checks status from primary and feature. It reproduced the exact artifact-missing diagnostic before the repair and passes afterward. The complete configured suite is run at the clean repair commit and retained externally. The failed native fixture and its plan/attachment/halt commits remain preserved; no worker, reviewer, results checkpoint, resume or replacement native run is claimed by this repair. Fresh independent review and generated-asset acceptance are required again.
+
 ### Parallel budget screenings
 
 The final source suite reported seven `BUDGET WATCH` findings at parallelism 11, all at consecutive parallel-overrun streak 2 of 5. No `SERIAL CONFIRMED OVER BUDGET` breach was reported. The same classes of contention-sensitive findings were present in the clean-base baseline and do not establish a serial budget regression.
