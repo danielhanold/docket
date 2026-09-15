@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -191,7 +190,7 @@ func prepare(o options) error {
 		}
 		files[rel(primary, dst)] = hash(body)
 	}
-	if err := copyTree(filepath.Join(o.Source, "skills"), filepath.Join(primary, ".agents", "skills"), files, primary); err != nil {
+	if err := writeCatalogSkills(catalog, primary, files); err != nil {
 		return err
 	}
 	agents, err := os.ReadFile(filepath.Join(primary, "AGENTS.md"))
@@ -508,39 +507,23 @@ func writeFile(p string, b []byte, m os.FileMode) error {
 }
 func hash(b []byte) string      { s := sha256.Sum256(b); return hex.EncodeToString(s[:]) }
 func rel(root, p string) string { r, _ := filepath.Rel(root, p); return filepath.ToSlash(r) }
-func copyTree(src, dst string, files map[string]string, root string) error {
-	return filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
+func writeCatalogSkills(catalog assets.Catalog, primary string, files map[string]string) error {
+	for _, entry := range catalog.EntriesByRole(assets.RoleSkill) {
+		if !strings.HasPrefix(entry.Path, "skills/") {
+			return fmt.Errorf("skill asset has unexpected path %q", entry.Path)
+		}
+		body, err := catalog.Bytes(entry.Path)
 		if err != nil {
+			return fmt.Errorf("skill asset %s: %w", entry.Path, err)
+		}
+		if int64(len(body)) != entry.Size || hash(body) != entry.SHA256 {
+			return fmt.Errorf("skill asset %s differs from the verified catalog", entry.Path)
+		}
+		out := filepath.Join(primary, ".agents", filepath.FromSlash(entry.Path))
+		if err := writeFile(out, body, os.FileMode(entry.Mode)); err != nil {
 			return err
 		}
-		r, _ := filepath.Rel(src, p)
-		out := filepath.Join(dst, r)
-		if d.IsDir() {
-			return os.MkdirAll(out, 0o755)
-		}
-		info, err := d.Info()
-		if err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("unsafe skill resource %s", p)
-		}
-		in, err := os.Open(p)
-		if err != nil {
-			return err
-		}
-		defer in.Close()
-		b, err := io.ReadAll(io.LimitReader(in, 8<<20+1))
-		if err != nil {
-			return err
-		}
-		if len(b) > 8<<20 {
-			return fmt.Errorf("skill resource too large: %s", p)
-		}
-		if err := writeFile(out, b, info.Mode().Perm()); err != nil {
-			return err
-		}
-		files[rel(root, out)] = hash(b)
-		return nil
-	})
+		files[rel(primary, out)] = entry.SHA256
+	}
+	return nil
 }
