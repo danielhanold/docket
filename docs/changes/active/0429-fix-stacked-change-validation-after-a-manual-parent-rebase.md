@@ -12,7 +12,7 @@ stacked_on:
 related: [298, 316, 327]
 discovered_from: []
 adrs: [92]
-spec:
+spec: 'docs/superpowers/specs/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md) |
 | ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
@@ -44,21 +45,19 @@ These are downstream incident IDs, not references to this repository's change ID
 
 ## What changes
 
-Correct only the validation that falsely blocks existing stacked changes after a manual parent rebase onto the configured integration branch (main or master), including a subsequent child PR rebase/update onto the refreshed parent.
+Correct the two checks that falsely reject an otherwise valid stack after its parent is manually rebased.
 
-- Validate the recorded branch and current PR/workspace identity without requiring the original workspace base commit to remain an ancestor forever. Make the existing local finalize path usable for affected implemented changes; report a present-but-stale or mismatched workspace accurately instead of calling its branch missing.
-- Let stack-preservation validation recognize retained child work across the reported history rewrite when later stacked children have legitimately modified the same files. Historical merge-SHA ancestry and equality with each child's old whole-file blobs must not be the only successful proof for this case.
-- Apply the same narrowly scoped correction at the existing enforcement points for rebase, publish, merge, and root closeout. Successful closeout should use the existing lifecycle and cleanup behavior; an obsolete ancestry requirement alone must not strand children in stacked-merged.
-- Add reproducible Git regression fixtures for both incidents, including overlapping child edits and a repository that permits only rebase-and-merge. Verify that local finalize can progress against the current parent and that the carried stack can reach normal root closeout without synthetic merge commits or hand-edited metadata.
-- Preserve negative coverage for a wrong branch/worktree, stale or mismatched PR head, actually dropped child work, and unresolved Git evidence. A green CI or merged PR metadata alone does not establish preservation.
+- For an already-created, owned workspace, validate its current manifest/registration/branch/head identity without requiring its original creation base to remain ancestral. Apply that same correction to inspection, publication, and otherwise-eligible cleanup. Keep unfinished-allocation ancestry protection and all PR/head/lease checks.
+- Extend the existing child-preservation check to accept the child's complete exact recorded delta at one commit reachable from the pinned target, so later stacked children may evolve shared files without invalidating historical inclusion. Retain original-ancestry and exact-at-tip proofs. Never assemble a proof from entries spread across different commits.
+- Reuse the corrected primitive at all existing rebase, publish, merge, and stacked/root-closeout gates. Keep the lifecycle, root-merge target, atomic archive, and branch-retention policy unchanged.
+- Prove both reported regression shapes and continued refusal of dropped child work, wrong/stale workspace identity, unrelated history, and incomplete observations.
 
-Design constraint: select the smallest demonstrable correction in the existing workspace and preservation checks. Establish how the reported retained-history case is proven before treating this proposal as build-ready; do not claim arbitrary semantic equivalence of rewritten code.
+The linked spec defines the minimal algorithm and tests. Support is limited to rewrites retaining an exact matching snapshot; arbitrary conflict resolutions or squashes that erase all such snapshots remain unproven.
 
 ## Out of scope
 
-- General stack management, automatic restacking, arbitrary history repair, or a new recovery framework.
-- Disabling preservation checks, accepting delivery from metadata/CI alone, or adding a force/skip-proof override.
-- Synthetic merge commits, rewriting user history as a workaround, or changing repository merge policy.
-- Generic semantic-equivalence detection, configurable proof strategies, new infrastructure for hypothetical rewrite cases, or unrelated refactoring.
-- Broad workspace rebinding/cleanup redesign, reopening historical done records, or repairing either downstream incident as part of this change.
-- Implementing the fix in this capture task.
+- Automatic restacking, generic recovery/rebinding, remote/local synchronization, or downstream incident repair.
+- Force/skip-proof overrides, metadata-only delivery claims, new configuration, new persistence, or proof infrastructure.
+- Semantic equivalence or automatic acceptance of every squash/conflict resolution.
+- Synthetic merge commits, merge-policy changes, broader cleanup or branch-retention changes, and unrelated refactoring.
+- Rewriting frozen historical records or implementing the fix during grooming.
