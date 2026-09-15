@@ -12,7 +12,10 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 SHARD_PKG="./internal/app"
 SHARD_INDEX=1
 SHARD_COUNT=2
-. "$REPO/tests/lib/go-race-app-shard.sh"
-race_app_inspect_maybe
-run_race_app_shard
+SHARD_FAMILY=race
+SHARD_TEST_FLAG=-race
+SHARD_LABEL="race-instrumented"
+. "$REPO/tests/lib/go-app-shard.sh"
+app_shard_inspect_maybe
+run_app_shard
 exit "$fail"

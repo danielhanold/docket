@@ -1,35 +1,39 @@
-# Shared derived partition for tests/test_go_race_app_*.sh. Callers declare a
+# Shared derived partition for default internal/app tests. Callers declare a
 # zero-based SHARD_INDEX and common SHARD_COUNT; every top-level internal/app
-# test is assigned by its POSIX cksum modulo that count. The parent race gate
-# inspects all sibling declarations before excluding internal/app.
+# test is assigned by its POSIX cksum modulo that count. Each parent gate
+# inspects its sibling declarations before excluding internal/app.
 
-race_app_inspect_maybe() {
-  if [ "${DOCKET_RACE_APP_INSPECT:-}" = 1 ]; then
-    printf 'package=%s\nindex=%s\ncount=%s\n' "$SHARD_PKG" "$SHARD_INDEX" "$SHARD_COUNT"
+app_shard_inspect_maybe() {
+  if [ "${DOCKET_APP_SHARD_INSPECT:-}" = 1 ]; then
+    printf 'family=%s\npackage=%s\nindex=%s\ncount=%s\nflag=%s\n' "$SHARD_FAMILY" "$SHARD_PKG" "$SHARD_INDEX" "$SHARD_COUNT" "$SHARD_TEST_FLAG"
     exit 0
   fi
 }
 
-validate_race_app_shards() {
-  runners="$(find tests -maxdepth 1 -name 'test_go_race_app_*.sh' | LC_ALL=C sort)"
-  assert "internal/app race shard discovery is non-empty" '[ -n "$runners" ]'
+validate_app_shards() {
+  runners="$(find tests -maxdepth 1 -name "$APP_SHARD_GLOB" | LC_ALL=C sort)"
+  assert "internal/app $APP_SHARD_FAMILY shard discovery is non-empty" '[ -n "$runners" ]'
   declarations=""
   malformed=""
   while IFS= read -r runner; do
     [ -n "$runner" ] || continue
-    inspected="$(DOCKET_RACE_APP_INSPECT=1 bash "$runner" 2>&1)"; inspect_rc=$?
+    inspected="$(DOCKET_APP_SHARD_INSPECT=1 bash "$runner" 2>&1)"; inspect_rc=$?
+    inspected_family="$(sed -n 's/^family=//p' <<<"$inspected")"
     inspected_package="$(sed -n 's/^package=//p' <<<"$inspected")"
     inspected_index="$(sed -n 's/^index=//p' <<<"$inspected")"
     inspected_count="$(sed -n 's/^count=//p' <<<"$inspected")"
+    inspected_flag="$(sed -n 's/^flag=//p' <<<"$inspected")"
     case "$inspected_index:$inspected_count" in
       *[!0-9:]*|:|*:0) malformed="$malformed $runner" ;;
     esac
     [ "$inspect_rc" -eq 0 ] || malformed="$malformed $runner"
+    [ "$inspected_family" = "$APP_SHARD_FAMILY" ] || malformed="$malformed $runner"
     [ "$inspected_package" = "./internal/app" ] || malformed="$malformed $runner"
+    [ "$inspected_flag" = "$APP_SHARD_FLAG" ] || malformed="$malformed $runner"
     declarations="${declarations}${inspected_index}\t${inspected_count}\n"
   done <<<"$runners"
-  assert "every internal/app race shard has a valid declaration" \
-    '[ -z "$malformed" ] || { printf "malformed race shard:%s\n" "$malformed" >&2; false; }'
+  assert "every internal/app $APP_SHARD_FAMILY shard has a valid declaration" \
+    '[ -z "$malformed" ] || { printf "malformed app shard:%s\n" "$malformed" >&2; false; }'
   declared_counts="$(printf '%b' "$declarations" | awk -F '\t' 'NF == 2 {print $2}' | LC_ALL=C sort -u)"
   declared_count="$(sed -n '1p' <<<"$declared_counts")"
   count_lines="$(grep -c -E -e '.' <<<"$declared_counts")"
@@ -43,14 +47,14 @@ validate_race_app_shards() {
     done
   fi
   runner_count="$(grep -c -E -e '.' <<<"$runners")"
-  assert "internal/app race shards form one complete zero-based partition" \
+  assert "internal/app $APP_SHARD_FAMILY shards form one complete zero-based partition" \
     '[ "$count_lines" -eq 1 ] && [ "$runner_count" -eq "$declared_count" ] && [ "$declared_indices" = "$(printf "%b" "$expected_indices" | sed "/^$/d")" ]'
 }
 
-run_race_app_shard() {
+run_app_shard() {
   assert "a Go toolchain is on PATH (the module pins its version)" 'command -v go >/dev/null 2>&1'
   if ! command -v go >/dev/null 2>&1; then
-    printf 'NOT OK - the race shard cannot certify anything without a Go toolchain\n'
+    printf 'NOT OK - the app shard cannot certify anything without a Go toolchain\n'
     return 1
   fi
 
@@ -94,13 +98,13 @@ run_race_app_shard() {
   pattern="${pattern%|})$"
   assert "the derived internal/app test census has safe names" \
     '[ -z "$malformed" ] || { printf "unsafe test names:%s\n" "$malformed" >&2; false; }'
-  assert "this internal/app race partition selects at least one test" '[ "$selected" -gt 0 ]'
+  assert "this internal/app $SHARD_FAMILY partition selects at least one test" '[ "$selected" -gt 0 ]'
 
-  race_out="$(go test -race $go_conc_args -count=1 -run "$pattern" -v "$SHARD_PKG" 2>&1)"; race_rc=$?
-  if [ "$race_rc" -ne 0 ]; then
-    printf '%s\n' "$race_out" >&2
+  test_out="$(go test $SHARD_TEST_FLAG $go_conc_args -count=1 -run "$pattern" -v "$SHARD_PKG" 2>&1)"; test_rc=$?
+  if [ "$test_rc" -ne 0 ]; then
+    printf '%s\n' "$test_out" >&2
   fi
-  passed="$(grep -c -E -e '^--- PASS: Test[^/[:space:]]+ \(' <<<"$race_out")"
-  assert "race-instrumented internal/app partition passes" '[ "$race_rc" -eq 0 ]'
-  assert "every selected internal/app race test ran and passed ($selected selected)" '[ "$passed" -eq "$selected" ]'
+  passed="$(grep -c -E -e '^--- PASS: Test[^/[:space:]]+ \(' <<<"$test_out")"
+  assert "$SHARD_LABEL internal/app partition passes" '[ "$test_rc" -eq 0 ]'
+  assert "every selected internal/app $SHARD_FAMILY test ran and passed ($selected selected)" '[ "$passed" -eq "$selected" ]'
 }
