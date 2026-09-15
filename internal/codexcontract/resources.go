@@ -16,11 +16,17 @@ import (
 
 var localMarkdownLink = regexp.MustCompile(`\[[^]]*\]\(([^)#]+)(?:#[^)]*)?\)`)
 
+const docketExecutableVersionTimeout = 5 * time.Second
+
 // ValidateDocketExecutable proves the assigned path is canonical and executable,
 // then asks that exact program for its build identity. A path that is replaced
 // after assignment cannot enter unless the program reports the pinned full
 // source commit.
 func ValidateDocketExecutable(a Assignment) error {
+	return validateDocketExecutable(a, docketExecutableVersionTimeout)
+}
+
+func validateDocketExecutable(a Assignment, versionTimeout time.Duration) error {
 	canon, err := filepath.EvalSymlinks(a.DocketExecutable)
 	if err != nil {
 		return fmt.Errorf("docket executable is unavailable: %w", err)
@@ -35,7 +41,7 @@ func ValidateDocketExecutable(a Assignment) error {
 	if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
 		return fmt.Errorf("docket executable is not an executable regular file")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), versionTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, a.DocketExecutable, "version", "--json")
 	cmd.WaitDelay = 100 * time.Millisecond

@@ -37,6 +37,22 @@ func TestValidateDocketExecutableBindsReportedCommit(t *testing.T) {
 	}
 }
 
+func TestValidateDocketExecutableAllowsBriefVersionStartupDelay(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "docket")
+	want := strings.Repeat("a", 40)
+	body := fmt.Sprintf("#!/bin/sh\nsleep 2\nprintf '%%s\\n' '{\"commit\":\"%s\"}'\n", want)
+	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateDocketExecutable(Assignment{DocketExecutable: path, DocketCommit: want}); err != nil {
+		t.Fatalf("valid executable rejected after a brief startup delay: %v", err)
+	}
+}
+
 func TestValidateDocketExecutableBoundsStalledVersionProcess(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -47,9 +63,12 @@ func TestValidateDocketExecutableBoundsStalledVersionProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	err = ValidateDocketExecutable(Assignment{DocketExecutable: path, DocketCommit: strings.Repeat("a", 40)})
+	err = validateDocketExecutable(Assignment{DocketExecutable: path, DocketCommit: strings.Repeat("a", 40)}, 100*time.Millisecond)
 	if err == nil {
 		t.Fatal("stalled version process was accepted")
+	}
+	if !strings.Contains(err.Error(), "version timed out") {
+		t.Fatalf("stalled version process returned %q, want timeout", err)
 	}
 	if elapsed := time.Since(start); elapsed >= 2*time.Second {
 		t.Fatalf("stalled version process was not bounded: %s", elapsed)
