@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/fix-stacked-change-validation-after-a-manual-parent-rebase'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-15T20:29:00Z'
+reconciled: true
+claimed_at: '2026-09-15T20:30:48Z'
 ---
 
 ## Artifacts
@@ -62,3 +62,9 @@ The linked spec defines the minimal algorithm and tests. Support is limited to r
 - Semantic equivalence or automatic acceptance of every squash/conflict resolution.
 - Synthetic merge commits, merge-policy changes, broader cleanup or branch-retention changes, and unrelated refactoring.
 - Rewriting frozen historical records or implementing the fix during grooming.
+
+## Reconcile log
+
+### 2026-09-15
+
+2026-09-15: Reconciled against current main. Confirmed the two target checks still exist as the spec describes: ProvePreserved lives in internal/gitcli/preservecommit.go (with callers in internal/app/finalize_preservation.go and finalize_closeout.go), and the ready-workspace original-base ancestry check lives in internal/app/workspace_ops.go (mirrored in inspection, publication, and cleanup verification). Change 0327's child-preservation guard is the current guard to extend without weakening. No scope change: fix is well-bounded and depends on nothing unmerged. Related 0298/0316/0327 and ADR-0092 remain accurate. Proceeding to build as specified.
