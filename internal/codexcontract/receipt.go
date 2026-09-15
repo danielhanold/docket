@@ -79,6 +79,10 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 			r.Classification = "halt"
 			return r, nil
 		}
+		if wire.Result == "applied" && exitCode != 0 && diagnosticHalt(wire.Drive) {
+			r.Classification = "halt"
+			return r, nil
+		}
 		if wire.Result != "applied" || wire.Drive == nil || wire.Drive.ProtocolVersion != 1 || wire.Drive.DriveID == "" || wire.Drive.Generation == "" || wire.Drive.Deadline.IsZero() || !knownDriveOutcome(wire.Drive.Outcome) {
 			return r, fmt.Errorf("drive receipt is incomplete")
 		}
@@ -88,8 +92,11 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 		r.Classification = string(wire.Drive.Outcome)
 		transfer := operation == "gate.drive.handoff" || operation == "gate.drive.claim" || operation == "gate.drive.takeover"
 		if transfer {
-			if wire.Drive.RunRoot != "" || wire.Drive.RawRunDir != "" {
-				return r, fmt.Errorf("transfer receipt exposes run paths")
+			if wire.Drive.RunRoot != "" {
+				return r, fmt.Errorf("transfer receipt exposes run_root")
+			}
+			if wire.Drive.RawRunDir != "" && (wire.Drive.Outcome != gatedrive.PASSED || !filepath.IsAbs(assignment.RunRoot) || !filepath.IsAbs(wire.Drive.RawRunDir) || !pathWithin(assignment.RunRoot, wire.Drive.RawRunDir)) {
+				return r, fmt.Errorf("transfer receipt raw_run_dir does not match the assigned run root")
 			}
 		} else if wire.Drive.Outcome == gatedrive.WAITING {
 			if wire.Drive.RunRoot != "" || wire.Drive.RawRunDir != "" {
@@ -113,6 +120,10 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 		return r, fmt.Errorf("unsupported receipt operation %q", operation)
 	}
 	return r, nil
+}
+
+func diagnosticHalt(doc *gatedrive.DriveDoc) bool {
+	return doc != nil && doc.ProtocolVersion == 1 && doc.Outcome == gatedrive.HALTED && doc.Cause != "" && doc.RunRoot == "" && doc.RawRunDir == ""
 }
 
 func knownDriveOutcome(outcome gatedrive.Outcome) bool {

@@ -19,11 +19,11 @@ func NewAgentFinalizeInputValidator(deps FinalizeDeps) AgentRoleInputValidator {
 	return agentFinalizeInputValidator{deps: deps}
 }
 
-func (v agentFinalizeInputValidator) ValidateRoleInputs(ctx context.Context, a codexcontract.Assignment, p codexcontract.WorkerPayload, repoDir string) error {
+func (v agentFinalizeInputValidator) ValidateRoleInputs(ctx context.Context, a codexcontract.Assignment, p codexcontract.WorkerPayload, repoDir, stage string) error {
 	if p.Kind == "repair" {
 		return validateRepairEntry(ctx, v.deps, repoDir, a.ChangeID, p.Attempt)
 	}
-	return validateResolverEntry(ctx, v.deps, repoDir, a, p.Attempt, p.ResolverReservation)
+	return validateResolverEntry(ctx, v.deps, repoDir, a, p.Attempt, p.ResolverReservation, stage == "prepare")
 }
 
 func NewAgentWorkspaceValidator(planning PlanningDeps, workspaceDeps WorkspaceDeps) AgentWorkspaceValidator {

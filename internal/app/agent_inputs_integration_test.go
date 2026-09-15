@@ -191,3 +191,83 @@ func TestIntegrationFinalizeRebaseAgentInputsWiresResolverAndRepairAuthority(t *
 		}
 	})
 }
+
+func TestIntegrationFinalizeRebaseResolverBootstrapsRootWitnessThroughPrepare(t *testing.T) {
+	f, conflicted, deps := setupConflictedRebase(t, planRepoModes()[0])
+	reserve := FinalizeResolverReserve(context.Background(), deps, f.repo.invocation, f.id, conflicted.Attempt)
+	if reserve.Disposition != ReserveReserved {
+		t.Fatalf("reserve=%+v", reserve)
+	}
+	ctx := context.Background()
+	wt, err := deps.Planning.Client.DiscoverWorktree(ctx, gitcli.DiscoverOptions{InvocationPath: f.wp})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pin, err := deps.Planning.Reader.PinContext(ctx, f.repo.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := runGit(t, f.wp, "rev-parse", "HEAD")
+	privateDir := testsupport.TempDir(t)
+	docketPath := writeDocketVersionStub(t, privateDir, head)
+	assignmentPath := filepath.Join(privateDir, "assignment.json")
+	payloadPath := filepath.Join(privateDir, "payload.json")
+	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: f.id, Role: "docket-rebase-resolver", Phase: "resolver", Mode: "resolver", Primary: f.gitrepo.PrimaryWorktree, Feature: wt.Root, CommonDir: f.gitrepo.CommonDir, Branch: f.target.FeatureBranch(), EntryHEAD: head, MetadataRevision: pin.MetadataRevision, ChangePath: groomPath(f.id, f.slug), DocketExecutable: docketPath, DocketCommit: head, ReadRoots: []string{filepath.Dir(docketPath)}, WritePaths: conflicted.UnmergedPaths}
+	inputDeps, err := NewAgentInputDeps(docketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inputDeps.Role = NewAgentFinalizeInputValidator(deps)
+
+	pinInputs := func(assignment codexcontract.Assignment, reservation, stage string) CheckInputsRequest {
+		t.Helper()
+		assignmentBytes, err := json.Marshal(assignment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(assignmentPath, assignmentBytes, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		assignmentSum := sha256.Sum256(assignmentBytes)
+		assignmentDigest := hex.EncodeToString(assignmentSum[:])
+		payload := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: "resolver", AssignmentPath: assignmentPath, AssignmentSHA256: assignmentDigest, EntryArgv: codexcontract.EntryCheckerArgv(assignment, assignmentPath, assignmentDigest), TaskText: "resolve the owned rebase conflict", Attempt: conflicted.Attempt, ResolverReservation: reservation}
+		payloadBytes, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(payloadPath, payloadBytes, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		payloadSum := sha256.Sum256(payloadBytes)
+		return CheckInputsRequest{Assignment: assignmentPath, SHA256: assignmentDigest, Payload: payloadPath, PayloadSHA256: hex.EncodeToString(payloadSum[:]), Stage: stage, RepoDir: f.repo.invocation}
+	}
+
+	provisional := pinInputs(a, reserve.Reservation, "prepare")
+	withoutPayload := provisional
+	withoutPayload.Payload, withoutPayload.PayloadSHA256 = "", ""
+	if result := CheckAgentInputs(ctx, inputDeps, withoutPayload); result.Result == ResultApplied {
+		t.Fatal("resolver prepare accepted no provisional role authority")
+	}
+	if result := CheckAgentInputs(ctx, inputDeps, pinInputs(a, "wrong-reservation", "prepare")); result.Result == ResultApplied {
+		t.Fatal("resolver prepare accepted a foreign reservation")
+	}
+	provisional = pinInputs(a, reserve.Reservation, "prepare")
+	prepared := CheckAgentInputs(ctx, inputDeps, provisional)
+	if prepared.Result != ResultApplied {
+		t.Fatalf("provisional resolver prepare failed: result=%s reason=%s", prepared.Result, prepared.Reason)
+	}
+	if prepared.Observation.RootIdentity.Platform == "" {
+		t.Fatal("resolver prepare returned no root witness")
+	}
+
+	a.RootIdentity = &prepared.Observation.RootIdentity
+	if result := CheckAgentInputs(ctx, inputDeps, pinInputs(a, reserve.Reservation, "prepare")); result.Result != ResultApplied {
+		t.Fatalf("final resolver prepare failed: result=%s reason=%s", result.Result, result.Reason)
+	}
+	if result := CheckAgentInputs(ctx, inputDeps, pinInputs(a, reserve.Reservation, "dispatch")); result.Result != ResultApplied {
+		t.Fatalf("final resolver dispatch failed: result=%s reason=%s", result.Result, result.Reason)
+	}
+	if result := CheckAgentInputs(ctx, inputDeps, pinInputs(a, reserve.Reservation, "entry")); result.Result != ResultApplied {
+		t.Fatalf("final resolver entry failed: result=%s reason=%s", result.Result, result.Reason)
+	}
+}

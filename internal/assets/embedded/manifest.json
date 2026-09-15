@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:01dd07e1ea9716357d3d4df5321835ad02fbef43576ace52c479b54a49c7d05a",
+  "asset_set_id": "sha256:1c9c8e854393c2f56b3059906cf2144df88d53ddc8c7b64ce119704592ec691a",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -315,8 +315,8 @@
       "path": "skills/docket-build/references/codex-task-handoff.md",
       "role": "skill",
       "mode": 420,
-      "size": 2744,
-      "sha256": "fcc6a96128da6fff3ee69b9c40630cfb2203311f3ab453115293d5eadc9f3c0a"
+      "size": 2787,
+      "sha256": "541556e5d26aee2c937e702fc205bcb172256fe9936884f9c633a9527a6682d5"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",
@@ -371,8 +371,8 @@
       "path": "skills/docket-convention/references/codex-native-dispatch.md",
       "role": "skill",
       "mode": 420,
-      "size": 2113,
-      "sha256": "4007bca91498e2e106fa7d34c3396fabd22d74055877c9b08751f9041e3ab752"
+      "size": 2187,
+      "sha256": "34638895c60f8c64de16552d74c3a63fe21ab5f564f0d2c563ff5879a2b0f132"
     },
     {
       "path": "skills/docket-convention/references/dummy-mode.md",

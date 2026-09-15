@@ -67,7 +67,7 @@ type AgentWorkspaceValidator interface {
 	ValidateAgentWorkspace(context.Context, codexcontract.Assignment, string) error
 }
 type AgentRoleInputValidator interface {
-	ValidateRoleInputs(context.Context, codexcontract.Assignment, codexcontract.WorkerPayload, string) error
+	ValidateRoleInputs(context.Context, codexcontract.Assignment, codexcontract.WorkerPayload, string, string) error
 }
 type AgentInputDeps struct {
 	Observer  AgentInputObserver
@@ -117,7 +117,7 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 		if deps.Role == nil {
 			return fail(ResultInvalidState, "role-validator-unavailable")
 		}
-		if err := deps.Role.ValidateRoleInputs(ctx, a, payload, req.RepoDir); err != nil {
+		if err := deps.Role.ValidateRoleInputs(ctx, a, payload, req.RepoDir, req.Stage); err != nil {
 			return fail(ResultInvalidState, "role-inputs-invalid: "+err.Error())
 		}
 		roleValidated = true

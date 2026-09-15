@@ -825,6 +825,28 @@ func TestControllerInstructionsPrepareAndFreezeAssignmentWithoutCircularWitness(
 	}
 }
 
+func TestControllerInstructionsDescribeResolverBootstrapAndProducedReceipts(t *testing.T) {
+	catalog := fixtureInput(t).Assets
+	native, err := catalog.Bytes("skills/docket-convention/references/codex-native-dispatch.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, clause := range []string{"provisional resolver payload", "attempt and reservation", "exact conflict workspace", "final resolver payload"} {
+		if !strings.Contains(string(native), clause) {
+			t.Errorf("native resolver recipe omits %q", clause)
+		}
+	}
+	handoff, err := catalog.Bytes("skills/docket-build/references/codex-task-handoff.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, clause := range []string{"PASSED transfers", "assigned run root", "diagnostic HALTED", "authorizes no continuation"} {
+		if !strings.Contains(string(handoff), clause) {
+			t.Errorf("receipt recipe omits %q", clause)
+		}
+	}
+}
+
 func TestCodexPlanRejectsUnusableInput(t *testing.T) {
 	in := fixtureInput(t)
 
