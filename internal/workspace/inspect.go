@@ -38,7 +38,7 @@ const (
 	StateCleaned    StateKind = "cleaned"        // tombstone: cleaned manifest, no registration
 	StateResumable  StateKind = "allocating"     // allocating manifest, safely resumable partial
 	StateDirty      StateKind = "dirty-owned"    // registered and consistent, but dirty/staged/untracked
-	StateBranchGone StateKind = "branch-missing" // feature ref missing, or head no longer reaches base
+	StateBranchGone StateKind = "branch-missing" // feature ref missing
 	StateMismatch   StateKind = "mismatch"       // path/registration/manifest disagree
 	StateForeign    StateKind = "foreign"        // absent, foreign, malformed, or unowned manifest
 )
@@ -186,13 +186,13 @@ func (s *Service) classifyState(ctx context.Context, repo gitcli.Repository, m M
 		if err != nil {
 			return mapGitFailure(inspectOp, "inventory", err)
 		}
+		// Recorded-base ancestry is a FACT for a ready workspace, never an
+		// identity requirement: a manual parent rebase legitimately rewrites the
+		// creation base out of the head's ancestry while the manifest, ref,
+		// registration, and head still prove this is the owned workspace (change
+		// 0429). The allocating phase above still requires it — an unfinished
+		// allocation with a rewritten branch is not safely resumable.
 		insp.BaseReached = reachable
-		if !reachable {
-			// A ready worktree whose head no longer reaches the recorded base has a
-			// moved branch.
-			insp.Kind = StateBranchGone
-			return nil
-		}
 		dirty, err := s.dirtyPaths(ctx, m.Path)
 		if err != nil {
 			return err

@@ -75,6 +75,40 @@ func TestInspectReady(t *testing.T) {
 	}
 }
 
+// TestInspectReadyAfterParentRebase proves a READY workspace whose branch was
+// legitimately rebased — head no longer reaches the recorded creation base —
+// still classifies ready: the recorded base is a fact (BaseReached=false), not
+// an identity requirement. The allocating-phase ancestry protection and every
+// registration/ref/head/clean check are unchanged (change 0429).
+func TestInspectReadyAfterParentRebase(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+
+	// Rewrite the recorded base to a commit the feature head does not reach (a
+	// later origin-main commit, fetched into the object store) — the same
+	// construction cleanup_test's moved-head row uses, now a legitimate state.
+	c1 := r.advanceMain(t)
+	gitOut(t, r.Primary, "fetch", "-q", "origin", "main")
+	m, present, err := loadManifest(metaDirOf(repo, tgt))
+	if err != nil || !present {
+		t.Fatalf("loadManifest present=%v err=%v", present, err)
+	}
+	m.BaseCommit = c1
+	if err := writeManifest(metaDirOf(repo, tgt), m); err != nil {
+		t.Fatalf("writeManifest(rewritten base): %v", err)
+	}
+
+	insp := assertInspectReadOnly(t, svc, r, repo, tgt)
+	if insp.Kind != StateReady {
+		t.Errorf("Kind = %q; want ready after a parent rebase", insp.Kind)
+	}
+	if insp.BaseReached {
+		t.Errorf("BaseReached = true; want false (fact recorded, not gated)")
+	}
+}
+
 func TestInspectDirty(t *testing.T) {
 	r := mainModeRepo(t)
 	svc, repo := r.newService(t)
