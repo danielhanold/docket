@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [92]
 spec: 'docs/superpowers/specs/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md'
 plan: 'docs/superpowers/plans/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md'
-results:
+results: 'docs/results/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-15T20:40:59Z'
 |---|---|
 | Spec | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md) |
 | Plan | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md](https://github.com/danielhanold/docket/blob/fix/fix-stacked-change-validation-after-a-manual-parent-rebase/docs/superpowers/plans/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md) |
+| Results | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-results.md](https://github.com/danielhanold/docket/blob/fix/fix-stacked-change-validation-after-a-manual-parent-rebase/docs/results/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-results.md) |
 | ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
