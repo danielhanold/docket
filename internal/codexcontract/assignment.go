@@ -50,6 +50,7 @@ type Assignment struct {
 	RunRoot              string                 `json:"run_root,omitempty"`
 	PlanSkill            string                 `json:"plan_skill,omitempty"`
 	BuildSkill           string                 `json:"build_skill,omitempty"`
+	ResultsTemplate      string                 `json:"results_template,omitempty"`
 	LearningsEnabled     bool                   `json:"learnings_enabled,omitempty"`
 	LearningsIndex       string                 `json:"learnings_index,omitempty"`
 	ReviewBase           string                 `json:"review_base,omitempty"`
@@ -72,12 +73,9 @@ func ReadAssignment(path, digest string) (Assignment, error) {
 	if !filepath.IsAbs(path) {
 		return Assignment{}, fmt.Errorf("assignment path must be absolute")
 	}
-	b, err := os.ReadFile(path)
+	b, err := readFileBounded(path, 1<<20)
 	if err != nil {
 		return Assignment{}, err
-	}
-	if len(b) > 1<<20 {
-		return Assignment{}, fmt.Errorf("assignment exceeds 1 MiB")
 	}
 	want, err := hex.DecodeString(digest)
 	if err != nil || len(want) != sha256.Size {
@@ -105,7 +103,23 @@ func ReadAssignment(path, digest string) (Assignment, error) {
 	return a, nil
 }
 
-var objectID = regexp.MustCompile(`^[0-9a-f]{40,64}$`)
+func readFileBounded(path string, max int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	body, err := io.ReadAll(io.LimitReader(file, max+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > max {
+		return nil, fmt.Errorf("file exceeds %d bytes", max)
+	}
+	return body, nil
+}
+
+var objectID = regexp.MustCompile(`^([0-9a-f]{40}|[0-9a-f]{64})$`)
 
 func ValidateAssignment(a Assignment) error {
 	if a.SchemaVersion != 1 {
@@ -135,8 +149,13 @@ func ValidateAssignment(a Assignment) error {
 		return fmt.Errorf("assignment artifact paths must be safe repository-relative paths")
 	}
 	for _, p := range append(append([]string{}, a.WritePaths...), a.InheritedPaths...) {
-		if !safeRelative(p) {
+		if !safeRelative(p) || targetsGitMetadata(p) {
 			return fmt.Errorf("owned path %q is unsafe", p)
+		}
+	}
+	if a.Role == "docket-plan-writer" {
+		if a.ArtifactPath == "" || len(a.WritePaths) != 1 || a.WritePaths[0] != a.ArtifactPath || len(a.InheritedPaths) != 0 {
+			return fmt.Errorf("planner assignment must own exactly its plan artifact")
 		}
 	}
 	for _, p := range a.ReadRoots {
@@ -216,6 +235,15 @@ func oneOf(v string, values ...string) bool {
 }
 func safeRelative(p string) bool {
 	return p != "" && !filepath.IsAbs(p) && filepath.Clean(p) == p && p != "." && p != ".." && !strings.HasPrefix(p, ".."+string(filepath.Separator))
+}
+
+func targetsGitMetadata(p string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(p), "/") {
+		if part == ".git" {
+			return true
+		}
+	}
+	return false
 }
 
 func ensureJSONEOF(dec *json.Decoder) error {

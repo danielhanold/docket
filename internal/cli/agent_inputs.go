@@ -33,7 +33,7 @@ func newAgentCheckInputsCommand(setResult func(app.OperationResult)) *cobra.Comm
 			}
 			deps.Role = app.NewAgentFinalizeInputValidator(finalizeDeps)
 		}
-		if req.Stage == "dispatch" || (req.Stage == "entry" && req.Payload != "") {
+		if req.Stage == "dispatch" || req.Payload != "" || req.PayloadSHA256 != "" {
 			deps.Scope, err = app.NewAgentScopeValidator(a.CommonDir, a.DocketExecutable)
 			if err != nil {
 				return fmt.Errorf("agent scope validator: %w", err)

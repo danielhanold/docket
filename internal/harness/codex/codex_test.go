@@ -773,6 +773,58 @@ func TestCodexNestedDispatchBoundary(t *testing.T) {
 	}
 }
 
+func TestFeatureRoleEntryInstructionsCarryPrivatePayload(t *testing.T) {
+	in := fixtureInput(t)
+	sources, err := harness.ParseInventory(in.Assets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range sources {
+		if source.WorktreeScope != harness.WorktreeScopeFeature {
+			continue
+		}
+		var instructions strings.Builder
+		for _, ref := range codexReferences(source) {
+			body, err := in.Assets.Bytes("skills/" + ref)
+			if err != nil {
+				t.Fatalf("%s reference %s: %v", source.Name, ref, err)
+			}
+			instructions.Write(body)
+			instructions.WriteByte('\n')
+		}
+		body := instructions.String()
+		for _, clause := range []string{"--payload <path>", "--payload-sha256 <digest>"} {
+			if !strings.Contains(body, clause) {
+				t.Errorf("%s selected instructions omit %q", source.Name, clause)
+			}
+		}
+	}
+}
+
+func TestControllerInstructionsPrepareAndFreezeAssignmentWithoutCircularWitness(t *testing.T) {
+	catalog := fixtureInput(t).Assets
+	var instructions strings.Builder
+	for _, path := range []string{
+		"skills/docket-convention/references/codex-native-dispatch.md",
+		"skills/docket-build/references/codex-task-handoff.md",
+	} {
+		body, err := catalog.Bytes(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		instructions.Write(body)
+		instructions.WriteByte('\n')
+	}
+	last := -1
+	for _, clause := range []string{"provisional assignment", "at `prepare`", "root witness", "final assignment", "rerun `agent.check-inputs` at `prepare`", "prepare the child scope"} {
+		index := strings.Index(instructions.String(), clause)
+		if index < 0 || index <= last {
+			t.Fatalf("controller recipe omits or misorders %q", clause)
+		}
+		last = index
+	}
+}
+
 func TestCodexPlanRejectsUnusableInput(t *testing.T) {
 	in := fixtureInput(t)
 

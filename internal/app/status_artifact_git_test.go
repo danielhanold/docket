@@ -125,7 +125,7 @@ func TestStatusArtifactReadRejectsWorkspaceRefDrift(t *testing.T) {
 
 func TestTerminalArtifactReadUsesIntegrationAfterFeatureBranchDeletion(t *testing.T) {
 	const planPath = "docs/superpowers/plans/terminal.md"
-	plan := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n> [Change 0425](https://example.invalid/docs/changes/archive/0425-terminal.md)\n<!-- docket:backlink:end -->\n# Plan\n"
+	plan := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n> [Change 0425](https://example.invalid/docs/changes/archive/2026-09-15-0425-terminal.md)\n<!-- docket:backlink:end -->\n# Plan\n"
 	r := newWorkingRepo(t, map[string]string{planPath: plan})
 	client := newGitClient(t)
 	ctx := context.Background()

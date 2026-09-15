@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseReceiptUsesNestedDriveAndPreservesNonzeroOutput(t *testing.T) {
-	stdout := []byte(`{"protocol_version":1,"operation":"gate.drive.start","result":"gate-failed","drive":{"protocol_version":1,"drive_id":"drive-1","generation":"gen-1","deadline":"2026-09-14T12:00:00Z","outcome":"FAILED","cause":"tests","run_root":"/private/runs"}}`)
+	stdout := []byte(`{"protocol_version":1,"operation":"gate.drive.start","result":"applied","drive":{"protocol_version":1,"drive_id":"drive-1","generation":"gen-1","deadline":"2026-09-14T12:00:00Z","outcome":"FAILED","cause":"tests","run_root":"/private/runs"}}`)
 	r, err := ParseReceipt("gate.drive.start", stdout, []byte("diagnostic"), 1, Assignment{RunRoot: "/private/runs"})
 	if err != nil {
 		t.Fatalf("ParseReceipt: %v", err)

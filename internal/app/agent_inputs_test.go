@@ -132,6 +132,17 @@ func TestCheckAgentInputsPlannerAndReviewerRequirePinnedPayloadAtEntry(t *testin
 			if tc.kind == "planner" {
 				a.ArtifactPath = "docs/plans/425.md"
 				a.WritePaths = []string{a.ArtifactPath}
+				templateBody := []byte("# Results\n")
+				templatePath := filepath.Join(dir, "skills", "docket-implement-next", "results-template.md")
+				if err := os.MkdirAll(filepath.Dir(templatePath), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(templatePath, templateBody, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				templateHash := sha256.Sum256(templateBody)
+				a.PlanSkill, a.BuildSkill, a.ResultsTemplate = "auto", "auto", "results-template"
+				a.Resources = []codexcontract.Resource{{LogicalID: a.ResultsTemplate, Path: templatePath, SHA256: hex.EncodeToString(templateHash[:]), Source: "package:docket-implement-next"}}
 			} else {
 				evidenceBody := []byte("green at pinned head\n")
 				evidencePath := filepath.Join(dir, "build-evidence.md")

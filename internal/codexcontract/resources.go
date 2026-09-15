@@ -1,6 +1,7 @@
 package codexcontract
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var localMarkdownLink = regexp.MustCompile(`\[[^]]*\]\(([^)#]+)(?:#[^)]*)?\)`)
@@ -33,13 +35,24 @@ func ValidateDocketExecutable(a Assignment) error {
 	if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
 		return fmt.Errorf("docket executable is not an executable regular file")
 	}
-	out, err := exec.Command(a.DocketExecutable, "version", "--json").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, a.DocketExecutable, "version", "--json")
+	cmd.WaitDelay = 100 * time.Millisecond
+	var stdout, stderr cappedBuffer
+	stdout.max, stderr.max = 1<<20, 1<<20
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err = cmd.Run()
+	if ctx.Err() != nil {
+		return fmt.Errorf("docket executable version timed out")
+	}
 	if err != nil {
 		return fmt.Errorf("docket executable version: %w", err)
 	}
-	if len(out) > 1<<20 {
+	if stdout.exceeded {
 		return fmt.Errorf("docket executable version output exceeds 1 MiB")
 	}
+	out := stdout.Bytes()
 	var version struct {
 		Commit string `json:"commit"`
 	}
@@ -53,6 +66,9 @@ func ValidateDocketExecutable(a Assignment) error {
 }
 
 func ValidateResources(a Assignment) error {
+	if a.Role == "docket-plan-writer" && (a.PlanSkill == "" || a.BuildSkill == "" || a.ResultsTemplate == "" || a.ResultsTemplate == "auto") {
+		return fmt.Errorf("planner resource selections and results template are required")
+	}
 	for _, root := range a.ReadRoots {
 		canon, err := filepath.EvalSymlinks(root)
 		if err != nil || canon != root {
@@ -96,7 +112,7 @@ func ValidateResources(a Assignment) error {
 		if info.Size() > 8<<20 {
 			return fmt.Errorf("resource %q is too large", r.LogicalID)
 		}
-		b, err := os.ReadFile(r.Path)
+		b, err := readFileBounded(r.Path, 8<<20)
 		if err != nil {
 			return fmt.Errorf("resource %q: %w", r.LogicalID, err)
 		}
@@ -106,24 +122,39 @@ func ValidateResources(a Assignment) error {
 		}
 		byPath[r.Path] = r
 	}
+	if a.Role == "docket-plan-writer" {
+		var templatePath string
+		for _, resource := range a.Resources {
+			if resource.LogicalID == a.ResultsTemplate {
+				templatePath = filepath.ToSlash(resource.Path)
+				break
+			}
+		}
+		if !strings.HasSuffix(templatePath, "/skills/docket-implement-next/results-template.md") {
+			return fmt.Errorf("planner results template is not the packaged docket-implement-next template")
+		}
+	}
 	for p := range byPath {
-		b, err := os.ReadFile(p)
+		b, err := readFileBounded(p, 8<<20)
 		if err != nil {
 			return err
 		}
 		for _, m := range localMarkdownLink.FindAllSubmatch(b, -1) {
 			target := string(m[1])
-			if strings.HasPrefix(target, "/") || strings.Contains(target, ":") {
+			if strings.Contains(target, "://") || strings.HasPrefix(target, "mailto:") {
 				continue
 			}
-			resolved := filepath.Clean(filepath.Join(filepath.Dir(p), filepath.FromSlash(target)))
+			resolved := filepath.Clean(filepath.FromSlash(target))
+			if !filepath.IsAbs(resolved) {
+				resolved = filepath.Clean(filepath.Join(filepath.Dir(p), resolved))
+			}
 			if _, ok := byPath[resolved]; !ok {
 				return fmt.Errorf("resource %q links to undeclared local dependency %q", byPath[p].LogicalID, target)
 			}
 		}
 	}
-	for _, id := range []string{a.PlanSkill, a.BuildSkill} {
-		if id != "" && !logical[id] {
+	for _, id := range []string{a.PlanSkill, a.BuildSkill, a.ResultsTemplate} {
+		if id != "" && id != "auto" && !logical[id] {
 			return fmt.Errorf("selected resource %q is not declared", id)
 		}
 	}
@@ -141,3 +172,25 @@ func ValidateResources(a Assignment) error {
 	}
 	return nil
 }
+
+type cappedBuffer struct {
+	bytes    []byte
+	max      int
+	exceeded bool
+}
+
+func (b *cappedBuffer) Write(p []byte) (int, error) {
+	remaining := b.max - len(b.bytes)
+	if remaining > 0 {
+		if remaining > len(p) {
+			remaining = len(p)
+		}
+		b.bytes = append(b.bytes, p[:remaining]...)
+	}
+	if remaining < len(p) {
+		b.exceeded = true
+	}
+	return len(p), nil
+}
+
+func (b *cappedBuffer) Bytes() []byte { return append([]byte(nil), b.bytes...) }
