@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0417 — Artifacts block pins plan/results links to the docket branch, where those files never live](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0417-artifacts-block-pins-plan-results-links-to-the-docket-branch.md)**
+> ↩ **[Change 0417 — Artifacts block pins plan/results links to the docket branch, where those files never live](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-15-0417-artifacts-block-pins-plan-results-links-to-the-docket-branch.md)**
 <!-- docket:backlink:end -->
 # Artifacts block pins plan/results links to the docket branch, where those files never live — Results
 
