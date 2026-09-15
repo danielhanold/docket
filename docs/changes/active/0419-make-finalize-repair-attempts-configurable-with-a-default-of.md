@@ -2,11 +2,11 @@
 id: 419
 slug: 'make-finalize-repair-attempts-configurable-with-a-default-of'
 title: 'Make finalize repair attempts configurable with a default of six'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-10'
-updated: '2026-09-10'
+updated: '2026-09-15'
 depends_on: []
 stacked_on:
 related: [349]
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/make-finalize-repair-attempts-configurable-with-a-default-of'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-15T02:24:57Z'
 ---
 
 ## Artifacts
