@@ -34,6 +34,15 @@ Commit `c93624c73394b3d40bce622240bb8d18147dcfd8` resolves the two findings from
 
 Permanent regressions retain the reviewer's full real-Git cross-worktree reproduction alongside the valid-workspace and wrong-reservation controls. Fixture coverage derives all expected role paths from the embedded agent inventory, compares each manifest hash with the rendered file, and mutation-tests post-render drift and conflicting hashes. The supplied second-review overlay, focused default-tag packages, and the full wired resolver/repair integration test passed before this results update. Generated assets remained byte-identical at 70 entries with bundle SHA-256 `45d4ab5115646a92b68f37f39b5b8e877d82b75830aa93659c624e392cd6984a`. The complete configured source suite is run from the clean commit containing this updated results record and retained in the external launch-kit verification evidence.
 
+## Candidate identity and runtime-budget repair
+
+Commit `2dae2121f7888f18b74fefdede039f19eca7c5f0` resolves the next independent review's blocker and confirmed serial budget breach:
+
+- Every `agent.check-inputs` call now executes the assigned canonical Docket path with `version --json` and requires its reported full commit to equal `Assignment.DocketCommit`. Permanent coverage replaces the executable at the same canonical path, proves the validator rejects the changed commit, and proves the complete check-inputs boundary refuses it before workspace or child-scope authority can apply.
+- The 16-test finalize-rebase integration shard measured 71.74 seconds against its unchanged 45-second budget and 67.5-second authoritative threshold. Per-test profiling identified the gate-waiting and checkpoint group as a coherent split. The original rebase shard now contains 11 tests and measures 32.65 seconds; the new gate/checkpoint sibling contains 5 tests and measures 38.13 seconds. Both retain a 45-second ceiling, and the integration registry proves every tagged test belongs to exactly one shard.
+
+The profile and both solo measurements are preserved in the launch-kit evidence directory. Generated asset and dispatch content remains consistent. The complete configured suite and its budget report are rerun from the clean commit containing this results update.
+
 ## Verification performed
 
 ### Initial native acceptance handoff repair
