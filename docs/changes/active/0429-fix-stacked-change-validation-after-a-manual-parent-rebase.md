@@ -2,7 +2,7 @@
 id: 429
 slug: 'fix-stacked-change-validation-after-a-manual-parent-rebase'
 title: 'Fix stacked-change validation after a manual parent rebase'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-15'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/fix-stacked-change-validation-after-a-manual-parent-rebase'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-15T20:29:00Z'
 ---
 
 ## Artifacts
