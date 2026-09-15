@@ -12,6 +12,11 @@ import (
 func newAgentCheckInputsCommand(setResult func(app.OperationResult)) *cobra.Command {
 	var req app.CheckInputsRequest
 	cmd := &cobra.Command{Use: "check-inputs", Short: "Validate a pinned native-agent assignment and payload", Args: cobra.NoArgs, Annotations: capability(app.OperationAgentCheckInputs, EffectRead), RunE: func(c *cobra.Command, _ []string) error {
+		repoDir, err := resolveRepoDir(c)
+		if err != nil {
+			return err
+		}
+		req.RepoDir = repoDir
 		a, err := codexcontract.ReadAssignment(req.Assignment, req.SHA256)
 		if err != nil {
 			setResult(app.CheckInputsResult{Envelope: app.NewEnvelope(app.OperationAgentCheckInputs, app.ResultInvalidInput), Reason: "assignment-invalid: " + err.Error()})
@@ -47,7 +52,7 @@ func newAgentCheckInputsCommand(setResult func(app.OperationResult)) *cobra.Comm
 	cmd.Flags().StringVar(&req.Stage, "stage", "", "prepare, dispatch, entry, or active")
 	cmd.Flags().StringVar(&req.Payload, "payload", "", "absolute private payload file")
 	cmd.Flags().StringVar(&req.PayloadSHA256, "payload-sha256", "", "private payload sha256")
-	cmd.Flags().StringVar(&req.RepoDir, "repo-dir", "", "absolute primary or feature root")
+	cmd.Flags().StringVar(&req.RepoDir, "repo-dir", "", "primary or feature directory (default: current directory)")
 	for _, f := range []string{"assignment", "sha256", "stage"} {
 		_ = cmd.MarkFlagRequired(f)
 	}

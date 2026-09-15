@@ -132,4 +132,6 @@ func TestIntegrationNativeFixtureBuildsConfiguredBuildReadyFixtureFromCandidateS
 	if dirty := runTest(filepath.Join(destination, "primary"), "git", "status", "--porcelain=v2"); dirty != "" {
 		t.Fatalf("fixture primary dirty: %s", dirty)
 	}
+	checkNativePlannerEntryDefaultsToStartup(t, root, destination, binary, got)
+
 }
