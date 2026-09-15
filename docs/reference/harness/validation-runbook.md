@@ -349,11 +349,11 @@ fresh process, so a scripted probe satisfies this automatically).
 
 The historical synthetic probe establishes only that its tested host/version exposed collaboration
 controls to its child. It does not establish a universal launch contract. For inventory roles marked
-`launch: root-coordinator`, certify Docket's supported entry directly with `docket agent enter` and
-exercise a real composition edge such as `docket-implement-next → docket-plan-writer`.
-Metadata-scoped ordinary child roles may continue to use direct registered-agent invocation.
-Feature-scoped ordinary child roles use native named-agent dispatch and validate their explicit assignment
-set to the absolute canonical feature-worktree root and carry the unchanged structured payload.
+`launch: root-coordinator`, dispatch the registered coordinator through Codex's top-level native
+named-agent control and exercise a real composition edge such as
+`docket-implement-next → docket-plan-writer`. Metadata-scoped ordinary child roles use the same
+native control. Feature-scoped ordinary child roles use native named-agent dispatch and validate their explicit assignment
+to the absolute canonical feature-worktree root while carrying the unchanged structured payload.
 
 - [ ] 1. **Record the Codex version** (`codex --version`) and the `multi_agent` setting in the
   results doc before any probe — this certification is scoped to the exact version and
@@ -366,10 +366,11 @@ set to the absolute canonical feature-worktree root and carry the unchanged stru
   `COORDINATOR_CONSUMED=<uuid>` line is **not** proof on its own — corroborate it against the
   session's own agent-start events per step 5.
 
-- [ ] 3. **Coordinator root entry.** Put the unchanged probe request in a file, then run
-  `docket agent enter --role docket-implement-next --request <file> --cwd <absolute fixture path>
-  --approval-policy never --sandbox workspace-write`. Expected: the root coordinator starts the
-  requested registered leaf and returns the sentinel in its own final message.
+- [ ] 3. **Coordinator native dispatch.** Start a fresh Codex root session at the absolute fixture
+  path, then dispatch the registered coordinator through Codex's top-level native named-agent control
+  with the unchanged probe request. Expected: the coordinator starts the requested registered leaf
+  and returns the sentinel in its own final message. Record the native child identity and observe that
+  exact child through terminal return.
 
 - [ ] 4. **Entry path A — repository managed-dispatch prose.** In the scratch fixture repo whose
   `AGENTS.md` dispatch block routes to `probe-coordinator` (staged per the README), in a fresh root
@@ -378,10 +379,11 @@ set to the absolute canonical feature-worktree root and carry the unchanged stru
 
   For production Docket routing, install the candidate's Codex assets and generated `AGENTS.md`
   into a disposable repository, then start a fresh Codex parent with only an ordinary prose request
-  such as "Please implement change 1." Do not tell that parent to invoke `agent.enter` or choose a
-  registered child. Observe it arm `run.gate-before`, choose the marked role's root-entry operation,
-  and carry the emitted dispatch context unchanged into the request file. Require a real
-  `docket-plan-writer` child and a verified plan attachment, then complete the change. After the
+  such as "Please implement change 1." Do not tell that parent which registered child to choose.
+  Observe it arm `run.gate-before`, select the registered `docket-implement-next` role through the
+  harness's native control, and carry the emitted dispatch context unchanged into the dispatch
+  prompt. Require a real `docket-plan-writer` child and a verified plan attachment, then complete the
+  change. After the
   foreground root returns, require the parent's exact keyed report
   `gate-done <key> run-complete <change-id>`. `no-attributable-claim` fails this completion check.
   Record whether GitHub is real or a local stateful fixture; neither coordinator prose nor a fake
@@ -411,7 +413,7 @@ set to the absolute canonical feature-worktree root and carry the unchanged stru
   **observation protocol**, not a launch-shape change — capture both readings of one run in the
   results doc so the oracle mutation (right oracle vs. wrong oracle) is on the record.
 
-**Pass when:** the coordinator root entry and the ordinary-role fixture completed the nested round-trip — a real child and grandchild in
+**Pass when:** the coordinator native dispatch and the ordinary-role fixture completed the nested round-trip — a real child and grandchild in
 the thread store consuming the run's own freshly minted uuid inside `COORDINATOR_CONSUMED=` — the
 adjudication was made from the thread store (or `subAgentActivity`) and never the item stream, and
 the Codex version and `multi_agent` setting are recorded in the results doc. A recorded direct
@@ -434,42 +436,32 @@ or make any claim about a real production rebase.
   ~~~
 
 - [ ] 2. Seed the generated docket-rebase-resolver registration into an
-  isolated home. Enter the public operation with A as caller context and B as
-  the explicit runtime authority. Keep the request bytes unchanged, including
-  this standalone field:
+  isolated home. From a fresh Codex root session at A, dispatch the registered resolver through
+  Codex's top-level native named-agent control. Bind B as the immutable feature assignment and keep
+  the structured request unchanged, including this standalone field:
   ~~~text
   Feature worktree: <absolute canonical B>
   ~~~
-  ~~~sh
-  docket agent enter \
-    --role docket-rebase-resolver \
-    --request <unchanged-request-file> \
-    --cwd <absolute-A> \
-    --worktree <absolute-canonical-B> \
-    --approval-policy never \
-    --sandbox workspace-write
-  ~~~
 
-- [ ] 3. A scripted app-server may replace only model reasoning. It must consume
-  the installed resolver contract and, from the received thread/start.cwd,
-  execute the read-only probe git -C <thread-start-cwd> ls-files -u --
-  conflict.txt. Pass only when the normal terminal agentMessage names B's
+- [ ] 3. A scripted model may replace only model reasoning. It must consume
+  the installed resolver contract, validate the immutable feature assignment,
+  and execute the read-only probe `git -C <assigned-feature-root> ls-files -u --
+  conflict.txt`. Pass only when the normal terminal child result names B's
   canonical root and returns B's non-empty unmerged set.
 
-- [ ] 4. Mutation-check the entry route by temporarily passing A as the
-  thread/start.cwd. The regression must fail because the observed unmerged set
-  is empty, then restore the B route. Use disposable worktrees and abort the
+- [ ] 4. Mutation-check the assignment route by temporarily binding A as the
+  feature assignment. The regression must fail because the observed unmerged set
+  is empty, then restore B. Use disposable worktrees and abort the
   rebase/remove linked worktrees in failure-safe cleanup.
 
-**Pass when:** the same public feature-child entry that receives --cwd A
---worktree B starts the app-server process and thread at canonical B, preserves
-the request bytes, and observes B's live unmerged index. This is a boundary
+**Pass when:** the native resolver child starts from caller context A, validates
+its immutable assignment to B, preserves the structured request, and observes
+B's live unmerged index. This is a boundary
 probe only; it is not evidence that any production rebase was resolved.
 
-**Recorded implementation evidence (2026-09-08):** the focused command
-go test -count=3 ./internal/cli -run
-'TestIntegrationAgentEnterFeatureResolverObservesSelectedWorktreeConflict'
-passed at source HEAD 6ea27f6796be26146e9484312adff6866617d99e.
+**Historical implementation evidence (2026-09-08):** source HEAD
+6ea27f6796be26146e9484312adff6866617d99e passed the retired foreground-entry probe. That record does
+not satisfy this native-dispatch phase; record fresh evidence from the procedure above.
 
 ## Pass criteria
 
