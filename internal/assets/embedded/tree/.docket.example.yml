@@ -117,12 +117,20 @@ finalize:
 
   # resolver_max_attempts — how many times finalize may send in the conflict-resolver during a
   # single rebase before it stops and hands the conflict back to you. Each successive conflicting
-  # commit the resolver clears costs one attempt. 3 (the default) suits most rebases; lower it for a
+  # commit the resolver clears costs one attempt. 10 (the default) suits most rebases; lower it for a
   # stricter ceiling, raise it when a long-lived branch routinely conflicts on many commits. Must be
   # a whole number of 1 or more. A change to this value takes effect on the next finalize you start,
   # never on a rebase already in progress.
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
-  resolver_max_attempts: 3
+  resolver_max_attempts: 10
+
+  # repair_max_attempts — how many fix attempts the integration-repair agent gets when the test
+  # suite is red after finalize's rebase, the initial attempt included, before finalize stops and
+  # hands the failure to you. 6 (the default) gives a stubborn semantic breakage room to converge;
+  # set 1 for a single-shot repair. Must be a whole number of 1 or more. Separate from
+  # resolver_max_attempts, which budgets rebase conflict resolution, not post-rebase repair.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  repair_max_attempts: 6
 
   # skip_results_only_delta — saves a redundant test run before merging (change 0190).
   # Before merging, finalize re-runs the test suite unless it can prove the tests already passed on
