@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # docket-suite: go
-# tests/test_go_race_app_a.sh — first derived half of internal/app's default
-# corpus under the race detector. The parent test_go_race.sh validates the full
-# sibling partition before excluding internal/app from its module package set.
+# tests/test_go_toolchain_app_a.sh — first derived half of internal/app's
+# default host-test corpus. The parent test_go_toolchain_test.sh validates the
+# full sibling partition before excluding internal/app from its package set.
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$REPO" || exit 1
@@ -12,9 +12,9 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 SHARD_PKG="./internal/app"
 SHARD_INDEX=0
 SHARD_COUNT=2
-SHARD_FAMILY=race
-SHARD_TEST_FLAG=-race
-SHARD_LABEL="race-instrumented"
+SHARD_FAMILY=toolchain
+SHARD_TEST_FLAG=''
+SHARD_LABEL="host-test"
 . "$REPO/tests/lib/go-app-shard.sh"
 app_shard_inspect_maybe
 run_app_shard

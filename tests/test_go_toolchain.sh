@@ -2,14 +2,15 @@
 # docket-suite: go
 # tests/test_go_toolchain.sh — the whole-suite Go gate (change 0304).
 #
-# Runs the four canonical Go checks from the spec's build contract: gofmt
-# cleanliness, go vet, go test, and the four-tuple CGO-off cross-build. This
+# Runs three canonical Go checks from the spec's build contract: gofmt
+# cleanliness, go vet, and ownership of the four-tuple CGO-off cross-build. The
+# default host tests run in the derived test_go_toolchain_test* siblings. This
 # file is the REAL producer wiring those checks into the suite runner via
 # the tests/test_*.sh discovery glob — not a documentation-only command.
 #
 # ONE OWNER FOR THE CROSS-BUILD. The four-tuple CGO-off sweep is expensive, so
-# it runs EXACTLY ONCE per suite run — inside `go test ./...` (Check 3), as
-# cmd/docket's TestCrossCompileApprovedTargets. Check 4 therefore does not
+# it runs EXACTLY ONCE per suite run — inside the non-app host test sibling, as
+# cmd/docket's TestCrossCompileApprovedTargets. Check 3 here therefore does not
 # rebuild the tuples; it asserts that the Go-side owner still exists and still
 # covers all four, so deleting or renaming that Go test reddens THIS file even
 # though `go test` would happily pass without it.
@@ -89,15 +90,6 @@ if [ -z "${GOMODCACHE:-}" ] || [ -z "${GOCACHE:-}" ]; then
   fi
 fi
 
-# Change 0373: under the suite runner, DOCKET_GO_TEST_CONCURRENCY bounds this
-# child's share of the machine (go test package parallelism and runtime procs).
-# Absent (solo run), Go's defaults apply unchanged.
-go_conc_args=""
-if [ -n "${DOCKET_GO_TEST_CONCURRENCY:-}" ]; then
-  go_conc_args="-p ${DOCKET_GO_TEST_CONCURRENCY}"
-  export GOMAXPROCS="${DOCKET_GO_TEST_CONCURRENCY}"
-fi
-
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/docket-go-gate.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 results="$scratch/check-results"
@@ -138,14 +130,7 @@ vet_out="$(go vet ./... 2>&1)"
 vet_rc=$?
 assert "go vet ./... passes" '[ "$vet_rc" -eq 0 ] || { printf "%s\n" "$vet_out" >&2; false; }'
 
-# Check 3: go test passes on the host. This is also where the four-tuple
-# CGO-off cross-build runs — TestCrossCompileApprovedTargets — so the sweep is
-# paid for exactly once per suite run.
-test_out="$(go test $go_conc_args ./... 2>&1)"
-test_rc=$?
-assert "go test ./... passes" '[ "$test_rc" -eq 0 ] || { printf "%s\n" "$test_out" >&2; false; }'
-
-# Check 4: the four-tuple CGO-off cross-build still HAS its single owner. The
+# Check 3: the four-tuple CGO-off cross-build still HAS its single owner. The
 # tuples are read out of TestCrossCompileApprovedTargets' own body — a match
 # anywhere else in the file, including this comment's prose, cannot satisfy it
 # — and the body is empty if the function is deleted or renamed, which fails
@@ -171,6 +156,6 @@ cat "$results"
 # bookkeeping sat beside it — drops a marker and reddens this file rather than
 # silently narrowing the whole-suite gate.
 markers_emitted="$(grep -c -E '^(ok|NOT OK) - ' "$results")"
-assert "all 4 Go checks emitted a result marker" '[ "$markers_emitted" -eq 4 ]'
+assert "all 3 Go checks emitted a result marker" '[ "$markers_emitted" -eq 3 ]'
 
 exit $fail

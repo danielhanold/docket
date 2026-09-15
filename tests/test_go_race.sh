@@ -108,8 +108,11 @@ fi
 # Prove the derived internal/app partition exists before excluding that package
 # from this process. The validator inspects every sibling declaration and requires
 # one unique zero-based index for the common declared shard count.
-. "$REPO/tests/lib/go-race-app-shard.sh"
-validate_race_app_shards
+. "$REPO/tests/lib/go-app-shard.sh"
+APP_SHARD_GLOB='test_go_race_app_*.sh'
+APP_SHARD_FAMILY=race
+APP_SHARD_FLAG=-race
+validate_app_shards
 
 module="$(go list -m 2>/dev/null)"
 assert "go list -m resolves the module path" '[ -n "$module" ]'
