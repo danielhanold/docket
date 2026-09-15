@@ -42,9 +42,9 @@ validate_app_shards
 
 module="$(go list -m 2>/dev/null)"
 assert "go list -m resolves the module path" '[ -n "$module" ]'
-package_out="$(go list ./... 2>&1)"; package_rc=$?
-assert "go list ./... derives the host test package census" \
-  '[ "$package_rc" -eq 0 ] || { printf "%s\n" "$package_out" >&2; false; }'
+# Keep cold-cache download diagnostics on stderr and out of the package argv.
+package_out="$(go list ./...)"; package_rc=$?
+assert "go list ./... derives the host test package census" '[ "$package_rc" -eq 0 ]'
 app_package="$module/internal/app"
 app_package_hits="$(grep -cxF -- "$app_package" <<<"$package_out")"
 assert "the host test package census contains internal/app exactly once" '[ "$app_package_hits" -eq 1 ]'

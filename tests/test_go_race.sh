@@ -116,9 +116,11 @@ validate_app_shards
 
 module="$(go list -m 2>/dev/null)"
 assert "go list -m resolves the module path" '[ -n "$module" ]'
-package_out="$(go list ./... 2>&1)"; package_rc=$?
-assert "go list ./... derives the race package census" \
-  '[ "$package_rc" -eq 0 ] || { printf "%s\n" "$package_out" >&2; false; }'
+# Capture the package protocol on stdout only. A cold module cache writes
+# download progress to stderr while returning success; merging that diagnostic
+# stream would feed words such as "go:" to the later `go test` argv.
+package_out="$(go list ./...)"; package_rc=$?
+assert "go list ./... derives the race package census" '[ "$package_rc" -eq 0 ]'
 app_package="$module/internal/app"
 app_package_hits="$(grep -cxF -- "$app_package" <<<"$package_out")"
 assert "the race package census contains internal/app exactly once" '[ "$app_package_hits" -eq 1 ]'
