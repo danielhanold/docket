@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0429 — Fix stacked-change validation after a manual parent rebase](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0429-fix-stacked-change-validation-after-a-manual-parent-rebase.md)**
+> ↩ **[Change 0429 — Fix stacked-change validation after a manual parent rebase](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-15-0429-fix-stacked-change-validation-after-a-manual-parent-rebase.md)**
 <!-- docket:backlink:end -->
 # Fix Stacked-Change Validation After a Manual Parent Rebase — Implementation Plan
 
