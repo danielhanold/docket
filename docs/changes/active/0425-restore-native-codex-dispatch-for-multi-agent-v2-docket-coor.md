@@ -22,7 +22,7 @@ branch: 'codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T17:56:24Z'
+claimed_at: '2026-09-15T18:08:52Z'
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-15T17:56:24Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) |
-| Plan | [2026-09-14-native-codex-dispatch-0425.md](https://github.com/danielhanold/docket/blob/codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor/docs/superpowers/plans/2026-09-14-native-codex-dispatch-0425.md) |
-| Results | [2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md](https://github.com/danielhanold/docket/blob/codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor/docs/results/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md) |
+| Plan | [2026-09-14-native-codex-dispatch-0425.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-14-native-codex-dispatch-0425.md) |
+| Results | [2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md) |
 | ADRs | [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md), [ADR-0119](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0119-native-codex-dispatch-with-explicit-role-aware-feature-bindi.md) |
 <!-- docket:artifacts:end -->
 
