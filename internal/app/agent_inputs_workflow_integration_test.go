@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -16,11 +18,11 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// TestAgentInputReviewRegressions keeps the phase-4 overlay reproductions in
+// TestIntegrationWorkflowAgentInputReviewRegressions keeps the phase-4 overlay reproductions in
 // the permanent suite. The observer is the real Git implementation; only the
 // metadata/workspace lookup is isolated so these cases exercise the input
 // boundary independently of the workspace service.
-func TestAgentInputReviewRegressions(t *testing.T) {
+func TestIntegrationWorkflowAgentInputReviewRegressions(t *testing.T) {
 	for _, scenario := range []string{"committed-owned-path", "committed-unowned-path", "non-descendant-head", "review-head-mismatch", "review-dirty", "review-evidence-drift", "worker-entry-without-payload"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, err := filepath.EvalSymlinks(testsupport.TempDir(t))
