@@ -16,7 +16,7 @@ import (
 )
 
 type Resource struct {
-	LogicalID string `json:"logical_id"`
+	LogicalID string `json:"logical_id" docketdoc:"Unique assignment-local identifier selected by planner selector fields and dependency edges."`
 	Path      string `json:"path"`
 	SHA256    string `json:"sha256"`
 	Source    string `json:"source"`
@@ -39,8 +39,8 @@ type Assignment struct {
 	ArtifactPath         string                 `json:"artifact_path,omitempty"`
 	DocketExecutable     string                 `json:"docket_executable" docket:"required"`
 	DocketCommit         string                 `json:"docket_commit" docket:"required"`
-	Resources            []Resource             `json:"resources" docket:"required"`
-	ResourceDependencies map[string][]string    `json:"resource_dependencies,omitempty"`
+	Resources            []Resource             `json:"resources" docket:"required" docketdoc:"Declared pinned files; include every recursively linked local file needed by a selected resource."`
+	ResourceDependencies map[string][]string    `json:"resource_dependencies,omitempty" docketdoc:"Planner assignments require a complete adjacency map: every declared resource is a key, including leaves, and each value lists that resource's direct local Markdown dependencies by resources[].logical_id."`
 	ReadRoots            []string               `json:"read_roots"`
 	WritePaths           []string               `json:"write_paths"`
 	InheritedPaths       []string               `json:"inherited_paths"`
@@ -48,9 +48,9 @@ type Assignment struct {
 	RootIdentity         *RootIdentity          `json:"root_identity,omitempty"`
 	TestArgv             []string               `json:"test_argv,omitempty"`
 	RunRoot              string                 `json:"run_root,omitempty"`
-	PlanSkill            string                 `json:"plan_skill,omitempty"`
-	BuildSkill           string                 `json:"build_skill,omitempty"`
-	ResultsTemplate      string                 `json:"results_template,omitempty"`
+	PlanSkill            string                 `json:"plan_skill,omitempty" docketdoc:"Planner selector: a resources[].logical_id such as \"plan-skill\", or \"auto\" for built-in planning."`
+	BuildSkill           string                 `json:"build_skill,omitempty" docketdoc:"Planner selector: a resources[].logical_id such as \"build-skill\", or \"auto\" for built-in execution."`
+	ResultsTemplate      string                 `json:"results_template,omitempty" docketdoc:"Planner selector: the resources[].logical_id \"results-template\" for the packaged docket-implement-next results template; never a path."`
 	LearningsEnabled     bool                   `json:"learnings_enabled,omitempty"`
 	LearningsIndex       string                 `json:"learnings_index,omitempty"`
 	ReviewBase           string                 `json:"review_base,omitempty"`

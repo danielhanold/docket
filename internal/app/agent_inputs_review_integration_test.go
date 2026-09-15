@@ -88,7 +88,8 @@ func reviewRealAssignment(t *testing.T, symlinkOutput bool) (codexcontract.Assig
 		DocketExecutable: binary, DocketCommit: head, ReadRoots: []string{root},
 		WritePaths: []string{"docs/plan.md"}, RootIdentity: &identity,
 		PlanSkill: "auto", BuildSkill: "auto", ResultsTemplate: "results-template",
-		Resources: []codexcontract.Resource{{LogicalID: "results-template", Path: templatePath, SHA256: hex.EncodeToString(templateSum[:]), Source: "package:docket-implement-next"}},
+		Resources:            []codexcontract.Resource{{LogicalID: "results-template", Path: templatePath, SHA256: hex.EncodeToString(templateSum[:]), Source: "package:docket-implement-next"}},
+		ResourceDependencies: map[string][]string{"results-template": {}},
 	}
 	deps, err := NewAgentInputDeps(binary)
 	if err != nil {
@@ -125,6 +126,7 @@ func TestIntegrationWorkflowAgentEntryUsesProductionCommonDirectoryScopeIdentity
 			a, deps, root := reviewRealAssignment(t, false)
 			a.Role, a.Phase, a.TaskID = "docket-build-standard", "build", "1"
 			a.ArtifactPath, a.PlanSkill, a.BuildSkill, a.ResultsTemplate, a.Resources = "", "", "", "", nil
+			a.ResourceDependencies = nil
 			a.WritePaths = []string{"owned.go"}
 			repoIdentity := a.CommonDir
 			if scenario == "foreign-repository" {
@@ -185,6 +187,7 @@ func TestIntegrationWorkflowAgentScopeValidatorWiresEpochCancellation(t *testing
 func TestIntegrationWorkflowPlannerEntryRequiresPreparedPlanningResources(t *testing.T) {
 	a, deps, root := reviewRealAssignment(t, false)
 	a.PlanSkill, a.BuildSkill, a.ResultsTemplate, a.Resources = "", "", "", nil
+	a.ResourceDependencies = nil
 	if result := reviewCheck(t, a, deps, root, "entry"); result.Result == ResultApplied {
 		t.Fatal("planner entry accepted without selected skills and results template")
 	}
@@ -205,6 +208,7 @@ func TestIntegrationWorkflowRepairActiveRequiresPrivateRoleAuthority(t *testing.
 	a, deps, root := reviewRealAssignment(t, false)
 	a.Role, a.Phase, a.Mode = "docket-integration-repair", "repair", "repair"
 	a.ArtifactPath, a.PlanSkill, a.BuildSkill, a.ResultsTemplate, a.Resources = "", "", "", "", nil
+	a.ResourceDependencies = nil
 	a.WritePaths = []string{"repair.go"}
 	deps.Role = &inputRole{}
 	assignmentPath := filepath.Join(root, "assignment.json")
@@ -226,6 +230,7 @@ func TestIntegrationWorkflowWorkerActiveSupportsAssignmentOnlyAndValidatedPayloa
 	a, deps, root := reviewRealAssignment(t, false)
 	a.Role, a.Phase, a.TaskID = "docket-build-standard", "build", "1"
 	a.ArtifactPath, a.PlanSkill, a.BuildSkill, a.ResultsTemplate, a.Resources = "", "", "", "", nil
+	a.ResourceDependencies = nil
 	a.WritePaths = []string{"owned.go"}
 	assignmentPath := filepath.Join(root, "assignment.json")
 	assignmentDigest := reviewPin(t, assignmentPath, a)

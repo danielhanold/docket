@@ -69,6 +69,7 @@ func checkNativePlannerEntryDefaultsToStartup(t *testing.T, root, destination, b
 		t.Fatalf("missing workspace identity: %+v", workspace)
 	}
 	readStatus()
+	checkNativePlannerResourceContract(t, root, destination, binary, fixture, workspace, status.Context.MetadataRevision)
 	template := filepath.Join(root, "skills", "docket-implement-next", "results-template.md")
 	if err := os.MkdirAll(filepath.Dir(template), 0o755); err != nil {
 		t.Fatal(err)
@@ -77,7 +78,7 @@ func checkNativePlannerEntryDefaultsToStartup(t *testing.T, root, destination, b
 	if err := os.WriteFile(template, body, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: fixture.ChangeID, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh", Primary: primary, Feature: workspace.Path, CommonDir: filepath.Join(primary, ".git"), Branch: strings.TrimPrefix(workspace.FeatureRef, "refs/heads/"), EntryHEAD: fixture.PrimaryHEAD, MetadataRevision: status.Context.MetadataRevision, ChangePath: fixture.ChangePath, ArtifactPath: "docs/plans/native.md", DocketExecutable: binary, DocketCommit: fixture.SourceCommit, ReadRoots: []string{root}, WritePaths: []string{"docs/plans/native.md"}, PlanSkill: "auto", BuildSkill: "auto", ResultsTemplate: "template", Resources: []codexcontract.Resource{{LogicalID: "template", Path: template, SHA256: hash(body), Source: "package:docket-implement-next"}}}
+	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: fixture.ChangeID, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh", Primary: primary, Feature: workspace.Path, CommonDir: filepath.Join(primary, ".git"), Branch: strings.TrimPrefix(workspace.FeatureRef, "refs/heads/"), EntryHEAD: fixture.PrimaryHEAD, MetadataRevision: status.Context.MetadataRevision, ChangePath: fixture.ChangePath, ArtifactPath: "docs/plans/native.md", DocketExecutable: binary, DocketCommit: fixture.SourceCommit, ReadRoots: []string{root}, WritePaths: []string{"docs/plans/native.md"}, PlanSkill: "auto", BuildSkill: "auto", ResultsTemplate: "template", Resources: []codexcontract.Resource{{LogicalID: "template", Path: template, SHA256: hash(body), Source: "package:docket-implement-next"}}, ResourceDependencies: map[string][]string{"template": {}}}
 	assignmentPath := filepath.Join(root, "planner-assignment.json")
 	writeJSON := func(path string, v any) string {
 		t.Helper()
@@ -179,5 +180,107 @@ func checkNativePlannerEntryDefaultsToStartup(t *testing.T, root, destination, b
 				t.Errorf("official local backlink rejected after attachment from %s: %+v", dir, finding)
 			}
 		}
+	}
+}
+
+func checkNativePlannerResourceContract(t *testing.T, root, destination, binary string, fixture manifest, workspace app.WorkspaceOpResult, metadataRevision string) {
+	t.Helper()
+	primary := filepath.Join(destination, "primary")
+	planningRoot := filepath.Join(root, "planning-resources")
+	if err := os.MkdirAll(planningRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	planSkillPath := filepath.Join(planningRoot, "SKILL.md")
+	planPromptPath := filepath.Join(planningRoot, "plan-document-reviewer-prompt.md")
+	if err := os.WriteFile(planSkillPath, []byte("Read [the plan reviewer prompt](plan-document-reviewer-prompt.md).\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(planPromptPath, []byte("Review the plan.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resource := func(id, path, source string) codexcontract.Resource {
+		t.Helper()
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return codexcontract.Resource{LogicalID: id, Path: path, SHA256: hash(body), Source: source}
+	}
+	buildRoot := filepath.Join(primary, ".agents", "skills", "docket-build")
+	planResultsPath := filepath.Join(primary, ".agents", "skills", "docket-implement-next", "references", "codex-planning-results.md")
+	resultsTemplatePath := filepath.Join(workspace.Path, ".agents", "skills", "docket-implement-next", "results-template.md")
+	baseResources := []codexcontract.Resource{
+		resource("plan-skill", planSkillPath, "planning-resources.json"),
+		resource("plan-review-prompt", planPromptPath, "planning-resources.json"),
+		resource("build-skill", filepath.Join(buildRoot, "SKILL.md"), "fixture-manifest"),
+		resource("plan-results-contract", planResultsPath, "fixture-manifest"),
+		resource("results-template", resultsTemplatePath, "fixture-manifest"),
+	}
+	a := codexcontract.Assignment{
+		SchemaVersion: 1, ChangeID: fixture.ChangeID, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh",
+		Primary: primary, Feature: workspace.Path, CommonDir: filepath.Join(primary, ".git"), Branch: strings.TrimPrefix(workspace.FeatureRef, "refs/heads/"),
+		EntryHEAD: fixture.PrimaryHEAD, MetadataRevision: metadataRevision, ChangePath: fixture.ChangePath,
+		ArtifactPath: "docs/plans/resource-contract.md", DocketExecutable: binary, DocketCommit: fixture.SourceCommit,
+		Resources: baseResources, ReadRoots: []string{root}, WritePaths: []string{"docs/plans/resource-contract.md"},
+		ResourceDependencies: map[string][]string{
+			"plan-skill":            {"plan-review-prompt"},
+			"build-skill":           {},
+			"plan-results-contract": {},
+			"results-template":      {},
+		},
+		PlanSkill: "superpowers:writing-plans", BuildSkill: "docket-build", ResultsTemplate: resultsTemplatePath,
+	}
+	runAssignment := func(label string, assignment codexcontract.Assignment) (app.CheckInputsResult, int) {
+		t.Helper()
+		body, err := json.Marshal(assignment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(root, "planner-resource-assignment-"+label+".json")
+		if err := os.WriteFile(path, body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command(binary, "agent", "check-inputs", "--assignment", path, "--sha256", hash(body), "--stage", "prepare", "--repo-dir", primary, "--json")
+		cmd.Dir = primary
+		out, runErr := cmd.CombinedOutput()
+		code := 0
+		if runErr != nil {
+			code = cmd.ProcessState.ExitCode()
+		}
+		var result app.CheckInputsResult
+		if err := json.Unmarshal(out, &result); err != nil {
+			t.Fatalf("%s assignment: exit=%d err=%v decode=%v out=%s", label, code, runErr, err, out)
+		}
+		return result, code
+	}
+	malformed, code := runAssignment("retained-malformed", a)
+	if code != 2 || malformed.Reason != `resources-invalid: selected resource "superpowers:writing-plans" is not declared` {
+		t.Fatalf("retained malformed assignment: exit=%d result=%s reason=%q", code, malformed.Result, malformed.Reason)
+	}
+	a.PlanSkill, a.BuildSkill, a.ResultsTemplate = "plan-skill", "build-skill", "results-template"
+	incomplete, code := runAssignment("selector-corrected-incomplete", a)
+	if code != 2 || !strings.Contains(incomplete.Reason, `resource "build-skill" links to undeclared local dependency`) {
+		t.Fatalf("selector-corrected incomplete assignment: exit=%d result=%s reason=%q", code, incomplete.Result, incomplete.Reason)
+	}
+	a.Resources = append(a.Resources,
+		resource("build-task-routing", filepath.Join(buildRoot, "references", "task-routing.md"), "fixture-manifest"),
+		resource("build-gate-execution", filepath.Join(buildRoot, "references", "gate-execution.md"), "fixture-manifest"),
+		resource("build-gate-caller-loop", filepath.Join(buildRoot, "references", "gate-caller-loop.md"), "fixture-manifest"),
+		resource("build-gate-execution-evidence", filepath.Join(buildRoot, "references", "gate-execution-evidence.md"), "fixture-manifest"),
+	)
+	a.ResourceDependencies = map[string][]string{
+		"plan-skill":                    {"plan-review-prompt"},
+		"plan-review-prompt":            {},
+		"build-skill":                   {"build-task-routing", "build-gate-execution"},
+		"build-task-routing":            {},
+		"build-gate-execution":          {"build-gate-caller-loop", "build-gate-execution-evidence"},
+		"build-gate-caller-loop":        {"build-gate-execution"},
+		"build-gate-execution-evidence": {"build-gate-execution"},
+		"plan-results-contract":         {},
+		"results-template":              {},
+	}
+	complete, code := runAssignment("corrected-complete", a)
+	if code != 0 || complete.Result != app.ResultApplied {
+		t.Fatalf("corrected complete assignment: exit=%d result=%s reason=%q", code, complete.Result, complete.Reason)
 	}
 }

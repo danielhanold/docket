@@ -1,12 +1,31 @@
 package app
 
 import (
+	"encoding/json"
 	"reflect"
 	"regexp"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
 )
+
+func TestReflectDescriptorPublishesFieldDocumentation(t *testing.T) {
+	type documented struct {
+		Selector string `json:"selector" docketdoc:"Must equal one resources[].logical_id value."`
+	}
+	d := mustReflect(t, documented{})
+	body, err := json.Marshal(fieldByKey(t, d, "selector"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire map[string]any
+	if err := json.Unmarshal(body, &wire); err != nil {
+		t.Fatal(err)
+	}
+	if wire["description"] != "Must equal one resources[].logical_id value." {
+		t.Fatalf("documented field description = %#v", wire["description"])
+	}
+}
 
 // descriptorKeys returns the top-level field keys of a descriptor in order.
 func descriptorKeys(d TypeDescriptor) []string {

@@ -128,6 +128,11 @@ func ValidateResources(a Assignment) error {
 		}
 		byPath[r.Path] = r
 	}
+	for _, id := range []string{a.PlanSkill, a.BuildSkill, a.ResultsTemplate} {
+		if id != "" && id != "auto" && !logical[id] {
+			return fmt.Errorf("selected resource %q is not declared", id)
+		}
+	}
 	if a.Role == "docket-plan-writer" {
 		var templatePath string
 		for _, resource := range a.Resources {
@@ -140,7 +145,10 @@ func ValidateResources(a Assignment) error {
 			return fmt.Errorf("planner results template is not the packaged docket-implement-next template")
 		}
 	}
+	directDependencies := map[string]map[string]bool{}
 	for p := range byPath {
+		parentID := byPath[p].LogicalID
+		directDependencies[parentID] = map[string]bool{}
 		b, err := readFileBounded(p, 8<<20)
 		if err != nil {
 			return err
@@ -154,14 +162,11 @@ func ValidateResources(a Assignment) error {
 			if !filepath.IsAbs(resolved) {
 				resolved = filepath.Clean(filepath.Join(filepath.Dir(p), resolved))
 			}
-			if _, ok := byPath[resolved]; !ok {
+			dependency, ok := byPath[resolved]
+			if !ok {
 				return fmt.Errorf("resource %q links to undeclared local dependency %q", byPath[p].LogicalID, target)
 			}
-		}
-	}
-	for _, id := range []string{a.PlanSkill, a.BuildSkill, a.ResultsTemplate} {
-		if id != "" && id != "auto" && !logical[id] {
-			return fmt.Errorf("selected resource %q is not declared", id)
+			directDependencies[parentID][dependency.LogicalID] = true
 		}
 	}
 	for parent, children := range a.ResourceDependencies {
@@ -174,6 +179,23 @@ func ValidateResources(a Assignment) error {
 				return fmt.Errorf("resource dependency %q -> %q is missing or repeated", parent, child)
 			}
 			seen[child] = true
+		}
+	}
+	if a.Role == "docket-plan-writer" {
+		for _, resource := range a.Resources {
+			declared, ok := a.ResourceDependencies[resource.LogicalID]
+			if !ok {
+				return fmt.Errorf("planner resource_dependencies omits resource %q", resource.LogicalID)
+			}
+			listed := map[string]bool{}
+			for _, child := range declared {
+				listed[child] = true
+			}
+			for child := range directDependencies[resource.LogicalID] {
+				if !listed[child] {
+					return fmt.Errorf("resource dependency %q omits direct local dependency %q", resource.LogicalID, child)
+				}
+			}
 		}
 	}
 	return nil

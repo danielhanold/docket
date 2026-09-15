@@ -11,6 +11,7 @@ package cli
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -144,9 +145,10 @@ func TestAgentCheckInputsSchemaDisclosesConstructibleDocuments(t *testing.T) {
 				SchemaVersion int    `json:"schema_version"`
 				Body          struct {
 					Fields []struct {
-						Key    string `json:"key"`
-						Enum   string `json:"enum"`
-						Fields []struct {
+						Key         string `json:"key"`
+						Enum        string `json:"enum"`
+						Description string `json:"description"`
+						Fields      []struct {
 							Key string `json:"key"`
 						} `json:"fields"`
 					} `json:"fields"`
@@ -207,6 +209,25 @@ func TestAgentCheckInputsSchemaDisclosesConstructibleDocuments(t *testing.T) {
 	}
 	if assignment["role"].enum != "agent_roles" || assignment["mode"].enum != "assignment_modes" {
 		t.Errorf("assignment enum references are incomplete: role=%q mode=%q", assignment["role"].enum, assignment["mode"].enum)
+	}
+	var assignmentDescriptions = map[string]string{}
+	for _, d := range doc.Operations[0].Documents {
+		if d.ID != "assignment" {
+			continue
+		}
+		for _, f := range d.Body.Fields {
+			assignmentDescriptions[f.Key] = f.Description
+		}
+	}
+	for _, key := range []string{"plan_skill", "build_skill", "results_template"} {
+		if !strings.Contains(assignmentDescriptions[key], "resources[].logical_id") {
+			t.Errorf("assignment %s does not disclose logical-id selector semantics: %q", key, assignmentDescriptions[key])
+		}
+	}
+	for _, clause := range []string{"every declared resource", "direct local Markdown dependencies"} {
+		if !strings.Contains(assignmentDescriptions["resource_dependencies"], clause) {
+			t.Errorf("resource_dependencies description omits %q: %q", clause, assignmentDescriptions["resource_dependencies"])
+		}
 	}
 	payload := docs["worker-payload"]
 	for _, key := range []string{"kind", "assignment_path", "assignment_sha256", "entry_argv", "attempt", "resolver_reservation"} {
