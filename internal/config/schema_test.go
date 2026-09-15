@@ -18,7 +18,8 @@ func TestRegistryPathSetMatchesV092(t *testing.T) {
 		"runtime.bash", "metadata_branch", "integration_branch",
 		"changes_dir", "adrs_dir", "results_dir",
 		"finalize.gate", "finalize.test_command", "finalize.require_pr_approval",
-		"finalize.resolver_max_attempts", "finalize.skip_results_only_delta",
+		"finalize.resolver_max_attempts", "finalize.repair_max_attempts",
+		"finalize.skip_results_only_delta",
 		"learnings.enabled", "learnings.cap",
 		"reclaim.lease_ttl", "reclaim.auto",
 		"build.checkpoint", "build.gate", "build.test_command", "build.max_attempts",
@@ -115,6 +116,7 @@ func TestRegistryDefaults(t *testing.T) {
 		"finalize.test_command":            "",
 		"finalize.require_pr_approval":     false,
 		"finalize.resolver_max_attempts":   10,
+		"finalize.repair_max_attempts":     6,
 		"finalize.skip_results_only_delta": false,
 		"learnings.enabled":                true,
 		"learnings.cap":                    300,
@@ -296,6 +298,16 @@ func TestLeafValidators(t *testing.T) {
 		{"resolver max attempts bool", "finalize.resolver_max_attempts", "true", nil, CodeInvalidType},
 		{"resolver max attempts fraction", "finalize.resolver_max_attempts", "2.5", nil, CodeInvalidType},
 		{"resolver max attempts list", "finalize.resolver_max_attempts", "[3]", nil, CodeInvalidType},
+
+		// finalize.repair_max_attempts: positive int, floor 1 (intLeaf(1)).
+		{"repair max attempts explicit", "finalize.repair_max_attempts", "9", 9, ""},
+		{"repair max attempts floor ok", "finalize.repair_max_attempts", "1", 1, ""},
+		{"repair max attempts zero", "finalize.repair_max_attempts", "0", nil, CodeInvalidValue},
+		{"repair max attempts negative", "finalize.repair_max_attempts", "-2", nil, CodeInvalidValue},
+		{"repair max attempts string", "finalize.repair_max_attempts", `"six"`, nil, CodeInvalidType},
+		{"repair max attempts bool", "finalize.repair_max_attempts", "true", nil, CodeInvalidType},
+		{"repair max attempts fraction", "finalize.repair_max_attempts", "2.5", nil, CodeInvalidType},
+		{"repair max attempts list", "finalize.repair_max_attempts", "[6]", nil, CodeInvalidType},
 
 		// build.max_attempts / run.max_attempts: positive int, floor 1 (intLeaf(1)).
 		{"build max attempts explicit", "build.max_attempts", "6", 6, ""},

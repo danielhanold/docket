@@ -124,6 +124,14 @@ finalize:
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   resolver_max_attempts: 10
 
+  # repair_max_attempts — how many fix attempts the integration-repair agent gets when the test
+  # suite is red after finalize's rebase, the initial attempt included, before finalize stops and
+  # hands the failure to you. 6 (the default) gives a stubborn semantic breakage room to converge;
+  # set 1 for a single-shot repair. Must be a whole number of 1 or more. Separate from
+  # resolver_max_attempts, which budgets rebase conflict resolution, not post-rebase repair.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  repair_max_attempts: 6
+
   # skip_results_only_delta — saves a redundant test run before merging (change 0190).
   # Before merging, finalize re-runs the test suite unless it can prove the tests already passed on
   # exactly this code. By default, "proof" means an exact match: the commit that was tested IS the

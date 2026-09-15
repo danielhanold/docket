@@ -76,6 +76,8 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.Finalize.RequirePRApproval.Value, eff.Finalize.RequirePRApproval.Provenance, eff.Finalize.RequirePRApproval.Explicit
 	case "finalize.resolver_max_attempts":
 		return eff.Finalize.ResolverMaxAttempts.Value, eff.Finalize.ResolverMaxAttempts.Provenance, eff.Finalize.ResolverMaxAttempts.Explicit
+	case "finalize.repair_max_attempts":
+		return eff.Finalize.RepairMaxAttempts.Value, eff.Finalize.RepairMaxAttempts.Provenance, eff.Finalize.RepairMaxAttempts.Explicit
 	case "build.max_attempts":
 		return eff.Build.MaxAttempts.Value, eff.Build.MaxAttempts.Provenance, eff.Build.MaxAttempts.Explicit
 	case "run.max_attempts":
@@ -105,6 +107,10 @@ func leaseTTL(n int) string { return fmt.Sprintf("reclaim:\n  lease_ttl: %d\n", 
 
 func resolverMax(n int) string {
 	return fmt.Sprintf("finalize:\n  resolver_max_attempts: %d\n", n)
+}
+
+func repairMax(n int) string {
+	return fmt.Sprintf("finalize:\n  repair_max_attempts: %d\n", n)
 }
 
 func buildMax(n int) string {
@@ -389,6 +395,41 @@ func TestPrecedenceResolverMaxAttempts(t *testing.T) {
 			}
 			if got.Explicit != tc.explicit {
 				t.Errorf("resolver_max_attempts explicit = %v, want %v", got.Explicit, tc.explicit)
+			}
+		})
+	}
+}
+
+// TestPrecedenceRepairMaxAttempts pins finalize.repair_max_attempts through the
+// full four-layer precedence (repository-local > repository-committed > global >
+// built-in), cloned from TestPrecedenceResolverMaxAttempts — the built-in
+// default is 6.
+func TestPrecedenceRepairMaxAttempts(t *testing.T) {
+	cases := []struct {
+		name     string
+		sources  []Source
+		want     int
+		layer    LayerKind
+		explicit bool
+	}{
+		{"nothing declared wins the built-in default", nil, 6, LayerBuiltIn, false},
+		{"global alone", []Source{srcG(repairMax(4))}, 4, LayerGlobal, true},
+		{"repository beats global", []Source{srcG(repairMax(4)), srcR(repairMax(5))}, 5, LayerRepository, true},
+		{"repository-local beats everything", []Source{srcG(repairMax(4)), srcR(repairMax(5)), srcL(repairMax(6))}, 6, LayerRepositoryLocal, true},
+		{"repository-local beats global with no repository layer", []Source{srcG(repairMax(4)), srcL(repairMax(6))}, 6, LayerRepositoryLocal, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := mustResolve(t, tc.sources, mainCtx)
+			got := res.effective.Finalize.RepairMaxAttempts
+			if got.Value != tc.want {
+				t.Errorf("repair_max_attempts = %d, want %d", got.Value, tc.want)
+			}
+			if got.Provenance.Layer != tc.layer {
+				t.Errorf("repair_max_attempts provenance layer = %q, want %q", got.Provenance.Layer, tc.layer)
+			}
+			if got.Explicit != tc.explicit {
+				t.Errorf("repair_max_attempts explicit = %v, want %v", got.Explicit, tc.explicit)
 			}
 		})
 	}

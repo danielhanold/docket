@@ -150,6 +150,11 @@ type Finalize struct {
 	// rebase attempt (change 0349). Positive; snapshotted into the rebase
 	// receipt when a fresh attempt begins.
 	ResolverMaxAttempts Value[int] `json:"resolver_max_attempts"`
+	// RepairMaxAttempts caps integration-repair fix attempts per red rebased
+	// gate (change 0419). Positive; the initial attempt counts. Enforced by the
+	// dispatched repair agent's contract, not by a durable Go reservation —
+	// unlike ResolverMaxAttempts it is never snapshotted into a receipt.
+	RepairMaxAttempts Value[int] `json:"repair_max_attempts"`
 }
 
 // Build is the build role's OWN gate policy (change 0374). It resolves
