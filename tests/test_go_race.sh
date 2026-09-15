@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # docket-suite: go
-# tests/test_go_race.sh — the whole-module data-race gate (change 0308), a single
-# `go test -race -count=1 ./...` run over the default (fast) corpus.
+# tests/test_go_race.sh — the non-app module data-race gate (change 0308).
+# The two test_go_race_app_* siblings partition internal/app's top-level tests
+# from a live listing; this file validates that partition before testing every
+# other default-corpus package.
 #
-# HISTORY. Changes 0309, 0313, and 0314 sharded this gate four ways so each piece
-# could fit under the parallel phase's hard 60s budget ceiling; change 0332
-# collapsed the shards back to one `go test -race -count=1 ./...` run. One `./...`
-# run covers the module by construction: nothing to partition, no completeness
-# guard to maintain.
+# HISTORY. Changes 0309, 0313, and 0314 sharded this gate four ways; change 0332
+# collapsed it to one module run. Growth in internal/app later crossed the
+# authoritative serial threshold. The current split keeps package discovery live:
+# this file derives the non-app package set, while the app siblings derive and
+# partition the package's complete top-level test set.
 #
 # PARTITION AND LANE. Change 0333 partitioned the slow real-git, subprocess, and
 # process-lifecycle integration corpus of internal/app, internal/githubcli, and
@@ -103,12 +105,30 @@ if [ -n "${DOCKET_GO_TEST_CONCURRENCY:-}" ]; then
   export GOMAXPROCS="${DOCKET_GO_TEST_CONCURRENCY}"
 fi
 
-# The detector's verdict. A race is reported on stderr and turns the exit
+# Prove the derived internal/app partition exists before excluding that package
+# from this process. The validator inspects every sibling declaration and requires
+# one unique zero-based index for the common declared shard count.
+. "$REPO/tests/lib/go-race-app-shard.sh"
+validate_race_app_shards
+
+module="$(go list -m 2>/dev/null)"
+assert "go list -m resolves the module path" '[ -n "$module" ]'
+package_out="$(go list ./... 2>&1)"; package_rc=$?
+assert "go list ./... derives the race package census" \
+  '[ "$package_rc" -eq 0 ] || { printf "%s\n" "$package_out" >&2; false; }'
+app_package="$module/internal/app"
+app_package_hits="$(grep -cxF -- "$app_package" <<<"$package_out")"
+assert "the race package census contains internal/app exactly once" '[ "$app_package_hits" -eq 1 ]'
+rest_packages="$(grep -vxF -- "$app_package" <<<"$package_out")"
+assert "the non-app race package census is non-empty" '[ -n "$rest_packages" ]'
+
+# The detector's verdict for every package outside internal/app. A race is
+# reported on stderr and turns the exit
 # non-zero, so the captured output is replayed on failure rather than
 # summarized — the WARNING block names the two conflicting stacks and is the
 # whole diagnostic.
-race_out="$(go test -race $go_conc_args -count=1 ./... 2>&1)"
+race_out="$(go test -race $go_conc_args -count=1 $rest_packages 2>&1)"
 race_rc=$?
-assert "go test -race -count=1 ./... (the whole module) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
+assert "go test -race -count=1 passes for every non-app module package" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
 
 exit "$fail"
