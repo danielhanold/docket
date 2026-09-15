@@ -1,6 +1,6 @@
 # Backlog
 
-**429 changes** — 🟢 3 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 278 done · 🗑️ 113 killed
+**429 changes** — 🟢 3 in progress · 🟣 3 groomed · 🟡 20 proposed · ⚪ 11 deferred · ✅ 279 done · 🗑️ 113 killed
 
 ## 🟢 In progress (3)
 
@@ -9,12 +9,6 @@
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0429](active/0429-fix-stacked-change-validation-after-a-manual-parent-rebase.md) | Fix stacked-change validation after a manual parent rebase | `high` | `fix` | [#304](https://github.com/danielhanold/docket/pull/304) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -106,7 +100,6 @@ graph TD
   0423 --> 0425
   0425 --> 0426
   0427
-  0429
   0192:::done
   0251:::done
   0370:::done
@@ -116,10 +109,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (391)</summary>
+<details><summary>✅🗑️ Archive — done + killed (392)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0429](archive/2026-09-15-0429-fix-stacked-change-validation-after-a-manual-parent-rebase.md) | Fix stacked-change validation after a manual parent rebase | 2026-09-15 |
 | [0419](archive/2026-09-15-0419-make-finalize-repair-attempts-configurable-with-a-default-of.md) | Make finalize repair attempts configurable with a default of six | 2026-09-15 |
 | [0417](archive/2026-09-15-0417-artifacts-block-pins-plan-results-links-to-the-docket-branch.md) | Artifacts block pins plan/results links to the docket branch, where those files never live | 2026-09-15 |
 | [0428](archive/2026-09-14-0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md) | Recover legacy gate history without blocking unrelated worktree admission | 2026-09-14 |
@@ -134,7 +128,6 @@ graph TD
 | [0154](archive/2026-09-09-0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Remove stale Bash instructions and duplicated runtime contracts from Docket skills | 2026-09-09 |
 | [0410](archive/2026-09-08-0410-require-durable-results-artifacts-with-human-testing-and-coo.md) | Require durable results artifacts with human testing and coordinator findings | 2026-09-08 |
 | [0408](archive/2026-09-08-0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | 2026-09-08 |
-| [0376](archive/2026-09-08-0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | 2026-09-08 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -253,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 27 done |
+| [2026-09](archive/) | 28 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

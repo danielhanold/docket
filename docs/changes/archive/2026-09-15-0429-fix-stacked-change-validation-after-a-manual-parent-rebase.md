@@ -2,7 +2,7 @@
 id: 429
 slug: 'fix-stacked-change-validation-after-a-manual-parent-rebase'
 title: 'Fix stacked-change validation after a manual parent rebase'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-09-15'
@@ -22,7 +22,7 @@ branch: 'fix/fix-stacked-change-validation-after-a-manual-parent-rebase'
 pr: 'https://github.com/danielhanold/docket/pull/304'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T20:40:59Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-15T20:40:59Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-design.md) |
-| Plan | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md](https://github.com/danielhanold/docket/blob/fix/fix-stacked-change-validation-after-a-manual-parent-rebase/docs/superpowers/plans/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md) |
-| Results | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-results.md](https://github.com/danielhanold/docket/blob/fix/fix-stacked-change-validation-after-a-manual-parent-rebase/docs/results/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-results.md) |
+| Plan | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase.md) |
+| Results | [2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-15-fix-stacked-change-validation-after-a-manual-parent-rebase-results.md) |
 | ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
