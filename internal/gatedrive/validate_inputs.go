@@ -9,7 +9,20 @@ func (d *Driver) ValidateChildInputs(req StartRequest) error {
 	if req.ScopeID == "" {
 		return fmt.Errorf("gatedrive: child inputs require a scope")
 	}
-	return d.precheckScopedStart(req)
+	if err := d.precheckScopedStart(req); err != nil {
+		return err
+	}
+	scope, err := d.store.LoadScope(req.ScopeID)
+	if err != nil {
+		return err
+	}
+	if err := d.validateScopeEpoch(scope, req.RunEpochID, "validate-child"); err != nil {
+		return err
+	}
+	if req.PredecessorDriveID != "" && scope.CurrentDriveID != req.PredecessorDriveID {
+		return ownershipErr(ErrStalePredecessor, "validate-child")
+	}
+	return nil
 }
 
 type RecoveredInputs struct {
@@ -21,6 +34,8 @@ type RecoveredInputs struct {
 	Phase           string
 	GateContext     string
 	RunEpochID      string
+	RepoDir         string
+	Worktree        string
 }
 
 // ValidateRecoveredInputs verifies a closed dispatch boundary's terminal drive
@@ -37,14 +52,38 @@ func (d *Driver) ValidateRecoveredInputs(in RecoveredInputs) error {
 	if err != nil {
 		return err
 	}
-	if rec.OwnerGeneration != in.OwnerGeneration || !isTerminalOutcome(rec.LastOutcome) {
+	if rec.OwnerGeneration != in.OwnerGeneration || rec.LastOutcome != PASSED {
 		return ownershipErr(ErrStalePredecessor, "validate-recovered")
 	}
-	if rec.ChangeID != in.ChangeID || rec.TaskID != in.TaskID || rec.Phase != in.Phase || scope.RunEpochID != in.RunEpochID {
+	if rec.ScopeID != in.ScopeID || rec.ChangeID != in.ChangeID || rec.TaskID != in.TaskID || rec.Phase != in.Phase || rec.RepoIdentity != in.RepoDir || rec.WorktreePath != in.Worktree || scope.RepoIdentity != in.RepoDir || scope.Worktree != in.Worktree {
 		return ownershipErr(ErrScopeIdentityMismatch, "validate-recovered")
 	}
 	if rec.GateContextHash != "" && rec.GateContextHash != capHash(in.GateContext) {
 		return ownershipErr(ErrScopeIdentityMismatch, "validate-recovered")
+	}
+	if err := d.validateScopeEpoch(scope, in.RunEpochID, "validate-recovered"); err != nil {
+		return err
+	}
+	current, err := ComputeFingerprint(rec.WorktreePath, d.git)
+	if err != nil || !current.Equal(rec.Fingerprint) {
+		return ownershipErr(ErrStalePredecessor, "validate-recovered")
+	}
+	return nil
+}
+
+func (d *Driver) validateScopeEpoch(scope scopeRecord, runEpochID, op string) error {
+	if scope.RunEpochID != runEpochID {
+		return ownershipErr(ErrStaleRunEpoch, op)
+	}
+	if scope.RunEpochID == "" || d.epochRevoked == nil {
+		return nil
+	}
+	revoked, err := d.epochRevoked(scope.RunEpochID)
+	if err != nil {
+		return fmt.Errorf("gatedrive: %s epoch: %w", op, err)
+	}
+	if revoked {
+		return ownershipErr(ErrStaleRunEpoch, op)
 	}
 	return nil
 }

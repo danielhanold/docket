@@ -54,24 +54,36 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 	if wire.ProtocolVersion != 1 || wire.Operation != operation || wire.Result == "" {
 		return r, fmt.Errorf("receipt envelope does not match operation")
 	}
+	if !knownReceiptResult(wire.Result) {
+		return r, fmt.Errorf("receipt result is unknown")
+	}
 	r.Result, r.Drive, r.ScopeID, r.ChildCapability, r.ParentCapability, r.Reason, r.Message = wire.Result, wire.Drive, wire.ScopeID, wire.ChildCapability, wire.ParentCapability, wire.Reason, wire.Message
 	switch operation {
 	case "gate.drive.prepare-scope":
 		if wire.Reason != "" && wire.ScopeID == "" && wire.ChildCapability == "" && wire.ParentCapability == "" {
+			if wire.Result == "applied" || exitCode == 0 {
+				return r, fmt.Errorf("scope halt receipt result/exit is inconsistent")
+			}
 			r.Classification = "halt"
 			return r, nil
 		}
-		if wire.Drive != nil || wire.ScopeID == "" || wire.ChildCapability == "" || wire.ParentCapability == "" {
+		if wire.Result != "applied" || exitCode != 0 || wire.Drive != nil || wire.ScopeID == "" || wire.ChildCapability == "" || wire.ParentCapability == "" {
 			return r, fmt.Errorf("scope receipt is incomplete")
 		}
 		r.Classification = "scope"
 	case "gate.drive.start", "gate.drive.advance", "gate.drive.acknowledge", "gate.drive.handoff", "gate.drive.claim", "gate.drive.takeover":
 		if wire.Drive == nil && wire.Reason != "" {
+			if wire.Result == "applied" || exitCode == 0 {
+				return r, fmt.Errorf("drive halt receipt result/exit is inconsistent")
+			}
 			r.Classification = "halt"
 			return r, nil
 		}
-		if wire.Drive == nil || wire.Drive.ProtocolVersion != 1 || wire.Drive.DriveID == "" || wire.Drive.Generation == "" {
+		if wire.Result != "applied" || wire.Drive == nil || wire.Drive.ProtocolVersion != 1 || wire.Drive.DriveID == "" || wire.Drive.Generation == "" || wire.Drive.Deadline.IsZero() || !knownDriveOutcome(wire.Drive.Outcome) {
 			return r, fmt.Errorf("drive receipt is incomplete")
+		}
+		if (wire.Drive.Outcome == gatedrive.WAITING || wire.Drive.Outcome == gatedrive.PASSED) != (exitCode == 0) {
+			return r, fmt.Errorf("drive receipt outcome/exit is inconsistent")
 		}
 		r.Classification = string(wire.Drive.Outcome)
 		transfer := operation == "gate.drive.handoff" || operation == "gate.drive.claim" || operation == "gate.drive.takeover"
@@ -80,7 +92,7 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 				return r, fmt.Errorf("transfer receipt exposes run paths")
 			}
 		} else if wire.Drive.Outcome == gatedrive.WAITING {
-			if wire.Drive.RunRoot != "" {
+			if wire.Drive.RunRoot != "" || wire.Drive.RawRunDir != "" {
 				return r, fmt.Errorf("WAITING receipt exposes run_root")
 			}
 		} else {
@@ -93,11 +105,27 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 			if wire.Drive.Outcome == gatedrive.PASSED && (!filepath.IsAbs(wire.Drive.RawRunDir) || !pathWithin(wire.Drive.RunRoot, wire.Drive.RawRunDir)) {
 				return r, fmt.Errorf("PASSED receipt raw_run_dir does not match run_root")
 			}
+			if wire.Drive.Outcome != gatedrive.PASSED && wire.Drive.RawRunDir != "" {
+				return r, fmt.Errorf("non-PASSED receipt exposes raw_run_dir")
+			}
 		}
 	default:
 		return r, fmt.Errorf("unsupported receipt operation %q", operation)
 	}
 	return r, nil
+}
+
+func knownDriveOutcome(outcome gatedrive.Outcome) bool {
+	return outcome == gatedrive.WAITING || outcome == gatedrive.PASSED || outcome == gatedrive.FAILED || outcome == gatedrive.HALTED
+}
+
+func knownReceiptResult(result string) bool {
+	switch result {
+	case "applied", "no-op", "contended", "invalid-input", "invalid-state", "blocked", "unsupported-config", "gate-failed", "external-failed", "interrupted", "internal-error":
+		return true
+	default:
+		return false
+	}
 }
 
 func pathWithin(root, p string) bool {

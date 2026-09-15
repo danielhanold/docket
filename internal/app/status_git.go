@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
@@ -291,8 +292,9 @@ func (r *gitStatusReader) ReadChangeArtifact(ctx context.Context, pin StatusPin,
 		return obs, nil
 	}
 	interior := string(br.Blob.Bytes[block.Interior.Start:block.Interior.End])
-	needle := fmt.Sprintf("/%04d-%s.md)", target.ChangeID, target.Slug)
-	obs.BacklinkValid = strings.Contains(interior, needle)
+	activeNeedle := fmt.Sprintf("/%04d-%s.md)", target.ChangeID, target.Slug)
+	archivePattern := regexp.MustCompile(fmt.Sprintf(`/[0-9]{4}-[0-9]{2}-[0-9]{2}-%04d-%s\.md\)`, target.ChangeID, regexp.QuoteMeta(target.Slug)))
+	obs.BacklinkValid = strings.Contains(interior, activeNeedle) || archivePattern.MatchString(interior)
 	if !obs.BacklinkValid {
 		obs.Reason = "artifact backlink targets another change"
 	}

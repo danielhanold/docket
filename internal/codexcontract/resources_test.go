@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestValidateDocketExecutableBindsReportedCommit(t *testing.T) {
@@ -33,6 +34,25 @@ func TestValidateDocketExecutableBindsReportedCommit(t *testing.T) {
 	write(strings.Repeat("b", 40))
 	if err := ValidateDocketExecutable(a); err == nil {
 		t.Fatal("accepted a different binary at the assigned canonical path")
+	}
+}
+
+func TestValidateDocketExecutableBoundsStalledVersionProcess(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "docket")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nsleep 3\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	err = ValidateDocketExecutable(Assignment{DocketExecutable: path, DocketCommit: strings.Repeat("a", 40)})
+	if err == nil {
+		t.Fatal("stalled version process was accepted")
+	}
+	if elapsed := time.Since(start); elapsed >= 2*time.Second {
+		t.Fatalf("stalled version process was not bounded: %s", elapsed)
 	}
 }
 

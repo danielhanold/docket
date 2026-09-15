@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -90,7 +93,7 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 	if err := codexcontract.ValidateResources(a); err != nil {
 		return fail(ResultInvalidInput, "resources-invalid: "+err.Error())
 	}
-	payloadRequired := req.Stage == "dispatch" || (req.Stage == "entry" && assignmentRequiresPrivatePayload(a))
+	payloadRequired := req.Stage == "dispatch" || (req.Stage == "entry" && assignmentRequiresPrivatePayload(a)) || (req.Stage == "active" && (a.Mode == "resolver" || a.Mode == "repair"))
 	payloadSupplied := req.Payload != "" || req.PayloadSHA256 != ""
 	var payload codexcontract.WorkerPayload
 	if payloadRequired || payloadSupplied {
@@ -149,6 +152,9 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 			return fail(ResultInvalidState, "root-identity-mismatch")
 		}
 	}
+	if err := validateAssignedOutputPaths(a); err != nil {
+		return fail(ResultInvalidState, "output-path-invalid: "+err.Error())
+	}
 	if a.Mode == "review" {
 		if obs.HEAD != a.ReviewHEAD {
 			return fail(ResultInvalidState, "head-mismatch")
@@ -184,9 +190,9 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 				return fail(ResultInvalidState, "scope-validator-unavailable")
 			}
 			if payload.Recovered != nil {
-				err = deps.Scope.ValidateRecoveredInputs(gatedrive.RecoveredInputs{ScopeID: payload.Recovered.ScopeID, DriveID: payload.Recovered.DriveID, OwnerGeneration: payload.Recovered.OwnerGeneration, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, GateContext: payload.GateContext, RunEpochID: payload.RunEpochID})
+				err = deps.Scope.ValidateRecoveredInputs(gatedrive.RecoveredInputs{ScopeID: payload.Recovered.ScopeID, DriveID: payload.Recovered.DriveID, OwnerGeneration: payload.Recovered.OwnerGeneration, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, GateContext: payload.GateContext, RunEpochID: payload.RunEpochID, RepoDir: a.CommonDir, Worktree: a.Feature})
 			} else {
-				err = deps.Scope.ValidateChildInputs(gatedrive.StartRequest{RepoDir: a.Feature, Worktree: a.Feature, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, Branch: a.Branch, Ref: "refs/heads/" + a.Branch, Cwd: a.Feature, RunRoot: a.RunRoot, ScopeID: payload.ScopeID, ChildCapability: payload.ChildCapability, GateContext: payload.GateContext, RunEpochID: payload.RunEpochID, PredecessorDriveID: payload.PredecessorDriveID, PredecessorOwnerGen: payload.PredecessorOwnerGen})
+				err = deps.Scope.ValidateChildInputs(gatedrive.StartRequest{RepoDir: a.CommonDir, Worktree: a.Feature, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, Branch: a.Branch, Ref: "refs/heads/" + a.Branch, Cwd: a.Feature, RunRoot: a.RunRoot, ScopeID: payload.ScopeID, ChildCapability: payload.ChildCapability, GateContext: payload.GateContext, RunEpochID: payload.RunEpochID, PredecessorDriveID: payload.PredecessorDriveID, PredecessorOwnerGen: payload.PredecessorOwnerGen})
 			}
 			if err != nil {
 				return fail(ResultInvalidState, "scope-inputs-invalid: "+err.Error())
@@ -194,6 +200,42 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 		}
 	}
 	return CheckInputsResult{Envelope: NewEnvelope(OperationAgentCheckInputs, ResultApplied), AssignmentSHA256: req.SHA256, PayloadSHA256: req.PayloadSHA256, EntryArgv: codexcontract.EntryCheckerArgv(a, req.Assignment, req.SHA256), Observation: obs}
+}
+
+func validateAssignedOutputPaths(a codexcontract.Assignment) error {
+	paths := append(append([]string{}, a.WritePaths...), a.InheritedPaths...)
+	if a.ArtifactPath != "" {
+		paths = append(paths, a.ArtifactPath)
+	}
+	seen := map[string]bool{}
+	for _, rel := range paths {
+		if seen[rel] {
+			continue
+		}
+		seen[rel] = true
+		current := a.Feature
+		parts := strings.Split(filepath.ToSlash(rel), "/")
+		for i, part := range parts {
+			current = filepath.Join(current, filepath.FromSlash(part))
+			info, err := os.Lstat(current)
+			if errors.Is(err, os.ErrNotExist) {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("%s: %w", rel, err)
+			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("%s traverses a symlink", rel)
+			}
+			if i < len(parts)-1 && !info.IsDir() {
+				return fmt.Errorf("%s traverses a non-directory", rel)
+			}
+			if i == len(parts)-1 && !info.IsDir() && !info.Mode().IsRegular() {
+				return fmt.Errorf("%s is not a regular file or directory", rel)
+			}
+		}
+	}
+	return nil
 }
 
 func assignmentRequiresPrivatePayload(a codexcontract.Assignment) bool {
@@ -223,12 +265,9 @@ func readPinnedFile(path, digest string) ([]byte, error) {
 	if path == "" || digest == "" {
 		return nil, fmt.Errorf("path and sha256 are required")
 	}
-	b, err := os.ReadFile(path)
+	b, err := readFileWithLimit(path, 1<<20)
 	if err != nil {
 		return nil, err
-	}
-	if len(b) > 1<<20 {
-		return nil, fmt.Errorf("file exceeds 1 MiB")
 	}
 	want, err := hex.DecodeString(digest)
 	if err != nil || len(want) != sha256.Size {
@@ -242,12 +281,25 @@ func readPinnedFile(path, digest string) ([]byte, error) {
 }
 
 func readPinnedFileUnchecked(path string) ([]byte, error) {
-	b, err := os.ReadFile(path)
+	b, err := readFileWithLimit(path, 1<<20)
 	if err != nil {
 		return nil, err
 	}
-	if len(b) > 1<<20 {
-		return nil, fmt.Errorf("file exceeds 1 MiB")
-	}
 	return b, nil
+}
+
+func readFileWithLimit(path string, max int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	body, err := io.ReadAll(io.LimitReader(file, max+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > max {
+		return nil, fmt.Errorf("file exceeds %d bytes", max)
+	}
+	return body, nil
 }

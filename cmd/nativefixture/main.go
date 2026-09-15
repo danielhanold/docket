@@ -20,7 +20,10 @@ import (
 	"github.com/danielhanold/docket/internal/install"
 )
 
-type options struct{ Source, Binary, Destination, Pins string }
+type options struct {
+	Source, Binary, Destination, Pins string
+	RenderOnly                        bool
+}
 type manifest struct {
 	SchemaVersion         int               `json:"schema_version"`
 	SourceCommit          string            `json:"source_commit"`
@@ -46,8 +49,15 @@ func main() {
 	flag.StringVar(&o.Binary, "binary", "", "absolute candidate docket")
 	flag.StringVar(&o.Destination, "destination", "", "new absolute fixture directory")
 	flag.StringVar(&o.Pins, "pins", "", "operator-authored pin config")
+	flag.BoolVar(&o.RenderOnly, "render-only", false, "render candidate-owned Codex definitions into an existing fixture primary")
 	flag.Parse()
-	if err := prepare(o); err != nil {
+	var err error
+	if o.RenderOnly {
+		err = renderCandidateAssets(o)
+	} else {
+		err = prepare(o)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -175,30 +185,23 @@ func prepare(o options) error {
 	if configured.Result != "applied" && configured.Result != "no-op" {
 		return fmt.Errorf("candidate repository.configure-tests did not establish test policy")
 	}
-	roots := install.UserRoots{Home: filepath.Join(o.Destination, "staging-home")}
-	targets, err := codex.New().Plan(harness.PlanInput{Assets: catalog, Mode: harness.ModeDevelopment, AssetsDir: o.Source, Roots: roots, Agents: snap.Effective.Agents})
-	if err != nil {
+	files := map[string]string{}
+	if err := runCandidateRenderer(o, primary); err != nil {
 		return err
 	}
-	files := map[string]string{}
-	for _, t := range targets {
-		if t.Kind == install.KindFile {
-			dst := filepath.Join(primary, ".codex", "agents", filepath.Base(t.Path))
-			if err := writeFile(dst, t.Content, 0o644); err != nil {
-				return err
-			}
-			files[rel(primary, dst)] = hash(t.Content)
+	for _, source := range sources {
+		dst := filepath.Join(primary, ".codex", "agents", source.Name+".toml")
+		body, err := os.ReadFile(dst)
+		if err != nil {
+			return fmt.Errorf("candidate rendered agent %s: %w", source.Name, err)
 		}
+		files[rel(primary, dst)] = hash(body)
 	}
 	if err := copyTree(filepath.Join(o.Source, "skills"), filepath.Join(primary, ".agents", "skills"), files, primary); err != nil {
 		return err
 	}
-	gate, err := harness.RunGate(catalog)
+	agents, err := os.ReadFile(filepath.Join(primary, "AGENTS.md"))
 	if err != nil {
-		return err
-	}
-	agents := []byte("<!-- docket:dispatch:start (managed by docket — do not hand-edit) -->\n" + harness.CodexDispatchInterior(gate) + "<!-- docket:dispatch:end -->\n")
-	if err := writeFile(filepath.Join(primary, "AGENTS.md"), agents, 0o644); err != nil {
 		return err
 	}
 	files["AGENTS.md"] = hash(agents)
@@ -331,6 +334,56 @@ func prepare(o options) error {
 	mb, _ := json.MarshalIndent(m, "", "  ")
 	mb = append(mb, '\n')
 	return writeFile(filepath.Join(o.Destination, "manifest.json"), mb, 0o644)
+}
+
+func runCandidateRenderer(o options, primary string) error {
+	cmd := exec.Command("go", "run", "./cmd/nativefixture", "-render-only", "-source", o.Source, "-destination", primary, "-pins", o.Pins)
+	cmd.Dir = o.Source
+	cmd.Env = os.Environ()
+	body, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("candidate renderer: %w: %s", err, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+func renderCandidateAssets(o options) error {
+	for name, value := range map[string]string{"source": o.Source, "destination": o.Destination, "pins": o.Pins} {
+		if !filepath.IsAbs(value) {
+			return fmt.Errorf("-%s must be absolute", name)
+		}
+	}
+	pinsBytes, err := os.ReadFile(o.Pins)
+	if err != nil {
+		return err
+	}
+	snapshot, _, err := config.Resolve([]config.Source{{Layer: config.LayerGlobal, Name: o.Pins, Data: pinsBytes}}, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		return fmt.Errorf("pins: %w", err)
+	}
+	catalog, err := assets.EmbeddedCatalog()
+	if err != nil {
+		return err
+	}
+	targets, err := codex.New().Plan(harness.PlanInput{Assets: catalog, Mode: harness.ModeDevelopment, AssetsDir: o.Source, Roots: install.UserRoots{Home: o.Destination}, Agents: snapshot.Effective.Agents})
+	if err != nil {
+		return err
+	}
+	for _, target := range targets {
+		if target.Kind != install.KindFile {
+			continue
+		}
+		dst := filepath.Join(o.Destination, ".codex", "agents", filepath.Base(target.Path))
+		if err := writeFile(dst, target.Content, 0o644); err != nil {
+			return err
+		}
+	}
+	gate, err := harness.RunGate(catalog)
+	if err != nil {
+		return err
+	}
+	agents := []byte("<!-- docket:dispatch:start (managed by docket — do not hand-edit) -->\n" + harness.CodexDispatchInterior(gate) + "<!-- docket:dispatch:end -->\n")
+	return writeFile(filepath.Join(o.Destination, "AGENTS.md"), agents, 0o644)
 }
 
 func candidateSourceCatalog(source string) (assets.Catalog, error) {

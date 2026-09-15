@@ -62,7 +62,7 @@ func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 		if !wantRole {
 			return fmt.Errorf("%s payload does not match assignment role", p.Kind)
 		}
-		if p.ScopeID != "" || p.ChildCapability != "" || p.PredecessorDriveID != "" || p.PredecessorOwnerGen != "" || p.Recovered != nil {
+		if carriesWorkerAuthority(p) || p.GateContext != "" || p.RunEpochID != "" || p.Attempt != "" || p.ResolverReservation != "" {
 			return fmt.Errorf("%s payload carries worker authority", p.Kind)
 		}
 		return nil
@@ -71,13 +71,13 @@ func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 		if a.Role != "docket-rebase-resolver" || a.Mode != "resolver" || p.Attempt == "" || p.ResolverReservation == "" {
 			return fmt.Errorf("resolver payload does not match reserved assignment")
 		}
-		if p.ScopeID != "" || p.ChildCapability != "" || p.PredecessorDriveID != "" || p.PredecessorOwnerGen != "" || p.Recovered != nil {
+		if carriesWorkerAuthority(p) || p.GateContext != "" || p.RunEpochID != "" {
 			return fmt.Errorf("resolver payload carries worker authority")
 		}
 		return nil
 	}
 	if p.Kind == "repair" {
-		if a.Role != "docket-integration-repair" || a.Mode != "repair" || p.Attempt == "" || p.ScopeID != "" || p.ChildCapability != "" || p.Recovered != nil {
+		if a.Role != "docket-integration-repair" || a.Mode != "repair" || p.Attempt == "" || p.ResolverReservation != "" || carriesWorkerAuthority(p) || p.GateContext != "" || p.RunEpochID != "" {
 			return fmt.Errorf("repair payload does not match assignment")
 		}
 		return nil
@@ -87,6 +87,9 @@ func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 	}
 	if !strings.Contains(a.Role, "build") || a.TaskID == "" {
 		return fmt.Errorf("worker payload does not match a worker assignment")
+	}
+	if p.Attempt != "" || p.ResolverReservation != "" {
+		return fmt.Errorf("worker payload carries role authority")
 	}
 	if (p.PredecessorDriveID == "") != (p.PredecessorOwnerGen == "") {
 		return fmt.Errorf("predecessor receipt is incomplete")
@@ -104,6 +107,10 @@ func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 		return fmt.Errorf("worker payload is incomplete")
 	}
 	return nil
+}
+
+func carriesWorkerAuthority(p WorkerPayload) bool {
+	return p.ScopeID != "" || p.ChildCapability != "" || p.PredecessorDriveID != "" || p.PredecessorOwnerGen != "" || p.Recovered != nil
 }
 func DecodeWorkerPayload(b []byte) (WorkerPayload, error) {
 	if len(b) > 1<<20 {
