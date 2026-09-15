@@ -2,7 +2,7 @@
 id: 419
 slug: 'make-finalize-repair-attempts-configurable-with-a-default-of'
 title: 'Make finalize repair attempts configurable with a default of six'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-10'
@@ -19,7 +19,7 @@ trivial: true
 auto_groomable:
 branch_prefix:
 branch: 'feat/make-finalize-repair-attempts-configurable-with-a-default-of'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/302'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-15T03:28:02Z'
