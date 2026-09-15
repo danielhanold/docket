@@ -1,0 +1,151 @@
+//go:build integration
+
+package main
+
+import (
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/danielhanold/docket/internal/app"
+	"github.com/danielhanold/docket/internal/codexcontract"
+)
+
+// Exercise the generated entry command against real CLI/workspace dependencies.
+// App-only tests supplying RepoDir cannot catch an omitted CLI default.
+func checkNativePlannerEntryDefaultsToStartup(t *testing.T, root, destination, binary string, fixture manifest) {
+	t.Helper()
+	for _, path := range []*string{&root, &destination, &binary} {
+		canonical, err := filepath.EvalSymlinks(*path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		*path = canonical
+	}
+	primary := filepath.Join(destination, "primary")
+	invoke := func(dir string, args ...string) []byte {
+		t.Helper()
+		cmd := exec.Command(binary, args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("candidate %v: %v: %s", args, err, out)
+		}
+		return out
+	}
+	var status struct {
+		Context struct {
+			MetadataRevision string `json:"metadata_revision"`
+		} `json:"context"`
+		Changes []struct {
+			ID      int    `json:"id"`
+			Version string `json:"version"`
+		} `json:"changes"`
+	}
+	readStatus := func() string {
+		t.Helper()
+		if err := json.Unmarshal(invoke(primary, "status", "--repo-dir", primary, "--json"), &status); err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range status.Changes {
+			if c.ID == fixture.ChangeID {
+				return c.Version
+			}
+		}
+		t.Fatal("fixture change missing")
+		return ""
+	}
+	id := strconv.Itoa(fixture.ChangeID)
+	invoke(primary, "change", "claim", "--id", id, "--version", readStatus(), "--repo-dir", primary, "--json")
+	var workspace app.WorkspaceOpResult
+	if err := json.Unmarshal(invoke(primary, "workspace", "prepare", "--id", id, "--version", readStatus(), "--repo-dir", primary, "--json"), &workspace); err != nil {
+		t.Fatal(err)
+	}
+	if workspace.Path == "" || workspace.FeatureRef == "" {
+		t.Fatalf("missing workspace identity: %+v", workspace)
+	}
+	readStatus()
+	template := filepath.Join(root, "skills", "docket-implement-next", "results-template.md")
+	if err := os.MkdirAll(filepath.Dir(template), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("# Results\n")
+	if err := os.WriteFile(template, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a := codexcontract.Assignment{SchemaVersion: 1, ChangeID: fixture.ChangeID, Role: "docket-plan-writer", Phase: "plan", Mode: "fresh", Primary: primary, Feature: workspace.Path, CommonDir: filepath.Join(primary, ".git"), Branch: strings.TrimPrefix(workspace.FeatureRef, "refs/heads/"), EntryHEAD: fixture.PrimaryHEAD, MetadataRevision: status.Context.MetadataRevision, ChangePath: fixture.ChangePath, ArtifactPath: "docs/plans/native.md", DocketExecutable: binary, DocketCommit: fixture.SourceCommit, ReadRoots: []string{root}, WritePaths: []string{"docs/plans/native.md"}, PlanSkill: "auto", BuildSkill: "auto", ResultsTemplate: "template", Resources: []codexcontract.Resource{{LogicalID: "template", Path: template, SHA256: hash(body), Source: "package:docket-implement-next"}}}
+	assignmentPath := filepath.Join(root, "planner-assignment.json")
+	writeJSON := func(path string, v any) string {
+		t.Helper()
+		b, err := json.Marshal(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, b, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return hash(b)
+	}
+	digest := writeJSON(assignmentPath, a)
+	var prepared app.CheckInputsResult
+	if err := json.Unmarshal(invoke(primary, "agent", "check-inputs", "--assignment", assignmentPath, "--sha256", digest, "--stage", "prepare", "--repo-dir", primary, "--json"), &prepared); err != nil {
+		t.Fatal(err)
+	}
+	identity := prepared.Observation.RootIdentity
+	a.RootIdentity = &identity
+	// This witness describes the feature root; GitDir is a path, not its inode.
+	gitIdentity, err := codexcontract.ObserveRootIdentity(a.RootIdentity.GitDir, a.RootIdentity.GitDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gitIdentity.Inode == a.RootIdentity.Inode {
+		t.Fatal("fixture does not distinguish root and Git-directory inode")
+	}
+	payloadPath := filepath.Join(root, "planner-payload.json")
+	entry := func(dir string, explicit bool) app.CheckInputsResult {
+		t.Helper()
+		digest = writeJSON(assignmentPath, a)
+		if err := json.Unmarshal(invoke(primary, "agent", "check-inputs", "--assignment", assignmentPath, "--sha256", digest, "--stage", "prepare", "--repo-dir", primary, "--json"), &prepared); err != nil {
+			t.Fatal(err)
+		}
+		p := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: "planner", AssignmentPath: assignmentPath, AssignmentSHA256: digest, EntryArgv: prepared.EntryArgv, TaskText: "Write the assigned plan"}
+		pd := writeJSON(payloadPath, p)
+		args := append(append([]string{}, p.EntryArgv[1:]...), "--payload", payloadPath, "--payload-sha256", pd)
+		if explicit {
+			args = append(args, "--repo-dir", primary)
+		}
+		cmd := exec.Command(p.EntryArgv[0], args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		var got app.CheckInputsResult
+		if decodeErr := json.Unmarshal(out, &got); decodeErr != nil {
+			t.Fatalf("entry: err=%v decode=%v out=%s", err, decodeErr, out)
+		}
+		return got
+	}
+	for _, dir := range []string{primary, workspace.Path} {
+		t.Run(filepath.Base(dir), func(t *testing.T) {
+			got := entry(dir, false)
+			if got.Result != app.ResultApplied {
+				t.Fatalf("generated entry with omitted --repo-dir: result=%s reason=%s", got.Result, got.Reason)
+			}
+			if !a.RootIdentity.Equal(got.Observation.RootIdentity) {
+				t.Fatal("entry changed the frozen root witness")
+			}
+		})
+	}
+	if got := entry(root, true); got.Result != app.ResultApplied {
+		t.Fatalf("explicit repo-dir ignored: %s", got.Reason)
+	}
+	if got := entry(root, false); got.Result == app.ResultApplied {
+		t.Fatal("foreign startup accepted without explicit repo-dir")
+	}
+	a.RootIdentity.Inode = gitIdentity.Inode
+	if got := entry(primary, false); got.Reason != "root-identity-mismatch" {
+		t.Fatalf("wrong root inode: result=%s reason=%s", got.Result, got.Reason)
+	}
+}

@@ -6,8 +6,8 @@ import "errors"
 // worktree path to a stable filesystem object.
 var ErrRootIdentityUnsupported = errors.New("root identity is unsupported on this platform")
 
-// RootIdentity binds the canonical feature root and its per-worktree Git dir
-// to the filesystem object observed during preparation.
+// RootIdentity records the feature directory's Device/Inode and the canonical
+// per-worktree GitDir path. Device/Inode do not describe the Git directory.
 type RootIdentity struct {
 	Platform string `json:"platform"`
 	Device   uint64 `json:"device"`
