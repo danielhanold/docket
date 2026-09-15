@@ -79,3 +79,21 @@ reversal).
 - **Cost:** the gate asserts only its *mechanics* (config parse, mode dispatch, abort
   paths) in tests; resolution/repair *correctness* is judgment, governed by the agents'
   pinned tier — not test-asserted.
+
+## Update
+
+**2026-09-14 (change 0419).** The fixed **≤2 attempts** cap on `docket-integration-repair`
+(② above — Decision point 2 and the matching Consequences bullet) is **superseded by a
+configurable bound**: `finalize.repair_max_attempts`, a positive integer with a built-in
+default of **6** and a minimum of **1**, resolved through the normal per-field config
+precedence (repo-local > repo-committed > global > built-in), following the existing
+`finalize.resolver_max_attempts` pattern. The same change raises the built-in default of
+`finalize.resolver_max_attempts` from **3** to **10**.
+
+Semantics of the bound are otherwise unchanged: the initial repair attempt counts toward the
+maximum, success stops early, exhaustion takes the existing stuck/halted path, and repair
+attempts remain accounted separately from conflict-resolver dispatches.
+
+This is a bounded parameter change **within** this ADR's decision — the rebase-completion
+boundary and the split between ① conflict resolution and ② semantic repair are unaffected,
+so this ADR is neither reversed nor superseded and its accepted text above stands as written.
