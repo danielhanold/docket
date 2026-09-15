@@ -98,6 +98,9 @@ type PrepareFinalize struct {
 	// rebase attempt. Mirrored from config so the finalize skill reads it here
 	// rather than counting dispatches itself.
 	ResolverMaxAttempts int `json:"resolver_max_attempts"`
+	// RepairMaxAttempts is the resolved finalize.repair_max_attempts cap the
+	// finalize skill hands to the integration-repair dispatch (change 0419).
+	RepairMaxAttempts int `json:"repair_max_attempts"`
 }
 
 // PrepareBuild mirrors exactly the supported config.Effective build fields
@@ -462,6 +465,7 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 			TestCommand:         cfg.Finalize.TestCommand.Value,
 			RequirePRApproval:   cfg.Finalize.RequirePRApproval.Value,
 			ResolverMaxAttempts: cfg.Finalize.ResolverMaxAttempts.Value,
+			RepairMaxAttempts:   cfg.Finalize.RepairMaxAttempts.Value,
 		},
 		Build: PrepareBuild{
 			Gate:        cfg.Build.Gate.Value,

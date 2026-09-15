@@ -713,18 +713,19 @@ func TestConfigInspectionHumanTextNamesFileLine(t *testing.T) {
 // both its halves — the auto-reflected `effective` JSON (config.Effective) and
 // the hand-maintained `effective (winning layer)` human block (effectiveLines).
 // It asserts the resolved value, not mere presence (learnings:
-// defaulted-param-hides-caller-wiring): the default surfaces 3, an explicit
+// defaulted-param-hides-caller-wiring): the default surfaces 10, an explicit
 // repository-layer setting surfaces 4.
 func TestConfigDiagnosticsResolverMaxAttemptsSurface(t *testing.T) {
-	// Default: nothing declared → built-in 3 on both halves.
+	// Default: nothing declared → built-in 10 on both halves (change 0419 raised
+	// the built-in default from 3 to 10).
 	def := DiagnosticConfig(sparseSources(), mainCtx(), false)
 	if def.Effective == nil {
 		t.Fatal("default resolution produced no effective snapshot")
 	}
-	if got := def.Effective.Finalize.ResolverMaxAttempts.Value; got != 3 {
-		t.Errorf("effective JSON finalize.resolver_max_attempts = %d, want the built-in default 3", got)
+	if got := def.Effective.Finalize.ResolverMaxAttempts.Value; got != 10 {
+		t.Errorf("effective JSON finalize.resolver_max_attempts = %d, want the built-in default 10", got)
 	}
-	if h := def.HumanText(); !strings.Contains(h, "finalize.resolver_max_attempts = 3  [built-in]") {
+	if h := def.HumanText(); !strings.Contains(h, "finalize.resolver_max_attempts = 10  [built-in]") {
 		t.Errorf("human effective block lacks the built-in resolver cap line:\n%s", h)
 	}
 
@@ -743,6 +744,44 @@ func TestConfigDiagnosticsResolverMaxAttemptsSurface(t *testing.T) {
 	}
 	if h := set.HumanText(); !strings.Contains(h, "finalize.resolver_max_attempts = 4") {
 		t.Errorf("human effective block lacks the resolved resolver cap line:\n%s", h)
+	}
+}
+
+// TestConfigDiagnosticsRepairMaxAttemptsSurface pins that the effective-config
+// diagnostics surface reports finalize.repair_max_attempts (change 0419) on both
+// its halves — the auto-reflected `effective` JSON (config.Effective) and the
+// hand-maintained `effective (winning layer)` human block (effectiveLines). It
+// asserts the resolved value, not mere presence (learnings:
+// defaulted-param-hides-caller-wiring): the default surfaces 6, an explicit
+// repository-layer setting surfaces 9.
+func TestConfigDiagnosticsRepairMaxAttemptsSurface(t *testing.T) {
+	// Default: nothing declared → built-in 6 on both halves.
+	def := DiagnosticConfig(sparseSources(), mainCtx(), false)
+	if def.Effective == nil {
+		t.Fatal("default resolution produced no effective snapshot")
+	}
+	if got := def.Effective.Finalize.RepairMaxAttempts.Value; got != 6 {
+		t.Errorf("effective JSON finalize.repair_max_attempts = %d, want the built-in default 6", got)
+	}
+	if h := def.HumanText(); !strings.Contains(h, "finalize.repair_max_attempts = 6  [built-in]") {
+		t.Errorf("human effective block lacks the built-in repair cap line:\n%s", h)
+	}
+
+	// Explicit repository-layer setting → 9 on both halves.
+	sources := []config.Source{{
+		Layer: config.LayerRepository,
+		Name:  ".docket.yml",
+		Data:  []byte("finalize:\n  repair_max_attempts: 9\n"),
+	}}
+	set := DiagnosticConfig(sources, mainCtx(), false)
+	if set.Effective == nil {
+		t.Fatal("explicit resolution produced no effective snapshot")
+	}
+	if got := set.Effective.Finalize.RepairMaxAttempts.Value; got != 9 {
+		t.Errorf("effective JSON finalize.repair_max_attempts = %d, want the resolved 9", got)
+	}
+	if h := set.HumanText(); !strings.Contains(h, "finalize.repair_max_attempts = 9") {
+		t.Errorf("human effective block lacks the resolved repair cap line:\n%s", h)
 	}
 }
 

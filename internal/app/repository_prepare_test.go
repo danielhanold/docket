@@ -406,6 +406,9 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	// Resolved non-default resolver cap (change 0349): 4, not the built-in 3, so
 	// the assertion proves the leaf is wired through rather than defaulted.
 	cfg.Finalize.ResolverMaxAttempts.Value = 4
+	// Resolved non-default repair cap (change 0419): 7, not the built-in 6, so the
+	// assertion proves the leaf is wired through rather than defaulted.
+	cfg.Finalize.RepairMaxAttempts.Value = 7
 	// Divergent build policy: the build block mirrors build.* independently, so a
 	// build command that differs from finalize's proves the two are not aliased.
 	cfg.Build.Gate.Value = "off"
@@ -454,6 +457,7 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 				TestCommand         string `json:"test_command"`
 				RequirePRApproval   bool   `json:"require_pr_approval"`
 				ResolverMaxAttempts int    `json:"resolver_max_attempts"`
+				RepairMaxAttempts   int    `json:"repair_max_attempts"`
 			} `json:"finalize"`
 			Build struct {
 				Gate        string `json:"gate"`
@@ -488,6 +492,9 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	}
 	if c.Finalize.ResolverMaxAttempts != 4 {
 		t.Errorf("finalize.resolver_max_attempts = %d, want the resolved non-default 4", c.Finalize.ResolverMaxAttempts)
+	}
+	if c.Finalize.RepairMaxAttempts != 7 {
+		t.Errorf("finalize.repair_max_attempts = %d, want the resolved non-default 7", c.Finalize.RepairMaxAttempts)
 	}
 	if c.Build.TestCommand != "go test ./build-only" || c.Build.Gate != "off" {
 		t.Errorf("build not mirrored from config (independent of finalize): %+v", c.Build)
@@ -577,6 +584,44 @@ func TestRepositoryPrepareBuildMaxAttempts(t *testing.T) {
 	defPC := buildPrepareContext(defSnap.Effective, sc, preparableFacts(), "git@github.com:acme/widget.git")
 	if defPC.Build.MaxAttempts != 4 {
 		t.Errorf("default context.build.max_attempts = %d, want the built-in 4", defPC.Build.MaxAttempts)
+	}
+}
+
+// TestRepositoryPrepareRepairMaxAttempts asserts finalize.repair_max_attempts
+// (change 0419) is mirrored into the prepare context's finalize block: a repo
+// configured with a non-default value surfaces it (proving the leaf is wired
+// through rather than defaulted, learnings: defaulted-param-hides-caller-wiring),
+// and a default repo surfaces the built-in 6.
+func TestRepositoryPrepareRepairMaxAttempts(t *testing.T) {
+	// Resolved non-default value proves the wiring, not just the default.
+	nonDefault := []config.Source{{
+		Layer: config.LayerRepository,
+		Name:  ".docket.yml",
+		Data:  []byte("finalize:\n  repair_max_attempts: 9\n"),
+	}}
+	snap, _, err := config.Resolve(nonDefault, mainCtx())
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	sc := setupContext{
+		cfg:               snap.Effective,
+		repo:              gitcli.Repository{PrimaryWorktree: "/repo"},
+		defaultBranch:     "main",
+		integrationBranch: "main",
+	}
+	pc := buildPrepareContext(snap.Effective, sc, preparableFacts(), "git@github.com:acme/widget.git")
+	if pc.Finalize.RepairMaxAttempts != 9 {
+		t.Errorf("context.finalize.repair_max_attempts = %d, want the resolved non-default 9", pc.Finalize.RepairMaxAttempts)
+	}
+
+	// Default repo surfaces the built-in 6.
+	defSnap, _, err := config.Resolve(nil, mainCtx())
+	if err != nil {
+		t.Fatalf("resolve defaults: %v", err)
+	}
+	defPC := buildPrepareContext(defSnap.Effective, sc, preparableFacts(), "git@github.com:acme/widget.git")
+	if defPC.Finalize.RepairMaxAttempts != 6 {
+		t.Errorf("default context.finalize.repair_max_attempts = %d, want the built-in 6", defPC.Finalize.RepairMaxAttempts)
 	}
 }
 
