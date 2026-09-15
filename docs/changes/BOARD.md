@@ -1,6 +1,6 @@
 # Backlog
 
-**428 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 22 proposed · ⚪ 11 deferred · ✅ 276 done · 🗑️ 113 killed
+**428 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 22 proposed · ⚪ 11 deferred · ✅ 277 done · 🗑️ 113 killed
 
 ## 🟢 In progress (2)
 
@@ -8,12 +8,6 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0417](active/0417-artifacts-block-pins-plan-results-links-to-the-docket-branch.md) | Artifacts block pins plan/results links to the docket branch, where those files never live | `medium` | `fix` | [#301](https://github.com/danielhanold/docket/pull/301) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -100,7 +94,6 @@ graph TD
   0413
   0414
   0415
-  0417
   0418
   0419
   0422
@@ -118,10 +111,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (389)</summary>
+<details><summary>✅🗑️ Archive — done + killed (390)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0417](archive/2026-09-15-0417-artifacts-block-pins-plan-results-links-to-the-docket-branch.md) | Artifacts block pins plan/results links to the docket branch, where those files never live | 2026-09-15 |
 | [0428](archive/2026-09-14-0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md) | Recover legacy gate history without blocking unrelated worktree admission | 2026-09-14 |
 | [0423](archive/2026-09-14-0423-certify-native-multi-agent-v2-orchestration-through-docket-i.md) | Certify native Multi-Agent V2 orchestration through Docket ImplementNext | 2026-09-14 |
 | [0375](archive/2026-09-14-0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | 2026-09-14 |
@@ -136,7 +130,6 @@ graph TD
 | [0408](archive/2026-09-08-0408-finalize-publish-is-denied-by-the-auto-mode-classifier-whene.md) | Finalize publish is denied by the auto-mode classifier whenever the gate rebases | 2026-09-08 |
 | [0376](archive/2026-09-08-0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | 2026-09-08 |
 | [0354](archive/2026-09-08-0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | 2026-09-08 |
-| [0327](archive/2026-09-08-0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | 2026-09-08 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -255,7 +248,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 25 done |
+| [2026-09](archive/) | 26 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

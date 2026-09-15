@@ -2,7 +2,7 @@
 id: 417
 slug: 'artifacts-block-pins-plan-results-links-to-the-docket-branch'
 title: 'Artifacts block pins plan/results links to the docket branch, where those files never live'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-10'
@@ -22,7 +22,7 @@ branch: 'fix/artifacts-block-pins-plan-results-links-to-the-docket-branch'
 pr: 'https://github.com/danielhanold/docket/pull/301'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T00:30:18Z'
+claimed_at:
 ---
 
 ## Artifacts
