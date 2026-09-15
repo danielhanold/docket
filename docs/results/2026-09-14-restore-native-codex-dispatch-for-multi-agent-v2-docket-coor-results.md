@@ -45,6 +45,17 @@ The profile and both solo measurements are preserved in the launch-kit evidence 
 
 ## Verification performed
 
+### Third independent-review repair
+
+Commit `968c1f0d009b6e46bd75c29a241211653312e7eb` resolves both blockers from the latest source review:
+
+- Planner and reviewer entry now require the same separately hashed private payload already required for build, resolver, and repair. Focused coverage proves missing or digest-mutated planner/reviewer payloads are refused while a valid pinned payload passes.
+- `nativefixture.prepare` now generates its catalog from the explicitly supplied candidate source tree, compares that generated catalog with the candidate source's committed embedded bundle, and renders the fixture from those verified candidate bytes. Its tagged regression mutates and regenerates a copied candidate source, builds the matching candidate binary, and proves the fixture contains the candidate-only role definition.
+
+The required complete suite then exposed two existing monolithic Go rows above their authoritative solo thresholds. Commit `86f6223684943b86a3e286f01cae65d89f6236ba` moves the new real-Git and fixture regressions under the integration registry and partitions `internal/app` race tests by a derived whole-package census. Commit `2fa7dd816faaa6f2d87f9a4d72e26553f81bd3d5` applies the same derived census to default host tests. Both parent rows validate a complete zero-based sibling partition before excluding `internal/app`; removing either sibling makes the guard fail. No runtime ceiling changed.
+
+The final source checkpoint before this results update passed `go run ./cmd/docket development test`: 53 of 53 suite files, 449 assertions, zero failures, and a 239-second wall time. The budget report contained parallel screening findings and one first-strike `BUDGET WATCH`, with no `SERIAL CONFIRMED OVER BUDGET` line. Direct uncontended measurements put the three race partitions at 61.28, 54.21, and 46.32 seconds against a 90-second authoritative threshold, and the four host-toolchain partitions at 0.84, 57.25, 45.57, and 35.56 seconds against an 82.5-second authoritative threshold. Generated asset/dispatch checks, the integration registry contract, repository guards, and diff checks passed. The same complete configured suite is rerun from the clean commit containing this section; that final-head receipt is stored externally to avoid a self-referential commit hash.
+
 ### Initial native acceptance handoff repair
 
 The first prepared candidate run stopped before planner execution. Its saved planner payload used bare `docket`, embedded `--repo-dir`, and omitted `--json`; the strict pinned-command validator correctly refused it. Successful `agent.check-inputs` now returns the canonical assignment-only `entry_argv`, built by the same function that validates payloads. Controllers copy this result after freezing the final assignment rather than guessing from optional catalog flags. A regression failed on the missing result before the repair and passed afterward; negative cases retain refusal of bare executables, embedded repository flags and omitted JSON output.
