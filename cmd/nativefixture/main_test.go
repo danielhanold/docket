@@ -116,7 +116,48 @@ func TestPrepareBuildsConfiguredBuildReadyFixtureAndCompleteManifest(t *testing.
 			t.Errorf("manifest omits %s", rel)
 		}
 	}
+	for _, agent := range agents {
+		rel := filepath.ToSlash(filepath.Join(".codex", "agents", agent.Name+".toml"))
+		body, err := os.ReadFile(filepath.Join(destination, "primary", filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatalf("read rendered agent %s: %v", rel, err)
+		}
+		if got.Files[rel] != hash(body) {
+			t.Errorf("manifest hash for rendered agent %s = %q, want %q", rel, got.Files[rel], hash(body))
+		}
+	}
 	if dirty := runTest(filepath.Join(destination, "primary"), "git", "status", "--porcelain=v2"); dirty != "" {
 		t.Fatalf("fixture primary dirty: %s", dirty)
+	}
+}
+
+func TestCompleteManifestFilesPreservesGeneratedFilesAndRejectsDrift(t *testing.T) {
+	root := testsupport.TempDir(t)
+	rel := ".codex/agents/docket-review.toml"
+	original := []byte("model = \"test\"\n")
+	if err := writeFile(filepath.Join(root, filepath.FromSlash(rel)), original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	explicit := map[string]string{rel: hash(original)}
+	got, err := completeManifestFiles(root, explicit, map[string]string{"tracked.txt": hash([]byte("tracked"))})
+	if err != nil {
+		t.Fatalf("complete manifest: %v", err)
+	}
+	if got[rel] != hash(original) || got["tracked.txt"] == "" {
+		t.Fatalf("complete manifest omitted inputs: %#v", got)
+	}
+
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), []byte("mutated\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := completeManifestFiles(root, explicit, nil); err == nil {
+		t.Fatal("complete manifest accepted a rendered agent mutated after hashing")
+	}
+
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := completeManifestFiles(root, explicit, map[string]string{rel: hash([]byte("different"))}); err == nil {
+		t.Fatal("complete manifest accepted conflicting hashes for one path")
 	}
 }

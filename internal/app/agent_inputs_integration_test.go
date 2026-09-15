@@ -148,6 +148,15 @@ func TestIntegrationFinalizeRebaseAgentInputsWiresResolverAndRepairAuthority(t *
 		if wrong.Result == ResultApplied {
 			t.Fatal("unowned resolver reservation was accepted")
 		}
+		other := filepath.Join(testsupport.TempDir(t), "unrelated-detached")
+		head := runGit(t, f.wp, "rev-parse", "HEAD")
+		runGit(t, f.gitrepo.PrimaryWorktree, "worktree", "add", "--detach", other, head)
+		foreignWorkspace := *f
+		foreignWorkspace.wp = other
+		wrong = checkFinalizeEntry(t, &foreignWorkspace, deps, "docket-rebase-resolver", "resolver", "resolver", conflicted.Attempt, reserve.Reservation, conflicted.UnmergedPaths)
+		if wrong.Result == ResultApplied {
+			t.Fatal("resolver entry accepted an unrelated detached worktree using another worktree's valid reservation")
+		}
 	})
 	t.Run("repair attempt", func(t *testing.T) {
 		f := setupRebaseFixture(t, planRepoModes()[0])
