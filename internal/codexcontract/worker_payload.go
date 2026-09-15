@@ -35,6 +35,12 @@ type RecoveredPayload struct {
 	OwnerGeneration string `json:"owner_generation"`
 }
 
+// EntryCheckerArgv is the assignment-only command pinned into private payloads.
+// Outer payload and repository flags are deliberately not part of this command.
+func EntryCheckerArgv(a Assignment, path, digest string) []string {
+	return []string{a.DocketExecutable, "agent", "check-inputs", "--assignment", path, "--sha256", digest, "--stage", "entry", "--json"}
+}
+
 func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 	if p.SchemaVersion != 1 {
 		return fmt.Errorf("unsupported worker payload schema_version %d", p.SchemaVersion)
@@ -42,7 +48,7 @@ func ValidateWorkerPayload(p WorkerPayload, a Assignment) error {
 	if !filepath.IsAbs(p.AssignmentPath) || p.AssignmentSHA256 == "" || p.TaskText == "" {
 		return fmt.Errorf("payload fixed inputs are incomplete")
 	}
-	want := []string{a.DocketExecutable, "agent", "check-inputs", "--assignment", p.AssignmentPath, "--sha256", p.AssignmentSHA256, "--stage", "entry", "--json"}
+	want := EntryCheckerArgv(a, p.AssignmentPath, p.AssignmentSHA256)
 	if len(p.EntryArgv) != len(want) {
 		return fmt.Errorf("entry argv does not match the pinned checker")
 	}

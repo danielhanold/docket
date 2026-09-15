@@ -42,6 +42,7 @@ type CheckInputsResult struct {
 	Reason           string               `json:"reason,omitempty"`
 	AssignmentSHA256 string               `json:"assignment_sha256,omitempty"`
 	PayloadSHA256    string               `json:"payload_sha256,omitempty"`
+	EntryArgv        []string             `json:"entry_argv,omitempty"`
 	Observation      AgentRootObservation `json:"observation,omitempty"`
 }
 
@@ -192,7 +193,7 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 			}
 		}
 	}
-	return CheckInputsResult{Envelope: NewEnvelope(OperationAgentCheckInputs, ResultApplied), AssignmentSHA256: req.SHA256, PayloadSHA256: req.PayloadSHA256, Observation: obs}
+	return CheckInputsResult{Envelope: NewEnvelope(OperationAgentCheckInputs, ResultApplied), AssignmentSHA256: req.SHA256, PayloadSHA256: req.PayloadSHA256, EntryArgv: codexcontract.EntryCheckerArgv(a, req.Assignment, req.SHA256), Observation: obs}
 }
 
 func assignmentRequiresPrivatePayload(a codexcontract.Assignment) bool {
