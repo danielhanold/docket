@@ -60,14 +60,14 @@ func TestIntegrationNativeFixtureRendersWithCandidateImplementation(t *testing.T
 	run(source, "git", "init", "-b", "main")
 	run(source, "git", "config", "user.name", "Fixture Test")
 	run(source, "git", "config", "user.email", "fixture@example.invalid")
-	const marker = "review-candidate-renderer-marker"
-	adapterPath := filepath.Join(source, "internal", "harness", "codex", "codex.go")
-	body, err := os.ReadFile(adapterPath)
+	const marker = "review-candidate-source-marker"
+	agentPath := filepath.Join(source, "agents", "docket-plan-writer.md")
+	body, err := os.ReadFile(agentPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	body = []byte(strings.Replace(string(body), "When your active charter requires another registered role, ", marker+". When your active charter requires another registered role, ", 1))
-	if err := os.WriteFile(adapterPath, body, 0o644); err != nil {
+	body = append(body, []byte("\nCandidate source marker: "+marker+".\n")...)
+	if err := os.WriteFile(agentPath, body, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	run(source, "go", "run", "./cmd/genassets", "-repo", source)
