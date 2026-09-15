@@ -22,7 +22,7 @@ branch: 'codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T12:23:09Z'
+claimed_at: '2026-09-15T15:15:25Z'
 ---
 
 ## Artifacts
