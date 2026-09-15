@@ -926,3 +926,121 @@ func TestIntegrationPreserveCommitProve(t *testing.T) {
 		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "catalog.yaml")
 	})
 }
+
+// TestIntegrationPreserveCommitProveHistoricSnapshot covers the reported
+// regression: a parent rebase rewrites a child's inclusion so its exact
+// snapshot survives MID-history while later children evolve the same files.
+// The proof must accept one complete historical snapshot and refuse every
+// shape that lacks one.
+func TestIntegrationPreserveCommitProveHistoricSnapshot(t *testing.T) {
+	ctx := context.Background()
+	c := newRealClient(t)
+
+	// Row 1 (regression shape 2): the child's delta reproduces exactly at a
+	// mid-history commit of base..target; a LATER commit on the target line
+	// edits the shared file -> proven, exact-content-history.
+	t.Run("later-edit-to-shared-file", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		writeWorktreeFile(t, dir, "Chart.yaml", "version: 1\n")
+		writeWorktreeFile(t, dir, "values.yaml", "a: 1\n")
+		source := commitAll(t, dir, "child adds chart+values")
+		// Rebuild the stack line: the child's exact snapshot lands mid-history…
+		gitOut(t, dir, "checkout", "-q", "-b", "stack", string(b0))
+		writeWorktreeFile(t, dir, "Chart.yaml", "version: 1\n")
+		writeWorktreeFile(t, dir, "values.yaml", "a: 1\n")
+		commitAll(t, dir, "rebased child snapshot")
+		// …and a later child evolves the shared files past it.
+		writeWorktreeFile(t, dir, "Chart.yaml", "version: 2\n")
+		target := commitAll(t, dir, "later child bumps chart")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationProven, PreservationByHistoricContent, "")
+	})
+
+	// Row 2 (same-snapshot restriction): each delta entry matches at SOME
+	// commit of base..target, but never both at one commit -> unproven; a
+	// proof assembled from entries spread across commits is forbidden.
+	t.Run("entries-split-across-commits", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		writeWorktreeFile(t, dir, "f1.txt", "one\n")
+		writeWorktreeFile(t, dir, "f2.txt", "two\n")
+		source := commitAll(t, dir, "child adds f1+f2")
+		gitOut(t, dir, "checkout", "-q", "-b", "stack", string(b0))
+		// C1 holds f1 exact but f2 wrong; C2 fixes f2 but rewrites f1.
+		writeWorktreeFile(t, dir, "f1.txt", "one\n")
+		writeWorktreeFile(t, dir, "f2.txt", "TWO-edited\n")
+		commitAll(t, dir, "c1: f1 exact, f2 differs")
+		writeWorktreeFile(t, dir, "f1.txt", "ONE-edited\n")
+		writeWorktreeFile(t, dir, "f2.txt", "two\n")
+		target := commitAll(t, dir, "c2: f2 exact, f1 differs")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "f1.txt")
+	})
+
+	// Row 3 (dropped child work still refuses): the rewrite omits the child's
+	// file everywhere on the target line -> unproven, entry-differs.
+	t.Run("dropped-in-rewrite", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		source := commitFile(t, dir, "catalog.yaml", "items\n", "child adds catalog")
+		gitOut(t, dir, "checkout", "-q", "-b", "stack", string(b0))
+		commitFile(t, dir, "other.txt", "other\n", "rewrite without catalog")
+		target := commitFile(t, dir, "more.txt", "more\n", "advance further")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "catalog.yaml")
+	})
+
+	// Row 4 (history beyond the pinned target cannot supply the proof): the
+	// exact snapshot exists only AFTER target on the same line. With target
+	// pinned (root closeout pins the verified root merge-result commit), the
+	// candidate range base..target excludes it -> unproven.
+	t.Run("snapshot-only-after-target", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		b0 := commitFile(t, dir, "base.txt", "base\n", "b0")
+		gitOut(t, dir, "checkout", "-q", "-b", "child", string(b0))
+		source := commitFile(t, dir, "catalog.yaml", "items\n", "child adds catalog")
+		gitOut(t, dir, "checkout", "-q", "-b", "stack", string(b0))
+		target := commitFile(t, dir, "other.txt", "other\n", "merge-result without catalog")
+		commitFile(t, dir, "catalog.yaml", "items\n", "later integration adds catalog")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveEntryDiffers, "catalog.yaml")
+	})
+
+	// Row 5 (unrelated history is not a candidate pool): no common base keeps
+	// its existing refusal — the fallback never runs without a sole base. The
+	// orphan recipe mirrors TestIntegrationPreserveCommitProve's no-common-base
+	// row (checkout --orphan + rm -rfq --cached).
+	t.Run("unrelated-history-unchanged", func(t *testing.T) {
+		dir, repo := historyRepo(t)
+		source := commitFile(t, dir, "a.txt", "a\n", "line A")
+		gitOut(t, dir, "checkout", "-q", "--orphan", "island")
+		gitOut(t, dir, "rm", "-rfq", "--cached", ".")
+		target := commitFile(t, dir, "b.txt", "b\n", "unrelated line B")
+
+		got, err := c.ProvePreserved(ctx, repo, "origin", source, target)
+		if err != nil {
+			t.Fatalf("ProvePreserved: %v", err)
+		}
+		assertProof(t, got, PreservationUnproven, "", PreserveNoCommonBase)
+	})
+}
