@@ -371,7 +371,7 @@ func TestPrecedenceResolverMaxAttempts(t *testing.T) {
 		layer    LayerKind
 		explicit bool
 	}{
-		{"nothing declared wins the built-in default", nil, 3, LayerBuiltIn, false},
+		{"nothing declared wins the built-in default", nil, 10, LayerBuiltIn, false},
 		{"global alone", []Source{srcG(resolverMax(4))}, 4, LayerGlobal, true},
 		{"repository beats global", []Source{srcG(resolverMax(4)), srcR(resolverMax(5))}, 5, LayerRepository, true},
 		{"repository-local beats everything", []Source{srcG(resolverMax(4)), srcR(resolverMax(5)), srcL(resolverMax(6))}, 6, LayerRepositoryLocal, true},
