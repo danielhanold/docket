@@ -110,6 +110,43 @@ func TestIntegrationPreserveCommitMergeBasesAll(t *testing.T) {
 	})
 }
 
+// TestIntegrationPreserveCommitRange proves commitRange lists exactly the
+// commits of base..target (newest-first, target included, base excluded), that
+// an empty range is empty output and no failure, and that an unresolvable
+// operand is a typed command failure — never a silent empty answer.
+func TestIntegrationPreserveCommitRange(t *testing.T) {
+	ctx := context.Background()
+	c := newRealClient(t)
+	dir, repo := historyRepo(t)
+	base := commitFile(t, dir, "a.txt", "a\n", "c0")
+	mid := commitFile(t, dir, "b.txt", "b\n", "c1")
+	tip := commitFile(t, dir, "c.txt", "c\n", "c2")
+
+	got, f := c.commitRange(ctx, repo, base, tip)
+	if f != nil {
+		t.Fatalf("commitRange: %v", f)
+	}
+	want := []ObjectID{tip, mid}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("commitRange = %v; want %v", got, want)
+	}
+
+	// Empty range: base..base is no commits and no failure.
+	empty, f := c.commitRange(ctx, repo, base, base)
+	if f != nil {
+		t.Fatalf("commitRange(empty): %v", f)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("commitRange(empty) = %v; want none", empty)
+	}
+
+	// An absent operand is a typed failure, never an empty answer.
+	absent := ObjectID(strings.Repeat("1", 40))
+	if _, f := c.commitRange(ctx, repo, base, absent); f == nil {
+		t.Fatalf("commitRange(absent target): want a typed failure, got nil")
+	}
+}
+
 // TestIntegrationPreserveCommitEnsureInputs proves ensurePreservationInputs
 // validates ids, refuses shallow history, resolves commits, and — for a missing
 // object — fetches the exact id once from the established remote, distinguishing

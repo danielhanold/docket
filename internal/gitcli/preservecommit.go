@@ -11,9 +11,10 @@ import (
 // file-local convention the sibling read surfaces use (see history.go's
 // sharedAncestryOp/listHistoryOp/treeEntriesOp).
 const (
-	preserveOp    Operation = "preserve-proof"
-	mergeBasesOp  Operation = "merge-bases"
-	sourceDeltaOp Operation = "source-delta"
+	preserveOp     Operation = "preserve-proof"
+	mergeBasesOp   Operation = "merge-bases"
+	sourceDeltaOp  Operation = "source-delta"
+	rangeCommitsOp Operation = "range-commits"
 )
 
 // deltaEntry is one changed tracked entry from base to source, rename detection
@@ -152,6 +153,41 @@ func (c *Client) mergeBasesAll(ctx context.Context, repo Repository, a, b Object
 		id := ObjectID(line)
 		if err := validateObjectID(id); err != nil {
 			return nil, newFailure(mergeBasesOp, KindInvalidOutput, "malformed merge-base output", err)
+		}
+		out = append(out, id)
+	}
+	return out, nil
+}
+
+// commitRange lists every commit reachable from target and not from base
+// (`git rev-list target ^base`), newest-first. These are the candidate
+// snapshots a historic-content preservation proof may inspect: history the
+// target line added on top of the shared base. An empty range is an empty
+// slice and no failure; a nonzero exit is a typed command failure — an
+// unobservable operand is never read as "no candidates". Malformed plumbing
+// output is invalid-output.
+func (c *Client) commitRange(ctx context.Context, repo Repository, base, target ObjectID) ([]ObjectID, *Failure) {
+	for _, id := range []ObjectID{base, target} {
+		if err := validateObjectID(id); err != nil {
+			return nil, newFailure(rangeCommitsOp, KindInvalidRequest, "invalid commit id", err)
+		}
+	}
+	res, f := c.run(ctx, runRequest{
+		op:   rangeCommitsOp,
+		dir:  repo.PrimaryWorktree,
+		args: []string{"rev-list", string(target), "^" + string(base)},
+	})
+	if f != nil {
+		return nil, f
+	}
+	if res.exitCode != 0 {
+		return nil, newFailure(rangeCommitsOp, KindCommandFailed, "rev-list failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
+	var out []ObjectID
+	for _, line := range stdoutLines(res.stdout) {
+		id := ObjectID(line)
+		if err := validateObjectID(id); err != nil {
+			return nil, newFailure(rangeCommitsOp, KindInvalidOutput, "malformed rev-list output", err)
 		}
 		out = append(out, id)
 	}
