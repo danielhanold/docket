@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-10'
-updated: '2026-09-10'
+updated: '2026-09-15'
 depends_on: []
 stacked_on:
-related: [421]
+related: [421, 425, 426, 427]
 discovered_from: [421]
-adrs: [115]
-spec:
+adrs: [111, 115, 118]
+spec: 'docs/superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md'
 plan:
 results:
 trivial: false
@@ -29,17 +29,22 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0115](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md) |
+| Spec | [2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) |
+| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0115](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0115-outer-run-gate-retry-budget-is-a-counted-config-snapshotted.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Surfaced by change 0421 (configurable build and outer run-gate attempt limits) and confirmed by its docket-review-deep pass. With the new counted per-attempt outer-gate retry budget (GateRecord schema v4, ADR-0115), the retry counter is advanced by the act of *observing* an incomplete run rather than by an actual re-dispatch. So when run.max_attempts >= 3, repeated diagnostic `run gate-verdict` observations of the SAME unchanged, quiescent, run-incomplete record each grant another retry until the budget is spent (empirically confirmed in the 0421 run: 3 grants at run.max_attempts = 4). The hard bound still holds — total dispatches can never exceed the configured limit — and the shipping default (run.max_attempts = 2) is immune, so nothing unsafe ships today. But the counter over-counts against benign re-observation, which is a real correctness wart in the attribution model and a latent foot-gun for anyone who raises run.max_attempts. The proper fix binds a retry grant to a distinct dispatch epoch so that re-observing an unchanged attempt returns gate-stop / no-attributable-claim rather than advancing the counter. That change was deliberately deferred out of 0421 because it touches the deferred ship-once attribution/concurrency model, which is an open design question rather than a mechanical tweak.
+Change 0421 made outer-run attempt limits configurable. At limits of three or more, repeatedly checking the same unfinished attempt can spend successive retry allowances even when no new dispatch occurred. The store already grants each numbered attempt only once; the verdict path causes the over-count by deriving the observed attempt number from the number of grants. The approved design fixes that input while retaining the existing ownership and dispatch-observation contracts.
 
 ## What changes
 
-Change the outer run-gate retry accounting so a retry is consumed per dispatch epoch, not per gate-verdict observation. A diagnostic re-observation of an unchanged, quiescent, run-incomplete record must NOT advance the retry counter — it should return the existing gate-stop / no-attributable-claim disposition instead. Only a genuine new dispatch attempt against the change spends budget. Relevant surfaces from the 0421 build: the counted retry-consumed-<n> CAS budget snapshotted into GateRecord (schema v4) in internal/rungate (rungate_store.go / rungate_verdict.go), and the outer-gate verdict path that grants retries from the snapshotted run.max_attempts budget. This is a design-open change: it must reconcile with the deferred ship-once attribution/concurrency model before implementation, so it needs a brainstorm before it is build-ready (stub only).
+- Pass an explicit observed attempt number through the keyed verdict path, defaulting omitted input to attempt 1. Repeated checks of that attempt reuse its existing retry marker.
+- Reuse the current per-attempt reservation mechanism, require evidence of the preceding grant for later attempts, and return the next attempt number only with a newly granted retry.
+- Have the coordinator associate the returned number with the authorized dispatch and retain it across observations and continuations. Ownership proof, the configured attempt limit, report tokens and existing durable formats remain unchanged.
+- Keep a reservation spent when response delivery or launch is uncertain; stop instead of guessing, refunding or relaunching.
+- Preserve the existing trust boundary: the coordinator identifies which dispatch finished. Independent child-entry or launch certification is outside this fix. Add regressions for repeated and staggered concurrent observations and the required caller wiring.
 
 ## Out of scope
 
-The durable per-phase build suite-attempt budget in internal/gatedrive (ADR-0116) — that is a separate budget with separate semantics and is not implicated by this over-count. The config leaves build.max_attempts / run.max_attempts themselves and their defaults (unchanged). Any change to the report token vocabulary. Not a fix to 0421, whose behavior is safe as shipped; this is follow-up hardening only.
+New attempt ledgers, random attempt identities, child-admission handshakes, new CLI operations, schema migrations, cancellation-reader or lock redesign, launch tracking/recovery, claim/workspace resume redesign, and exactly-once launch guarantees. Build and finalize budgets, configuration keys/defaults, report-token vocabulary, and change 0427's recovery-worktree fix remain outside this change.
