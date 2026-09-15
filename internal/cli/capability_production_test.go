@@ -252,7 +252,7 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 }
 
 // TestCapabilitiesPayloadWithinByteBudget is the gating oracle for compactness:
-// the emitted catalog must fit the 15360-byte (15 KB) design ceiling, and it
+// the emitted catalog must fit the 16384-byte (16 KB) design ceiling, and it
 // must carry no human help prose — the catalog is a machine bootstrap, not a
 // second copy of --help. Growth past the ceiling is a design event (spec:
 // Compactness boundary), never a truncation or per-skill-filter opportunity.
@@ -269,15 +269,19 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 // deliberately adds the `gate.drive.acknowledge` operation (and the successor-
 // receipt flags on `gate.drive.start`) to the catalog — the identical conscious
 // design event, again one-line invocation stubs and no inlined schemas.
+// Change 0425 raises the ceiling one final KB step (15 KB → 16 KB) for the
+// `agent.check-inputs` and `agent.check-receipt` leaves that bind native Codex
+// child entry and captured gate responses. They remain compact invocation stubs;
+// their request/result schemas stay in the separate `docket schema` operation.
 func TestCapabilitiesPayloadWithinByteBudget(t *testing.T) {
 	out, errS, code := runCLI(t, "capabilities", "--json")
 	if code != 0 || errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
 	n := len(out)
-	t.Logf("capabilities payload: %d bytes (budget 15360)", n)
-	if n > 15*1024 {
-		t.Fatalf("catalog is %d bytes, over the 15KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
+	t.Logf("capabilities payload: %d bytes (budget 16384)", n)
+	if n > 16*1024 {
+		t.Fatalf("catalog is %d bytes, over the 16KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
 	}
 	// Content-exclusion: no help-prose fields. The catalog names signatures and
 	// effects, never Short/Long/Example/Help text.
