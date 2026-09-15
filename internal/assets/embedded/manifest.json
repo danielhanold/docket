@@ -1,14 +1,14 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:641b17e7908191bcbbf902ee8b31a1875a18b6ca019ce9c978b5da3b84667efc",
+  "asset_set_id": "sha256:f62a8e752c77abfbc194484be3cdddba441ecddb2bb580f56e80f075aeef32ca",
   "entries": [
     {
       "path": ".docket.example.yml",
       "role": "config-schema",
       "mode": 420,
-      "size": 45623,
-      "sha256": "a1148b8a10d8999ba1a974b93493aa122658e0d52f91154b0f1a4bb763f950c2"
+      "size": 46202,
+      "sha256": "0e4443ca839e5328b52df979bc89d46274665373f76eee385beb4c06d77757ae"
     },
     {
       "path": "agents/docket-adr.md",
@@ -84,8 +84,8 @@
       "path": "agents/docket-integration-repair.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 2445,
-      "sha256": "b0f8856441b53f765a7faa37bbc95b13197e77668dcd8962ba812ebbfd83a392"
+      "size": 2700,
+      "sha256": "b0b877bbb4cfe059fd060278b993cd8d7fd39975b5f10ae8427321dd57ee608c"
     },
     {
       "path": "agents/docket-plan-writer.md",
@@ -217,8 +217,8 @@
       "path": "cursor-rules/dispatch/docket-integration-repair.md",
       "role": "dispatch",
       "mode": 420,
-      "size": 975,
-      "sha256": "5a3642890a0198252acb5aee0562b0e8e7c41301a85cc6dd244ffbefabb7b249"
+      "size": 1081,
+      "sha256": "42542d3e19fd0e36d56058a52244bb9f2768cb5c6ae6751fddfca979fee57a50"
     },
     {
       "path": "cursor-rules/dispatch/docket-plan-writer.md",
@@ -385,15 +385,15 @@
       "path": "skills/docket-finalize-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 35579,
-      "sha256": "a2bf1b7ff619dbe2421232f3cb3a68ce69fcf6b56faaa5edf622a783ebc6d72a"
+      "size": 35766,
+      "sha256": "462690d82f7cb49c3cdf8b690cbd60a491ea5c1abd8a5d3c4de1eec2568f73fb"
     },
     {
       "path": "skills/docket-finalize-change/references/gate-failure.md",
       "role": "skill",
       "mode": 420,
-      "size": 10175,
-      "sha256": "2d1cdd4d6b5c19984b5e748de6cf4ee4b4cd68cbd876fd314bbfe2961161f59a"
+      "size": 10276,
+      "sha256": "4d528c6579b96e624e400c01bb6aff0b063c63a599e6c3a5d00c974ca301bdbc"
     },
     {
       "path": "skills/docket-groom-next/SKILL.md",
