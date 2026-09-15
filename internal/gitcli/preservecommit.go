@@ -321,6 +321,12 @@ const (
 	// base->source tracked-entry delta reproduces exactly in target (oid+mode,
 	// deletions absent).
 	PreservationByContent PreservationKind = "exact-content"
+	// PreservationByHistoricContent: source is not an ancestor and its delta
+	// does not reproduce at the target tip, but the COMPLETE base->source delta
+	// reproduces exactly at one commit reachable in base..target — the child was
+	// included and later stacked work legitimately evolved shared files. Later
+	// edits do not invalidate an already-included child.
+	PreservationByHistoricContent PreservationKind = "exact-content-history"
 )
 
 // Closed unproven-detail tokens — stable machine strings a caller may branch on.
@@ -363,9 +369,12 @@ const maxDifferingPaths = 8
 // everything source holds is reachable from target. Otherwise the FULL
 // base->source tracked-entry delta must reproduce exactly in target — every
 // changed entry present at the same oid and mode, and every source deletion
-// absent — where base is the SINGLE merge base of source and target. Zero, or
-// more than one, merge base is an unproven refusal (never an arbitrary pick), as
-// is an empty delta. Uncertainty is unproven; inability to observe an operand
+// absent — or, failing the tip, at ONE commit reachable in base..target (a
+// parent rebase's historical inclusion; the complete delta at a single commit,
+// never assembled across commits), where base is the SINGLE merge base of
+// source and target. Zero, or more than one, merge base is an unproven refusal
+// (never an arbitrary pick), as is an empty delta. Uncertainty is unproven;
+// inability to observe an operand
 // (invalid, missing, non-commit, or shallow) is an error, never a verdict. The
 // comparison reads Git objects only — no merge drivers, filters, or rename
 // detection can manufacture a proof.
@@ -402,10 +411,34 @@ func (c *Client) ProvePreserved(ctx context.Context, repo Repository, remote Rem
 	if err != nil {
 		return PreservationCheck{}, err
 	}
-	if !ok {
-		return PreservationCheck{Outcome: PreservationUnproven, Detail: PreserveEntryDiffers, Paths: differing}, nil
+	if ok {
+		return PreservationCheck{Outcome: PreservationProven, Kind: PreservationByContent}, nil
 	}
-	return PreservationCheck{Outcome: PreservationProven, Kind: PreservationByContent}, nil
+	// Historic-snapshot fallback: the tip does not reproduce the delta, but ONE
+	// commit the target line added on top of the sole base may — a parent rebase
+	// re-includes the child mid-history and later children evolve shared files.
+	// The complete delta must match at a single commit; a proof assembled from
+	// entries spread across different commits is never accepted. The candidate
+	// pool is bounded to base..target so history beyond the pinned target (for
+	// root closeout, the verified root merge-result commit) can never supply the
+	// proof. On no match, the TIP comparison's diagnostic is returned unchanged.
+	candidates, f := c.commitRange(ctx, repo, bases[0], target)
+	if f != nil {
+		return PreservationCheck{}, f
+	}
+	for _, cand := range candidates {
+		if cand == target {
+			continue // already compared above
+		}
+		histOK, _, err := c.deltaMatchesAt(ctx, repo, cand, delta)
+		if err != nil {
+			return PreservationCheck{}, err
+		}
+		if histOK {
+			return PreservationCheck{Outcome: PreservationProven, Kind: PreservationByHistoricContent}, nil
+		}
+	}
+	return PreservationCheck{Outcome: PreservationUnproven, Detail: PreserveEntryDiffers, Paths: differing}, nil
 }
 
 // deltaMatchesAt reports whether the complete base->source delta reproduces
