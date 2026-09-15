@@ -58,15 +58,23 @@ Two deliberate spec departures, both narrower/stronger than the spec text:
 
 ## Findings and limitations
 
-### The check-corpus wiring for the integration branch is only indirectly guarded (known residual)
+### The check-corpus wiring for the integration branch is now mutation-tested (review finding, fixed)
 
-Dropping `IntegrationBranch: sc.integrationBranch` from `readCheckCorpus`'s corpus pin in
-`repository_check.go` reddens no existing test: the hermetic check-corpus fixtures
-(`repository_check_derived_test.go`) contain no implemented/done change carrying a Plan/Results row
-that would render on the integration branch, so no assertion exercises `corpus.link.IntegrationBranch`.
-The plumbing is correct and mirrors `linkContextOf`'s fallback, but that one call site's wiring is
-proven only by inspection, not by a reddening probe. A vacuous assert was deliberately not written.
-See Follow-ups.
+Whole-branch review (deep) surfaced that dropping `IntegrationBranch: sc.integrationBranch` from
+`readCheckCorpus`'s corpus pin in `repository_check.go` originally reddened no test, yet its
+regression path is destructive: `corpus.link` feeds `render.ArtifactBlockContent` to detect
+`CodeArtifactLinksStale` (Repairable), so a dropped field would make `docket repository check`
+render metadata-branch links for a `done` change's Plan/Results rows, report false stale drift, and
+let `docket repository migrate` rewrite those done changes' links back to the metadata branch —
+reintroducing exactly the defect this change fixes.
+
+Fixed in-branch: `internal/app/repocheck_corpus_link_integration_test.go` (behind the `integration`
+build tag, picked up by the existing `test_go_integration_app_repocheck` shard) drives the real
+`readCheckCorpus` pin over a hermetic repo whose origin resolves to a GitHub web URL and asserts a
+`done` change's Plan/Results rows render on the integration branch (`blob/main`) while Spec stays on
+the metadata branch (`blob/docket`). Mutation-probed: with the corpus pin's `IntegrationBranch`
+entry removed, the test reddens (rendered rows revert to `blob/docket`); restored, it is green. The
+0341 `TestLinkContextSoleConstructor` guard stays green.
 
 ### Expected one-time post-merge effect on existing records
 
@@ -77,10 +85,6 @@ renders through the same corpus link this change fixed). This is expected behavi
 
 ## Follow-ups
 
-### Add a done-change check-corpus fixture with plan/results rows
-
-Add a fixture to the `internal/app` check-corpus tests representing an implemented or done change
-that carries `plan:`/`results:` rows, so dropping the integration-branch entry from
-`readCheckCorpus`'s pin reddens a test. This closes the known residual above by turning the
-inspection-only guarantee into a mutation-tested guard. Out of scope here because it requires a new
-hermetic fixture rather than a change to the shipped behavior.
+No open follow-ups. The one residual surfaced during the build (the unguarded check-corpus
+integration-branch wiring) was fixed in-branch during the review fix loop; see Findings and
+limitations.
