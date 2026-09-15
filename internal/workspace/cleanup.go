@@ -15,8 +15,9 @@ package workspace
 //	   `already-clean`; anything else is proven below;
 //	3. a ready manifest: prove the feature ref exists, that Git registers exactly
 //	   the recorded canonical path on that ref (not detached, HEAD == ref tip),
-//	   that the recorded base is still reachable from the head, and that the
-//	   tracked/untracked delta is empty — any failure is `blocked`, byte-untouched;
+//	   and that the tracked/untracked delta is empty — any failure is `blocked`,
+//	   byte-untouched. Recorded-base ancestry is not required for a ready
+//	   workspace (a manual parent rebase legitimately rewrites it — change 0429);
 //	4. remove via the NON-FORCING gitcli.RemoveWorktreeClean so Git itself rechecks
 //	   cleanliness at the destructive boundary. A preflight status check followed by
 //	   a forced removal would leave a race in which a worker writes between the two
@@ -127,10 +128,13 @@ func (s *Service) cleanupTombstone(ctx context.Context, repo gitcli.Repository, 
 }
 
 // cleanupReady proves a ready workspace is exactly the recorded owned checkout,
-// clean and on the recorded feature ref with the recorded base still reachable,
-// then removes it non-forcingly and advances the manifest to the cleaned
-// tombstone. Every unproven condition is blocked (byte-untouched); every probe
-// error is a failed error return with the workspace intact.
+// clean and on the recorded feature ref, then removes it non-forcingly and
+// advances the manifest to the cleaned tombstone. Base ancestry is NOT required
+// for a ready workspace — a manual parent rebase legitimately rewrites the
+// recorded creation base out of the head's ancestry (change 0429) — while the
+// ref/head/clean/non-forcing checks still prove nothing is lost. Every unproven
+// condition is blocked (byte-untouched); every probe error is a failed error
+// return with the workspace intact.
 func (s *Service) cleanupReady(ctx context.Context, repo gitcli.Repository, dir string, m Manifest, target Target) (CleanupResult, error) {
 	// The feature ref must still exist; a cleanly-absent ref is a mismatch
 	// (blocked), any other probe error is a failure.
@@ -159,15 +163,11 @@ func (s *Service) cleanupReady(ctx context.Context, repo gitcli.Repository, dir 
 		return blockedCleanup(m.Path, "registered HEAD is not the feature ref tip"), nil
 	}
 
-	// The recorded base must still be reachable from the head, or the branch was
-	// moved out of band: blocked, never reset.
-	reachable, err := s.git.IsAncestor(ctx, repo, m.BaseCommit, reg.Head)
-	if err != nil {
-		return CleanupResult{Disposition: CleanupFailed, Path: m.Path}, mapGitFailure(cleanupOp, "inventory", err)
-	}
-	if !reachable {
-		return blockedCleanup(m.Path, "recorded base is not reachable from the head"), nil
-	}
+	// Recorded-base ancestry is NOT required for a ready workspace: a manual parent
+	// rebase legitimately rewrites the creation base out of the head's ancestry
+	// (change 0429), while the ref/head/clean/non-forcing checks still prove nothing
+	// is lost. The allocating phase keeps its ancestry gate — an unfinished
+	// allocation with a rewritten branch is not safely resumable.
 
 	// Exact tracked/untracked delta: any dirty, staged, untracked, or conflicted
 	// path blocks removal. A probe error is a failure, never a false clean.
