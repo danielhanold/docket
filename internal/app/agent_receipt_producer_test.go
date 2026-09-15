@@ -39,6 +39,9 @@ func (p receiptProcess) Stop(string, string) (*process.StopOutcome, error) {
 func (receiptProcess) ResolveReservation(string, string) (*process.ReservationResolution, error) {
 	return &process.ReservationResolution{Disposition: "never-launched"}, nil
 }
+func (receiptProcess) ClassifyRun(string, bool) (process.RecoveryEntry, error) {
+	return process.RecoveryEntry{Disposition: "invalid"}, nil
+}
 
 func parseProducedDriveReceipt(t *testing.T, result GateDriveResult, exitCode int, runRoot string) (codexcontract.Receipt, error) {
 	t.Helper()

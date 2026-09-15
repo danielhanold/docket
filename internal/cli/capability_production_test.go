@@ -278,6 +278,10 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 // the two independent catalog growths together crossed the line (15382, over by
 // 22 bytes). That is the guard working as designed — it surfaced the combined
 // design event that neither side could see in isolation.
+// Change 0425 independently required the same 16 KB ceiling for the
+// `agent.check-inputs` and `agent.check-receipt` leaves that bind native Codex
+// child entry and captured gate responses. They remain compact invocation stubs;
+// their request/result schemas stay in the separate `docket schema` operation.
 func TestCapabilitiesPayloadWithinByteBudget(t *testing.T) {
 	out, errS, code := runCLI(t, "capabilities", "--json")
 	if code != 0 || errS != "" {
