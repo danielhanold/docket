@@ -2,7 +2,7 @@
 id: 419
 slug: 'make-finalize-repair-attempts-configurable-with-a-default-of'
 title: 'Make finalize repair attempts configurable with a default of six'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-10'
@@ -22,7 +22,7 @@ branch: 'feat/make-finalize-repair-attempts-configurable-with-a-default-of'
 pr: 'https://github.com/danielhanold/docket/pull/302'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T03:28:02Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,8 @@ claimed_at: '2026-09-15T03:28:02Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-09-14-make-finalize-repair-attempts-configurable-with-a-default-of.md](https://github.com/danielhanold/docket/blob/feat/make-finalize-repair-attempts-configurable-with-a-default-of/docs/superpowers/plans/2026-09-14-make-finalize-repair-attempts-configurable-with-a-default-of.md) |
-| Results | [2026-09-15-make-finalize-repair-attempts-configurable-with-a-default-of-results.md](https://github.com/danielhanold/docket/blob/feat/make-finalize-repair-attempts-configurable-with-a-default-of/docs/results/2026-09-15-make-finalize-repair-attempts-configurable-with-a-default-of-results.md) |
+| Plan | [2026-09-14-make-finalize-repair-attempts-configurable-with-a-default-of.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-14-make-finalize-repair-attempts-configurable-with-a-default-of.md) |
+| Results | [2026-09-15-make-finalize-repair-attempts-configurable-with-a-default-of-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-15-make-finalize-repair-attempts-configurable-with-a-default-of-results.md) |
 | ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
 <!-- docket:artifacts:end -->
 
