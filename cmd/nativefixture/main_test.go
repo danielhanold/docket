@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
@@ -71,6 +73,44 @@ func TestWriteCatalogSkillsUsesVerifiedSnapshotAfterSourceMutation(t *testing.T)
 	})
 	if err := writeCatalogSkills(corrupt, filepath.Join(root, "corrupt-primary"), map[string]string{}); err == nil {
 		t.Fatal("installed skill bytes that differ from the verified catalog manifest")
+	}
+}
+
+func TestRenderCandidateAssetsUsesVerifiedCatalogAfterSourceRemoval(t *testing.T) {
+	root := testsupport.TempDir(t)
+	catalog, err := assets.EmbeddedCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources, err := harness.ParseInventory(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pins strings.Builder
+	pins.WriteString("agents:\n  codex:\n")
+	for _, source := range sources {
+		pins.WriteString("    " + source.ShortName + ": { model: gpt-5.6-terra, effort: low }\n")
+	}
+	snapshot, _, err := config.Resolve([]config.Source{{Layer: config.LayerGlobal, Name: "pins", Data: []byte(pins.String())}}, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceRoot := filepath.Join(root, "source")
+	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(sourceRoot); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(root, "fixture-primary")
+	if err := renderCandidateAssets(sourceRoot, destination, catalog, snapshot); err != nil {
+		t.Fatalf("render from verified catalog after source removal: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(destination, ".codex", "agents", "docket-plan-writer.toml")); err != nil {
+		t.Fatalf("rendered planner definition: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(destination, "AGENTS.md")); err != nil {
+		t.Fatalf("rendered dispatch block: %v", err)
 	}
 }
 
