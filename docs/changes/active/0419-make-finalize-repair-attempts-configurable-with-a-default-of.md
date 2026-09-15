@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/make-finalize-repair-attempts-configurable-with-a-default-of'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-15T02:24:57Z'
+reconciled: true
+claimed_at: '2026-09-15T02:27:13Z'
 ---
 
 ## Artifacts
@@ -53,3 +53,9 @@ Trivial rationale: this is a bounded extension of the existing finalize configur
 ## Out of scope
 
 Changing resolver attempt counting or durable reservation semantics, unlimited retries, broader retry or persistence infrastructure, changes to repair sign-off or merge policy, and weakening tests to reach green.
+
+## Reconcile log
+
+### 2026-09-15
+
+2026-09-15: Reconciled against current main/docket. Confirmed the change's premise still holds: internal/config defines finalize.resolver_max_attempts with a built-in default of 3 (internal/config/schema.go, config.go) resolved through the standard precedence, and no finalize.repair_max_attempts key exists yet. The integration-repair agent (agents/docket-integration-repair.md) still hardcodes an "at most two" repair-attempt bound in three places (description, charter line 9, autonomy line 19). ADR-0010 remains Accepted and describes the fixed repair cap. Scope, both settled defaults (repair 6, resolver 10), and the trivial rationale remain valid; no design drift or new constraints. Proceeding to build unchanged.
