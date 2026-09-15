@@ -114,7 +114,7 @@ func TestRegistryDefaults(t *testing.T) {
 		"finalize.gate":                    "local",
 		"finalize.test_command":            "",
 		"finalize.require_pr_approval":     false,
-		"finalize.resolver_max_attempts":   3,
+		"finalize.resolver_max_attempts":   10,
 		"finalize.skip_results_only_delta": false,
 		"learnings.enabled":                true,
 		"learnings.cap":                    300,

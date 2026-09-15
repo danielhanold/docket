@@ -34,7 +34,7 @@ func builtinEffective() Effective {
 			Gate:                builtinValue("local"),
 			TestCommand:         builtinValue(""),
 			RequirePRApproval:   builtinValue(false),
-			ResolverMaxAttempts: builtinValue(3),
+			ResolverMaxAttempts: builtinValue(10),
 		},
 		Build: Build{
 			Gate:        builtinValue("local"),
