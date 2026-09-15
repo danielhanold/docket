@@ -155,9 +155,10 @@ assert "at least one shard runner exists" '[ -n "$runners" ]'
 # Fail-closed module census: a runner may only declare a package that actually exists
 # in the module. Read the module path from `go list -m` and strip it so membership is
 # checked against relative dirs — never hardcode the module path.
-golist_out="$(go list ./... 2>&1)"; golist_rc=$?
-assert "go list ./... succeeds (module package census)" \
-  '[ "$golist_rc" -eq 0 ] || { printf "%s\n" "$golist_out" >&2; false; }'
+# A cold cache writes download progress to stderr on success. Keep the census
+# protocol on stdout so diagnostics can never masquerade as module packages.
+golist_out="$(go list ./...)"; golist_rc=$?
+assert "go list ./... succeeds (module package census)" '[ "$golist_rc" -eq 0 ]'
 mod="$(go list -m 2>/dev/null)"
 module_dirs="$(go list -f '{{.ImportPath}}' ./... 2>/dev/null | sed "s|^${mod}/||")"
 
