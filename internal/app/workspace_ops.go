@@ -157,10 +157,11 @@ func newWorkspaceResult(opKey string, result Result, out WorkspaceOpResult) Work
 // a target and delegate: the resolved change, its exact record version, the
 // effective base, and the discovered repository.
 type workspaceContext struct {
-	change  domain.Change
-	version string
-	base    domain.EffectiveBase
-	repo    gitcli.Repository
+	change           domain.Change
+	version          string
+	metadataRevision string
+	base             domain.EffectiveBase
+	repo             gitcli.Repository
 	// snap is the authoritative corpus snapshot the context was resolved from. The
 	// carried-descendant preservation gate (proveCarriedOnHead) reads the live
 	// stacked_on graph from it, so a caller need not rebuild the snapshot.
@@ -232,11 +233,12 @@ func loadWorkspaceContext(ctx context.Context, deps PlanningDeps, repoDir string
 	}
 
 	return workspaceContext{
-		change:  c,
-		version: version,
-		base:    domain.ResolveEffectiveBase(snap, c, facts),
-		repo:    repo,
-		snap:    snap,
+		change:           c,
+		version:          version,
+		metadataRevision: pin.MetadataRevision,
+		base:             domain.ResolveEffectiveBase(snap, c, facts),
+		repo:             repo,
+		snap:             snap,
 	}, nil
 }
 

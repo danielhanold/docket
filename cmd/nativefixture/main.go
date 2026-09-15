@@ -323,11 +323,40 @@ func prepare(o options) error {
 	if err != nil {
 		return err
 	}
-	tracked["../LAUNCH.md"] = hash(launch)
-	m := manifest{SchemaVersion: 1, SourceCommit: head, Binary: o.Binary, BinarySHA256: hash(bb), Files: tracked, EvidenceAuditComplete: false, ChangeID: created.ID, ChangePath: created.Path, MetadataRevision: groomedStatus.Context.MetadataRevision, PrimaryHEAD: primaryHead, BuildReady: buildReady, BuildTestCommand: repoConfig.Effective.Build.TestCommand.Value, FinalizeTestCommand: repoConfig.Effective.Finalize.TestCommand.Value, BaselineCommand: baselineCommand, BaselinePassed: true, PinsSHA256: hash(pinsBytes)}
+	complete, err := completeManifestFiles(primary, files, tracked)
+	if err != nil {
+		return err
+	}
+	m := manifest{SchemaVersion: 1, SourceCommit: head, Binary: o.Binary, BinarySHA256: hash(bb), Files: complete, EvidenceAuditComplete: false, ChangeID: created.ID, ChangePath: created.Path, MetadataRevision: groomedStatus.Context.MetadataRevision, PrimaryHEAD: primaryHead, BuildReady: buildReady, BuildTestCommand: repoConfig.Effective.Build.TestCommand.Value, FinalizeTestCommand: repoConfig.Effective.Finalize.TestCommand.Value, BaselineCommand: baselineCommand, BaselinePassed: true, PinsSHA256: hash(pinsBytes)}
 	mb, _ := json.MarshalIndent(m, "", "  ")
 	mb = append(mb, '\n')
 	return writeFile(filepath.Join(o.Destination, "manifest.json"), mb, 0o644)
+}
+
+// completeManifestFiles merges Git's tracked-file inventory with files emitted
+// explicitly by the fixture renderer. It re-reads every explicit output before
+// publication and refuses a collision unless both inventories agree on bytes.
+// This keeps ignored native role definitions in the manifest and makes drift
+// between rendering and manifest creation visible.
+func completeManifestFiles(root string, explicit, tracked map[string]string) (map[string]string, error) {
+	out := make(map[string]string, len(explicit)+len(tracked))
+	for path, digest := range tracked {
+		out[path] = digest
+	}
+	for path, digest := range explicit {
+		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+		if err != nil {
+			return nil, fmt.Errorf("manifest explicit file %s: %w", path, err)
+		}
+		if actual := hash(body); actual != digest {
+			return nil, fmt.Errorf("manifest explicit file %s changed after rendering", path)
+		}
+		if prior, exists := out[path]; exists && prior != digest {
+			return nil, fmt.Errorf("manifest file %s has conflicting hashes", path)
+		}
+		out[path] = digest
+	}
+	return out, nil
 }
 
 func trackedFileHashes(root string) (map[string]string, error) {

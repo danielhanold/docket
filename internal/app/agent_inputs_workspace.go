@@ -23,7 +23,7 @@ func (v agentFinalizeInputValidator) ValidateRoleInputs(ctx context.Context, a c
 	if p.Kind == "repair" {
 		return validateRepairEntry(ctx, v.deps, repoDir, a.ChangeID, p.Attempt)
 	}
-	return validateResolverEntry(ctx, v.deps, repoDir, a.ChangeID, p.Attempt, p.ResolverReservation, a.WritePaths)
+	return validateResolverEntry(ctx, v.deps, repoDir, a, p.Attempt, p.ResolverReservation)
 }
 
 func NewAgentWorkspaceValidator(planning PlanningDeps, workspaceDeps WorkspaceDeps) AgentWorkspaceValidator {

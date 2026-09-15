@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/danielhanold/docket/internal/codexcontract"
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/evidence"
@@ -471,14 +472,15 @@ func checkpointDecision(cp publishCheckpoint, currentHead, liveBaseHead, resolve
 // change and its exact record version, the validated workspace target, the
 // read-only inspection, and the derived checkout and metadata directories.
 type rebaseContext struct {
-	repo    gitcli.Repository
-	change  domain.Change
-	version string
-	base    domain.EffectiveBase
-	target  workspace.Target
-	insp    workspace.Inspection
-	wsDir   string
-	metaDir string
+	repo             gitcli.Repository
+	change           domain.Change
+	version          string
+	metadataRevision string
+	base             domain.EffectiveBase
+	target           workspace.Target
+	insp             workspace.Inspection
+	wsDir            string
+	metaDir          string
 	// snap is the corpus snapshot the context was resolved from; the carried-
 	// descendant preservation gate reads the live stacked_on graph from it.
 	snap domain.Snapshot
@@ -504,15 +506,16 @@ func loadRebaseContext(ctx context.Context, deps FinalizeDeps, repoDir string, o
 		return nil, &r
 	}
 	return &rebaseContext{
-		repo:    wc.repo,
-		change:  wc.change,
-		version: wc.version,
-		base:    wc.base,
-		target:  target,
-		insp:    insp,
-		wsDir:   insp.Path,
-		metaDir: workspace.MetaDir(wc.repo.CommonDir, target.FeatureRef),
-		snap:    wc.snap,
+		repo:             wc.repo,
+		change:           wc.change,
+		version:          wc.version,
+		metadataRevision: wc.metadataRevision,
+		base:             wc.base,
+		target:           target,
+		insp:             insp,
+		wsDir:            insp.Path,
+		metaDir:          workspace.MetaDir(wc.repo.CommonDir, target.FeatureRef),
+		snap:             wc.snap,
 	}, nil
 }
 
@@ -1261,14 +1264,20 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 // validateResolverEntry proves the existing owned attempt, outstanding
 // reservation, stopped commit, and exact unmerged path set without consuming
 // the reservation or advancing the rebase.
-func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir string, id int, attempt, reservation string, expectedPaths []string) error {
-	rc, refusal := loadRebaseContext(ctx, deps, repoDir, OperationAgentCheckInputs, id)
+func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir string, assignment codexcontract.Assignment, attempt, reservation string) error {
+	rc, refusal := loadRebaseContext(ctx, deps, repoDir, OperationAgentCheckInputs, assignment.ChangeID)
 	if refusal != nil {
 		return fmt.Errorf("%s", refusal.Reason)
+	}
+	if err := validateResolverAssignment(ctx, deps, repoDir, rc, assignment); err != nil {
+		return err
 	}
 	rec, ownedRefusal := requireOwnedAttempt(ctx, deps, OperationAgentCheckInputs, rc, attempt)
 	if ownedRefusal != nil {
 		return fmt.Errorf("%s", ownedRefusal.Reason)
+	}
+	if rec.RepoIdentity != rc.repo.CommonDir {
+		return fmt.Errorf("resolver-repository-mismatch")
 	}
 	git := continueGit(deps)
 	state, err := git.RebaseState(ctx, rc.wsDir)
@@ -1279,7 +1288,55 @@ func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir strin
 	if err != nil {
 		return fmt.Errorf("%s", ReasonRebaseReservationStale)
 	}
-	return validateResolverEntryEvidence(rec, reservation, state, string(stopped), expectedPaths)
+	return validateResolverEntryEvidence(rec, reservation, state, string(stopped), assignment.WritePaths)
+}
+
+// validateResolverAssignment binds the child document to the canonical conflict
+// workspace selected by the owned finalize attempt. Resolver workspaces are
+// deliberately detached, so the ordinary feature-workspace validator cannot be
+// reused; every stable repository, change, ref, metadata, path, and filesystem
+// identity is compared here instead.
+func validateResolverAssignment(ctx context.Context, deps FinalizeDeps, repoDir string, rc *rebaseContext, assignment codexcontract.Assignment) error {
+	if assignment.Primary != rc.repo.PrimaryWorktree || assignment.CommonDir != rc.repo.CommonDir {
+		return fmt.Errorf("resolver-repository-mismatch")
+	}
+	if assignment.ChangePath != rc.change.Path() {
+		return fmt.Errorf("change-path-mismatch")
+	}
+	if assignment.Feature != rc.wsDir {
+		return fmt.Errorf("feature-path-mismatch")
+	}
+	if "refs/heads/"+assignment.Branch != string(rc.target.FeatureRef) {
+		return fmt.Errorf("feature-ref-mismatch")
+	}
+	if assignment.MetadataRevision != rc.metadataRevision {
+		return fmt.Errorf("metadata-revision-mismatch")
+	}
+	pin, err := deps.Planning.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		return fmt.Errorf("metadata-recheck: %w", err)
+	}
+	if pin.MetadataRevision != rc.metadataRevision {
+		return fmt.Errorf("metadata-revision-mismatch")
+	}
+	if assignment.RootIdentity == nil {
+		return fmt.Errorf("root-identity-missing")
+	}
+	worktree, err := deps.Planning.Client.DiscoverWorktree(ctx, gitcli.DiscoverOptions{InvocationPath: rc.wsDir})
+	if err != nil {
+		return fmt.Errorf("resolver-worktree-identity: %w", err)
+	}
+	if worktree.Root != rc.wsDir {
+		return fmt.Errorf("feature-path-mismatch")
+	}
+	identity, err := codexcontract.ObserveRootIdentity(worktree.Root, worktree.GitDir)
+	if err != nil {
+		return fmt.Errorf("resolver-worktree-identity: %w", err)
+	}
+	if !assignment.RootIdentity.Equal(identity) {
+		return fmt.Errorf("root-identity-mismatch")
+	}
+	return nil
 }
 
 // validateRepairEntry binds an integration-repair child to the failed owned
