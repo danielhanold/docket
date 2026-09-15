@@ -36,6 +36,12 @@ Permanent regressions retain the reviewer's full real-Git cross-worktree reprodu
 
 ## Verification performed
 
+### Initial native acceptance handoff repair
+
+The first prepared candidate run stopped before planner execution. Its saved planner payload used bare `docket`, embedded `--repo-dir`, and omitted `--json`; the strict pinned-command validator correctly refused it. Successful `agent.check-inputs` now returns the canonical assignment-only `entry_argv`, built by the same function that validates payloads. Controllers copy this result after freezing the final assignment rather than guessing from optional catalog flags. A regression failed on the missing result before the repair and passed afterward; negative cases retain refusal of bare executables, embedded repository flags and omitted JSON output.
+
+The local-only fixture's later `run.verify` reported `repository-unresolved` during GitHub discovery because the controller had not recorded a durable halt. The generated controller resource now requires catalog/schema-resolved `change.halt` and verification before returning on checker or child failure; the gate's fail-closed verdict is unchanged. A bounded read-only instruction application check produced the pinned command and the correct halt/epoch handling. This is not a native acceptance rerun. The failed fixture, private payload and active epoch remain preserved; no resume or redispatch was performed. A rebuilt candidate requires fresh source review and native acceptance before 424 dogfood.
+
 - The configured source command `go run ./cmd/docket development test` passed at `e861d4968c04621ed82b18aa096bee36a28c5b1f`: 46 of 46 suite files passed, with 399 assertions and no failed result markers.
 - The repaired `TestProcessExitSitesAreAllowlisted` passed both normally and under race instrumentation; `tests/test_go_toolchain.sh` passed all six result markers.
 - Generated source consistency checks passed: `go run ./cmd/genassets -repo "$PWD" -check` and `go run ./cmd/gendispatch -repo "$PWD" -check`.

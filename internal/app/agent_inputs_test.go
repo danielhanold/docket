@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -135,6 +136,31 @@ func TestCheckAgentInputsDispatchValidatesFinalPayloadAgainstScope(t *testing.T)
 	scope := &inputScope{}
 	workspace := &inputWorkspace{}
 	obs := inputObserver{out: AgentRootObservation{Primary: a.Primary, Feature: a.Feature, CommonDir: a.CommonDir, Branch: a.Branch, HEAD: a.EntryHEAD, Clean: true, CallerRoot: a.Primary, RootIdentity: identity}}
+	prepared := CheckAgentInputs(context.Background(), AgentInputDeps{Observer: obs, Workspace: workspace}, CheckInputsRequest{Assignment: assignmentPath, SHA256: ad, Stage: "prepare", RepoDir: a.Primary})
+	encoded, _ := json.Marshal(prepared)
+	var wire struct {
+		EntryArgv []string `json:"entry_argv"`
+	}
+	if err := json.Unmarshal(encoded, &wire); err != nil {
+		t.Fatal(err)
+	}
+	wantEntry := []string{docketPath, "agent", "check-inputs", "--assignment", assignmentPath, "--sha256", ad, "--stage", "entry", "--json"}
+	if prepared.Result != ResultApplied || !reflect.DeepEqual(wire.EntryArgv, wantEntry) {
+		t.Fatalf("prepare must supply the pinned checker command: result=%s entry=%v", prepared.Result, wire.EntryArgv)
+	}
+	p.EntryArgv = wire.EntryArgv
+	if err := codexcontract.ValidateWorkerPayload(p, a); err != nil {
+		t.Fatalf("returned command rejected: %v", err)
+	}
+	pb, err = json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(payloadPath, pb, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ps = sha256.Sum256(pb)
+	workspace.calls = 0
 	r := CheckAgentInputs(context.Background(), AgentInputDeps{Observer: obs, Scope: scope, Workspace: workspace}, CheckInputsRequest{Assignment: assignmentPath, SHA256: ad, Stage: "dispatch", Payload: payloadPath, PayloadSHA256: hex.EncodeToString(ps[:]), RepoDir: a.Primary})
 	if r.Result != ResultApplied {
 		t.Fatalf("result=%s reason=%s", r.Result, r.Reason)

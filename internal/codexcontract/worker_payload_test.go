@@ -15,6 +15,8 @@ func TestValidateWorkerPayloadBindsFinalScopeAndAssignment(t *testing.T) {
 		"draft capability omitted":      func(p *WorkerPayload) { p.ChildCapability = "" },
 		"assignment digest substituted": func(p *WorkerPayload) { p.AssignmentSHA256 = strings.Repeat("b", 64) },
 		"entry argv substituted":        func(p *WorkerPayload) { p.EntryArgv[0] = "docket" },
+		"repository flag embedded":      func(p *WorkerPayload) { p.EntryArgv = append(p.EntryArgv, "--repo-dir", "/repo") },
+		"json flag omitted":             func(p *WorkerPayload) { p.EntryArgv = p.EntryArgv[:len(p.EntryArgv)-1] },
 		"half predecessor":              func(p *WorkerPayload) { p.PredecessorDriveID = "drive-1" },
 	} {
 		t.Run(name, func(t *testing.T) {
