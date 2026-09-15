@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-11'
-updated: '2026-09-14'
+updated: '2026-09-15'
 depends_on: [423]
 stacked_on:
 related: [393, 407, 412, 426]
@@ -22,7 +22,7 @@ branch: 'codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-14T23:46:25Z'
+claimed_at: '2026-09-15T00:38:22Z'
 ---
 
 ## Artifacts
