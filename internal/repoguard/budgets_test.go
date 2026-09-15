@@ -141,6 +141,12 @@ type skillBudget struct {
 // worktree-busy-is-not-a-retry rule, gate-failure.md the shared-slot note for the
 // scopeless finalize gate, and both docket-implement-next surfaces the gate-epoch
 // resume refusals. Authored contract, not slack — pinned at the exact new counts.
+//
+// Change 0419 (repair-attempts configurable, built-in default 3 -> 10) added the
+// required repair-attempt budget payload line and rewired the repair contract in
+// the finalize surfaces: docket-finalize-change/SKILL.md (236 -> 238 lines) and
+// docket-finalize-change/references/gate-failure.md (1450 -> 1465 words). Authored
+// contract, not slack — pinned at the exact new counts.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -163,8 +169,8 @@ var skillBudgets = []skillBudget{
 	{"docket-convention/references/learnings.md", 84, 580},
 	{"docket-convention/references/stacked-changes.md", 215, 2140}, // 0327: +carry-preservation contract prose (see note above)
 	{"docket-convention/references/terminal-close-out.md", 240, 2150},
-	{"docket-finalize-change/SKILL.md", 236, 5200},                   // 0393: +exact payload, marker, and direct-dispatch lines atop 0349/0410 (see note above)
-	{"docket-finalize-change/references/gate-failure.md", 133, 1450}, // 0349: +reserve-before-dispatch resolver protocol prose; 0375: +worktree-slot note for the scopeless finalize gate (120/1300 -> 133/1450)
+	{"docket-finalize-change/SKILL.md", 238, 5200},                   // 0419: +repair-attempt budget payload line and rewired repair contract (line ceiling 236 -> 238); 0393: +exact payload, marker, and direct-dispatch lines atop 0349/0410 (see note above)
+	{"docket-finalize-change/references/gate-failure.md", 133, 1465}, // 0419: +repair-attempt budget payload and rewired repair contract prose (word ceiling 1450 -> 1465); 0349: +reserve-before-dispatch resolver protocol prose; 0375: +worktree-slot note for the scopeless finalize gate (120/1300 -> 133/1450)
 	{"docket-groom-next/SKILL.md", 77, 1650},
 	{"docket-implement-next/SKILL.md", 210, 7547},                // 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376; 0375: +gate-epoch resume pointer (word ceiling 7530 -> 7547)
 	{"docket-implement-next/references/edge-paths.md", 93, 1261}, // 0410: +resume/recovery + required-results reconciliation; 0375: +gate-epoch resume refusals (78/1091 -> 93/1261)

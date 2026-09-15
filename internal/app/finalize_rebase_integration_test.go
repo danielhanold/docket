@@ -736,7 +736,7 @@ func TestIntegrationFinalizeRebaseResponseLossRecovery(t *testing.T) {
 // whatever else the entry names) — over a base that conflictingly wrote the same
 // file, so a rebase onto the base stops on each feature commit in turn. limit > 0
 // resolves finalize.resolver_max_attempts through the repository-local layer; limit
-// == 0 leaves the built-in default (3) in force. It publishes the multi-commit head,
+// == 0 leaves the built-in default (10) in force. It publishes the multi-commit head,
 // begins the owned rebase from it, and returns the fixture, the deps, the authorized
 // head, and the conflicted begin result.
 func beginSuccessiveConflicts(t *testing.T, limit int, extra []map[string]string, baseFiles map[string]string) (*rebaseFixture, FinalizeDeps, string, FinalizeRebaseResult) {
@@ -801,14 +801,15 @@ func reserveResolveContinue(t *testing.T, f *rebaseFixture, deps FinalizeDeps, a
 func TestIntegrationResolverBudgetSuccessiveConflicts(t *testing.T) {
 	requireRealGit(t)
 
-	// Default limit 3: three successive conflicts, reserve->resolve->continue each,
-	// the rebase completes and the gate composes.
-	t.Run("default-limit-3-three-conflicts-completes", func(t *testing.T) {
+	// Default limit 10: three successive conflicts, reserve->resolve->continue each,
+	// the rebase completes and the gate composes. (0419 raised the built-in default
+	// from 3 to 10; three conflicts still consume only 3 reservations.)
+	t.Run("default-limit-10-three-conflicts-completes", func(t *testing.T) {
 		f, deps, _, begin := beginSuccessiveConflicts(t, 0,
 			[]map[string]string{{"feature.txt": "feature v2\n"}, {"feature.txt": "feature v3\n"}},
 			map[string]string{"feature.txt": "conflicting base content\n"})
-		if begin.ResolverLimit != 3 || begin.ResolverUsed != 0 {
-			t.Fatalf("begin counts = %d/%d, want limit 3 (built-in default) used 0", begin.ResolverLimit, begin.ResolverUsed)
+		if begin.ResolverLimit != 10 || begin.ResolverUsed != 0 {
+			t.Fatalf("begin counts = %d/%d, want limit 10 (built-in default) used 0", begin.ResolverLimit, begin.ResolverUsed)
 		}
 		attempt := begin.Attempt
 		unmerged := begin.UnmergedPaths
