@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -244,7 +245,206 @@ func EvidenceRecertify(ctx context.Context, deps FinalizeDeps, wdeps WorkspaceDe
 	if refusal != nil {
 		return *refusal
 	}
-	// Task 3 replaces this fail-closed tail with the gate + publish composition.
-	return recertifyRefusal(ResultInternalError, ReasonRecertifyGateHalted,
-		"recertify gate composition not yet wired", facts.id)
+
+	// Config policy branch (the pinned build gate decides what "recertify" means).
+	if facts.build.Gate.Value == "off" {
+		// Truthful skipped evidence at the verified current head; no run, and no
+		// PR edit — evidence.Upsert is green-only by design (see
+		// TestPRPublishAcceptsSkippedEvidenceAtExactHead's note), and this
+		// operation preserves evidence rendering.
+		evd := EvidenceRecord(ctx, deps.Planning, wdeps, repoDir, EvidenceRecordRequest{ID: facts.id, Head: facts.head})
+		if evd.Result != ResultApplied || evd.Block == "" {
+			return recertifyRefusal(evd.Result, evd.Reason, evd.Message, facts.id)
+		}
+		if v := evidence.Verify([]byte(evd.Block), facts.head); v != evidence.VerdictSkipped {
+			return recertifyRefusal(ResultInvalidState, ReasonRecertifyEvidenceUnverified,
+				"the skipped evidence record did not verify against the current head ("+string(v)+")", facts.id)
+		}
+		return EvidenceRecertifyResult{
+			Envelope: NewEnvelope(OperationEvidenceRecertify, ResultApplied),
+			ID:       facts.id, Head: facts.head, Outcome: RecertifyOutcomeSkipped,
+			Number: facts.pr.Number, Reference: fmt.Sprintf("%s#%d", facts.repo.Spec(), facts.pr.Number), URL: facts.pr.URL,
+			Message: "build.gate is off; truthful skipped evidence was recorded and verified (the PR evidence block is untouched — skipped evidence is never woven into a PR body)",
+		}
+	}
+	if facts.build.TestCommand.Value == "" {
+		return recertifyRefusal(ResultUnsupportedConfig, ReasonEvidenceUnconfiguredGate,
+			"build.gate is local but build.test_command is unconfigured; run `docket repository configure-tests` and review the pending edit", facts.id)
+	}
+
+	block, runDir, gref := runRecertifyGate(ctx, deps, repoDir, facts)
+	if gref != nil {
+		return *gref
+	}
+	res := publishRecertifiedEvidence(ctx, deps, repoDir, facts, block)
+	res.RunDir = runDir
+	return res
+}
+
+// runRecertifyGate drives the BUILD-owned local gate to a terminal within this
+// operation: it advances WAITING slices of the SAME drive (each RunLocalGate
+// call blocks for one bounded driver slice; the drive's own observation budget
+// turns an overlong run into a running-at-budget halt, so the loop terminates).
+// WAITING never means success and never starts a second suite. A PASSED
+// terminal returns the canonical evidence block the seam minted through the
+// landed build-owned evidence-record path (which re-verifies the head at mint
+// time); FAILED is repair work; everything else is a halt — never a fabricated
+// red, and never a PR edit.
+func runRecertifyGate(ctx context.Context, deps FinalizeDeps, repoDir string, facts recertifyFacts) (block, runDir string, refusal *EvidenceRecertifyResult) {
+	if deps.Gate == nil {
+		r := recertifyRefusal(ResultInternalError, ReasonRecertifyGateHalted, "no local-gate seam is wired; cannot run the suite", facts.id)
+		return "", "", &r
+	}
+	cont := GateContinuation{}
+	for {
+		gres, gerr := deps.Gate.RunLocalGate(ctx, LocalGateRequest{
+			RepoDir: repoDir, ID: facts.id, WorkspaceDir: facts.wsDir, Head: facts.head, Continuation: cont,
+		})
+		if gerr != nil {
+			r := recertifyRefusal(ResultBlocked, ReasonRecertifyGateHalted,
+				"the local gate could not be established; retained, no red fabricated: "+gerr.Error(), facts.id)
+			return "", "", &r
+		}
+		switch gres.Outcome {
+		case FinalizeGateWaiting:
+			if gres.Continuation.DriveID == "" {
+				// A WAITING with no drive handle can never be advanced; fail closed
+				// rather than loop forever.
+				r := recertifyRefusal(ResultBlocked, ReasonRecertifyGateHalted,
+					"the gate reported waiting without a continuation; retained", facts.id)
+				return "", "", &r
+			}
+			cont = gres.Continuation
+			continue
+		case FinalizeGatePassed:
+			return gres.Evidence, gres.RunDir, nil
+		case FinalizeGateFailed:
+			r := recertifyRefusal(ResultGateFailed, ReasonRecertifyGateFailed,
+				"the build suite failed at the current head; this is repair work — no evidence was published", facts.id)
+			r.GateOutcome, r.RunDir = string(gres.Outcome), gres.RunDir
+			return "", "", &r
+		default: // FinalizeGateHalted
+			r := recertifyRefusal(ResultBlocked, ReasonRecertifyGateHalted,
+				"the build gate did not reach a decidable pass/fail; retained, no red fabricated", facts.id)
+			r.GateOutcome, r.HaltCause = string(gres.Outcome), gres.HaltCause
+			return "", "", &r
+		}
+	}
+}
+
+// publishRecertifiedEvidence re-proves the whole identity predicate AFTER the
+// gate (the same recertifyProbe — a changed head, status, worktree state, or PR
+// cannot inherit the pass), re-pins the build command against the evidence, and
+// then loss-preservingly replaces ONLY the PR's build-evidence block, exactly
+// as FinalizePublish does — without its rebase receipt, PublishRewrite, or
+// merge path. A failed or uncertain edit is never reported as completion.
+func publishRecertifiedEvidence(ctx context.Context, deps FinalizeDeps, repoDir string, first recertifyFacts, block string) EvidenceRecertifyResult {
+	if len(block) > maxAuthoredMarkdownBytes {
+		return recertifyRefusal(ResultInvalidInput, ReasonRecertifyEvidenceUnverified,
+			fmt.Sprintf("the evidence record is %d bytes, over the %d-byte authored-input bound", len(block), maxAuthoredMarkdownBytes), first.id)
+	}
+	if v := evidence.Verify([]byte(block), first.head); v != evidence.VerdictVerified {
+		return recertifyRefusal(ResultInvalidState, ReasonRecertifyEvidenceUnverified,
+			"the minted evidence does not verify green against the tested head ("+string(v)+")", first.id)
+	}
+	rec, err := evidence.Extract([]byte(block))
+	if err != nil {
+		// Unreachable after a verified verdict, but fail closed rather than trust it.
+		return recertifyRefusal(ResultInvalidState, ReasonRecertifyEvidenceUnverified, err.Error(), first.id)
+	}
+
+	// Recheck: the SAME whole predicate that admitted the gate (implemented
+	// status, clean workspace, local/remote/PR head agreement, one open PR).
+	second, refusal := recertifyProbe(ctx, deps, repoDir, first.id)
+	if refusal != nil {
+		return *refusal
+	}
+	if second.head != first.head {
+		return recertifyRefusal(ResultContended, ReasonRecertifyIdentityDrift,
+			"the feature head moved after the gate; the run no longer certifies the current commit — rerun recertify", first.id)
+	}
+	if second.pr.Number != first.pr.Number {
+		return recertifyRefusal(ResultContended, ReasonRecertifyIdentityDrift,
+			"the open pull request changed after the gate; re-read the change state and rerun recertify", first.id)
+	}
+	// A changed build configuration cannot inherit the pass: the recorded
+	// command must be byte-equal to the currently resolved build.test_command.
+	if second.build.Gate.Value == "off" || rec.Command == "" || rec.Command != second.build.TestCommand.Value {
+		return recertifyRefusal(ResultBlocked, ReasonRecertifyIdentityDrift,
+			"the resolved build gate configuration changed after the run (or the evidence names a different command); rerun recertify under the current configuration", first.id)
+	}
+
+	newBody, err := evidence.Upsert([]byte(second.pr.Body), rec)
+	if err != nil {
+		return recertifyRefusal(ResultInvalidState, ReasonRecertifyBodyAssembly, err.Error(), first.id)
+	}
+	ensurer, ok := deps.GitHub.(finalizePublishEnsurer)
+	if !ok {
+		return recertifyRefusal(ResultInternalError, ReasonRecertifyEditorUnavailable,
+			"the wired GitHub seam does not provide the pull-request edit face", first.id)
+	}
+	eres, eerr := ensurer.EnsurePullRequest(ctx, githubcli.EnsurePullRequestRequest{
+		Repository:      second.repo,
+		HeadBranch:      second.branch,
+		ExpectedHead:    second.head,
+		BaseBranch:      second.pr.BaseBranch,
+		Title:           second.pr.Title,
+		Body:            string(newBody),
+		ExpectedVersion: second.pr.Version,
+	})
+	if eerr != nil {
+		return mapRecertifyEnsureFailure(first.id, second.head, eerr)
+	}
+	base := EvidenceRecertifyResult{
+		ID: first.id, Head: second.head, Outcome: RecertifyOutcomeGreen, Command: rec.Command,
+		Number: eres.PR.Number, URL: eres.PR.URL,
+	}
+	if eres.PR.Number != 0 {
+		base.Reference = fmt.Sprintf("%s#%d", second.repo.Spec(), eres.PR.Number)
+	}
+	switch eres.Disposition {
+	case githubcli.EnsureCreated, githubcli.EnsureUpdated:
+		base.Envelope = NewEnvelope(OperationEvidenceRecertify, ResultApplied)
+		return base
+	case githubcli.EnsureAdopted, githubcli.EnsureUnchanged:
+		// The PR already carried this exact evidence — an idempotent replay.
+		base.Envelope = NewEnvelope(OperationEvidenceRecertify, ResultNoOp)
+		base.Message = "the pull request already carries verified evidence for this head"
+		return base
+	case githubcli.EnsureContended:
+		return recertifyRefusal(ResultContended, ReasonRecertifyEditContended,
+			"the pull request diverged under the update; rerun recertify", first.id)
+	case githubcli.EnsureUnknown:
+		return recertifyRefusal(ResultExternalFailed, ReasonRecertifyEditUnknown,
+			"the pull-request update could not be verified; retained, no second mutation — rerun recertify to converge", first.id)
+	default:
+		return recertifyRefusal(ResultInternalError, ReasonStatusInternalError,
+			fmt.Sprintf("unexpected pull-request edit disposition %q", eres.Disposition), first.id)
+	}
+}
+
+// mapRecertifyEnsureFailure folds a githubcli EnsureFailed error onto the
+// protocol taxonomy (mirrors mapPublishEnsureFailure's kind mapping; the
+// failure's kind is the stable reason and its detail is bounded/redacted).
+func mapRecertifyEnsureFailure(id int, head string, err error) EvidenceRecertifyResult {
+	result := ResultInternalError
+	reason := ReasonStatusInternalError
+	message := err.Error()
+	if f, ok := githubcli.AsFailure(err); ok {
+		reason = string(f.Kind)
+		message = f.Error()
+		switch f.Kind {
+		case githubcli.KindInvalidInput:
+			result = ResultInvalidInput
+		case githubcli.KindInvalidState:
+			result = ResultInvalidState
+		case githubcli.KindExternal, githubcli.KindInvalidOutput, githubcli.KindTimedOut:
+			result = ResultExternalFailed
+		case githubcli.KindCancelled:
+			result = ResultInterrupted
+		}
+	}
+	r := recertifyRefusal(result, reason, message, id)
+	r.Head = head
+	return r
 }
