@@ -141,5 +141,6 @@ func NewAgentScopeValidator(commonDir, executable string) (AgentChildInputValida
 	}
 	driver := gatedrive.NewSystemDriver(gatedrive.OpenStore(commonDir), proc)
 	driver.SetEpochRevokedResolver(epochRevokedResolver(commonDir))
+	driver.SetEpochReplacementResolver(epochReplacementResolver(commonDir))
 	return driver, nil
 }

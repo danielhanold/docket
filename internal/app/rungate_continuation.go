@@ -118,6 +118,7 @@ func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error)
 	// carries the same run-epoch revocation resolver. It fires only for a scope that
 	// carries a RunEpochID.
 	driver.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	driver.SetEpochReplacementResolver(epochReplacementResolver(gitCommonDir))
 	return &gatedriveContinuationSeam{store: store, driver: driver}, nil
 }
 
