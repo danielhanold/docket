@@ -27,6 +27,8 @@ effect. Report bodies are redaction-only and are never echoed into a result docu
    `disposition` (`resolved` | `stuck`), `summary` (bounded prose), `touched_paths` and
    `conflicted_paths` (repo-relative), `observed_head`, `observed_base`, `recommended_action`, and
    `resolver_reservation` (the reservation token from the `reserved` result, echoed back verbatim).
+   `conflicted_paths` lists authored paths only; bundle outputs under `internal/assets/embedded/`
+   are omitted and controller-regenerated.
    The controller feeds a `resolved` report to the `finalize.rebase-continue` operation with `--id <id>
    --attempt <attempt> --input <report>`, which stages exactly the reported-and-verified paths and
    continues; a `stuck` report, or paths outside the live unmerged set (refused `report-not-resolved`),
