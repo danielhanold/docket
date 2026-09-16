@@ -182,52 +182,76 @@ func verifyLegacyEquivalence(ctx context.Context, git *gitcli.Client, repo gitcl
 	}
 	configCache := map[gitcli.ObjectID]resolvedDirs{}
 	composedKeys := map[string]bool{}
-
-	for _, e := range entries {
-		commit := e.Commit
-
-		cfgEntries, err := git.TreeEntryIDs(ctx, repo, commit, []gitcli.RepoPath{".docket.yml"})
-		if err != nil {
-			own.Err = err
-			own.Shape = reposetup.RootUnknown
-			return own
+	queries := make([]gitcli.ObjectPath, len(entries))
+	for i, e := range entries {
+		queries[i] = gitcli.ObjectPath{Tree: e.Tree, Path: ".docket.yml"}
+	}
+	configIDs, err := git.PathObjectIDs(ctx, repo, queries)
+	if err != nil {
+		own.Err = err
+		return own
+	}
+	var uniqueConfigs []gitcli.ObjectID
+	seenConfigs := map[gitcli.ObjectID]bool{}
+	for _, id := range configIDs {
+		if id != "" && !seenConfigs[id] {
+			uniqueConfigs = append(uniqueConfigs, id)
+			seenConfigs[id] = true
 		}
-		configOID := treeEntryOID(cfgEntries, ".docket.yml")
+	}
+	configBlobs, err := git.ReadBlobObjects(ctx, repo, uniqueConfigs)
+	if err != nil {
+		own.Err = err
+		return own
+	}
+	for _, blob := range configBlobs {
+		changes, adrs, ok := historicalDirs(blob.Bytes, defaultBranch)
+		configCache[blob.ObjectID] = resolvedDirs{changes: changes, adrs: adrs, ok: ok}
+	}
+	changes, adrs, ok := historicalDirs(nil, defaultBranch)
+	configCache[""] = resolvedDirs{changes: changes, adrs: adrs, ok: ok}
+	type candidate struct {
+		dirs   resolvedDirs
+		offset int
+	}
+	candidates := make([]candidate, len(entries))
+	var subtreeQueries []gitcli.ObjectPath
 
-		dirs, cached := configCache[configOID]
-		if !cached {
-			var docketYML []byte
-			if configOID != "" {
-				b, _, rerr := readCommitBlob(ctx, git, repo, string(commit), ".docket.yml")
-				if rerr != nil {
-					own.Err = rerr
-					own.Shape = reposetup.RootUnknown
-					return own
-				}
-				docketYML = b
-			}
-			changes, adrs, ok := historicalDirs(docketYML, defaultBranch)
-			dirs = resolvedDirs{changes: changes, adrs: adrs, ok: ok}
-			configCache[configOID] = dirs
-		}
+	for i, e := range entries {
+		configOID := configIDs[i]
+		dirs := configCache[configOID]
 		if !dirs.ok {
 			// The snapshot's committed config does not resolve: readable but
 			// ineligible — skip it, never error the whole search.
 			continue
 		}
+		candidates[i] = candidate{dirs: dirs, offset: len(subtreeQueries)}
+		for _, p := range []gitcli.RepoPath{gitcli.RepoPath(dirs.changes), gitcli.RepoPath(dirs.adrs), specsDir} {
+			subtreeQueries = append(subtreeQueries, gitcli.ObjectPath{Tree: e.Tree, Path: p})
+		}
+	}
+	subtreeIDs, err := git.PathObjectIDs(ctx, repo, subtreeQueries)
+	if err != nil {
+		own.Err = err
+		return own
+	}
+	for i, e := range entries {
+		commit := e.Commit
+		dirs := candidates[i].dirs
+		if !dirs.ok {
+			continue
+		}
+		configOID := configIDs[i]
 		changesDir := gitcli.RepoPath(dirs.changes)
 		adrsDir := gitcli.RepoPath(dirs.adrs)
-
-		subEntries, err := git.TreeEntryIDs(ctx, repo, commit, []gitcli.RepoPath{changesDir, adrsDir, specsDir})
-		if err != nil {
-			own.Err = err
-			own.Shape = reposetup.RootUnknown
-			return own
+		subIDs := subtreeIDs[candidates[i].offset : candidates[i].offset+3]
+		// Without a changes entry neither active/ nor BOARD.md can exist. Avoid
+		// reopening absent planning surfaces as specs/config evolve.
+		if subIDs[0] == "" {
+			continue
 		}
 		key := string(configOID) + "\x00" +
-			string(treeEntryOID(subEntries, string(changesDir))) + "\x00" +
-			string(treeEntryOID(subEntries, string(adrsDir))) + "\x00" +
-			string(treeEntryOID(subEntries, string(specsDir)))
+			string(subIDs[0]) + "\x00" + string(subIDs[1]) + "\x00" + string(subIDs[2])
 		if composedKeys[key] {
 			continue
 		}
@@ -248,8 +272,8 @@ func verifyLegacyEquivalence(ctx context.Context, git *gitcli.Client, repo gitcl
 		// Compose the copy-set projection exactly as migrateExecute composes a seed:
 		// IncludePrefix only for the prefixes that exist in the candidate.
 		var ops []gitcli.TreeOp
-		for _, p := range []gitcli.RepoPath{changesDir, adrsDir, specsDir} {
-			if treeEntryOID(subEntries, string(p)) != "" {
+		for j, p := range []gitcli.RepoPath{changesDir, adrsDir, specsDir} {
+			if subIDs[j] != "" {
 				ops = append(ops, gitcli.TreeOp{IncludePrefix: &gitcli.IncludePrefixOp{From: commit, Prefix: p}})
 			}
 		}
@@ -321,17 +345,6 @@ func candidateHasLiveSurface(ctx context.Context, git *gitcli.Client, repo gitcl
 		return true, nil
 	}
 	return false, nil
-}
-
-// treeEntryOID returns the object id of the entry at exactly repoPath, or "" when
-// no such entry is present (an absent copy-set prefix or config file).
-func treeEntryOID(entries []gitcli.TreeEntry, repoPath string) gitcli.ObjectID {
-	for _, e := range entries {
-		if string(e.Path) == repoPath {
-			return e.ObjectID
-		}
-	}
-	return ""
 }
 
 // isFullObjectID reports whether s is a full lowercase-hex Git object id:
