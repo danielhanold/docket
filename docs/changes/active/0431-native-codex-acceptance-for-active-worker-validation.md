@@ -22,7 +22,7 @@ branch: 'chore/native-codex-acceptance-for-active-worker-validation'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-16T11:41:36Z'
+claimed_at: '2026-09-16T12:45:04Z'
 ---
 
 ## Artifacts
@@ -51,8 +51,3 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
 
-## Run halted
-
-### 2026-09-16
-
-Native planner validation failed after its plan-only commit `95842609f2a0b1c9c5e8646e8cba8d8a105babd7`: `agent.check-inputs --stage active` returned `workspace-binding-invalid: metadata-revision-mismatch`. The immutable assignment was prepared against metadata revision `29a367c0a5ecace411851b988de1895ab749f6ab`, while the metadata branch advanced during the native child run. The planner has no valid PLAN_PATH receipt; do not continue to build or review.
