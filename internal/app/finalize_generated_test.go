@@ -220,6 +220,92 @@ func TestAdvanceGeneratedOnlyNonAdvancingStopBlocks(t *testing.T) {
 	}
 }
 
+// --- advanceGeneratedOnly reservation/continuation step-aside guard (unit) ---
+
+// stepAsideContinueGit fails the test if any rebase-Git mutation is attempted.
+// The step-aside guard returns before the fast path ever reaches continueGit, so
+// a passing test sees ZERO StageAndContinueRebase calls; if the guard is
+// neutralized the loop runs, StageAndContinueRebase is called, and the non-zero
+// count reddens the assertion. StoppedRebaseCommit returns a non-zero id and
+// StageAndContinueRebase returns a non-conflicted status so a mutated loop
+// terminates deterministically (a fast red, never a hang).
+type stepAsideContinueGit struct {
+	FinalizeContinueGit
+	stageCalls int
+}
+
+func (g *stepAsideContinueGit) StoppedRebaseCommit(context.Context, string) (gitcli.ObjectID, error) {
+	return gitcli.ObjectID(strings.Repeat("b", 40)), nil
+}
+
+func (g *stepAsideContinueGit) StageAndContinueRebase(context.Context, string, []string) (gitcli.RebaseStatus, error) {
+	g.stageCalls++
+	return gitcli.RebaseStatus{}, nil // non-conflicted: lets a mutated loop terminate
+}
+
+// TestAdvanceGeneratedOnlyStepsAsideForOwnedResolver pins the concurrency-safety
+// guard: when the resolver flow already owns the stop — an outstanding
+// reservation token, or a started continuation — the fast path must fall through
+// to the normal resolver flow (return status, nil) WITHOUT mutating Git, so it
+// never regenerates or continues the rebase out from under the owned reservation.
+// The test proves "no Git action" three ways: a RegenerateBundle seam that fails
+// the test if invoked, a ContinueGit seam that fails if StageAndContinueRebase is
+// invoked, and an explicit zero-call assertion. It reddens when the step-aside
+// condition is neutralized (the fast path then regenerates and stages).
+func TestAdvanceGeneratedOnlyStepsAsideForOwnedResolver(t *testing.T) {
+	ctx := context.Background()
+	bundleOnly := gitcli.RebaseStatus{
+		Disposition:   gitcli.RebaseConflicted,
+		UnmergedPaths: []string{embeddedBundleDir + "/manifest.json"},
+	}
+	cases := []struct {
+		name string
+		rec  workspace.RebaseReceipt
+	}{
+		{
+			name: "outstanding reservation token",
+			rec: workspace.RebaseReceipt{
+				ResolverReservationToken:   "tok-owned",
+				ResolverReservationStopped: strings.Repeat("c", 40),
+			},
+		},
+		{
+			name: "continuation started",
+			rec:  workspace.RebaseReceipt{ResolverContinuationStarted: "1"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			wsDir := writeBundleFixtureRepo(t, docketModulePath) // eligible Docket workspace
+			git := &stepAsideContinueGit{}
+			deps := FinalizeDeps{
+				Workspace:   &fakeGenWorkspace{rec: c.rec, present: true},
+				ContinueGit: git,
+				RegenerateBundle: func(string) error {
+					t.Fatalf("fast path regenerated the bundle while the resolver flow owned the stop")
+					return nil
+				},
+			}
+			rc := &rebaseContext{
+				change:  domain.NewChange(domain.ChangeSpec{ID: 413}),
+				wsDir:   wsDir,
+				metaDir: filepath.Join(wsDir, ".meta"),
+			}
+
+			status, refusal := advanceGeneratedOnly(ctx, deps, OperationFinalizeRebase, rc, bundleOnly)
+			if refusal != nil {
+				t.Fatalf("step-aside must return no refusal, got %+v", *refusal)
+			}
+			if status.Disposition != bundleOnly.Disposition || len(status.UnmergedPaths) != len(bundleOnly.UnmergedPaths) {
+				t.Fatalf("status changed: got %+v, want the input status %+v unchanged", status, bundleOnly)
+			}
+			if git.stageCalls != 0 {
+				t.Fatalf("StageAndContinueRebase call count = %d, want 0 (fast path must take no Git action when the resolver flow owns the stop)", git.stageCalls)
+			}
+		})
+	}
+}
+
 func TestRegenerateEmbeddedBundleFailsOnBrokenRoots(t *testing.T) {
 	dir := writeBundleFixtureRepo(t, docketModulePath)
 	if err := os.RemoveAll(filepath.Join(dir, "skills")); err != nil {
