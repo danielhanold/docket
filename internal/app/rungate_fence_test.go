@@ -429,3 +429,144 @@ func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 		t.Fatalf("mutation after cancel = %v, want a run-cancelled MutationFenceError (the fence must locate the recovered epoch)", ferr)
 	}
 }
+
+// TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs is the change-0427
+// regression for the absent-binding recovery leg: a fresh epoch with an empty
+// Worktree and NO binding file, with exactly one committed proof carrying the
+// record's context hash. Adoption must reserve + confirm WITH the change's
+// logical feature worktree (directory still absent), bind the epoch, and after
+// RunCancel a workflow mutation from that worktree is refused run-cancelled.
+// Restoring the empty worktree argument at the sole-proof ConfirmGateClaim call
+// reddens both halves.
+func TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	repo := f.repo.invocation
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+
+	// Give the armed record a parent-held authority so RunCancel's authority gate
+	// (rec.ParentCap != "") is satisfied later; gateMintArmed leaves it empty. This
+	// is cancel-fixture scaffolding, not part of the adoption under test.
+	if rec, lerr := LoadGateRecord(repo, key); lerr != nil {
+		t.Fatalf("LoadGateRecord: %v", lerr)
+	} else {
+		rec.ParentCap = "parent-cap-raw"
+		if serr := SaveGateRecord(repo, key, rec); serr != nil {
+			t.Fatalf("SaveGateRecord: %v", serr)
+		}
+	}
+
+	ep, err := MintEpochRecord(repo, key, "")
+	if err != nil {
+		t.Fatalf("MintEpochRecord: %v", err)
+	}
+	// NO ReserveGateClaim: the no-binding branch adopts the sole matching proof.
+	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+	}}
+
+	repoID, err := f.client.Discover(context.Background(), gitcli.DiscoverOptions{InvocationPath: repo})
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	want := filepath.Join(repoID.PrimaryWorktree, ".worktrees", rvSlug)
+	if _, serr := os.Stat(want); serr == nil {
+		t.Fatalf("precondition: feature dir %q must not exist yet", want)
+	}
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
+	if got, wantLine := res.HumanText(), "gate-done "+key+" run-complete 3"; got != wantLine {
+		t.Fatalf("HumanText = %q, want %q (adoption must still succeed)", got, wantLine)
+	}
+	b, ok, berr := LoadGateClaimBinding(repo, key)
+	if berr != nil || !ok || !b.Confirmed || b.ChangeID != 3 {
+		t.Fatalf("binding = %+v ok=%v err=%v, want confirmed change 3 after adoption", b, ok, berr)
+	}
+	epAfter, _, err := LoadEpochRecord(repo, key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if epAfter.Worktree != want {
+		t.Fatalf("epoch worktree = %q, want %q (sole-proof adoption must bind the run epoch's worktree)", epAfter.Worktree, want)
+	}
+
+	if err := os.MkdirAll(want, 0o755); err != nil {
+		t.Fatalf("mkdir feature worktree: %v", err)
+	}
+	common, err := gateGitCommonDir(repo)
+	if err != nil {
+		t.Fatalf("gateGitCommonDir: %v", err)
+	}
+	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}}
+	cres := runCancel(seams, repo, key, ep.EpochID, "0427 regression stop")
+	if cres.Disposition != CancelDispositionCancelled {
+		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
+	}
+	_, ferr := admitWorkflowMutation(want, OperationPRPublish)
+	if fe, ok := AsMutationFenceError(ferr); !ok || fe.Reason != "run-cancelled" {
+		t.Fatalf("mutation after cancel = %v, want a run-cancelled MutationFenceError", ferr)
+	}
+}
+
+// TestVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm: when either recovery
+// leg cannot resolve repository/change identity (here: empty PlanningDeps — no
+// reader, no client), the verdict refuses gate-stop gate-unavailable
+// proof-unavailable BEFORE any confirm — it never substitutes an empty worktree.
+// The unconfirmed reservation stays intact-unconfirmed; the sole-proof leg
+// writes NO reservation at all (resolution precedes ReserveGateClaim).
+func TestVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(t *testing.T) {
+	t.Run("unconfirmed reservation leg", func(t *testing.T) {
+		repo := newGateRepo(t)
+		key := gateMintArmed(t, repo, nil, 1, "ha")
+		if _, err := MintEpochRecord(repo, key, ""); err != nil {
+			t.Fatalf("MintEpochRecord: %v", err)
+		}
+		if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+			t.Fatalf("ReserveGateClaim: %v", err)
+		}
+		wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+			{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		}}}
+
+		res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+		if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateProofUnavailable {
+			t.Fatalf("got %q/%q/%q, want gate-stop/gate-unavailable/%s (refuse before confirming)", res.Decision, res.Outcome, res.Reason, ReasonGateProofUnavailable)
+		}
+		b, ok, err := LoadGateClaimBinding(repo, key)
+		if err != nil || !ok || b.Confirmed {
+			t.Fatalf("binding = %+v ok=%v err=%v, want the reservation intact and UNCONFIRMED", b, ok, err)
+		}
+		ep, _, err := LoadEpochRecord(repo, key)
+		if err != nil {
+			t.Fatalf("LoadEpochRecord: %v", err)
+		}
+		if ep.Worktree != "" {
+			t.Fatalf("epoch worktree = %q, want empty (nothing may bind on a refusal)", ep.Worktree)
+		}
+	})
+
+	t.Run("sole-proof adoption leg", func(t *testing.T) {
+		repo := newGateRepo(t)
+		key := gateMintArmed(t, repo, nil, 1, "ha")
+		if _, err := MintEpochRecord(repo, key, ""); err != nil {
+			t.Fatalf("MintEpochRecord: %v", err)
+		}
+		wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
+			{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		}}}
+
+		res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+		if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateProofUnavailable {
+			t.Fatalf("got %q/%q/%q, want gate-stop/gate-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateProofUnavailable)
+		}
+		if res.AttributedID != 0 {
+			t.Errorf("AttributedID = %d, want 0 (nothing adopted on a refusal)", res.AttributedID)
+		}
+		if _, ok, err := LoadGateClaimBinding(repo, key); err != nil || ok {
+			t.Fatalf("binding present=%v err=%v, want NO reservation written (resolution precedes ReserveGateClaim)", ok, err)
+		}
+	})
+}

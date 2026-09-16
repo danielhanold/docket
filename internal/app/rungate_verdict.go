@@ -539,10 +539,17 @@ func resolveGateOwnership(ctx context.Context, deps PlanningDeps, wdeps Workspac
 			return gateOwnershipDone(repoDir, key, *rec)
 		case 1:
 			p := matches[0]
-			// Adopt the sole proof: reserve + confirm best-effort, then mirror.
+			// Adopt the sole proof: resolve the change's logical feature worktree
+			// FIRST (change 0427) — a refusal here writes nothing, neither
+			// reservation nor confirm — then reserve + confirm best-effort with
+			// that worktree, then mirror. Confirming with an empty path would
+			// leave the recovered run epoch unfenceable and uncancellable.
+			wt, ok := gateRecoveredWorktree(ctx, deps, repoDir, p.ChangeID)
+			if !ok {
+				return gateOwnershipStop(repoDir, key, *rec, ReasonGateProofUnavailable)
+			}
 			_ = ReserveGateClaim(repoDir, key, p.ChangeID, p.RequestID)
-			// worktree "": see the confirmed-binding branch above — recovery binds no worktree.
-			_ = ConfirmGateClaim(repoDir, key, p.ChangeID, p.RequestID, p.Revision, "")
+			_ = ConfirmGateClaim(repoDir, key, p.ChangeID, p.RequestID, p.Revision, wt)
 			gateAdoptOwnership(wdeps, repoDir, key, rec, p.ChangeID, p.RequestID, p.Revision)
 			return nil
 		default:
