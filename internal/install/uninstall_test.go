@@ -420,6 +420,95 @@ func TestUninstallCollectorFailureDoesNotRollbackCommittedRemoval(t *testing.T) 
 	}
 }
 
+// emptyReleaseCandidateRoot returns the canonical version-tree root that an
+// uninstall-all leaves unreferenced, i.e. the sole candidate the empty-release
+// collector re-proves before quarantine.
+func emptyReleaseCandidateRoot(t *testing.T, f uninstallFixture) string {
+	t.Helper()
+	root, err := canonicalPath(filepath.Dir(f.roots.VersionDir(f.state.AssetSetID)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// TestUninstallEmptyReleaseReproofProtectsChangedCandidate mirrors the general
+// collector's TestCollectReproofProtectsChangedCandidate for the empty-release
+// adapter: a candidate whose manifest is rewritten inside the
+// collectBeforeQuarantine race seam must fail the shared re-proof and never be
+// quarantined. It proves the destructive re-proof/quarantine tail fires for the
+// adapter caller too, not only for the reference-membership collector.
+func TestUninstallEmptyReleaseReproofProtectsChangedCandidate(t *testing.T) {
+	f := newUninstallFixture(t)
+	root := emptyReleaseCandidateRoot(t, f)
+	manifest := filepath.Join(root, versionManifest)
+	original := collectBeforeQuarantine
+	defer func() { collectBeforeQuarantine = original }()
+	collectBeforeQuarantine = func(path string) {
+		if path != root {
+			return
+		}
+		if err := os.Chmod(manifest, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(manifest, []byte("{}\n"), 0o444); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out := Uninstall(uninstallOptions(f))
+	// The primary uninstall still succeeds; the empty-release collection fails
+	// closed on the identity change without promoting to the uninstall's Err.
+	if out.Err != nil || !out.Applied {
+		t.Fatalf("Uninstall = %#v", out)
+	}
+	if out.Collection.Err == nil {
+		t.Fatalf("empty-release collection ignored the changed candidate: %#v", out.Collection)
+	}
+	var sawFailed bool
+	for _, entry := range out.Collection.Entries {
+		if entry.Status == CollectionStatusFailed {
+			sawFailed = true
+		}
+	}
+	if !sawFailed {
+		t.Fatalf("collection entries lack a failed candidate: %#v", out.Collection.Entries)
+	}
+	if _, err := os.Lstat(root); err != nil {
+		t.Fatalf("changed candidate tree was quarantined: %v", err)
+	}
+}
+
+// TestUninstallEmptyReleaseReferenceRefreshProtectsReactivatedState is the
+// adapter's analogue of TestCollectReferenceRefreshProtectsNewReference: if the
+// installed state is re-activated (a racing install republishes a referencing
+// release) inside the collectBeforeReferenceRefresh seam, the adapter's
+// "state is still an empty release" predicate must refuse and the tree must
+// survive. It proves the collectability predicate still guards the shared tail
+// for the empty-release caller.
+func TestUninstallEmptyReleaseReferenceRefreshProtectsReactivatedState(t *testing.T) {
+	f := newUninstallFixture(t)
+	root := emptyReleaseCandidateRoot(t, f)
+	original := collectBeforeReferenceRefresh
+	defer func() { collectBeforeReferenceRefresh = original }()
+	collectBeforeReferenceRefresh = func(path string) {
+		if path != root {
+			return
+		}
+		// A racing install republishes an active release referencing this tree.
+		writeCollectorState(t, f.roots, f.state.AssetSetID)
+	}
+	out := Uninstall(uninstallOptions(f))
+	if out.Err != nil || !out.Applied {
+		t.Fatalf("Uninstall = %#v", out)
+	}
+	if out.Collection.Err == nil {
+		t.Fatalf("empty-release collection ignored the reactivated state: %#v", out.Collection)
+	}
+	if _, err := os.Lstat(root); err != nil {
+		t.Fatalf("reactivated tree was quarantined: %v", err)
+	}
+}
+
 func TestReinstallEmptyState(t *testing.T) {
 	f := newUninstallFixture(t)
 	if out := Uninstall(uninstallOptions(f)); out.Err != nil {
