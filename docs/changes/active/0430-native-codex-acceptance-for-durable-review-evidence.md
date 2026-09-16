@@ -2,7 +2,7 @@
 id: 430
 slug: 'native-codex-acceptance-for-durable-review-evidence'
 title: 'Native Codex acceptance for durable review evidence'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'chore'
 created: '2026-09-16'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/native-codex-acceptance-for-durable-review-evidence'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-16T10:44:00Z'
 ---
 
 ## Artifacts
