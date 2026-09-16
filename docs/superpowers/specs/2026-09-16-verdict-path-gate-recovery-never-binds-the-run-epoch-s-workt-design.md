@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0427 — Verdict-path gate recovery never binds the run epoch's worktree](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0427-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md)**
+> ↩ **[Change 0427 — Verdict-path gate recovery never binds the run epoch's worktree](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-16-0427-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md)**
 <!-- docket:backlink:end -->
 
 # Change 0427: bind the worktree during verdict recovery
