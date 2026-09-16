@@ -205,12 +205,15 @@ func (c *Client) StoppedRebaseCommit(ctx context.Context, worktreeDir string) (O
 	return id, nil
 }
 
-// StageAndContinueRebase stages EXACTLY the given repo-relative paths (the caller
-// has already validated them against the live unmerged set) and continues the
-// in-progress rebase non-interactively. The result is classified structurally:
-// the next conflict (conflicted with its UnmergedPaths), a completed rewrite
-// (rebased), or failed. It never runs `git add -A` and never resolves a path the
-// caller did not name.
+// StageAndContinueRebase stages EXACTLY the given repo-relative pathspecs and
+// continues the in-progress rebase non-interactively. A pathspec may be a
+// single file the caller validated against the live unmerged set, or a
+// directory the caller owns wholesale (the finalize generated-bundle fast
+// path stages internal/assets/embedded this way): a directory pathspec stages
+// every modification, addition, AND deletion beneath it. The result is
+// classified structurally: the next conflict (conflicted with its
+// UnmergedPaths), a completed rewrite (rebased), or failed. It never runs a
+// repo-wide `git add -A` and never resolves a path the caller did not name.
 func (c *Client) StageAndContinueRebase(ctx context.Context, worktreeDir string, paths []string) (RebaseStatus, error) {
 	if worktreeDir == "" {
 		return RebaseStatus{}, newFailure(rebaseContinueOp, KindInvalidRequest, "worktree dir is empty", nil)

@@ -4,6 +4,8 @@ package gitcli
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
@@ -292,6 +294,88 @@ func TestIntegrationRepoStageAndContinueRebaseMultiConflict(t *testing.T) {
 	if got := gitOut(t, r.Invocation, "show", "HEAD:fileB"); got != "resolved" {
 		t.Errorf("fileB on tip = %q, want resolved", got)
 	}
+	// No rebase left in progress.
+	state, err := c.RebaseState(ctx, r.Invocation)
+	if err != nil {
+		t.Fatalf("RebaseState: %v", err)
+	}
+	if state.Disposition == RebaseConflicted || state.Disposition == RebaseInProgressForeign {
+		t.Errorf("rebase still in progress after completion: %q", state.Disposition)
+	}
+}
+
+// TestStageAndContinueRebaseDirectoryPathspec pins the load-bearing property the
+// finalize generated-bundle fast path relies on (change 0413): a single DIRECTORY
+// pathspec passed to StageAndContinueRebase stages every change beneath it —
+// modifications, additions, AND deletions — before continuing. The fast path
+// regenerates internal/assets/embedded wholesale and stages it by naming the one
+// directory; a directory pathspec that failed to stage removals would leave the
+// deleted tree/ payloads unmerged and the continue would refuse.
+func TestStageAndContinueRebaseDirectoryPathspec(t *testing.T) {
+	requireGit(t)
+	ctx := context.Background()
+	c := newRealClient(t)
+	r := newMainModeRepos(t)
+
+	// Base branch b1 (child of main) adds the bundle directory.
+	gitOut(t, r.Invocation, "checkout", "-q", "main")
+	gitOut(t, r.Invocation, "checkout", "-q", "-b", "basebr")
+	writeWorktreeFile(t, r.Invocation, "bundle/manifest.json", "base manifest\n")
+	writeWorktreeFile(t, r.Invocation, "bundle/tree/old.txt", "old payload\n")
+	gitOut(t, r.Invocation, "add", "--", "bundle")
+	gitOut(t, r.Invocation, "commit", "-q", "-m", "base bundle")
+	baseHead := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
+
+	// Feature branch from main (b1's parent) adds the same paths differently, so
+	// rebasing feature onto base is an add/add conflict on both bundle files.
+	gitOut(t, r.Invocation, "checkout", "-q", "-b", "featbr", "main")
+	writeWorktreeFile(t, r.Invocation, "bundle/manifest.json", "feature manifest\n")
+	writeWorktreeFile(t, r.Invocation, "bundle/tree/old.txt", "feature payload\n")
+	gitOut(t, r.Invocation, "add", "--", "bundle")
+	gitOut(t, r.Invocation, "commit", "-q", "-m", "feature bundle")
+	featHead := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
+
+	st, err := c.BeginRebase(ctx, r.Invocation, featHead, baseHead, "refs/docket/finalize/11")
+	if err != nil {
+		t.Fatalf("BeginRebase: %v", err)
+	}
+	if st.Disposition != RebaseConflicted {
+		t.Fatalf("disposition = %q, want conflicted (paths %q)", st.Disposition, st.UnmergedPaths)
+	}
+
+	// Simulate an in-worktree regeneration of the whole bundle directory: modify
+	// the manifest, delete a tree payload, add a new one.
+	writeWorktreeFile(t, r.Invocation, "bundle/manifest.json", "regenerated\n")
+	if err := os.Remove(filepath.Join(r.Invocation, "bundle", "tree", "old.txt")); err != nil {
+		t.Fatalf("delete old payload: %v", err)
+	}
+	writeWorktreeFile(t, r.Invocation, "bundle/tree/new.txt", "new payload\n")
+
+	// One directory pathspec must stage the modification, the addition, AND the
+	// deletion, then continue to a completed rewrite.
+	st2, err := c.StageAndContinueRebase(ctx, r.Invocation, []string{"bundle"})
+	if err != nil {
+		t.Fatalf("StageAndContinueRebase with a directory pathspec: %v", err)
+	}
+	if st2.Disposition != RebaseRebased {
+		t.Fatalf("disposition = %q (paths %q), want rebased", st2.Disposition, st2.UnmergedPaths)
+	}
+
+	// The committed tree at the new tip reflects every staged change, deletion
+	// included.
+	if got := gitOut(t, r.Invocation, "show", "HEAD:bundle/manifest.json"); got != "regenerated" {
+		t.Errorf("manifest on tip = %q, want regenerated", got)
+	}
+	if got := gitOut(t, r.Invocation, "show", "HEAD:bundle/tree/new.txt"); got != "new payload" {
+		t.Errorf("new payload on tip = %q, want new payload", got)
+	}
+	if _, err := gitTry(r.Invocation, "show", "HEAD:bundle/tree/old.txt"); err == nil {
+		t.Error("bundle/tree/old.txt is still present at the tip; the directory pathspec did not stage the deletion")
+	}
+	if got := gitOut(t, r.Invocation, "ls-files", "--", "bundle"); got == "" {
+		t.Error("no bundle files tracked after the continue")
+	}
+
 	// No rebase left in progress.
 	state, err := c.RebaseState(ctx, r.Invocation)
 	if err != nil {
