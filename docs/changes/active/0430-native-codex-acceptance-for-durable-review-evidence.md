@@ -51,3 +51,9 @@ Do not merge the acceptance PR or modify unrelated changes. This is a branch-sco
 ### 2026-09-16
 
 2026-09-16: Reconfirmed the prepared acceptance scope against the pinned candidate and metadata authority. Change 430 remains buildable on change 425's published branch; implementation is confined to the new internal/nativeacceptance package plus required plan and results artifacts.
+
+## Run halted
+
+### 2026-09-16
+
+The native scoped worker committed 6aa8e33f727dd2df581d6cd04d3e6f56cb685f62 after red and green focused gates. Its final active input check refused because it acknowledged the gate scope before the required active recheck, closing the scope. The controller cannot reopen that scope without parent capability, so child provenance is incomplete. No reviewer, full build gate, evidence record, results attachment, PR publication, or implemented transition was attempted.
