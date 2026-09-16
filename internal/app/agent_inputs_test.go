@@ -126,7 +126,7 @@ func TestCheckAgentInputsPlannerAndReviewerRequirePinnedPayloadAtEntry(t *testin
 			if err != nil {
 				t.Fatal(err)
 			}
-			commit := strings.Repeat("2", 40)
+			commit := evidenceHead
 			docketPath := writeDocketVersionStub(t, dir, commit)
 			primary := filepath.Join(dir, "repo")
 			feature := filepath.Join(primary, "wt")
@@ -155,16 +155,16 @@ func TestCheckAgentInputsPlannerAndReviewerRequirePinnedPayloadAtEntry(t *testin
 				a.Resources = []codexcontract.Resource{{LogicalID: a.ResultsTemplate, Path: templatePath, SHA256: hex.EncodeToString(templateHash[:]), Source: "asset-set:" + catalog.Manifest.AssetSetID}}
 				a.ResourceDependencies = map[string][]string{a.ResultsTemplate: {}}
 			} else {
-				evidenceBody := []byte("green at pinned head\n")
 				evidencePath := filepath.Join(dir, "build-evidence.md")
-				if err := os.WriteFile(evidencePath, evidenceBody, 0o600); err != nil {
-					t.Fatal(err)
+				ed, wd, repo := evidenceDeps(t, readyWorkspace())
+				recorded := EvidenceRecord(context.Background(), ed, wd, repo, EvidenceRecordRequest{ID: 7, Head: commit, RunDir: passedRunDir(t), Output: evidencePath})
+				if recorded.Result != ResultApplied {
+					t.Fatalf("record reviewer evidence: %+v", recorded)
 				}
-				evidenceHash := sha256.Sum256(evidenceBody)
 				a.ReviewBase = strings.Repeat("0", 40)
 				a.ReviewHEAD = commit
 				a.BuildEvidence = "build-evidence"
-				a.Resources = []codexcontract.Resource{{LogicalID: a.BuildEvidence, Path: evidencePath, SHA256: hex.EncodeToString(evidenceHash[:]), Source: "controller"}}
+				a.Resources = []codexcontract.Resource{{LogicalID: a.BuildEvidence, Path: recorded.RecordPath, SHA256: recorded.RecordSHA256, Source: "evidence.record"}}
 			}
 			ab, err := json.Marshal(a)
 			if err != nil {

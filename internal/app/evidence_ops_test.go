@@ -2,6 +2,9 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
@@ -10,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/danielhanold/docket/internal/codexcontract"
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/gitcli"
@@ -24,6 +28,110 @@ const (
 	evidenceHead      = "abcdef0000000000000000000000000000000000"
 	evidenceOtherHead = "0000000000000000000000000000000000abcdef"
 )
+
+// Omitting durable output, hashing the JSON envelope instead of the canonical
+// block, or overwriting a prior review's resource must break this handoff test.
+func TestEvidenceRecordDurableReviewResource(t *testing.T) {
+	for _, policy := range []string{"local", "off"} {
+		t.Run(policy, func(t *testing.T) {
+			deps, wdeps, repo := evidenceDepsWithConfig(t, readyWorkspace(), "build:\n  gate: '"+policy+"'\n  test_command: go test ./...\n")
+			root, err := filepath.EvalSymlinks(testsupport.TempDir(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(root, "evidence.md")
+			// JSON also checks the public request/result contract without depending
+			// on a field that did not exist before this regression.
+			body, _ := json.Marshal(map[string]any{"id": 7, "head": evidenceHead, "run_dir": passedRunDir(t), "output": path})
+			var req EvidenceRecordRequest
+			if err := json.Unmarshal(body, &req); err != nil {
+				t.Fatal(err)
+			}
+			res := EvidenceRecord(context.Background(), deps, wdeps, repo, req)
+			if res.Result != ResultApplied {
+				t.Fatalf("record: %+v", res)
+			}
+			block, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("review evidence was not materialized: %v", err)
+			}
+			if string(block) != res.Block {
+				t.Fatal("resource differs from canonical block")
+			}
+			encoded, _ := json.Marshal(res)
+			var locator struct {
+				Path   string `json:"record_path"`
+				SHA256 string `json:"record_sha256"`
+			}
+			if err := json.Unmarshal(encoded, &locator); err != nil {
+				t.Fatal(err)
+			}
+			sum := sha256.Sum256(block)
+			if locator.Path != path || locator.SHA256 != hex.EncodeToString(sum[:]) {
+				t.Fatalf("bad locator: %+v", locator)
+			}
+			a := codexcontract.Assignment{ReadRoots: []string{root}, Resources: []codexcontract.Resource{{LogicalID: "build-evidence", Path: locator.Path, SHA256: locator.SHA256, Source: "evidence.record"}}}
+			if err := codexcontract.ValidateResources(a); err != nil {
+				t.Fatalf("native review resource refused: %v", err)
+			}
+			if v := EvidenceVerify(EvidenceVerifyRequest{RecordFile: block, Head: evidenceHead}); v.Result != ResultApplied {
+				t.Fatalf("verification: %+v", v)
+			}
+			if v := EvidenceVerify(EvidenceVerifyRequest{RecordFile: block, Head: evidenceOtherHead}); v.Result == ResultApplied {
+				t.Fatal("stale evidence accepted")
+			}
+			again := EvidenceRecord(context.Background(), deps, wdeps, repo, req)
+			if again.Result == ResultApplied {
+				t.Fatal("existing review resource overwritten")
+			}
+			unchanged, err := os.ReadFile(path)
+			if err != nil || string(unchanged) != string(block) {
+				t.Fatal("prior resource changed")
+			}
+		})
+	}
+}
+
+func TestEvidenceRecordOutputFailures(t *testing.T) {
+	for _, scenario := range []string{"relative", "missing-parent", "existing-symlink", "stale-head", "failed-gate"} {
+		t.Run(scenario, func(t *testing.T) {
+			deps, wdeps, repo := evidenceDeps(t, readyWorkspace())
+			root := testsupport.TempDir(t)
+			path := filepath.Join(root, "evidence.md")
+			req := EvidenceRecordRequest{ID: 7, Head: evidenceHead, RunDir: passedRunDir(t), Output: path}
+			target := filepath.Join(root, "preserve.md")
+			switch scenario {
+			case "relative":
+				req.Output = "evidence.md"
+			case "missing-parent":
+				req.Output = filepath.Join(root, "missing", "evidence.md")
+			case "existing-symlink":
+				if err := os.WriteFile(target, []byte("preserve"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(target, path); err != nil {
+					t.Fatal(err)
+				}
+			case "stale-head":
+				req.Head = evidenceOtherHead
+			case "failed-gate":
+				req.RunDir = runToTerminal(t, []string{"/usr/bin/false"}, "failed")
+			}
+			res := EvidenceRecord(context.Background(), deps, wdeps, repo, req)
+			if res.Result == ResultApplied || res.RecordPath != "" || res.RecordSHA256 != "" || res.Block != "" {
+				t.Fatalf("failed record advertised evidence: %+v", res)
+			}
+			if scenario == "existing-symlink" {
+				b, err := os.ReadFile(target)
+				if err != nil || string(b) != "preserve" {
+					t.Fatal("symlink target changed")
+				}
+			} else if _, err := os.Stat(req.Output); !os.IsNotExist(err) {
+				t.Fatalf("failed record left output: %v", err)
+			}
+		})
+	}
+}
 
 // evidencePin builds a main-mode pin whose resolved config carries a non-empty
 // build.test_command (a local build gate) AND a finalize.test_command, so

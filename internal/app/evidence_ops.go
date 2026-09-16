@@ -2,6 +2,11 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/danielhanold/docket/internal/evidence"
 	"github.com/danielhanold/docket/internal/process"
@@ -80,6 +85,7 @@ type EvidenceRecordRequest struct {
 	ID     int    `json:"id"`
 	RunDir string `json:"run_dir"`
 	Head   string `json:"head"`
+	Output string `json:"output,omitempty" docketdoc:"Optional absolute new file for canonical evidence bytes. Existing files are never replaced; use the returned record_path and record_sha256 for native review resources."`
 }
 
 // EvidenceVerifyRequest is the closed request for `evidence verify`: the raw
@@ -96,15 +102,17 @@ type EvidenceVerifyRequest struct {
 // bytes, not an authored document body, so it is safe to carry.
 type EvidenceOpResult struct {
 	Envelope
-	ID      int    `json:"id,omitempty"`
-	Command string `json:"command,omitempty"`
-	Head    string `json:"head,omitempty"`
-	RanAt   string `json:"ran_at,omitempty"`
-	Outcome string `json:"outcome,omitempty"`
-	Block   string `json:"block,omitempty"`
-	Verdict string `json:"verdict,omitempty"`
-	Reason  string `json:"reason,omitempty"`
-	Message string `json:"message,omitempty"`
+	ID           int    `json:"id,omitempty"`
+	Command      string `json:"command,omitempty"`
+	Head         string `json:"head,omitempty"`
+	RanAt        string `json:"ran_at,omitempty"`
+	Outcome      string `json:"outcome,omitempty"`
+	Block        string `json:"block,omitempty"`
+	Verdict      string `json:"verdict,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+	Message      string `json:"message,omitempty"`
+	RecordPath   string `json:"record_path,omitempty"`
+	RecordSHA256 string `json:"record_sha256,omitempty"`
 }
 
 // HumanText renders a one-line summary naming identity and the canonical facts
@@ -138,8 +146,8 @@ func newEvidenceRefusal(opKey string, result Result, reason, message string, id 
 // skipped evidence (build.gate: off) or, for a local gate, requires a `passed`
 // terminal at the current feature head and records build.test_command. It
 // returns the immutable typed record plus its canonical rendered block. It
-// writes no second evidence store: the block travels as bytes and becomes the
-// durable record only after `pr publish`.
+// optionally materializes the canonical block as a new local file for a pinned
+// reviewer resource; the PR body remains its published durable home.
 func EvidenceRecord(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req EvidenceRecordRequest) EvidenceOpResult {
 	// (1) Pin authoritative config FIRST — the build gate policy decides
 	// everything downstream, including whether a run is observed at all.
@@ -160,7 +168,7 @@ func EvidenceRecord(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 		if err != nil {
 			return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceInvalidRecord, err.Error(), req.ID)
 		}
-		return EvidenceOpResult{
+		return materializeEvidence(req.Output, EvidenceOpResult{
 			Envelope: NewEnvelope(OperationEvidenceRecord, ResultApplied),
 			ID:       req.ID,
 			Head:     rec.Head,
@@ -168,7 +176,7 @@ func EvidenceRecord(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 			Outcome:  string(rec.Result),
 			Reason:   rec.Reason,
 			Block:    evidence.Render(rec),
-		}
+		})
 	}
 
 	// (3) A local build gate records build.test_command — read from
@@ -212,7 +220,7 @@ func EvidenceRecord(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 	if err != nil {
 		return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceInvalidRecord, err.Error(), req.ID)
 	}
-	return EvidenceOpResult{
+	return materializeEvidence(req.Output, EvidenceOpResult{
 		Envelope: NewEnvelope(OperationEvidenceRecord, ResultApplied),
 		ID:       req.ID,
 		Command:  rec.Command,
@@ -220,7 +228,49 @@ func EvidenceRecord(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 		RanAt:    rec.RanAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 		Outcome:  string(rec.Result),
 		Block:    evidence.Render(rec),
+	})
+}
+
+// materializeEvidence publishes complete bytes with a no-replace link so a
+// second record cannot mutate a resource already pinned by a reviewer.
+func materializeEvidence(output string, result EvidenceOpResult) EvidenceOpResult {
+	if output == "" {
+		return result
 	}
+	fail := func(err error) EvidenceOpResult {
+		return newEvidenceRefusal(OperationEvidenceRecord, ResultExternalFailed, "evidence-output-failed", err.Error(), result.ID)
+	}
+	if !filepath.IsAbs(output) || filepath.Clean(output) != output {
+		return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, "invalid-evidence-output", "output must be an absolute clean path", result.ID)
+	}
+	dir, err := filepath.EvalSymlinks(filepath.Dir(output))
+	if err != nil {
+		return fail(err)
+	}
+	path := filepath.Join(dir, filepath.Base(output))
+	f, err := os.CreateTemp(dir, ".docket-evidence-*")
+	if err != nil {
+		return fail(err)
+	}
+	defer os.Remove(f.Name())
+	_, writeErr := f.WriteString(result.Block)
+	if writeErr == nil {
+		writeErr = f.Sync()
+	}
+	closeErr := f.Close()
+	if writeErr != nil {
+		return fail(writeErr)
+	}
+	if closeErr != nil {
+		return fail(closeErr)
+	}
+	if err := os.Link(f.Name(), path); err != nil {
+		return fail(fmt.Errorf("create evidence resource: %w", err))
+	}
+	sum := sha256.Sum256([]byte(result.Block))
+	result.RecordPath = path
+	result.RecordSHA256 = hex.EncodeToString(sum[:])
+	return result
 }
 
 // verifyFeatureHead confirms req.Head is the CURRENT feature head via the landed
