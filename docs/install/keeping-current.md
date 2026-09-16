@@ -28,3 +28,13 @@ Re-running the install is **in addition to** anything the release notes call for
 substitute. A release may also carry a per-repo step — a `docket repository migrate` run, a
 `.docket.yml` key to add, a remedy commit to land — listed in the notes for that version. Do the
 machine-level `install.sh` first, then the per-repo steps.
+
+## Automatic cleanup of old versions
+
+Every **successful or no-op** install also runs docket's best-effort version
+collection, so the old asset trees a new version supersedes are reclaimed as you
+update — you never sweep them by hand on the happy path. A cleanup warning does
+**not** undo the install: the install is already recorded as successful, and if a
+pass cannot finish docket reports a `collection-pending` warning naming the exact
+retry command, `docket install collect`. See
+[Reclaiming old version trees](install.md) for the report categories and recovery.

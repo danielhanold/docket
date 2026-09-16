@@ -75,6 +75,58 @@ or change a default, continue with [Global config](global-config.md).
 > changed dispatch wrapper or a retired dispatch block only takes effect in a newly started process
 > — **clearing a conversation is not enough**.
 
+## Uninstalling docket
+
+`docket uninstall` removes the harness integrations docket recorded for you — the
+global `skills/` symlinks and `agents/` wrappers it wrote — and nothing else. With
+no flag it removes **every recorded harness**; a repeatable **`--harness <name>`**
+limits the run to the harness(es) you name, and duplicate `--harness` values are
+de-duplicated before anything is touched. **`--dry-run`** reports exactly what a
+real run would remove and writes nothing.
+
+Uninstall is **ownership-safe**. It removes a file only while that file still
+matches the exact bytes docket recorded when it installed it, and a managed
+dispatch block only while the block's interior still matches docket's ownership
+marker. A file you edited, a block that drifted, or an integration docket never
+owned is left untouched and reported so you can reconcile it and re-run — there is
+**no `--force`**. Re-running after everything is already gone is a no-op, and
+uninstalling a harness that was never recorded changes nothing.
+
+Uninstall is deliberately narrow. After it finishes the CLI binary, your global
+configuration, contributor checkouts, and each repository's docket setup all
+remain in place — uninstall retires harness integrations, not docket itself.
+Removing the last recorded harness leaves a valid *empty* installation on record:
+`docket install check` then reports that docket is no longer fully installed, and
+a later `docket install` repopulates the harnesses from that same empty state.
+
+## Reclaiming old version trees
+
+docket keeps each installed asset set as an immutable tree under its data
+directory (`versions/<asset-set-id>/`), and an install or an uninstall can leave a
+tree that nothing references any more. docket reclaims those trees for you: after
+any **successful or no-op** `docket install`, `docket development install`, or
+`docket uninstall`, it runs a best-effort collection pass that deletes only the
+version trees it can prove are both **unreferenced** and **structurally verified**.
+Each tree is quarantined before deletion, so an interruption never leaves a
+half-deleted tree — a later run finishes the pending cleanup where it left off.
+
+The collection report classifies every tree it examined as `collected`,
+`referenced` (still in use, so kept), `unverified` (could not be proven, so kept),
+or `failed` (an error while collecting, so kept). Anything docket cannot positively
+prove is **retained**, never deleted. Do not reach into `versions/` yourself: the
+layout is private, its trees are not a supported reference to point anything at,
+and moving or editing one is exactly what turns a tree unverifiable.
+
+A cleanup warning never undoes the install or uninstall it followed: the primary
+operation is already recorded as successful, and only the version reclamation is
+left pending. When automatic collection cannot finish, docket surfaces a
+`collection-pending` warning that lists the paths and the exact retry command,
+`docket install collect` — the only time you run collect by hand. Running `docket
+install collect` (add `--dry-run` to preview it) completes the pass; unlike the
+automatic sweep, an explicit collect exits non-zero while any tree is still
+`unverified` or `failed`, because finishing the reclamation is that command's whole
+job.
+
 ## Adopting docket in a repository
 
 The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in each consuming project,

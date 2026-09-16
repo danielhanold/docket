@@ -364,3 +364,118 @@ func TestProseContracts(t *testing.T) {
 		}
 	})
 }
+
+// docSectionContract binds one or more load-bearing clauses to BOTH a named
+// section heading AND the heading that terminates it, so the assertion is "this
+// clause is present inside THIS section" — not the weaker "somewhere in the
+// file". Keying on the section/terminator heading pair is a syntactic-shape
+// guard (the change 0323 uninstall/collection lifecycle contract lives in named
+// sections), and the terminator must exist: a section with no closing heading
+// would let a later paragraph satisfy the clause by accident.
+type docSectionContract struct {
+	change     string
+	file       string   // slash path relative to repo root
+	section    string   // exact heading line that opens the section
+	terminator string   // exact heading line that must follow and closes the section
+	present    []string // clauses required within [section, terminator), matched whitespace-collapsed
+}
+
+// change 0323 — the uninstall/version-collection lifecycle documented for users.
+// Each clause is bound to its subject AND section, per the plan's Step 2: the
+// retained CLI/repository setup after uninstall; the explicit retry command
+// named only on a collection warning; and install/uninstall success recorded
+// separately from cleanup completion.
+var uninstallDocContracts = []docSectionContract{
+	{change: "change_0323_uninstall_retention", file: "docs/install/install.md",
+		section: "## Uninstalling docket", terminator: "## Reclaiming old version trees",
+		present: []string{
+			"the CLI binary, your global configuration, contributor checkouts, and each repository's docket setup all remain in place",
+		}},
+	{change: "change_0323_collection_retry", file: "docs/install/install.md",
+		section: "## Reclaiming old version trees", terminator: "## Adopting docket in a repository",
+		present: []string{
+			"docket surfaces a `collection-pending` warning that lists the paths and the exact retry command, `docket install collect` — the only time you run collect by hand",
+		}},
+	{change: "change_0323_success_vs_cleanup", file: "docs/install/install.md",
+		section: "## Reclaiming old version trees", terminator: "## Adopting docket in a repository",
+		present: []string{
+			"A cleanup warning never undoes the install or uninstall it followed: the primary operation is already recorded as successful, and only the version reclamation is left pending",
+		}},
+}
+
+// scanDocSection is the whole detector, exposed so non_vacuity exercises the
+// missing-section, missing-terminator, and missing-clause branches directly.
+func scanDocSection(content string, c docSectionContract) []string {
+	si := strings.Index(content, c.section)
+	if si < 0 {
+		return []string{fmt.Sprintf("%s: missing section heading %q", c.file, c.section)}
+	}
+	rest := content[si+len(c.section):]
+	ti := strings.Index(rest, c.terminator)
+	if ti < 0 {
+		return []string{fmt.Sprintf("%s: section %q missing terminator %q", c.file, c.section, c.terminator)}
+	}
+	body := collapseWS(rest[:ti])
+	var v []string
+	for _, p := range c.present {
+		if !strings.Contains(body, collapseWS(p)) {
+			v = append(v, fmt.Sprintf("%s §%q: missing required clause %q", c.file, c.section, p))
+		}
+	}
+	return v
+}
+
+func TestUninstallCollectionDocContracts(t *testing.T) {
+	root := guardRoot(t)
+
+	// Population floor: a collapse to zero means the table was gutted.
+	checks := 0
+	for _, c := range uninstallDocContracts {
+		checks += len(c.present)
+	}
+	if checks < 3 {
+		t.Fatalf("population floor: only %d uninstall/collection doc clauses (expected >= 3)", checks)
+	}
+
+	var violations []string
+	cache := map[string]string{}
+	for _, c := range uninstallDocContracts {
+		content, ok := cache[c.file]
+		if !ok {
+			b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(c.file)))
+			if err != nil {
+				t.Fatalf("read contract file %s (%s): %v (fail closed)", c.file, c.change, err)
+			}
+			content = string(b)
+			cache[c.file] = content
+		}
+		for _, msg := range scanDocSection(content, c) {
+			violations = append(violations, fmt.Sprintf("[%s] %s", c.change, msg))
+		}
+	}
+	if len(violations) != 0 {
+		t.Errorf("uninstall/collection doc-contract violations (%d):\n%s", len(violations), strings.Join(violations, "\n"))
+	}
+
+	t.Run("non_vacuity", func(t *testing.T) {
+		const doc = "intro\n## Alpha\nbody with a\nwrapped clause here\n## Beta\ntail"
+		// A clause present within the section (matched across a wrap) is satisfied.
+		if got := scanDocSection(doc, docSectionContract{file: "x.md", section: "## Alpha", terminator: "## Beta",
+			present: []string{"body with a wrapped clause here"}}); len(got) != 0 {
+			t.Errorf("scanDocSection flagged a satisfied wrapped clause: %v", got)
+		}
+		// A clause that only appears AFTER the terminator is not counted as in-section.
+		if got := scanDocSection(doc, docSectionContract{file: "x.md", section: "## Alpha", terminator: "## Beta",
+			present: []string{"tail"}}); len(got) != 1 {
+			t.Errorf("scanDocSection matched a clause outside the section: %v", got)
+		}
+		// A missing section heading is a violation.
+		if got := scanDocSection(doc, docSectionContract{file: "x.md", section: "## Gamma", terminator: "## Beta"}); len(got) != 1 {
+			t.Errorf("scanDocSection missed an absent section heading: %v", got)
+		}
+		// A missing terminator heading is a violation.
+		if got := scanDocSection(doc, docSectionContract{file: "x.md", section: "## Alpha", terminator: "## Omega"}); len(got) != 1 {
+			t.Errorf("scanDocSection missed an absent terminator heading: %v", got)
+		}
+	})
+}
