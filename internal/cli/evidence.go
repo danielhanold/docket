@@ -37,10 +37,8 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "record",
 		Short: "Record build evidence from a passed gate run at the current feature head",
 		Args:  cobra.NoArgs,
-		// read: EvidenceRecord observes an existing gate terminal and returns the
-		// rendered evidence block as bytes — it writes no evidence store; the
-		// block becomes the durable record only later, at `pr publish`.
-		Annotations: capability("evidence.record", EffectRead),
+		// --output optionally writes a local resource for native review.
+		Annotations: capability("evidence.record", EffectRead, EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -49,18 +47,20 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			id, _ := c.Flags().GetInt("id")
 			run, _ := c.Flags().GetString("run")
 			head, _ := c.Flags().GetString("head")
+			output, _ := c.Flags().GetString("output")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
 			setResult(app.EvidenceRecord(c.Context(), deps, wdeps, repoDir,
-				app.EvidenceRecordRequest{ID: id, RunDir: run, Head: head}))
+				app.EvidenceRecordRequest{ID: id, RunDir: run, Head: head, Output: output}))
 			return nil
 		},
 	}
 	record.Flags().Int("id", 0, "change `id` the evidence belongs to (required)")
 	record.Flags().String("run", "", "absolute gate run `dir` to observe (required for a local build gate; ignored when build.gate is off)")
 	record.Flags().String("head", "", "exact feature head `ref` the evidence must certify (required)")
+	record.Flags().String("output", "", "optional absolute new evidence `file` for native review (never overwrites)")
 	record.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = record.MarkFlagRequired("id")
 	_ = record.MarkFlagRequired("head")

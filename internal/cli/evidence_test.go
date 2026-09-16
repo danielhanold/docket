@@ -19,7 +19,7 @@ func TestEvidenceCommandsRegistered(t *testing.T) {
 		path  []string
 		flags []string
 	}{
-		{[]string{"evidence", "record"}, []string{"id", "run", "head", "repo-dir"}},
+		{[]string{"evidence", "record"}, []string{"id", "run", "head", "repo-dir", "output"}},
 		{[]string{"evidence", "verify"}, []string{"record", "head"}},
 	}
 	for _, tc := range cases {
@@ -72,12 +72,15 @@ func TestEvidenceVerifyEmitsOneDocument(t *testing.T) {
 func TestEvidenceRecordRoutesFlags(t *testing.T) {
 	root := testsupport.TempDir(t)
 	out, errS, _ := runCLI(t, "evidence", "record",
-		"--id", "7", "--run", filepath.Join(root, "run"), "--head", "abc", "--repo-dir", root, "--json")
+		"--id", "7", "--run", filepath.Join(root, "run"), "--head", "abc", "--repo-dir", root, "--output", filepath.Join(root, "evidence.md"), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
 	if !strings.Contains(out, `"operation":"evidence.record"`) {
 		t.Fatalf("record document did not name the operation: %q", out)
+	}
+	if _, err := os.Stat(filepath.Join(root, "evidence.md")); !os.IsNotExist(err) {
+		t.Fatalf("refused record wrote output: %v", err)
 	}
 }
 

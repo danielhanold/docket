@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:38fc661b0c125ba7b83e03bb06dded1a15b05b854f491b5d4c22e23059d00aad",
+  "asset_set_id": "sha256:7941f603877d7caed19a0bd66638f8f1247fcf35415ca701c746266025d184dd",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -427,8 +427,8 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 52502,
-      "sha256": "bdc87a36bd3ab0d4bb10163d5518ac6c38ceb6cd9ea6e88e876bd8783696e5c9"
+      "size": 52565,
+      "sha256": "d2591ad387bd69c557687c9bd06c5fda2e678456455f53160da5e5b52a924a8e"
     },
     {
       "path": "skills/docket-implement-next/references/codex-planning-results.md",
