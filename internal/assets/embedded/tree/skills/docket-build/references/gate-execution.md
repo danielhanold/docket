@@ -47,6 +47,11 @@ both Darwin and Linux, so the page carries no per-platform narrowing and claims 
 outright. The capability required above is met on every platform, not bounded by what a weaker
 launch shape could provide.
 
+## Codex foreground transport
+
+Before a Codex gate call, read [the required transport recipe](codex-gate-transport.md).
+Collect both code-mode cells and shell sessions to completion before judging the receipt.
+
 ## Reading a verdict
 
 `supported` — measured, with the evidence and version recorded. `unverified` — not measured, or

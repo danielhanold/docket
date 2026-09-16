@@ -263,6 +263,7 @@ func checkNativePlannerResourceContract(t *testing.T, root, destination, binary 
 		resource("build-task-routing", filepath.Join(buildRoot, "references", "task-routing.md"), "fixture-manifest"),
 		resource("build-gate-execution", filepath.Join(buildRoot, "references", "gate-execution.md"), "fixture-manifest"),
 		resource("build-gate-caller-loop", filepath.Join(buildRoot, "references", "gate-caller-loop.md"), "fixture-manifest"),
+		resource("build-gate-transport", filepath.Join(buildRoot, "references", "codex-gate-transport.md"), "fixture-manifest"),
 		resource("build-gate-execution-evidence", filepath.Join(buildRoot, "references", "gate-execution-evidence.md"), "fixture-manifest"),
 	)
 	a.ResourceDependencies = map[string][]string{
@@ -270,8 +271,9 @@ func checkNativePlannerResourceContract(t *testing.T, root, destination, binary 
 		"plan-review-prompt":            {},
 		"build-skill":                   {"build-task-routing", "build-gate-execution"},
 		"build-task-routing":            {},
-		"build-gate-execution":          {"build-gate-caller-loop", "build-gate-execution-evidence"},
-		"build-gate-caller-loop":        {"build-gate-execution"},
+		"build-gate-execution":          {"build-gate-caller-loop", "build-gate-execution-evidence", "build-gate-transport"},
+		"build-gate-caller-loop":        {"build-gate-execution", "build-gate-transport"},
+		"build-gate-transport":          {},
 		"build-gate-execution-evidence": {"build-gate-execution"},
 		"plan-results-contract":         {},
 		"results-template":              {},
