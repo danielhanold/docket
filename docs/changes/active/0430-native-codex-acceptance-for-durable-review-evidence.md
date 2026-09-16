@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/native-codex-acceptance-for-durable-review-evidence'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-16T10:44:00Z'
+reconciled: true
+claimed_at: '2026-09-16T10:44:35Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Stack on change 425 and add a small internal/nativeacceptance package with teste
 ## Out of scope
 
 Do not merge the acceptance PR or modify unrelated changes. This is a branch-scoped acceptance fixture, not a change to main's production behavior.
+
+## Reconcile log
+
+### 2026-09-16
+
+2026-09-16: Reconfirmed the prepared acceptance scope against the pinned candidate and metadata authority. Change 430 remains buildable on change 425's published branch; implementation is confined to the new internal/nativeacceptance package plus required plan and results artifacts.
