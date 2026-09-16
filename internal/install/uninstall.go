@@ -91,7 +91,7 @@ func Uninstall(options UninstallOptions) Outcome {
 		return out
 	}
 	if plan.prior == nil || (len(plan.removals) == 0 && plan.settled) {
-		return out
+		return collectPostUninstallLocked(out, options, lock, plan)
 	}
 	desiredBytes, err := encodeState(plan.desired)
 	if err != nil {
@@ -108,23 +108,20 @@ func Uninstall(options UninstallOptions) Outcome {
 		return fail(out, ReasonFilesystemFailed, err)
 	}
 	out.Applied = true
+	return collectPostUninstallLocked(out, options, lock, plan)
+}
 
-	collection := CollectionOutcome{}
-	if plan.desired.AssetSetID == "" && plan.desired.Mode == ModeRelease {
-		collection = collectEmptyReleaseLocked(options, lock)
-	} else {
-		collection = collectLocked(CollectOptions{Roots: options.Roots, FS: options.FS}, lock)
-	}
-	if collection.Err != nil {
-		// State publication is the uninstall's commit point. Collection is a
-		// subsequent best-effort reclamation under the same lock, never a reason
-		// to resurrect integrations that were successfully retired.
-		return fail(out, ReasonFilesystemFailed, collection.Err)
-	}
-	if collection.Applied {
-		out.Applied = true
-	}
-	return out
+// collectPostUninstallLocked selects the empty-release adapter only after a
+// successful uninstall has published (or confirmed) its state. It delegates
+// error separation and lock enforcement to the shared post-commit helper used
+// by every successful install path.
+func collectPostUninstallLocked(out Outcome, options UninstallOptions, lock *installLock, plan uninstallPlan) Outcome {
+	return collectPostCommitLocked(out, lock, func() CollectionOutcome {
+		if plan.desired != nil && plan.desired.AssetSetID == "" && plan.desired.Mode == ModeRelease {
+			return collectEmptyReleaseLocked(options, lock)
+		}
+		return collectLocked(CollectOptions{Roots: options.Roots, FS: options.FS}, lock)
+	})
 }
 
 // collectEmptyReleaseLocked is the one adapter the generic collector cannot

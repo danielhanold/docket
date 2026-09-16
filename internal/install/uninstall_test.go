@@ -360,6 +360,12 @@ func TestUninstallDryRunPlansWithoutMutationAndReportsPendingRecovery(t *testing
 	})
 }
 
+// TestUninstallCollectorFailureDoesNotRollbackCommittedRemoval pins Task 8's
+// separation contract: a post-commit collection failure is reported only in
+// Outcome.Collection and never reclassifies the primary uninstall. The uninstall
+// stays applied, its committed removals are not rolled back, and the published
+// state stays empty; the collection carries the failure, an unapplied outcome, a
+// failed entry, and the journal path as pending cleanup for a later retry.
 func TestUninstallCollectorFailureDoesNotRollbackCommittedRemoval(t *testing.T) {
 	f := newUninstallFixture(t)
 	ifs := &injectFS{inner: RealFS{}}
@@ -372,8 +378,10 @@ func TestUninstallCollectorFailureDoesNotRollbackCommittedRemoval(t *testing.T) 
 	o := uninstallOptions(f)
 	o.FS = ifs
 	out := Uninstall(o)
-	if out.Err == nil || !out.Applied {
-		t.Fatalf("Uninstall = %#v", out)
+	// Primary uninstall success is preserved: the collection failure is walled
+	// off in Outcome.Collection, never promoted to Err/Reason.
+	if out.Err != nil || out.Reason != "" || !out.Applied {
+		t.Fatalf("primary uninstall reclassified by collection failure: %#v", out)
 	}
 	for _, path := range f.paths {
 		if _, err := os.Lstat(path); !errors.Is(err, fs.ErrNotExist) {
@@ -383,6 +391,32 @@ func TestUninstallCollectorFailureDoesNotRollbackCommittedRemoval(t *testing.T) 
 	state, err := LoadState(f.roots.StatePath())
 	if err != nil || len(state.Harnesses) != 0 {
 		t.Fatalf("committed state = %#v, %v", state, err)
+	}
+	// The collection reports the reclamation failure separately.
+	if out.Collection.Err == nil || out.Collection.Applied {
+		t.Fatalf("collection outcome should carry the failure and no applied work: %#v", out.Collection)
+	}
+	var sawFailed bool
+	for _, entry := range out.Collection.Entries {
+		if entry.Status == CollectionStatusFailed {
+			sawFailed = true
+		}
+	}
+	if !sawFailed {
+		t.Fatalf("collection entries lack a failed candidate: %#v", out.Collection.Entries)
+	}
+	// The journal is named for a later retry. The reported path is canonical
+	// (macOS resolves /var through /private/var), so match on the stable
+	// collection/journal.json suffix rather than the uncanonicalised root.
+	journalSuffix := filepath.Join("collection", "journal.json")
+	var sawJournal bool
+	for _, p := range out.Collection.Pending {
+		if strings.HasSuffix(p, journalSuffix) {
+			sawJournal = true
+		}
+	}
+	if !sawJournal {
+		t.Fatalf("collection pending should name the journal (suffix %q) for retry: %#v", journalSuffix, out.Collection.Pending)
 	}
 }
 

@@ -123,6 +123,12 @@ const (
 	FCInvalidPRNumber           FindingCode = "invalid-pr_number"
 	FCInvalidAttempt            FindingCode = "invalid-attempt"
 	FCEmptyHead                 FindingCode = "empty-head"
+
+	// Install-maintenance findings. collection-pending is the reason an explicit
+	// `install collect` reports and the warning code an automatic post-install
+	// collection surfaces when a version tree could not be reclaimed; the primary
+	// install/uninstall result is unaffected.
+	FCCollectionPending FindingCode = "collection-pending"
 )
 
 // AllFindingCodes is the authoritative, sorted, deduplicated vocabulary of every
@@ -162,6 +168,7 @@ var AllFindingCodes = []FindingCode{
 	FCArtifactRenderFailed,
 	FCAuthoredInputTooLarge,
 	FindingCode("branch-still-exists"),
+	FCCollectionPending,
 	FCDanglingReference,
 	FCDocketDirForeign,
 	FCDocketWorktreeAmbiguousRegistration,

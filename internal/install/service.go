@@ -172,8 +172,12 @@ type Outcome struct {
 	AssetSetID    string
 	StatePath     string
 	Actions       []Action
-	Reason        string
-	Err           error
+	// Collection is post-commit maintenance. Its failure is deliberately kept
+	// out of Err and Reason: a published installation remains successful even
+	// when reclaiming an old version tree needs a later retry.
+	Collection CollectionOutcome
+	Reason     string
+	Err        error
 	// Relayed marks a development-install PARENT outcome whose candidate has
 	// already printed the sole result document to the shared stdout. The parent
 	// itself planned nothing and wrote nothing; the CLI presenter emits no
@@ -188,6 +192,23 @@ func fail(out Outcome, reason string, err error) Outcome {
 	// describe a filesystem that does not exist.
 	out.Reason = reason
 	out.Err = err
+	return out
+}
+
+// collectPostCommitLocked runs best-effort version reclamation after an
+// operation has either committed its state or proved it already settled. The
+// caller still holds the installation lock, so collection observes the exact
+// state publication the primary operation completed. Collection has its own
+// outcome because a cleanup problem must not reclassify that primary success.
+func collectPostCommitLocked(out Outcome, lock *installLock, collect func() CollectionOutcome) Outcome {
+	if out.Err != nil {
+		return out
+	}
+	if !lock.held() {
+		out.Collection.Err = errors.New("install: post-commit collection requires the installation lock")
+		return out
+	}
+	out.Collection = collect()
 	return out
 }
 
@@ -251,7 +272,7 @@ func Install(o Options) Outcome {
 		return fail(out, ReasonInternal, err)
 	}
 
-	return applyPlan(o, plannedInstallation{
+	out = applyPlan(o, plannedInstallation{
 		mode:          ModeRelease,
 		harnesses:     out.Harnesses,
 		targets:       targets,
@@ -259,6 +280,9 @@ func Install(o Options) Outcome {
 		assetSetID:    o.Catalog.Manifest.AssetSetID,
 		assetProtocol: o.Catalog.Manifest.AssetProtocol,
 	}, o.RepoPhase, out)
+	return collectPostCommitLocked(out, lock, func() CollectionOutcome {
+		return collectLocked(CollectOptions{Roots: o.Roots, FS: o.FS}, lock)
+	})
 }
 
 // Check reports whether the installation on disk is still the one this binary

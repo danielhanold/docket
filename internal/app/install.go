@@ -123,7 +123,7 @@ func RunInstallCollect(o install.CollectOptions) InstallResult {
 	r := NewInstallResult(OperationInstallCollect, install.Outcome{Applied: out.Applied})
 	r.Collection = collectionEntries(out.Entries)
 	if collectionNeedsAttention(out) {
-		r.Result, r.Reason = ResultInvalidState, "collection-pending"
+		r.Result, r.Reason = ResultInvalidState, string(FCCollectionPending)
 		if errors.Is(out.Err, install.ErrInvalidInput) {
 			r.Result, r.Reason = ResultInvalidInput, install.ReasonInvalidOptions
 		}
@@ -166,7 +166,7 @@ func collectionWarning(out install.CollectionOutcome) InstallWarning {
 		}
 	}
 	sort.Strings(pending)
-	return InstallWarning{Diagnostic: config.Diagnostic{Code: "collection-pending", Severity: config.SeverityWarning, Message: "some version trees could not be collected"}, PendingPaths: pending, Retry: "docket install collect"}
+	return InstallWarning{Diagnostic: config.Diagnostic{Code: string(FCCollectionPending), Severity: config.SeverityWarning, Message: "some version trees could not be collected"}, PendingPaths: pending, Retry: "docket install collect"}
 }
 
 // RunDevelopmentInstall installs from a contributor's checkout.
@@ -203,9 +203,8 @@ func withRepoReporting(r InstallResult, phase *install.RepoPhase) InstallResult 
 // (change 0392), so the document says what the reads degraded rather than
 // discarding it.
 func withConfigWarnings(r InstallResult, warnings []config.Diagnostic) InstallResult {
-	r.Warnings = make([]InstallWarning, len(warnings))
-	for i, warning := range warnings {
-		r.Warnings[i] = InstallWarning{Diagnostic: warning}
+	for _, warning := range warnings {
+		r.Warnings = append(r.Warnings, InstallWarning{Diagnostic: warning})
 	}
 	return r
 }
@@ -231,6 +230,10 @@ func NewInstallResult(operation string, out install.Outcome) InstallResult {
 	}
 	if out.Err != nil {
 		r.Message = out.Err.Error()
+	}
+	r.Collection = collectionEntries(out.Collection.Entries)
+	if collectionNeedsAttention(out.Collection) {
+		r.Warnings = append(r.Warnings, collectionWarning(out.Collection))
 	}
 	return r
 }
