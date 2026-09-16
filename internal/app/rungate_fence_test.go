@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository/transaction"
@@ -332,5 +333,99 @@ func TestFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	_, ferr := admitWorkflowMutation(worktree, OperationPRPublish)
 	if fe, ok := AsMutationFenceError(ferr); !ok || fe.Reason != "run-cancelled" {
 		t.Fatalf("mutation after cancel = %v, want run-cancelled (the fence must locate the fresh epoch)", ferr)
+	}
+}
+
+// TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs is the change-0427
+// regression for the unconfirmed-reservation recovery leg: a fresh epoch whose
+// Worktree is empty (as gate-before mints it — neither claim confirmation nor
+// fixture setup pre-binds it), a reservation whose confirm was interrupted, and
+// the exact committed receipt. The verdict recovery must confirm WITH the
+// change's logical feature worktree — before the directory even exists — so
+// LoadEpochRecord shows it bound, and after RunCancel a workflow mutation from
+// that worktree is refused specifically run-cancelled. Restoring the empty
+// worktree argument at the unconfirmed-reservation ConfirmGateClaim call reddens
+// both halves.
+func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	repo := f.repo.invocation
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+
+	// Give the armed record a parent-held authority so RunCancel's authority gate
+	// (rec.ParentCap != "") is satisfied later; gateMintArmed leaves it empty. This
+	// is cancel-fixture scaffolding, not part of the recovery under test.
+	if rec, lerr := LoadGateRecord(repo, key); lerr != nil {
+		t.Fatalf("LoadGateRecord: %v", lerr)
+	} else {
+		rec.ParentCap = "parent-cap-raw"
+		if serr := SaveGateRecord(repo, key, rec); serr != nil {
+			t.Fatalf("SaveGateRecord: %v", serr)
+		}
+	}
+
+	// A REAL fresh epoch, minted exactly as a fresh (non-resume) arm mints it:
+	// change unbound (""), Worktree "". Nothing below pre-binds either.
+	ep, err := MintEpochRecord(repo, key, "")
+	if err != nil {
+		t.Fatalf("MintEpochRecord: %v", err)
+	}
+
+	// The interrupted-confirm shape: reserved, never confirmed, with the exact
+	// committed receipt (same request id, same context hash).
+	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("ReserveGateClaim: %v", err)
+	}
+	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+	}}
+
+	// The expected LOGICAL feature path, from the same canonical identity
+	// production derives it from (never the fixture's spelling of repo).
+	repoID, err := f.client.Discover(context.Background(), gitcli.DiscoverOptions{InvocationPath: repo})
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	want := filepath.Join(repoID.PrimaryWorktree, ".worktrees", rvSlug)
+	if _, serr := os.Stat(want); serr == nil {
+		t.Fatalf("precondition: feature dir %q must not exist yet (binding precedes workspace.prepare)", want)
+	}
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
+	if got, wantLine := res.HumanText(), "gate-done "+key+" run-complete 3"; got != wantLine {
+		t.Fatalf("HumanText = %q, want %q (recovery must still succeed)", got, wantLine)
+	}
+
+	// (a) The recovery confirm bound the epoch's worktree, with the directory
+	// still absent — the bind stores the logical path.
+	epAfter, _, err := LoadEpochRecord(repo, key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if epAfter.Worktree != want {
+		t.Fatalf("epoch worktree = %q, want %q (verdict recovery must bind the run epoch's worktree)", epAfter.Worktree, want)
+	}
+
+	// (b) Cancel through RunCancel, then a workflow mutation from that feature
+	// worktree is refused run-cancelled. The dir exists by now (as it would after
+	// workspace.prepare); the fence canonicalizes at compare time.
+	if err := os.MkdirAll(want, 0o755); err != nil {
+		t.Fatalf("mkdir feature worktree: %v", err)
+	}
+	common, err := gateGitCommonDir(repo)
+	if err != nil {
+		t.Fatalf("gateGitCommonDir: %v", err)
+	}
+	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}}
+	cres := runCancel(seams, repo, key, ep.EpochID, "0427 regression stop")
+	if cres.Disposition != CancelDispositionCancelled {
+		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
+	}
+	_, ferr := admitWorkflowMutation(want, OperationPRPublish)
+	if fe, ok := AsMutationFenceError(ferr); !ok || fe.Reason != "run-cancelled" {
+		t.Fatalf("mutation after cancel = %v, want a run-cancelled MutationFenceError (the fence must locate the recovered epoch)", ferr)
 	}
 }
