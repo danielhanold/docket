@@ -171,8 +171,18 @@ type Driver struct {
 	// or when a scope carries no RunEpochID, the epoch gate is skipped and Takeover's
 	// existing ADR-0107 authorization is unchanged. A resolver error fails closed
 	// (the takeover HALTs rather than reviving a run whose epoch cannot be read).
-	epochRevoked EpochRevokedFunc
+	epochRevoked     EpochRevokedFunc
+	epochReplacement EpochReplacementFunc
 }
+
+// EpochReplacementFunc proves a durable supersession chain to the incoming live
+// epoch for this worktree. It is consulted only for a released incumbent slot.
+// A non-nil release authorizes replacement and holds cancellation fenced until
+// the caller has persisted the reservation; nil means refusal. The change comes
+// from the authenticated scope, not from a caller-supplied epoch locator.
+type EpochReplacementFunc func(previous, next, worktree, change string) (release func(), err error)
+
+func (d *Driver) SetEpochReplacementResolver(fn EpochReplacementFunc) { d.epochReplacement = fn }
 
 // EpochRevokedFunc reports whether the run epoch named by epochID is cancelled or
 // superseded. A clean "no such epoch" is (false, nil) — a locator that resolves to
@@ -220,7 +230,19 @@ func startDocWithLegacy(doc DriveDoc, err error, legacy *LegacyHistorySummary) (
 // legacy history summary the census produced (nil when no legacy history was
 // relevant) so the start paths can carry it on the returned document.
 func (d *Driver) reserveWorktreeExecution(rec admissionRecord) (string, *LegacyHistorySummary, error) {
-	return d.store.reserveWorktreeExecution(rec, d.proc)
+	resolver := d.epochReplacement
+	// A public epoch locator is not authority: replacement requires the already
+	// authenticated immutable scope to bind that epoch, never caller substitution.
+	scope, err := d.store.LoadScope(rec.ScopeID)
+	if err != nil || rec.RunEpochID == "" || scope.RunEpochID != rec.RunEpochID {
+		resolver = nil
+	} else if resolver != nil {
+		proof := resolver
+		resolver = func(previous, next, worktree, _ string) (func(), error) {
+			return proof(previous, next, worktree, scope.ChangeID)
+		}
+	}
+	return d.store.reserveWorktreeExecutionWithEpoch(rec, d.proc, resolver)
 }
 
 // CleanupHistory runs the shared manual legacy-history assessment over this

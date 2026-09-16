@@ -2,12 +2,96 @@ package gatedrive
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/testsupport"
 )
+
+func TestReplacementAdmissionRequiresReleasedProvenEpoch(t *testing.T) {
+	for _, tc := range []string{"valid", "busy", "no-proof", "false-proof", "failed-proof", "missing-epoch", "unbound-scope"} {
+		t.Run(tc, func(t *testing.T) {
+			s := OpenStore(testsupport.TempDir(t))
+			wt := mkWorktree(t)
+			old := sampleAdmission(wt)
+			old.RunEpochID = "old"
+			token, err := s.ReserveWorktreeExecution(old)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc != "busy" {
+				if err := s.ReleaseWorktreeExecution(wt, token); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before, _, err := s.LoadWorktreeExecution(wt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := sampleScopeReq()
+			req.RunEpochID = "new"
+			if tc == "unbound-scope" {
+				req.RunEpochID = ""
+			}
+			scope, err := s.PrepareScope(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			next := sampleAdmission(wt)
+			next.ScopeID, next.RunEpochID = scope.ScopeID, "new"
+			if tc == "missing-epoch" {
+				next.RunEpochID = ""
+			}
+			d := scopedTestDriver(s, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+			calls := 0
+			if tc != "no-proof" {
+				d.SetEpochReplacementResolver(func(previous, incoming, worktree, change string) (func(), error) {
+					calls++
+					if previous != "old" || incoming != "new" || worktree != before.WorktreeRoot || change != req.ChangeID {
+						t.Fatal("incorrect proof inputs")
+					}
+					if tc == "failed-proof" {
+						return nil, errors.New("unreadable epoch")
+					}
+					if tc == "false-proof" {
+						return nil, nil
+					}
+					return func() {
+						persisted, _, err := s.LoadWorktreeExecution(wt)
+						if err != nil || persisted.RunEpochID != "new" || persisted.State != admissionReserved {
+							t.Fatal("epoch unlocked before reservation persisted")
+						}
+					}, nil
+				})
+			}
+			_, _, err = d.reserveWorktreeExecution(next)
+			after, _, loadErr := s.LoadWorktreeExecution(wt)
+			if loadErr != nil {
+				t.Fatal(loadErr)
+			}
+			if tc == "valid" {
+				if err != nil || after.RunEpochID != "new" || after.ExecutionGen != before.ExecutionGen+1 {
+					t.Fatalf("replacement: %v %+v", err, after)
+				}
+				if err := s.ReleaseWorktreeExecution(wt, token); err == nil {
+					t.Fatal("old token released replacement")
+				}
+			} else {
+				if !isOwnership(err, ErrStaleRunEpoch) {
+					t.Fatalf("must refuse: %v", err)
+				}
+				if after != before {
+					t.Fatal("refusal modified incumbent")
+				}
+			}
+			if (tc == "busy" || tc == "missing-epoch" || tc == "unbound-scope") && calls != 0 {
+				t.Fatal("unsafe proof invocation")
+			}
+		})
+	}
+}
 
 // These are the gatedrive-side run-epoch tests (change 0375 Task 9). A scoped
 // start threads its RunEpochID onto the worktree execution slot, and the slot's

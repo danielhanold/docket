@@ -10,6 +10,7 @@ package app
 // stage/locator/summary is pinned separately in gate_drive_test.go (Task 6).
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,6 +21,65 @@ import (
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
+
+// Exercise the real slot left by a completed drive, cancellation, a resume that
+// never launched, and another resume. The slot can lag multiple epochs.
+func TestIntegrationBuildStartAfterCancelledResumeChain(t *testing.T) {
+	requireProcessSupervisor(t)
+	worktree, common := initGitRepo(t, "")
+	store := gatedrive.OpenStore(common)
+	key, err := MintGateRecord(worktree, GateRecord{Target: gateBeforeStoredTarget, AttemptLimit: 2, Retry: RetryUnused, Disposition: "gate-armed", AttributedID: 5, ScopeID: "outer", ParentCap: "parent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep, err := MintEpochRecord(worktree, key, "5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bindEpochWorktree(worktree, key, worktree); err != nil {
+		t.Fatal(err)
+	}
+	svc, res, reason := NewTaskGateDriveService(common, guardianExecutable(t), buildEffWithMaxAttempts("/bin/echo hi", 4), []string{"/bin/echo", "hi"})
+	if svc == nil {
+		t.Fatalf("service: %s %s", res, reason)
+	}
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+	start := func(epoch string) GateDriveResult {
+		scope := svc.PrepareScope(gatedrive.ScopeRequest{RepoIdentity: worktree, Worktree: worktree, ChangeID: "5", TaskID: "task", Phase: "build", Branch: "fix/x", RunEpochID: epoch})
+		if scope.ScopeID == "" {
+			t.Fatalf("scope: %+v", scope)
+		}
+		return svc.Start(GateDriveStartRequest{RepoDir: worktree, Worktree: worktree, ChangeID: "5", TaskID: "task", Phase: "build", Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: worktree, RunRoot: runRoot, ScopeID: scope.ScopeID, ChildCapability: scope.ChildCapability, RunEpochID: epoch})
+	}
+	first := start(ep.EpochID)
+	if first.Result != ResultApplied || first.Drive == nil || first.Drive.Outcome != gatedrive.PASSED {
+		t.Fatalf("first start: %+v", first)
+	}
+	for i := 0; i < 2; i++ {
+		cancel := runCancel(cancelSeams{store: store, stopper: &fakeCancelStopper{}}, worktree, key, ep.EpochID, "test human-authorized resume")
+		if cancel.Disposition != CancelDispositionCancelled {
+			t.Fatalf("cancel: %+v", cancel)
+		}
+		deps, wdeps := resumeEpochDeps(t)
+		wdeps.Service = resumeInspectService(worktree)
+		armed := RunGateBefore(context.Background(), deps, wdeps, GateScopeDeps{Prepare: store.PrepareScope}, worktree, "implement-next", 5)
+		if !armed.Armed {
+			t.Fatalf("resume: %s", armed.HumanText())
+		}
+		key = armed.Key
+		ep, _, err = LoadEpochRecord(worktree, key)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	last := start(ep.EpochID)
+	if last.Result != ResultApplied || last.Drive == nil || last.Drive.Outcome != gatedrive.PASSED {
+		t.Fatalf("replacement must launch over released ancestor slot: %+v", last)
+	}
+	if n := countRunDirs(t, runRoot); n != 2 {
+		t.Fatalf("launched %d runs, want exactly original and replacement", n)
+	}
+}
 
 // requireProcessSupervisor skips on a platform where the native process supervisor
 // is not built (internal/process gates Launch on darwin/linux only), mirroring the
