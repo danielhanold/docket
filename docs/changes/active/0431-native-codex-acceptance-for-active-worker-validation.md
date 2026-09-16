@@ -52,3 +52,8 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
 
+## Run halted
+
+### 2026-09-16
+
+Native economy worker task-1 passed immutable continuation input checks but its first required RED gate.drive.start was rejected with invalid-input/stale-run-epoch: an in-flight run owns the feature worktree despite replacement epoch d9cdc98d9fe81183d0b04f7377623bf2. No RED test ran, no implementation files were created, and no commit exists. The inherited untracked internal/nativeacceptance/value_test.go remains byte-identical at SHA-256 f0ce49d43b268ba06bb285505f18fb0a4bee8ba60ffec7e8e032faa19144726e. Evidence: resume-431-prepare/control/receipts/431-worker-task-1-red.stdout. Resolve or cancel the still-owning run through the gate facade before another attributed resume; do not start a replacement worker.
