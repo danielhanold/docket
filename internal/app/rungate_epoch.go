@@ -42,6 +42,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -518,6 +519,15 @@ func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecor
 		r, _, lerr := readStoredEpoch(filepath.Join(root, key), "find-by-change")
 		if lerr != nil {
 			continue // no epoch.json here, or a corrupt/unreadable sibling: cannot match
+		}
+		if r.ChangeID == "" {
+			// A verified resume has no new claim transaction to bind its epoch.
+			// Once its gate is terminal it is no longer an unused reservation:
+			// expose this exact run for cancellation, not its predecessor's key.
+			gate, gerr := LoadGateRecord(repoDir, key)
+			if gerr == nil && gate.Terminal && gate.AttributedID > 0 && gate.BoundRequestID == "" && gate.ScopeID != "" && r.Worktree != "" {
+				r.ChangeID = strconv.Itoa(gate.AttributedID)
+			}
 		}
 		if r.ChangeID == changeID {
 			matches = append(matches, matchEntry{key: key, rec: r})

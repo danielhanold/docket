@@ -505,6 +505,9 @@ func (d *Driver) precheckScopedStart(req StartRequest) error {
 // (Invariant 6 — omission or alteration must not detach a drive from outer
 // recovery). A scope that pinned no gate context accepts any (the pre-0359 default).
 func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
+	if scope.RunRoot != "" && scope.RunRoot != req.RunRoot {
+		return false
+	}
 	if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
 		return false
 	}

@@ -572,7 +572,7 @@ func TestGateDriveScopeBoundStartRoundTrips(t *testing.T) {
 	// Prepare a task recovery scope for this worktree.
 	out, errS, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
 		"--repo-dir", wt, "--change-id", "359", "--task-id", "task-12",
-		"--phase", "build", "--branch", "fix/x", "--worktree", wt)
+		"--phase", "build", "--branch", "fix/x", "--worktree", wt, "--run-root", root)
 	if code != 0 || errS != "" {
 		t.Fatalf("prepare-scope: out=%q err=%q code=%d", out, errS, code)
 	}
@@ -581,6 +581,14 @@ func TestGateDriveScopeBoundStartRoundTrips(t *testing.T) {
 	childCap, _ := grant["child_capability"].(string)
 	if scopeID == "" || childCap == "" {
 		t.Fatalf("prepare-scope missing a grant field: %v", grant)
+	}
+	bad, _, _ := runCLI(t, "--json", "gate", "drive", "start",
+		"--repo-dir", wt, "--run-root", filepath.Join(root, "substitute"), "--owner", "task",
+		"--scope-id", scopeID, "--child-cap", childCap,
+		"--change-id", "359", "--task-id", "task-12", "--phase", "build",
+		"--branch", "fix/x", "--", "/bin/echo", "must-not-run")
+	if rejected := decodeOneJSON(t, bad); rejected["result"] == "applied" {
+		t.Fatalf("CLI lost the controller run-root binding: %s", bad)
 	}
 
 	// A scope-bound task start over the SAME worktree, with every pinned identity

@@ -342,7 +342,7 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// event-authorized parent takeover. change 0375 adds the optional --run-epoch,
 		// which threads the run epoch onto the scope so the takeover epoch-revocation
 		// gate is live rather than dead code.
-		"gate.drive.prepare-scope": "--branch <name> --change-id <id> --phase <name> --task-id <id> --worktree <dir> [--gate-context <token>] [--repo-dir <dir>] [--run-epoch <id>]",
+		"gate.drive.prepare-scope": "--branch <name> --change-id <id> --phase <name> --task-id <id> --worktree <dir> [--gate-context <token>] [--repo-dir <dir>] [--run-epoch <id>] [--run-root <dir>]",
 		"gate.drive.takeover":      "--parent-cap <token> --scope-id <id> [--drive-id <id>] [--repo-dir <dir>]",
 	}
 	for id, wantSig := range want {

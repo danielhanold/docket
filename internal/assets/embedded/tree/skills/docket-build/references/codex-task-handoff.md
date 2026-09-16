@@ -1,10 +1,12 @@
 # Codex task handoff
 
-Order: controller-owned repository/workspace preparation. Missing assignment or payload files are controller work; absence does not make provenance unavailable. Create them in protected external control storage. Pin provisional assignment without `root_identity`; run `agent.check-inputs` at `prepare` for the root witness. Add it to the immutable assignment, freeze/hash it, and rerun `agent.check-inputs` at `prepare`. Next, prepare the child scope and private payload with assignment locator/digest, assignment-only `entry_argv`, child capability, scope identity, optional context/epoch, and predecessor. Run `agent.check-inputs` at `dispatch` with locators/digests. Store parent capability and outer gate key privately.
+Order: controller-owned repository/workspace preparation. Missing assignment or payload files are controller work. Use protected external storage. Create a dedicated absolute, clean allocation directory; pin assignment.run_root and pass it unchanged to prepare-scope and every start via --run-root, with --json. Keep assignments, payloads and receipt captures outside it. A missing root fails preparation; workers never substitute temporary directories.
 
-Pass both locators/digests unchanged through native dispatch. The child resolves the executable's catalog and `schema --operation agent.check-inputs`, then checks at `entry`. Append `--payload <path> --payload-sha256 <digest>` to the assignment-only `entry_argv`; its digest stays outside the payload bytes, avoiding a circular hash. A missing, changed, or unvalidated payload refuses entry.
+Pin provisional assignment without root_identity; agent.check-inputs at prepare returns the witness. Add it to the immutable assignment, freeze/hash, and revalidate prepare. Next, prepare the child scope and private payload carrying assignment locator/digest, assignment-only entry_argv, child capability, context/epoch and predecessor. Validate at `dispatch` with both locators/digests. Parent capability and outer gate key stay private.
 
-Load pinned `gate_argv`, `first_stdout`, and `first_stderr` in one non-login shell:
+Pass both locators/digests unchanged through native dispatch. The child resolves the candidate catalog and `schema --operation agent.check-inputs`, then checks entry. Append --payload and --payload-sha256 to entry_argv; the payload digest stays outside its bytes, avoiding circular hashing. Missing, changed or unvalidated payloads refuse entry.
+
+Load pinned gate_argv, first_stdout and first_stderr in one non-login shell:
 
 ```bash
 if "${gate_argv[@]}" >"$first_stdout" 2>"$first_stderr"; then
@@ -14,8 +16,8 @@ else
 fi
 ```
 
-Retain `gate_rc`; observe the original shell-tool session to terminal before reading files. Run catalog-resolved `agent.check-receipt` with pinned assignment/digest, operation, both files, and `--exit-code "$gate_rc"`. Never rerun a gate operation to recover output. Use this sequence for prepare-scope, start, advance, acknowledge, handoff, claim, and takeover.
+Observe the original shell session to terminal. Validate with agent.check-receipt: pinned assignment/digest, operation, both files and --exit-code "$gate_rc". Never rerun an operation to recover output. Apply this to prepare-scope, start, advance, acknowledge, handoff, claim and takeover.
 
-Prepare-scope fields are top-level `scope_id`, `child_capability`, and `parent_capability`. Drive fields are nested `drive.drive_id`, `drive.generation`, and `drive.outcome`. Normal terminal start, advance, and acknowledge receipts require the assigned run root; PASSED also carries `drive.raw_run_dir`. Transfers omit `run_root`; PASSED transfers carry `raw_run_dir` contained by the assigned run root. A diagnostic HALTED document may omit generation, deadline, and run paths and authorizes no continuation. WAITING omits run paths; FAILED with nonzero exit is valid. Invalid JSON, refusal, incomplete fields, or mismatched paths halt with original stdout, stderr, and status retained.
+Prepare-scope fields are top-level scope_id, child_capability, parent_capability; drive fields are nested drive.drive_id, drive.generation, drive.outcome. Terminal start/advance/acknowledge require the assigned run root; PASSED includes contained raw_run_dir. Transfers omit run_root; PASSED transfers retain contained raw_run_dir. A diagnostic HALTED may omit generation, deadline and paths; it authorizes no continuation. WAITING omits paths; FAILED with nonzero exit is valid. Invalid receipts halt with original stdout/stderr/status retained.
 
-WAITING continues one drive: hand off, then claim and advance with the new generation. Claim and takeover close the old scope. Record recovered terminal work separately. Later tests use a fresh quiescent scope without the closed scope's predecessor. A commit-only continuation carries validated recovered evidence and does not rerun a passing stage. Final acknowledgement consumes the current terminal result.
+WAITING continues one drive: handoff, claim, advance with new generation. Claim/takeover close the old scope. Record recovered terminal work separately. Later tests use fresh quiescent scopes without closed-scope predecessors. Commit-only continuations carry validated recovered evidence, not rerun tests. Final acknowledgement consumes the current terminal result.
