@@ -22,7 +22,7 @@ branch: 'fix/verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-16T10:35:33Z'
+claimed_at: '2026-09-16T10:44:38Z'
 ---
 
 ## Artifacts
