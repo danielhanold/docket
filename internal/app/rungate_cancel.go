@@ -244,10 +244,15 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 	if berr != nil {
 		return cancelRefused("claim-unreadable")
 	}
-	if !ok || !binding.Confirmed {
+	changeID := binding.ChangeID
+	if !ok && rec.AttributedID > 0 && rec.BoundRequestID == "" && rec.ScopeID != "" && ep.Worktree != "" {
+		// The same verified resume shape resolveGateOwnership accepts: the arm
+		// proved the existing claim/workspace, so no fresh claim receipt exists.
+		changeID = rec.AttributedID
+	} else if !ok || !binding.Confirmed {
 		return cancelRefused("claim-unconfirmed")
 	}
-	if ep.ChangeID != "" && strconv.Itoa(binding.ChangeID) != ep.ChangeID {
+	if ep.ChangeID != "" && strconv.Itoa(changeID) != ep.ChangeID {
 		return cancelRefused("claim-mismatch")
 	}
 
@@ -260,6 +265,11 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 		return cancelResult(CancelDispositionAlreadyCancelled, nil)
 	case EpochActive:
 		if ferr := epochCAS(repoDir, key, func(r *EpochRecord) error {
+			// Older replacement arms left this locator empty. Repair it only
+			// under verified cancellation authority, never by editing claim proof.
+			if r.ChangeID == "" {
+				r.ChangeID = strconv.Itoa(changeID)
+			}
 			if r.State == EpochActive {
 				r.State = EpochCancelling
 			}
