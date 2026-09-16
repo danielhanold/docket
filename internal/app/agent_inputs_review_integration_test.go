@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/codexcontract"
@@ -114,11 +115,9 @@ func reviewCheck(t *testing.T, a codexcontract.Assignment, deps AgentInputDeps, 
 	assignmentPath := filepath.Join(root, "assignment.json")
 	assignmentDigest := reviewPin(t, assignmentPath, a)
 	req := CheckInputsRequest{Assignment: assignmentPath, SHA256: assignmentDigest, Stage: stage, RepoDir: a.Primary}
-	if stage != "active" {
-		payload := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: "planner", AssignmentPath: assignmentPath, AssignmentSHA256: assignmentDigest, EntryArgv: codexcontract.EntryCheckerArgv(a, assignmentPath, assignmentDigest), TaskText: "write the plan"}
-		payloadPath := filepath.Join(root, "payload.json")
-		req.Payload, req.PayloadSHA256 = payloadPath, reviewPin(t, payloadPath, payload)
-	}
+	payload := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: "planner", AssignmentPath: assignmentPath, AssignmentSHA256: assignmentDigest, EntryArgv: codexcontract.EntryCheckerArgv(a, assignmentPath, assignmentDigest), TaskText: "write the plan"}
+	payloadPath := filepath.Join(root, "payload.json")
+	req.Payload, req.PayloadSHA256 = payloadPath, reviewPin(t, payloadPath, payload)
 	return CheckAgentInputs(context.Background(), deps, req)
 }
 
@@ -236,7 +235,7 @@ func TestIntegrationWorkflowRepairActiveRequiresPrivateRoleAuthority(t *testing.
 	}
 }
 
-func TestIntegrationWorkflowWorkerActiveSupportsAssignmentOnlyAndValidatedPayload(t *testing.T) {
+func TestIntegrationWorkflowWorkerActiveValidatesBeforeAcknowledgement(t *testing.T) {
 	a, deps, root := reviewRealAssignment(t, false)
 	a.Role, a.Phase, a.TaskID = "docket-build-standard", "build", "1"
 	a.ArtifactPath, a.PlanSkill, a.BuildSkill, a.ResultsTemplate, a.Resources = "", "", "", "", nil
@@ -245,8 +244,8 @@ func TestIntegrationWorkflowWorkerActiveSupportsAssignmentOnlyAndValidatedPayloa
 	assignmentPath := filepath.Join(root, "assignment.json")
 	assignmentDigest := reviewPin(t, assignmentPath, a)
 	without := CheckAgentInputs(context.Background(), deps, CheckInputsRequest{Assignment: assignmentPath, SHA256: assignmentDigest, Stage: "active", RepoDir: a.Primary})
-	if without.Result != ResultApplied {
-		t.Fatalf("worker assignment-only active check rejected: %s", without.Reason)
+	if without.Result != ResultInvalidInput || !strings.Contains(without.Reason, "payload-invalid") {
+		t.Fatalf("worker active check must require private scope authority: %+v", without)
 	}
 
 	store := gatedrive.OpenStore(a.CommonDir)
@@ -254,12 +253,32 @@ func TestIntegrationWorkflowWorkerActiveSupportsAssignmentOnlyAndValidatedPayloa
 	if err != nil {
 		t.Fatal(err)
 	}
-	deps.Scope = gatedrive.NewSystemDriver(store, nil)
+	driver := gatedrive.NewSystemDriver(store, receiptProcess{runDir: filepath.Join(root, "runs", "run")})
+	deps.Scope = driver
 	payload := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: "worker", AssignmentPath: assignmentPath, AssignmentSHA256: assignmentDigest, EntryArgv: codexcontract.EntryCheckerArgv(a, assignmentPath, assignmentDigest), TaskText: "implement task", ScopeID: grant.ScopeID, ChildCapability: grant.ChildCapability}
 	payloadPath := filepath.Join(root, "payload.json")
 	payloadDigest := reviewPin(t, payloadPath, payload)
 	with := CheckAgentInputs(context.Background(), deps, CheckInputsRequest{Assignment: assignmentPath, SHA256: assignmentDigest, Payload: payloadPath, PayloadSHA256: payloadDigest, Stage: "active", RepoDir: a.Primary})
 	if with.Result != ResultApplied {
 		t.Fatalf("worker active check rejected validated payload: %s", with.Reason)
+	}
+	started, err := driver.Start(gatedrive.StartRequest{RepoDir: a.CommonDir, Worktree: a.Feature, ChangeID: "425", TaskID: "1", Phase: "build", Branch: a.Branch, Ref: "refs/heads/" + a.Branch, Cwd: a.Feature, RunRoot: filepath.Join(root, "runs"), Command: []string{"true"}, Budget: time.Minute, ScopeID: grant.ScopeID, ChildCapability: grant.ChildCapability})
+	if err != nil || started.Outcome != gatedrive.PASSED {
+		t.Fatalf("focused drive: %v %+v", err, started)
+	}
+	writeRepoFile(t, a.Feature, "owned.go", "package owned\n")
+	runGit(t, a.Feature, "add", "owned.go")
+	runGit(t, a.Feature, "commit", "-m", "worker task")
+	req := CheckInputsRequest{Assignment: assignmentPath, SHA256: assignmentDigest, Payload: payloadPath, PayloadSHA256: payloadDigest, Stage: "active", RepoDir: a.Primary}
+	checked := CheckAgentInputs(context.Background(), deps, req)
+	if checked.Result != ResultApplied {
+		t.Fatalf("active check after task commit: %s", checked.Reason)
+	}
+	if _, err := driver.Acknowledge(grant.ScopeID, grant.ChildCapability, started.DriveID, started.Generation); err != nil {
+		t.Fatal(err)
+	}
+	closed := CheckAgentInputs(context.Background(), deps, req)
+	if closed.Result != ResultInvalidState || !strings.Contains(closed.Reason, "scope-closed") {
+		t.Fatalf("acknowledged scope must stay closed: %+v", closed)
 	}
 }

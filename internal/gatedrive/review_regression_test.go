@@ -1,10 +1,94 @@
 package gatedrive
 
 import (
+	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/process"
 )
+
+// Active checks bind the immutable dispatch, even after its launch receipt has
+// been consumed. They must neither admit another launch nor reopen a closed scope.
+func TestActiveChildInputsAcrossDriveSequence(t *testing.T) {
+	d, store, grant, req, first, final := ackTwoDriveSequence(t)
+	before := readDriveBytes(t, store, final.DriveID)
+	if err := d.ValidateActiveChildInputs(req); err != nil {
+		t.Fatalf("immutable worker inputs must stay valid after focused drives: %v", err)
+	}
+	if err := d.ValidateChildInputs(req); err == nil {
+		t.Fatal("active check must not authorize replay of initial launch")
+	}
+	req.PredecessorDriveID, req.PredecessorOwnerGen = first.DriveID, first.Generation
+	if err := d.ValidateActiveChildInputs(req); err != nil {
+		t.Fatalf("consumed immutable predecessor must not invalidate active ownership: %v", err)
+	}
+	if err := d.ValidateChildInputs(req); err == nil {
+		t.Fatal("consumed predecessor must remain invalid for launch admission")
+	}
+	if !reflect.DeepEqual(before, readDriveBytes(t, store, final.DriveID)) {
+		t.Fatal("read-only active validation changed the terminal drive")
+	}
+	if _, err := d.Acknowledge(grant.ScopeID, grant.ChildCapability, final.DriveID, final.Generation); err != nil {
+		t.Fatal(err)
+	}
+	var ownership *OwnershipError
+	if err := d.ValidateActiveChildInputs(req); !errors.As(err, &ownership) || ownership.Kind != ErrScopeClosed {
+		t.Fatalf("active check after acknowledgement must refuse scope-closed: %v", err)
+	}
+}
+
+func TestActiveChildInputsRejectLostAuthority(t *testing.T) {
+	for _, scenario := range []string{"capability", "task", "worktree", "repo", "branch", "change", "phase", "context", "epoch", "revoked", "taken-over"} {
+		t.Run(scenario, func(t *testing.T) {
+			d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, passObserveProc(), stableGit())
+			req := sampleStart()
+			sr := scopeReqFor(req, "context")
+			sr.RunEpochID = "epoch"
+			grant, err := store.PrepareScope(sr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.ScopeID, req.ChildCapability, req.GateContext, req.RunEpochID = grant.ScopeID, grant.ChildCapability, "context", "epoch"
+			final, err := d.Start(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := d.ValidateActiveChildInputs(req); err != nil {
+				t.Fatalf("positive control refused: %v", err)
+			}
+			switch scenario {
+			case "capability":
+				req.ChildCapability = "foreign"
+			case "task":
+				req.TaskID = "foreign"
+			case "worktree":
+				req.Worktree = "/foreign"
+			case "repo":
+				req.RepoDir = "/foreign"
+			case "branch":
+				req.Branch = "foreign"
+			case "change":
+				req.ChangeID = "999"
+			case "phase":
+				req.Phase = "foreign"
+			case "context":
+				req.GateContext = "foreign"
+			case "epoch":
+				req.RunEpochID = "foreign"
+			case "revoked":
+				d.SetEpochRevokedResolver(func(string) (bool, error) { return true, nil })
+			case "taken-over":
+				if _, err := d.Takeover(grant.ScopeID, grant.ParentCapability, final.DriveID); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := d.ValidateActiveChildInputs(req); err == nil {
+				t.Fatal("lost authority accepted")
+			}
+		})
+	}
+}
 
 func TestChildInputValidationBindsEpochAndRevocation(t *testing.T) {
 	for _, scenario := range []string{"omitted-epoch", "wrong-epoch", "cancelled-epoch"} {
