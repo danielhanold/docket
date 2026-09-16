@@ -95,6 +95,27 @@ type StatusArtifact struct {
 	Data    []byte
 }
 
+type ChangeArtifactTarget struct {
+	ChangeID      int    `json:"change_id"`
+	Slug          string `json:"slug"`
+	Status        string `json:"status"`
+	Location      string `json:"location"`
+	Branch        string `json:"branch,omitempty"`
+	EffectiveBase string `json:"effective_base,omitempty"`
+	Kind          string `json:"kind"`
+	Path          string `json:"path"`
+}
+
+type ChangeArtifactObservation struct {
+	Found         bool   `json:"found"`
+	Regular       bool   `json:"regular"`
+	BacklinkValid bool   `json:"backlink_valid"`
+	SourceKind    string `json:"source_kind"`
+	Revision      string `json:"revision,omitempty"`
+	Blob          string `json:"blob,omitempty"`
+	Reason        string `json:"reason,omitempty"`
+}
+
 // StatusReader is the seam between orchestration and Git. One call per concern;
 // the Git-backed implementation arrives in Task 3, and application tests drive
 // a fake.
@@ -120,6 +141,7 @@ type StatusReader interface {
 	// consults, so a bundle can carry loss-preserving source bytes for an
 	// artifact (a spec) that is not a corpus record.
 	ReadArtifact(ctx context.Context, pin StatusPin, source, path string) (StatusArtifact, error)
+	ReadChangeArtifact(ctx context.Context, pin StatusPin, target ChangeArtifactTarget) (ChangeArtifactObservation, error)
 }
 
 // Status runs the whole read and returns the one protocol document. It composes
@@ -192,7 +214,7 @@ func Status(ctx context.Context, reader StatusReader, opts StatusOptions) Status
 	var artifactFindings []StatusFinding
 	for _, c := range displayed {
 		changes = append(changes, statusChange(snap, c, facts, readySet, blobByPath))
-		f, ferr := artifactChecks(ctx, reader, pin, c)
+		f, ferr := artifactChecks(ctx, reader, pin, snap, facts, c)
 		if ferr != nil {
 			return statusFailure(ctx, pin, ferr)
 		}
@@ -480,7 +502,7 @@ func readinessReason(r domain.Readiness) string {
 // against the source its kind lives on. A missing target is an error finding;
 // an empty link produces no finding (a distinct, benign state). An
 // ArtifactExists error propagates as an operation failure.
-func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c domain.Change) ([]StatusFinding, error) {
+func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, snap domain.Snapshot, facts domain.BranchFacts, c domain.Change) ([]StatusFinding, error) {
 	var findings []StatusFinding
 	links := []struct {
 		field  string
@@ -495,7 +517,25 @@ func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c d
 		if link.value.State != domain.FieldPresent || link.value.Value == "" {
 			continue
 		}
-		exists, err := reader.ArtifactExists(ctx, pin, link.source, link.value.Value)
+		exists := false
+		var detail string
+		var err error
+		if link.field == "spec" {
+			exists, err = reader.ArtifactExists(ctx, pin, link.source, link.value.Value)
+		} else {
+			branch := ""
+			if b := c.Branch(); b.State == domain.FieldPresent {
+				branch = b.Value
+			}
+			base := ""
+			if b := domain.ResolveEffectiveBase(snap, c, facts); b.Kind == domain.BaseResolved {
+				base = b.Branch
+			}
+			obs, oerr := reader.ReadChangeArtifact(ctx, pin, ChangeArtifactTarget{ChangeID: int(c.ID()), Slug: c.Slug(), Status: c.RawStatus(), Location: string(c.Location()), Branch: branch, EffectiveBase: base, Kind: link.field, Path: link.value.Value})
+			err = oerr
+			exists = obs.Found && obs.Regular && obs.BacklinkValid
+			detail = fmt.Sprintf(" (source=%s revision=%s blob=%s reason=%s)", obs.SourceKind, obs.Revision, obs.Blob, obs.Reason)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -508,7 +548,7 @@ func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c d
 				Field:    link.field,
 				Path:     link.value.Value,
 				Message: fmt.Sprintf("change %s references a %s artifact that does not exist: %s",
-					changeIdentity(c.ID()), link.field, link.value.Value),
+					changeIdentity(c.ID()), link.field, link.value.Value) + detail,
 			})
 		}
 	}

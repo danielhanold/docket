@@ -11,6 +11,7 @@ package cli
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -124,6 +125,120 @@ func TestSchemaCommandSingleOperation(t *testing.T) {
 	}
 	if !foundCode {
 		t.Errorf("unknown-operation refusal missing finding code unknown-operation: %v", bad.Findings)
+	}
+}
+
+func TestAgentCheckInputsSchemaDisclosesConstructibleDocuments(t *testing.T) {
+	out, errS, code := runCLI(t, "schema", "--operation", "agent.check-inputs", "--json")
+	if code != 0 || errS != "" {
+		t.Fatalf("schema --operation agent.check-inputs: out=%q err=%q code=%d", out, errS, code)
+	}
+	var doc struct {
+		Operations []struct {
+			Request struct {
+				Fields []struct {
+					Key string `json:"key"`
+				} `json:"fields"`
+			} `json:"request"`
+			Documents []struct {
+				ID            string `json:"id"`
+				SchemaVersion int    `json:"schema_version"`
+				Body          struct {
+					Fields []struct {
+						Key         string `json:"key"`
+						Enum        string `json:"enum"`
+						Description string `json:"description"`
+						Fields      []struct {
+							Key string `json:"key"`
+						} `json:"fields"`
+					} `json:"fields"`
+				} `json:"body"`
+			} `json:"documents"`
+		} `json:"operations"`
+		Vocabularies map[string]struct {
+			Members []string `json:"members"`
+		} `json:"vocabularies"`
+	}
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Operations) != 1 {
+		t.Fatalf("operations=%d", len(doc.Operations))
+	}
+	req := map[string]bool{}
+	for _, f := range doc.Operations[0].Request.Fields {
+		req[f.Key] = true
+	}
+	for _, key := range []string{"assignment", "sha256", "payload", "payload_sha256", "stage"} {
+		if !req[key] {
+			t.Errorf("check-inputs request omits %q", key)
+		}
+	}
+	docs := map[string]map[string]struct {
+		enum   string
+		nested []string
+	}{}
+	for _, d := range doc.Operations[0].Documents {
+		if d.SchemaVersion != 1 {
+			t.Errorf("document %s schema_version=%d", d.ID, d.SchemaVersion)
+		}
+		fields := map[string]struct {
+			enum   string
+			nested []string
+		}{}
+		for _, f := range d.Body.Fields {
+			var nested []string
+			for _, n := range f.Fields {
+				nested = append(nested, n.Key)
+			}
+			fields[f.Key] = struct {
+				enum   string
+				nested []string
+			}{f.Enum, nested}
+		}
+		docs[d.ID] = fields
+	}
+	assignment := docs["assignment"]
+	for _, key := range []string{"role", "phase", "mode", "resources", "resource_dependencies", "root_identity", "inherited_fingerprint", "build_evidence"} {
+		if _, ok := assignment[key]; !ok {
+			t.Errorf("assignment document omits %q", key)
+		}
+	}
+	if len(assignment["root_identity"].nested) == 0 || len(assignment["inherited_fingerprint"].nested) == 0 {
+		t.Error("assignment identity/fingerprint shapes are opaque")
+	}
+	if assignment["role"].enum != "agent_roles" || assignment["mode"].enum != "assignment_modes" {
+		t.Errorf("assignment enum references are incomplete: role=%q mode=%q", assignment["role"].enum, assignment["mode"].enum)
+	}
+	var assignmentDescriptions = map[string]string{}
+	for _, d := range doc.Operations[0].Documents {
+		if d.ID != "assignment" {
+			continue
+		}
+		for _, f := range d.Body.Fields {
+			assignmentDescriptions[f.Key] = f.Description
+		}
+	}
+	for _, key := range []string{"plan_skill", "build_skill", "results_template"} {
+		if !strings.Contains(assignmentDescriptions[key], "resources[].logical_id") {
+			t.Errorf("assignment %s does not disclose logical-id selector semantics: %q", key, assignmentDescriptions[key])
+		}
+	}
+	for _, clause := range []string{"every declared resource", "direct local Markdown dependencies"} {
+		if !strings.Contains(assignmentDescriptions["resource_dependencies"], clause) {
+			t.Errorf("resource_dependencies description omits %q: %q", clause, assignmentDescriptions["resource_dependencies"])
+		}
+	}
+	payload := docs["worker-payload"]
+	for _, key := range []string{"kind", "assignment_path", "assignment_sha256", "entry_argv", "attempt", "resolver_reservation"} {
+		if _, ok := payload[key]; !ok {
+			t.Errorf("worker-payload document omits %q", key)
+		}
+	}
+	for _, vocab := range []string{"agent_roles", "assignment_phases", "assignment_modes", "payload_kinds"} {
+		if len(doc.Vocabularies[vocab].Members) == 0 {
+			t.Errorf("vocabulary %q is absent or empty", vocab)
+		}
 	}
 }
 

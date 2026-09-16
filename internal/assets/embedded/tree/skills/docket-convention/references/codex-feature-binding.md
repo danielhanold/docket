@@ -1,0 +1,9 @@
+# Codex feature binding
+
+Before reading repository content, bootstrap the supplied Docket executable's `capabilities` catalog and `schema --operation agent.check-inputs`, then read only the supplied assignment and private payload. The assignment and payload formats are the operation's versioned `documents`; its request shape supplies their separate locator/digest fields. Every feature role runs `agent.check-inputs` at `entry` by taking the payload's assignment-only `entry_argv` and appending the separately supplied `--payload <path>` and `--payload-sha256 <digest>`. Keeping the outer payload locator/digest outside `entry_argv` avoids a circular payload hash. A planner or reviewer has no worker scope authority, but its private payload is still mandatory.
+
+Feature-scoped children must not run `repository.prepare`, `workspace.prepare`, or metadata-writing operations. The controller owns repository and workspace preparation and all metadata mutations; only the planner may invoke its assigned `artifact.backlink` write. After successful entry, direct every Git and file operation to the assignment's absolute feature root. Startup cwd may be the primary or assigned feature root; cwd is not ownership. The checker binds primary/common directory, registered feature, short branch, pinned entry HEAD, role, mode, hashed resources, and owned paths.
+
+Omitted `--repo-dir` resolves from the invocation directory. On refusal, preserve the checker's exact reason; report suspected causes separately. The witness's device/inode identify the feature directory, not its `git_dir`.
+
+At `active`, recheck before returning. Workers may carry only assigned edits and descendant task commits. Reviewers stay at their pinned review HEAD and never edit or run tests. Planners start clean and write only their artifact. Resolver and integration-repair exceptions require their existing finalize reservation or repair authority; a mode string alone grants nothing.

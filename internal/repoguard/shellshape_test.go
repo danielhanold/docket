@@ -2,7 +2,10 @@ package repoguard
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -241,6 +244,121 @@ func TestPipeShapes(t *testing.T) {
 		mixed := "cmd " + bar + " awk 'END{exit 1} /x/{exit}'"
 		if got := scanPipeShapes("x.sh", mixed); len(got) == 0 {
 			t.Errorf("pipe scanner missed a mixed END+early-exit awk: %q", mixed)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// go_list_census: package discovery consumes stdout only
+// ---------------------------------------------------------------------------
+
+// A cold Go module cache writes download progress to stderr even when `go list`
+// succeeds. Folding that stream into a package census turns words such as
+// "go:" and "downloading" into later `go test` package arguments.
+var goListCensusCommand = regexp.MustCompile(`(^|[^[:alnum:]_])go[[:space:]]+list([^[:alnum:]_]|$)`)
+
+type logicalShellLine struct {
+	line int
+	text string
+}
+
+// logicalShellLines joins backslash-continued physical lines before a
+// syntactic command-shape check. Without that normalization the forbidden
+// tokens can be split across lines while the shell still executes one command.
+func logicalShellLines(content string) []logicalShellLine {
+	var out []logicalShellLine
+	var parts []string
+	start := 0
+	for i, raw := range strings.Split(content, "\n") {
+		trimmed := strings.TrimRight(raw, " \t")
+		continued := strings.HasSuffix(trimmed, `\`)
+		if continued {
+			trimmed = strings.TrimSuffix(trimmed, `\`)
+		}
+		if len(parts) == 0 {
+			start = i + 1
+		}
+		parts = append(parts, strings.TrimSpace(trimmed))
+		if continued {
+			continue
+		}
+		out = append(out, logicalShellLine{line: start, text: strings.Join(parts, " ")})
+		parts = nil
+	}
+	if len(parts) != 0 {
+		out = append(out, logicalShellLine{line: start, text: strings.Join(parts, " ")})
+	}
+	return out
+}
+
+func scanGoListCensusMergedStderr(rel, content string) []string {
+	var v []string
+	for _, command := range logicalShellLines(content) {
+		if pipeComment.MatchString(command.text) {
+			continue
+		}
+		if goListCensusCommand.MatchString(command.text) && strings.Contains(command.text, "./...") && strings.Contains(command.text, "2>&1") {
+			v = append(v, fmt.Sprintf("%s:%d: go list package census merges stderr: %s", rel, command.line, command.text))
+		}
+	}
+	return v
+}
+
+func TestGoListPackageCensusKeepsStderrSeparate(t *testing.T) {
+	root := guardRoot(t)
+	corpus := execPop(t, root)
+	hasRunnableMarkdown := false
+	for _, rel := range corpus {
+		if hasExt(rel, ".md") {
+			hasRunnableMarkdown = true
+			break
+		}
+	}
+	if !hasRunnableMarkdown {
+		t.Fatal("population proof: go-list census guard omitted runnable Markdown from the executable surface")
+	}
+	var violations []string
+	for _, rel := range corpus {
+		violations = append(violations, scanGoListCensusMergedStderr(rel, readMaintained(t, root, rel))...)
+	}
+	if len(violations) != 0 {
+		t.Errorf("go-list census stderr violations:\n%s", strings.Join(violations, "\n"))
+	}
+
+	t.Run("non_vacuity", func(t *testing.T) {
+		bad := []string{
+			`packages="$(go list ./... 2>&1)"`,
+			`packages="$(go list 2>&1 ./...)"`,
+			"packages=\"$(go list \\\n  2>&1 \\\n  ./...)\"",
+		}
+		for _, rel := range []string{"x.sh", "bin/package-census", "skills/example/SKILL.md"} {
+			for _, command := range bad {
+				if got := scanGoListCensusMergedStderr(rel, command); len(got) == 0 {
+					t.Errorf("go-list census scanner missed %s: %q", rel, command)
+				}
+			}
+		}
+		good := `packages="$(go list ./...)"`
+		if got := scanGoListCensusMergedStderr("x.sh", good); len(got) != 0 {
+			t.Errorf("go-list census scanner flagged %q: %v", good, got)
+		}
+	})
+
+	t.Run("extensionless_executable_population", func(t *testing.T) {
+		fixture := fixtureTree(t)
+		writeFile(t, fixture, "bin/package-census", "#!/bin/sh\npackages=\"$(go list 2>&1 ./...)\"\n")
+		if err := os.Chmod(filepath.Join(fixture, "bin", "package-census"), 0o755); err != nil {
+			t.Fatalf("chmod extensionless fixture: %v", err)
+		}
+		population, err := ExecutableSurface(fixture)
+		if err != nil {
+			t.Fatalf("ExecutableSurface: %v", err)
+		}
+		if !slices.Contains(population, "bin/package-census") {
+			t.Fatalf("ExecutableSurface omitted extensionless fixture: %v", population)
+		}
+		if got := scanGoListCensusMergedStderr("bin/package-census", readMaintained(t, fixture, "bin/package-census")); len(got) == 0 {
+			t.Fatal("go-list census scanner missed the extensionless executable fixture")
 		}
 	})
 }

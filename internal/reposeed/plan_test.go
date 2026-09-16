@@ -312,9 +312,8 @@ func TestPlanDispatchInteriorWordingConstraint(t *testing.T) {
 	}
 }
 
-// TestCodexRootEntryPolicyRoutesByRegistrationMarkers catches a stale policy
-// that routes every non-root role as a native child instead of selecting the
-// foreground worktree entry from the installed feature marker.
+// TestCodexRootEntryPolicyUsesNativeRegistration catches a stale policy that
+// translates descriptive markers into the retired second-root route.
 func TestCodexRootEntryPolicyRoutesByRegistrationMarkers(t *testing.T) {
 	targets, _ := mustPlan(t, PlanInput{
 		WorktreeRoot: worktreeRoot,
@@ -323,14 +322,12 @@ func TestCodexRootEntryPolicyRoutesByRegistrationMarkers(t *testing.T) {
 	})
 	content := string(byPath(targets)[agentsMD()].Content)
 	for _, clause := range []string{
-		"`[docket launch: root-coordinator]` takes precedence",
-		"foreground catalog-resolved `agent.enter` at the caller cwd",
+		"every registered Docket role uses the harness's top-level native named-agent dispatch",
 		"`[docket worktree: feature]`",
-		"foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`",
-		"unmarked metadata child uses direct native named-agent dispatch",
-		"Write a request file containing the user's request unchanged",
-		"caller `--cwd`",
-		"the owning workflow's exact `--worktree` explicitly for feature children",
+		"do not select `agent.enter` or another root process",
+		"Pass the run epoch id to `docket-implement-next`",
+		"Keep the caller's gate key and parent capability private",
+		"Retain that exact identity and collect its terminal output",
 	} {
 		if !strings.Contains(content, clause) {
 			t.Errorf("Codex dispatch policy lacks %q", clause)

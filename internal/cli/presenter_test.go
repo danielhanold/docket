@@ -11,11 +11,12 @@ import (
 func TestPresentJSONWritesOneCompactDocument(t *testing.T) {
 	var out, errBuf bytes.Buffer
 	p := Presenter{Stdout: &out, Stderr: &errBuf, JSON: true}
-	code := p.Present(app.Version(buildinfo.Info{Version: "development", Commit: "unknown", BuildDate: "unknown"}))
+	version := app.Version(buildinfo.Info{Version: "development", Commit: "unknown", BuildDate: "unknown"})
+	code := p.Present(version)
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0", code)
 	}
-	want := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown"}` + "\n"
+	want := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown","asset_set_id":"` + version.AssetSetID + `"}` + "\n"
 	if out.String() != want {
 		t.Fatalf("stdout = %q, want %q", out.String(), want)
 	}

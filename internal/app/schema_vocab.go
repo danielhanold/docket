@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/danielhanold/docket/internal/codexcontract"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/render"
 )
@@ -71,6 +72,10 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 	v["groom_outcomes"] = Vocabulary{Members: []string{string(GroomSpec), string(GroomTrivial)}}
 	v["change_types"] = Vocabulary{Pattern: changeTypePattern}
 	v["effects"] = Vocabulary{Members: effects}
+	v["agent_roles"] = Vocabulary{Members: append([]string{}, codexcontract.AllAgentRoles...)}
+	v["assignment_phases"] = Vocabulary{Members: append([]string{}, codexcontract.AllAssignmentPhases...)}
+	v["assignment_modes"] = Vocabulary{Members: append([]string{}, codexcontract.AllAssignmentModes...)}
+	v["payload_kinds"] = Vocabulary{Members: append([]string{}, codexcontract.AllPayloadKinds...)}
 
 	// Disposition families: each Members list references the actual constants of
 	// its prefixed const group, so a value respelling tracks automatically and

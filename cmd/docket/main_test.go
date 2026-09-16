@@ -83,7 +83,11 @@ func TestVersionJSONGoldenBytes(t *testing.T) {
 	if code != 0 || errS != "" {
 		t.Fatalf("err=%q code=%d", errS, code)
 	}
-	want := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown"}` + "\n"
+	manifest, err := assets.EmbeddedManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown","asset_set_id":"` + manifest.AssetSetID + `"}` + "\n"
 	if out != want {
 		t.Fatalf("stdout = %q, want %q", out, want)
 	}

@@ -995,6 +995,9 @@ func (c *countingReader) ArtifactExists(ctx context.Context, pin StatusPin, sour
 func (c *countingReader) ReadArtifact(ctx context.Context, pin StatusPin, source, path string) (StatusArtifact, error) {
 	return c.inner.ReadArtifact(ctx, pin, source, path)
 }
+func (c *countingReader) ReadChangeArtifact(ctx context.Context, pin StatusPin, target ChangeArtifactTarget) (ChangeArtifactObservation, error) {
+	return c.inner.ReadChangeArtifact(ctx, pin, target)
+}
 
 // countingProber delegates to an inner FinalizePRProber counting every probe.
 // Implement the interface's method set by delegation, incrementing probes once

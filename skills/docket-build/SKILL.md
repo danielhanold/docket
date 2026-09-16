@@ -75,19 +75,18 @@ Emit one concise routing line per task naming both the profile and its reason.
 <!-- docket:feature-dispatch:start targets=docket-build-economy,docket-build-max,docket-build-premium,docket-build-standard -->
 **Before each worker dispatch, prepare its recovery scope:** run the `gate.drive.prepare-scope`
 operation with `--change-id <id> --task-id <task-N> --phase build --branch <branch> --worktree
-<worktree> --gate-context <dispatch-context> --json` (the dispatch context arrived in *your* prompt from
-the gated parent — pass its value through). Capture the scope id and **both** capabilities from the
-`--json` response before dispatching (the shared JSON-capture requirement); the parent capability
-stays in your notes. Then dispatch the selected profile agent **by name** — one of
+<worktree> --gate-context <dispatch-context> --run-epoch <run-epoch> --json` (the dispatch context
+and run epoch come from your prompt; pass both unchanged). Capture the scope id and **both**
+capabilities from the `--json` response before dispatching (the shared JSON-capture requirement);
+the parent capability stays in your notes. Then dispatch the selected profile agent **by name** — one of
 `docket-build-economy`, `docket-build-standard`, `docket-build-premium`, or `docket-build-max` —
-foreground, one task at a time; later tasks build on earlier task commits and share the worktree, so
-workers are strictly sequential. Its dispatch payload contains:
+foreground and sequential; later tasks share the worktree and build on earlier commits. Its dispatch payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
 It also gives the worker the plan task text, applicable repository instructions, selected
 profile and routing reason, the completion schema, and one **complete start-ready scope bundle**:
 the change id, task id, phase (`build`), branch, scope id, child capability, and the dispatch
-context when your prompt carried one — each value exactly as `prepare-scope` pinned it, for the
-worker to pass through to `gate.drive.start` unchanged. One scope now carries the worker's whole
+context and run epoch when your prompt carried them — each value exactly as `prepare-scope` pinned
+it, for the worker to pass through to `gate.drive.start` unchanged. One scope now carries the worker's whole
 *sequence* of task-owned drives — baseline, RED, GREEN, verification — one at a time, and the worker
 closes it with a terminal `gate.drive.acknowledge` on normal completion; your WAITING-handoff and
 takeover handling below is unchanged. Of the two capabilities the worker

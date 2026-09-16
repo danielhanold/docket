@@ -74,3 +74,24 @@ func TestIntegrationRepoCommitChangedPathsRejectsMalformedID(t *testing.T) {
 		t.Fatalf("err = %v, want an invalid-request Failure", err)
 	}
 }
+
+func TestIntegrationRepoChangedPathsBetweenCoversWholeDescendantRange(t *testing.T) {
+	requireGit(t)
+	c := newRealClient(t)
+	ctx := context.Background()
+	r := newMainModeRepos(t)
+	repo := mustDiscover(t, c, r.Writer)
+	base := ObjectID(gitOut(t, r.Writer, "rev-parse", "HEAD"))
+	r.writerCommit(t, "main", map[string]string{"owned/a.go": "package owned\n"})
+	head := r.writerCommit(t, "main", map[string]string{"unowned.txt": "unowned\n"})
+	got, err := c.ChangedPathsBetween(ctx, repo, base, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || strings.Join([]string{string(got[0]), string(got[1])}, ",") != "owned/a.go,unowned.txt" {
+		t.Fatalf("range paths=%v", got)
+	}
+	if _, err := c.ChangedPathsBetween(ctx, repo, ObjectID("short"), head); err == nil {
+		t.Fatal("accepted malformed range base")
+	}
+}

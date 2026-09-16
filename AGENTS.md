@@ -30,11 +30,11 @@ never rebuild the gate by hand.
 
 1. Before dispatching `docket-implement-next`, run `run.gate-before` with `implement-next`. It prints
    `gate-armed <key> <epoch> <dispatch-context>`; keep all three (they won't survive the next tool
-   call) and copy the `<dispatch-context>` into the dispatch prompt. The `<epoch>` is the run epoch id
-   you thread into `run.cancel --epoch` (below) and every `--run-epoch` dispatch flag (`agent.enter`,
-   `gate drive start`, `gate drive prepare-scope`). Add `--resume <id>` to arm for resuming an
-   already-in-progress change. `gate-unarmed` still lets you dispatch, but keyless (step 2's fallback)
-   and can never authorize a re-dispatch.
+   call) and copy both the `<epoch>` and `<dispatch-context>` into the dispatch prompt. The child
+   threads `<epoch>` into every `--run-epoch` dispatch flag (`agent.enter`, `gate drive start`,
+   `gate drive prepare-scope`); the parent also retains it for `run.cancel --epoch` (below). Add
+   `--resume <id>` to arm for resuming an already-in-progress change. `gate-unarmed` still lets you
+   dispatch, but keyless (step 2's fallback) and can never authorize a re-dispatch.
 2. After the run returns, or its completion notification arrives, run `run.gate-verdict`
    with `<key>`; without a key, run it with `--unattributed` plus any change id the notification
    names. Obey the resulting `gate-*` report line exactly, never its exit code or the child's prose.
@@ -93,11 +93,9 @@ the existing agent (or re-dispatches with the change id and continuation id) as 
 
 ### Codex root-coordinator entry
 
-For Codex, description markers select the native launch over the general named-child wording. `[docket launch: root-coordinator]` takes precedence: foreground catalog-resolved `agent.enter` at the caller cwd. Otherwise `[docket worktree: feature]` requires foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`; an unmarked metadata child uses direct native named-agent dispatch.
+For Codex, every registered Docket role uses the harness's top-level native named-agent dispatch. Description markers remain typed role metadata; `[docket launch: root-coordinator]` and `[docket worktree: feature]` do not select `agent.enter` or another root process. Pass the request and immutable assignment unchanged, including any resume or continuation id and dispatch-context token required by the child contract. Pass the run epoch id to `docket-implement-next` so its scoped child dispatches can bind to the outer run. Keep the caller's gate key and parent capability private.
 
-For any `agent.enter` route: Write a request file containing the user's request unchanged; for implement-next include the unchanged gate dispatch-context token, labeled for `change.claim --gate-context` and gate-drive operations. Preserve resume/continuation ids and gate keys. Pass `--request`, `--role`, the active absolute caller `--cwd`, approval policy, and sandbox; pass the owning workflow's exact `--worktree` explicitly for feature children. Never omit dispatch context.
-
-A shell-tool yield carrying a live task/session identity is a liveness transition, not completion. You must retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism. Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved. Only after terminal output is collected may implement-next run the parent's keyed `run.gate-verdict` and obey its report. Coordinator prose, thread or turn ids, and process exit alone do not prove gate ownership or completion. Do not substitute `codex exec`, another harness, a generic agent, or a parent relay.
+A native dispatch yield carrying a live child identity is a liveness transition, not completion. Retain that exact identity and collect its terminal output through the harness-native observation/wait control. Never launch a replacement watcher or return a completion report while the original child remains live or unobserved. Only after terminal return may implement-next run the parent's keyed `run.gate-verdict` and obey its report. Coordinator prose, notification text, child success text, and process exit alone do not prove gate ownership or completion. If native dispatch or the registration is unavailable, report the configuration failure; do not substitute `agent.enter`, `codex exec`, another harness, a generic agent, or a parent relay.
 <!-- docket:dispatch:end -->
 
 ## Rebuild the binary after a merge to main

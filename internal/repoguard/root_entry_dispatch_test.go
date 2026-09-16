@@ -44,10 +44,10 @@ func TestCommittedCodexDispatchMatchesGenerator(t *testing.T) {
 func TestCommittedCodexDispatchRoutesEveryScope(t *testing.T) {
 	content := readMaintained(t, guardRoot(t), "AGENTS.md")
 	for _, clause := range []string{
-		"`[docket launch: root-coordinator]` takes precedence",
-		"foreground catalog-resolved `agent.enter` at the caller cwd",
-		"`[docket worktree: feature]` requires foreground catalog-resolved `agent.enter`",
-		"exact `--worktree`; an unmarked metadata child uses direct native named-agent dispatch",
+		"every registered Docket role uses the harness's top-level native named-agent dispatch",
+		"`[docket launch: root-coordinator]` and `[docket worktree: feature]` do not select `agent.enter`",
+		"Pass the run epoch id to `docket-implement-next`",
+		"Keep the caller's gate key and parent capability private",
 	} {
 		if !strings.Contains(content, clause) {
 			t.Errorf("AGENTS.md Codex dispatch policy lacks %q", clause)
@@ -61,10 +61,10 @@ func TestCommittedCodexDispatchRoutesEveryScope(t *testing.T) {
 func TestCommittedCodexDispatchObservesYieldedEntrySession(t *testing.T) {
 	content := readMaintained(t, guardRoot(t), "AGENTS.md")
 	for _, clause := range []string{
-		"shell-tool yield carrying a live task/session identity is a liveness transition, not completion",
-		"retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism",
-		"Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved",
-		"Only after terminal output is collected may implement-next run the parent's keyed `run.gate-verdict`",
+		"native dispatch yield carrying a live child identity is a liveness transition, not completion",
+		"Retain that exact identity and collect its terminal output through the harness-native observation/wait control",
+		"Never launch a replacement watcher or return a completion report while the original child remains live or unobserved",
+		"Only after terminal return may implement-next run the parent's keyed `run.gate-verdict`",
 	} {
 		if !strings.Contains(content, clause) {
 			t.Errorf("AGENTS.md Codex dispatch policy lacks yielded-session barrier %q", clause)
@@ -73,11 +73,11 @@ func TestCommittedCodexDispatchObservesYieldedEntrySession(t *testing.T) {
 }
 
 // TestCodexLaunchMatrixOperatorProse keeps the executable operator guidance
-// aligned with the typed Codex entry boundary: root coordinators retain the
-// caller cwd, feature children enter their verified worktree with an unchanged
-// payload, and only metadata children use native named-agent dispatch. The
-// clauses intentionally name route markers and scope types, never a roster of
-// roles, so the guard follows the inventory-owned abstraction.
+// aligned with the typed Codex entry boundary: every role uses the harness's
+// top-level native named-agent dispatch, while feature ownership comes from an
+// immutable assignment that the child validates before work. The clauses name
+// route markers and scope types, never a roster of roles, so the guard follows
+// the inventory-owned abstraction.
 func TestCodexLaunchMatrixOperatorProse(t *testing.T) {
 	root := guardRoot(t)
 	for _, contract := range []struct {
@@ -88,32 +88,36 @@ func TestCodexLaunchMatrixOperatorProse(t *testing.T) {
 		{
 			file: "docs/install/codex.md",
 			present: []string{
-				"`[docket launch: root-coordinator]` → foreground `agent.enter` at the\ncaller's cwd",
-				"`[docket worktree: feature]` → foreground `agent.enter` with a verified canonical\n`--worktree` and the unchanged structured payload",
-				"unmarked metadata-scoped ordinary child →\nnative named-agent dispatch",
+				"every generated wrapper dispatches further registered roles through Codex's top-level\nnative named-agent control",
+				"Each child first validates its pinned assignment\nand role-specific resources",
+				"does not fall\nback to `agent.enter`",
 			},
 			absent: []string{
-				"nested dispatch uses Codex's direct named-agent dispatch from the active top-level\ntool surface",
+				"foreground `agent.enter` with a verified canonical",
 			},
 		},
 		{
 			file: "skills/docket-convention/references/agent-layer.md",
 			present: []string{
-				"Root-coordinator entry starts its root thread at the caller's absolute\ncwd",
-				"Feature-child entry validates `--worktree`, then starts its root thread at the verified canonical\nfeature-worktree root",
-				"both the process and thread cwd",
+				"Codex dispatches every\nregistered role through the harness's top-level native named-agent control",
+				"Feature children receive an immutable\nassignment naming the absolute canonical feature-worktree root",
+				"validate that assignment before\nthey inspect or mutate the feature checkout",
 			},
 			absent: []string{
 				"starts a root thread with the caller's absolute cwd, approval policy, and\nsandbox, and passes an unchanged request file as the root turn. A feature role carries",
+				"agent.enter [",
 			},
 		},
 		{
 			file: "docs/reference/harness/validation-runbook.md",
 			present: []string{
-				"Metadata-scoped ordinary child roles may continue to use direct registered-agent invocation.",
+				"dispatch the registered coordinator through Codex's top-level native named-agent control",
+				"Feature-scoped ordinary child roles use native named-agent dispatch and validate their explicit assignment",
+				"dispatch the registered resolver through\n  Codex's top-level native named-agent control",
 			},
 			absent: []string{
 				"Ordinary\nMetadata-scoped ordinary child roles",
+				"docket agent enter",
 			},
 		},
 	} {

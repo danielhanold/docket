@@ -214,6 +214,44 @@ func splitNUL(b []byte) []string {
 // paths — never file content.
 type realGit struct{}
 
+// WorktreeClean reports whether Git's complete porcelain-v2 status is empty.
+// It shares the production read-only Git seam used by ComputeFingerprint.
+func WorktreeClean(repoDir string) (bool, error) {
+	b, err := (realGit{}).Status(repoDir)
+	return len(b) == 0, err
+}
+
+// CurrentFingerprint computes the complete read-only execution identity using
+// the production Git seam.
+func CurrentFingerprint(repoDir string) (Fingerprint, error) {
+	return ComputeFingerprint(repoDir, realGit{})
+}
+
+// ChangedPaths returns every staged, unstaged, untracked, and rename-side path
+// without reading file contents.
+func ChangedPaths(repoDir string) ([]string, error) {
+	b, err := (realGit{}).runGit(repoDir, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	if err != nil {
+		return nil, err
+	}
+	fields := splitNUL(b)
+	var paths []string
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		if len(field) < 3 {
+			return nil, fmt.Errorf("gatedrive: malformed porcelain status")
+		}
+		status := field[:2]
+		paths = append(paths, field[3:])
+		if (status[0] == 'R' || status[0] == 'C' || status[1] == 'R' || status[1] == 'C') && i+1 < len(fields) {
+			i++
+			paths = append(paths, fields[i])
+		}
+	}
+	sort.Strings(paths)
+	return paths, nil
+}
+
 // runGit executes one read-only git command in repoDir and returns its stdout.
 func (realGit) runGit(repoDir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)

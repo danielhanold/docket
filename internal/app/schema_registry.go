@@ -2,8 +2,11 @@ package app
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/danielhanold/docket/internal/codexcontract"
 )
 
 // OperationBinding joins one capabilities operation id to the live Go types its
@@ -12,9 +15,16 @@ import (
 // is the SAME stable id the capability catalog uses — the join key across the two
 // surfaces.
 type OperationBinding struct {
-	ID      string
-	Request any // prototype struct value, e.g. ChangeBlockRequest{}
-	Result  any // prototype struct value embedding Envelope
+	ID        string
+	Request   any // prototype struct value, e.g. ChangeBlockRequest{}
+	Result    any // prototype struct value embedding Envelope
+	Documents []DocumentBinding
+}
+
+type DocumentBinding struct {
+	ID            string
+	SchemaVersion int
+	Prototype     any
 }
 
 // operationBindings is the authoritative registry, one entry per capabilities
@@ -35,9 +45,14 @@ type OperationBinding struct {
 // The list is declared sorted by id; TestOperationBindingsSortedUniqueAndDescribable
 // holds that invariant.
 var operationBindings = []OperationBinding{
-	{ID: "adr.record", Request: ADRRecordRequest{}, Result: ADRResult{}},                                           // ADRRecordOp
-	{ID: "adr.reverse", Request: ADRReplaceRequest{}, Result: ADRResult{}},                                         // ADRReverse
-	{ID: "adr.supersede", Request: ADRReplaceRequest{}, Result: ADRResult{}},                                       // ADRSupersede
+	{ID: "adr.record", Request: ADRRecordRequest{}, Result: ADRResult{}},     // ADRRecordOp
+	{ID: "adr.reverse", Request: ADRReplaceRequest{}, Result: ADRResult{}},   // ADRReverse
+	{ID: "adr.supersede", Request: ADRReplaceRequest{}, Result: ADRResult{}}, // ADRSupersede
+	{ID: "agent.check-inputs", Request: CheckInputsRequest{}, Result: CheckInputsResult{}, Documents: []DocumentBinding{
+		{ID: "assignment", SchemaVersion: 1, Prototype: codexcontract.Assignment{}},
+		{ID: "worker-payload", SchemaVersion: 1, Prototype: codexcontract.WorkerPayload{}},
+	}}, // CheckAgentInputs
+	{ID: "agent.check-receipt", Request: CheckReceiptRequest{}, Result: CheckReceiptResult{}},                      // CheckAgentReceipt
 	{ID: "agent.enter", Request: nil, Result: AgentEnterResult{}},                                                  // AgentEnter
 	{ID: "artifact.backlink", Request: ArtifactBacklinkRequest{}, Result: ArtifactBacklinkResult{}},                // ArtifactBacklink
 	{ID: "capabilities", Request: nil, Result: CapabilitiesResult{}},                                               // Capabilities
@@ -124,9 +139,16 @@ func OperationBindings() []OperationBinding {
 // omitted for a leaf that decodes no body; Result excludes the shared envelope
 // keys (they are emitted once as SchemaResult.EnvelopeShape).
 type OperationSchema struct {
-	ID      string          `json:"id"`
-	Request *TypeDescriptor `json:"request,omitempty"`
-	Result  TypeDescriptor  `json:"result"`
+	ID        string           `json:"id"`
+	Request   *TypeDescriptor  `json:"request,omitempty"`
+	Result    TypeDescriptor   `json:"result"`
+	Documents []DocumentSchema `json:"documents,omitempty"`
+}
+
+type DocumentSchema struct {
+	ID            string         `json:"id"`
+	SchemaVersion int            `json:"schema_version"`
+	Body          TypeDescriptor `json:"body"`
 }
 
 // SchemaResult is the assembled schema document — itself a protocol-v1 result.
@@ -242,6 +264,13 @@ func schemaFrom(bindings []OperationBinding, effects []string) (SchemaResult, er
 			fields = append(fields, f)
 		}
 		op.Result = TypeDescriptor{Fields: fields}
+		for _, document := range b.Documents {
+			body, err := reflectDocumentDescriptor(document.Prototype)
+			if err != nil {
+				return SchemaResult{}, fmt.Errorf("operation %s document %s: %w", b.ID, document.ID, err)
+			}
+			op.Documents = append(op.Documents, DocumentSchema{ID: document.ID, SchemaVersion: document.SchemaVersion, Body: body})
+		}
 		ops = append(ops, op)
 	}
 	sort.Slice(ops, func(i, j int) bool { return ops[i].ID < ops[j].ID })
@@ -254,4 +283,77 @@ func schemaFrom(bindings []OperationBinding, effects []string) (SchemaResult, er
 		Vocabularies:  SchemaVocabularies(effects),
 		Findings:      []StatusFinding{},
 	}, nil
+}
+
+func reflectDocumentDescriptor(prototype any) (TypeDescriptor, error) {
+	t := reflect.TypeOf(prototype)
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return TypeDescriptor{}, fmt.Errorf("prototype must be a struct")
+	}
+	fields, err := reflectDocumentFields(t)
+	return TypeDescriptor{Fields: fields}, err
+}
+
+func reflectDocumentFields(t reflect.Type) ([]FieldDescriptor, error) {
+	var out []FieldDescriptor
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		key := strings.Split(f.Tag.Get("json"), ",")[0]
+		if key == "-" || (key == "" && !f.IsExported()) {
+			continue
+		}
+		if key == "" {
+			key = f.Name
+		}
+		fd, err := describeDocumentField(f.Type)
+		if err != nil {
+			return nil, fmt.Errorf("field %q: %w", key, err)
+		}
+		fd.Key = key
+		fd.Required = hasDocketOption(f.Tag, "required")
+		fd.Enum = docketEnumRef(f.Tag)
+		fd.Description = f.Tag.Get("docketdoc")
+		out = append(out, fd)
+	}
+	return out, nil
+}
+
+func describeDocumentField(t reflect.Type) (FieldDescriptor, error) {
+	switch t.Kind() {
+	case reflect.Pointer:
+		return describeDocumentField(t.Elem())
+	case reflect.Slice, reflect.Array:
+		if t.Elem().Kind() == reflect.Uint8 {
+			return FieldDescriptor{Type: "string"}, nil
+		}
+		fd, err := describeDocumentField(t.Elem())
+		fd.Repeated = true
+		return fd, err
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return FieldDescriptor{Type: "int"}, nil
+	case reflect.String:
+		return FieldDescriptor{Type: "string"}, nil
+	case reflect.Bool:
+		return FieldDescriptor{Type: "bool"}, nil
+	case reflect.Struct:
+		fields, err := reflectDocumentFields(t)
+		return FieldDescriptor{Type: "object", Fields: fields}, err
+	case reflect.Map:
+		if t.Key().Kind() != reflect.String {
+			return FieldDescriptor{}, fmt.Errorf("undescribable map shape %v", t)
+		}
+		if t.Elem().Kind() == reflect.String {
+			return FieldDescriptor{Type: "map[string]string"}, nil
+		}
+		if t.Elem().Kind() == reflect.Slice && t.Elem().Elem().Kind() == reflect.String {
+			return FieldDescriptor{Type: "map[string][]string"}, nil
+		}
+		return FieldDescriptor{}, fmt.Errorf("undescribable map shape %v", t)
+	default:
+		return FieldDescriptor{}, fmt.Errorf("undescribable kind %v", t.Kind())
+	}
 }

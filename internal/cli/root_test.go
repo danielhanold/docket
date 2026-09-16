@@ -43,7 +43,11 @@ func TestVersionHuman(t *testing.T) {
 }
 
 func TestVersionJSONFlagPositions(t *testing.T) {
-	want := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown"}` + "\n"
+	manifest, err := assets.EmbeddedManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown","asset_set_id":"` + manifest.AssetSetID + `"}` + "\n"
 	for _, args := range [][]string{{"--json", "version"}, {"version", "--json"}} {
 		out, errS, code := runCLI(t, args...)
 		if code != 0 || errS != "" || out != want {
@@ -64,7 +68,11 @@ func TestVersionJSONFalseIsHuman(t *testing.T) {
 // pre-scan's three-spelling grammar is the fallback for the parse-failure
 // path, not the mode input on a clean parse.
 func TestBoundJSONFlagSpellings(t *testing.T) {
-	jsonWant := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown"}` + "\n"
+	manifest, err := assets.EmbeddedManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	jsonWant := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown","asset_set_id":"` + manifest.AssetSetID + `"}` + "\n"
 	humanWant := "docket development (commit unknown, built unknown)\n"
 	for _, c := range []struct {
 		args []string

@@ -128,29 +128,24 @@ multi-agent sequencing and therefore requires native collaboration controls at e
 parser rejects unknown posture values, and correspondence tests derive the marked set from the
 role's same-name skill contract rather than maintaining a filename allowlist.
 
-The scope matrix is harness-neutral: root coordinators use a native root-entry path; feature roles
-receive `Feature worktree: <absolute canonical feature-worktree root>` in the owner's payload; metadata
-children use native named-agent dispatch. Codex realizes the first two through catalog-resolved
-`agent.enter [--worktree <dir>]`: it resolves the typed installed role contract, launches
-`codex app-server --stdio`. Root-coordinator entry starts its root thread at the caller's absolute
-cwd, retaining caller's approval policy and sandbox, and passes an unchanged request file as root turn.
-Feature-child entry validates `--worktree`, then starts its root thread at the verified canonical
-feature-worktree root — both the process and thread cwd — and supplies it through `--worktree`; its
-request bytes are unchanged. Metadata children use native named-agent dispatch. Other harnesses retain
-native worktree mechanisms. No route falls back to `codex exec`, another harness, a shell relay,
-or ordinary child launch.
+The scope matrix is harness-neutral: root coordinators require native collaboration controls at
+entry; feature roles receive `Feature worktree: <absolute canonical feature-worktree root>` in the
+owner's payload; metadata children receive their role-specific resources. Codex dispatches every
+registered role through the harness's top-level native named-agent control. Root coordinators inherit
+the caller's repository context, approval policy, and sandbox. Feature children receive an immutable
+assignment naming the absolute canonical feature-worktree root and validate that assignment before
+they inspect or mutate the feature checkout. Their startup cwd is not the authority for feature
+ownership. Other harnesses retain their native worktree mechanisms. No route falls back to `codex
+exec`, another harness, a shell relay, or ordinary child launch.
 
-Before launch, root entry compares the selected installed role and preloaded skill files against the
-registration planner's output and asset catalog. A missing, edited, or stale
-contract is refused with `role-contract-unavailable`; it is never silently repaired during entry.
+Before work, the dispatched child checks the selected installed role, preloaded skill files, and
+immutable assignment against the registration planner's output and asset catalog. A missing, edited,
+or stale contract is refused; it is never silently repaired during dispatch.
 
-The parent includes the run gate's dispatch context unchanged in the request file, alongside the
+The parent includes the run gate's dispatch context unchanged in the dispatch prompt, alongside the
 user's unchanged request and any resume/continuation identity. The coordinator uses it in its claim
-transaction. After foreground completion, the parent asks the same keyed gate for the verdict;
-thread/turn ids and coordinator prose are diagnostic output, never claim proof.
-If Codex requests interactive approval or user input, root entry reports an explicit unsupported
-interaction error: this foreground transport has no approval/input channel and cannot approve or
-answer on the caller's behalf.
+transaction. After the native child reaches terminal return, the parent asks the same keyed gate for
+the verdict; thread/turn ids and coordinator prose are diagnostic output, never claim proof.
 
 ## Always-full-set generation + the Cursor dispatch rule
 

@@ -51,6 +51,10 @@ func TestSchemaVocabulariesCore(t *testing.T) {
 		"implemented", "stacked-merged", "done", "killed",
 	})
 	assertVocabMembers(t, v, "effects", effects)
+	assertVocabMembers(t, v, "agent_roles", []string{"docket-plan-writer", "docket-build-economy", "docket-build-standard", "docket-build-premium", "docket-build-max", "docket-review-lean", "docket-review-standard", "docket-review-deep", "docket-rebase-resolver", "docket-integration-repair"})
+	assertVocabMembers(t, v, "assignment_phases", []string{"plan", "build", "review", "resolver", "repair"})
+	assertVocabMembers(t, v, "assignment_modes", []string{"fresh", "continuation", "escalation", "review", "resolver", "repair"})
+	assertVocabMembers(t, v, "payload_kinds", []string{"planner", "review", "worker", "resolver", "repair"})
 
 	ct, ok := v["change_types"]
 	if !ok {

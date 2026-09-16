@@ -55,20 +55,16 @@ const (
 	// its docket skills. It is spelled per harness rather than templated: the
 	// phrasing names this harness's own skills directory, and flattening the
 	// three spellings into one would erase real variance.
-	skillsPreambleFormat = "Before acting, load these docket skills from your linked Codex skills directory: %s."
+	skillsPreambleFormat     = "Before acting, load these docket skills from your linked Codex skills directory: %s."
+	referencesPreambleFormat = "Before loading generic docket skills, read these Codex role references from your linked Codex skills directory: %s. Follow their input checks and role boundaries first."
 )
 
 // codexTargetRouting is emitted into EVERY generated agent. The target's
-// registered description is the typed, installed routing authority: a root
-// launch marker takes precedence, a feature marker selects worktree entry, and
-// an unmarked metadata child remains a native child. It stays in the Codex
-// renderer because this is Codex-specific tool placement; the shared agent
-// bodies remain harness-neutral.
-const codexTargetRouting = "When your active charter requires another agent, inspect the registered target's description markers. `[docket launch: root-coordinator]` takes precedence: enter it as a foreground root thread through catalog-resolved `agent.enter` at the caller cwd. Otherwise `[docket worktree: feature]` requires foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`; an unmarked metadata child uses direct native named-agent dispatch. Nested orchestration inventories — tool lists read from inside another tool — omit top-level collaboration controls, so absence from such a nested inventory cannot establish dispatch unavailability; only a failed direct dispatch attempt or an explicit policy denial does. Never substitute `codex exec`, a shell runner, another harness, a generic agent, or a relay."
-
-// featureWorktreeStartupGuard makes an accidental native launch fail before a
-// feature role can inspect or mutate the coordinator's tree.
-const featureWorktreeStartupGuard = "Before any read or write, locate the `Feature worktree: <absolute-path>` input, canonicalize it and the process cwd, require equality at the worktree root, and halt visibly if it is missing, relative, nonexistent, nested, or mismatched."
+// registered description carries typed metadata for its assignment and role
+// references; native dispatch does not translate those markers into a second
+// root process. It stays in the Codex renderer because this is Codex-specific
+// tool placement; the shared agent bodies remain harness-neutral.
+const codexTargetRouting = "When your active charter requires another registered role, use Codex's top-level registered named-agent dispatch and retain the exact native child identity until terminal return. Description launch and worktree markers are typed metadata for the child's contract; they never select a second root process. Forward the complete assignment and unchanged dispatch context, and keep parent capabilities and gate keys private. If the registered target, top-level dispatch control, required resource, or model prerequisite is absent or explicitly denied, halt with that configuration failure. Never substitute `agent.enter`, `codex exec`, a shell runner, another harness, a generic agent, or a relay."
 
 // ErrRender is the sentinel for a rendering that cannot be expressed — an
 // input whose value would not survive its own serialization. It is a defect in
@@ -206,10 +202,9 @@ func roleContract(s harness.AgentSource, agents config.AgentsTable) RoleContract
 		dev = fmt.Sprintf(skillsPreambleFormat, strings.Join(s.Skills, ", ")) + "\n\n" + body
 	}
 	contractPreamble := []string{harness.RecursionGuard(s.Name)}
-	if s.WorktreeScope == harness.WorktreeScopeFeature {
-		contractPreamble = append(contractPreamble, featureWorktreeStartupGuard)
-	}
 	contractPreamble = append(contractPreamble, codexTargetRouting)
+	refs := codexReferences(s)
+	contractPreamble = append(contractPreamble, fmt.Sprintf(referencesPreambleFormat, strings.Join(refs, ", ")))
 	dev = strings.Join(append(contractPreamble, dev), "\n\n")
 	description := s.Description
 	var markers []string
@@ -232,6 +227,31 @@ func roleContract(s harness.AgentSource, agents config.AgentsTable) RoleContract
 		Skills:                append([]string(nil), s.Skills...),
 		DeveloperInstructions: dev,
 	}
+}
+
+func codexReferences(s harness.AgentSource) []string {
+	refs := []string{"docket-convention/references/codex-native-dispatch.md"}
+	if s.WorktreeScope == harness.WorktreeScopeFeature {
+		refs = append(refs, "docket-convention/references/codex-feature-binding.md")
+	}
+	has := func(name string) bool {
+		for _, skill := range s.Skills {
+			if skill == name {
+				return true
+			}
+		}
+		return false
+	}
+	if s.Name == "docket-plan-writer" || has("docket-implement-next") {
+		refs = append(refs, "docket-implement-next/references/codex-planning-results.md")
+	}
+	if has("docket-implement-next") || has("docket-build-task") {
+		refs = append(refs, "docket-build/references/codex-task-handoff.md")
+	}
+	if has("docket-review") {
+		refs = append(refs, "docket-review/references/codex-review-binding.md")
+	}
+	return refs
 }
 
 // GlobalDispatchTarget is the user-global dispatch destination this adapter
