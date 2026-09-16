@@ -213,6 +213,10 @@ func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, p
 // surface it on a successful start; on an inventory refusal the same summary rides
 // the returned OwnershipError.Legacy.
 func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam) (token string, legacy *LegacyHistorySummary, err error) {
+	return s.reserveWorktreeExecutionWithEpoch(rec, proc, nil)
+}
+
+func (s *Store) reserveWorktreeExecutionWithEpoch(rec admissionRecord, proc recoverySeam, replacement EpochReplacementFunc) (token string, legacy *LegacyHistorySummary, err error) {
 	const op = "reserve-worktree-execution"
 	canonical, key, err := s.admissionKeyFor(rec.WorktreeRoot, op)
 	if err != nil {
@@ -241,9 +245,23 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 		// window. A slot with no recorded epoch (a standalone gate) fences nothing, and
 		// a same-epoch reservation falls through to the normal state machine (a released
 		// slot readmits; a busy slot returns ErrWorktreeBusy so a same-scope successor
-		// can reuse it).
+		// can reuse it). A released slot also admits a scope-bound replacement whose
+		// durable supersession chain is proven while cancellation remains locked.
 		if stored.Record.RunEpochID != "" && stored.Record.RunEpochID != rec.RunEpochID {
-			return "", nil, ownershipErr(ErrStaleRunEpoch, op)
+			allowed := false
+			if stored.Record.State == admissionReleased && rec.RunEpochID != "" && replacement != nil {
+				release, proofErr := replacement(stored.Record.RunEpochID, rec.RunEpochID, canonical, "")
+				if release != nil {
+					defer release() // epoch cancellation waits until reservation is durable
+					allowed = true
+				}
+				if proofErr != nil {
+					return "", nil, ownershipErr(ErrStaleRunEpoch, op)
+				}
+			}
+			if !allowed {
+				return "", nil, ownershipErr(ErrStaleRunEpoch, op)
+			}
 		}
 		switch stored.Record.State {
 		case admissionReleased:
