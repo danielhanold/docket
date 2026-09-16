@@ -68,10 +68,10 @@ prompt — pass it unchanged; omit `--gate-context` or `--run-epoch` only when a
 scope pinned exactly this identity, and the driver
 rejects altered identity. Native Codex uses assignment.run_root unchanged; other harnesses choose scratch storage.
 Capture the drive id and owner generation from that `--json` response before any advance or handoff
-(the shared JSON-capture requirement in `docket-build`'s `references/gate-caller-loop.md`; human
+(read and follow the shared JSON-capture and transport-completion requirements in `docket-build`'s `references/gate-caller-loop.md` before the call; human
 text omits the generation). Capture the response into `gate_reply` and its exit code into `gate_rc` — the shared
 contract's shell-safe names, valid in both zsh and bash; never assign a zsh read-only
-special parameter such as `status` or `pipestatus`. A response missing them is a caller-contract failure: return `BLOCKED`
+special parameter such as `status` or `pipestatus`. A completed invocation's response missing them is a caller-contract failure: return `BLOCKED`
 with the missing-response reason; never rerun `start` to recover credentials.
 **No duration prediction, no test-command spelling list**: a
 command is a test by your running it as this task's verification; the 30-second slice is the

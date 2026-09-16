@@ -159,6 +159,7 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-caller-loop.md", 175, 1826}, // 0375: +worktree-admission section (word ceiling 1750 -> 1826)
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},
+	{"docket-build/references/codex-gate-transport.md", 42, 339},
 	{"docket-build/references/codex-task-handoff.md", 30, 350},
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 188, 1964}, // 0405: sequential-drive receipt and acknowledgement; 0420: shell-safe capture; 0375: worktree-busy-not-a-retry rule (179/1842 -> 188/1964)
