@@ -8,11 +8,11 @@ type: 'chore'
 created: '2026-09-16'
 updated: '2026-09-16'
 depends_on: []
-stacked_on:
+stacked_on: 425
 related: [425]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,7 +38,7 @@ Verify native planner, scoped worker, and reviewer dispatch after repairing the 
 
 ## What changes
 
-On the dedicated acceptance/native-evidence-20260916 integration branch, add Double() int beside the prepared internal/nativeacceptance Value fixture and cover it with a red/green test. Exercise durable evidence, results attachment, and the implemented transition.
+Stack on change 425 and add a small internal/nativeacceptance package with tested Value and Double functions. Exercise the real native planner, scoped worker, durable evidence resource, native reviewer, full configured suites, results attachment, and a PR in danielhanold/docket targeting the published 425 branch. The acceptance/native-evidence-20260916 checkout supplies launch resources only.
 
 ## Out of scope
 
