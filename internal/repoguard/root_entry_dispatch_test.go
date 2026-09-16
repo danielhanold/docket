@@ -46,6 +46,7 @@ func TestCommittedCodexDispatchRoutesEveryScope(t *testing.T) {
 	for _, clause := range []string{
 		"every registered Docket role uses the harness's top-level native named-agent dispatch",
 		"`[docket launch: root-coordinator]` and `[docket worktree: feature]` do not select `agent.enter`",
+		"Pass the run epoch id to `docket-implement-next`",
 		"Keep the caller's gate key and parent capability private",
 	} {
 		if !strings.Contains(content, clause) {
