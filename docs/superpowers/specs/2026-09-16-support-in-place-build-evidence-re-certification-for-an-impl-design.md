@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0415 — Support in-place build-evidence re-certification for an implemented change](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0415-support-in-place-build-evidence-re-certification-for-an-impl.md)**
+> ↩ **[Change 0415 — Support in-place build-evidence re-certification for an implemented change](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-16-0415-support-in-place-build-evidence-re-certification-for-an-impl.md)**
 <!-- docket:backlink:end -->
 
 # In-place build-evidence recertification

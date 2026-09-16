@@ -2,7 +2,7 @@
 id: 415
 slug: 'support-in-place-build-evidence-re-certification-for-an-impl'
 title: 'Support in-place build-evidence re-certification for an implemented change'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-09'
@@ -22,7 +22,7 @@ branch: 'feat/support-in-place-build-evidence-re-certification-for-an-impl'
 pr: 'https://github.com/danielhanold/docket/pull/307'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-16T15:47:57Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-16T15:47:57Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-design.md) |
-| Plan | [2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl.md](https://github.com/danielhanold/docket/blob/feat/support-in-place-build-evidence-re-certification-for-an-impl/docs/superpowers/plans/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl.md) |
-| Results | [2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-results.md](https://github.com/danielhanold/docket/blob/feat/support-in-place-build-evidence-re-certification-for-an-impl/docs/results/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-results.md) |
+| Plan | [2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl.md) |
+| Results | [2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-results.md) |
 | ADRs | [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
