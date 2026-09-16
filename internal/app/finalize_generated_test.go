@@ -1,12 +1,18 @@
 package app
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/testsupport"
+	"github.com/danielhanold/docket/internal/workspace"
 )
 
 func TestPathsGeneratedOnly(t *testing.T) {
@@ -110,6 +116,107 @@ func TestRegenerateEmbeddedBundle(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "internal/assets/embedded/tree/skills/stale/SKILL.md")); !os.IsNotExist(err) {
 		t.Fatalf("regeneration did not delete the stale payload file (err=%v)", err)
+	}
+}
+
+// --- advanceGeneratedOnly non-advancing-stop guard (unit) -----------------
+
+// fakeGenWorkspace is the minimal FinalizeWorkspace advanceGeneratedOnly touches:
+// AcquireOperationLock and ReadRebaseReceipt. Every other method is inherited
+// from the nil embedded interface, so ANY other call (a receipt WRITE in
+// particular) panics — which is exactly how this unit proves the non-advancing
+// stop spends no resolver state: advanceGeneratedOnly reads the receipt but never
+// writes it, so a nil-pointer panic would fire if the guard path tried to.
+type fakeGenWorkspace struct {
+	FinalizeWorkspace
+	rec     workspace.RebaseReceipt
+	present bool
+}
+
+func (w *fakeGenWorkspace) AcquireOperationLock(string) (func(), error) {
+	return func() {}, nil
+}
+
+func (w *fakeGenWorkspace) ReadRebaseReceipt(context.Context, string) (workspace.RebaseReceipt, bool, error) {
+	return w.rec, w.present, nil
+}
+
+// fakeGenContinueGit scripts the two continue-Git probes the fast-path loop
+// drives: StoppedRebaseCommit always returns the SAME object id (a stop that
+// never advances), and StageAndContinueRebase always returns a still-conflicted,
+// bundle-only status (so the loop would re-enter forever without the guard). A
+// call cap on StageAndContinueRebase turns the non-terminating mutation into a
+// deterministic, fast red instead of a hang: with the `stopped == prev` guard
+// present the second iteration returns errBundleNotAdvancing before staging a
+// second time (stage runs exactly once), so the cap is never reached.
+type fakeGenContinueGit struct {
+	FinalizeContinueGit
+	stopped    gitcli.ObjectID
+	next       gitcli.RebaseStatus
+	stageCalls int
+}
+
+func (g *fakeGenContinueGit) StoppedRebaseCommit(context.Context, string) (gitcli.ObjectID, error) {
+	return g.stopped, nil
+}
+
+func (g *fakeGenContinueGit) StageAndContinueRebase(context.Context, string, []string) (gitcli.RebaseStatus, error) {
+	g.stageCalls++
+	if g.stageCalls > 3 {
+		return gitcli.RebaseStatus{}, fmt.Errorf(
+			"loop did not terminate: StageAndContinueRebase called %d times on a non-advancing stop", g.stageCalls)
+	}
+	return g.next, nil
+}
+
+// TestAdvanceGeneratedOnlyNonAdvancingStopBlocks pins advanceGeneratedOnly's
+// infinite-loop-termination guard: a fast-path continue that leaves the rebase
+// stopped on the SAME commit (regeneration could not clear it) must block
+// through the existing failure path rather than loop. It reddens when the
+// `stopped == prev` branch is stripped (the loop no longer terminates; the
+// StageAndContinueRebase call cap fires and the refusal message loses the
+// errBundleNotAdvancing text this asserts).
+func TestAdvanceGeneratedOnlyNonAdvancingStopBlocks(t *testing.T) {
+	ctx := context.Background()
+	wsDir := writeBundleFixtureRepo(t, docketModulePath) // eligible Docket workspace
+
+	bundleOnly := gitcli.RebaseStatus{
+		Disposition:   gitcli.RebaseConflicted,
+		UnmergedPaths: []string{embeddedBundleDir + "/manifest.json"},
+	}
+	git := &fakeGenContinueGit{
+		stopped: gitcli.ObjectID(strings.Repeat("a", 40)), // same id every call: never advances
+		next:    bundleOnly,                               // continue re-surfaces the same bundle-only stop
+	}
+	deps := FinalizeDeps{
+		// A present receipt with no outstanding reservation and no started
+		// continuation lets the fast path proceed past the step-aside check.
+		Workspace:   &fakeGenWorkspace{present: true},
+		ContinueGit: git,
+		// A no-op regeneration so the unit exercises only the loop's advance guard,
+		// never the real generator.
+		RegenerateBundle: func(string) error { return nil },
+	}
+	rc := &rebaseContext{
+		change:  domain.NewChange(domain.ChangeSpec{ID: 413}),
+		wsDir:   wsDir,
+		metaDir: filepath.Join(wsDir, ".meta"),
+	}
+
+	status, refusal := advanceGeneratedOnly(ctx, deps, OperationFinalizeRebase, rc, bundleOnly)
+	if refusal == nil {
+		t.Fatalf("a non-advancing bundle-only stop returned no refusal (status %+v)", status)
+	}
+	if refusal.Result != ResultBlocked || refusal.Reason != ReasonRebaseGitFailed {
+		t.Fatalf("refusal = (%q, %q), want (%q, %q)", refusal.Result, refusal.Reason, ResultBlocked, ReasonRebaseGitFailed)
+	}
+	if !strings.Contains(refusal.Message, errBundleNotAdvancing.Error()) {
+		t.Fatalf("refusal message = %q, want it to carry the errBundleNotAdvancing text %q", refusal.Message, errBundleNotAdvancing.Error())
+	}
+	// The guard returns on the SECOND iteration, so the continue staged exactly
+	// once — it never loops on the unchanged stop.
+	if git.stageCalls != 1 {
+		t.Fatalf("StageAndContinueRebase call count = %d, want exactly 1 (guard must stop the loop after one non-advancing continue)", git.stageCalls)
 	}
 }
 
