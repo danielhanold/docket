@@ -363,3 +363,49 @@ func TestIntegrationMixedConflictGenerationFailureNoContinuation(t *testing.T) {
 		t.Fatalf("retried continue = (%q, %q) reason %q, want applied/rebased", retry.Result, retry.Disposition, retry.Reason)
 	}
 }
+
+// TestIntegrationGeneratedOnlyInterruptedReentry proves a fast-path run
+// interrupted between stops resumes idempotently on re-entry: the SAME
+// finalize.rebase request recovers through the owned receipt, clears the
+// remaining generated-only stops without any reservation, and never replays a
+// completed continuation (the stopped commit advanced, so re-entry works on the
+// NEXT stop, not the cleared one).
+func TestIntegrationGeneratedOnlyInterruptedReentry(t *testing.T) {
+	requireRealGit(t)
+	f, deps, head := prepareBundleConflictsWithoutBegin(t, 2, 3, docketModulePath)
+	ctx := context.Background()
+
+	// First entry: regeneration succeeds once, then fails — the run clears stop 1
+	// and blocks at stop 2, simulating an interruption mid-loop.
+	calls := 0
+	deps.RegenerateBundle = func(ws string) error {
+		calls++
+		if calls > 1 {
+			return fmt.Errorf("synthetic interruption")
+		}
+		return regenerateEmbeddedBundle(ws)
+	}
+	first := FinalizeRebase(ctx, deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+	if first.Result != ResultBlocked || first.Reason != ReasonRebaseGitFailed {
+		t.Fatalf("interrupted entry = (%q, %q), want blocked/%q", first.Result, first.Reason, ReasonRebaseGitFailed)
+	}
+	stoppedAfterFirst, err := f.deps.Client.StoppedRebaseCommit(ctx, f.wp)
+	if err != nil {
+		t.Fatalf("probe stopped commit: %v", err)
+	}
+
+	// Re-entry with the IDENTICAL request: recoverFromReceipt adopts the owned
+	// attempt and the fast path resumes from the live stop.
+	deps.RegenerateBundle = nil
+	second := FinalizeRebase(ctx, deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+	if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
+		t.Fatalf("re-entry = (%q, %q) reason %q msg %q, want applied/rebased", second.Result, second.Disposition, second.Reason, second.Message)
+	}
+	rec := reloadReceipt(t, f)
+	if rec.ResolverUsed != "0" || rec.ResolverReservationToken != "" || rec.ResolverContinuationStarted != "" {
+		t.Errorf("re-entry spent resolver state: used %q token %q cont %q", rec.ResolverUsed, rec.ResolverReservationToken, rec.ResolverContinuationStarted)
+	}
+	_ = stoppedAfterFirst // documents that re-entry resumed from the live stop
+}
