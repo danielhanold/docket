@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // legacyV1Fixture is deliberately built from the v1 protocol roots. Its future
@@ -29,7 +30,7 @@ func legacyV1Fixture(t *testing.T) (assets.Manifest, string) {
 		"cursor-rules/docket-dispatch.mdc": assets.RoleDispatch,
 		".docket.example.yml":              assets.RoleConfigSchema,
 	}
-	base := t.TempDir()
+	base := testsupport.TempDir(t)
 	assetsDir := filepath.Join(base, "pending", versionAssetsDir)
 	paths := make([]string, 0, len(payload))
 	for p := range payload {
@@ -121,7 +122,7 @@ func TestReconstructLegacyV1ManifestRejectsOutsideFrozenBoundary(t *testing.T) {
 func TestEnsureVersionTreeReusesProvenLegacyV1Tree(t *testing.T) {
 	m, assetsDir := legacyV1Fixture(t)
 	root := filepath.Dir(assetsDir)
-	dataRoot := t.TempDir()
+	dataRoot := testsupport.TempDir(t)
 	versions := filepath.Join(dataRoot, "versions")
 	if err := os.MkdirAll(versions, versionDirMode); err != nil {
 		t.Fatal(err)
