@@ -14,7 +14,7 @@ discovered_from: [327]
 adrs: [10, 113]
 spec: 'docs/superpowers/specs/2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-design.md'
 plan: 'docs/superpowers/plans/2026-09-16-finalize-rebase-generated-bundle-fast-path.md'
-results:
+results: 'docs/results/2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-16T12:08:36Z'
 |---|---|
 | Spec | [2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-design.md) |
 | Plan | [2026-09-16-finalize-rebase-generated-bundle-fast-path.md](https://github.com/danielhanold/docket/blob/fix/finalize-rebase-gate-cannot-clear-derived-embedded-asset-man/docs/superpowers/plans/2026-09-16-finalize-rebase-generated-bundle-fast-path.md) |
+| Results | [2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-results.md](https://github.com/danielhanold/docket/blob/fix/finalize-rebase-gate-cannot-clear-derived-embedded-asset-man/docs/results/2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-results.md) |
 | ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) |
 <!-- docket:artifacts:end -->
 
