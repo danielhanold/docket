@@ -22,7 +22,7 @@ branch: 'fix/finalize-rebase-gate-cannot-clear-derived-embedded-asset-man'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-16T11:53:37Z'
+claimed_at: '2026-09-16T11:55:00Z'
 ---
 
 ## Artifacts
