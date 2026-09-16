@@ -703,6 +703,13 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 // — never re-read from rc.insp — so the fresh and recovery paths thread one value.
 func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, status gitcli.RebaseStatus) FinalizeRebaseResult {
 	id := int(rc.change.ID())
+	// Generated-only stops are cleared deterministically before any resolver
+	// admission (change 0413): they allocate no reservation and spend no budget.
+	var genRefusal *FinalizeRebaseResult
+	status, genRefusal = advanceGeneratedOnly(ctx, deps, op, rc, status)
+	if genRefusal != nil {
+		return *genRefusal
+	}
 	switch status.Disposition {
 	case gitcli.RebaseConflicted:
 		return newRebaseResult(op, ResultApplied, withResolverCounts(FinalizeRebaseResult{
@@ -749,6 +756,17 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	}
 	switch state.Disposition {
 	case gitcli.RebaseConflicted:
+		// Generated-only stops recover deterministically too (change 0413):
+		// regeneration is idempotent, so a response-lost fast-path run simply
+		// resumes here without any reservation.
+		adv, genRefusal := advanceGeneratedOnly(ctx, deps, op, rc, state)
+		if genRefusal != nil {
+			return *genRefusal
+		}
+		if adv.Disposition == gitcli.RebaseUnchanged || adv.Disposition == gitcli.RebaseRebased {
+			return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, adv.HeadOID, false)
+		}
+		state = adv
 		// The owned attempt is still mid-conflict; surface the live conflicts. The
 		// budget counts come from the stored receipt (rec) — recovery never
 		// re-snapshots the current config (change 0349).
@@ -1099,6 +1117,14 @@ func finalizeRebaseReconcileStarted(ctx context.Context, deps FinalizeDeps, repo
 // caller has already cleared.
 func mapContinuedRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, rec workspace.RebaseReceipt, limit, used int, status gitcli.RebaseStatus) FinalizeRebaseResult {
 	id := int(rc.change.ID())
+	// Clear generated-only stops BEFORE the exhaustion check (change 0413): the
+	// budget governs authored resolver dispatches only, "including after the last
+	// permitted authored resolution".
+	var genRefusal *FinalizeRebaseResult
+	status, genRefusal = advanceGeneratedOnly(ctx, deps, op, rc, status)
+	if genRefusal != nil {
+		return *genRefusal
+	}
 	switch status.Disposition {
 	case gitcli.RebaseConflicted:
 		base := withResolverCounts(FinalizeRebaseResult{

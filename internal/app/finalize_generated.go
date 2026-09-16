@@ -12,12 +12,14 @@ package app
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/gitcli"
 )
 
 // embeddedBundleDir is the repo-relative home of the generated bundle — the
@@ -121,4 +123,72 @@ func regenBundle(deps FinalizeDeps) func(string) error {
 		return deps.RegenerateBundle
 	}
 	return regenerateEmbeddedBundle
+}
+
+// advanceGeneratedOnly clears successive conflict stops whose live unmerged set
+// is exclusively bundle outputs in an eligible Docket workspace. It runs under
+// the per-workspace operation lock, and defers to the normal resolver flow
+// whenever that flow already owns the stop (an outstanding reservation or a
+// started continuation). Each cleared stop regenerates the bundle from the
+// stopped commit's merged authored roots and stages ONLY the bundle directory;
+// the stopped commit must advance every iteration (never a loop on an unchanged
+// stop). Generated-only stops allocate no reservation and spend no resolver
+// budget. It returns the first status it cannot clear — an authored/mixed
+// conflict, a completed rewrite — for the caller's existing mapping, or a
+// refusal on a probe error, a generation failure, or a non-advancing continue
+// (retained; abort remains available).
+func advanceGeneratedOnly(ctx context.Context, deps FinalizeDeps, op string, rc *rebaseContext, status gitcli.RebaseStatus) (gitcli.RebaseStatus, *FinalizeRebaseResult) {
+	if status.Disposition != gitcli.RebaseConflicted ||
+		!pathsGeneratedOnly(status.UnmergedPaths) || !bundleRepoEligible(rc.wsDir) {
+		return status, nil
+	}
+	id := int(rc.change.ID())
+	release, err := deps.Workspace.AcquireOperationLock(rc.metaDir)
+	if err != nil {
+		r := rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe,
+			"could not acquire the workspace operation lock: "+err.Error(), id)
+		return status, &r
+	}
+	defer release()
+
+	// Reload the receipt under the lock: an outstanding reservation or a started
+	// continuation means the resolver flow owns this stop — the fast path steps
+	// aside rather than mutating Git out from under it.
+	rec, present, rerr := deps.Workspace.ReadRebaseReceipt(ctx, rc.metaDir)
+	if rerr != nil {
+		r := rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptRead, rerr.Error(), id)
+		return status, &r
+	}
+	if !present || rec.ResolverReservationToken != "" || rec.ResolverContinuationStarted == "1" {
+		return status, nil
+	}
+
+	git := continueGit(deps)
+	regen := regenBundle(deps)
+	var prev gitcli.ObjectID
+	for status.Disposition == gitcli.RebaseConflicted && pathsGeneratedOnly(status.UnmergedPaths) {
+		stopped, serr := git.StoppedRebaseCommit(ctx, rc.wsDir)
+		if serr != nil {
+			r := rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, serr.Error(), id)
+			return status, &r
+		}
+		if stopped == prev {
+			r := withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed,
+				errBundleNotAdvancing.Error()+"; retained for abort", id), rec)
+			return status, &r
+		}
+		prev = stopped
+		if gerr := regen(rc.wsDir); gerr != nil {
+			r := withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed,
+				"generated-bundle regeneration failed at the stopped commit: "+gerr.Error()+"; retained for abort", id), rec)
+			return status, &r
+		}
+		next, cerr := git.StageAndContinueRebase(ctx, rc.wsDir, []string{embeddedBundleDir})
+		if cerr != nil {
+			r := withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, cerr.Error(), id), rec)
+			return status, &r
+		}
+		status = next
+	}
+	return status, nil
 }
