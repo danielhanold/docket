@@ -105,6 +105,15 @@ func TestIntegrationNativeFixtureBuildsConfiguredBuildReadyFixtureFromCandidateS
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
+	var readiness struct {
+		MutationAllowed bool `json:"mutation_allowed"`
+	}
+	if err := json.Unmarshal(body, &readiness); err != nil {
+		t.Fatal(err)
+	}
+	if !readiness.MutationAllowed {
+		t.Fatal("fixture advertised build readiness without certifying mutation eligibility")
+	}
 	if got.SourceCommit != head || got.PrimaryHEAD == "" || got.MetadataRevision == "" || !got.BuildReady || !got.BaselinePassed {
 		t.Fatalf("incomplete manifest: %+v", got)
 	}
@@ -133,5 +142,29 @@ func TestIntegrationNativeFixtureBuildsConfiguredBuildReadyFixtureFromCandidateS
 		t.Fatalf("fixture primary dirty: %s", dirty)
 	}
 	checkNativePlannerEntryDefaultsToStartup(t, root, destination, binary, got)
+
+	primary := filepath.Join(destination, "primary")
+	local := filepath.Join(primary, ".docket.local.yml")
+	if err := os.WriteFile(local, []byte(pins.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyMutationConfiguration(binary, primary); err == nil || !strings.Contains(err.Error(), "deferred-capability-requested") {
+		t.Fatalf("repository-local routing pins must block acceptance: %v", err)
+	}
+	// The generated role definitions retain the model pins without a routing
+	// override in .docket.local.yml. Removing only that override restores eligibility.
+	if err := os.Remove(local); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyMutationConfiguration(binary, primary); err != nil {
+		t.Fatal(err)
+	}
+	for _, agent := range agents {
+		rel := filepath.ToSlash(filepath.Join(".codex", "agents", agent.Name+".toml"))
+		body, err := os.ReadFile(filepath.Join(primary, filepath.FromSlash(rel)))
+		if err != nil || hash(body) != got.Files[rel] {
+			t.Fatalf("native role pins changed: %s: %v", rel, err)
+		}
+	}
 
 }
