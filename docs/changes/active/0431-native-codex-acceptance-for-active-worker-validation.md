@@ -2,7 +2,7 @@
 id: 431
 slug: 'native-codex-acceptance-for-active-worker-validation'
 title: 'Native Codex acceptance for active worker validation'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'chore'
 created: '2026-09-16'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/native-codex-acceptance-for-active-worker-validation'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-16T11:38:22Z'
 ---
 
 ## Artifacts
