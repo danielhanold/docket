@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,65 @@ func resumeEpochDeps(t *testing.T) (PlanningDeps, WorkspaceDeps) {
 	deps := workspaceDepsFor(t, reader)
 	wdeps := WorkspaceDeps{Service: resumeInspectService("/tmp/wt/epsilon")}
 	return deps, wdeps
+}
+
+func TestResumeReplacementCanCancelWithoutFreshClaim(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		t.Run(fmt.Sprint(legacy), func(t *testing.T) { testResumeReplacementCancel(t, legacy) })
+	}
+}
+
+func testResumeReplacementCancel(t *testing.T, legacy bool) {
+	repo := newWorkingRepo(t, nil).invocation
+	deps, wdeps := resumeEpochDeps(t)
+	wdeps.Service = resumeInspectService(repo)
+	seedPriorEpoch(t, repo, EpochCancelled)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	armed := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repo, "implement-next", 5)
+	if !armed.Armed {
+		t.Fatalf("resume: %s", armed.HumanText())
+	}
+	if !legacy {
+		if err := epochCAS(repo, armed.Key, func(r *EpochRecord) error { r.ChangeID = "5"; return nil }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	record, err := LoadGateRecord(repo, armed.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record.Terminal, record.Disposition = true, "gate-stop"
+	if err := SaveGateRecord(repo, armed.Key, record); err != nil {
+		t.Fatal(err)
+	}
+	probeDeps, probeWorkspace := resumeEpochDeps(t)
+	probeWorkspace.Service = resumeInspectService(repo)
+	probe := RunGateBefore(context.Background(), probeDeps, probeWorkspace, sp.deps(), repo, "implement-next", 5)
+	if probe.Reason != ReasonGateResumeActiveRun || !strings.Contains(probe.Message, armed.Epoch) {
+		t.Fatalf("terminal replacement must expose cancellation locator, not reserved dispatch: %s", probe.HumanText())
+	}
+	common, err := gateGitCommonDir(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}}
+	wrong := runCancel(seams, repo, armed.Key, "wrong-epoch", "human-authorized repair")
+	if wrong.Disposition != CancelDispositionRefused {
+		t.Fatal("resume accepted wrong epoch")
+	}
+	result := runCancel(seams, repo, armed.Key, armed.Epoch, "human-authorized repair")
+	if result.Disposition != CancelDispositionCancelled {
+		t.Fatalf("verified resume must cancel without a fresh claim: %+v", result)
+	}
+	deps, wdeps = resumeEpochDeps(t)
+	if again := runCancel(seams, repo, armed.Key, armed.Epoch, "repeat cleanup"); again.Disposition != CancelDispositionAlreadyCancelled {
+		t.Fatalf("repeat: %+v", again)
+	}
+	wdeps.Service = resumeInspectService(repo)
+	next := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repo, "implement-next", 5)
+	if !next.Armed || next.Key == armed.Key {
+		t.Fatalf("cancelled replacement must allow exactly one next resume: %s", next.HumanText())
+	}
 }
 
 // seedPriorEpoch mints a gate record + a run epoch bound to change 5 in the given

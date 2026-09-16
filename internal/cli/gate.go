@@ -494,6 +494,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			phase, _ := c.Flags().GetString("phase")
 			branch, _ := c.Flags().GetString("branch")
 			worktree, _ := c.Flags().GetString("worktree")
+			runRoot, _ := c.Flags().GetString("run-root")
 			gateContext, _ := c.Flags().GetString("gate-context")
 			runEpoch, _ := c.Flags().GetString("run-epoch")
 			setResult(svc.PrepareScope(gatedrive.ScopeRequest{
@@ -503,6 +504,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 				Phase:        phase,
 				Branch:       branch,
 				Worktree:     worktree,
+				RunRoot:      runRoot,
 				GateContext:  gateContext,
 				RunEpochID:   runEpoch,
 			}))
@@ -515,6 +517,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	prepareScope.Flags().String("phase", "", "workflow phase `name` the scope certifies (required)")
 	prepareScope.Flags().String("branch", "", "branch `name` the scope binds (required)")
 	prepareScope.Flags().String("worktree", "", "worktree `dir` the scope binds (required)")
+	prepareScope.Flags().String("run-root", "", "optional controller-assigned allocation `dir`; every scoped start must use this exact path")
 	prepareScope.Flags().String("gate-context", "", "outer child-context `token` linking nested drives to the outer gate")
 	prepareScope.Flags().String("run-epoch", "", "workflow run epoch `id` every drive under this scope carries; makes the takeover epoch-revocation gate live (a locator, not a credential)")
 	_ = prepareScope.MarkFlagRequired("change-id")

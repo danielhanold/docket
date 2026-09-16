@@ -70,13 +70,15 @@ import (
 // spent-retry equivalent a re-read could re-grant, so reinterpreting it detaches
 // nothing. The next write stamps it forward to v3; v1 and every other version
 // still fail closed as ErrUnknownSchema.
-const scopeSchemaVersion = 3
+// Version 4 adds the optional controller RunRoot authority. Older binaries must
+// reject new scopes rather than silently ignore that binding. Versions 2 and 3
+// remain readable for already-running scopes that predate this constraint.
+const scopeSchemaVersion = 4
 
-// scopeSchemaVersionLegacy is the immediately-prior scope schema generation a v3
-// store still READS (never writes as-is): a v2 record carries every field a v3
-// reader needs except RunEpochID, which defaults empty. Only the immediately-prior
-// generation is tolerated; v1 and any other version fail closed as
-// ErrUnknownSchema (change 0375 Task 9).
+// scopeSchemaVersionLegacy is the oldest readable scope generation: v2 lacks
+// RunEpochID and RunRoot, v3 lacks RunRoot. Both predate those optional bindings;
+// neither may acquire them from caller substitutions. Writes stamp v4. Version 1
+// and unknown future versions fail closed as ErrUnknownSchema.
 const scopeSchemaVersionLegacy = 2
 
 // scopeStateReserved marks a slot whose successor drive record and scope
@@ -130,6 +132,8 @@ type scopeRecord struct {
 	// slot so an omitted or stale epoch cannot detach the worktree. Empty for a v2
 	// legacy scope and for a scope prepared without an epoch. (schema v3)
 	RunEpochID string `json:"run_epoch_id,omitempty"`
+	// Optional controller allocation binding; absent on legacy/non-native scopes.
+	RunRoot string `json:"run_root,omitempty"`
 
 	// The single-slot lifecycle (schema v2). At most one current drive occupies
 	// the slot at a time; a sequence of drives passes through it, each successor
@@ -167,6 +171,7 @@ type storedScope struct {
 // RAW outer child-context token linking nested drives to the outer gate (may be
 // empty for the outer scope itself); it is stored only as a sha256 hash.
 type ScopeRequest struct {
+	RunRoot      string // optional absolute clean controller allocation root
 	RepoIdentity string
 	ChangeID     string // may be "" for a fresh outer scope; binds once later
 	TaskID       string
@@ -202,6 +207,9 @@ func capHash(capability string) string {
 // when non-empty), and returns the grant. It creates a fresh owner-only
 // directory and atomically writes the record — the same discipline as NewDrive.
 func (s *Store) PrepareScope(req ScopeRequest) (ScopeGrant, error) {
+	if req.RunRoot != "" && (!filepath.IsAbs(req.RunRoot) || filepath.Clean(req.RunRoot) != req.RunRoot) {
+		return ScopeGrant{}, fmt.Errorf("run root must be an absolute clean path")
+	}
 	childCap, err := randomToken(idNBytes)
 	if err != nil {
 		return ScopeGrant{}, storeErr(ErrIO, "prepare-scope", err)
@@ -230,6 +238,7 @@ func (s *Store) PrepareScope(req ScopeRequest) (ScopeGrant, error) {
 		ChildCapHash:  capHash(childCap),
 		ParentCapHash: capHash(parentCap),
 		RunEpochID:    req.RunEpochID,
+		RunRoot:       req.RunRoot,
 	}
 	if req.GateContext != "" {
 		rec.GateContextHash = capHash(req.GateContext)
@@ -431,7 +440,7 @@ func (s *Store) readStoredScope(dir string) (storedScope, error) {
 	// v3 is current; the immediately-prior v2 is TOLERATED (its RunEpochID reads as
 	// empty and the worktree admission fence governs). Every other version — v1's
 	// retired bound_drive_id shape included — fails closed, never migrated.
-	if stored.Record.SchemaVersion != scopeSchemaVersion && stored.Record.SchemaVersion != scopeSchemaVersionLegacy {
+	if stored.Record.SchemaVersion != scopeSchemaVersion && stored.Record.SchemaVersion != 3 && stored.Record.SchemaVersion != scopeSchemaVersionLegacy {
 		return storedScope{}, storeErr(ErrUnknownSchema, "read-scope",
 			fmt.Errorf("scope schema version %d, want %d", stored.Record.SchemaVersion, scopeSchemaVersion))
 	}
