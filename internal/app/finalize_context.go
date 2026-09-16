@@ -169,6 +169,13 @@ type FinalizeDeps struct {
 	// staged continue, observes the receipt's continuation-started marker at staging
 	// time, or scripts a synthetic next-conflict outcome.
 	ContinueGit FinalizeContinueGit
+	// RegenerateBundle is the narrow regeneration seam the generated-bundle
+	// fast path (change 0413) rebuilds internal/assets/embedded through inside
+	// an eligible feature workspace. It is nil in production wiring; the fast
+	// path falls back to the in-process generator (regenerateEmbeddedBundle)
+	// via regenBundle. A unit test injects a fake that counts regenerations or
+	// fails deterministically.
+	RegenerateBundle func(wsDir string) error
 }
 
 // FinalizeContextRequest is the closed request. ID==0 applies the deterministic
