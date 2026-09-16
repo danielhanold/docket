@@ -385,6 +385,95 @@ func (f *flakyEnsureGitHub) EnsurePullRequest(ctx context.Context, req githubcli
 	return f.fakePublishGitHub.EnsurePullRequest(ctx, req)
 }
 
+// dispositionEnsureGitHub forces every EnsurePullRequest call to report a fixed
+// disposition (with no error), letting a test drive publishRecertifiedEvidence's
+// terminal disposition mapping directly.
+type dispositionEnsureGitHub struct {
+	*fakePublishGitHub
+	disp githubcli.EnsureDisposition
+}
+
+func (f *dispositionEnsureGitHub) EnsurePullRequest(_ context.Context, req githubcli.EnsurePullRequestRequest) (githubcli.EnsureResult, error) {
+	f.fakePublishGitHub.ensNext++
+	f.fakePublishGitHub.ensLast = req
+	return githubcli.EnsureResult{Disposition: f.disp}, nil
+}
+
+// TestEvidenceRecertifyEditContended: a PASSED gate whose PR edit comes back
+// EnsureContended (the PR diverged under the update) is refused as
+// contended/pr-edit-contended and reports NO completion — the contended arm of
+// publishRecertifiedEvidence's disposition mapping. Swapping the mapped result
+// to applied/green reddens the assert.
+func TestEvidenceRecertifyEditContended(t *testing.T) {
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	inner := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
+	gh := &dispositionEnsureGitHub{fakePublishGitHub: inner, disp: githubcli.EnsureContended}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}}
+	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, gate), WorkspaceDeps{Service: f.svc},
+		f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+	if res.Result != ResultContended || res.Reason != ReasonRecertifyEditContended {
+		t.Fatalf("result = %s/%s; want %s/%s", res.Result, res.Reason, ResultContended, ReasonRecertifyEditContended)
+	}
+	if res.Result == ResultApplied || res.Result == ResultNoOp || res.Outcome != "" {
+		t.Fatalf("a contended edit reported completion: %s/%s outcome %q", res.Result, res.Reason, res.Outcome)
+	}
+	if inner.ensNext != 1 {
+		t.Fatalf("EnsurePullRequest calls = %d; want exactly 1 (no second mutation)", inner.ensNext)
+	}
+}
+
+// TestEvidenceRecertifyEditUnrecognizedDisposition: a PASSED gate whose PR edit
+// returns an unrecognized (zero-value) disposition falls to the mapping's
+// default arm — internal-error/status-internal-error — and reports NO
+// completion. Deleting the default arm (so it fell through to applied) reddens
+// the assert.
+func TestEvidenceRecertifyEditUnrecognizedDisposition(t *testing.T) {
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	inner := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
+	gh := &dispositionEnsureGitHub{fakePublishGitHub: inner, disp: githubcli.EnsureDisposition("")}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}}
+	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, gate), WorkspaceDeps{Service: f.svc},
+		f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+	if res.Result != ResultInternalError || res.Reason != ReasonStatusInternalError {
+		t.Fatalf("result = %s/%s; want %s/%s", res.Result, res.Reason, ResultInternalError, ReasonStatusInternalError)
+	}
+	if res.Result == ResultApplied || res.Result == ResultNoOp || res.Outcome != "" {
+		t.Fatalf("an unrecognized disposition reported completion: %s/%s outcome %q", res.Result, res.Reason, res.Outcome)
+	}
+}
+
+// dirtyingGate leaves an untracked, non-ignored file in the feature worktree
+// DURING the gate and then reports PASSED — the post-gate-dirty publication
+// hazard (a build command that does not clean up after itself).
+type dirtyingGate struct {
+	f  *rebaseFixture
+	ev string
+}
+
+func (g *dirtyingGate) RunLocalGate(context.Context, LocalGateRequest) (LocalGateResult, error) {
+	writeRepoFile(g.f.t, g.f.wp, "scratch.txt", "left behind by the build command\n")
+	return LocalGateResult{Outcome: FinalizeGatePassed, Evidence: g.ev, RunDir: "/run/x"}, nil
+}
+
+// TestEvidenceRecertifyRefusesDirtyAfterGate: an untracked, non-ignored file the
+// build command leaves in the worktree during a PASSED gate flips the
+// pre-publish cleanliness recheck to workspace-dirty and refuses to publish; the
+// PR is never edited. Pins the whole-predicate recheck's clean-worktree leg
+// (documented as the clean-worktree caveat in the guide).
+func TestEvidenceRecertifyRefusesDirtyAfterGate(t *testing.T) {
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
+	gate := &dirtyingGate{f: f, ev: greenBlockFor(t, f.head)}
+	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, gate), WorkspaceDeps{Service: f.svc},
+		f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+	if res.Result != ResultBlocked || res.Reason != ReasonRecertifyWorkspaceDirty {
+		t.Fatalf("result = %s/%s; want blocked/%s", res.Result, res.Reason, ReasonRecertifyWorkspaceDirty)
+	}
+	if gh.ensNext != 0 {
+		t.Fatalf("a dirty post-gate worktree reached the PR edit")
+	}
+}
+
 // TestEvidenceRecertifyEditFailureThenRetry: an uncertain PR edit is NOT
 // completion; a later invocation converges the SAME PR and preserves authored
 // content (acceptance 4).
