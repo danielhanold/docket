@@ -9,7 +9,7 @@
 # code, build artifacts, and published terminal records.
 
 # metadata_branch removed (change 0363): one metadata topology (the fixed `docket` branch).
-integration_branch: main       # code lands on main; feature branches cut from origin/main
+integration_branch: acceptance/native-evidence-20260916 # isolated native acceptance PR base
 changes_dir: docs/changes
 adrs_dir: docs/adrs
 results_dir: docs/results
