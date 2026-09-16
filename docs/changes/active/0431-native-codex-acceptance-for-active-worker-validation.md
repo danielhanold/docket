@@ -52,3 +52,8 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
 
+## Run halted
+
+### 2026-09-16
+
+Native review admission is unavailable: catalog-resolved agent.enter for docket-review-standard returned role-contract-unavailable because /Users/homer/.codex/agents/docket-review-standard.toml differs from the candidate's pinned role contract. The green build evidence at control/build-evidence.json certifies repaired head b201b8b3bc3a1daf72db8e6a6ac4d87a45970c7f, but it cannot substitute for the required native reviewer or final reviewed-head certification. Reinstall the candidate's Codex role contracts in a fresh session, then resume 431 through the attributed halted-run path.
