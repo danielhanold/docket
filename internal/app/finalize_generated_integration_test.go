@@ -226,3 +226,140 @@ func TestIntegrationGeneratedOnlyGenerationFailureBlocks(t *testing.T) {
 		t.Fatalf("abort after generation failure = %q reason %q", abort.Result, abort.Reason)
 	}
 }
+
+// advanceBaseWithMixedConflict lands ONE base commit that conflictingly edits the
+// SAME authored file a feature commit touches (skills/demo/SKILL.md) and
+// regenerates the bundle from the base's authored roots. Replaying a feature
+// commit onto it produces a MIXED stop: the authored file AND the bundle outputs
+// are both unmerged. It mirrors advanceBaseWithBundle's mechanics (a fresh
+// checkout of the base branch, the edit, a commit, a push) but collides on the
+// authored skill instead of leaving an independent edit.
+func advanceBaseWithMixedConflict(t *testing.T, f *rebaseFixture) {
+	t.Helper()
+	root := testsupport.TempDir(t)
+	clone := filepath.Join(root, "base-advance-mixed")
+	runGit(t, root, "clone", "-q", f.repo.origin, clone)
+	gitIdentity(t, clone)
+	runGit(t, clone, "checkout", "-q", "main")
+	writeRepoFile(t, clone, "skills/demo/SKILL.md", "conflicting base skill\n")
+	regenerateBundleInto(t, clone)
+	runGit(t, clone, "add", "-A")
+	runGit(t, clone, "commit", "-q", "-m", "base conflicting skill edition")
+	runGit(t, clone, "push", "-q", "origin", "main")
+}
+
+// beginMixedBundleConflict builds an eligible bundle fixture whose single base
+// commit conflictingly edits the SAME authored skill file the single feature
+// commit touches, so the begin stops on a MIXED unmerged set — the authored path
+// (skills/demo/SKILL.md) plus the bundle outputs. It sets the resolver limit and
+// begins the rebase, returning the fixture, deps, the authorized head, and the
+// begin result.
+func beginMixedBundleConflict(t *testing.T, limit int) (*rebaseFixture, FinalizeDeps, string, FinalizeRebaseResult) {
+	t.Helper()
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	makeBundleWorkspace(t, f, docketModulePath)
+	bundleFeatureCommit(t, f, 1)
+	head := runGit(t, f.wp, "rev-parse", "HEAD")
+	runGit(t, f.wp, "push", "-f", "-q", "origin", "HEAD:refs/heads/feat/"+f.slug)
+	advanceBaseWithMixedConflict(t, f)
+	if limit > 0 {
+		setResolverConfig(t, f, limit)
+	}
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(head, "")}}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, head), RunDir: "/run/x"}}
+	deps := f.finalizeDeps(gh, gate)
+	begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+	return f, deps, head, begin
+}
+
+// TestIntegrationMixedConflictChargesOnlyAuthoredDispatch proves a mixed
+// authored+generated stop charges exactly ONE reservation for the authored
+// decision: the resolver resolves the authored path only, the controller
+// regenerates and stages the bundle in the same continue, and the rebase
+// completes with used=1.
+func TestIntegrationMixedConflictChargesOnlyAuthoredDispatch(t *testing.T) {
+	requireRealGit(t)
+	f, deps, _, begin := beginMixedBundleConflict(t, 2)
+	if begin.Disposition != RebaseDispConflicted {
+		t.Fatalf("begin = disp %q (paths %v), want a mixed conflicted stop", begin.Disposition, begin.UnmergedPaths)
+	}
+	if pathsGeneratedOnly(begin.UnmergedPaths) {
+		t.Fatalf("fixture defect: the stop is generated-only, not mixed: %v", begin.UnmergedPaths)
+	}
+	attempt := begin.Attempt
+	ctx := context.Background()
+
+	reserve := FinalizeResolverReserve(ctx, deps, f.repo.invocation, f.id, attempt)
+	if reserve.Disposition != ReserveReserved {
+		t.Fatalf("reserve = %q reason %q", reserve.Disposition, reserve.Reason)
+	}
+	// The resolver resolves ONLY the authored path and reports only it — leaving
+	// every bundle output for the controller.
+	writeRepoFile(t, f.wp, "skills/demo/SKILL.md", "reconciled skill content\n")
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"skills/demo/SKILL.md"}, ResolverReservation: reserve.Reservation}
+	cont := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if cont.Result != ResultApplied || cont.Disposition != RebaseDispRebased {
+		t.Fatalf("mixed continue = (%q, %q) reason %q msg %q, want applied/rebased", cont.Result, cont.Disposition, cont.Reason, cont.Message)
+	}
+	// A completed (rebased) continue carries no resolver counts on its result
+	// document — the protocol omits them on non-conflict dispositions
+	// (FinalizeRebaseResult: "Zero ... on non-conflict dispositions"), so the
+	// authoritative "charged exactly ONE dispatch" check is the receipt assertion
+	// below (used=="1"), matching the completed-continue convention in
+	// finalize_rebase_integration_test.go's post-restart continue.
+	// The regenerated bundle at the final head is drift-clean and reflects the
+	// RESOLVED authored content (never generated from unresolved inputs).
+	m, payload, err := assets.Generate(f.wp, assets.DefaultAllowedRoots())
+	if err != nil {
+		t.Fatalf("post-rebase generate: %v", err)
+	}
+	diffs, err := assets.DiffTree(filepath.Join(f.wp, "internal", "assets", "embedded"), m, payload)
+	if err != nil || len(diffs) != 0 {
+		t.Fatalf("post-rebase bundle drift: %v %v", diffs, err)
+	}
+	rec := reloadReceipt(t, f)
+	if rec.ResolverUsed != "1" || rec.ResolverReservationToken != "" || rec.ResolverContinuationStarted != "" {
+		t.Errorf("receipt after mixed continue = used %q token %q cont %q, want 1/empty/empty", rec.ResolverUsed, rec.ResolverReservationToken, rec.ResolverContinuationStarted)
+	}
+}
+
+// TestIntegrationMixedConflictGenerationFailureNoContinuation proves a
+// regeneration failure during a mixed continue refuses BEFORE the
+// continuation-started marker is written: the reservation stays outstanding
+// (retriable), Git is untouched, and no continuation is recorded.
+func TestIntegrationMixedConflictGenerationFailureNoContinuation(t *testing.T) {
+	requireRealGit(t)
+	f, deps, _, begin := beginMixedBundleConflict(t, 2)
+	attempt := begin.Attempt
+	ctx := context.Background()
+	reserve := FinalizeResolverReserve(ctx, deps, f.repo.invocation, f.id, attempt)
+	if reserve.Disposition != ReserveReserved {
+		t.Fatalf("reserve = %q", reserve.Disposition)
+	}
+	writeRepoFile(t, f.wp, "skills/demo/SKILL.md", "reconciled skill content\n")
+	deps.RegenerateBundle = func(string) error { return fmt.Errorf("synthetic generation failure") }
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"skills/demo/SKILL.md"}, ResolverReservation: reserve.Reservation}
+	cont := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if cont.Result != ResultBlocked || cont.Reason != ReasonRebaseGitFailed {
+		t.Fatalf("continue = (%q, %q), want blocked/%q", cont.Result, cont.Reason, ReasonRebaseGitFailed)
+	}
+	rec := reloadReceipt(t, f)
+	if rec.ResolverContinuationStarted != "" {
+		t.Errorf("a failed regeneration wrote the continuation-started marker: %q", rec.ResolverContinuationStarted)
+	}
+	if rec.ResolverReservationToken == "" {
+		t.Errorf("the outstanding reservation was lost; a retried continue can no longer verify it")
+	}
+	if st, _ := f.deps.Client.RebaseState(ctx, f.wp); st.Disposition != gitcli.RebaseConflicted {
+		t.Errorf("Git was mutated by the failed regeneration path: %q", st.Disposition)
+	}
+	// The SAME reservation retries successfully once regeneration works again.
+	deps.RegenerateBundle = nil
+	retry := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if retry.Result != ResultApplied || retry.Disposition != RebaseDispRebased {
+		t.Fatalf("retried continue = (%q, %q) reason %q, want applied/rebased", retry.Result, retry.Disposition, retry.Reason)
+	}
+}
