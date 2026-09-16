@@ -52,6 +52,72 @@ func contextDeps(fake *fakeReader) PlanningDeps {
 
 // --- tests ----------------------------------------------------------------
 
+func TestContextImplementationResumeReadsOwnedRecordWithoutFreshClaim(t *testing.T) {
+	for _, halted := range []bool{true, false} {
+		t.Run(fmt.Sprintf("halted=%t", halted), func(t *testing.T) {
+			blob := liveParentBlob(431, "existing-work", "chore/preserved-custom-branch")
+			if halted {
+				blob.Data = append(blob.Data, []byte("\n## Run halted\n\nAwaiting repair.\n")...)
+			}
+			fake := &fakeReader{pin: docketPin(t), corpus: []StatusBlob{blob}}
+			var req ImplementationContextRequest
+			if err := json.Unmarshal([]byte(`{"id":431,"resume":true}`), &req); err != nil {
+				t.Fatal(err)
+			}
+			got := ContextImplementation(context.Background(), contextDeps(fake), "", req)
+			if got.Result != ResultApplied || got.Context == nil {
+				t.Fatalf("resume context=%s/%s; want inspection bundle", got.Result, got.Reason)
+			}
+			b := got.Context
+			if b.ClaimEligible || b.ClaimRefusal != "not-ready-not-proposed" || b.Readiness != "not-proposed" {
+				t.Fatalf("resume inspection authorized fresh claim: %+v", b)
+			}
+			if b.Change.Version != blob.Version || !bytes.Equal(b.Change.Source, blob.Data) || b.Halt.RunHalted != halted {
+				t.Fatal("resume lost pinned record identity or halt state")
+			}
+			if b.Workflow.FeatureBranch != "chore/preserved-custom-branch" {
+				t.Fatalf("reminted existing branch: %s", b.Workflow.FeatureBranch)
+			}
+			ordinary := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{ID: 431})
+			if ordinary.Context != nil || ordinary.Reason != "not-ready-not-proposed" {
+				t.Fatalf("ordinary selection admitted in-progress: %+v", ordinary)
+			}
+			queue := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})
+			if queue.Context != nil || queue.Reason != "no-candidate" {
+				t.Fatalf("queue admitted resumed change: %+v", queue)
+			}
+		})
+	}
+}
+
+func TestContextImplementationResumeRequiresExplicitInProgressRecord(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		id     int
+		status string
+		reason string
+	}{
+		{"missing-id", 0, "in-progress", "resume-id-required"},
+		{"negative-id", -1, "in-progress", "resume-id-required"},
+		{"proposed", 431, "proposed", "not-in-progress"},
+		{"implemented", 431, "implemented", "not-in-progress"},
+		{"blocked", 431, "blocked", "not-in-progress"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			blob := liveParentBlob(431, "existing-work", "chore/existing-work")
+			blob.Data = bytes.Replace(blob.Data, []byte("'in-progress'"), []byte("'"+tc.status+"'"), 1)
+			var req ImplementationContextRequest
+			if err := json.Unmarshal([]byte(fmt.Sprintf(`{"id":%d,"resume":true}`, tc.id)), &req); err != nil {
+				t.Fatal(err)
+			}
+			got := ContextImplementation(context.Background(), contextDeps(&fakeReader{pin: docketPin(t), corpus: []StatusBlob{blob}}), "", req)
+			if got.Context != nil || got.Reason != tc.reason {
+				t.Fatalf("got %s/%s, want %s", got.Result, got.Reason, tc.reason)
+			}
+		})
+	}
+}
+
 // TestContextImplementationSelectsByPolicy: with no --id the bundle's change is
 // SelectQueue's first build-ready candidate; every fact is exact, and the
 // change/spec source bytes are byte-identical to the corpus fixtures.

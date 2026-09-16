@@ -45,11 +45,22 @@ type manifest struct {
 
 func main() {
 	var o options
+	var runtimeManifest, runtimeHome string
+	flag.StringVar(&runtimeManifest, "verify-runtime", "", "read-only check of global Codex roles and both skill aliases against fixture manifest")
+	flag.StringVar(&runtimeHome, "runtime-home", "", "absolute user home to verify; does not prove already-loaded session instructions")
 	flag.StringVar(&o.Source, "source", "", "clean candidate source")
 	flag.StringVar(&o.Binary, "binary", "", "absolute candidate docket")
 	flag.StringVar(&o.Destination, "destination", "", "new absolute fixture directory")
 	flag.StringVar(&o.Pins, "pins", "", "operator-authored pin config")
 	flag.Parse()
+	if runtimeManifest != "" || runtimeHome != "" {
+		if err := verifyRuntimePins(runtimeManifest, runtimeHome); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Println("runtime files verified; a fresh native session is still required")
+		return
+	}
 	if err := prepare(o); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

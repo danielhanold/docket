@@ -13,76 +13,63 @@ operation and copies nothing onto the integration branch.
 
 ## Resume of an `in-progress` change
 
-The `reconciled` flag is a **resume-safety guard**: on any resume of an `in-progress` change,
-re-run the full reconcile pass if `reconciled` is still `false` (crash, interruption), and also
-whenever `origin/<integration_branch>` has advanced since the last pass (idempotent,
-non-interactive).
+### Resume context acquisition
 
-**A change carrying a `## Run halted` marker** — the `run.verify` operation reads it back as the closed
-`run-halted` verdict — resumes only through the `change.resume-halted` operation with `--id <id>
---version <entity-version> --acknowledge-quiescent`, never a fresh claim or a hand-deleted section.
-The operation requires the exact marked record and the explicit acknowledgement that the prior
-worker is quiescent, reprobes the branch/workspace/live gate, refreshes the claim, and removes
-exactly the marker section while preserving every other byte and checkpoint. It refuses (writing
-nothing) without the acknowledgement, on version drift (`contended`), or on a live gate lock — it
-never resets or adopts a workspace whose writer may still be live. Once resumed, the change re-enters
-this resume path with its marker gone.
+An explicitly attributed parent resume enters here before proposed-only queue/allowlist
+filtering; a plain id allowlist still skips in-progress work. Handoff continuations
+retain the first-act `run.gate-claim` requirement.
 
-**Arming a resume over a run's gate epoch.** Resuming a change re-arms the run gate too, and one
-worktree carries at most one live run. When the caller arms the resume (`run.gate-before … --resume
-<id>`), the arm refuses to open a second run over one that has not verifiably stopped:
+Resolve `context.implementation` and call `--id <id> --resume --json`. Require protocol 1,
+matching operation, `result: applied`, and the dispatched id with `in-progress` status.
+Take the exact version from `context.change.version` and the existing branch from
+`context.workflow.feature_branch`, never a reminted name. `readiness: not-proposed`
+and `claim_eligible: false` are expected fresh-claim refusals, not resume rejection.
 
-- Prior epoch still **active** → refused `resume-active-run`, with a locator naming the change,
-  epoch, and gate key and the remedy: cancel the prior run via the `run.cancel` operation (`--key
-  <key> --epoch <id> --reason <why>`) and resume after confirmed cancellation, or continue the live
-  run via `run.gate-verdict`. **Never** force a fresh claim over a possibly-live run — that is the
-  claim-theft the gate exists to prevent.
-- Cancellation still finishing → refused `cancellation-pending`; the resume observes that cleanup
-  only. Finish the cancel first, then resume.
-- Prior epoch confirmed-cancelled and superseded → the arm reserves **exactly one** replacement
-  dispatch and returns that reserved key; a repeat arm (or one recovering a lost response) returns
-  the same reservation (`resume-replacement-reserved`) rather than minting a second run. Resume thus
-  admits one replacement, only after cancellation is confirmed.
+Inspection grants no ownership. Require supported parent attribution and confirmed
+prior-run quiescence. If `context.halt.run_halted` is true, invoke
+`change.resume-halted --id <id> --version <context.change.version> --acknowledge-quiescent`.
+The transaction reprobes branch/workspace/live gate, refreshes the claim and removes
+only the halt section. Missing acknowledgement, version drift or a live writer refuses
+without mutation. After success, re-read the same resume context for the new version
+and metadata revision; refresh workspace binding before scopes or assignments.
+With the marker already absent under a valid continuation, inspect ownership and
+continue checkpoints without replaying resume-halted. Refused/malformed/foreign/missing
+context halts; never substitute fresh claim, a hand-read version or a hand-deleted marker.
 
-**The plan seam (change 0324).** An attributed caller-side re-dispatch — one naming the id and
-`verify-run`'s unmet conjuncts — enters this resume path before ordinary ready-queue and
-proposed-only allowlist filtering; a normal invocation that merely names an already-`in-progress`
-id still skips it (it may belong to a live concurrent run — the caller gate's
-before-set/dispatch attribution is what distinguishes a resume from claim theft). Then:
+### Gate epoch and checkpoints
 
-1. `plan:` already set and its committed artifact + backlink verify → reuse it and continue at
-   Step 5; **never dispatch a second planner**.
-2. `plan:` empty, but the feature branch's latest commit is a clean, single-file plan commit whose
-   `Docket-Plan-Path:` trailer and backlink agree → recover that path, land it under the normal
-   field-write rule, and continue at Step 5.
-3. The persisted path, commit delta, backlink, and manifest disagree or are ambiguous → halt with
-   the exact mismatch. **Never guess a custom plan location and never re-plan** merely because the
-   parent stopped after the child returned. The trailer is evidence only — subject it to the same
-   git and backlink verification as a live return.
+One worktree carries at most one live run. The parent's `run.gate-before … --resume <id>`
+admits one replacement only after confirmed cancellation:
 
-**The results seam (change 0410).** The results artifact is required for every change, so a resume
-must not lose it. On resume, **load the committed results before starting new work**, and reuse the
-`results:` field whenever it is already set — a changed authoring date **never mints a second
-file**; the canonical path is chosen once and reused.
+- `resume-active-run`: use its locator with `run.cancel --key <key> --epoch <id>
+  --reason <why>`, or continue the live run through `run.gate-verdict`. Never force a claim.
+- `cancellation-pending`: finish the same cancellation before arming again.
+- `resume-replacement-reserved`: retain the single reserved replacement key. Repeated
+  arms recover that reservation, never authorize parallel dispatch.
 
-1. `results:` already set and its committed artifact + backlink verify → reuse that path and
-   continue; **never author a second results file**.
-2. `results:` empty, but the owned feature branch holds **exactly one** safe, correctly
-   backlinked results candidate at the canonical `<results_dir>/<YYYY-MM-DD>-<slug>-results.md`
-   location (a commit-before-attach interruption) → recover that path and reattach it under the
-   normal field-write rule.
-3. Zero such candidates, more than one, or any that fails path/backlink verification → **surface
-   the ambiguity and halt**; never guess a path and never fabricate a file. **Never overwrite newer
-   remote work** — a resume that finds the remote ahead re-reads authority rather than force-writing
-   its local view.
+Reconcile again if `reconciled: false` or `origin/<integration_branch>` advanced since
+the last pass. Preserve verified plan and worker checkpoints:
 
-**Pre-workspace halt or unsafe-write pause.** When a run halts before the feature workspace exists,
-or a checkpoint boundary is reached while the ownership or gate-drive contract forbids a safe write,
-the results artifact cannot be captured yet. That case keeps its **existing disposition** (the halt
-or the continuation it was already going to take) and **reports the capture limitation through the
-existing halt/continuation channel** — no fabricated results path, no stolen lease, and no delayed
-gate handoff to make room for a write. The missing capture is a reported limitation, never a reason
-to force a workspace, a commit, or a HEAD move.
+1. Linked plan, commit and backlink verify → reuse; continue at Step 5, no second planner.
+2. No `plan:`, but latest feature commit is a clean single-file plan commit whose
+   `Docket-Plan-Path:` trailer and backlink agree → recover and attach under the field-write rule.
+3. Ambiguous or inconsistent path/delta/trailer/backlink → halt; never guess or re-plan.
+
+Load existing committed results before new work; a changed date never creates a second file:
+
+1. Linked results and committed artifact/backlink verify → reuse that path.
+2. No `results:`, but exactly one safe backlinked candidate at
+   `<results_dir>/<YYYY-MM-DD>-<slug>-results.md` → recover and attach it.
+3. No `results:` or candidates because the run ended before first creation → create the
+   first artifact at the next safe Step-6.5 checkpoint, through author/commit/publish/attach
+   before final certification. Record only verified work; absence is not evidence.
+4. Missing linked artifact, multiple candidates, failed path/backlink checks or uncertain
+   prior creation → halt with the mismatch; never fabricate prior results or guess a path.
+
+Never overwrite newer remote work: re-read authority instead of force-writing. If no
+workspace exists or live work/drive ownership prevents a safe checkpoint, retain the
+existing halt/continuation and report the capture limitation through its channel.
+Do not steal a lease, invent a results path, delay a gate handoff or move HEAD unsafely.
 
 ## PR-body assembly (Step 7)
 
