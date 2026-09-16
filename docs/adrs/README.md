@@ -107,6 +107,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0119](0119-native-codex-dispatch-with-explicit-role-aware-feature-bindi.md) — Native Codex dispatch with explicit, role-aware feature binding (Accepted) ← change #425 → supersedes ADR-0114 · relates to ADR-0103, ADR-0083
 - [ADR-0120](0120-historical-gate-drive-schemas-are-assessed-never-executed.md) — Historical gate-drive schemas are assessed, never executed (Accepted) ← change #428 · relates to ADR-0087, ADR-0095, ADR-0118
 - [ADR-0121](0121-version-tree-references-are-derived-from-complete-installed.md) — Version-tree references are derived from complete installed state, and uncertainty always retains (Accepted) ← change #323
+- [ADR-0122](0122-automatic-version-collection-is-a-post-commit-best-effort-pa.md) — Automatic version collection is a post-commit best-effort pass that never reclassifies its install (Accepted) ← change #323
 
 ## Superseded / Reversed
 
