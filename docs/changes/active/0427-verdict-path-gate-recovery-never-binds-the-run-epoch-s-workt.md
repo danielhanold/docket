@@ -2,7 +2,7 @@
 id: 427
 slug: 'verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt'
 title: 'Verdict-path gate recovery never binds the run epoch''s worktree'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-14'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/305'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-16T10:44:38Z'
