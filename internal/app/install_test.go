@@ -413,6 +413,52 @@ func TestInstallResultCarriesConfigWarnings(t *testing.T) {
 	}
 }
 
+// TestInstallResultCollectionWarningCoexistsWithConfigWarnings pins Task 8's
+// separation at the app boundary: a post-commit collection that could not
+// reclaim a tree surfaces a collection-pending warning WITHOUT reclassifying a
+// successful install, and the install path's later config warnings are appended
+// to — never overwriting — that collection warning. Regressing withConfigWarnings
+// back to an overwrite would drop the collection warning and redden here.
+func TestInstallResultCollectionWarningCoexistsWithConfigWarnings(t *testing.T) {
+	out := install.Outcome{
+		Applied: true,
+		Collection: install.CollectionOutcome{
+			Entries: []install.CollectionEntry{{
+				AssetSetID: "sha256:stale", Path: "/data/versions/stale",
+				Status: install.CollectionStatusFailed, Detail: "quarantine unavailable",
+			}},
+			Pending: []string{"/data/collection/journal.json"},
+			Err:     errors.New("collection unavailable"),
+		},
+	}
+	// RunInstall wraps NewInstallResult in withConfigWarnings; reproduce that tail.
+	r := NewInstallResult(OperationInstall, out)
+	r = withConfigWarnings(r, []config.Diagnostic{{
+		Code: config.CodeUnknownKey, Severity: config.SeverityWarning,
+		Path: "future_block", Message: "is not a docket configuration setting",
+	}})
+
+	// The primary install stays classified as applied success.
+	if r.Result != ResultApplied || !r.AppliedWork || r.Reason != "" {
+		t.Fatalf("collection warning reclassified the install: %q reason=%q applied=%v", r.Result, r.Reason, r.AppliedWork)
+	}
+	var sawCollection, sawConfig bool
+	for _, w := range r.Warnings {
+		switch w.Diagnostic.Code {
+		case string(FCCollectionPending):
+			sawCollection = true
+			if w.Retry != "docket install collect" {
+				t.Errorf("collection warning retry = %q, want the explicit retry command", w.Retry)
+			}
+		case config.CodeUnknownKey:
+			sawConfig = true
+		}
+	}
+	if !sawCollection || !sawConfig {
+		t.Fatalf("expected both a collection-pending and a config warning, got %#v", r.Warnings)
+	}
+}
+
 // TestInstallResultNoWarningsOmitsField: an empty warning set marshals to no
 // warnings key and prints no warning line.
 func TestInstallResultNoWarningsOmitsField(t *testing.T) {

@@ -210,6 +210,28 @@ func (h *handoffStub) runner() install.HandoffRunner {
 // Development install
 // ---------------------------------------------------------------------------
 
+// TestDevInstallAutomaticCollectionReclaimsUnreferencedTree proves the
+// development candidate runs the same post-commit collector after its own state
+// publication: a leftover, unreferenced version tree is reclaimed once the
+// development install has committed. A development install links into the
+// source checkout rather than extracting a versions/ tree, so the only
+// candidate is the stale leftover, and it must be collected.
+func TestDevInstallAutomaticCollectionReclaimsUnreferencedTree(t *testing.T) {
+	w := newWorld(t)
+	mkdirAll(t, w.path(".toy"))
+	src := newSource(t)
+	bin := filepath.Join(w.home, ".local", "bin")
+	stale := staleVersionTree(t, w.roots)
+
+	out := install.DevelopmentInstall(w.devCandidate(t, src, bin))
+	if out.Err != nil || !out.Applied || out.Mode != install.ModeDevelopment {
+		t.Fatalf("DevelopmentInstall = %#v", out)
+	}
+	if _, err := os.Lstat(stale); !os.IsNotExist(err) {
+		t.Fatalf("stale version tree not collected after a successful development install: %v", err)
+	}
+}
+
 func TestDevInstallLinksToSource(t *testing.T) {
 	w := newWorld(t)
 	mkdirAll(t, w.path(".toy"))

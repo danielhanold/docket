@@ -286,7 +286,7 @@ func developmentInstallCandidate(o DevOptions) Outcome {
 	// The candidate re-resolved the repository phase itself (the parent passed
 	// --repo-dir through verbatim), so machine and repository writes ride one
 	// transaction here exactly as a release install does.
-	return applyPlan(o.Options, plannedInstallation{
+	out = applyPlan(o.Options, plannedInstallation{
 		mode:          ModeDevelopment,
 		harnesses:     out.Harnesses,
 		targets:       targets,
@@ -296,6 +296,9 @@ func developmentInstallCandidate(o DevOptions) Outcome {
 		sourceRoot:    ds.source,
 		sourceDigest:  ds.digest,
 	}, o.RepoPhase, out)
+	return collectPostCommitLocked(out, lock, func() CollectionOutcome {
+		return collectLocked(CollectOptions{Roots: o.Roots, FS: o.FS}, lock)
+	})
 }
 
 // devSource is the validated, freshly generated view of a checkout that both

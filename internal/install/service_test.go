@@ -6,6 +6,8 @@
 package install_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -359,9 +361,215 @@ func loadState(t *testing.T, roots install.UserRoots) *install.State {
 	return s
 }
 
+// staleVersionTree installs a second, complete version tree that no published
+// state references. It is deliberately a real manifest/tree rather than an
+// empty directory, so automatic collection has the same proof obligation as
+// the public collector.
+func staleVersionTree(t *testing.T, roots install.UserRoots) string {
+	t.Helper()
+	body := []byte("stale automatic collection fixture\n")
+	sum := sha256.Sum256(body)
+	manifest := assets.Manifest{
+		FormatVersion: assets.ManifestFormatVersion,
+		AssetProtocol: assets.AssetProtocol,
+		Entries: []assets.Entry{{
+			Path: "skills/stale/SKILL.md", Role: assets.RoleSkill, Mode: 0o644,
+			Size: int64(len(body)), SHA256: hex.EncodeToString(sum[:]),
+		}},
+	}
+	id, err := assets.ComputeAssetSetID(manifest)
+	if err != nil {
+		t.Fatalf("ComputeAssetSetID: %v", err)
+	}
+	manifest.AssetSetID = id
+	path, _, err := install.EnsureVersionTree(roots, manifest, func(string) ([]byte, error) { return body, nil })
+	if err != nil {
+		t.Fatalf("EnsureVersionTree(stale): %v", err)
+	}
+	return filepath.Dir(path)
+}
+
 // ---------------------------------------------------------------------------
 // Install
 // ---------------------------------------------------------------------------
+
+func TestInstallAutomaticCollectionAfterSuccessfulChangedAndUnchangedPlans(t *testing.T) {
+	w := newWorld(t)
+	root := w.path(".toy")
+	mkdirAll(t, root)
+	o := w.toyOptions(toy{name: "toy", root: root, files: map[string]string{"agent.md": "v1\n"}})
+
+	t.Run("changed install", func(t *testing.T) {
+		stale := staleVersionTree(t, w.roots)
+		out := install.Install(o)
+		if out.Err != nil || !out.Applied {
+			t.Fatalf("Install = %#v", out)
+		}
+		if _, err := os.Lstat(stale); !os.IsNotExist(err) {
+			t.Fatalf("successful changed install left stale version tree: %v", err)
+		}
+	})
+
+	t.Run("unchanged install", func(t *testing.T) {
+		stale := staleVersionTree(t, w.roots)
+		out := install.Install(o)
+		if out.Err != nil || out.Applied {
+			t.Fatalf("unchanged Install = %#v", out)
+		}
+		if _, err := os.Lstat(stale); !os.IsNotExist(err) {
+			t.Fatalf("successful unchanged install left stale version tree: %v", err)
+		}
+	})
+}
+
+// collectorFailingFS wraps a real FSOps but refuses a targeted mutation, so a
+// black-box test can make post-commit collection fail without disturbing the
+// primary install's own writes.
+type collectorFailingFS struct {
+	inner install.FSOps
+	fail  func(op, path string) error
+}
+
+func (f collectorFailingFS) check(op, path string) error {
+	if f.fail == nil {
+		return nil
+	}
+	return f.fail(op, path)
+}
+
+func (f collectorFailingFS) WriteFile(path string, data []byte, mode os.FileMode) error {
+	if err := f.check("WriteFile", path); err != nil {
+		return err
+	}
+	return f.inner.WriteFile(path, data, mode)
+}
+
+func (f collectorFailingFS) Chmod(path string, mode os.FileMode) error {
+	if err := f.check("Chmod", path); err != nil {
+		return err
+	}
+	return f.inner.Chmod(path, mode)
+}
+
+func (f collectorFailingFS) Rename(oldPath, newPath string) error {
+	if err := f.check("Rename", newPath); err != nil {
+		return err
+	}
+	return f.inner.Rename(oldPath, newPath)
+}
+
+func (f collectorFailingFS) Symlink(target, path string) error {
+	if err := f.check("Symlink", path); err != nil {
+		return err
+	}
+	return f.inner.Symlink(target, path)
+}
+
+func (f collectorFailingFS) Remove(path string) error {
+	if err := f.check("Remove", path); err != nil {
+		return err
+	}
+	return f.inner.Remove(path)
+}
+
+func (f collectorFailingFS) MkdirAll(path string, mode os.FileMode) error {
+	if err := f.check("MkdirAll", path); err != nil {
+		return err
+	}
+	return f.inner.MkdirAll(path, mode)
+}
+
+// failCollectionQuarantine refuses only the collector's quarantine rename, so a
+// primary install completes while its post-commit collection fails.
+func failCollectionQuarantine(op, path string) error {
+	if op == "Rename" && filepath.Base(path) == "quarantine" && filepath.Base(filepath.Dir(path)) == "collection" {
+		return errors.New("collection unavailable")
+	}
+	return nil
+}
+
+// TestInstallAutomaticCollectionRunsAfterStatePublication is the ordering-gate
+// fixture for the release path: collection must run only AFTER applyPlan has
+// published the state that references the just-extracted tree. If collection
+// were moved ahead of applyPlan, the fresh install's own version tree would be
+// unreferenced (no state published yet) and reclaimed — so this test proves the
+// installed tree survives while an unreferenced stale tree is still collected.
+func TestInstallAutomaticCollectionRunsAfterStatePublication(t *testing.T) {
+	w := newWorld(t)
+	root := w.path(".toy")
+	mkdirAll(t, root)
+	o := w.toyOptions(toy{name: "toy", root: root, files: map[string]string{"agent.md": "v1\n"}})
+	stale := staleVersionTree(t, w.roots)
+
+	out := install.Install(o)
+	if out.Err != nil || !out.Applied {
+		t.Fatalf("Install = %#v", out)
+	}
+	ownTree := filepath.Dir(w.roots.VersionDir(out.AssetSetID))
+	if _, err := os.Lstat(ownTree); err != nil {
+		t.Fatalf("collection reclaimed the installed version tree %s: %v", ownTree, err)
+	}
+	if _, err := os.Lstat(stale); !os.IsNotExist(err) {
+		t.Fatalf("stale version tree not collected after a successful install: %v", err)
+	}
+}
+
+// TestInstallDoesNotCollectWhenPlanRefused is the ordering-gate fixture for the
+// no-success path: an install that refuses (an ownership conflict never
+// publishes state) must not run collection at all. A collectable stale tree is
+// present; it must survive, because reclamation is a post-commit step reserved
+// for a successful or no-op install.
+func TestInstallDoesNotCollectWhenPlanRefused(t *testing.T) {
+	w := newWorld(t, allHarnessDirs...)
+	// Somebody else's file where an agent wrapper belongs: the whole install
+	// refuses as an ownership conflict.
+	writeFile(t, w.path(".claude", "agents", "docket-status.md"), "hand-written by the user\n")
+	stale := staleVersionTree(t, w.roots)
+
+	out := install.Install(w.options(nil))
+	if out.Err == nil || out.Applied || out.Reason != install.ReasonOwnershipConflict {
+		t.Fatalf("expected an ownership-conflict refusal, got %#v", out)
+	}
+	if len(out.Collection.Entries) != 0 || out.Collection.Applied || out.Collection.Err != nil {
+		t.Fatalf("collection ran after a refused install: %#v", out.Collection)
+	}
+	if _, err := os.Lstat(stale); err != nil {
+		t.Fatalf("refused install collected the stale version tree %s: %v", stale, err)
+	}
+}
+
+// TestInstallCollectorFailureIsWarningNotFailure proves a post-commit collection
+// failure never reclassifies a successful install: the install stays applied
+// with no Err/Reason, and the failure is reported only in Outcome.Collection.
+func TestInstallCollectorFailureIsWarningNotFailure(t *testing.T) {
+	w := newWorld(t)
+	root := w.path(".toy")
+	mkdirAll(t, root)
+	o := w.toyOptions(toy{name: "toy", root: root, files: map[string]string{"agent.md": "v1\n"}})
+	o.FS = collectorFailingFS{inner: install.RealFS{}, fail: failCollectionQuarantine}
+	stale := staleVersionTree(t, w.roots)
+
+	out := install.Install(o)
+	if out.Err != nil || out.Reason != "" || !out.Applied {
+		t.Fatalf("collection failure reclassified the primary install: %#v", out)
+	}
+	if out.Collection.Err == nil || out.Collection.Applied {
+		t.Fatalf("collection outcome should carry the failure: %#v", out.Collection)
+	}
+	var sawFailed bool
+	for _, entry := range out.Collection.Entries {
+		if entry.Status == install.CollectionStatusFailed {
+			sawFailed = true
+		}
+	}
+	if !sawFailed {
+		t.Fatalf("collection entries lack a failed candidate: %#v", out.Collection.Entries)
+	}
+	// The uncollectable tree is left in place for a later `install collect`.
+	if _, err := os.Lstat(stale); err != nil {
+		t.Fatalf("stale tree unexpectedly removed despite a failed quarantine: %v", err)
+	}
+}
 
 func TestInstallFreshApplies(t *testing.T) {
 	w := newWorld(t, allHarnessDirs...)
