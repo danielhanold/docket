@@ -73,6 +73,12 @@ through the normal workflow first. `build.gate: off` records truthful skipped ev
 block is untouched); a failed or halted gate reports repair work and never touches the PR. The run
 charges one attempt against the change's `build.max_attempts` suite budget.
 
+The build command itself must leave the worktree clean. The pre-publish cleanliness recheck is the
+same whole precondition run before the gate, so any untracked, non-ignored file the command writes
+during the run flips the recheck to `workspace-dirty` and refuses to publish an otherwise-green run.
+Gitignored build artifacts are fine — only tracked-or-untracked-and-unignored paths trip it. If your
+suite writes scratch output, ignore it or have the command clean up after itself.
+
 ## The gate driver and wall-clock budgets
 
 The gate does not assume the whole suite finishes inside one command call. It executes *durably*: the
