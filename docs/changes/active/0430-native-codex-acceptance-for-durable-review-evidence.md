@@ -13,7 +13,7 @@ related: [425]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-16-native-codex-acceptance-for-durable-review-evidence-plan.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-16T10:44:35Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md) |
+| Plan | [2026-09-16-native-codex-acceptance-for-durable-review-evidence-plan.md](https://github.com/danielhanold/docket/blob/chore/native-codex-acceptance-for-durable-review-evidence/docs/superpowers/plans/2026-09-16-native-codex-acceptance-for-durable-review-evidence-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
