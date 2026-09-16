@@ -304,14 +304,14 @@ func TestIntegrationRepoStageAndContinueRebaseMultiConflict(t *testing.T) {
 	}
 }
 
-// TestStageAndContinueRebaseDirectoryPathspec pins the load-bearing property the
+// TestIntegrationRepoStageAndContinueRebaseDirectoryPathspec pins the load-bearing property the
 // finalize generated-bundle fast path relies on (change 0413): a single DIRECTORY
 // pathspec passed to StageAndContinueRebase stages every change beneath it —
 // modifications, additions, AND deletions — before continuing. The fast path
 // regenerates internal/assets/embedded wholesale and stages it by naming the one
 // directory; a directory pathspec that failed to stage removals would leave the
 // deleted tree/ payloads unmerged and the continue would refuse.
-func TestStageAndContinueRebaseDirectoryPathspec(t *testing.T) {
+func TestIntegrationRepoStageAndContinueRebaseDirectoryPathspec(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
