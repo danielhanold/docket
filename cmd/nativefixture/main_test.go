@@ -37,6 +37,32 @@ func TestVerifyCandidateIdentityRejectsMismatchedAssetSet(t *testing.T) {
 	}
 }
 
+func TestMutationConfigurationRequiresAffirmativeCandidateReceipt(t *testing.T) {
+	for _, tc := range []struct {
+		name, receipt string
+		allowed       bool
+	}{
+		{"allowed", `{"protocol_version":1,"operation":"config.preflight","result":"applied","mutation_allowed":true}`, true},
+		{"blocked", `{"protocol_version":1,"operation":"config.preflight","result":"applied","mutation_allowed":false}`, false},
+		{"missing-decision", `{"protocol_version":1,"operation":"config.preflight","result":"applied"}`, false},
+		{"inspection-only", `{"protocol_version":1,"operation":"diagnostic.config","result":"applied","mutation_allowed":true}`, false},
+		{"unsupported", `{"protocol_version":1,"operation":"config.preflight","result":"unsupported-config","mutation_allowed":true}`, false},
+		{"wrong-protocol", `{"protocol_version":2,"operation":"config.preflight","result":"applied","mutation_allowed":true}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := testsupport.TempDir(t)
+			binary := filepath.Join(root, "candidate")
+			if err := os.WriteFile(binary, []byte("#!/bin/sh\nprintf '%s\\n' '"+tc.receipt+"'\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			err := verifyMutationConfiguration(binary, root)
+			if (err == nil) != tc.allowed {
+				t.Fatalf("allowed=%v error=%v", tc.allowed, err)
+			}
+		})
+	}
+}
+
 func TestWriteCatalogSkillsUsesVerifiedSnapshotAfterSourceMutation(t *testing.T) {
 	root := testsupport.TempDir(t)
 	const assetPath = "skills/docket-demo/SKILL.md"

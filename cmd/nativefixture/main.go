@@ -35,6 +35,7 @@ type manifest struct {
 	MetadataRevision      string            `json:"metadata_revision"`
 	PrimaryHEAD           string            `json:"primary_head"`
 	BuildReady            bool              `json:"build_ready"`
+	MutationAllowed       bool              `json:"mutation_allowed"`
 	BuildTestCommand      string            `json:"build_test_command"`
 	FinalizeTestCommand   string            `json:"finalize_test_command"`
 	BaselineCommand       string            `json:"baseline_command"`
@@ -296,6 +297,9 @@ func prepare(o options) error {
 	if repoConfig.Effective.Build.TestCommand.Value == "" || repoConfig.Effective.Finalize.TestCommand.Value == "" {
 		return fmt.Errorf("fixture test policy is unconfigured")
 	}
+	if err := verifyMutationConfiguration(o.Binary, primary); err != nil {
+		return err
+	}
 	primaryHead, err := gitOut(primary, "rev-parse", "HEAD")
 	if err != nil {
 		return err
@@ -315,10 +319,32 @@ func prepare(o options) error {
 	if err != nil {
 		return err
 	}
-	m := manifest{SchemaVersion: 1, SourceCommit: head, AssetSetID: catalog.Manifest.AssetSetID, Binary: o.Binary, BinarySHA256: hash(bb), Files: complete, EvidenceAuditComplete: false, ChangeID: created.ID, ChangePath: created.Path, MetadataRevision: groomedStatus.Context.MetadataRevision, PrimaryHEAD: primaryHead, BuildReady: buildReady, BuildTestCommand: repoConfig.Effective.Build.TestCommand.Value, FinalizeTestCommand: repoConfig.Effective.Finalize.TestCommand.Value, BaselineCommand: baselineCommand, BaselinePassed: true, PinsSHA256: hash(pinsBytes)}
+	m := manifest{SchemaVersion: 1, SourceCommit: head, AssetSetID: catalog.Manifest.AssetSetID, Binary: o.Binary, BinarySHA256: hash(bb), Files: complete, EvidenceAuditComplete: false, ChangeID: created.ID, ChangePath: created.Path, MetadataRevision: groomedStatus.Context.MetadataRevision, PrimaryHEAD: primaryHead, BuildReady: buildReady, MutationAllowed: true, BuildTestCommand: repoConfig.Effective.Build.TestCommand.Value, FinalizeTestCommand: repoConfig.Effective.Finalize.TestCommand.Value, BaselineCommand: baselineCommand, BaselinePassed: true, PinsSHA256: hash(pinsBytes)}
 	mb, _ := json.MarshalIndent(m, "", "  ")
 	mb = append(mb, '\n')
 	return writeFile(filepath.Join(o.Destination, "manifest.json"), mb, 0o644)
+}
+
+// A build-ready change can still be blocked by machine-layer configuration.
+// Ask the candidate's read-only mutation preflight before advertising readiness;
+// rendering native definitions from operator pins does not authorize copying
+// those pins into a repository-local configuration layer.
+func verifyMutationConfiguration(binary, primary string) error {
+	var result struct {
+		ProtocolVersion int    `json:"protocol_version"`
+		Operation       string `json:"operation"`
+		Result          string `json:"result"`
+		MutationAllowed bool   `json:"mutation_allowed"`
+	}
+	// prepare initializes this fixture's default branch as main; the diagnostic
+	// command requires that resolution context explicitly for integration: auto.
+	if err := runCandidate(binary, primary, &result, "diagnostic", "config", "--repo-dir", primary, "--default-branch", "main", "--for-mutation", "--json"); err != nil {
+		return fmt.Errorf("fixture mutation configuration: %w", err)
+	}
+	if result.ProtocolVersion != 1 || result.Operation != "config.preflight" || result.Result != "applied" || !result.MutationAllowed {
+		return fmt.Errorf("fixture mutation configuration was not approved by config.preflight")
+	}
+	return nil
 }
 
 func verifyCandidateIdentity(binary, sourceCommit, sourceAssetSetID string) error {
