@@ -22,7 +22,7 @@ branch: 'feat/support-in-place-build-evidence-re-certification-for-an-impl'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-16T15:26:57Z'
+claimed_at: '2026-09-16T15:31:15Z'
 ---
 
 ## Artifacts
