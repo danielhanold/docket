@@ -114,6 +114,76 @@ func TestCollectClassifiesReferencedEligibleAndMalformedCandidates(t *testing.T)
 	}
 }
 
+// TestCollectSkipsTransientStagingScratch covers finding A: docket's own leaked
+// extraction scratch (stagingDirPrefix) is not surfaced as an unverified
+// candidate, while a real unprovable user directory still is, and a real
+// sha256 tree is still enumerated. It is a genuine behaviour change (RED before
+// the skip: the scratch dir would classify Unverified and raise a permanent,
+// unclearable collection-pending warning).
+func TestCollectSkipsTransientStagingScratch(t *testing.T) {
+	roots := versionRoots(t)
+	referenced := collectorTree(t, roots, "referenced")
+	writeCollectorState(t, roots, referenced)
+
+	// A real user directory that cannot be proven a version tree must still be
+	// surfaced as unverified — retain-on-doubt with a warning is correct there.
+	malformed := filepath.Join(roots.VersionsDir(), "malformed")
+	if err := os.Mkdir(malformed, versionDirMode); err != nil {
+		t.Fatal(err)
+	}
+	// docket's own leaked scratch from a crashed EnsureVersionTree. It also fails
+	// proof, but it is not the user's to act on, so it must not be surfaced.
+	staging := filepath.Join(roots.VersionsDir(), stagingDirPrefix+"sha256-abc-XXXX")
+	if err := os.Mkdir(staging, versionDirMode); err != nil {
+		t.Fatal(err)
+	}
+
+	out := Collect(CollectOptions{Roots: roots, FS: RealFS{}})
+	if out.Err != nil {
+		t.Fatalf("Collect: %v", out.Err)
+	}
+	for _, entry := range out.Entries {
+		if entry.Path == staging || strings.HasPrefix(filepath.Base(entry.Path), stagingDirPrefix) {
+			t.Fatalf("transient staging scratch surfaced as a candidate: %#v", entry)
+		}
+	}
+	if _, err := os.Lstat(staging); err != nil {
+		t.Fatalf("staging scratch was removed rather than retained: %v", err)
+	}
+	if got := collectionEntry(t, out, malformed).Status; got != CollectionStatusUnverified {
+		t.Fatalf("malformed user dir status = %q, want unverified", got)
+	}
+	if got := collectionEntry(t, out, filepath.Dir(roots.VersionDir(referenced))).Status; got != CollectionStatusReferenced {
+		t.Fatalf("referenced sha256 tree status = %q, want referenced", got)
+	}
+}
+
+// TestCollectReferencedTreeRetainedViaCanonicalPath characterises finding B: a
+// referenced tree is retained because the eligibility loop keys the reference
+// lookup on the canonical entry.Path. It is a characterization (not RED/GREEN)
+// test: a candidate reaching the reference check is provably a non-symlink dir
+// under the canonical versions root, so its pre-canonical path and canonical
+// entry.Path are always equal — no fixture can make reverting to references[path]
+// diverge in behaviour. The test locks in the retain decision so the readability
+// fix cannot silently regress.
+func TestCollectReferencedTreeRetainedViaCanonicalPath(t *testing.T) {
+	roots := versionRoots(t)
+	referenced := collectorTree(t, roots, "referenced")
+	writeCollectorState(t, roots, referenced)
+
+	out := Collect(CollectOptions{Roots: roots, FS: RealFS{}})
+	if out.Err != nil {
+		t.Fatalf("Collect: %v", out.Err)
+	}
+	root := filepath.Dir(roots.VersionDir(referenced))
+	if got := collectionEntry(t, out, root).Status; got != CollectionStatusReferenced {
+		t.Fatalf("referenced tree status = %q, want referenced (retention must key on the canonical path)", got)
+	}
+	if _, err := os.Lstat(root); err != nil {
+		t.Fatalf("referenced tree was removed: %v", err)
+	}
+}
+
 func TestCollectMissingOrInvalidStateRetainsExistingVersions(t *testing.T) {
 	for _, tc := range []struct {
 		name string
