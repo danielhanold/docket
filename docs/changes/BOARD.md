@@ -1,17 +1,22 @@
 # Backlog
 
-**431 changes** — 🟢 6 in progress · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 280 done · 🗑️ 113 killed
+**431 changes** — 🟢 5 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 280 done · 🗑️ 113 killed
 
-## 🟢 In progress (6)
+## 🟢 In progress (5)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0431](active/0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | `low` | `chore` | [spec](../superpowers/specs/2026-09-16-native-codex-acceptance-for-active-worker-validation-design.md) | `chore/native-codex-acceptance-for-active-worker-validation` |  |
 | [0430](active/0430-native-codex-acceptance-for-durable-review-evidence.md) | Native Codex acceptance for durable review evidence | `low` | `chore` | [spec](../superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md) | `chore/native-codex-acceptance-for-durable-review-evidence` | run halted — needs you |
-| [0413](active/0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md) | Finalize rebase gate cannot clear derived embedded-asset manifest collisions | `medium` | `fix` | [spec](../superpowers/specs/2026-09-16-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man-design.md) | `fix/finalize-rebase-gate-cannot-clear-derived-embedded-asset-man` |  |
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [spec](../superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) | `feat/docket-uninstall-and-version-tree-collection-for-the-go-inst` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0413](active/0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md) | Finalize rebase gate cannot clear derived embedded-asset manifest collisions | `medium` | `fix` | [#306](https://github.com/danielhanold/docket/pull/306) | awaiting merge |
 
 ## 🟣 Groomed (4)
 
