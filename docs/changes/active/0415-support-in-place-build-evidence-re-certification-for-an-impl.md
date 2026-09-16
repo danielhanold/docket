@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/support-in-place-build-evidence-re-certification-for-an-impl'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-16T15:24:35Z'
+reconciled: true
+claimed_at: '2026-09-16T15:26:57Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Add a supported evidence recertify command for an implemented change with an ope
 ## Out of scope
 
 The finalize re-gate path itself (already works and re-establishes evidence at merge). Changing the rule for when evidence is considered stale. The deferred results-only-delta skip optimization. Any change to how the PR-body evidence block is rendered.
+
+## Reconcile log
+
+### 2026-09-16
+
+2026-09-16: Reconciled against current origin/docket. Design remains valid. Confirmed: related changes 374 and 408 are archived (terminal); no `evidence.recertify` command exists yet; the composed services the spec depends on are present in the codebase (internal/app/evidence_ops.go with EvidenceRecord/EvidenceVerify, internal/app/finalize_publish.go with FinalizePublish's PR evidence-block edit via internal/evidence Upsert, the build-owned gate driver, and workspace inspection). ADR-0102 (build and finalize own independent gate/test command) still governs — the command runs build.test_command only, with no finalize-command fallback. Scope unchanged: add evidence.recertify as an app-layer composition, reusing gate/evidence/GitHub services, leaving the change implemented and stopping on failure without automatic repairs.
