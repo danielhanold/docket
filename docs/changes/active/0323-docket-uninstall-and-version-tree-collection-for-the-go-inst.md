@@ -2,7 +2,7 @@
 id: 323
 slug: docket-uninstall-and-version-tree-collection-for-the-go-inst
 title: 'docket uninstall and version-tree collection for the Go installer'
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: feat
 created: 2026-08-14
@@ -18,7 +18,7 @@ results: 'docs/results/2026-09-10-docket-uninstall-and-version-tree-collection-f
 trivial: false
 auto_groomable:
 branch: 'feat/docket-uninstall-and-version-tree-collection-for-the-go-inst'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/308'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-16T20:24:10Z'
