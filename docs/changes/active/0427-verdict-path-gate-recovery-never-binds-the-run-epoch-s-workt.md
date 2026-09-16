@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-16T10:32:06Z'
+reconciled: true
+claimed_at: '2026-09-16T10:34:08Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Bind the intended feature worktree in both verdict-path claim-recovery legs usin
 ## Out of scope
 
 New commands, configuration, schemas, persistence, or recovery subsystems; changes to cancellation, resume, retry, or admission policy; repairs to already-confirmed historical bindings or unrelated partial-write windows; unrelated refactoring; and implementation during grooming. ADR-0107 and ADR-0118 remain unchanged.
+
+## Reconcile log
+
+### 2026-09-16
+
+2026-09-16: Reconciled against current main. Confirmed the defect is live: internal/app/rungate_verdict.go resolveGateOwnership still calls ConfirmGateClaim with an empty worktree "" at both recovery legs (unconfirmed-reservation branch, line ~512; sole-committed-proof branch, line ~530). Change 0375 (5499addd) landed the fresh-claim worktree binding but not these verdict-recovery legs. Related 0422 has not landed; no same-file retry-accounting conflict to preserve yet. Scope, spec, and acceptance criteria remain accurate; no proposal changes needed.
