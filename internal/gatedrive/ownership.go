@@ -81,6 +81,8 @@ const (
 	// identity field a takeover re-verifies) no longer matches what the caller
 	// presented — e.g. rebinding a scope to a different change. Fail closed.
 	ErrScopeIdentityMismatch OwnershipErrorKind = "scope-identity-mismatch"
+	// ErrEpochScopeRequired: an epoch-bearing start omitted its authenticated scope.
+	ErrEpochScopeRequired OwnershipErrorKind = "epoch-scope-required"
 	// ErrScopeBusy: a scope transition raced another start or transition that
 	// already owns the scope's single drive slot (a reservation in flight, or a
 	// concurrent successor). The loser retreats rather than launching a second

@@ -331,6 +331,11 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 // no adopter is released before returning. On success it returns the ticket
 // StartAdmitted (or AbandonAdmission) consumes.
 func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
+	// An epoch locator is not authority. Require an authenticated scope even on
+	// first admission, before a missing scope can masquerade as a stale epoch.
+	if req.RunEpochID != "" && req.ScopeID == "" {
+		return nil, ownershipErr(ErrEpochScopeRequired, "start")
+	}
 	if len(req.Command) == 0 || req.Command[0] == "" {
 		return nil, fmt.Errorf("gatedrive: start requires a non-empty command")
 	}

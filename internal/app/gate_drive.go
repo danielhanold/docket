@@ -671,6 +671,8 @@ func mapDriveFailure(err error) (Result, string) {
 // yields the empty string, so callers omit the message rather than inventing one.
 func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	switch kind {
+	case gatedrive.ErrEpochScopeRequired:
+		return "prepare a fresh scope bound to this run epoch, then start with its scope id, child capability and complete identity; the epoch alone is not authority"
 	case gatedrive.ErrScopeBusy:
 		return "another start or transition owns this scope's slot; do not retry blindly"
 	case gatedrive.ErrHandoffOutstanding:
