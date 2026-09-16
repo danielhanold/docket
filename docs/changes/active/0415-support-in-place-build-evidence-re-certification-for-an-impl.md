@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-09'
-updated: '2026-09-09'
+updated: '2026-09-16'
 depends_on: []
 stacked_on:
-related: []
+related: [374, 408]
 discovered_from: [154]
-adrs: []
-spec:
+adrs: [102]
+spec: 'docs/superpowers/specs/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-design.md) |
+| ADRs | [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,7 +39,7 @@ When a follow-up commit is added to an already-implemented change's feature bran
 
 ## What changes
 
-Provide a supported path to re-run the build gate at the current head of an implemented change and re-record + verify build-evidence in place, refreshing the PR-body evidence block the way finalize does, without requiring a full finalize/merge and without hand-driving the gate. Design to settle at brainstorm: whether this is a dedicated re-certify operation, an `evidence`/`gate` verb that owns a gate run and the PR-body refresh, or a bounded `docket-implement-next` re-entry that accepts an implemented change purely to re-certify.
+Add a supported evidence recertify command for an implemented change with an open PR. It reruns the configured build gate at the current published feature head, records and verifies canonical build evidence, and refreshes only the existing PR's evidence block. Reuse the existing gate and publication services; leave the change implemented and stop on failure without automatic repairs.
 
 ## Out of scope
 
