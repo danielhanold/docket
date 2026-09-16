@@ -5,8 +5,61 @@ package gitcli
 import (
 	"context"
 	"github.com/danielhanold/docket/internal/testsupport"
+	"os/exec"
+	"strings"
 	"testing"
 )
+
+func TestIntegrationHistoryPathObjectIDsRetainUnavailableLeafIdentity(t *testing.T) {
+	dir, repo := historyRepo(t)
+	missing := strings.Repeat("d", 40)
+	cmd := exec.Command("git", "-C", dir, "mktree", "--missing")
+	cmd.Stdin = strings.NewReader("100644 blob " + missing + "\tbroken\n040000 tree " + missing + "\tnested\n160000 commit " + missing + "\tsub\n")
+	tree, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := ObjectID(strings.TrimSpace(string(tree)))
+	c := newRealClient(t)
+	for _, p := range []RepoPath{"broken", "nested", "sub"} {
+		ids, err := c.PathObjectIDs(context.Background(), repo, []ObjectPath{{root, p}})
+		if err != nil || len(ids) != 1 || ids[0] != ObjectID(missing) {
+			t.Fatalf("present %s must retain entry identity, not become absent: %v %v", p, ids, err)
+		}
+	}
+	if ids, err := c.PathObjectIDs(context.Background(), repo, []ObjectPath{{root, "nested/file"}}); err == nil || ids != nil {
+		t.Fatalf("unreadable parent tree became absent path: %v %v", ids, err)
+	}
+	for _, id := range []ObjectID{root, ObjectID(missing)} {
+		if blobs, err := c.ReadBlobObjects(context.Background(), repo, []ObjectID{id}); err == nil || blobs != nil {
+			t.Fatalf("non-blob or missing object was readable: %v %v", blobs, err)
+		}
+	}
+}
+
+func TestIntegrationHistoryPathObjectIDsLiteralAndMissing(t *testing.T) {
+	dir, repo := historyRepo(t)
+	commit := commitFile(t, dir, "odd\nname space", "literal\n", "literal path")
+	want := ObjectID(gitOut(t, dir, "rev-parse", string(commit)+":odd\nname space"))
+	root := ObjectID(gitOut(t, dir, "rev-parse", string(commit)+"^{tree}"))
+	c := newRealClient(t)
+	queries := []ObjectPath{{root, "odd\nname space"}, {root, "absent\nname space"}, {root, "odd\nname space"}}
+	got, err := c.PathObjectIDs(context.Background(), repo, queries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 || got[0] != want || got[1] != "" || got[2] != want {
+		t.Fatalf("literal/missing/duplicate results: %v", got)
+	}
+	blobs, err := c.ReadBlobObjects(context.Background(), repo, []ObjectID{want, want})
+	if err != nil || len(blobs) != 2 || string(blobs[0].Bytes) != "literal\n" || string(blobs[1].Bytes) != "literal\n" {
+		t.Fatalf("blob batch: %v %v", blobs, err)
+	}
+	queries[1].Tree = ObjectID(strings.Repeat("f", 40))
+	if got, err = c.PathObjectIDs(context.Background(), repo, queries); err == nil || got != nil {
+		t.Fatalf("unreadable root tree must not become an absent path: %v %v", got, err)
+	}
+}
 
 // historyRepo initializes a fresh non-bare repository with a deterministic
 // committer identity under testsupport.TempDir(t) and returns its path plus the Repository

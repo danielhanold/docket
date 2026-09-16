@@ -502,6 +502,21 @@ func TestIntegrationRepoOwnershipLegacyMatchesCurrentTip(t *testing.T) {
 	}
 }
 
+func TestIntegrationRepoOwnershipLegacyProjectionNormalizesEmptyDirectories(t *testing.T) {
+	f := newOwnFixture(t)
+	blob := f.gitStdin("board\n", "hash-object", "-w", "--stdin")
+	changes := f.gitStdin("100644 blob "+blob+"\tBOARD.md\n040000 tree "+f.emptyTree()+"\tempty\n", "mktree")
+	docs := f.gitStdin("040000 tree "+changes+"\tchanges\n", "mktree")
+	tree := f.gitStdin("040000 tree "+docs+"\tdocs\n", "mktree")
+	source := f.commitTree(tree, []string{f.mainTip()}, "source with empty directory")
+	projection := f.projectTree(source, defaultCopyPrefixes)
+	root := f.commitTree(projection, nil, "legacy seed")
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(source))
+	if own.Shape != reposetup.RootParentless || own.SourceRevision != source {
+		t.Fatalf("exact Git projection must remain provable: %+v", own)
+	}
+}
+
 // The live case's shape: the metadata root matches an OLDER snapshot whose live
 // surface was later pruned from the current tip. Descendants on the metadata
 // branch do not change the verdict.
@@ -539,6 +554,56 @@ func TestIntegrationRepoOwnershipLegacyMatchesOlderSnapshotAfterPrune(t *testing
 	}
 	if own2.Root != gitcli.ObjectID(root) {
 		t.Errorf("Root = %s, want the legacy seed root %s", own2.Root, root)
+	}
+}
+
+// Unrelated source history must not start two Git processes per commit just to
+// rediscover the same absent planning paths. This models prepare after migration.
+func TestIntegrationRepoOwnershipLegacyHistoryReadIsBatched(t *testing.T) {
+	for _, churn := range []string{"code", "specs", "config"} {
+		t.Run(churn, func(t *testing.T) { testLegacyHistoryReadIsBatched(t, churn) })
+	}
+}
+
+func testLegacyHistoryReadIsBatched(t *testing.T, churn string) {
+	f := newOwnFixture(t)
+	source := f.commitOnMain(map[string]string{"docs/changes/active/0001-a.md": "a\n"}, "planning")
+	root := f.commitTree(f.projectTree(source, defaultCopyPrefixes), nil, "legacy seed")
+	tip := source
+	for i := 0; i < 24; i++ {
+		files := map[string]string{"code.txt": fmt.Sprint(i)}
+		if churn == "specs" {
+			files[reposetup.SpecsDir+"/spec.md"] = fmt.Sprint(i)
+		}
+		if churn == "config" {
+			files[".docket.yml"] = fmt.Sprintf("# revision %d\n", i)
+		}
+		tree := f.mktree(files)
+		tip = f.commitTree(tree, []string{tip}, fmt.Sprintf("code %d", i))
+	}
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace := filepath.Join(testsupport.TempDir(t), "calls")
+	wrapper := filepath.Join(testsupport.TempDir(t), "git")
+	if err := os.WriteFile(wrapper, []byte("#!/bin/sh\nprintf '%s\\n' called >> '"+trace+"'\nexec '"+realGit+"' \"$@\"\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	client, err := gitcli.NewClient(gitcli.WithExecutable(wrapper))
+	if err != nil {
+		t.Fatal(err)
+	}
+	own := verifyMetadataOwnership(context.Background(), client, gitcli.Repository{PrimaryWorktree: f.dir}, gitcli.ObjectID(root), gitcli.ObjectID(tip), "main")
+	if own.Shape != reposetup.RootParentless || own.SourceRevision != source {
+		t.Fatalf("lost historical proof: %+v", own)
+	}
+	log, err := os.ReadFile(trace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls := strings.Count(string(log), "called\n"); calls > 40 {
+		t.Fatalf("history verification spawned %d Git processes; want <=40 independent of unrelated commits", calls)
 	}
 }
 
