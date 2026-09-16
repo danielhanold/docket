@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0413 — Finalize rebase gate cannot clear derived embedded-asset manifest collisions](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md)**
+> ↩ **[Change 0413 — Finalize rebase gate cannot clear derived embedded-asset manifest collisions](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-16-0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md)**
 <!-- docket:backlink:end -->
 # Finalize rebase gate cannot clear derived embedded-asset manifest collisions — Results
 
