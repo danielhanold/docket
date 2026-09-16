@@ -28,6 +28,37 @@ func sampleScopeReq() ScopeRequest {
 	}
 }
 
+func TestScopeRunRootRejectsSubstitutionBeforeLaunch(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	proc := passObserveProc()
+	driver := scopedTestDriver(store, &fakeClock{now: startEpoch()}, proc, stableGit())
+	req := sampleStart()
+	scopeReq := scopeReqFor(req, "")
+	// Exercise the request boundary without relying on the new field existing:
+	// the old decoder silently discards the intended controller binding.
+	if err := json.Unmarshal([]byte(`{"RunRoot":"/private/controller/control"}`), &scopeReq); err != nil {
+		t.Fatal(err)
+	}
+	grant, err := store.PrepareScope(scopeReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.ScopeID, req.ChildCapability = grant.ScopeID, grant.ChildCapability
+	for _, root := range []string{"", "/tmp/worker-picked", "/private/controller/control/child"} {
+		req.RunRoot = root
+		if _, err := driver.Start(req); !isOwnershipKind(err, ErrScopeIdentityMismatch) {
+			t.Fatalf("root %q must refuse before launch: %v", root, err)
+		}
+		if proc.launchN != 0 {
+			t.Fatal("substituted root launched a process")
+		}
+	}
+	req.RunRoot = "/private/controller/control"
+	if _, err := driver.Start(req); err != nil {
+		t.Fatalf("bound root: %v", err)
+	}
+}
+
 // isHex32 reports whether s is exactly 32 lowercase hex characters — the shape
 // randomToken(16) mints.
 func isHex32(s string) bool {

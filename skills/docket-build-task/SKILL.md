@@ -66,7 +66,7 @@ worktree, and use the task-intent owner: the `gate.drive.start` operation with `
 <task-scratch-dir> --json -- <the test command>`. Every identity value comes in your dispatch
 prompt — pass it unchanged; omit `--gate-context` or `--run-epoch` only when absent. The prepared
 scope pinned exactly this identity, and the driver
-rejects a start that omits or alters any of it. The run root is a scratch dir you pick and read from.
+rejects altered identity. Native Codex uses assignment.run_root unchanged; other harnesses choose scratch storage.
 Capture the drive id and owner generation from that `--json` response before any advance or handoff
 (the shared JSON-capture requirement in `docket-build`'s `references/gate-caller-loop.md`; human
 text omits the generation). Capture the response into `gate_reply` and its exit code into `gate_rc` — the shared
