@@ -2,7 +2,7 @@
 id: 415
 slug: 'support-in-place-build-evidence-re-certification-for-an-impl'
 title: 'Support in-place build-evidence re-certification for an implemented change'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-09'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/support-in-place-build-evidence-re-certification-for-an-impl'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/307'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-16T15:47:57Z'
