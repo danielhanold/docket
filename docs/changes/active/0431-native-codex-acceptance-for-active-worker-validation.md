@@ -22,7 +22,7 @@ branch: 'chore/native-codex-acceptance-for-active-worker-validation'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-16T15:46:39Z'
+claimed_at: '2026-09-16T16:38:31Z'
 ---
 
 ## Artifacts
@@ -52,8 +52,3 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
 
-## Run halted
-
-### 2026-09-16
-
-Resumed change 431 completed its inherited RED-to-GREEN worker continuation and committed bbe70004a97f716dfa197d497985ef8930433169. The controller then started the required build gate in fresh scope 6acd5f51522f1c7e598a001bf95d2395, bound to epoch accc5c7c0019121c1047cc235655babb and the canonical run root. The catalog-resolved gate.drive.start invocation returned no protocol receipt after its foreground call elapsed, so its drive id/owner generation were never captured. Per the gate caller contract this is a caller-contract failure: do not rerun start, continue, review, publish, or infer success. Preserve the worktree and investigate/recover the unresolved build-gate execution before a supported resume.
