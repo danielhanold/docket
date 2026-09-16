@@ -158,6 +158,22 @@ func collectEmptyReleaseLocked(options UninstallOptions, lock *installLock) Coll
 		out.Err = err
 		return out
 	}
+	// stillEmpty is the adapter's collectability predicate for the shared
+	// quarantineCollectable tail: an inactive release carries no AssetSetID and
+	// hence no direct version reference, so reference membership cannot express
+	// eligibility. It confirms, behind the reference-refresh seam, that the
+	// published state is still an empty release. A state that became active is a
+	// hard failure, never a benign retention, so it never reports retained=true.
+	stillEmpty := func(string) (retained bool, retainDetail string, err error) {
+		state, err := LoadState(options.Roots.StatePath())
+		if err != nil || state == nil || state.Mode != ModeRelease || state.AssetSetID != "" || len(state.Harnesses) != 0 {
+			if err == nil {
+				err = fmt.Errorf("%w: installed state became active during empty-state collection", ErrStateInvalid)
+			}
+			return false, "", err
+		}
+		return false, "", nil
+	}
 	for _, candidate := range paths {
 		entry := CollectionEntry{AssetSetID: filepath.Base(candidate), Path: candidate}
 		if !strictVersionChild(versions, candidate) {
@@ -194,75 +210,9 @@ func collectEmptyReleaseLocked(options UninstallOptions, lock *installLock) Coll
 		entry.Status = CollectionStatusCollected
 		out.Entries = append(out.Entries, entry)
 
-		collectBeforeReferenceRefresh(entry.Path)
-		state, err := LoadState(options.Roots.StatePath())
-		if err != nil || state == nil || state.Mode != ModeRelease || state.AssetSetID != "" || len(state.Harnesses) != 0 {
-			if err == nil {
-				err = fmt.Errorf("%w: installed state became active during empty-state collection", ErrStateInvalid)
-			}
-			out.Entries[len(out.Entries)-1].Status = CollectionStatusFailed
-			out.Entries[len(out.Entries)-1].Detail = err.Error()
-			out.Err = err
+		if quarantineCollectable(CollectOptions{Roots: options.Roots, FS: options.FS}, versions, &out.Entries[len(out.Entries)-1], initial, &out, stillEmpty) {
 			break
 		}
-		collectBeforeQuarantine(entry.Path)
-		canonical, err = canonicalPath(entry.Path)
-		if err != nil || !strictVersionChild(versions, canonical) {
-			if err == nil {
-				err = errors.New("candidate escaped versions root before quarantine")
-			}
-			out.Entries[len(out.Entries)-1].Status = CollectionStatusFailed
-			out.Entries[len(out.Entries)-1].Detail = err.Error()
-			out.Err = err
-			break
-		}
-		info, err = os.Lstat(entry.Path)
-		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-			if err == nil {
-				err = errors.New("candidate changed kind before quarantine")
-			}
-			out.Entries[len(out.Entries)-1].Status = CollectionStatusFailed
-			out.Entries[len(out.Entries)-1].Detail = err.Error()
-			out.Err = err
-			break
-		}
-		fresh, err := ProveVersionTree(entry.Path)
-		if err != nil || fresh.Manifest.AssetSetID != initial.Manifest.AssetSetID || fresh.Legacy != initial.Legacy {
-			if err == nil {
-				err = errors.New("candidate identity changed before quarantine")
-			}
-			out.Entries[len(out.Entries)-1].Status = CollectionStatusFailed
-			out.Entries[len(out.Entries)-1].Detail = err.Error()
-			out.Err = err
-			break
-		}
-		journal := collectionJournal{FormatVersion: collectionJournalFormatVersion, OriginalAssetSetID: fresh.Manifest.AssetSetID,
-			Manifest: fresh.Manifest, SourcePath: entry.Path, QuarantinePath: options.Roots.CollectionQuarantineDir(),
-			Legacy: fresh.Legacy, Phase: collectionPhasePrepared}
-		if err = writeCollectionJournal(options.FS, options.Roots, &journal); err == nil {
-			err = options.FS.Rename(journal.SourcePath, journal.QuarantinePath)
-			if err != nil {
-				err = pending("quarantining verified source", err)
-			}
-		}
-		if err == nil {
-			journal.Phase = collectionPhaseQuarantined
-			err = writeCollectionJournal(options.FS, options.Roots, &journal)
-			if err != nil {
-				err = pending("publishing quarantined phase", err)
-			}
-		}
-		if err == nil {
-			err = reconcileCollectionJournal(options.FS, options.Roots)
-		}
-		if err != nil {
-			out.Entries[len(out.Entries)-1].Status = CollectionStatusFailed
-			out.Entries[len(out.Entries)-1].Detail = err.Error()
-			out.Pending = []string{options.Roots.CollectionJournalPath()}
-			out.Err = err
-			break
-		}
-		out.Applied = true
 	}
 	return sortedCollection(out)
 }

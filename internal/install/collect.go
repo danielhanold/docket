@@ -225,102 +225,132 @@ func collectPass(options CollectOptions, lock *installLock, mutate bool) Collect
 	if !mutate {
 		return sortedCollection(out)
 	}
-	for _, index := range eligible {
-		entry := &out.Entries[index]
-		collectBeforeReferenceRefresh(entry.Path)
+	// stillReferenced re-derives, behind the reference-refresh seam, whether a
+	// once-eligible candidate has gained a live reference. A fresh reference is a
+	// benign retention (status referenced); a vanished or unreadable state is a
+	// hard failure. It is the general collector's collectability predicate for the
+	// shared quarantineCollectable tail.
+	stillReferenced := func(path string) (retained bool, retainDetail string, err error) {
 		state, err := LoadState(options.Roots.StatePath())
 		if err != nil || state == nil {
-			entry.Status = CollectionStatusFailed
 			if err == nil {
 				err = fmt.Errorf("%w: installed state disappeared", ErrStateInvalid)
 			}
-			entry.Detail = err.Error()
-			out.Err = err
-			break
+			return false, "", err
 		}
 		freshReferences, err := DeriveVersionReferences(options.Roots, state)
 		if err != nil {
-			entry.Status = CollectionStatusFailed
-			entry.Detail = err.Error()
-			out.Err = err
+			return false, "", err
+		}
+		if _, nowReferenced := freshReferences[path]; nowReferenced {
+			return true, "became referenced before quarantine", nil
+		}
+		return false, "", nil
+	}
+	for _, index := range eligible {
+		entry := &out.Entries[index]
+		if quarantineCollectable(options, versions, entry, initialProofs[entry.Path], &out, stillReferenced) {
 			break
 		}
-		if _, nowReferenced := freshReferences[entry.Path]; nowReferenced {
-			entry.Status = CollectionStatusReferenced
-			entry.Detail = "became referenced before quarantine"
-			continue
-		}
-		collectBeforeQuarantine(entry.Path)
-		canonical, err := canonicalPath(entry.Path)
-		if err != nil {
-			entry.Status = CollectionStatusFailed
-			entry.Detail = err.Error()
-			out.Err = err
-			break
-		}
-		if !strictVersionChild(versions, canonical) {
-			entry.Status = CollectionStatusFailed
-			entry.Detail = "candidate escaped versions root before quarantine"
-			out.Err = fmt.Errorf("install: refusing escaped collection candidate %s", canonical)
-			break
-		}
-		info, err := os.Lstat(entry.Path)
-		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-			if err == nil {
-				err = fmt.Errorf("candidate changed kind before quarantine")
-			}
-			entry.Status = CollectionStatusFailed
-			entry.Detail = err.Error()
-			out.Err = err
-			break
-		}
-		proven, err := ProveVersionTree(entry.Path)
-		initial := initialProofs[entry.Path]
-		if err != nil || proven.Manifest.AssetSetID != entry.AssetSetID || proven.Legacy != initial.Legacy {
-			if err == nil {
-				err = fmt.Errorf("candidate identity changed before quarantine")
-			}
-			entry.Status = CollectionStatusFailed
-			entry.Detail = err.Error()
-			out.Err = err
-			break
-		}
-		journal := collectionJournal{
-			FormatVersion:      collectionJournalFormatVersion,
-			OriginalAssetSetID: proven.Manifest.AssetSetID,
-			Manifest:           proven.Manifest,
-			SourcePath:         entry.Path,
-			QuarantinePath:     options.Roots.CollectionQuarantineDir(),
-			Legacy:             proven.Legacy,
-			Phase:              collectionPhasePrepared,
-		}
-		err = writeCollectionJournal(options.FS, options.Roots, &journal)
-		if err == nil {
-			err = options.FS.Rename(journal.SourcePath, journal.QuarantinePath)
-			if err != nil {
-				err = pending("quarantining verified source", err)
-			}
-		}
-		if err == nil {
-			journal.Phase = collectionPhaseQuarantined
-			err = writeCollectionJournal(options.FS, options.Roots, &journal)
-			if err != nil {
-				err = pending("publishing quarantined phase", err)
-			}
-		}
-		if err == nil {
-			err = reconcileCollectionJournal(options.FS, options.Roots)
-		}
-		if err != nil {
-			entry.Status = CollectionStatusFailed
-			entry.Detail = err.Error()
-			out.Pending = []string{options.Roots.CollectionJournalPath()}
-			out.Err = err
-			break
-		}
-		out.Applied = true
 	}
 	return sortedCollection(out)
+}
+
+// quarantineCollectable is the single audited destructive tail shared by the
+// general collector (collectPass) and the empty-release adapter
+// (collectEmptyReleaseLocked). For one already-proven candidate it re-checks
+// collectability behind the collectBeforeReferenceRefresh seam, then — behind
+// the collectBeforeQuarantine seam — re-canonicalises, re-checks strict
+// containment, re-Lstats the kind, and re-proves the tree against its initial
+// proof before journalling, quarantining, and reconciling the removal. The only
+// per-caller difference is stillCollectable: reference membership for the
+// general collector, empty-release confirmation for the adapter. It updates
+// entry and out in place and returns stop=true when the enclosing pass must
+// halt (a hard failure); a benign retention or a successful quarantine returns
+// stop=false.
+func quarantineCollectable(options CollectOptions, versions string, entry *CollectionEntry, initial ProvenVersion, out *CollectionOutcome, stillCollectable func(path string) (retained bool, retainDetail string, err error)) (stop bool) {
+	collectBeforeReferenceRefresh(entry.Path)
+	retained, retainDetail, err := stillCollectable(entry.Path)
+	if err != nil {
+		entry.Status = CollectionStatusFailed
+		entry.Detail = err.Error()
+		out.Err = err
+		return true
+	}
+	if retained {
+		entry.Status = CollectionStatusReferenced
+		entry.Detail = retainDetail
+		return false
+	}
+	collectBeforeQuarantine(entry.Path)
+	canonical, err := canonicalPath(entry.Path)
+	if err != nil {
+		entry.Status = CollectionStatusFailed
+		entry.Detail = err.Error()
+		out.Err = err
+		return true
+	}
+	if !strictVersionChild(versions, canonical) {
+		entry.Status = CollectionStatusFailed
+		entry.Detail = "candidate escaped versions root before quarantine"
+		out.Err = fmt.Errorf("install: refusing escaped collection candidate %s", canonical)
+		return true
+	}
+	info, err := os.Lstat(entry.Path)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		if err == nil {
+			err = fmt.Errorf("candidate changed kind before quarantine")
+		}
+		entry.Status = CollectionStatusFailed
+		entry.Detail = err.Error()
+		out.Err = err
+		return true
+	}
+	proven, err := ProveVersionTree(entry.Path)
+	if err != nil || proven.Manifest.AssetSetID != initial.Manifest.AssetSetID || proven.Legacy != initial.Legacy {
+		if err == nil {
+			err = fmt.Errorf("candidate identity changed before quarantine")
+		}
+		entry.Status = CollectionStatusFailed
+		entry.Detail = err.Error()
+		out.Err = err
+		return true
+	}
+	journal := collectionJournal{
+		FormatVersion:      collectionJournalFormatVersion,
+		OriginalAssetSetID: proven.Manifest.AssetSetID,
+		Manifest:           proven.Manifest,
+		SourcePath:         entry.Path,
+		QuarantinePath:     options.Roots.CollectionQuarantineDir(),
+		Legacy:             proven.Legacy,
+		Phase:              collectionPhasePrepared,
+	}
+	err = writeCollectionJournal(options.FS, options.Roots, &journal)
+	if err == nil {
+		err = options.FS.Rename(journal.SourcePath, journal.QuarantinePath)
+		if err != nil {
+			err = pending("quarantining verified source", err)
+		}
+	}
+	if err == nil {
+		journal.Phase = collectionPhaseQuarantined
+		err = writeCollectionJournal(options.FS, options.Roots, &journal)
+		if err != nil {
+			err = pending("publishing quarantined phase", err)
+		}
+	}
+	if err == nil {
+		err = reconcileCollectionJournal(options.FS, options.Roots)
+	}
+	if err != nil {
+		entry.Status = CollectionStatusFailed
+		entry.Detail = err.Error()
+		out.Pending = []string{options.Roots.CollectionJournalPath()}
+		out.Err = err
+		return true
+	}
+	out.Applied = true
+	return false
 }
 
 func collectionCandidates(roots UserRoots) ([]string, string, error) {
