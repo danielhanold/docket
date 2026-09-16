@@ -52,6 +52,9 @@ const (
 // change, which supports an attributed retry.
 type ImplementationContextRequest struct {
 	ID int `json:"id"`
+	// Resume inspects an explicitly named in-progress record, before or after
+	// clearing its halt marker. It grants no claim or workspace ownership.
+	Resume bool `json:"resume,omitempty"`
 }
 
 // ContextEntitySummary is the parsed, non-authored semantics of a record, so a
@@ -222,6 +225,9 @@ func newContextResult(result Result, reason, message string, bundle *Implementat
 // bundle. It is read-only: one pin, one corpus read, one snapshot; every fact
 // is threaded from that snapshot.
 func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir string, req ImplementationContextRequest) ImplementationContextResult {
+	if req.Resume && req.ID <= 0 {
+		return newContextResult(ResultInvalidInput, "resume-id-required", "resume context requires an explicit positive change id", nil)
+	}
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
@@ -322,6 +328,15 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 		},
 	}
 	bundle.Learnings, bundle.Warnings = learningEntries(snap)
+	if req.Resume {
+		// Inspection is not fresh-claim admission. Preserve the actual branch,
+		// never the name a new claim would mint from the current type and slug.
+		bundle.ClaimEligible = false
+		if fail := domain.ClaimEligibility(snap, selected, facts); fail != nil {
+			bundle.ClaimRefusal = fail.Reason
+		}
+		bundle.Workflow.FeatureBranch = selected.Branch().Value
+	}
 
 	return newContextResult(ResultApplied, "", "", bundle)
 }
@@ -329,7 +344,8 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 // selectContextChange resolves the change the bundle describes: the first
 // build-ready candidate under the selection policy, or the exact requested id.
 // It returns a non-nil result pointer for every typed non-bundle outcome, and a
-// build-ready change with a nil pointer on success.
+// build-ready change (or the explicit in-progress resume record) with a nil
+// pointer on success. Resume inspection never changes selection eligibility.
 func selectContextChange(snap domain.Snapshot, facts domain.BranchFacts, req ImplementationContextRequest) (domain.Change, *ImplementationContextResult) {
 	if req.ID <= 0 {
 		queue := domain.SelectQueue(snap, facts, domain.SelectionFilter{})
@@ -351,6 +367,17 @@ func selectContextChange(snap domain.Snapshot, facts domain.BranchFacts, req Imp
 		r := newContextResult(ResultInvalidState, ReasonContextAmbiguousID,
 			fmt.Sprintf("more than one record claims change id %04d; refusing to choose", req.ID), nil)
 		return domain.Change{}, &r
+	}
+	if req.Resume {
+		if !domain.ValidSlugToken(c.Slug()) {
+			r := newContextResult(ResultInvalidInput, ReasonContextMalformed, "resume record has an unusable identity", nil)
+			return domain.Change{}, &r
+		}
+		if c.Status() != domain.StatusInProgress {
+			r := newContextResult(ResultInvalidState, ReasonHaltNotInProgress, "resume context requires an in-progress change", nil)
+			return domain.Change{}, &r
+		}
+		return c, nil
 	}
 
 	// The explicit change must be claimable exactly as the selection policy

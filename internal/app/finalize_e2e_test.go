@@ -1293,7 +1293,24 @@ func TestE2EHaltResumeAndReclaim(t *testing.T) {
 	if verdict, _ := rv.doc["verdict"].(string); verdict != "run-halted" {
 		t.Fatalf("run verify after halt = %q, want run-halted\n%s", verdict, rv.stdout)
 	}
-	res := s.dk(t, "", "change", "resume-halted", "--id", "3", "--version", verOf(t, s, 3), "--acknowledge-quiescent")
+	// Obtain the resume version through the public read-only contract, not the
+	// test's Git oracle: ordinary context intentionally remains proposed-only.
+	resumeContext := s.dk(t, "", "context", "implementation", "--id", "3", "--resume")
+	if resumeContext.result() != "applied" {
+		t.Fatalf("resume context: %s", resumeContext.stdout)
+	}
+	var resumeBundle ImplementationContextResult
+	if err := json.Unmarshal([]byte(resumeContext.stdout), &resumeBundle); err != nil {
+		t.Fatal(err)
+	}
+	if resumeBundle.Context == nil || resumeBundle.Context.ClaimEligible || !resumeBundle.Context.Halt.RunHalted {
+		t.Fatalf("invalid resume bundle: %s", resumeContext.stdout)
+	}
+	resumeVersion := resumeBundle.Context.Change.Version
+	if resumeVersion != verOf(t, s, 3) {
+		t.Fatal("resume context version differs from authority")
+	}
+	res := s.dk(t, "", "change", "resume-halted", "--id", "3", "--version", resumeVersion, "--acknowledge-quiescent")
 	if res.result() != "applied" {
 		t.Fatalf("change resume-halted = %q\n%s", res.result(), res.stdout)
 	}
