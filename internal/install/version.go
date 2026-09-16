@@ -46,6 +46,12 @@ const (
 	// bundle itself, mirroring UserRoots.VersionDir.
 	versionAssetsDir = "assets"
 	versionManifest  = "manifest.json"
+	// stagingDirPrefix marks docket's own transient extraction scratch minted by
+	// MkdirTemp under versions/. It is dot-prefixed so it can never collide with a
+	// published tree (sanitizeSegment ids never carry it), and collectionCandidates
+	// keys on it to skip a leaked scratch dir rather than surface it as an
+	// unresolvable collection candidate — so the two uses must not drift.
+	stagingDirPrefix = ".staging-"
 )
 
 // ErrVersionTreeInvalid is the sentinel every unusable extracted tree wraps:
@@ -104,7 +110,7 @@ func EnsureVersionTree(roots UserRoots, m assets.Manifest, open func(string) ([]
 	if err := os.MkdirAll(roots.VersionsDir(), versionsDirMode); err != nil {
 		return "", false, fmt.Errorf("install: creating %s: %w", roots.VersionsDir(), err)
 	}
-	staging, err := os.MkdirTemp(roots.VersionsDir(), ".staging-"+sanitizeSegment(m.AssetSetID)+"-")
+	staging, err := os.MkdirTemp(roots.VersionsDir(), stagingDirPrefix+sanitizeSegment(m.AssetSetID)+"-")
 	if err != nil {
 		return "", false, fmt.Errorf("install: staging a version tree under %s: %w", roots.VersionsDir(), err)
 	}

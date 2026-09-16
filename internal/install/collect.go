@@ -199,7 +199,11 @@ func collectPass(options CollectOptions, lock *installLock, mutate bool) Collect
 			out.Entries = append(out.Entries, entry)
 			continue
 		}
-		if _, ok := references[path]; ok {
+		// Key retention on entry.Path, the freshly canonicalised value, rather than
+		// the pre-canonical loop variable: DeriveVersionReferences returns canonical
+		// roots, so the retain-vs-collect decision must not lean on the unstated
+		// invariant that path already equals its canonical form here.
+		if _, ok := references[entry.Path]; ok {
 			entry.Status = CollectionStatusReferenced
 			entry.Detail = "retained by installed state or a live target"
 			out.Entries = append(out.Entries, entry)
@@ -367,6 +371,15 @@ func collectionCandidates(roots UserRoots) ([]string, string, error) {
 	}
 	paths := make([]string, 0, len(entries))
 	for _, entry := range entries {
+		// Skip docket's own transient extraction scratch (stagingDirPrefix). A
+		// scratch dir leaked by a crashed EnsureVersionTree is unreferenced and
+		// unprovable, so enumerating it would classify it Unverified and raise a
+		// permanent collection-pending warning that `docket install collect` can
+		// never clear. Published trees are sanitizeSegment ids and never carry the
+		// prefix, so this cannot hide a real version tree.
+		if strings.HasPrefix(entry.Name(), stagingDirPrefix) {
+			continue
+		}
 		// Canonicalise the container, not the child: following a child symlink
 		// would erase the very kind information that makes it ineligible.
 		paths = append(paths, filepath.Join(versions, entry.Name()))
