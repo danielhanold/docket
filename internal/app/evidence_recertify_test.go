@@ -300,3 +300,119 @@ func TestEvidenceRecertifyRefusesUnconfiguredGate(t *testing.T) {
 		t.Fatalf("an unconfigured gate ran the suite or edited the PR")
 	}
 }
+
+// movingGate commits to the feature worktree DURING the gate and then reports
+// PASSED for the pre-move head — the moved-HEAD publication hazard.
+type movingGate struct {
+	f  *rebaseFixture
+	ev string
+}
+
+func (g *movingGate) RunLocalGate(context.Context, LocalGateRequest) (LocalGateResult, error) {
+	writeRepoFile(g.f.t, g.f.wp, "late-edit.txt", "moved under the gate\n")
+	runGit(g.f.t, g.f.wp, "add", "-A")
+	runGit(g.f.t, g.f.wp, "commit", "-q", "-m", "late edit")
+	return LocalGateResult{Outcome: FinalizeGatePassed, Evidence: g.ev, RunDir: "/run/x"}, nil
+}
+
+// TestEvidenceRecertifyRefusesHeadMovedUnderGate: a HEAD that moved between
+// the gate and the publish can never publish (acceptance 3). The recheck's
+// local-vs-remote leg catches it (the late commit is unpublished).
+func TestEvidenceRecertifyRefusesHeadMovedUnderGate(t *testing.T) {
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
+	gate := &movingGate{f: f, ev: greenBlockFor(t, f.head)}
+	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, gate), WorkspaceDeps{Service: f.svc},
+		f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+	if res.Result == ResultApplied || res.Result == ResultNoOp {
+		t.Fatalf("a moved head published evidence: %s/%s", res.Result, res.Reason)
+	}
+	if res.Reason != ReasonRecertifyHeadDisagreement && res.Reason != ReasonRecertifyIdentityDrift {
+		t.Fatalf("reason = %q; want a head-disagreement/identity-drift refusal", res.Reason)
+	}
+	if gh.ensNext != 0 {
+		t.Fatalf("a moved head reached the PR edit")
+	}
+}
+
+// TestEvidenceRecertifyRefusesForeignCommandEvidence: evidence recording a
+// command other than the currently resolved build.test_command cannot publish —
+// the changed-configuration face of acceptance 3.
+func TestEvidenceRecertifyRefusesForeignCommandEvidence(t *testing.T) {
+	gate := &fakeGate{}
+	f, gh, deps, wdeps := recertifyFixture(t, gate)
+	foreign, err := evidence.NewRecord("make other-suite", f.head, time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("evidence.NewRecord: %v", err)
+	}
+	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: evidence.Render(foreign), RunDir: "/run/x"}
+	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+	if res.Result != ResultBlocked || res.Reason != ReasonRecertifyIdentityDrift {
+		t.Fatalf("result = %s/%s; want blocked/%s", res.Result, res.Reason, ReasonRecertifyIdentityDrift)
+	}
+	if gh.ensNext != 0 {
+		t.Fatalf("foreign-command evidence reached the PR edit")
+	}
+}
+
+// TestEvidenceRecertifyRefusesWrongHeadEvidence: gate evidence naming another
+// head is stale at verification and never published.
+func TestEvidenceRecertifyRefusesWrongHeadEvidence(t *testing.T) {
+	gate := &fakeGate{}
+	f, gh, deps, wdeps := recertifyFixture(t, gate)
+	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.baseTip), RunDir: "/run/x"}
+	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+	if res.Result != ResultInvalidState || res.Reason != ReasonRecertifyEvidenceUnverified {
+		t.Fatalf("result = %s/%s; want invalid-state/%s", res.Result, res.Reason, ReasonRecertifyEvidenceUnverified)
+	}
+	if gh.ensNext != 0 {
+		t.Fatalf("unverified evidence reached the PR edit")
+	}
+}
+
+// flakyEnsureGitHub reports the first N EnsurePullRequest calls as UNKNOWN
+// (an unverifiable external effect) and then delegates to the real fake.
+type flakyEnsureGitHub struct {
+	*fakePublishGitHub
+	unknowns int
+}
+
+func (f *flakyEnsureGitHub) EnsurePullRequest(ctx context.Context, req githubcli.EnsurePullRequestRequest) (githubcli.EnsureResult, error) {
+	if f.unknowns > 0 {
+		f.unknowns--
+		return githubcli.EnsureResult{Disposition: githubcli.EnsureUnknown}, nil
+	}
+	return f.fakePublishGitHub.EnsurePullRequest(ctx, req)
+}
+
+// TestEvidenceRecertifyEditFailureThenRetry: an uncertain PR edit is NOT
+// completion; a later invocation converges the SAME PR and preserves authored
+// content (acceptance 4).
+func TestEvidenceRecertifyEditFailureThenRetry(t *testing.T) {
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	inner := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
+	gh := &flakyEnsureGitHub{fakePublishGitHub: inner, unknowns: 1}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}}
+	deps := f.finalizeDeps(gh, gate)
+	wdeps := WorkspaceDeps{Service: f.svc}
+
+	first := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+	if first.Result == ResultApplied || first.Result == ResultNoOp {
+		t.Fatalf("an unverified PR edit was reported as completion: %s/%s", first.Result, first.Reason)
+	}
+	if first.Reason != ReasonRecertifyEditUnknown {
+		t.Fatalf("first reason = %q; want %s", first.Reason, ReasonRecertifyEditUnknown)
+	}
+
+	second := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
+	if second.Result != ResultApplied || second.Number != 1 {
+		t.Fatalf("retry = %s/%s PR %d: %s; want applied on the same PR 1", second.Result, second.Reason, second.Number, second.Message)
+	}
+	body := inner.pr.Body
+	if evidence.Verify([]byte(body), f.head) != evidence.VerdictVerified {
+		t.Fatalf("retried PR body does not verify for the current head:\n%s", body)
+	}
+	if !strings.Contains(body, "Authored prose.") || !strings.Contains(body, "More prose.") {
+		t.Fatalf("authored PR content was not preserved across the retry:\n%s", body)
+	}
+}
