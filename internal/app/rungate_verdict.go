@@ -3,11 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -224,7 +226,7 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 	// Resolve ownership from the verified dispatch-to-claim binding (change 0407)
 	// before delegating. A non-nil return is the terminal report to emit; nil means
 	// the bound change is resolved and rec now carries its AttributedID.
-	if stop := resolveGateOwnership(ctx, wdeps, repoDir, key, &rec); stop != nil {
+	if stop := resolveGateOwnership(ctx, deps, wdeps, repoDir, key, &rec); stop != nil {
 		return *stop
 	}
 
@@ -453,7 +455,14 @@ func gateStopUnavailable(repoDir, key string, rec GateRecord, id int, reason str
 // otherwise it returns the terminal report to emit. Every missing / conflicting /
 // corrupt / unprovable case fails CLOSED — no retry, no sibling id, no fallback to
 // global claim inference.
-func resolveGateOwnership(ctx context.Context, wdeps WorkspaceDeps, repoDir, key string, rec *GateRecord) *RunGateVerdictResult {
+//
+// The two recovery legs (the unconfirmed reservation and the sole-proof adoption)
+// resolve the recovered change's logical feature worktree through
+// gateRecoveredWorktree before confirming, so a run recovered solely through the
+// verdict path binds the epoch worktree exactly as the fresh-claim path does and
+// stays fenceable and cancellable; an unresolvable identity refuses through
+// ReasonGateProofUnavailable rather than confirming with an empty path (change 0427).
+func resolveGateOwnership(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir, key string, rec *GateRecord) *RunGateVerdictResult {
 	// Resume-verified shape: an AttributedID with no claim binding was pre-bound by
 	// `gate-before --resume` through WorkspaceInspect identity. Continuity for it is
 	// RunVerify's job, exactly as today — the proof continuity check never runs.
@@ -506,10 +515,16 @@ func resolveGateOwnership(ctx context.Context, wdeps WorkspaceDeps, repoDir, key
 			return gateOwnershipDone(repoDir, key, *rec)
 		}
 		// The committed receipt is authority, so a confirm error still proceeds on the
-		// proof (best-effort mirror).
-		// worktree "": the verdict recovery path holds no feature worktree; the fresh
-		// claim path (change_claim.go) is where the epoch worktree is bound (change 0375).
-		_ = ConfirmGateClaim(repoDir, key, binding.ChangeID, binding.RequestID, proof.Revision, "")
+		// proof (best-effort mirror) — but the worktree it binds must be real: resolve
+		// the recovered change's logical feature worktree first (change 0427), and
+		// refuse (fail closed, before confirming) when identity cannot be resolved,
+		// never confirming with an empty path that would leave the run epoch
+		// unfenceable and uncancellable.
+		wt, ok := gateRecoveredWorktree(ctx, deps, repoDir, binding.ChangeID)
+		if !ok {
+			return gateOwnershipStop(repoDir, key, *rec, ReasonGateProofUnavailable)
+		}
+		_ = ConfirmGateClaim(repoDir, key, binding.ChangeID, binding.RequestID, proof.Revision, wt)
 		gateAdoptOwnership(wdeps, repoDir, key, rec, binding.ChangeID, binding.RequestID, proof.Revision)
 		return nil
 
@@ -569,6 +584,45 @@ func gateProofsForContext(proofs []ClaimProof, contextHash string) []ClaimProof 
 		}
 	}
 	return out
+}
+
+// gateRecoveredWorktree resolves the LOGICAL feature worktree for a change the
+// verdict path is recovering — filepath.Join(repo.PrimaryWorktree, ".worktrees",
+// slug), the same derivation the fresh-claim path binds (change_claim.go,
+// "featureWorktree") and the workspace service's intendedPath use. It reads the
+// selected change's authoritative metadata (pin + corpus snapshot) and the
+// canonical primary repository identity — never the caller's directory, a branch
+// spelling, or a scan for candidate worktrees. The directory need not exist yet:
+// the mutation fence canonicalizes the stored value at compare time
+// (epochOwnsWorktree), once workspace.prepare has created it. ok=false means
+// repository/change identity could not be resolved; the caller must refuse
+// (fail closed) rather than confirm with an empty path.
+func gateRecoveredWorktree(ctx context.Context, deps PlanningDeps, repoDir string, changeID int) (string, bool) {
+	if deps.Reader == nil || deps.Client == nil {
+		return "", false
+	}
+	pin, err := deps.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		return "", false
+	}
+	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
+	if err != nil {
+		return "", false
+	}
+	inputs, _ := parseCorpus(blobs)
+	build, err := repository.BuildSnapshot(repository.BuildInput{Config: pin.Config.Effective, Documents: inputs})
+	if err != nil {
+		return "", false
+	}
+	c, out := build.Snapshot.Change(domain.ChangeID(changeID))
+	if out != domain.LookupFound {
+		return "", false
+	}
+	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
+	if err != nil {
+		return "", false
+	}
+	return filepath.Join(repo.PrimaryWorktree, ".worktrees", c.Slug()), true
 }
 
 // gateAdoptOwnership sets the resolved change id on rec and, ONLY when the record
