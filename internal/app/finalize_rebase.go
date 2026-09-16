@@ -1018,6 +1018,34 @@ func finalizeRebaseContinueBudgeted(ctx context.Context, deps FinalizeDeps, repo
 		}
 	}
 
+	// Mixed authored+generated stop (change 0413): the resolver resolves authored
+	// inputs and leaves bundle outputs to the controller. When every live unmerged
+	// path the report does NOT cover is an eligible bundle output, regenerate the
+	// bundle from the now-resolved authored roots and stage it alongside the
+	// reported paths in this same continue. This charges nothing beyond the one
+	// reservation already spent for the authored decision. Regeneration runs BEFORE
+	// the continuation-started marker: a generation failure refuses with Git
+	// untouched and the reservation still outstanding, so the same report can be
+	// retried. Leftovers that are NOT eligible bundle outputs keep today's behavior
+	// (the staged continue fails structurally and is retained).
+	reported := make(map[string]bool, len(stage))
+	for _, p := range stage {
+		reported[p] = true
+	}
+	var leftover []string
+	for _, p := range state.UnmergedPaths {
+		if !reported[p] {
+			leftover = append(leftover, p)
+		}
+	}
+	if len(leftover) > 0 && pathsGeneratedOnly(leftover) && bundleRepoEligible(rc.wsDir) {
+		if gerr := regenBundle(deps)(rc.wsDir); gerr != nil {
+			return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed,
+				"generated-bundle regeneration failed before the continuation started: "+gerr.Error()+"; the reservation remains outstanding", id), rec)
+		}
+		stage = append(append([]string{}, stage...), embeddedBundleDir)
+	}
+
 	// Durably mark the continuation started BEFORE staging so a lost response is
 	// reconciled, never blindly replayed (reload-modify-write under the lock).
 	started := rec
