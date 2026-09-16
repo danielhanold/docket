@@ -1,10 +1,7 @@
 # Gate driver contract — the caller-side contract for driving the native gate
 
-This reference is the **caller-side contract for driving the native gate**: the typed driver
-operations a caller invokes, the disposition vocabulary those operations return, and the ownership
-handoff a departing caller must perform. It is a **caller contract, not a harness quarantine** —
-that axis separates it from [`gate-execution.md`](gate-execution.md), which holds the measured
-per-harness capability verdicts and mechanism detail read once, ahead of the act.
+This is the caller contract: driver operations, dispositions, and ownership handoff.
+[`gate-execution.md`](gate-execution.md) owns per-harness mechanisms and capability evidence.
 
 A caller makes **short, slice-bounded,
 synchronous** calls to the native gate **driver**, which composes the raw supervisor,
@@ -40,8 +37,13 @@ is a workflow result, not an excuse to omit the document.
 ## JSON capture — the required transport for consumed results
 
 Any invocation whose result a workflow consumes MUST pass `--json` and **capture** the emitted
-protocol-v1 document from that same first response, then **validate** that the fields the caller
+protocol-v1 document from that same first invocation's complete response, then **validate** that the fields the caller
 needs are present before acting on any of them:
+
+**Complete the transport first:** retain live session handles and accumulate output through
+native waits until the original command terminates. Tool yield is neither missing output nor
+protocol `WAITING`. Codex callers **must read [the transport recipe](codex-gate-transport.md)
+before invoking any gate**, including controller build/final gates.
 
 | Operation | Required from the captured first response |
 |---|---|
@@ -63,7 +65,7 @@ zsh and bash. Never assign to a zsh read-only special parameter — `status` and
 `pipestatus` are the two a capture site reaches for — because under zsh that assignment
 aborts the caller before the captured response is parsed, stranding a live drive.
 
-A missing, malformed, or incomplete required response is a **caller-contract failure**, not
+A missing, malformed, or incomplete required response **after terminal transport completion** is a **caller-contract failure**, not
 permission to rerun `start` (or any sibling op) to recover credentials. The caller maps it to its
 **existing** blocked/halt posture — a build-task worker returns `BLOCKED` with the
 missing-response reason — and never invents credentials, infers them from a drive id, or mints a
