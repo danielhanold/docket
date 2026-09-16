@@ -183,6 +183,13 @@ func advanceGeneratedOnly(ctx context.Context, deps FinalizeDeps, op string, rc 
 				"generated-bundle regeneration failed at the stopped commit: "+gerr.Error()+"; retained for abort", id), rec)
 			return status, &r
 		}
+		// Design note: a replayed bundle-only commit can become empty once the
+		// bundle is regenerated onto the advanced base (the regenerated bundle
+		// equals the base's). StageAndContinueRebase then reports the "no changes"
+		// git failure and this fast path blocks to the abort path by design
+		// (ReasonRebaseGitFailed; the owner aborts). Auto-clearing it would require
+		// distinguishing an empty-commit continue from a real failure, which is out
+		// of scope for this fast path.
 		next, cerr := git.StageAndContinueRebase(ctx, rc.wsDir, []string{embeddedBundleDir})
 		if cerr != nil {
 			r := withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, cerr.Error(), id), rec)
