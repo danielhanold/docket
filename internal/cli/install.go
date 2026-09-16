@@ -29,41 +29,41 @@ import (
 // `docket`. TestAssetIndependentSetExact holds the correspondence with the
 // Cobra tree in both directions.
 var assetIndependent = map[string]bool{
-	"":                            true, // bare `docket`: reports a missing command
-	"help":                        true,
-	"capabilities":                true, // the capability bootstrap must answer before any installation exists
-	"schema":                      true, // the schema surface is a pure read of the live Go types; no installed assets
-	"version":                     true,
-	"status":                      true,
-	"change":                      true, // the group itself; it reports a missing command
-	"change create":               true,
-	"change groom":                true,
-	"change block":                true,
-	"change defer":                true,
-	"change kill":                 true,
-	"change claim":                true,
-	"change refresh-claim":        true,
-	"change reconcile":            true,
-	"change attach-plan":          true,
-	"change attach-results":       true,
-	"change halt":                 true,
-	"change resume-halted":        true,
-	"change reclaim":              true,
-	"change mark-implemented":     true,
-	"change repair-identity":      true,
-	"context":                     true, // the group itself; it reports a missing command
-	"context implementation":      true,
-	"context finalize":            true,
-	"artifact":                    true, // the group itself; it reports a missing command
-	"artifact backlink":           true,
-	"workspace":                   true, // the group itself; it reports a missing command
-	"workspace prepare":           true,
-	"workspace inspect":           true,
-	"workspace publish":           true,
-	"evidence":                    true, // the group itself; it reports a missing command
-	"evidence record":             true,
-	"evidence verify":             true,
-	"evidence recertify":          true, // composes the local gate + GitHub PR edit; reads no installed assets
+	"":                        true, // bare `docket`: reports a missing command
+	"help":                    true,
+	"capabilities":            true, // the capability bootstrap must answer before any installation exists
+	"schema":                  true, // the schema surface is a pure read of the live Go types; no installed assets
+	"version":                 true,
+	"status":                  true,
+	"change":                  true, // the group itself; it reports a missing command
+	"change create":           true,
+	"change groom":            true,
+	"change block":            true,
+	"change defer":            true,
+	"change kill":             true,
+	"change claim":            true,
+	"change refresh-claim":    true,
+	"change reconcile":        true,
+	"change attach-plan":      true,
+	"change attach-results":   true,
+	"change halt":             true,
+	"change resume-halted":    true,
+	"change reclaim":          true,
+	"change mark-implemented": true,
+	"change repair-identity":  true,
+	"context":                 true, // the group itself; it reports a missing command
+	"context implementation":  true,
+	"context finalize":        true,
+	"artifact":                true, // the group itself; it reports a missing command
+	"artifact backlink":       true,
+	"workspace":               true, // the group itself; it reports a missing command
+	"workspace prepare":       true,
+	"workspace inspect":       true,
+	"workspace publish":       true,
+	"evidence":                true, // the group itself; it reports a missing command
+	"evidence record":         true,
+	"evidence verify":         true,
+	"evidence recertify":      true, // composes the local gate + GitHub PR edit; reads no installed assets
 
 	"pr":                          true, // the group itself; it reports a missing command
 	"pr publish":                  true,
