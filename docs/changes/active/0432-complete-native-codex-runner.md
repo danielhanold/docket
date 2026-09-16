@@ -12,7 +12,7 @@ stacked_on: 431
 related: [425, 412]
 discovered_from: [431]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-16-complete-native-codex-runner-design.md'
 plan:
 results:
 trivial: false
@@ -27,11 +27,14 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-16-complete-native-codex-runner-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-complete-native-codex-runner-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Native Codex docket-implement-next still cannot complete a verified workflow despite the implemented 425 dispatch repairs and repeated 431 acceptance runs. The latest run passed the scoped build and published results but halted at final-certification continuation because the returned handoff lacked the required single-use token and the continuation had no parent capability. Completion of Codex compatibility is a bounded goal distinct from shared machinery simplification and the supervisor proposed in 412.
+Native Codex docket-implement-next still cannot complete a verified workflow despite the implemented 425 dispatch repairs and repeated 431 acceptance runs. The latest run passed the scoped build and published results but halted at final-certification continuation. Inspection of the saved responses shows that the handoff token was delivered and the continuation claim succeeded with fresh owner authority; the agents misinterpreted those responses as missing credentials. Repair receipt interpretation and continuation under the existing protocol, then prove the complete remaining workflow. Completion of Codex compatibility is a bounded goal distinct from shared machinery simplification and the supervisor proposed in 412.
 
 ## What changes
 
@@ -40,6 +43,8 @@ Finish native Codex dispatch, actual child completion observation, complete rece
 Branch provenance (user-approved): fix/complete-native-codex-runner was branched from change 431's clean local and published remote tip ed80a72a33ce535ce8c3ab639b6090cb3ba9abc8 on 2026-09-16, not from main or merely the 425 repair branch. Source branch: chore/native-codex-acceptance-for-active-worker-validation. Both tips were verified equal before creation. The starting commit includes repair 95660e8fee6e08ba1f439a0283dba4f0364e7d0a, plan 95842609f2a0b1c9c5e8646e8cba8d8a105babd7, worker bbe70004a97f716dfa197d497985ef8930433169, and 431's published results. The branch was pre-created at the human's explicit request; preserve it when establishing future claim/workspace ownership, never replace it from main. Its intended PR base is 431's branch while that parent remains unmerged.
 
 Track deferred shared simplification in docs/changes/research/shared-orchestration-simplification.md, and supervisor findings in docs/changes/research/0412-supervisor-findings.md linked to existing change 412. These are discovery notes, not prerequisites or implementation authorization.
+
+Execution is human-directed: after spec approval, plan and repair on the existing branch with red/green boundary tests and full-suite verification. Do not use docket-implement-next to bootstrap its own repair. Spec publication stops before planning or implementation; any later 431 resume/native acceptance requires separate authorization after the repaired path has been rehearsed.
 
 ## Out of scope
 

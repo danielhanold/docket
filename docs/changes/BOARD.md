@@ -24,7 +24,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0432](active/0432-complete-native-codex-runner.md) | Complete native Codex runner | `critical` | `fix` | needs-brainstorm |
+| [0432](active/0432-complete-native-codex-runner.md) | Complete native Codex runner | `critical` | `fix` | ⏳ waiting on #0431 — stack base not built |
 | [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | ⏳ waiting on #425 — not yet built |
 | [0426](active/0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | `high` | `refactor` | ⏳ waiting on #425 — not yet built |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
