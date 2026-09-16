@@ -104,6 +104,9 @@ That boundary is made durable by the **build evidence** (the committed record of
 by the reviewer). On green, the gate emits the command it ran, the result, the exact branch head, and
 a timestamp; the reviewer verifies the record is present, green, and pinned to the exact head it is
 reviewing, and returns an `unverified-build-state` blocker if it is missing, malformed, or stale —
-running the suite itself is never the remedy. How that record is minted and carried forward is
-[Proving the build](./proving-the-build.md); the profile ladder and the gate verdict as a mechanism
-are [Build profiles and the test gate](../concepts/build-profiles-and-gate.md).
+running the suite itself is never the remedy. When a review-feedback follow-up commit has already
+been pushed to the open PR and only the evidence went stale, `docket evidence recertify --id <id>`
+re-runs the build gate at the new head and refreshes the PR's evidence block in place — no re-entry
+into implement-next and no merge-time re-gate needed. How that record is minted and carried forward
+is [Proving the build](./proving-the-build.md); the profile ladder and the gate verdict as a
+mechanism are [Build profiles and the test gate](../concepts/build-profiles-and-gate.md).

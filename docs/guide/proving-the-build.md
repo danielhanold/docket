@@ -56,6 +56,23 @@ run is skipped and the skip is logged. The concrete payoff is that the whole pat
 runs the suite **once** when nothing has to be fixed or rebased — the record, not a re-run, carries
 the proof between steps.
 
+### Re-certifying after a follow-up commit
+
+A follow-up commit pushed to an implemented change's open PR (say, addressing review feedback
+before merge) makes the recorded evidence stale — it still names the old head. The supported
+in-place recovery is:
+
+    docket evidence recertify --id <id>
+
+It reruns the configured `build.test_command` (only the build command — never finalize's) in the
+change's feature worktree at the current published head, records and verifies fresh evidence, and
+replaces only the build-evidence block on the existing PR. The change stays `implemented`; nothing
+is committed, pushed, rebased, or merged. Preconditions: a clean feature worktree whose local head,
+remote feature head, and single open PR head all agree — an unpushed follow-up must be published
+through the normal workflow first. `build.gate: off` records truthful skipped evidence (the PR
+block is untouched); a failed or halted gate reports repair work and never touches the PR. The run
+charges one attempt against the change's `build.max_attempts` suite budget.
+
 ## The gate driver and wall-clock budgets
 
 The gate does not assume the whole suite finishes inside one command call. It executes *durably*: the
