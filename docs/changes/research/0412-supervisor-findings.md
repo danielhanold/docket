@@ -40,3 +40,23 @@ inside the Codex compatibility repair.
 
 Record model activations for gate polling separately from harness-session collection;
 a change that only renames polling does not establish supervisor success.
+
+## Investigated final boundary, 2026-09-16
+
+The [432 investigation](0432-codex-runner-handoff.md) corrects the latest run's causal
+claim. Saved command and tool responses show a complete `gate.drive.handoff` document
+with nonempty `drive.generation`, followed by a successful `run.gate-claim` response
+with nonempty top-level `generation`. The agents misinterpreted those responses; the
+final failure was not a lost live shell handle or an absent serialized token.
+
+This particular failure does not establish that a supervisor is necessary for Codex
+compatibility. It also does not invalidate 412's earlier yield/collection and polling
+cost evidence. A future supervisor still needs callers that understand the authority
+returned by collection and continuation; a durable terminal record alone does not
+make the consuming workflow complete.
+
+Keep separate measurements for process observation, harness-session collection,
+receipt interpretation, and workflow completion. Preserve exclusive consumption and
+stale-owner fencing while evaluating repeatable read-only observation. Any new collect
+operation, changed cadence, or separation of monitoring authority remains 412 work.
+No supervisor or acceptance run was launched during this investigation.

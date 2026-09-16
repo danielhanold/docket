@@ -88,3 +88,59 @@ own repair; use the human-directed repair posture until the integration tests ar
 
 Progress reports should identify the current Codex blocker, verified progress, next
 acceptance condition, and deferred findings written to the other two notes.
+
+## Boundary investigation, 2026-09-16 — correction to the reported diagnosis
+
+Read-only investigation compared the saved native transcripts with source at
+`ed80a72a33ce535ce8c3ab639b6090cb3ba9abc8` (including candidate repair
+`95660e8fee6e08ba1f439a0283dba4f0364e7d0a`). No gate was resumed, claimed,
+advanced, cancelled, or replayed during this investigation. No private drive credential
+was recovered. The existing repair branch still pointed to its approved starting commit.
+
+The final handoff did **not** omit its credential:
+
+| Boundary | Observed evidence |
+|---|---|
+| Producer and serialization | At 19:13:45 UTC, `gate.drive.handoff` returned protocol 1, `result: applied`, a `WAITING` drive, and nonempty `drive.generation`. `Driver.Handoff` passes `receipt.HandoffGeneration` to `transferDoc`, which serializes that value as `generation`. |
+| Shell and code-mode transport | The coordinator transcript contains the same complete JSON inside the terminal shell response, exit 0. The credential field reached the caller. |
+| First caller interpretation | The coordinator's final report nevertheless said the receipt did not expose a handoff token. This contradicted its captured response. |
+| Outer continuation | At 19:14:08 UTC, the parent received `gate-continue`, `run-waiting`, phase `final`, with a continuation id. |
+| Continuation redemption | At 19:14:47 UTC, `run.gate-claim` returned `gate-claimed`, `WAITING`, and a nonempty **top-level** `generation`; the continuation's tool output retained that response. |
+| Second caller interpretation | The continuation still demanded a handoff token or parent capability and halted. `RunGateClaim` had already consumed the handoff through `ClaimSeam.Claim`; its returned generation was the new owner's authority to advance the same drive. A second claim or takeover was unnecessary. |
+
+Sanitized source locators: native session transcripts beginning
+`rollout-2026-09-16T14-59-03` (coordinator), `rollout-2026-09-16T14-55-46`
+(parent), and `rollout-2026-09-16T15-14-25` (continuation), under the local
+Codex sessions directory for 2026-09-16. The observations above preserve the relevant
+facts without copying gate keys, tokens, or capability values. The earlier halt report
+remains a historical record of what the controller believed, not an authoritative
+description of the emitted protocol.
+
+The demonstrated failing boundary is **receipt interpretation and continuation
+control flow**, twice, rather than missing credential production or transport loss.
+This does not disprove earlier transport failures or prove the unexecuted remainder
+of the workflow correct. Existing driver and facade tests cover token production and
+redemption; passing those alone cannot prove that a native caller chooses the right
+next operation. The current Codex receipt checker handles `gate.drive.*` but does not
+handle the different `run.gate-claim` envelope. The skill names required token concepts
+without consistently spelling out their operation-specific JSON paths and next action.
+These are repair candidates to exercise at the public CLI/caller boundary during the
+subsequent human-directed red/green work, not evidence of an implemented fix.
+
+Two adjacent completion conditions need explicit rehearsal:
+
+- Results publication moved HEAD from the build-certified commit to `ed80a72a…`.
+  The reviewer rejected stale evidence. Re-establish exact-HEAD evidence before review
+  entry whenever a checkpoint commit has moved HEAD, and after final material results
+  consolidation before PR publication. Do not bypass the reviewer check or endlessly
+  edit results to add the latest evidence timestamp.
+- `Driver.Claim` closes the old recovery scope; `Driver.Acknowledge` intentionally
+  rejects a scope closed by claim/takeover. A recovered drive is advanced under its
+  new owner and its terminal evidence consumed through the recovery path. Do not apply
+  the uninterrupted worker's final-ack recipe or reuse the closed scope for a new test.
+  Prove recovered completion through evidence and run verification in rehearsal.
+
+Current-session boundary: investigate and approve/publish the 432 spec only. Planning,
+code repair, red/green execution, full-suite verification, and any later native acceptance
+belong to subsequent human-directed work. Shared simplification and supervisor work
+remain deferred in their linked notes.
