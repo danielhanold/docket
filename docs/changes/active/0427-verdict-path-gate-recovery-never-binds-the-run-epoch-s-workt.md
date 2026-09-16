@@ -13,7 +13,7 @@ related: [375, 422, 428]
 discovered_from: [375]
 adrs: [107, 118]
 spec: 'docs/superpowers/specs/2026-09-16-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-16-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-16T10:35:33Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-16-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt-design.md) |
+| Plan | [2026-09-16-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md](https://github.com/danielhanold/docket/blob/fix/verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt/docs/superpowers/plans/2026-09-16-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md) |
 | ADRs | [ADR-0107](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
