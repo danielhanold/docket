@@ -2,7 +2,7 @@
 id: 413
 slug: 'finalize-rebase-gate-cannot-clear-derived-embedded-asset-man'
 title: 'Finalize rebase gate cannot clear derived embedded-asset manifest collisions'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-08'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/finalize-rebase-gate-cannot-clear-derived-embedded-asset-man'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-16T11:49:27Z'
 ---
 
 ## Artifacts
