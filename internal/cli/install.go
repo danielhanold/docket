@@ -63,6 +63,8 @@ var assetIndependent = map[string]bool{
 	"evidence":                    true, // the group itself; it reports a missing command
 	"evidence record":             true,
 	"evidence verify":             true,
+	"evidence recertify":          true, // composes the local gate + GitHub PR edit; reads no installed assets
+
 	"pr":                          true, // the group itself; it reports a missing command
 	"pr publish":                  true,
 	"run":                         true, // the group itself; it reports a missing command

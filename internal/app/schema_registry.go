@@ -61,6 +61,7 @@ var operationBindings = []OperationBinding{
 	{ID: "development.install", Request: nil, Result: InstallResult{}},                                             // RunDevelopmentInstall
 	{ID: "diagnostic.config", Request: nil, Result: ConfigInspectionResult{}},                                      // DiagnosticConfig
 	{ID: "diagnostic.runtime", Request: nil, Result: RuntimeResult{}},                                              // DiagnosticRuntime
+	{ID: "evidence.recertify", Request: EvidenceRecertifyRequest{}, Result: EvidenceRecertifyResult{}},             // EvidenceRecertify
 	{ID: "evidence.record", Request: EvidenceRecordRequest{}, Result: EvidenceOpResult{}},                          // EvidenceRecord
 	{ID: "evidence.verify", Request: EvidenceVerifyRequest{}, Result: EvidenceOpResult{}},                          // EvidenceVerify
 	{ID: "finalize.block", Request: BlockRequest{}, Result: BlockResult{}},                                         // FinalizeBlock

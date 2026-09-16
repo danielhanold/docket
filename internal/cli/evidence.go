@@ -86,7 +86,33 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = verify.MarkFlagRequired("record")
 	_ = verify.MarkFlagRequired("head")
 
-	evidenceCmd.AddCommand(record, verify)
+	recertify := &cobra.Command{
+		Use:   "recertify",
+		Short: "Rerun the build gate for an implemented change and refresh its open PR's evidence block in place",
+		Args:  cobra.NoArgs,
+		// external-write: the operation edits the existing pull request's
+		// build-evidence block (and only that block) on GitHub.
+		Annotations: capability("evidence.recertify", EffectExternalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			id, _ := c.Flags().GetInt("id")
+			deps, wdeps, err := newRecertifyDeps(repoDir)
+			if err != nil {
+				return err
+			}
+			setResult(app.EvidenceRecertify(c.Context(), deps, wdeps, repoDir,
+				app.EvidenceRecertifyRequest{ID: id}))
+			return nil
+		},
+	}
+	recertify.Flags().Int("id", 0, "implemented change `id` whose evidence to re-certify (required)")
+	recertify.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	_ = recertify.MarkFlagRequired("id")
+
+	evidenceCmd.AddCommand(record, verify, recertify)
 	return evidenceCmd
 }
 

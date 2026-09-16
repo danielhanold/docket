@@ -601,29 +601,58 @@ func newFinalizeDeps(repoDir ...string) (app.FinalizeDeps, error) {
 }
 
 // newFinalizeDepsOver assembles the finalize seams over already constructed Git
-// and GitHub clients, so both the standalone builder (newFinalizeDeps, default
+// and GitHub clients: it delegates to newFinalizeDepsGated with the finalize
+// local-gate constructor, discarding the WorkspaceDeps finalize callers do not
+// consume.
+func newFinalizeDepsOver(gitClient *gitcli.Client, ghClient *githubcli.Client, repoDir ...string) (app.FinalizeDeps, error) {
+	deps, _, err := newFinalizeDepsGated(gitClient, ghClient, app.NewFinalizeGate, repoDir...)
+	return deps, err
+}
+
+// newFinalizeDepsGated is the shared core over already constructed Git and
+// GitHub clients, so both the standalone builder (newFinalizeDeps, default
 // policies) and the maintenance sweep's builder (newSweepFinalizeDeps, the
 // sweep-only deadlines) thread one policy-carrying client instance into every
 // seam. Every nested seam — the planning engine/reader, the workspace service,
 // the PR prober, the PR batch reader, the gate, and CleanupGit — is built over
 // these exact two clients, so no reachable network path escapes the caller's
-// network policy onto a second default client.
-func newFinalizeDepsOver(gitClient *gitcli.Client, ghClient *githubcli.Client, repoDir ...string) (app.FinalizeDeps, error) {
+// network policy onto a second default client. The local-gate constructor is
+// the ONLY caller-varying piece: finalize wires app.NewFinalizeGate
+// (finalize.test_command), evidence recertify wires app.NewBuildLocalGate
+// (build.test_command, change 0415).
+func newFinalizeDepsGated(gitClient *gitcli.Client, ghClient *githubcli.Client,
+	gate func(app.PlanningDeps, app.WorkspaceDeps) app.FinalizeGate, repoDir ...string) (app.FinalizeDeps, app.WorkspaceDeps, error) {
 	planning, err := newPlanningDepsOver(gitClient, repoDir...)
 	if err != nil {
-		return app.FinalizeDeps{}, err
+		return app.FinalizeDeps{}, app.WorkspaceDeps{}, err
 	}
 	ws, err := workspace.NewService(gitClient)
 	if err != nil {
-		return app.FinalizeDeps{}, err
+		return app.FinalizeDeps{}, app.WorkspaceDeps{}, err
 	}
+	wdeps := app.WorkspaceDeps{Service: ws}
 	return app.FinalizeDeps{
 		Planning:   planning,
 		GitHub:     ghClient,
 		Workspace:  ws,
 		PRProber:   app.NewGitHubFinalizeProber(ghClient),
 		PRBatch:    app.NewSweepPRBatchReader(ghClient),
-		Gate:       app.NewFinalizeGate(planning, app.WorkspaceDeps{Service: ws}),
+		Gate:       gate(planning, wdeps),
 		CleanupGit: gitClient,
-	}, nil
+	}, wdeps, nil
+}
+
+// newRecertifyDeps assembles the seams `evidence recertify` composes: the same
+// finalize wiring with the BUILD-owned local gate (app.NewBuildLocalGate,
+// build.test_command), plus the WorkspaceDeps the evidence operations need.
+func newRecertifyDeps(repoDir string) (app.FinalizeDeps, app.WorkspaceDeps, error) {
+	gitClient, err := gitcli.NewClient()
+	if err != nil {
+		return app.FinalizeDeps{}, app.WorkspaceDeps{}, err
+	}
+	ghClient, err := githubcli.NewClient()
+	if err != nil {
+		return app.FinalizeDeps{}, app.WorkspaceDeps{}, err
+	}
+	return newFinalizeDepsGated(gitClient, ghClient, app.NewBuildLocalGate, repoDir)
 }
