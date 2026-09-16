@@ -101,6 +101,9 @@ func TestCodexFeatureBootstrapAndPrivatePayloadContract(t *testing.T) {
 		}
 	}
 	h := string(handoff)
+	if !strings.Contains(h, "Missing assignment or payload files are controller work") {
+		t.Error("task handoff lets a controller treat not-yet-created provenance files as unavailable")
+	}
 	order := []string{"repository/workspace preparation", "immutable assignment", "prepare the child scope", "private payload", "at `dispatch`"}
 	last := -1
 	for _, phrase := range order {

@@ -62,10 +62,10 @@ Where a meaningful behavioral test is possible:
 verification — starts through the native gate driver.** Start it from the canonical feature
 worktree, and use the task-intent owner: the `gate.drive.start` operation with `--owner task
 --repo-dir <feature-worktree> --change-id <id> --task-id <task-N> --phase build --branch <branch>
---scope-id <id> --child-cap <token> --gate-context <token> --run-root
+--scope-id <id> --child-cap <token> --gate-context <token> --run-epoch <run-epoch> --run-root
 <task-scratch-dir> --json -- <the test command>`. Every identity value comes in your dispatch
-prompt — pass the bundle through unchanged, omitting `--gate-context` only when no dispatch
-context was handed to you; the prepared scope pinned exactly this identity, and the driver
+prompt — pass it unchanged; omit `--gate-context` or `--run-epoch` only when absent. The prepared
+scope pinned exactly this identity, and the driver
 rejects a start that omits or alters any of it. The run root is a scratch dir you pick and read from.
 Capture the drive id and owner generation from that `--json` response before any advance or handoff
 (the shared JSON-capture requirement in `docket-build`'s `references/gate-caller-loop.md`; human

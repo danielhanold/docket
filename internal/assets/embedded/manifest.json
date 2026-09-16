@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:9a919a7175c5ca7afa06a55c95ce8cc19da95bc10c800b831930110b4baaaeea",
+  "asset_set_id": "sha256:38fc661b0c125ba7b83e03bb06dded1a15b05b854f491b5d4c22e23059d00aad",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -266,8 +266,8 @@
       "path": "cursor-rules/run-gate.md",
       "role": "dispatch",
       "mode": 420,
-      "size": 5170,
-      "sha256": "3202b66135b150a129566604a16e8d99a9672a87abce707b84853ba464f5ddd3"
+      "size": 5200,
+      "sha256": "44a2d76fb3248322c0fed67970146b929e851b7ce6d553553de9153b042b6885"
     },
     {
       "path": "skills/docket-adr/SKILL.md",
@@ -301,29 +301,29 @@
       "path": "skills/docket-build-task/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 12765,
-      "sha256": "1ad6289f881105cda0c34ecbbdd2b441113925a0f33ee1a270bfcd91c46c8186"
+      "size": 12755,
+      "sha256": "dd2250e5019f7b4cee5ff4ad0ece76da5df41da3c0beed7297759813921d4395"
     },
     {
       "path": "skills/docket-build/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 28876,
-      "sha256": "4505b15a67fd24feeefeb137bbfcdfb9dd6420e98fe83919109e1c44e20f8216"
+      "size": 28852,
+      "sha256": "d596542e91e0e99afc3b67e310021ccc7711fcc82f1e6dbcf8d1f017207a9fd8"
     },
     {
       "path": "skills/docket-build/references/codex-task-handoff.md",
       "role": "skill",
       "mode": 420,
-      "size": 2787,
-      "sha256": "541556e5d26aee2c937e702fc205bcb172256fe9936884f9c633a9527a6682d5"
+      "size": 2796,
+      "sha256": "49a04f14d47b7f8d3d7d8c388e21bfe490af0a73ece242b21159f1919de25e9c"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",
       "role": "skill",
       "mode": 420,
-      "size": 12367,
-      "sha256": "ba44f93dc386a7babfd985790c9329b3611eff1a2f267711e8c642f83e467aff"
+      "size": 12362,
+      "sha256": "b82290d0b8e55a6ccd97f6ea5b8a0b279f4a01c0ab786f0caea6aa504605aa5f"
     },
     {
       "path": "skills/docket-build/references/gate-execution-evidence.md",

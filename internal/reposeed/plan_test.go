@@ -325,6 +325,7 @@ func TestCodexRootEntryPolicyRoutesByRegistrationMarkers(t *testing.T) {
 		"every registered Docket role uses the harness's top-level native named-agent dispatch",
 		"`[docket worktree: feature]`",
 		"do not select `agent.enter` or another root process",
+		"Pass the run epoch id to `docket-implement-next`",
 		"Keep the caller's gate key and parent capability private",
 		"Retain that exact identity and collect its terminal output",
 	} {

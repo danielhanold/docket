@@ -23,6 +23,26 @@ func TestRunGateFromEmbedded(t *testing.T) {
 	}
 }
 
+// A native implement-next child prepares task scopes, so it needs the outer
+// run epoch as well as the dispatch context. Keeping the epoch only in the
+// parent leaves the child unable to bind prepare-scope/start to cancellation.
+func TestRunGateForwardsEpochToImplementNext(t *testing.T) {
+	c := embeddedCatalog(t)
+	got, err := RunGate(c)
+	if err != nil {
+		t.Fatalf("RunGate: %v", err)
+	}
+	gate := strings.Join(strings.Fields(string(got)), " ")
+	for _, clause := range []string{
+		"copy both the `<epoch>` and `<dispatch-context>` into the dispatch prompt",
+		"child threads `<epoch>` into every `--run-epoch` dispatch flag",
+	} {
+		if !strings.Contains(gate, clause) {
+			t.Errorf("run gate omits epoch handoff clause %q", clause)
+		}
+	}
+}
+
 func TestRunGateMissing(t *testing.T) {
 	c := syntheticCatalog(map[string]string{
 		"cursor-rules/dispatch.head.md": "head\n",

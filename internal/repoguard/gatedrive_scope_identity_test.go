@@ -38,21 +38,21 @@ const (
 // the existing transport flags.
 var requiredScopedStartFlags = []string{
 	"--repo-dir", "--change-id", "--task-id", "--phase", "--branch",
-	"--scope-id", "--child-cap", "--gate-context", "--run-root", "--json",
+	"--scope-id", "--child-cap", "--gate-context", "--run-epoch", "--run-root", "--json",
 }
 
 // requiredStartRowFlags is what the shared contract's start row must document
 // for a scope-bound start (transport flags are documented elsewhere in it).
 var requiredStartRowFlags = []string{
 	"--repo-dir", "--change-id", "--task-id", "--phase", "--branch",
-	"--scope-id", "--child-cap", "--gate-context",
+	"--scope-id", "--child-cap", "--gate-context", "--run-epoch",
 }
 
 // requiredBundleElems is what the controller's dispatch payload must name for
 // the worker (matched case-insensitively against the collapsed block).
 var requiredBundleElems = []string{
 	"feature worktree", "change id", "task id", "phase", "branch",
-	"scope id", "child capability", "dispatch context",
+	"scope id", "child capability", "dispatch context", "run epoch",
 }
 
 var (
@@ -189,7 +189,7 @@ func TestGateDriveScopedStartIdentity(t *testing.T) {
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		full := "run the `gate.drive.start` operation with `--owner task --repo-dir <w> --change-id <id> --task-id <t> --phase build --branch <b> --scope-id <s> --child-cap <c> --gate-context <g> --run-root <r> --json -- <cmd>`"
+		full := "run the `gate.drive.start` operation with `--owner task --repo-dir <w> --change-id <id> --task-id <t> --phase build --branch <b> --scope-id <s> --child-cap <c> --gate-context <g> --run-epoch <e> --run-root <r> --json -- <cmd>`"
 		if !isScopedTaskStartSite(full) {
 			t.Fatalf("a complete scoped task-start invocation was not classified as a site")
 		}
