@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:7941f603877d7caed19a0bd66638f8f1247fcf35415ca701c746266025d184dd",
+  "asset_set_id": "sha256:c99a519e691123fa8714a738ca659848f2d2a95eff7decd70f31f857d2f60c61",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -301,8 +301,8 @@
       "path": "skills/docket-build-task/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 12755,
-      "sha256": "dd2250e5019f7b4cee5ff4ad0ece76da5df41da3c0beed7297759813921d4395"
+      "size": 12775,
+      "sha256": "288d2f1b105ac400e9ebee762bfabd02581011ac2de1d8704466638ae22cfd9a"
     },
     {
       "path": "skills/docket-build/SKILL.md",
@@ -364,8 +364,8 @@
       "path": "skills/docket-convention/references/codex-feature-binding.md",
       "role": "skill",
       "mode": 420,
-      "size": 1956,
-      "sha256": "df7252fee125c0dfb2dae80bc124dd5878b6e538e693949065fe72e27f08216a"
+      "size": 2291,
+      "sha256": "48acfb36327ca3a1b6c7c6e7af283812991df5d89c0f07cb7bf5551790e42356"
     },
     {
       "path": "skills/docket-convention/references/codex-native-dispatch.md",

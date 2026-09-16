@@ -2,6 +2,27 @@ package gatedrive
 
 import "fmt"
 
+// ValidateActiveChildInputs rechecks dispatch ownership without admitting a new
+// launch. The immutable payload's predecessor may have been consumed by this
+// worker's own drive sequence; it is launch authority, not active identity.
+// Acknowledgement and takeover close the scope and invalidate this check.
+func (d *Driver) ValidateActiveChildInputs(req StartRequest) error {
+	scope, err := d.store.LoadScope(req.ScopeID)
+	if err != nil {
+		return err
+	}
+	if scope.Closed {
+		return ownershipErr(ErrScopeClosed, "validate-active-child")
+	}
+	if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
+		return ownershipErr(ErrScopeCapabilityMismatch, "validate-active-child")
+	}
+	if !scopedIdentityMatch(scope, req) {
+		return ownershipErr(ErrScopeIdentityMismatch, "validate-active-child")
+	}
+	return d.validateScopeEpoch(scope, req.RunEpochID, "validate-active-child")
+}
+
 // ValidateChildInputs performs the same read-only scope and predecessor checks
 // as Start, without reserving a slot, minting a drive, or launching a process.
 // Start remains the atomic authority and repeats these checks under its locks.

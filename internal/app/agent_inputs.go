@@ -61,6 +61,7 @@ type AgentInputObserver interface {
 }
 type AgentChildInputValidator interface {
 	ValidateChildInputs(gatedrive.StartRequest) error
+	ValidateActiveChildInputs(gatedrive.StartRequest) error
 	ValidateRecoveredInputs(gatedrive.RecoveredInputs) error
 }
 type AgentWorkspaceValidator interface {
@@ -93,7 +94,7 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 	if err := codexcontract.ValidateResources(a); err != nil {
 		return fail(ResultInvalidInput, "resources-invalid: "+err.Error())
 	}
-	payloadRequired := req.Stage == "dispatch" || (req.Stage == "entry" && assignmentRequiresPrivatePayload(a)) || (req.Stage == "active" && (a.Mode == "resolver" || a.Mode == "repair"))
+	payloadRequired := req.Stage == "dispatch" || ((req.Stage == "entry" || req.Stage == "active") && assignmentRequiresPrivatePayload(a))
 	payloadSupplied := req.Payload != "" || req.PayloadSHA256 != ""
 	var payload codexcontract.WorkerPayload
 	if payloadRequired || payloadSupplied {
@@ -192,7 +193,12 @@ func CheckAgentInputs(ctx context.Context, deps AgentInputDeps, req CheckInputsR
 			if payload.Recovered != nil {
 				err = deps.Scope.ValidateRecoveredInputs(gatedrive.RecoveredInputs{ScopeID: payload.Recovered.ScopeID, DriveID: payload.Recovered.DriveID, OwnerGeneration: payload.Recovered.OwnerGeneration, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, GateContext: payload.GateContext, RunEpochID: payload.RunEpochID, RepoDir: a.CommonDir, Worktree: a.Feature})
 			} else {
-				err = deps.Scope.ValidateChildInputs(gatedrive.StartRequest{RepoDir: a.CommonDir, Worktree: a.Feature, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, Branch: a.Branch, Ref: "refs/heads/" + a.Branch, Cwd: a.Feature, RunRoot: a.RunRoot, ScopeID: payload.ScopeID, ChildCapability: payload.ChildCapability, GateContext: payload.GateContext, RunEpochID: payload.RunEpochID, PredecessorDriveID: payload.PredecessorDriveID, PredecessorOwnerGen: payload.PredecessorOwnerGen})
+				scopeReq := gatedrive.StartRequest{RepoDir: a.CommonDir, Worktree: a.Feature, ChangeID: fmt.Sprint(a.ChangeID), TaskID: a.TaskID, Phase: a.Phase, Branch: a.Branch, Ref: "refs/heads/" + a.Branch, Cwd: a.Feature, RunRoot: a.RunRoot, ScopeID: payload.ScopeID, ChildCapability: payload.ChildCapability, GateContext: payload.GateContext, RunEpochID: payload.RunEpochID, PredecessorDriveID: payload.PredecessorDriveID, PredecessorOwnerGen: payload.PredecessorOwnerGen}
+				if req.Stage == "active" {
+					err = deps.Scope.ValidateActiveChildInputs(scopeReq)
+				} else {
+					err = deps.Scope.ValidateChildInputs(scopeReq)
+				}
 			}
 			if err != nil {
 				return fail(ResultInvalidState, "scope-inputs-invalid: "+err.Error())

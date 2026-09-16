@@ -44,6 +44,7 @@ func (f inputObserver) ObserveAgentInputs(context.Context, codexcontract.Assignm
 type inputScope struct {
 	req   gatedrive.StartRequest
 	calls int
+	err   error
 }
 
 type inputWorkspace struct {
@@ -218,8 +219,9 @@ func TestCheckAgentInputsPlannerAndReviewerRequirePinnedPayloadAtEntry(t *testin
 func (f *inputScope) ValidateChildInputs(r gatedrive.StartRequest) error {
 	f.req = r
 	f.calls++
-	return nil
+	return f.err
 }
+func (*inputScope) ValidateActiveChildInputs(gatedrive.StartRequest) error  { return nil }
 func (*inputScope) ValidateRecoveredInputs(gatedrive.RecoveredInputs) error { return nil }
 
 func TestCheckAgentInputsDispatchValidatesFinalPayloadAgainstScope(t *testing.T) {
@@ -290,4 +292,19 @@ func TestCheckAgentInputsDispatchValidatesFinalPayloadAgainstScope(t *testing.T)
 	if workspace.calls != 1 {
 		t.Fatalf("workspace validation calls=%d", workspace.calls)
 	}
+	t.Run("active requires immutable private payload", func(t *testing.T) {
+		obs.out.EntryDescendant = true
+		r := CheckAgentInputs(context.Background(), AgentInputDeps{Observer: obs, Scope: scope, Workspace: workspace}, CheckInputsRequest{Assignment: assignmentPath, SHA256: ad, Stage: "active", RepoDir: a.Primary})
+		if r.Result != ResultInvalidInput || !strings.Contains(r.Reason, "payload-invalid") {
+			t.Fatalf("active worker bypassed private scope validation: result=%s reason=%s", r.Result, r.Reason)
+		}
+	})
+	t.Run("active does not readmit the initial launch", func(t *testing.T) {
+		obs.out.EntryDescendant = true
+		scope.err = &gatedrive.OwnershipError{Kind: gatedrive.ErrScopeSecondDrive, Op: "start"}
+		r := CheckAgentInputs(context.Background(), AgentInputDeps{Observer: obs, Scope: scope, Workspace: workspace}, CheckInputsRequest{Assignment: assignmentPath, SHA256: ad, Stage: "active", Payload: payloadPath, PayloadSHA256: hex.EncodeToString(ps[:]), RepoDir: a.Primary})
+		if r.Result != ResultApplied {
+			t.Fatalf("active worker re-ran launch admission: result=%s reason=%s", r.Result, r.Reason)
+		}
+	})
 }

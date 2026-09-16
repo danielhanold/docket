@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/codexcontract"
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/testsupport"
 )
@@ -133,6 +134,17 @@ func TestIntegrationWorkflowAgentInputReviewRegressions(t *testing.T) {
 			}
 			deps.Workspace = &inputWorkspace{}
 			req := CheckInputsRequest{Assignment: path, SHA256: digest, Stage: stage, RepoDir: primary}
+			if stage == "active" {
+				store := gatedrive.OpenStore(a.CommonDir)
+				grant, err := store.PrepareScope(gatedrive.ScopeRequest{RepoIdentity: a.CommonDir, Worktree: a.Feature, ChangeID: "425", TaskID: a.TaskID, Phase: a.Phase, Branch: a.Branch})
+				if err != nil {
+					t.Fatal(err)
+				}
+				deps.Scope = gatedrive.NewSystemDriver(store, nil)
+				payload := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: "worker", AssignmentPath: path, AssignmentSHA256: digest, EntryArgv: codexcontract.EntryCheckerArgv(a, path, digest), TaskText: "implement task", ScopeID: grant.ScopeID, ChildCapability: grant.ChildCapability}
+				req.Payload = filepath.Join(root, "payload.json")
+				req.PayloadSHA256 = reviewPin(t, req.Payload, payload)
+			}
 			if strings.HasPrefix(scenario, "review-") {
 				payload := codexcontract.WorkerPayload{SchemaVersion: 1, Kind: "review", AssignmentPath: path, AssignmentSHA256: digest, EntryArgv: codexcontract.EntryCheckerArgv(a, path, digest), TaskText: "review the pinned head"}
 				payloadBytes, err := json.Marshal(payload)
@@ -153,6 +165,12 @@ func TestIntegrationWorkflowAgentInputReviewRegressions(t *testing.T) {
 			}
 			if scenario != "committed-owned-path" && r.Result == ResultApplied {
 				t.Fatalf("required rejection missing: %s returned applied", scenario)
+			}
+			if scenario == "committed-unowned-path" && r.Reason != "unowned-active-path" {
+				t.Fatalf("unowned commit rejected for wrong reason: %s", r.Reason)
+			}
+			if scenario == "non-descendant-head" && r.Reason != "head-not-descendant" {
+				t.Fatalf("non-descendant commit rejected for wrong reason: %s", r.Reason)
 			}
 		})
 	}
