@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/native-codex-acceptance-for-active-worker-validation'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-16T11:38:22Z'
+reconciled: true
+claimed_at: '2026-09-16T11:41:36Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ On the published change 425 base, create internal/nativeacceptance/value.go and 
 ## Out of scope
 
 Do not merge, resume or reset change 430, modify unrelated changes, or weaken scope/input validation.
+
+## Reconcile log
+
+### 2026-09-16
+
+2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
