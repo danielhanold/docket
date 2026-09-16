@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:4768ccdd69e83367510fa62710256befeb5274e5522dc1dc1684f5c77869a570",
+  "asset_set_id": "sha256:3618fe8db4a00c6aee7181f90a31387c2a601526b612ea00cd2226200e03233e",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -301,8 +301,8 @@
       "path": "skills/docket-build-task/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 12788,
-      "sha256": "b46ebdb2c5e327e4d895ee3f19eafd4fd9d0756e4eea66f93ca8a556a94e8d1b"
+      "size": 12869,
+      "sha256": "db7b76e40e2d79b9e9e6ebfcbaa226d286275dd7b3564a65835097653ff9de89"
     },
     {
       "path": "skills/docket-build/SKILL.md",
@@ -310,6 +310,13 @@
       "mode": 420,
       "size": 28852,
       "sha256": "d596542e91e0e99afc3b67e310021ccc7711fcc82f1e6dbcf8d1f017207a9fd8"
+    },
+    {
+      "path": "skills/docket-build/references/codex-gate-transport.md",
+      "role": "skill",
+      "mode": 420,
+      "size": 2402,
+      "sha256": "fd23737e900bdef5b3ee302fc7cabec5487446f53b937775f26dd49788aa4f32"
     },
     {
       "path": "skills/docket-build/references/codex-task-handoff.md",
@@ -322,8 +329,8 @@
       "path": "skills/docket-build/references/gate-caller-loop.md",
       "role": "skill",
       "mode": 420,
-      "size": 12362,
-      "sha256": "b82290d0b8e55a6ccd97f6ea5b8a0b279f4a01c0ab786f0caea6aa504605aa5f"
+      "size": 12483,
+      "sha256": "ad3c8b48441458604c7f2138c5b776b9c3290d74f2798abeaf1ba65714a15f35"
     },
     {
       "path": "skills/docket-build/references/gate-execution-evidence.md",
@@ -336,8 +343,8 @@
       "path": "skills/docket-build/references/gate-execution.md",
       "role": "skill",
       "mode": 420,
-      "size": 9940,
-      "sha256": "de99c99749ceb5a79d1d6e5130f95ea189b7db1a173c6ae3a9ae88712d8edd4e"
+      "size": 10151,
+      "sha256": "e997aa0a4897348d429ac06e96b4a5773c3de0d71d608dff02dd9bfc08ecd68a"
     },
     {
       "path": "skills/docket-build/references/task-routing.md",
