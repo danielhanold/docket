@@ -1610,18 +1610,46 @@ func validFullObjectID(s string) bool {
 type processFinalizeGate struct {
 	planning PlanningDeps
 	wdeps    WorkspaceDeps
+	// owner selects which role's test command and drive-service constructor the
+	// seam composes: gateOwnerFinalize (finalize.test_command) or gateOwnerBuild
+	// (build.test_command — `evidence recertify`, change 0415). The command
+	// choice is a domain boundary (ADR-0102): each owner reads ONLY its own key.
+	owner string
 }
 
 // finalizeLocalGatePhase names the workflow phase a finalize local-gate drive
 // certifies. It is recorded on the drive record only.
 const finalizeLocalGatePhase = "finalize-local-gate"
 
+// Gate seam owners. The zero value is treated as finalize for safety, but both
+// constructors set the field explicitly.
+const (
+	gateOwnerFinalize = "finalize"
+	gateOwnerBuild    = "build"
+)
+
+// recertifyGatePhase names the workflow phase a build-owned recertify drive
+// certifies. It is recorded on the drive record only; the suite-attempt budget
+// key uses the literal phase "build" regardless (reserveBuildSuiteAttempt), so
+// a recertify charges the change's one build budget.
+const recertifyGatePhase = "evidence-recertify-gate"
+
 // NewFinalizeGate builds the production local-gate seam over the planning and
 // workspace dependencies the CLI already assembled. The gate reads the resolved
 // finalize.test_command and observation budget from authoritative config; it
 // never takes an agent-supplied command.
 func NewFinalizeGate(planning PlanningDeps, wdeps WorkspaceDeps) FinalizeGate {
-	return &processFinalizeGate{planning: planning, wdeps: wdeps}
+	return &processFinalizeGate{planning: planning, wdeps: wdeps, owner: gateOwnerFinalize}
+}
+
+// NewBuildLocalGate builds the production local-gate seam for the BUILD role
+// (`evidence recertify`, change 0415). It reads ONLY build.test_command through
+// NewBuildGateDriveService — never finalize's — and otherwise behaves exactly
+// like the finalize seam: one slice per RunLocalGate call, WAITING carries the
+// continuation, PASSED mints evidence through the landed evidence-record path,
+// and every uncertainty is a halt, never a fabricated red.
+func NewBuildLocalGate(planning PlanningDeps, wdeps WorkspaceDeps) FinalizeGate {
+	return &processFinalizeGate{planning: planning, wdeps: wdeps, owner: gateOwnerBuild}
 }
 
 // RunLocalGate advances the resolved suite by one driver slice. With no
@@ -1645,11 +1673,15 @@ func (g *processFinalizeGate) RunLocalGate(ctx context.Context, req LocalGateReq
 		if err != nil {
 			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}, nil
 		}
+		phase := finalizeLocalGatePhase
+		if g.owner == gateOwnerBuild {
+			phase = recertifyGatePhase
+		}
 		out = svc.Start(GateDriveStartRequest{
 			RepoDir:             req.WorkspaceDir,
 			Worktree:            req.WorkspaceDir,
 			ChangeID:            strconv.Itoa(req.ID),
-			Phase:               finalizeLocalGatePhase,
+			Phase:               phase,
 			Cwd:                 req.WorkspaceDir,
 			RunRoot:             runRoot,
 			IdempotentSuiteGate: true,
@@ -1672,7 +1704,16 @@ func (g *processFinalizeGate) RunLocalGate(ctx context.Context, req LocalGateReq
 // closed (ok=false) so the caller returns a halt, never a fabricated red.
 func (g *processFinalizeGate) buildDriveService(ctx context.Context, repoDir string) (*GateDriveService, bool) {
 	pin, err := g.planning.Reader.PinContext(ctx, repoDir)
-	if err != nil || pin.Config.Effective.Finalize.TestCommand.Value == "" {
+	if err != nil {
+		return nil, false
+	}
+	// Each owner reads ONLY its own test_command (ADR-0102); the guard below and
+	// the constructor selection key on the same owner so they cannot diverge.
+	command := pin.Config.Effective.Finalize.TestCommand.Value
+	if g.owner == gateOwnerBuild {
+		command = pin.Config.Effective.Build.TestCommand.Value
+	}
+	if command == "" {
 		return nil, false
 	}
 	repo, err := g.planning.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
@@ -1683,9 +1724,12 @@ func (g *processFinalizeGate) buildDriveService(ctx context.Context, repoDir str
 	if err != nil {
 		return nil, false
 	}
-	// Finalize's gate is finalize-owned: it reads ONLY finalize.test_command
-	// (the guard above pins the same key), never build's.
-	svc, _, _ := NewFinalizeGateDriveService(repo.CommonDir, exe, pin.Config.Effective)
+	var svc *GateDriveService
+	if g.owner == gateOwnerBuild {
+		svc, _, _ = NewBuildGateDriveService(repo.CommonDir, exe, pin.Config.Effective)
+	} else {
+		svc, _, _ = NewFinalizeGateDriveService(repo.CommonDir, exe, pin.Config.Effective)
+	}
 	if svc == nil {
 		return nil, false
 	}
