@@ -14,7 +14,7 @@ discovered_from: [154]
 adrs: [102]
 spec: 'docs/superpowers/specs/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-design.md'
 plan: 'docs/superpowers/plans/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl.md'
-results:
+results: 'docs/results/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-16T15:47:57Z'
 |---|---|
 | Spec | [2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-design.md) |
 | Plan | [2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl.md](https://github.com/danielhanold/docket/blob/feat/support-in-place-build-evidence-re-certification-for-an-impl/docs/superpowers/plans/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl.md) |
+| Results | [2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-results.md](https://github.com/danielhanold/docket/blob/feat/support-in-place-build-evidence-re-certification-for-an-impl/docs/results/2026-09-16-support-in-place-build-evidence-re-certification-for-an-impl-results.md) |
 | ADRs | [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
