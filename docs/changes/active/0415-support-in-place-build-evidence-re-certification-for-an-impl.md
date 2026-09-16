@@ -2,7 +2,7 @@
 id: 415
 slug: 'support-in-place-build-evidence-re-certification-for-an-impl'
 title: 'Support in-place build-evidence re-certification for an implemented change'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-09'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/support-in-place-build-evidence-re-certification-for-an-impl'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-16T15:24:35Z'
 ---
 
 ## Artifacts
