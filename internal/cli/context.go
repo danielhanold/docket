@@ -42,16 +42,18 @@ func newContextCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
+			resume, _ := c.Flags().GetBool("resume")
 			deps, err := newPlanningDeps()
 			if err != nil {
 				return err
 			}
-			setResult(app.ContextImplementation(c.Context(), deps, repoDir, app.ImplementationContextRequest{ID: id}))
+			setResult(app.ContextImplementation(c.Context(), deps, repoDir, app.ImplementationContextRequest{ID: id, Resume: resume}))
 			return nil
 		},
 	}
 	implementation.Flags().String("repo-dir", "", "repository `dir` to read (default: current directory)")
 	implementation.Flags().Int("id", 0, "inspect this exact change `id` instead of applying the selection policy")
+	implementation.Flags().Bool("resume", false, "inspect an explicitly named in-progress change without granting fresh-claim eligibility")
 
 	finalize := &cobra.Command{
 		Use:         "finalize",
