@@ -3,12 +3,45 @@ package gatedrive
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/testsupport"
 )
+
+func TestEpochStartRequiresScopeBeforeAdmission(t *testing.T) {
+	for _, incumbent := range []bool{false, true} {
+		t.Run(fmt.Sprint(incumbent), func(t *testing.T) {
+			store := OpenStore(testsupport.TempDir(t))
+			_, req := prepareScopedStart(t, store)
+			req.ScopeID, req.ChildCapability, req.RunEpochID = "", "", "replacement"
+			if incumbent {
+				old := sampleAdmission(req.Worktree)
+				old.RunEpochID = "previous"
+				token, err := store.ReserveWorktreeExecution(old)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := store.ReleaseWorktreeExecution(req.Worktree, token); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before, generation, _ := store.LoadWorktreeExecution(req.Worktree)
+			d := scopedTestDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+			_, err := d.Start(req)
+			oe, ok := AsOwnershipError(err)
+			if !ok || string(oe.Kind) != "epoch-scope-required" {
+				t.Fatalf("want actionable scope refusal, got %v", err)
+			}
+			after, nextGeneration, _ := store.LoadWorktreeExecution(req.Worktree)
+			if after != before || nextGeneration != generation {
+				t.Fatal("invalid request changed admission")
+			}
+		})
+	}
+}
 
 func TestReplacementAdmissionRequiresReleasedProvenEpoch(t *testing.T) {
 	for _, tc := range []string{"valid", "busy", "no-proof", "false-proof", "failed-proof", "missing-epoch", "unbound-scope"} {

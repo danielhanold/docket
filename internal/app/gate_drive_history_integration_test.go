@@ -26,7 +26,10 @@ import (
 // never launched, and another resume. The slot can lag multiple epochs.
 func TestIntegrationBuildStartAfterCancelledResumeChain(t *testing.T) {
 	requireProcessSupervisor(t)
-	worktree, common := initGitRepo(t, "")
+	primary, common := initGitRepo(t, "")
+	runGit(t, primary, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--allow-empty", "-m", "base")
+	worktree := filepath.Join(testsupport.TempDir(t), "feature")
+	runGit(t, primary, "worktree", "add", "-b", "fix/replacement", worktree, "HEAD")
 	store := gatedrive.OpenStore(common)
 	key, err := MintGateRecord(worktree, GateRecord{Target: gateBeforeStoredTarget, AttemptLimit: 2, Retry: RetryUnused, Disposition: "gate-armed", AttributedID: 5, ScopeID: "outer", ParentCap: "parent"})
 	if err != nil {
@@ -39,17 +42,17 @@ func TestIntegrationBuildStartAfterCancelledResumeChain(t *testing.T) {
 	if err := bindEpochWorktree(worktree, key, worktree); err != nil {
 		t.Fatal(err)
 	}
-	svc, res, reason := NewTaskGateDriveService(common, guardianExecutable(t), buildEffWithMaxAttempts("/bin/echo hi", 4), []string{"/bin/echo", "hi"})
+	svc, res, reason := NewBuildGateDriveService(common, guardianExecutable(t), buildEffWithMaxAttempts("/bin/echo hi", 4))
 	if svc == nil {
 		t.Fatalf("service: %s %s", res, reason)
 	}
 	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
 	start := func(epoch string) GateDriveResult {
-		scope := svc.PrepareScope(gatedrive.ScopeRequest{RepoIdentity: worktree, Worktree: worktree, ChangeID: "5", TaskID: "task", Phase: "build", Branch: "fix/x", RunEpochID: epoch})
+		scope := svc.PrepareScope(gatedrive.ScopeRequest{RepoIdentity: common, Worktree: worktree, ChangeID: "5", TaskID: "task", Phase: "build", Branch: "fix/replacement", RunEpochID: epoch, RunRoot: runRoot})
 		if scope.ScopeID == "" {
 			t.Fatalf("scope: %+v", scope)
 		}
-		return svc.Start(GateDriveStartRequest{RepoDir: worktree, Worktree: worktree, ChangeID: "5", TaskID: "task", Phase: "build", Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: worktree, RunRoot: runRoot, ScopeID: scope.ScopeID, ChildCapability: scope.ChildCapability, RunEpochID: epoch})
+		return svc.Start(GateDriveStartRequest{RepoDir: common, Worktree: worktree, ChangeID: "5", TaskID: "task", Phase: "build", Branch: "fix/replacement", Ref: "HEAD", Cwd: worktree, RunRoot: runRoot, ScopeID: scope.ScopeID, ChildCapability: scope.ChildCapability, RunEpochID: epoch})
 	}
 	first := start(ep.EpochID)
 	if first.Result != ResultApplied || first.Drive == nil || first.Drive.Outcome != gatedrive.PASSED {
@@ -72,12 +75,23 @@ func TestIntegrationBuildStartAfterCancelledResumeChain(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	missingScope := svc.Start(GateDriveStartRequest{RepoDir: common, Worktree: worktree, ChangeID: "5", Phase: "build", Branch: "fix/replacement", Ref: "HEAD", Cwd: worktree, RunRoot: runRoot, RunEpochID: ep.EpochID})
+	if missingScope.Reason != "epoch-scope-required" || missingScope.Message == "" || missingScope.Drive != nil {
+		t.Fatalf("scope omission must explain the remedy without a drive: %+v", missingScope)
+	}
+	budgetKey := gatedrive.SuiteBudgetKey{RepoIdentity: common, ChangeID: "5", Phase: "build"}
+	if used, limit, err := store.SuiteBudgetUsage(budgetKey); err != nil || used != 1 || limit != 4 {
+		t.Fatalf("refusal charged or reset budget: %d/%d %v", used, limit, err)
+	}
 	last := start(ep.EpochID)
 	if last.Result != ResultApplied || last.Drive == nil || last.Drive.Outcome != gatedrive.PASSED {
 		t.Fatalf("replacement must launch over released ancestor slot: %+v", last)
 	}
 	if n := countRunDirs(t, runRoot); n != 2 {
 		t.Fatalf("launched %d runs, want exactly original and replacement", n)
+	}
+	if used, limit, err := store.SuiteBudgetUsage(budgetKey); err != nil || used != 2 || limit != 4 {
+		t.Fatalf("replacement budget: %d/%d %v", used, limit, err)
 	}
 }
 

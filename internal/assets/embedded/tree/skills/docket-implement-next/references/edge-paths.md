@@ -32,8 +32,11 @@ The transaction reprobes branch/workspace/live gate, refreshes the claim and rem
 only the halt section. Missing acknowledgement, version drift or a live writer refuses
 without mutation. After success, re-read the same resume context for the new version
 and metadata revision; refresh workspace binding before scopes or assignments.
-With the marker already absent under a valid continuation, inspect ownership and
-continue checkpoints without replaying resume-halted. Refused/malformed/foreign/missing
+If the marker is absent, a parent-authorized replacement resume, keyed retry, or valid
+continuation inspects ownership and continues verified checkpoints without replaying
+resume-halted. A retry has no continuation id and does not invoke run.gate-claim;
+an actual handoff retains that first-act requirement. Absent markers grant no authority.
+Refused/malformed/foreign/missing
 context halts; never substitute fresh claim, a hand-read version or a hand-deleted marker.
 
 ### Gate epoch and checkpoints
