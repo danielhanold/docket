@@ -10,6 +10,34 @@ import (
 // readBlobsOp labels the batch-blob-read surface in any Failure.
 const readBlobsOp Operation = "read-blobs"
 
+// ReadBlobObjects batches already-resolved blob IDs. Unlike ReadBlobs it has no
+// path/mode information; missing or non-blob objects fail the entire read.
+func (c *Client) ReadBlobObjects(ctx context.Context, repo Repository, ids []ObjectID) ([]Blob, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var input bytes.Buffer
+	for _, id := range ids {
+		if err := validateObjectID(id); err != nil {
+			return nil, newFailure(readBlobsOp, KindInvalidRequest, "invalid blob id", err)
+		}
+		input.WriteString(string(id))
+		input.WriteByte('\n')
+	}
+	res, fail := c.run(ctx, runRequest{op: readBlobsOp, dir: repo.PrimaryWorktree, args: []string{"cat-file", "--batch", "--buffer"}, stdin: input.Bytes()})
+	if fail != nil {
+		return nil, fail
+	}
+	if res.exitCode != 0 {
+		return nil, newFailure(readBlobsOp, KindCommandFailed, "blob batch failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
+	blobs, err := parseBatchBlobs(res.stdout, ids)
+	if err != nil {
+		return nil, newFailure(readBlobsOp, KindInvalidOutput, "malformed blob batch", err)
+	}
+	return blobs, nil
+}
+
 // ReadBlobs reads the exact bytes of each requested path at the pinned commit.
 // The whole input set is validated before any work: every path must satisfy the
 // strict repo-path rules and no path may be requested twice (either is
