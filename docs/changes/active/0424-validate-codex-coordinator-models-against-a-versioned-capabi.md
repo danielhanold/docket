@@ -2,7 +2,7 @@
 id: 424
 slug: 'validate-codex-coordinator-models-against-a-versioned-capabi'
 title: 'Validate Codex coordinator models against a versioned capability registry'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'feat'
 created: '2026-09-11'
@@ -18,11 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/validate-codex-coordinator-models-against-a-versioned-capabi'
 pr:
 blocked_by:
 reconciled: false
-claimed_at:
+claimed_at: '2026-09-17T21:38:00Z'
 ---
 
 ## Artifacts
