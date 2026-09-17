@@ -2,11 +2,11 @@
 id: 430
 slug: 'native-codex-acceptance-for-durable-review-evidence'
 title: 'Native Codex acceptance for durable review evidence'
-status: 'in-progress'
+status: 'killed'
 priority: 'low'
 type: 'chore'
 created: '2026-09-16'
-updated: '2026-09-16'
+updated: '2026-09-17'
 depends_on: []
 stacked_on: 425
 related: [425]
@@ -18,11 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch: 'chore/native-codex-acceptance-for-durable-review-evidence'
+branch:
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-16T10:53:22Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,7 +31,7 @@ claimed_at: '2026-09-16T10:53:22Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md) |
-| Plan | [2026-09-16-native-codex-acceptance-for-durable-review-evidence-plan.md](https://github.com/danielhanold/docket/blob/chore/native-codex-acceptance-for-durable-review-evidence/docs/superpowers/plans/2026-09-16-native-codex-acceptance-for-durable-review-evidence-plan.md) |
+| Plan | [2026-09-16-native-codex-acceptance-for-durable-review-evidence-plan.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-16-native-codex-acceptance-for-durable-review-evidence-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -57,3 +57,7 @@ Do not merge the acceptance PR or modify unrelated changes. This is a branch-sco
 ### 2026-09-16
 
 The native scoped worker committed 6aa8e33f727dd2df581d6cd04d3e6f56cb685f62 after red and green focused gates. Its final active input check refused because it acknowledged the gate scope before the required active recheck, closing the scope. The controller cannot reopen that scope without parent capability, so child provenance is incomplete. No reviewer, full build gate, evidence record, results attachment, PR publication, or implemented transition was attempted.
+
+## Why killed
+
+Abandoned at the user's request after replacement acceptance change 431 completed successfully and PR #309 merged into the change 425 parent branch. Change 430 halted on incomplete native worker provenance and is superseded as an acceptance attempt by 431. Preserve its halted-run history, committed failed fixture, and branch/worktree evidence; this archive does not mark its incomplete run as successful or merge its code.

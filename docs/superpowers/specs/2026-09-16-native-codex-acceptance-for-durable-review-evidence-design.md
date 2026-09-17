@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0430 — Native Codex acceptance for durable review evidence](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0430-native-codex-acceptance-for-durable-review-evidence.md)**
+> ↩ **[Change 0430 — Native Codex acceptance for durable review evidence](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-17-0430-native-codex-acceptance-for-durable-review-evidence.md)**
 <!-- docket:backlink:end -->
 
 # Native Codex acceptance for durable review evidence
