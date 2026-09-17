@@ -1,11 +1,12 @@
 # Backlog
 
-**432 changes** — 🟢 4 in progress · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 113 killed
+**432 changes** — 🟢 5 in progress · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 113 killed
 
-## 🟢 In progress (4)
+## 🟢 In progress (5)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
+| [0432](active/0432-complete-native-codex-runner.md) | Complete native Codex runner | `critical` | `fix` | [spec](../superpowers/specs/2026-09-16-complete-native-codex-runner-design.md) | `fix/complete-native-codex-runner` |  |
 | [0431](active/0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | `low` | `chore` | [spec](../superpowers/specs/2026-09-16-native-codex-acceptance-for-active-worker-validation-design.md) | `chore/native-codex-acceptance-for-active-worker-validation` | run halted — needs you |
 | [0430](active/0430-native-codex-acceptance-for-durable-review-evidence.md) | Native Codex acceptance for durable review evidence | `low` | `chore` | [spec](../superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md) | `chore/native-codex-acceptance-for-durable-review-evidence` | run halted — needs you |
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
@@ -19,11 +20,10 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (18)
+## 🟡 Proposed (17)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0432](active/0432-complete-native-codex-runner.md) | Complete native Codex runner | `critical` | `fix` | ⏳ waiting on #0431 — stack base not built |
 | [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | ⏳ waiting on #425 — not yet built |
 | [0426](active/0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | `high` | `refactor` | ⏳ waiting on #425 — not yet built |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |

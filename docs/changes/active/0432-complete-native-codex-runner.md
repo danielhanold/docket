@@ -2,11 +2,11 @@
 id: 432
 slug: 'complete-native-codex-runner'
 title: 'Complete native Codex runner'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-16'
-updated: '2026-09-16'
+updated: '2026-09-17'
 depends_on: []
 stacked_on: 431
 related: [425, 412]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/complete-native-codex-runner'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-17T09:57:10Z'
 ---
 
 ## Artifacts
