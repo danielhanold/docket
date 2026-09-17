@@ -47,6 +47,15 @@ It uses actual CLI producers, the taught receipt checker, Git, scope validation 
 canonical evidence operations. Model-level tool cell/session loss and fresh-session role
 loading still require native observation; shell chunk tests do not certify those layers.
 
+## Budget follow-up
+
+The first post-repair full suite passed all 56 files and 460 assertions. Serial
+confirmation of its parallel screening findings found the existing workflow shard
+at 68 seconds, exceeding its 67.5-second confirmation threshold. The unchanged
+native input-validation tests were reassigned by prefix to the existing agent-metadata
+shard, their topical home. No assertions were removed and no budget ceiling increased;
+the integration partition contract still requires complete, exactly-once coverage.
+
 ## Final source gate and candidate
 
 The configured command is `go run ./cmd/docket development test` for both build and
