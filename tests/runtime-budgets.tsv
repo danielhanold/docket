@@ -73,3 +73,4 @@ tests/test_release_downloader.sh	10	parallel
 tests/test_release_downloader_converge.sh	10	parallel
 tests/test_release_downloader_refusals.sh	10	parallel
 tests/test_sync_integration_wiring.sh	10	parallel
+tests/test_go_finalize_native_e2e.sh	60	parallel

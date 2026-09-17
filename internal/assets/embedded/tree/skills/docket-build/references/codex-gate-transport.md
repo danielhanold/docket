@@ -28,9 +28,9 @@ Required completion sequence:
    max_output_tokens: 12000})` through `functions.exec`, again emitting the whole result
    with `text(...)`. Collect every output chunk until the shell reports a terminal
    `exit_code` with no live session. Apply step 1 to each code-mode call as needed.
-3. Parse the accumulated command output as the protocol receipt and validate the operation
-   and required fields from the caller contract. A complete `WAITING` receipt now authorizes
-   `advance` or handoff; empty output while the command was live authorized only step 2.
+3. Validate accumulated stdout, stderr and terminal exit through `agent.check-receipt`
+   using [checked receipt consumption](receipt-semantics.md). A checked `WAITING` authorizes
+   advance or handoff; empty live output authorizes only step 2.
 
 `text(gateCall.output)` discards the shell session and exit status and is not a valid
 capture wrapper. A longer initial wait is not a repair: a slice plus fingerprinting and
