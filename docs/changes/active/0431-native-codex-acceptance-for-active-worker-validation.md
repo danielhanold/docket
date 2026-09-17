@@ -2,7 +2,7 @@
 id: 431
 slug: 'native-codex-acceptance-for-active-worker-validation'
 title: 'Native Codex acceptance for active worker validation'
-status: 'implemented'
+status: 'stacked-merged'
 priority: 'low'
 type: 'chore'
 created: '2026-09-16'
@@ -53,3 +53,13 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
 
+## Closeout notes
+
+### Verification
+
+- Final gate passed at f6695e5f8fbb198ba9458d40cfeb215a2af928bc with the configured command `go run ./cmd/docket development test`.
+- The direct full suite passed 56 files and 460 assertions.
+
+### Late findings
+
+- The suite's serial confirmation measured tests/test_go_integration_app_closeout.sh at 61s against its 60s threshold. The human explicitly authorized this one-second timing exception for change 431 closeout; the budget policy was not changed.
