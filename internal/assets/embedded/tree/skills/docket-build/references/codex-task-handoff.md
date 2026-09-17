@@ -16,8 +16,6 @@ else
 fi
 ```
 
-Observe the original shell session to terminal. Validate with agent.check-receipt: pinned assignment/digest, operation, both files and --exit-code "$gate_rc". Never rerun an operation to recover output. Apply this to prepare-scope, start, advance, acknowledge, handoff, claim and takeover.
+Observe the original shell session to terminal. Follow [checked receipt consumption](receipt-semantics.md) for every operation, including facade continuation. Never rerun an operation to recover output. Prepare-scope returns top-level scope_id, child_capability and parent_capability. Drive receipts nest drive_id, generation and outcome under drive; run.gate-claim does not. Transfers omit run_root; terminal start/advance require the assigned run root. PASSED transfers retain contained raw_run_dir. A diagnostic HALTED may omit generation, deadline and paths; it authorizes no continuation.
 
-Prepare-scope fields are top-level scope_id, child_capability, parent_capability; drive fields are nested drive.drive_id, drive.generation, drive.outcome. Terminal start/advance/acknowledge require the assigned run root; PASSED includes contained raw_run_dir. Transfers omit run_root; PASSED transfers retain contained raw_run_dir. A diagnostic HALTED may omit generation, deadline and paths; it authorizes no continuation. WAITING omits paths; FAILED with nonzero exit is valid. Invalid receipts halt with original stdout/stderr/status retained.
-
-WAITING continues one drive: handoff, claim, advance with new generation. Claim/takeover close the old scope. Record recovered terminal work separately. Later tests use fresh quiescent scopes without closed-scope predecessors. Commit-only continuations carry validated recovered evidence, not rerun tests. Final acknowledgement consumes the current terminal result.
+A successful claim already grants fresh owner authority: advance, never claim twice. Claim/takeover closes the old scope; recovered controllers consume evidence without final acknowledgement on that scope. Later tests use fresh quiescent scopes. Uninterrupted workers commit, validate active inputs, then acknowledge; no writes follow acknowledgement.

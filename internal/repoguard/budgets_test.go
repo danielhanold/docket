@@ -161,6 +161,7 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/codex-gate-transport.md", 42, 339},
 	{"docket-build/references/codex-task-handoff.md", 30, 350},
+	{"docket-build/references/receipt-semantics.md", 50, 490}, // 0432: checked facade and drive consumption, shared by worker and coordinator.
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 188, 1964}, // 0405: sequential-drive receipt and acknowledgement; 0420: shell-safe capture; 0375: worktree-busy-not-a-retry rule (179/1842 -> 188/1964)
 	{"docket-convention/SKILL.md", 400, 7969}, // 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)

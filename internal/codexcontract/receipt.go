@@ -12,6 +12,13 @@ import (
 )
 
 type Receipt struct {
+	Authority        string              `json:"authority,omitempty"`
+	NextOperation    string              `json:"next_operation,omitempty"`
+	Decision         string              `json:"decision,omitempty"`
+	DriveID          string              `json:"drive_id,omitempty"`
+	Generation       string              `json:"generation,omitempty"`
+	Phase            string              `json:"phase,omitempty"`
+	Outcome          string              `json:"outcome,omitempty"`
 	Operation        string              `json:"operation"`
 	Result           string              `json:"result"`
 	Classification   string              `json:"classification"`
@@ -26,8 +33,37 @@ type Receipt struct {
 	Message          string              `json:"message,omitempty"`
 }
 
-func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignment Assignment) (Receipt, error) {
+// ReceiptExpectation pins identity exposed by the public receipt. Drive receipts
+// do not expose phase; callers validate that through their existing assignment.
+type ReceiptExpectation struct{ DriveID, Phase string }
+
+func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignment Assignment, expected ...ReceiptExpectation) (receipt Receipt, err error) {
+	if len(expected) > 1 {
+		return receipt, fmt.Errorf("multiple receipt expectations")
+	}
+	defer func() {
+		if err != nil || len(expected) == 0 {
+			return
+		}
+		id, phase := receipt.DriveID, receipt.Phase
+		if receipt.Drive != nil {
+			id = receipt.Drive.DriveID
+		}
+		if expected[0].DriveID != "" && id != "" && expected[0].DriveID != id {
+			err = fmt.Errorf("receipt drive does not match expected drive")
+		}
+		if expected[0].Phase != "" && phase != "" && expected[0].Phase != phase {
+			err = fmt.Errorf("receipt phase does not match expected phase")
+		}
+		if err != nil {
+			receipt.Authority = ""
+			receipt.NextOperation = ""
+		}
+	}()
 	r := Receipt{Operation: operation, Stdout: append([]byte(nil), stdout...), Stderr: append([]byte(nil), stderr...), ExitCode: exitCode}
+	if operation == "run.gate-claim" {
+		return parseClaimReceipt(r)
+	}
 	var wire struct {
 		ProtocolVersion  int                 `json:"protocol_version"`
 		Operation        string              `json:"operation"`
@@ -118,6 +154,17 @@ func ParseReceipt(operation string, stdout, stderr []byte, exitCode int, assignm
 		}
 	default:
 		return r, fmt.Errorf("unsupported receipt operation %q", operation)
+	}
+	// Authority describes the captured operation, not current backend ownership.
+	r.Authority = "owner"
+	if operation == "gate.drive.handoff" {
+		r.Authority = "handoff"
+	}
+	if operation == "gate.drive.prepare-scope" || operation == "gate.drive.acknowledge" {
+		r.Authority = ""
+	}
+	if operation == "gate.drive.claim" || operation == "gate.drive.takeover" || (r.Drive != nil && r.Drive.Outcome == gatedrive.WAITING && r.Authority == "owner") {
+		r.NextOperation = "gate.drive.advance"
 	}
 	return r, nil
 }

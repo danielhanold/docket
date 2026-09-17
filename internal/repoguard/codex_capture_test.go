@@ -31,20 +31,29 @@ func TestCodexGateCaptureLiteralPreservesFirstResponse(t *testing.T) {
 		for _, tc := range []struct {
 			name, stdout, stderr string
 			exit                 int
-		}{{"failed-json", `{"result":"gate-failed"}`, "diagnostic", 1}, {"invalid-json", `{`, "parse diagnostic", 2}} {
+			chunked              bool
+		}{{"failed-json", `{"result":"gate-failed"}`, "diagnostic", 1, false}, {"invalid-json", `{`, "parse diagnostic", 2, false}, {"chunked-json", `{"result":"applied"}`, "first/last", 0, true}, {"empty-terminal", "", "empty", 0, true}} {
 			t.Run(shell+"/"+tc.name, func(t *testing.T) {
 				dir := testsupport.TempDir(t)
 				gate := filepath.Join(dir, "gate")
-				body := "#!/bin/sh\nprintf '%s' '" + tc.stdout + "'\nprintf '%s' '" + tc.stderr + "' >&2\nexit " + strconv.Itoa(tc.exit) + "\n"
+				body := "#!/bin/sh\nprintf x >>\"$CALLS\"\nprintf '%s' '" + tc.stdout + "'\nprintf '%s' '" + tc.stderr + "' >&2\nexit " + strconv.Itoa(tc.exit) + "\n"
+				if tc.chunked {
+					middle := len(tc.stdout) / 2
+					body = "#!/bin/sh\nprintf x >>\"$CALLS\"\nsleep 0.01\nprintf '%s' '" + tc.stdout[:middle] + "'\nprintf '%s' '" + tc.stderr[:len(tc.stderr)/2] + "' >&2\nsleep 0.01\nprintf '%s' '" + tc.stdout[middle:] + "'\nprintf '%s' '" + tc.stderr[len(tc.stderr)/2:] + "' >&2\nexit " + strconv.Itoa(tc.exit) + "\n"
+				}
 				if err := os.WriteFile(gate, []byte(body), 0o755); err != nil {
 					t.Fatal(err)
 				}
 				out, errFile, rc := filepath.Join(dir, "stdout"), filepath.Join(dir, "stderr"), filepath.Join(dir, "rc")
 				program := "gate_argv=(\"$GATE\")\nfirst_stdout=\"$OUT\"\nfirst_stderr=\"$ERR\"\n" + string(match[1]) + "printf '%s' \"$gate_rc\" >\"$RC\"\n"
 				cmd := exec.Command(shellPath, "-c", program)
-				cmd.Env = append(os.Environ(), "GATE="+gate, "OUT="+out, "ERR="+errFile, "RC="+rc)
+				cmd.Env = append(os.Environ(), "GATE="+gate, "OUT="+out, "ERR="+errFile, "RC="+rc, "CALLS="+filepath.Join(dir, "calls"))
 				if output, err := cmd.CombinedOutput(); err != nil {
 					t.Fatalf("capture shell: %v: %s", err, output)
+				}
+				calls, _ := os.ReadFile(filepath.Join(dir, "calls"))
+				if string(calls) != "x" {
+					t.Fatalf("mutation replayed: %q", calls)
 				}
 				gotOut, _ := os.ReadFile(out)
 				gotErr, _ := os.ReadFile(errFile)

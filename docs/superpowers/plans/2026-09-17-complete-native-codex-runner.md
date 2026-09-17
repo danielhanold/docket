@@ -50,7 +50,7 @@ Files: `skills/docket-build/references/codex-task-handoff.md`, `skills/docket-bu
 
 ## Task 3: Recovered completion rehearsal
 
-Files: extend `cmd/nativefixture` integration fixtures and the topical CLI gate tests; use existing input, review, evidence and publication helpers.
+Files: `internal/app/native_completion_e2e_test.go`, the topical CLI gate tests, and the existing `cmd/nativefixture` resource fixture. Reuse the full local-Git/fake-GitHub e2e harness and public CLI; isolate the new path in `tests/test_go_finalize_native_e2e.sh` because the existing finalize shard has no budget headroom.
 
 - [ ] Exercise direct handoff/claim/advance and facade verdict/claim/advance using public producers. Assert owner rotation, same execution identity and unchanged retry usage; prove stale owners and consumed tokens are refused.
 - [ ] Cover WAITING and terminal PASSED/FAILED/HALTED, including process completion while the caller is absent. Advance recovered terminals to obtain full evidence; prove old-scope acknowledgement is still rejected.
@@ -59,7 +59,8 @@ Files: extend `cmd/nativefixture` integration fixtures and the topical CLI gate 
 - [ ] Document the fixture's simulated host/review/GitHub limits. Do not report deterministic fixture dispatch as real native review.
 
 ```bash
-go test -tags integration ./cmd/nativefixture -run TestIntegrationNativeFixture -count=1
+go test -tags e2e ./internal/app -run TestNativeCompletionE2E -count=1
+go test -tags integration ./cmd/nativefixture -count=1
 go test ./internal/cli ./internal/codexcontract -count=1
 ```
 
