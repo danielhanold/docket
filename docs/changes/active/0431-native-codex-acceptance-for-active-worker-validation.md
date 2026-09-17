@@ -53,3 +53,8 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
 
+## Run halted
+
+### 2026-09-17
+
+The required native docket-review-standard review completed against certified feature head cfa62e0b3fc1ac773ea16e3e2c48cd232063290e and returned one blocker: internal/gatedrive/admission.go invokes replacement(stored.Record.RunEpochID, rec.RunEpochID, canonical, ""), so a verified replacement epoch cannot reclaim a released worktree slot because its attributed change ID is omitted. The prescribed repair is to pass rec.ChangeID and add end-to-end replacement-admission coverage. This acceptance run is constrained to the pinned e8b53918 executable and manual configuration changes to existing 431 docket files; repairing and rebuilding the runtime is outside that authority. The blocker is therefore durably halted without results publication, final certification, PR publication, or implemented transition.
