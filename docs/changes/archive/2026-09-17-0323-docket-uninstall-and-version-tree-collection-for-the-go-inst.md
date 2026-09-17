@@ -2,11 +2,11 @@
 id: 323
 slug: docket-uninstall-and-version-tree-collection-for-the-go-inst
 title: 'docket uninstall and version-tree collection for the Go installer'
-status: 'implemented'
+status: 'done'
 priority: medium
 type: feat
 created: 2026-08-14
-updated: '2026-09-16'
+updated: '2026-09-17'
 depends_on: []
 stacked_on:
 related: [311, 317, 322, 351]
@@ -21,7 +21,7 @@ branch: 'feat/docket-uninstall-and-version-tree-collection-for-the-go-inst'
 pr: 'https://github.com/danielhanold/docket/pull/308'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-16T20:24:10Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,8 @@ claimed_at: '2026-09-16T20:24:10Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-07-docket-uninstall-and-version-tree-collection-for-the-go-inst-design.md) |
-| Plan | [2026-09-09-docket-uninstall-and-version-tree-collection.md](https://github.com/danielhanold/docket/blob/feat/docket-uninstall-and-version-tree-collection-for-the-go-inst/docs/superpowers/plans/2026-09-09-docket-uninstall-and-version-tree-collection.md) |
-| Results | [2026-09-10-docket-uninstall-and-version-tree-collection-for-the-go-inst-results.md](https://github.com/danielhanold/docket/blob/feat/docket-uninstall-and-version-tree-collection-for-the-go-inst/docs/results/2026-09-10-docket-uninstall-and-version-tree-collection-for-the-go-inst-results.md) |
+| Plan | [2026-09-09-docket-uninstall-and-version-tree-collection.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-09-docket-uninstall-and-version-tree-collection.md) |
+| Results | [2026-09-10-docket-uninstall-and-version-tree-collection-for-the-go-inst-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-10-docket-uninstall-and-version-tree-collection-for-the-go-inst-results.md) |
 | ADRs | [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md), [ADR-0110](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0110-install-path-configuration-reads-tolerate-unknown-keys-the-s.md), [ADR-0121](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0121-version-tree-references-are-derived-from-complete-installed.md), [ADR-0122](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0122-automatic-version-collection-is-a-post-commit-best-effort-pa.md), [ADR-0123](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0123-uninstall-is-asset-and-repository-independent-proof-gated-by.md) |
 <!-- docket:artifacts:end -->
 

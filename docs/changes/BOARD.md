@@ -1,6 +1,6 @@
 # Backlog
 
-**432 changes** — 🟢 4 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 282 done · 🗑️ 113 killed
+**432 changes** — 🟢 4 in progress · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 113 killed
 
 ## 🟢 In progress (4)
 
@@ -10,12 +10,6 @@
 | [0430](active/0430-native-codex-acceptance-for-durable-review-evidence.md) | Native Codex acceptance for durable review evidence | `low` | `chore` | [spec](../superpowers/specs/2026-09-16-native-codex-acceptance-for-durable-review-evidence-design.md) | `chore/native-codex-acceptance-for-durable-review-evidence` | run halted — needs you |
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
-
-## 🔴 Blocked (1)
-
-| # | Title | Priority | Type | PR | Reason |
-|---|-------|----------|------|----|--------|
-| [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [#308](https://github.com/danielhanold/docket/pull/308) | finalize blocked — needs you |
 
 ## 🟣 Groomed (3)
 
@@ -81,7 +75,6 @@ graph TD
   0301
   0302
   0320
-  0323
   0393 --> 0345
   0407 --> 0345
   0350
@@ -114,10 +107,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (395)</summary>
+<details><summary>✅🗑️ Archive — done + killed (396)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0323](archive/2026-09-17-0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | 2026-09-17 |
 | [0427](archive/2026-09-16-0427-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md) | Verdict-path gate recovery never binds the run epoch's worktree | 2026-09-16 |
 | [0415](archive/2026-09-16-0415-support-in-place-build-evidence-re-certification-for-an-impl.md) | Support in-place build-evidence re-certification for an implemented change | 2026-09-16 |
 | [0413](archive/2026-09-16-0413-finalize-rebase-gate-cannot-clear-derived-embedded-asset-man.md) | Finalize rebase gate cannot clear derived embedded-asset manifest collisions | 2026-09-16 |
@@ -132,7 +126,6 @@ graph TD
 | [0416](archive/2026-09-10-0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | 2026-09-10 |
 | [0405](archive/2026-09-10-0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | 2026-09-10 |
 | [0393](archive/2026-09-09-0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | 2026-09-09 |
-| [0349](archive/2026-09-09-0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | 2026-09-09 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -251,7 +244,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 31 done |
+| [2026-09](archive/) | 32 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
