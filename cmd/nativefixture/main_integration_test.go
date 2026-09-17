@@ -141,6 +141,30 @@ func TestIntegrationNativeFixtureBuildsConfiguredBuildReadyFixtureFromCandidateS
 	if dirty := runTest(filepath.Join(destination, "primary"), "git", "status", "--porcelain=v2"); dirty != "" {
 		t.Fatalf("fixture primary dirty: %s", dirty)
 	}
+	// Consume the actual producer manifest, including its non-runtime launch
+	// document, against an isolated installation of every pinned runtime file.
+	runtimeHome := filepath.Join(root, "runtime-home")
+	for rel := range got.Files {
+		if !strings.HasPrefix(rel, ".codex/agents/") && !strings.HasPrefix(rel, ".agents/skills/") {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(destination, "primary", filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := writeFile(filepath.Join(runtimeHome, filepath.FromSlash(rel)), body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasPrefix(rel, ".agents/skills/") {
+			alias := strings.Replace(rel, ".agents/skills/", ".codex/skills/", 1)
+			if err := writeFile(filepath.Join(runtimeHome, filepath.FromSlash(alias)), body, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := verifyRuntimePins(filepath.Join(destination, "manifest.json"), runtimeHome); err != nil {
+		t.Fatalf("prepared manifest rejected by runtime verifier: %v", err)
+	}
 	checkNativePlannerEntryDefaultsToStartup(t, root, destination, binary, got)
 
 	primary := filepath.Join(destination, "primary")

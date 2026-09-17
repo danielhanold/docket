@@ -4,16 +4,21 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestRuntimePinsRejectStaleGlobalRolesAndSkillAliases(t *testing.T) {
-	for _, broken := range []string{"", "valid-symlink", ".codex/agents/docket-demo.toml", ".agents/skills/docket-demo/SKILL.md", ".codex/skills/docket-demo/SKILL.md", "missing-reference"} {
+	for _, broken := range []string{"", "valid-symlink", ".codex/agents/docket-demo.toml", ".agents/skills/docket-demo/SKILL.md", ".codex/skills/docket-demo/SKILL.md", "missing-reference", "../other.md", "../LAUNCH.md/extra", ".agents/skills/docket-demo/../../escape", "/absolute"} {
 		t.Run(broken, func(t *testing.T) {
 			root := testsupport.TempDir(t)
-			pins := map[string]string{}
+			pins := map[string]string{"../LAUNCH.md": "fixture metadata, not a runtime pin"}
+			unsafe := strings.HasPrefix(broken, "../") || strings.Contains(broken, "/../") || filepath.IsAbs(broken)
+			if unsafe {
+				pins[broken] = "11507a0e2f5e69d5dfa40a62a1bd7b6ee57e6bcd85c67c9b8431b36fff21c437"
+			}
 			for _, relative := range []string{".codex/agents/docket-demo.toml", ".agents/skills/docket-demo/SKILL.md", ".agents/skills/docket-demo/references/entry.md"} {
 				pins[relative] = "11507a0e2f5e69d5dfa40a62a1bd7b6ee57e6bcd85c67c9b8431b36fff21c437" // SHA-256 of new
 				if err := writeFile(filepath.Join(root, relative), []byte("new"), 0o644); err != nil {
@@ -38,7 +43,7 @@ func TestRuntimePinsRejectStaleGlobalRolesAndSkillAliases(t *testing.T) {
 				if err := os.Remove(filepath.Join(root, ".agents/skills/docket-demo/references/entry.md")); err != nil {
 					t.Fatal(err)
 				}
-			} else if broken != "" && broken != "valid-symlink" {
+			} else if broken != "" && broken != "valid-symlink" && !unsafe {
 				if err := os.WriteFile(filepath.Join(root, broken), []byte("old"), 0o644); err != nil {
 					t.Fatal(err)
 				}
@@ -54,6 +59,9 @@ func TestRuntimePinsRejectStaleGlobalRolesAndSkillAliases(t *testing.T) {
 			err = verifyRuntimePins(manifestPath, root)
 			if (err == nil) != (broken == "" || broken == "valid-symlink") {
 				t.Fatalf("broken=%q error=%v", broken, err)
+			}
+			if unsafe && !strings.Contains(err.Error(), "unsafe manifest path") {
+				t.Fatalf("unsafe path refused for wrong reason: %v", err)
 			}
 		})
 	}

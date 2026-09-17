@@ -294,6 +294,47 @@ func TestIntegrationMixedConflictChargesOnlyAuthoredDispatch(t *testing.T) {
 	if reserve.Disposition != ReserveReserved {
 		t.Fatalf("reserve = %q reason %q", reserve.Disposition, reserve.Reason)
 	}
+	// Native entry must admit exactly the authored conflict set, without
+	// granting the resolver ownership of controller-generated bundle outputs.
+	for _, tc := range []struct {
+		name  string
+		paths []string
+		valid bool
+	}{
+		{"authored only", []string{"skills/demo/SKILL.md"}, true},
+		{"includes generated", begin.UnmergedPaths, false},
+		{"unrelated authored", []string{"skills/other/SKILL.md"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			entry := checkFinalizeEntry(t, f, deps, "docket-rebase-resolver", "resolver", "resolver", attempt, reserve.Reservation, tc.paths)
+			if (entry.Result == ResultApplied) != tc.valid {
+				t.Errorf("entry result=%s reason=%s, want accepted=%t", entry.Result, entry.Reason, tc.valid)
+			}
+		})
+	}
+	// A matching directory name in a different module conveys no controller
+	// ownership: all its conflicts still belong to the resolver.
+	modulePath := filepath.Join(f.wp, "go.mod")
+	moduleBody, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, f.wp, "go.mod", "module example.invalid/other\n")
+	for _, tc := range []struct {
+		paths []string
+		valid bool
+	}{
+		{[]string{"skills/demo/SKILL.md"}, false},
+		{begin.UnmergedPaths, true},
+	} {
+		entry := checkFinalizeEntry(t, f, deps, "docket-rebase-resolver", "resolver", "resolver", attempt, reserve.Reservation, tc.paths)
+		if (entry.Result == ResultApplied) != tc.valid {
+			t.Errorf("foreign-module entry result=%s reason=%s, want accepted=%t", entry.Result, entry.Reason, tc.valid)
+		}
+	}
+	if err := os.WriteFile(modulePath, moduleBody, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	// The resolver resolves ONLY the authored path and reports only it — leaving
 	// every bundle output for the controller.
 	writeRepoFile(t, f.wp, "skills/demo/SKILL.md", "reconciled skill content\n")

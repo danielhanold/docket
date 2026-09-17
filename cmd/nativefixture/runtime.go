@@ -34,6 +34,11 @@ func verifyRuntimePins(manifestPath, runtimeHome string) error {
 	sort.Strings(paths)
 	roles, skills := 0, 0
 	for _, p := range paths {
+		// prepare pins this fixture launch document beside primary; it is not
+		// installed in the runtime home and must never be resolved against it.
+		if p == "../LAUNCH.md" {
+			continue
+		}
 		if filepath.IsAbs(p) || filepath.ToSlash(filepath.Clean(p)) != p || strings.HasPrefix(p, "../") {
 			return fmt.Errorf("unsafe manifest path: %s", p)
 		}

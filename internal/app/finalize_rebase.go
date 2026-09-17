@@ -1262,8 +1262,8 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 }
 
 // validateResolverEntry proves the existing owned attempt, outstanding
-// reservation, stopped commit, and exact unmerged path set without consuming
-// the reservation or advancing the rebase.
+// reservation, stopped commit, and exact resolver-owned unmerged path set
+// without consuming the reservation or advancing the rebase.
 func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir string, assignment codexcontract.Assignment, attempt, reservation string, provisional bool) error {
 	rc, refusal := loadRebaseContext(ctx, deps, repoDir, OperationAgentCheckInputs, assignment.ChangeID)
 	if refusal != nil {
@@ -1287,6 +1287,13 @@ func validateResolverEntry(ctx context.Context, deps FinalizeDeps, repoDir strin
 	stopped, err := git.StoppedRebaseCommit(ctx, rc.wsDir)
 	if err != nil {
 		return fmt.Errorf("%s", ReasonRebaseReservationStale)
+	}
+	// Eligible bundle outputs remain controller-owned, just as in
+	// FinalizeRebaseContinue. Other repositories retain the full conflict set.
+	if bundleRepoEligible(rc.wsDir) {
+		state.UnmergedPaths = slices.DeleteFunc(slices.Clone(state.UnmergedPaths), func(path string) bool {
+			return pathsGeneratedOnly([]string{path})
+		})
 	}
 	return validateResolverEntryEvidence(rec, reservation, state, string(stopped), assignment.WritePaths)
 }
