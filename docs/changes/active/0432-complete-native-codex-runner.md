@@ -2,7 +2,7 @@
 id: 432
 slug: 'complete-native-codex-runner'
 title: 'Complete native Codex runner'
-status: 'implemented'
+status: 'stacked-merged'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-16'

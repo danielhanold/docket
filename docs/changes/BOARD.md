@@ -13,7 +13,7 @@
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0432](active/0432-complete-native-codex-runner.md) | Complete native Codex runner | `critical` | `fix` | [#310](https://github.com/danielhanold/docket/pull/310) | awaiting merge |
+| [0432](active/0432-complete-native-codex-runner.md) | Complete native Codex runner | `critical` | `fix` | [#310](https://github.com/danielhanold/docket/pull/310) | merged into #0425 |
 | [0431](active/0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | `low` | `chore` | [#309](https://github.com/danielhanold/docket/pull/309) | merged into #0425 |
 
 ## 🟣 Groomed (3)
