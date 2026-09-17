@@ -13,7 +13,7 @@ related: [384, 393, 412]
 discovered_from: [423]
 adrs: [114]
 spec: 'docs/superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi-plan.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-17T20:23:58Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md) |
+| Plan | [2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi-plan.md](https://github.com/danielhanold/docket/blob/feat/validate-codex-coordinator-models-against-a-versioned-capabi/docs/superpowers/plans/2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi-plan.md) |
 | ADRs | [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
 <!-- docket:artifacts:end -->
 
