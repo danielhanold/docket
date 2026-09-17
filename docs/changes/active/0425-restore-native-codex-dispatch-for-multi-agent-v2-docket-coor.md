@@ -22,7 +22,7 @@ branch: 'codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
 pr: 'https://github.com/danielhanold/docket/pull/303'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-17T17:07:31Z'
+claimed_at: '2026-09-17T17:55:15Z'
 ---
 
 ## Artifacts
@@ -63,3 +63,7 @@ User-authorized bootstrap preparation: create the isolated codex-prefixed 425 wo
 ### 2026-09-17
 
 2026-09-17: Independent whole-production-diff source review completed at7ea8e514515b829a05d9f814ad9f99a21e246c00. Two actionable findings: P1 native resolver WritePaths equality rejects authored-only assignments during mixed authored/generated conflicts introduced by current main; P2 runtime verifier rejects generator-emitted ../LAUNCH.md before selecting runtime entries. Require targeted producer/consumer and mixed-conflict entry regressions plus minimal fixes, subject to human repair approval. Full report and exact-head source verification are preserved at https://github.com/danielhanold/docket/pull/303#issuecomment-5718304844. Registered native review role declined missing assignment/payload; independent human-directed read-only source review was obtained instead, with no claim of native acceptance. Keep425 in-progress pending findings disposition; no merge, ownership change, runtime replacement or424 launch.
+
+### 2026-09-17
+
+User-approved review repairs published to PR #303 at 80e9d2f805febe7bc9907fcb56588a57160d4d40. Both independent source-review findings resolved: resolver entry excludes controller-owned generated conflicts only under existing Docket bundle eligibility; runtime pin verification ignores only the exact non-runtime ../LAUNCH.md manifest entry. No coordinator lifecycle, gate execution, ownership mutation or retry policy changes. Regression tests reproduced both failures before fixes; focused integration tests passed; deliberate eligibility-bypass and broad-path-exception mutations were rejected by tests, then restored. Configured source suite (go run ./cmd/docket development test) passed 58/58 files, 468 assertions, exit 0, on the unchanged source tree subsequently committed as this head. Log: /var/folders/9k/38zqdm6j2wn82qp7mcc415d00000gn/T/docket-425-fixes-suite.E4a5d9. Budget report reviewed: merge shard serial confirmation 45s; no serial-confirmed breach; parallel timing advisories persist, nativefixture watch 1/5, race_app_a and race_app_b confirmations deferred by runner slot policy. Independent read-only source re-review found no new findings and confirmed both original issues resolved. This is source verification, not native runtime acceptance or a Docket gate receipt. No merge, binary install, fresh session or 424 dogfood launch performed; subsequent steps remain approval-gated.
