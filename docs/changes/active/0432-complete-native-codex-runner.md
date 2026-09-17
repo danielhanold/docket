@@ -2,27 +2,27 @@
 id: 432
 slug: 'complete-native-codex-runner'
 title: 'Complete native Codex runner'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-16'
 updated: '2026-09-17'
 depends_on: []
-stacked_on: 431
+stacked_on: 425
 related: [425, 412]
 discovered_from: [431]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-16-complete-native-codex-runner-design.md'
-plan:
-results:
+plan: 'docs/superpowers/plans/2026-09-17-complete-native-codex-runner.md'
+results: 'docs/results/2026-09-17-complete-native-codex-runner-closeout-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/complete-native-codex-runner'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/310'
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-17T09:57:10Z'
+reconciled: true
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,6 +31,9 @@ claimed_at: '2026-09-17T09:57:10Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-16-complete-native-codex-runner-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-complete-native-codex-runner-design.md) |
+| Plan | [2026-09-17-complete-native-codex-runner.md](https://github.com/danielhanold/docket/blob/fix/complete-native-codex-runner/docs/superpowers/plans/2026-09-17-complete-native-codex-runner.md) |
+| Results | [2026-09-17-complete-native-codex-runner-closeout-results.md](https://github.com/danielhanold/docket/blob/fix/complete-native-codex-runner/docs/results/2026-09-17-complete-native-codex-runner-closeout-results.md) |
+| PR | [#310](https://github.com/danielhanold/docket/pull/310) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -50,3 +53,27 @@ Execution is human-directed: after spec approval, plan and repair on the existin
 ## Out of scope
 
 No new acceptance fixture/change, no restart or deletion of completed 431 implementation, no reset of budgets or ownership records, no automatic PR merge, no shared orchestration redesign, and no implementation of 412. No weakening of validation or routing native roles through agent.enter, generic agents, shell runners or another harness. Fix a shared defect only when necessary to satisfy the existing Codex contract, with cross-harness regression coverage; surface contract changes separately.
+
+## Reconcile log
+
+### 2026-09-17 — authorized bookkeeping exception
+
+The user explicitly authorized bookkeeping repair and equivalent workarounds without
+changing ownership records or adding Docket features. The implementation is already
+carried by 425 through merged PR #309. Documentation-only PR #310 uses the existing
+432 branch and targets 425; stacked_on is therefore changed from 431 to 425.
+The original branch provenance above remains historical evidence.
+
+The committed original plan and current closeout results are linked directly, bypassing
+managed attachment's missing workspace-adoption prerequisite. Status implemented here
+means the completed documentation is published in an open draft PR awaiting review and
+finalization; it is a human-authorized bootstrap bookkeeping exception, not a forged
+successful mark-implemented gate receipt. No new full-suite or exact-HEAD certification
+is claimed. No workspace manifest, ownership label, gate record, counter, or capability
+was changed. The board and artifact links are updated with this bounded metadata repair.
+
+Original bootstrap results remain preserved unchanged. The current results explain the
+successful native acceptance and its human interventions. Research documents are on the
+feature branch under docs/research; metadata originals remain until PR #310 merges.
+Do not mark stacked-merged until the real PR merge is verified, or done before main
+integration. No merge is authorized by this bookkeeping repair.

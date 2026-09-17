@@ -1,19 +1,19 @@
 # Backlog
 
-**432 changes** — 🟢 3 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 114 killed
+**432 changes** — 🟢 2 in progress · 🔵 2 built · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 114 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0432](active/0432-complete-native-codex-runner.md) | Complete native Codex runner | `critical` | `fix` | [spec](../superpowers/specs/2026-09-16-complete-native-codex-runner-design.md) | `fix/complete-native-codex-runner` |  |
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0432](active/0432-complete-native-codex-runner.md) | Complete native Codex runner | `critical` | `fix` | [#310](https://github.com/danielhanold/docket/pull/310) | awaiting merge |
 | [0431](active/0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | `low` | `chore` | [#309](https://github.com/danielhanold/docket/pull/309) | merged into #0425 |
 
 ## 🟣 Groomed (3)
