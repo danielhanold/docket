@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/validate-codex-coordinator-models-against-a-versioned-capabi'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-17T19:14:58Z'
+reconciled: true
+claimed_at: '2026-09-17T19:15:50Z'
 ---
 
 ## Artifacts
@@ -63,3 +63,7 @@ Preparation does not claim this change or create its implementation plan/worktre
 ### 2026-09-17
 
 Human-approved design reconciliation against 425 candidate `80e9d2f805febe7bc9907fcb56588a57160d4d40`, following consultant critique and explicit approval of the installation-only enforcement boundary and repository-context assertion scope. Updated the existing specification in place, retaining its core registry and inventory design. Clarified live unknown values versus strict bundled schema, report-local audit contradictions, typed registry packaging, preservation of published installation state with existing recovery semantics, assumptions and focused coverage. Current source verification and independent review are distinct from historical 431 native success with human interventions; exact-candidate native validation remains outstanding before launch. The ADR-0114 relation is retained as historical context; ADR-0119 is the governing successor cited in the design. Status, dependencies, stack, lifecycle fields and generated blocks remain unchanged. No implementation plan, worktree, PR, runtime replacement or dogfood dispatch is authorized by this amendment.
+
+### 2026-09-17
+
+2026-09-17 — phase-5 candidate dogfood launch: independently verified the project-local runtime links, candidate binary v0.0.0-candidate.425.70de2fc2 (commit 70de2fc251ea9720a84bfe3a02c0f79bf15ed21e), metadata relationship, and remote stacked base. The approved specification remains applicable; no scope or relation changes are needed. The recorded serial race-app-a timing finding (96s against the 90s budget) remains a finding to carry through implementation and results, without waiver, reset, or timing-policy change.
