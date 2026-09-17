@@ -69,3 +69,8 @@ Human-approved design reconciliation against 425 candidate `80e9d2f805febe7bc990
 
 2026-09-17 — phase-5 candidate dogfood launch: independently verified the project-local runtime links, candidate binary v0.0.0-candidate.425.70de2fc2 (commit 70de2fc251ea9720a84bfe3a02c0f79bf15ed21e), metadata relationship, and remote stacked base. The approved specification remains applicable; no scope or relation changes are needed. The recorded serial race-app-a timing finding (96s against the 90s budget) remains a finding to carry through implementation and results, without waiver, reset, or timing-policy change.
 
+## Run halted
+
+### 2026-09-17
+
+Native Task 1 admission was blocked before any source edit or test execution. The candidate-validated worker entry succeeded, but its first focused-test gate drive returned unresolved-execution for three foreign historical drives in the canonical 424 worktree: 60a674e8849cb0d97bbb032391f2a4fb, d357d7091030907194e7271691c9fa08, and fe74212fcbd4e4cdbc25a1daea6ed2a3. The worker made no commit and the feature worktree remains preserved. Do not retry or start another worker until the retained executions are resolved through the applicable gate contract. The existing serial race-app-a timing finding (96s against the 90s budget) remains recorded and unwaived.
