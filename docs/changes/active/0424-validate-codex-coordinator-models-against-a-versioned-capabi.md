@@ -2,7 +2,7 @@
 id: 424
 slug: 'validate-codex-coordinator-models-against-a-versioned-capabi'
 title: 'Validate Codex coordinator models against a versioned capability registry'
-status: 'in-progress'
+status: 'proposed'
 priority: 'critical'
 type: 'feat'
 created: '2026-09-11'
@@ -13,16 +13,16 @@ related: [384, 393, 412]
 discovered_from: [423]
 adrs: [114]
 spec: 'docs/superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md'
-plan: 'docs/superpowers/plans/2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi-plan.md'
+plan:
 results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch: 'feat/validate-codex-coordinator-models-against-a-versioned-capabi'
+branch:
 pr:
 blocked_by:
-reconciled: true
-claimed_at: '2026-09-17T20:23:58Z'
+reconciled: false
+claimed_at:
 ---
 
 ## Artifacts
@@ -69,8 +69,12 @@ Human-approved design reconciliation against 425 candidate `80e9d2f805febe7bc990
 
 2026-09-17 — phase-5 candidate dogfood launch: independently verified the project-local runtime links, candidate binary v0.0.0-candidate.425.70de2fc2 (commit 70de2fc251ea9720a84bfe3a02c0f79bf15ed21e), metadata relationship, and remote stacked base. The approved specification remains applicable; no scope or relation changes are needed. The recorded serial race-app-a timing finding (96s against the 90s budget) remains a finding to carry through implementation and results, without waiver, reset, or timing-policy change.
 
-## Run halted
+## Prior dogfood attempt — preserved history
 
 ### 2026-09-17
 
 Native Task 1 admission was blocked before any source edit or test execution. The candidate-validated worker entry succeeded, but its first focused-test gate drive returned unresolved-execution for three foreign historical drives in the canonical 424 worktree: 60a674e8849cb0d97bbb032391f2a4fb, d357d7091030907194e7271691c9fa08, and fe74212fcbd4e4cdbc25a1daea6ed2a3. The worker made no commit and the feature worktree remains preserved. Do not retry or start another worker until the retained executions are resolved through the applicable gate contract. The existing serial race-app-a timing finding (96s against the 90s budget) remains recorded and unwaived.
+
+### Human-authorized clean restart — 2026-09-17
+
+The human explicitly authorized resetting change 424 for a from-scratch dogfood run, without redesigning gates or coordinators. The prior run was explicitly cancelled with disposition `cancelled`. Its plan-only commit `5d37cca3` is preserved on local branch `backup/424-plan-attempt-20260917`, with the prior worktree and state archived at `/Users/homer/dev/docket-0424-restart.ZyKU6s`. The three historical blockers belong to completed changes 417/419; their recorded worktree and raw-run paths no longer exist. Their exact drive directories were quarantined intact outside the active registry, not falsified as successful. The history dry-run now reports zero retained drives. This operational reset clears the claim, plan attachment and halt marker while retaining the approved specification, `depends_on: [423]` and `stacked_on: 425`. No implementation changes, suite execution or PR existed to discard. The next manually launched session must claim 424 fresh, create a new worktree and stage verified candidate resources there before planning. No run is launched by this reset; the timing finding remains unwaived.
