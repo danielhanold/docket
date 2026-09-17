@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'low'
 type: 'chore'
 created: '2026-09-16'
-updated: '2026-09-16'
+updated: '2026-09-17'
 depends_on: []
 stacked_on: 425
 related: [425, 430]
