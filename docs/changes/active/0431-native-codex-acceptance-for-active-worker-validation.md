@@ -22,7 +22,7 @@ branch: 'chore/native-codex-acceptance-for-active-worker-validation'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-16T18:26:35Z'
+claimed_at: '2026-09-17T11:24:47Z'
 ---
 
 ## Artifacts
@@ -53,8 +53,3 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
 
-## Run halted
-
-### 2026-09-16
-
-Authorized final continuation blocked: the predecessor transport receipt omitted the single-use handoff token required to claim WAITING drive 81cb0fdf2824547a11994642ed28041f, and this controller was not supplied the scope parent capability required for event-authorized takeover. Per the gate transport contract, no credential was inferred, recovered, or replayed; the drive and all prior evidence remain preserved. Detail: resume-431-scope/control/continuation-431-final-blocked.md
