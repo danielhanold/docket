@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:03444fe8ccea68d2070f69cefe5487de51b4e5fb536de43a55eddb5dd9b9f035",
+  "asset_set_id": "sha256:6508aaabc1eede01b717a741e5e3cceef42f3fe461828a965af1615fe5b467f5",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -315,15 +315,15 @@
       "path": "skills/docket-build/references/codex-gate-transport.md",
       "role": "skill",
       "mode": 420,
-      "size": 2402,
-      "sha256": "fd23737e900bdef5b3ee302fc7cabec5487446f53b937775f26dd49788aa4f32"
+      "size": 2374,
+      "sha256": "3a97e8fe5e253e5433af4118764517732dcb43351507a075089be82c671720e1"
     },
     {
       "path": "skills/docket-build/references/codex-task-handoff.md",
       "role": "skill",
       "mode": 420,
-      "size": 2655,
-      "sha256": "e4aec49a477a5b580b702b13f32096cadd6fe6bfa28355c8c6b0c7f87dec68fb"
+      "size": 2397,
+      "sha256": "2e8d6c2df686724a5e41364d39d3f9ea394b4f9b1ec4ca9da1c5847f4df861bf"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",
@@ -345,6 +345,13 @@
       "mode": 420,
       "size": 10151,
       "sha256": "e997aa0a4897348d429ac06e96b4a5773c3de0d71d608dff02dd9bfc08ecd68a"
+    },
+    {
+      "path": "skills/docket-build/references/receipt-semantics.md",
+      "role": "skill",
+      "mode": 420,
+      "size": 2993,
+      "sha256": "30c4e33761ada628e2f5f9d6fd8b4b4681e0d569d01b5ec5527ccfbc246df295"
     },
     {
       "path": "skills/docket-build/references/task-routing.md",
@@ -434,8 +441,8 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 51924,
-      "sha256": "a5edde2029026298f9aaf4198e918923607b6044c2728559dd6c565405abcf78"
+      "size": 52066,
+      "sha256": "97d9990ddd005b2c95eefe4a7a72c5682d947a5a79062b59c16420b3a7cb52e6"
     },
     {
       "path": "skills/docket-implement-next/references/codex-planning-results.md",
@@ -448,8 +455,8 @@
       "path": "skills/docket-implement-next/references/edge-paths.md",
       "role": "skill",
       "mode": 420,
-      "size": 7020,
-      "sha256": "2c94129c90931b8bee067b6cf6e19ce0195f58a36fb63be108920ec08d450e22"
+      "size": 6676,
+      "sha256": "743359cef4170d6c0003f7c3511d5c1310035c4d8ede5af60a5041999b277d76"
     },
     {
       "path": "skills/docket-implement-next/references/fix-loop.md",

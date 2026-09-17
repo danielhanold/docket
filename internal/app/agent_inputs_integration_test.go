@@ -20,7 +20,7 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-func TestIntegrationWorkflowAgentInputsAcceptsPrimaryStartupForRegisteredFeature(t *testing.T) {
+func TestIntegrationAgentMetadataAgentInputsAcceptsPrimaryStartupForRegisteredFeature(t *testing.T) {
 	root := testsupport.TempDir(t)
 	controlRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
