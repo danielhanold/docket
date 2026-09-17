@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0323 — docket uninstall and version-tree collection for the Go installer](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md)**
+> ↩ **[Change 0323 — docket uninstall and version-tree collection for the Go installer](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-17-0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md)**
 <!-- docket:backlink:end -->
 # Docket Uninstall and Version-Tree Collection Implementation Plan
 
