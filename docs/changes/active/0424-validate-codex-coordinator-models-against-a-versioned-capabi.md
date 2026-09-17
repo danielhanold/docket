@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/validate-codex-coordinator-models-against-a-versioned-capabi'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-17T21:38:00Z'
+reconciled: true
+claimed_at: '2026-09-17T21:39:27Z'
 ---
 
 ## Artifacts
@@ -67,6 +67,10 @@ Human-approved design reconciliation against 425 candidate `80e9d2f805febe7bc990
 ### 2026-09-17
 
 2026-09-17 — phase-5 candidate dogfood launch: independently verified the project-local runtime links, candidate binary v0.0.0-candidate.425.70de2fc2 (commit 70de2fc251ea9720a84bfe3a02c0f79bf15ed21e), metadata relationship, and remote stacked base. The approved specification remains applicable; no scope or relation changes are needed. The recorded serial race-app-a timing finding (96s against the 90s budget) remains a finding to carry through implementation and results, without waiver, reset, or timing-policy change.
+
+### 2026-09-17
+
+2026-09-17 — fresh native dogfood reconciliation: candidate 425 remains pinned at 70de2fc251ea9720a84bfe3a02c0f79bf15ed21e and is the effective stacked base. The approved scope remains applicable. The candidate delta from the earlier reconciliation baseline is limited to Go-version-stable test comment formatting. Native orchestration, feature-local resource staging, and full build/review gates are being exercised for this independent 424 PR; no gate semantics, candidate product code, dependency, or scope changes are required. The existing serial timing finding (96 seconds against the 90-second budget) remains unwaived and must be recorded in the results.
 
 ## Prior dogfood attempt — preserved history
 
