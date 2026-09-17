@@ -22,7 +22,7 @@ branch: 'feat/validate-codex-coordinator-models-against-a-versioned-capabi'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-17T20:22:00Z'
+claimed_at: '2026-09-17T20:23:58Z'
 ---
 
 ## Artifacts
