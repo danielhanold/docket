@@ -121,7 +121,7 @@ func reviewCheck(t *testing.T, a codexcontract.Assignment, deps AgentInputDeps, 
 	return CheckAgentInputs(context.Background(), deps, req)
 }
 
-func TestIntegrationWorkflowAgentEntryRejectsSymlinkedOutputOutsideFeature(t *testing.T) {
+func TestIntegrationAgentMetadataAgentEntryRejectsSymlinkedOutputOutsideFeature(t *testing.T) {
 	a, deps, root := reviewRealAssignment(t, true)
 	result := reviewCheck(t, a, deps, root, "entry")
 	if result.Result == ResultApplied {
@@ -129,7 +129,7 @@ func TestIntegrationWorkflowAgentEntryRejectsSymlinkedOutputOutsideFeature(t *te
 	}
 }
 
-func TestIntegrationWorkflowAgentEntryUsesProductionCommonDirectoryScopeIdentity(t *testing.T) {
+func TestIntegrationAgentMetadataAgentEntryUsesProductionCommonDirectoryScopeIdentity(t *testing.T) {
 	for _, scenario := range []string{"valid", "foreign-repository"} {
 		t.Run(scenario, func(t *testing.T) {
 			a, deps, root := reviewRealAssignment(t, false)
@@ -164,7 +164,7 @@ func TestIntegrationWorkflowAgentEntryUsesProductionCommonDirectoryScopeIdentity
 	}
 }
 
-func TestIntegrationWorkflowAgentScopeValidatorWiresEpochCancellation(t *testing.T) {
+func TestIntegrationAgentMetadataAgentScopeValidatorWiresEpochCancellation(t *testing.T) {
 	a, _, root := reviewRealAssignment(t, false)
 	a.Role, a.Phase, a.TaskID = "docket-build-standard", "build", "1"
 	key := mintTestGateKey(t, a.CommonDir)
@@ -193,7 +193,7 @@ func TestIntegrationWorkflowAgentScopeValidatorWiresEpochCancellation(t *testing
 	}
 }
 
-func TestIntegrationWorkflowPlannerEntryRequiresPreparedPlanningResources(t *testing.T) {
+func TestIntegrationAgentMetadataPlannerEntryRequiresPreparedPlanningResources(t *testing.T) {
 	a, deps, root := reviewRealAssignment(t, false)
 	a.PlanSkill, a.BuildSkill, a.ResultsTemplate, a.Resources = "", "", "", nil
 	a.ResourceDependencies = nil
@@ -202,7 +202,7 @@ func TestIntegrationWorkflowPlannerEntryRequiresPreparedPlanningResources(t *tes
 	}
 }
 
-func TestIntegrationWorkflowPlannerActiveRejectsExtraAssignedArtifact(t *testing.T) {
+func TestIntegrationAgentMetadataPlannerActiveRejectsExtraAssignedArtifact(t *testing.T) {
 	a, deps, root := reviewRealAssignment(t, false)
 	a.WritePaths = append(a.WritePaths, "source.go")
 	writeRepoFile(t, a.Feature, "source.go", "package extra\n")
@@ -213,7 +213,7 @@ func TestIntegrationWorkflowPlannerActiveRejectsExtraAssignedArtifact(t *testing
 	}
 }
 
-func TestIntegrationWorkflowRepairActiveRequiresPrivateRoleAuthority(t *testing.T) {
+func TestIntegrationAgentMetadataRepairActiveRequiresPrivateRoleAuthority(t *testing.T) {
 	a, deps, root := reviewRealAssignment(t, false)
 	a.Role, a.Phase, a.Mode = "docket-integration-repair", "repair", "repair"
 	a.ArtifactPath, a.PlanSkill, a.BuildSkill, a.ResultsTemplate, a.Resources = "", "", "", "", nil
@@ -235,7 +235,7 @@ func TestIntegrationWorkflowRepairActiveRequiresPrivateRoleAuthority(t *testing.
 	}
 }
 
-func TestIntegrationWorkflowWorkerActiveValidatesBeforeAcknowledgement(t *testing.T) {
+func TestIntegrationAgentMetadataWorkerActiveValidatesBeforeAcknowledgement(t *testing.T) {
 	a, deps, root := reviewRealAssignment(t, false)
 	a.Role, a.Phase, a.TaskID = "docket-build-standard", "build", "1"
 	a.ArtifactPath, a.PlanSkill, a.BuildSkill, a.ResultsTemplate, a.Resources = "", "", "", "", nil
