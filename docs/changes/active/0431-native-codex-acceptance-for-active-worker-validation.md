@@ -22,7 +22,7 @@ branch: 'chore/native-codex-acceptance-for-active-worker-validation'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-17T11:24:47Z'
+claimed_at: '2026-09-17T11:55:29Z'
 ---
 
 ## Artifacts
@@ -53,8 +53,3 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
 
-## Run halted
-
-### 2026-09-17
-
-The authorized 431 replacement run cannot perform its required full build certification. The candidate gate rejected the scoped start before launching a suite: suite-attempts-exhausted, with durable build attempt accounting at 4/4. The old epoch was cancelled through run.cancel, the approved 432 source repair was applied and committed as cfa62e0b3fc1ac773ea16e3e2c48cd232063290e, and the preserved acceptance test remained unchanged before application. No build certification, native review, results publication, PR publication, or merge was performed. A human must resolve the exhausted attempt budget without hand-editing gate records or counters before any future attributed resume.
