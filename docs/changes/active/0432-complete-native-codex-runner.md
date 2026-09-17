@@ -22,7 +22,6 @@ branch: 'fix/complete-native-codex-runner'
 pr: 'https://github.com/danielhanold/docket/pull/310'
 blocked_by:
 reconciled: true
-claimed_at:
 ---
 
 ## Artifacts
