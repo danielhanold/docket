@@ -67,3 +67,9 @@ Human-approved design reconciliation against 425 candidate `80e9d2f805febe7bc990
 ### 2026-09-17
 
 2026-09-17 — phase-5 candidate dogfood launch: independently verified the project-local runtime links, candidate binary v0.0.0-candidate.425.70de2fc2 (commit 70de2fc251ea9720a84bfe3a02c0f79bf15ed21e), metadata relationship, and remote stacked base. The approved specification remains applicable; no scope or relation changes are needed. The recorded serial race-app-a timing finding (96s against the 90s budget) remains a finding to carry through implementation and results, without waiver, reset, or timing-policy change.
+
+## Run halted
+
+### 2026-09-17
+
+Phase-5 dogfood halted before native child dispatch. `workspace.prepare` created 424's isolated feature worktree at `/Users/homer/dev/docket/.worktrees/validate-codex-coordinator-models-against-a-versioned-capabi` on the verified candidate-425 base `70de2fc251ea9720a84bfe3a02c0f79bf15ed21e`, but that worktree contains neither `.agents` nor `.codex`. The candidate contract requires the plan/results resources to be loaded and provenance-pinned from the feature worktree, including `<feature>/.agents/skills/docket-implement-next/results-template.md`; the required file is absent. Establishing the missing runtime resources would require a new candidate/session or runtime-layout repair, neither authorized by this launch. No native plan/build/review child was dispatched, no global stable installation was modified, and no gate behavior, retry, or budget policy was changed. The recorded serial race-app-a timing finding (96s against 90s) remains pending and unwaived.
