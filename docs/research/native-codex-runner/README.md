@@ -65,9 +65,11 @@ the sanitized conclusions here do not require exposing that kit's credentials.
 
 432's documentation closeout targets 425 and must not be marked `stacked-merged`
 until its own PR actually merges and the lifecycle requirements are satisfied.
-Its pre-created workspace lacks managed adoption, and its plan/results attachments
-remain unresolved; creating a PR alone does not repair those metadata prerequisites.
-No workspace manifest, evidence receipt or merge record should be fabricated.
+Its pre-created workspace lacks managed adoption. The user subsequently authorized
+direct bookkeeping repair without ownership changes: verified plan/results references
+and PR identity may be recorded as a human-directed exception, not a managed adoption
+or new gate certification. See the [closeout results](../../results/2026-09-17-complete-native-codex-runner-closeout-results.md).
+No workspace manifest, evidence receipt or merge record is fabricated.
 
 Shared simplification, timing calibration and supervisor 412 remain deferred.
 425's source review, integration preparation and the separately approved 424 dogfood
