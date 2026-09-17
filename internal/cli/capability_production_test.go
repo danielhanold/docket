@@ -252,7 +252,7 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 }
 
 // TestCapabilitiesPayloadWithinByteBudget is the gating oracle for compactness:
-// the emitted catalog must fit the 15360-byte (15 KB) design ceiling, and it
+// the emitted catalog must fit the 16384-byte (16 KB) design ceiling, and it
 // must carry no human help prose — the catalog is a machine bootstrap, not a
 // second copy of --help. Growth past the ceiling is a design event (spec:
 // Compactness boundary), never a truncation or per-skill-filter opportunity.
@@ -269,15 +269,24 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 // deliberately adds the `gate.drive.acknowledge` operation (and the successor-
 // receipt flags on `gate.drive.start`) to the catalog — the identical conscious
 // design event, again one-line invocation stubs and no inlined schemas.
+// It was raised a fourth one KB step (15 KB → 16 KB) for change 0323, whose spec
+// deliberately adds the `uninstall` and `install.collect` operations to the
+// catalog — the identical conscious design event, again one-line invocation
+// stubs and no inlined schemas. This step was forced at integration rather than
+// at build: the branch measured 14308 bytes against its own base and main
+// measured 15134 against the same ceiling, each green alone, and only rebasing
+// the two independent catalog growths together crossed the line (15382, over by
+// 22 bytes). That is the guard working as designed — it surfaced the combined
+// design event that neither side could see in isolation.
 func TestCapabilitiesPayloadWithinByteBudget(t *testing.T) {
 	out, errS, code := runCLI(t, "capabilities", "--json")
 	if code != 0 || errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
 	n := len(out)
-	t.Logf("capabilities payload: %d bytes (budget 15360)", n)
-	if n > 15*1024 {
-		t.Fatalf("catalog is %d bytes, over the 15KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
+	t.Logf("capabilities payload: %d bytes (budget 16384)", n)
+	if n > 16*1024 {
+		t.Fatalf("catalog is %d bytes, over the 16KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
 	}
 	// Content-exclusion: no help-prose fields. The catalog names signatures and
 	// effects, never Short/Long/Example/Help text.
