@@ -53,3 +53,15 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
 
+## Finalize blocked
+
+### 2026-09-17 — attempt 20260917T124602Z-95660e8fee6e
+
+<!-- attempt:20260917T124602Z-95660e8fee6e -->
+
+- Reason: gate-halted
+- Head: f6695e5f8fbb198ba9458d40cfeb215a2af928bc
+- PR: #309
+- Comment: https://github.com/danielhanold/docket/pull/309#issuecomment-5714587729
+
+Remedy: Resolve the finalize gate halt, then rerun finalize for change 431 by explicit id.
