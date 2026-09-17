@@ -6,9 +6,9 @@ status: 'proposed'
 priority: 'critical'
 type: 'feat'
 created: '2026-09-11'
-updated: '2026-09-14'
-depends_on: [423, 425]
-stacked_on:
+updated: '2026-09-17'
+depends_on: [423]
+stacked_on: 425
 related: [384, 393, 412]
 discovered_from: [423]
 adrs: [114]
@@ -52,6 +52,12 @@ The user also approved preparing a pre-merge dogfood build on 425's tested PR br
 Restoring native dispatch or implementing feature-worktree binding (425), blocking 425 on this registry, querying Codex on every dispatch, adding model-policy enforcement to `RoleContractFor` or `agent.enter`, silently rewriting pins/registry, allowing assertions to contradict known V1 entries, inferring capability from model families or effort levels, changing coordinator routing or gate authority/ownership/continuation/cancellation/retry behavior, shared orchestration simplification from 432, and legacy agent.enter retirement (426). This change remains proposed with an approved reconciled design; implementation planning and launch await separate approval and fresh validation against the selected 425 candidate.
 
 ## Reconcile log
+
+### 2026-09-17 — approved stacked dogfood preparation
+
+The human approved replacing the completed-change dependency on 425 with `stacked_on: 425`, retaining `depends_on: [423]`. This supersedes the earlier keep-unstacked preparation boundary above. Candidate 425 is pinned at `70de2fc251ea9720a84bfe3a02c0f79bf15ed21e`; its only delta from the reconciled design baseline is test-comment formatting. CI run 35258671220 succeeded. The human reported fresh parent and real native review-child candidate provenance verification; that contract-required review abort was a loading check, not an implementation acceptance run. The local serial timing finding (96s against 90s) remains recorded, not waived by green CI.
+
+Preparation does not claim this change or create its implementation plan/worktree. The human will launch native ImplementNext for explicit change 424 in a separate candidate-loaded session, using its own worktree and reviewed PR against 425's branch. Stop at the open reviewed PR; do not merge 424 into 425 or main. Preserve all gate, ownership, continuation, cancellation and budget rules. No global stable installation replacement is authorized.
 
 ### 2026-09-17
 
