@@ -7,7 +7,7 @@
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
-| [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | [spec](../superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md) | `feat/validate-codex-coordinator-models-against-a-versioned-capabi` |  |
+| [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | [spec](../superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md) | `feat/validate-codex-coordinator-models-against-a-versioned-capabi` | run halted — needs you |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
 ## 🔵 Built (2)

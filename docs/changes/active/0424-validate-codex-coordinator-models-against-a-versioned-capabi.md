@@ -22,7 +22,7 @@ branch: 'feat/validate-codex-coordinator-models-against-a-versioned-capabi'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-17T21:39:27Z'
+claimed_at: '2026-09-17T22:16:30Z'
 ---
 
 ## Artifacts
@@ -83,8 +83,3 @@ Native Task 1 admission was blocked before any source edit or test execution. Th
 
 The human explicitly authorized resetting change 424 for a from-scratch dogfood run, without redesigning gates or coordinators. The prior run was explicitly cancelled with disposition `cancelled`. Its plan-only commit `5d37cca3` is preserved on local branch `backup/424-plan-attempt-20260917`, with the prior worktree and state archived at `/Users/homer/dev/docket-0424-restart.ZyKU6s`. The three historical blockers belong to completed changes 417/419; their recorded worktree and raw-run paths no longer exist. Their exact drive directories were quarantined intact outside the active registry, not falsified as successful. The history dry-run now reports zero retained drives. This operational reset clears the claim, plan attachment and halt marker while retaining the approved specification, `depends_on: [423]` and `stacked_on: 425`. No implementation changes, suite execution or PR existed to discard. The next manually launched session must claim 424 fresh, create a new worktree and stage verified candidate resources there before planning. No run is launched by this reset; the timing finding remains unwaived.
 
-## Run halted
-
-### 2026-09-17
-
-Native Task 2 entry validation passed and its original baseline gate produced a durable FAILED receipt at drive 95b44dd5e9b115a7bc0425e5ebabc898, with no feature edits or commit. The controller failed to preserve the original nested shell exit status: it emitted only stdout from the command result and later incorrectly inferred an exit code from the outer tool wrapper. The original operation was not rerun. A parent takeover returned a recovered FAILED outcome, but its original CLI exit status was likewise not durably captured. This is an operational transport-capture failure, not evidence of a candidate product defect. Task 1 commit 9fac14eaff13f448e576cd8e244532507582a573 and all plan/receipt evidence are preserved. A fresh supported cancellation/resume may continue with a wrapper that persists stdout, stderr, and exact rc outside each allocation before returning.
