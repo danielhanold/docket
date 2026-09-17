@@ -2,7 +2,7 @@
 id: 431
 slug: 'native-codex-acceptance-for-active-worker-validation'
 title: 'Native Codex acceptance for active worker validation'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'chore'
 created: '2026-09-16'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/native-codex-acceptance-for-active-worker-validation'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/309'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-17T12:11:08Z'
