@@ -1,6 +1,6 @@
 # Backlog
 
-**432 changes** — 🟢 4 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 282 done · 🗑️ 113 killed
+**432 changes** — 🟢 4 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 282 done · 🗑️ 113 killed
 
 ## 🟢 In progress (4)
 
@@ -11,11 +11,11 @@
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
-## 🔵 Built (1)
+## 🔴 Blocked (1)
 
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [#308](https://github.com/danielhanold/docket/pull/308) | awaiting merge |
+| # | Title | Priority | Type | PR | Reason |
+|---|-------|----------|------|----|--------|
+| [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | [#308](https://github.com/danielhanold/docket/pull/308) | finalize blocked — needs you |
 
 ## 🟣 Groomed (3)
 
