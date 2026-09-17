@@ -22,7 +22,7 @@ branch: 'codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
 pr: 'https://github.com/danielhanold/docket/pull/303'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-15T20:55:05Z'
+claimed_at: '2026-09-17T17:04:39Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,7 @@ Implementing 424's model registry, minimum-capability metadata, diagnostics/live
 ### 2026-09-14
 
 User-authorized bootstrap preparation: create the isolated codex-prefixed 425 worktree; plan directly at a capable setting, implement directly at Sol/low, and perform full-suite inline repairs in a separate phase. No installed ImplementNext/build workflow is used to build 425. The reviewed spec is accepted as the baseline. A later 424 dogfood may stack on the tested, pushed 425 PR branch after grooming and explicit dependency-to-stack conversion; it is not launched by this preparation.
+
+### 2026-09-17
+
+2026-09-17: User approved step 2 only: reconcile PR303, rebase onto current main, verify source and obtain independent whole-production-diff review; no merge or424 launch. Adopted actual PR303 via change.repair-identity. Fast-forwarded local425 to published8deef57f6ff8764d06e786b4a27bda504c202e25, retained backup/425-before-main-rebase-20260917, and rebased onto main3ccf9fac511f370c200315674a1edf97766b0a5b. Rebased/published head7ea8e514515b829a05d9f814ad9f99a21e246c00. Regenerated conflicting asset manifests; combined capability-budget commentary without raising the limit. Preserved431/432 frozen artifacts and acceptance fixture. Full source suite passed58/58 files468 assertions exit0 wall301s; toolchain_test serial60s, no serial-confirmed breach; parallel/watch findings retained. Independent source review pending. This human-directed bootstrap summary is not an attributed native gate receipt, and no ownership records or runtime installations changed.
