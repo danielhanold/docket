@@ -2,7 +2,7 @@
 id: 434
 slug: 'move-load-sensitive-tests-out-of-the-default-parallel-suite'
 title: 'Move load-sensitive tests out of the default parallel suite lane'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-18'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/move-load-sensitive-tests-out-of-the-default-parallel-suite'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/312'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-18T18:39:53Z'
