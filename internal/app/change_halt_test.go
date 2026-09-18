@@ -88,28 +88,40 @@ func TestChangeResumeHaltedRequiresAcknowledgement(t *testing.T) {
 	}
 }
 
-// TestResumeQuiescenceMapping proves the reprobed-state mapping: an allocating,
-// foreign, or mismatched workspace has a writer that may be live and refuses; a
-// ready or dirty-owned (the prior worker's checkpoints) workspace resumes.
-func TestResumeQuiescenceMapping(t *testing.T) {
+// TestClassifyResumeAdmission proves the CLOSED reprobed-state admission map
+// (change 0368): ready, dirty-owned (the prior worker's checkpoints),
+// branch-missing, and cleaned are quiescent and admit; a proven-absent workspace
+// needs the remote-absence proof; allocating, foreign, and mismatched are refused
+// as possibly-live writers; and any state OUTSIDE the closed set is refused as
+// unknown — the open default that once silently admitted is gone.
+func TestClassifyResumeAdmission(t *testing.T) {
 	cases := []struct {
-		state  workspace.StateKind
-		refuse bool
+		state    string
+		want     resumeAdmission
+		wantReas string
 	}{
-		{workspace.StateResumable, true},
-		{workspace.StateForeign, true},
-		{workspace.StateMismatch, true},
-		{workspace.StateReady, false},
-		{workspace.StateDirty, false},
-		{workspace.StateBranchGone, false},
+		{string(workspace.StateReady), resumeAdmitted, ""},
+		{string(workspace.StateDirty), resumeAdmitted, ""},
+		{string(workspace.StateBranchGone), resumeAdmitted, ""},
+		{string(workspace.StateCleaned), resumeAdmitted, ""},
+		{string(workspace.StateAbsent), resumeNeedsRemoteAbsence, ""},
+		{string(workspace.StateResumable), resumeRefused, ReasonResumeWorkspaceActive},
+		{string(workspace.StateForeign), resumeRefused, ReasonResumeWorkspaceActive},
+		{string(workspace.StateMismatch), resumeRefused, ReasonResumeWorkspaceActive},
+		{"weird-new-state", resumeRefused, ReasonResumeUnknownState},
+		{"", resumeRefused, ReasonResumeUnknownState},
 	}
 	for _, tc := range cases {
-		reason, _ := resumeQuiescenceRefusal(string(tc.state))
-		if (reason != "") != tc.refuse {
-			t.Errorf("state %q: refuse=%v (reason %q), want refuse=%v", tc.state, reason != "", reason, tc.refuse)
+		got, reason, msg := classifyResumeAdmission(tc.state)
+		if got != tc.want {
+			t.Errorf("state %q: admission=%v, want %v", tc.state, got, tc.want)
 		}
-		if tc.refuse && reason != ReasonResumeWorkspaceActive {
-			t.Errorf("state %q: reason=%q, want %q", tc.state, reason, ReasonResumeWorkspaceActive)
+		if reason != tc.wantReas {
+			t.Errorf("state %q: reason=%q, want %q", tc.state, reason, tc.wantReas)
+		}
+		// A refusal carries an explanatory message; an admission carries neither.
+		if (got == resumeRefused) != (msg != "") {
+			t.Errorf("state %q: refuse=%v but message=%q", tc.state, got == resumeRefused, msg)
 		}
 	}
 }
