@@ -21,7 +21,7 @@ import (
 // atomic: the single applied commit rewrites the change record (its plan: field
 // and its re-rendered artifact block) and the inline board together — never one
 // without the other. It inspects the winning commit's exact changed-path set.
-func TestIntegrationWorkflowAttachPlanBoardLinkAtomicity(t *testing.T) {
+func TestIntegrationWorkflowRepoAttachPlanBoardLinkAtomicity(t *testing.T) {
 	requireRealGit(t)
 	const (
 		id   = 3
@@ -77,7 +77,7 @@ func TestIntegrationWorkflowAttachPlanBoardLinkAtomicity(t *testing.T) {
 // TestChangeAttachPlanGitVerification is the guard-table mutation test: each row
 // corrupts exactly one property of the happy fixture and asserts the operation
 // refuses with that guard's stable reason.
-func TestIntegrationWorkflowChangeAttachPlanGitVerification(t *testing.T) {
+func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 	f := attachSetup(t)
 	otherPlan := "docs/superpowers/plans/2026-08-17-decoy.md"
 
@@ -238,7 +238,7 @@ func TestIntegrationWorkflowChangeAttachPlanGitVerification(t *testing.T) {
 // TestChangeAttachPlanGitVerificationHappyPath proves a correctly written plan
 // commit passes every from-Git guard and lands the metadata transaction: the
 // change record on the remote gains the plan: field, rendered by the engine.
-func TestIntegrationWorkflowChangeAttachPlanGitVerificationHappyPath(t *testing.T) {
+func TestIntegrationWorkflowRepoChangeAttachPlanGitVerificationHappyPath(t *testing.T) {
 	f := attachSetup(t)
 	head := f.commitPlan(t, map[string]string{
 		f.planPath: attachHappyPlan(f.id, "A change", f.recPath),
@@ -261,14 +261,14 @@ func TestIntegrationWorkflowChangeAttachPlanGitVerificationHappyPath(t *testing.
 	}
 }
 
-// TestIntegrationWorkflowChangeAttachResultsCheckpointContent proves
+// TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent proves
 // change.attach-results runs checkpoint-phase content validation AFTER the
 // backlink guard: a raw template scaffold (angle-bracket placeholders behind a
 // correct backlink) refuses with results-content-invalid and writes nothing,
 // while a truthful in-progress artifact (title + backlink + one real Outcome
 // paragraph and no other sections) attaches — the checkpoint phase never demands
 // the final content contract.
-func TestIntegrationWorkflowChangeAttachResultsCheckpointContent(t *testing.T) {
+func TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent(t *testing.T) {
 	const resultsPath = "docs/results/2026-08-17-widget-results.md"
 
 	t.Run("raw template scaffold refuses with results-content-invalid", func(t *testing.T) {
@@ -328,7 +328,7 @@ func TestIntegrationWorkflowChangeAttachResultsCheckpointContent(t *testing.T) {
 // claimant's version stale (learning green-suite-untested-branch: the contended
 // path must actually diverge on the remote; learning cas-re-read-fresh-origin:
 // the loser's stale local tree is never trusted).
-func TestIntegrationWorkflowClaimRaceLosesCleanly(t *testing.T) {
+func TestIntegrationWorkflowRepoClaimRaceLosesCleanly(t *testing.T) {
 	requireRealGit(t)
 	const (
 		id   = 3
@@ -419,7 +419,7 @@ func TestIntegrationWorkflowClaimRaceLosesCleanly(t *testing.T) {
 // retry safe: the identical claim request, re-run after its receipt was discarded,
 // replays the original applied claim as `already-claimed` and commits nothing new,
 // so exactly one claim commit sits on the metadata remote.
-func TestIntegrationWorkflowClaimRetryAfterLostResponse(t *testing.T) {
+func TestIntegrationWorkflowRepoClaimRetryAfterLostResponse(t *testing.T) {
 	requireRealGit(t)
 	const (
 		id   = 3
@@ -472,7 +472,7 @@ func TestIntegrationWorkflowClaimRetryAfterLostResponse(t *testing.T) {
 }
 
 // TestClaimToImplementedWorkflow is the acceptance-1/6 end-to-end proof.
-func TestIntegrationWorkflowClaimToImplementedWorkflow(t *testing.T) {
+func TestIntegrationWorkflowLifecycleClaimToImplementedWorkflow(t *testing.T) {
 	requireRealGit(t)
 	// The workflow must need no legacy Bash facade: clear the facade env var so a
 	// stray export cannot silently satisfy anything, then assert it stayed clear.
@@ -505,7 +505,7 @@ func TestIntegrationWorkflowClaimToImplementedWorkflow(t *testing.T) {
 // workspace is created at the parent feature branch tip, and the plan committed
 // on it (which descends from that tip, not from main) passes attach's descendant
 // check. Both metadata modes.
-func TestIntegrationWorkflowEffectiveBaseConsumedFromDomain(t *testing.T) {
+func TestIntegrationWorkflowRepoEffectiveBaseConsumedFromDomain(t *testing.T) {
 	requireRealGit(t)
 	const (
 		parentID   = 20
@@ -579,7 +579,7 @@ func TestIntegrationWorkflowEffectiveBaseConsumedFromDomain(t *testing.T) {
 
 // TestGitStatusReaderBranchFacts proves a pushed feature branch reads present
 // and an absent one reads absent, with no error for the absent case.
-func TestIntegrationWorkflowGitStatusReaderBranchFacts(t *testing.T) {
+func TestIntegrationWorkflowRepoGitStatusReaderBranchFacts(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
@@ -606,7 +606,7 @@ func TestIntegrationWorkflowGitStatusReaderBranchFacts(t *testing.T) {
 // TestGitStatusReaderConcurrentRemoteMovement proves a corpus read observes the
 // exact pinned revision even when the remote advances after the pin: the source
 // is fixed at open time and never re-fetches.
-func TestIntegrationWorkflowGitStatusReaderConcurrentRemoteMovement(t *testing.T) {
+func TestIntegrationWorkflowRepoGitStatusReaderConcurrentRemoteMovement(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
@@ -643,7 +643,7 @@ func TestIntegrationWorkflowGitStatusReaderConcurrentRemoteMovement(t *testing.T
 // TestGitStatusReaderDiscoversFromNestedSubdir proves discovery canonicalizes a
 // nested invocation directory to the same repository, so a pin succeeds from
 // anywhere inside the worktree.
-func TestIntegrationWorkflowGitStatusReaderDiscoversFromNestedSubdir(t *testing.T) {
+func TestIntegrationWorkflowRepoGitStatusReaderDiscoversFromNestedSubdir(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
@@ -666,7 +666,7 @@ func TestIntegrationWorkflowGitStatusReaderDiscoversFromNestedSubdir(t *testing.
 // TestGitStatusReaderDocketModeDistinctRevisions proves docket mode pins the
 // metadata branch separately from the integration branch and reads the corpus
 // from the metadata revision, not the code branch.
-func TestIntegrationWorkflowGitStatusReaderDocketModeDistinctRevisions(t *testing.T) {
+func TestIntegrationWorkflowRepoGitStatusReaderDocketModeDistinctRevisions(t *testing.T) {
 	requireRealGit(t)
 	repo := newDocketModeRepo(t,
 		map[string]string{
@@ -705,7 +705,7 @@ func TestIntegrationWorkflowGitStatusReaderDocketModeDistinctRevisions(t *testin
 // TestGitStatusReaderMainModePinAndCorpus is the main-mode end-to-end read: the
 // pin resolves the default branch and both revisions collapse to it, and the
 // corpus carries the active change with its blob id from the pinned revision.
-func TestIntegrationWorkflowGitStatusReaderFullCorpusFromMetadataBranch(t *testing.T) {
+func TestIntegrationWorkflowRepoGitStatusReaderFullCorpusFromMetadataBranch(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md":             changeRecord(1, "alpha", "Alpha"),
@@ -761,7 +761,7 @@ func TestIntegrationWorkflowGitStatusReaderFullCorpusFromMetadataBranch(t *testi
 // without the fixed remote docket branch (and without a live surface — a
 // FRESH repository, admitted by the operational gate) fails the pin as an
 // external error, not a silent empty pin and not the legacy refusal.
-func TestIntegrationWorkflowGitStatusReaderMissingMetadataBranchIsExternal(t *testing.T) {
+func TestIntegrationWorkflowRepoGitStatusReaderMissingMetadataBranchIsExternal(t *testing.T) {
 	requireRealGit(t)
 	repo := newLegacyRepo(t, nil) // no records → no live surface → fresh, not legacy
 
@@ -779,7 +779,7 @@ func TestIntegrationWorkflowGitStatusReaderMissingMetadataBranchIsExternal(t *te
 // the worktree, index, HEAD, and symbolic ref are byte-identical before and
 // after a full read, while the one permitted mutation — a remote-tracking ref
 // advancing to a newly-pushed commit — is positively observed.
-func TestIntegrationWorkflowGitStatusReaderReadOnly(t *testing.T) {
+func TestIntegrationWorkflowRepoGitStatusReaderReadOnly(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
@@ -844,7 +844,7 @@ func TestIntegrationWorkflowGitStatusReaderReadOnly(t *testing.T) {
 // Mutation probes (each must redden this test, run with -count=1):
 //   - in PinContext, drop the RemoteURL call / the RepoWebURL assignment;
 //   - in linkContextOf, drop the RepoWebURL field.
-func TestIntegrationWorkflowPinContextDerivesGitHubRepoWebURL(t *testing.T) {
+func TestIntegrationWorkflowRepoPinContextDerivesGitHubRepoWebURL(t *testing.T) {
 	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0007-widget.md": changeRecord(7, "widget", "Widget"),
 	})
@@ -885,7 +885,7 @@ func TestIntegrationWorkflowPinContextDerivesGitHubRepoWebURL(t *testing.T) {
 
 // TestPinContextNonGitHubOriginYieldsEmptyWebURL pins the fallback: a plain
 // local-path origin derives "", and rendering stays in repo-relative mode.
-func TestIntegrationWorkflowPinContextNonGitHubOriginYieldsEmptyWebURL(t *testing.T) {
+func TestIntegrationWorkflowRepoPinContextNonGitHubOriginYieldsEmptyWebURL(t *testing.T) {
 	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0007-widget.md": changeRecord(7, "widget", "Widget"),
 	})
@@ -902,7 +902,7 @@ func TestIntegrationWorkflowPinContextNonGitHubOriginYieldsEmptyWebURL(t *testin
 	}
 }
 
-func TestIntegrationWorkflowPlanningIdempotentReplayEndToEnd(t *testing.T) {
+func TestIntegrationWorkflowLifecyclePlanningIdempotentReplayEndToEnd(t *testing.T) {
 	requireRealGit(t)
 	for _, m := range planRepoModes() {
 		m := m
@@ -949,7 +949,7 @@ func TestIntegrationWorkflowPlanningIdempotentReplayEndToEnd(t *testing.T) {
 	}
 }
 
-func TestIntegrationWorkflowPlanningKillEndToEnd(t *testing.T) {
+func TestIntegrationWorkflowLifecyclePlanningKillEndToEnd(t *testing.T) {
 	requireRealGit(t)
 	for _, m := range planRepoModes() {
 		m := m
@@ -1011,7 +1011,7 @@ func TestIntegrationWorkflowPlanningKillEndToEnd(t *testing.T) {
 	}
 }
 
-func TestIntegrationWorkflowPlanningRefusalPushesNothing(t *testing.T) {
+func TestIntegrationWorkflowLifecyclePlanningRefusalPushesNothing(t *testing.T) {
 	requireRealGit(t)
 	for _, m := range planRepoModes() {
 		m := m
@@ -1039,7 +1039,7 @@ func TestIntegrationWorkflowPlanningRefusalPushesNothing(t *testing.T) {
 	}
 }
 
-func TestIntegrationWorkflowPlanningSuccessIsOneCommitWithExplicitPathsCleanRoot(t *testing.T) {
+func TestIntegrationWorkflowLifecyclePlanningSuccessIsOneCommitWithExplicitPathsCleanRoot(t *testing.T) {
 	requireRealGit(t)
 	for _, m := range planRepoModes() {
 		m := m
@@ -1081,7 +1081,7 @@ func TestIntegrationWorkflowPlanningSuccessIsOneCommitWithExplicitPathsCleanRoot
 // independent writer commits a conflicting edit to origin between the context
 // read and the reconcile: the operation text-merges nothing, writes nothing, and
 // the independent writer's bytes survive on origin byte-for-byte.
-func TestIntegrationWorkflowReconcileIndependentWriterWins(t *testing.T) {
+func TestIntegrationWorkflowRepoReconcileIndependentWriterWins(t *testing.T) {
 	requireRealGit(t)
 	const (
 		id   = 3
@@ -1143,7 +1143,7 @@ func TestIntegrationWorkflowReconcileIndependentWriterWins(t *testing.T) {
 // The refresh runs a day after the claim (advanced clock) so the record
 // genuinely changes; that isolates the board as the sole would-be
 // declared-but-unchanged path.
-func TestIntegrationWorkflowRefreshClaimAppliesWhenBoardReRenderIsUnchanged(t *testing.T) {
+func TestIntegrationWorkflowRepoRefreshClaimAppliesWhenBoardReRenderIsUnchanged(t *testing.T) {
 	requireRealGit(t)
 	const (
 		id   = 3
@@ -1212,7 +1212,7 @@ func TestIntegrationWorkflowRefreshClaimAppliesWhenBoardReRenderIsUnchanged(t *t
 	}
 }
 
-// TestIntegrationWorkflowStackedContextClaimWorkspaceFromParentBranch is the
+// TestIntegrationWorkflowRepoStackedContextClaimWorkspaceFromParentBranch is the
 // change-0357 regression: a proposed, designed child stacked on a LIVE parent
 // whose recorded branch is pushed to the origin must pass the pre-claim
 // implementation-context gate (both automatic selection and explicit id),
@@ -1223,10 +1223,10 @@ func TestIntegrationWorkflowRefreshClaimAppliesWhenBoardReRenderIsUnchanged(t *t
 // exact topology was refused stack-base-unresolved before claim could run.
 // Reverting ContextImplementation's BranchFacts read to domain.NewBranchFacts(nil)
 // must make this test fail at the pre-claim gate. It joins
-// TestIntegrationWorkflowEffectiveBaseConsumedFromDomain (which starts PAST the
+// TestIntegrationWorkflowRepoEffectiveBaseConsumedFromDomain (which starts PAST the
 // gate, from an already-claimed child) rather than replacing it. Both metadata
 // modes; the git reader is the production NewGitStatusReader.
-func TestIntegrationWorkflowStackedContextClaimWorkspaceFromParentBranch(t *testing.T) {
+func TestIntegrationWorkflowRepoStackedContextClaimWorkspaceFromParentBranch(t *testing.T) {
 	requireRealGit(t)
 	const (
 		parentID   = 20
@@ -1322,7 +1322,7 @@ func TestIntegrationWorkflowStackedContextClaimWorkspaceFromParentBranch(t *test
 // TestWorkspaceOpsGitLifecycle walks one change through prepare (fresh + resume),
 // inspect, and publish (create, fast-forward, and a contended divergence) against
 // a real bare remote, in both metadata modes.
-func TestIntegrationWorkflowWorkspaceOpsGitLifecycle(t *testing.T) {
+func TestIntegrationWorkflowLifecycleWorkspaceOpsGitLifecycle(t *testing.T) {
 	requireRealGit(t)
 	const (
 		id   = 3
@@ -1431,7 +1431,7 @@ func TestIntegrationWorkflowWorkspaceOpsGitLifecycle(t *testing.T) {
 // carries the record's recorded branch verbatim (feature/renamed-head), never a
 // slug derivation. Mutation: derive FeatureRef from the slug and this reddens
 // (it would be refs/heads/feat/widget).
-func TestIntegrationWorkflowWorkspacePrepareHonorsRecordedBranch(t *testing.T) {
+func TestIntegrationWorkflowLifecycleWorkspacePrepareHonorsRecordedBranch(t *testing.T) {
 	const ver = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 	reader := &fakeReader{
 		pin:    mainPin(t),
@@ -1462,7 +1462,7 @@ func TestIntegrationWorkflowWorkspacePrepareHonorsRecordedBranch(t *testing.T) {
 // field was stripped fails closed — invalid-state, no mutation, the service is
 // never called. Mutation: reconstruct the branch from the slug and this reddens
 // (the service would be called and the result applied).
-func TestIntegrationWorkflowWorkspacePrepareRefusesMissingBranch(t *testing.T) {
+func TestIntegrationWorkflowLifecycleWorkspacePrepareRefusesMissingBranch(t *testing.T) {
 	const ver = "ffffffffffffffffffffffffffffffffffffffff"
 	src := lifecycleChange(31, "widget", "in-progress")
 	src = strings.Replace(src, "branch: feat/widget\n", "", 1)
@@ -1489,7 +1489,7 @@ func TestIntegrationWorkflowWorkspacePrepareRefusesMissingBranch(t *testing.T) {
 
 // TestWorkspacePrepareRequiresClaimedVersion: a proposed (unclaimed) change and
 // a stale version each refuse before any Git work — the service is never called.
-func TestIntegrationWorkflowWorkspacePrepareRequiresClaimedVersion(t *testing.T) {
+func TestIntegrationWorkflowLifecycleWorkspacePrepareRequiresClaimedVersion(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 
 	t.Run("not in-progress", func(t *testing.T) {
@@ -1523,7 +1523,7 @@ func TestIntegrationWorkflowWorkspacePrepareRequiresClaimedVersion(t *testing.T)
 // service equals domain.ResolveEffectiveBase's answer for a STACKED change —
 // the parent's feature branch, not the integration branch. Mutation: hard-code
 // the base to "main" and this reddens (the resolved base is feat/parent).
-func TestIntegrationWorkflowWorkspacePrepareResolvesBaseFromDomain(t *testing.T) {
+func TestIntegrationWorkflowLifecycleWorkspacePrepareResolvesBaseFromDomain(t *testing.T) {
 	const childVer = "cccccccccccccccccccccccccccccccccccccccc"
 	reader := &fakeReader{
 		pin: mainPin(t),
@@ -1557,7 +1557,7 @@ func TestIntegrationWorkflowWorkspacePrepareResolvesBaseFromDomain(t *testing.T)
 
 // TestWorkspacePublishHeadMismatch: when the reinspected workspace head differs
 // from the expected head, the operation refuses and never calls PublishHead.
-func TestIntegrationWorkflowWorkspacePublishHeadMismatch(t *testing.T) {
+func TestIntegrationWorkflowLifecycleWorkspacePublishHeadMismatch(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")}}
 	svc := &fakeWorkspaceService{
@@ -1580,7 +1580,7 @@ func TestIntegrationWorkflowWorkspacePublishHeadMismatch(t *testing.T) {
 // TestWorkspacePublishPassesThroughDispositions: each service publish
 // disposition maps to a fixed protocol result, with the service's disposition
 // carried through verbatim (no force, no retry).
-func TestIntegrationWorkflowWorkspacePublishPassesThroughDispositions(t *testing.T) {
+func TestIntegrationWorkflowLifecycleWorkspacePublishPassesThroughDispositions(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	const head = "abcdef0000000000000000000000000000000000"
 

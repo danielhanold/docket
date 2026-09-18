@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # docket-suite: go
-# tests/test_go_integration_app_rebase.sh — Go integration shard (change 0333;
-# split by change 0434): the finalize rebase gate-outcome real-repository tests
-# (gate outcomes, gate waiting, preconditions, receipt, foreign-state), behind the
-# `integration` build tag, prefix ^TestIntegrationFinalizeRebaseGate. The rebase
-# recovery/carry half lives in tests/test_go_integration_app_rebaserecovery.sh.
+# tests/test_go_integration_app_rebaserecovery.sh — Go integration shard (change 0434):
+# the finalize rebase recovery/carry real-repository tests (checkpoint reuse/
+# invalidation, carry preservation, response-loss recovery, abort/continue,
+# attempt round-trip), behind the `integration` build tag, prefix
+# ^TestIntegrationFinalizeRebaseRecovery. Split out of tests/test_go_integration_app_rebase.sh.
 # Declarations only — execution and inspection live in
 # tests/lib/go-integration-shard.sh; the completeness contract is
 # tests/test_go_integration_contract.sh.
@@ -15,7 +15,7 @@ fail=0
 assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 SHARD_PKG="./internal/app"
-SHARD_PREFIX="TestIntegrationFinalizeRebaseGate"
+SHARD_PREFIX="TestIntegrationFinalizeRebaseRecovery"
 SHARD_MODE="normal"
 
 . "$REPO/tests/lib/go-integration-shard.sh"

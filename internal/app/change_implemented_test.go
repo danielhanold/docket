@@ -246,7 +246,7 @@ func firstStatusFindingCode(findings []StatusFinding) string {
 // TestMarkImplementedAcceptsSkippedEvidence: a build.gate: off repository marks a
 // change implemented on truthful skipped evidence certifying the exact head. The
 // evidence conjunct accepts VerdictSkipped exactly as VerdictVerified; the happy
-// fixture is TestIntegrationChangeMarkImplementedAppliesEndToEnd with skipped
+// fixture is TestIntegrationChangeRuntimeMarkImplementedAppliesEndToEnd with skipped
 // evidence substituted.
 func TestMarkImplementedAcceptsSkippedEvidence(t *testing.T) {
 	requireRealGit(t)

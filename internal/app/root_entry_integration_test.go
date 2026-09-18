@@ -21,7 +21,7 @@ import (
 // The parent asks the gate only AFTER the foreground root returns; no result
 // text supplies either ownership or success. The second row strips the dispatch
 // context at turn/start and must lose attribution despite completing the change.
-func TestIntegrationWorkflowRootEntryGateAttribution(t *testing.T) {
+func TestIntegrationWorkflowLifecycleRootEntryGateAttribution(t *testing.T) {
 	gh := buildFakeGH(t)
 	for _, drop := range []bool{false, true} {
 		name := "context-preserved"
