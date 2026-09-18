@@ -2,7 +2,7 @@
 id: 432
 slug: 'complete-native-codex-runner'
 title: 'Complete native Codex runner'
-status: 'stacked-merged'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-16'
@@ -77,3 +77,9 @@ successful native acceptance and its human interventions. Research documents are
 feature branch under docs/research; metadata originals remain until PR #310 merges.
 Do not mark stacked-merged until the real PR merge is verified, or done before main
 integration. No merge is authorized by this bookkeeping repair.
+
+## Human-authorized retirement — 2026-09-18
+
+The human explicitly approved a metadata-only archival exception because the installed change.kill transaction accepts only proposed/in-progress records. This temporary administrative status permits the supported archival renderer; it does not restart implementation, acquire a new claim, erase a merge, or authorize any run. Kill immediately as abandoned delivery, retaining all branches, worktrees and evidence.
+
+PR #310 really merged into 425, not main, at 8deef57f6ff8764d06e786b4a27bda504c202e25; its feature head was bc78d999d32069e828ba401f26b203b46864dbac. The documentation-only closeout and repairs carried through 431 remain historical facts. Receipt/continuation interpretation and transport fixes enabled intervention-assisted acceptance but did not establish reliable later production orchestration. See the [retirement findings](../research/0433-fresh-main-retirement-findings.md) and successor 433, which starts afresh from main and must leave Claude Code, Cursor and OpenCode behavior unchanged. No merge into main is claimed or authorized.

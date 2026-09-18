@@ -8,9 +8,9 @@ type: 'refactor'
 created: '2026-09-18'
 updated: '2026-09-18'
 depends_on: []
-stacked_on: 425
-related: [360, 412, 422, 424, 426, 431, 432]
-discovered_from: [424]
+stacked_on:
+related: [360, 412, 422, 423, 424, 425, 426, 430, 431, 432]
+discovered_from: [424, 425, 430, 431, 432]
 adrs: [16, 111, 115, 118, 119]
 spec:
 plan:
@@ -36,7 +36,13 @@ reconciled: false
 
 The user stopped the change 424 operational run after repeated intervention and proposes a structural experiment: let the existing top-level Codex session run docket-implement-next itself and directly dispatch leaf agents. Do not require a top-level controller to launch a second coordinator which then launches workers. Preserve the useful workflow and guarantees, but stop treating identical agent topology across harnesses as a requirement.
 
-This is a proposed experiment, not an approved implementation spec. Keep it needs-brainstorm until runtime model verification, root lifecycle ownership, and the simplification boundary are settled with the human. Its stack parent is 425; it is a sibling of 424, not dependent on 424's partial implementation. Do not automatically resume 424.
+This is a proposed experiment, not an approved implementation spec. Keep it needs-brainstorm until runtime model verification, root lifecycle ownership, and the simplification boundary are settled with the human. On 2026-09-18 the human approved abandoning the 425 implementation stack and starting 433 afresh from main. There is no stack parent and no dependency on 425 or 424's partial implementation. The abandoned work is research evidence, not the implementation base. Do not resume any abandoned run.
+
+### Fresh-main decision and predecessor findings
+
+The [failed-approach retirement review](../research/0433-fresh-main-retirement-findings.md) summarizes each predecessor, preserved evidence, the retirement disposition, and the limits of the old acceptance results. Changes 424, 425, 426, 431 and 432 are the direct retirement set; 430 is already killed. Historical POC 423 remains a completed experiment, not production certification. Independent shared work such as 412 and 422 is neither inherited nor automatically cancelled.
+
+The non-negotiable acceptance criterion is: **leave Claude Code and Cursor and opencode behavior unchanged**. This covers their shared workflow instructions, generated assets, configuration and model selection, dispatch/worktree behavior, gate ownership and cancellation/resume semantics, persisted-state compatibility, review, evidence and publication—not merely their adapter source files.
 
 ### Findings from the stopped 424 run
 
@@ -73,7 +79,7 @@ The prior 96s/90s serial budget finding remains unwaived. Earlier parallel-green
 
 For Codex, the active top-level session invokes the coordinator skill inline. docket-implement-next owns selection through reviewed open PR; docket-build runs inline under it and dispatches direct leaf workers. Planner, profile-selected build workers, independent reviewer, and any ADR author remain separate direct children. The root owns escalation and sequencing; children do not spawn another orchestration layer. Preserve role contracts, read-only review separation, and configured leaf profiles.
 
-Audit other coordinator skills with the same need. docket-auto-groom has a critic child; docket-finalize-change has resolver/integration-repair children. Define the same top-level pattern where appropriate, without running either workflow merely to test registration. Audit resolved/custom skills for hidden nested dispatch; explicitly reject or document unsupported composition rather than silently restoring the old topology. Leave Claude Code and Cursor's functioning routes unchanged.
+Audit other coordinator skills with the same need. docket-auto-groom has a critic child; docket-finalize-change has resolver/integration-repair children. Define the same top-level pattern where appropriate, without running either workflow merely to test registration. Audit resolved/custom skills for hidden nested dispatch; explicitly reject or document unsupported composition rather than silently restoring the old topology. Leave Claude Code, Cursor, and OpenCode behavior unchanged.
 
 ### Actual root model and effort, not self-attestation
 
@@ -89,7 +95,7 @@ The removed parent-to-coordinator retry loop is not the same thing as suite-atte
 
 ### Simplification is a deliverable, not an incidental cleanup
 
-Inventory actual Codex-specific checks, generated instructions, CLI/schema fields, tests and callers across the repository. Classify each as remove, replace/simplify, or retain with its invariant and negative-test coverage. Distinguish production requirements from isolated candidate/dogfood staging. Report the reduction in agent boundaries, state transitions, model-authored fields, and duplicate checks; do not promise an arbitrary deletion quota.
+Inventory actual Codex-specific checks, generated instructions, CLI/schema fields, tests and callers on main. Compare the retired stack only as research: machinery absent from main should normally stay absent, not be imported to be simplified. Classify existing checks as remove, replace/simplify, or retain with their invariants and negative-test coverage. Distinguish production requirements from isolated candidate/dogfood staging. Report the reduction in agent boundaries, state transitions, model-authored fields, and duplicate checks; do not promise an arbitrary deletion quota. No wholesale cherry-picking or merging of 425 or its descendants; any individually reused fix needs an independently demonstrated necessity, review and tests against main.
 
 Candidates to REMOVE where they exist solely for the eliminated layer:
 
@@ -111,9 +117,11 @@ Review ADR-0119 and related lifecycle/config decisions for a new or superseding 
 
 ### Pilot and acceptance evidence
 
-Start from the then-verified 425 effective base in an isolated candidate/worktree, with a separate change and PR. Do not rely on the stopped 424 worktree or partially written model registry. Human-approved design comes before implementation.
+Start from the freshly verified origin/main in a new isolated candidate/worktree, with 433's PR targeting main. The planning baseline at retirement is 3ccf9fac511f370c200315674a1edf97766b0a5b; re-resolve main at implementation rather than assuming this snapshot is current. Do not use the 425 branch, stopped 424 worktree, its partially written model registry, or the old candidate runtime as the implementation base. Human-approved design comes before implementation.
 
-Exercise a small but complete real workflow: root coordinator, native planner, scoped native worker, native independent reviewer, complete configured build and final-head gates, results/evidence attachment, and a reviewed open stacked PR. Include a planned real continuation and explicit cancellation/resume rehearsal. Observe all children to terminal state and verify the exact final head; leave the PR open and do not merge.
+Exercise a small but complete real workflow: root coordinator, native planner, scoped native worker, native independent reviewer, complete configured build and final-head gates, results/evidence attachment, and a reviewed open PR. Include a planned real continuation and explicit cancellation/resume rehearsal. Observe all children to terminal state and verify the exact final head; leave the PR open and do not merge.
+
+Prove the unchanged-behavior criterion for Claude Code, Cursor, and OpenCode against the exact candidate: inspect generated instructions/assets and config outputs, run cross-harness contract and integration tests, and obtain real workflow acceptance including interruption/resume. Exercise upgrade/rollback and old persisted-state compatibility if any shared format or reader changes. Green source/packaging/platform-smoke CI is not live harness acceptance. An unavailable harness is an explicitly outstanding acceptance item, never an inferred pass. Prefer Codex-local seams; any unavoidable shared edit must preserve all three harnesses' existing observable behavior, have negative/regression evidence, and receive explicit design scrutiny.
 
 Test model match/mismatch/unverified behavior, wrong worktree and unauthorized writes, lost or inconsistent exit information, stale/duplicate handoffs, root interruption with a live child, cancellation before claim, replacement admission, and delayed native capacity release. Mutation-test guards rather than keeping vacuous assertions. Run the full source-resolved suite and read budget reports; do not weaken budgets or substitute focused tests for full certification.
 
@@ -125,6 +133,6 @@ Authoritative root model/effort discovery and unknown policy; exact root lifecyc
 
 ## Out of scope
 
-No implementation, claim, worktree creation, restart of 424, or merge is authorized by creating this proposal. Preserve 424's commits, dirty Task 4 work, captures and cancelled records. Do not adopt, delete, or mark 424 obsolete automatically.
+The human authorized summarizing and killing the abandoned approach, not implementing 433, creating its worktree, resuming 424, or merging anything. Preserve predecessor branches, commits, dirty work, captures and cancelled records as historical evidence; no deletion or wholesale import is part of this retirement.
 
-No global model-pin or stable-install changes, no workaround through another harness or a shell-hosted replacement coordinator, no fabricated identities/receipts/cancellation proof, no budget resets, no widening timing limits, and no bypass of scope or exact-head validation. No blanket removal of run gates, worktree safeguards, independent review, or cross-harness protections. Claude Code/Cursor redesign, the full supervisor envisioned by 412, unrelated timing cleanup, and wholesale shared-orchestration rewriting are outside this bounded pilot.
+No global model-pin or stable-install changes, no workaround through another harness or a shell-hosted replacement coordinator, no fabricated identities/receipts/cancellation proof, no budget resets, no widening timing limits, and no bypass of scope or exact-head validation. No blanket removal of run gates, worktree safeguards, independent review, or cross-harness protections. Changes to Claude Code/Cursor/OpenCode behavior, the full supervisor envisioned by 412, unrelated timing cleanup, and wholesale shared-orchestration rewriting are outside this bounded pilot.

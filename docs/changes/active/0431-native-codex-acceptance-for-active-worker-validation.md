@@ -2,7 +2,7 @@
 id: 431
 slug: 'native-codex-acceptance-for-active-worker-validation'
 title: 'Native Codex acceptance for active worker validation'
-status: 'stacked-merged'
+status: 'in-progress'
 priority: 'low'
 type: 'chore'
 created: '2026-09-16'
@@ -52,6 +52,12 @@ Do not merge, resume or reset change 430, modify unrelated changes, or weaken sc
 ### 2026-09-16
 
 2026-09-16: Reconciled against the prepared acceptance checkout and the published 425 effective base. The requested two-file Go package remains absent from the base, the stacked base and PR base remain codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor, and the scope remains valid.
+
+## Human-authorized retirement — 2026-09-18
+
+The human explicitly approved a metadata-only archival exception because the installed change.kill transaction accepts only proposed/in-progress records. This temporary administrative status permits the supported archival renderer; it does not restart implementation, acquire a new claim, erase a merge, or authorize any run. Kill immediately as abandoned delivery, retaining all branches, worktrees and evidence.
+
+PR #309 really merged into 425, not main, at 8982b2873580f5677a0900abc94bfaef22403028; its feature head was f6695e5f8fbb198ba9458d40cfeb215a2af928bc. The native fixture's successful checks remain valid point-in-time evidence, with human interventions and its explicitly scoped timing exception. They did not establish unattended reliability for the later failed 424 production run. See the [retirement findings](../research/0433-fresh-main-retirement-findings.md) and successor 433, which starts afresh from main and must leave Claude Code, Cursor and OpenCode behavior unchanged. No merge into main is claimed or authorized.
 
 ## Closeout notes
 
