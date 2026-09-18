@@ -2,7 +2,7 @@
 id: 368
 slug: resume-halted-preallocation-recovery
 title: Recover a run halted before its workspace was allocated
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-29
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'fix/resume-halted-preallocation-recovery'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-18T19:29:44Z'
 ---
 
 ## Artifacts
