@@ -24,7 +24,9 @@
 # tests/test_runtime_budgets.sh.
 #
 # Requires a Go toolchain on PATH (go.mod pins the version); fails loudly if
-# absent rather than skipping — a skipped gate certifies nothing.
+# absent rather than skipping — a skipped gate certifies nothing. Check 1
+# additionally resolves gofmt from go.mod's explicit toolchain directive
+# (change 0436), so PATH's Go version cannot change the formatting verdict.
 #
 # The assert helper is the tree's canonical one byte for byte: rule (a) of
 # the source-hygiene guard (internal/repoguard) is a byte-exact allowlist, and
@@ -107,31 +109,59 @@ results="$scratch/check-results"
 # counted before they are replayed.
 {
 
-# Check 1: gofmt reports no unformatted Go source. The directory set is
-# DERIVED from the module rather than hand-listed: a hand-listed `cmd internal`
-# silently stops checking any package added outside those two trees. `go list`
-# is captured and checked on its own so its failure cannot be swallowed by an
-# empty gofmt result reading as "clean".
+# Check 1: the DECLARED toolchain's gofmt reports no unformatted Go source
+# (change 0436). PATH's gofmt is NEVER consulted: under GOTOOLCHAIN=auto a
+# newer installed Go is retained, so an ambient formatter and the go.mod
+# toolchain's formatter can disagree about identical source — flip-flopping
+# the gate between local runs and CI. The formatter is resolved from the
+# single explicit `toolchain` directive in go.mod via a command-scoped
+# GOTOOLCHAIN (exact name, no +auto), and every resolution failure fails the
+# check rather than silently certifying a different formatter. Only formatter
+# RESOLUTION is pinned; go list/vet/test keep their existing toolchain
+# behavior.
 #
-# `go list` stderr goes to a FILE, never into `pkg_dirs` via `2>&1`: on a cold
-# module cache go writes `go: downloading github.com/spf13/cobra v1.10.2` to
-# stderr and still exits 0, so folding the two streams together feeds `go`,
-# `downloading` and the module paths to gofmt as directories. That reddens this
-# check with `lstat go:: no such file or directory` on the first run after any
-# fresh clone — and passes on every warm run after it, which is precisely the
-# failure a suite gate must not have. Diagnostics are replayed from the file on
-# the rc path so nothing is lost.
+# The directory set is DERIVED from the module rather than hand-listed: a
+# hand-listed `cmd internal` silently stops checking any package added
+# outside those two trees. `go list` is captured and checked on its own so
+# its failure cannot be swallowed by an empty gofmt result reading as
+# "clean".
+#
+# `go list` and `go env GOROOT` stderr each go to a FILE, never into the
+# captured value via `2>&1`: on a cold cache go writes `go: downloading …`
+# to stderr and still exits 0, so folding the streams together feeds that
+# chatter into the captured value — as bogus gofmt "directories" for the
+# list, or as a corrupt GOROOT path for the resolution. That reddens only on
+# the first run after a fresh clone and passes warm, which is precisely the
+# failure a suite gate must not have. Diagnostics are replayed from the file
+# on each failure path so nothing is lost.
+toolchain_names="$(awk '$1=="toolchain"{print $2}' go.mod)"
+toolchain_count="$(grep -c . <<<"$toolchain_names")"
 pkg_dirs="$(go list -f '{{.Dir}}' ./... 2>"$scratch/go-list.err")"
 pkg_dirs_rc=$?
 if [ "$pkg_dirs_rc" -ne 0 ]; then
   unformatted="go list failed: $(cat "$scratch/go-list.err" 2>/dev/null)"
 elif [ -z "$pkg_dirs" ]; then
   unformatted="go list reported no packages"
+elif [ "$toolchain_count" -ne 1 ]; then
+  unformatted="go.mod must declare exactly one explicit toolchain directive (found $toolchain_count) — the formatting gate pins gofmt to it; add or dedupe 'toolchain goX.Y.Z' in go.mod"
 else
-  # shellcheck disable=SC2086 # deliberate word-splitting: one dir per line.
-  unformatted="$(gofmt -l $pkg_dirs 2>&1)"
+  gofmt_goroot="$(GOTOOLCHAIN="$toolchain_names" go env GOROOT 2>"$scratch/gofmt-goroot.err")"
+  gofmt_goroot_rc=$?
+  if [ "$gofmt_goroot_rc" -ne 0 ] || [ -z "$gofmt_goroot" ]; then
+    unformatted="cannot resolve GOROOT for declared toolchain $toolchain_names (rc=$gofmt_goroot_rc): $(cat "$scratch/gofmt-goroot.err" 2>/dev/null)"
+  elif [ ! -x "$gofmt_goroot/bin/gofmt" ]; then
+    unformatted="declared toolchain $toolchain_names has no executable gofmt at $gofmt_goroot/bin/gofmt: $(cat "$scratch/gofmt-goroot.err" 2>/dev/null)"
+  else
+    # shellcheck disable=SC2086 # deliberate word-splitting: one dir per line.
+    unformatted="$("$gofmt_goroot/bin/gofmt" -l $pkg_dirs 2>"$scratch/gofmt.err")"
+    gofmt_rc=$?
+    if [ "$gofmt_rc" -ne 0 ]; then
+      # A silent nonzero exit must fail too — emptiness alone reads as clean.
+      unformatted="gofmt ($toolchain_names) failed (rc=$gofmt_rc): ${unformatted:-<no output>} $(cat "$scratch/gofmt.err" 2>/dev/null)"
+    fi
+  fi
 fi
-assert "gofmt reports no unformatted files" '[ -z "$unformatted" ] || { printf "  unformatted: %s\n" "$unformatted" >&2; false; }'
+assert "the declared toolchain's gofmt reports no unformatted files" '[ -z "$unformatted" ] || { printf "  unformatted: %s\n" "$unformatted" >&2; false; }'
 
 # Check 2: go vet passes.
 vet_out="$(go vet ./... 2>&1)"
