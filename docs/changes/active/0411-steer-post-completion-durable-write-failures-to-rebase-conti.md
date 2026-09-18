@@ -22,7 +22,7 @@ branch: 'docs/steer-post-completion-durable-write-failures-to-rebase-conti'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-18T15:05:25Z'
+claimed_at: '2026-09-18T15:06:53Z'
 ---
 
 ## Artifacts
