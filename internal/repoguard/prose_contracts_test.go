@@ -514,6 +514,16 @@ var rebaseRecoveryDocContracts = []docSectionContract{
 // by TestUninstallCollectionDocContracts' non_vacuity subtest.
 func TestRebaseRecoveryDocContracts(t *testing.T) {
 	root := guardRoot(t)
+
+	// Population floor: a collapse to zero means the table was gutted.
+	checks := 0
+	for _, c := range rebaseRecoveryDocContracts {
+		checks += len(c.present)
+	}
+	if checks < 7 {
+		t.Fatalf("population floor: only %d recovery-exception doc clauses (expected >= 7)", checks)
+	}
+
 	cache := map[string]string{}
 	var violations []string
 	for _, c := range rebaseRecoveryDocContracts {
