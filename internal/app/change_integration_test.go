@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-func TestIntegrationChangeADRRecordAppliedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringADRRecordAppliedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, adrRecordReceipt{
 		ID: 7, Op: OperationADRRecord, Path: adrPath("0007", "record-the-widget-decision"),
@@ -76,7 +76,7 @@ func TestIntegrationChangeADRRecordAppliedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeADRRecordRefusedMapsInvalidInput(t *testing.T) {
+func TestIntegrationChangeAuthoringADRRecordRefusedMapsInvalidInput(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
@@ -92,7 +92,7 @@ func TestIntegrationChangeADRRecordRefusedMapsInvalidInput(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeADRRecordReplayResult(t *testing.T) {
+func TestIntegrationChangeAuthoringADRRecordReplayResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, adrRecordReceipt{
 		ID: 4, Op: OperationADRRecord, Path: adrPath("0004", "record-the-widget-decision"),
@@ -118,7 +118,7 @@ func TestIntegrationChangeADRRecordReplayResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeADRRecordWithProducingChangeCarriesExpectation(t *testing.T) {
+func TestIntegrationChangeAuthoringADRRecordWithProducingChangeCarriesExpectation(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
@@ -148,7 +148,7 @@ func TestIntegrationChangeADRRecordWithProducingChangeCarriesExpectation(t *test
 	}
 }
 
-func TestIntegrationChangeADRReverseUsesReverseOperationKey(t *testing.T) {
+func TestIntegrationChangeAuthoringADRReverseUsesReverseOperationKey(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
@@ -163,7 +163,7 @@ func TestIntegrationChangeADRReverseUsesReverseOperationKey(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeADRSupersedeAppliedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringADRSupersedeAppliedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, adrRecordReceipt{
 		ID: 7, Op: OperationADRSupersede, Path: adrPath("0007", "supersede-the-widget-decision"),
@@ -213,7 +213,7 @@ func TestIntegrationChangeADRSupersedeAppliedResult(t *testing.T) {
 
 // A blank successor RequestID must NOT fail the shape check — the outer key
 // governs an ADR replacement, the inner one is ignored.
-func TestIntegrationChangeADRSupersedeIgnoresSuccessorRequestID(t *testing.T) {
+func TestIntegrationChangeAuthoringADRSupersedeIgnoresSuccessorRequestID(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
@@ -231,7 +231,7 @@ func TestIntegrationChangeADRSupersedeIgnoresSuccessorRequestID(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeADRSupersedeRefusedNonAcceptedMapsInvalidState(t *testing.T) {
+func TestIntegrationChangeAuthoringADRSupersedeRefusedNonAcceptedMapsInvalidState(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	// A refusal carrying the domain not-Accepted reason is state-shaped.
 	engine := &recordingEngine{result: transaction.Result{
@@ -247,7 +247,7 @@ func TestIntegrationChangeADRSupersedeRefusedNonAcceptedMapsInvalidState(t *test
 	}
 }
 
-func TestIntegrationChangeADRSupersedeRefusedRequestShapedMapsInvalidInput(t *testing.T) {
+func TestIntegrationChangeAuthoringADRSupersedeRefusedRequestShapedMapsInvalidInput(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{
 		Disposition: transaction.DispositionRefused,
@@ -262,7 +262,7 @@ func TestIntegrationChangeADRSupersedeRefusedRequestShapedMapsInvalidInput(t *te
 	}
 }
 
-func TestIntegrationChangeADRSupersedeWithProducingChangeCarriesTwoExpectations(t *testing.T) {
+func TestIntegrationChangeAuthoringADRSupersedeWithProducingChangeCarriesTwoExpectations(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
@@ -288,7 +288,7 @@ func TestIntegrationChangeADRSupersedeWithProducingChangeCarriesTwoExpectations(
 	}
 }
 
-func TestIntegrationChangeBlockAppliedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringBlockAppliedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeLifecycleReceipt{
 		ID: 3, Op: OperationChangeBlock, Status: "blocked",
@@ -345,7 +345,7 @@ func TestIntegrationChangeBlockAppliedResult(t *testing.T) {
 // submits the exact expected version, an idempotency key, and the metadata
 // target ref (recordingEngine); and the plan closure patches status/branch/
 // claimed_at and names the record, board, and artifact surfaces.
-func TestIntegrationChangeClaimApplies(t *testing.T) {
+func TestIntegrationChangeAuthoringClaimApplies(t *testing.T) {
 	const version = "1234123412341234123412341234123412341234"
 
 	t.Run("submitted request", func(t *testing.T) {
@@ -448,7 +448,7 @@ func TestIntegrationChangeClaimApplies(t *testing.T) {
 // `go test ./internal/app/ -run TestChangeClaimRefusals -count=1` reddens on the
 // not-build-ready and unresolved-base rows — the two the domain.Claim status
 // gate alone cannot catch.
-func TestIntegrationChangeClaimRefusals(t *testing.T) {
+func TestIntegrationChangeAuthoringClaimRefusals(t *testing.T) {
 	recPath := groomPath(3, "widget")
 	parentPath := groomPath(2, "parent")
 
@@ -536,7 +536,7 @@ func TestIntegrationChangeClaimRefusals(t *testing.T) {
 // TestChangeClaimRetryConvergence proves lost-response convergence: an idempotent
 // replay of this exact request's own prior claim is `already-claimed`, while a
 // foreign edit that moved the record is `contended`.
-func TestIntegrationChangeClaimRetryConvergence(t *testing.T) {
+func TestIntegrationChangeAuthoringClaimRetryConvergence(t *testing.T) {
 	setup := func(t *testing.T, res transaction.Result) ChangeClaimResult {
 		repoDir := newWorkingRepo(t, nil).invocation
 		engine := &recordingEngine{result: res}
@@ -574,7 +574,7 @@ func TestIntegrationChangeClaimRetryConvergence(t *testing.T) {
 	})
 }
 
-func TestIntegrationChangeCreateAppliedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringCreateAppliedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeCreateReceipt{
 		ID: 7, Op: OperationChangeCreate, Path: "docs/changes/active/0007-add-a-widget.md", Slug: "add-a-widget",
@@ -623,7 +623,7 @@ func TestIntegrationChangeCreateAppliedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeCreateContendedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringCreateContendedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
@@ -639,7 +639,7 @@ func TestIntegrationChangeCreateContendedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeCreateRefusedMapsInvalidInput(t *testing.T) {
+func TestIntegrationChangeAuthoringCreateRefusedMapsInvalidInput(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{
 		Disposition: transaction.DispositionRefused,
@@ -661,7 +661,7 @@ func TestIntegrationChangeCreateRefusedMapsInvalidInput(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeCreateReplayResult(t *testing.T) {
+func TestIntegrationChangeAuthoringCreateReplayResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeCreateReceipt{
 		ID: 4, Op: OperationChangeCreate, Path: "docs/changes/active/0004-add-a-widget.md", Slug: "add-a-widget",
@@ -687,7 +687,7 @@ func TestIntegrationChangeCreateReplayResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeDeferAppliedResultCarriesDeferStatus(t *testing.T) {
+func TestIntegrationChangeAuthoringDeferAppliedResultCarriesDeferStatus(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeLifecycleReceipt{
 		ID: 3, Op: OperationChangeDefer, Status: "deferred",
@@ -717,7 +717,7 @@ func TestIntegrationChangeDeferAppliedResultCarriesDeferStatus(t *testing.T) {
 // matching the request produces an immutable record carrying the OBSERVED gate
 // command (never a request field) and the exact head; the rendered block
 // round-trips through evidence.Extract.
-func TestIntegrationChangeEvidenceRecordFromPassedRun(t *testing.T) {
+func TestIntegrationChangeAuthoringEvidenceRecordFromPassedRun(t *testing.T) {
 	svc := &fakeWorkspaceService{
 		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(evidenceHead)},
 	}
@@ -757,7 +757,7 @@ func TestIntegrationChangeEvidenceRecordFromPassedRun(t *testing.T) {
 // failure, never folded into the clean "vanished" absence
 // (probe-error-is-not-clean-absence). The whole table is the mutation guard:
 // strip the passed-only gate and the non-passed rows would produce a block.
-func TestIntegrationChangeEvidenceRecordRefusals(t *testing.T) {
+func TestIntegrationChangeAuthoringEvidenceRecordRefusals(t *testing.T) {
 	cases := []struct {
 		name       string
 		runDir     func(t *testing.T) string
@@ -839,7 +839,7 @@ func TestIntegrationChangeEvidenceRecordRefusals(t *testing.T) {
 // TestEvidenceRecordUnconfiguredGate: a local build gate with no resolved
 // build.test_command has no gate command to run or record, so the operation
 // refuses (unsupported-config) rather than fabricate an empty command.
-func TestIntegrationChangeEvidenceRecordUnconfiguredGate(t *testing.T) {
+func TestIntegrationChangeAuthoringEvidenceRecordUnconfiguredGate(t *testing.T) {
 	svc := &fakeWorkspaceService{
 		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(evidenceHead)},
 	}
@@ -864,7 +864,7 @@ func TestIntegrationChangeEvidenceRecordUnconfiguredGate(t *testing.T) {
 
 // TestEvidenceRecordUnreadableRunDir: a run dir the process cannot read is a
 // probe error (its own external failure), never a silent "no evidence".
-func TestIntegrationChangeEvidenceRecordUnreadableRunDir(t *testing.T) {
+func TestIntegrationChangeAuthoringEvidenceRecordUnreadableRunDir(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores directory permission bits")
 	}
@@ -890,7 +890,7 @@ func TestIntegrationChangeEvidenceRecordUnreadableRunDir(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGateLaunchObserveEndToEnd(t *testing.T) {
+func TestIntegrationChangeAuthoringGateLaunchObserveEndToEnd(t *testing.T) {
 	root := testsupport.TempDir(t)
 	res := GateLaunch(root, testsupport.TempDir(t), []string{"/bin/echo", "hello"})
 	if res.Operation != "gate.launch" {
@@ -922,7 +922,7 @@ func TestIntegrationChangeGateLaunchObserveEndToEnd(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGatePruneRetentionWindow(t *testing.T) {
+func TestIntegrationChangeAuthoringGatePruneRetentionWindow(t *testing.T) {
 	repo := newGateRepo(t)
 	root, err := gateRoot(repo)
 	if err != nil {
@@ -968,7 +968,7 @@ func TestIntegrationChangeGatePruneRetentionWindow(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGateRecordCorruptAndSchema(t *testing.T) {
+func TestIntegrationChangeAuthoringGateRecordCorruptAndSchema(t *testing.T) {
 	repo := newGateRepo(t)
 	root, err := gateRoot(repo)
 	if err != nil {
@@ -1003,7 +1003,7 @@ func TestIntegrationChangeGateRecordCorruptAndSchema(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGateRecordLinkedWorktreeSameRecord(t *testing.T) {
+func TestIntegrationChangeAuthoringGateRecordLinkedWorktreeSameRecord(t *testing.T) {
 	repo := newGateRepo(t)
 	key, err := MintGateRecord(repo, sampleGateRecord())
 	if err != nil {
@@ -1024,7 +1024,7 @@ func TestIntegrationChangeGateRecordLinkedWorktreeSameRecord(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGateRecordMalformedKey(t *testing.T) {
+func TestIntegrationChangeAuthoringGateRecordMalformedKey(t *testing.T) {
 	repo := newGateRepo(t)
 	for _, key := range []string{"../escape", "", "UPPER", repeat("a", 300)} {
 		_, err := LoadGateRecord(repo, key)
@@ -1044,7 +1044,7 @@ func TestIntegrationChangeGateRecordMalformedKey(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGateRecordMintLoadRoundTrip(t *testing.T) {
+func TestIntegrationChangeAuthoringGateRecordMintLoadRoundTrip(t *testing.T) {
 	repo := newGateRepo(t)
 	rec := sampleGateRecord()
 
@@ -1098,7 +1098,7 @@ func TestIntegrationChangeGateRecordMintLoadRoundTrip(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGateRecordSaveDurableReload(t *testing.T) {
+func TestIntegrationChangeAuthoringGateRecordSaveDurableReload(t *testing.T) {
 	repo := newGateRepo(t)
 	key, err := MintGateRecord(repo, sampleGateRecord())
 	if err != nil {
@@ -1127,7 +1127,7 @@ func TestIntegrationChangeGateRecordSaveDurableReload(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGateRecordWrongRepo(t *testing.T) {
+func TestIntegrationChangeAuthoringGateRecordWrongRepo(t *testing.T) {
 	repoA := newGateRepo(t)
 	repoB := newGateRepo(t)
 
@@ -1165,7 +1165,7 @@ func TestIntegrationChangeGateRecordWrongRepo(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGateRetryConsumeOnceThenFalse(t *testing.T) {
+func TestIntegrationChangeAuthoringGateRetryConsumeOnceThenFalse(t *testing.T) {
 	repo := newGateRepo(t)
 	key, err := MintGateRecord(repo, sampleGateRecord())
 	if err != nil {
@@ -1199,7 +1199,7 @@ func TestIntegrationChangeGateRetryConsumeOnceThenFalse(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeOuterBudgetEndToEnd drives the outer run gate end-to-end at
+// TestIntegrationChangeAuthoringOuterBudgetEndToEnd drives the outer run gate end-to-end at
 // several configured run.max_attempts values (change 0421, Task 8). gate-before
 // snapshots the AUTHORITATIVE run.max_attempts into the record's AttemptLimit at
 // mint, and successive quiescent run-incomplete verdicts then grant exactly
@@ -1209,7 +1209,7 @@ func TestIntegrationChangeGateRetryConsumeOnceThenFalse(t *testing.T) {
 // on-disk marker count matches the grants. Unlike the unit-level
 // TestVerdictIncompleteRespectsAttemptLimit, the limit here flows from config through
 // the real arm, not a hand-stamped record.
-func TestIntegrationChangeOuterBudgetEndToEnd(t *testing.T) {
+func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 	cases := []struct {
 		limit       int
 		wantRetries int
@@ -1284,13 +1284,13 @@ func TestIntegrationChangeOuterBudgetEndToEnd(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeContinuationSurvivesInterruption proves a run-waiting
+// TestIntegrationChangeAuthoringContinuationSurvivesInterruption proves a run-waiting
 // continuation spends no outer-retry budget even across a simulated interruption
 // (change 0421, Task 8): the verdict is re-driven — each call reopens the durable
 // record from disk — both calls map to the nonterminal gate-continue, GateRetryUsage
 // stays 0, and the O_EXCL retry marker is never created. A continuation is not a
 // second attempt, so an interruption in the middle of one cannot leak a charge.
-func TestIntegrationChangeContinuationSurvivesInterruption(t *testing.T) {
+func TestIntegrationChangeAuthoringContinuationSurvivesInterruption(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
 	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
@@ -1326,13 +1326,13 @@ func TestIntegrationChangeContinuationSurvivesInterruption(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeBuildBudgetSurvivesInterruption proves the build phase's
+// TestIntegrationChangeAuthoringBuildBudgetSurvivesInterruption proves the build phase's
 // durable suite-attempt budget is preserved when the app service is reconstructed
 // over the same repository — a fresh gatedrive.Store (change 0421, Task 8). Two
 // build-owned starts reserve attempts 1 and 2; after rebuilding the service the next
 // start reserves attempt 3 (the consumed budget is neither reset nor double-counted),
 // and the preserved budget still exhausts at the snapshotted limit of 4.
-func TestIntegrationChangeBuildBudgetSurvivesInterruption(t *testing.T) {
+func TestIntegrationChangeAuthoringBuildBudgetSurvivesInterruption(t *testing.T) {
 	svc1, eng, dir := newBudgetTestBuildService(t, 4)
 	req := buildStartReq("0421")
 
@@ -1368,7 +1368,7 @@ func TestIntegrationChangeBuildBudgetSurvivesInterruption(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGroomAppliedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringGroomAppliedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	specPath := "docs/superpowers/specs/2026-08-16-add-a-widget-design.md"
 	receipt := mustMarshal(t, changeGroomReceipt{
@@ -1420,7 +1420,7 @@ func TestIntegrationChangeGroomAppliedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGroomContendedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringGroomContendedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
@@ -1436,7 +1436,7 @@ func TestIntegrationChangeGroomContendedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeGroomRefusedMapsInvalidState(t *testing.T) {
+func TestIntegrationChangeAuthoringGroomRefusedMapsInvalidState(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{
 		Disposition: transaction.DispositionRefused,
@@ -1452,7 +1452,7 @@ func TestIntegrationChangeGroomRefusedMapsInvalidState(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeKillAppliedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringKillAppliedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	archivePath := killArchivePath(3, "widget")
 	receipt := mustMarshal(t, changeKillReceipt{
@@ -1506,7 +1506,7 @@ func TestIntegrationChangeKillAppliedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeKillContendedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringKillContendedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
@@ -1522,7 +1522,7 @@ func TestIntegrationChangeKillContendedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeKillRefusedMapsInvalidState(t *testing.T) {
+func TestIntegrationChangeAuthoringKillRefusedMapsInvalidState(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
@@ -1535,7 +1535,7 @@ func TestIntegrationChangeKillRefusedMapsInvalidState(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeLearningRecordAppliedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringLearningRecordAppliedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, learningReceipt{
 		Op: OperationLearningRecord, Path: learningPath("a-lesson"), Slug: "a-lesson",
@@ -1584,7 +1584,7 @@ func TestIntegrationChangeLearningRecordAppliedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeLearningRecordRefusedMapsInvalidInput(t *testing.T) {
+func TestIntegrationChangeAuthoringLearningRecordRefusedMapsInvalidInput(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
@@ -1600,7 +1600,7 @@ func TestIntegrationChangeLearningRecordRefusedMapsInvalidInput(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeLearningRecordReplayResult(t *testing.T) {
+func TestIntegrationChangeAuthoringLearningRecordReplayResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, learningReceipt{
 		Op: OperationLearningRecord, Path: learningPath("a-lesson"), Slug: "a-lesson",
@@ -1626,7 +1626,7 @@ func TestIntegrationChangeLearningRecordReplayResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeLearningUpdateAppliedResultCarriesExactVersion(t *testing.T) {
+func TestIntegrationChangeAuthoringLearningUpdateAppliedResultCarriesExactVersion(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, learningReceipt{
 		Op: OperationLearningUpdate, Path: learningPath("a-lesson"), Slug: "a-lesson",
@@ -1663,7 +1663,7 @@ func TestIntegrationChangeLearningUpdateAppliedResultCarriesExactVersion(t *test
 	}
 }
 
-func TestIntegrationChangeLearningUpdateContendedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringLearningUpdateContendedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
@@ -1679,7 +1679,7 @@ func TestIntegrationChangeLearningUpdateContendedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeLifecycleContendedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringLifecycleContendedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
@@ -1695,7 +1695,7 @@ func TestIntegrationChangeLifecycleContendedResult(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeLifecycleRefusedMapsInvalidState(t *testing.T) {
+func TestIntegrationChangeAuthoringLifecycleRefusedMapsInvalidState(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
@@ -1710,7 +1710,7 @@ func TestIntegrationChangeLifecycleRefusedMapsInvalidState(t *testing.T) {
 
 // TestMarkImplementedAppliesEndToEnd (real git): every conjunct holds, so the
 // operation opens exactly one exact-version transaction and returns applied.
-func TestIntegrationChangeMarkImplementedAppliesEndToEnd(t *testing.T) {
+func TestIntegrationChangeRuntimeMarkImplementedAppliesEndToEnd(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	head := miAdvanceHead(t, repo)
@@ -1746,7 +1746,7 @@ func TestIntegrationChangeMarkImplementedAppliesEndToEnd(t *testing.T) {
 // reprobe: each row breaks exactly one conjunct and proves the operation refuses
 // with that conjunct's stable reason WITHOUT ever calling the engine. The happy
 // fixture (proven by TestMarkImplementedAppliesEndToEnd) satisfies all five.
-func TestIntegrationChangeMarkImplementedConjuncts(t *testing.T) {
+func TestIntegrationChangeRuntimeMarkImplementedConjuncts(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	head := miAdvanceHead(t, repo)
@@ -1877,7 +1877,7 @@ func TestIntegrationChangeMarkImplementedConjuncts(t *testing.T) {
 // when the supplied --pr names the verified PR in EITHER accepted form and
 // refuses with pr-reference-mismatch when the number differs or the reference is
 // unparseable. Number 42 is the verified PR (happyPR).
-func TestIntegrationChangeMarkImplementedIdentityForms(t *testing.T) {
+func TestIntegrationChangeRuntimeMarkImplementedIdentityForms(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	head := miAdvanceHead(t, repo)
@@ -1927,7 +1927,7 @@ func TestIntegrationChangeMarkImplementedIdentityForms(t *testing.T) {
 // (boardPRCell mangles a shorthand to "#owner/repo#N"); the value is sourced from
 // the snapshot, so it is the canonical URL even when --pr arrives as shorthand
 // (change 0344).
-func TestIntegrationChangeMarkImplementedRecordsURL(t *testing.T) {
+func TestIntegrationChangeRuntimeMarkImplementedRecordsURL(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	head := miAdvanceHead(t, repo)
@@ -1959,7 +1959,7 @@ func TestIntegrationChangeMarkImplementedRecordsURL(t *testing.T) {
 // TestMarkImplementedRetry: a change already implemented whose recorded PR
 // reference matches the request replays the prior applied outcome as a no-op —
 // no duplicate transition, engine never called.
-func TestIntegrationChangeMarkImplementedRetry(t *testing.T) {
+func TestIntegrationChangeRuntimeMarkImplementedRetry(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
@@ -1998,7 +1998,7 @@ func TestIntegrationChangeMarkImplementedRetry(t *testing.T) {
 // shorthand form, and still refuses as contended when the asserted number
 // differs. This mutation-tests the migrated guard on the recorded-URL path 0344
 // introduces.
-func TestIntegrationChangeMarkImplementedRetryCrossForm(t *testing.T) {
+func TestIntegrationChangeRuntimeMarkImplementedRetryCrossForm(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
@@ -2043,7 +2043,7 @@ func TestIntegrationChangeMarkImplementedRetryCrossForm(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangePRPublishAgreementChecks(t *testing.T) {
+func TestIntegrationChangeRuntimePRPublishAgreementChecks(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 
 	baseReq := func() PRPublishRequest {
@@ -2145,7 +2145,7 @@ func TestIntegrationChangePRPublishAgreementChecks(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangePRPublishBodyAssembly(t *testing.T) {
+func TestIntegrationChangeRuntimePRPublishBodyAssembly(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	reader := prReader(t)
 
@@ -2208,7 +2208,7 @@ func TestIntegrationChangePRPublishBodyAssembly(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangePRPublishRedaction(t *testing.T) {
+func TestIntegrationChangeRuntimePRPublishRedaction(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	const secret = "SECRET-PR-BODY-CONTENT-do-not-leak"
 
@@ -2232,7 +2232,7 @@ func TestIntegrationChangePRPublishRedaction(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangePRPublishThroughFakeGH(t *testing.T) {
+func TestIntegrationChangeRuntimePRPublishThroughFakeGH(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 
 	cases := []struct {
@@ -2279,7 +2279,7 @@ func TestIntegrationChangePRPublishThroughFakeGH(t *testing.T) {
 
 // TestReclaimIndependentOfAutoPolicy proves explicit reclaim applies even when
 // reclaim.auto is false — the auto policy governs only maintenance sweep.
-func TestIntegrationChangeReclaimIndependentOfAutoPolicy(t *testing.T) {
+func TestIntegrationChangeRuntimeReclaimIndependentOfAutoPolicy(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
 	repo := newWorkingRepo(t, map[string]string{
@@ -2298,7 +2298,7 @@ func TestIntegrationChangeReclaimIndependentOfAutoPolicy(t *testing.T) {
 // TestReclaimMalformedLeaseSkips proves a record whose claim stamp is malformed
 // (an unevaluable lease, hence a corpus error) is refused end-to-end with no
 // mutation — the destructive leg fails closed on an unreadable lease.
-func TestIntegrationChangeReclaimMalformedLeaseSkips(t *testing.T) {
+func TestIntegrationChangeRuntimeReclaimMalformedLeaseSkips(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
 	repo := newWorkingRepo(t, map[string]string{
@@ -2323,7 +2323,7 @@ func TestIntegrationChangeReclaimMalformedLeaseSkips(t *testing.T) {
 // or remotely), when an owned workspace is still live, or when any probe cannot
 // be answered — unknown never shares the absent branch. Every refusal leaves the
 // origin record byte-identical.
-func TestIntegrationChangeReclaimRequiresProvenAbsence(t *testing.T) {
+func TestIntegrationChangeRuntimeReclaimRequiresProvenAbsence(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
 
@@ -2408,7 +2408,7 @@ func TestIntegrationChangeReclaimRequiresProvenAbsence(t *testing.T) {
 // action returns the record to proposed, clears branch/claim, sets
 // reconciled:false, appends one dated ## Reclaim log entry, and rerenders the
 // board — all in one atomic commit; and that an exact-version contention refuses.
-func TestIntegrationChangeReclaimTransaction(t *testing.T) {
+func TestIntegrationChangeRuntimeReclaimTransaction(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
 
@@ -2467,7 +2467,7 @@ func TestIntegrationChangeReclaimTransaction(t *testing.T) {
 // (which fetches origin before any probe), so a reclaim can never proceed on
 // state it could not authoritatively read — unknown never shares the clean-read
 // branch on a destructive operation.
-func TestIntegrationChangeReclaimUnreachableRemoteFailsClosed(t *testing.T) {
+func TestIntegrationChangeRuntimeReclaimUnreachableRemoteFailsClosed(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
 	repo := newWorkingRepo(t, map[string]string{
@@ -2492,7 +2492,7 @@ func TestIntegrationChangeReclaimUnreachableRemoteFailsClosed(t *testing.T) {
 // TestChangeReconcileAppliedResult proves the app layer submits the exact
 // expected version and metadata target ref, carries NO idempotency key (a
 // non-allocating edit of an existing record), and decodes the applied receipt.
-func TestIntegrationChangeReconcileAppliedResult(t *testing.T) {
+func TestIntegrationChangeAuthoringReconcileAppliedResult(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeReconcileReceipt{ID: 3, Op: OperationChangeReconcile})
 	engine := &recordingEngine{result: transaction.Result{
@@ -2543,7 +2543,7 @@ func TestIntegrationChangeReconcileAppliedResult(t *testing.T) {
 // stale version is the engine's CAS contention; a status that is no longer
 // in-progress is an incompatible fresh state the plan closure refuses and the
 // result maps to contended (never a text-merge).
-func TestIntegrationChangeReconcileContention(t *testing.T) {
+func TestIntegrationChangeAuthoringReconcileContention(t *testing.T) {
 	t.Run("stale version at the engine", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
 		engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
@@ -2586,7 +2586,7 @@ func TestIntegrationChangeReconcileContention(t *testing.T) {
 // TestChangeRefreshClaimStampsOnly proves refresh re-stamps claimed_at (and the
 // updated date) and nothing else, requires in-progress, and reports a version
 // mismatch as contended — the stop-don't-overwrite instruction.
-func TestIntegrationChangeRefreshClaimStampsOnly(t *testing.T) {
+func TestIntegrationChangeAuthoringRefreshClaimStampsOnly(t *testing.T) {
 	recPath := groomPath(3, "widget")
 
 	t.Run("stamps claimed_at and updated only", func(t *testing.T) {
@@ -2656,7 +2656,7 @@ func TestIntegrationChangeRefreshClaimStampsOnly(t *testing.T) {
 
 // TestRepairAdoptPRHeadPinsExactVersion proves the transaction pins the approved
 // version exactly, keying the repair op on the exact record blob.
-func TestIntegrationChangeRepairAdoptPRHeadPinsExactVersion(t *testing.T) {
+func TestIntegrationChangeRuntimeRepairAdoptPRHeadPinsExactVersion(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
@@ -2685,7 +2685,7 @@ func TestIntegrationChangeRepairAdoptPRHeadPinsExactVersion(t *testing.T) {
 // TestRepairAdoptPRHeadWritesBranch proves the applied path end-to-end: every
 // conjunct holds, so the repair opens one exact-version transaction that adopts
 // the PR's reported head as branch:, refreshes updated, and commits only that.
-func TestIntegrationChangeRepairAdoptPRHeadWritesBranch(t *testing.T) {
+func TestIntegrationChangeRuntimeRepairAdoptPRHeadWritesBranch(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
 	repo := newWorkingRepo(t, map[string]string{recPath: repairRecord(3, "widget", "")})
@@ -2723,7 +2723,7 @@ func TestIntegrationChangeRepairAdoptPRHeadWritesBranch(t *testing.T) {
 // TestRepairCandidateBranchAbsent proves clause 2's candidate-branch proof: the
 // branch the record would carry must be present on the remote; an absent branch
 // is candidate-branch-absent with no write.
-func TestIntegrationChangeRepairCandidateBranchAbsent(t *testing.T) {
+func TestIntegrationChangeRuntimeRepairCandidateBranchAbsent(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil) // origin carries no feat/renamed branch
 	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
@@ -2740,7 +2740,7 @@ func TestIntegrationChangeRepairCandidateBranchAbsent(t *testing.T) {
 // TestRepairInspectErrorIsConflict proves the fail-closed reading: an inspection
 // that cannot be answered is ambiguity and takes the workspace-conflict path,
 // never a pass (probe-error-is-not-clean-absence).
-func TestIntegrationChangeRepairInspectErrorIsConflict(t *testing.T) {
+func TestIntegrationChangeRuntimeRepairInspectErrorIsConflict(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
@@ -2759,7 +2759,7 @@ func TestIntegrationChangeRepairInspectErrorIsConflict(t *testing.T) {
 // the conflicting-workspace check actually executed. Deleting the branch
 // comparison in repairProveWorkspaceClear lets the repair proceed to a write,
 // reddening this assertion.
-func TestIntegrationChangeRepairWorkspaceConflictBlocks(t *testing.T) {
+func TestIntegrationChangeRuntimeRepairWorkspaceConflictBlocks(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	// The candidate branch must be present on the remote so the probe passes and
@@ -2783,7 +2783,7 @@ func TestIntegrationChangeRepairWorkspaceConflictBlocks(t *testing.T) {
 // and leaves the marker; a version drift is contended; a quiescent reprobe
 // refreshes the claim, removes exactly the marker section, and preserves every
 // other byte.
-func TestIntegrationChangeResumeHalted(t *testing.T) {
+func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 	for _, m := range planRepoModes() {
 		t.Run(m.name, func(t *testing.T) {
 			// A live writer (allocating workspace) refuses; the marker stays.
@@ -2840,7 +2840,7 @@ func TestIntegrationChangeResumeHalted(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeHaltResumeCycle proves the whole contract over real git:
+// TestIntegrationChangeRuntimeHaltResumeCycle proves the whole contract over real git:
 // a real halt write on a record that already carries a halted marker AND a
 // section AFTER it (so fence or boundary leakage cannot pass unnoticed)
 // replaces the section in place — one structural halt heading, one
@@ -2848,7 +2848,7 @@ func TestIntegrationChangeResumeHalted(t *testing.T) {
 // an authorized quiescent resume then removes the COMPLETE report, fenced
 // bytes included, preserving the surrounding sections byte-for-byte
 // (change 0354).
-func TestIntegrationChangeHaltResumeCycle(t *testing.T) {
+func TestIntegrationChangeRuntimeHaltResumeCycle(t *testing.T) {
 	for _, m := range planRepoModes() {
 		t.Run(m.name, func(t *testing.T) {
 			f := setupHaltedFixture(t, m)
@@ -2909,10 +2909,10 @@ func TestIntegrationChangeHaltResumeCycle(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeHaltMalformedReportHasNoEffects proves the refusal is
+// TestIntegrationChangeRuntimeHaltMalformedReportHasNoEffects proves the refusal is
 // effect-free over real git: an invalid-input halt leaves the origin record
 // byte-identical and creates no commit (change 0354).
-func TestIntegrationChangeHaltMalformedReportHasNoEffects(t *testing.T) {
+func TestIntegrationChangeRuntimeHaltMalformedReportHasNoEffects(t *testing.T) {
 	for _, m := range planRepoModes() {
 		t.Run(m.name, func(t *testing.T) {
 			f := setupRebaseFixtureStatus(t, m, "in-progress")
@@ -2934,11 +2934,11 @@ func TestIntegrationChangeHaltMalformedReportHasNoEffects(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeHaltCorruptedRecordStillRefused proves the existing
+// TestIntegrationChangeRuntimeHaltCorruptedRecordStillRefused proves the existing
 // duplicate-owned-heading guard survives: a record SEEDED with two halt
 // sections (the historical corruption this change prevents, not repairs)
 // still refuses a new, valid halt write and writes nothing (change 0354).
-func TestIntegrationChangeHaltCorruptedRecordStillRefused(t *testing.T) {
+func TestIntegrationChangeRuntimeHaltCorruptedRecordStillRefused(t *testing.T) {
 	for _, m := range planRepoModes() {
 		t.Run(m.name, func(t *testing.T) {
 			f := setupRebaseFixtureStatus(t, m, "in-progress")
@@ -2964,7 +2964,7 @@ func TestIntegrationChangeHaltCorruptedRecordStillRefused(t *testing.T) {
 // TestRunGateBeforeArmsWithLoadableKey: a successful arm prints `gate-armed
 // <key>`, the record loads, and its BeforeIDs are exactly the fixture's
 // in-progress ids with the store-owned target and an unused retry permit.
-func TestIntegrationChangeRunGateBeforeArmsWithLoadableKey(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateBeforeArmsWithLoadableKey(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -3011,7 +3011,7 @@ func TestIntegrationChangeRunGateBeforeArmsWithLoadableKey(t *testing.T) {
 // TestRunGateBeforeDispatchEpochAfterBeforeRead: DispatchEpoch is captured after
 // the before-read, so it is at or after the record's CreatedAt and is a real
 // (non-zero) wall-clock stamp.
-func TestIntegrationChangeRunGateBeforeDispatchEpochAfterBeforeRead(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateBeforeDispatchEpochAfterBeforeRead(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -3034,7 +3034,7 @@ func TestIntegrationChangeRunGateBeforeDispatchEpochAfterBeforeRead(t *testing.T
 
 // TestRunGateBeforeEmptyBacklogArms: no in-progress claims still arms with an
 // empty before-set — an empty set is a valid observation, not a failure.
-func TestIntegrationChangeRunGateBeforeEmptyBacklogArms(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateBeforeEmptyBacklogArms(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, []StatusBlob{}, nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -3054,7 +3054,7 @@ func TestIntegrationChangeRunGateBeforeEmptyBacklogArms(t *testing.T) {
 
 // TestRunGateBeforeInvalidTarget: any target other than `implement-next` is a
 // usage error — a non-zero exit with no gate-armed / gate-unarmed report line.
-func TestIntegrationChangeRunGateBeforeInvalidTarget(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateBeforeInvalidTarget(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -3073,7 +3073,7 @@ func TestIntegrationChangeRunGateBeforeInvalidTarget(t *testing.T) {
 
 // TestRunGateBeforeSyncFailure: a fresh-origin re-sync failure (PinContext) is
 // reported as gate-unarmed with the sync reason token, exit 0.
-func TestIntegrationChangeRunGateBeforeSyncFailure(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateBeforeSyncFailure(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, nil, errors.New("fetch failed"), nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -3093,7 +3093,7 @@ func TestIntegrationChangeRunGateBeforeSyncFailure(t *testing.T) {
 // TestRunGateBeforeUnreadableChangesDir: an unreadable corpus prints
 // `gate-unarmed <reason>` with a stable token and still exits 0 (the report line
 // is the contract), and mints no record.
-func TestIntegrationChangeRunGateBeforeUnreadableChangesDir(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateBeforeUnreadableChangesDir(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, nil, nil, errors.New("changes dir unreadable")), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -3119,7 +3119,7 @@ func TestIntegrationChangeRunGateBeforeUnreadableChangesDir(t *testing.T) {
 // TestRunGateVerdictLoadErrorsFailClosed: every store load fault maps to a
 // terminal gate-stop gate-unavailable carrying the store's typed reason token —
 // never a retry.
-func TestIntegrationChangeRunGateVerdictLoadErrorsFailClosed(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictLoadErrorsFailClosed(t *testing.T) {
 	t.Run("malformed key", func(t *testing.T) {
 		repo := newGateRepo(t)
 		res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{}, GitHubDeps{}, repo, "../escape")
@@ -3181,7 +3181,7 @@ func TestIntegrationChangeRunGateVerdictLoadErrorsFailClosed(t *testing.T) {
 
 // TestRunGateVerdictObserveEmptyBacklogNoCurrentRun: no in-progress ids and no
 // hints → a single terminal-shaped `gate-observe no-current-run` line.
-func TestIntegrationChangeRunGateVerdictObserveEmptyBacklogNoCurrentRun(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictObserveEmptyBacklogNoCurrentRun(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := gateLightDeps(t, []StatusBlob{gateProposedBlob(9, "charlie")})
 
@@ -3197,7 +3197,7 @@ func TestIntegrationChangeRunGateVerdictObserveEmptyBacklogNoCurrentRun(t *testi
 // TestRunGateVerdictObserveHintsMixedVerdicts: supplied hint ids are each verified
 // and rendered as one `gate-observe <verdict> <id>` line, in the INPUT order given
 // (never re-sorted), using RunVerify's verdict verbatim.
-func TestIntegrationChangeRunGateVerdictObserveHintsMixedVerdicts(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictObserveHintsMixedVerdicts(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := gateLightDeps(t, []StatusBlob{
 		gateProposedBlob(3, "alpha"),
@@ -3217,7 +3217,7 @@ func TestIntegrationChangeRunGateVerdictObserveHintsMixedVerdicts(t *testing.T) 
 // unattributed emits `gate-observe run-incomplete <id> <unmet...>` and writes NO
 // record and consumes NOTHING — the rungate root is never created (no mint, no
 // save, no retry consumption on the observe path).
-func TestIntegrationChangeRunGateVerdictObserveIncompleteWritesNothing(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictObserveIncompleteWritesNothing(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		gateIncompleteRecord(),
@@ -3245,7 +3245,7 @@ func TestIntegrationChangeRunGateVerdictObserveIncompleteWritesNothing(t *testin
 // TestRunGateVerdictObserveKeyIsUsageError: `--unattributed` combined with a key
 // (a non-integer positional) is a usage error — a non-zero exit, never a report
 // line. Hints are change ids; a key can never be one.
-func TestIntegrationChangeRunGateVerdictObserveKeyIsUsageError(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictObserveKeyIsUsageError(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := gateLightDeps(t, []StatusBlob{gateHaltedInProgressBlob(3, "alpha")})
 
@@ -3260,7 +3260,7 @@ func TestIntegrationChangeRunGateVerdictObserveKeyIsUsageError(t *testing.T) {
 
 // TestRunGateVerdictObserveNoHintsAllInProgress: with no hints, every current
 // in-progress id is verified (sorted), one line each.
-func TestIntegrationChangeRunGateVerdictObserveNoHintsAllInProgress(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictObserveNoHintsAllInProgress(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := gateLightDeps(t, []StatusBlob{
 		gateHaltedInProgressBlob(7, "bravo"),
@@ -3276,7 +3276,7 @@ func TestIntegrationChangeRunGateVerdictObserveNoHintsAllInProgress(t *testing.T
 
 // TestRunGateVerdictObserveSyncFailureUnavailable: a re-sync/read fault fails
 // closed to a single `gate-observe gate-unavailable <reason>` line.
-func TestIntegrationChangeRunGateVerdictObserveSyncFailureUnavailable(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictObserveSyncFailureUnavailable(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: &fakeReader{pinErr: errors.New("boom")}, Clock: testClock()}
 
@@ -3291,7 +3291,7 @@ func TestIntegrationChangeRunGateVerdictObserveSyncFailureUnavailable(t *testing
 // (as a separate gate-before process would) and then reading a verdict through a
 // fresh RunGateVerdict call — no record value passed between them — still resolves
 // the attributed run.
-func TestIntegrationChangeRunGateVerdictRestartDurability(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictRestartDurability(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
@@ -3317,7 +3317,7 @@ func TestIntegrationChangeRunGateVerdictRestartDurability(t *testing.T) {
 // stored id directly. An implemented change 3 (which fresh attribution could
 // never pick, being no longer in-progress) yields gate-done run-complete —
 // proving the short-circuit bypassed attribution.
-func TestIntegrationChangeRunGateVerdictRunComplete(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictRunComplete(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -3339,7 +3339,7 @@ func TestIntegrationChangeRunGateVerdictRunComplete(t *testing.T) {
 
 // TestRunGateVerdictRunHalted: a halted in-progress change is attributed, then
 // RunVerify's run-halted maps to a terminal gate-stop (a human is needed).
-func TestIntegrationChangeRunGateVerdictRunHalted(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictRunHalted(t *testing.T) {
 	repo := newGateRepo(t)
 	src := strings.TrimRight(lifecycleChange(3, "widget", "in-progress"), "\n") +
 		"\n\n## Run halted\n\n### 2026-08-14\n\nPaused.\n"
@@ -3367,7 +3367,7 @@ func TestIntegrationChangeRunGateVerdictRunHalted(t *testing.T) {
 // consumed, non-terminal), and gate-stop run-incomplete on the second (permit
 // spent, terminal). The post-pass durable state — not merely the emitted line —
 // records the consumed marker and the attributed id.
-func TestIntegrationChangeRunGateVerdictRunIncompleteRetryThenStop(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictRunIncompleteRetryThenStop(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		gateIncompleteRecord(),
@@ -3408,7 +3408,7 @@ func TestIntegrationChangeRunGateVerdictRunIncompleteRetryThenStop(t *testing.T)
 // TestRunGateVerdictRunUnclaimed: the attributed-id short-circuit over a change
 // that is now proposed (never-claimed) maps RunVerify's run-unclaimed to a
 // terminal gate-done.
-func TestIntegrationChangeRunGateVerdictRunUnclaimed(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictRunUnclaimed(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := rvProposedDeps(t) // corpus: change 3 proposed
 	key := gateMintAttributed(t, repo, 3)
@@ -3425,7 +3425,7 @@ func TestIntegrationChangeRunGateVerdictRunUnclaimed(t *testing.T) {
 // TestRunGateVerdictRunWaiting: a fully-agreeing local waiting receipt over an
 // in-progress change yields a NONTERMINAL gate-continue (change 0359) that keeps
 // the key, spends no retry, and carries the minted continuation id and phase.
-func TestIntegrationChangeRunGateVerdictRunWaiting(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictRunWaiting(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
 	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
@@ -3448,7 +3448,7 @@ func TestIntegrationChangeRunGateVerdictRunWaiting(t *testing.T) {
 
 // TestRunGateVerdictTwoKeysIsolated: two distinct keys in one repository hold
 // independent retry permits — consuming one never touches the other.
-func TestIntegrationChangeRunGateVerdictTwoKeysIsolated(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictTwoKeysIsolated(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
@@ -3471,7 +3471,7 @@ func TestIntegrationChangeRunGateVerdictTwoKeysIsolated(t *testing.T) {
 // recognized verdict (here an operational unknown-change error over an
 // attributed id absent from the corpus) fails closed to gate-unavailable
 // unknown-verdict — never a retry, never a silent pass.
-func TestIntegrationChangeRunGateVerdictUnknownVerdictFailsClosed(t *testing.T) {
+func TestIntegrationChangeRuntimeRunGateVerdictUnknownVerdictFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := gateLightDeps(t, []StatusBlob{}) // empty corpus: id 999 is unknown
 	key := gateMintAttributed(t, repo, 999)
@@ -3487,7 +3487,7 @@ func TestIntegrationChangeRunGateVerdictUnknownVerdictFailsClosed(t *testing.T) 
 
 // TestRunVerifyComplete: an implemented change satisfying every postcondition ⇒
 // run-complete with no unmet conjuncts.
-func TestIntegrationChangeRunVerifyComplete(t *testing.T) {
+func TestIntegrationChangeRuntimeRunVerifyComplete(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -3511,7 +3511,7 @@ func TestIntegrationChangeRunVerifyComplete(t *testing.T) {
 // TestRunVerifyCompletePrecedesStaleHandoff: when every completed-run
 // postcondition holds, run-complete wins even though a fully-agreeing local
 // handoff receipt is present.
-func TestIntegrationChangeRunVerifyCompletePrecedesStaleHandoff(t *testing.T) {
+func TestIntegrationChangeRuntimeRunVerifyCompletePrecedesStaleHandoff(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -3530,7 +3530,7 @@ func TestIntegrationChangeRunVerifyCompletePrecedesStaleHandoff(t *testing.T) {
 // run-incomplete carrying that conjunct's stable reason — asserted as the FULL
 // unmet list, not merely non-empty. The happy fixture (TestRunVerifyComplete)
 // satisfies all of them.
-func TestIntegrationChangeRunVerifyIncompleteEnumeratesConjuncts(t *testing.T) {
+func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConjuncts(t *testing.T) {
 	pub := newRunVerifyFixture(t, true)
 	ev := string(prEvidenceBytes(t, pub.head))
 	recordedPR := rvRecordedPR()
@@ -3623,7 +3623,7 @@ func TestIntegrationChangeRunVerifyIncompleteEnumeratesConjuncts(t *testing.T) {
 
 // TestRunVerifyOperationalError: an absent id is an operational error, not a
 // verdict — it carries no verdict and exits non-zero.
-func TestIntegrationChangeRunVerifyOperationalError(t *testing.T) {
+func TestIntegrationChangeRuntimeRunVerifyOperationalError(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), rvPR(f.head, string(prEvidenceBytes(t, f.head))))
 	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 999})
@@ -3640,7 +3640,7 @@ func TestIntegrationChangeRunVerifyOperationalError(t *testing.T) {
 // legacy owner/repo#N shorthand) when its parsed number equals the verified PR's
 // number, and flags pr-unverified when the number differs or the recorded value
 // is unparseable. The verified PR is number 42 (rvPR).
-func TestIntegrationChangeRunVerifyPRIdentityForms(t *testing.T) {
+func TestIntegrationChangeRuntimeRunVerifyPRIdentityForms(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	ev := string(prEvidenceBytes(t, f.head))
 
@@ -3683,7 +3683,7 @@ func TestIntegrationChangeRunVerifyPRIdentityForms(t *testing.T) {
 // TestRunVerifyWaitingAgreeingChain: a fully-agreeing local receipt chain over an
 // in-progress change yields run-waiting, exposing the opaque handoff id and phase
 // (never an owner credential), as a success-shaped, exit-0 verdict.
-func TestIntegrationChangeRunVerifyWaitingAgreeingChain(t *testing.T) {
+func TestIntegrationChangeRuntimeRunVerifyWaitingAgreeingChain(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	reader := fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true}
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, reader)
@@ -3710,7 +3710,7 @@ func TestIntegrationChangeRunVerifyWaitingAgreeingChain(t *testing.T) {
 // one receipt dimension of the agreeing chain and prove waiting disappears —
 // falling through to the ordinary run-incomplete verdict. A found=false / errored
 // reader (missing local state, e.g. another machine) also never invents waiting.
-func TestIntegrationChangeRunVerifyWaitingMutationsDisappear(t *testing.T) {
+func TestIntegrationChangeRuntimeRunVerifyWaitingMutationsDisappear(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	base := rvAgreeingReceipt(f.head)
 
@@ -3754,7 +3754,7 @@ func TestIntegrationChangeRunVerifyWaitingMutationsDisappear(t *testing.T) {
 // TestRunVerifyWaitingTerminalOverridesDeadline: an expired deadline still yields
 // run-waiting WHEN a durable terminal result is waiting to be consumed — the one
 // admitted exception to the live-deadline condition.
-func TestIntegrationChangeRunVerifyWaitingTerminalOverridesDeadline(t *testing.T) {
+func TestIntegrationChangeRuntimeRunVerifyWaitingTerminalOverridesDeadline(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	rcpt := rvAgreeingReceipt(f.head)
 	rcpt.DeadlineLive = false

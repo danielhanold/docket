@@ -18,7 +18,7 @@ import (
 // restores the recorded original head, clears the owned scratch, and returns a
 // blocked disposition recommending the human finalize-block — with the report body
 // never echoed.
-func TestIntegrationFinalizeRebaseAbortVerifiesRestore(t *testing.T) {
+func TestIntegrationFinalizeRebaseRecoveryAbortVerifiesRestore(t *testing.T) {
 	requireRealGit(t)
 	f, conflicted, deps := setupConflictedRebase(t, planRepoModes()[0])
 	attempt := conflicted.Attempt
@@ -56,7 +56,7 @@ func TestIntegrationFinalizeRebaseAbortVerifiesRestore(t *testing.T) {
 // against the live unmerged set: a wrong attempt, a non-resolved disposition, and
 // a path outside the unmerged set all refuse without staging, while a valid report
 // stages exactly the named paths and completes the rebase.
-func TestIntegrationFinalizeRebaseContinueValidatesReport(t *testing.T) {
+func TestIntegrationFinalizeRebaseRecoveryContinueValidatesReport(t *testing.T) {
 	requireRealGit(t)
 	f, conflicted, deps := setupConflictedRebase(t, planRepoModes()[0])
 	attempt := conflicted.Attempt
@@ -113,7 +113,7 @@ func TestIntegrationFinalizeRebaseContinueValidatesReport(t *testing.T) {
 // TestFinalizeRebaseForeignStateBlocked proves a moved base (a resumed rewrite
 // whose base drifted) and a pre-existing foreign rebase are both retained and
 // blocked, never reset or adopted.
-func TestIntegrationFinalizeRebaseForeignStateBlocked(t *testing.T) {
+func TestIntegrationFinalizeRebaseGateForeignStateBlocked(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 
@@ -508,14 +508,14 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 	})
 }
 
-// TestIntegrationFinalizeRebaseAttemptRoundTrip settles the stub's unverified
+// TestIntegrationFinalizeRebaseRecoveryAttemptRoundTrip settles the stub's unverified
 // attempt-token-truncation claim (spec §6; learnings:
 // groomed-root-cause-is-a-hypothesis): the finalize.rebase JSON document's
 // `attempt` must equal the on-disk receipt's `attempt` byte for byte, through
 // the exact marshal internal/cli/presenter.go performs ("json.Marshal(r)").
 // newRebaseAttempt mints `<stamp>-<12 hex>`; if this test never reddens, the
 // claim did not reproduce and this test stands as the guard.
-func TestIntegrationFinalizeRebaseAttemptRoundTrip(t *testing.T) {
+func TestIntegrationFinalizeRebaseRecoveryAttemptRoundTrip(t *testing.T) {
 	requireRealGit(t)
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	f.advanceBase(t)
@@ -549,7 +549,7 @@ func TestIntegrationFinalizeRebaseAttemptRoundTrip(t *testing.T) {
 	}
 }
 
-func TestIntegrationFinalizeRebaseHappyAndReceipt(t *testing.T) {
+func TestIntegrationFinalizeRebaseGateHappyAndReceipt(t *testing.T) {
 	for _, m := range planRepoModes() {
 		m := m
 		t.Run(m.name, func(t *testing.T) {
@@ -605,7 +605,7 @@ func TestIntegrationFinalizeRebaseHappyAndReceipt(t *testing.T) {
 // TestFinalizeRebasePreconditions proves every precondition refusal leaves the
 // receipt unwritten and Git untouched, with a closed reason. Preconditions are
 // mode-independent, so the table runs in main mode.
-func TestIntegrationFinalizeRebasePreconditions(t *testing.T) {
+func TestIntegrationFinalizeRebaseGatePreconditions(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 
@@ -693,7 +693,7 @@ func TestIntegrationFinalizeRebasePreconditions(t *testing.T) {
 // TestFinalizeRebaseResponseLossRecovery proves a replay after a completed rewrite
 // (a lost response) adopts the same outcome from the receipt, the owned refs, the
 // head, and the ancestry — and never rebases a different head.
-func TestIntegrationFinalizeRebaseResponseLossRecovery(t *testing.T) {
+func TestIntegrationFinalizeRebaseRecoveryResponseLossRecovery(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 	f := setupRebaseFixture(t, main)
@@ -991,7 +991,7 @@ func TestIntegrationResolverBudgetSuccessiveConflicts(t *testing.T) {
 		}
 	})
 }
-func TestIntegrationFinalizeRebasePassedRecordsPublishCheckpoint(t *testing.T) {
+func TestIntegrationFinalizeRebaseGatePassedRecordsPublishCheckpoint(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 
@@ -1093,13 +1093,13 @@ func tamperCheckpoint(t *testing.T, f *rebaseFixture, mut func(*workspace.Rebase
 	}
 }
 
-// TestIntegrationFinalizeRebaseCheckpointReuse proves the marquee behavior: a
+// TestIntegrationFinalizeRebaseRecoveryCheckpointReuse proves the marquee behavior: a
 // resume after a denied publish (completed rewrite, checkpoint recorded, remote
 // and PR untouched) reuses the recorded evidence and publishes-readies WITHOUT
 // invoking the suite — the gate report is skipped, carries the recorded
 // evidence verifying the rewritten head, and the gate seam is never called a
 // second time.
-func TestIntegrationFinalizeRebaseCheckpointReuse(t *testing.T) {
+func TestIntegrationFinalizeRebaseRecoveryCheckpointReuse(t *testing.T) {
 	requireRealGit(t)
 	f, gate, deps, rewritten := setupPassedRebaseCheckpoint(t)
 
@@ -1126,13 +1126,13 @@ func TestIntegrationFinalizeRebaseCheckpointReuse(t *testing.T) {
 	}
 }
 
-// TestIntegrationFinalizeRebaseCheckpointInvalidation proves every recorded
+// TestIntegrationFinalizeRebaseRecoveryCheckpointInvalidation proves every recorded
 // identity is load-bearing: a moved local head, a changed recorded command, a
 // changed gate policy, a different PR, and evidence for the wrong head each
 // invalidate the checkpoint — the gate re-runs and the receipt's checkpoint is
 // rewritten by the new terminal, never reused stale. A moved BASE keeps its
 // existing refusal ahead of any reuse.
-func TestIntegrationFinalizeRebaseCheckpointInvalidation(t *testing.T) {
+func TestIntegrationFinalizeRebaseRecoveryCheckpointInvalidation(t *testing.T) {
 	requireRealGit(t)
 
 	t.Run("moved-local-head-reruns", func(t *testing.T) {
@@ -1275,7 +1275,7 @@ func carryDroppedCommit(t *testing.T, f *rebaseFixture, files map[string]string)
 	return oid
 }
 
-// TestIntegrationFinalizeRebaseCarryPreservation proves the two enforcement
+// TestIntegrationFinalizeRebaseRecoveryCarryPreservation proves the two enforcement
 // points FinalizeRebase adds: the fresh-path PRE-rewrite gate (refuse before any
 // receipt/rewrite when a carried descendant's merged work is not preserved at the
 // agreed head) and the POST-rewrite chokepoint at composeLocalGate (refuse a
@@ -1283,7 +1283,7 @@ func carryDroppedCommit(t *testing.T, f *rebaseFixture, files map[string]string)
 // the abort/repair flow). Every refusal fixture builds local/remote/PR heads that
 // AGREE by construction, so a refusal exercises the NEW carry proof, not the
 // existing head-mismatch guard, and a green suite never substitutes for it.
-func TestIntegrationFinalizeRebaseCarryPreservation(t *testing.T) {
+func TestIntegrationFinalizeRebaseRecoveryCarryPreservation(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 	ctx := context.Background()

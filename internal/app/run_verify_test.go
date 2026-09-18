@@ -369,7 +369,7 @@ func TestRunVerifyWaitingSurvivesMissingResults(t *testing.T) {
 // TestRunVerifyAcceptsSkippedEvidenceAtExactHead: a build.gate: off repository's
 // PR carries a truthful skipped (build-gate-off) block at the exact feature head.
 // run verify's evidence postcondition accepts VerdictSkipped exactly as
-// VerdictVerified, so the run is complete. Mirrors TestIntegrationChangeRunVerifyComplete
+// VerdictVerified, so the run is complete. Mirrors TestIntegrationChangeRuntimeRunVerifyComplete
 // with a skipped PR-body block substituted.
 func TestRunVerifyAcceptsSkippedEvidenceAtExactHead(t *testing.T) {
 	f := newRunVerifyFixture(t, true)

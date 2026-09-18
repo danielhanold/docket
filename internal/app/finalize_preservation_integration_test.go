@@ -79,11 +79,11 @@ func carryFake(head, baseRef, mergeCommit string) *fakeCloseoutGitHub {
 	}
 }
 
-// TestIntegrationFinalizeRebaseCarryHelperEmptySetZeroProbes proves an empty
+// TestIntegrationFinalizeRebaseRecoveryCarryHelperEmptySetZeroProbes proves an empty
 // carried set is vacuously proven with ZERO external GitHub probes, and the
 // companion that the probe witness fires on a stack that DOES carry a
 // descendant — so the zero-probe assert is a real guard, not a vacuous one.
-func TestIntegrationFinalizeRebaseCarryHelperEmptySetZeroProbes(t *testing.T) {
+func TestIntegrationFinalizeRebaseRecoveryCarryHelperEmptySetZeroProbes(t *testing.T) {
 	requireRealGit(t)
 	ctx := context.Background()
 
@@ -124,13 +124,13 @@ func TestIntegrationFinalizeRebaseCarryHelperEmptySetZeroProbes(t *testing.T) {
 	}
 }
 
-// TestIntegrationFinalizeRebaseCarryHelperPreservation drives every per-descendant
+// TestIntegrationFinalizeRebaseRecoveryCarryHelperPreservation drives every per-descendant
 // finding category over ONE stacked fixture: an ancestor-preserved carry, a
 // content-preserved (rebased) carry, and each unproven category — relationship,
 // missing merge id, observed content mismatch, and an observation error. The
 // snapshot is loaded once; only the scripted facts and the immutable target id
 // vary per row.
-func TestIntegrationFinalizeRebaseCarryHelperPreservation(t *testing.T) {
+func TestIntegrationFinalizeRebaseRecoveryCarryHelperPreservation(t *testing.T) {
 	requireRealGit(t)
 	ctx := context.Background()
 
