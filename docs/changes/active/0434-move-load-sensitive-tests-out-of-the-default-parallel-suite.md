@@ -14,7 +14,7 @@ discovered_from: [411]
 adrs: [108]
 spec: 'docs/superpowers/specs/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-design.md'
 plan: 'docs/superpowers/plans/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite.md'
-results:
+results: 'docs/results/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-18T18:39:53Z'
 |---|---|
 | Spec | [2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-design.md) |
 | Plan | [2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite.md](https://github.com/danielhanold/docket/blob/chore/move-load-sensitive-tests-out-of-the-default-parallel-suite/docs/superpowers/plans/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite.md) |
+| Results | [2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-results.md](https://github.com/danielhanold/docket/blob/chore/move-load-sensitive-tests-out-of-the-default-parallel-suite/docs/results/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
