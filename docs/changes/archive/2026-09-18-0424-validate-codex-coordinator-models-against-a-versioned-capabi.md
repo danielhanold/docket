@@ -2,11 +2,11 @@
 id: 424
 slug: 'validate-codex-coordinator-models-against-a-versioned-capabi'
 title: 'Validate Codex coordinator models against a versioned capability registry'
-status: 'in-progress'
+status: 'killed'
 priority: 'critical'
 type: 'feat'
 created: '2026-09-11'
-updated: '2026-09-17'
+updated: '2026-09-18'
 depends_on: [423]
 stacked_on: 425
 related: [384, 393, 412]
@@ -18,11 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch: 'feat/validate-codex-coordinator-models-against-a-versioned-capabi'
+branch:
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-17T22:16:30Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,7 +31,7 @@ claimed_at: '2026-09-17T22:16:30Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md) |
-| Plan | [2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi.md](https://github.com/danielhanold/docket/blob/feat/validate-codex-coordinator-models-against-a-versioned-capabi/docs/superpowers/plans/2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi.md) |
+| Plan | [2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-17-validate-codex-coordinator-models-against-a-versioned-capabi.md) |
 | ADRs | [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md) |
 <!-- docket:artifacts:end -->
 
@@ -83,3 +83,10 @@ Native Task 1 admission was blocked before any source edit or test execution. Th
 
 The human explicitly authorized resetting change 424 for a from-scratch dogfood run, without redesigning gates or coordinators. The prior run was explicitly cancelled with disposition `cancelled`. Its plan-only commit `5d37cca3` is preserved on local branch `backup/424-plan-attempt-20260917`, with the prior worktree and state archived at `/Users/homer/dev/docket-0424-restart.ZyKU6s`. The three historical blockers belong to completed changes 417/419; their recorded worktree and raw-run paths no longer exist. Their exact drive directories were quarantined intact outside the active registry, not falsified as successful. The history dry-run now reports zero retained drives. This operational reset clears the claim, plan attachment and halt marker while retaining the approved specification, `depends_on: [423]` and `stacked_on: 425`. No implementation changes, suite execution or PR existed to discard. The next manually launched session must claim 424 fresh, create a new worktree and stage verified candidate resources there before planning. No run is launched by this reset; the timing finding remains unwaived.
 
+## Why killed
+
+Abandoned by explicit human decision on 2026-09-18 in favor of [change 433](../active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md), starting afresh from main. The successor must leave Claude Code and Cursor and opencode behavior unchanged. Preserve predecessor branches, worktrees, dirty files, commits, original plans/results and private operational evidence; no deletion, merge into main, runtime restart, or wholesale cherry-pick is authorized.
+
+See the [per-change retirement findings](../research/0433-fresh-main-retirement-findings.md), recorded before this transition.
+
+The separately dispatched coordinator/model-registry approach is superseded, not completed. Tasks 1–3 have focused native test/mutation evidence at preserved HEAD 434ebe2aac3f96d572a813368b4bcf030e41330c; Task 4 remains uncommitted on feat/validate-codex-coordinator-models-against-a-versioned-capabi at /Users/homer/dev/docket/.worktrees/validate-codex-coordinator-models-against-a-versioned-capabi. Repeated premature coordinator returns, lost shell handles/exit status, assignment omissions and continuation/capacity/recovery confusion required manual intervention. Some safeguards correctly refused malformed inputs. Full build/final-head certification, independent review, results and a reviewed PR were not reached. The last undispatched replacement was cancelled; no new run is authorized. The full operational history and old plan remain preserved locally; main does not contain this feature's plan or work. The prior 96s/90s serial finding remains unwaived.

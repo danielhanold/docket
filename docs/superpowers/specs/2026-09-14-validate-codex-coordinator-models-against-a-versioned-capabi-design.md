@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0424 — Validate Codex coordinator models against a versioned capability registry](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md)**
+> ↩ **[Change 0424 — Validate Codex coordinator models against a versioned capability registry](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-18-0424-validate-codex-coordinator-models-against-a-versioned-capabi.md)**
 <!-- docket:backlink:end -->
 
 # Validate Codex coordinator models against a versioned capability registry
