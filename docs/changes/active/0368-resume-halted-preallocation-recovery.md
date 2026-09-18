@@ -21,7 +21,7 @@ branch: 'fix/resume-halted-preallocation-recovery'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-18T19:40:59Z'
+claimed_at: '2026-09-18T21:22:20Z'
 ---
 
 ## Artifacts
