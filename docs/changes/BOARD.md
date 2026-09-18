@@ -1,6 +1,6 @@
 # Backlog
 
-**434 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 119 killed
+**434 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 284 done · 🗑️ 119 killed
 
 ## 🟢 In progress (2)
 
@@ -8,12 +8,6 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0434](active/0434-move-load-sensitive-tests-out-of-the-default-parallel-suite.md) | Move load-sensitive tests out of the default parallel suite lane | `medium` | `chore` | [spec](../superpowers/specs/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-design.md) | `chore/move-load-sensitive-tests-out-of-the-default-parallel-suite` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0411](active/0411-steer-post-completion-durable-write-failures-to-rebase-conti.md) | Steer post-completion durable-write failures to rebase-continue, not abort | `low` | `docs` | [#311](https://github.com/danielhanold/docket/pull/311) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -87,7 +81,6 @@ graph TD
   0387
   0398
   0409
-  0411
   0412
   0414
   0418
@@ -102,7 +95,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (402)</summary>
+<details><summary>✅🗑️ Archive — done + killed (403)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -111,6 +104,7 @@ graph TD
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
 | [0425](archive/2026-09-18-0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | 2026-09-18 |
 | [0424](archive/2026-09-18-0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | 2026-09-18 |
+| [0411](archive/2026-09-18-0411-steer-post-completion-durable-write-failures-to-rebase-conti.md) | Steer post-completion durable-write failures to rebase-continue, not abort | 2026-09-18 |
 | [0430](archive/2026-09-17-0430-native-codex-acceptance-for-durable-review-evidence.md) | Native Codex acceptance for durable review evidence | 2026-09-17 |
 | [0323](archive/2026-09-17-0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | 2026-09-17 |
 | [0427](archive/2026-09-16-0427-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md) | Verdict-path gate recovery never binds the run epoch's worktree | 2026-09-16 |
@@ -126,7 +120,6 @@ graph TD
 | [0420](archive/2026-09-10-0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | 2026-09-10 |
 | [0416](archive/2026-09-10-0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | 2026-09-10 |
 | [0405](archive/2026-09-10-0405-investigate-the-gate-drive-prepare-scope-gate-drive-start-ha.md) | Investigate the gate.drive.prepare-scope -> gate.drive.start handshake rejecting a build-task worker's focused gate | 2026-09-10 |
-| [0393](archive/2026-09-09-0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | 2026-09-09 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -245,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 32 done |
+| [2026-09](archive/) | 33 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

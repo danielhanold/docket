@@ -2,7 +2,7 @@
 id: 411
 slug: 'steer-post-completion-durable-write-failures-to-rebase-conti'
 title: 'Steer post-completion durable-write failures to rebase-continue, not abort'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'docs'
 created: '2026-09-08'
@@ -22,7 +22,7 @@ branch: 'docs/steer-post-completion-durable-write-failures-to-rebase-conti'
 pr: 'https://github.com/danielhanold/docket/pull/311'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-18T15:15:51Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-18T15:15:51Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-design.md) |
-| Plan | [2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti.md](https://github.com/danielhanold/docket/blob/docs/steer-post-completion-durable-write-failures-to-rebase-conti/docs/superpowers/plans/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti.md) |
-| Results | [2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-results.md](https://github.com/danielhanold/docket/blob/docs/steer-post-completion-durable-write-failures-to-rebase-conti/docs/results/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-results.md) |
+| Plan | [2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti.md) |
+| Results | [2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-results.md) |
 | ADRs | [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) |
 <!-- docket:artifacts:end -->
 
