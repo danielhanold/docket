@@ -2,7 +2,7 @@
 id: 411
 slug: 'steer-post-completion-durable-write-failures-to-rebase-conti'
 title: 'Steer post-completion durable-write failures to rebase-continue, not abort'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'docs'
 created: '2026-09-08'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'docs/steer-post-completion-durable-write-failures-to-rebase-conti'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/311'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-18T15:15:51Z'

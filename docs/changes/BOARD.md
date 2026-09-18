@@ -1,13 +1,18 @@
 # Backlog
 
-**433 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 119 killed
+**433 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 119 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0411](active/0411-steer-post-completion-durable-write-failures-to-rebase-conti.md) | Steer post-completion durable-write failures to rebase-continue, not abort | `low` | `docs` | [spec](../superpowers/specs/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-design.md) | `docs/steer-post-completion-durable-write-failures-to-rebase-conti` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0411](active/0411-steer-post-completion-durable-write-failures-to-rebase-conti.md) | Steer post-completion durable-write failures to rebase-continue, not abort | `low` | `docs` | [#311](https://github.com/danielhanold/docket/pull/311) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
