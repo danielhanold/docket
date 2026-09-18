@@ -59,3 +59,16 @@ No new lanes or scheduler, serial wrapper pins, automatic retries, timeout incre
 ### 2026-09-18
 
 2026-09-18: Reconciled at claim. Spec was groomed today against the current main HEAD (3ccf9fac), so the design is fresh. Verified current reality: the integration test-shard machinery is present (tests/lib/go-integration-shard.sh and the tests/test_go_integration_*.sh wrappers, including app_rebase, app_concurrency, and gitcli_concurrency), tests/runtime-budgets.tsv carries the per-wrapper ceilings, and the gatedrive symbols named by the spec exist as described (internal/gatedrive/driver.go: reserveRelaunch, errAlreadyTerminal, errRelaunchRaceLost; the driveSlice reserveRelaunch error branch recognizes errRelaunchRaceLost but propagates errAlreadyTerminal; TestConcurrentSameOwnerAdvanceRelaunchesOnce/terminal_relaunch_winner_fails lives in internal/gatedrive/driver_concurrency_test.go). Related/discovered_from/adrs relations (273,333,362,373,411 / 411 / 108) remain accurate. No scope adjustment or relation change required; proceeding to plan and build under the settled design.
+
+## Finalize blocked
+
+### 2026-09-18 — attempt 20260918T213039Z-60d356ff6e0e
+
+<!-- attempt:20260918T213039Z-60d356ff6e0e -->
+
+- Reason: gate-unavailable
+- Head: afdb0267fe55d67d747f29f23a1c8049ef3bd8a3
+- PR: #312
+- Comment: https://github.com/danielhanold/docket/pull/312#issuecomment-5736523955
+
+Remedy: A human must clear the stale run-epoch binding on the worktree execution slot for /Users/homer/dev/docket/.worktrees/move-load-sensitive-tests-out-of-the-default-parallel-suite (admission record .git/docket/gate-admission/v1/29866cda059334cad6d230625c528debd4b28eeb6b9761a7a77b6adcb8b3e0ed, RunEpochID 13d9c78f54853811831e415dafe6dc64) so finalize's gate can start, then re-run finalize by naming id 434. Note the underlying fix belongs to changes 427/413. The rebase result (8a7c4f70 onto main) is clean; only the gate slot is fenced.
