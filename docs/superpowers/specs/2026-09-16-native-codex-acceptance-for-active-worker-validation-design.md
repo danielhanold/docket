@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0431 — Native Codex acceptance for active worker validation](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0431-native-codex-acceptance-for-active-worker-validation.md)**
+> ↩ **[Change 0431 — Native Codex acceptance for active worker validation](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md)**
 <!-- docket:backlink:end -->
 
 # Native Codex acceptance for active worker validation
