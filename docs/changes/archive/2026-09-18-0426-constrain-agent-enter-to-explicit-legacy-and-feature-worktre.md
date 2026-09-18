@@ -2,11 +2,11 @@
 id: 426
 slug: 'constrain-agent-enter-to-explicit-legacy-and-feature-worktre'
 title: 'Constrain agent.enter to explicit legacy and feature-worktree use'
-status: 'proposed'
+status: 'killed'
 priority: 'high'
 type: 'refactor'
 created: '2026-09-11'
-updated: '2026-09-11'
+updated: '2026-09-18'
 depends_on: [425]
 stacked_on:
 related: [393, 412]
@@ -43,3 +43,11 @@ Remove root-coordinator agent.enter from every generated or automatic routing pa
 ## Out of scope
 
 Removing feature-worktree entry before native Codex can enforce the same working-directory boundary, allowing V1 coordinators as a supported fallback, changing native coordinator routing delivered by the dependency, removing the run gate, completing change 0412, or immediately deleting the app-server client and agent.enter command before the stated retirement criteria have been observed.
+
+## Why killed
+
+Abandoned by explicit human decision on 2026-09-18 in favor of [change 433](../active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md), starting afresh from main. The successor must leave Claude Code and Cursor and opencode behavior unchanged. Preserve predecessor branches, worktrees, dirty files, commits, original plans/results and private operational evidence; no deletion, merge into main, runtime restart, or wholesale cherry-pick is authorized.
+
+See the [per-change retirement findings](../research/0433-fresh-main-retirement-findings.md), recorded before this transition.
+
+This unimplemented proposed retirement of legacy agent.enter depended on 425's native nested-coordinator route becoming production; that prerequisite is abandoned. Its useful separation between root-launch compatibility and feature-worktree safety is captured for 433's fresh-main design. No branch, PR or implementation is being discarded.
