@@ -13,7 +13,7 @@ related: [304, 317, 370, 373]
 discovered_from: [434]
 adrs: [50, 108]
 spec: 'docs/superpowers/specs/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-18T23:41:29Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md) |
+| Plan | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md](https://github.com/danielhanold/docket/blob/fix/test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch/docs/superpowers/plans/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) |
 | ADRs | [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
