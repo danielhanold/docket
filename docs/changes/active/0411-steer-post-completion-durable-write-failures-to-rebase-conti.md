@@ -2,7 +2,7 @@
 id: 411
 slug: 'steer-post-completion-durable-write-failures-to-rebase-conti'
 title: 'Steer post-completion durable-write failures to rebase-continue, not abort'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'docs'
 created: '2026-09-08'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/steer-post-completion-durable-write-failures-to-rebase-conti'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-18T15:02:57Z'
 ---
 
 ## Artifacts
