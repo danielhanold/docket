@@ -65,3 +65,16 @@ The linked spec records the implementation trace, prior decisions, alternatives,
 ### 2026-09-18
 
 2026-09-18: Reconciled against current main (60d356ff). The spec examined commit 3ccf9fac; `git log 3ccf9fac..60d356ff` shows no commits touched internal/workspace/inspect.go, manifest.go, prepare.go, internal/app/change_halt.go, or change_reclaim.go, so the recovery trace is intact. Confirmed current code: inspect.go collapses manifestAbsent into StateForeign (line 87-88); manifest.go classifyManifest distinguishes manifestAbsent/Valid/Foreign/Unknown (line 205-214); change_halt.go resumeQuiescenceRefusal refuses StateForeign/StateMismatch (line 420). No StateAbsent exists yet. Scope, relations (related 313,316,318,354,366,375,429; discovered_from 318; adrs 34,35,118; depends_on []), and acceptance criteria remain valid as authored. No design invalidation; proceeding to build.
+
+## Finalize blocked
+
+### 2026-09-18 — attempt 20260918T232227Z-ab9216d2df9a
+
+<!-- attempt:20260918T232227Z-ab9216d2df9a -->
+
+- Reason: worktree-busy
+- Head: dabec01cc3f97c7017ab45705f7b1576deaed75f
+- PR: #313
+- Comment: https://github.com/danielhanold/docket/pull/313#issuecomment-5737463785
+
+Remedy: Operator-side, per docket-finalize-change/references/gate-failure.md ('The finalize gate shares the worktree's one execution slot'): clear the stale run-epoch ownership of the feature worktree /Users/homer/dev/docket/.worktrees/resume-halted-preallocation-recovery. Cancel the abandoned run-epoch(s) via the run.cancel operation (--key <run-gate-key> --epoch <epoch-id> --reason <why>) for the active epoch 6f79c99d (key implement-next-20260918t211959z-31884-d6cb) and, if it still fences the admission slot, the superseded epoch 523ddc4c (key implement-next-20260918t192652z-58216-ef81); confirm cancellation, then re-run docket-finalize-change naming id 368 (a named id overrides this finalize-blocked marker). Do NOT clear the admission slot by hand or by a blind gate re-start.
