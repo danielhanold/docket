@@ -1,6 +1,6 @@
 # Backlog
 
-**436 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 285 done · 🗑️ 119 killed
+**436 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 5 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 285 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
@@ -14,20 +14,20 @@
 |---|-------|----------|------|----|-------|
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | [#313](https://github.com/danielhanold/docket/pull/313) | awaiting merge |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (5)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0436](active/0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) | test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red | `high` | `fix` | [spec](../superpowers/specs/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md) |
 | [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | [spec](../superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (14)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0436](active/0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) | test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red | `high` | `fix` | needs-brainstorm |
 | [0433](active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md) | Pilot top-level Codex coordinators with one-level native dispatch | `high` | `refactor` | needs-brainstorm |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-brainstorm |

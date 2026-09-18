@@ -9,10 +9,10 @@ created: '2026-09-18'
 updated: '2026-09-18'
 depends_on: []
 stacked_on:
-related: []
+related: [304, 317, 370, 373]
 discovered_from: [434]
-adrs: []
-spec:
+adrs: [50, 108]
+spec: 'docs/superpowers/specs/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md'
 plan:
 results:
 trivial: false
@@ -27,16 +27,25 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md) |
+| ADRs | [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-tests/test_go_toolchain.sh:132 runs `gofmt -l $pkg_dirs` resolving `gofmt` from bare PATH, not from this module's pinned toolchain (go.mod: `go 1.26.0` / `toolchain go1.26.5`). CI's release-candidate.yml pins `go-version: '1.26'` via actions/setup-go, so CI's gofmt is 1.26's. A local Go newer than the toolchain line (e.g. 1.27.1) is NOT auto-downgraded by GOTOOLCHAIN=auto -- Go's toolchain directive is a floor, not an exact pin, so `go env GOROOT` on a machine with a newer system Go silently reports that newer Go's GOROOT, not the pinned 1.26.5 toolchain. Confirmed directly: go1.27's gofmt and go1.26.5's gofmt disagree on trailing-comment column alignment in internal/githubcli/comment_integration_test.go (a composite literal with per-element trailing comments) -- go1.26.5 wants heavy padding-aligned comments, go1.27 does not. Forcing `GOTOOLCHAIN=go1.26.5 go env GOROOT` and using that GOROOT's gofmt reproduces CI's exact failure locally. Net effect: whoever last gofmt's that file with a local Go newer than 1.26.5 makes it look clean locally while it stays red on CI's pinned 1.26 gate, and the reverse also holds -- a flip-flopping trap, not a one-off typo. This has been hitting `test_go_toolchain` across most recently observed open PRs (confirmed on change 434's PR #312, and PR #368's branch), not just one.
+The existing formatting check uses gofmt from PATH, so a developer and CI can disagree about whether identical source is formatted. Read-only probes on main reproduced this: ambient Go 1.27.1 reports clean formatting, while the formatter shipped with go.mod's declared go1.26.5 toolchain flags internal/githubcli/comment_integration_test.go. Automatic Go toolchain selection retains a newer installed version; plain go env GOROOT therefore does not resolve this mismatch.
+
+CI selects the Go 1.26 release family, not an exact 1.26.5 patch. Selecting the declared formatter explicitly within the shared check gives local and CI runs the same formatting rule without changing their broader toolchain behavior.
 
 ## What changes
 
-Fix tests/test_go_toolchain.sh's Check 1 (the gofmt cleanliness check, around line 132) to resolve `gofmt` from this module's pinned toolchain rather than bare PATH -- e.g. read the `toolchain` line from go.mod and invoke `GOTOOLCHAIN=<that version> go env GOROOT` to locate the matching gofmt binary, so the check is deterministic regardless of the ambient system Go version and matches exactly what CI's pinned setup-go will see. Reformat internal/githubcli/comment_integration_test.go (and any other currently-drifted file the corrected check newly flags) with the pinned toolchain's gofmt so the suite is green under the fixed check.
+- Extend Check 1 in tests/test_go_toolchain.sh to resolve and run the formatter belonging to the toolchain declared in go.mod, using Go's existing toolchain selection and cache machinery.
+- Fail clearly on unusable toolchain resolution or formatter failure, preserving stderr diagnostics, module-derived package discovery, and the existing four-check reporting contract.
+- Apply formatting-only corrections to the files reported by the corrected check; the current affected file is internal/githubcli/comment_integration_test.go.
+- Add focused behavioral regression coverage and document a formatting remedy that derives the version from go.mod.
 
 ## Out of scope
 
-Do not change go.mod's `go`/`toolchain` lines or CI's pinned go-version -- this fixes the LOCAL check to match the existing pin, not the pin itself. Do not touch the unrelated test_go_integration_contract failure on PR #368's branch (three new integration tests there are missing a shard-runner registration) -- that is change 0368's own defect on its own branch, distinct from this toolchain-drift bug, and is being tracked/handled separately.
+No new configuration, toolchain service, helper framework, downloader, suite lane, retries, timeout or budget changes. Do not change go.mod's go/toolchain directives, CI's go-version setting, the toolchains used by the other Go checks, cache policy, or concurrency limits. The separate integration-shard registration issue on change 0368 remains outside this change.
