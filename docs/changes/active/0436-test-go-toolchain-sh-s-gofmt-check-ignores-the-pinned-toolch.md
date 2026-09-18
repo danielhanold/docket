@@ -22,7 +22,7 @@ branch: 'fix/test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-18T23:41:29Z'
+claimed_at: '2026-09-18T23:51:33Z'
 ---
 
 ## Artifacts
