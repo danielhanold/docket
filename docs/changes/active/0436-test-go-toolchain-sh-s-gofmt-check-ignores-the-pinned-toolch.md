@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-18T23:37:32Z'
+reconciled: true
+claimed_at: '2026-09-18T23:40:02Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,9 @@ CI selects the Go 1.26 release family, not an exact 1.26.5 patch. Selecting the 
 ## Out of scope
 
 No new configuration, toolchain service, helper framework, downloader, suite lane, retries, timeout or budget changes. Do not change go.mod's go/toolchain directives, CI's go-version setting, the toolchains used by the other Go checks, cache policy, or concurrency limits. The separate integration-shard registration issue on change 0368 remains outside this change.
+
+## Reconcile log
+
+### 2026-09-18
+
+2026-09-18: Reconciled against main@ab9216d2 (current HEAD). Verified the formatting discrepancy still reproduces: ambient gofmt (go1.27.1) reports internal/githubcli/comment_integration_test.go clean, while the go.mod-declared toolchain go1.26.5's gofmt flags it (trailing-comment alignment in TestIntegrationEnsureCommentIdempotent). go.mod still declares `go 1.26.0` / `toolchain go1.26.5`. tests/test_go_toolchain.sh Check 1 still invokes bare gofmt from PATH over go-list-derived dirs. Related changes 304/317/370/373 all done; ADR-0050 (compute-not-reenumerate) and ADR-0108 (bounded test load) preserved. Design unchanged and fully current; no scope adjustment. Proceeding to plan and build.
