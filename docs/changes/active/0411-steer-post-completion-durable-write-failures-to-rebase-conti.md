@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/steer-post-completion-durable-write-failures-to-rebase-conti'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-18T15:02:57Z'
+reconciled: true
+claimed_at: '2026-09-18T15:05:25Z'
 ---
 
 ## Artifacts
@@ -49,3 +49,9 @@ Current-source inspection locates the actionable write failures in the continuat
 ## Out of scope
 
 No changes to rebase-continue or rebase-abort state transitions, reservation admission or budget policy, receipt/protocol schemas, gate/evidence or merge policy, or generated-bundle conflict handling. No blanket retry of receipt-write-failed, automatic recovery loop, direct receipt repair, new resolver dispatch, or generic human-output renderer. Preserve the existing architecture decisions and historical artifacts; grooming stops at this linked specification.
+
+## Reconcile log
+
+### 2026-09-18
+
+2026-09-18 — Reconciled against current main (3ccf9fac). Spec grounding holds unchanged: the three reservation-reconciliation write-failure sites are present in internal/app/finalize_rebase.go — the post-StageAndContinueRebase reconcile write (finalizeRebaseContinueBudgeted), and the advanced-conflict and completed-rebase branches of finalizeRebaseReconcileStarted, which currently return werr.Error() alone. Related changes 349/396/408/413 are all done; ADR-0105 and ADR-0113 already cover the decisions. Base resolves to main; no prerequisite or stacked branch. Scope, relations, and acceptance criteria unchanged; proceeding to plan and build.
