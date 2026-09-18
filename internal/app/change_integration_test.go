@@ -2836,6 +2836,68 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 					}
 				}
 			})
+
+			// change 0368: a workspace proven locally absent (a run halted before
+			// allocation) resumes only after the resolved recorded remote feature
+			// ref ALSO proves cleanly absent. setupHaltedFixture publishes
+			// feat/widget to origin, so the recovery precondition is exercised by
+			// removing that remote ref first — cleanly absent, so resume applies.
+			t.Run("absent-workspace-resumes", func(t *testing.T) {
+				f := setupHaltedFixture(t, m)
+				// Delete the recorded remote feature branch from the bare origin so
+				// the remote-absence proof observes a clean absence.
+				runGit(t, f.repo.origin, "update-ref", "-d", "refs/heads/feat/widget")
+				got := ChangeResumeHalted(context.Background(), f.deps,
+					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateAbsent, head: f.head}}, f.repo.invocation,
+					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+				if got.Result != ResultApplied || got.Disposition != HaltDispResumed {
+					t.Fatalf("result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
+				}
+				rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+				if strings.Contains(rec, "## Run halted") {
+					t.Errorf("marker not removed on absent-workspace resume:\n%s", rec)
+				}
+				if !strings.Contains(rec, "branch: feat/widget") {
+					t.Errorf("recorded branch not preserved:\n%s", rec)
+				}
+			})
+
+			// change 0368: the same proven-absent workspace with the recorded
+			// remote feature branch still present is existing work — refused, the
+			// marker retained. setupHaltedFixture already published feat/widget to
+			// origin; re-push from the feature worktree states the precondition
+			// explicitly (a no-op push when it is already at the same commit).
+			t.Run("absent-workspace-remote-branch-blocks", func(t *testing.T) {
+				f := setupHaltedFixture(t, m)
+				runGit(t, f.wp, "push", "origin", "feat/widget")
+				got := ChangeResumeHalted(context.Background(), f.deps,
+					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateAbsent, head: f.head}}, f.repo.invocation,
+					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+				if got.Result != ResultBlocked || got.Reason != ReasonResumeRemoteBranchPresent {
+					t.Fatalf("result=%q reason=%q, want blocked/%s", got.Result, got.Reason, ReasonResumeRemoteBranchPresent)
+				}
+				rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+				if !strings.Contains(rec, "## Run halted") {
+					t.Errorf("marker removed on a refused resume:\n%s", rec)
+				}
+			})
+
+			// change 0368: an unrecognized workspace-state string never authorizes
+			// resume — the closed admission set fails closed on its default arm,
+			// before any remote probe.
+			t.Run("unknown-state-refuses", func(t *testing.T) {
+				f := setupHaltedFixture(t, m)
+				got := ChangeResumeHalted(context.Background(), f.deps,
+					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateKind("weird-new-state"), head: f.head}}, f.repo.invocation,
+					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+				if got.Result != ResultBlocked || got.Reason != ReasonResumeUnknownState {
+					t.Fatalf("result=%q reason=%q, want blocked/%s", got.Result, got.Reason, ReasonResumeUnknownState)
+				}
+				rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+				if !strings.Contains(rec, "## Run halted") {
+					t.Errorf("marker removed on a refused resume:\n%s", rec)
+				}
+			})
 		})
 	}
 }

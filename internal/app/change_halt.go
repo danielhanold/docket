@@ -37,6 +37,15 @@ import (
 // the claim, removes exactly the marker section, and preserves every valid
 // checkpoint. It never discards, resets, adopts, or reassigns a workspace whose
 // writer may still be live.
+//
+// The reprobe is classified against a CLOSED admission set (classifyResumeAdmission):
+// a state outside the set never authorizes resume. A workspace proven cleanly
+// absent (change 0368: a run halted before its workspace was ever allocated) is
+// recovered only after the resolved recorded remote feature ref ALSO proves
+// cleanly absent — a still-present remote branch is existing work, and an errored
+// or unrecognized remote probe blocks as unknown, never as absence. Resume still
+// allocates, adopts, resets, and reassigns nothing; ADR-0118 gate/cancellation
+// machinery is untouched.
 
 // The operation keys `change halt` / `change resume-halted` record in their
 // result envelopes and transaction trailers.
@@ -88,6 +97,13 @@ const (
 	// ReasonResumeWorkspaceActive: the reprobe reports a workspace whose writer
 	// may still be live; resume never adopts it.
 	ReasonResumeWorkspaceActive = "workspace-writer-active"
+	// ReasonResumeRemoteBranchPresent: the workspace is proven locally absent
+	// (a run halted before allocation) but the resolved recorded remote feature
+	// branch still exists — existing work, so resume will not proceed as if none.
+	ReasonResumeRemoteBranchPresent = "remote-branch-present"
+	// ReasonResumeUnknownState: the workspace reprobe returned a state outside the
+	// closed admission set; an unknown state never authorizes resume.
+	ReasonResumeUnknownState = "workspace-state-unknown"
 )
 
 // HaltRequest is the closed request for `change halt`. ID and Version pin the
@@ -253,14 +269,45 @@ func ChangeResumeHalted(ctx context.Context, deps PlanningDeps, wdeps WorkspaceD
 	if insp.Result != ResultApplied {
 		return haltRefusal(OperationChangeResumeHalted, insp.Result, ReasonResumeWorkspaceProbe, insp.Message, req.ID)
 	}
-	if reason, msg := resumeQuiescenceRefusal(insp.State); reason != "" {
-		return haltRefusal(OperationChangeResumeHalted, ResultBlocked, reason, msg, req.ID)
-	}
 
+	// Discover the repository before the admission check: the pre-allocation
+	// recovery arm needs repo to probe the recorded remote feature ref, and
+	// Discover is read-only, so this reordering has no other effect.
 	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
 		return haltRefusal(OperationChangeResumeHalted, result, reason, err.Error(), req.ID)
+	}
+
+	// Classify the reprobed state against the closed admission set. A refused or
+	// unknown state never resumes; a proven-absent workspace resumes only after
+	// the resolved recorded remote feature ref also proves cleanly absent.
+	admission, reason, msg := classifyResumeAdmission(insp.State)
+	switch admission {
+	case resumeRefused:
+		return haltRefusal(OperationChangeResumeHalted, ResultBlocked, reason, msg, req.ID)
+	case resumeNeedsRemoteAbsence:
+		// insp.FeatureRef is the fully qualified resolved recorded feature ref
+		// WorkspaceInspect filled from the resolved target — the same value
+		// run verify's remote probe uses; it is never re-minted here.
+		rref, perr := deps.Client.ProbeRemoteBranch(ctx, repo, originRemote, gitcli.RefName(insp.FeatureRef))
+		if perr != nil {
+			return haltRefusal(OperationChangeResumeHalted, ResultBlocked, ReasonResumeWorkspaceProbe,
+				fmt.Sprintf("could not probe remote feature branch %q; refusing to resume on an unknown probe", insp.FeatureRef), req.ID)
+		}
+		switch rref.State {
+		case gitcli.RemoteRefAbsent:
+			// Cleanly absent: proceed to the ordinary resume transaction.
+		case gitcli.RemoteRefFound:
+			return haltRefusal(OperationChangeResumeHalted, ResultBlocked, ReasonResumeRemoteBranchPresent,
+				fmt.Sprintf("remote feature branch %q still exists; the halted run left work behind — resume will not proceed as if none exists", insp.FeatureRef), req.ID)
+		default:
+			// gitcli.ProbeRemoteBranch returns only found/absent today (an errored
+			// probe is an error, handled above); a future third state is unknown and
+			// blocks, never treated as absence.
+			return haltRefusal(OperationChangeResumeHalted, ResultBlocked, ReasonResumeWorkspaceProbe,
+				fmt.Sprintf("remote probe of %q returned an unrecognized state; refusing to resume on an unknown probe", insp.FeatureRef), req.ID)
+		}
 	}
 
 	op := resumeHaltedOp{
@@ -406,22 +453,44 @@ func decodeHaltReceipt(b []byte) (haltReceipt, bool) {
 	return rec, true
 }
 
-// resumeQuiescenceRefusal maps a reprobed workspace state kind onto a resume
-// refusal reason, or "" when the state is quiescent enough to resume. An
-// allocating workspace is a partial allocation whose writer may still be live; a
-// foreign or mismatched workspace has unclear ownership. Resume never adopts any
-// of these. A ready, dirty-owned (the prior worker's uncommitted checkpoints),
-// missing-branch, or cleaned workspace is quiescent and safe to resume.
-func resumeQuiescenceRefusal(state string) (reason, message string) {
+// resumeAdmission is the closed classification of a reprobed workspace state for
+// resume-halted: refused (a possibly-live writer, or a state outside the set),
+// admitted (a quiescent workspace that resumes directly), or needs-remote-absence
+// (a proven pre-allocation absence that resumes only after the recorded remote
+// feature ref also proves cleanly absent).
+type resumeAdmission int
+
+const (
+	resumeRefused            resumeAdmission = iota // refused: possibly-live writer or unknown state
+	resumeAdmitted                                  // quiescent: resume directly
+	resumeNeedsRemoteAbsence                        // StateAbsent: admit only after the remote ref proves cleanly absent
+)
+
+// classifyResumeAdmission maps a reprobed workspace state onto the CLOSED resume
+// admission set. Ready, dirty-owned (the prior worker's uncommitted checkpoints),
+// branch-missing, and cleaned are quiescent and resume as before. A proven
+// locally-absent workspace (change 0368: a run halted before allocation) resumes
+// only after the recorded remote feature ref also proves cleanly absent — the
+// caller performs that probe. Allocating, foreign, and mismatched states are
+// refused as possibly-live writers, and any state OUTSIDE this closed set is
+// refused: an unknown state never authorizes resume. The reason/message are
+// populated only for a refusal.
+func classifyResumeAdmission(state string) (resumeAdmission, string, string) {
 	switch state {
+	case string(workspace.StateReady), string(workspace.StateDirty),
+		string(workspace.StateBranchGone), string(workspace.StateCleaned):
+		return resumeAdmitted, "", ""
+	case string(workspace.StateAbsent):
+		return resumeNeedsRemoteAbsence, "", ""
 	case string(workspace.StateResumable):
-		return ReasonResumeWorkspaceActive,
+		return resumeRefused, ReasonResumeWorkspaceActive,
 			"the owned workspace is mid-allocation; its writer may still be live, so resume adopts nothing"
 	case string(workspace.StateForeign), string(workspace.StateMismatch):
-		return ReasonResumeWorkspaceActive,
+		return resumeRefused, ReasonResumeWorkspaceActive,
 			"the owned workspace has foreign or mismatched ownership; resume never adopts a workspace whose writer may be live"
 	default:
-		return "", ""
+		return resumeRefused, ReasonResumeUnknownState,
+			fmt.Sprintf("workspace reprobe returned unrecognized state %q; resume admits only known quiescent states", state)
 	}
 }
 
