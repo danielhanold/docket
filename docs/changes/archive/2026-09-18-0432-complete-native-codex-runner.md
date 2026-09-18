@@ -2,11 +2,11 @@
 id: 432
 slug: 'complete-native-codex-runner'
 title: 'Complete native Codex runner'
-status: 'in-progress'
+status: 'killed'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-16'
-updated: '2026-09-17'
+updated: '2026-09-18'
 depends_on: []
 stacked_on: 425
 related: [425, 412]
@@ -18,11 +18,11 @@ results: 'docs/results/2026-09-17-complete-native-codex-runner-closeout-results.
 trivial: false
 auto_groomable:
 branch_prefix:
-branch: 'fix/complete-native-codex-runner'
+branch:
 pr: 'https://github.com/danielhanold/docket/pull/310'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-17T09:57:10Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,9 +31,8 @@ claimed_at: '2026-09-17T09:57:10Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-16-complete-native-codex-runner-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-16-complete-native-codex-runner-design.md) |
-| Plan | [2026-09-17-complete-native-codex-runner.md](https://github.com/danielhanold/docket/blob/fix/complete-native-codex-runner/docs/superpowers/plans/2026-09-17-complete-native-codex-runner.md) |
-| Results | [2026-09-17-complete-native-codex-runner-closeout-results.md](https://github.com/danielhanold/docket/blob/fix/complete-native-codex-runner/docs/results/2026-09-17-complete-native-codex-runner-closeout-results.md) |
-| PR | [#310](https://github.com/danielhanold/docket/pull/310) |
+| Plan | [2026-09-17-complete-native-codex-runner.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-17-complete-native-codex-runner.md) |
+| Results | [2026-09-17-complete-native-codex-runner-closeout-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-17-complete-native-codex-runner-closeout-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -83,3 +82,11 @@ integration. No merge is authorized by this bookkeeping repair.
 The human explicitly approved a metadata-only archival exception because the installed change.kill transaction accepts only proposed/in-progress records. This temporary administrative status permits the supported archival renderer; it does not restart implementation, acquire a new claim, erase a merge, or authorize any run. Kill immediately as abandoned delivery, retaining all branches, worktrees and evidence.
 
 PR #310 really merged into 425, not main, at 8deef57f6ff8764d06e786b4a27bda504c202e25; its feature head was bc78d999d32069e828ba401f26b203b46864dbac. The documentation-only closeout and repairs carried through 431 remain historical facts. Receipt/continuation interpretation and transport fixes enabled intervention-assisted acceptance but did not establish reliable later production orchestration. See the [retirement findings](../research/0433-fresh-main-retirement-findings.md) and successor 433, which starts afresh from main and must leave Claude Code, Cursor and OpenCode behavior unchanged. No merge into main is claimed or authorized.
+
+## Why killed
+
+Abandoned by explicit human decision on 2026-09-18 in favor of [change 433](../active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md), starting afresh from main. The successor must leave Claude Code and Cursor and opencode behavior unchanged. Preserve predecessor branches, worktrees, dirty files, commits, original plans/results and private operational evidence; no deletion, merge into main, runtime restart, or wholesale cherry-pick is authorized.
+
+See the [per-change retirement findings](../research/0433-fresh-main-retirement-findings.md), recorded before this transition.
+
+The human explicitly approved a metadata-only archival exception for this previously stacked-merged record. Repairs rode through 431/PR #309; documentation PR #310 really merged into 425 (not main) at 8deef57f6ff8764d06e786b4a27bda504c202e25, from bc78d999d32069e828ba401f26b203b46864dbac on fix/complete-native-codex-runner. Preserve the original plans, bootstrap results and documentation closeout. The receipt/transport/continuation repairs and bookkeeping exception enabled intervention-assisted acceptance but did not establish reliable later production execution. This kill abandons delivery through 425 without denying either merge. [Frozen closeout results](https://github.com/danielhanold/docket/blob/bc78d999d32069e828ba401f26b203b46864dbac/docs/results/2026-09-17-complete-native-codex-runner-closeout-results.md) and linked research remain on the retained feature head.

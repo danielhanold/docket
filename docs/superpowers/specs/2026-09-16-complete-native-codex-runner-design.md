@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0432 — Complete native Codex runner](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0432-complete-native-codex-runner.md)**
+> ↩ **[Change 0432 — Complete native Codex runner](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-18-0432-complete-native-codex-runner.md)**
 <!-- docket:backlink:end -->
 
 # Complete native Codex runner

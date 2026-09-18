@@ -1,12 +1,11 @@
 # Backlog
 
-**433 changes** — 🟢 4 in progress · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 115 killed
+**433 changes** — 🟢 3 in progress · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 116 killed
 
-## 🟢 In progress (4)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0432](active/0432-complete-native-codex-runner.md) | Complete native Codex runner | `critical` | `fix` | [spec](../superpowers/specs/2026-09-16-complete-native-codex-runner-design.md) | `fix/complete-native-codex-runner` |  |
 | [0425](active/0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | `critical` | `fix` | [spec](../superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) | `codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor` |  |
 | [0424](active/0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | `critical` | `feat` | [spec](../superpowers/specs/2026-09-14-validate-codex-coordinator-models-against-a-versioned-capabi-design.md) | `feat/validate-codex-coordinator-models-against-a-versioned-capabi` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
@@ -93,7 +92,6 @@ graph TD
   0423 --> 0424
   0423 --> 0425
   0425 --> 0426
-  0432
   0433
   0192:::done
   0251:::done
@@ -104,10 +102,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (398)</summary>
+<details><summary>✅🗑️ Archive — done + killed (399)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0430](archive/2026-09-17-0430-native-codex-acceptance-for-durable-review-evidence.md) | Native Codex acceptance for durable review evidence | 2026-09-17 |
 | [0323](archive/2026-09-17-0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | 2026-09-17 |
