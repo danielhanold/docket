@@ -1144,7 +1144,7 @@ func TestFinalizeRebaseContinueStartedCompletedRecovers(t *testing.T) {
 func TestFinalizeRebaseContinueReconcileWriteFailurePreserves(t *testing.T) {
 	f, deps, attempt, token, _ := reserveOnConflict(t, 2) // used == 1
 	ctx := context.Background()
-	writeRepoFile(t, f.wp, "feature.txt", "reconciled content\n") // resolve so the continue completes
+	writeRepoFile(t, f.wp, "feature.txt", "reconciled content\n")                 // resolve so the continue completes
 	ws := &reconcileFailWorkspace{FinalizeWorkspace: f.svc, allow: 1, fail: true} // marker write passes, reconcile write faults
 	deps.Workspace = ws
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed}}
