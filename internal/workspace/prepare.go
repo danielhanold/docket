@@ -373,14 +373,21 @@ func validatePreparedTarget(t Target) error {
 //     byte-untouched (pre-Go in-flight work is never adopted from feat/<slug>);
 //   - (nil, err)   a probe could not see a resource — external/invalid-output
 //     failure, NEVER read as clean absence, so it never licenses a create.
+//
+// The registration precondition is proven fail-closed by
+// classifyRegistrationAbsence: it blocks not only on an exact live registration
+// at the target path but also on a registration referencing the feature ref
+// elsewhere, an exact stale registration whose directory is gone, and an
+// unresolvable registration identity — all previously skip-matched via
+// registeredAt (change 0368).
 func (s *Service) inventoryForFresh(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, target Target, intendedPath string) (*Workspace, error) {
-	// Local feature ref: a ResolveRef that resolves means the branch exists; a
-	// ref-unavailable failure means it is cleanly absent; any other error is real.
-	if _, err := s.git.ResolveRef(ctx, repo, target.FeatureRef); err == nil {
+	// Local feature ref: absent (ref-unavailable) is clean; a resolution means
+	// the branch exists (blocked); any other probe error is real, never absence.
+	if absent, err := s.localRefAbsent(ctx, repo, target.FeatureRef); err != nil {
+		return nil, mapGitFailure(prepareOp, "inventory", err)
+	} else if !absent {
 		w := blockedWorkspace(target, intendedPath)
 		return &w, nil
-	} else if f, ok := gitcli.AsFailure(err); !ok || f.Kind != gitcli.KindRefUnavailable {
-		return nil, mapGitFailure(prepareOp, "inventory", err)
 	}
 
 	// Remote feature ref: ProbeRemoteBranch distinguishes found/absent/error.
@@ -403,12 +410,20 @@ func (s *Service) inventoryForFresh(ctx context.Context, repo gitcli.Repository,
 		return &w, nil
 	}
 
-	// Git worktree registration at the path.
+	// Git worktree registration: a registration on the feature ref anywhere, an
+	// exact live or stale registration at the target path, or an unresolvable
+	// registration identity all block a fresh allocation. Absence must be proven
+	// fail-closed — an unresolved identity is never read as clean absence, so it
+	// blocks byte-untouched rather than licensing a create (change 0368).
 	infos, err := s.git.ListWorktrees(ctx, repo)
 	if err != nil {
 		return nil, mapGitFailure(prepareOp, "inventory", err)
 	}
-	if registeredAt(infos, intendedPath) {
+	switch classifyRegistrationAbsence(infos, intendedPath, target.FeatureRef) {
+	case regPresent:
+		w := blockedWorkspace(target, intendedPath)
+		return &w, nil
+	case regUnresolved:
 		w := blockedWorkspace(target, intendedPath)
 		return &w, nil
 	}
@@ -508,6 +523,60 @@ func pathPresent(path string) (bool, error) {
 func registeredAt(infos []gitcli.WorktreeInfo, want string) bool {
 	_, ok := worktreeAt(infos, want)
 	return ok
+}
+
+// registrationAbsence is the three-outcome classification of whether any Git
+// worktree registration occupies a canonical target path or references a
+// feature ref (change 0368).
+type registrationAbsence int
+
+const (
+	regAbsent     registrationAbsence = iota // nothing occupies the path or references the ref
+	regPresent                               // a registration occupies the path (live or stale) or references the feature ref
+	regUnresolved                            // a registration's path identity could not be resolved; absence is unprovable
+)
+
+// classifyRegistrationAbsence proves, fail-closed, that no worktree
+// registration occupies the canonical target path or references the feature
+// ref. Unlike worktreeAt — which may SKIP a registration whose path cannot be
+// canonicalized, sufficient for lookup but not for an absence proof — this
+// recognizes an exact stale registration lexically and reports any other
+// unresolvable identity as regUnresolved, which callers must never read as
+// absence (change 0368).
+func classifyRegistrationAbsence(infos []gitcli.WorktreeInfo, want string, featureRef gitcli.RefName) registrationAbsence {
+	verdict := regAbsent
+	for _, info := range infos {
+		if !info.Detached && info.Branch == featureRef {
+			return regPresent
+		}
+		if cp, err := canonicalizePath(info.Path); err == nil {
+			if cp == want {
+				return regPresent
+			}
+			continue
+		}
+		// The registered path no longer resolves. An exact lexical match is a
+		// stale registration at the target: present. Anything else is an
+		// unresolved identity: absence is unprovable.
+		if abs, aerr := filepath.Abs(info.Path); aerr == nil && filepath.Clean(abs) == want {
+			return regPresent
+		}
+		verdict = regUnresolved
+	}
+	return verdict
+}
+
+// localRefAbsent is the three-outcome local ref probe shared by fresh
+// allocation and the absence classification: a KindRefUnavailable failure is
+// clean absence, a resolution is presence, and any other failure is a real
+// probe error that never reads as absence.
+func (s *Service) localRefAbsent(ctx context.Context, repo gitcli.Repository, ref gitcli.RefName) (bool, error) {
+	if _, err := s.git.ResolveRef(ctx, repo, ref); err == nil {
+		return false, nil
+	} else if f, ok := gitcli.AsFailure(err); !ok || f.Kind != gitcli.KindRefUnavailable {
+		return false, err
+	}
+	return true, nil
 }
 
 // worktreeAt returns the registered worktree whose canonical path equals want.
