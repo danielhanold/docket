@@ -592,3 +592,91 @@ git commit -m "chore(0434): final-head reliability evidence and baseline compari
 - Spec §"Measure and classify" → Task 1; §"Reuse tagged feature shards" → Tasks 3–4; §"Resolve the gatedrive terminal interleaving" → Task 2; §"Coverage and validation" → Tasks 5–6. Boundaries section → Global Constraints. ADR-0108 → Global Constraints + Task 4.
 - The code-level hypothesis in Task 2 was verified against the current worktree source (`driveSlice`'s reserve branch recognizes only `errRelaunchRaceLost`; `reserveRelaunch`'s CAS returns `errAlreadyTerminal` first on a terminal record; `driveAndPersistClaim` reloads on `relaunchRaceLost`). Task 2 still instructs re-verification and names the false-hypothesis path per the spec.
 - Tasks 3/4 are measurement-gated by design: the spec forbids moving anything unmeasured, so their conditional structure (including the recorded no-op path) is the honest shape, not a placeholder.
+
+---
+
+## Measurement record
+
+Produced by Task 1 at the unchanged branch head, before any code/test change. Raw logs live in
+`"${TMPDIR:-/tmp}/docket-0434-evidence"` (`env.txt`, `baseline-suite-{1,2}.log`,
+`iso-*.log`, `iso2-app-*.log`, `pertest-*.log`). Every measurement command was run inline/serial
+in the foreground; measurement `go test` runs used `-count=1` (the shard executor forces it too).
+
+### Environment
+
+```
+HEAD      9b13b29168328f430f3d0c2bd9367aabe32976c3
+uname     Darwin Homer.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:06:24 PDT 2026; xnu-13432.1.9~1/RELEASE_ARM64_T6030 arm64
+hw.ncpu   11
+jobs      default
+UTC       2026-09-18T18:48:15Z
+```
+
+### Whole-suite baselines (`go run ./cmd/docket development test`, default parallelism)
+
+| run | wall | result | failing target(s) |
+|-----|------|--------|-------------------|
+| 1 | 479s | RED | `test_go_race`, `test_go_toolchain` |
+| 2 | 297s | RED | `test_go_toolchain` |
+
+- **`test_go_race` (run 1 only):** `--- FAIL: TestIntegrationProcessDeathPermitsAtMostOneRelaunch (1.49s)` in `internal/gatedrive` — `outcome HALTED (cause "relaunch-exhausted"), want WAITING`. It **passed in run 2** and passes isolated (below) — a load-sensitive gatedrive relaunch-interleaving flake under whole-module `-race ./...`. Same family as 0411's report but a **different test and message** than Task 2's hypothesized `terminal_relaunch_winner_fails` / `gatedrive: drive already terminal` (see verdicts).
+- **`test_go_toolchain` (both runs, deterministic):** `unformatted: internal/githubcli/comment_integration_test.go` → `NOT OK - gofmt reports no unformatted files`. The file is committed unformatted (working tree clean; last touched by `8f5a2b1b test(0333)…`). This is a **pre-existing baseline red, out of scope** for change 0434 and for this doc-only task — not a load/placement finding, but flagged: the build gate will trip on it until it is gofmt-clean.
+- **Budget report:** the suite runner emitted **no** `BUDGET WATCH:` / `PARALLEL-SENSITIVE:` / `SERIAL CONFIRMED OVER BUDGET:` line in either run (verified by grep of both logs). Screening/serial-breach reporting did not fire here; the authoritative signal used below is the isolated-serial reading against each ceiling.
+
+### Per-wrapper timing table
+
+Ceilings are the current `tests/runtime-budgets.tsv` rows (all `parallel`). Baseline parallel = wall
+of that wrapper inside the whole-suite pool (heavily contention-amplified, host-dependent). Isolated
+serial = wrapper run alone; worst-of-two where two readings were taken (`iso-*` cold, `iso2-app-*` warm).
+
+| wrapper | budget ceiling s | baseline parallel s (run1 / run2) | isolated serial s (worst) | over ceiling? |
+|---------|-----------------:|-----------------------------------|--------------------------:|:-------------:|
+| test_go_integration_app_rebase.sh (15 tests) | 45 | 297 / 155 | **77.0** (cold) / 65.9 (warm) | **YES** |
+| test_go_integration_app_change.sh (104 tests) | 55 | 238 / 126 | **61.0** / 55.5 | **YES** |
+| test_go_integration_app_workflow.sh (32 tests) | 45 | 235 / 119 | **56.1** / 51.3 | **YES** |
+| test_go_integration_app_state.sh (12 tests) | 50 | 169 / 92 | 44.4 | no |
+| test_go_integration_app_sweep.sh (11 tests) | 55 | 116 / 61 | 32.3 | no |
+| test_go_integration_app_sync.sh (2 tests) | 55 | 33 / 18 | 10.1 | no |
+| test_go_integration_app_concurrency.sh (7 tests, race) | 25 | 59 / 25 | 10.7 | no |
+| test_go_race.sh (whole module -race) | 60 | 479 / 297 | — (whole-module; not a shard) | see note |
+| test_go_toolchain.sh (gofmt/vet/build) | 55 | 458 / 269 | — (deterministic gofmt red) | see note |
+
+Note: `test_go_race` / `test_go_toolchain` are whole-module wrappers, not app shards; their parallel
+wall is dominated by the internal/app package and (for race) the module compile. They were not
+isolated-timed as shards; their findings are the failures above.
+
+### Per-test highlights (isolated, `-count=1 -v`, top of each split candidate)
+
+- **app_rebase** (`^TestIntegrationFinalizeRebase`, sum ≈ 64s over 15 tests — **aggregate, separable**, no indivisible dominant test): GateWaiting 15.68s, CheckpointInvalidation 12.00s, Preconditions 6.40s, GateOutcomes 6.19s, CarryPreservation 4.95s, then a tail of ~1–3s tests. Natural cohesion groups: `…Gate*` / `…Checkpoint*` vs `…Carry*` / `…ResponseLossRecovery` / `…AbortVerifiesRestore`.
+- **app_change** (`^TestIntegrationChange`, 104 top-level tests — **aggregate over a large corpus with a small head**): EvidenceRecordRefusals 11.43s, ReclaimRequiresProvenAbsence 4.70s, ResumeHalted 3.28s, then a long tail of mostly sub-1s tests. Separable by sub-topic prefix: `…Evidence*` / `…Reclaim*` / `…RunVerify*` / `…Halt*` / `…MarkImplemented*` / `…Repair*`.
+- **app_workflow** (`^TestIntegrationWorkflow`, 32 tests — **aggregate with a head of 3 larger tests**): RootEntryGateAttribution 12.92s, ClaimToImplementedWorkflow 6.37s, ChangeAttachPlanGitVerification 5.56s, then ~1–2s tail. Separable: `…RootEntry*` / `…Claim*` / `…ChangeAttach*` / `…Planning*` / `…Workspace*`.
+
+### Default-corpus gatedrive (`./internal/gatedrive/`, `-count=1 -v`)
+
+| mode | result | total | slowest test |
+|------|--------|------:|--------------|
+| plain | PASS | 19.29s | TestScopedSuccessorRejectionMatrix 1.68s |
+| race | PASS | 27.85s | TestIntegrationFreshProcessResumesAndChildSurvives 2.62s |
+
+Both `TestConcurrentSameOwnerAdvanceRelaunchesOnce` and `TestIntegrationProcessDeathPermitsAtMostOneRelaunch`
+**pass in isolation** (plain and `-race`). Every test is fake-`ProcessSeam`-backed and fast (<3s),
+so the corpus stays in the default lane per the spec — the run-1 failure is a **correctness/interleaving
+problem, not a placement problem**.
+
+### Classification verdicts (one per candidate, with justifying numbers)
+
+1. **app_rebase → split/rebalance.** Worst isolated serial **77.0s** (65.9s warm) exceeds ceiling 45s and breaks the sub-60s shard regime. Cost is aggregate across 15 tests with no indivisible dominant test (top 15.68s); a derived ceiling from 77s would be 85s (> the 60s hard ceiling), so a raise is forbidden — the shard must be split into disjoint cohesive prefixes (Task 3).
+2. **app_change → split/rebalance.** Worst isolated serial **61.0s** (55.5s warm) is at/over ceiling 55s and touches the 60s regime; 104 tests, aggregate, cleanly separable by sub-topic. Derived ceiling from 61s = 70s (> 60) — raise forbidden, split/rebalance (Task 3).
+3. **app_workflow → split/rebalance.** Worst isolated serial **56.1s** (51.3s warm) exceeds ceiling 45s; 32 tests aggregate with a separable head. Derived ceiling from 56.1s = 65s (> 60) — raise forbidden, split/rebalance (Task 3).
+4. **app_state → leave in place.** Isolated serial **44.4s** fits ceiling 50s (table rule re-derives exactly 50s). No move justified.
+5. **app_sweep → leave in place.** Isolated serial **32.3s**, comfortably under ceiling 55s.
+6. **app_sync → leave in place.** Isolated serial **10.1s**, far under ceiling 55s.
+7. **app_concurrency → leave in place.** Isolated serial **10.7s** (`-race`), far under ceiling 25s; race instrumentation retained.
+8. **gatedrive default corpus → functional failure → Task 2.** Fast (plain 19.3s / race 27.8s, per-test <3s) so placement in the default corpus is **correct** — moving it fixes nothing. The whole-module `-race` baseline (run 1) reproduced a load-sensitive relaunch-interleaving failure: `TestIntegrationProcessDeathPermitsAtMostOneRelaunch` → `HALTED (relaunch-exhausted), want WAITING`, which did **not** reproduce in run 2 or in isolation. Route the determinization/fix to Task 2. **Caveat for Task 2:** the observed symptom (`ProcessDeathPermitsAtMostOneRelaunch` / `relaunch-exhausted`) differs from Task 2's hypothesized `terminal_relaunch_winner_fails` / `gatedrive: drive already terminal`; Task 2 must confirm which interleaving is actually at play and fix the real defect (its Step 2 already mandates this), not assume the hypothesized one.
+9. **test_go_toolchain gofmt drift → out-of-scope baseline red (not a placement candidate).** `internal/githubcli/comment_integration_test.go` is committed unformatted and fails `test_go_toolchain` deterministically in both baselines, independent of load. Outside change 0434's boundary and this doc-only task; recorded so the eventual build gate's failure on it is not misattributed to this change's moves.
+
+### Measurement limitations / honesty notes
+
+- Parallel whole-suite wall varies widely (479s vs 297s) and per-shard parallel timings are contention-amplified 2–6×; they are **not** used as breach evidence. The split verdicts rest solely on **isolated serial** readings exceeding current ceilings, which is host-relative but is the table's own derivation basis.
+- The cold `iso-*` run attributes the one-time `internal/app` integration-test-binary compile to whichever shard ran first (app_rebase); the warm `iso2-app-*` re-runs remove that confound (rebase 77.0→65.9s), and both readings still exceed rebase's 45s ceiling. app_change and app_workflow ran after the binary was warm, so their `iso-*` readings are compile-free.
+- No unresolved/indivisible limitation was found among the split candidates: each over-ceiling shard is an aggregate of separable test groups, so splitting (Task 3) — not a ceiling raise or a serial lane — is the measured-justified remedy.
