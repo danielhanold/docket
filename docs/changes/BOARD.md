@@ -1,6 +1,6 @@
 # Backlog
 
-**434 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 284 done · 🗑️ 119 killed
+**434 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 284 done · 🗑️ 119 killed
 
 ## 🟢 In progress (2)
 
@@ -9,15 +9,16 @@
 | [0434](active/0434-move-load-sensitive-tests-out-of-the-default-parallel-suite.md) | Move load-sensitive tests out of the default parallel suite lane | `medium` | `chore` | [spec](../superpowers/specs/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-design.md) | `chore/move-load-sensitive-tests-out-of-the-default-parallel-suite` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
-## 🟣 Groomed (3)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | [spec](../superpowers/specs/2026-09-18-resume-halted-preallocation-recovery-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (14)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -30,7 +31,6 @@
 | [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-brainstorm |
 | [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | needs-brainstorm |
 | [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-brainstorm |
-| [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |

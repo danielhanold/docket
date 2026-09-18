@@ -6,13 +6,13 @@ status: proposed
 priority: medium
 type: fix
 created: 2026-08-29
-updated: 2026-08-29
+updated: '2026-09-18'
 depends_on: []
 stacked_on:
-related: [318, 366]
+related: [313, 316, 318, 354, 366, 375, 429]
 discovered_from: [318]
-adrs: []
-spec:
+adrs: [34, 35, 118]
+spec: 'docs/superpowers/specs/2026-09-18-resume-halted-preallocation-recovery-design.md'
 plan:
 results:
 trivial: false
@@ -26,60 +26,34 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-18-resume-halted-preallocation-recovery-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-resume-halted-preallocation-recovery-design.md) |
+| ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-A run that halts *before* it allocates its feature workspace — e.g. `docket-implement-next`
-halting at the Step 3 reconcile assessment, which is exactly what change 0318's first run did —
-leaves an `in-progress` change with a `## Run halted` marker, a live claim lease, and **no
-workspace manifest** on disk. Neither sanctioned recovery command can clear that state:
+A run halted during reconciliation, before feature-workspace allocation, leaves an in-progress change with a fresh claim and a durable halt marker but no workspace manifest. Workspace inspection currently collapses that absence into the foreign state, so the existing resume operation refuses it. Reclaim serves a different purpose and requires a strictly expired lease; a fresh halt should not have to wait for that expiry or allocate a workspace just to pass the resume check.
 
-- **`change resume-halted` refuses.** Its reprobe classifies an absent workspace manifest as
-  `StateForeign` (`internal/workspace/inspect.go` returns foreign with detail "no workspace
-  manifest"), and `resumeQuiescenceRefusal` maps `StateForeign` to `workspace-writer-active`
-  (`internal/app/change_halt.go`). So resume treats a workspace that was *never created* as one
-  whose writer "may still be live" and adopts nothing — even with `--acknowledge-quiescent`.
-- **`change reclaim` is not applicable in time.** Reclaim *does* treat an absent workspace as
-  clear, but it gates on a **strictly-expired** lease (default `reclaim.lease_ttl` = 72h). A fresh
-  halt is minutes old, so reclaim is unavailable for ~3 days.
-
-The result is an asymmetry: an absent/foreign workspace is "clear" for `reclaim` but "writer
-active" for `resume-halted`. A change halted before allocation is therefore un-restartable through
-the sanctioned CLI until its 72h lease expires.
-
-The current manual workaround (found while restarting 0318) is to run `docket workspace prepare`
-first — which allocates the branch/worktree/manifest and moves the state `foreign → ready` — and
-only then `resume-halted`. That works, but it forces a human to conjure a workspace purely to get
-past a quiescence guard, which is backwards: the safe, quiescent case (nothing was ever created)
-is the one the guard blocks.
+Change 0318 exposed this recovery gap. Tracing the current code confirms the lost absence distinction, while the allocation path already supplies branch, path, and registration probes that can be reused. Missing files alone are insufficient proof: leftover resources, foreign ownership, and failed probes must still block recovery.
 
 ## What changes
 
-- Make a run halted before workspace allocation recoverable through the sanctioned CLI without
-  first hand-allocating a workspace it does not need.
-- Resolve the `resume-halted` / `reclaim` asymmetry so an absent, never-allocated workspace reads
-  as quiescent for both (a foreign manifest with an *identity mismatch* — a real other-owner
-  workspace — must still block resume; the fix is scoped to genuine absence).
-- Keep the destructive/adoption safety `resume-halted` and `reclaim` are guarding: this must not
-  weaken the guard against adopting a workspace whose writer may actually be live.
+- Extend existing workspace inspection to distinguish a proven absent local workspace from foreign or ambiguous state, reusing the allocation inventory checks.
+- Let the existing acknowledged, exact-version resume operation recover that state after proving the recorded remote feature branch is also absent. Preserve the same claim and recorded branch; leave workspace allocation to its ordinary later step.
+- Keep reclaim expiry, ownership safeguards, run cancellation, and replacement-run admission intact. Carry the refined inspection result through existing consumers without granting cleanup or adoption authority.
+- Add a real claim-to-halt-to-resume regression fixture with no prior workspace allocation, plus refusal coverage for leftover resources and failed probes.
+
+The linked spec records the implementation trace, prior decisions, alternatives, and acceptance criteria.
 
 ## Out of scope
 
-- Changing the 72h `reclaim.lease_ttl` default or making it per-invocation.
-- Any change to how a run that *did* allocate a workspace is resumed (the `ready` / `cleaned` /
-  `dirty-owned` paths are correct today).
-- Reworking the halt marker mechanism or the gate facade's attribution.
-
-## Open questions
-
-- Fix at the classifier (distinguish "absent — never allocated" from "foreign — mismatched owner"
-  as separate states) vs. at `resumeQuiescenceRefusal` (treat a proven-absent workspace as
-  quiescent) vs. a dedicated `resume-halted --no-workspace` recovery? Prefer the smallest change
-  that keeps the mismatched-owner case blocking.
-- Should the fix also let `reclaim` proceed on a proven pre-allocation halt regardless of lease
-  age, or is fixing `resume-halted` sufficient?
-- Is there a regression test fixture for "halt at reconcile, before allocation" specifically?
+- Changing reclaim expiry or its configured default.
+- New recovery commands or bypass flags; allocating, adopting, deleting, or resetting workspaces during resume.
+- New persistent records or manifest format migrations.
+- Changing recovery semantics for already-owned workspaces or the run gate cancellation, attribution, and replacement-admission protocols.
+- Unrelated refactoring, implementation, or implementation planning during grooming.
 
 ## Reconcile log
 
