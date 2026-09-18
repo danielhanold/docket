@@ -2943,6 +2943,97 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 	}
 }
 
+// TestIntegrationResumeHaltedPreallocation is change 0368's end-to-end
+// regression through the REAL workspace service (spec verification requirement
+// 1: no fake workspace service anywhere in the pass). setupHaltedFixture
+// prepares a real workspace and publishes feat/widget; to model a run that
+// halted BEFORE any workspace.prepare, that prepared workspace is fully torn
+// down — worktree registration, local feature branch, manifest, and the
+// published remote ref — so the real service classifies the slot StateAbsent.
+// An acknowledged exact-version resume then recovers it through the real
+// service: the halt marker is removed, the claim refreshed, status and recorded
+// branch preserved, and nothing is allocated (the slot still inspects absent),
+// after which an ordinary prepare succeeds. This MUST fail under the pre-0368
+// conflation, where the absent slot inspected as foreign and resume refused
+// workspace-writer-active.
+func TestIntegrationResumeHaltedPreallocation(t *testing.T) {
+	for _, m := range planRepoModes() {
+		t.Run(m.name, func(t *testing.T) {
+			f := setupHaltedFixture(t, m)
+
+			// The REAL workspace service over the fixture's real *gitcli.Client —
+			// there is no fake inspection anywhere in this pass.
+			svc, err := workspace.NewService(f.deps.Client)
+			if err != nil {
+				t.Fatalf("workspace.NewService: %v", err)
+			}
+			wdeps := WorkspaceDeps{Service: svc}
+
+			// Model a halt BEFORE allocation: tear the fixture's prepared workspace
+			// down to a genuinely clean-absent slot — remove the worktree
+			// registration and directory, delete the local feature branch, drop the
+			// manifest, and delete the published remote ref so the recorded remote
+			// feature branch also proves cleanly absent.
+			runGit(t, f.repo.invocation, "worktree", "remove", "--force", f.wp)
+			runGit(t, f.repo.invocation, "branch", "-D", "feat/widget")
+			if err := os.RemoveAll(f.metaDir); err != nil {
+				t.Fatalf("remove manifest dir: %v", err)
+			}
+			runGit(t, f.repo.origin, "update-ref", "-d", "refs/heads/feat/widget")
+
+			// The acknowledged exact-version resume recovers through the real
+			// service. Under the pre-0368 conflation the real service reports the
+			// absent slot as foreign and this refuses with workspace-writer-active.
+			got := ChangeResumeHalted(context.Background(), f.deps, wdeps, f.repo.invocation,
+				ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+			if got.Result != ResultApplied || got.Disposition != HaltDispResumed {
+				t.Fatalf("resume through the real service: result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
+			}
+
+			// Marker removed; claim refreshed; status and recorded branch preserved.
+			rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+			if strings.Contains(rec, "## Run halted") {
+				t.Errorf("halt marker survived resume:\n%s", rec)
+			}
+			if !strings.Contains(rec, "claimed_at: '2026-08-16T12:00:00Z'") {
+				t.Errorf("claim lease not refreshed:\n%s", rec)
+			}
+			for _, want := range []string{"status: in-progress", "branch: feat/widget"} {
+				if !strings.Contains(rec, want) {
+					t.Errorf("resume did not preserve %q:\n%s", want, rec)
+				}
+			}
+
+			// The resume itself allocated nothing: no manifest, no worktree path,
+			// and no republished remote feature branch.
+			if _, err := os.Stat(f.metaDir); !os.IsNotExist(err) {
+				t.Errorf("resume created a manifest dir (stat err=%v); it must not allocate", err)
+			}
+			if _, err := os.Stat(f.wp); !os.IsNotExist(err) {
+				t.Errorf("resume created the workspace path (stat err=%v); it must not allocate", err)
+			}
+			if ref := strings.TrimSpace(runGit(t, f.repo.origin, "for-each-ref", "--format=%(refname)", "refs/heads/feat/widget")); ref != "" {
+				t.Errorf("resume republished the remote feature branch %q; it must not allocate", ref)
+			}
+
+			// The slot still inspects absent through the real service after resume.
+			post := WorkspaceInspect(context.Background(), f.deps, wdeps, f.repo.invocation, WorkspaceIDRequest{ID: f.id})
+			if post.Result != ResultApplied || post.State != string(workspace.StateAbsent) {
+				t.Fatalf("post-resume inspect: result=%q state=%q, want applied/absent", post.Result, post.State)
+			}
+
+			// A subsequent ordinary prepare succeeds — resume left allocation to the
+			// normal later step. Re-read the fresh record version first.
+			version := blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+			prep := WorkspacePrepare(context.Background(), f.deps, wdeps, f.repo.invocation,
+				WorkspaceIDRequest{ID: f.id, Version: version})
+			if prep.Result != ResultApplied {
+				t.Fatalf("post-resume prepare: result=%q reason=%q message=%q", prep.Result, prep.Reason, prep.Message)
+			}
+		})
+	}
+}
+
 // TestIntegrationChangeRuntimeHaltResumeCycle proves the whole contract over real git:
 // a real halt write on a record that already carries a halted marker AND a
 // section AFTER it (so fence or boundary leakage cannot pass unnoticed)
