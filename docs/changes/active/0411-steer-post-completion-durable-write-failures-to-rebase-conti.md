@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'low'
 type: 'docs'
 created: '2026-09-08'
-updated: '2026-09-08'
+updated: '2026-09-18'
 depends_on: []
 stacked_on:
-related: [349]
+related: [349, 396, 408, 413]
 discovered_from: [349]
-adrs: [113]
-spec:
+adrs: [105, 113]
+spec: 'docs/superpowers/specs/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-design.md'
 plan:
 results:
 trivial: false
@@ -29,17 +29,22 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) |
+| Spec | [2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-design.md) |
+| ADRs | [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-A deep-review finding on change 0349 (PR #288) noted that the finalize resolver-reserve path and the docket-finalize-change abort-flow guidance both steer a stuck resolver to the abort flow (finalize.rebase-abort) even in the narrow window where the owned rebase already completed successfully and only the durable receipt/reservation write failed afterward. Aborting in that window discards a completed rebase — the merge the human already intended — instead of re-attempting only the failed durable write. The safer recovery is re-running finalize.rebase-continue, which reconciles an already-started continuation.
+A deep-review finding on change 0349 (PR #288) identified a narrow recovery hazard: an owned resolver continuation can complete or advance to another conflict, then fail to persist its reservation reconciliation. The existing continuation operation can recover that state without replaying Git or spending another resolver attempt, but its diagnostics and the finalize abort-flow guidance do not make that remedy discoverable. Aborting a completed rebase restores the original feature head and discards the local rewrite; completion of the rebase is not completion of the PR merge.
+
+Current-source inspection locates the actionable write failures in the continuation and started-continuation reconciliation paths in internal/app/finalize_rebase.go. The original reference to internal/app/finalize_reserve.go is contextual: reservation admission occurs before dispatch and cannot establish that a rebase completed.
 
 ## What changes
 
-Update the reconcile/reserve write-failure message(s) (e.g. in internal/app/finalize_reserve.go and the reconcile-write-failure path) and the docket-finalize-change SKILL abort-flow note (skills/docket-finalize-change/references/gate-failure.md) to call out this narrow 'rebase already completed, only the durable write failed' window and point a human at re-running finalize.rebase-continue rather than the generic abort flow.
+- Make the three reservation-reconciliation write-failure messages identify the failed durable write and direct the operator to finalize.rebase-continue with the same change, owned attempt, and original resolved report/reservation. Distinguish whole-rebase completion from advancement to another conflict.
+- Explain the recovery exception beside the resolver/abort guidance in docket-finalize-change and its gate-failure reference. Preserve the workspace on persistent write failure; keep the separate finalize.rebase route for a running suite and the existing verified abort routes for their actual failure cases.
+- Keep the guidance harness-agnostic and verify the narrow boundary with injected write failures, unchanged reservation accounting, and no repeated Git continuation. Regenerate the embedded skill assets from maintained source.
 
 ## Out of scope
 
-No behavior change to the finalize.rebase-continue or finalize.rebase-abort operations themselves; no change to the reservation admission logic decided in ADR-0113. Purely guidance and message wording so the correct recovery is discoverable in the narrow post-completion durable-write-failure window.
+No changes to rebase-continue or rebase-abort state transitions, reservation admission or budget policy, receipt/protocol schemas, gate/evidence or merge policy, or generated-bundle conflict handling. No blanket retry of receipt-write-failed, automatic recovery loop, direct receipt repair, new resolver dispatch, or generic human-output renderer. Preserve the existing architecture decisions and historical artifacts; grooming stops at this linked specification.
