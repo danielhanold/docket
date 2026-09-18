@@ -207,6 +207,186 @@ func TestConcurrentSameOwnerAdvanceRelaunchesOnce(t *testing.T) {
 	}
 }
 
+// terminalSettleProc is the shared ProcessSeam core for the deterministic
+// loser-after-terminal-settle regression: the seeded original run observes as
+// signaled (dead), and every relaunched run reports StateFailed so the winner
+// settles the drive terminally within its single Advance.
+type terminalSettleProc struct {
+	mu        sync.Mutex
+	launchSeq int
+	launched  map[string]bool
+	stops     []string
+}
+
+func newTerminalSettleProc() *terminalSettleProc {
+	return &terminalSettleProc{launched: map[string]bool{}}
+}
+
+func (p *terminalSettleProc) Launch(process.LaunchRequest) (*process.LaunchOutcome, error) {
+	p.mu.Lock()
+	p.launchSeq++
+	id := fmt.Sprintf("relaunch%d", p.launchSeq)
+	dir := "/runs/" + id
+	p.launched[dir] = true
+	p.mu.Unlock()
+	return &process.LaunchOutcome{RunID: id, RunDir: dir, State: process.StateRunning}, nil
+}
+
+func (p *terminalSettleProc) Observe(runDir string) (*process.Observation, error) {
+	if strings.HasSuffix(runDir, "run1") {
+		return &process.Observation{State: process.StateSignaled, RunDir: runDir}, nil
+	}
+	return &process.Observation{State: process.StateFailed, RunDir: runDir}, nil
+}
+
+func (p *terminalSettleProc) Stop(runDir, reason string) (*process.StopOutcome, error) {
+	p.mu.Lock()
+	p.stops = append(p.stops, runDir)
+	p.mu.Unlock()
+	if strings.HasSuffix(runDir, "run1") {
+		return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir, Performed: false,
+			Terminal: &process.Terminal{Kind: "signal", Signal: 9}}, nil
+	}
+	return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
+}
+
+func (p *terminalSettleProc) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
+	return &process.ReservationResolution{Disposition: "never-launched"}, nil
+}
+
+func (p *terminalSettleProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
+	return process.RecoveryEntry{Disposition: "invalid"}, nil
+}
+
+// gatedLoserSeam wraps the shared core for the LOSER driver only: its first
+// dead-run observation signals `observing` (proving the loser loaded a
+// nonterminal record and entered its slice) and then parks on `gate` until the
+// test releases it — after the winner's Advance has fully returned with the
+// terminal outcome durably persisted. This forces, deterministically, the
+// interleaving where the loser's reserveRelaunch CAS finds a terminal record.
+type gatedLoserSeam struct {
+	core      *terminalSettleProc
+	gate      <-chan struct{}
+	observing chan struct{}
+	once      sync.Once
+}
+
+func (s *gatedLoserSeam) Launch(req process.LaunchRequest) (*process.LaunchOutcome, error) {
+	return s.core.Launch(req)
+}
+
+func (s *gatedLoserSeam) Observe(runDir string) (*process.Observation, error) {
+	if strings.HasSuffix(runDir, "run1") {
+		s.once.Do(func() { close(s.observing) })
+		<-s.gate
+	}
+	return s.core.Observe(runDir)
+}
+
+func (s *gatedLoserSeam) Stop(runDir, reason string) (*process.StopOutcome, error) {
+	return s.core.Stop(runDir, reason)
+}
+
+func (s *gatedLoserSeam) ResolveReservation(root, token string) (*process.ReservationResolution, error) {
+	return s.core.ResolveReservation(root, token)
+}
+
+func (s *gatedLoserSeam) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
+	return s.core.ClassifyRun(runDir, mark)
+}
+
+// TestLoserAfterTerminalSettleReturnsRecordedState pins the deterministic
+// resolution of the 0411 interleaving: a same-owner advance that loses the
+// relaunch race only AFTER the winner has persisted the replacement's terminal
+// outcome must return the authoritative recorded state — never the raw
+// errAlreadyTerminal sentinel as an Advance error. Exactly one launch, one
+// relaunch, one attempt increment, no orphan.
+func TestLoserAfterTerminalSettleReturnsRecordedState(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	seeded := seedRecord(t)
+	id, ownerGen := seedDrive(t, store, seeded)
+
+	core := newTerminalSettleProc()
+	gate := make(chan struct{})
+	loserSeam := &gatedLoserSeam{core: core, gate: gate, observing: make(chan struct{})}
+
+	mkDriver := func(seam ProcessSeam) *Driver {
+		clk := &fakeClock{now: startEpoch().Add(time.Second)}
+		d := NewDriver(reopenStore(store), clk, seam, stableGit())
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		return d
+	}
+
+	type advanceResult struct {
+		doc DriveDoc
+		err error
+	}
+	loserDone := make(chan advanceResult, 1)
+	go func() {
+		doc, err := mkDriver(loserSeam).Advance(id, ownerGen)
+		loserDone <- advanceResult{doc: doc, err: err}
+	}()
+
+	// The loser is parked inside its slice holding a stale nonterminal record.
+	<-loserSeam.observing
+
+	// The winner runs to completion: dead original observed, relaunch reserved
+	// and launched, replacement observed StateFailed, FAILED persisted.
+	winnerDoc, winnerErr := mkDriver(core).Advance(id, ownerGen)
+	if winnerErr != nil {
+		t.Fatalf("winner advance: %v", winnerErr)
+	}
+	if winnerDoc.Outcome != FAILED {
+		t.Fatalf("winner outcome = %s, want %s", winnerDoc.Outcome, FAILED)
+	}
+
+	// Only now may the loser proceed to its reservation attempt.
+	close(gate)
+	loser := <-loserDone
+	if loser.err != nil {
+		t.Fatalf("the reservation loser must return recorded state, not an error: %v", loser.err)
+	}
+	if loser.doc.Outcome != FAILED {
+		t.Fatalf("loser doc outcome = %s (%s), want %s", loser.doc.Outcome, loser.doc.Cause, FAILED)
+	}
+	if loser.doc.Cause != winnerDoc.Cause {
+		t.Fatalf("loser doc cause = %q, want the winner's recorded cause %q", loser.doc.Cause, winnerDoc.Cause)
+	}
+
+	if core.launchSeq != 1 {
+		t.Fatalf("exactly one backend launch, got %d", core.launchSeq)
+	}
+	rec, err := store.Load(id)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if rec.RelaunchCount != 1 {
+		t.Fatalf("RelaunchCount = %d, want 1", rec.RelaunchCount)
+	}
+	if rec.Attempt != 2 {
+		t.Fatalf("Attempt = %d, want 2", rec.Attempt)
+	}
+	if rec.LastOutcome != FAILED {
+		t.Fatalf("recorded outcome = %s (%s), want %s", rec.LastOutcome, rec.LastCause, FAILED)
+	}
+	if !rec.Deadline.Equal(seeded.Deadline) {
+		t.Fatalf("the original deadline must be preserved: got %v, seeded %v", rec.Deadline, seeded.Deadline)
+	}
+	core.mu.Lock()
+	var relaunchStops int
+	for _, s := range core.stops {
+		if core.launched[s] {
+			relaunchStops++
+		}
+	}
+	core.mu.Unlock()
+	if relaunchStops != 0 {
+		t.Fatalf("the loser must not create or stop an orphan, stopped %d relaunch runs", relaunchStops)
+	}
+}
+
 // claimWindowProc holds the reservation winner inside Launch so a second
 // same-owner Advance deterministically enters the reserve-to-launch window. A
 // correct claimant fence makes the second caller return authoritative state
