@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0434 — Move load-sensitive tests out of the default parallel suite lane](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0434-move-load-sensitive-tests-out-of-the-default-parallel-suite.md)**
+> ↩ **[Change 0434 — Move load-sensitive tests out of the default parallel suite lane](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-18-0434-move-load-sensitive-tests-out-of-the-default-parallel-suite.md)**
 <!-- docket:backlink:end -->
 
 # Change 0434 — Stabilize load-sensitive coverage using the existing integration partition
