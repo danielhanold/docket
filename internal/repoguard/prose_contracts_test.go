@@ -479,3 +479,58 @@ func TestUninstallCollectionDocContracts(t *testing.T) {
 		}
 	})
 }
+
+// change 0411 — the reconciliation-write recovery exception: a post-completion
+// durable-write failure re-enters finalize.rebase-continue with the same inputs
+// and is never routed to rebase-abort. Each clause is bound to its owning
+// section (prose-guard-binds-phrase-to-claim) and matched whitespace-collapsed
+// (phrase-grep-over-wrapped-prose), so a pure re-flow stays green while removing
+// the exception, or substituting abort as the remedy, goes red.
+var rebaseRecoveryDocContracts = []docSectionContract{
+	{change: "change_0411_recovery_exception_skill", file: "skills/docket-finalize-change/SKILL.md",
+		section: "### 3. Rebase onto the effective base (resolver loop)", terminator: "### 4. The local gate",
+		present: []string{
+			"re-run `finalize.rebase-continue` with the same `--id <id> --attempt <attempt> --input <report>`",
+			"never route this persistence failure to `finalize.rebase-abort`",
+		}},
+	{change: "change_0411_recovery_exception_reference", file: "skills/docket-finalize-change/references/gate-failure.md",
+		section: "## The reconciliation-write exception (recover, not abort)", terminator: "## The finalize gate shares the worktree's one execution slot",
+		present: []string{
+			"Preserve the workspace, the receipt, and the original resolver report",
+			"Re-run `finalize.rebase-continue` with the same `--id <id> --attempt <attempt> --input <report>`",
+			"an operator remedy, not an autonomous retry loop",
+			"resumes via the original identical `finalize.rebase` invocation",
+		}},
+	{change: "change_0411_recovery_not_in_abort_set", file: "skills/docket-finalize-change/references/gate-failure.md",
+		section: "## abort-and-report points (the full set)", terminator: "## The reconciliation-write exception (recover, not abort)",
+		present: []string{
+			"a reservation-reconciliation write failure after Git advanced or completed the owned continuation is **not** in this set",
+		}},
+}
+
+// TestRebaseRecoveryDocContracts binds the change 0411 recovery-exception
+// clauses to their sections in both finalize documents; scanDocSection's
+// missing-section / missing-terminator / missing-clause branches are exercised
+// by TestUninstallCollectionDocContracts' non_vacuity subtest.
+func TestRebaseRecoveryDocContracts(t *testing.T) {
+	root := guardRoot(t)
+	cache := map[string]string{}
+	var violations []string
+	for _, c := range rebaseRecoveryDocContracts {
+		content, ok := cache[c.file]
+		if !ok {
+			b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(c.file)))
+			if err != nil {
+				t.Fatalf("read contract file %s (%s): %v (fail closed)", c.file, c.change, err)
+			}
+			content = string(b)
+			cache[c.file] = content
+		}
+		for _, msg := range scanDocSection(content, c) {
+			violations = append(violations, fmt.Sprintf("[%s] %s", c.change, msg))
+		}
+	}
+	if len(violations) != 0 {
+		t.Errorf("recovery-exception doc contracts (%d violations):\n%s", len(violations), strings.Join(violations, "\n"))
+	}
+}
