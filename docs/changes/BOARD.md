@@ -1,11 +1,12 @@
 # Backlog
 
-**434 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 119 killed
+**434 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 283 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
+| [0434](active/0434-move-load-sensitive-tests-out-of-the-default-parallel-suite.md) | Move load-sensitive tests out of the default parallel suite lane | `medium` | `chore` | [spec](../superpowers/specs/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-design.md) | `chore/move-load-sensitive-tests-out-of-the-default-parallel-suite` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
 ## 🔵 Built (1)
@@ -14,11 +15,10 @@
 |---|-------|----------|------|----|-------|
 | [0411](active/0411-steer-post-completion-durable-write-failures-to-rebase-conti.md) | Steer post-completion durable-write failures to rebase-continue, not abort | `low` | `docs` | [#311](https://github.com/danielhanold/docket/pull/311) | awaiting merge |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0434](active/0434-move-load-sensitive-tests-out-of-the-default-parallel-suite.md) | Move load-sensitive tests out of the default parallel suite lane | `medium` | `chore` | [spec](../superpowers/specs/2026-09-18-move-load-sensitive-tests-out-of-the-default-parallel-suite-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |

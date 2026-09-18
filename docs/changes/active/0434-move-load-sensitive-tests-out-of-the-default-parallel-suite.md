@@ -2,7 +2,7 @@
 id: 434
 slug: 'move-load-sensitive-tests-out-of-the-default-parallel-suite'
 title: 'Move load-sensitive tests out of the default parallel suite lane'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-18'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/move-load-sensitive-tests-out-of-the-default-parallel-suite'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-18T18:25:54Z'
 ---
 
 ## Artifacts
