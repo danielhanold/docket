@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/move-load-sensitive-tests-out-of-the-default-parallel-suite'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-18T18:25:54Z'
+reconciled: true
+claimed_at: '2026-09-18T18:28:01Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ The existing integration-tag partition already covers the app shards. The work s
 ## Out of scope
 
 No new lanes or scheduler, serial wrapper pins, automatic retries, timeout increases, attempt-limit changes, weakened assertions, skipped coverage, host-relative budget redesign, or unrelated gofmt cleanup. Reuse the existing tag/shard/concurrency machinery; an unresolved limitation must be reported rather than silently expanding that scope.
+
+## Reconcile log
+
+### 2026-09-18
+
+2026-09-18: Reconciled at claim. Spec was groomed today against the current main HEAD (3ccf9fac), so the design is fresh. Verified current reality: the integration test-shard machinery is present (tests/lib/go-integration-shard.sh and the tests/test_go_integration_*.sh wrappers, including app_rebase, app_concurrency, and gitcli_concurrency), tests/runtime-budgets.tsv carries the per-wrapper ceilings, and the gatedrive symbols named by the spec exist as described (internal/gatedrive/driver.go: reserveRelaunch, errAlreadyTerminal, errRelaunchRaceLost; the driveSlice reserveRelaunch error branch recognizes errRelaunchRaceLost but propagates errAlreadyTerminal; TestConcurrentSameOwnerAdvanceRelaunchesOnce/terminal_relaunch_winner_fails lives in internal/gatedrive/driver_concurrency_test.go). Related/discovered_from/adrs relations (273,333,362,373,411 / 411 / 108) remain accurate. No scope adjustment or relation change required; proceeding to plan and build under the settled design.
