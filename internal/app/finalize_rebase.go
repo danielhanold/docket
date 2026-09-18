@@ -253,6 +253,14 @@ func newRebaseResult(opKey string, result Result, out FinalizeRebaseResult) Fina
 	return out
 }
 
+// reconcileRecoveryRemedy is the shared recovery tail for the three
+// reservation-reconciliation write-failure diagnostics (change 0411): Git already
+// advanced or completed the owned continuation, so the remedy is the SAME
+// operation with the SAME inputs — never rebase-abort, which would discard the
+// completed local rewrite. Recovery (finalizeRebaseReconcileStarted) rechecks
+// live state and reconciles without replaying Git or charging the budget.
+const reconcileRecoveryRemedy = "; retry the finalize.rebase-continue operation with the same change id, owned attempt, and original resolved report (including its resolver_reservation token) — recovery rechecks live state and reconciles the outstanding continuation; it does not authorize another resolver dispatch"
+
 // rebaseRefusal builds a refusing result carrying a stable reason, message, and
 // disposition (no gate report, no heads).
 func rebaseRefusal(opKey string, result Result, disposition, reason, message string, id int) FinalizeRebaseResult {
@@ -1066,7 +1074,7 @@ func finalizeRebaseContinueBudgeted(ctx context.Context, deps FinalizeDeps, repo
 	reconciled := clearResolverReservation(started)
 	if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, reconciled); werr != nil {
 		return withResolverCounts(rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite,
-			"the continue completed but the reservation could not be reconciled on the receipt: "+werr.Error(), id), started)
+			"the Git continuation returned, but its reservation reconciliation could not be persisted on the receipt (another conflict may remain): "+werr.Error()+reconcileRecoveryRemedy, id), started)
 	}
 	releaseLock()
 
@@ -1106,7 +1114,8 @@ func finalizeRebaseReconcileStarted(ctx context.Context, deps FinalizeDeps, repo
 		// conflict; the next dispatch requires a fresh reserve.
 		reconciled := clearResolverReservation(rec)
 		if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, reconciled); werr != nil {
-			return withResolverCounts(rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, werr.Error(), id), rec)
+			return withResolverCounts(rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite,
+				"the prior continuation advanced to another conflict, but its reservation reconciliation could not be persisted on the receipt: "+werr.Error()+reconcileRecoveryRemedy, id), rec)
 		}
 		releaseLock()
 		return mapContinuedRebase(ctx, deps, repoDir, op, rc, reconciled, limit, used, state)
@@ -1124,7 +1133,8 @@ func finalizeRebaseReconcileStarted(ctx context.Context, deps FinalizeDeps, repo
 		}
 		reconciled := clearResolverReservation(rec)
 		if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, reconciled); werr != nil {
-			return withResolverCounts(rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, werr.Error(), id), rec)
+			return withResolverCounts(rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite,
+				"the owned rebase completed, but its reservation reconciliation could not be persisted on the receipt: "+werr.Error()+reconcileRecoveryRemedy, id), rec)
 		}
 		releaseLock()
 		return mapContinuedRebase(ctx, deps, repoDir, op, rc, reconciled, limit, used,
