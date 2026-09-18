@@ -2943,7 +2943,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 	}
 }
 
-// TestIntegrationResumeHaltedPreallocation is change 0368's end-to-end
+// TestIntegrationChangeResumeHaltedPreallocation is change 0368's end-to-end
 // regression through the REAL workspace service (spec verification requirement
 // 1: no fake workspace service anywhere in the pass). setupHaltedFixture
 // prepares a real workspace and publishes feat/widget; to model a run that
@@ -2956,7 +2956,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 // after which an ordinary prepare succeeds. This MUST fail under the pre-0368
 // conflation, where the absent slot inspected as foreign and resume refused
 // workspace-writer-active.
-func TestIntegrationResumeHaltedPreallocation(t *testing.T) {
+func TestIntegrationChangeResumeHaltedPreallocation(t *testing.T) {
 	for _, m := range planRepoModes() {
 		t.Run(m.name, func(t *testing.T) {
 			f := setupHaltedFixture(t, m)
