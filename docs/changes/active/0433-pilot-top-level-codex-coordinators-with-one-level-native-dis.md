@@ -40,7 +40,16 @@ This is a proposed experiment, not an approved implementation spec. Keep it need
 
 ### Fresh-main decision and predecessor findings
 
-The [failed-approach retirement review](../research/0433-fresh-main-retirement-findings.md) summarizes each predecessor, preserved evidence, the retirement disposition, and the limits of the old acceptance results. Changes 424, 425, 426, 431 and 432 are the direct retirement set; 430 is already killed. Historical POC 423 remains a completed experiment, not production certification. Independent shared work such as 412 and 422 is neither inherited nor automatically cancelled.
+The [failed-approach retirement review](../research/0433-fresh-main-retirement-findings.md) summarizes each predecessor, preserved evidence, the retirement disposition, and the limits of the old acceptance results. All five directly superseded active changes were archived as killed on 2026-09-18; PR #303 was closed without merging. Historical POC 423 remains a completed experiment, not production certification. Independent shared work such as 412 and 422 is neither inherited nor automatically cancelled.
+
+- [424](../archive/2026-09-18-0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) — killed; findings and preserved evidence are recorded in its retirement rationale.
+- [425](../archive/2026-09-18-0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) — killed; findings and preserved evidence are recorded in its retirement rationale.
+- [426](../archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) — killed; findings and preserved evidence are recorded in its retirement rationale.
+- [431](../archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) — killed; findings and preserved evidence are recorded in its retirement rationale.
+- [432](../archive/2026-09-18-0432-complete-native-codex-runner.md) — killed; findings and preserved evidence are recorded in its retirement rationale.
+- [430](../archive/2026-09-17-0430-native-codex-acceptance-for-durable-review-evidence.md) — already killed; earlier failed acceptance remains preserved.
+
+431 and 432 were archived under the human-approved metadata-only exception. Their PRs #309 and #310 actually merged into 425, never main; this historical fact is preserved rather than rewritten as an unsuccessful merge. Branches, worktrees, dirty files, original plans/results and captures remain intact. No cleanup deletion was performed.
 
 The non-negotiable acceptance criterion is: **leave Claude Code and Cursor and opencode behavior unchanged**. This covers their shared workflow instructions, generated assets, configuration and model selection, dispatch/worktree behavior, gate ownership and cancellation/resume semantics, persisted-state compatibility, review, evidence and publication—not merely their adapter source files.
 

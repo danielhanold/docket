@@ -12,7 +12,7 @@ The required invariant is **leave Claude Code and Cursor and opencode behavior u
 
 ### 424 — model-capability registry and failed production dogfood
 
-Retirement requested. The registry followed the assumption that a separately spawned coordinator needs a dispatch-capable model. The new topology instead needs authoritative verification of the actual root session plus valid leaf roles; none of 424's registry design is automatically inherited.
+Killed and [archived](../archive/2026-09-18-0424-validate-codex-coordinator-models-against-a-versioned-capabi.md). The registry followed the assumption that a separately spawned coordinator needs a dispatch-capable model. The new topology instead needs authoritative verification of the actual root session plus valid leaf roles; none of 424's registry design is automatically inherited.
 
 Native planning and Tasks 1–3 completed with focused red/green and mutation evidence. HEAD is 434ebe2aac3f96d572a813368b4bcf030e41330c; prior task commits are 9fac14eaff13f448e576cd8e244532507582a573 and 1410893297c80f52febb9a0d5343fc1e46beb112; the plan commit is 4870144f. Task 4 remains dirty in /Users/homer/dev/docket/.worktrees/validate-codex-coordinator-models-against-a-versioned-capabi on feat/validate-codex-coordinator-models-against-a-versioned-capabi. Its eight modified install/fixture paths are enumerated in 433. Preserve this worktree and backup/424-plan-attempt-20260917.
 
@@ -24,7 +24,7 @@ Local full chronology: /Users/homer/dev/docket-0424-restart.ZyKU6s/operational-e
 
 ### 425 — native nested-coordinator production architecture
 
-Retirement requested. [PR #303](https://github.com/danielhanold/docket/pull/303) was OPEN at inspection; its exact published head is 70de2fc251ea9720a84bfe3a02c0f79bf15ed21e, branch codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor. Preserve that branch, its worktree, backup/425-before-main-rebase-20260917, candidate runtime and source evidence. Close the abandoned PR without merging or deleting its branch.
+Killed and [archived](../archive/2026-09-18-0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md). [PR #303](https://github.com/danielhanold/docket/pull/303) was OPEN at initial inspection and was then CLOSED without merging, with mergedAt null verified; its exact published head remains 70de2fc251ea9720a84bfe3a02c0f79bf15ed21e, branch codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor. That branch, its worktree, backup/425-before-main-rebase-20260917, candidate runtime and source evidence are preserved.
 
 The production route replaced automatic shell/app-server entry with native named coordinator/feature children and explicit feature-worktree binding. It accumulated assignment/payload/resource-closure checks, gate transport/receipt validation, diagnostics, fixture generation and follow-on operational repairs. Source review caught and repaired resolver authored/generated conflict handling and an overly broad runtime-manifest path rejection. These fixes and passing source tests are useful evidence, not proof of sustained unattended orchestration.
 
@@ -36,7 +36,7 @@ PR source, packaging and platform-smoke CI was green at inspection. The release-
 
 ### 426 — legacy agent.enter retirement after 425
 
-Retirement requested. This proposed follow-up depended on 425's native nested-coordinator route becoming production. That prerequisite is abandoned. No branch or implementation is recorded. Its useful distinction survives as a design question for 433: root launch compatibility and feature-worktree safety are different concerns. Do not delete feature binding just because the intermediate coordinator disappears. Assess the APIs that actually exist on main rather than carrying forward 426's migration plan.
+Killed and [archived](../archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md). This proposed follow-up depended on 425's native nested-coordinator route becoming production. That prerequisite is abandoned. No branch or implementation is recorded. Its useful distinction survives as a design question for 433: root launch compatibility and feature-worktree safety are different concerns. Do not delete feature binding just because the intermediate coordinator disappears. Assess the APIs that actually exist on main rather than carrying forward 426's migration plan.
 
 ### 430 — first durable-review acceptance attempt
 
@@ -46,7 +46,7 @@ Already killed and archived before this retirement; preserve that outcome. Nativ
 
 ### 431 — repaired active-worker acceptance
 
-Retirement requested. Its real [PR #309](https://github.com/danielhanold/docket/pull/309) merged into 425, NOT main, on 2026-09-17. Recorded head f6695e5f8fbb198ba9458d40cfeb215a2af928bc; merge commit 8982b2873580f5677a0900abc94bfaef22403028; branch chore/native-codex-acceptance-for-active-worker-validation.
+Killed and [archived](../archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) under the explicit human-approved metadata exception. Its real [PR #309](https://github.com/danielhanold/docket/pull/309) merged into 425, NOT main, on 2026-09-17. Recorded head f6695e5f8fbb198ba9458d40cfeb215a2af928bc; merge commit 8982b2873580f5677a0900abc94bfaef22403028; branch chore/native-codex-acceptance-for-active-worker-validation.
 
 The small Value/Double fixture reached native planner, worker and reviewer, results and final certification after repairs and human intervention. The final gate at that head and the recorded 56-file/460-assertion suite are successful evidence for that fixture. A 61s/60s serial timing exception was explicitly authorized only for that closeout; it does not waive 424's separate budget finding.
 
@@ -54,7 +54,7 @@ Preserve the achieved behavior without generalizing to unattended operation or o
 
 ### 432 — complete-native-runner repairs and documentation
 
-Retirement requested. Its repairs were carried through 431/PR #309; documentation-only [PR #310](https://github.com/danielhanold/docket/pull/310) then merged into 425, NOT main, on 2026-09-17. Recorded head bc78d999d32069e828ba401f26b203b46864dbac; merge commit 8deef57f6ff8764d06e786b4a27bda504c202e25; branch fix/complete-native-codex-runner.
+Killed and [archived](../archive/2026-09-18-0432-complete-native-codex-runner.md) under the explicit human-approved metadata exception. Its repairs were carried through 431/PR #309; documentation-only [PR #310](https://github.com/danielhanold/docket/pull/310) then merged into 425, NOT main, on 2026-09-17. Recorded head bc78d999d32069e828ba401f26b203b46864dbac; merge commit 8deef57f6ff8764d06e786b4a27bda504c202e25; branch fix/complete-native-codex-runner.
 
 The history records misread continuation receipts, native-child completion/transport problems, exact-head evidence handoff and human-assisted recovery. Its documentation closeout used an explicitly authorized bookkeeping exception, not a fabricated managed-workspace or full-suite receipt. Original plans/results and the shared-orchestration/supervisor research remain frozen.
 
@@ -81,5 +81,6 @@ The history records misread continuation receipts, native-child completion/trans
 
 ## Execution disposition
 
-Findings were recorded before terminal transitions. See the linked predecessor records for their authoritative lifecycle status. No source changes, installation, model-pin changes, branch/worktree deletion, run-state rewriting, or merge is part of this retirement. 433 stays proposed/needs-brainstorm.
+Findings were recorded and pushed before terminal transitions. The supported change.kill transactions archived 431, 432, 424, 426 and 425 in that order and regenerated their metadata backlinks and the board. For 431/432 only, the explicit human exception permitted a documented temporary administrative in-progress status so the existing archival transaction could run; no implementation was resumed and no new claim or run authority was acquired. The resulting killed status abandons delivery without rewriting either GitHub merge event. 430 was already killed.
 
+PR #303 is verified closed and unmerged. Remote 425/431/432 branches retain their inspected heads; 424 retains its exact Task 3 head and eight dirty Task 4 paths. No source changes, installation, model-pin changes, branch/worktree deletion, run-state rewriting, or merge was performed. Cleanup was deliberately omitted under the preservation instruction. 433 stays proposed/needs-brainstorm with effective base main. Original generated artifact links may not locate unshipped feature files after terminal rendering; the exact-commit evidence links in the retirement rationales and this review preserve their real locations without pretending they shipped to main.
