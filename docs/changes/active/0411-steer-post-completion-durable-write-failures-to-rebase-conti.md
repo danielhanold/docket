@@ -14,7 +14,7 @@ discovered_from: [349]
 adrs: [105, 113]
 spec: 'docs/superpowers/specs/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-design.md'
 plan: 'docs/superpowers/plans/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti.md'
-results:
+results: 'docs/results/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-18T15:15:51Z'
 |---|---|
 | Spec | [2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-design.md) |
 | Plan | [2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti.md](https://github.com/danielhanold/docket/blob/docs/steer-post-completion-durable-write-failures-to-rebase-conti/docs/superpowers/plans/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti.md) |
+| Results | [2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-results.md](https://github.com/danielhanold/docket/blob/docs/steer-post-completion-durable-write-failures-to-rebase-conti/docs/results/2026-09-18-steer-post-completion-durable-write-failures-to-rebase-conti-results.md) |
 | ADRs | [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) |
 <!-- docket:artifacts:end -->
 
