@@ -2,11 +2,11 @@
 id: 425
 slug: 'restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
 title: 'Restore native Codex dispatch for Multi-Agent V2 Docket coordinators'
-status: 'in-progress'
+status: 'killed'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-11'
-updated: '2026-09-17'
+updated: '2026-09-18'
 depends_on: [423]
 stacked_on:
 related: [393, 407, 412, 426]
@@ -18,11 +18,11 @@ results: 'docs/results/2026-09-14-restore-native-codex-dispatch-for-multi-agent-
 trivial: false
 auto_groomable:
 branch_prefix: 'codex'
-branch: 'codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor'
+branch:
 pr: 'https://github.com/danielhanold/docket/pull/303'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-17T17:55:15Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-17T17:55:15Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-design.md) |
-| Plan | [2026-09-14-native-codex-dispatch-0425.md](https://github.com/danielhanold/docket/blob/codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor/docs/superpowers/plans/2026-09-14-native-codex-dispatch-0425.md) |
-| Results | [2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md](https://github.com/danielhanold/docket/blob/codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor/docs/results/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md) |
+| Plan | [2026-09-14-native-codex-dispatch-0425.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-14-native-codex-dispatch-0425.md) |
+| Results | [2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md) |
 | ADRs | [ADR-0114](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0114-anchor-codex-feature-scoped-role-entry-to-the-owning-worktre.md), [ADR-0119](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0119-native-codex-dispatch-with-explicit-role-aware-feature-bindi.md) |
 <!-- docket:artifacts:end -->
 
@@ -67,3 +67,11 @@ User-authorized bootstrap preparation: create the isolated codex-prefixed 425 wo
 ### 2026-09-17
 
 User-approved review repairs published to PR #303 at 80e9d2f805febe7bc9907fcb56588a57160d4d40. Both independent source-review findings resolved: resolver entry excludes controller-owned generated conflicts only under existing Docket bundle eligibility; runtime pin verification ignores only the exact non-runtime ../LAUNCH.md manifest entry. No coordinator lifecycle, gate execution, ownership mutation or retry policy changes. Regression tests reproduced both failures before fixes; focused integration tests passed; deliberate eligibility-bypass and broad-path-exception mutations were rejected by tests, then restored. Configured source suite (go run ./cmd/docket development test) passed 58/58 files, 468 assertions, exit 0, on the unchanged source tree subsequently committed as this head. Log: /var/folders/9k/38zqdm6j2wn82qp7mcc415d00000gn/T/docket-425-fixes-suite.E4a5d9. Budget report reviewed: merge shard serial confirmation 45s; no serial-confirmed breach; parallel timing advisories persist, nativefixture watch 1/5, race_app_a and race_app_b confirmations deferred by runner slot policy. Independent read-only source re-review found no new findings and confirmed both original issues resolved. This is source verification, not native runtime acceptance or a Docket gate receipt. No merge, binary install, fresh session or 424 dogfood launch performed; subsequent steps remain approval-gated.
+
+## Why killed
+
+Abandoned by explicit human decision on 2026-09-18 in favor of [change 433](../active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md), starting afresh from main. The successor must leave Claude Code and Cursor and opencode behavior unchanged. Preserve predecessor branches, worktrees, dirty files, commits, original plans/results and private operational evidence; no deletion, merge into main, runtime restart, or wholesale cherry-pick is authorized.
+
+See the [per-change retirement findings](../research/0433-fresh-main-retirement-findings.md), recorded before this transition.
+
+The native nested-coordinator architecture accumulated substantial shared gate/persistence/skill changes and operational bookkeeping without establishing reliable unattended production execution in the later 424 dogfood. Source review fixes and green source/package/platform-smoke CI remain legitimate evidence, but live four-harness acceptance is not established. PR #303 was explicitly closed without merging. Preserve branch codex/restore-native-codex-dispatch-for-multi-agent-v2-docket-coor at 70de2fc251ea9720a84bfe3a02c0f79bf15ed21e and its worktree/runtime kit. PRs #309 and #310 merged only into this abandoned branch. [Original plan](https://github.com/danielhanold/docket/blob/70de2fc251ea9720a84bfe3a02c0f79bf15ed21e/docs/superpowers/plans/2026-09-14-native-codex-dispatch-0425.md) and [source results](https://github.com/danielhanold/docket/blob/70de2fc251ea9720a84bfe3a02c0f79bf15ed21e/docs/results/2026-09-14-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor-results.md) are retained on that exact commit, not claimed to exist on main.
