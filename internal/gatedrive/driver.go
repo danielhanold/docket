@@ -1161,9 +1161,13 @@ func stopProvesTeardown(st process.State) bool {
 	}
 }
 
-// errAlreadyTerminal is a sentinel used inside the persist CAS to abort a write
-// over a drive a concurrent writer already finished; it never escapes as a
-// workflow error.
+// errAlreadyTerminal is a sentinel raised inside an owner CAS (the persist CAS
+// and reserveRelaunch's reservation CAS) to abort a write over a drive a
+// concurrent same-owner writer already finished; it never escapes as a workflow
+// error. Every caller — the persist path, the attach-race branch, and the
+// reserveRelaunch branch — treats it as "reload the authoritative recorded
+// state", so a loser that reaches its reservation CAS only after the winner
+// settled the drive terminally returns that verdict rather than the raw sentinel.
 var errAlreadyTerminal = errors.New("gatedrive: drive already terminal")
 
 // errRelaunchRaceLost reports that another same-owner advance has already
@@ -1339,6 +1343,12 @@ type sliceResult struct {
 	cause     string
 	rawRunDir string // PASSED only
 
+	// relaunchRaceLost reports that a same-owner competitor already owns this
+	// drive's single automatic replacement: it either reserved/consumed the
+	// relaunch (errRelaunchRaceLost) or settled the drive terminally before this
+	// caller's reservation CAS (errAlreadyTerminal). The loser reloads the
+	// authoritative record and returns it, issuing no backend launch and mutating
+	// no attempt/relaunch state.
 	relaunchRaceLost bool
 	err              error
 
@@ -1443,7 +1453,13 @@ func (d *Driver) driveSlice(id, ownerGen string, rec driveRecord, claim *relaunc
 				var err error
 				claim, err = d.store.reserveRelaunch(id, ownerGen)
 				if err != nil {
-					if errors.Is(err, errRelaunchRaceLost) {
+					// A same-owner competitor may have consumed the relaunch
+					// (errRelaunchRaceLost) or already settled the drive
+					// terminally before this reservation CAS (errAlreadyTerminal).
+					// Either way the loser reloads and returns the authoritative
+					// recorded state; it never launches, spends no attempt, and
+					// surfaces no error — mirroring the attach-race branch below.
+					if errors.Is(err, errRelaunchRaceLost) || errors.Is(err, errAlreadyTerminal) {
 						res.relaunchRaceLost = true
 						return res
 					}
