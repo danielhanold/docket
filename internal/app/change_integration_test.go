@@ -2943,6 +2943,66 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 	}
 }
 
+// TestIntegrationChangeResumeHaltedRemoteProbeErrors is change 0368's coverage
+// for the remote-probe ERROR arm of the pre-allocation recovery path — the
+// "refusal coverage for ... failed probes" the change's own spec promised. A
+// workspace proven locally absent (StateAbsent) resumes only after the recorded
+// remote feature ref ALSO proves cleanly absent; when that authoritative remote
+// probe ERRORS, resume MUST refuse with ReasonResumeWorkspaceProbe and RETAIN
+// the "## Run halted" marker — an errored probe is never read as clean absence.
+//
+// The probe is deps.Client.ProbeRemoteBranch (a real *gitcli.Client), which
+// errors only on a transport/command failure — reachable by breaking the origin
+// remote URL so `git ls-remote origin refs/heads/feat/widget` fails. Because the
+// metadata read (PinContext -> RemoteDefaultBranch) shares that same origin
+// transport, breaking origin alone would fail the read FIRST; a scripted
+// StatusReader (the designed read seam) supplies the corpus offline so the ONLY
+// origin contact left is the feature-ref probe, isolating the arm under test.
+// It reddens if the arm treats the probe error as a clean-absent answer.
+func TestIntegrationChangeResumeHaltedRemoteProbeErrors(t *testing.T) {
+	for _, m := range planRepoModes() {
+		t.Run(m.name, func(t *testing.T) {
+			f := setupHaltedFixture(t, m)
+
+			// Break the origin remote so the feature-ref probe fails with a command
+			// error; the remote NAME stays configured, so the failure is the probe
+			// itself, not a missing remote.
+			runGit(t, f.repo.invocation, "remote", "set-url", "origin",
+				filepath.Join(testsupport.TempDir(t), "nonexistent-origin.git"))
+
+			// The halted in-progress record the scripted reader serves offline — the
+			// same shape setupHaltedFixture committed to origin.
+			halted := strings.TrimRight(lifecycleChange(f.id, f.slug, "in-progress"), "\n") +
+				"\n\n## Run halted\n\n### 2026-08-14\n\nPaused pending infra.\n"
+			deps := f.deps
+			deps.Reader = &fakeReader{
+				pin: docketPin(t),
+				corpus: []StatusBlob{{
+					Kind:     repository.KindChange,
+					Location: repository.LocationActive,
+					Path:     groomPath(f.id, f.slug),
+					Version:  f.version,
+					Data:     []byte(halted),
+				}},
+				facts: domain.NewBranchFacts(nil),
+			}
+
+			got := ChangeResumeHalted(context.Background(), deps,
+				WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateAbsent, head: f.head}}, f.repo.invocation,
+				ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+			if got.Result != ResultBlocked || got.Reason != ReasonResumeWorkspaceProbe {
+				t.Fatalf("result=%q reason=%q, want blocked/%s", got.Result, got.Reason, ReasonResumeWorkspaceProbe)
+			}
+
+			// The refusal wrote nothing: the origin record still carries the marker.
+			rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+			if !strings.Contains(rec, "## Run halted") {
+				t.Errorf("marker removed on a probe-errored resume; the errored probe must retain it:\n%s", rec)
+			}
+		})
+	}
+}
+
 // TestIntegrationChangeResumeHaltedPreallocation is change 0368's end-to-end
 // regression through the REAL workspace service (spec verification requirement
 // 1: no fake workspace service anywhere in the pass). setupHaltedFixture
