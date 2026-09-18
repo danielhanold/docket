@@ -101,9 +101,13 @@ const (
 // reclaimActiveWorkspaceStates is the set of inspected workspace states that
 // prove the work still exists and so block a reclaim. A ready, dirty-owned,
 // allocating, or path/registration/manifest-mismatched (ambiguous ownership)
-// workspace is a live holder; a cleaned tombstone, a missing feature branch, or
-// an absent/foreign/unowned manifest is not this change's live work and does not
-// block. Keyed on the workspace layer's own state spellings.
+// workspace is a live holder; a cleaned tombstone, a missing feature branch, a
+// foreign/malformed/unowned manifest, or a proven cleanly-absent slot
+// (workspace.StateAbsent — a run halted before allocation, change 0368) is not
+// this change's live work and does not block. StateAbsent is deliberately absent
+// from this set: pre-0368 it inspected as StateForeign, which was likewise
+// non-blocking, so its omission preserves that behavior. Keyed on the workspace
+// layer's own state spellings.
 var reclaimActiveWorkspaceStates = map[string]bool{
 	string(workspace.StateReady):     true,
 	string(workspace.StateDirty):     true,

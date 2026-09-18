@@ -292,8 +292,11 @@ func sweepAssessWorkspaceLeg(ctx context.Context, wdeps WorkspaceDeps, repo gitc
 	switch insp.Kind {
 	case workspace.StateCleaned:
 		// An owned tombstone with no registration: the checkout is provably gone.
-	case workspace.StateForeign:
-		// Absent, foreign, malformed, or unowned manifest: never certifies clean.
+	case workspace.StateForeign, workspace.StateAbsent:
+		// Foreign, malformed, unowned, or proven cleanly absent: never certifies
+		// clean. StateAbsent is a current local observation, not a cleaned
+		// tombstone and not authority to delete — pre-0368 an absent manifest
+		// inspected as StateForeign and hit this same blocked leg (change 0368).
 		a.markBlocked(sweepLegWorkspace, "a missing or foreign workspace manifest does not certify a clean checkout")
 	default:
 		// A registered, ready/dirty/allocating/mismatched/branch-gone checkout is a
