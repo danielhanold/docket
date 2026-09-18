@@ -805,6 +805,30 @@ func (g *stageSeam) StageAndContinueRebase(ctx context.Context, dir string, path
 	return g.FinalizeContinueGit.StageAndContinueRebase(ctx, dir, paths)
 }
 
+// errReconcileWrite is the injected durable-write failure for the
+// reservation-reconciliation sites (change 0411).
+var errReconcileWrite = errors.New("reconcile write boom")
+
+// reconcileFailWorkspace wraps the real FinalizeWorkspace and faults
+// WriteRebaseReceipt after `allow` successful writes while `fail` is set, so a
+// test can let the continuation-started marker land durably and then fail only
+// the reservation reconciliation. Clearing `fail` restores writes for the
+// recovery retry. Every other seam method delegates to the embedded service.
+type reconcileFailWorkspace struct {
+	FinalizeWorkspace
+	allow  int  // writes that pass through before faulting
+	fail   bool // fault writes past allow while set
+	writes int  // observed write count
+}
+
+func (w *reconcileFailWorkspace) WriteRebaseReceipt(ctx context.Context, dir string, r workspace.RebaseReceipt) error {
+	w.writes++
+	if w.fail && w.writes > w.allow {
+		return errReconcileWrite
+	}
+	return w.FinalizeWorkspace.WriteRebaseReceipt(ctx, dir, r)
+}
+
 // reserveOnConflict drives a fresh owned rebase into a live conflict with the given
 // resolver cap, then durably reserves ONE dispatch (real FinalizeResolverReserve),
 // returning the fixture, deps, the owned attempt, the reserved token, and the live
@@ -1107,5 +1131,185 @@ func TestFinalizeRebaseContinueStartedCompletedRecovers(t *testing.T) {
 	}
 	if rec.ResolverUsed != real.ResolverUsed {
 		t.Errorf("used = %q after recovery, want %q preserved (no new charge)", rec.ResolverUsed, real.ResolverUsed)
+	}
+}
+
+// TestFinalizeRebaseContinueReconcileWriteFailurePreserves (change 0411, AC1)
+// proves a receipt-write failure injected ONLY at post-continue reservation
+// reconciliation (the started marker landed durably first) keeps the unchanged
+// error result/disposition/reason, emits a message naming the same-attempt
+// finalize.rebase-continue remedy WITHOUT claiming the whole rebase finished,
+// preserves the outstanding reservation + started marker + used count, and never
+// runs the gate before reconciliation succeeds.
+func TestFinalizeRebaseContinueReconcileWriteFailurePreserves(t *testing.T) {
+	f, deps, attempt, token, _ := reserveOnConflict(t, 2) // used == 1
+	ctx := context.Background()
+	writeRepoFile(t, f.wp, "feature.txt", "reconciled content\n") // resolve so the continue completes
+	ws := &reconcileFailWorkspace{FinalizeWorkspace: f.svc, allow: 1, fail: true} // marker write passes, reconcile write faults
+	deps.Workspace = ws
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed}}
+	deps.Gate = gate
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultExternalFailed || res.Disposition != RebaseDispBlocked || res.Reason != ReasonRebaseReceiptWrite {
+		t.Fatalf("continue = (%q, %q, %q), want external-failed/blocked/%q unchanged", res.Result, res.Disposition, res.Reason, ReasonRebaseReceiptWrite)
+	}
+	if !strings.Contains(res.Message, "finalize.rebase-continue") ||
+		!strings.Contains(res.Message, "same change id, owned attempt, and original resolved report") ||
+		!strings.Contains(res.Message, errReconcileWrite.Error()) {
+		t.Errorf("message %q must name the same-attempt finalize.rebase-continue remedy and keep the write error", res.Message)
+	}
+	if strings.Contains(res.Message, "rebase completed") {
+		t.Errorf("message %q may not assert the whole rebase finished at the post-continue site", res.Message)
+	}
+	if gate.calls != 0 {
+		t.Errorf("gate ran %d time(s) before reconciliation succeeded; want 0", gate.calls)
+	}
+	rec := reloadReceipt(t, f)
+	if rec.ResolverReservationToken != token || rec.ResolverContinuationStarted != "1" || rec.ResolverUsed != "1" {
+		t.Errorf("receipt after failed reconcile: token %q cont %q used %q, want reservation + started marker + used preserved", rec.ResolverReservationToken, rec.ResolverContinuationStarted, rec.ResolverUsed)
+	}
+}
+
+// TestFinalizeRebaseContinueReconcileWriteFailureNextConflict (change 0411, AC3)
+// proves the post-continue reconcile-write failure message stays honest when the
+// continue surfaced ANOTHER conflict: same remedy, no completion claim, receipt
+// retained with the reservation outstanding.
+func TestFinalizeRebaseContinueReconcileWriteFailureNextConflict(t *testing.T) {
+	f, deps, attempt, token, _ := reserveOnConflict(t, 2)
+	ctx := context.Background()
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f,
+		script: &gitcli.RebaseStatus{Disposition: gitcli.RebaseConflicted, HeadOID: gitcli.ObjectID(strings.Repeat("c", 40)), UnmergedPaths: []string{"feature.txt"}}}
+	deps.ContinueGit = seam
+	ws := &reconcileFailWorkspace{FinalizeWorkspace: f.svc, allow: 1, fail: true}
+	deps.Workspace = ws
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultExternalFailed || res.Reason != ReasonRebaseReceiptWrite {
+		t.Fatalf("continue = (%q, %q), want external-failed/%q", res.Result, res.Reason, ReasonRebaseReceiptWrite)
+	}
+	if !strings.Contains(res.Message, "finalize.rebase-continue") || strings.Contains(res.Message, "rebase completed") {
+		t.Errorf("message %q must name the remedy and never claim completion while a conflict remains", res.Message)
+	}
+	rec := reloadReceipt(t, f)
+	if rec.ResolverReservationToken != token || rec.ResolverContinuationStarted != "1" {
+		t.Errorf("receipt lost the outstanding reservation: token %q cont %q", rec.ResolverReservationToken, rec.ResolverContinuationStarted)
+	}
+}
+
+// TestFinalizeRebaseContinueStartedCompletedRecoveryWriteFails (change 0411, AC2)
+// proves the completed-rebase recovery branch's failed reconciliation write emits
+// the completed-specific remedy message, repeats no staging, preserves the receipt
+// — and that restoring writes and retrying the SAME report recovers: reservation
+// cleared only by the existing recovery, used preserved, gate composed.
+func TestFinalizeRebaseContinueStartedCompletedRecoveryWriteFails(t *testing.T) {
+	f, gh, real := completedBudgetedReceipt(t, func(r *workspace.RebaseReceipt) {
+		r.ResolverContinuationStarted = "1"
+	})
+	ctx := context.Background()
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps := f.finalizeDeps(gh, &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}})
+	deps.ContinueGit = seam
+	ws := &reconcileFailWorkspace{FinalizeWorkspace: f.svc, allow: 0, fail: true} // the recovery's one write faults
+	deps.Workspace = ws
+
+	report := ResolverReport{ChangeID: f.id, Attempt: real.Attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: real.ResolverReservationToken}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, real.Attempt, report)
+	if res.Result != ResultExternalFailed || res.Reason != ReasonRebaseReceiptWrite {
+		t.Fatalf("recovery write-fail = (%q, %q), want external-failed/%q", res.Result, res.Reason, ReasonRebaseReceiptWrite)
+	}
+	if !strings.Contains(res.Message, "owned rebase completed") || !strings.Contains(res.Message, "finalize.rebase-continue") ||
+		!strings.Contains(res.Message, errReconcileWrite.Error()) {
+		t.Errorf("message %q must say the owned rebase completed, name the remedy, and keep the write error", res.Message)
+	}
+	if seam.calls != 0 {
+		t.Errorf("recovery staged %d time(s); want 0", seam.calls)
+	}
+	if rec := reloadReceipt(t, f); rec.ResolverReservationToken == "" || rec.ResolverContinuationStarted != "1" || rec.ResolverUsed != real.ResolverUsed {
+		t.Errorf("failed recovery mutated the receipt: %+v", rec)
+	}
+
+	ws.fail = false // durable writes restored — retry the SAME report
+	res2 := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, real.Attempt, report)
+	if res2.Result != ResultApplied || res2.Gate == nil {
+		t.Fatalf("retry = %q gate %+v (reason %q), want applied with gate", res2.Result, res2.Gate, res2.Reason)
+	}
+	if seam.calls != 0 {
+		t.Errorf("retry staged %d time(s); want 0 (no repeated Git continuation)", seam.calls)
+	}
+	rec := reloadReceipt(t, f)
+	if rec.ResolverReservationToken != "" || rec.ResolverContinuationStarted != "" || rec.ResolverUsed != real.ResolverUsed {
+		t.Errorf("retry left receipt %+v; want reservation cleared, used %q preserved (no charge, no refund)", rec, real.ResolverUsed)
+	}
+}
+
+// TestFinalizeRebaseContinueStartedAdvancedRecoveryWriteFails (change 0411, AC3)
+// proves the advanced-conflict recovery branch's failed reconciliation write says
+// the continuation advanced — never that the rebase completed — and a retry after
+// restoring writes surfaces the next conflict without replaying the continuation.
+func TestFinalizeRebaseContinueStartedAdvancedRecoveryWriteFails(t *testing.T) {
+	f, deps, attempt, token, _ := reserveOnConflict(t, 2)
+	ctx := context.Background()
+	// The receipt records a DIFFERENT stopped commit than the live rebase, so the
+	// started continuation provably advanced.
+	seedReserveReceipt(t, f, func(r *workspace.RebaseReceipt) {
+		r.ResolverReservationStopped = strings.Repeat("d", 40)
+		r.ResolverContinuationStarted = "1"
+	})
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps.ContinueGit = seam
+	ws := &reconcileFailWorkspace{FinalizeWorkspace: f.svc, allow: 0, fail: true}
+	deps.Workspace = ws
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultExternalFailed || res.Reason != ReasonRebaseReceiptWrite {
+		t.Fatalf("advanced recovery write-fail = (%q, %q), want external-failed/%q", res.Result, res.Reason, ReasonRebaseReceiptWrite)
+	}
+	if !strings.Contains(res.Message, "advanced to another conflict") || strings.Contains(res.Message, "rebase completed") ||
+		!strings.Contains(res.Message, "finalize.rebase-continue") {
+		t.Errorf("message %q must say advanced-to-another-conflict, name the remedy, and never claim completion", res.Message)
+	}
+	if seam.calls != 0 {
+		t.Errorf("recovery staged %d time(s); want 0", seam.calls)
+	}
+
+	ws.fail = false
+	res2 := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res2.Result != ResultApplied || res2.Disposition != RebaseDispConflicted {
+		t.Fatalf("retry = (%q, %q, reason %q), want applied/conflicted surfacing the live conflict", res2.Result, res2.Disposition, res2.Reason)
+	}
+	if seam.calls != 0 {
+		t.Errorf("retry replayed the continuation %d time(s); want 0", seam.calls)
+	}
+}
+
+// TestFinalizeRebaseContinueMarkerWriteFailureNoRecoveryClaim (change 0411, AC4)
+// proves a write failure BEFORE Git ran (the continuation-started marker) does not
+// acquire the post-completion recovery remedy: same reason, no remedy phrase.
+func TestFinalizeRebaseContinueMarkerWriteFailureNoRecoveryClaim(t *testing.T) {
+	f, deps, attempt, token, _ := reserveOnConflict(t, 2)
+	ctx := context.Background()
+	seam := &stageSeam{FinalizeContinueGit: f.deps.Client, f: f}
+	deps.ContinueGit = seam
+	deps.Workspace = &reconcileFailWorkspace{FinalizeWorkspace: f.svc, allow: 0, fail: true} // the FIRST write (marker) faults
+
+	report := ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+		ConflictedPaths: []string{"feature.txt"}, ResolverReservation: token}
+	res := FinalizeRebaseContinue(ctx, deps, f.repo.invocation, f.id, attempt, report)
+	if res.Result != ResultExternalFailed || res.Reason != ReasonRebaseReceiptWrite {
+		t.Fatalf("marker write-fail = (%q, %q), want external-failed/%q", res.Result, res.Reason, ReasonRebaseReceiptWrite)
+	}
+	if strings.Contains(res.Message, "finalize.rebase-continue") {
+		t.Errorf("pre-continue marker write failure %q must not carry the post-completion recovery remedy", res.Message)
+	}
+	if seam.calls != 0 {
+		t.Errorf("a failed marker write staged %d time(s); want 0", seam.calls)
 	}
 }
