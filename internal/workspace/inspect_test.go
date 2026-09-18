@@ -359,6 +359,39 @@ func TestInspectForeignUnownedCommonDir(t *testing.T) {
 	}
 }
 
+// TestInspectAbsentSlotStatErrorIsError pins the STAT probe-error arm of
+// classifyAbsentSlot (change 0368: "a genuine probe error is an error, never
+// read as absence in either direction"). With the manifest slot and the local
+// feature ref both cleanly absent, a stat error on the intended workspace path
+// — here the `.worktrees` parent is a regular FILE, so Lstat of the leaf fails
+// with ENOTDIR, which is NOT os.IsNotExist — must surface a typed Failure, never
+// fall through to StateAbsent. It reddens if pathPresent's non-IsNotExist error
+// is mutated into a clean-absence answer.
+func TestInspectAbsentSlotStatErrorIsError(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+
+	// Occupy the `.worktrees` parent with a regular file so Lstat of the intended
+	// workspace path (its child) fails with a non-IsNotExist error.
+	wtParent := filepath.Dir(wsPathOf(repo))
+	if err := os.WriteFile(wtParent, []byte("not a directory\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	insp, err := svc.Inspect(context.Background(), InspectRequest{Repository: repo, Target: tgt})
+	if err == nil {
+		t.Fatalf("Inspect with a stat-erroring target path = nil error, Kind=%q; want a typed Failure, never clean absence", insp.Kind)
+	}
+	f, ok := AsFailure(err)
+	if !ok {
+		t.Fatalf("error %v is not a *Failure", err)
+	}
+	if f.Kind != KindExternal {
+		t.Errorf("Kind = %q; want external", f.Kind)
+	}
+}
+
 func TestInspectUnreadableIsError(t *testing.T) {
 	r := mainModeRepo(t)
 	svc, repo := r.newService(t)
