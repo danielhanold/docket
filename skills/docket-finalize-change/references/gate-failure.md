@@ -60,6 +60,8 @@ A repair is code the human's PR approval predated, so it never merges unseen:
 
 Each maps to the **`halted`** disposition and leaves the **PR open** and the change **`implemented`**:
 
+Two outcomes look abort-shaped and are not: a `waiting` (`reason: gate-waiting`) re-enters `finalize.rebase` (below), and a reservation-reconciliation write failure after Git advanced or completed the owned continuation is **not** in this set — see *The reconciliation-write exception* below.
+
 - an **ambiguous rebase conflict** — the resolver returns `stuck`, or the resolver budget is spent
   (`finalize.resolver-reserve` returns `exhausted`, or a continue returns `resolver-budget-exhausted`);
   the owned rebase is restored via the `finalize.rebase-abort` operation;
@@ -85,6 +87,16 @@ read resolves, a continue-able outcome the driver re-selects past, never `halted
 A `waiting` (`reason: gate-waiting`) is not in this set either: the suite is still running and the
 owned receipt carries the drive continuation — re-run the identical `finalize.rebase` invocation
 (never `gate drive advance`) until a terminal disposition.
+
+## The reconciliation-write exception (recover, not abort)
+
+An owned resolver continuation can succeed in Git — advancing to another conflict, or completing the rebase — and then fail only the durable write that reconciles the reservation on the receipt (`receipt-write-failed`, with a message naming this exception and the failed write). Aborting here restores the recorded original head and discards the completed local rewrite, so this window is recovered, never aborted:
+
+1. Preserve the workspace, the receipt, and the original resolver report. Re-run `finalize.rebase-continue` with the same `--id <id> --attempt <attempt> --input <report>` (the report still carries its `resolver_reservation` token). Resolve the invocation from capabilities and the report shape from schema as usual. Recovery rechecks live state and reconciles the outstanding continuation; it charges and refunds nothing and authorizes no new resolver dispatch.
+2. Do not route this persistence failure to `finalize.rebase-abort`, restart the rebase, reserve or dispatch another resolver, fabricate a replacement report, or edit or delete the receipt. A generic `blocked` disposition or the `receipt-write-failed` token alone is insufficient to diagnose this window — the operation's message says which write failed and what it proved; its ownership and live-state checks stay authoritative, so never reproduce them with handwritten Git probes.
+3. This is an operator remedy, not an autonomous retry loop. If persistence still fails, or the original report is unavailable, halt with the work retained: report the actual diagnostic and the missing input, and record the block through the existing finalize-block path where possible — a failed block recording is reported honestly and never authorizes abort.
+4. Follow the recovery's actual result. A new conflict requires normal reserve-before-dispatch admission; an exhausted budget keeps its existing abort/halt route; a completed rebase still passes the normal gate and publication checks; a `waiting` (`gate-waiting`) resumes via the original identical `finalize.rebase` invocation, never another `rebase-continue` or a direct gate-drive call. A successful reconciliation consumes the reservation — do not replay the old report afterward.
+5. Everything else keeps its verified abort route: stuck or unavailable resolvers, a continuation still stopped on the same commit, foreign or unprovable state, legacy receipts, and exhausted budgets. Establish resolver-child completion before any abort, as ever; this exception never authorizes abort on an unproven state or bypasses an existing refusal. Write failures before Git ran (reserve admission, the continuation-started marker) prove nothing about completion and carry no recovery claim.
 
 ## The finalize gate shares the worktree's one execution slot
 
