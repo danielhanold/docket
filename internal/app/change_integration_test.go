@@ -2388,6 +2388,22 @@ func TestIntegrationChangeRuntimeReclaimRequiresProvenAbsence(t *testing.T) {
 				}
 			})
 
+			// a proven cleanly-absent workspace names no owned live work: it
+			// must not raise the workspace-active refusal (change 0368 — absent
+			// is foreign-equivalent for reclaim, never in the active set).
+			// Adding StateAbsent to reclaimActiveWorkspaceStates reddens this.
+			t.Run("absent-workspace-does-not-block", func(t *testing.T) {
+				repo := m.build(t, map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")})
+				node := planningDepsFor(t, repo.invocation)
+				ver := blobVersionAt(t, repo.origin, m.branch, recPath)
+				res := ChangeReclaim(context.Background(), node.deps,
+					WorkspaceDeps{Service: fakeReclaimWorkspace{kind: workspace.StateAbsent}}, node.dir,
+					ChangeReclaimRequest{ID: 3, Version: ver})
+				if res.Reason == ReasonReclaimWorkspaceActive {
+					t.Fatalf("an absent workspace raised the workspace-active refusal; reason=%q", res.Reason)
+				}
+			})
+
 			// a workspace probe that cannot be answered fails closed.
 			t.Run("workspace-probe-error", func(t *testing.T) {
 				repo := m.build(t, map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")})
@@ -2679,6 +2695,31 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadPinsExactVersion(t *testing.T)
 	}
 	if engine.calls[0].Operation.Key() != transaction.OperationKey(OperationChangeRepairIdentity) {
 		t.Errorf("operation key = %q", engine.calls[0].Operation.Key())
+	}
+}
+
+// TestIntegrationChangeRepairAbsentWorkspaceNoConflict is change 0368's repair
+// regression: a proven cleanly-absent workspace (StateAbsent) names no owned
+// checkout at the recorded branch, so it conflicts with nothing — exactly as
+// the foreign classification did pre-change — and the repair proceeds to its
+// write. It MUST fail if StateAbsent falls through repairProveWorkspaceClear to
+// the recorded-vs-proposed branch mismatch (RepairWorkspaceConflict).
+func TestIntegrationChangeRepairAbsentWorkspaceNoConflict(t *testing.T) {
+	requireRealGit(t)
+	repo := newWorkingRepo(t, nil)
+	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
+	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateAbsent}}
+	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
+	engine.result = transaction.Result{Disposition: transaction.DispositionApplied, AppliedCommit: gitcli.ObjectID(strings.Repeat("c", 40))}
+
+	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
+		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+	})
+	if res.Result != ResultApplied || res.Reason != RepairRepairedBranch {
+		t.Fatalf("an absent workspace must not conflict: result=%q reason=%q msg=%q", res.Result, res.Reason, res.Message)
+	}
+	if len(ws.inspectCalls) != 1 {
+		t.Fatalf("workspace-clear check ran %d times, want exactly 1 (sentinel)", len(ws.inspectCalls))
 	}
 }
 

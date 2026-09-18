@@ -236,6 +236,22 @@ func TestAssessMissingManifestNoBacklinkWorkIsBlockedNotClean(t *testing.T) {
 	assertEntry(t, findEntry(entries, 41), SweepDispBlocked, ReasonSweepSnapshotBlocked)
 }
 
+// TestAssessAbsentManifestIsBlockedNotClean is change 0368's regression: a
+// proven cleanly-absent workspace (StateAbsent) must not certify a clean
+// checkout any more than a foreign one did pre-change — it is a blocker, never a
+// no-op. This MUST fail against StateAbsent falling to the default markWork arm.
+func TestAssessAbsentManifestIsBlockedNotClean(t *testing.T) {
+	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", "")}, nil)
+	ws := wsState(41, workspace.StateAbsent)
+	shared := sweepSharedFacts{remoteHeads: map[gitcli.RefName]gitcli.ObjectID{}}
+	entries, actionable := f.assess(t, ws, shared, 41)
+
+	if len(actionable) != 0 {
+		t.Fatalf("a blocked record must dispatch nothing; actionable=%v", actionable)
+	}
+	assertEntry(t, findEntry(entries, 41), SweepDispBlocked, ReasonSweepSnapshotBlocked)
+}
+
 // TestAssessMissingManifestWithStaleBacklinkIsActionable: the backlink leg is
 // INDEPENDENT of the workspace blocker — a stale backlink makes the record
 // actionable even though the workspace manifest is foreign.

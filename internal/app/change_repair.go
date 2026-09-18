@@ -438,8 +438,11 @@ func repairProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin Statu
 	if err != nil {
 		return repairConflict(err.Error(), id)
 	}
-	if insp.Kind == workspace.StateForeign {
+	if insp.Kind == workspace.StateForeign || insp.Kind == workspace.StateAbsent {
 		// No owned workspace at the recorded branch: nothing to conflict.
+		// StateAbsent is foreign-equivalent here — a proven cleanly-absent slot
+		// names no owned checkout to orphan, just as an absent manifest inspected
+		// as StateForeign did pre-0368 (change 0368).
 		return nil
 	}
 	if target.FeatureBranch() != proposedBranch {
