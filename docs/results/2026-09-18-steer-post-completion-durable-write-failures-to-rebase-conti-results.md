@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0411 — Steer post-completion durable-write failures to rebase-continue, not abort](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0411-steer-post-completion-durable-write-failures-to-rebase-conti.md)**
+> ↩ **[Change 0411 — Steer post-completion durable-write failures to rebase-continue, not abort](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-18-0411-steer-post-completion-durable-write-failures-to-rebase-conti.md)**
 <!-- docket:backlink:end -->
 # Steer post-completion durable-write failures to rebase-continue, not abort — Results
 
