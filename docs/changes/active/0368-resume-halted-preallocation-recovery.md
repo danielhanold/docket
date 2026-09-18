@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/resume-halted-preallocation-recovery'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-18T19:29:44Z'
+reconciled: true
+claimed_at: '2026-09-18T19:31:23Z'
 ---
 
 ## Artifacts
@@ -59,3 +59,7 @@ The linked spec records the implementation trace, prior decisions, alternatives,
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-09-18
+
+2026-09-18: Reconciled against current main (60d356ff). The spec examined commit 3ccf9fac; `git log 3ccf9fac..60d356ff` shows no commits touched internal/workspace/inspect.go, manifest.go, prepare.go, internal/app/change_halt.go, or change_reclaim.go, so the recovery trace is intact. Confirmed current code: inspect.go collapses manifestAbsent into StateForeign (line 87-88); manifest.go classifyManifest distinguishes manifestAbsent/Valid/Foreign/Unknown (line 205-214); change_halt.go resumeQuiescenceRefusal refuses StateForeign/StateMismatch (line 420). No StateAbsent exists yet. Scope, relations (related 313,316,318,354,366,375,429; discovered_from 318; adrs 34,35,118; depends_on []), and acceptance criteria remain valid as authored. No design invalidation; proceeding to build.
