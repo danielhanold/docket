@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -939,6 +940,47 @@ func assertNoManifest(t *testing.T, repo gitcli.Repository, tgt Target) {
 	if _, present, err := loadManifest(metaDirOf(repo, tgt)); err != nil || present {
 		t.Errorf("manifest present=%v err=%v; want cleanly absent (none published)", present, err)
 	}
+}
+
+// TestPrepareFreshBlockedByStaleRegistration pins change 0368's fresh-allocation
+// tightening: a worktree registration at the intended target path whose directory
+// has been removed — a STALE registration — blocks a fresh allocation instead of
+// being skip-matched into a silent create. Pre-change, inventoryForFresh proved
+// registration absence via registeredAt, which SKIPS an uncanonicalizable path
+// (the stale registration's directory is gone); classifyRegistrationAbsence now
+// recognizes it fail-closed (regPresent lexically, or regUnresolved), so Prepare
+// returns PrepareBlocked, force-removes nothing, and publishes no manifest. Every
+// earlier fresh-path leg (local feature ref, remote ref, target path) is left
+// clean, so the block is attributable to the registration alone.
+func TestPrepareFreshBlockedByStaleRegistration(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+
+	// Register a worktree at the intended path on a THROWAWAY branch (never the
+	// feature ref), then remove its directory: the registration survives in the
+	// git metadata while its path can no longer be canonicalized.
+	gitOut(t, r.Primary, "worktree", "add", "-b", "throwaway/stale-reg", wsPathOf(repo), "main")
+	if err := os.RemoveAll(wsPathOf(repo)); err != nil {
+		t.Fatal(err)
+	}
+	// The registration must still be recorded (RemoveAll does not prune it), or
+	// the fixture cannot exercise the stale arm. Match the raw recorded path — the
+	// containsWorktreePath helper canonicalizes, which fails on the removed dir.
+	beforeList := gitOut(t, r.Primary, "worktree", "list", "--porcelain")
+	if !strings.Contains(beforeList, "worktree "+wsPathOf(repo)+"\n") {
+		t.Fatalf("stale registration not recorded after RemoveAll; cannot exercise the stale arm:\n%s", beforeList)
+	}
+
+	assertBlocked(t, svc, repo, tgt)
+
+	// The stale registration is preserved (never force-removed) and no manifest
+	// was published — the fresh allocation is refused, byte-untouched.
+	afterList := gitOut(t, r.Primary, "worktree", "list", "--porcelain")
+	if !strings.Contains(afterList, "worktree "+wsPathOf(repo)+"\n") {
+		t.Errorf("stale registration removed; must be preserved (never force-removed):\n%s", afterList)
+	}
+	assertNoManifest(t, repo, tgt)
 }
 
 // TestPrepareConcurrentSameTarget proves two Prepares of the SAME target
