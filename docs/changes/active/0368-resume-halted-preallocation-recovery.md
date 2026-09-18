@@ -2,7 +2,7 @@
 id: 368
 slug: resume-halted-preallocation-recovery
 title: Recover a run halted before its workspace was allocated
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: fix
 created: 2026-08-29
@@ -18,7 +18,7 @@ results: 'docs/results/2026-09-18-resume-halted-preallocation-recovery-results.m
 trivial: false
 auto_groomable:
 branch: 'fix/resume-halted-preallocation-recovery'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/313'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-18T21:25:45Z'
