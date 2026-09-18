@@ -18,12 +18,14 @@
 # After change 0370 the suite is Go-native: every row below is a `# docket-suite: go`
 # wrapper (or a POSIX product suite) discovered by the runner. The frozen Bash runner and
 # its per-assertion profilers are gone, so no row describes them.
-tests/test_go_integration_app_change.sh	55	parallel
+tests/test_go_integration_app_change.sh	35	parallel
+tests/test_go_integration_app_changeruntime.sh	40	parallel
 tests/test_go_integration_app_cleanup.sh	40	parallel
 tests/test_go_integration_app_closeout.sh	40	parallel
 tests/test_go_integration_app_concurrency.sh	25	parallel
 tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	45	parallel
+tests/test_go_integration_app_rebaserecovery.sh	40	parallel
 tests/test_go_integration_app_resolverbudget.sh	20	parallel
 tests/test_go_integration_app_generatedbundle.sh	20	parallel
 tests/test_go_integration_app_mixedbundle.sh	15	parallel
@@ -37,7 +39,8 @@ tests/test_go_integration_app_reporecovery.sh	20	parallel
 tests/test_go_integration_app_reposetup.sh	15	parallel
 tests/test_go_integration_app_reposetup_race.sh	25	parallel
 tests/test_go_integration_app_state.sh	50	parallel
-tests/test_go_integration_app_workflow.sh	45	parallel
+tests/test_go_integration_app_workflow.sh	35	parallel
+tests/test_go_integration_app_workflowlifecycle.sh	35	parallel
 tests/test_go_integration_app_sweep.sh	55	parallel
 tests/test_go_integration_app_sync.sh	55	parallel
 tests/test_go_integration_contract.sh	15	parallel
