@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // The Inspect tests build each StateKind with the real-Git harness primitives
@@ -288,7 +289,7 @@ func TestInspectAbsentBlockedByLeftovers(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(wsPathOf(repo)), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Symlink(filepath.Join(t.TempDir(), "gone"), wsPathOf(repo)); err != nil {
+		if err := os.Symlink(filepath.Join(testsupport.TempDir(t), "gone"), wsPathOf(repo)); err != nil {
 			t.Fatal(err)
 		}
 		insp := inspectOK(t, svc, repo, tgt)
