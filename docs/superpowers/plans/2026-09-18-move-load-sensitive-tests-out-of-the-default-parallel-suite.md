@@ -680,3 +680,157 @@ problem, not a placement problem**.
 - Parallel whole-suite wall varies widely (479s vs 297s) and per-shard parallel timings are contention-amplified 2–6×; they are **not** used as breach evidence. The split verdicts rest solely on **isolated serial** readings exceeding current ceilings, which is host-relative but is the table's own derivation basis.
 - The cold `iso-*` run attributes the one-time `internal/app` integration-test-binary compile to whichever shard ran first (app_rebase); the warm `iso2-app-*` re-runs remove that confound (rebase 77.0→65.9s), and both readings still exceed rebase's 45s ceiling. app_change and app_workflow ran after the binary was warm, so their `iso-*` readings are compile-free.
 - No unresolved/indivisible limitation was found among the split candidates: each over-ceiling shard is an aggregate of separable test groups, so splitting (Task 3) — not a ceiling raise or a serial lane — is the measured-justified remedy.
+
+## Final evidence
+
+Produced by Task 6 at the final code head (all prior tasks committed), on the same host and
+settings as the Task 1 baseline. Raw logs live in `"${TMPDIR:-/tmp}/docket-0434-evidence"`
+(`final-suite-{1,2,3}.log`, `final-iso-*.log`, `final-iso2-*.log`). The three whole-suite runs were
+direct foreground evidence runs (`go run ./cmd/docket development test`, default parallelism, run
+inline one at a time); they are **not** the governed BUILD gate and touched no gate accounting.
+
+### Environment
+
+```
+final HEAD  ab5c20b7f81d9b034829bbd85cbb9e7ba7c03224
+baseline    9b13b29168328f430f3d0c2bd9367aabe32976c3 (Task 1)
+host        Darwin Homer.local 27.0.0 arm64, hw.ncpu 11, jobs default (-j11)
+UTC         2026-09-18T20:25Z
+```
+
+### Three consecutive whole-suite runs at the final head
+
+| run | files | passed | failed | asserts | wall | result |
+|-----|------:|-------:|-------:|--------:|-----:|--------|
+| final 1 | 52 | 52 | 0 | 423 | 292s | **GREEN** |
+| final 2 | 52 | 52 | 0 | 423 | 279s | **GREEN** |
+| final 3 | 52 | 52 | 0 | 423 | 274s | **GREEN** |
+
+Three consecutive green runs. The Task 1 baseline was RED both times (run 1: `test_go_race`
++ `test_go_toolchain` failed, 49 files, wall 479s; run 2: `test_go_toolchain` failed, wall 297s).
+The final head adds 3 files (52 vs 49 — the three new split wrappers) and +12 asserts (411→423, the
+three new declaration-only wrappers at 4 asserts each). All three red causes Task 1 identified are
+resolved at the final head:
+
+- **gofmt drift** (`internal/githubcli/comment_integration_test.go`, deterministic `test_go_toolchain`
+  red in both baselines) — fixed by commit `f33add57`; `test_go_toolchain` green in all three final
+  runs.
+- **load-sensitive gatedrive relaunch flake** (`TestIntegrationProcessDeathPermitsAtMostOneRelaunch`
+  → `HALTED (relaunch-exhausted), want WAITING` under whole-module `-race`, baseline run 1 only) —
+  the terminal-relaunch interleaving determinized/fixed by Task 2 (commit `58ecd0dd`);
+  `test_go_race` green in all three final runs.
+- **app-load contention on the over-ceiling shards** — the three over-ceiling app shards were split
+  (Task 3) and re-budgeted (Task 4); see the timing table below.
+
+### Budget-line inventory (all three final logs), with baseline attribution
+
+Each final run emitted exactly the same five `BUDGET WATCH:` screening lines and **no**
+`PARALLEL-SENSITIVE:` and **no** `SERIAL CONFIRMED OVER BUDGET:` line:
+
+| wrapper (BUDGET WATCH) | run1 / run2 / run3 parallel s | streak | touched by 0434? |
+|------------------------|-------------------------------|:------:|:----------------:|
+| test_go_finalize_e2e.sh | 121 / 102 / 101 | 1→2→3 of 5 | no |
+| test_go_integration_app_closeout.sh | 101 / 113 / 111 | 1→2→3 of 5 | no |
+| test_go_integration_app_merge.sh | 91 / 89 / 87 | 1→2→3 of 5 | no |
+| test_go_race.sh | 292 / 279 / 274 | 1→2→3 of 5 | no |
+| test_go_toolchain.sh | 265 / 249 / 249 | 1→2→3 of 5 | no |
+
+Attribution and disposition:
+
+- **Not change-induced.** All five are large whole-module / heavyweight pre-existing wrappers
+  (`test_go_race` and `test_go_toolchain` compile and run the whole module; the three app wrappers
+  are pre-existing shards this change did not touch). **None** of the six rebalanced shards this
+  change created/modified (`app_rebase`, `app_rebaserecovery`, `app_change`, `app_changeruntime`,
+  `app_workflow`, `app_workflowlifecycle`) appears in any budget line — the migration removed the
+  implicated shards from the budget-screening set entirely.
+- **Why the baseline emitted none.** Both Task 1 baseline runs were RED (a failed suite short-circuits
+  before the consecutive-green budget screen, and the consecutive-overrun streak state never
+  accumulated). The lines appear now only because the suite is green three times running, not because
+  any touched shard grew. In fact these same wrappers ran *slower* in the baseline (race 479s,
+  toolchain 458s in baseline run 1) than at the final head.
+- **Screening, not a breach.** These are `BUDGET WATCH:` parallel-overrun screening findings on a
+  contention-amplified, host-dependent `-j11` wall number. The streak reached 3/5 (below the 5/5
+  escalation) and **no `SERIAL CONFIRMED OVER BUDGET:` fired**, so per repo policy there is nothing
+  to act on — a real breach would be confirmed serially, which did not occur. Recorded here so the
+  screening findings are not silently absorbed.
+
+### Isolated timings: final head vs Task 1 baseline (same host, worst-of-two serial)
+
+The three over-ceiling parent shards (Task 1) were each split into two disjoint-prefix children.
+Baseline iso = the parent shard's worst-of-two isolated serial reading (Task 1 Step 3); final iso =
+each child's worst-of-two isolated serial reading (Task 4 Step 1, `final-iso*` logs).
+
+| final wrapper (group, tests) | parent (baseline) | baseline iso s (parent, worst) | final iso s (worst) | ceiling s | delta vs parent |
+|------------------------------|-------------------|-------------------------------:|--------------------:|:---------:|----------------:|
+| app_rebase (Gate, 6) | app_rebase (15) | 77.0 | 35.7 | 45 | −41.3 |
+| app_rebaserecovery (Recovery, 9) | app_rebase (15) | 77.0 | 31.2 | 40 | −45.8 |
+| app_change (Authoring, 51) | app_change (104) | 61.0 | 25.1 | 35 | −35.9 |
+| app_changeruntime (Runtime, 53) | app_change (104) | 61.0 | 30.9 | 40 | −30.1 |
+| app_workflow (Repo, 19) | app_workflow (32) | 56.1 | 25.7 | 35 | −30.4 |
+| app_workflowlifecycle (Lifecycle, 13) | app_workflow (32) | 56.1 | 27.9 | 35 | −28.2 |
+
+Full suite wall: **baseline 479s / 297s (×2, both RED)** vs **final 292s / 279s / 274s (×3, all GREEN)**.
+
+Honest reading of the deltas:
+
+- Every formerly-over-ceiling shard now lands well under 60s and under its re-derived ceiling. Each
+  parent's two children together (rebase 35.7+31.2=66.9; change 25.1+30.9=56.0; workflow 25.7+27.9=53.6)
+  cost roughly the parent's serial time (the fixed integration-binary/setup overhead is now paid once
+  per child), but they run in **parallel** in the pool, so the split converts one > ceiling serial
+  bottleneck into two independently-schedulable sub-ceiling units — the intended reliability win, not
+  a claimed serial speedup.
+- The full-suite wall improvement (≈297s baseline run 2 → ≈274–292s final) is **modest and
+  host/contention-dependent**; I make no unmeasured speedup claim. Baseline run 2's 297s already
+  excluded the race-failure overhead of run 1. The material, measured change is **reliability**:
+  0/2 green at baseline → 3/3 green at the final head, with every touched shard under its ceiling.
+- A material slowdown among the touched shards was **not** observed: each child's final iso is far
+  below its parent's baseline iso and below its ceiling.
+
+### Gatedrive determinism / stress (from Task 2, commit `58ecd0dd`)
+
+- **Deterministic regression:** `TestLoserAfterTerminalSettleReturnsRecordedState` (added to the fast
+  default corpus, `internal/gatedrive/driver_concurrency_test.go`) pins the 0411 interleaving — a
+  same-owner reservation loser after a terminal settle returns the authoritative recorded state, not
+  the raw `errAlreadyTerminal` sentinel. PASS plain and `-race`.
+- **Revert-reddens proof:** restoring `driveSlice`'s reserve branch to recognize only
+  `errRelaunchRaceLost` (backup-copy mutation, not `git checkout`) reddens the regression with
+  `gatedrive: drive already terminal`; restoring the fix returns it to green.
+- **Stress supplement:** `go test -race -count=25 -run
+  'TestConcurrentSameOwnerAdvanceRelaunchesOnce|TestLoserAfterTerminalSettleReturnsRecordedState'
+  ./internal/gatedrive/` — PASS. Both existing `TestConcurrentSameOwnerAdvanceRelaunchesOnce`
+  subtests and `TestRelaunchReservationHolderCannotBeStolenBeforeLaunch` remain green.
+
+### Mutation matrix (from Task 5 — coverage boundaries, each reddened then restored green)
+
+Carried from Task 5's verification pass (verification-only, no durable commit). Each mutation used a
+backup-copy restore and `-count=1`:
+
+| # | mutation | guard expected to redden | restored |
+|---|----------|--------------------------|:--------:|
+| 1 | delete one touched wrapper file | `TestRuntimeBudgetsCorrespondence` fails naming the orphaned/missing row | green |
+| 2 | delete that wrapper's `tests/runtime-budgets.tsv` row | `TestRuntimeBudgetsCorrespondence` fails (other direction) | green |
+| 3 | reset a split sibling's `SHARD_PREFIX` to the broad parent prefix | `test_go_integration_contract.sh` exactly-one-ownership fails | green |
+| 4 | remove `//go:build integration` from a touched `*_integration_test.go` | contract default-corpus-leak check fails | green |
+| 5 | flip a `SHARD_MODE="race"` wrapper to `"normal"` | contract race-direction check fails | green |
+| 6 | point a wrapper's `SHARD_PREFIX` at a name selecting nothing | executor `selects at least one tagged test` assert reddens | green |
+
+### Non-reproduction and measurement limits
+
+- **Baseline gatedrive flake did not re-appear.** `TestIntegrationProcessDeathPermitsAtMostOneRelaunch`
+  (the load-sensitive baseline run-1 red) and `TestConcurrentSameOwnerAdvanceRelaunchesOnce/
+  terminal_relaunch_winner_fails` did not fail in any of the three final whole-suite `-race` runs; the
+  determinism proof rests on Task 2's deterministic regression + revert-reddens, not on
+  whole-suite non-reproduction (a green load-run is corroboration, not proof).
+- **Parallel wall numbers are host-relative** (contention-amplified `-j11`), used only as screening
+  signal; the acceptance evidence is the isolated-serial readings against ceilings and the 3/3 green
+  reliability result.
+- **Task 5 raw red/green transcripts are not committed** (verification-only task with no durable
+  artifact); the matrix above records the boundaries Task 5 exercised, not re-executed here.
+
+### Unmet acceptance conditions
+
+**None.** Three consecutive green whole-suite runs at the final head; all three Task 1 baseline red
+causes resolved; every touched shard under its re-derived sub-60s ceiling with no serial pin, no
+ceiling inflation, no weakened assertion, and no skipped scenario; no `SERIAL CONFIRMED OVER BUDGET:`
+breach; the gatedrive fix carries a deterministic regression with revert-reddens proof; the coverage
+guards mutation-bite on all six boundaries.
