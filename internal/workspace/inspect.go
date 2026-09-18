@@ -40,7 +40,8 @@ const (
 	StateDirty      StateKind = "dirty-owned"    // registered and consistent, but dirty/staged/untracked
 	StateBranchGone StateKind = "branch-missing" // feature ref missing
 	StateMismatch   StateKind = "mismatch"       // path/registration/manifest disagree
-	StateForeign    StateKind = "foreign"        // absent, foreign, malformed, or unowned manifest
+	StateForeign    StateKind = "foreign"        // leftover, foreign, malformed, or unowned manifest
+	StateAbsent     StateKind = "absent"         // proven cleanly absent: no manifest, local ref, path, or registration
 )
 
 // Inspection is the read-only fact bundle Inspect returns. Detail carries the
@@ -85,7 +86,7 @@ func (s *Service) Inspect(ctx context.Context, req InspectRequest) (Inspection, 
 	case manifestUnknown:
 		return Inspection{}, &Failure{Op: inspectOp, Stage: "inventory", Kind: KindExternal, Detail: "workspace manifest is unreadable", Err: cerr}
 	case manifestAbsent:
-		return Inspection{Kind: StateForeign, Path: intendedPath, Detail: "no workspace manifest"}, nil
+		return s.classifyAbsentSlot(ctx, repo, target, intendedPath)
 	case manifestForeign:
 		return Inspection{Kind: StateForeign, Path: intendedPath, Detail: boundedDetail(cerr.Error())}, nil
 	}
@@ -122,6 +123,43 @@ func (s *Service) Inspect(ctx context.Context, req InspectRequest) (Inspection, 
 		return Inspection{}, err
 	}
 	return insp, nil
+}
+
+// classifyAbsentSlot classifies a workspace whose manifest slot is cleanly
+// absent. It is StateAbsent — a current, local observation, never proof a
+// worker stopped and never cleanup or launch authority — only when the local
+// feature ref, the intended path, and every worktree registration are ALSO
+// cleanly absent. Any leftover, and any registration whose identity cannot be
+// resolved, keeps the pre-0368 StateForeign classification with a bounded
+// detail; a genuine probe error is an error, never read as absence in either
+// direction (change 0368).
+func (s *Service) classifyAbsentSlot(ctx context.Context, repo gitcli.Repository, target Target, intendedPath string) (Inspection, error) {
+	foreign := func(detail string) (Inspection, error) {
+		return Inspection{Kind: StateForeign, Path: intendedPath, Detail: detail}, nil
+	}
+	absent, err := s.localRefAbsent(ctx, repo, target.FeatureRef)
+	if err != nil {
+		return Inspection{}, mapGitFailure(inspectOp, "inventory", err)
+	}
+	if !absent {
+		return foreign("no workspace manifest; local feature branch exists")
+	}
+	if present, perr := pathPresent(intendedPath); perr != nil {
+		return Inspection{}, &Failure{Op: inspectOp, Stage: "inventory", Kind: KindExternal, Detail: "stat of target path failed", Err: perr}
+	} else if present {
+		return foreign("no workspace manifest; target path is occupied")
+	}
+	infos, err := s.git.ListWorktrees(ctx, repo)
+	if err != nil {
+		return Inspection{}, mapGitFailure(inspectOp, "inventory", err)
+	}
+	switch classifyRegistrationAbsence(infos, intendedPath, target.FeatureRef) {
+	case regPresent:
+		return foreign("no workspace manifest; a worktree registration occupies the target path or feature ref")
+	case regUnresolved:
+		return foreign("no workspace manifest; a worktree registration's identity is unresolved")
+	}
+	return Inspection{Kind: StateAbsent, Path: intendedPath}, nil
 }
 
 // classifyState assigns insp.Kind (and the ancestry/dirty facts it depends on)

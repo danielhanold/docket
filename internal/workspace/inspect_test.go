@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -237,15 +238,89 @@ func TestInspectForeignMalformed(t *testing.T) {
 	}
 }
 
-func TestInspectForeignAbsent(t *testing.T) {
+// TestInspectAbsent is the regression for change 0368: with no manifest, no
+// local feature branch, nothing at the intended path, and no registration,
+// Inspect reports the proven-absent state instead of foreign. This test MUST
+// fail against the pre-0368 conflation (which returned StateForeign here).
+func TestInspectAbsent(t *testing.T) {
 	r := mainModeRepo(t)
 	svc, repo := r.newService(t)
 	tgt := freshTarget(t, 7)
 
 	insp := inspectOK(t, svc, repo, tgt)
-	if insp.Kind != StateForeign {
-		t.Errorf("Kind = %q; want foreign for an absent manifest", insp.Kind)
+	if insp.Kind != StateAbsent {
+		t.Errorf("Kind = %q; want absent for an all-clean missing workspace", insp.Kind)
 	}
+}
+
+// TestInspectAbsentBlockedByLeftovers pins each leftover that keeps a
+// manifest-absent slot classified StateForeign rather than StateAbsent: a
+// surviving local feature branch, anything at the intended path (including a
+// dangling symlink), and a worktree registration on the feature ref or at the
+// target path (change 0368).
+func TestInspectAbsentBlockedByLeftovers(t *testing.T) {
+	t.Run("local-branch", func(t *testing.T) {
+		r := mainModeRepo(t)
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+		gitOut(t, r.Primary, "branch", strings.TrimPrefix(string(tgt.FeatureRef), "refs/heads/"), "main")
+		insp := inspectOK(t, svc, repo, tgt)
+		if insp.Kind != StateForeign {
+			t.Errorf("Kind = %q; want foreign when the local feature branch exists", insp.Kind)
+		}
+	})
+	t.Run("occupied-path-dir", func(t *testing.T) {
+		r := mainModeRepo(t)
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+		if err := os.MkdirAll(wsPathOf(repo), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		insp := inspectOK(t, svc, repo, tgt)
+		if insp.Kind != StateForeign {
+			t.Errorf("Kind = %q; want foreign when the target path is occupied", insp.Kind)
+		}
+	})
+	t.Run("dangling-symlink", func(t *testing.T) {
+		r := mainModeRepo(t)
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+		if err := os.MkdirAll(filepath.Dir(wsPathOf(repo)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(t.TempDir(), "gone"), wsPathOf(repo)); err != nil {
+			t.Fatal(err)
+		}
+		insp := inspectOK(t, svc, repo, tgt)
+		if insp.Kind != StateForeign {
+			t.Errorf("Kind = %q; want foreign for a dangling symlink at the target path", insp.Kind)
+		}
+	})
+	t.Run("registration-on-feature-ref-elsewhere", func(t *testing.T) {
+		r := mainModeRepo(t)
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+		elsewhere := filepath.Join(r.Primary, "..", "elsewhere-ws")
+		gitOut(t, r.Primary, "worktree", "add", "-b",
+			strings.TrimPrefix(string(tgt.FeatureRef), "refs/heads/"), elsewhere, "main")
+		insp := inspectOK(t, svc, repo, tgt)
+		if insp.Kind != StateForeign {
+			t.Errorf("Kind = %q; want foreign when a registration references the feature ref", insp.Kind)
+		}
+	})
+	t.Run("stale-registration-at-path", func(t *testing.T) {
+		r := mainModeRepo(t)
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+		gitOut(t, r.Primary, "worktree", "add", "-b", "throwaway/stale-reg", wsPathOf(repo), "main")
+		if err := os.RemoveAll(wsPathOf(repo)); err != nil { // directory gone, registration remains
+			t.Fatal(err)
+		}
+		insp := inspectOK(t, svc, repo, tgt)
+		if insp.Kind != StateForeign {
+			t.Errorf("Kind = %q; want foreign for a stale registration at the target path", insp.Kind)
+		}
+	})
 }
 
 // TestInspectForeignUnownedCommonDir isolates the manifest OWNERSHIP gate
