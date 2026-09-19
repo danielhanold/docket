@@ -35,8 +35,8 @@ func TestIntegrationEnsureCommentIdempotent(t *testing.T) {
 		c, log := newFakeClient(t, fakeScenario{
 			Sequential: true,
 			Invocations: []fakeArm{
-				cmtViewArm(prCommentsJSON(), 0),                            // probe: no comment
-				cmtCommentArm(0),                                           // act: pr comment
+				cmtViewArm(prCommentsJSON(), 0), // probe: no comment
+				cmtCommentArm(0),                // act: pr comment
 				cmtViewArm(prCommentsJSON(commentObj(cmtBody, cmtURL)), 0), // verify: present
 			},
 		})
