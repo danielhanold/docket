@@ -90,14 +90,24 @@ type fakeScopePrep struct {
 }
 
 func (f *fakeScopePrep) deps() GateScopeDeps {
-	return GateScopeDeps{Prepare: func(req gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
-		f.calls++
-		f.req = req
-		if f.err != nil {
-			return gatedrive.ScopeGrant{}, f.err
-		}
-		return f.grant, nil
-	}}
+	return GateScopeDeps{
+		Prepare: func(req gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
+			f.calls++
+			f.req = req
+			if f.err != nil {
+				return gatedrive.ScopeGrant{}, f.err
+			}
+			return f.grant, nil
+		},
+		// A permissive cancellation seam so every resume test that reaches the
+		// EpochCancelled/EpochSuperseded branches sees a quiescent old epoch (change
+		// 0435): accounted launches, no worktree slot. Slot-bearing tests override
+		// CancelSeams with a real store. A nil store makes validateResumeQuiescence's
+		// slot leg vacuous, which is correct for fixtures that bind no worktree slot.
+		CancelSeams: func(string) cancelSeams {
+			return cancelSeams{launches: okLaunchReconciler()}
+		},
+	}
 }
 
 // resumeInspectService is a fakeWorkspaceService that inspects a resume target to

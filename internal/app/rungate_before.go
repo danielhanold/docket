@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/danielhanold/docket/internal/domain"
@@ -104,6 +105,11 @@ const (
 // test injects a fake that records the request and returns a canned grant.
 type GateScopeDeps struct {
 	Prepare func(gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error)
+	// CancelSeams overrides the cancellation seams the resume path's old-epoch
+	// quiescence validation composes (change 0435); nil composes
+	// productionCancelSeams(repoDir). Unit tests inject permissive or adversarial
+	// seams; production callers leave it nil.
+	CancelSeams func(repoDir string) cancelSeams
 }
 
 // gateHashToken returns the sha256 of a raw token as lowercase hex — the single
@@ -309,6 +315,50 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 	})
 }
 
+// validateResumeQuiescence re-proves the OLD epoch's quiescence before resume may
+// reserve a replacement (EpochCancelled) or re-authorize a previously reserved one
+// (EpochSuperseded) — the same bounded proof terminal repair uses
+// (verifyTerminalEpochQuiescence; the cancellation command's last reported
+// disposition is not durable authority). When the evidence is accounted and a
+// RELEASED slot still carries the old epoch's ownership, it performs the same
+// ownership-checked retirement (cancelSeams.retireSlot) so the replacement's own
+// reservation is not refused stale-run-epoch. It never cancels or alters an
+// already-reserved successor, and a foreign slot alone (classifySlotOwnership: a
+// different nonempty RunEpochID is a foreign owner) neither proves nor disproves
+// quiescence. Incomplete or unreadable proof returns ok=false with a bounded,
+// credential-free detail for the gate-unarmed message; it creates no replacement and
+// yields no dispatch authorization.
+func validateResumeQuiescence(seams cancelSeams, ep EpochRecord) (ok bool, detail string) {
+	quiescent, findings := verifyTerminalEpochQuiescence(seams, ep)
+	if !quiescent {
+		return false, strings.Join(findings, "; ")
+	}
+	if seams.store == nil || ep.Worktree == "" {
+		return true, ""
+	}
+	slot, _, err := seams.store.LoadWorktreeExecution(ep.Worktree)
+	if err != nil {
+		if se, aok := gatedrive.AsStoreError(err); aok && se.Kind == gatedrive.ErrNotFound {
+			return true, ""
+		}
+		return false, "slot-unreadable"
+	}
+	if classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) != slotOwned {
+		return true, "" // absent ownership, or a foreign successor: neutral
+	}
+	if string(slot.State) != "released" {
+		return false, "slot-not-released"
+	}
+	if rerr := seams.retireSlot(ep.Worktree, ep.EpochID, slot.ReservationToken); rerr != nil {
+		cur, _, lerr := seams.store.LoadWorktreeExecution(ep.Worktree)
+		if lerr == nil && (cur.RunEpochID == "" || cur.RunEpochID != ep.EpochID) {
+			return true, "" // concurrently retired, or replaced by a successor: neutral
+		}
+		return false, "slot-retire-failed"
+	}
+	return true, ""
+}
+
 // RunGateBefore arms the implement-next run gate. On a bad target it returns a
 // usage error (non-zero exit); otherwise it re-syncs, reads the in-progress
 // claim set, captures the dispatch epoch after that read, optionally verifies an
@@ -413,6 +463,15 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 				"the prior run epoch for change "+scopeChangeID+" could not be resolved")
 		}
 		if foundEp {
+			// Resume's old-epoch quiescence validation shares the cancellation seams
+			// (change 0435); production composes them over repoDir, unit tests inject
+			// permissive or adversarial seams. Resolved once inside this already-serialized
+			// resume decision — the epoch-state read plus the supersede CAS's one-winner
+			// point — never as a separate unlocked preflight.
+			seams := productionCancelSeams(repoDir)
+			if sdeps.CancelSeams != nil {
+				seams = sdeps.CancelSeams(repoDir)
+			}
 			switch oldEp.State {
 			case EpochActive:
 				// The prior run can still act on the worktree: refuse with the safe locator
@@ -425,15 +484,32 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 						"); finish cancellation with 'docket run cancel' before resuming")
 			case EpochSuperseded:
 				// A replacement was already reserved (a lost response or a repeat arm):
-				// observe that reservation rather than admitting a second.
+				// observe that reservation rather than admitting a second. Re-authorizing
+				// it still requires the old epoch to be quiescent (change 0435) — the same
+				// bounded proof terminal repair uses; the cancellation command's last
+				// reported disposition is not durable authority. The successor reservation
+				// is never altered.
 				if oldEp.ReplacementReserved == "" {
 					return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
 						"change "+scopeChangeID+" was superseded without a recorded replacement")
 				}
+				if qok, detail := validateResumeQuiescence(seams, oldEp); !qok {
+					return gateUnarmedMsg(ReasonGateResumeCancellationPending,
+						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
+							"); the reserved replacement cannot be re-authorized until it is resolved")
+				}
 				return gateResumeObserve(oldEp.ReplacementReserved)
 			case EpochCancelled:
-				// Confirmed cancellation: atomically supersede and reserve exactly one
-				// replacement dispatch (one winner under a concurrent-resume race).
+				// Confirmed cancellation: re-prove the old epoch's quiescence and retire a
+				// released slot that still carries its ownership (change 0435), then
+				// atomically supersede and reserve exactly one replacement dispatch (one
+				// winner under a concurrent-resume race). Unresolved evidence refuses on the
+				// existing gate-unarmed channel rather than reserving over an unquiesced run.
+				if qok, detail := validateResumeQuiescence(seams, oldEp); !qok {
+					return gateUnarmedMsg(ReasonGateResumeCancellationPending,
+						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
+							"); resume cannot reserve a replacement — resolve it with 'docket run cancel'")
+				}
 				return armResumeReplacement(repoDir, sdeps, oldKey, resumeReplacementParams{
 					createdAt:     createdAt,
 					dispatchEpoch: dispatchEpoch,
