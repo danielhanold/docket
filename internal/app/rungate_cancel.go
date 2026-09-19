@@ -23,7 +23,8 @@
 // process.Stop it; RE-ENUMERATE the epoch's participants and the worktree admission
 // record after stopping (a launch admitted before the fence won and can register
 // after the initial snapshot); reconcile AdmittedMutations (any admitted-not-completed
-// entry keeps it pending); all accounted → CAS cancelling→cancelled and release
+// entry keeps it pending); all accounted → retire the epoch's released-slot
+// ownership (RetireWorktreeExecutionEpoch), then CAS cancelling→cancelled and release
 // proven slots (`cancelled`), else `cancellation-pending`. A repeat against a
 // cancelling epoch RESUMES cleanup without restoring authority; against a
 // cancelled/superseded epoch it is `already-cancelled`. Completed work is never
@@ -169,6 +170,24 @@ type cancelSeams struct {
 	stopper  cancelStopper
 	native   nativeTaskCanceller
 	launches epochLaunchReconciler
+	// retire overrides the slot epoch-retirement write (unit tests inject faults and
+	// successor races); nil delegates to store.RetireWorktreeExecutionEpoch. A nil
+	// store with a nil retire proves nothing (retireSlot fails closed).
+	retire func(worktree, epoch, token string) error
+}
+
+// retireSlot performs the ownership-checked epoch retirement write through the
+// seam, defaulting to the production store operation
+// (RetireWorktreeExecutionEpoch). A nil store and a nil retire seam cannot prove a
+// detachment, so it fails closed rather than reporting a false success.
+func (s cancelSeams) retireSlot(worktree, epoch, token string) error {
+	if s.retire != nil {
+		return s.retire(worktree, epoch, token)
+	}
+	if s.store == nil {
+		return fmt.Errorf("gate store unavailable")
+	}
+	return s.store.RetireWorktreeExecutionEpoch(worktree, epoch, token)
 }
 
 // RunCancel is the public `run cancel` entry. deps and wdeps are accepted for the
@@ -328,9 +347,22 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 	}
 
 	// (8) Verdict. Not fully accounted → cancellation-pending (durable fence held,
-	// repeatable). Fully accounted → CAS cancelling→cancelled (proven slots already
-	// released above) → cancelled.
+	// repeatable). Fully accounted → retire the epoch's released-slot ownership UNDER
+	// THE ADMISSION LOCK (retireWorktreeSlotOwnership → RetireWorktreeExecutionEpoch),
+	// and only then CAS cancelling→cancelled. These are two existing records, not a
+	// transaction: a failure BEFORE retirement leaves ownership intact and
+	// cancellation pending; a failure AFTER safe detachment (all launch, execution,
+	// and mutation obligations settled first) leaves the epoch fenced cancelling —
+	// also pending, never refused and never a rollback — and a retry revalidates the
+	// proof, accepts the already-detached slot, and finishes the transition.
 	if !accounted {
+		return cancelResult(CancelDispositionPending, findings)
+	}
+	retired, rfinding := retireWorktreeSlotOwnership(seams, ep)
+	if rfinding != "" {
+		findings = append(findings, rfinding)
+	}
+	if !retired {
 		return cancelResult(CancelDispositionPending, findings)
 	}
 	if ferr := epochCAS(repoDir, key, func(r *EpochRecord) error {
@@ -339,9 +371,57 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 		}
 		return nil
 	}); ferr != nil {
-		return cancelRefused("finalize-failed")
+		findings = append(findings, "finalize-unpersisted")
+		return cancelResult(CancelDispositionPending, findings)
 	}
 	return cancelResult(CancelDispositionCancelled, findings)
+}
+
+// retireWorktreeSlotOwnership retires the fenced epoch's ownership of its RELEASED
+// worktree slot — the cancellation-specific detachment ordinary execution release
+// never performs (ordinary ReleaseWorktreeExecution retains RunEpochID for
+// between-drive ownership). It runs ONLY after complete accounting, inside the
+// authorized completion decision. It returns whether ownership is accounted
+// detached (retired now, already detached, absent, foreign, or not provably ours)
+// and a bounded finding when it is not. On a raced retirement CAS it re-reads ONCE
+// and distinguishes a successor to leave alone from unresolved old work — never
+// retrying with a successor's reservation token (classifySlotOwnership treats a
+// different nonempty RunEpochID as a foreign owner).
+func retireWorktreeSlotOwnership(seams cancelSeams, ep EpochRecord) (bool, string) {
+	if seams.store == nil || ep.Worktree == "" {
+		return true, "" // keyless/standalone: no slot ownership to retire
+	}
+	slot, _, err := seams.store.LoadWorktreeExecution(ep.Worktree)
+	if err != nil {
+		if se, ok := gatedrive.AsStoreError(err); ok && se.Kind == gatedrive.ErrNotFound {
+			return true, "" // absent after full accounting: idempotently detached
+		}
+		return false, "slot-unreadable"
+	}
+	switch classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) {
+	case slotForeign, slotUnowned, slotLinkedLegacy:
+		// Foreign/successor: never cleared. Epoch-less (linked or not): carries no
+		// RunEpochID ownership field to retire.
+		return true, ""
+	}
+	// slotOwned: only a released owned slot may be detached.
+	if string(slot.State) != "released" {
+		return false, "slot-not-released"
+	}
+	if rerr := seams.retireSlot(ep.Worktree, ep.EpochID, slot.ReservationToken); rerr != nil {
+		// Re-read once: a successor may have replaced the slot between the load and
+		// the CAS. An already-cleared field (a concurrent replay's retirement) or a
+		// foreign owner now is accounted; anything else stays pending.
+		cur, _, lerr := seams.store.LoadWorktreeExecution(ep.Worktree)
+		if lerr == nil && cur.RunEpochID == "" {
+			return true, ""
+		}
+		if lerr == nil && cur.RunEpochID != ep.EpochID {
+			return true, "slot-replaced-by-successor"
+		}
+		return false, "slot-retire-failed"
+	}
+	return true, ""
 }
 
 // reconcileEpochTeardown performs the cancellation teardown accounting for an
