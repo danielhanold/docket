@@ -386,7 +386,7 @@ func reconcileEpochTeardown(seams cancelSeams, repoDir, gateKey string, ep Epoch
 		if !isExecutionParticipant(p.Kind) {
 			continue
 		}
-		markWorktreeSlotStopping(seams, ep.Worktree)
+		markWorktreeSlotStopping(seams, ep)
 		if stopParticipantProcess(seams, p.NativeHandle) {
 			proven[p.NativeHandle] = true
 		} else {
@@ -399,7 +399,7 @@ func reconcileEpochTeardown(seams cancelSeams, repoDir, gateKey string, ep Epoch
 	// epoch owns. Marking stopping, stopping its process, and releasing on proven
 	// teardown is the authoritative slot teardown; an unproven or unreadable slot
 	// keeps cancellation pending (fail closed).
-	slotAccounted, slotFinding := reconcileWorktreeSlot(seams, ep.Worktree)
+	slotAccounted, slotFinding := reconcileWorktreeSlot(seams, ep)
 	if slotFinding != "" {
 		findings = append(findings, slotFinding)
 	}
@@ -478,53 +478,128 @@ func stopParticipantProcess(seams cancelSeams, handle string) bool {
 	return err == nil && proven
 }
 
+// slotOwnershipClass classifies a loaded worktree slot against the fenced epoch —
+// the ownership predicate every slot-touching cancel path shares. Ownership is
+// established BEFORE marking, stopping, releasing, or retiring: the slot's current
+// reservation token alone is not proof of epoch ownership (spec). A different
+// nonempty RunEpochID is a foreign owner (or a successor) and is never touched;
+// Tasks 4/5/7 reuse this classifier.
+type slotOwnershipClass int
+
+const (
+	// slotOwned: the slot records this epoch's id — the epoch's own top-level execution.
+	slotOwned slotOwnershipClass = iota
+	// slotLinkedLegacy: an epoch-less slot whose exact execution (RawRunDir) is
+	// independently linked to one of this epoch's REGISTERED execution participants.
+	slotLinkedLegacy
+	// slotForeign: a different nonempty RunEpochID — a foreign owner or a successor.
+	// Never marked, stopped, released, or cleared.
+	slotForeign
+	// slotUnowned: epoch-less with no independent linkage — not provably this
+	// epoch's; left untouched with an unresolved-ownership finding.
+	slotUnowned
+)
+
+// classifySlotOwnership decides whether the fenced epoch owns the loaded slot. A
+// nonempty RunEpochID is authoritative: equal to this epoch it is slotOwned, a
+// different nonempty id is a foreign owner (slotForeign) — never touched. An
+// epoch-less slot (the legacy shape) is ours only when its exact execution
+// (RawRunDir) matches one of this epoch's REGISTERED execution participants
+// (slotLinkedLegacy); otherwise it is not provably ours (slotUnowned).
+func classifySlotOwnership(slotEpochID, slotRawRunDir string, ep EpochRecord) slotOwnershipClass {
+	if slotEpochID != "" {
+		if slotEpochID == ep.EpochID {
+			return slotOwned
+		}
+		return slotForeign
+	}
+	if slotRawRunDir != "" {
+		for _, p := range ep.Participants {
+			if isExecutionParticipant(p.Kind) && p.NativeHandle == slotRawRunDir {
+				return slotLinkedLegacy
+			}
+		}
+	}
+	return slotUnowned
+}
+
 // markWorktreeSlotStopping best-effort marks the epoch's worktree execution slot
 // stopping before its process is stopped, using the slot's own persisted
-// reservation token (RunCancel holds no token of its own). A missing store, empty
-// worktree, unreadable slot, or already-terminal slot is left untouched — the
-// authoritative release decision is reconcileWorktreeSlot's.
-func markWorktreeSlotStopping(seams cancelSeams, worktree string) {
-	if seams.store == nil || worktree == "" {
+// reservation token (RunCancel holds no token of its own). It marks ONLY a slot
+// this epoch owns — slotOwned or slotLinkedLegacy per classifySlotOwnership: a
+// different nonempty RunEpochID is a foreign owner and is left untouched. A missing
+// store, empty worktree, unreadable slot, or already-terminal slot is also left
+// untouched — the authoritative release decision is reconcileWorktreeSlot's.
+func markWorktreeSlotStopping(seams cancelSeams, ep EpochRecord) {
+	if seams.store == nil || ep.Worktree == "" {
 		return
 	}
-	slot, _, err := seams.store.LoadWorktreeExecution(worktree)
+	slot, _, err := seams.store.LoadWorktreeExecution(ep.Worktree)
 	if err != nil {
 		return
 	}
+	switch classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) {
+	case slotOwned, slotLinkedLegacy:
+		// proceed
+	default:
+		return // foreign or unowned: never marked
+	}
 	switch string(slot.State) {
 	case "reserved", "executing":
-		_ = seams.store.MarkWorktreeExecutionStopping(worktree, slot.ReservationToken)
+		_ = seams.store.MarkWorktreeExecutionStopping(ep.Worktree, slot.ReservationToken)
 	}
 }
 
 // reconcileWorktreeSlot stops the epoch's worktree execution slot and releases it on
-// PROVEN teardown. It returns whether the slot is accounted (released, absent, or
-// already released) and a bounded finding when it is not. A nil store or empty
-// worktree is vacuously accounted (a keyless/standalone run owns no slot); an
-// unreadable-but-present slot fails closed to pending.
-func reconcileWorktreeSlot(seams cancelSeams, worktree string) (accounted bool, finding string) {
-	if seams.store == nil || worktree == "" {
+// PROVEN teardown. It touches ONLY a slot this epoch owns (classifySlotOwnership): a
+// foreign owner (a different nonempty RunEpochID) is never marked, stopped,
+// released, or cleared, and an epoch-less slot with no independent participant
+// linkage is left untouched with its ownership surfaced — both are accounted (they
+// are not this epoch's obligation; launch obligations independently linked to this
+// epoch are still accounted by the launch reconciler). For an owned slot it returns
+// whether the slot is accounted (released, absent, or already released) and a
+// bounded finding when it is not. It CHECKS the release write: a proven process stop
+// does not prove the release was durably recorded, so a failed release fails closed
+// to pending (slot-release-failed). A nil store or empty worktree is vacuously
+// accounted (a keyless/standalone run owns no slot); an unreadable-but-present slot
+// fails closed to pending.
+func reconcileWorktreeSlot(seams cancelSeams, ep EpochRecord) (accounted bool, finding string) {
+	if seams.store == nil || ep.Worktree == "" {
 		return true, ""
 	}
-	slot, _, err := seams.store.LoadWorktreeExecution(worktree)
+	slot, _, err := seams.store.LoadWorktreeExecution(ep.Worktree)
 	if err != nil {
 		if se, ok := gatedrive.AsStoreError(err); ok && se.Kind == gatedrive.ErrNotFound {
 			return true, "" // no slot to reconcile
 		}
 		return false, "slot-unreadable"
 	}
+	switch classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) {
+	case slotForeign:
+		// A different nonempty RunEpochID is a foreign owner: not this epoch's
+		// obligation, never marked/stopped/released/cleared.
+		return true, "slot-foreign-owner"
+	case slotUnowned:
+		// Epoch-less with no independent participant linkage: not provably ours —
+		// left untouched, ownership surfaced.
+		return true, "slot-ownership-unresolved"
+	}
 	switch string(slot.State) {
 	case "released":
 		return true, ""
 	case "reserved", "executing", "stopping":
-		_ = seams.store.MarkWorktreeExecutionStopping(worktree, slot.ReservationToken)
+		_ = seams.store.MarkWorktreeExecutionStopping(ep.Worktree, slot.ReservationToken)
 		if slot.RawRunDir == "" {
 			// A bare reservation with no launched process is not proven torn down
 			// here; a later recovery resolves it. Fail closed to pending.
 			return false, "slot-stop-unproven"
 		}
 		if stopParticipantProcess(seams, slot.RawRunDir) {
-			_ = seams.store.ReleaseWorktreeExecution(worktree, slot.ReservationToken)
+			if rerr := seams.store.ReleaseWorktreeExecution(ep.Worktree, slot.ReservationToken); rerr != nil {
+				// A stopped process with an unrecorded release is NOT accounted: the
+				// durable slot still claims a live execution (fail closed).
+				return false, "slot-release-failed"
+			}
 			return true, ""
 		}
 		return false, "slot-stop-unproven"
