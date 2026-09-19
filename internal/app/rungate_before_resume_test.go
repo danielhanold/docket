@@ -250,6 +250,207 @@ func countEpochRecords(t *testing.T, repoDir string) int {
 	return n
 }
 
+// seedResumeSlot binds the prior epoch's Worktree to a fresh real directory and
+// reserves a RELEASED worktree slot there owned by ownerEpoch, returning the common
+// dir, the store, and the bound worktree. The slot-bearing resume-quiescence tests
+// (change 0435) use it: the epoch's Worktree must be the same directory the slot is
+// reserved for, mirroring the cancel fixture's epochCAS worktree bind.
+func seedResumeSlot(t *testing.T, repoDir, priorKey, ownerEpoch string) (common string, store *gatedrive.Store, worktree string) {
+	t.Helper()
+	common, err := gateGitCommonDir(repoDir)
+	if err != nil {
+		t.Fatalf("gateGitCommonDir: %v", err)
+	}
+	store = gatedrive.OpenStore(common)
+	worktree = t.TempDir()
+	if err := epochCAS(repoDir, priorKey, func(r *EpochRecord) error {
+		r.Worktree = worktree
+		return nil
+	}); err != nil {
+		t.Fatalf("epochCAS bind worktree: %v", err)
+	}
+	token, err := store.ReserveWorktreeExecutionForEpoch(common, worktree, ownerEpoch, nil)
+	if err != nil {
+		t.Fatalf("ReserveWorktreeExecutionForEpoch: %v", err)
+	}
+	if err := store.ConfirmWorktreeExecution(worktree, token, "run-1", filepath.Join(worktree, "rd")); err != nil {
+		t.Fatalf("ConfirmWorktreeExecution: %v", err)
+	}
+	if err := store.ReleaseWorktreeExecution(worktree, token); err != nil {
+		t.Fatalf("ReleaseWorktreeExecution: %v", err)
+	}
+	return common, store, worktree
+}
+
+// TestResumeDeniedWhileOldEpochNotQuiescent (AC6/AC7): a durably cancelled epoch
+// whose launch evidence is still unsettled cannot authorize a replacement — the arm
+// refuses on the existing gate-unarmed channel (ReasonGateResumeCancellationPending),
+// mints no record, reserves no replacement, and leaves the old epoch cancelled.
+func TestResumeDeniedWhileOldEpochNotQuiescent(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	priorKey, _ := seedPriorEpoch(t, repoDir, EpochCancelled)
+
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	d := sp.deps()
+	d.CancelSeams = func(string) cancelSeams {
+		return cancelSeams{launches: &fakeLaunchReconciler{report: gatedrive.EpochLaunchReport{
+			Accounted: false, Findings: []string{"claim-busy:d1"}}}}
+	}
+	res := RunGateBefore(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
+	if res.Armed {
+		t.Fatalf("resume armed over a non-quiescent old epoch: %q", res.HumanText())
+	}
+	if res.Reason != ReasonGateResumeCancellationPending {
+		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonGateResumeCancellationPending)
+	}
+	if !strings.Contains(res.Message, "claim-busy:d1") {
+		t.Fatalf("Message must carry the unresolved finding, got %q", res.Message)
+	}
+	if res.Key != "" || sp.calls != 0 {
+		t.Fatalf("a denied resume must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
+	}
+	prior, _, err := LoadEpochRecord(repoDir, priorKey)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if prior.State != EpochCancelled {
+		t.Fatalf("denied resume must leave the old epoch cancelled, got %q", prior.State)
+	}
+	if prior.ReplacementReserved != "" {
+		t.Fatalf("denied resume must reserve no replacement, got %q", prior.ReplacementReserved)
+	}
+}
+
+// TestResumeRetiresStaleSlotThenReservesOnce (AC1/AC7): a cancelled epoch whose
+// released slot still carries its RunEpochID is retired by the resume validation,
+// then EXACTLY ONE replacement is reserved; a repeat arm observes the same key.
+func TestResumeRetiresStaleSlotThenReservesOnce(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	priorKey, epochID := seedPriorEpoch(t, repoDir, EpochCancelled)
+	_, store, worktree := seedResumeSlot(t, repoDir, priorKey, epochID)
+
+	mkSeams := func(string) cancelSeams {
+		return cancelSeams{store: store, launches: okLaunchReconciler()}
+	}
+
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	d := sp.deps()
+	d.CancelSeams = mkSeams
+	first := RunGateBefore(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
+	if !first.Armed {
+		t.Fatalf("first resume must arm the replacement: %q", first.HumanText())
+	}
+	// The stale ownership was retired: RunEpochID cleared, state still released (the
+	// replacement's own drive reserves it later).
+	if epo := loadSlotEpoch(t, store, worktree); epo != "" {
+		t.Fatalf("slot RunEpochID = %q, want cleared by resume retirement", epo)
+	}
+	if st := loadSlotState(t, store, worktree); st != "released" {
+		t.Fatalf("slot state = %q, want released", st)
+	}
+
+	// A repeat arm observes the SAME single reservation — never a second.
+	deps2, wdeps2 := resumeEpochDeps(t)
+	sp2 := &fakeScopePrep{grant: sampleScopeGrant()}
+	d2 := sp2.deps()
+	d2.CancelSeams = mkSeams
+	second := RunGateBefore(context.Background(), deps2, wdeps2, d2, repoDir, "implement-next", 5)
+	if second.Armed {
+		t.Fatalf("repeat arm must not arm a second replacement: %q", second.HumanText())
+	}
+	if second.Reason != ReasonGateResumeReplacementReserved {
+		t.Fatalf("repeat Reason = %q, want %q", second.Reason, ReasonGateResumeReplacementReserved)
+	}
+	if second.Key != first.Key {
+		t.Fatalf("repeat must return the reserved key %q, got %q", first.Key, second.Key)
+	}
+}
+
+// TestResumeSupersededValidatesBeforeObserve (AC6): re-authorizing a previously
+// reserved replacement from a SUPERSEDED epoch also requires quiescence; unsettled
+// evidence refuses without touching the reservation.
+func TestResumeSupersededValidatesBeforeObserve(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	priorKey, _ := seedPriorEpoch(t, repoDir, EpochCancelled)
+
+	// Winner arm (permissive) supersedes and reserves the one replacement.
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	first := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if !first.Armed {
+		t.Fatalf("winner arm must reserve the replacement: %q", first.HumanText())
+	}
+	prior, _, err := LoadEpochRecord(repoDir, priorKey)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	reservedBefore := prior.ReplacementReserved
+	if prior.State != EpochSuperseded || reservedBefore == "" {
+		t.Fatalf("winner arm must leave the old epoch superseded with a reservation, got state=%q reserved=%q", prior.State, reservedBefore)
+	}
+
+	// Re-arm with non-accounted launch evidence: the reserved replacement cannot be
+	// re-authorized until quiescence is re-proved.
+	deps2, wdeps2 := resumeEpochDeps(t)
+	sp2 := &fakeScopePrep{grant: sampleScopeGrant()}
+	d2 := sp2.deps()
+	d2.CancelSeams = func(string) cancelSeams {
+		return cancelSeams{launches: &fakeLaunchReconciler{report: gatedrive.EpochLaunchReport{
+			Accounted: false, Findings: []string{"relaunch-unresolved:r1"}}}}
+	}
+	res := RunGateBefore(context.Background(), deps2, wdeps2, d2, repoDir, "implement-next", 5)
+	if res.Armed {
+		t.Fatalf("superseded re-arm must not arm over unresolved evidence: %q", res.HumanText())
+	}
+	if res.Reason != ReasonGateResumeCancellationPending {
+		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonGateResumeCancellationPending)
+	}
+	after, _, err := LoadEpochRecord(repoDir, priorKey)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord(after): %v", err)
+	}
+	if after.ReplacementReserved != reservedBefore {
+		t.Fatalf("re-arm must not alter the reservation: before %q after %q", reservedBefore, after.ReplacementReserved)
+	}
+}
+
+// TestResumeForeignSlotIsNeutral (AC7): a slot owned by a DIFFERENT epoch neither
+// blocks nor is touched by resume — quiescent old-epoch evidence still admits the
+// replacement, and the foreign slot is byte-identical after.
+func TestResumeForeignSlotIsNeutral(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	priorKey, _ := seedPriorEpoch(t, repoDir, EpochCancelled)
+	_, store, worktree := seedResumeSlot(t, repoDir, priorKey, "someone-else")
+
+	beforeSlot, _, err := store.LoadWorktreeExecution(worktree)
+	if err != nil {
+		t.Fatalf("load slot before: %v", err)
+	}
+
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	d := sp.deps()
+	d.CancelSeams = func(string) cancelSeams {
+		return cancelSeams{store: store, launches: okLaunchReconciler()}
+	}
+	res := RunGateBefore(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
+	if !res.Armed {
+		t.Fatalf("a foreign slot must neither block nor be touched by resume: %q", res.HumanText())
+	}
+	afterSlot, _, err := store.LoadWorktreeExecution(worktree)
+	if err != nil {
+		t.Fatalf("load slot after: %v", err)
+	}
+	if afterSlot.RunEpochID != "someone-else" {
+		t.Fatalf("foreign slot RunEpochID = %q, want someone-else (untouched)", afterSlot.RunEpochID)
+	}
+	if string(afterSlot.State) != string(beforeSlot.State) {
+		t.Fatalf("foreign slot state changed: before %q after %q", beforeSlot.State, afterSlot.State)
+	}
+}
+
 // TestResumeDoesNotResetSuiteBudget: a confirmed-cancelled resume that arms a
 // replacement never touches the change-owned full-suite attempt budget (spec: an
 // explicit human resume "never resets the change-owned full-suite repair budget").
