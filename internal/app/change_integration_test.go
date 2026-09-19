@@ -2698,13 +2698,13 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadPinsExactVersion(t *testing.T)
 	}
 }
 
-// TestIntegrationChangeRepairAbsentWorkspaceNoConflict is change 0368's repair
+// TestIntegrationChangeRuntimeRepairAbsentWorkspaceNoConflict is change 0368's repair
 // regression: a proven cleanly-absent workspace (StateAbsent) names no owned
 // checkout at the recorded branch, so it conflicts with nothing — exactly as
 // the foreign classification did pre-change — and the repair proceeds to its
 // write. It MUST fail if StateAbsent falls through repairProveWorkspaceClear to
 // the recorded-vs-proposed branch mismatch (RepairWorkspaceConflict).
-func TestIntegrationChangeRepairAbsentWorkspaceNoConflict(t *testing.T) {
+func TestIntegrationChangeRuntimeRepairAbsentWorkspaceNoConflict(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
@@ -2943,7 +2943,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeResumeHaltedRemoteProbeErrors is change 0368's coverage
+// TestIntegrationChangeRuntimeResumeHaltedRemoteProbeErrors is change 0368's coverage
 // for the remote-probe ERROR arm of the pre-allocation recovery path — the
 // "refusal coverage for ... failed probes" the change's own spec promised. A
 // workspace proven locally absent (StateAbsent) resumes only after the recorded
@@ -2959,7 +2959,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 // StatusReader (the designed read seam) supplies the corpus offline so the ONLY
 // origin contact left is the feature-ref probe, isolating the arm under test.
 // It reddens if the arm treats the probe error as a clean-absent answer.
-func TestIntegrationChangeResumeHaltedRemoteProbeErrors(t *testing.T) {
+func TestIntegrationChangeRuntimeResumeHaltedRemoteProbeErrors(t *testing.T) {
 	for _, m := range planRepoModes() {
 		t.Run(m.name, func(t *testing.T) {
 			f := setupHaltedFixture(t, m)
@@ -3003,7 +3003,7 @@ func TestIntegrationChangeResumeHaltedRemoteProbeErrors(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeResumeHaltedPreallocation is change 0368's end-to-end
+// TestIntegrationChangeRuntimeResumeHaltedPreallocation is change 0368's end-to-end
 // regression through the REAL workspace service (spec verification requirement
 // 1: no fake workspace service anywhere in the pass). setupHaltedFixture
 // prepares a real workspace and publishes feat/widget; to model a run that
@@ -3016,7 +3016,7 @@ func TestIntegrationChangeResumeHaltedRemoteProbeErrors(t *testing.T) {
 // after which an ordinary prepare succeeds. This MUST fail under the pre-0368
 // conflation, where the absent slot inspected as foreign and resume refused
 // workspace-writer-active.
-func TestIntegrationChangeResumeHaltedPreallocation(t *testing.T) {
+func TestIntegrationChangeRuntimeResumeHaltedPreallocation(t *testing.T) {
 	for _, m := range planRepoModes() {
 		t.Run(m.name, func(t *testing.T) {
 			f := setupHaltedFixture(t, m)
