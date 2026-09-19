@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // Change 0437 Task 8: a syntactic, computed guard that binds every process
@@ -273,7 +275,7 @@ func TestLaunchSiteGuardIsFalsifiable(t *testing.T) {
 		"func (d *Driver) Advance() { _ = d.recovery(); d.driveAndPersistClaim() }\n"
 
 	// Control: the baseline is clean and the population is computed.
-	dirClean := t.TempDir()
+	dirClean := testsupport.TempDir(t)
 	writeGuardGoFile(t, dirClean, "p.go", baseline)
 	if res, err := analyzeGatedriveLaunchSites(dirClean); err != nil {
 		t.Fatalf("analyze baseline: %v", err)
@@ -290,7 +292,7 @@ func TestLaunchSiteGuardIsFalsifiable(t *testing.T) {
 	}
 
 	// Mutation (a): a bare unguarded launch helper is detected.
-	dirA := t.TempDir()
+	dirA := testsupport.TempDir(t)
 	writeGuardGoFile(t, dirA, "p.go", baseline+
 		"func (d *Driver) sneaky() { d.proc.Launch(3) }\n")
 	if res, err := analyzeGatedriveLaunchSites(dirA); err != nil {
@@ -302,7 +304,7 @@ func TestLaunchSiteGuardIsFalsifiable(t *testing.T) {
 	// Mutation (b): stripping epochGated from authorizeRelaunch (the boundary the
 	// driveSlice launch depends on) is detected — the launch is now reachable only
 	// via driveAndPersistClaim, which does not cross the boundary.
-	dirB := t.TempDir()
+	dirB := testsupport.TempDir(t)
 	mutB := strings.Replace(baseline,
 		"func (d *Driver) authorizeRelaunch() error { return d.epochGated(func() error { return nil }) }",
 		"func (d *Driver) authorizeRelaunch() error { return nil }",
@@ -319,7 +321,7 @@ func TestLaunchSiteGuardIsFalsifiable(t *testing.T) {
 
 	// Floor: an empty tree computes zero launch sites and visits zero files — the
 	// run-level guard fails on both, proving the walker is falsifiable.
-	dirEmpty := t.TempDir()
+	dirEmpty := testsupport.TempDir(t)
 	if res, err := analyzeGatedriveLaunchSites(dirEmpty); err != nil {
 		t.Fatalf("analyze empty: %v", err)
 	} else {
