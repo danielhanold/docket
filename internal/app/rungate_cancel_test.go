@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -224,6 +225,9 @@ func TestRunCancelHappyPath(t *testing.T) {
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
 		t.Fatalf("slot state = %q, want released", st)
 	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+		t.Fatalf("slot epoch = %q, want cleared (completed cancellation retires the owned released slot)", epo)
+	}
 	if len(stopper.calls) != 1 || stopper.calls[0] != fx.runDir {
 		t.Fatalf("stopper calls = %v, want [%s]", stopper.calls, fx.runDir)
 	}
@@ -395,6 +399,9 @@ func TestCancelRepeatResumesCleanup(t *testing.T) {
 	}
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
 		t.Fatalf("slot state = %q, want released", st)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+		t.Fatalf("slot epoch = %q, want cleared (completed cancellation retires the owned released slot)", epo)
 	}
 }
 
@@ -681,5 +688,151 @@ func TestCancelReleaseWriteFailureFailsClosed(t *testing.T) {
 	}
 	if !hasFinding(res.Findings, "slot-release-failed") {
 		t.Fatalf("findings = %v, want slot-release-failed", res.Findings)
+	}
+}
+
+// TestCancelRetiresOwnedReleasedSlot (AC1/AC2 app half): completed cancellation
+// releases AND detaches the slot — RunEpochID cleared, historical fields preserved.
+func TestCancelRetiresOwnedReleasedSlot(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	before, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load before: %v", err)
+	}
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+	after, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load after: %v", err)
+	}
+	if after.RunEpochID != "" {
+		t.Fatalf("slot RunEpochID = %q, want cleared", after.RunEpochID)
+	}
+	if string(after.State) != "released" {
+		t.Fatalf("slot state = %q, want released", after.State)
+	}
+	if after.RawRunID != before.RawRunID || after.RawRunDir != before.RawRunDir ||
+		after.ExecutionGen != before.ExecutionGen || after.DriveID != before.DriveID ||
+		after.Kind != before.Kind {
+		t.Fatalf("retirement must preserve history: before=%+v after=%+v", before, after)
+	}
+}
+
+// TestCancelPendingWhenRetirementFails (AC5): a retirement write failure keeps the
+// epoch cancelling and the disposition pending — never a false cancelled.
+func TestCancelPendingWhenRetirementFails(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler(),
+		retire: func(worktree, epoch, token string) error { return fmt.Errorf("injected retire fault") }}
+	res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionPending {
+		t.Fatalf("disposition = %q, want cancellation-pending (findings=%v)", res.Disposition, res.Findings)
+	}
+	if !hasFinding(res.Findings, "slot-retire-failed") {
+		t.Fatalf("findings = %v, want slot-retire-failed", res.Findings)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelling {
+		t.Fatalf("epoch state = %q, want cancelling (fence held, ownership intact)", st)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != fx.epochID {
+		t.Fatalf("slot epoch = %q, want retained %q", epo, fx.epochID)
+	}
+}
+
+// TestCancelInterruptedBetweenRetireAndFinalizeConverges (AC5): retirement landed
+// but cancelled was never persisted (simulated crash between the two writes); the
+// retry revalidates, accepts the already-detached slot, and finishes the epoch
+// transition — without touching a successor.
+func TestCancelInterruptedBetweenRetireAndFinalizeConverges(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	// Reconstruct the crash state directly: the epoch record CAS has no seam, so
+	// fence + full teardown + real retirement are driven here, leaving the epoch
+	// cancelling with the slot already detached (exactly the interrupted state).
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = EpochCancelling; return nil }); err != nil {
+		t.Fatalf("fence: %v", err)
+	}
+	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ok, f, terr := reconcileEpochTeardown(seams, fx.repo, fx.key, ep); terr != nil || !ok {
+		t.Fatalf("teardown = (%v,%v,%v), want accounted", ok, f, terr)
+	}
+	if ok, f := retireWorktreeSlotOwnership(seams, ep); !ok {
+		t.Fatalf("retire = (false,%q), want retired", f)
+	}
+	// Crash happened here: slot detached, epoch still cancelling. The retry:
+	res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("retry disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelled {
+		t.Fatalf("epoch state = %q, want cancelled", st)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+		t.Fatalf("slot epoch = %q, want still cleared", epo)
+	}
+}
+
+// TestCancelRetireRaceWithSuccessorLeavesSuccessor (AC4): the slot is replaced by a
+// successor between the cancel's load and its retire CAS — the retire refuses on
+// the changed reservation, the re-read classifies the successor as foreign, and
+// cancellation completes WITHOUT touching it (never retried with the successor's
+// token).
+func TestCancelRetireRaceWithSuccessorLeavesSuccessor(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	var raced bool
+	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
+	seams.retire = func(worktree, epoch, token string) error {
+		if !raced {
+			raced = true
+			// The successor replaces the slot NOW: retire the old epoch out-of-band and
+			// admit a new epoch's reservation (what a real winner would have produced).
+			if err := fx.store.RetireWorktreeExecutionEpoch(worktree, epoch, token); err != nil {
+				t.Fatalf("out-of-band retire: %v", err)
+			}
+			if _, err := fx.store.ReserveWorktreeExecutionForEpoch(fx.common, worktree, "successor-epoch", nil); err != nil {
+				t.Fatalf("successor reserve: %v", err)
+			}
+		}
+		return fx.store.RetireWorktreeExecutionEpoch(worktree, epoch, token) // now refuses ErrStaleRunEpoch
+	}
+	res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (successor is not our obligation; findings=%v)", res.Disposition, res.Findings)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "successor-epoch" {
+		t.Fatalf("slot epoch = %q, want the untouched successor-epoch", epo)
+	}
+	if st := loadSlotState(t, fx.store, fx.worktree); st != "reserved" {
+		t.Fatalf("successor slot state = %q, want reserved (untouched)", st)
+	}
+}
+
+// TestCancelConcurrentReplayIsIdempotent (AC4): two sequential replays of a
+// completed cancellation are no-ops (already-cancelled) leaving slot and epoch
+// byte-stable.
+func TestCancelConcurrentReplayIsIdempotent(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
+	if res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop"); res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("first = %q, want cancelled", res.Disposition)
+	}
+	for i := 0; i < 2; i++ {
+		res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+		if res.Disposition != CancelDispositionAlreadyCancelled {
+			t.Fatalf("replay %d = %q, want already-cancelled (findings=%v)", i, res.Disposition, res.Findings)
+		}
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+		t.Fatalf("slot epoch = %q, want cleared and stable", epo)
 	}
 }
