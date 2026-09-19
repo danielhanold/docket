@@ -47,7 +47,12 @@
 #     its own per-job work dir; and it is not the invoking user's real home — a
 #     test that writes the developer's $HOME is the shape the change-0227
 #     parallel-safety audit forbids. Only the first run after a fresh clone
-#     needs the network.
+#     needs the network. Check 1's pinned-toolchain gofmt resolution
+#     (`GOTOOLCHAIN=<declared> go env GOROOT`) shares this same caveat: on a
+#     machine whose ambient Go is newer, the declared toolchain is fetched
+#     once as a golang.org/toolchain module into this shared cache, so it
+#     downloads on the first run, stays warm thereafter, and fails closed
+#     offline as designed.
 #   - PARALLEL SAFETY: go's module and build caches are built for concurrent
 #     use (each takes its own file locks), so parallel suite jobs and
 #     concurrent suite runs across worktrees may share this one directory.

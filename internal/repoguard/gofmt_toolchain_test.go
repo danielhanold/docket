@@ -42,11 +42,15 @@ type gofmtGateFixture struct {
 	wrapper    string // fixture copy of tests/test_go_toolchain.sh
 	fakeBin    string // prepended PATH dir: fake go, fake ambient gofmt
 	fakeGoroot string // fake resolved GOROOT holding bin/gofmt
-	pkgDir     string // the one package dir fake `go list` reports
-	ambientLog string // every ambient (PATH) gofmt invocation
-	pinnedLog  string // every pinned (GOROOT) gofmt invocation
-	goLog      string // every fake go invocation, with observed GOTOOLCHAIN
-	env        []string
+	// ambient GOROOT that fake `go env` returns for an empty GOTOOLCHAIN when
+	// FAKE_GOROOT_AMBIENT_ON_EMPTY is set; its bin/gofmt is the ambient
+	// (clean) formatter and logs to ambientLog.
+	fakeGorootAmbient string
+	pkgDir            string // the one package dir fake `go list` reports
+	ambientLog        string // every ambient (PATH) gofmt invocation
+	pinnedLog         string // every pinned (GOROOT) gofmt invocation
+	goLog             string // every fake go invocation, with observed GOTOOLCHAIN
+	env               []string
 }
 
 // writeToolScript writes an executable fake tool. The explicit Chmod matters:
@@ -88,6 +92,15 @@ case "$1" in
       exit 1
     fi
     if [ -n "${FAKE_GOROOT_EMPTY:-}" ]; then
+      exit 0
+    fi
+    # An empty/unset GOTOOLCHAIN models the ambient resolution the real go
+    # performs when no command-scoped toolchain is pinned: it succeeds and
+    # yields the ambient GOROOT (whose bin/gofmt is the ambient formatter),
+    # NOT a fail-closed error. Only the count-guard mutation test opts in via
+    # FAKE_GOROOT_AMBIENT_ON_EMPTY so default fixture behavior is unchanged.
+    if [ -z "${GOTOOLCHAIN-}" ] && [ -n "${FAKE_GOROOT_AMBIENT_ON_EMPTY:-}" ]; then
+      printf '%s\n' "$FAKE_GOROOT_AMBIENT"
       exit 0
     fi
     if [ "${GOTOOLCHAIN-}" != "$EXPECT_GOTOOLCHAIN" ]; then
@@ -137,12 +150,13 @@ func newGofmtGateFixture(t *testing.T) *gofmtGateFixture {
 
 	base := testsupport.TempDir(t)
 	f := &gofmtGateFixture{
-		root:       filepath.Join(base, "fixture"),
-		fakeBin:    filepath.Join(base, "fakebin"),
-		fakeGoroot: filepath.Join(base, "fakegoroot"),
-		ambientLog: filepath.Join(base, "ambient-gofmt.log"),
-		pinnedLog:  filepath.Join(base, "pinned-gofmt.log"),
-		goLog:      filepath.Join(base, "go.log"),
+		root:              filepath.Join(base, "fixture"),
+		fakeBin:           filepath.Join(base, "fakebin"),
+		fakeGoroot:        filepath.Join(base, "fakegoroot"),
+		fakeGorootAmbient: filepath.Join(base, "fakegorootambient"),
+		ambientLog:        filepath.Join(base, "ambient-gofmt.log"),
+		pinnedLog:         filepath.Join(base, "pinned-gofmt.log"),
+		goLog:             filepath.Join(base, "go.log"),
 	}
 	f.wrapper = filepath.Join(f.root, "tests", "test_go_toolchain.sh")
 	f.pkgDir = filepath.Join(f.root, "pkg")
@@ -166,6 +180,7 @@ func newGofmtGateFixture(t *testing.T) *gofmtGateFixture {
 	writeToolScript(t, filepath.Join(f.fakeBin, "go"), fakeGoScript)
 	writeToolScript(t, filepath.Join(f.fakeBin, "gofmt"), fakeAmbientGofmtScript)
 	writeToolScript(t, filepath.Join(f.fakeGoroot, "bin", "gofmt"), fakePinnedGofmtScript)
+	writeToolScript(t, filepath.Join(f.fakeGorootAmbient, "bin", "gofmt"), fakeAmbientGofmtScript)
 
 	// Inherit the ambient environment (bash, awk, grep, mktemp live there),
 	// but strip every variable the wrapper or the fakes key on, then pin
@@ -178,7 +193,8 @@ func newGofmtGateFixture(t *testing.T) *gofmtGateFixture {
 			"DOCKET_GO_TEST_CONCURRENCY", "GO_FAKE_LOG", "AMBIENT_GOFMT_LOG",
 			"PINNED_GOFMT_LOG", "FAKE_PKG_DIR", "FAKE_GOROOT",
 			"EXPECT_GOTOOLCHAIN", "PINNED_MODE", "FAKE_GOROOT_FAIL",
-			"FAKE_GOROOT_EMPTY", "FAKE_GOROOT_CHATTER":
+			"FAKE_GOROOT_EMPTY", "FAKE_GOROOT_CHATTER",
+			"FAKE_GOROOT_AMBIENT", "FAKE_GOROOT_AMBIENT_ON_EMPTY":
 			continue
 		}
 		f.env = append(f.env, kv)
@@ -192,6 +208,7 @@ func newGofmtGateFixture(t *testing.T) *gofmtGateFixture {
 		"PINNED_GOFMT_LOG="+f.pinnedLog,
 		"FAKE_PKG_DIR="+f.pkgDir,
 		"FAKE_GOROOT="+f.fakeGoroot,
+		"FAKE_GOROOT_AMBIENT="+f.fakeGorootAmbient,
 		"EXPECT_GOTOOLCHAIN="+fixtureToolchain,
 	)
 	return f
@@ -400,5 +417,33 @@ func TestGofmtMutationDroppedGotoolchainIsDetected(t *testing.T) {
 	}
 	if goLog := readLog(t, f.goLog); !strings.Contains(goLog, "GOTOOLCHAIN:[<unset>]") {
 		t.Fatalf("mutant's go env must observe an unset GOTOOLCHAIN, log:\n%s", goLog)
+	}
+}
+
+// TestGofmtMutationCountGuardIsDetected proves the exactly-one-toolchain count
+// guard is load-bearing, not decoration. In a real tree, an absent toolchain
+// directive means `GOTOOLCHAIN="" go env GOROOT` resolves to the ambient
+// GOROOT — reintroducing the PATH-gofmt bug this change exists to prevent — so
+// the count guard's `elif [ "$toolchain_count" -ne 1 ]` branch must intercept
+// that case. The fake `go env` models that ambient resolution only when
+// FAKE_GOROOT_AMBIENT_ON_EMPTY is set (default fixture behavior is unchanged).
+// With the guard neutralized, the absent-directive fixture falls through to the
+// ambient formatter, which reports clean — so the marker wrongly flips to ok
+// and the ambient log fills. The unmutated absent case
+// (TestGofmtToolchainDirectiveMustBeExactlyOne) fails closed instead, so the
+// pairing is the mutation proof.
+func TestGofmtMutationCountGuardIsDetected(t *testing.T) {
+	f := newGofmtGateFixture(t)
+	if err := os.WriteFile(filepath.Join(f.root, "go.mod"), []byte("module fixture\n\ngo 1.26.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f.setenv("FAKE_GOROOT_AMBIENT_ON_EMPTY=1")
+	mutateWrapper(t, f, `elif [ "$toolchain_count" -ne 1 ]; then`, `elif false; then`)
+	marker, out := f.run(t)
+	if !strings.HasPrefix(marker, "ok - ") {
+		t.Fatalf("count-guard mutant should wrongly pass via ambient resolution, got %q — the guard's removal reddened nothing, so the guard is unproven\n%s", marker, out)
+	}
+	if got := readLog(t, f.ambientLog); got == "" {
+		t.Fatalf("count-guard mutant must invoke the ambient formatter — the mutation did not land:\n%s", out)
 	}
 }
