@@ -346,3 +346,59 @@ func TestGofmtToolchainDirectiveMustBeExactlyOne(t *testing.T) {
 		})
 	}
 }
+
+// mutateWrapper rewrites the FIXTURE's wrapper copy (never the repo file —
+// learning: mutation-restore-needs-a-backup-copy) by replacing old with new,
+// and fails the test if the anchor does not occur exactly once: a vanished
+// anchor means the wrapper's spelling drifted and this mutation proof went
+// vacuous (learning: assert-detects-removal-not-replacement).
+func mutateWrapper(t *testing.T, f *gofmtGateFixture, old, new string) {
+	t.Helper()
+	b, err := os.ReadFile(f.wrapper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(string(b), old); n != 1 {
+		t.Fatalf("mutation anchor %q occurs %d times in the wrapper, want exactly 1 — update the anchor alongside the wrapper", old, n)
+	}
+	mutated := strings.Replace(string(b), old, new, 1)
+	if err := os.WriteFile(f.wrapper, []byte(mutated), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(f.wrapper, 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestGofmtMutationBareGofmtIsDetected proves TestGofmtCheckIgnoresAmbientFormatter
+// keys on WHICH formatter runs: with the pinned invocation degraded to bare
+// `gofmt`, the same dirty-pinned fixture flips to an ok marker and the
+// ambient log fills — exactly the divergences that test asserts against.
+func TestGofmtMutationBareGofmtIsDetected(t *testing.T) {
+	f := newGofmtGateFixture(t)
+	f.setenv("PINNED_MODE=dirty")
+	mutateWrapper(t, f, `"$gofmt_goroot/bin/gofmt" -l`, `gofmt -l`)
+	marker, out := f.run(t)
+	if !strings.HasPrefix(marker, "ok - ") {
+		t.Fatalf("bare-gofmt mutant should wrongly pass (ambient reports clean), got %q — the mutation did not land\n%s", marker, out)
+	}
+	if got := readLog(t, f.ambientLog); got == "" {
+		t.Fatalf("bare-gofmt mutant must invoke ambient gofmt — the mutation did not land:\n%s", out)
+	}
+}
+
+// TestGofmtMutationDroppedGotoolchainIsDetected proves the coverage keys on
+// the command-scoped GOTOOLCHAIN: with the scoping removed, the fake go env
+// observes an unset GOTOOLCHAIN and refuses, flipping the clean fixture's ok
+// marker to NOT OK.
+func TestGofmtMutationDroppedGotoolchainIsDetected(t *testing.T) {
+	f := newGofmtGateFixture(t)
+	mutateWrapper(t, f, `GOTOOLCHAIN="$toolchain_names" `, ``)
+	marker, out := f.run(t)
+	if !strings.HasPrefix(marker, "NOT OK - ") {
+		t.Fatalf("dropped-GOTOOLCHAIN mutant must fail resolution, got %q — the mutation did not land\n%s", marker, out)
+	}
+	if goLog := readLog(t, f.goLog); !strings.Contains(goLog, "GOTOOLCHAIN:[<unset>]") {
+		t.Fatalf("mutant's go env must observe an unset GOTOOLCHAIN, log:\n%s", goLog)
+	}
+}
