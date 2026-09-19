@@ -13,7 +13,7 @@ related: [413, 427, 375, 368, 437]
 discovered_from: [434]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-19T18:28:02Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md) |
+| Plan | [2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md](https://github.com/danielhanold/docket/blob/fix/docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga/docs/superpowers/plans/2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
