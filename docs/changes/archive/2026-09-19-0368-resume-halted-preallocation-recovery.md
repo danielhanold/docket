@@ -2,11 +2,11 @@
 id: 368
 slug: resume-halted-preallocation-recovery
 title: Recover a run halted before its workspace was allocated
-status: 'implemented'
+status: 'done'
 priority: medium
 type: fix
 created: 2026-08-29
-updated: '2026-09-18'
+updated: '2026-09-19'
 depends_on: []
 stacked_on:
 related: [313, 316, 318, 354, 366, 375, 429]
@@ -21,7 +21,7 @@ branch: 'fix/resume-halted-preallocation-recovery'
 pr: 'https://github.com/danielhanold/docket/pull/313'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-18T21:25:45Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,8 @@ claimed_at: '2026-09-18T21:25:45Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-18-resume-halted-preallocation-recovery-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-resume-halted-preallocation-recovery-design.md) |
-| Plan | [2026-09-18-resume-halted-preallocation-recovery.md](https://github.com/danielhanold/docket/blob/fix/resume-halted-preallocation-recovery/docs/superpowers/plans/2026-09-18-resume-halted-preallocation-recovery.md) |
-| Results | [2026-09-18-resume-halted-preallocation-recovery-results.md](https://github.com/danielhanold/docket/blob/fix/resume-halted-preallocation-recovery/docs/results/2026-09-18-resume-halted-preallocation-recovery-results.md) |
+| Plan | [2026-09-18-resume-halted-preallocation-recovery.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-18-resume-halted-preallocation-recovery.md) |
+| Results | [2026-09-18-resume-halted-preallocation-recovery-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-18-resume-halted-preallocation-recovery-results.md) |
 | ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
@@ -66,15 +66,3 @@ The linked spec records the implementation trace, prior decisions, alternatives,
 
 2026-09-18: Reconciled against current main (60d356ff). The spec examined commit 3ccf9fac; `git log 3ccf9fac..60d356ff` shows no commits touched internal/workspace/inspect.go, manifest.go, prepare.go, internal/app/change_halt.go, or change_reclaim.go, so the recovery trace is intact. Confirmed current code: inspect.go collapses manifestAbsent into StateForeign (line 87-88); manifest.go classifyManifest distinguishes manifestAbsent/Valid/Foreign/Unknown (line 205-214); change_halt.go resumeQuiescenceRefusal refuses StateForeign/StateMismatch (line 420). No StateAbsent exists yet. Scope, relations (related 313,316,318,354,366,375,429; discovered_from 318; adrs 34,35,118; depends_on []), and acceptance criteria remain valid as authored. No design invalidation; proceeding to build.
 
-## Finalize blocked
-
-### 2026-09-19 — attempt 20260919T012235Z-341174de8c1a
-
-<!-- attempt:20260919T012235Z-341174de8c1a -->
-
-- Reason: repair-needs-signoff
-- Head: ea116f15b1149809963e78a7f8c834c6b6aabd54
-- PR: #313
-- Comment: https://github.com/danielhanold/docket/pull/313#issuecomment-5738359038
-
-Remedy: Review repair commit ea116f15 (names-only test-shard registration fix) and re-run docket-finalize-change attended: it will publish the rebased+repaired head, show the diff for go-ahead, and merge PR #313.
