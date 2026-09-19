@@ -1,6 +1,6 @@
 # Backlog
 
-**438 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 286 done · 🗑️ 119 killed
+**438 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 286 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,11 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
-## 🔴 Blocked (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | PR | Reason |
-|---|-------|----------|------|----|--------|
-| [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | [#313](https://github.com/danielhanold/docket/pull/313) | finalize blocked — needs you |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | [#313](https://github.com/danielhanold/docket/pull/313) | awaiting merge |
 
 ## 🟣 Groomed (4)
 

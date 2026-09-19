@@ -65,3 +65,16 @@ The linked spec records the implementation trace, prior decisions, alternatives,
 ### 2026-09-18
 
 2026-09-18: Reconciled against current main (60d356ff). The spec examined commit 3ccf9fac; `git log 3ccf9fac..60d356ff` shows no commits touched internal/workspace/inspect.go, manifest.go, prepare.go, internal/app/change_halt.go, or change_reclaim.go, so the recovery trace is intact. Confirmed current code: inspect.go collapses manifestAbsent into StateForeign (line 87-88); manifest.go classifyManifest distinguishes manifestAbsent/Valid/Foreign/Unknown (line 205-214); change_halt.go resumeQuiescenceRefusal refuses StateForeign/StateMismatch (line 420). No StateAbsent exists yet. Scope, relations (related 313,316,318,354,366,375,429; discovered_from 318; adrs 34,35,118; depends_on []), and acceptance criteria remain valid as authored. No design invalidation; proceeding to build.
+
+## Finalize blocked
+
+### 2026-09-19 — attempt 20260919T012235Z-341174de8c1a
+
+<!-- attempt:20260919T012235Z-341174de8c1a -->
+
+- Reason: repair-needs-signoff
+- Head: ea116f15b1149809963e78a7f8c834c6b6aabd54
+- PR: #313
+- Comment: https://github.com/danielhanold/docket/pull/313#issuecomment-5738359038
+
+Remedy: Review repair commit ea116f15 (names-only test-shard registration fix) and re-run docket-finalize-change attended: it will publish the rebased+repaired head, show the diff for go-ahead, and merge PR #313.
