@@ -1,6 +1,6 @@
 # Backlog
 
-**439 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 287 done · 🗑️ 119 killed
+**439 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 288 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
@@ -8,27 +8,21 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0437](active/0437-reject-revoked-run-epochs-before-gate-start-admission.md) | Reject revoked run epochs before gate-start admission | `high` | `fix` | [#315](https://github.com/danielhanold/docket/pull/315) | awaiting merge |
-
-## 🟣 Groomed (3)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | [spec](../superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (17)
+## 🟡 Proposed (16)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0439](active/0439-leaked-worktree-gate-admission-slot-stuck-in-executing-block.md) | Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error | `medium` | `fix` | needs-brainstorm |
 | [0438](active/0438-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged.md) | finalize.rebase-abort can't recover a completed-but-unmerged rebase whose base later moved | `medium` | `fix` | needs-brainstorm |
-| [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | ⏳ waiting on #437 — needs your merge |
 | [0433](active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md) | Pilot top-level Codex coordinators with one-level native dispatch | `high` | `refactor` | needs-brainstorm |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-brainstorm |
@@ -93,7 +87,6 @@ graph TD
   0422
   0433
   0437 --> 0435
-  0437
   0438
   0439
   0192:::done
@@ -101,13 +94,15 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
+  0437:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (406)</summary>
+<details><summary>✅🗑️ Archive — done + killed (407)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0437](archive/2026-09-19-0437-reject-revoked-run-epochs-before-gate-start-admission.md) | Reject revoked run epochs before gate-start admission | 2026-09-19 |
 | [0436](archive/2026-09-19-0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) | test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red | 2026-09-19 |
 | [0368](archive/2026-09-19-0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | 2026-09-19 |
 | [0434](archive/2026-09-18-0434-move-load-sensitive-tests-out-of-the-default-parallel-suite.md) | Move load-sensitive tests out of the default parallel suite lane | 2026-09-18 |
@@ -128,7 +123,6 @@ graph TD
 | [0428](archive/2026-09-14-0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md) | Recover legacy gate history without blocking unrelated worktree admission | 2026-09-14 |
 | [0423](archive/2026-09-14-0423-certify-native-multi-agent-v2-orchestration-through-docket-i.md) | Certify native Multi-Agent V2 orchestration through Docket ImplementNext | 2026-09-14 |
 | [0375](archive/2026-09-14-0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | 2026-09-14 |
-| [0421](archive/2026-09-10-0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | 2026-09-10 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -247,7 +241,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 36 done |
+| [2026-09](archive/) | 37 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
