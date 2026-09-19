@@ -1,18 +1,18 @@
 # Backlog
 
-**439 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 288 done · 🗑️ 119 killed
+**439 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 288 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
+| [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | [spec](../superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md) | `fix/docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | [spec](../superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
