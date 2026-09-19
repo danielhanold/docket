@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-18'
-updated: '2026-09-18'
+updated: '2026-09-19'
 depends_on: []
 stacked_on:
 related: [304, 317, 370, 373]
@@ -14,7 +14,7 @@ discovered_from: [434]
 adrs: [50, 108]
 spec: 'docs/superpowers/specs/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md'
 plan: 'docs/superpowers/plans/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md'
-results:
+results: 'docs/results/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-18T23:51:33Z'
 |---|---|
 | Spec | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-design.md) |
 | Plan | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md](https://github.com/danielhanold/docket/blob/fix/test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch/docs/superpowers/plans/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) |
+| Results | [2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-results.md](https://github.com/danielhanold/docket/blob/fix/test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch/docs/results/2026-09-18-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch-results.md) |
 | ADRs | [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
