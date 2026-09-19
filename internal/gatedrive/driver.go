@@ -451,10 +451,141 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 	if t == nil {
 		return DriveDoc{}, fmt.Errorf("gatedrive: StartAdmitted requires an admission ticket")
 	}
-	if t.scoped {
-		return d.launchScoped(t)
+	// Revalidate the epoch and the EXACT durable reservation this ticket minted,
+	// and acquire the drive's claimant flock, before any launch (change 0437 Task
+	// 2). A fence that landed between Admit and here — or a rotated/foreign
+	// reservation, a busy claim, or a settled record — refuses with a typed error
+	// and launches nothing. On success the returned claim is HELD across
+	// launch/attach so a concurrent cancellation observes pending work rather than
+	// a free slot; the launch half releases it once the launch is confirmed.
+	claim, err := d.revalidateAdmittedLaunch(t)
+	if err != nil {
+		return DriveDoc{}, err
 	}
-	return d.launchScopeless(t)
+	if t.scoped {
+		return d.launchScoped(t, claim)
+	}
+	return d.launchScopeless(t, claim)
+}
+
+// revalidateAdmittedLaunch re-reads, under the epoch gate, the EXACT durable
+// reservation this ticket minted — the worktree slot must still carry the
+// ticket's ReservationToken in the state the ticket expects (reserved when the
+// ticket owns the slot, executing when it reuses a peer's), and the RESERVED
+// drive record must still exist under the ticket's owner generation and stay
+// nonterminal — and acquires the drive's claimant flock NONBLOCKING. Any
+// mismatch, a busy claim, or a revoked epoch refuses with a typed error and
+// launches nothing.
+//
+// The claim is taken as the nonblocking per-drive launch claimant (the SAME lock
+// file tryRelaunchClaim/reserveRelaunch use), so a concurrent cancellation that
+// probes the claim reports busy — pending work, never proof of a crashed caller.
+// The epoch lock is held only inside the gate; the returned claim is retained by
+// the caller across the out-of-gate launch. An epoch refusal (the gate refused
+// before running reserve) fail-closes the delayed ticket: it settles the drive
+// HALTED "run-cancelled" and, for a ticket that minted its own slot, releases the
+// slot — nothing launched, provably idle — then returns the gate's error
+// unchanged so the app surfaces the fence token.
+func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, error) {
+	var claim *relaunchClaim
+	reserveEntered := false
+	err := d.epochGated(t.runEpochID, t.rec.WorktreePath, func() error {
+		reserveEntered = true
+		// (a) The drive's claimant flock, nonblocking. A busy claim is a launch
+		// still in flight (or a cancellation probing it), never a free slot.
+		c, busy, cerr := d.store.tryRelaunchClaim(t.id)
+		if cerr != nil {
+			return cerr
+		}
+		if busy {
+			return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
+		}
+		// (b) The worktree slot must still carry this ticket's reservation token in
+		// the state the ticket expects.
+		if verr := d.verifyAdmittedSlot(t); verr != nil {
+			c.close()
+			return verr
+		}
+		// (c) The RESERVED drive record must still exist under this owner
+		// generation and remain nonterminal.
+		cur, lerr := d.store.Load(t.id)
+		if lerr != nil {
+			c.close()
+			return lerr
+		}
+		if verr := verifyOwner(&cur, t.ownerGen); verr != nil {
+			c.close()
+			return verr
+		}
+		if isTerminalOutcome(cur.LastOutcome) {
+			c.close()
+			return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
+		}
+		claim = c
+		return nil
+	})
+	if err != nil {
+		if claim != nil {
+			claim.close()
+			claim = nil
+		}
+		if !reserveEntered {
+			// Epoch refusal: the gate refused before running reserve, so nothing was
+			// claimed. Fail-close the delayed ticket and surface the gate's error.
+			d.settleAdmittedAfterEpochRefusal(t)
+		}
+		return nil, err
+	}
+	return claim, nil
+}
+
+// verifyAdmittedSlot confirms the worktree slot still carries this ticket's
+// reservation token in the state the ticket expects: reserved when this ticket
+// owns the slot (a scopeless start, or a scoped start that minted or reused a
+// still-reserved same-scope slot it must confirm), executing when the ticket
+// reused an already-executing peer's slot (a same-scope successor). Any load
+// error, token mismatch, or unexpected state is a fail-closed
+// ErrUnresolvedLaunchTransition — the exact reservation the ticket minted is gone.
+func (d *Driver) verifyAdmittedSlot(t *AdmissionTicket) error {
+	slot, _, err := d.store.LoadWorktreeExecution(t.rec.WorktreePath)
+	if err != nil {
+		return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
+	}
+	if slot.ReservationToken != t.token {
+		return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
+	}
+	expected := admissionReserved
+	if t.scoped && !t.ownsSlot {
+		expected = admissionExecuting
+	}
+	if slot.State != expected {
+		return ownershipErr(ErrUnresolvedLaunchTransition, "start-admitted")
+	}
+	return nil
+}
+
+// settleAdmittedAfterEpochRefusal fail-closes a delayed ticket whose epoch was
+// revoked between Admit and StartAdmitted. It settles the reserved drive record
+// HALTED "run-cancelled" (mirroring the launch-failed CAS blocks in the launch
+// legs) and, for a ticket that minted its own worktree slot (a scopeless start,
+// or a scoped start that freshly reserved), releases the slot — nothing launched,
+// so it is provably idle. A slot the ticket merely reused (a same-scope successor
+// or peer) is left untouched: it belongs to the sequence, not this ticket.
+func (d *Driver) settleAdmittedAfterEpochRefusal(t *AdmissionTicket) {
+	_ = d.store.ownerCAS(t.id, func(r *driveRecord) error {
+		if err := verifyOwner(r, t.ownerGen); err != nil {
+			return err
+		}
+		if isTerminalOutcome(r.LastOutcome) {
+			return errAlreadyTerminal
+		}
+		r.LastOutcome = HALTED
+		r.LastCause = "run-cancelled"
+		return nil
+	})
+	if t.reservedFresh || !t.scoped {
+		_ = d.store.ReleaseWorktreeExecution(t.rec.WorktreePath, t.token)
+	}
 }
 
 // AbandonAdmission releases an admission the caller decided, between Admit and
@@ -611,8 +742,12 @@ func (d *Driver) admitScopeless(rec driveRecord, ownerGen, runEpochID string) (*
 //
 // Every post-launch failure either proves the fresh process stopped before
 // releasing the slot, or marks the slot unresolved and fails future admission
-// closed.
-func (d *Driver) launchScopeless(t *AdmissionTicket) (DriveDoc, error) {
+// closed. The claimant flock revalidateAdmittedLaunch acquired is HELD across
+// Launch and attach (so a concurrent cancellation observes pending work), then
+// released before the drive slice so a first-slice relaunch can reserve its own
+// claim; the deferred close is an idempotent safety net for every failure leg.
+func (d *Driver) launchScopeless(t *AdmissionTicket, claim *relaunchClaim) (DriveDoc, error) {
+	defer claim.close()
 	rec := t.rec
 	id := t.id
 	ownerGen := t.ownerGen
@@ -649,6 +784,11 @@ func (d *Driver) launchScopeless(t *AdmissionTicket) (DriveDoc, error) {
 		d.releaseOrUnresolveWorktree(rec.WorktreePath, token, stopped)
 		return DriveDoc{}, err
 	}
+
+	// Launch and attach are confirmed: release the launch claim so the drive slice
+	// can reserve its own single relaunch (the claim is the SAME lock file
+	// reserveRelaunch takes). close is idempotent with the deferred safety net.
+	claim.close()
 
 	rec.RawRunDir = out.RunDir
 	rec.RawOwnership = out.RunID
@@ -775,8 +915,12 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 // Every ambiguous launch/persist failure fails closed with NO automatic second
 // launch. The scope slot stays durably reserved so a subsequent start is refused
 // rather than launching a duplicate; the worktree slot this start owns is released
-// only on proven teardown/never-launched and marked unresolved otherwise.
-func (d *Driver) launchScoped(t *AdmissionTicket) (DriveDoc, error) {
+// only on proven teardown/never-launched and marked unresolved otherwise. The
+// claimant flock revalidateAdmittedLaunch acquired is HELD across Launch and
+// attach, then released before the drive slice; the deferred close is an
+// idempotent safety net for every failure leg.
+func (d *Driver) launchScoped(t *AdmissionTicket, claim *relaunchClaim) (DriveDoc, error) {
+	defer claim.close()
 	rec := t.rec
 	id := t.id
 	ownerGen := t.ownerGen
@@ -844,6 +988,11 @@ func (d *Driver) launchScoped(t *AdmissionTicket) (DriveDoc, error) {
 			return DriveDoc{}, cerr
 		}
 	}
+
+	// Launch and attach are confirmed: release the launch claim so the drive slice
+	// can reserve its own single relaunch (the claim is the SAME lock file
+	// reserveRelaunch takes). close is idempotent with the deferred safety net.
+	claim.close()
 
 	rec.RawRunDir = out.RunDir
 	rec.RawOwnership = out.RunID
