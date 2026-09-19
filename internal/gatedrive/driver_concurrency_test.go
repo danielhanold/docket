@@ -1,9 +1,11 @@
 package gatedrive
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1008,5 +1010,539 @@ func TestDriverConcurrencySuccessorStartRace(t *testing.T) {
 	}
 	if scope.PendingAckDriveID != "" {
 		t.Fatalf("the completed transition must leave no pending ack, got %q", scope.PendingAckDriveID)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic cancel/launch race barriers (change 0437 Task 7, AC2+AC6). A
+// fake EpochLaunchGate backed by a mutable, mutex-guarded registry stands in for
+// the app gate: it reads the epoch's liveness under the registry mutex and, while
+// STILL holding it, runs the driver's durable reserve body — exactly as the
+// production gate runs reserve under the held epoch lock. A concurrent fence
+// ("cancel") takes the SAME mutex, so it either lands before the liveness read
+// (reserve never runs) or after the gate released the lock (it observes the
+// durable reservation reserve produced). "cancel" = flip the fake to fenced, then
+// run ReconcileEpochLaunches (which consults NO gate; the epoch is already fenced,
+// so cancellation may never hold the epoch while probing a per-drive claim). Every
+// ordering assertion below is a channel/done-ordering fact — no timing sleep is an
+// oracle anywhere.
+// ---------------------------------------------------------------------------
+
+// errEpochFenced is the sentinel a fenced fakeEpochRegistry gate refuses with,
+// standing in for the app's ErrRunCancelled/ErrStaleRunEpoch fence tokens.
+var errEpochFenced = errors.New("gatedrive-test: run epoch fenced (cancelled)")
+
+// fakeEpochRegistry is a mutable, mutex-guarded stand-in for the app's run-epoch
+// registry. The EpochLaunchGate it produces holds the registry mutex across the
+// liveness read AND the reserve body — modelling the production epoch lock held
+// across reserve — so a concurrent fence serializes against it: the fence lands
+// strictly before the read (reserve never runs) or strictly after reserve's
+// durable decision. A fenced epoch's gate refuses errEpochFenced WITHOUT running
+// reserve (the EpochLaunchGate contract: a validation failure never calls reserve).
+type fakeEpochRegistry struct {
+	mu     sync.Mutex
+	fenced map[string]bool
+}
+
+// fence flips epochID to fenced. It takes the same mutex the gate body holds, so
+// it can only land in the serialization windows the gate leaves open.
+func (r *fakeEpochRegistry) fence(epochID string) {
+	r.mu.Lock()
+	if r.fenced == nil {
+		r.fenced = map[string]bool{}
+	}
+	r.fenced[epochID] = true
+	r.mu.Unlock()
+}
+
+func (r *fakeEpochRegistry) gate() EpochLaunchGate {
+	return func(epochID, _ string, reserve func() error) error {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if r.fenced[epochID] {
+			return errEpochFenced // fenced: refuse without running reserve
+		}
+		return reserve()
+	}
+}
+
+// TestBarrierCancelBeforeAdmit proves the fence-first outcome: a fence that lands
+// before Admit's liveness read makes Admit refuse, reserving nothing durable, and
+// a subsequent reconcile has nothing to account (Accounted, no findings).
+func TestBarrierCancelBeforeAdmit(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	reg := &fakeEpochRegistry{}
+	d.SetEpochLaunchGate(reg.gate())
+
+	// The fence lands FIRST.
+	reg.fence("e1")
+
+	req := sampleStart()
+	req.RunEpochID = "e1"
+	ticket, err := d.Admit(req)
+	if !errors.Is(err, errEpochFenced) {
+		t.Fatalf("a fence before Admit must refuse, got ticket=%v err=%v", ticket, err)
+	}
+	if ticket != nil {
+		t.Fatalf("a refused admission returns no ticket, got %+v", ticket)
+	}
+	if _, _, lerr := store.LoadWorktreeExecution(req.Worktree); !storeErrIs(lerr, ErrNotFound) {
+		t.Fatalf("a fenced Admit must reserve no worktree slot, LoadWorktreeExecution err = %v", lerr)
+	}
+	if n := driveRecordCount(t, store); n != 0 {
+		t.Fatalf("a fenced Admit must mint no drive record, got %d", n)
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("a fenced Admit must launch nothing, proc.Launch called %d times", proc.launchN)
+	}
+
+	report, err := d.ReconcileEpochLaunches(req.Worktree, "e1")
+	if err != nil {
+		t.Fatalf("ReconcileEpochLaunches: %v", err)
+	}
+	if !report.Accounted || len(report.Findings) != 0 {
+		t.Fatalf("a fence before any admission has nothing to account, got %+v", report)
+	}
+}
+
+// TestBarrierCancelBetweenAdmitAndStartAdmitted proves the fence that lands after
+// Admit's return refuses the delayed launch: reconcile sees the reserved drive
+// pending (launch-pending) until StartAdmitted's refusal settles the record
+// terminal, then a replay accounts it. No process is ever launched.
+func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	reg := &fakeEpochRegistry{}
+	d.SetEpochLaunchGate(reg.gate())
+
+	req := sampleStart()
+	req.RunEpochID = "e1"
+	ticket, err := d.Admit(req) // epoch live: the reservation is durable
+	if err != nil {
+		t.Fatalf("Admit: %v", err)
+	}
+
+	// The fence lands AFTER Admit's return (the serialization window between the
+	// two phases). The durable reservation already exists.
+	reg.fence("e1")
+
+	// Reconcile sees the reserved-but-unlaunched drive pending until the refusal.
+	pending, err := d.ReconcileEpochLaunches(req.Worktree, "e1")
+	if err != nil {
+		t.Fatalf("ReconcileEpochLaunches (pre-refusal): %v", err)
+	}
+	if pending.Accounted || !reconcileFindingPresent(pending.Findings, "launch-pending:"+ticket.id) {
+		t.Fatalf("a fenced-but-unrefused reservation must be pending, got %+v", pending)
+	}
+
+	// StartAdmitted observes the fence: it refuses, launches nothing, and settles
+	// the delayed ticket's drive HALTED run-cancelled with the slot released.
+	if _, serr := d.StartAdmitted(ticket); !errors.Is(serr, errEpochFenced) {
+		t.Fatalf("StartAdmitted under a fence must refuse, got %v", serr)
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("a fenced StartAdmitted must launch nothing, proc.Launch called %d times", proc.launchN)
+	}
+	rec, lerr := store.Load(ticket.id)
+	if lerr != nil {
+		t.Fatalf("Load: %v", lerr)
+	}
+	if rec.LastOutcome != HALTED || rec.LastCause != "run-cancelled" {
+		t.Fatalf("the refusal must settle the drive HALTED run-cancelled, got %v/%q", rec.LastOutcome, rec.LastCause)
+	}
+
+	// A replay now accounts the obligation (the record is terminal).
+	settled, err := d.ReconcileEpochLaunches(req.Worktree, "e1")
+	if err != nil {
+		t.Fatalf("ReconcileEpochLaunches (post-refusal): %v", err)
+	}
+	if !settled.Accounted {
+		t.Fatalf("a replay after the refusal settled the record must account, got %+v", settled)
+	}
+}
+
+// TestBarrierCancelBetweenAuthorizationAndLaunch proves the spec's second race
+// outcome: a fence that lands AFTER a relaunch won its authorization (reserve
+// committed, the per-drive claim held) but before proc.Launch cannot make
+// cancellation complete while the launch is in flight — a concurrent reconcile
+// reports claim-busy pending. The replacement process CAN be created after the
+// fence, yet cancellation only completes once a replay identifies and stops it.
+func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	reg := &fakeEpochRegistry{}
+	clk := &fakeClock{now: startEpoch()}
+
+	dead := false
+	launchEntered := make(chan struct{})
+	releaseLaunch := make(chan struct{})
+	var launchCount int32
+	proc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			if dead && strings.HasSuffix(runDir, "run1") {
+				return obs(process.StateSignaled, runDir), nil
+			}
+			return obs(process.StateRunning, runDir), nil
+		},
+	}
+	proc.launch = func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+		n := atomic.AddInt32(&launchCount, 1)
+		id := fmt.Sprintf("run%d", n)
+		if n == 2 { // the replacement launch: reserve committed, the claim is HELD
+			close(launchEntered)
+			<-releaseLaunch
+		}
+		return &process.LaunchOutcome{RunID: id, RunDir: "/runs/" + id, State: process.StateRunning}, nil
+	}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	d.SetEpochLaunchGate(reg.gate())
+
+	// A scope-bound first start over live epoch e1 WAITs (run1 running, slot executing).
+	req, started := startScopedWaitingWithEpoch(t, d, store, "e1")
+
+	// The run dies; its single automatic relaunch is authorized under the live gate,
+	// then parks in proc.Launch (reserve committed inside the gate; the claim held).
+	dead = true
+	advance := make(chan struct {
+		doc DriveDoc
+		err error
+	}, 1)
+	go func() {
+		doc, err := d.Advance(started.DriveID, started.Generation)
+		advance <- struct {
+			doc DriveDoc
+			err error
+		}{doc, err}
+	}()
+
+	<-launchEntered // the replacement launch is parked: reserve committed, claim held
+
+	// The fence lands NOW — after authorization, during the parked launch.
+	reg.fence("e1")
+
+	// A concurrent reconcile (an independent CLI process: its own store handle and
+	// process seam) reports the held claim as pending work, and returns promptly.
+	recDone := make(chan EpochLaunchReport, 1)
+	go func() {
+		dr := scopedTestDriver(reopenStore(store), &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+		r, _ := dr.ReconcileEpochLaunches(req.Worktree, "e1")
+		recDone <- r
+	}()
+	select {
+	case report := <-recDone:
+		if report.Accounted {
+			t.Fatalf("a launch in flight (held claim) must not be accounted, got %+v", report)
+		}
+		if !reconcileFindingPresent(report.Findings, "claim-busy:"+started.DriveID) {
+			t.Fatalf("findings = %v, want claim-busy:%s", report.Findings, started.DriveID)
+		}
+	case <-time.After(5 * time.Second):
+		close(releaseLaunch)
+		t.Fatal("reconcile blocked on a busy claim; it must probe nonblocking and return promptly")
+	}
+
+	// Release the parked launch: the replacement attaches, the claim frees.
+	close(releaseLaunch)
+	res := <-advance
+	if res.err != nil {
+		t.Fatalf("Advance: %v", res.err)
+	}
+	if res.doc.Outcome != WAITING {
+		t.Fatalf("an authorized relaunch's healthy new run must WAIT, got %s/%s", res.doc.Outcome, res.doc.Cause)
+	}
+	if got := atomic.LoadInt32(&launchCount); got != 2 {
+		t.Fatalf("the replacement process must have been created after the fence, launches=%d", got)
+	}
+
+	// A replay now identifies and stops the replacement, and only THEN accounts.
+	var stopped []string
+	recProc := &fakeProc{
+		stop: func(runDir, reason string) (*process.StopOutcome, error) {
+			stopped = append(stopped, runDir)
+			return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
+		},
+		resolve: func(root, token string) (*process.ReservationResolution, error) {
+			return &process.ReservationResolution{Disposition: "identified", RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
+		},
+	}
+	dr := scopedTestDriver(reopenStore(store), &fakeClock{now: startEpoch()}, recProc, stableGit())
+	replay, err := dr.ReconcileEpochLaunches(req.Worktree, "e1")
+	if err != nil {
+		t.Fatalf("ReconcileEpochLaunches (replay): %v", err)
+	}
+	if !replay.Accounted {
+		t.Fatalf("cancellation completes only once the replacement is identified and stopped, got %+v", replay)
+	}
+	if len(stopped) == 0 {
+		t.Fatalf("the replay must stop the identified replacement, stopped nothing")
+	}
+}
+
+// TestBarrierCancelBetweenLaunchAndAttach proves a fence during a scopeless
+// StartAdmitted's launch-to-attach window (the process exists, the claim held
+// across launch+attach) reports claim-busy pending, then a replay accounts once
+// the run is attached and stopped — and, crucially, that once a replay reports
+// accounted, a subsequent start on the fenced epoch refuses and launches nothing.
+func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
+	reg := &fakeEpochRegistry{}
+	clk := &fakeClock{now: startEpoch()}
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	proc := &fakeProc{}
+	// proc.Launch records the run then parks BEFORE returning to the driver — the
+	// process is created but attach has not run, and the claim is held across both.
+	proc.launch = func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+		close(entered)
+		<-release
+		return &process.LaunchOutcome{RunID: "run1", RunDir: "/runs/run1", State: process.StateRunning}, nil
+	}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	d.SetEpochLaunchGate(reg.gate())
+
+	req := sampleStart()
+	req.RunEpochID = "e1"
+	ticket, err := d.Admit(req)
+	if err != nil {
+		t.Fatalf("Admit: %v", err)
+	}
+
+	startDone := make(chan struct {
+		doc DriveDoc
+		err error
+	}, 1)
+	go func() {
+		doc, serr := d.StartAdmitted(ticket)
+		startDone <- struct {
+			doc DriveDoc
+			err error
+		}{doc, serr}
+	}()
+
+	<-entered // launch in flight: the process exists, attach pending, claim held
+
+	// The fence lands during the launch-to-attach window.
+	reg.fence("e1")
+
+	recDone := make(chan EpochLaunchReport, 1)
+	go func() {
+		dr := scopedTestDriver(reopenStore(store), &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+		r, _ := dr.ReconcileEpochLaunches(req.Worktree, "e1")
+		recDone <- r
+	}()
+	select {
+	case report := <-recDone:
+		if report.Accounted {
+			t.Fatalf("a launch in flight (held claim) must not be accounted, got %+v", report)
+		}
+		if !reconcileFindingPresent(report.Findings, "claim-busy:"+ticket.id) {
+			t.Fatalf("findings = %v, want claim-busy:%s", report.Findings, ticket.id)
+		}
+	case <-time.After(5 * time.Second):
+		close(release)
+		t.Fatal("reconcile blocked on a busy claim; it must probe nonblocking and return promptly")
+	}
+
+	// Release: the run attaches, the claim frees, StartAdmitted returns WAITING.
+	close(release)
+	res := <-startDone
+	if res.err != nil {
+		t.Fatalf("StartAdmitted: %v", res.err)
+	}
+	if res.doc.Outcome != WAITING {
+		t.Fatalf("a healthy attached run WAITs, got %s/%s", res.doc.Outcome, res.doc.Cause)
+	}
+
+	// A replay identifies and stops the attached run, then accounts.
+	var stopped []string
+	recProc := &fakeProc{
+		stop: func(runDir, reason string) (*process.StopOutcome, error) {
+			stopped = append(stopped, runDir)
+			return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
+		},
+	}
+	dr := scopedTestDriver(reopenStore(store), &fakeClock{now: startEpoch()}, recProc, stableGit())
+	replay, err := dr.ReconcileEpochLaunches(req.Worktree, "e1")
+	if err != nil {
+		t.Fatalf("ReconcileEpochLaunches (replay): %v", err)
+	}
+	if !replay.Accounted {
+		t.Fatalf("a replay after attach+stop must account, got %+v", replay)
+	}
+	if len(stopped) != 1 || stopped[0] != "/runs/run1" {
+		t.Fatalf("the replay must stop the identified run /runs/run1, stopped %v", stopped)
+	}
+
+	// No launch after an accounted reconcile: a subsequent start on the fenced epoch
+	// refuses and proc.Launch's call count is final.
+	launchesBefore := proc.launchN
+	next := sampleStart()
+	next.RunEpochID = "e1"
+	if _, nerr := d.Start(next); !errors.Is(nerr, errEpochFenced) {
+		t.Fatalf("a start on the fenced epoch must refuse, got %v", nerr)
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("no launch may occur after an accounted reconcile, launches %d->%d", launchesBefore, proc.launchN)
+	}
+}
+
+// TestBarrierSameScopeFirstStartContention proves the initial-start peer race is
+// unaffected by the epoch gate: two same-scope, same-epoch first starts rendezvous
+// past their fingerprint pre-check, then contend; exactly one wins and launches,
+// the loser is refused typed and launches nothing, and the loser releases nothing
+// the winner adopted. Run under -race.
+func TestBarrierSameScopeFirstStartContention(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	req := sampleStart()
+	sreq := scopeReqFor(req, "")
+	sreq.RunEpochID = "e1"
+	grant, err := store.PrepareScope(sreq)
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	req.ScopeID = grant.ScopeID
+	req.ChildCapability = grant.ChildCapability
+	req.RunEpochID = "e1"
+
+	reg := &fakeEpochRegistry{}
+	proc := &countingProc{}
+	var barrier sync.WaitGroup
+	barrier.Add(2)
+	git := &barrierGit{wg: &barrier, head: "HEAD1"}
+
+	mkDriver := func() *Driver {
+		clk := &fakeClock{now: startEpoch()}
+		d := NewDriver(store, clk, proc, git)
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		d.SetEpochLaunchGate(reg.gate())
+		return d
+	}
+	drivers := []*Driver{mkDriver(), mkDriver()}
+
+	docs := make([]DriveDoc, 2)
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	for i := range drivers {
+		go func(i int) {
+			defer wg.Done()
+			docs[i], errs[i] = drivers[i].Start(req)
+		}(i)
+	}
+	wg.Wait()
+
+	if got := proc.launches(); got != 1 {
+		t.Fatalf("two same-scope same-epoch first starts must launch EXACTLY once, got %d", got)
+	}
+	winners, winIdx := 0, -1
+	for i, e := range errs {
+		if e == nil {
+			winners++
+			winIdx = i
+			continue
+		}
+		if !isOwnershipKind(e, ErrScopeBusy) && !isOwnershipKind(e, ErrScopeSecondDrive) {
+			t.Fatalf("the losing start must fail ErrScopeBusy or ErrScopeSecondDrive, got %v", e)
+		}
+	}
+	if winners != 1 {
+		t.Fatalf("exactly one start must win, got %d", winners)
+	}
+	if docs[winIdx].Outcome != WAITING {
+		t.Fatalf("the winning start must WAIT, got %s (%s)", docs[winIdx].Outcome, docs[winIdx].Cause)
+	}
+	// The loser released nothing the winner adopted: the scope names the winner's
+	// launched drive, and the worktree slot is the winner's executing reservation.
+	scope, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if scope.CurrentDriveID != docs[winIdx].DriveID || scope.CurrentDriveState != scopeStateLaunched {
+		t.Fatalf("the scope must name the sole winner launched, got id=%q state=%q", scope.CurrentDriveID, scope.CurrentDriveState)
+	}
+	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if slot.State != admissionExecuting {
+		t.Fatalf("the winner's worktree slot must be executing, got %q", slot.State)
+	}
+}
+
+// TestBarrierSuccessorUnderCancel proves the successor path under a mid-flight
+// fence: a fenced successor start refuses without launching, and it leaves the slot
+// EITHER the predecessor's executing reservation (refused before rotation) OR
+// released (refused after rotation) — both legal, and neither leaks a
+// reserved-but-unreleased rotation. Cancellation then has nothing to chase.
+func TestBarrierSuccessorUnderCancel(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{} // WAIT: executing slot
+	reg := &fakeEpochRegistry{}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	d.SetEpochLaunchGate(reg.gate())
+	_, req := prepareScopedStart(t, store)
+	req.RunEpochID = "e1"
+
+	first, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("first Start: %v", err)
+	}
+	if first.Outcome != WAITING {
+		t.Fatalf("first start must WAIT, got %s (%s)", first.Outcome, first.Cause)
+	}
+	predSlot, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	oldToken := predSlot.ReservationToken
+	// Terminal-before-release window: the successor would reach the executing arm.
+	if err := store.ownerCAS(first.DriveID, func(r *driveRecord) error {
+		r.LastOutcome = PASSED
+		return nil
+	}); err != nil {
+		t.Fatalf("settle predecessor terminal: %v", err)
+	}
+
+	// The fence lands mid-flight, before the successor starts.
+	reg.fence("e1")
+
+	launchesBefore := proc.launchN
+	succ := req
+	succ.PredecessorDriveID = first.DriveID
+	succ.PredecessorOwnerGen = first.Generation
+	if _, serr := d.Start(succ); !errors.Is(serr, errEpochFenced) {
+		t.Fatalf("a fenced successor start must refuse, got %v", serr)
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("a fenced successor must never launch, launched %d->%d", launchesBefore, proc.launchN)
+	}
+
+	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
+	}
+	switch slot.State {
+	case admissionExecuting:
+		if slot.ReservationToken != oldToken {
+			t.Fatalf("before-rotation refusal must keep the predecessor's executing reservation, token changed")
+		}
+	case admissionReleased:
+		// after-rotation-then-released: legal, nothing leaked.
+	default:
+		t.Fatalf("a fenced successor must leave the slot executing (unrotated) or released, got %q", slot.State)
+	}
+
+	// Cancellation has nothing to chase: the predecessor is terminal (accounted by
+	// slot/participant teardown), and the successor created no drive.
+	report, err := d.ReconcileEpochLaunches(req.Worktree, "e1")
+	if err != nil {
+		t.Fatalf("ReconcileEpochLaunches: %v", err)
+	}
+	if !report.Accounted {
+		t.Fatalf("a fenced successor leaves nothing pending, got %+v", report)
 	}
 }

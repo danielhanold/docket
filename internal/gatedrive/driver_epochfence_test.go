@@ -768,3 +768,240 @@ func TestRelaunchStandaloneUnchanged(t *testing.T) {
 		}
 	})
 }
+
+// ---------------------------------------------------------------------------
+// Lock-order and no-deadlock proofs (change 0437 Task 7). The mandated order is
+// epoch lock → per-drive launch claim; no path acquires the epoch while holding
+// the claim. These prove it deterministically: a probing gate asserts the claim is
+// still free at every gate ENTER, and a contention race proves the nonblocking
+// claim bounds every contender (all return; exactly one launch) with channel/done
+// oracles, never a timing sleep.
+// ---------------------------------------------------------------------------
+
+// TestNoEpochAcquisitionWhileClaimHeld proves the epoch gate is entered only while
+// the per-drive claim is still free — for both the delayed StartAdmitted launch
+// and the reserved-relaunch recovery entry. A probing gate acquires the claim at
+// entry: if it is ever already held by this caller when the gate is entered, the
+// lock order (epoch before claim) is violated.
+func TestNoEpochAcquisitionWhileClaimHeld(t *testing.T) {
+	// probeGate is a permissive gate that, at each ENTER, probes the drive's claim.
+	// The lock order requires it FREE at every entry; the gate records enters and
+	// whether any entry saw it already held.
+	probeGate := func(store *Store, id string, enters *int, sawHeld *bool) EpochLaunchGate {
+		return func(_, _ string, reserve func() error) error {
+			*enters++
+			c, busy, cerr := store.tryRelaunchClaim(id)
+			if cerr == nil {
+				if busy {
+					*sawHeld = true
+				} else {
+					c.close()
+				}
+			}
+			return reserve()
+		}
+	}
+
+	t.Run("StartAdmitted enters the gate before taking the claim", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		proc := &fakeProc{}
+		d, store := newTestDriver(t, clk, proc, stableGit())
+		// Admit under a plain permissive gate so the drive id exists to key the probe.
+		d.SetEpochLaunchGate((&flippableGate{}).gate())
+		req := sampleStart()
+		req.RunEpochID = "e1"
+		ticket, err := d.Admit(req)
+		if err != nil {
+			t.Fatalf("Admit: %v", err)
+		}
+		enters, sawHeld := 0, false
+		d.SetEpochLaunchGate(probeGate(store, ticket.id, &enters, &sawHeld))
+
+		doc, serr := d.StartAdmitted(ticket)
+		if serr != nil {
+			t.Fatalf("StartAdmitted: %v", serr)
+		}
+		if doc.Outcome != WAITING {
+			t.Fatalf("a live launch WAITs, got %s/%s", doc.Outcome, doc.Cause)
+		}
+		if enters == 0 {
+			t.Fatalf("StartAdmitted must consult the epoch gate")
+		}
+		if sawHeld {
+			t.Fatalf("the epoch gate must be entered while the per-drive claim is still FREE (epoch before claim)")
+		}
+	})
+
+	t.Run("reserved-relaunch recovery validates the epoch before the claim", func(t *testing.T) {
+		store := OpenStore(testsupport.TempDir(t))
+		req := sampleStart()
+		sreq := scopeReqFor(req, "")
+		sreq.RunEpochID = "e1"
+		grant, err := store.PrepareScope(sreq)
+		if err != nil {
+			t.Fatalf("PrepareScope: %v", err)
+		}
+		rec := seedRecord(t)
+		rec.ScopeID = grant.ScopeID
+		rec.AdmissionToken = "reservation-token"
+		rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
+		id, ownerGen := seedDrive(t, store, rec)
+		if err := store.ownerCAS(id, func(r *driveRecord) error {
+			r.RelaunchReserved = true
+			return nil
+		}); err != nil {
+			t.Fatalf("reserve relaunch: %v", err)
+		}
+		proc := &fakeProc{
+			resolve: func(root, token string) (*process.ReservationResolution, error) {
+				return &process.ReservationResolution{Disposition: "identified", RunID: "run2", RunDir: "/runs/run2", State: process.StateRunning}, nil
+			},
+			observe: func(runDir string) (*process.Observation, error) {
+				return obs(process.StateRunning, runDir), nil
+			},
+		}
+		enters, sawHeld := 0, false
+		clk := &fakeClock{now: startEpoch().Add(time.Second)}
+		d := NewDriver(reopenStore(store), clk, proc, stableGit())
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		d.SetEpochLaunchGate(probeGate(store, id, &enters, &sawHeld))
+
+		doc, err := d.Advance(id, ownerGen)
+		if err != nil {
+			t.Fatalf("Advance: %v", err)
+		}
+		if doc.Outcome != WAITING {
+			t.Fatalf("an identified recovered replacement is attached+observed, got %s/%s", doc.Outcome, doc.Cause)
+		}
+		if enters == 0 {
+			t.Fatalf("the recovery entry must consult the epoch gate")
+		}
+		if sawHeld {
+			t.Fatalf("the recovery epoch pass must run while the per-drive claim is still FREE (epoch before claim)")
+		}
+	})
+}
+
+// TestClaimContentionBounded proves the nonblocking per-drive claim bounds
+// contention with no deadlock: N advancers race one dead drive's single relaunch
+// while M reconcilers probe it, with the reservation winner parked inside Launch.
+// Every contender returns (done-channel oracles, never a timing sleep as the
+// ordering fact): the losing advancers return authoritative state promptly, the
+// reconcilers report claim-busy promptly, and the winner returns after release —
+// with EXACTLY ONE backend launch, one relaunch, and never a crash-recovery
+// resolution of the live holder.
+func TestClaimContentionBounded(t *testing.T) {
+	store := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	proc := newClaimWindowProc()
+	// A live worktree slot recording epoch e1 backs the scopeless drive's admission
+	// token, so resolveDriveEpoch attributes the drive to e1 and reconcile accounts it.
+	token, _, terr := store.reserveWorktreeExecution(admissionRecord{
+		RepoIdentity: "/repo",
+		WorktreeRoot: wt,
+		RunEpochID:   "e1",
+		Kind:         "scopeless",
+	}, proc)
+	if terr != nil {
+		t.Fatalf("reserve worktree slot: %v", terr)
+	}
+	rec := seedRecord(t)
+	rec.WorktreePath = wt
+	rec.AdmissionToken = token
+	id, ownerGen := seedDrive(t, store, rec)
+
+	permissive := &flippableGate{}
+	mkDriver := func(seam ProcessSeam) *Driver {
+		clk := &fakeClock{now: startEpoch().Add(time.Second)}
+		d := NewDriver(reopenStore(store), clk, seam, stableGit())
+		d.slice = 4 * pollTick
+		d.pollInterval = pollTick
+		d.sleep = func(dur time.Duration) { clk.advance(dur) }
+		d.SetEpochLaunchGate(permissive.gate())
+		return d
+	}
+
+	const advancers = 4
+	const reconcilers = 2
+
+	advanceDone := make(chan error, advancers)
+	for i := 0; i < advancers; i++ {
+		go func() {
+			_, err := mkDriver(proc).Advance(id, ownerGen)
+			advanceDone <- err
+		}()
+	}
+
+	// The reservation winner parks inside Launch holding the claim.
+	select {
+	case <-proc.launchEntered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the reservation winner did not enter Launch")
+	}
+
+	// Reconcilers race the held claim: each reports claim-busy pending and returns
+	// promptly (nonblocking), without the winner ever being released.
+	reconcileDone := make(chan EpochLaunchReport, reconcilers)
+	for i := 0; i < reconcilers; i++ {
+		go func() {
+			r, _ := mkDriver(&fakeProc{}).ReconcileEpochLaunches(wt, "e1")
+			reconcileDone <- r
+		}()
+	}
+	for i := 0; i < reconcilers; i++ {
+		select {
+		case report := <-reconcileDone:
+			if report.Accounted {
+				t.Errorf("a held claim must not be accounted, got %+v", report)
+			}
+			if !reconcileFindingPresent(report.Findings, "claim-busy:"+id) {
+				t.Errorf("findings = %v, want claim-busy:%s", report.Findings, id)
+			}
+		case <-time.After(5 * time.Second):
+			close(proc.releaseLaunch)
+			t.Fatal("a reconcile blocked on the held claim; it must probe nonblocking")
+		}
+	}
+
+	// The losing advancers return promptly — before the winner is released — proving
+	// the nonblocking claim bounds contention.
+	for i := 0; i < advancers-1; i++ {
+		select {
+		case err := <-advanceDone:
+			if err != nil {
+				t.Errorf("a losing advancer must return authoritative state, got %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			close(proc.releaseLaunch)
+			t.Fatal("a losing advancer blocked; the nonblocking claim must bound contention")
+		}
+	}
+
+	// Release the reservation winner's launch; it returns too.
+	close(proc.releaseLaunch)
+	select {
+	case err := <-advanceDone:
+		if err != nil {
+			t.Errorf("the reservation winner must return without error, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the reservation winner did not return after release")
+	}
+
+	launches, resolutions := proc.counts()
+	if launches != 1 {
+		t.Fatalf("exactly one backend launch under contention, got %d", launches)
+	}
+	if resolutions != 0 {
+		t.Fatalf("the live reservation holder must never be treated as crash recovery, got %d resolutions", resolutions)
+	}
+	final, err := store.Load(id)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if final.RelaunchCount != 1 {
+		t.Fatalf("contention must yield EXACTLY ONE relaunch, got RelaunchCount=%d", final.RelaunchCount)
+	}
+}
