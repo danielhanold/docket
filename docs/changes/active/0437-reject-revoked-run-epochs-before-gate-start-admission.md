@@ -22,7 +22,7 @@ branch: 'fix/reject-revoked-run-epochs-before-gate-start-admission'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-19T11:39:16Z'
+claimed_at: '2026-09-19T11:40:51Z'
 ---
 
 ## Artifacts
