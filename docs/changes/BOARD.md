@@ -1,18 +1,12 @@
 # Backlog
 
-**437 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 285 done · 🗑️ 119 killed
+**437 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 286 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0436](active/0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) | test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red | `high` | `fix` | [#314](https://github.com/danielhanold/docket/pull/314) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
@@ -99,7 +93,6 @@ graph TD
   0422
   0433
   0435
-  0436
   0437
   0192:::done
   0251:::done
@@ -109,10 +102,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (404)</summary>
+<details><summary>✅🗑️ Archive — done + killed (405)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0436](archive/2026-09-19-0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) | test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red | 2026-09-19 |
 | [0434](archive/2026-09-18-0434-move-load-sensitive-tests-out-of-the-default-parallel-suite.md) | Move load-sensitive tests out of the default parallel suite lane | 2026-09-18 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
@@ -133,7 +127,6 @@ graph TD
 | [0375](archive/2026-09-14-0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | 2026-09-14 |
 | [0421](archive/2026-09-10-0421-make-build-and-outer-run-gate-attempt-limits-configurable.md) | Make build and outer run gate attempt limits configurable | 2026-09-10 |
 | [0420](archive/2026-09-10-0420-prevent-build-workers-from-assigning-zsh-s-read-only-status.md) | Prevent build workers from assigning zsh's read-only status parameter | 2026-09-10 |
-| [0416](archive/2026-09-10-0416-scoped-build-task-gate-starts-omit-prepared-scope-identity.md) | Scoped build-task gate starts omit prepared scope identity | 2026-09-10 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -252,7 +245,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 34 done |
+| [2026-09](archive/) | 35 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
