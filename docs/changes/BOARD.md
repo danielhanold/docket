@@ -1,6 +1,6 @@
 # Backlog
 
-**437 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 286 done · 🗑️ 119 killed
+**438 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 286 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
@@ -23,10 +23,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (16)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0438](active/0438-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged.md) | finalize.rebase-abort can't recover a completed-but-unmerged rebase whose base later moved | `medium` | `fix` | needs-brainstorm |
 | [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | ⏳ waiting on #437 — not yet built |
 | [0433](active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md) | Pilot top-level Codex coordinators with one-level native dispatch | `high` | `refactor` | needs-brainstorm |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
@@ -94,6 +95,7 @@ graph TD
   0433
   0437 --> 0435
   0437
+  0438
   0192:::done
   0251:::done
   0370:::done
