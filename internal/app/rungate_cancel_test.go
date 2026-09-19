@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,10 +126,14 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 	fx := cancelFixture{repo: repo, key: key, epochID: ep.EpochID, worktree: worktree, common: common}
 	fx.store = gatedrive.OpenStore(common)
 	if slot {
+		// The slot records a real owning RunEpochID so the ownership-checked
+		// teardown treats it as slotOwned (change 0435) — the same teardown behavior
+		// the raw (epoch-less) reservation used to get, now anchored on true epoch
+		// ownership rather than the worktree location alone.
 		runDir := filepath.Join(worktree, "run-1")
-		token, terr := fx.store.ReserveRawWorktreeExecution(common, worktree, nil)
+		token, terr := fx.store.ReserveWorktreeExecutionForEpoch(common, worktree, ep.EpochID, nil)
 		if terr != nil {
-			t.Fatalf("ReserveRawWorktreeExecution: %v", terr)
+			t.Fatalf("ReserveWorktreeExecutionForEpoch: %v", terr)
 		}
 		if cerr := fx.store.ConfirmWorktreeExecution(worktree, token, "run-1", runDir); cerr != nil {
 			t.Fatalf("ConfirmWorktreeExecution: %v", cerr)
@@ -155,6 +161,39 @@ func loadSlotState(t *testing.T, store *gatedrive.Store, worktree string) string
 		t.Fatalf("LoadWorktreeExecution: %v", err)
 	}
 	return string(slot.State)
+}
+
+// loadSlotEpoch reads the worktree slot's current RunEpochID.
+func loadSlotEpoch(t *testing.T, store *gatedrive.Store, worktree string) string {
+	t.Helper()
+	slot, _, err := store.LoadWorktreeExecution(worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	return slot.RunEpochID
+}
+
+// removeAdmissionRecord deletes the worktree slot's record file so the next slot
+// write fails typed (ErrNotFound) — a deterministic durable-write failure. The
+// path shape is the documented storage layout in admission.go's file header:
+// <git-common-dir>/docket/gate-admission/v1/<admission-key>/record.json, where the
+// admission key is the sha256 (lowercase hex) of the canonical, symlink-resolved
+// worktree root (admissionKey). It fails loudly if the record is not where the
+// layout says, rather than skipping — a moved constant must surface here.
+func removeAdmissionRecord(t *testing.T, common, worktree string) {
+	t.Helper()
+	canon, err := filepath.EvalSymlinks(worktree)
+	if err != nil {
+		t.Fatalf("EvalSymlinks: %v", err)
+	}
+	sum := sha256.Sum256([]byte(canon))
+	rec := filepath.Join(common, "docket", "gate-admission", "v1", hex.EncodeToString(sum[:]), "record.json")
+	if _, err := os.Stat(rec); err != nil {
+		t.Fatalf("admission record not at documented layout %q: %v", rec, err)
+	}
+	if err := os.Remove(rec); err != nil {
+		t.Fatalf("remove admission record: %v", err)
+	}
 }
 
 func hasFinding(findings []string, prefix string) bool {
@@ -533,5 +572,114 @@ func TestRunCancelPublicEntry(t *testing.T) {
 	}
 	if res.Operation != OperationRunCancel {
 		t.Fatalf("operation = %q, want %q", res.Operation, OperationRunCancel)
+	}
+}
+
+// TestCancelNeverTouchesForeignSlot (AC4): a slot the worktree carries for a
+// DIFFERENT epoch is never marked, stopped, or released by this epoch's cancel — a
+// different nonempty RunEpochID is a foreign owner, surfaced informationally.
+func TestCancelNeverTouchesForeignSlot(t *testing.T) {
+	fx := newCancelFixture(t, false)
+	// Occupy the worktree with a FOREIGN epoch's executing slot.
+	ftoken, err := fx.store.ReserveWorktreeExecutionForEpoch(fx.common, fx.worktree, "foreign-epoch", nil)
+	if err != nil {
+		t.Fatalf("reserve foreign: %v", err)
+	}
+	if err := fx.store.ConfirmWorktreeExecution(fx.worktree, ftoken, "run-F", filepath.Join(fx.worktree, "run-F")); err != nil {
+		t.Fatalf("confirm foreign: %v", err)
+	}
+	stopper := &fakeCancelStopper{proven: map[string]bool{}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (a foreign slot is not this epoch's obligation; findings=%v)", res.Disposition, res.Findings)
+	}
+	if len(stopper.calls) != 0 {
+		t.Fatalf("a foreign slot's process must never be stopped: calls=%v", stopper.calls)
+	}
+	if st := loadSlotState(t, fx.store, fx.worktree); st != "executing" {
+		t.Fatalf("foreign slot state = %q, want executing (untouched)", st)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "foreign-epoch" {
+		t.Fatalf("foreign slot epoch = %q, want foreign-epoch (untouched)", epo)
+	}
+	if !hasFinding(res.Findings, "slot-foreign-owner") {
+		t.Fatalf("findings = %v, want the informational slot-foreign-owner", res.Findings)
+	}
+}
+
+// TestCancelLeavesUnlinkedEpochlessSlot (AC4): an epoch-less slot whose execution is
+// NOT independently linked to this epoch's registered participants is left
+// untouched, with an unresolved-ownership finding; cancellation still completes.
+func TestCancelLeavesUnlinkedEpochlessSlot(t *testing.T) {
+	fx := newCancelFixture(t, false)
+	rtoken, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
+	if err != nil {
+		t.Fatalf("reserve raw: %v", err)
+	}
+	if err := fx.store.ConfirmWorktreeExecution(fx.worktree, rtoken, "run-X", filepath.Join(fx.worktree, "run-X")); err != nil {
+		t.Fatalf("confirm raw: %v", err)
+	}
+	stopper := &fakeCancelStopper{proven: map[string]bool{}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+	if len(stopper.calls) != 0 {
+		t.Fatalf("an unlinked epoch-less slot must not be stopped: calls=%v", stopper.calls)
+	}
+	if st := loadSlotState(t, fx.store, fx.worktree); st != "executing" {
+		t.Fatalf("epoch-less slot state = %q, want executing (untouched)", st)
+	}
+	if !hasFinding(res.Findings, "slot-ownership-unresolved") {
+		t.Fatalf("findings = %v, want slot-ownership-unresolved", res.Findings)
+	}
+}
+
+// TestCancelStopsLinkedEpochlessSlot (AC4): an epoch-less slot IS torn down when its
+// exact execution (RawRunDir) is independently linked to a registered execution
+// participant of this epoch.
+func TestCancelStopsLinkedEpochlessSlot(t *testing.T) {
+	fx := newCancelFixture(t, false)
+	runDir := filepath.Join(fx.worktree, "run-L")
+	rtoken, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
+	if err != nil {
+		t.Fatalf("reserve raw: %v", err)
+	}
+	if err := fx.store.ConfirmWorktreeExecution(fx.worktree, rtoken, "run-L", runDir); err != nil {
+		t.Fatalf("confirm raw: %v", err)
+	}
+	if err := RegisterEpochParticipant(fx.repo, fx.key, fx.epochID, EpochParticipant{Kind: "raw-run", NativeHandle: runDir}); err != nil {
+		t.Fatalf("RegisterEpochParticipant: %v", err)
+	}
+	stopper := &fakeCancelStopper{proven: map[string]bool{runDir: true}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
+		t.Fatalf("linked epoch-less slot state = %q, want released", st)
+	}
+}
+
+// TestCancelReleaseWriteFailureFailsClosed (AC5): a release whose durable write
+// fails (the record vanishes between the proven stop and the release) keeps the
+// cancellation pending — a successful process stop never proves the release was
+// recorded.
+func TestCancelReleaseWriteFailureFailsClosed(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	stopper.onStop = func(runDir string) {
+		if runDir != fx.runDir {
+			return
+		}
+		// Remove the slot record so the ReleaseWorktreeExecution CAS fails typed.
+		removeAdmissionRecord(t, fx.common, fx.worktree)
+	}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionPending {
+		t.Fatalf("disposition = %q, want cancellation-pending (release write failed; findings=%v)", res.Disposition, res.Findings)
+	}
+	if !hasFinding(res.Findings, "slot-release-failed") {
+		t.Fatalf("findings = %v, want slot-release-failed", res.Findings)
 	}
 }
