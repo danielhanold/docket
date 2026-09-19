@@ -438,6 +438,47 @@ func (s *Store) ReleaseWorktreeExecution(worktreeRoot, token string) error {
 	})
 }
 
+// rotateWorktreeExecutionForSuccessor transitions an EXECUTING slot the same
+// scope+epoch still owns to a FRESH reservation for the sequence's next drive: it
+// verifies oldToken, requires state executing, bumps ExecutionGen, mints a new
+// ReservationToken, clears RawRunID/RawRunDir (the predecessor's raw-run identity
+// never rides the successor's reservation), preserves RepoIdentity/WorktreeRoot/
+// ScopeID/RunEpochID/Kind, and lands in "reserved". Any other state, a token
+// mismatch, or an unreadable record refuses typed and writes nothing. After
+// rotation the predecessor's oldToken has NO authority: its late release/unresolve/
+// stopping calls fail ErrNotOwner (verifyAdmissionToken), so a stale predecessor
+// cleanup can never free or poison the successor's slot.
+//
+// The fresh token is minted OUTSIDE the CAS body so a physical-generation retry
+// never re-mints it; admissionCAS commits exactly once. It performs no epoch write
+// (the caller has already validated liveness), leaving every field the mutate does
+// not name byte-for-byte intact.
+func (s *Store) rotateWorktreeExecutionForSuccessor(worktreeRoot, oldToken string) (newToken string, err error) {
+	const op = "rotate-worktree-execution-successor"
+	newToken, err = randomToken(genNBytes)
+	if err != nil {
+		return "", storeErr(ErrIO, op, err)
+	}
+	if cerr := s.admissionCAS(worktreeRoot, func(rec *admissionRecord) error {
+		if verr := verifyAdmissionToken(rec, oldToken, op); verr != nil {
+			return verr
+		}
+		if rec.State != admissionExecuting {
+			return ownershipErr(ErrUnresolvedLaunchTransition, op)
+		}
+		rec.State = admissionReserved
+		rec.ExecutionGen++
+		rec.ReservationToken = newToken
+		rec.RawRunID = ""
+		rec.RawRunDir = ""
+		rec.UpdatedAt = time.Now().UTC()
+		return nil
+	}); cerr != nil {
+		return "", cerr
+	}
+	return newToken, nil
+}
+
 // MarkWorktreeExecutionUnresolved marks the slot unresolved after an ambiguous
 // launch or release outcome. It verifies the reservation token, then flips the
 // state to unresolved, where it fails a future reserve closed until recovery
