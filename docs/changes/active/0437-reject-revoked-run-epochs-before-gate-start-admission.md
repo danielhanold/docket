@@ -12,7 +12,7 @@ stacked_on:
 related: [435, 375, 368, 427]
 discovered_from: [435]
 adrs: [118]
-spec:
+spec: 'docs/superpowers/specs/2026-09-19-reject-revoked-run-epochs-before-gate-start-admission-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-19-reject-revoked-run-epochs-before-gate-start-admission-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-19-reject-revoked-run-epochs-before-gate-start-admission-design.md) |
 | ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
