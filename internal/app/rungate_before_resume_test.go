@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gatedrive"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // These are the resume-shares-admission tests (change 0375 Task 12): a
@@ -262,7 +263,7 @@ func seedResumeSlot(t *testing.T, repoDir, priorKey, ownerEpoch string) (common 
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
 	store = gatedrive.OpenStore(common)
-	worktree = t.TempDir()
+	worktree = testsupport.TempDir(t)
 	if err := epochCAS(repoDir, priorKey, func(r *EpochRecord) error {
 		r.Worktree = worktree
 		return nil
