@@ -199,6 +199,12 @@ type EpochLaunchGate func(epochID, worktree string, reserve func() error) error
 // behavior governs).
 func (d *Driver) SetEpochLaunchGate(g EpochLaunchGate) { d.epochLaunch = g }
 
+// EpochLaunchGateWired reports whether an EpochLaunchGate has been injected. It is a
+// read-only composition probe the app-layer wiring test keys on (change 0437 Task 5:
+// the wiring is where the takeover-only defect lived) — never part of the drive
+// protocol and never consulted by a drive operation.
+func (d *Driver) EpochLaunchGateWired() bool { return d.epochLaunch != nil }
+
 // epochGated runs reserve under the injected gate when both the gate and the
 // epoch id are present, else directly. Every epoch-backed reservation/launch
 // authorization in this package flows through this ONE helper (the launch-site

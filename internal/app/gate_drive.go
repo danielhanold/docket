@@ -238,6 +238,10 @@ func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective
 	// It fires only for a scope carrying a RunEpochID, so standalone/pre-linkage
 	// scopes are unaffected.
 	engine.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	// A revoked/superseded/unbound run epoch must not be admitted or launched (change
+	// 0437): wire the app-side epoch launch gate over the same registry. It fires only
+	// for a start carrying a RunEpochID, so standalone gates are unaffected.
+	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
 	budget := time.Duration(eff.GateObservation.Value) * time.Minute
 	// Provenance emits layer identities only — never a value — so it is safe to
 	// persist in the drive record. The owning key is <owner>.test_command, derived
@@ -273,6 +277,10 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	// It fires only for a scope carrying a RunEpochID, so standalone/pre-linkage
 	// scopes are unaffected.
 	engine.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	// A revoked/superseded/unbound run epoch must not be admitted or launched (change
+	// 0437): wire the app-side epoch launch gate over the same registry. It fires only
+	// for a start carrying a RunEpochID, so standalone gates are unaffected.
+	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
 	return newGateDriveService(engine, 0, "", ""), "", ""
 }
 
@@ -310,6 +318,10 @@ func NewTaskGateDriveService(gitCommonDir, exePath string, eff config.Effective,
 	// It fires only for a scope carrying a RunEpochID, so standalone/pre-linkage
 	// scopes are unaffected.
 	engine.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	// A revoked/superseded/unbound run epoch must not be admitted or launched (change
+	// 0437): wire the app-side epoch launch gate over the same registry. It fires only
+	// for a start carrying a RunEpochID, so standalone gates are unaffected.
+	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
 	budget := time.Duration(eff.GateObservation.Value) * time.Minute
 	svc := newGateDriveService(engine, budget, "", "task.argv=agent-supplied")
 	svc.owner = "task"
