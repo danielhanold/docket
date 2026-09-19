@@ -147,15 +147,28 @@ type nativeTaskCanceller interface {
 	cancelNativeTask(handle string) error
 }
 
+// epochLaunchReconciler accounts, for an already-fenced epoch, the pending and
+// replacement LAUNCH obligations the durable drive records name — a reserved-but-
+// unlaunched drive, a busy launch claim, or a relaunch replacement the worktree slot
+// still records the predecessor for — that the participant/slot teardown above cannot
+// see (change 0437 Task 6). It wraps gatedrive.Driver.ReconcileEpochLaunches. A nil
+// reconciler is NOT silence: reconcileEpochTeardown records a finding and fails
+// closed (accounted=false), mirroring the nil-stopper rule.
+type epochLaunchReconciler interface {
+	reconcile(worktree, epochID string) (gatedrive.EpochLaunchReport, error)
+}
+
 // cancelSeams bundles the injectable cancellation seams. Production composes them
-// over the gatedrive admission store, the app gate seam (process.Stop), and — from
-// Task 13 — the native adapter; unit tests fake each one. A nil store means no
-// worktree slot to reconcile (a keyless/standalone run); a nil native canceller is
-// the honest "no adapter" state that yields findings.
+// over the gatedrive admission store, the app gate seam (process.Stop), the launch
+// reconciler (a gatedrive driver over the same store), and — from Task 13 — the
+// native adapter; unit tests fake each one. A nil store means no worktree slot to
+// reconcile (a keyless/standalone run); a nil native canceller is the honest "no
+// adapter" state that yields findings; a nil launch reconciler fails closed.
 type cancelSeams struct {
-	store   *gatedrive.Store
-	stopper cancelStopper
-	native  nativeTaskCanceller
+	store    *gatedrive.Store
+	stopper  cancelStopper
+	native   nativeTaskCanceller
+	launches epochLaunchReconciler
 }
 
 // RunCancel is the public `run cancel` entry. deps and wdeps are accepted for the
@@ -179,11 +192,36 @@ func productionCancelSeams(repoDir string) cancelSeams {
 	if err != nil {
 		return cancelSeams{stopper: appGateStopper{}}
 	}
+	store := gatedrive.OpenStore(common)
 	return cancelSeams{
-		store:   gatedrive.OpenStore(common),
-		stopper: appGateStopper{},
-		native:  nil, // Task 13 wires the native adapter hook.
+		store:    store,
+		stopper:  appGateStopper{},
+		native:   nil, // Task 13 wires the native adapter hook.
+		launches: appLaunchReconciler{store: store},
 	}
+}
+
+// appLaunchReconciler is the production epochLaunchReconciler: it composes a gatedrive
+// driver over the cancellation store and the app gate seam's process service, then
+// reconciles one epoch's launch obligations through ReconcileEpochLaunches. The
+// composed driver needs no epoch launch gate (reconcile is teardown, not admission,
+// and takes no epoch lock). A nil store or an unresolvable process service proves
+// nothing (fail closed): reconcile returns an error the caller turns into a finding +
+// accounted=false, mirroring the nil-stopper rule. It resolves the process service
+// per call, exactly as appGateStopper does.
+type appLaunchReconciler struct {
+	store *gatedrive.Store
+}
+
+func (r appLaunchReconciler) reconcile(worktree, epochID string) (gatedrive.EpochLaunchReport, error) {
+	if r.store == nil {
+		return gatedrive.EpochLaunchReport{}, fmt.Errorf("gate store unavailable")
+	}
+	svc, _, reason := gateService()
+	if svc == nil {
+		return gatedrive.EpochLaunchReport{}, fmt.Errorf("gate service unavailable: %s", reason)
+	}
+	return gatedrive.NewSystemDriver(r.store, svc).ReconcileEpochLaunches(worktree, epochID)
 }
 
 // appGateStopper is the production cancelStopper: it drives the ownership-gated
@@ -369,6 +407,26 @@ func reconcileEpochTeardown(seams cancelSeams, repoDir, gateKey string, ep Epoch
 		accounted = false
 	}
 
+	// (5c) Reconcile the epoch's pending and replacement LAUNCH obligations the durable
+	// drive records name — a reserved-but-unlaunched drive, a busy launch claim, or a
+	// relaunch replacement the worktree slot still records the predecessor for — that
+	// the participant/slot teardown above cannot see (change 0437 Task 6). A nil or
+	// unavailable reconciler is a FINDING and fails closed (accounted=false), mirroring
+	// the nil-stopper rule; a reconciler that reports unsettled launches keeps the
+	// cancellation pending so a completed replacement can never first appear afterward.
+	if seams.launches == nil {
+		findings = append(findings, "launch-reconciler-unavailable")
+		accounted = false
+	} else if report, rcerr := seams.launches.reconcile(ep.Worktree, ep.EpochID); rcerr != nil {
+		findings = append(findings, "launch-reconcile-failed")
+		accounted = false
+	} else {
+		findings = append(findings, report.Findings...)
+		if !report.Accounted {
+			accounted = false
+		}
+	}
+
 	// (6) RE-ENUMERATE after stopping: a launch admitted before the fence won and can
 	// register a participant after the snapshot in (5). Any execution participant not
 	// proven-stopped in this pass is unaccounted — a repeat resumes its cleanup.
@@ -486,6 +544,7 @@ func cancelEpochReason(err error) string {
 
 // Compile-time seam assertions.
 var (
-	_ cancelStopper   = appGateStopper{}
-	_ OperationResult = RunCancelResult{}
+	_ cancelStopper         = appGateStopper{}
+	_ epochLaunchReconciler = appLaunchReconciler{}
+	_ OperationResult       = RunCancelResult{}
 )

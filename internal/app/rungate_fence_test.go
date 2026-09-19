@@ -185,7 +185,7 @@ func TestInFlightMutationReconcilesBeforeCancelled(t *testing.T) {
 		t.Fatalf("admitWorkflowMutation on an active epoch: %v", err)
 	}
 
-	seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}}
+	seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
 
 	res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
 	if res.Disposition != CancelDispositionPending {
@@ -419,7 +419,7 @@ func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
-	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}}
+	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
 	cres := runCancel(seams, repo, key, ep.EpochID, "0427 regression stop")
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
@@ -500,7 +500,7 @@ func TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
-	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}}
+	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
 	cres := runCancel(seams, repo, key, ep.EpochID, "0427 regression stop")
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
