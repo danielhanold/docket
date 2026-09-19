@@ -45,6 +45,26 @@ func (f *fakeNativeCanceller) cancelNativeTask(handle string) error {
 	return f.err
 }
 
+// fakeLaunchReconciler is an injectable epochLaunchReconciler: it records each
+// (worktree,epoch) pair it was asked to reconcile and returns a canned report/error.
+type fakeLaunchReconciler struct {
+	report gatedrive.EpochLaunchReport
+	err    error
+	calls  []string
+}
+
+func (f *fakeLaunchReconciler) reconcile(worktree, epochID string) (gatedrive.EpochLaunchReport, error) {
+	f.calls = append(f.calls, worktree+"|"+epochID)
+	return f.report, f.err
+}
+
+// okLaunchReconciler is a permissive fake reconciler: every epoch's launch
+// obligations are already accounted with no findings, so a cancel test that does not
+// exercise the launch-reconciliation path behaves exactly as before the seam existed.
+func okLaunchReconciler() *fakeLaunchReconciler {
+	return &fakeLaunchReconciler{report: gatedrive.EpochLaunchReport{Accounted: true}}
+}
+
 // cancelFixture is one prepared cancelable run: a gate record with a parent-held
 // authority, an active epoch bound to change 42 with a confirmed claim, a canonical
 // feature worktree, and a confirmed worktree execution slot whose process is runDir.
@@ -151,7 +171,7 @@ func hasFinding(findings []string, prefix string) bool {
 func TestRunCancelHappyPath(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper}, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
 
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
@@ -175,7 +195,7 @@ func TestRunCancelHappyPath(t *testing.T) {
 func TestRunCancelPendingOnUnprovenStop(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: false}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper}, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
 
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending", res.Disposition)
@@ -297,7 +317,7 @@ func TestCancelFencesBeforeStopping(t *testing.T) {
 			return nil
 		})
 	}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper}, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
 
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending (the racing P2 must be caught)", res.Disposition)
@@ -317,7 +337,7 @@ func TestCancelRepeatResumesCleanup(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: false}}
 
-	first := runCancel(cancelSeams{store: fx.store, stopper: stopper}, fx.repo, fx.key, fx.epochID, "human stop")
+	first := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
 	if first.Disposition != CancelDispositionPending {
 		t.Fatalf("first disposition = %q, want cancellation-pending", first.Disposition)
 	}
@@ -327,7 +347,7 @@ func TestCancelRepeatResumesCleanup(t *testing.T) {
 
 	// The teardown now proves; a repeat resumes cleanup on the cancelling epoch.
 	stopper.proven[fx.runDir] = true
-	second := runCancel(cancelSeams{store: fx.store, stopper: stopper}, fx.repo, fx.key, fx.epochID, "human stop")
+	second := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
 	if second.Disposition != CancelDispositionCancelled {
 		t.Fatalf("second disposition = %q, want cancelled (findings=%v)", second.Disposition, second.Findings)
 	}
@@ -351,7 +371,7 @@ func TestCancelPendingOnUncompletedMutation(t *testing.T) {
 		t.Fatalf("epochCAS seed mutation: %v", err)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper}, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
 
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending (uncompleted mutation)", res.Disposition)
@@ -373,7 +393,7 @@ func TestCancelNativeAdapterAbsentIsFindingNotSilence(t *testing.T) {
 		t.Fatalf("RegisterEpochParticipant: %v", err)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, native: nil}, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, native: nil, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
 
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled", res.Disposition)
@@ -406,7 +426,7 @@ func TestCancelNeverChargesOrResets(t *testing.T) {
 	}
 
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper}, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled", res.Disposition)
 	}
@@ -434,6 +454,71 @@ func TestCancelNeverChargesOrResets(t *testing.T) {
 	}
 	if rec.AttemptLimit != 2 {
 		t.Fatalf("gate record AttemptLimit = %d, want 2 (unchanged)", rec.AttemptLimit)
+	}
+}
+
+// TestCancelPendingWhileLaunchObligationUnresolved: even with every process teardown
+// proven, an epoch-linked launch obligation the reconciler reports unsettled keeps
+// the cancellation pending (a completed replacement must never first appear after a
+// completed cancellation), surfacing the reconciler's findings.
+func TestCancelPendingWhileLaunchObligationUnresolved(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	recon := &fakeLaunchReconciler{report: gatedrive.EpochLaunchReport{
+		Accounted: false,
+		Findings:  []string{"launch-pending:d1"},
+	}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, fx.epochID, "human stop")
+
+	if res.Disposition != CancelDispositionPending {
+		t.Fatalf("disposition = %q, want cancellation-pending (an unsettled launch obligation)", res.Disposition)
+	}
+	if !hasFinding(res.Findings, "launch-pending:d1") {
+		t.Fatalf("findings = %v, want the reconciler's launch-pending:d1 surfaced", res.Findings)
+	}
+	if len(recon.calls) != 1 || recon.calls[0] != fx.worktree+"|"+fx.epochID {
+		t.Fatalf("reconciler calls = %v, want [%s]", recon.calls, fx.worktree+"|"+fx.epochID)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelling {
+		t.Fatalf("epoch state = %q, want cancelling (durable fence held)", st)
+	}
+}
+
+// TestCancelCompletesWhenLaunchObligationsSettle: with the reconciler reporting every
+// launch obligation accounted and the rest of the accounting green, cancellation
+// completes to cancelled.
+func TestCancelCompletesWhenLaunchObligationsSettle(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	recon := okLaunchReconciler()
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: recon}, fx.repo, fx.key, fx.epochID, "human stop")
+
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+	if len(recon.calls) != 1 || recon.calls[0] != fx.worktree+"|"+fx.epochID {
+		t.Fatalf("reconciler calls = %v, want [%s]", recon.calls, fx.worktree+"|"+fx.epochID)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelled {
+		t.Fatalf("epoch state = %q, want cancelled", st)
+	}
+}
+
+// TestCancelReconcilerUnavailableFailsClosed: a nil launch reconciler is not silence
+// — it is a finding and a fail-closed pending, mirroring the nil-stopper rule.
+func TestCancelReconcilerUnavailableFailsClosed(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: nil}, fx.repo, fx.key, fx.epochID, "human stop")
+
+	if res.Disposition != CancelDispositionPending {
+		t.Fatalf("disposition = %q, want cancellation-pending (nil reconciler fails closed)", res.Disposition)
+	}
+	if !hasFinding(res.Findings, "launch-reconciler-unavailable") {
+		t.Fatalf("findings = %v, want launch-reconciler-unavailable", res.Findings)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelling {
+		t.Fatalf("epoch state = %q, want cancelling", st)
 	}
 }
 

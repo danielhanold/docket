@@ -151,8 +151,11 @@ func guardianFenceAndReap(repoDir, gateKey, epochID string) {
 	}
 	// The guardian has no native adapter (a dead owner has no live app-server thread
 	// to interrupt) — native participants surface as findings, discarded here — and
-	// no capability. The teardown accounting is identical to run.cancel's; its
-	// verdict is discarded because the guardian never finalizes the epoch.
+	// no capability. The teardown accounting is identical to run.cancel's, composed
+	// through the SAME productionCancelSeams — including the epoch launch reconciler
+	// (change 0437 Task 6), so an abruptly-abandoned run's pending or replacement
+	// launches are reaped on the guardian's fence too. Its verdict is discarded
+	// because the guardian never finalizes the epoch.
 	_, _, _ = reconcileEpochTeardown(productionCancelSeams(repoDir), repoDir, gateKey, ep)
 }
 
