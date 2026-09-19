@@ -1,13 +1,18 @@
 # Backlog
 
-**439 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 287 done · 🗑️ 119 killed
+**439 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 287 done · 🗑️ 119 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0437](active/0437-reject-revoked-run-epochs-before-gate-start-admission.md) | Reject revoked run epochs before gate-start admission | `high` | `fix` | [spec](../superpowers/specs/2026-09-19-reject-revoked-run-epochs-before-gate-start-admission-design.md) | `fix/reject-revoked-run-epochs-before-gate-start-admission` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0437](active/0437-reject-revoked-run-epochs-before-gate-start-admission.md) | Reject revoked run epochs before gate-start admission | `high` | `fix` | [#315](https://github.com/danielhanold/docket/pull/315) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -23,7 +28,7 @@
 |---|-------|----------|------|-----------|
 | [0439](active/0439-leaked-worktree-gate-admission-slot-stuck-in-executing-block.md) | Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error | `medium` | `fix` | needs-brainstorm |
 | [0438](active/0438-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged.md) | finalize.rebase-abort can't recover a completed-but-unmerged rebase whose base later moved | `medium` | `fix` | needs-brainstorm |
-| [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | ⏳ waiting on #437 — not yet built |
+| [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | ⏳ waiting on #437 — needs your merge |
 | [0433](active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md) | Pilot top-level Codex coordinators with one-level native dispatch | `high` | `refactor` | needs-brainstorm |
 | [0418](active/0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | `medium` | `fix` | build-ready (trivial) |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-brainstorm |
