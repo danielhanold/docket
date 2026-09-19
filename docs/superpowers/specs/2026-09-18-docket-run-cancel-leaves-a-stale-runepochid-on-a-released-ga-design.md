@@ -2,117 +2,70 @@
 > ↩ **[Change 0435 — docket run cancel leaves a stale RunEpochID on a released gate-admission slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md)**
 <!-- docket:backlink:end -->
 
-# docket run cancel leaves a stale RunEpochID on a released gate-admission slot
+# Safely retire cancelled run ownership from a released gate-admission slot
 
-## Problem
+## Purpose and implementation order
 
-A gate-admission slot record (`internal/gatedrive/admission.go:105-131`, `admissionRecord`) carries
-a `RunEpochID` field that identifies which dispatched run currently owns a worktree's gate. Two
-fence checks refuse admission on any non-empty `RunEpochID` that doesn't match the caller's own
-epoch, **regardless of the slot's `State`**:
+Implement and merge **437 first, then 435**. Change 437 rejects revoked epochs at gate-start admission; this change repairs the stale worktree ownership that blocks legitimate replacement and standalone finalize gates. The record's `depends_on: [437]` enforces that sequence. Build 435 against integration after 437 reaches done, retaining its admission tests. Do not stack or implement the pair concurrently.
 
-- `internal/gatedrive/admission.go:245`, inside `reserveWorktreeExecution`
-- `internal/app/gate.go:244`, `rawStaleEpochRefusal`
+## Problem and evidence
 
-This State-agnostic behavior is intentional (change 0375 Task 9, covered by
-`TestEpochOmissionCannotDetachOwnedWorktree`, `internal/gatedrive/epoch_test.go:55-103`): a
-gate-driven run works in slices, releasing the slot briefly between them, and the fence must keep
-protecting that live run's between-slice gap — not just its actively-executing window. Weakening
-this check to ignore `released` slots would reopen exactly the race that test was written to
-close: a different run grabbing the worktree mid-drive, between two slices of a still-live run.
+An admission slot intentionally retains RunEpochID after ordinary execution release so a live epoch continues to own its worktree between drives. Both `reserveWorktreeExecution` and `rawStaleEpochRefusal` enforce the epoch mismatch regardless of released state. Those checks are correct and stay unchanged.
 
-The bug is on the other side of that same design: `docket run cancel`
-(`internal/app/rungate_cancel.go`) is the sanctioned way to declare an epoch dead. Its own doc
-comment says cancellation "touches only the epoch record and the worktree admission slot," but its
-slot reconciliation (`reconcileWorktreeSlot`) treats an already-`released` slot as fully accounted
-and does nothing further, and `ReleaseWorktreeExecution` (`admission.go:429-439`) only ever flips
-`State` and `UpdatedAt` — neither path ever clears `RunEpochID`. Once an epoch is cancelled while
-its slot is (or becomes) `released`, its `RunEpochID` fingerprint is permanently stuck on the slot.
-The fence can no longer distinguish "released, but a live run will resume the next slice any
-second" (must stay protected) from "released, and the owning run is provably dead" (safe to
-re-admit) — both look identical on disk.
+Cancellation currently has no separate ownership-retirement step. `reconcileWorktreeSlot` treats a released slot as accounted, while `ReleaseWorktreeExecution` preserves the epoch. `runCancel` also returns immediately for cancelled/superseded epochs. Thus a completed cancellation can leave a released slot that rejects a replacement forever, and retrying the supported cancel operation does not repair it.
 
-No other existing mechanism clears this field:
-
-- `docket gate recover --root <dir>` (`internal/app/gate.go:417` → `internal/process/recover.go:59`)
-  only understands raw run-slot directories (locks/manifests under a run-root); every
-  `gate-admission/v1/<hash>` entry it's pointed at comes back `"foreign"` / `"not a run slot; left
-  untouched"` — confirmed by direct invocation. It has no knowledge of the `gatedrive` admission
-  schema at all.
-- `docket gate cleanup` (`internal/app/finalize_cleanup.go:709`) only removes one exact terminal
-  run directory's logs — also raw-run-directory scoped.
-- Legacy drive inventory (`internal/gatedrive/history.go`, `inventoryLegacyDrives`) only runs once,
-  on a worktree's very first-ever reservation, and assesses the `gate-drives` schema, not admission
-  slots.
-
-Net effect: once hit, the only "fix" is a hand-edit of `record.json` — which this repo's own rules
-say durable gate state must never receive. This exact case blocked finalizing change 434 (PR #312):
-the epoch `13d9c78f54853811831e415dafe6dc64` (run key
-`implement-next-20260918t182257z-6946-e48f`) was cleanly cancelled via `docket run cancel`, but the
-worktree's admission slot kept that `RunEpochID` with `State: released`, permanently refusing the
-finalize gate with `stale-run-epoch` until a human explicitly authorized a one-off manual edit to
-unblock it. No test anywhere exercises this exact sequence — `internal/app/rungate_cancel_test.go`
-has thorough cancel-path coverage (happy path, already-cancelled, wrong epoch, fencing before
-stopping, repeat/resume, never-charges-or-resets) but nothing asserts on the admission slot's
-`RunEpochID` after cancel, nor exercises "cancel an epoch owning a released slot, then attempt
-admission of a new, different-epoch reservation on the same worktree."
-
-**Second, independent occurrence — build path, not finalize.** The same defect recurred hours
-later on change 0368, on the *build* side of the gate rather than finalize. A human ran
-`docket run cancel` on 0368's in-flight `docket-implement-next` dispatch (epoch
-`523ddc4c4a7a1c715ce105d669165749`, run key `implement-next-20260918t192652z-58216-ef81`) to pause
-the run for session limits; `run cancel` reported clean `cancelled`. On resume,
-`docket run gate-before implement-next --resume 368` correctly armed a fresh reserved-replacement
-epoch (`6f79c99d5888658da5f166107ba640c4`). But the resumed `docket-implement-next` agent's own
-`docket gate drive start --owner build` call refused that new epoch with `stale-run-epoch: "an
-in-flight run owns this worktree; present that run's epoch or cancel it"` — the worktree's
-gate-admission record still named the superseded, cancelled predecessor epoch `523ddc4c...` with
-`State: released`, never rebound or cleared. The drive only started once the agent presented the
-stale predecessor epoch `523ddc4c...` directly (which the fence still accepted, since it matched
-the value stuck on the slot) instead of the newly-armed replacement epoch — a working manual
-bypass of the same class of bug, distinct from 434's hand-edit-of-`record.json` recovery, but
-converging on the identical root cause: `run cancel` never clears `RunEpochID` on the slot it
-releases. Two independent occurrences on the same day, one on each side of the gate (finalize vs.
-build/resume), both pointing at the same fix in `run cancel`'s worktree-slot reconciliation.
+The recorded incidents were finalize of change 434 and build/resume of change 368. The latter's successful use of the cancelled predecessor epoch additionally revealed a separate start-admission defect, now assigned to 437; it is not an acceptable recovery technique. The 435 review on main ab9216d2 reproduced stale-slot refusal after cancelled, terminal replay leaving the stale field, and cancellation touching a foreign epoch's slot. Existing cancellation tests used epoch-less raw slots and did not prove this ownership contract.
 
 ## Decision
 
-Fix `docket run cancel`'s worktree-slot reconciliation (`reconcileWorktreeSlot` and the paths that
-call `ReleaseWorktreeExecution`, in `internal/app/rungate_cancel.go` /
-`internal/gatedrive/admission.go`) so that when cancel tears down the epoch owning a worktree's
-admission slot, it also clears that slot's `RunEpochID` — in both the "already released before
-cancel ran" case and the "released as part of this cancel" case. Clearing the field lets the
-existing fence checks work exactly as designed: an empty `RunEpochID` naturally admits the next
-reservation, with zero change to `admission.go:245` or `gate.go:244` and zero weakening of the
-live-run between-slice protection those checks exist for.
+Separate ordinary execution release from cancellation-specific retirement of epoch ownership. Ordinary `ReleaseWorktreeExecution` must retain RunEpochID. Introduce a small dedicated store operation using the existing admission lock and atomic writer; it clears only the expected epoch on a released slot and preserves execution history. It is invoked only by authorized cancellation after complete accounting, never as an automatic consequence of releasing a process.
 
-Explicitly rejected alternatives (see `## Out of scope` on the change record for the authoritative
-list): weakening the fence itself to ignore `released` state, and extending `docket gate recover`
-to cover gate-admission slots as an alternative recovery path. Both were considered and set aside
-in favor of fixing the actual root cause in `run cancel`.
+Keep the existing epoch and admission schemas and state vocabulary. ADR-0118 remains the governing contract.
 
-## What changes
+## Ownership and teardown rules
 
-- `reconcileWorktreeSlot` (and/or `ReleaseWorktreeExecution`, whichever is the more correct
-  ownership boundary — the implementer picks based on which call sites need the field cleared)
-  clears `RunEpochID` on the slot record whenever cancel determines the slot belongs to the epoch
-  being cancelled, regardless of whether the slot's `State` was already `released` or becomes
-  `released` as part of this cancel call.
-- Preserve every other field cancel currently leaves alone (`DriveID`, `RawRunID`, etc. stay
-  historical evidence per the package's existing release semantics) — only `RunEpochID` is cleared,
-  and only when it matches the epoch being cancelled (never a different, still-live epoch's
-  `RunEpochID` on the same slot, if that's even representable).
-- New regression test(s) in `internal/app/rungate_cancel_test.go` (and/or
-  `internal/gatedrive/epoch_test.go` if the fix lands at that layer) covering exactly the reported
-  gap: cancel an epoch owning an already-`released` slot, then attempt a fresh reservation with a
-  different epoch on the same worktree, and assert it succeeds (previously refused
-  `ErrStaleRunEpoch` / `stale-run-epoch`).
-- No change to `admission.go:245`, `gate.go:244`, or the takeover epoch fence
-  (`internal/gatedrive/takeover.go:88-99`).
+Pass the expected epoch identity through both slot-marking and slot-reconciliation helpers. Establish ownership before marking, stopping, releasing, or retiring a slot. The current slot's token alone is not proof that it belongs to the cancelling epoch.
 
-## Out of scope
+A different nonempty RunEpochID is a foreign owner: do not mark it, stop its RawRunDir, release it, or clear it. Continue accounting only for participants registered to the cancelled epoch. An empty epoch is not ownership proof either; an epoch-less legacy slot may be stopped only when its exact recorded execution is independently linked to that epoch's registered execution participants. Otherwise leave it untouched and report unresolved ownership if it obstructs completion. Update the existing raw-slot fixture rather than preserving its assumption that any slot at the worktree belongs to the epoch.
 
-- Weakening the admission fence's State-agnostic `RunEpochID` check itself — that protects a live
-  run's between-slice gap and removing it reopens a real race (see `## Problem`).
-- Extending `docket gate recover` to also cover gate-admission slots.
-- Any change to the takeover epoch fence.
+Each slot mutation must atomically check the expected reservation token and epoch. Retirement additionally requires released state. A stale snapshot, changed reservation, unreadable slot, unresolved execution, or unknown state cannot authorize a clear. Re-read a raced slot and distinguish a successor that must be left alone from unresolved teardown; do not blindly retry with the successor's token.
+
+Check slot-write errors. Process-stop success is not proof that release or retirement was durably recorded. Preserve bounded diagnostics and do not report completed cancellation on an unaccounted write failure.
+
+## Completion ordering and interruption
+
+Keep the existing fence-before-teardown flow. Teardown may release an execution while retaining its epoch. Late participants and admitted mutations must then be accounted before epoch ownership is retired. The death guardian shares teardown but does not retire ownership: it leaves cancelling and still requires authorized run.cancel completion.
+
+For authorized completion, reuse the existing epoch lock, re-read/revalidate the cancelling epoch and accounting snapshot, then retire its matching released slot under the admission lock, and only then persist cancelled. Acquire epoch before admission whenever both are held; do not hold them across process stops or network work. Any newly discovered unaccounted participant/mutation keeps the epoch cancelling and preserves ownership. The 437 admission fence prevents a new old-epoch admission after cancellation fencing.
+
+There are two existing records, not a new cross-store transaction. Their interruption contract is explicit:
+
+- Failure before slot retirement leaves ownership intact and cleanup incomplete.
+- Retirement succeeds but persisting cancelled fails, or the process dies between writes: the epoch remains fenced. Complete accounting had already been established, so releasing ownership was safe. Repeated cancellation rechecks accounting, accepts an absent/already-detached slot, leaves a foreign successor untouched, and finishes the epoch transition. Do not restore the old ownership field or introduce a cleanup journal.
+- After cancelled is persisted, normal retries are no-ops unless a historical stale released slot needs the bounded repair below.
+
+Do not claim that every cancellation-pending result necessarily retains the slot: after a failed final epoch write it can already be safely detached. The invariant is that unresolved execution or mutation accounting never permits detachment.
+
+## Repair of existing terminal records
+
+Retain the current key/repository/epoch/claim authority checks. Before the terminal-epoch shortcut, inspect whether a cancelled or superseded epoch still owns a released slot. Validate that its persisted participant and mutation evidence does not contradict completed teardown, then perform the same ownership-checked retirement. Never revive the epoch, replay mutations, reset budgets, or stop a replacement's execution.
+
+A missing slot, already-empty epoch field, or a slot owned by a different epoch is an idempotent no-op after the old epoch is otherwise accounted. A terminal record still naming a nonreleased/ambiguous execution is not automatically trustworthy: leave it untouched and return bounded incomplete-cleanup findings. The historical released-slot repair does not become a general recovery engine.
+
+A terminal replay that repairs stale ownership reports cancelled/applied; a replay with nothing to repair reports already-cancelled/no-op. Incomplete cleanup reports cancellation-pending, with a finding explaining the remaining slot/accounting condition, without changing a terminal epoch back to cancelling. Authority failures remain refused. No new disposition is introduced.
+
+## Acceptance criteria
+
+1. A fixture first proves a released slot carries a nonempty owning epoch and rejects both a different epoch and an epoch-less reservation. Authorized cancellation detaches ownership; a valid replacement build gate and an epoch-less finalize gate can then admit independently.
+2. Cover already-released and executing-then-released slots. Preserve DriveID, RawRunID, RawRunDir, execution generation, and other historical fields; only RunEpochID and the normal update metadata change at retirement.
+3. Ordinary release retains epoch ownership and the existing between-drive mismatch tests stay green.
+4. Pending mutations, late participants, unproven teardown, ambiguous slots, and guardian-only cleanup cannot retire ownership. Assert the field, not just the disposition.
+5. Cancelling an old epoch never stops or mutates a foreign slot. Deterministic barriers cover replacement between load and mutation and concurrent cancellation replay. Epoch-less slots require independent linkage before teardown.
+6. Failed release/retirement/final-epoch writes cannot produce false completion. Inject interruption between retirement and epoch persistence and prove supported retry converges without touching a successor.
+7. Repair already-cancelled and superseded historical released slots; verify repeated repair is a no-op and unsafe historical states remain diagnostic rather than silently freed.
+8. Carry 437's revoked-start tests forward: clearing old ownership must not let the old epoch reclaim a free slot. Cancellation and repair consume no suite attempt and reset no budget/retry state.
+9. Mutation-test the ownership, full-accounting, and error-propagation guards. Run the entire source-resolved build suite and inspect the budget report.
+
+## Complexity limit and exclusions
+
+No new daemon, background loop, store, schema, lifecycle state, configuration, CLI command, generic coordination framework, or retry layer. Reuse existing locks, atomic writes, cancellation, and replay. No extension of raw gate recover, no weakening of the state-independent epoch mismatch checks, no change to takeover, and no redesign of mutation-owner lookup or normal successful-run retirement. Change 437 alone owns revoked-epoch start admission. If the ordering cannot be implemented within these constraints, surface the precise conflict rather than adding machinery during implementation.
