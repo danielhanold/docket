@@ -146,8 +146,10 @@ func TestReconcileBusyClaimIsPending(t *testing.T) {
 }
 
 // TestReconcileProvenNeverLaunchedAccounts proves a reserved relaunch the process
-// seam proves NEVER launched accounts the obligation, launching and mutating
-// nothing (the drive record is byte-stable across the reconcile).
+// seam proves NEVER launched accounts the obligation and launches nothing, and — to
+// close the launch-after-cancel window (spec AC4) — settles the drive terminal HALTED
+// "run-cancelled" under the held claim while PRESERVING the consumed reservation (the
+// sole relaunch is never refunded), so a later recovery Advance can never launch it.
 func TestReconcileProvenNeverLaunchedAccounts(t *testing.T) {
 	clk := &fakeClock{now: startEpoch()}
 	proc := &fakeProc{
@@ -179,9 +181,11 @@ func TestReconcileProvenNeverLaunchedAccounts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load after: %v", err)
 	}
-	if after.LastOutcome != before.LastOutcome || after.RelaunchReserved != before.RelaunchReserved ||
-		after.RelaunchToken != before.RelaunchToken || after.RelaunchCount != before.RelaunchCount {
-		t.Fatalf("reconcile must mutate no drive verdict: before=%+v after=%+v", before, after)
+	if after.LastOutcome != HALTED || after.LastCause != "run-cancelled" {
+		t.Fatalf("reconcile must settle the never-launched reserved relaunch terminal HALTED run-cancelled, got %v/%q", after.LastOutcome, after.LastCause)
+	}
+	if !after.RelaunchReserved || after.RelaunchToken != before.RelaunchToken || after.RelaunchCount != before.RelaunchCount {
+		t.Fatalf("the terminal settle must preserve the consumed reservation (no refund): before=%+v after=%+v", before, after)
 	}
 }
 
@@ -326,6 +330,84 @@ func TestReconcileReservedRelaunchResolved(t *testing.T) {
 			t.Fatalf("an unresolved reserved relaunch must stay pending, findings=%v", report.Findings)
 		}
 	})
+}
+
+// TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow proves the
+// launch-after-cancel window (spec AC4) is closed: when reconcile resolves a
+// reserved relaunch never-launched UNDER THE HELD CLAIM, it settles the drive
+// terminal HALTED "run-cancelled" before releasing the claim, so a SUBSEQUENT
+// Advance recovery on the same drive launches NOTHING — even though that recovery's
+// own read-only epoch pass races ahead of the fence and reads the epoch still live
+// (modelled here by injecting no epoch gate, so recoveryEpochRevoked returns false).
+// Without the settle the recovery would take the freed claim, resolve never-launched
+// under the stale revoked=false, and relaunch the dead run AFTER cancellation had
+// already completed. The oracle is a strict ordering (reconcile fully returns before
+// Advance runs) plus the proc.Launch count — never a timing sleep.
+func TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow(t *testing.T) {
+	// The reserved relaunch: a crash-window reservation the recovery path resolves.
+	recProc := &fakeProc{
+		resolve: func(root, token string) (*process.ReservationResolution, error) {
+			return &process.ReservationResolution{Disposition: "never-launched"}, nil
+		},
+	}
+	recDriver, store := newTestDriver(t, &fakeClock{now: startEpoch()}, recProc, stableGit())
+	id, ownerGen := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		r.RelaunchReserved = true
+		r.RelaunchToken = "aaaaaaaaaaaaaaaa"
+	})
+
+	// (a) Cancellation reconciles the FENCED epoch's reserved relaunch: proc proves
+	// never-launched, so the obligation is accounted. The reconcile fully returns
+	// (releasing the per-drive claim) before the Advance below runs.
+	report, err := recDriver.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	if err != nil {
+		t.Fatalf("ReconcileEpochLaunches: %v", err)
+	}
+	if !report.Accounted {
+		t.Fatalf("a proven never-launched reserved relaunch must be accounted, findings=%v", report.Findings)
+	}
+
+	// (b) A later Advance recovery on the SAME drive, on a fresh store handle (an
+	// independent CLI process) whose epoch reads as live. Its seeded run is dead, so
+	// a NONTERMINAL record would drive its single relaunch and create a process AFTER
+	// the completed cancellation. The terminal settle in (a) must forbid that launch.
+	advProc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			if strings.HasSuffix(runDir, "run1") {
+				return obs(process.StateVanished, runDir), nil
+			}
+			return obs(process.StateRunning, runDir), nil
+		},
+		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
+			return &process.LaunchOutcome{RunID: "replacement", RunDir: "/runs/replacement", State: process.StateRunning}, nil
+		},
+		resolve: func(root, token string) (*process.ReservationResolution, error) {
+			return &process.ReservationResolution{Disposition: "never-launched"}, nil
+		},
+	}
+	advClk := &fakeClock{now: startEpoch().Add(time.Second)}
+	advDriver := NewDriver(reopenStore(store), advClk, advProc, stableGit())
+	advDriver.slice = 4 * pollTick
+	advDriver.pollInterval = pollTick
+	advDriver.sleep = func(dur time.Duration) { advClk.advance(dur) }
+
+	doc, err := advDriver.Advance(id, ownerGen)
+	if err != nil {
+		t.Fatalf("Advance: %v", err)
+	}
+	if advProc.launchN != 0 {
+		t.Fatalf("a recovery after a completed cancellation must launch NOTHING (AC4 launch-after-cancel window), proc.Launch called %d times", advProc.launchN)
+	}
+	if doc.Outcome != HALTED || doc.Cause != "run-cancelled" {
+		t.Fatalf("the terminal settle must resolve the recovery Advance to HALTED run-cancelled, got %s/%q", doc.Outcome, doc.Cause)
+	}
+	settled, lerr := store.Load(id)
+	if lerr != nil {
+		t.Fatalf("Load after: %v", lerr)
+	}
+	if settled.LastOutcome != HALTED || settled.LastCause != "run-cancelled" {
+		t.Fatalf("reconcile must settle the never-launched reserved relaunch terminal HALTED run-cancelled, got %v/%q", settled.LastOutcome, settled.LastCause)
+	}
 }
 
 // TestReconcileFailuresPreserveEvidence proves a resolution error, an unreadable

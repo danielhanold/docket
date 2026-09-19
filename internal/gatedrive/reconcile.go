@@ -155,7 +155,7 @@ func (d *Driver) reconcileEpochDrive(id string, rec driveRecord) (settled bool, 
 		if cur.RelaunchToken == "" {
 			return false, "resolution-unresolved:" + id
 		}
-		return d.reconcileReservation(id, cur.RunRoot, cur.RelaunchToken)
+		return d.reconcileReservation(id, cur.RunRoot, cur.RelaunchToken, cur.OwnerGeneration)
 	}
 
 	// An attached run the DRIVE record names directly (the original, or a relaunch's
@@ -166,21 +166,62 @@ func (d *Driver) reconcileEpochDrive(id string, rec driveRecord) (settled bool, 
 
 // reconcileReservation resolves a reserved (but unattached) launch through the
 // process seam and reports whether the obligation is settled. A proven never-launched
-// is settled (provably idle). An identified run is stopped through proc. An
-// unresolved verdict or a resolve error preserves unresolved evidence: pending.
-func (d *Driver) reconcileReservation(id, runRoot, token string) (bool, string) {
+// is settled by settleNeverLaunchedCancelled (which also forecloses a later recovery
+// launch). An identified run is stopped through proc. An unresolved verdict or a
+// resolve error preserves unresolved evidence: pending. ownerGen is the drive's own
+// owner generation (read from the record under the held claim) — the CAS credential
+// settleNeverLaunchedCancelled needs; it is a locator, not authority.
+func (d *Driver) reconcileReservation(id, runRoot, token, ownerGen string) (bool, string) {
 	res, rerr := d.proc.ResolveReservation(runRoot, token)
 	if rerr != nil || res == nil {
 		return false, "resolution-unresolved:" + id
 	}
 	switch res.Disposition {
 	case "never-launched":
-		return true, "" // provably idle: the reserved launch never ran
+		return d.settleNeverLaunchedCancelled(id, ownerGen)
 	case "identified":
 		return d.stopIdentifiedRun(id, res.RunDir)
 	default: // "unresolved" or any unexpected disposition: preserve evidence
 		return false, "resolution-unresolved:" + id
 	}
+}
+
+// settleNeverLaunchedCancelled settles a reserved relaunch that provably never ran,
+// under the per-drive claim reconcileEpochDrive already holds. That held claim
+// excludes any concurrent launcher (Advance's recoverReservedRelaunch, StartAdmitted,
+// and reserveRelaunch all take the SAME flock), so the reservation is genuinely idle
+// AND cannot be launched while the claim is held. Settling the drive terminal HALTED
+// "run-cancelled" here — BEFORE the caller releases the claim — closes the
+// launch-after-cancel window (spec AC4): a later Advance recovery whose read-only
+// epoch pass raced ahead of this fence (recoveryEpochRevoked read the epoch still
+// live) now finds a terminal record at isTerminalOutcome and returns the recorded
+// verdict rather than authorizing a new launch. The CAS preserves the consumed
+// reservation (RelaunchReserved is never cleared, mirroring haltReservedRelaunchCause)
+// so the sole relaunch is never refunded.
+//
+// An already-terminal record (a concurrent settle) is equally accounted. A record
+// that moved out from under the claim (a lost owner or reservation) or a store fault
+// fails closed to pending — reconcile never claims an obligation settled while the
+// drive might still recover a launch.
+func (d *Driver) settleNeverLaunchedCancelled(id, ownerGen string) (bool, string) {
+	err := d.store.ownerCAS(id, func(r *driveRecord) error {
+		if verr := verifyOwner(r, ownerGen); verr != nil {
+			return verr
+		}
+		if isTerminalOutcome(r.LastOutcome) {
+			return errAlreadyTerminal
+		}
+		if !r.RelaunchReserved {
+			return errRelaunchRaceLost
+		}
+		r.LastOutcome = HALTED
+		r.LastCause = "run-cancelled"
+		return nil
+	})
+	if err == nil || errors.Is(err, errAlreadyTerminal) {
+		return true, "" // settled terminal: provably idle AND foreclosed from relaunch
+	}
+	return false, "resolution-unresolved:" + id
 }
 
 // stopIdentifiedRun stops one identified run through the process seam and reports
