@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-19T18:20:41Z'
+reconciled: true
+claimed_at: '2026-09-19T18:26:40Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,9 @@ Retire only the cancelled epoch's released slot after 437 proves all pending lau
 ## Out of scope
 
 Launch fencing and pending-launch accounting belong exclusively to 437. This change reuses that accounting for cancellation retirement, historical terminal repair, and the corresponding resume check. Do not weaken the state-independent epoch mismatch fences, change ordinary ReleaseWorktreeExecution or takeover semantics, extend raw gate recover, or redesign mutation-owner lookup. No new daemon, background recovery loop, persistent store, schema, lifecycle state, configuration, CLI command, generic coordination framework, or retry layer. If the existing lock-and-replay model cannot satisfy the contract, report the specific design conflict instead of expanding scope during implementation.
+
+## Reconcile log
+
+### 2026-09-19
+
+2026-09-19 — Reconciled against current main (501acffd). Dependency 437 (reject-revoked-run-epochs-before-gate-start-admission) is merged and done, so 435 builds against integration as the spec requires. Verified the spec's named symbols exist unchanged on main: runCancel/reconcileEpochTeardown/reconcileWorktreeSlot (internal/app/rungate_cancel.go), reserveWorktreeExecution + the RunEpochID mismatch fence and ReleaseWorktreeExecution which retains RunEpochID (internal/gatedrive/admission.go), rawStaleEpochRefusal (internal/app/gate.go), and 437's launch accounting: Driver.ReconcileEpochLaunches/EpochLaunchReport (internal/gatedrive/reconcile.go) and the EpochLaunchGate/epochGated fence (internal/gatedrive/driver.go). The new epoch-retirement store operation lands as one more admissionCAS mutate closure in admission.go beside ReleaseWorktreeExecution, clearing only RunEpochID on a released slot for the expected epoch while preserving DriveID/RawRunID/RawRunDir/ExecutionGen. Scope holds: authorized run.cancel completion retires ownership after complete accounting; per the spec the death guardian performs teardown but never retires ownership (it leaves the epoch cancelling), so retirement is invoked only on the authorized-cancel path and the matching terminal-repair/resume quiescence check, not from guardianFenceAndReap. The epoch-less raw-slot cancel fixture (newCancelFixture in rungate_cancel_test.go) must be updated to record a real RunEpochID so the owning-epoch retirement case is actually exercised. No design change, no scope expansion; ADR-0118 remains the governing contract. reconciled=true.
