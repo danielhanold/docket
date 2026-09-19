@@ -46,6 +46,9 @@
 // the successor's slot. A released record is overwritten in place by the next
 // reserve; releasing preserves the historical DriveID/RawRunID, so a released
 // record remains historical evidence until the next reservation replaces it.
+// Completed cancellation may additionally retire a released slot's RunEpochID
+// through RetireWorktreeExecutionEpoch (change 0435), leaving the historical
+// evidence intact while detaching the cancelled epoch's ownership.
 package gatedrive
 
 import (
