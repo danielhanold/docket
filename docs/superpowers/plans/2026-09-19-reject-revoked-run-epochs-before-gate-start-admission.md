@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0437 — Reject revoked run epochs before gate-start admission](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0437-reject-revoked-run-epochs-before-gate-start-admission.md)**
+> ↩ **[Change 0437 — Reject revoked run epochs before gate-start admission](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-19-0437-reject-revoked-run-epochs-before-gate-start-admission.md)**
 <!-- docket:backlink:end -->
 # Reject Revoked Run Epochs Before Gate-Start Admission — Implementation Plan
 
