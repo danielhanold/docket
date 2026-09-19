@@ -307,6 +307,12 @@ type AdmissionTicket struct {
 	// freshly reserves and always confirms its own slot.
 	reservedFresh bool
 	ownsSlot      bool
+	// rotated reports that THIS start rotated an executing same-scope slot to its
+	// OWN fresh reservation (a same-scope successor continuing the sequence). Like
+	// reservedFresh it means this start alone holds the reservation's authority, so
+	// a genuine pre-launch failure releases it; unlike reservedFresh the slot was
+	// executing, not absent/released. releasable() unifies the two.
+	rotated bool
 	// legacy is the first-admission legacy-drive recovery summary the worktree
 	// reservation produced (nil when no legacy history was relevant, or when this
 	// start reused an incumbent same-scope slot rather than freshly reserving). The
@@ -318,6 +324,15 @@ type AdmissionTicket struct {
 	// slot/scope records; an empty value is a genuinely epoch-less standalone gate.
 	runEpochID string
 }
+
+// releasable reports whether THIS scoped start holds sole authority over the
+// worktree reservation its token names — because it either freshly reserved the
+// slot (reservedFresh) or rotated an executing same-scope slot to its own fresh
+// reservation (rotated). Both are released on a genuine pre-launch failure; a start
+// that merely adopted a same-scope peer's reservation is neither, so it never
+// frees the winner's slot. It intentionally does NOT cover the same-scope-race-loss
+// case, which callers guard separately with isSameScopeRaceLoss.
+func (t *AdmissionTicket) releasable() bool { return t.reservedFresh || t.rotated }
 
 // Start creates a drive, validates and fingerprints the execution context,
 // launches the first raw run through the process seam, persists the drive
@@ -569,8 +584,10 @@ func (d *Driver) verifyAdmittedSlot(t *AdmissionTicket) error {
 // HALTED "run-cancelled" (mirroring the launch-failed CAS blocks in the launch
 // legs) and, for a ticket that minted its own worktree slot (a scopeless start,
 // or a scoped start that freshly reserved), releases the slot — nothing launched,
-// so it is provably idle. A slot the ticket merely reused (a same-scope successor
-// or peer) is left untouched: it belongs to the sequence, not this ticket.
+// so it is provably idle. A slot the ticket merely ADOPTED from a same-scope peer
+// is left untouched: it belongs to the sequence, not this ticket. A slot the ticket
+// ROTATED (a successor) is its own fresh reservation, so it is released like a
+// freshly reserved one (releasable()).
 func (d *Driver) settleAdmittedAfterEpochRefusal(t *AdmissionTicket) {
 	_ = d.store.ownerCAS(t.id, func(r *driveRecord) error {
 		if err := verifyOwner(r, t.ownerGen); err != nil {
@@ -583,7 +600,7 @@ func (d *Driver) settleAdmittedAfterEpochRefusal(t *AdmissionTicket) {
 		r.LastCause = "run-cancelled"
 		return nil
 	})
-	if t.reservedFresh || !t.scoped {
+	if t.releasable() || !t.scoped {
 		_ = d.store.ReleaseWorktreeExecution(t.rec.WorktreePath, t.token)
 	}
 }
@@ -603,8 +620,9 @@ func (d *Driver) AbandonAdmission(t *AdmissionTicket) error {
 	}
 	_ = d.store.removeReservedDrive(t.id)
 	// A scopeless start always freshly reserves its own slot; a scoped start
-	// releases only the slot it minted (reservedFresh), never a peer's.
-	if (t.scoped && !t.reservedFresh) || t.token == "" {
+	// releases only the slot it minted or rotated (releasable()), never a peer's
+	// adopted reservation.
+	if (t.scoped && !t.releasable()) || t.token == "" {
 		return nil
 	}
 	return d.store.ReleaseWorktreeExecution(t.rec.WorktreePath, t.token)
@@ -823,15 +841,21 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 
 	// WORKTREE ADMISSION. reservedFresh marks whether THIS start minted the
 	// reservation (so a genuine pre-launch failure with no adopter releases it, while
-	// a same-scope race loss leaves the slot to the peer that adopted it). ownsSlot
-	// marks whether the slot is still RESERVED and this start must confirm it to
-	// executing and owns its post-launch failure legs; a successor reusing an
-	// already-executing slot must not re-confirm or disturb it.
-	token, reservedFresh, ownsSlot, legacy, aerr := d.admitScopedWorktree(req)
+	// a same-scope race loss leaves the slot to the peer that adopted it). rotated
+	// marks whether THIS start rotated an executing same-scope slot to its own fresh
+	// reservation (a successor) — it too holds sole authority and releases on a
+	// genuine failure (releasable()). ownsSlot marks whether the slot is still
+	// RESERVED and this start must confirm it to executing and owns its post-launch
+	// failure legs; a start reusing an already-executing slot without rotating must
+	// not re-confirm or disturb it.
+	token, reservedFresh, ownsSlot, rotated, legacy, aerr := d.admitScopedWorktree(req)
 	if aerr != nil {
 		return nil, aerr
 	}
 	rec.AdmissionToken = token
+	// releasable unifies "freshly reserved" and "rotated": either way this start
+	// alone owns the reservation and must release it on a genuine pre-launch failure.
+	releasable := reservedFresh || rotated
 
 	// Persist a RESERVED drive record (no launch handle), then durably reserve the
 	// scope's single slot. reserveScopeDrive under the scope lock is the authority
@@ -843,7 +867,7 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 	// the typed rejection.
 	id, _, err := d.store.NewReservedDrive(rec)
 	if err != nil {
-		if reservedFresh {
+		if releasable {
 			_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
 		}
 		return nil, err
@@ -859,8 +883,8 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 		// has adopted our reservation (there is at most one fresh reservation per worktree
 		// at a time), so releasing it would free a slot the winner is using. A genuine
 		// failure (scope closed, an IO fault, an identity mismatch) has no adopter, so the
-		// fresh reservation must be released rather than leaked.
-		if reservedFresh && !isSameScopeRaceLoss(rerr) {
+		// fresh (or rotated) reservation must be released rather than leaked.
+		if releasable && !isSameScopeRaceLoss(rerr) {
 			_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
 		}
 		return nil, rerr
@@ -881,14 +905,14 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 			// reserved record. So removing that never-launched record severs no live
 			// recovery; it only spares outer enumeration a spurious candidate (removeReservedDrive).
 			_ = d.store.removeReservedDrive(id)
-			if reservedFresh {
+			if releasable {
 				_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
 			}
 			return nil, ownershipErr(ErrUnresolvedLaunchTransition, "start")
 		}
 		if cerr := d.store.clearPendingAck(req.ScopeID, receipt.DriveID); cerr != nil {
 			_ = d.store.removeReservedDrive(id)
-			if reservedFresh {
+			if releasable {
 				_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
 			}
 			return nil, ownershipErr(ErrUnresolvedLaunchTransition, "start")
@@ -903,6 +927,7 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 		token:         token,
 		reservedFresh: reservedFresh,
 		ownsSlot:      ownsSlot,
+		rotated:       rotated,
 		legacy:        legacy,
 	}, nil
 }
@@ -1002,19 +1027,25 @@ func (d *Driver) launchScoped(t *AdmissionTicket, claim *relaunchClaim) (DriveDo
 
 // admitScopedWorktree reserves (or reuses) the worktree execution slot for a scoped
 // start and reports how the start relates to it. It returns the reservation token to
-// thread into the launch, whether THIS start freshly reserved the slot (reservedFresh)
-// and whether the slot is still RESERVED and this start must drive it to executing
-// (ownsSlot).
+// thread into the launch, whether THIS start freshly reserved the slot (reservedFresh),
+// whether THIS start rotated an executing same-scope slot to its own fresh reservation
+// (rotated), and whether the slot is still RESERVED and this start must drive it to
+// executing (ownsSlot).
 //
 // A fresh reservation is the common first-start path: the slot was absent or released.
 // When the reserve is refused ErrWorktreeBusy, the slot may already be held by THIS
 // scope — a concurrent same-scope first-start peer that won the reservation, or the
-// predecessor whose executing slot this scope's successor continues under. Such a start
-// REUSES the incumbent token so the scope slot (not the worktree slot) arbitrates
-// same-scope races; a slot held by a DIFFERENT scope, or in a stopping/unresolved
+// predecessor whose executing slot this scope's successor continues under. A start that
+// finds a same-scope RESERVED peer ADOPTS the incumbent token so the scope slot (not the
+// worktree slot) arbitrates same-scope races. A start that finds a same-scope EXECUTING
+// slot (a successor continuing the sequence in the terminal-before-release window)
+// ROTATES it to its OWN fresh reservation — a new ReservationToken and bumped
+// ExecutionGen — so the predecessor's stale token can never free or poison the
+// successor's slot, and the successor confirms and owns its own post-launch failure
+// legs (ownsSlot=true). A slot held by a DIFFERENT scope, or in a stopping/unresolved
 // state, is a genuine cross-scope refusal returned verbatim. ErrUnresolvedExecution and
 // every other error (an unresolvable worktree, an IO fault) fail closed unchanged.
-func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFresh, ownsSlot bool, legacy *LegacyHistorySummary, err error) {
+func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFresh, ownsSlot, rotated bool, legacy *LegacyHistorySummary, err error) {
 	rec := admissionRecord{
 		RepoIdentity: req.RepoDir,
 		WorktreeRoot: req.Worktree,
@@ -1024,26 +1055,36 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 	}
 	token, legacy, rerr := d.reserveWorktreeExecution(rec)
 	if rerr == nil {
-		return token, true, true, legacy, nil // freshly reserved: this start confirms it
+		return token, true, true, false, legacy, nil // freshly reserved: this start confirms it
 	}
 	if oe, ok := AsOwnershipError(rerr); !ok || oe.Kind != ErrWorktreeBusy {
-		return "", false, false, nil, rerr // unresolved / invalid / IO: fail closed
+		return "", false, false, false, nil, rerr // unresolved / invalid / IO: fail closed
 	}
 	// Busy: reuse only when the incumbent slot belongs to THIS scope. A reused slot
 	// ran no fresh census, so it carries no legacy summary.
 	slot, _, lerr := d.store.LoadWorktreeExecution(req.Worktree)
 	if lerr != nil {
-		return "", false, false, nil, rerr // fail closed on the original busy error
+		return "", false, false, false, nil, rerr // fail closed on the original busy error
 	}
 	if slot.ScopeID != "" && slot.ScopeID == req.ScopeID {
 		switch slot.State {
 		case admissionReserved:
-			return slot.ReservationToken, false, true, nil, nil // reuse; still confirm it
+			return slot.ReservationToken, false, true, false, nil, nil // adopt a peer's reservation; still confirm it
 		case admissionExecuting:
-			return slot.ReservationToken, false, false, nil, nil // reuse; already executing
+			// A same-scope successor continues over the executing slot: rotate it to
+			// this start's OWN fresh reservation rather than reusing the predecessor's
+			// token. The successor then confirms and owns its slot (ownsSlot=true), and
+			// its stale predecessor cannot free or poison it. A rotation failure
+			// (a token race, a state change under the lock, an unreadable record) fails
+			// closed with the typed rotation error.
+			newToken, rotErr := d.store.rotateWorktreeExecutionForSuccessor(req.Worktree, slot.ReservationToken)
+			if rotErr != nil {
+				return "", false, false, false, nil, rotErr
+			}
+			return newToken, false, true, true, nil, nil // rotated; this successor confirms its own slot
 		}
 	}
-	return "", false, false, nil, rerr // cross-scope or non-reusable state: ErrWorktreeBusy
+	return "", false, false, false, nil, rerr // cross-scope or non-reusable state: ErrWorktreeBusy
 }
 
 // resolveWorktreeAfterLaunchFailure consults the process backend for the fate of a
