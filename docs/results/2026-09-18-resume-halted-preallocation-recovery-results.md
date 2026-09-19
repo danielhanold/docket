@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0368 — Recover a run halted before its workspace was allocated](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0368-resume-halted-preallocation-recovery.md)**
+> ↩ **[Change 0368 — Recover a run halted before its workspace was allocated](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-19-0368-resume-halted-preallocation-recovery.md)**
 <!-- docket:backlink:end -->
 # Recover a run halted before its workspace was allocated — Results
 
