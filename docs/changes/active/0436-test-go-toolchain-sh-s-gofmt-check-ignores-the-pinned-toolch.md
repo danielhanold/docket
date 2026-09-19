@@ -2,7 +2,7 @@
 id: 436
 slug: 'test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch'
 title: 'test_go_toolchain.sh''s gofmt check ignores the pinned toolchain, flip-flopping CI red'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-18'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/314'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-18T23:51:33Z'
