@@ -2,7 +2,7 @@
 id: 435
 slug: 'docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga'
 title: 'docket run cancel leaves a stale RunEpochID on a released gate-admission slot'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-18'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/316'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-19T18:45:29Z'

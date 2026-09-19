@@ -1,13 +1,18 @@
 # Backlog
 
-**439 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 288 done · 🗑️ 119 killed
+**439 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 288 done · 🗑️ 119 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | [spec](../superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md) | `fix/docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0435](active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | `high` | `fix` | [#316](https://github.com/danielhanold/docket/pull/316) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
