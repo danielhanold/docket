@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0436 — test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md)**
+> ↩ **[Change 0436 — test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-19-0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md)**
 <!-- docket:backlink:end -->
 # test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red — Results
 
