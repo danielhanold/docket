@@ -6,7 +6,7 @@ status: 'proposed'
 priority: 'high'
 type: 'fix'
 created: '2026-09-18'
-updated: '2026-09-18'
+updated: '2026-09-19'
 depends_on: [437]
 stacked_on:
 related: [413, 427, 375, 368, 437]
@@ -40,12 +40,12 @@ This blocked finalize of change 434 and build/resume of change 368. The 368 work
 
 ## What changes
 
-Retire only the cancelled epoch's released slot after all execution and mutation accounting completes, using the existing locks and atomic writers. Preserve ordinary release semantics, protect foreign/successor slots before every teardown mutation, propagate write errors, and make authorized terminal-cancel retries repair historical stale released slots. Define safe retry after interruption between slot retirement and epoch completion. The linked revised spec supplies the state and acceptance contract.
+Retire only the cancelled epoch's released slot after 437 proves all pending launches and replacement processes settled and all task/process/mutation accounting completes, using the existing locks and atomic writers. Preserve ordinary release semantics, protect foreign/successor slots before every teardown mutation, propagate write errors, and make authorized terminal-cancel retries repair historical stale released slots. Define safe retry after interruption between slot retirement and epoch completion. Unsafe terminal repair returns refused without reviving the epoch; resume must independently validate the same quiescence proof before authorizing a replacement. The linked revised spec supplies the state and acceptance contract.
 
 ## Implementation order
 
-**Implement and merge 437 first; implement 435 second.** The hard dependency is `depends_on: [437]`, satisfied only when 437 is done. Use sequential PRs against integration, not parallel or stacked implementation. Change 437 rejects revoked epochs before gate-start admission; only then does 435 make their released slots reusable. Completing 437 alone intentionally does not fix stale-slot refusal. Do not bypass it with an old epoch or a durable-record hand edit.
+**Implement and merge 437 first; implement 435 second.** The hard dependency is `depends_on: [437]`, satisfied only when 437 is done. Use sequential PRs against integration, not parallel or stacked implementation. Change 437 fences starts, delayed launch tickets, and automatic/recovered relaunches, and makes pending launches visible to cancellation; only then does 435 make released slots reusable. Completing 437 alone intentionally does not fix stale-slot refusal. Do not bypass it with an old epoch or a durable-record hand edit.
 
 ## Out of scope
 
-Revoked-epoch start admission belongs exclusively to 437. Do not weaken the state-independent epoch mismatch fences, change ordinary ReleaseWorktreeExecution or takeover semantics, extend raw gate recover, or redesign mutation-owner lookup. No new daemon, background recovery loop, persistent store, schema, lifecycle state, configuration, CLI command, generic coordination framework, or retry layer. If the existing lock-and-replay model cannot satisfy the contract, report the specific design conflict instead of expanding scope during implementation.
+Launch fencing and pending-launch accounting belong exclusively to 437. This change reuses that accounting for cancellation retirement, historical terminal repair, and the corresponding resume check. Do not weaken the state-independent epoch mismatch fences, change ordinary ReleaseWorktreeExecution or takeover semantics, extend raw gate recover, or redesign mutation-owner lookup. No new daemon, background recovery loop, persistent store, schema, lifecycle state, configuration, CLI command, generic coordination framework, or retry layer. If the existing lock-and-replay model cannot satisfy the contract, report the specific design conflict instead of expanding scope during implementation.
