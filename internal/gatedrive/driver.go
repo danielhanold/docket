@@ -172,6 +172,42 @@ type Driver struct {
 	// existing ADR-0107 authorization is unchanged. A resolver error fails closed
 	// (the takeover HALTs rather than reviving a run whose epoch cannot be read).
 	epochRevoked EpochRevokedFunc
+
+	// epochLaunch, when set, is the app-owned authoritative epoch liveness read the
+	// launch/reservation paths run their durable reservation body under (change
+	// 0437). Every epoch-backed reservation/launch authorization in this package
+	// flows through the epochGated helper, which consults this seam only when both
+	// it and a run epoch id are present. It is injected once at composition
+	// (SetEpochLaunchGate), before any concurrent start, so it needs no lock.
+	epochLaunch EpochLaunchGate
+}
+
+// EpochLaunchGate is the app-injected authority that validates a run epoch is
+// LIVE (active, uniquely resolved in this repository's registry, and bound to
+// worktree) and, while the registry's per-key epoch lock is held, runs reserve —
+// the driver's durable admission/reservation body — so a concurrent cancellation
+// fence either lands before the liveness read (reserve never runs) or observes
+// the durable reservation reserve produced. A validation failure returns a typed
+// error and reserve is NEVER called. The gate performs no epoch write. A nil gate
+// or an empty epochID runs reserve directly (a genuinely epoch-less standalone
+// gate keeps its existing behavior).
+type EpochLaunchGate func(epochID, worktree string, reserve func() error) error
+
+// SetEpochLaunchGate injects the gate at composition, before any concurrent
+// start, so it needs no lock (mirrors SetEpochRevokedResolver). Passing nil
+// clears it (the launch gate is then skipped and the epoch-less standalone
+// behavior governs).
+func (d *Driver) SetEpochLaunchGate(g EpochLaunchGate) { d.epochLaunch = g }
+
+// epochGated runs reserve under the injected gate when both the gate and the
+// epoch id are present, else directly. Every epoch-backed reservation/launch
+// authorization in this package flows through this ONE helper (the launch-site
+// guard in change 0437 Task 8 keys on it).
+func (d *Driver) epochGated(epochID, worktree string, reserve func() error) error {
+	if d.epochLaunch == nil || epochID == "" {
+		return reserve()
+	}
+	return d.epochLaunch(epochID, worktree, reserve)
 }
 
 // EpochRevokedFunc reports whether the run epoch named by epochID is cancelled or
@@ -276,6 +312,11 @@ type AdmissionTicket struct {
 	// start reused an incumbent same-scope slot rather than freshly reserving). The
 	// launch half carries it onto the returned START document.
 	legacy *LegacyHistorySummary
+	// runEpochID retains, in memory only, the run epoch this admission was gated
+	// under so the launch half can revalidate the SAME epoch before launching
+	// (change 0437). It is NEVER persisted — the durable linkage stays the
+	// slot/scope records; an empty value is a genuinely epoch-less standalone gate.
+	runEpochID string
 }
 
 // Start creates a drive, validates and fingerprints the execution context,
@@ -375,10 +416,27 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 		rec.GateContextHash = capHash(req.GateContext)
 	}
 
-	if req.ScopeID == "" {
-		return d.admitScopeless(rec, ownerGen, req.RunEpochID)
+	// Fence the durable reservation behind the app-owned epoch liveness read: the
+	// reservation body runs while the epoch registry lock is held, so a concurrent
+	// cancellation fence either lands before the read (reserve never runs, nothing
+	// is reserved) or observes the durable reservation reserve produced. The
+	// fingerprint (above) and precheckScopedStart stay OUTSIDE the gate; the lock
+	// order inside reserve is unchanged (admission → scope → drive).
+	var ticket *AdmissionTicket
+	err = d.epochGated(req.RunEpochID, req.Worktree, func() error {
+		var aerr error
+		if req.ScopeID == "" {
+			ticket, aerr = d.admitScopeless(rec, ownerGen, req.RunEpochID)
+		} else {
+			ticket, aerr = d.admitScoped(req, rec, ownerGen)
+		}
+		return aerr
+	})
+	if err != nil {
+		return nil, err
 	}
-	return d.admitScoped(req, rec, ownerGen)
+	ticket.runEpochID = req.RunEpochID
+	return ticket, nil
 }
 
 // StartAdmitted performs the launch half of a start: it launches the admitted
