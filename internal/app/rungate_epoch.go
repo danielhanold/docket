@@ -560,6 +560,48 @@ func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecor
 	return "", EpochRecord{}, false, epochErr(ErrEpochAmbiguous, "find-by-change", nil)
 }
 
+// epochDirMatch is one gate-key directory whose epoch.json records the sought
+// EpochID: the shared shape scanEpochsByID yields to both findEpochByID (first
+// match) and findEpochDirByID (unique match).
+type epochDirMatch struct {
+	dir string
+	rec EpochRecord
+}
+
+// scanEpochsByID is the single walker under findEpochByID and findEpochDirByID (one
+// walker, two shapes): it enumerates rungateRoot and returns every gate-key
+// directory whose epoch.json records EpochID == epochID. An empty id or a missing
+// root is (nil, nil); an enumeration fault is a typed ErrEpochIO; a corrupt or
+// unreadable sibling is SKIPPED for matching (it cannot prove it holds the sought
+// id), mirroring findEpochByWorktree's conservative skip.
+func scanEpochsByID(rungateRoot, epochID string) ([]epochDirMatch, error) {
+	if epochID == "" {
+		return nil, nil
+	}
+	entries, derr := os.ReadDir(rungateRoot)
+	if derr != nil {
+		if errors.Is(derr, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, epochErr(ErrEpochIO, "find-by-id", derr)
+	}
+	var matches []epochDirMatch
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		dir := filepath.Join(rungateRoot, e.Name())
+		r, _, lerr := readStoredEpoch(dir, "find-by-id")
+		if lerr != nil {
+			continue
+		}
+		if r.EpochID == epochID {
+			matches = append(matches, epochDirMatch{dir: dir, rec: r})
+		}
+	}
+	return matches, nil
+}
+
 // findEpochByID locates the epoch whose public EpochID equals epochID by scanning
 // rungateRoot (each gate-key directory may hold one epoch.json). It returns the
 // record and found=true on a match, (found=false, nil) for a clean absence, and a
@@ -567,29 +609,35 @@ func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecor
 // skipped. It underlies the Takeover revocation resolver, which keys on a scope's
 // RunEpochID (the public locator, not the gate key).
 func findEpochByID(rungateRoot, epochID string) (EpochRecord, bool, error) {
-	if epochID == "" {
+	matches, err := scanEpochsByID(rungateRoot, epochID)
+	if err != nil {
+		return EpochRecord{}, false, err
+	}
+	if len(matches) == 0 {
 		return EpochRecord{}, false, nil
 	}
-	entries, derr := os.ReadDir(rungateRoot)
-	if derr != nil {
-		if errors.Is(derr, fs.ErrNotExist) {
-			return EpochRecord{}, false, nil
-		}
-		return EpochRecord{}, false, epochErr(ErrEpochIO, "find-by-id", derr)
+	return matches[0].rec, true, nil
+}
+
+// findEpochDirByID resolves the UNIQUE gate-key directory holding the epoch whose
+// public EpochID is epochID (change 0437 Task 5 — the epoch launch gate locates the
+// key directory it must lock and re-read under). Zero matches → ErrEpochNotFound;
+// more than one → ErrEpochAmbiguous; corrupt/unreadable siblings are skipped for
+// matching but the enumeration-fault contract mirrors findEpochByID. It shares the
+// one walker (scanEpochsByID) with findEpochByID.
+func findEpochDirByID(rungateRoot, epochID string) (dir string, rec EpochRecord, err error) {
+	matches, serr := scanEpochsByID(rungateRoot, epochID)
+	if serr != nil {
+		return "", EpochRecord{}, serr
 	}
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		r, _, lerr := readStoredEpoch(filepath.Join(rungateRoot, e.Name()), "find-by-id")
-		if lerr != nil {
-			continue
-		}
-		if r.EpochID == epochID {
-			return r, true, nil
-		}
+	switch len(matches) {
+	case 0:
+		return "", EpochRecord{}, epochErr(ErrEpochNotFound, "find-dir-by-id", nil)
+	case 1:
+		return matches[0].dir, matches[0].rec, nil
+	default:
+		return "", EpochRecord{}, epochErr(ErrEpochAmbiguous, "find-dir-by-id", nil)
 	}
-	return EpochRecord{}, false, nil
 }
 
 // epochRevokedResolver builds the gatedrive.EpochRevokedFunc the Takeover path

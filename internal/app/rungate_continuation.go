@@ -118,6 +118,10 @@ func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error)
 	// carries the same run-epoch revocation resolver. It fires only for a scope that
 	// carries a RunEpochID.
 	driver.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	// A revoked/superseded/unbound run epoch must not be admitted or launched through
+	// the continuation seam's takeover/handoff synthesis either (change 0437): wire the
+	// app-side epoch launch gate over the same registry, beside the revocation resolver.
+	driver.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
 	return &gatedriveContinuationSeam{store: store, driver: driver}, nil
 }
 

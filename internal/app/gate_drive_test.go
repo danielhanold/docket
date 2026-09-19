@@ -1205,3 +1205,104 @@ func TestGateDriveHumanTextRendersLegacyLines(t *testing.T) {
 		t.Fatalf("success human text must render the compact legacy line; got:\n%s", successHuman)
 	}
 }
+
+// TestProductionConstructorsWireEpochLaunchGate proves every production gate-drive
+// constructor injects the app-side epoch launch gate into the driver it composes —
+// the wiring is where the takeover-only defect lived, so deleting any ONE
+// SetEpochLaunchGate line must redden this test (change 0437 Task 5).
+func TestProductionConstructorsWireEpochLaunchGate(t *testing.T) {
+	dir := testsupport.TempDir(t)
+	eff := buildEffWithMaxAttempts("go test ./...", 4)
+
+	check := func(name string, d *gatedrive.Driver) {
+		t.Helper()
+		if d == nil {
+			t.Fatalf("%s: nil driver", name)
+		}
+		if !d.EpochLaunchGateWired() {
+			t.Fatalf("%s: epoch launch gate not wired", name)
+		}
+	}
+	driverOf := func(name string, svc *GateDriveService, res Result, reason string) *gatedrive.Driver {
+		t.Helper()
+		if svc == nil {
+			t.Fatalf("%s constructor must build a service: %s %s", name, res, reason)
+		}
+		d, ok := svc.engine.(*gatedrive.Driver)
+		if !ok {
+			t.Fatalf("%s: engine is not the production driver", name)
+		}
+		return d
+	}
+
+	b, res, reason := NewBuildGateDriveService(dir, "/bin/true", eff)
+	check("build", driverOf("build", b, res, reason))
+
+	f, res, reason := NewFinalizeGateDriveService(dir, "/bin/true", eff)
+	check("finalize", driverOf("finalize", f, res, reason))
+
+	tk, res, reason := NewTaskGateDriveService(dir, "/bin/true", eff, []string{"go", "test"})
+	check("task", driverOf("task", tk, res, reason))
+
+	c, res, reason := NewCommandlessGateDriveService(dir, "/bin/true")
+	check("commandless", driverOf("commandless", c, res, reason))
+
+	seam, err := NewContinuationSeam(dir, "/bin/true")
+	if err != nil {
+		t.Fatalf("continuation seam: %v", err)
+	}
+	gs, ok := seam.(*gatedriveContinuationSeam)
+	if !ok {
+		t.Fatalf("continuation seam is not the production seam")
+	}
+	check("continuation", gs.driver)
+}
+
+// TestBuildStartEpochRefusalChargesNoAttempt proves an epoch-fenced admission
+// charges no suite attempt: Admit returns ErrRunCancelled (a cancellation landed
+// before admission), so the start refuses with reason "run-cancelled", never
+// launches, and the budget is untouched — admission precedes charging (change 0437
+// Task 5).
+func TestBuildStartEpochRefusalChargesNoAttempt(t *testing.T) {
+	svc, eng, dir := newBudgetTestBuildService(t, 4)
+	eng.admitErr = ErrRunCancelled
+
+	got := svc.Start(buildStartReq("0437"))
+	if got.Result == ResultApplied || got.Drive != nil {
+		t.Fatalf("an epoch-cancelled admission must refuse the start, got result=%s", got.Result)
+	}
+	if got.Reason != "run-cancelled" {
+		t.Fatalf("refusal reason = %q, want run-cancelled", got.Reason)
+	}
+	if eng.startAdmittedCount != 0 {
+		t.Fatalf("a refused admission must never launch, got %d StartAdmitted calls", eng.startAdmittedCount)
+	}
+	if used, limit := suiteUsage(t, dir, "0437"); used != 0 || limit != 0 {
+		t.Fatalf("an epoch refusal must charge no suite attempt, got usage (%d,%d)", used, limit)
+	}
+}
+
+// TestBuildStartChargedAttemptNotRefundedOnFencedLaunch proves an attempt reserved
+// before a later cancellation stays charged: Admit succeeds and charges, then
+// StartAdmitted returns ErrRunCancelled (the fence landed between admission and
+// launch). The attempt is not refunded and the admission is not abandoned — no
+// refunds (change 0437 Task 5).
+func TestBuildStartChargedAttemptNotRefundedOnFencedLaunch(t *testing.T) {
+	svc, eng, dir := newBudgetTestBuildService(t, 4)
+	eng.doc = gatedrive.DriveDoc{}
+	eng.err = ErrRunCancelled
+
+	got := svc.Start(buildStartReq("0437"))
+	if got.Result == ResultApplied {
+		t.Fatalf("a fenced launch is a command failure, got applied")
+	}
+	if used, limit := suiteUsage(t, dir, "0437"); used != 1 || limit != 4 {
+		t.Fatalf("an admitted-then-fenced launch keeps its charge (no refund), got usage (%d,%d)", used, limit)
+	}
+	if eng.startCount != 1 || eng.startAdmittedCount != 1 {
+		t.Fatalf("the start must admit then launch exactly once, got admit=%d launch=%d", eng.startCount, eng.startAdmittedCount)
+	}
+	if eng.abandonCount != 0 {
+		t.Fatalf("a charged admitted start must not abandon its admission, got %d", eng.abandonCount)
+	}
+}
