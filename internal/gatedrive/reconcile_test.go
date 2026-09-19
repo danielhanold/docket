@@ -482,6 +482,45 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 	})
 }
 
+// TestReconcileLostLinkageFailsClosed proves a drive whose epoch linkage
+// resolveDriveEpoch cannot resolve (ok==false — here an unreadable scope, i.e.
+// CauseEpochUnreadable) is NOT silently skipped as "not this epoch's obligation":
+// the census fails closed, keeping Accounted=false with a linkage-unresolved:<id>
+// finding, mirroring the record-unreadable leg and the launch paths' refuse/revoke
+// treatment of a lost linkage. A fail-OPEN skip here would drop a drive whose
+// linkage is lost out of cancellation's pending-launch accounting.
+func TestReconcileLostLinkageFailsClosed(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	id, _ := seedScopedEpochDrive(t, store, "e1", nil)
+
+	// Sever the drive's epoch linkage: corrupt its scope record so LoadScope fails,
+	// making resolveDriveEpoch return ok==false (CauseEpochUnreadable). The drive
+	// itself remains a readable, nonterminal record.
+	rec, err := store.Load(id)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(store.scopeRoot, rec.ScopeID, recordFileName), []byte("{not-json"), 0o600); err != nil {
+		t.Fatalf("corrupt scope record: %v", err)
+	}
+
+	report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	if err != nil {
+		t.Fatalf("ReconcileEpochLaunches: %v", err)
+	}
+	if report.Accounted {
+		t.Fatalf("a drive with lost/unreadable epoch linkage must NOT be silently skipped (fail closed), findings=%v", report.Findings)
+	}
+	if !reconcileFindingPresent(report.Findings, "linkage-unresolved:"+id) {
+		t.Fatalf("findings = %v, want linkage-unresolved:%s", report.Findings, id)
+	}
+	if proc.launchN != 0 {
+		t.Fatalf("reconcile must launch nothing, proc.Launch called %d times", proc.launchN)
+	}
+}
+
 // TestReconcileReplayConverges proves an unproven stop leaves the run pending, and a
 // later replay — once the fake proves teardown — accounts it with no second launch
 // (AC5 replay convergence).
