@@ -208,6 +208,30 @@ func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, p
 	return token, err
 }
 
+// ReserveWorktreeExecutionForEpoch reserves the worktree execution slot for a
+// top-level execution a workflow RUN EPOCH owns (change 0435). It is the exported
+// epoch-carrying sibling of ReserveRawWorktreeExecution for callers outside this
+// package, where the unexported admissionRecord literal is unreachable — today the
+// app layer's cancellation fixtures, which must exercise the owning-epoch
+// retirement case (see RetireWorktreeExecutionEpoch) against a slot that genuinely
+// records its epoch. It composes a Kind "scopeless" record carrying runEpochID (no
+// drive id, no scope id) and delegates to the same reserveWorktreeExecution every
+// scoped, scopeless, and raw start admits through — one authority, one lock/CAS
+// discipline. An empty runEpochID is refused ErrInvalidID: the raw (epoch-less)
+// entry is ReserveRawWorktreeExecution, and the two must not blur.
+func (s *Store) ReserveWorktreeExecutionForEpoch(repoIdentity, worktreeRoot, runEpochID string, proc recoverySeam) (token string, err error) {
+	if runEpochID == "" {
+		return "", storeErr(ErrInvalidID, "reserve-worktree-execution-epoch", nil)
+	}
+	token, _, err = s.reserveWorktreeExecution(admissionRecord{
+		RepoIdentity: repoIdentity,
+		WorktreeRoot: worktreeRoot,
+		Kind:         "scopeless",
+		RunEpochID:   runEpochID,
+	}, proc)
+	return token, err
+}
+
 // reserveWorktreeExecution is ReserveWorktreeExecution's driver-aware form. proc
 // is the exact process-recovery seam (the driver's ProcessSeam, or a raw caller's
 // *process.Service), supplied for the first-admission legacy inventory; it is

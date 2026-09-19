@@ -305,3 +305,43 @@ func TestAdmissionAfterRetirement(t *testing.T) {
 		t.Fatalf("epoch-less reserve after retirement: %v", err)
 	}
 }
+
+// TestReserveWorktreeExecutionForEpochRecordsOwnership: the exported epoch-carrying
+// reserve records the owning RunEpochID (so the app boundary can create an
+// epoch-owned slot without the unexported admissionRecord literal), and refuses an
+// empty epoch with a typed ErrInvalidID.
+func TestReserveWorktreeExecutionForEpochRecordsOwnership(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+
+	wt := mkWorktree(t)
+	token, err := s.ReserveWorktreeExecutionForEpoch("repo-1", wt, "ep-1", nil)
+	if err != nil {
+		t.Fatalf("ReserveWorktreeExecutionForEpoch: %v", err)
+	}
+	if token == "" {
+		t.Fatalf("reserve returned an empty token")
+	}
+	slot, _, err := s.LoadWorktreeExecution(wt)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if slot.RunEpochID != "ep-1" {
+		t.Fatalf("RunEpochID = %q, want ep-1", slot.RunEpochID)
+	}
+	if slot.State != admissionReserved {
+		t.Fatalf("state = %q, want reserved", slot.State)
+	}
+	if slot.Kind != "scopeless" {
+		t.Fatalf("Kind = %q, want scopeless", slot.Kind)
+	}
+
+	wt2 := mkWorktree(t)
+	_, err = s.ReserveWorktreeExecutionForEpoch("repo-1", wt2, "", nil)
+	se, ok := AsStoreError(err)
+	if !ok || se.Kind != ErrInvalidID {
+		t.Fatalf("empty epoch: want ErrInvalidID, got %v", err)
+	}
+	if _, _, lerr := s.LoadWorktreeExecution(wt2); lerr == nil {
+		t.Fatalf("empty-epoch reserve must not create a slot")
+	}
+}
