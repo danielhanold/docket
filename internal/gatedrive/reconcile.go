@@ -93,8 +93,19 @@ func (d *Driver) ReconcileEpochLaunches(worktreeRoot, epochID string) (EpochLaun
 			continue
 		}
 		linked, ok, _ := d.resolveDriveEpoch(rec)
-		if !ok || linked != epochID {
-			continue // not provably this epoch's launch obligation
+		if !ok {
+			// The drive's epoch linkage is LOST or unreadable (an unreadable scope, or a
+			// scopeless AdmissionToken the worktree slot no longer matches): it cannot be
+			// proven NOT to be this epoch's obligation, so fail closed rather than silently
+			// skip it — mirroring the record-unreadable leg above and the launch paths
+			// (authorizeRelaunch/recoveryEpochRevoked), which treat a lost linkage as
+			// refuse/revoked.
+			report.Accounted = false
+			report.Findings = append(report.Findings, "linkage-unresolved:"+id)
+			continue
+		}
+		if linked != epochID {
+			continue // a clean resolution to another epoch (or epoch-less): not this epoch's obligation
 		}
 		settled, finding := d.reconcileEpochDrive(id, rec)
 		if finding != "" {
