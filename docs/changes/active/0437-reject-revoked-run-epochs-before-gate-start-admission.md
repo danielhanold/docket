@@ -2,7 +2,7 @@
 id: 437
 slug: 'reject-revoked-run-epochs-before-gate-start-admission'
 title: 'Reject revoked run epochs before gate-start admission'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-19'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/reject-revoked-run-epochs-before-gate-start-admission'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-19T11:32:51Z'
 ---
 
 ## Artifacts
