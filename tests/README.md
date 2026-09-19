@@ -53,6 +53,21 @@ Exit `5` — a source-hygiene preflight violation in the old topology — is **r
 Its still-meaningful invariant (see "Backticks in test source" below) is now a build-gate Go guard,
 not a per-run preflight.
 
+### Formatting failures from the Go gate
+
+`tests/test_go_toolchain.sh` checks formatting with the gofmt shipped by the
+toolchain declared in `go.mod` (its explicit `toolchain` directive), never
+PATH's gofmt — a newer ambient Go can disagree with the declared one about
+identical source, which used to flip-flop CI. To reformat the files the gate
+reports, run from the repo root:
+
+```bash
+"$(GOTOOLCHAIN="$(awk '$1=="toolchain"{print $2}' go.mod)" go env GOROOT)/bin/gofmt" -w <files…>
+```
+
+The version is derived from `go.mod` at run time — do not copy a literal
+`goX.Y.Z` into scripts or docs.
+
 ## Where new tests go
 
 The suite is parallel, so its wall-clock floor is `max(slowest single file, total work / -j)`, and
