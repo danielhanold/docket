@@ -1124,8 +1124,14 @@ func (d *Driver) Advance(id, ownerGen string) (DriveDoc, error) {
 	}
 	var claim *relaunchClaim
 	if rec.RelaunchReserved {
+		// Validate the drive's epoch (read-only) BEFORE recoverReservedRelaunch takes
+		// the per-drive claim: a revoked epoch must not authorize a NEW launch for a
+		// crash-window reservation, though an already-identified replacement is still
+		// reconciled (attach/report — reconciliation, not authorization). The epoch
+		// lock is thus acquired without holding the claim (change 0437 Task 3).
+		revoked := d.recoveryEpochRevoked(rec)
 		var resolved *DriveDoc
-		rec, claim, resolved, err = d.recoverReservedRelaunch(id, ownerGen, rec)
+		rec, claim, resolved, err = d.recoverReservedRelaunch(id, ownerGen, rec, revoked)
 		if err != nil {
 			return DriveDoc{}, err
 		}
@@ -1382,6 +1388,95 @@ var errAlreadyTerminal = errors.New("gatedrive: drive already terminal")
 // authoritative drive state and never issues a second backend launch.
 var errRelaunchRaceLost = errors.New("gatedrive: relaunch already consumed by a concurrent advance")
 
+// resolveDriveEpoch resolves the run epoch a durable drive is linked to, from
+// existing records only. A scoped drive answers from its scope's RunEpochID; a
+// scopeless drive with an AdmissionToken answers from the worktree slot ONLY when
+// the slot's ReservationToken still equals that token (an exact-reservation
+// match). ok=false with cause set means the linkage is LOST or inconsistent — the
+// drive can no longer prove whether it is epoch-backed, so new execution is
+// refused (never demoted to standalone). ("", true, "") is a genuinely epoch-less
+// drive (a legacy empty token, or a slot recording no epoch). (change 0437 Task 3)
+func (d *Driver) resolveDriveEpoch(rec driveRecord) (epochID string, ok bool, cause string) {
+	if rec.ScopeID != "" {
+		scope, err := d.store.LoadScope(rec.ScopeID)
+		if err != nil {
+			// The scope's epoch cannot be read: the drive can no longer prove its
+			// linkage, so refuse rather than treat it as standalone (CauseEpochUnreadable).
+			return "", false, CauseEpochUnreadable
+		}
+		return scope.RunEpochID, true, ""
+	}
+	if rec.AdmissionToken == "" {
+		return "", true, ""
+	}
+	slot, _, err := d.store.LoadWorktreeExecution(rec.WorktreePath)
+	if err != nil {
+		return "", false, "unresolved-execution"
+	}
+	if slot.ReservationToken != rec.AdmissionToken {
+		return "", false, "unresolved-execution"
+	}
+	return slot.RunEpochID, true, ""
+}
+
+// authorizeRelaunch validates, under the epoch gate, that the drive's epoch (if
+// any) is live and reserves the single automatic replacement while the gate is
+// held. It returns the held claim; the caller launches OUTSIDE the gate. A LOST
+// linkage returns a non-empty halt cause and reserves nothing (never demoted to
+// standalone). A gate refusal (the epoch is revoked) maps to halt cause
+// "run-cancelled" — a bounded token matching the fence vocabulary; reserveRelaunch's
+// own race-lost/terminal/IO error is returned unchanged so the caller's existing
+// sentinel handling applies. Lock order: the epoch gate is acquired FIRST and
+// reserveRelaunch takes the per-drive claim INSIDE it, so the epoch lock is never
+// acquired while the claim is already held (spec "Serialize with existing locks").
+func (d *Driver) authorizeRelaunch(id, ownerGen string, rec driveRecord) (*relaunchClaim, string, error) {
+	epochID, ok, cause := d.resolveDriveEpoch(rec)
+	if !ok {
+		return nil, cause, nil
+	}
+	var claim *relaunchClaim
+	reserveEntered := false
+	err := d.epochGated(epochID, rec.WorktreePath, func() error {
+		reserveEntered = true
+		c, rerr := d.store.reserveRelaunch(id, ownerGen)
+		if rerr != nil {
+			return rerr
+		}
+		claim = c
+		return nil
+	})
+	if err != nil {
+		if claim != nil {
+			claim.close()
+			claim = nil
+		}
+		if !reserveEntered {
+			// The gate refused before running reserve: the epoch is revoked.
+			return nil, "run-cancelled", nil
+		}
+		// reserveRelaunch's own error: hand it back for the existing sentinel handling.
+		return nil, "", err
+	}
+	return claim, "", nil
+}
+
+// recoveryEpochRevoked reports whether a reserved-relaunch drive's linked epoch is
+// no longer live, via a read-only pass through the epoch gate (a no-op reserve
+// body). It runs BEFORE recoverReservedRelaunch takes the per-drive claim, so the
+// epoch lock is never acquired while the claim is held. A lost or unreadable
+// linkage is treated as revoked (fail closed: recovery may still attach or report,
+// but must never authorize a NEW launch for a drive that cannot prove it is still
+// epoch-backed). A genuinely epoch-less drive (epochID "") runs the no-op directly
+// and is never revoked, so the standalone recovery path is unchanged. (change 0437
+// Task 3)
+func (d *Driver) recoveryEpochRevoked(rec driveRecord) bool {
+	epochID, ok, _ := d.resolveDriveEpoch(rec)
+	if !ok {
+		return true
+	}
+	return d.epochGated(epochID, rec.WorktreePath, func() error { return nil }) != nil
+}
+
 // reserveRelaunch acquires the short-lived claimant fence before durably
 // consuming the drive's one automatic replacement. The unique process token is
 // written in the same CAS. A competitor cannot mistake the interval between
@@ -1429,7 +1524,14 @@ func (s *Store) reserveRelaunch(id, ownerGen string) (*relaunchClaim, error) {
 // launch/attach, so this caller returns authoritative state without resolving
 // or launching. After a crash, the new claimant resolves the replacement's own
 // token, never the admission token used by the original run.
-func (d *Driver) recoverReservedRelaunch(id, ownerGen string, rec driveRecord) (driveRecord, *relaunchClaim, *DriveDoc, error) {
+//
+// When revoked is true (the caller's read-only epoch pass found the drive's epoch
+// no longer live), the ONLY behavioral change is the proven-never-launched arm: it
+// settles the drive HALTED "run-cancelled" instead of returning a live claim for a
+// new launch. The identified, busy, and ambiguous arms are unchanged — reconciling
+// an already-live replacement (attach/report/halt) is teardown, not authorization
+// (change 0437 Task 3, spec AC4).
+func (d *Driver) recoverReservedRelaunch(id, ownerGen string, rec driveRecord, revoked bool) (driveRecord, *relaunchClaim, *DriveDoc, error) {
 	claim, busy, err := d.store.tryRelaunchClaim(id)
 	if err != nil {
 		return driveRecord{}, nil, nil, err
@@ -1464,6 +1566,13 @@ func (d *Driver) recoverReservedRelaunch(id, ownerGen string, rec driveRecord) (
 	}
 	switch resolution.Disposition {
 	case "never-launched":
+		if revoked {
+			// The epoch was revoked before this crash-window reservation ever
+			// launched: it is provably idle, so settle it closed rather than
+			// authorizing a new launch under a dead epoch.
+			claim.close()
+			return d.haltReservedRelaunchCause(id, ownerGen, cur, "run-cancelled")
+		}
 		return cur, claim, nil, nil
 	case "identified":
 		if resolution.RunID == "" || resolution.RunDir == "" {
@@ -1495,6 +1604,15 @@ func (d *Driver) recoverReservedRelaunch(id, ownerGen string, rec driveRecord) (
 }
 
 func (d *Driver) haltReservedRelaunch(id, ownerGen string, rec driveRecord) (driveRecord, *relaunchClaim, *DriveDoc, error) {
+	return d.haltReservedRelaunchCause(id, ownerGen, rec, "unresolved-execution")
+}
+
+// haltReservedRelaunchCause settles a reserved-but-unattached relaunch HALTED with
+// the given cause, preserving the consumed reservation (the CAS never clears
+// RelaunchReserved, so the sole relaunch is never refunded). "unresolved-execution"
+// is the crash-window uncertainty default; "run-cancelled" is used when the drive's
+// epoch was revoked before the replacement launched (change 0437 Task 3).
+func (d *Driver) haltReservedRelaunchCause(id, ownerGen string, rec driveRecord, cause string) (driveRecord, *relaunchClaim, *DriveDoc, error) {
 	err := d.store.ownerCAS(id, func(r *driveRecord) error {
 		if err := verifyOwner(r, ownerGen); err != nil {
 			return err
@@ -1506,7 +1624,7 @@ func (d *Driver) haltReservedRelaunch(id, ownerGen string, rec driveRecord) (dri
 			return errRelaunchRaceLost
 		}
 		r.LastOutcome = HALTED
-		r.LastCause = "unresolved-execution"
+		r.LastCause = cause
 		return nil
 	})
 	if err != nil && !errors.Is(err, errAlreadyTerminal) && !errors.Is(err, errRelaunchRaceLost) {
@@ -1657,8 +1775,17 @@ func (d *Driver) driveSlice(id, ownerGen string, rec driveRecord, claim *relaunc
 				return halt(&res, refusal)
 			}
 			if claim == nil {
+				// Fence the single automatic relaunch behind the epoch gate: the
+				// reservation commits while the epoch registry lock is held, so a
+				// concurrent cancellation either lands first (nothing is reserved) or
+				// observes the held claim. A lost linkage or a revoked epoch refuses
+				// with a HALT cause and launches nothing (change 0437 Task 3).
+				var haltCause string
 				var err error
-				claim, err = d.store.reserveRelaunch(id, ownerGen)
+				claim, haltCause, err = d.authorizeRelaunch(id, ownerGen, rec)
+				if haltCause != "" {
+					return halt(&res, haltCause)
+				}
 				if err != nil {
 					// A same-owner competitor may have consumed the relaunch
 					// (errRelaunchRaceLost) or already settled the drive
