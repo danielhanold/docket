@@ -996,8 +996,17 @@ func TestRelaunchCrashBetweenReserveAndLaunchRecovers(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := OpenStore(testsupport.TempDir(t))
+			// A live epoch-less worktree slot backs the admission token, as a real
+			// scopeless drive holds one, so the epoch-linkage resolution admits the
+			// crash-window recovery through the standalone path (change 0437 Task 3).
+			wt := mkWorktree(t)
+			token, terr := store.ReserveWorktreeExecution(sampleAdmission(wt))
+			if terr != nil {
+				t.Fatalf("reserve admission: %v", terr)
+			}
 			rec := seedRecord(t)
-			rec.AdmissionToken = "reservation-token"
+			rec.WorktreePath = wt
+			rec.AdmissionToken = token
 			rec.RelaunchToken = "bbbbbbbbbbbbbbbb"
 			id, ownerGen := seedDrive(t, store, rec)
 			if err := store.ownerCAS(id, func(r *driveRecord) error {

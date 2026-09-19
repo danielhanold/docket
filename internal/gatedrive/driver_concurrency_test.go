@@ -453,8 +453,17 @@ func (p *claimWindowProc) counts() (launches, resolutions int) {
 
 func TestRelaunchReservationHolderCannotBeStolenBeforeLaunch(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
+	// A live worktree slot backs the admission token (an epoch-less slot, as a
+	// real scopeless drive holds one), so the epoch-linkage resolution admits the
+	// relaunch through the standalone path (change 0437 Task 3).
+	wt := mkWorktree(t)
+	token, terr := store.ReserveWorktreeExecution(sampleAdmission(wt))
+	if terr != nil {
+		t.Fatalf("reserve admission: %v", terr)
+	}
 	rec := seedRecord(t)
-	rec.AdmissionToken = "aaaaaaaaaaaaaaaa"
+	rec.WorktreePath = wt
+	rec.AdmissionToken = token
 	id, ownerGen := seedDrive(t, store, rec)
 	proc := newClaimWindowProc()
 
