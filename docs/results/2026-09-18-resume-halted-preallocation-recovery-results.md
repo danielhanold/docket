@@ -32,10 +32,12 @@ ref elsewhere, and an unresolvable registration.
   branch head.
 - The integration completeness contract (`tests/test_go_integration_contract.sh`) initially
   reddened: the new end-to-end regression test was named `TestIntegrationResumeHaltedPreallocation`,
-  which matched no shard runner. It was renamed to `TestIntegrationChangeResumeHaltedPreallocation`
-  to register with the existing `test_go_integration_app_change.sh` shard (`TestIntegrationChange`
-  prefix), matching its sibling resume/halt tests. Contract green afterward.
-- End-to-end regression `TestIntegrationChangeResumeHaltedPreallocation` drives the real
+  which matched no shard runner. After the finalize rebase onto base change 0434 — which split
+  the `internal/app` change shard into the disjoint `TestIntegrationChangeAuthoring` and
+  `TestIntegrationChangeRuntime` prefixes — this branch's three new tests were renamed onto
+  `TestIntegrationChangeRuntime…` to register with `tests/test_go_integration_app_changeruntime.sh`,
+  the shard that now owns the repair and halt/resume group. Contract green afterward.
+- End-to-end regression `TestIntegrationChangeRuntimeResumeHaltedPreallocation` drives the real
   claim → halt → teardown → resume → prepare cycle through the REAL workspace service (no fake
   inspection) and asserts nothing is allocated by the resume itself (no manifest, no path, no
   republished remote ref) while the record's claim, status, and branch are preserved.
