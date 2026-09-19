@@ -265,7 +265,10 @@ func TestRunCancelAlreadyCancelled(t *testing.T) {
 		t.Fatalf("epochCAS: %v", err)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper}, fx.repo, fx.key, fx.epochID, "human stop")
+	// The terminal path now runs the bounded historical repair, which re-proves
+	// quiescence through the launch reconciler; a nil reconciler is unverifiable and
+	// refused by design, so an authorized terminal repeat injects okLaunchReconciler().
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
 
 	if res.Disposition != CancelDispositionAlreadyCancelled {
 		t.Fatalf("disposition = %q, want already-cancelled", res.Disposition)
@@ -834,5 +837,188 @@ func TestCancelConcurrentReplayIsIdempotent(t *testing.T) {
 	}
 	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
 		t.Fatalf("slot epoch = %q, want cleared and stable", epo)
+	}
+}
+
+// TestTerminalRepairRetiresHistoricalStaleSlot (AC6): a durably CANCELLED epoch
+// whose released slot still carries its RunEpochID (the recorded incident shape:
+// a pre-0435 cancel released but never retired) is repaired by an authorized repeat
+// cancel — disposition cancelled/applied, slot detached, epoch state
+// untouched-terminal — and a second repair is an idempotent no-op.
+func TestTerminalRepairRetiresHistoricalStaleSlot(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	// Manufacture the historical defect: release WITHOUT retirement, then force the
+	// epoch terminal (what the pre-0435 cancel produced).
+	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = EpochCancelled; return nil }); err != nil {
+		t.Fatalf("force cancelled: %v", err)
+	}
+	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human repair")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (historical retirement applied; findings=%v)", res.Disposition, res.Findings)
+	}
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied", res.Result)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+		t.Fatalf("slot epoch = %q, want cleared", epo)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelled {
+		t.Fatalf("epoch state = %q, want cancelled (never regressed)", st)
+	}
+	// Repeated repair is a no-op.
+	res2 := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human repair")
+	if res2.Disposition != CancelDispositionAlreadyCancelled || res2.Result != ResultNoOp {
+		t.Fatalf("repeat = (%q,%q), want (already-cancelled,no-op)", res2.Disposition, res2.Result)
+	}
+}
+
+// TestTerminalRepairSupersededSlot (AC6): the same repair works for a SUPERSEDED
+// epoch's stale released slot, and never regresses the superseded state.
+func TestTerminalRepairSupersededSlot(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = EpochSuperseded; return nil }); err != nil {
+		t.Fatalf("force superseded: %v", err)
+	}
+	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human repair")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+		t.Fatalf("slot epoch = %q, want cleared", epo)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochSuperseded {
+		t.Fatalf("epoch state = %q, want superseded (never regressed)", st)
+	}
+}
+
+// TestTerminalRepairRefusesUnsafeHistories (AC6): each unsafe terminal history is
+// refused with a specific finding, with NO slot or epoch mutation, and never
+// cancellation-pending over durable terminal state.
+func TestTerminalRepairRefusesUnsafeHistories(t *testing.T) {
+	cases := []struct {
+		name    string
+		arrange func(t *testing.T, fx cancelFixture) cancelSeams
+		finding string
+	}{
+		{"busy-claim-unresolved-relaunch", func(t *testing.T, fx cancelFixture) cancelSeams {
+			return cancelSeams{store: fx.store, stopper: &fakeCancelStopper{},
+				launches: &fakeLaunchReconciler{report: gatedrive.EpochLaunchReport{Accounted: false, Findings: []string{"claim-busy:d1"}}}}
+		}, "claim-busy:d1"},
+		{"contradictory-mutation", func(t *testing.T, fx cancelFixture) cancelSeams {
+			if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+				r.AdmittedMutations = []AdmittedMutation{{OpKey: "pr.publish", Status: "admitted"}}
+				return nil
+			}); err != nil {
+				t.Fatalf("seed mutation: %v", err)
+			}
+			return cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
+		}, "mutation-pending:pr.publish"},
+		{"unreadable-launch-evidence", func(t *testing.T, fx cancelFixture) cancelSeams {
+			return cancelSeams{store: fx.store, stopper: &fakeCancelStopper{},
+				launches: &fakeLaunchReconciler{err: fmt.Errorf("injected")}}
+		}, "launch-reconcile-failed"},
+		{"nonreleased-owned-slot", func(t *testing.T, fx cancelFixture) cancelSeams {
+			// slot left executing (fixture default) — owned but not released.
+			return cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
+		}, "slot-not-released"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := newCancelFixture(t, true)
+			if tc.name != "nonreleased-owned-slot" {
+				slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+				if err != nil {
+					t.Fatalf("load: %v", err)
+				}
+				if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
+					t.Fatalf("release: %v", err)
+				}
+			}
+			seams := tc.arrange(t, fx)
+			if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = EpochCancelled; return nil }); err != nil {
+				t.Fatalf("force cancelled: %v", err)
+			}
+			epochBefore := loadSlotEpoch(t, fx.store, fx.worktree)
+			res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human repair")
+			if res.Disposition != CancelDispositionRefused {
+				t.Fatalf("disposition = %q, want refused (findings=%v)", res.Disposition, res.Findings)
+			}
+			if !hasFinding(res.Findings, tc.finding) {
+				t.Fatalf("findings = %v, want %q", res.Findings, tc.finding)
+			}
+			if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelled {
+				t.Fatalf("epoch state = %q, want cancelled (no regression, no revival)", st)
+			}
+			if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != epochBefore {
+				t.Fatalf("slot epoch changed %q->%q under a refused repair", epochBefore, epo)
+			}
+		})
+	}
+}
+
+// TestGuardianReapsButNeverRetires: the death guardian's fence+reap releases the
+// proven-stopped slot but RETAINS RunEpochID and leaves the epoch CANCELLING —
+// only authorized run.cancel completion retires (spec "The death guardian may
+// perform teardown but never retires epoch ownership"). The contract is proven
+// against the shared reconcileEpochTeardown, which the guardian composes and which
+// performs no retirement; retirement stays exclusively in runCancel's post-accounted
+// completion block and repairTerminalEpoch, neither of which the guardian reaches.
+func TestGuardianReapsButNeverRetires(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	// guardianFenceAndReap composes productionCancelSeams, whose stopper/reconciler
+	// reach the real process service — unavailable here. Drive its exact sequence
+	// with injected seams instead: fence, then the SAME teardown accounting, and
+	// assert what the guardian contract asserts — no retirement, no finalize.
+	guardianFenceAndReapWithSeams := func() {
+		ferr := epochCAS(fx.repo, fx.key, func(rec *EpochRecord) error {
+			if rec.State == EpochActive {
+				rec.State = EpochCancelling
+			}
+			return nil
+		})
+		if ferr != nil {
+			t.Fatalf("fence: %v", ferr)
+		}
+		ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+		if err != nil {
+			t.Fatalf("LoadEpochRecord: %v", err)
+		}
+		_, _, _ = reconcileEpochTeardown(cancelSeams{store: fx.store,
+			stopper:  &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}},
+			launches: okLaunchReconciler()}, fx.repo, fx.key, ep)
+	}
+	guardianFenceAndReapWithSeams()
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelling {
+		t.Fatalf("epoch state = %q, want cancelling (guardian never finalizes)", st)
+	}
+	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
+		t.Fatalf("slot state = %q, want released (guardian reaps)", st)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != fx.epochID {
+		t.Fatalf("slot epoch = %q, want retained %q (guardian never retires ownership)", epo, fx.epochID)
+	}
+	// The authorized completion then retires and finalizes.
+	res := runCancel(cancelSeams{store: fx.store,
+		stopper:  &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}},
+		launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("authorized completion = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+		t.Fatalf("slot epoch = %q, want cleared by the authorized path", epo)
 	}
 }
