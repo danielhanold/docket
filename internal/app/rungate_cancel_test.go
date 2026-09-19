@@ -1022,3 +1022,130 @@ func TestGuardianReapsButNeverRetires(t *testing.T) {
 		t.Fatalf("slot epoch = %q, want cleared by the authorized path", epo)
 	}
 }
+
+// TestFinalizeGateAdmitsAfterRetirement (AC1): before retirement the epoch-owned
+// released slot blocks an epoch-less raw/finalize launch (rawStaleEpochRefusal's
+// stale-run-epoch) and a different-epoch reservation (reserveWorktreeExecution's
+// between-drives fence); after authorized cancellation retires the ownership, both
+// admit again — the released slot is genuinely reusable.
+func TestFinalizeGateAdmitsAfterRetirement(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	// BEFORE: the released slot still owns the worktree.
+	if _, refused := rawStaleEpochRefusal(fx.store, fx.worktree); !refused {
+		t.Fatal("pre-retirement: an epoch-less raw launch must be refused stale-run-epoch")
+	}
+	if _, err := fx.store.ReserveWorktreeExecutionForEpoch(fx.common, fx.worktree, "replacement-epoch", nil); err == nil {
+		t.Fatal("pre-retirement: a different epoch's reservation must be refused")
+	}
+	// Authorized cancellation retires (slot already released; teardown is vacuous).
+	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+	// AFTER: the epoch-less finalize gate no longer refuses…
+	if _, refused := rawStaleEpochRefusal(fx.store, fx.worktree); refused {
+		t.Fatal("post-retirement: rawStaleEpochRefusal must not refuse an epoch-less launch")
+	}
+	// …and a replacement epoch's build-gate reservation admits.
+	if _, err := fx.store.ReserveWorktreeExecutionForEpoch(fx.common, fx.worktree, "replacement-epoch", nil); err != nil {
+		t.Fatalf("post-retirement replacement reserve: %v", err)
+	}
+}
+
+// TestRetirementDoesNotUnfenceOldEpochLaunches (AC8): after retirement the OLD
+// epoch's fresh start is still refused by the 437 launch gate (epochLaunchGate) —
+// clearing slot ownership never revives the cancelled epoch's launch authority, and
+// the refused gate never runs the reservation body.
+func TestRetirementDoesNotUnfenceOldEpochLaunches(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	if res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop"); res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("cancel = %q, want cancelled", res.Disposition)
+	}
+	gate := epochLaunchGate(fx.common)
+	reserveRan := false
+	err := gate(fx.epochID, fx.worktree, func() error { reserveRan = true; return nil })
+	if err == nil {
+		t.Fatal("the cancelled epoch's launch authorization must be refused after retirement")
+	}
+	if reserveRan {
+		t.Fatal("the refused gate must never run the reservation body")
+	}
+}
+
+// TestRepairChargesNothing (AC8): terminal repair — like cancellation — touches
+// neither the suite budget nor the gate retry markers. This mirrors
+// TestCancelNeverChargesOrResets (same seeding and asserts) with the historical
+// stale-slot repair arrangement of TestTerminalRepairRetiresHistoricalStaleSlot
+// (release WITHOUT retirement + epoch forced cancelled) placed between the seeding
+// and the accounting-neutrality asserts.
+func TestRepairChargesNothing(t *testing.T) {
+	fx := newCancelFixture(t, true)
+
+	// Seed a consumed retry marker and a reserved suite attempt.
+	if ok, err := ConsumeGateRetry(fx.repo, fx.key, 1, 2); err != nil || !ok {
+		t.Fatalf("ConsumeGateRetry = (%v, %v), want (true, nil)", ok, err)
+	}
+	retryBefore, err := GateRetryUsage(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("GateRetryUsage: %v", err)
+	}
+	budgetKey := gatedrive.SuiteBudgetKey{RepoIdentity: fx.common, ChangeID: "42", Phase: "build"}
+	if _, _, err := fx.store.ReserveSuiteAttempt(budgetKey, 3); err != nil {
+		t.Fatalf("ReserveSuiteAttempt: %v", err)
+	}
+	usedBefore, limitBefore, err := fx.store.SuiteBudgetUsage(budgetKey)
+	if err != nil {
+		t.Fatalf("SuiteBudgetUsage: %v", err)
+	}
+
+	// Manufacture the historical defect the repair path addresses: release WITHOUT
+	// retirement, then force the epoch terminal (what the pre-0435 cancel produced).
+	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = EpochCancelled; return nil }); err != nil {
+		t.Fatalf("force cancelled: %v", err)
+	}
+
+	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human repair")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (repair applied; findings=%v)", res.Disposition, res.Findings)
+	}
+
+	retryAfter, err := GateRetryUsage(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("GateRetryUsage after: %v", err)
+	}
+	if retryAfter != retryBefore {
+		t.Fatalf("retry markers changed: before=%d after=%d — repair must not touch retry state", retryBefore, retryAfter)
+	}
+	usedAfter, limitAfter, err := fx.store.SuiteBudgetUsage(budgetKey)
+	if err != nil {
+		t.Fatalf("SuiteBudgetUsage after: %v", err)
+	}
+	if usedAfter != usedBefore || limitAfter != limitBefore {
+		t.Fatalf("suite budget changed: before=(%d,%d) after=(%d,%d) — repair charges no attempt", usedBefore, limitBefore, usedAfter, limitAfter)
+	}
+	rec, err := LoadGateRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadGateRecord after: %v", err)
+	}
+	if rec.Retry != RetryConsumed {
+		t.Fatalf("gate record Retry = %q, want consumed (unchanged)", rec.Retry)
+	}
+	if rec.AttemptLimit != 2 {
+		t.Fatalf("gate record AttemptLimit = %d, want 2 (unchanged)", rec.AttemptLimit)
+	}
+}
