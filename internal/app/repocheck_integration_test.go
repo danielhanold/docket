@@ -310,3 +310,66 @@ func TestIntegrationRepoCheckUnknownAuthority(t *testing.T) {
 		t.Errorf("exit = %d, want 2 (undeterminable authority)", code)
 	}
 }
+
+// TestIntegrationRepoCheckMissingIgnoreEntryNamed is the committed-file
+// regression for the reported real-world incident (change 0418): delete ONLY
+// the .opencode entry from the canonical committed block, commit and push it,
+// leave the working tree matching, and assert human and JSON output name
+// .gitignore, the exact missing entry, and its remedy — with state and exit
+// unchanged from what a broken postcondition already produced.
+func TestIntegrationRepoCheckMissingIgnoreEntryNamed(t *testing.T) {
+	r := newHealthyRepo(t)
+
+	gi := filepath.Join(r.invocation, ".gitignore")
+	raw, err := os.ReadFile(gi)
+	if err != nil {
+		t.Fatalf("read .gitignore: %v", err)
+	}
+	const entry = ".opencode/agents/docket-*.md"
+	mutated := strings.Replace(string(raw), entry+"\n", "", 1)
+	if mutated == string(raw) {
+		t.Fatalf("fixture drifted: %s not in managed block", entry)
+	}
+	if err := os.WriteFile(gi, []byte(mutated), 0o644); err != nil {
+		t.Fatalf("write .gitignore: %v", err)
+	}
+	r.commitAndPushMain(t, "drop opencode ignore entry", ".gitignore")
+
+	res := r.runCheck(t)
+	if res.RepositoryState != string(reposetup.StateConflict) {
+		t.Fatalf("state = %q, want conflict", res.RepositoryState)
+	}
+	if res.CheckExitCode() != 1 {
+		t.Fatalf("exit = %d, want 1", res.CheckExitCode())
+	}
+	var ignore *reposetup.Finding
+	for i := range res.Findings {
+		if res.Findings[i].Code == "committed-ignore-invalid" {
+			ignore = &res.Findings[i]
+		}
+	}
+	if ignore == nil {
+		t.Fatalf("no committed-ignore-invalid finding; codes: %+v", res.Findings)
+	}
+	if ignore.Ref != ".gitignore" ||
+		!strings.Contains(ignore.Message, entry) ||
+		!strings.Contains(ignore.Remedy, entry) {
+		t.Fatalf("finding does not name path+entry+remedy: %+v", ignore)
+	}
+	human := res.HumanText()
+	if !strings.Contains(human, ".gitignore") || !strings.Contains(human, entry) {
+		t.Fatalf("human output does not name the defect: %q", human)
+	}
+}
+
+// TestIntegrationRepoCheckHealthyBaselineHasNoSupplementalFindings: the
+// previously healthy baseline stays byte-for-byte clean — no supplemental
+// finding leaks into a healthy report.
+func TestIntegrationRepoCheckHealthyBaselineHasNoSupplementalFindings(t *testing.T) {
+	r := newHealthyRepo(t)
+	res := r.runCheck(t)
+	if res.RepositoryState != string(reposetup.StateHealthy) || len(res.Findings) != 0 || res.CheckExitCode() != 0 {
+		t.Fatalf("healthy baseline changed: state=%q findings=%+v exit=%d",
+			res.RepositoryState, res.Findings, res.CheckExitCode())
+	}
+}
