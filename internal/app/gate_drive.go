@@ -731,7 +731,8 @@ var rawRunIDShape = regexp.MustCompile("^[0-9a-f]{32}$")
 
 // incumbentRefusalLocator returns the bounded safe locator for an admission
 // refusal's incumbent: "incumbent-drive:<id>" / "incumbent-run:<id>", "" when no
-// identity validates. (Same convention as incumbentLocator in gate.go.) A drive
+// identity validates. (This is the single bounded-locator convention shared by
+// every admission-refusal path, including rawStaleEpochRefusal in gate.go.) A drive
 // id is validated with gatedrive.ValidDriveID and a raw run id with rawRunIDShape,
 // so an arbitrary directory name or drive id can never render into the locator.
 func incumbentRefusalLocator(inc *gatedrive.IncumbentSnapshot) string {

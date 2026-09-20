@@ -1335,6 +1335,11 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 	drivenInc := &gatedrive.IncumbentSnapshot{Kind: "scoped", State: "executing", DriveID: validDriveIDForTest(t)}
 	epochInc := &gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "executing", EpochOwned: true}
 	blankInc := &gatedrive.IncumbentSnapshot{State: "reserved"}
+	// A raw reservation not yet confirmed (no RawRunDir/RawRunID): the raw-stop
+	// guidance must NOT render, because there is no proven run identity to stop.
+	rawUnconfirmedInc := &gatedrive.IncumbentSnapshot{Kind: "raw", State: "reserved"}
+	// An unresolved execution slot with an incumbent snapshot present.
+	unresolvedInc := &gatedrive.IncumbentSnapshot{State: "unresolved"}
 
 	cases := []struct {
 		name      string
@@ -1359,6 +1364,18 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 			[]string{"occupies"}, []string{"gate stop", "gate observe"}},
 		{"no snapshot keeps fallback", ownershipErrWith(gatedrive.ErrWorktreeBusy, nil),
 			"", "", []string{ownershipNextAction(gatedrive.ErrWorktreeBusy)}, nil},
+		// Safety invariant: raw-stop guidance renders ONLY when a confirmed
+		// RawRunDir exists. An unconfirmed raw reservation routes to the case-3
+		// "run identity is not recorded" remedy, renders no locator, and never
+		// emits raw-stop guidance.
+		{"raw reserved unconfirmed", ownershipErrWith(gatedrive.ErrWorktreeBusy, rawUnconfirmedInc),
+			"worktree-admission", "",
+			[]string{"raw gate reservation", "run identity is not recorded"},
+			[]string{"gate stop", "gate observe", "incumbent-run:"}},
+		{"unresolved execution", ownershipErrWith(gatedrive.ErrUnresolvedExecution, unresolvedInc),
+			"worktree-admission", "",
+			[]string{ownershipNextAction(gatedrive.ErrUnresolvedExecution), "run.cancel"},
+			[]string{"gate stop"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
