@@ -64,6 +64,33 @@ verdict, not the worker's report, says what may happen next.
   exit code, distinct from a plain pass or fail, because a runner that
   exits non-zero for its own reasons has not necessarily failed the work.
 
+## The worktree admission slot
+
+A worktree runs one gate execution at a time, and the gate enforces that
+through a per-worktree **admission slot**. When a launch is refused because
+the slot is taken, the refusal means the slot is **occupied** — not that
+the occupying process is still running. A raw gate run keeps its slot until
+it is torn down explicitly, deliberately, even after the run itself has
+completed; a completed run is not a free slot. `reserveWorktreeExecution`
+is the point that decides admission, and it fails closed: any non-released
+occupant refuses a new reservation.
+
+So a busy-slot refusal is diagnosed, never guessed around:
+
+- **Inspect, then settle.** `docket gate observe <run-dir>` reports what the
+  slot holds; `docket gate stop <run-dir> --reason <why>` settles it.
+  Stopping a still-running run is a cancellation; stopping an
+  already-completed run settles its slot. The stop operation itself decides
+  whether teardown is proven — the caller does not assume it.
+- **History cleanup is not slot evidence.** Gate history cleanup assesses
+  **historical drives** only. A cleanup that reports zero blockers says
+  nothing about whether the current worktree admission slot is free; a
+  clean history and an occupied slot coexist.
+- **Recovery does not free the slot.** Process recovery (`gate recover`)
+  classifies process records; it does not release a current raw admission
+  slot. Releasing that slot is the stop route's job (`releaseRawSlotForStop`),
+  not recovery's.
+
 ## The invariants
 
 - A completion notification is the worker's claim, never the parent's
