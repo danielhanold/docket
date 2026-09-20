@@ -67,8 +67,9 @@ Two outcomes look abort-shaped and are not: a `waiting` (`reason: gate-waiting`)
   the owned rebase is restored via the `finalize.rebase-abort` operation;
 - a **red rebased suite the repair cannot green** within the configured repair budget (`stuck`);
 - an **authored repair under autonomous finalize** — the sign-off rule above (`repair-needs-signoff`);
-- an **unresolved effective base, foreign in-progress rebase, moved base, or dirty workspace** —
-  the `finalize.rebase` operation returns `blocked`;
+- an **unresolved effective base, foreign in-progress rebase, divergent (rewritten) base, or dirty workspace** —
+  the `finalize.rebase` operation returns `blocked` (a merely forward-advanced base is no longer here: it
+  forward-rebases the completed rewrite instead — see the moved-base paragraph in `SKILL.md`);
 - a **rewrite the publish cannot certify** — the `finalize.publish` operation returns `rewrite-unknown`/
   `pr-probe-failed` (an `unknown` never authorizes a second mutation);
 - a **merge conjunct that fails at the fresh recheck** or an authoritatively **denied** merge —
