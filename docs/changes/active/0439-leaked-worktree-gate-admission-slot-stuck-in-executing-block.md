@@ -2,7 +2,7 @@
 id: 439
 slug: 'leaked-worktree-gate-admission-slot-stuck-in-executing-block'
 title: 'Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-19'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/leaked-worktree-gate-admission-slot-stuck-in-executing-block'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-20T09:09:52Z'
 ---
 
 ## Artifacts
