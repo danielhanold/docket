@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0435 — docket run cancel leaves a stale RunEpochID on a released gate-admission slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md)**
+> ↩ **[Change 0435 — docket run cancel leaves a stale RunEpochID on a released gate-admission slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-20-0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md)**
 <!-- docket:backlink:end -->
 # Retire Cancelled Run Ownership From Released Gate-Admission Slots — Implementation Plan (change 0435)
 
