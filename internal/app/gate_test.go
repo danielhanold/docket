@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -207,4 +208,22 @@ func waitGateRunTerminal(t *testing.T, runDir string) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatal("run never became terminal")
+}
+
+// TestGateLaunchRefusalCauseFromSnapshot proves the admission-refusal cause is
+// derived from the refusal's own incumbent snapshot, not a post-refusal re-read:
+// a snapshot-bearing error yields its locator; a snapshot-free error yields "".
+func TestGateLaunchRefusalCauseFromSnapshot(t *testing.T) {
+	withInc := &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "reserve-worktree-execution",
+		Incumbent: &gatedrive.IncumbentSnapshot{Kind: "raw", RawRunID: "0123456789abcdef0123456789abcdef"}}
+	if got := admissionRefusalCause(withInc); got != "incumbent-run:0123456789abcdef0123456789abcdef" {
+		t.Fatalf("cause = %q", got)
+	}
+	bare := &gatedrive.OwnershipError{Kind: gatedrive.ErrWorktreeBusy, Op: "reserve-worktree-execution"}
+	if got := admissionRefusalCause(bare); got != "" {
+		t.Fatalf("snapshot-free cause = %q, want empty", got)
+	}
+	if got := admissionRefusalCause(errors.New("io")); got != "" {
+		t.Fatalf("non-ownership cause = %q, want empty", got)
+	}
 }
