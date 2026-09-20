@@ -573,7 +573,7 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 			Code:     "live-surface-unverified",
 			Severity: SeverityWarning,
 			Message:  "The integration tree's live-surface state could not be resolved (unverified).",
-			Remedy:   "Ensure the remote is reachable, then re-run `docket repository check`.",
+			Remedy:   "Restore readable committed evidence (fetch the integration objects), then re-run `docket repository check`.",
 		}
 	case CondLegacyConfigKeyAbsent:
 		if !integrationResolved(f) {
