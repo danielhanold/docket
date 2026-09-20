@@ -749,7 +749,8 @@ func incumbentRefusalLocator(inc *gatedrive.IncumbentSnapshot) string {
 }
 
 // quoteOperand renders a path as a safely single-quoted shell operand for human
-// guidance ('...' with each embedded ' rendered as '\”).
+// guidance: the path is wrapped in single quotes and each interior single quote
+// is replaced by the close-quote, backslash-escaped-quote, reopen-quote sequence.
 func quoteOperand(path string) string {
 	return "'" + strings.ReplaceAll(path, "'", `'\''`) + "'"
 }
