@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/leaked-worktree-gate-admission-slot-stuck-in-executing-block'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-20T09:09:52Z'
+reconciled: true
+claimed_at: '2026-09-20T09:11:08Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ The linked spec records the implementation trace, prior changes and ADRs, altern
 ## Out of scope
 
 Automatic slot release, changing admission or teardown policy, expanding history cleanup into current-slot recovery, and redesigning cancellation or epoch fences. No new CLI command, configuration, persistent schema, lifecycle state, liveness implementation, daemon, retry layer, or architecture decision. Rebase-receipt recovery remains change 0438; implementation and implementation planning are separate work.
+
+## Reconcile log
+
+### 2026-09-20
+
+2026-09-20: Reconciled against current reality. Spec baseline (main @ 30dcb069) equals current main HEAD, so the traced code is unchanged: internal/gatedrive/admission.go reserveWorktreeExecution, internal/app/gate.go GateLaunch/releaseRawSlotForStop/incumbentLocator/GateRecover, internal/app/gate_drive.go mapDriveResult/ownershipNextAction, and internal/app/finalize_rebase.go mapDriveOutcome/LocalGateResult/GateReport/HumanText all present as described. Related changes 0435 and 0437 are done (cancelled/revoked-epoch repairs), leaving standalone raw-slot recovery untouched — this change's diagnostic scope stands. Adjacent 0438 (rebase-receipt recovery) remains separate. No scope change; design remains valid as groomed.
