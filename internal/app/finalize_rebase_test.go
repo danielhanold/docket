@@ -1313,3 +1313,106 @@ func TestFinalizeRebaseContinueMarkerWriteFailureNoRecoveryClaim(t *testing.T) {
 		t.Errorf("a failed marker write staged %d time(s); want 0", seam.calls)
 	}
 }
+
+// TestMapDriveOutcomeCarriesRefusalDetail proves a Start/Advance command failure
+// that carried a typed refusal (no drive document) maps to a halted
+// LocalGateResult that PRESERVES reason/message/stage/locator beside the coarse
+// unavailable cause — and that a detail-less failure keeps the exact current
+// generic shape.
+func TestMapDriveOutcomeCarriesRefusalDetail(t *testing.T) {
+	g := &processFinalizeGate{}
+	out := GateDriveResult{
+		Envelope: NewEnvelope(OperationGateDriveStart, ResultInvalidInput),
+		Reason:   "worktree-busy",
+		Message:  "a raw gate run occupies this worktree's execution slot; ...",
+		Stage:    stageWorktreeAdmission,
+		Locator:  "incumbent-run:0123456789abcdef0123456789abcdef",
+	}
+	got := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, out)
+	if got.Outcome != FinalizeGateHalted || got.HaltCause != GateHaltUnavailable {
+		t.Fatalf("outcome/cause = %v/%q", got.Outcome, got.HaltCause)
+	}
+	if got.HaltReason != "worktree-busy" || got.HaltStage != stageWorktreeAdmission ||
+		got.HaltLocator != "incumbent-run:0123456789abcdef0123456789abcdef" || got.HaltMessage == "" {
+		t.Fatalf("refusal detail dropped: %+v", got)
+	}
+	if got.RunDir != "" {
+		t.Fatalf("run_dir must not carry incumbent facts: %q", got.RunDir)
+	}
+	bare := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{})
+	if bare.HaltReason != "" || bare.HaltMessage != "" || bare.HaltStage != "" || bare.HaltLocator != "" {
+		t.Fatalf("detail-less failure grew detail: %+v", bare)
+	}
+}
+
+// TestFinalizeRebaseGateHaltCarriesAdmissionRefusal proves the composition
+// carries the halt detail into GateReport (JSON) and the human line, keeping the
+// blocked disposition, rebase-gate-halted reason, and unavailable halt cause.
+func TestFinalizeRebaseGateHaltCarriesAdmissionRefusal(t *testing.T) {
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	gate := &fakeGate{result: LocalGateResult{
+		Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable,
+		HaltReason:  "worktree-busy",
+		HaltMessage: "a raw gate run occupies this worktree's execution slot; settle it with docket gate stop '/runs/x' --reason <why>",
+		HaltStage:   stageWorktreeAdmission,
+		HaltLocator: "incumbent-run:0123456789abcdef0123456789abcdef",
+	}}
+	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if gate.calls != 1 {
+		t.Fatalf("gate ran %d time(s); want exactly 1 (the halt must come from a run)", gate.calls)
+	}
+	if res.Result != ResultBlocked || res.Reason != ReasonRebaseGateHalted {
+		t.Fatalf("result/reason = %q/%q, want blocked/%q", res.Result, res.Reason, ReasonRebaseGateHalted)
+	}
+	if res.Gate == nil {
+		t.Fatal("no gate report on a halted composition")
+	}
+	if res.Gate.HaltCause != GateHaltUnavailable {
+		t.Fatalf("halt cause = %q, want %q", res.Gate.HaltCause, GateHaltUnavailable)
+	}
+	if res.Gate.Reason != "worktree-busy" || res.Gate.Stage != stageWorktreeAdmission ||
+		res.Gate.Locator != "incumbent-run:0123456789abcdef0123456789abcdef" {
+		t.Fatalf("gate detail dropped: reason=%q stage=%q locator=%q", res.Gate.Reason, res.Gate.Stage, res.Gate.Locator)
+	}
+	if !strings.Contains(res.Gate.Message, "gate stop") {
+		t.Fatalf("gate message %q lacks the remedy", res.Gate.Message)
+	}
+	if res.Gate.RunDir != "" {
+		t.Fatalf("run_dir carries incumbent facts: %q", res.Gate.RunDir)
+	}
+	human := res.HumanText()
+	if !strings.Contains(human, "worktree-busy") ||
+		!strings.Contains(human, "incumbent-run:0123456789abcdef0123456789abcdef") ||
+		!strings.Contains(human, "gate stop") {
+		t.Fatalf("human line %q lacks reason + locator + remedy", human)
+	}
+}
+
+// TestFinalizeRebaseGateHaltGenericUnchanged proves a detail-less halt keeps
+// today's generic output exactly: Gate.Reason/Message/Stage/Locator all empty,
+// the generic result message, and a HumanText without any locator fragment.
+func TestFinalizeRebaseGateHaltGenericUnchanged(t *testing.T) {
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}}
+	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if res.Result != ResultBlocked || res.Reason != ReasonRebaseGateHalted {
+		t.Fatalf("result/reason = %q/%q, want blocked/%q", res.Result, res.Reason, ReasonRebaseGateHalted)
+	}
+	if res.Gate == nil {
+		t.Fatal("no gate report on a halted composition")
+	}
+	if res.Gate.Reason != "" || res.Gate.Message != "" || res.Gate.Stage != "" || res.Gate.Locator != "" {
+		t.Fatalf("detail-less halt grew detail: %+v", res.Gate)
+	}
+	if res.Message != "the local gate did not reach a decidable pass/fail; retained, no red fabricated" {
+		t.Fatalf("generic halt message changed: %q", res.Message)
+	}
+	human := res.HumanText()
+	if strings.Contains(human, "[gate:") || strings.Contains(human, "incumbent-") {
+		t.Fatalf("generic human line carries a locator fragment: %q", human)
+	}
+}
