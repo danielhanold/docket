@@ -1489,6 +1489,68 @@ func TestIntegrationFinalizeRebaseRecoveryPreStartResume(t *testing.T) {
 	}
 }
 
+// TestIntegrationFinalizeRebaseRecoveryPreStartResumeForeignHeadRetained is the
+// direct mutation guard for the pre-start-resume conjunct in recoverFromReceipt:
+// resume only re-enters BeginRebase when the clean StateReady head STILL equals
+// the receipt's recorded OrigHead. Here the workspace is StateReady and its head
+// does NOT descend the recorded base (base advanced), but the receipt records a
+// DIFFERENT OrigHead than the current head — so the `string(localHead) ==
+// rec.OrigHead` conjunct is false and the owned attempt is retained for abort, NOT
+// resumed. Dropping that conjunct would let this case resume BeginRebase and rewrite
+// the head; this test reddens on that mutation.
+func TestIntegrationFinalizeRebaseRecoveryPreStartResumeForeignHeadRetained(t *testing.T) {
+	requireRealGit(t)
+	main := planRepoModes()[0]
+	f := setupRebaseFixture(t, main)
+	f.advanceBase(t)
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
+	deps := f.finalizeDeps(gh, gate)
+	// The workspace is clean/StateReady at f.head, which does NOT descend the advanced
+	// base. Hand-write a receipt whose recorded OrigHead is a DIFFERENT commit than the
+	// current head (the advanced base tip stands in for a foreign/old recorded orig
+	// head) — so localHead != rec.OrigHead while StateReady holds.
+	baseHead := originTip(t, f.repo.origin, "main")
+	if baseHead == f.head {
+		t.Fatalf("advanced base head %q unexpectedly equals feature head; fixture cannot exercise the foreign-head path", baseHead)
+	}
+	rec := workspace.RebaseReceipt{
+		RepoIdentity: f.gitrepo.CommonDir, ChangeID: itoaTest(f.id),
+		OrigHead: baseHead, OrigRemoteHead: f.head,
+		BaseRef: string(f.target.BaseRef), BaseHead: baseHead,
+		Attempt: "20260920T000000Z-foreign-head", CreatedUTC: "2026-09-20T00:00:00Z",
+		ResolverBudgetVersion: "1", ResolverLimit: "10", ResolverUsed: "0",
+	}
+	if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, rec); err != nil {
+		t.Fatal(err)
+	}
+	headBefore := f.localHead()
+
+	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+
+	// A mismatched recorded orig head is retained for abort, never resumed into a rebase.
+	if out.Disposition != RebaseDispBlocked || out.Reason != ReasonRebaseForeignInProgress {
+		t.Fatalf("foreign-head pre-start = %q (reason %q msg %q), want blocked/%s",
+			out.Disposition, out.Reason, out.Message, ReasonRebaseForeignInProgress)
+	}
+	// The gate never ran and no rewrite occurred.
+	if gate.calls != 0 {
+		t.Errorf("a retained foreign-head attempt ran the gate %d time(s); want 0", gate.calls)
+	}
+	// The workspace head and the on-disk receipt are byte-unchanged (retained).
+	if got := f.localHead(); got != headBefore {
+		t.Errorf("a retained foreign-head attempt moved the local head: %q -> %q", headBefore, got)
+	}
+	after, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("a retained foreign-head attempt left no receipt (present=%v err=%v)", present, err)
+	}
+	if after != rec {
+		t.Errorf("a retained foreign-head attempt mutated the receipt:\n before %+v\n after  %+v", rec, after)
+	}
+}
+
 // TestIntegrationFinalizeRebaseRecoveryNoEvidenceSkip proves receipt-based
 // completion recovery with no valid checkpoint runs the gate (spec §4): a fresh
 // invocation may skip on exact-head green PR evidence (existing behavior), but a
