@@ -3,7 +3,7 @@
 The rebase and local-gate *failure* flows for `docket-finalize-change` — read when the sequence
 does not pass clean (a rebase conflict, a red rebased suite, an unavailable dispatch, or any
 abort-and-report condition). Loaded on demand from `docket-finalize-change/SKILL.md`; sibling files
-are not auto-loaded with the skill.
+are not auto-loaded.
 
 ## The two agents (split at rebase-completion)
 
@@ -13,13 +13,13 @@ cause. Neither wraps a skill (only `docket-convention`); both are dispatched **f
 model/effort its wrapper resolves** — never a literal tier. Either dispatch payload includes:
 Feature worktree: <absolute canonical feature-worktree root>
 This harness-neutral input serves the feature-scoped role; Codex enters it through its installed
-contract and other harnesses retain their native worktree mechanism. An authored repair from
-`docket-integration-repair` is what fires the sign-off rule below; pure conflict resolution does not.
+contract, other harnesses through their native worktree mechanism. An authored repair from
+`docket-integration-repair` fires the sign-off rule below; pure conflict resolution does not.
 
 Both agents return an **authored hint, never authority**: the controller feeds it to the matching
 `docket` operation, which verifies every mechanical claim against live Git — the reported paths
 against the live unmerged set, the claimed commits against the real branch delta — before the next
-effect. Report bodies are redaction-only and are never echoed into a result document.
+effect. Report bodies are redaction-only, never echoed into a result document.
 
 1. **The resolver** reconciles each conflicted hunk by merge intent in the returned workspace and
    returns a versioned `ResolverReport` JSON document — no argv. Its fields:
@@ -34,15 +34,14 @@ effect. Report bodies are redaction-only and are never echoed into a result docu
    continues; a `stuck` report, or paths outside the live unmerged set (refused `report-not-resolved`),
    routes to the `finalize.rebase-abort` operation with `--id <id> --attempt <attempt> --input <report>` and a
    `halted` outcome. Each resolver dispatch is **admitted by a durable `finalize.resolver-reserve`
-   reservation** — Go enforces the configured `finalize.resolver_max_attempts` budget (default 10),
-   not a skill-side counter; a spent budget surfaces as reserve `exhausted` or continue
-   `resolver-budget-exhausted`.
+   reservation** — Go enforces the `finalize.resolver_max_attempts` budget (default 10), not a
+   skill-side counter; a spent budget surfaces as reserve `exhausted` or continue `resolver-budget-exhausted`.
 2. **The repair agent** root-causes the red rebased suite, authors a **bounded** minimal fix within
    the configured `finalize.repair_max_attempts` budget (default 6, the initial attempt included), commits it on the feature branch, and returns a report naming its **claimed
-   commits** and `repaired` | `stuck`; it never weakens a test, never runs the rebase, and never
-   merges or transitions metadata. The controller re-runs the gate on the repaired head through
-   the `gate.launch`/`observe` operations and records the exact-head evidence through the
-   `evidence.record` operation — a `stuck` repair, or a repair that cannot reach green within that budget, is `halted`.
+   commits** and `repaired` | `stuck`; it never weakens a test, runs the rebase, or merges or
+   transitions metadata. The controller re-runs the gate on the repaired head via
+   `gate.launch`/`observe` and records the exact-head evidence via `evidence.record` — a `stuck`
+   repair, or a repair that cannot reach green within that budget, is `halted`.
 
 ## Sign-off on auto-authored repairs
 
@@ -68,13 +67,13 @@ Two outcomes look abort-shaped and are not: a `waiting` (`reason: gate-waiting`)
 - a **red rebased suite the repair cannot green** within the configured repair budget (`stuck`);
 - an **authored repair under autonomous finalize** — the sign-off rule above (`repair-needs-signoff`);
 - an **unresolved effective base, foreign in-progress rebase, divergent (rewritten) base, or dirty workspace** —
-  the `finalize.rebase` operation returns `blocked` (a merely forward-advanced base is no longer here: it
-  forward-rebases the completed rewrite instead — see the moved-base paragraph in `SKILL.md`);
+  the `finalize.rebase` operation returns `blocked` (a merely forward-advanced base is no longer here — it
+  forward-rebases the completed rewrite instead; see `SKILL.md`'s moved-base paragraph);
 - a **rewrite the publish cannot certify** — the `finalize.publish` operation returns `rewrite-unknown`/
   `pr-probe-failed` (an `unknown` never authorizes a second mutation);
 - a **merge conjunct that fails at the fresh recheck** or an authoritatively **denied** merge —
-  the `finalize.merge` operation returns the conjunct's token or `merge-denied`; a denial that still stands
-  is `halted`, never a retry loop;
+  the `finalize.merge` operation returns the conjunct's token or `merge-denied`; a standing denial is
+  `halted`, never a retry loop;
 - an **open unauthorized child** on an autonomous run, or a `children-retarget-required` closeout;
 - the **dispatch mechanism being unavailable** for either gate agent — the carve-out below,
   established only per the convention's *Dispatch-capability resolution*, never from a tool name,
@@ -121,17 +120,15 @@ writes them in that order so a crash between them replays by finding the comment
 
 ## The `## Finalize blocked` marker — write shape and lifecycle
 
-A gate or merge failure is recorded as a `## Finalize blocked` body section on the change record —
-a metadata write through the `finalize.block` operation's exact-version transaction, never a hand-edit. It
-is deliberately **not** a new lifecycle status and **not** a reuse of `blocked`: the change really
-*is* `implemented` with an open PR, and a transient multi-cause abort encoded as a status would
-force every derived view to say six different things about one label. `stacked-merged` earns a
-status on exactly the terms this case fails — a durable position with one cause and one exit.
+A gate or merge failure is recorded as a `## Finalize blocked` body section on the change record — a
+`finalize.block` metadata write in an exact-version transaction, never a hand-edit. It is **not** a new
+lifecycle status or a reuse of `blocked`: the change really *is* `implemented` with an open PR, and a
+transient multi-cause abort encoded as a status would make every derived view say six things about one
+label. `stacked-merged` earns a status on the terms this case fails — one durable position, one cause, one exit.
 
 - The single section names **which** reason fired (the `--reason` token) and what the human must do;
-  a re-mark **replaces** the interior or appends a dated attempt bullet — never a second heading. The
-  operation validates marker order and balance before rewriting and rerenders the inline board in the
-  same transaction.
+  a re-mark **replaces** the interior or appends a dated attempt bullet, never a second heading. It
+  validates marker order and balance before rewriting, rerendering the inline board in one transaction.
 - **Auto-detect selection skips** any unmerged change already carrying the section — without this a
   re-run re-selects the same known-bad change forever. A **named id or allowlist member overrides**
   the skip (naming the id is the human's "I looked at it, retry" signal); an **already-merged PR is
