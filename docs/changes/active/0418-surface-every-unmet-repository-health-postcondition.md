@@ -2,7 +2,7 @@
 id: 418
 slug: 'surface-every-unmet-repository-health-postcondition'
 title: 'Surface every unmet repository health postcondition'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-10'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/surface-every-unmet-repository-health-postcondition'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/319'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-20T20:22:50Z'
