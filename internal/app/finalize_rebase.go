@@ -171,11 +171,23 @@ const (
 // evidence head a skip rests on. Outcome/HaltCause/RunDir describe a run that
 // executed; Evidence is the canonical build-evidence block a passed run produced.
 type GateReport struct {
-	Compose      string            `json:"compose"`
-	Permit       string            `json:"permit,omitempty"`
-	Outcome      string            `json:"outcome,omitempty"`
-	HaltCause    string            `json:"halt_cause,omitempty"`
-	RunDir       string            `json:"run_dir,omitempty"`
+	Compose   string `json:"compose"`
+	Permit    string `json:"permit,omitempty"`
+	Outcome   string `json:"outcome,omitempty"`
+	HaltCause string `json:"halt_cause,omitempty"`
+	RunDir    string `json:"run_dir,omitempty"`
+	// Reason/Message/Stage/Locator mirror GateDriveResult's fields of the same
+	// name (see gate_drive.go): they carry a halted gate's typed refusal detail —
+	// a worktree-admission refusal's bounded reason, credential-free remedy,
+	// stage, and incumbent locator — beside the coarse HaltCause. Populated ONLY
+	// on a halted gate that carried such detail; empty on every other compose and
+	// on a genuinely detail-less halt (which keeps the exact generic output).
+	// RunDir describes the requested gate run and is NEVER overloaded with an
+	// incumbent path — the incumbent path travels only inside Message.
+	Reason       string            `json:"reason,omitempty"`
+	Message      string            `json:"message,omitempty"`
+	Stage        string            `json:"stage,omitempty"`
+	Locator      string            `json:"locator,omitempty"`
 	Evidence     string            `json:"evidence,omitempty"`
 	Continuation *GateContinuation `json:"continuation,omitempty"`
 }
@@ -236,6 +248,19 @@ func (r FinalizeRebaseResult) HumanText() string {
 	// takes effect, so the one-line human summary is actionable on its own.
 	if r.Reason == ReasonResolverBudgetExhausted {
 		s += "; raise finalize.resolver_max_attempts for the next explicit finalize attempt"
+	}
+	// A halted gate that carried a typed refusal surfaces its reason, incumbent
+	// locator, and remedy on the one-line summary so the human line is actionable;
+	// a detail-less halt (Gate.Reason empty) adds nothing.
+	if r.Gate != nil && r.Gate.Reason != "" {
+		s += " [gate: " + r.Gate.Reason
+		if r.Gate.Locator != "" {
+			s += " " + r.Gate.Locator
+		}
+		if r.Gate.Message != "" {
+			s += " — " + r.Gate.Message
+		}
+		s += "]"
 	}
 	return s
 }
@@ -385,6 +410,15 @@ type LocalGateResult struct {
 	HaltCause string
 	Evidence  string
 	RunDir    string
+	// HaltReason/HaltMessage/HaltStage/HaltLocator carry a halted gate's typed
+	// refusal detail (same meanings as GateDriveResult's Reason/Message/Stage/
+	// Locator fields). They are set on a Halted outcome only, and only when the
+	// underlying driver result carried that detail (e.g. a worktree-admission
+	// refusal). A detail-less halt leaves them empty.
+	HaltReason  string
+	HaltMessage string
+	HaltStage   string
+	HaltLocator string
 	// Continuation is populated on a WAITING outcome only: the opaque handle the
 	// caller re-presents to advance the same drive on the next slice.
 	Continuation GateContinuation
@@ -1408,8 +1442,24 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	default: // FinalizeGateHalted
 		base.Disposition = RebaseDispBlocked
 		base.Gate.HaltCause = gres.HaltCause
+		// Carry the halted gate's typed refusal detail (a worktree-admission
+		// refusal's reason, remedy, stage, and incumbent locator) into the gate
+		// report beside the coarse cause. RunDir is left as composed — never the
+		// incumbent's path.
+		base.Gate.Reason = gres.HaltReason
+		base.Gate.Message = gres.HaltMessage
+		base.Gate.Stage = gres.HaltStage
+		base.Gate.Locator = gres.HaltLocator
 		base.Reason = ReasonRebaseGateHalted
 		base.Message = "the local gate did not reach a decidable pass/fail; retained, no red fabricated"
+		// Upgrade the coarse message ONLY when a typed refusal supplied detail; a
+		// genuinely detail-less halt keeps today's exact generic message.
+		if gres.HaltReason != "" {
+			base.Message = "the local gate could not start: " + gres.HaltReason
+			if gres.HaltMessage != "" {
+				base.Message += " — " + gres.HaltMessage
+			}
+		}
 		out := newRebaseResult(op, ResultBlocked, base)
 		clearGateContinuation(ctx, deps, rc, rec, &out)
 		return out
@@ -1753,7 +1803,19 @@ func (g *processFinalizeGate) buildDriveService(ctx context.Context, repoDir str
 // HALTED drive maps its typed cause into the finalize halt vocabulary.
 func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGateRequest, out GateDriveResult) LocalGateResult {
 	if out.Drive == nil {
-		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}
+		// A command failure produced no drive document. The coarse classification
+		// stays unavailable, but a typed refusal's bounded detail (e.g. a
+		// worktree-admission refusal's incumbent locator and remedy) is preserved
+		// verbatim rather than swallowed — it is diagnosis, never gate evidence, a
+		// charged attempt, or permission to retry.
+		return LocalGateResult{
+			Outcome:     FinalizeGateHalted,
+			HaltCause:   GateHaltUnavailable,
+			HaltReason:  out.Reason,
+			HaltMessage: out.Message,
+			HaltStage:   out.Stage,
+			HaltLocator: out.Locator,
+		}
 	}
 	doc := out.Drive
 	if doc.Outcome == gatedrive.WAITING {
