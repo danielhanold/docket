@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/finalize-rebase-abort-can-t-recover-a-completed-but-unmerged'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-20T14:49:24Z'
+reconciled: true
+claimed_at: '2026-09-20T14:51:45Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ The linked spec records the implementation trace, prior changes and architecture
 ## Out of scope
 
 Completed-rebase rollback or a completion-head receipt field; new commands, configuration, lifecycle states, recovery stores, retry layers, cancellation authority, or resolver-budget replenishment; transaction-engine relaxation; generalized scratch-cleanup repair; recovery across a force-rewritten base or after publication of the local rewrite; repairing the already-closed change 0368 incident. No implementation or implementation plan during grooming.
+
+## Reconcile log
+
+### 2026-09-20
+
+2026-09-20: Reconciled against main@57794104. Source anchors in the spec verified present and unchanged: internal/app/finalize_rebase.go recoverFromReceipt still refuses on `rec.BaseHead != string(baseHead)` (the forward-progress gap), the RebaseReceipt still distinguishes OrigHead/OrigRemoteHead/BaseHead/Attempt/checkpoint fields, and finalizeBlockOp.Plan / finalizeClearBlockOp.Plan still return zero-valued no-op plans that fail validatePlan before the empty-Files no-op path. Related change 0439 has merged; no dependency or scope change results. depends_on remains empty, ADRs (0010, 0105, 0112, 0113, 0118) remain accurate. No re-scoping; proceeding to plan and build per the agreed forward-rebase design.
