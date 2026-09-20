@@ -234,7 +234,7 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 	// Committed guarantees and surface facts proven from the integration COMMIT
 	// tree, never the working tree.
 	if sc.sourceRevision != "" {
-		f.CommittedIgnoreBlock = committedIgnorePresence(ctx, git, sc.repo, sc.sourceRevision)
+		f.CommittedIgnoreBlock, f.CommittedIgnoreDetail = committedIgnorePresence(ctx, git, sc.repo, sc.sourceRevision)
 		f.LegacyConfigKey = committedLegacyKeyPresence(ctx, git, sc.repo, sc.sourceRevision)
 	}
 
@@ -301,16 +301,12 @@ func hooksOffPresence(ctx context.Context, git *gitcli.Client, worktreeDir strin
 
 // committedIgnorePresence proves the managed .gitignore block from the
 // integration COMMIT tree — never the working tree (learning
-// gitignore-guarantee-must-be-committed). A read error is the safe Unknown.
-func committedIgnorePresence(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, rev string) reposetup.Presence {
+// gitignore-guarantee-must-be-committed) — and preserves the diagnostic
+// detail the health report renders (change 0418). A read error is the safe
+// Unknown, carried as an Unreadable detail, never a fabricated absence.
+func committedIgnorePresence(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, rev string) (reposetup.Presence, reposetup.IgnoreDetail) {
 	blob, found, err := readCommitBlob(ctx, git, repo, rev, gitignoreRel)
-	if err != nil {
-		return reposetup.PresenceUnknown
-	}
-	if found && reposetup.ValidGitignoreBlock(blob) {
-		return reposetup.PresencePresent
-	}
-	return reposetup.PresenceAbsent
+	return reposetup.CommittedIgnoreOutcome(blob, found, err)
 }
 
 // committedLegacyKeyPresence reports whether the integration COMMIT tree's
