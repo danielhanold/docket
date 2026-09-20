@@ -854,3 +854,27 @@ func TestHealthHealthyStillEmptyWithDetailField(t *testing.T) {
 		t.Fatalf("healthy no longer empty: %v", findingCodes(got))
 	}
 }
+
+// TestHealthLiveSurfaceUnverifiedRemedyMatchesCommittedTree: LiveSurface is
+// proven from the integration commit tree, so an Unknown here is a committed-object
+// read failure. Its remedy must match the committed-ignore-unverified /
+// legacy-config-key-unverified siblings, not the generic remote-reachability text.
+func TestHealthLiveSurfaceUnverifiedRemedyMatchesCommittedTree(t *testing.T) {
+	f := healthyFacts()
+	f.LiveSurface = PresenceUnknown
+	got := EvaluateHealth(Classify(f), f, nil)
+	var fnd *Finding
+	for i := range got {
+		if got[i].Code == "live-surface-unverified" {
+			fnd = &got[i]
+			break
+		}
+	}
+	if fnd == nil {
+		t.Fatalf("live-surface-unverified not surfaced: %v", findingCodes(got))
+	}
+	const want = "Restore readable committed evidence (fetch the integration objects), then re-run `docket repository check`."
+	if fnd.Remedy != want {
+		t.Fatalf("remedy = %q, want %q", fnd.Remedy, want)
+	}
+}
