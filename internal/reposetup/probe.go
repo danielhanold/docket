@@ -49,23 +49,24 @@ type WorktreeFact struct {
 // Unknown/zero value; gatherers must set what they proved, and ONLY what they
 // proved.
 type Facts struct {
-	RemoteConfigured     Presence
-	RemoteDefaultBranch  BranchFact
-	RemoteIntegration    BranchFact
-	RemoteMetadata       BranchFact // the remote `docket` branch
-	MetadataRoot         RootShape  // meaningful only when RemoteMetadata is Present
-	LocalMetadata        BranchFact
-	LiveSurface          Presence // active dir or BOARD.md in the AUTHORITATIVE integration tree
-	LegacyConfigKey      Presence // top-level metadata_branch key in the pinned .docket.yml bytes
-	CommittedIgnoreBlock Presence // managed block valid in the integration COMMIT tree
-	DocketWorktree       WorktreeFact
-	PrimaryClean         Presence
-	PrimaryOnIntegration Presence
-	PrimaryAtRemoteTip   Presence
-	PendingReviewPaths   []string // init-planned integration-worktree paths not yet committed
-	PartialPhase         PartialPhase
-	SurfacesAuthorized   bool     // agent_harnesses explicitly declared at repo/repo-local layer
-	SurfacesAgree        Presence // 0351 plan vs bytes+ownership record; only meaningful when authorized
+	RemoteConfigured      Presence
+	RemoteDefaultBranch   BranchFact
+	RemoteIntegration     BranchFact
+	RemoteMetadata        BranchFact // the remote `docket` branch
+	MetadataRoot          RootShape  // meaningful only when RemoteMetadata is Present
+	LocalMetadata         BranchFact
+	LiveSurface           Presence     // active dir or BOARD.md in the AUTHORITATIVE integration tree
+	LegacyConfigKey       Presence     // top-level metadata_branch key in the pinned .docket.yml bytes
+	CommittedIgnoreBlock  Presence     // managed block valid in the integration COMMIT tree
+	CommittedIgnoreDetail IgnoreDetail // why the committed block failed; zero when valid or never probed
+	DocketWorktree        WorktreeFact
+	PrimaryClean          Presence
+	PrimaryOnIntegration  Presence
+	PrimaryAtRemoteTip    Presence
+	PendingReviewPaths    []string // init-planned integration-worktree paths not yet committed
+	PartialPhase          PartialPhase
+	SurfacesAuthorized    bool     // agent_harnesses explicitly declared at repo/repo-local layer
+	SurfacesAgree         Presence // 0351 plan vs bytes+ownership record; only meaningful when authorized
 }
 
 // PartialPhase names how far an interrupted init/migration got. The zero

@@ -2,6 +2,9 @@ package reposetup
 
 import (
 	"bytes"
+	"errors"
+	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -201,5 +204,148 @@ func TestEnsureGitignoreBlockRefusesMalformed(t *testing.T) {
 				t.Fatalf("caller's slice was mutated on refusal:\n got %q\nwant %q", in, orig)
 			}
 		})
+	}
+}
+
+// --- change 0418: explanatory detail for inputs ValidGitignoreBlock rejects ---
+
+func TestGitignoreEntriesDerivedFromCanonicalBlock(t *testing.T) {
+	entries := GitignoreEntries()
+	// Derived, not hand-listed: entries are exactly the canonical block's
+	// interior lines, in order (AGENTS.md: never hand-list gated sites).
+	lines := strings.Split(strings.TrimSuffix(string(GitignoreBlock()), "\n"), "\n")
+	want := lines[1 : len(lines)-1]
+	if !reflect.DeepEqual(entries, want) {
+		t.Fatalf("GitignoreEntries() = %v, want interior of canonical block %v", entries, want)
+	}
+	if len(entries) == 0 || entries[0] != ".docket/" {
+		t.Fatalf("canonical order lost: %v", entries)
+	}
+}
+
+func TestExplainGitignoreBlockValidIsNone(t *testing.T) {
+	for name, in := range map[string][]byte{
+		"canonical alone":       GitignoreBlock(),
+		"canonical with prefix": append([]byte("node_modules/\n\n"), GitignoreBlock()...),
+		"canonical with suffix": append(GitignoreBlock(), []byte("\nextra/\n")...),
+	} {
+		if d := ExplainGitignoreBlock(in); d.Defect != IgnoreDefectNone {
+			t.Fatalf("%s: Defect = %v, want None (validity predicate stays authoritative)", name, d.Defect)
+		}
+	}
+}
+
+// TestExplainGitignoreBlockAcceptancePinned: every input the acceptance
+// predicate accepts must explain as None, so explanatory work cannot
+// silently tighten validity (spec Verification item 3).
+func TestExplainGitignoreBlockAcceptancePinned(t *testing.T) {
+	// canonical block present + a malformed EXTRA block elsewhere: today's
+	// predicate accepts it, and that stays governed by ValidGitignoreBlock.
+	in := append(GitignoreBlock(), []byte("\n"+GitignoreEnd+"\n")...)
+	if !ValidGitignoreBlock(in) {
+		t.Fatalf("fixture drifted: predicate no longer accepts canonical+stray-end")
+	}
+	if d := ExplainGitignoreBlock(in); d.Defect != IgnoreDefectNone {
+		t.Fatalf("accepted input explained as %v, want None", d.Defect)
+	}
+}
+
+func TestExplainGitignoreBlockBlockAbsent(t *testing.T) {
+	d := ExplainGitignoreBlock([]byte("node_modules/\n"))
+	if d.Defect != IgnoreDefectBlockAbsent {
+		t.Fatalf("Defect = %v, want BlockAbsent", d.Defect)
+	}
+}
+
+func TestExplainGitignoreBlockLegacyOnly(t *testing.T) {
+	in := []byte(legacyGitignoreStart + "\n.docket/\n" + legacyGitignoreEnd + "\n")
+	d := ExplainGitignoreBlock(in)
+	if d.Defect != IgnoreDefectLegacyOnly {
+		t.Fatalf("Defect = %v, want LegacyOnly", d.Defect)
+	}
+}
+
+func TestExplainGitignoreBlockMalformedMarkers(t *testing.T) {
+	cases := map[string]struct {
+		in         string
+		generation string
+	}{
+		"dangling start":      {GitignoreStart + "\n.docket/\n", "docket"},
+		"end before start":    {GitignoreEnd + "\n" + GitignoreStart + "\n", "docket"},
+		"dangling legacy end": {legacyGitignoreEnd + "\n", "legacy"},
+	}
+	for name, tc := range cases {
+		d := ExplainGitignoreBlock([]byte(tc.in))
+		if d.Defect != IgnoreDefectMalformedMarkers || d.Generation != tc.generation {
+			t.Fatalf("%s: got (%v, %q), want (MalformedMarkers, %q)", name, d.Defect, d.Generation, tc.generation)
+		}
+	}
+}
+
+// TestExplainGitignoreBlockMissingEntries covers the reported real-world
+// regression (missing .opencode entry) plus multiple missing entries, all
+// reported in canonical order. An entry elsewhere in the file does not
+// satisfy membership in the managed block.
+func TestExplainGitignoreBlockMissingEntries(t *testing.T) {
+	strip := func(remove ...string) []byte {
+		out := string(GitignoreBlock())
+		for _, r := range remove {
+			out = strings.Replace(out, r+"\n", "", 1)
+		}
+		return []byte(out)
+	}
+	d := ExplainGitignoreBlock(strip(".opencode/agents/docket-*.md"))
+	if d.Defect != IgnoreDefectMissingEntries ||
+		!reflect.DeepEqual(d.MissingEntries, []string{".opencode/agents/docket-*.md"}) {
+		t.Fatalf("single missing: got (%v, %v)", d.Defect, d.MissingEntries)
+	}
+	d = ExplainGitignoreBlock(strip(".worktrees/", ".opencode/agents/docket-*.md"))
+	if !reflect.DeepEqual(d.MissingEntries, []string{".worktrees/", ".opencode/agents/docket-*.md"}) {
+		t.Fatalf("multiple missing not in canonical order: %v", d.MissingEntries)
+	}
+	// Entry outside the block does not count as membership.
+	outside := append([]byte(".opencode/agents/docket-*.md\n\n"), strip(".opencode/agents/docket-*.md")...)
+	d = ExplainGitignoreBlock(outside)
+	if d.Defect != IgnoreDefectMissingEntries || len(d.MissingEntries) != 1 {
+		t.Fatalf("outside-block entry satisfied membership: (%v, %v)", d.Defect, d.MissingEntries)
+	}
+}
+
+// TestExplainGitignoreBlockNonCanonical: all entries present but not the
+// exact canonical representation (reordered / extra interior line) explains
+// the mismatch rather than inventing a missing entry.
+func TestExplainGitignoreBlockNonCanonical(t *testing.T) {
+	reordered := strings.Replace(string(GitignoreBlock()),
+		".docket/\n.worktrees/\n", ".worktrees/\n.docket/\n", 1)
+	d := ExplainGitignoreBlock([]byte(reordered))
+	if d.Defect != IgnoreDefectNonCanonical || len(d.MissingEntries) != 0 {
+		t.Fatalf("reordered: got (%v, %v), want (NonCanonical, none)", d.Defect, d.MissingEntries)
+	}
+	extra := strings.Replace(string(GitignoreBlock()),
+		".docket/\n", ".docket/\nextra-line/\n", 1)
+	if d := ExplainGitignoreBlock([]byte(extra)); d.Defect != IgnoreDefectNonCanonical {
+		t.Fatalf("extra interior line: got %v, want NonCanonical", d.Defect)
+	}
+}
+
+// TestCommittedIgnoreOutcome maps the probe's three raw results to
+// (Presence, IgnoreDetail). A read error is Unknown+Unreadable, never a
+// clean absence (learning probe-error-is-not-clean-absence).
+func TestCommittedIgnoreOutcome(t *testing.T) {
+	p, d := CommittedIgnoreOutcome(nil, false, errors.New("boom"))
+	if p != PresenceUnknown || d.Defect != IgnoreDefectUnreadable {
+		t.Fatalf("read error: got (%v, %v), want (Unknown, Unreadable)", p, d.Defect)
+	}
+	p, d = CommittedIgnoreOutcome(nil, false, nil)
+	if p != PresenceAbsent || d.Defect != IgnoreDefectFileAbsent {
+		t.Fatalf("file not found: got (%v, %v), want (Absent, FileAbsent)", p, d.Defect)
+	}
+	p, d = CommittedIgnoreOutcome(GitignoreBlock(), true, nil)
+	if p != PresencePresent || d.Defect != IgnoreDefectNone {
+		t.Fatalf("valid: got (%v, %v), want (Present, None)", p, d.Defect)
+	}
+	p, d = CommittedIgnoreOutcome([]byte("stuff\n"), true, nil)
+	if p != PresenceAbsent || d.Defect != IgnoreDefectBlockAbsent {
+		t.Fatalf("invalid: got (%v, %v), want (Absent, BlockAbsent)", p, d.Defect)
 	}
 }
