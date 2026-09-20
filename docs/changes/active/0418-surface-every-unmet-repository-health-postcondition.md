@@ -22,7 +22,7 @@ branch: 'fix/surface-every-unmet-repository-health-postcondition'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-20T20:10:58Z'
+claimed_at: '2026-09-20T20:22:50Z'
 ---
 
 ## Artifacts
