@@ -270,17 +270,23 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 		// slot readmits; a busy slot returns ErrWorktreeBusy so a same-scope successor
 		// can reuse it).
 		if stored.Record.RunEpochID != "" && stored.Record.RunEpochID != rec.RunEpochID {
-			return "", nil, ownershipErr(ErrStaleRunEpoch, op)
+			oe := ownershipErr(ErrStaleRunEpoch, op)
+			oe.Incumbent = incumbentSnapshot(stored.Record)
+			return "", nil, oe
 		}
 		switch stored.Record.State {
 		case admissionReleased:
 			prevGen = stored.Record.ExecutionGen // readmit over a released slot
 		case admissionUnresolved:
-			return "", nil, ownershipErr(ErrUnresolvedExecution, op)
+			oe := ownershipErr(ErrUnresolvedExecution, op)
+			oe.Incumbent = incumbentSnapshot(stored.Record)
+			return "", nil, oe
 		default:
 			// reserved, executing, stopping, or any unrecognized non-released
 			// state: fail closed as busy — never a free slot.
-			return "", nil, ownershipErr(ErrWorktreeBusy, op)
+			oe := ownershipErr(ErrWorktreeBusy, op)
+			oe.Incumbent = incumbentSnapshot(stored.Record)
+			return "", nil, oe
 		}
 	case storeErrIs(rerr, ErrNotFound):
 		// Inventory is inside this slot's lock so no concurrent reservation can
@@ -326,6 +332,20 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 		return "", nil, storeErr(ErrIO, op, err)
 	}
 	return token, legacy, nil
+}
+
+// incumbentSnapshot projects the refusing slot's record into the bounded,
+// credential-free facts a diagnostic may carry. The reservation token, owner
+// generations, and the epoch id itself are deliberately excluded.
+func incumbentSnapshot(rec admissionRecord) *IncumbentSnapshot {
+	return &IncumbentSnapshot{
+		Kind:       rec.Kind,
+		State:      string(rec.State),
+		DriveID:    rec.DriveID,
+		RawRunID:   rec.RawRunID,
+		RawRunDir:  rec.RawRunDir,
+		EpochOwned: rec.RunEpochID != "",
+	}
 }
 
 // inventoryLegacyDrives assesses EVERY pre-admission drive record through the
