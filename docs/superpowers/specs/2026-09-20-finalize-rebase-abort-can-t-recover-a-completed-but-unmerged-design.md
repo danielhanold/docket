@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0438 — finalize.rebase-abort can't recover a completed-but-unmerged rebase whose base later moved](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0438-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged.md)**
+> ↩ **[Change 0438 — finalize.rebase-abort can't recover a completed-but-unmerged rebase whose base later moved](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-20-0438-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged.md)**
 <!-- docket:backlink:end -->
 
 # Rebase a completed finalize attempt onto an advanced base and retest
