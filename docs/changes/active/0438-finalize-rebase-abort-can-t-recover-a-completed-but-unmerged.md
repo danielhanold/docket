@@ -2,7 +2,7 @@
 id: 438
 slug: 'finalize-rebase-abort-can-t-recover-a-completed-but-unmerged'
 title: 'finalize.rebase-abort can''t recover a completed-but-unmerged rebase whose base later moved'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-19'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/finalize-rebase-abort-can-t-recover-a-completed-but-unmerged'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-20T14:49:24Z'
 ---
 
 ## Artifacts
