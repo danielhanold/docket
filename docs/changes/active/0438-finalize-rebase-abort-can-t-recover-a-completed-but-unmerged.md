@@ -2,7 +2,7 @@
 id: 438
 slug: 'finalize-rebase-abort-can-t-recover-a-completed-but-unmerged'
 title: 'finalize.rebase-abort can''t recover a completed-but-unmerged rebase whose base later moved'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-19'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/finalize-rebase-abort-can-t-recover-a-completed-but-unmerged'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/318'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-20T15:06:58Z'
