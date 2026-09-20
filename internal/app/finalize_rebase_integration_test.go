@@ -1661,6 +1661,107 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefresh(t *testing.T) {
 	}
 }
 
+// divergeOnLockWorkspace models a concurrent refresh/continue that won the race for
+// the operation lock: the moment the admitted (losing) refresh acquires the lock, the
+// winner has ALREADY rewritten the on-disk receipt, so the loser's under-lock reload
+// observes a receipt that diverges from the copy its classification read. It rewrites
+// the receipt exactly once, while holding the real lock (WriteRebaseReceipt never
+// re-acquires it — refreshOwnedRewrite writes under the same lock), so the
+// decide-and-act-on-same-copy guard sees disk != rec and refuses. Every other method
+// delegates to the embedded real workspace.
+type divergeOnLockWorkspace struct {
+	FinalizeWorkspace
+	diverged workspace.RebaseReceipt
+	injected bool
+}
+
+func (w *divergeOnLockWorkspace) AcquireOperationLock(dir string) (func(), error) {
+	release, err := w.FinalizeWorkspace.AcquireOperationLock(dir)
+	if err != nil {
+		return release, err
+	}
+	if !w.injected {
+		w.injected = true
+		_ = w.FinalizeWorkspace.WriteRebaseReceipt(context.Background(), dir, w.diverged)
+	}
+	return release, err
+}
+
+// TestIntegrationFinalizeRebaseRecoveryForwardRefreshContended covers acceptance §3's
+// concurrent-re-entry requirement: the refresh decide-and-act-on-same-copy guard in
+// refreshOwnedRewrite. A completed, quiescent, unpublished owned rewrite has its base
+// advanced (so the invocation would forward-refresh); but between the classification
+// read and the under-lock reload a concurrent refresh/continue rewrites the receipt
+// (one owned rewrite — the loser reloads the winner's receipt). The admitted refresh
+// must refuse ResultContended/refresh-contended and retain all local work: no new
+// rebase, the winner's receipt (as of divergence) intact, the workspace head and the
+// remote feature head unchanged.
+func TestIntegrationFinalizeRebaseRecoveryForwardRefreshContended(t *testing.T) {
+	requireRealGit(t)
+	f, deps, head, begin := beginSuccessiveConflicts(t, 0, nil,
+		map[string]string{"feature.txt": "conflicting base content\n"})
+	attempt := begin.Attempt
+	_, cont := reserveResolveContinue(t, f, deps, attempt, begin.UnmergedPaths, 1)
+	if cont.Disposition != RebaseDispRebased {
+		t.Fatalf("setup continue = %q (reason %q), want rebased (completed rewrite)", cont.Disposition, cont.Reason)
+	}
+	rewritten := f.localHead()
+	recBefore, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	gate := deps.Gate.(*fakeGate)
+	if gate.calls != 1 {
+		t.Fatalf("gate calls after the completing continue = %d, want 1", gate.calls)
+	}
+
+	// The base advances (non-conflicting) before publication: this invocation would
+	// forward-refresh onto the advanced base.
+	f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved again\n"})
+
+	// The concurrent winner rewrote the receipt (a fresh attempt token, its own OrigHead)
+	// while it held the operation lock. The wrapper replays that write the instant the
+	// admitted refresh acquires the lock — after every pre-lock admission check has read
+	// the ORIGINAL receipt — so the under-lock reload diverges from the classification rec.
+	diverged := recBefore
+	diverged.Attempt = recBefore.Attempt + "-concurrent-winner"
+	diverged.OrigHead = rewritten
+	deps.Workspace = &divergeOnLockWorkspace{FinalizeWorkspace: f.svc, diverged: diverged}
+
+	remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
+	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+
+	// The guard refused: decide-and-act-on-same-copy caught the divergence under the lock.
+	if out.Result != ResultContended || out.Disposition != RebaseDispContended || out.Reason != ReasonRebaseRefreshContended {
+		t.Fatalf("contended refresh = %q/%q (reason %q msg %q), want contended/contended/refresh-contended",
+			out.Result, out.Disposition, out.Reason, out.Message)
+	}
+	// No new rebase ran: the gate never re-composed.
+	if gate.calls != 1 {
+		t.Errorf("gate calls after the contended refresh = %d, want 1 (no new rebase)", gate.calls)
+	}
+	if out.Gate != nil {
+		t.Errorf("a contended refresh reported a gate: %+v", out.Gate)
+	}
+	// Local work retained: the workspace head is unmoved and no rebase is in progress.
+	if got := f.localHead(); got != rewritten {
+		t.Errorf("the contended refresh moved the local head: %q -> %q", rewritten, got)
+	}
+	if st, _ := f.deps.Client.RebaseState(context.Background(), f.wp); st.Disposition != gitcli.RebaseUnchanged {
+		t.Errorf("a rebase is in progress after the contended refresh: %q", st.Disposition)
+	}
+	// The on-disk receipt is the winner's, as of divergence: the loser never clobbered it.
+	after, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("the contended refresh left no receipt (present=%v err=%v)", present, err)
+	}
+	if after != diverged {
+		t.Errorf("the contended refresh mutated the winner's receipt:\n before %+v\n after  %+v", diverged, after)
+	}
+	// The remote feature head is unchanged.
+	if got := originTip(t, f.repo.origin, "feat/"+f.slug); got != remoteBefore {
+		t.Errorf("the contended refresh moved the remote feature head: %q -> %q", remoteBefore, got)
+	}
+}
+
 // assertRefreshRetained proves a refused base refresh retained local work: the
 // workspace head, the on-disk receipt, and the remote feature head are all
 // byte-identical to the pre-invocation state captured by the caller.
