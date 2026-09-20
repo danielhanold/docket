@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0439 — Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0439-leaked-worktree-gate-admission-slot-stuck-in-executing-block.md)**
+> ↩ **[Change 0439 — Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-20-0439-leaked-worktree-gate-admission-slot-stuck-in-executing-block.md)**
 <!-- docket:backlink:end -->
 # Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error — Results
 
