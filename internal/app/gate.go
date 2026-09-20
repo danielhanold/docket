@@ -242,10 +242,23 @@ func rawStaleEpochRefusal(store *gatedrive.Store, worktreeRoot string) (GateResu
 		return GateResult{}, false
 	}
 	if slot.RunEpochID != "" && slot.RunEpochID != rawGateEpoch {
+		// Decide-and-act on the single LoadWorktreeExecution read above: the
+		// refusal's Cause is projected from the SAME slot record the fence
+		// decided on, never a second re-read that a later-changed slot could
+		// falsify. This mirrors gatedrive's own incumbentSnapshot projector;
+		// that projector is unexported, so the bounded fields are copied here.
+		inc := &gatedrive.IncumbentSnapshot{
+			Kind:       slot.Kind,
+			State:      string(slot.State),
+			DriveID:    slot.DriveID,
+			RawRunID:   slot.RawRunID,
+			RawRunDir:  slot.RawRunDir,
+			EpochOwned: slot.RunEpochID != "",
+		}
 		return GateResult{
 			Envelope: NewEnvelope(OperationGateLaunch, ResultBlocked),
 			Reason:   "stale-run-epoch",
-			Cause:    incumbentLocator(store, worktreeRoot),
+			Cause:    incumbentRefusalLocator(inc),
 		}, true
 	}
 	return GateResult{}, false
@@ -262,29 +275,6 @@ func admissionRefusalCause(err error) string {
 		return ""
 	}
 	return incumbentRefusalLocator(oe.Incumbent)
-}
-
-// incumbentLocator returns a bounded, credential-free locator for the execution
-// currently holding a worktree slot: its opaque drive id when a driven gate owns
-// the slot, else the incumbent raw run id. Both are safe recovery locators, never a
-// reservation token or child capability. An unreadable slot yields "". The raw
-// GateLaunch admission-refusal path no longer uses this re-read; it diagnoses from
-// the error-borne snapshot via admissionRefusalCause, so this keeps only the
-// rawStaleEpochRefusal caller, which decides-and-acts on one LoadWorktreeExecution
-// read.
-func incumbentLocator(store *gatedrive.Store, worktreeRoot string) string {
-	slot, _, err := store.LoadWorktreeExecution(worktreeRoot)
-	if err != nil {
-		return ""
-	}
-	switch {
-	case slot.DriveID != "":
-		return "incumbent-drive:" + slot.DriveID
-	case slot.RawRunID != "":
-		return "incumbent-run:" + slot.RawRunID
-	default:
-		return ""
-	}
 }
 
 // mapAdmissionFailure classifies a worktree-admission rejection into a protocol
