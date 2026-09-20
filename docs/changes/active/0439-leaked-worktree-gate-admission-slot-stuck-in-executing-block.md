@@ -22,7 +22,7 @@ branch: 'fix/leaked-worktree-gate-admission-slot-stuck-in-executing-block'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-20T09:12:25Z'
+claimed_at: '2026-09-20T09:19:43Z'
 ---
 
 ## Artifacts
