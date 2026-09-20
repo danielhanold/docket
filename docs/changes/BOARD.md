@@ -1,18 +1,12 @@
 # Backlog
 
-**439 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 289 done · 🗑️ 119 killed
+**439 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 290 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0439](active/0439-leaked-worktree-gate-admission-slot-stuck-in-executing-block.md) | Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error | `medium` | `fix` | [#317](https://github.com/danielhanold/docket/pull/317) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -91,7 +85,6 @@ graph TD
   0422
   0433
   0438
-  0439
   0192:::done
   0251:::done
   0370:::done
@@ -100,10 +93,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (408)</summary>
+<details><summary>✅🗑️ Archive — done + killed (409)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0439](archive/2026-09-20-0439-leaked-worktree-gate-admission-slot-stuck-in-executing-block.md) | Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error | 2026-09-20 |
 | [0435](archive/2026-09-20-0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | 2026-09-20 |
 | [0437](archive/2026-09-19-0437-reject-revoked-run-epochs-before-gate-start-admission.md) | Reject revoked run epochs before gate-start admission | 2026-09-19 |
 | [0436](archive/2026-09-19-0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) | test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red | 2026-09-19 |
@@ -124,7 +118,6 @@ graph TD
 | [0419](archive/2026-09-15-0419-make-finalize-repair-attempts-configurable-with-a-default-of.md) | Make finalize repair attempts configurable with a default of six | 2026-09-15 |
 | [0417](archive/2026-09-15-0417-artifacts-block-pins-plan-results-links-to-the-docket-branch.md) | Artifacts block pins plan/results links to the docket branch, where those files never live | 2026-09-15 |
 | [0428](archive/2026-09-14-0428-recover-legacy-gate-history-without-blocking-unrelated-workt.md) | Recover legacy gate history without blocking unrelated worktree admission | 2026-09-14 |
-| [0423](archive/2026-09-14-0423-certify-native-multi-agent-v2-orchestration-through-docket-i.md) | Certify native Multi-Agent V2 orchestration through Docket ImplementNext | 2026-09-14 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -243,7 +236,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 38 done |
+| [2026-09](archive/) | 39 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

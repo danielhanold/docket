@@ -2,7 +2,7 @@
 id: 439
 slug: 'leaked-worktree-gate-admission-slot-stuck-in-executing-block'
 title: 'Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-19'
@@ -22,7 +22,7 @@ branch: 'fix/leaked-worktree-gate-admission-slot-stuck-in-executing-block'
 pr: 'https://github.com/danielhanold/docket/pull/317'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-20T09:21:34Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-20T09:21:34Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-design.md) |
-| Plan | [2026-09-20-leaked-worktree-gate-admission-slot-diagnostics.md](https://github.com/danielhanold/docket/blob/fix/leaked-worktree-gate-admission-slot-stuck-in-executing-block/docs/superpowers/plans/2026-09-20-leaked-worktree-gate-admission-slot-diagnostics.md) |
-| Results | [2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-results.md](https://github.com/danielhanold/docket/blob/fix/leaked-worktree-gate-admission-slot-stuck-in-executing-block/docs/results/2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-results.md) |
+| Plan | [2026-09-20-leaked-worktree-gate-admission-slot-diagnostics.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-20-leaked-worktree-gate-admission-slot-diagnostics.md) |
+| Results | [2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-results.md) |
 | ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md) |
 <!-- docket:artifacts:end -->
 
