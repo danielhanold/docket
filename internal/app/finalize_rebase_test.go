@@ -1416,3 +1416,67 @@ func TestFinalizeRebaseGateHaltGenericUnchanged(t *testing.T) {
 		t.Fatalf("generic human line carries a locator fragment: %q", human)
 	}
 }
+
+// TestMutateReceiptForAttemptSkipsSuperseded covers the attempt-identity guard
+// (change 0438): a receipt writer observing attempt "A" must not modify a
+// receipt that now records attempt "B" (a refresh superseded the rewrite
+// mid-flight); the same helper writes when the observed attempt still matches.
+func TestMutateReceiptForAttemptSkipsSuperseded(t *testing.T) {
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	ctx := context.Background()
+	deps := f.finalizeDeps(nil, nil)
+	rc := &rebaseContext{metaDir: f.metaDir}
+
+	recB := workspace.RebaseReceipt{
+		RepoIdentity:        f.gitrepo.CommonDir,
+		ChangeID:            fmt.Sprintf("%d", f.id),
+		OrigHead:            strings.Repeat("a", 40),
+		OrigRemoteHead:      strings.Repeat("a", 40),
+		BaseRef:             "refs/heads/main",
+		BaseHead:            strings.Repeat("b", 40),
+		Attempt:             "B",
+		GateDriveID:         "drive-1",
+		GateOwnerGeneration: "gen-1",
+		CreatedUTC:          "2026-09-20T00:00:00Z",
+	}
+	if err := f.svc.WriteRebaseReceipt(ctx, f.metaDir, recB); err != nil {
+		t.Fatalf("seed receipt B: %v", err)
+	}
+
+	mutate := func(r *workspace.RebaseReceipt) { r.GateDriveID, r.GateOwnerGeneration = "", "" }
+
+	// Observing attempt "A" over an on-disk attempt-"B" receipt: superseded, skip.
+	written, err := mutateReceiptForAttempt(ctx, deps, rc, "A", mutate)
+	if err != nil {
+		t.Fatalf("mutate for A: unexpected err %v", err)
+	}
+	if written {
+		t.Errorf("mutate for A reported written; the superseded write must not land")
+	}
+	after, present, err := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("read after A: present=%v err=%v", present, err)
+	}
+	if after != recB {
+		t.Errorf("the superseded write mutated the receipt:\n got %+v\nwant byte-identical %+v", after, recB)
+	}
+
+	// Observing attempt "B" (the current on-disk token): the write lands, and
+	// only the mutated fields change.
+	written, err = mutateReceiptForAttempt(ctx, deps, rc, "B", mutate)
+	if err != nil {
+		t.Fatalf("mutate for B: unexpected err %v", err)
+	}
+	if !written {
+		t.Errorf("mutate for B did not report written")
+	}
+	got, present, err := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("read after B: present=%v err=%v", present, err)
+	}
+	want := recB
+	want.GateDriveID, want.GateOwnerGeneration = "", ""
+	if got != want {
+		t.Errorf("mutate for B changed more than the gate pair:\n got %+v\nwant %+v", got, want)
+	}
+}

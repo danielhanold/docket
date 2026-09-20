@@ -340,6 +340,34 @@ func resolverBudgetForWrite(ctx context.Context, deps FinalizeDeps, metaDir stri
 	return disk
 }
 
+// mutateReceiptForAttempt applies mutate to the CURRENT on-disk receipt only
+// when it still records the attempt the caller observed. A refresh (change
+// 0438) can supersede a rewrite between a caller's read and its terminal
+// write; comparing the attempt identity here keeps a late gate or resolver
+// write for the prior token from overwriting the refreshed receipt. A missing
+// receipt or a foreign attempt is a silent skip (false, nil) — the superseded
+// write simply must not land; a read/write error is returned for the caller's
+// best-effort message handling. Because the mutation applies to the freshly
+// reloaded on-disk copy, the resolver-budget group is preserved by
+// construction, so the explicit copyResolverBudget overlay these gate writers
+// once carried is no longer needed. These writers already run lock-free after
+// the gate, so no lock is taken here.
+func mutateReceiptForAttempt(ctx context.Context, deps FinalizeDeps, rc *rebaseContext, attempt string, mutate func(*workspace.RebaseReceipt)) (bool, error) {
+	disk, present, err := deps.Workspace.ReadRebaseReceipt(ctx, rc.metaDir)
+	if err != nil {
+		return false, err
+	}
+	if !present || disk.Attempt != attempt {
+		return false, nil
+	}
+	before := disk
+	mutate(&disk)
+	if disk == before {
+		return true, nil
+	}
+	return true, deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, disk)
+}
+
 // ---------------------------------------------------------------------------
 // Local-gate seam
 // ---------------------------------------------------------------------------
@@ -1407,13 +1435,15 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 		// and advances the SAME drive (change 0396). The owner generation is
 		// receipt-private — it never enters the document.
 		c := gres.Continuation
-		updated := rec
-		// Copy the resolver-budget group forward from the freshly reloaded on-disk
-		// receipt so persisting the WAITING continuation never clobbers a budget a
-		// reserve/continue advanced since rec was loaded (change 0349).
-		copyResolverBudget(&updated, resolverBudgetForWrite(ctx, deps, rc.metaDir, rec))
-		updated.GateDriveID, updated.GateOwnerGeneration = c.DriveID, c.Generation
-		if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, updated); werr != nil {
+		// Persist the pair against the freshly reloaded on-disk receipt, guarded on
+		// the observed attempt (change 0438): the mutation carries the resolver-budget
+		// group forward by construction (change 0349), and a refresh that superseded
+		// this rewrite mid-drive (written == false) must not have its refreshed
+		// receipt clobbered by this late pair.
+		written, werr := mutateReceiptForAttempt(ctx, deps, rc, rec.Attempt, func(u *workspace.RebaseReceipt) {
+			u.GateDriveID, u.GateOwnerGeneration = c.DriveID, c.Generation
+		})
+		if werr != nil {
 			base.Disposition = RebaseDispBlocked
 			base.Gate.RunDir = ""
 			base.Reason = ReasonRebaseReceiptWrite
@@ -1421,6 +1451,13 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 				"the WAITING continuation could not be persisted to the rebase receipt (drive %s still running): %v",
 				c.DriveID, werr)
 			return newRebaseResult(op, ResultExternalFailed, base)
+		}
+		if !written {
+			base.Disposition = RebaseDispContended
+			base.Gate.RunDir = ""
+			base.Reason = ReasonRebaseVersionDrift
+			base.Message = "the owned rewrite was superseded while the gate was running; re-read context finalize"
+			return newRebaseResult(op, ResultContended, base)
 		}
 		// A nonterminal slice: the suite is still running under the detached
 		// supervisor. Surface the opaque continuation so the caller re-enters this
@@ -1477,24 +1514,25 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 // message and never changes the disposition — the resume simply re-runs the
 // gate, fail-closed.
 func recordGatePassedReceipt(ctx context.Context, deps FinalizeDeps, rc *rebaseContext, rec workspace.RebaseReceipt, noop bool, pr githubcli.PullRequest, currentHead, resolvedCommand, gatePolicy, evidenceBlock string, res *FinalizeRebaseResult) {
-	updated := rec
-	copyResolverBudget(&updated, resolverBudgetForWrite(ctx, deps, rc.metaDir, rec))
-	updated.GateDriveID, updated.GateOwnerGeneration = "", ""
-	updated.PublishCheckpointHead, updated.PublishCheckpointBaseHead = "", ""
-	updated.PublishCheckpointCommand, updated.PublishCheckpointGate = "", ""
-	updated.PublishCheckpointPRNumber, updated.PublishCheckpointEvidence = "", ""
-	if !noop && pr.Number > 0 && resolvedCommand != "" && gatePolicy != "" && evidenceBlock != "" {
-		updated.PublishCheckpointHead = currentHead
-		updated.PublishCheckpointBaseHead = rec.BaseHead
-		updated.PublishCheckpointCommand = resolvedCommand
-		updated.PublishCheckpointGate = gatePolicy
-		updated.PublishCheckpointPRNumber = strconv.Itoa(pr.Number)
-		updated.PublishCheckpointEvidence = evidenceBlock
-	}
-	if updated == rec {
-		return
-	}
-	if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, updated); err != nil {
+	// Guard on the observed attempt (change 0438): a refresh that superseded this
+	// rewrite must not have its refreshed receipt clobbered by this late terminal.
+	// The mutation runs against the freshly reloaded disk copy, so the
+	// resolver-budget group is carried forward by construction (no copyResolverBudget).
+	_, err := mutateReceiptForAttempt(ctx, deps, rc, rec.Attempt, func(u *workspace.RebaseReceipt) {
+		u.GateDriveID, u.GateOwnerGeneration = "", ""
+		u.PublishCheckpointHead, u.PublishCheckpointBaseHead = "", ""
+		u.PublishCheckpointCommand, u.PublishCheckpointGate = "", ""
+		u.PublishCheckpointPRNumber, u.PublishCheckpointEvidence = "", ""
+		if !noop && pr.Number > 0 && resolvedCommand != "" && gatePolicy != "" && evidenceBlock != "" {
+			u.PublishCheckpointHead = currentHead
+			u.PublishCheckpointBaseHead = u.BaseHead
+			u.PublishCheckpointCommand = resolvedCommand
+			u.PublishCheckpointGate = gatePolicy
+			u.PublishCheckpointPRNumber = strconv.Itoa(pr.Number)
+			u.PublishCheckpointEvidence = evidenceBlock
+		}
+	})
+	if err != nil {
 		res.Message = strings.TrimSpace(res.Message +
 			" (persisting the gate terminal to the rebase receipt failed: " + err.Error() + ")")
 	}
@@ -1504,15 +1542,18 @@ func recordGatePassedReceipt(ctx context.Context, deps FinalizeDeps, rc *rebaseC
 // checkpoint emptied at a non-passed terminal, so a dead continuation never
 // wedges the receipt or revives stale completed-gate evidence.
 func clearGateContinuation(ctx context.Context, deps FinalizeDeps, rc *rebaseContext, rec workspace.RebaseReceipt, res *FinalizeRebaseResult) {
-	updated := rec
-	// Copy the resolver-budget group forward from durable state so this terminal
-	// transition cannot clobber a reservation advanced since rec was loaded.
-	copyResolverBudget(&updated, resolverBudgetForWrite(ctx, deps, rc.metaDir, rec))
-	updated.GateDriveID, updated.GateOwnerGeneration = "", ""
-	updated.PublishCheckpointHead, updated.PublishCheckpointBaseHead = "", ""
-	updated.PublishCheckpointCommand, updated.PublishCheckpointGate = "", ""
-	updated.PublishCheckpointPRNumber, updated.PublishCheckpointEvidence = "", ""
-	if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, updated); err != nil {
+	// Guard on the observed attempt (change 0438): if a refresh superseded this
+	// rewrite, its refreshed receipt must not be clobbered by this late clear. The
+	// mutation runs against the reloaded disk copy, so the resolver-budget group
+	// (a reservation advanced since rec was loaded, included) is preserved by
+	// construction rather than by an explicit copyResolverBudget overlay.
+	_, err := mutateReceiptForAttempt(ctx, deps, rc, rec.Attempt, func(u *workspace.RebaseReceipt) {
+		u.GateDriveID, u.GateOwnerGeneration = "", ""
+		u.PublishCheckpointHead, u.PublishCheckpointBaseHead = "", ""
+		u.PublishCheckpointCommand, u.PublishCheckpointGate = "", ""
+		u.PublishCheckpointPRNumber, u.PublishCheckpointEvidence = "", ""
+	})
+	if err != nil {
 		res.Message = strings.TrimSpace(res.Message +
 			" (clearing the gate continuation from the rebase receipt failed: " + err.Error() + ")")
 	}
