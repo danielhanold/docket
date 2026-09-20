@@ -13,7 +13,7 @@ related: [352, 378, 383, 403]
 discovered_from: []
 adrs: [20, 25, 99]
 spec: 'docs/superpowers/specs/2026-09-20-surface-every-unmet-repository-health-postcondition-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-20-surface-every-unmet-repository-health-postcondition.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-20T20:10:58Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-20-surface-every-unmet-repository-health-postcondition-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-20-surface-every-unmet-repository-health-postcondition-design.md) |
+| Plan | [2026-09-20-surface-every-unmet-repository-health-postcondition.md](https://github.com/danielhanold/docket/blob/fix/surface-every-unmet-repository-health-postcondition/docs/superpowers/plans/2026-09-20-surface-every-unmet-repository-health-postcondition.md) |
 | ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0025](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
