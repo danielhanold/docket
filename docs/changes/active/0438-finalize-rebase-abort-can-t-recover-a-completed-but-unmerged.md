@@ -22,7 +22,7 @@ branch: 'fix/finalize-rebase-abort-can-t-recover-a-completed-but-unmerged'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-20T14:51:45Z'
+claimed_at: '2026-09-20T14:53:06Z'
 ---
 
 ## Artifacts
