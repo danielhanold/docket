@@ -109,25 +109,11 @@ func Classify(f Facts) Classification {
 		return Classification{State: StateNeedsReview, Reasons: []string{"pending-review-paths"}}
 	}
 
-	// 6. Healthy: re-verify EVERY postcondition. This is never a default — a
-	// single unmet conjunct falls through to the terminal conflict below.
-	if f.RemoteMetadata.Presence == PresencePresent &&
-		f.MetadataRoot == RootParentless &&
-		f.LocalMetadata.Presence == PresencePresent &&
-		f.DocketWorktree.Presence == PresencePresent &&
-		f.DocketWorktree.Registered == PresencePresent &&
-		!f.DocketWorktree.Foreign &&
-		f.DocketWorktree.Clean == PresencePresent &&
-		f.DocketWorktree.Synchronized == PresencePresent &&
-		f.DocketWorktree.HooksOff == PresencePresent &&
-		f.CommittedIgnoreBlock == PresencePresent &&
-		f.LiveSurface == PresenceAbsent &&
-		f.LegacyConfigKey == PresenceAbsent &&
-		f.PrimaryClean == PresencePresent &&
-		f.PrimaryOnIntegration == PresencePresent &&
-		f.PrimaryAtRemoteTip == PresencePresent &&
-		(!f.SurfacesAuthorized || f.SurfacesAgree == PresencePresent) &&
-		len(f.PendingReviewPaths) == 0 {
+	// 6. Healthy: re-verify EVERY postcondition. UnmetHealthConditions is the
+	// single evaluation of the conjunction (healthconditions.go); healthy is
+	// selected exactly when it is empty. This is never a default — a single
+	// unmet conjunct falls through to the terminal conflict below.
+	if len(UnmetHealthConditions(f)) == 0 {
 		return Classification{State: StateHealthy}
 	}
 
