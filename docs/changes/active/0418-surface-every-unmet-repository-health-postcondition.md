@@ -6,7 +6,7 @@ status: 'proposed'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-10'
-updated: '2026-09-10'
+updated: '2026-09-20'
 depends_on: []
 stacked_on:
 related: [352, 378]
@@ -15,7 +15,7 @@ adrs: [20]
 spec:
 plan:
 results:
-trivial: true
+trivial: false
 auto_groomable:
 branch_prefix:
 branch:
