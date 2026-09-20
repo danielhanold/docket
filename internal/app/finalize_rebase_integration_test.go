@@ -1813,3 +1813,89 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing
 		}
 	})
 }
+
+// TestIntegrationFinalizeRebaseRecoveryForwardRefreshUnchangedRetests covers
+// acceptance 5 and spec §4: when the effective base advances to a commit the
+// completed rewrite ALREADY contains, the forward refresh is a mechanically
+// unchanged rebase (Git rewrites nothing), yet the full suite still re-runs on
+// the refreshed head and records a checkpoint against the NEW base — PR-body
+// evidence never waives that retest. A response-lost replay then reuses the
+// freshly recorded checkpoint instead of re-running: change 0438 opened the
+// checkpoint-reuse gate to the mechanically unchanged refresh (a valid
+// checkpoint itself proves a required gate ran; a fresh no-op records none),
+// so interruption needs no new persistent flag.
+func TestIntegrationFinalizeRebaseRecoveryForwardRefreshUnchangedRetests(t *testing.T) {
+	requireRealGit(t)
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	f.advanceBase(t) // origin/main -> B1, off the feature base
+	// The PR carries green PR-body evidence for the feature head — the kind of
+	// record that waives the suite on the FRESH no-op path — so the refresh's
+	// forced retest is proven never to be waived by it.
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))}}
+	gate := &headEvidenceGate{t: t}
+	deps := f.finalizeDeps(gh, gate)
+
+	// First finalize.rebase: a real rewrite onto B1; the gate PASSES and a publish
+	// checkpoint is recorded against B1.
+	first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if first.Disposition != RebaseDispRebased || gate.calls != 1 {
+		t.Fatalf("first rebase = disp %q gate calls %d (reason %q), want rebased with one gate run", first.Disposition, gate.calls, first.Reason)
+	}
+	rewritten := f.localHead()
+
+	// The base advances to a commit the rewrite ALREADY contains: push the rewritten
+	// head to origin/main. The next refresh's forward rebase (rewritten onto
+	// rewritten) is mechanically unchanged.
+	runGit(t, f.wp, "push", "-q", "origin", "HEAD:main")
+
+	// Second finalize.rebase: the base moved, so this forward-refreshes. Git rewrites
+	// nothing (the head is already based on the new base), but the suite STILL runs
+	// (spec §4) and records a checkpoint against the new base — even though the PR
+	// body carries green evidence.
+	second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
+		t.Fatalf("mechanically-unchanged refresh = %q/%q (reason %q msg %q), want applied/rebased", second.Result, second.Disposition, second.Reason, second.Message)
+	}
+	if second.Gate == nil || second.Gate.Compose != gateComposeRan {
+		t.Fatalf("refresh gate = %+v, want compose ran (a base refresh always retests, even mechanically unchanged)", second.Gate)
+	}
+	if gate.calls != 2 {
+		t.Fatalf("gate calls after the refresh = %d, want 2 (the refresh re-ran the suite despite PR-body evidence)", gate.calls)
+	}
+	if f.localHead() != rewritten {
+		t.Fatalf("the mechanically-unchanged refresh moved the head: %q -> %q", rewritten, f.localHead())
+	}
+	recAfter, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if recAfter.BaseHead != rewritten {
+		t.Errorf("refreshed BaseHead = %q, want the advanced base %q", recAfter.BaseHead, rewritten)
+	}
+	if recAfter.PublishCheckpointBaseHead != rewritten {
+		t.Errorf("checkpoint base head after the refresh = %q, want the NEW base %q", recAfter.PublishCheckpointBaseHead, rewritten)
+	}
+
+	// Third finalize.rebase (response-lost replay): the base is unchanged, the head
+	// still equals the receipt's OrigHead (the refresh left it unchanged), and a
+	// valid checkpoint exists for the new base — so the suite is NOT re-run; the
+	// recorded evidence is reused. Before change 0438 the reuse gate's !noop
+	// conjunct excluded this mechanically unchanged case, forcing a needless re-run.
+	third := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if third.Result != ResultApplied || third.Disposition != RebaseDispRebased {
+		t.Fatalf("replay = %q/%q (reason %q), want applied/rebased", third.Result, third.Disposition, third.Reason)
+	}
+	if third.Gate == nil || third.Gate.Compose != gateComposeSkipped {
+		t.Fatalf("replay gate = %+v, want compose skipped (the mechanically-unchanged refresh's checkpoint is reused)", third.Gate)
+	}
+	if third.Gate.Permit != rewritten {
+		t.Errorf("replay skip permit = %q, want the current head %q", third.Gate.Permit, rewritten)
+	}
+	if gate.calls != 2 {
+		t.Fatalf("gate calls after the replay = %d, want 2 — a valid checkpoint must never re-run the suite", gate.calls)
+	}
+	recFinal, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if recFinal.PublishCheckpointBaseHead != rewritten {
+		t.Errorf("checkpoint base head after the replay = %q, want the NEW base %q", recFinal.PublishCheckpointBaseHead, rewritten)
+	}
+}

@@ -914,8 +914,14 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	if !baseMoved {
 		noop := string(localHead) == rec.OrigHead
 		// A completed-gate publish checkpoint (change 0408) may be reused only when
-		// its evidence and every recorded identity still match current reality.
-		if !noop && rec.GateDriveID == "" {
+		// its evidence and every recorded identity still match current reality. The
+		// presence of a checkpoint itself proves a required gate ran — a fresh no-op
+		// records none, and a required gate after a mechanically unchanged refresh
+		// (noop here) does record one (Task 2/3 force noop=false on that compose,
+		// change 0438) — so the gate no longer excludes the noop case; only a live
+		// continuation (GateDriveID set) still routes to composeLocalGate, and
+		// checkpointDecision still requires full identity including the live base head.
+		if rec.GateDriveID == "" {
 			if cp, ok := publishCheckpointOf(rec); ok {
 				currentHead := strings.ToLower(string(localHead))
 				resolvedCommand, resolvedGatePolicy := resolvedFinalizeGateConfig(ctx, deps, repoDir)
