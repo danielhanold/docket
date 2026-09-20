@@ -2,11 +2,11 @@
 id: 435
 slug: 'docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga'
 title: 'docket run cancel leaves a stale RunEpochID on a released gate-admission slot'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-09-18'
-updated: '2026-09-19'
+updated: '2026-09-20'
 depends_on: [437]
 stacked_on:
 related: [413, 427, 375, 368, 437]
@@ -22,7 +22,7 @@ branch: 'fix/docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga'
 pr: 'https://github.com/danielhanold/docket/pull/316'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-19T18:45:29Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-19T18:45:29Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-18-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-design.md) |
-| Plan | [2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md](https://github.com/danielhanold/docket/blob/fix/docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga/docs/superpowers/plans/2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) |
-| Results | [2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-results.md](https://github.com/danielhanold/docket/blob/fix/docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga/docs/results/2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-results.md) |
+| Plan | [2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) |
+| Results | [2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-19-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
