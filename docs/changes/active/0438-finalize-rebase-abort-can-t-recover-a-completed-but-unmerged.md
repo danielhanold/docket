@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-19'
-updated: '2026-09-19'
+updated: '2026-09-20'
 depends_on: []
 stacked_on:
-related: [368]
+related: [291, 309, 316, 349, 368, 396, 408, 411, 439]
 discovered_from: []
-adrs: []
-spec:
+adrs: [10, 105, 112, 113, 118]
+spec: 'docs/superpowers/specs/2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged-design.md'
 plan:
 results:
 trivial: false
@@ -27,16 +27,30 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-20-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged-design.md) |
+| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0112](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0112-a-completed-gate-publish-checkpoint-is-persisted-in-the-owne.md), [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-On change 0368 (PR #313), an interrupted finalize attempt left an orphaned rebase receipt: an earlier finalize.rebase hit a conflict, ran the resolver once, and COMPLETED the rebase against the then-current main, but the attempt was interrupted before merge/publish. main then advanced further. A later finalize run's finalize.rebase correctly refused to adopt the now-stale base (blocked base-moved-under-receipt), but finalize.rebase-abort also failed (blocked abort-restore-failed, "no rebase in progress") because AbortRebase (internal/gitcli/rebase.go:258) only knows how to unwind an in-progress git rebase, not restore orig_head after a completed-but-unmerged rebase whose base later moved. No catalog operation can clear the orphaned state, so finalize loops on base-moved-under-receipt until a human manually resets the branch to the receipt's orig_head, deletes refs/docket/finalize/<id>/orig and refs/docket/finalize/<id>/base, and removes the stale .git/docket/workspaces/<hash>/rebase-receipt.json by hand. Secondary finding: finalize.block returned invalid-input/"empty commit subject" instead of a clean no-op when called against a change that already has a recorded ## Finalize blocked section for the same attempt token — the idempotency path is not clean.
+An interrupted finalize of change 0368 completed its local rebase but stopped before publication. After main advanced, the next finalize refused the stale recorded base, and attempting to abort failed because Git no longer had a rebase in progress. Source inspection confirms both paths. The original incident was not independently replayed during grooming.
+
+The initial proposal assumed recovery needed to reset the branch. The design review rejected that assumption: Git can rebase the current branch onto the newer base, preserving earlier conflict resolutions. Docket needs to refresh the owned rewrite and its test evidence safely through the existing finalize operation. Its receipt already separates the local starting head from the remote publication lease.
+
+A related source-confirmed defect makes repeated finalize.block and empty finalize.clear-block requests return invalid-input: their zero-valued plans fail transaction validation before reaching the engine's existing no-op path.
 
 ## What changes
 
-Add a catalog operation (or extend finalize.rebase-abort) that can detect and autonomously recover the "completed-but-unmerged rebase with a since-moved base" state: restore the branch to the receipt's orig_head, clear the owned anchor refs, and remove the stale receipt, without a human hand-editing Docket-owned git state. Also make finalize.block's idempotency path a clean no-op when an identical ## Finalize blocked record for the same attempt token already exists, instead of returning invalid-input.
+- Extend finalize.rebase so a completed, clean, owned unpublished rewrite can advance onto the newer effective base from its current head, preserving prior resolutions and committed work.
+- Refresh the existing receipt and owned anchors with interruption-safe re-entry, preserving the exact remote publication lease and consumed resolver budget. Retain unknown, foreign, active, or conflicting ownership state.
+- Invalidate old-base evidence and run the configured finalize suite on the updated code; retain existing continuation and valid checkpoint reuse for the current target.
+- Repair block and clear-block no-op plans at their producers without relaxing the transaction engine.
+- Update finalize guidance and add behavioral coverage for forward recovery, interruptions, refusals, retesting, and real transaction no-ops.
+
+The linked spec records the implementation trace, prior changes and architecture decisions, alternatives, and acceptance criteria. The historical title describes the incident; forward rebasing is the agreed solution.
 
 ## Out of scope
 
-Design of the recovery operation's exact mechanics/schema; not fixing 0368 itself (handled separately by manual recovery).
+Completed-rebase rollback or a completion-head receipt field; new commands, configuration, lifecycle states, recovery stores, retry layers, cancellation authority, or resolver-budget replenishment; transaction-engine relaxation; generalized scratch-cleanup repair; recovery across a force-rewritten base or after publication of the local rewrite; repairing the already-closed change 0368 incident. No implementation or implementation plan during grooming.
