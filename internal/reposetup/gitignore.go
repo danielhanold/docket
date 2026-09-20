@@ -214,3 +214,108 @@ func joinLines(lines [][]byte) []byte {
 	}
 	return b.Bytes()
 }
+
+// --- change 0418: explanatory detail for the committed-ignore health probe ---
+
+// IgnoreDefect classifies why a .gitignore's managed block failed the
+// acceptance predicate. IgnoreDefectNone is the zero value and doubles as
+// "valid or never probed"; consumers must not read it as a defect.
+type IgnoreDefect int
+
+const (
+	IgnoreDefectNone             IgnoreDefect = iota
+	IgnoreDefectFileAbsent                    // the committed .gitignore file does not exist
+	IgnoreDefectBlockAbsent                   // file readable, no current-generation managed block
+	IgnoreDefectLegacyOnly                    // only the legacy 0051 markers are present
+	IgnoreDefectMalformedMarkers              // dangling / out-of-order / nested markers
+	IgnoreDefectMissingEntries                // well-formed block lacking canonical entries
+	IgnoreDefectNonCanonical                  // all entries present but not the exact canonical bytes
+	IgnoreDefectUnreadable                    // the committed blob could not be read
+)
+
+// IgnoreDetail is the small diagnostic payload the committed-ignore probe
+// preserves alongside its unchanged three-valued Presence. Only inputs the
+// acceptance predicate rejects carry a non-None defect.
+type IgnoreDetail struct {
+	Defect         IgnoreDefect
+	Generation     string   // for MalformedMarkers: "docket" or "legacy"
+	MissingEntries []string // for MissingEntries: canonical order
+}
+
+// GitignoreEntries returns the canonical managed entries (the block's
+// interior lines) in canonical order, derived from the one canonical
+// definition rather than a second hand-kept list.
+func GitignoreEntries() []string {
+	lines := splitLines(canonicalBlockBytes)
+	entries := make([]string, 0, len(lines)-2)
+	for _, line := range lines[1 : len(lines)-1] {
+		entries = append(entries, string(line))
+	}
+	return entries
+}
+
+// ExplainGitignoreBlock explains why fileBytes fails ValidGitignoreBlock.
+// The acceptance predicate remains authoritative: any input it accepts
+// explains as None, so this helper can never tighten validity. It is pure
+// and performs no general Git-ignore semantics analysis.
+func ExplainGitignoreBlock(fileBytes []byte) IgnoreDetail {
+	if ValidGitignoreBlock(fileBytes) {
+		return IgnoreDetail{}
+	}
+	if gitignoreMarkersMalformed(fileBytes, GitignoreStart, GitignoreEnd) {
+		return IgnoreDetail{Defect: IgnoreDefectMalformedMarkers, Generation: "docket"}
+	}
+	if gitignoreMarkersMalformed(fileBytes, legacyGitignoreStart, legacyGitignoreEnd) {
+		return IgnoreDetail{Defect: IgnoreDefectMalformedMarkers, Generation: "legacy"}
+	}
+	if !hasLine(fileBytes, GitignoreStart) {
+		if hasLine(fileBytes, legacyGitignoreStart) {
+			return IgnoreDetail{Defect: IgnoreDefectLegacyOnly}
+		}
+		return IgnoreDetail{Defect: IgnoreDefectBlockAbsent}
+	}
+	// A well-formed current-generation block exists but is not canonical:
+	// membership is judged against the BLOCK's own lines, so an entry
+	// elsewhere in the file does not satisfy it.
+	member := map[string]bool{}
+	in := false
+	for _, line := range splitLines(fileBytes) {
+		switch string(line) {
+		case GitignoreStart:
+			in = true
+		case GitignoreEnd:
+			in = false
+		default:
+			if in {
+				member[string(line)] = true
+			}
+		}
+	}
+	var missing []string
+	for _, e := range GitignoreEntries() {
+		if !member[e] {
+			missing = append(missing, e)
+		}
+	}
+	if len(missing) > 0 {
+		return IgnoreDetail{Defect: IgnoreDefectMissingEntries, MissingEntries: missing}
+	}
+	return IgnoreDetail{Defect: IgnoreDefectNonCanonical}
+}
+
+// CommittedIgnoreOutcome maps a committed-blob read result to the presence
+// fact and its preserved detail — the pure core of the app-layer probe. A
+// read error is Unknown+Unreadable, never a fabricated absence (learning
+// probe-error-is-not-clean-absence).
+func CommittedIgnoreOutcome(blob []byte, found bool, readErr error) (Presence, IgnoreDetail) {
+	if readErr != nil {
+		return PresenceUnknown, IgnoreDetail{Defect: IgnoreDefectUnreadable}
+	}
+	if !found {
+		return PresenceAbsent, IgnoreDetail{Defect: IgnoreDefectFileAbsent}
+	}
+	if ValidGitignoreBlock(blob) {
+		return PresencePresent, IgnoreDetail{}
+	}
+	return PresenceAbsent, ExplainGitignoreBlock(blob)
+}
