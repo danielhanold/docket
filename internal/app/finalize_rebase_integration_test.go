@@ -1428,3 +1428,79 @@ func TestIntegrationFinalizeRebaseRecoveryCarryPreservation(t *testing.T) {
 		}
 	})
 }
+
+// TestIntegrationFinalizeRebaseRecoveryPreStartResume covers the durable-before-
+// effect window (spec §3): the receipt persisted but Git never started. Re-entry
+// resumes BeginRebase against the receipt's recorded target instead of refusing
+// "head does not descend the base".
+func TestIntegrationFinalizeRebaseRecoveryPreStartResume(t *testing.T) {
+	requireRealGit(t)
+	main := planRepoModes()[0]
+	f := setupRebaseFixture(t, main)
+	f.advanceBase(t)
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
+	deps := f.finalizeDeps(gh, gate)
+	// Simulate the crash window: hand-write the receipt FinalizeRebase would have
+	// written (OrigHead = current head, BaseHead = the advanced base's head), with
+	// Git untouched.
+	baseHead := originTip(t, f.repo.origin, "main")
+	rec := workspace.RebaseReceipt{
+		RepoIdentity: f.gitrepo.CommonDir, ChangeID: itoaTest(f.id),
+		OrigHead: f.head, OrigRemoteHead: f.head,
+		BaseRef: string(f.target.BaseRef), BaseHead: baseHead,
+		Attempt: "20260920T000000Z-pre-start", CreatedUTC: "2026-09-20T00:00:00Z",
+		ResolverBudgetVersion: "1", ResolverLimit: "10", ResolverUsed: "0",
+	}
+	if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, rec); err != nil {
+		t.Fatal(err)
+	}
+	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if out.Disposition != RebaseDispRebased {
+		t.Fatalf("pre-start resume = %q (reason %q msg %q), want rebased", out.Disposition, out.Reason, out.Message)
+	}
+	if out.Attempt != rec.Attempt {
+		t.Errorf("resume minted a new attempt %q; want the recorded %q", out.Attempt, rec.Attempt)
+	}
+	// The gate ran (no PR-evidence skip on recovery) and the head now descends the base.
+	if out.Gate == nil || out.Gate.Compose != gateComposeRan {
+		t.Fatalf("gate = %+v, want compose ran", out.Gate)
+	}
+}
+
+// TestIntegrationFinalizeRebaseRecoveryNoEvidenceSkip proves receipt-based
+// completion recovery with no valid checkpoint runs the gate (spec §4): a fresh
+// invocation may skip on exact-head green PR evidence (existing behavior), but a
+// REPLAY after response loss must run the gate because a receipt now exists and no
+// checkpoint was recorded.
+func TestIntegrationFinalizeRebaseRecoveryNoEvidenceSkip(t *testing.T) {
+	requireRealGit(t)
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	// Base NOT advanced: a fresh call is a mechanical no-op whose PR body carries
+	// green evidence for the exact current head and command.
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))}}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
+	deps := f.finalizeDeps(gh, gate)
+
+	first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if first.Gate == nil || first.Gate.Compose != gateComposeSkipped {
+		t.Fatalf("first call = %+v, want a fresh skip on exact-head green PR evidence", first.Gate)
+	}
+	if gate.calls != 0 {
+		t.Fatalf("the suite ran on the fresh no-op skip; want 0 calls, got %d", gate.calls)
+	}
+
+	// Replay after a lost response: a receipt now exists and no checkpoint was
+	// recorded, so recovery must RUN the gate — PR-body evidence cannot bypass the
+	// retest on recovery.
+	second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if second.Gate == nil || second.Gate.Compose != gateComposeRan {
+		t.Fatalf("replay recovery = %+v, want compose ran (no PR-evidence skip on recovery)", second.Gate)
+	}
+	if gate.calls != 1 {
+		t.Errorf("recovery ran the gate %d time(s); want exactly 1", gate.calls)
+	}
+}

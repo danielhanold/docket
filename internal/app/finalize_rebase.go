@@ -763,7 +763,18 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 	if err != nil {
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, err.Error(), id)
 	}
-	return mapBegunRebase(ctx, deps, repoDir, op, rc, pr, receipt, status)
+	// The fresh path may skip on exact-head green PR evidence (gateDecision).
+	return mapBegunRebase(ctx, deps, repoDir, op, rc, pr, receipt, status, rebaseMapOptions{evidenceSkip: true})
+}
+
+// rebaseMapOptions carries the caller's policy for mapping a begun rebase onto
+// the gate composition. evidenceSkip permits the PR-body evidence skip (the fresh
+// FinalizeRebase path only; recovery never bypasses the suite on PR evidence).
+// forceRetest suppresses the mechanically-unchanged no-op shortcut so a base
+// refresh always retests even when Git reports no textual change (Task 3).
+type rebaseMapOptions struct {
+	evidenceSkip bool
+	forceRetest  bool
 }
 
 // mapBegunRebase maps a completed BeginRebase/continue status to a result: a
@@ -771,7 +782,7 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 // local gate; a structural failure is retained. The attempt, base head, and orig
 // head all derive from the owned receipt (rec) the caller just wrote or recovered
 // — never re-read from rc.insp — so the fresh and recovery paths thread one value.
-func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, status gitcli.RebaseStatus) FinalizeRebaseResult {
+func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, status gitcli.RebaseStatus, opts rebaseMapOptions) FinalizeRebaseResult {
 	id := int(rc.change.ID())
 	// Generated-only stops are cleared deterministically before any resolver
 	// admission (change 0413): they allocate no reservation and spend no budget.
@@ -789,8 +800,8 @@ func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, 
 			Message: fmt.Sprintf("the rebase stopped at %d conflicted path(s); dispatch the resolver", len(status.UnmergedPaths)),
 		}, rec))
 	case gitcli.RebaseUnchanged, gitcli.RebaseRebased:
-		noop := status.Disposition == gitcli.RebaseUnchanged
-		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, status.HeadOID, noop)
+		noop := status.Disposition == gitcli.RebaseUnchanged && !opts.forceRetest
+		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, status.HeadOID, noop, opts.evidenceSkip)
 	case gitcli.RebaseInProgressForeign:
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseForeignInProgress,
 			"a foreign rebase is in progress; retained, not adopted", id)
@@ -815,10 +826,12 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseForeignInProgress,
 			"the existing rebase receipt does not describe this change; retained, not adopted", id)
 	}
-	if rec.BaseHead != string(baseHead) {
-		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseMovedBase,
-			"the effective base moved since the recorded attempt; retained, not adopted", id)
-	}
+	// The moved-base refusal is NOT applied here: a still-conflicted or mid-drive
+	// owned attempt must settle against its RECORDED base first (spec §3). The
+	// recovery proofs below therefore key on rec.BaseHead (the recorded target),
+	// not the freshly probed baseHead — today they are interchangeable because the
+	// moved-base refusal fires first, but Task 3 relocates that guarantee. The
+	// moved-base refusal is retained, moved to the quiescent-completed region below.
 
 	state, err := deps.Planning.Client.RebaseState(ctx, rc.wsDir)
 	if err != nil {
@@ -826,6 +839,19 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	}
 	switch state.Disposition {
 	case gitcli.RebaseConflicted:
+		// In-progress Git state must agree with the recorded rewrite before it is
+		// adopted (spec §3): the owned base anchor BeginRebase wrote must resolve to
+		// the receipt's recorded base head. A rebase whose anchor names a different
+		// base (or an unresolvable anchor) is retained, not adopted.
+		anchored, aerr := deps.Planning.Client.ResolveRef(ctx, rc.repo, gitcli.RefName(ownedPrefix+"/base"))
+		if aerr != nil {
+			return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe,
+				"the owned base anchor could not be resolved: "+aerr.Error(), id)
+		}
+		if string(anchored) != rec.BaseHead {
+			return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseForeignInProgress,
+				"the in-progress rebase does not match the recorded rewrite's base anchor; retained, not adopted", id)
+		}
 		// Generated-only stops recover deterministically too (change 0413):
 		// regeneration is idempotent, so a response-lost fast-path run simply
 		// resumes here without any reservation.
@@ -834,15 +860,16 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			return *genRefusal
 		}
 		if adv.Disposition == gitcli.RebaseUnchanged || adv.Disposition == gitcli.RebaseRebased {
-			return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, adv.HeadOID, false)
+			return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, adv.HeadOID, false, false)
 		}
 		state = adv
 		// The owned attempt is still mid-conflict; surface the live conflicts. The
 		// budget counts come from the stored receipt (rec) — recovery never
-		// re-snapshots the current config (change 0349).
+		// re-snapshots the current config (change 0349). BaseHead is the recorded
+		// target (rec.BaseHead), so the conflict settles against it.
 		return newRebaseResult(op, ResultApplied, withResolverCounts(FinalizeRebaseResult{
 			ID: id, Disposition: RebaseDispConflicted, Head: string(state.HeadOID),
-			OrigHead: rec.OrigHead, Base: rc.base.Branch, BaseHead: string(baseHead),
+			OrigHead: rec.OrigHead, Base: rc.base.Branch, BaseHead: rec.BaseHead,
 			Attempt: rec.Attempt, UnmergedPaths: state.UnmergedPaths, Reason: ReasonRebaseConflicted,
 			Message: fmt.Sprintf("the owned rebase is stopped at %d conflicted path(s); dispatch the resolver", len(state.UnmergedPaths)),
 		}, rec))
@@ -851,19 +878,39 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			"a foreign rebase is in progress over the owned attempt; retained, not adopted", id)
 	}
 
-	// No rebase in progress. Prove the completed state: the local head must descend
-	// from the base head (the rewrite landed). Then the disposition is derivable
-	// from whether the head is still the recorded orig (a no-op) or a rewrite.
+	// No rebase in progress. Prove the completed state against the RECORDED base:
+	// the local head must descend from rec.BaseHead (the rewrite landed onto the
+	// recorded target). Then the disposition is derivable from whether the head is
+	// still the recorded orig (a no-op) or a rewrite.
 	localHead := rc.insp.HeadCommit
-	descends, err := deps.Planning.Client.IsAncestor(ctx, rc.repo, baseHead, localHead)
+	descends, err := deps.Planning.Client.IsAncestor(ctx, rc.repo, gitcli.ObjectID(rec.BaseHead), localHead)
 	if err != nil {
 		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, err.Error(), id)
 	}
 	if !descends {
-		// The receipt exists but the workspace does not carry a completed rewrite onto
-		// this base: a partial/abandoned attempt. Retain rather than restart blindly.
+		// The durable-before-effect window (and any crash during the two anchor
+		// writes): the receipt is the validated intent, but Git never completed. When
+		// the clean local head still equals the receipt's OrigHead, resume
+		// BeginRebase against the recorded target — anchors are recreated from this
+		// proven pre-start state (spec §3). Anything else is retained.
+		if rc.insp.Kind == workspace.StateReady && string(localHead) == rec.OrigHead {
+			status, berr := deps.Planning.Client.BeginRebase(ctx, rc.wsDir, localHead, gitcli.ObjectID(rec.BaseHead), ownedPrefix)
+			if berr != nil {
+				return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, berr.Error(), id)
+			}
+			return mapBegunRebase(ctx, deps, repoDir, op, rc, pr, rec, status, rebaseMapOptions{})
+		}
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseForeignInProgress,
 			"an owned attempt exists but the workspace head does not descend the base; retained for abort", id)
+	}
+
+	// Quiescent-completed region: a completed rewrite landed onto the recorded base.
+	// The moved-base refusal fires HERE (after the descends proof settled the
+	// conflicted and foreign states first, before checkpoint/compose). Task 3
+	// replaces this refusal with a forward refresh onto the advanced base.
+	if rec.BaseHead != string(baseHead) {
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseMovedBase,
+			"the effective base moved since the recorded attempt; retained, not adopted", id)
 	}
 	noop := string(localHead) == rec.OrigHead
 	// A completed-gate publish checkpoint (change 0408) may be reused only when
@@ -891,8 +938,9 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	}
 	// The receipt's pair may be set (a prior WAITING to resume) or empty (a crash
 	// before WAITING, or a cleared terminal); composeLocalGate derives the
-	// continuation from rec, so both are correct as-is.
-	return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, localHead, noop)
+	// continuation from rec, so both are correct as-is. Recovery never bypasses the
+	// suite on PR-body evidence (spec §4): allowEvidenceSkip is false.
+	return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, localHead, noop, false)
 }
 
 // ---------------------------------------------------------------------------
@@ -1254,7 +1302,8 @@ func mapContinuedRebase(ctx context.Context, deps FinalizeDeps, repoDir, op stri
 		if pr.Number == 0 {
 			pr = githubcli.PullRequest{}
 		}
-		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, status.HeadOID, false)
+		// A completed continue is never a no-op and never skips on PR evidence.
+		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, status.HeadOID, false, false)
 	default: // RebaseInProgressForeign / RebaseFailed
 		return rebaseRefusal(op, ResultBlocked, RebaseDispFailed, ReasonRebaseGitFailed,
 			"the owned rebase-continue did not reach a resolvable state; retained for abort", id)
@@ -1358,7 +1407,7 @@ func requireCarriedPreserved(ctx context.Context, deps FinalizeDeps, repoDir, op
 // otherwise it runs the full suite through the gate seam. A passed run carries the
 // evidence block; a failed run is repair work (failed); a halt is retained
 // (blocked) — never a fabricated red.
-func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, head gitcli.ObjectID, noop bool) FinalizeRebaseResult {
+func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, head gitcli.ObjectID, noop, allowEvidenceSkip bool) FinalizeRebaseResult {
 	id := int(rc.change.ID())
 	// The single post-rewrite chokepoint re-proves carried descendants against the
 	// completed head before any gate or receipt transition can proceed.
@@ -1381,7 +1430,11 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	evidenceHead, evidenceCommand, evidenceGreen := prBodyEvidence(pr)
 	resolvedCommand, resolvedGatePolicy := resolvedFinalizeGateConfig(ctx, deps, repoDir)
 	skip, permit := false, ""
-	if cont.DriveID == "" {
+	// The PR-body evidence skip is consulted ONLY on the fresh path
+	// (allowEvidenceSkip): receipt-based completion recovery never bypasses the
+	// suite on PR-body evidence (spec §4), and a recorded live continuation
+	// (DriveID set) must be advanced to a terminal, never skipped past.
+	if cont.DriveID == "" && allowEvidenceSkip {
 		skip, permit = gateDecision(noop, evidenceHead, currentHead, evidenceGreen, evidenceCommand, resolvedCommand)
 	}
 	// A recorded live continuation means a drive is already running for this
