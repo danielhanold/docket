@@ -309,7 +309,7 @@ func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req B
 		Loader:    newPlanningLoader(eff),
 		Operation: op,
 	})
-	return blockResultFromOutcome(OperationFinalizeBlock, res, execErr, url)
+	return blockResultFromOutcome(OperationFinalizeBlock, res, execErr, url, req.ID)
 }
 
 // FinalizeClearBlock reprobes an exact current head, valid gate evidence (unless
@@ -463,7 +463,7 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 		Loader:    newPlanningLoader(eff),
 		Operation: op,
 	})
-	return clearBlockResultFromOutcome(res, execErr)
+	return clearBlockResultFromOutcome(res, execErr, req.ID)
 }
 
 // resolveBlockTarget resolves the change record's canonical path from the pinned
@@ -518,9 +518,9 @@ func blockPlanningError(op string, err error, id int) BlockResult {
 // blockResultFromOutcome folds a `finalize block` transaction outcome into the
 // result document. An empty-plan no-op (the attempt was already recorded) is the
 // idempotent already disposition; a refusal maps to blocked/contended.
-func blockResultFromOutcome(op string, res transaction.Result, execErr error, url string) BlockResult {
+func blockResultFromOutcome(op string, res transaction.Result, execErr error, url string, id int) BlockResult {
 	result, _ := mapOutcome(res, execErr, ResultBlocked)
-	out := BlockResult{ID: 0, CommentURL: url, Findings: findingsToStatus(res.Findings)}
+	out := BlockResult{ID: id, CommentURL: url, Findings: findingsToStatus(res.Findings)}
 	if rec, ok := decodeBlockReceipt(res.Receipt); ok {
 		out.ID = rec.ID
 	}
@@ -544,9 +544,9 @@ func blockResultFromOutcome(op string, res transaction.Result, execErr error, ur
 
 // clearBlockResultFromOutcome folds a `finalize clear-block` transaction outcome
 // into the result document.
-func clearBlockResultFromOutcome(res transaction.Result, execErr error) BlockResult {
+func clearBlockResultFromOutcome(res transaction.Result, execErr error, id int) BlockResult {
 	result, _ := mapOutcome(res, execErr, ResultBlocked)
-	out := BlockResult{Findings: findingsToStatus(res.Findings)}
+	out := BlockResult{ID: id, Findings: findingsToStatus(res.Findings)}
 	if rec, ok := decodeBlockReceipt(res.Receipt); ok {
 		out.ID = rec.ID
 	}
@@ -694,8 +694,20 @@ func (o finalizeBlockOp) Plan(ctx context.Context, st transaction.AttemptState) 
 		return refuseBlock("marker-scan-failed", err.Error())
 	}
 	// Idempotency keyed on the promised state: this attempt already recorded.
+	// A REAL no-op plan (zero file mutations, valid subject/receipt metadata) so
+	// validatePlan admits it and the engine's empty-Files path reports no-op —
+	// never invalid-input (change 0438). The engine commits nothing and persists
+	// no receipt for an empty plan; the subject/receipt exist only to satisfy
+	// plan validation.
 	if present && strings.Contains(oldBody, finalizeBlockedAttemptMarker(o.req.Attempt)) {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, nil
+		receipt, err := json.Marshal(blockReceipt{ID: o.req.ID, Op: OperationFinalizeBlock})
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("finalize block: encoding no-op receipt: %w", err)
+		}
+		return transaction.MutationPlan{
+			CommitSubject: fmt.Sprintf("change %04d finalize blocked (no-op)", o.req.ID),
+			Receipt:       receipt,
+		}, transaction.OperationResult{}, nil
 	}
 
 	entry := o.blockedEntry()
@@ -776,8 +788,19 @@ func (o finalizeClearBlockOp) Plan(ctx context.Context, st transaction.AttemptSt
 		return refuseBlock("path-mismatch", fmt.Sprintf("no record source loaded at %q for change %04d", c.Path(), o.id))
 	}
 	if !namedSectionPresent(src, finalizeBlockedSectionHeading) {
-		// Nothing to remove: an empty-plan no-op.
-		return transaction.MutationPlan{}, transaction.OperationResult{}, nil
+		// Nothing to remove: a REAL no-op plan (zero file mutations, valid
+		// subject/receipt metadata) so validatePlan admits it and the engine's
+		// empty-Files path reports no-op — never invalid-input (change 0438). The
+		// engine commits nothing and persists no receipt for an empty plan; the
+		// subject/receipt exist only to satisfy plan validation.
+		receipt, err := json.Marshal(blockReceipt{ID: o.id, Op: OperationFinalizeClearBlock})
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("finalize clear-block: encoding no-op receipt: %w", err)
+		}
+		return transaction.MutationPlan{
+			CommitSubject: fmt.Sprintf("change %04d finalize block cleared (no-op)", o.id),
+			Receipt:       receipt,
+		}, transaction.OperationResult{}, nil
 	}
 	edited, err := render.ApplySectionEdits(src, []string{finalizeBlockedSectionHeading},
 		[]render.SectionEdit{{Heading: finalizeBlockedSectionHeading, Intent: render.SectionRemove}})

@@ -752,3 +752,87 @@ func TestIntegrationFinalizeStatePublishCarriedDescendant(t *testing.T) {
 		}
 	})
 }
+
+// TestIntegrationFinalizeStateBlockAndClearNoOps proves that a repeated
+// same-attempt block and an absent-marker clear-block are REAL transaction
+// no-ops through the engine (not planning-only): a no-op disposition carrying
+// the requested change id, byte-stable metadata and an unmoved remote metadata
+// revision, no duplicate marker, and an unchanged stale-version refusal
+// (spec §5, acceptance §6). Before change 0438 the zero-valued no-op plans
+// failed validatePlan ("empty commit subject") and surfaced as invalid-input.
+func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
+	m := planRepoModes()[0]
+
+	t.Run("repeated-block-is-a-no-op", func(t *testing.T) {
+		f := setupRebaseFixtureStatus(t, m, "in-progress")
+		staleVersion := f.version
+		gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
+		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}
+		req := BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
+			Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix.\n"}
+
+		// 1. First block records the marker in a metadata commit.
+		first := FinalizeBlock(context.Background(), deps, f.repo.invocation, req)
+		if first.Result != ResultApplied || first.Disposition != BlockDispRecorded {
+			t.Fatalf("first block: result=%q disp=%q reason=%q", first.Result, first.Disposition, first.Reason)
+		}
+		afterFirstTip := originTip(t, f.repo.origin, f.branch)
+		recAfterFirst, ok := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+		if !ok {
+			t.Fatal("record vanished after the first block")
+		}
+
+		// 2. Repeat the SAME attempt against the current (post-commit) version: a
+		//    real no-op, not invalid-input.
+		req.Version = blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+		second := FinalizeBlock(context.Background(), deps, f.repo.invocation, req)
+		if second.Result != ResultNoOp || second.Disposition != BlockDispAlready {
+			t.Fatalf("repeated block: result=%q disp=%q reason=%q msg=%q, want no-op/already",
+				second.Result, second.Disposition, second.Reason, second.Message)
+		}
+		if second.ID != f.id {
+			t.Errorf("no-op result ID = %d, want the requested id %d (the engine persists no receipt for a no-op)", second.ID, f.id)
+		}
+		if tip := originTip(t, f.repo.origin, f.branch); tip != afterFirstTip {
+			t.Errorf("the no-op moved the metadata branch: %s -> %s", afterFirstTip, tip)
+		}
+		recAfterSecond, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+		if recAfterSecond != recAfterFirst {
+			t.Errorf("the no-op changed the record bytes:\n--before--\n%s\n--after--\n%s", recAfterFirst, recAfterSecond)
+		}
+		if n := strings.Count(recAfterSecond, finalizeBlockedAttemptMarker("att1")); n != 1 {
+			t.Errorf("attempt marker appears %d time(s), want exactly 1 (the no-op wrote no duplicate)", n)
+		}
+
+		// 4. Stale-version refusal is unchanged — the no-op repair did not weaken
+		//    the engine's exact-version expectation checking.
+		req.Version = staleVersion
+		stale := FinalizeBlock(context.Background(), deps, f.repo.invocation, req)
+		if stale.Result != ResultContended || stale.Disposition != BlockDispContended {
+			t.Fatalf("stale-version block: result=%q disp=%q reason=%q, want contended/contended", stale.Result, stale.Disposition, stale.Reason)
+		}
+	})
+
+	// 3. Clear-block on a record with NO marker: a real no-op once the four
+	//    removal conjuncts hold (exact head, published remote ref at head, one
+	//    matching open PR, green body evidence).
+	t.Run("absent-marker-clear-block-is-a-no-op", func(t *testing.T) {
+		f := setupRebaseFixtureStatus(t, m, "in-progress")
+		gh := &fakeBlockGitHub{repo: retargetRepo(),
+			openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
+		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}
+		before := originTip(t, f.repo.origin, f.branch)
+		got := FinalizeClearBlock(context.Background(), deps, f.repo.invocation,
+			ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
+		if got.Result != ResultNoOp || got.Disposition != BlockDispNothingToClear {
+			t.Fatalf("absent-marker clear-block: result=%q disp=%q reason=%q msg=%q, want no-op/nothing-to-clear",
+				got.Result, got.Disposition, got.Reason, got.Message)
+		}
+		if got.ID != f.id {
+			t.Errorf("no-op result ID = %d, want the requested id %d", got.ID, f.id)
+		}
+		if tip := originTip(t, f.repo.origin, f.branch); tip != before {
+			t.Errorf("the clear no-op moved the metadata branch: %s -> %s", before, tip)
+		}
+	})
+}
