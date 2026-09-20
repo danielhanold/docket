@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/surface-every-unmet-repository-health-postcondition'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-20T20:04:41Z'
+reconciled: true
+claimed_at: '2026-09-20T20:07:26Z'
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ The human selected the broader reporting scope on 2026-09-20. This is a non-triv
 ## Out of scope
 
 Automatic repairs; new health requirements, configuration, commands, or probe infrastructure; stricter ignore validation; new surface-drift detection; redesigning initialization, migration, or ownership verification; changing operation-specific authorization; and unrelated diagnostic cleanup. No new ADR or dependency is required.
+
+## Reconcile log
+
+### 2026-09-20
+
+2026-09-20: Reconciled against current main (e3c5a5e9). The spec's source base (57794104) is an ancestor of HEAD and no commit since has touched internal/reposetup/ or internal/app/repository_check.go, so the classifier ladder, EvaluateHealth, committedIgnorePresence, ValidGitignoreBlock/GitignoreBlock, findingFor, augmentCheckFacts, and pendingReviewPaths are all as the spec described them. Related changes 352/378/383/403 are done. No scope, relation, dependency, or ADR adjustment needed; design and acceptance criteria stand unchanged. Proceeding to plan and build.
