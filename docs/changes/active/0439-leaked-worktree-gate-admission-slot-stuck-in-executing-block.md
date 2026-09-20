@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-19'
-updated: '2026-09-19'
+updated: '2026-09-20'
 depends_on: []
 stacked_on:
-related: [368, 435, 437]
+related: [368, 375, 428, 435, 437]
 discovered_from: []
-adrs: []
-spec:
+adrs: [87, 95, 118, 120]
+spec: 'docs/superpowers/specs/2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-design.md'
 plan:
 results:
 trivial: false
@@ -27,16 +27,30 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-20-leaked-worktree-gate-admission-slot-stuck-in-executing-block-design.md) |
+| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-During finalize of change 368 (PR #313, 2026-09-19), a prior finalize gate drive had launched a supervised suite run (scratchpad/gate-368/<id>, supervisor pid 50631) that ran the full suite and PASSED (52/52 files, exit 0), but its worktree admission slot (.git/docket/gate-admission/v1/<id>/record.json) leaked in state 'executing' with no drive doc persisted. reserveWorktreeExecution returns worktree-busy for an 'executing' slot without probing liveness, and mapDriveOutcome swallows that typed error into a generic 'unavailable', so finalize.rebase repeatedly returned blocked/gate-halted with halt_cause: unavailable and no actionable diagnosis. docket gate history cleanup --dry-run reported 0 blocking legacy drives (a false negative for this case). docket gate recover only marked the terminal run but left the slot 'executing'. The only thing that worked was docket gate stop <run-dir> against the already-terminal run, which proved teardown and released the slot to 'released'. This is a distinct failure mode from changes 437/435 (stale RunEpochID on a released slot after cancellation) — here the slot never reached 'released' at all despite the underlying run having already terminated successfully.
+During finalize of change 0368 (PR #313, 2026-09-19), a completed test run still occupied its worktree admission slot. Finalize repeatedly reported only an unavailable halt, leaving the operator to discover that stopping the already-completed run released the slot.
+
+Tracing the implementation and ADR-0118 corrects the initial leak hypothesis: raw gate launches deliberately retain their slot until explicit stop proves teardown, and they do not create a drive document. The reported successful stop is consistent with that existing lifecycle. The concrete defect is that finalize drops the typed admission refusal and the busy message assumes the occupying process is still running. Historical-drive cleanup does not inventory current admission slots, so its zero-blocker result does not establish that the worktree is free.
+
+The existing stop machinery already provides recovery. The change should make the blocking run and applicable remedy discoverable without private-record inspection or new recovery policy. The original incident has not been independently replayed; the linked spec requires a behavioral regression of the supported raw-launch sequence.
 
 ## What changes
 
-Make a leaked 'executing' admission slot whose owning process/run has actually terminated (successfully or otherwise) detectable and recoverable without a human having to manually diagnose it via gate stop on a hunch. Candidates: probe liveness (not just presence) before returning worktree-busy for an 'executing' slot; stop swallowing the specific leaked-slot condition into a generic 'unavailable' halt_cause so the diagnostic points at the real cause; and/or make `docket gate history cleanup` detect this case instead of reporting 0 blocking drives.
+- Preserve the actual admission refusal through finalize's JSON and human reporting, identifying the occupying run or drive with existing credential-free locator conventions.
+- Explain slot occupancy accurately and provide applicable guidance through existing observe, stop, continuation, or run-cancellation operations. For a confirmed standalone raw run, identify its recorded run directory and explain how explicit stop settles its slot, including after completion.
+- Keep diagnostic facts tied to the incumbent that caused the refusal. Missing or ambiguous identity must not produce guessed commands, leaked credentials, or permission to retry automatically.
+- Clarify the existing boundaries between current admission slots, process recovery, and historical-drive cleanup.
+- Add focused regression coverage for completed and live raw runs, driven and epoch-owned incumbents, uncertain identity, diagnostic propagation, and safe reuse after the existing stop remedy.
+
+The linked spec records the implementation trace, prior changes and ADRs, alternatives, and acceptance criteria. Changes 0435 and 0437 are merged and remain the owners of the separate cancelled-epoch retirement and admission repairs.
 
 ## Out of scope
 
-Redesigning the gate-admission slot lifecycle or state machine; changes 437/435's stale-RunEpochID-after-cancellation problem (separate, already tracked).
+Automatic slot release, changing admission or teardown policy, expanding history cleanup into current-slot recovery, and redesigning cancellation or epoch fences. No new CLI command, configuration, persistent schema, lifecycle state, liveness implementation, daemon, retry layer, or architecture decision. Rebase-receipt recovery remains change 0438; implementation and implementation planning are separate work.
