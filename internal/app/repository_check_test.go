@@ -143,3 +143,36 @@ func TestCorpusFindingsSurfacesUndecodable(t *testing.T) {
 		}
 	}
 }
+
+// TestRepositoryCheckSupplementalFindingsSerialize: supplemental condition
+// findings ride the existing findings pipeline — same JSON serialization and
+// the shared human renderer, no envelope change (change 0418).
+func TestRepositoryCheckSupplementalFindingsSerialize(t *testing.T) {
+	findings := []reposetup.Finding{
+		{Code: "postconditions-unmet", Severity: reposetup.SeverityError,
+			Message: "The metadata branch exists but not every health postcondition is satisfied.",
+			Remedy:  "Resolve the reported issues, then re-run `docket repository check`."},
+		{Code: "committed-ignore-invalid", Severity: reposetup.SeverityError, Ref: ".gitignore",
+			Message: "The committed .gitignore's managed docket block is missing required entries: .opencode/agents/docket-*.md.",
+			Remedy:  "Restore the missing entries (.opencode/agents/docket-*.md) to the managed block, then review, commit, and push the corrected .gitignore."},
+	}
+	res := newCheckResult(
+		reposetup.Classification{State: reposetup.StateConflict, Reasons: []string{"postconditions-unmet"}},
+		reposetup.Facts{}, findings)
+	raw, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, want := range []string{`"committed-ignore-invalid"`, `".gitignore"`, `.opencode/agents/docket-\*.md`} {
+		if !strings.Contains(strings.ReplaceAll(string(raw), `\`, ``), strings.ReplaceAll(want, `\`, ``)) {
+			t.Fatalf("JSON lacks %q: %s", want, raw)
+		}
+	}
+	human := res.HumanText()
+	if !strings.Contains(human, "committed-ignore-invalid") || !strings.Contains(human, ".opencode/agents/docket-*.md") {
+		t.Fatalf("human text lacks the supplemental finding: %q", human)
+	}
+	if res.CheckExitCode() != 1 {
+		t.Fatalf("exit = %d, want 1", res.CheckExitCode())
+	}
+}
