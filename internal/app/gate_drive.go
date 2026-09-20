@@ -11,6 +11,7 @@ package app
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -42,9 +43,13 @@ type GateDriveResult struct {
 	Drive   *gatedrive.DriveDoc `json:"drive,omitempty"`
 	Reason  string              `json:"reason,omitempty"`
 	Message string              `json:"message,omitempty"`
-	// Stage + Locator carry the typed refusal site for an inventory refusal:
-	// Stage "legacy-inventory", Locator "inventory-legacy-drive-<id>" (validated
-	// id) or the safe "inventory-legacy-drives". Empty for every other refusal.
+	// Stage + Locator carry the typed refusal site for the two diagnosable
+	// refusal families. A legacy-inventory refusal: Stage "legacy-inventory",
+	// Locator "inventory-legacy-drive-<id>" (validated id) or the safe
+	// "inventory-legacy-drives". A current worktree-admission refusal
+	// (incumbentRefusalLocator): Stage "worktree-admission", Locator
+	// "incumbent-drive:<id>" / "incumbent-run:<id>" (validated id) or "" when no
+	// identity validates. Empty for every other refusal.
 	Stage   string `json:"stage,omitempty"`
 	Locator string `json:"locator,omitempty"`
 	// LegacyHistory mirrors the drive document's summary onto refusals, where
@@ -627,6 +632,12 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 				result.Stage, result.Locator = stage, locator
 				result.LegacyHistory = oe.Legacy
 				result.Message = "historical gate drives block this admission; inspect or recover them with docket gate history cleanup (--dry-run first); run.cancel applies only to a live run with an owning epoch"
+			} else if oe.Incumbent != nil {
+				// A CURRENT worktree-admission refusal diagnoses from the exact
+				// incumbent snapshot the refusal was decided on (never a re-read).
+				result.Stage = stageWorktreeAdmission
+				result.Locator = incumbentRefusalLocator(oe.Incumbent)
+				result.Message = incumbentRemedyMessage(oe.Kind, oe.Incumbent)
 			} else {
 				result.Message = ownershipNextAction(oe.Kind)
 			}
@@ -693,7 +704,7 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	case gatedrive.ErrUnresolvedLaunchTransition:
 		return "a prior launch transition is unresolved; recover via the parent, not a retry"
 	case gatedrive.ErrWorktreeBusy:
-		return "this worktree already runs a gate execution; wait for it or cancel that run — do not start a second in the same worktree"
+		return "this worktree's gate execution slot is occupied (the occupying process may have already completed); wait for the incumbent or settle its slot through its own stop/cancel route — do not start a second gate in the same worktree"
 	case gatedrive.ErrUnresolvedExecution:
 		return "a prior execution in this worktree is unresolved; recover it through the parent or run.cancel, never a blind re-start"
 	case gatedrive.ErrStaleRunEpoch:
@@ -706,6 +717,64 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 		return "the scope already holds a drive; a successor start must present the predecessor receipt"
 	default:
 		return ""
+	}
+}
+
+// stageWorktreeAdmission is the typed refusal site for a CURRENT worktree
+// admission-slot refusal, distinct from the legacy-inventory stage.
+const stageWorktreeAdmission = "worktree-admission"
+
+// rawRunIDShape matches the supervisor's run-id shape (32 lowercase hex); the
+// canonical pattern lives in internal/process (see paths.go runIDPattern), and
+// this diagnostic-only copy accepts exactly the same ids.
+var rawRunIDShape = regexp.MustCompile("^[0-9a-f]{32}$")
+
+// incumbentRefusalLocator returns the bounded safe locator for an admission
+// refusal's incumbent: "incumbent-drive:<id>" / "incumbent-run:<id>", "" when no
+// identity validates. (Same convention as incumbentLocator in gate.go.) A drive
+// id is validated with gatedrive.ValidDriveID and a raw run id with rawRunIDShape,
+// so an arbitrary directory name or drive id can never render into the locator.
+func incumbentRefusalLocator(inc *gatedrive.IncumbentSnapshot) string {
+	if inc == nil {
+		return ""
+	}
+	switch {
+	case inc.DriveID != "" && gatedrive.ValidDriveID(inc.DriveID):
+		return "incumbent-drive:" + inc.DriveID
+	case inc.RawRunID != "" && rawRunIDShape.MatchString(inc.RawRunID):
+		return "incumbent-run:" + inc.RawRunID
+	default:
+		return ""
+	}
+}
+
+// quoteOperand renders a path as a safely single-quoted shell operand for human
+// guidance ('...' with each embedded ' rendered as '\'').
+func quoteOperand(path string) string {
+	return "'" + strings.ReplaceAll(path, "'", `'\''`) + "'"
+}
+
+// incumbentRemedyMessage returns the credential-free next-action guidance for the
+// refusal kind + incumbent — always a bounded honest sentence, never "". It never
+// suggests a raw manual teardown for a driven or epoch-owned slot, renders the raw
+// stop guidance only when a confirmed RawRunDir + valid RawRunID exist, and never
+// projects a reservation token, owner generation, capability, or epoch id.
+func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.IncumbentSnapshot) string {
+	switch {
+	case kind == gatedrive.ErrStaleRunEpoch || (inc != nil && inc.EpochOwned):
+		return "a workflow run epoch owns this worktree's execution slot; continue that run through its own gate-drive continuation, or cancel it with the run.cancel operation using that run's key and epoch — never a raw manual teardown and never a stale epoch presented as a bypass"
+	case inc != nil && inc.Kind == "raw" && inc.RawRunDir != "" && rawRunIDShape.MatchString(inc.RawRunID):
+		dir := quoteOperand(inc.RawRunDir)
+		return "a raw gate run occupies this worktree's execution slot; the slot stays occupied until explicit teardown, even after the run completes. Inspect it with docket gate observe " + dir +
+			", then settle the slot with docket gate stop " + dir + " --reason <why> — stopping a still-running run cancels it; stopping an already-completed run settles its slot (the stop operation itself decides whether teardown is proven)"
+	case inc != nil && inc.Kind == "raw":
+		return "a raw gate reservation occupies this worktree's execution slot but its run identity is not recorded; do not start a second gate here — resolve the incumbent before retrying"
+	case inc != nil && inc.DriveID != "":
+		return "a driven gate occupies this worktree's execution slot; advance or recover it through its owning drive's continuation (gate drive advance or the parent workflow), never a raw manual teardown"
+	case kind == gatedrive.ErrUnresolvedExecution:
+		return ownershipNextAction(gatedrive.ErrUnresolvedExecution)
+	default:
+		return "an execution occupies this worktree's admission slot but its identity could not be established; do not start a second gate here and do not guess a stop target — resolve the incumbent first"
 	}
 }
 

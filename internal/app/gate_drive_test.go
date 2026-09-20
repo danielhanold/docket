@@ -1306,3 +1306,99 @@ func TestBuildStartChargedAttemptNotRefundedOnFencedLaunch(t *testing.T) {
 		t.Fatalf("a charged admitted start must not abandon its admission, got %d", eng.abandonCount)
 	}
 }
+
+// validDriveIDForTest returns a literal that satisfies gatedrive.ValidDriveID
+// (32 lowercase hex chars), matching the shape the legacy-inventory tests use.
+func validDriveIDForTest(t *testing.T) string {
+	t.Helper()
+	id := strings.Repeat("a", 32)
+	if !gatedrive.ValidDriveID(id) {
+		t.Fatalf("fixture drive id %q does not validate", id)
+	}
+	return id
+}
+
+// ownershipErrWith crafts a worktree-admission OwnershipError carrying (or not)
+// an incumbent snapshot, so the mapping tests exercise mapDriveResult's
+// admission-refusal branch directly.
+func ownershipErrWith(kind gatedrive.OwnershipErrorKind, inc *gatedrive.IncumbentSnapshot) *gatedrive.OwnershipError {
+	return &gatedrive.OwnershipError{Kind: kind, Op: "reserve-worktree-execution", Incumbent: inc}
+}
+
+// TestMapDriveResultWorktreeAdmissionRefusal proves an admission refusal
+// carrying an incumbent snapshot surfaces the typed stage, the safe incumbent
+// locator, and per-kind credential-free guidance — and that a snapshot-free
+// refusal keeps the existing generic next-action fallback.
+func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
+	rawInc := &gatedrive.IncumbentSnapshot{Kind: "raw", State: "executing",
+		RawRunID: "0123456789abcdef0123456789abcdef", RawRunDir: "/runs/0123456789abcdef0123456789abcdef"}
+	drivenInc := &gatedrive.IncumbentSnapshot{Kind: "scoped", State: "executing", DriveID: validDriveIDForTest(t)}
+	epochInc := &gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "executing", EpochOwned: true}
+	blankInc := &gatedrive.IncumbentSnapshot{State: "reserved"}
+
+	cases := []struct {
+		name      string
+		err       *gatedrive.OwnershipError
+		wantStage string
+		wantLoc   string
+		msgHas    []string
+		msgLacks  []string
+	}{
+		{"raw busy", ownershipErrWith(gatedrive.ErrWorktreeBusy, rawInc),
+			"worktree-admission", "incumbent-run:0123456789abcdef0123456789abcdef",
+			[]string{"gate observe", "gate stop", "'/runs/0123456789abcdef0123456789abcdef'", "completed"},
+			[]string{"token"}},
+		{"driven busy", ownershipErrWith(gatedrive.ErrWorktreeBusy, drivenInc),
+			"worktree-admission", "incumbent-drive:" + drivenInc.DriveID,
+			[]string{"drive"}, []string{"gate stop"}},
+		{"epoch owned", ownershipErrWith(gatedrive.ErrStaleRunEpoch, epochInc),
+			"worktree-admission", "",
+			[]string{"run.cancel"}, []string{"gate stop", "epoch-"}},
+		{"unknown identity", ownershipErrWith(gatedrive.ErrWorktreeBusy, blankInc),
+			"worktree-admission", "",
+			[]string{"occupies"}, []string{"gate stop", "gate observe"}},
+		{"no snapshot keeps fallback", ownershipErrWith(gatedrive.ErrWorktreeBusy, nil),
+			"", "", []string{ownershipNextAction(gatedrive.ErrWorktreeBusy)}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := mapDriveResult(OperationGateDriveStart, gatedrive.DriveDoc{}, tc.err)
+			if got.Reason != string(tc.err.Kind) {
+				t.Fatalf("reason = %q, want %q", got.Reason, tc.err.Kind)
+			}
+			if got.Stage != tc.wantStage || got.Locator != tc.wantLoc {
+				t.Fatalf("stage/locator = %q/%q, want %q/%q", got.Stage, got.Locator, tc.wantStage, tc.wantLoc)
+			}
+			for _, s := range tc.msgHas {
+				if !strings.Contains(got.Message, s) {
+					t.Fatalf("message %q lacks %q", got.Message, s)
+				}
+			}
+			for _, s := range tc.msgLacks {
+				if strings.Contains(got.Message, s) {
+					t.Fatalf("message %q must not contain %q", got.Message, s)
+				}
+			}
+		})
+	}
+}
+
+// TestIncumbentRefusalLocatorValidatesIDs proves an invalid drive/run id
+// collapses to "" rather than rendering arbitrary bytes into the locator.
+func TestIncumbentRefusalLocatorValidatesIDs(t *testing.T) {
+	bad := &gatedrive.IncumbentSnapshot{DriveID: "../escape"}
+	if got := incumbentRefusalLocator(bad); got != "" {
+		t.Fatalf("invalid drive id rendered locator %q", got)
+	}
+	badRun := &gatedrive.IncumbentSnapshot{RawRunID: "NOT-HEX"}
+	if got := incumbentRefusalLocator(badRun); got != "" {
+		t.Fatalf("invalid run id rendered locator %q", got)
+	}
+}
+
+// TestQuoteOperand pins the shell-safe quoting of incumbent paths in guidance.
+func TestQuoteOperand(t *testing.T) {
+	if got := quoteOperand(`/tmp/o'brien`); got != `'/tmp/o'\''brien'` {
+		t.Fatalf("quoteOperand = %q", got)
+	}
+}
