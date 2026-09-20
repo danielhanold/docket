@@ -96,6 +96,10 @@ func EvaluateHealth(c Classification, f Facts, fm []RepairFinding) []Finding {
 		buckets[cat] = append(buckets[cat], fnd)
 	}
 
+	for _, fnd := range supplementalConditionFindings(c, f) {
+		buckets[conditionCategory(fnd.Code)] = append(buckets[conditionCategory(fnd.Code)], fnd)
+	}
+
 	var out []Finding
 	for cat := catRemoteTopology; cat <= catSurface; cat++ {
 		out = append(out, buckets[cat]...)
@@ -165,11 +169,20 @@ func findingFor(reason string, f Facts) Finding {
 			Remedy:   "Inspect the .docket path and resolve it manually with a human before any repository operation.",
 		}
 	case "metadata-worktree-dirty":
+		msg := "The .docket metadata worktree has uncommitted or unsynchronized changes."
+		switch {
+		case f.DocketWorktree.Clean == PresenceAbsent && f.DocketWorktree.Synchronized == PresenceAbsent:
+			msg = "The .docket metadata worktree has uncommitted changes and is not synchronized with the remote docket tip."
+		case f.DocketWorktree.Clean == PresenceAbsent:
+			msg = "The .docket metadata worktree has uncommitted or untracked changes."
+		case f.DocketWorktree.Synchronized == PresenceAbsent:
+			msg = "The .docket metadata worktree is not synchronized with the remote docket tip."
+		}
 		return Finding{
 			Code:     "metadata-worktree-dirty",
 			Severity: SeverityError,
 			Ref:      ".docket",
-			Message:  "The .docket metadata worktree has uncommitted or unsynchronized changes.",
+			Message:  msg,
 			Remedy:   "Commit or inspect the changes in the .docket metadata worktree before any repository operation; leave them in place.",
 		}
 	case "local-metadata-diverged":
@@ -344,5 +357,365 @@ func CheckExit(c Classification, findings []Finding) int {
 		return 2
 	default:
 		return 1
+	}
+}
+
+// reasonExplains maps each classifier reason token to the health conditions
+// it already explains, so a supplemental finding is suppressed exactly when
+// an existing finding covers its condition — dedupe is by the condition
+// explained, never by state or category. Deliberately NOT listed:
+// pending-review-paths does not explain committed-ignore-valid (naming
+// .gitignore as pending does not explain its committed defect).
+var reasonExplains = map[string][]HealthCondition{
+	"metadata-root-foreign":                {CondMetadataRootVerified},
+	"docket-dir-foreign":                   {CondWorktreeNotForeign, CondWorktreeRegistered, CondWorktreeClean, CondWorktreeSynchronized, CondWorktreeHooksOff},
+	"metadata-worktree-dirty":              {CondWorktreeClean, CondWorktreeSynchronized},
+	"local-metadata-diverged":              {CondWorktreeSynchronized},
+	"pending-review-paths":                 {CondNoPendingReviewPaths},
+	"metadata-seeded":                      {CondLiveSurfaceAbsent},
+	"metadata-seeded-live-surface":         {CondLiveSurfaceAbsent},
+	"integration-pruned-attach-incomplete": {CondLocalMetadataPresent, CondWorktreePresent, CondWorktreeRegistered},
+	"surfaces-drift":                       {CondSurfacesAgree},
+}
+
+// supplementalConditionFindings adds one finding per applicable unmet health
+// condition an existing reason-based finding does not already explain. It
+// runs only when the remote metadata branch is proven present (the same
+// boundary RunRepositoryCheck augments behind), so fresh/legacy repositories
+// and gather failures keep their existing reports. It never changes the
+// classification — it explains it.
+func supplementalConditionFindings(c Classification, f Facts) []Finding {
+	if f.RemoteMetadata.Presence != PresencePresent {
+		return nil
+	}
+	unmet := UnmetHealthConditions(f)
+	if len(unmet) == 0 {
+		return nil
+	}
+	explained := map[HealthCondition]bool{}
+	for _, r := range c.Reasons {
+		for _, cond := range reasonExplains[r] {
+			explained[cond] = true
+		}
+	}
+	var out []Finding
+	for _, cond := range unmet {
+		if explained[cond] {
+			continue
+		}
+		if fnd := conditionFinding(cond, f); fnd != nil {
+			out = append(out, *fnd)
+		}
+	}
+	return out
+}
+
+// integrationResolved reports whether the pinned integration commit was
+// resolvable — the prerequisite of every committed-tree probe. When it is
+// false those probes never ran, and the unknown-authority diagnostics
+// already explain the gap.
+func integrationResolved(f Facts) bool {
+	return f.RemoteIntegration.Presence == PresencePresent && f.RemoteIntegration.Tip != ""
+}
+
+// worktreeInspectable reports whether the .docket worktree's dependent facts
+// (registration, cleanliness, synchronization, hooks) were meaningfully
+// probed: a missing or foreign path is itself the blocking observation.
+func worktreeInspectable(f Facts) bool {
+	return f.DocketWorktree.Presence == PresencePresent && !f.DocketWorktree.Foreign
+}
+
+// conditionFinding builds the supplemental finding for one unmet condition,
+// or nil when a missing prerequisite's own finding already represents it
+// (explanatory grouping, never permission to drop an unexplained failure).
+// Unknown evidence yields an "unverified" warning; a proven wrong state
+// yields an error. Every remedy fits the observed state and preserves local
+// work (learning printed-remedy-state-validity).
+func conditionFinding(cond HealthCondition, f Facts) *Finding {
+	switch cond {
+	case CondMetadataBranchPresent:
+		return nil // the supplemental gate requires it proven present
+	case CondMetadataRootVerified:
+		// RootForeign is explained by the metadata-root-foreign reason; here
+		// only RootUnknown remains: unresolved, never foreign.
+		if f.MetadataRoot != RootUnknown {
+			return nil
+		}
+		return &Finding{
+			Code:     "metadata-ownership-unverified",
+			Severity: SeverityWarning,
+			Message:  "The remote docket branch's ownership proof could not be resolved (unverified, not proven wrong).",
+			Remedy:   "Ensure the remote is reachable and its objects fetchable, then re-run `docket repository check`.",
+		}
+	case CondLocalMetadataPresent:
+		if f.LocalMetadata.Presence == PresenceAbsent {
+			return &Finding{
+				Code:     "local-metadata-missing",
+				Severity: SeverityError,
+				Message:  "No local docket branch exists for the present remote docket branch.",
+				Remedy:   "Run `docket repository migrate` to restore the local metadata attachment; it is idempotent.",
+			}
+		}
+		return &Finding{
+			Code:     "local-metadata-unverified",
+			Severity: SeverityWarning,
+			Message:  "The local docket branch could not be resolved (unverified, not proven absent).",
+			Remedy:   "Re-run `docket repository check` once local Git reads succeed.",
+		}
+	case CondWorktreePresent:
+		if f.DocketWorktree.Presence == PresenceAbsent {
+			return &Finding{
+				Code:     "docket-worktree-missing",
+				Severity: SeverityError,
+				Ref:      ".docket",
+				Message:  "The .docket metadata worktree is missing; its registration, cleanliness, and hooks state cannot be established until it exists.",
+				Remedy:   "Run `docket repository migrate` to restore the .docket worktree attachment; it is idempotent.",
+			}
+		}
+		return &Finding{
+			Code:     "docket-worktree-unverified",
+			Severity: SeverityWarning,
+			Ref:      ".docket",
+			Message:  "The .docket path could not be inspected (unverified, not proven absent); its dependent state cannot be established.",
+			Remedy:   "Restore read access to the .docket path, then re-run `docket repository check`.",
+		}
+	case CondWorktreeNotForeign:
+		return nil // always explained by the docket-dir-foreign conflict reason
+	case CondWorktreeRegistered:
+		if !worktreeInspectable(f) {
+			return nil // the worktree-present/foreign finding is the blocking observation
+		}
+		if f.DocketWorktree.Registered == PresenceAbsent {
+			return &Finding{
+				Code:     "docket-worktree-unregistered",
+				Severity: SeverityError,
+				Ref:      ".docket",
+				Message:  "The .docket path exists but is not a registered worktree of this repository.",
+				Remedy:   "Inspect the .docket path and resolve its registration manually with a human; leave its contents in place.",
+			}
+		}
+		return &Finding{
+			Code:     "docket-worktree-registration-unverified",
+			Severity: SeverityWarning,
+			Ref:      ".docket",
+			Message:  "The .docket worktree registration could not be resolved (unverified, not proven foreign).",
+			Remedy:   "Re-run `docket repository check` once `git worktree list` succeeds.",
+		}
+	case CondWorktreeClean:
+		if !worktreeInspectable(f) {
+			return nil
+		}
+		// Absent is explained by the metadata-worktree-dirty reason when the
+		// classifier selected it; in states where it did not (it always does
+		// for a present worktree), only Unknown remains applicable.
+		if f.DocketWorktree.Clean != PresenceUnknown {
+			return nil
+		}
+		return &Finding{
+			Code:     "docket-worktree-clean-unverified",
+			Severity: SeverityWarning,
+			Ref:      ".docket",
+			Message:  "The .docket worktree's cleanliness could not be resolved (unverified, not proven dirty).",
+			Remedy:   "Re-run `docket repository check` once the .docket status read succeeds.",
+		}
+	case CondWorktreeSynchronized:
+		if !worktreeInspectable(f) {
+			return nil
+		}
+		// Synchronization needs both branch tips; missing prerequisites are
+		// represented by the local-metadata finding. Absent is explained by
+		// the metadata-worktree-dirty reason.
+		return nil
+	case CondWorktreeHooksOff:
+		if !worktreeInspectable(f) {
+			return nil
+		}
+		if f.DocketWorktree.HooksOff == PresenceAbsent {
+			return &Finding{
+				Code:     "docket-worktree-hooks-enabled",
+				Severity: SeverityError,
+				Ref:      ".docket",
+				Message:  "Git hooks are not disabled on the .docket metadata worktree (per-worktree core.hooksPath is not set to an existing directory).",
+				Remedy:   "Point the .docket worktree's per-worktree core.hooksPath at an existing empty directory, as init leaves it, then re-run `docket repository check`.",
+			}
+		}
+		return &Finding{
+			Code:     "docket-worktree-hooks-unverified",
+			Severity: SeverityWarning,
+			Ref:      ".docket",
+			Message:  "The .docket worktree's hooks configuration could not be resolved (unverified, not proven enabled).",
+			Remedy:   "Re-run `docket repository check` once the .docket config read succeeds.",
+		}
+	case CondCommittedIgnoreValid:
+		if !integrationResolved(f) {
+			return nil // the unknown-authority diagnostic explains the skipped read
+		}
+		if f.CommittedIgnoreBlock == PresenceUnknown {
+			return &Finding{
+				Code:     "committed-ignore-unverified",
+				Severity: SeverityWarning,
+				Ref:      ".gitignore",
+				Message:  "The committed .gitignore blob could not be read, so the managed ignore block cannot be verified (unverified, not proven absent).",
+				Remedy:   "Restore readable committed evidence (fetch the integration objects), then re-run `docket repository check`.",
+			}
+		}
+		return committedIgnoreFinding(f.CommittedIgnoreDetail)
+	case CondLiveSurfaceAbsent:
+		if f.LiveSurface == PresencePresent {
+			return &Finding{
+				Code:     "live-surface-present",
+				Severity: SeverityError,
+				Message:  "The integration tree still carries a live docket surface alongside the metadata branch.",
+				Remedy:   "Run `docket repository migrate` to finish pruning the integration surface; it is idempotent.",
+			}
+		}
+		return &Finding{
+			Code:     "live-surface-unverified",
+			Severity: SeverityWarning,
+			Message:  "The integration tree's live-surface state could not be resolved (unverified).",
+			Remedy:   "Ensure the remote is reachable, then re-run `docket repository check`.",
+		}
+	case CondLegacyConfigKeyAbsent:
+		if !integrationResolved(f) {
+			return nil
+		}
+		if f.LegacyConfigKey == PresencePresent {
+			return &Finding{
+				Code:     "legacy-config-key-present",
+				Severity: SeverityError,
+				Ref:      ".docket.yml",
+				Message:  "The committed .docket.yml still declares the legacy top-level metadata_branch key.",
+				Remedy:   "Remove the metadata_branch key from .docket.yml, commit, and push the integration branch, then re-run `docket repository check`.",
+			}
+		}
+		return &Finding{
+			Code:     "legacy-config-key-unverified",
+			Severity: SeverityWarning,
+			Ref:      ".docket.yml",
+			Message:  "The committed .docket.yml could not be read, so the legacy metadata_branch key cannot be verified (unverified, not proven present).",
+			Remedy:   "Restore readable committed evidence, then re-run `docket repository check`.",
+		}
+	case CondPrimaryClean:
+		if f.PrimaryClean == PresenceAbsent {
+			return &Finding{
+				Code:     "primary-worktree-dirty",
+				Severity: SeverityError,
+				Message:  "The primary worktree has uncommitted changes.",
+				Remedy:   "Review and commit (or deliberately restore) the changes yourself, preserving local work, then re-run `docket repository check`.",
+			}
+		}
+		return &Finding{
+			Code:     "primary-clean-unverified",
+			Severity: SeverityWarning,
+			Message:  "The primary worktree's cleanliness could not be resolved (unverified, not proven dirty).",
+			Remedy:   "Re-run `docket repository check` once the primary status read succeeds.",
+		}
+	case CondPrimaryOnIntegration:
+		if f.PrimaryOnIntegration == PresenceAbsent {
+			return &Finding{
+				Code:     "primary-not-on-integration",
+				Severity: SeverityError,
+				Message:  "The primary worktree is not checked out on the integration branch.",
+				Remedy:   "Switch the primary worktree to the integration branch without discarding local work, then re-run `docket repository check`.",
+			}
+		}
+		return &Finding{
+			Code:     "primary-branch-unverified",
+			Severity: SeverityWarning,
+			Message:  "The primary worktree's branch could not be resolved (unverified).",
+			Remedy:   "Re-run `docket repository check` once `git worktree list` succeeds.",
+		}
+	case CondPrimaryAtRemoteTip:
+		if !integrationResolved(f) {
+			return nil
+		}
+		if f.PrimaryAtRemoteTip == PresenceAbsent {
+			return &Finding{
+				Code:     "primary-behind-remote-tip",
+				Severity: SeverityError,
+				Message:  "The primary worktree's HEAD does not equal the pinned remote integration tip.",
+				Remedy:   "Fetch and fast-forward the integration branch (e.g. `docket repository sync-integration`), preserving local work, then re-run `docket repository check`.",
+			}
+		}
+		return &Finding{
+			Code:     "primary-tip-unverified",
+			Severity: SeverityWarning,
+			Message:  "The primary worktree's position against the remote integration tip could not be resolved (unverified).",
+			Remedy:   "Re-run `docket repository check` once the local HEAD read succeeds.",
+		}
+	case CondSurfacesAgree:
+		// Only reached when SurfacesAuthorized (the conjunct is otherwise
+		// satisfied); Absent is explained by the surfaces-drift reason.
+		if f.SurfacesAgree != PresenceUnknown {
+			return nil
+		}
+		return &Finding{
+			Code:     "surfaces-unverified",
+			Severity: SeverityWarning,
+			Message:  "The authorized parent-facing surface agreement could not be resolved (unverified, not proven drifted).",
+			Remedy:   "Re-run `docket repository check` once the surface probe succeeds.",
+		}
+	case CondNoPendingReviewPaths:
+		// Applicable when pending paths exist but the classifier did not
+		// select needs-review (e.g. an unverified root shape): reuse the
+		// existing finding so the explanation cannot drift.
+		fnd := findingFor("pending-review-paths", f)
+		return &fnd
+	}
+	return nil
+}
+
+// committedIgnoreFinding renders the preserved ignore detail into the one
+// committed-ignore defect finding. The defect is explicitly located in the
+// committed integration tree: an uncommitted local fix does not establish
+// the guarantee (learning gitignore-guarantee-must-be-committed).
+func committedIgnoreFinding(d IgnoreDetail) *Finding {
+	fnd := &Finding{
+		Code:     "committed-ignore-invalid",
+		Severity: SeverityError,
+		Ref:      ".gitignore",
+	}
+	switch d.Defect {
+	case IgnoreDefectFileAbsent:
+		fnd.Message = "The committed integration tree has no .gitignore file, so the managed docket ignore block is absent."
+		fnd.Remedy = "Restore the managed block (e.g. re-run `docket repository migrate`, or add it by hand from the canonical block), review, commit, and push the corrected .gitignore."
+	case IgnoreDefectBlockAbsent:
+		fnd.Message = "The committed .gitignore does not contain the managed docket ignore block."
+		fnd.Remedy = "Restore the managed block, then review, commit, and push the corrected .gitignore."
+	case IgnoreDefectLegacyOnly:
+		fnd.Message = "The committed .gitignore carries only the legacy managed-block markers; the current-generation block is absent."
+		fnd.Remedy = "Upgrade the managed block to the current markers, then review, commit, and push the corrected .gitignore."
+	case IgnoreDefectMalformedMarkers:
+		fnd.Message = "The committed .gitignore's managed-block markers are malformed (" + d.Generation + " generation): dangling, out-of-order, or nested start/end."
+		fnd.Remedy = "Inspect and correct the reported marker structure by hand first, then review, commit, and push the corrected .gitignore."
+	case IgnoreDefectMissingEntries:
+		fnd.Message = "The committed .gitignore's managed docket block is missing required entries: " + strings.Join(d.MissingEntries, ", ") + "."
+		fnd.Remedy = "Restore the missing entries (" + strings.Join(d.MissingEntries, ", ") + ") to the managed block, then review, commit, and push the corrected .gitignore."
+	case IgnoreDefectNonCanonical:
+		fnd.Message = "The committed .gitignore's managed docket block contains all required entries but differs from the canonical block representation (reordered, extra, or differently-terminated lines)."
+		fnd.Remedy = "Rewrite the managed block to the canonical representation, then review, commit, and push the corrected .gitignore."
+	default:
+		// Absent presence with no preserved detail (an older caller):
+		// still a concrete committed-block failure, without invented detail.
+		fnd.Message = "The committed .gitignore's managed docket block failed validation in the committed integration tree."
+		fnd.Remedy = "Restore the canonical managed block, then review, commit, and push the corrected .gitignore."
+	}
+	return fnd
+}
+
+// conditionCategory places a supplemental finding code into the existing
+// deterministic output buckets (same order categoryOf fixes for reasons).
+func conditionCategory(code string) int {
+	switch code {
+	case "metadata-ownership-unverified", "local-metadata-missing", "local-metadata-unverified":
+		return catRemoteTopology
+	case "committed-ignore-invalid", "committed-ignore-unverified",
+		"legacy-config-key-present", "legacy-config-key-unverified",
+		"live-surface-present", "live-surface-unverified", "pending-review-paths":
+		return catIntegrationTree
+	case "surfaces-unverified":
+		return catSurface
+	default: // every docket-worktree-* and primary-* code
+		return catLocalWorktree
 	}
 }
