@@ -359,3 +359,83 @@ func isOwnership(err error, kind OwnershipErrorKind) bool {
 	oe, ok := AsOwnershipError(err)
 	return ok && oe.Kind == kind
 }
+
+// newAdmissionFixture opens a store over a temp git common dir and mints a real
+// canonical worktree dir, returning the store, worktree root, and a repo
+// identity — the setup the reserve tests above repeat, extracted so the
+// snapshot tests do not restate it three more times.
+func newAdmissionFixture(t *testing.T) (store *Store, worktree, repoID string) {
+	t.Helper()
+	return OpenStore(testsupport.TempDir(t)), mkWorktree(t), "repo-x"
+}
+
+// TestReserveRefusalCarriesIncumbentSnapshot proves a worktree-busy refusal
+// carries the incumbent's credential-free projection, captured from the exact
+// record the refusal was decided on: kind, state, run identity — and never the
+// reservation token.
+func TestReserveRefusalCarriesIncumbentSnapshot(t *testing.T) {
+	store, worktree, repoID := newAdmissionFixture(t)
+	token, err := store.ReserveRawWorktreeExecution(repoID, worktree, nil)
+	if err != nil {
+		t.Fatalf("first reserve: %v", err)
+	}
+	if err := store.ConfirmWorktreeExecution(worktree, token, "0123456789abcdef0123456789abcdef", "/runs/0123456789abcdef0123456789abcdef"); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	_, err = store.ReserveRawWorktreeExecution(repoID, worktree, nil)
+	oe, ok := AsOwnershipError(err)
+	if !ok || oe.Kind != ErrWorktreeBusy {
+		t.Fatalf("second reserve err = %v, want worktree-busy ownership error", err)
+	}
+	inc := oe.Incumbent
+	if inc == nil {
+		t.Fatal("worktree-busy refusal carries no incumbent snapshot")
+	}
+	if inc.Kind != "raw" || inc.State != "executing" {
+		t.Fatalf("snapshot kind/state = %q/%q, want raw/executing", inc.Kind, inc.State)
+	}
+	if inc.RawRunID != "0123456789abcdef0123456789abcdef" || inc.RawRunDir != "/runs/0123456789abcdef0123456789abcdef" {
+		t.Fatalf("snapshot run identity = %q %q", inc.RawRunID, inc.RawRunDir)
+	}
+	if inc.DriveID != "" || inc.EpochOwned {
+		t.Fatalf("raw snapshot leaked drive/epoch facts: %+v", inc)
+	}
+}
+
+// TestReserveUnresolvedRefusalCarriesSnapshot proves the unresolved-execution
+// refusal also snapshots the incumbent, and TestReserveStaleEpochCarriesSnapshot
+// proves the stale-run-epoch fence does (EpochOwned true, epoch id NOT projected).
+func TestReserveUnresolvedRefusalCarriesSnapshot(t *testing.T) {
+	store, worktree, repoID := newAdmissionFixture(t)
+	token, err := store.ReserveRawWorktreeExecution(repoID, worktree, nil)
+	if err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := store.MarkWorktreeExecutionUnresolved(worktree, token); err != nil {
+		t.Fatalf("mark unresolved: %v", err)
+	}
+	_, err = store.ReserveRawWorktreeExecution(repoID, worktree, nil)
+	oe, ok := AsOwnershipError(err)
+	if !ok || oe.Kind != ErrUnresolvedExecution {
+		t.Fatalf("err = %v, want unresolved-execution", err)
+	}
+	if oe.Incumbent == nil || oe.Incumbent.State != "unresolved" || oe.Incumbent.Kind != "raw" {
+		t.Fatalf("unresolved snapshot = %+v", oe.Incumbent)
+	}
+}
+
+func TestReserveStaleEpochCarriesSnapshot(t *testing.T) {
+	store, worktree, repoID := newAdmissionFixture(t)
+	_, err := store.ReserveWorktreeExecutionForEpoch(repoID, worktree, "epoch-a", nil)
+	if err != nil {
+		t.Fatalf("epoch reserve: %v", err)
+	}
+	_, err = store.ReserveRawWorktreeExecution(repoID, worktree, nil)
+	oe, ok := AsOwnershipError(err)
+	if !ok || oe.Kind != ErrStaleRunEpoch {
+		t.Fatalf("err = %v, want stale-run-epoch", err)
+	}
+	if oe.Incumbent == nil || !oe.Incumbent.EpochOwned {
+		t.Fatalf("stale-epoch snapshot = %+v", oe.Incumbent)
+	}
+}

@@ -132,6 +132,21 @@ const (
 	ErrStaleRunEpoch OwnershipErrorKind = "stale-run-epoch"
 )
 
+// IncumbentSnapshot is a bounded, credential-free projection of the execution
+// that occupied a worktree admission slot at the moment a reservation was
+// refused. It is captured under the slot's flock from the exact record the
+// refusal was decided on, so a later-changed slot is never represented as the
+// cause. It carries identity and route facts only — never a reservation token,
+// owner generation, capability, argv, or environment.
+type IncumbentSnapshot struct {
+	Kind       string // "scoped" | "scopeless" | "raw" | "" (unknown)
+	State      string // admission state at refusal: "reserved"|"executing"|"stopping"|"unresolved"
+	DriveID    string // "" for raw launches
+	RawRunID   string // "" until a raw launch was confirmed
+	RawRunDir  string // "" until a raw launch was confirmed
+	EpochOwned bool   // a run epoch owns the slot (the epoch id itself is not projected)
+}
+
 // OwnershipError is the ownership layer's typed failure. Like StoreError it
 // carries a stable kind and stage and never embeds record content, an owner
 // credential, or repository bytes.
@@ -144,6 +159,12 @@ type OwnershipError struct {
 	// Kind/Op are unchanged by its presence, so every existing consumer that keys
 	// on those compiles and behaves identically. Bounded ids and reasons only.
 	Legacy *LegacyHistorySummary
+	// Incumbent is the credential-free projection of the execution occupying a
+	// worktree admission slot, populated ONLY on the worktree-admission refusal
+	// legs (worktree-busy, unresolved-execution, stale-run-epoch) from the exact
+	// record read under the slot's flock. Nil for every other OwnershipError.
+	// Kind/Op/Legacy are unchanged by its presence.
+	Incumbent *IncumbentSnapshot
 }
 
 func (e *OwnershipError) Error() string {
