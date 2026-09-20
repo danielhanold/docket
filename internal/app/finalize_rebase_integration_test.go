@@ -117,7 +117,12 @@ func TestIntegrationFinalizeRebaseGateForeignStateBlocked(t *testing.T) {
 	requireRealGit(t)
 	main := planRepoModes()[0]
 
-	t.Run("moved-base", func(t *testing.T) {
+	t.Run("divergent-base", func(t *testing.T) {
+		// A REWRITTEN (divergent) base — one that does NOT descend the recorded base —
+		// stays retained and blocked with base-moved-under-receipt: change 0438 only
+		// forward-refreshes onto a base that descends the recorded one; a divergent
+		// base is out of scope (spec §1). (A forward base advance under a completed
+		// rewrite now refreshes instead of blocking; see the ForwardRefresh tests.)
 		f := setupRebaseFixture(t, main)
 		f.advanceBase(t)
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
@@ -130,13 +135,18 @@ func TestIntegrationFinalizeRebaseGateForeignStateBlocked(t *testing.T) {
 		}
 		rewritten := f.localHead()
 
-		// The base moves again under the recorded attempt.
-		f.advanceBase(t)
+		// The base tip is amended and force-pushed, so the new base does NOT descend
+		// the recorded base.
+		writeRepoFile(t, f.repo.writer, "divergent.txt", "rewritten base tip\n")
+		runGit(t, f.repo.writer, "add", "-A")
+		runGit(t, f.repo.writer, "commit", "-q", "--amend", "--no-edit")
+		runGit(t, f.repo.writer, "push", "-q", "-f", "origin", "main")
+
 		res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
 			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
 		assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseMovedBase)
 		if f.localHead() != rewritten {
-			t.Errorf("a moved-base refusal reset the head: %q -> %q", rewritten, f.localHead())
+			t.Errorf("a divergent-base refusal reset the head: %q -> %q", rewritten, f.localHead())
 		}
 	})
 
@@ -1130,8 +1140,9 @@ func TestIntegrationFinalizeRebaseRecoveryCheckpointReuse(t *testing.T) {
 // identity is load-bearing: a moved local head, a changed recorded command, a
 // changed gate policy, a different PR, and evidence for the wrong head each
 // invalidate the checkpoint — the gate re-runs and the receipt's checkpoint is
-// rewritten by the new terminal, never reused stale. A moved BASE keeps its
-// existing refusal ahead of any reuse.
+// rewritten by the new terminal, never reused stale. A forward-moved BASE
+// forward-refreshes onto the advanced base and always retests (change 0438),
+// never reusing the superseded checkpoint.
 func TestIntegrationFinalizeRebaseRecoveryCheckpointInvalidation(t *testing.T) {
 	requireRealGit(t)
 
@@ -1179,14 +1190,23 @@ func TestIntegrationFinalizeRebaseRecoveryCheckpointInvalidation(t *testing.T) {
 		})
 	}
 
-	t.Run("moved-base-still-blocks-ahead-of-reuse", func(t *testing.T) {
+	t.Run("moved-base-forward-refreshes-and-retests", func(t *testing.T) {
+		// Change 0438 (spec §4): a forward base advance under a completed, quiescent,
+		// unpublished rewrite no longer blocks — it forward-rebases onto the advanced
+		// base and ALWAYS re-runs the suite; the checkpoint recorded against the
+		// superseded base is never reused.
 		f, gate, deps, _ := setupPassedRebaseCheckpoint(t)
 		f.advanceBase(t)
 		res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
 			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
-		assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseMovedBase)
-		if gate.calls != 1 {
-			t.Errorf("gate calls = %d, want 1 — a moved base neither reuses nor re-runs", gate.calls)
+		if res.Result != ResultApplied || res.Disposition != RebaseDispRebased {
+			t.Fatalf("moved-base refresh = %q/%q (reason %q), want applied/rebased", res.Result, res.Disposition, res.Reason)
+		}
+		if res.Gate == nil || res.Gate.Compose != gateComposeRan {
+			t.Fatalf("gate = %+v, want compose ran (a base refresh always retests)", res.Gate)
+		}
+		if gate.calls != 2 {
+			t.Errorf("gate calls = %d, want 2 — the refresh re-runs the suite on the new base", gate.calls)
 		}
 	})
 }
@@ -1503,4 +1523,293 @@ func TestIntegrationFinalizeRebaseRecoveryNoEvidenceSkip(t *testing.T) {
 	if gate.calls != 1 {
 		t.Errorf("recovery ran the gate %d time(s); want exactly 1", gate.calls)
 	}
+}
+
+// TestIntegrationFinalizeRebaseRecoveryForwardRefresh covers acceptance 1+2 (spec
+// §1–§2): a completed rebase carrying a resolver-authored resolution, interrupted
+// before publication; the base advances again (non-conflicting); re-invoking
+// finalize.rebase forward-rebases from the CURRENT head, preserving the
+// resolution, running the suite on the new head, and refreshing OrigHead/BaseHead/
+// Attempt while preserving OrigRemoteHead and the consumed resolver budget. The
+// superseded attempt token can no longer continue the refreshed rewrite.
+func TestIntegrationFinalizeRebaseRecoveryForwardRefresh(t *testing.T) {
+	requireRealGit(t)
+	f, deps, head, begin := beginSuccessiveConflicts(t, 0, nil,
+		map[string]string{"feature.txt": "conflicting base content\n"})
+	gate := deps.Gate.(*fakeGate)
+	attempt := begin.Attempt
+	_, cont := reserveResolveContinue(t, f, deps, attempt, begin.UnmergedPaths, 1)
+	if cont.Disposition != RebaseDispRebased {
+		t.Fatalf("continue = %q (reason %q), want rebased (completed rewrite)", cont.Disposition, cont.Reason)
+	}
+	rewritten := f.localHead()
+	recBefore, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if gate.calls != 1 {
+		t.Fatalf("gate calls after the completing continue = %d, want 1", gate.calls)
+	}
+
+	// The base advances AGAIN (non-conflicting this time) before publication.
+	f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved again\n"})
+
+	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+	if out.Result != ResultApplied || out.Disposition != RebaseDispRebased {
+		t.Fatalf("forward refresh = %q/%q (reason %q msg %q), want applied/rebased", out.Result, out.Disposition, out.Reason, out.Message)
+	}
+	// A base refresh always retests: the old checkpoint is not reused and the fake
+	// gate ran a second time for the refresh call (spec §4).
+	if out.Gate == nil || out.Gate.Compose != gateComposeRan {
+		t.Fatalf("gate = %+v, want compose ran (a base refresh always retests)", out.Gate)
+	}
+	if gate.calls != 2 {
+		t.Errorf("gate calls after the refresh = %d, want 2 (the refresh re-ran the suite)", gate.calls)
+	}
+	// The resolution content survived and the branch was never reset.
+	if got := readRepoFile(t, f.wp, "feature.txt"); got != "reconciled content for cycle 1\n" {
+		t.Fatalf("resolution lost: feature.txt = %q", got)
+	}
+	rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if rec.OrigHead != rewritten {
+		t.Errorf("refreshed OrigHead = %q, want the completed rewrite head %q (never the pre-first-rebase head)", rec.OrigHead, rewritten)
+	}
+	if rec.OrigRemoteHead != recBefore.OrigRemoteHead {
+		t.Errorf("the publication lease moved: %q -> %q", recBefore.OrigRemoteHead, rec.OrigRemoteHead)
+	}
+	if rec.Attempt == attempt {
+		t.Errorf("refresh kept the superseded attempt token %q", attempt)
+	}
+	if rec.BaseHead == recBefore.BaseHead {
+		t.Errorf("refreshed BaseHead unchanged %q; want the advanced base", rec.BaseHead)
+	}
+	if rec.ResolverLimit != recBefore.ResolverLimit || rec.ResolverUsed != recBefore.ResolverUsed {
+		t.Errorf("budget changed: %s/%s -> %s/%s (base movement never replenishes)",
+			recBefore.ResolverUsed, recBefore.ResolverLimit, rec.ResolverUsed, rec.ResolverLimit)
+	}
+	// The superseded-base checkpoint was cleared before the refresh's own gate; any
+	// checkpoint present now is the refresh's own, recorded against the NEW base.
+	if rec.PublishCheckpointBaseHead == recBefore.BaseHead {
+		t.Errorf("the superseded-base checkpoint survived the refresh: %q", rec.PublishCheckpointBaseHead)
+	}
+	// The old attempt token can no longer continue the refreshed rewrite.
+	stale := FinalizeRebaseContinue(context.Background(), deps, f.repo.invocation, f.id, attempt,
+		ResolverReport{ChangeID: f.id, Attempt: attempt, Disposition: ResolverResolved,
+			ConflictedPaths: []string{"feature.txt"}, ResolverReservation: "stale-token"})
+	if stale.Reason != ReasonRebaseAttemptMismatch {
+		t.Errorf("stale-token continue reason = %q, want attempt-token-mismatch", stale.Reason)
+	}
+}
+
+// assertRefreshRetained proves a refused base refresh retained local work: the
+// workspace head, the on-disk receipt, and the remote feature head are all
+// byte-identical to the pre-invocation state captured by the caller.
+func assertRefreshRetained(t *testing.T, f *rebaseFixture, head string, rec workspace.RebaseReceipt, remoteBefore string) {
+	t.Helper()
+	if got := f.localHead(); got != head {
+		t.Errorf("a refused refresh moved the local head: %q -> %q", head, got)
+	}
+	after, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("a refused refresh left no receipt (present=%v err=%v)", present, err)
+	}
+	if after != rec {
+		t.Errorf("a refused refresh mutated the receipt:\n before %+v\n after  %+v", rec, after)
+	}
+	if got := originTip(t, f.repo.origin, "feat/"+f.slug); got != remoteBefore {
+		t.Errorf("a refused refresh moved the remote feature head: %q -> %q", remoteBefore, got)
+	}
+}
+
+// TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals covers acceptance 4:
+// each admission conjunct refuses with head, files, receipt, and remote unchanged.
+// A moved lease, a divergent (rewritten) base, and a dirty tree each block; a
+// still-conflicted attempt with an outstanding reservation settles against its
+// RECORDED base rather than being refreshed over (spec §1, §3).
+func TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals(t *testing.T) {
+	requireRealGit(t)
+
+	// setup drives a conflict to a completed, quiescent, unpublished rewrite (no
+	// base advance yet); each case then moves the base its own way.
+	setup := func(t *testing.T) (*rebaseFixture, FinalizeDeps, string) {
+		f, deps, head, begin := beginSuccessiveConflicts(t, 0, nil,
+			map[string]string{"feature.txt": "conflicting base content\n"})
+		_, cont := reserveResolveContinue(t, f, deps, begin.Attempt, begin.UnmergedPaths, 1)
+		if cont.Disposition != RebaseDispRebased {
+			t.Fatalf("setup continue = %q (reason %q), want rebased", cont.Disposition, cont.Reason)
+		}
+		return f, deps, head
+	}
+
+	t.Run("remote-lease-moved", func(t *testing.T) {
+		f, deps, head := setup(t)
+		f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved forward\n"})
+		// The remote feature head moves off the recorded publication lease.
+		before := f.localHead()
+		runGit(t, f.wp, "commit", "-q", "--allow-empty", "-m", "remote lease moved")
+		runGit(t, f.wp, "push", "-q", "-f", "origin", "HEAD:refs/heads/feat/"+f.slug)
+		runGit(t, f.wp, "reset", "--hard", before)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
+		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		assertRebaseRefused(t, out, ResultBlocked, ReasonRebaseRemoteHeadMismatch)
+		assertRefreshRetained(t, f, before, rec, remoteBefore)
+	})
+
+	t.Run("divergent-base", func(t *testing.T) {
+		f, deps, head := setup(t)
+		// The base tip is amended and force-pushed: the new base does NOT descend the
+		// recorded base, so the refresh refuses (only forward movement is in scope).
+		writeRepoFile(t, f.repo.writer, "divergent.txt", "rewritten base\n")
+		runGit(t, f.repo.writer, "add", "-A")
+		runGit(t, f.repo.writer, "commit", "-q", "--amend", "--no-edit")
+		runGit(t, f.repo.writer, "push", "-q", "-f", "origin", "main")
+		headBefore := f.localHead()
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
+		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		assertRebaseRefused(t, out, ResultBlocked, ReasonRebaseMovedBase)
+		assertRefreshRetained(t, f, headBefore, rec, remoteBefore)
+	})
+
+	t.Run("dirty-workspace", func(t *testing.T) {
+		f, deps, head := setup(t)
+		f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved forward\n"})
+		writeRepoFile(t, f.wp, "scratch.txt", "uncommitted\n")
+		headBefore := f.localHead()
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
+		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		assertRebaseRefused(t, out, ResultBlocked, ReasonRebaseWorkspaceDirty)
+		assertRefreshRetained(t, f, headBefore, rec, remoteBefore)
+	})
+
+	t.Run("reservation-outstanding-settles-conflicted-against-recorded-base", func(t *testing.T) {
+		// A still-conflicted owned attempt with an outstanding reservation settles
+		// against its RECORDED base even after the base advances — it is never
+		// refreshed over (spec §3: settle a persisted rewrite before a newer base).
+		f, deps, head, begin := beginSuccessiveConflicts(t, 0, nil,
+			map[string]string{"feature.txt": "conflicting base content\n"})
+		attempt := begin.Attempt
+		recorded, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		reserve := FinalizeResolverReserve(context.Background(), deps, f.repo.invocation, f.id, attempt)
+		if reserve.Disposition != ReserveReserved {
+			t.Fatalf("reserve = %q (reason %q), want reserved", reserve.Disposition, reserve.Reason)
+		}
+		// The base advances again under the conflicted attempt.
+		f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved during conflict\n"})
+		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		if out.Disposition != RebaseDispConflicted {
+			t.Fatalf("moved base under a conflicted attempt = %q (reason %q), want conflicted", out.Disposition, out.Reason)
+		}
+		if out.BaseHead != recorded.BaseHead {
+			t.Errorf("conflicted recovery reported base %q, want the recorded base %q (never the advanced base)", out.BaseHead, recorded.BaseHead)
+		}
+	})
+}
+
+// TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions covers
+// acceptance 3 (spec §3): a crash after the refreshed receipt persisted but before
+// Git started resumes BeginRebase against the recorded NEW target keeping the
+// recorded attempt; a lost response after a completed refresh does not rebase
+// again; and a further base advance triggers a second refresh with a fresh token.
+func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing.T) {
+	requireRealGit(t)
+
+	completedThenAdvance := func(t *testing.T) (*rebaseFixture, FinalizeDeps, string, string) {
+		f, deps, head, begin := beginSuccessiveConflicts(t, 0, nil,
+			map[string]string{"feature.txt": "conflicting base content\n"})
+		_, cont := reserveResolveContinue(t, f, deps, begin.Attempt, begin.UnmergedPaths, 1)
+		if cont.Disposition != RebaseDispRebased {
+			t.Fatalf("setup continue = %q (reason %q), want rebased", cont.Disposition, cont.Reason)
+		}
+		return f, deps, head, f.localHead()
+	}
+
+	t.Run("receipt-persisted-git-not-started-resumes-new-target", func(t *testing.T) {
+		f, deps, head, rewritten := completedThenAdvance(t)
+		recBefore, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		newBaseHead := f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved\n"})
+		// Hand-write the refreshed receipt the refresh WOULD write, with Git untouched.
+		crashed := recBefore
+		crashed.OrigHead = rewritten
+		crashed.BaseHead = newBaseHead
+		crashed.Attempt = "20260920T101010Z-refresh-crash"
+		crashed.GateDriveID, crashed.GateOwnerGeneration = "", ""
+		crashed.PublishCheckpointHead, crashed.PublishCheckpointBaseHead = "", ""
+		crashed.PublishCheckpointCommand, crashed.PublishCheckpointGate = "", ""
+		crashed.PublishCheckpointPRNumber, crashed.PublishCheckpointEvidence = "", ""
+		if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, crashed); err != nil {
+			t.Fatal(err)
+		}
+		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		if out.Disposition != RebaseDispRebased {
+			t.Fatalf("pre-start resume = %q (reason %q msg %q), want rebased", out.Disposition, out.Reason, out.Message)
+		}
+		if out.Attempt != crashed.Attempt {
+			t.Errorf("resume minted a new attempt %q; want the recorded %q", out.Attempt, crashed.Attempt)
+		}
+		if out.Gate == nil || out.Gate.Compose != gateComposeRan {
+			t.Fatalf("gate = %+v, want compose ran (no PR-evidence skip on recovery)", out.Gate)
+		}
+		if got := readRepoFile(t, f.wp, "feature.txt"); got != "reconciled content for cycle 1\n" {
+			t.Fatalf("resolution lost on resume: feature.txt = %q", got)
+		}
+	})
+
+	t.Run("response-loss-after-refresh-does-not-rebase-again", func(t *testing.T) {
+		f, deps, head, _ := completedThenAdvance(t)
+		f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved\n"})
+		first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		if first.Disposition != RebaseDispRebased {
+			t.Fatalf("first refresh = %q (reason %q), want rebased", first.Disposition, first.Reason)
+		}
+		refreshedHead := f.localHead()
+		recAfterFirst, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		// A lost response: the identical request is replayed. It must not rebase again.
+		second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
+			t.Fatalf("replay = %q/%q (reason %q), want applied/rebased", second.Result, second.Disposition, second.Reason)
+		}
+		if f.localHead() != refreshedHead {
+			t.Fatalf("the replay re-rebased: %q -> %q", refreshedHead, f.localHead())
+		}
+		recAfterSecond, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		if recAfterSecond.Attempt != recAfterFirst.Attempt {
+			t.Errorf("replay minted a new attempt %q; want the refreshed %q", recAfterSecond.Attempt, recAfterFirst.Attempt)
+		}
+	})
+
+	t.Run("another-advance-triggers-a-second-refresh", func(t *testing.T) {
+		f, deps, head, _ := completedThenAdvance(t)
+		gate := deps.Gate.(*fakeGate)
+		f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved once\n"})
+		first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		if first.Disposition != RebaseDispRebased {
+			t.Fatalf("first refresh = %q (reason %q), want rebased", first.Disposition, first.Reason)
+		}
+		firstAttempt := first.Attempt
+		callsAfterFirst := gate.calls
+		f.repo.writerAdvance(t, "main", map[string]string{"later2.txt": "base moved twice\n"})
+		second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
+			t.Fatalf("second refresh = %q/%q (reason %q), want applied/rebased", second.Result, second.Disposition, second.Reason)
+		}
+		if second.Gate == nil || second.Gate.Compose != gateComposeRan {
+			t.Fatalf("second refresh gate = %+v, want compose ran", second.Gate)
+		}
+		if second.Attempt == firstAttempt {
+			t.Errorf("the second refresh reused the first refresh's attempt token %q", second.Attempt)
+		}
+		if gate.calls <= callsAfterFirst {
+			t.Errorf("the second refresh did not re-run the suite: gate calls %d -> %d", callsAfterFirst, gate.calls)
+		}
+	})
 }

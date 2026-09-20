@@ -112,6 +112,7 @@ const (
 	ReasonRebaseReportPaths       = "report-path-not-unmerged" // a reported path is not a live unmerged path
 	ReasonRebaseNoConflict        = "no-conflict-to-continue"  // continue with no rebase in progress
 	ReasonRebaseAbortRestore      = "abort-restore-failed"     // abort did not restore the recorded orig head
+	ReasonRebaseRefreshContended  = "refresh-contended"        // the receipt changed while a base refresh was being admitted (change 0438)
 	// Resolver-budget continue refusals (change 0349). ReasonResolverBudgetExhausted
 	// (post-continuation exhaustion) and ReasonResolverBudgetUnavailable (legacy
 	// receipt) are reused from finalize_reserve.go.
@@ -905,42 +906,157 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	}
 
 	// Quiescent-completed region: a completed rewrite landed onto the recorded base.
-	// The moved-base refusal fires HERE (after the descends proof settled the
-	// conflicted and foreign states first, before checkpoint/compose). Task 3
-	// replaces this refusal with a forward refresh onto the advanced base.
-	if rec.BaseHead != string(baseHead) {
-		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseMovedBase,
-			"the effective base moved since the recorded attempt; retained, not adopted", id)
-	}
-	noop := string(localHead) == rec.OrigHead
-	// A completed-gate publish checkpoint (change 0408) may be reused only when
-	// its evidence and every recorded identity still match current reality.
-	if !noop && rec.GateDriveID == "" {
-		if cp, ok := publishCheckpointOf(rec); ok {
-			currentHead := strings.ToLower(string(localHead))
-			resolvedCommand, resolvedGatePolicy := resolvedFinalizeGateConfig(ctx, deps, repoDir)
-			verified := evidence.Verify([]byte(cp.Evidence), currentHead) == evidence.VerdictVerified
-			if checkpointDecision(cp, currentHead, string(baseHead), resolvedCommand, resolvedGatePolicy, pr.Number, verified) {
-				return newRebaseResult(op, ResultApplied, FinalizeRebaseResult{
-					ID: id, Disposition: RebaseDispRebased, Head: string(localHead), OrigHead: rec.OrigHead,
-					Base: rc.base.Branch, BaseHead: rec.BaseHead, Attempt: rec.Attempt,
-					Gate: &GateReport{Compose: gateComposeSkipped, Permit: currentHead, Evidence: cp.Evidence},
-				})
-			}
-			rec.PublishCheckpointHead, rec.PublishCheckpointBaseHead = "", ""
-			rec.PublishCheckpointCommand, rec.PublishCheckpointGate = "", ""
-			rec.PublishCheckpointPRNumber, rec.PublishCheckpointEvidence = "", ""
-			copyResolverBudget(&rec, resolverBudgetForWrite(ctx, deps, rc.metaDir, rec))
-			if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, rec); err != nil {
-				return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, err.Error(), id)
+	// Classify on whether the effective base moved since the recorded attempt (spec
+	// §1). An unchanged base keeps the existing checkpoint-reuse + compose flow; a
+	// moved base under a completed, quiescent, owned, unpublished rewrite forward-
+	// refreshes onto the advanced base (change 0438).
+	baseMoved := rec.BaseHead != string(baseHead)
+	if !baseMoved {
+		noop := string(localHead) == rec.OrigHead
+		// A completed-gate publish checkpoint (change 0408) may be reused only when
+		// its evidence and every recorded identity still match current reality.
+		if !noop && rec.GateDriveID == "" {
+			if cp, ok := publishCheckpointOf(rec); ok {
+				currentHead := strings.ToLower(string(localHead))
+				resolvedCommand, resolvedGatePolicy := resolvedFinalizeGateConfig(ctx, deps, repoDir)
+				verified := evidence.Verify([]byte(cp.Evidence), currentHead) == evidence.VerdictVerified
+				if checkpointDecision(cp, currentHead, string(baseHead), resolvedCommand, resolvedGatePolicy, pr.Number, verified) {
+					return newRebaseResult(op, ResultApplied, FinalizeRebaseResult{
+						ID: id, Disposition: RebaseDispRebased, Head: string(localHead), OrigHead: rec.OrigHead,
+						Base: rc.base.Branch, BaseHead: rec.BaseHead, Attempt: rec.Attempt,
+						Gate: &GateReport{Compose: gateComposeSkipped, Permit: currentHead, Evidence: cp.Evidence},
+					})
+				}
+				rec.PublishCheckpointHead, rec.PublishCheckpointBaseHead = "", ""
+				rec.PublishCheckpointCommand, rec.PublishCheckpointGate = "", ""
+				rec.PublishCheckpointPRNumber, rec.PublishCheckpointEvidence = "", ""
+				copyResolverBudget(&rec, resolverBudgetForWrite(ctx, deps, rc.metaDir, rec))
+				if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, rec); err != nil {
+					return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, err.Error(), id)
+				}
 			}
 		}
+		// The receipt's pair may be set (a prior WAITING to resume) or empty (a crash
+		// before WAITING, or a cleared terminal); composeLocalGate derives the
+		// continuation from rec, so both are correct as-is. Recovery never bypasses the
+		// suite on PR-body evidence (spec §4): allowEvidenceSkip is false.
+		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, localHead, noop, false)
 	}
-	// The receipt's pair may be set (a prior WAITING to resume) or empty (a crash
-	// before WAITING, or a cleared terminal); composeLocalGate derives the
-	// continuation from rec, so both are correct as-is. Recovery never bypasses the
-	// suite on PR-body evidence (spec §4): allowEvidenceSkip is false.
-	return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, localHead, noop, false)
+
+	// The base advanced under a completed, quiescent, owned, unpublished rewrite:
+	// classify for forward refresh (spec §1). A live gate continuation settles FIRST
+	// through the existing machinery — the moved base does not stop that work, and
+	// its result is never permission to publish against the new base (the refresh
+	// below clears the old checkpoint and mints a new attempt).
+	if rec.GateDriveID != "" {
+		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, localHead, string(localHead) == rec.OrigHead, false)
+	}
+	return refreshOwnedRewrite(ctx, deps, repoDir, rc, pr, rec, baseHead, remoteHead, ownedPrefix)
+}
+
+// refreshOwnedRewrite advances a completed, clean, quiescent, unpublished owned
+// rewrite onto the newly observed effective base head (change 0438). It preserves
+// prior resolutions (the rebase starts from the CURRENT head), the exact remote
+// publication lease, and the consumed resolver budget; it mints a fresh attempt
+// token and clears the gate pair and the superseded publish checkpoint, so nothing
+// recorded against the old base can authorize publication of the refreshed
+// rewrite. Every refusal retains local work.
+func refreshOwnedRewrite(ctx context.Context, deps FinalizeDeps, repoDir string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, newBaseHead, remoteHead gitcli.ObjectID, ownedPrefix string) FinalizeRebaseResult {
+	op := OperationFinalizeRebase
+	id := int(rc.change.ID())
+	localHead := rc.insp.HeadCommit
+
+	// Unsettled resolver work blocks a refresh: settle it against the recorded base
+	// first (spec §1). Quiescent Git with an outstanding reservation or a started
+	// continuation is ambiguous — retained, never refreshed over.
+	if rec.ResolverReservationToken != "" || rec.ResolverContinuationStarted != "" {
+		return withResolverCounts(rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseMovedBase,
+			"the effective base moved but resolver work on the recorded attempt is unsettled; settle or abort it before the rewrite can be refreshed", id), rec)
+	}
+	// The clean, registered feature workspace — a dirty tree refuses exactly like a
+	// fresh begin.
+	switch rc.insp.Kind {
+	case workspace.StateReady:
+	case workspace.StateDirty:
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseWorkspaceDirty,
+			"the feature workspace has uncommitted changes; a base refresh requires a clean tree", id)
+	default:
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseWorkspaceNotReady,
+			fmt.Sprintf("the feature workspace is %q, not the clean registered feature state", rc.insp.Kind), id)
+	}
+	// The publication lease must be intact: this recovery is for an UNPUBLISHED
+	// rewrite, so the remote feature head must still be the receipt's recorded lease
+	// value (spec §1).
+	if string(remoteHead) != rec.OrigRemoteHead {
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseRemoteHeadMismatch,
+			"the remote feature head is not the receipt's recorded publication lease; the rewrite may have been published or the remote moved — retained, not refreshed", id)
+	}
+	// Only forward base movement is in scope: the new base must descend the recorded
+	// one. A rewritten/divergent base keeps the moved-base refusal.
+	fastForward, err := deps.Planning.Client.IsAncestor(ctx, rc.repo, gitcli.ObjectID(rec.BaseHead), newBaseHead)
+	if err != nil {
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, err.Error(), id)
+	}
+	if !fastForward {
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseMovedBase,
+			"the effective base was rewritten (it does not descend the recorded base); retained, not adopted", id)
+	}
+	// Carried descendants must be preserved at the refresh's starting head BEFORE any
+	// receipt or Git mutation; composeLocalGate re-proves the resulting head.
+	if r := requireCarriedPreserved(ctx, deps, repoDir, op, rc, localHead); r != nil {
+		return *r
+	}
+
+	release, lerr := deps.Workspace.AcquireOperationLock(rc.metaDir)
+	if lerr != nil {
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe,
+			"could not acquire the workspace operation lock: "+lerr.Error(), id)
+	}
+	released := false
+	releaseLock := func() {
+		if !released {
+			released = true
+			release()
+		}
+	}
+	defer releaseLock()
+
+	// Decide and act on the same copy: reload under the lock and require the receipt
+	// this classification observed. A concurrent refresh/continue wins; the loser
+	// re-reads (spec §3: one owned rewrite; the loser reloads the winner's receipt).
+	disk, present, rerr := deps.Workspace.ReadRebaseReceipt(ctx, rc.metaDir)
+	if rerr != nil {
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptRead, rerr.Error(), id)
+	}
+	if !present || disk != rec {
+		return rebaseRefusal(op, ResultContended, RebaseDispContended, ReasonRebaseRefreshContended,
+			"the owned rebase receipt changed while the refresh was being admitted; re-read context finalize", id)
+	}
+
+	refreshed := disk
+	refreshed.OrigHead = string(localHead)
+	refreshed.BaseHead = string(newBaseHead)
+	refreshed.Attempt = newRebaseAttempt(deps, newBaseHead)
+	refreshed.GateDriveID, refreshed.GateOwnerGeneration = "", ""
+	refreshed.PublishCheckpointHead, refreshed.PublishCheckpointBaseHead = "", ""
+	refreshed.PublishCheckpointCommand, refreshed.PublishCheckpointGate = "", ""
+	refreshed.PublishCheckpointPRNumber, refreshed.PublishCheckpointEvidence = "", ""
+	refreshed.CreatedUTC = deps.Planning.Clock.Now().UTC().Format("2006-01-02T15:04:05Z07:00")
+	if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, refreshed); werr != nil {
+		return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseReceiptWrite, werr.Error(), id)
+	}
+
+	// The refreshed intent is durable; the Git rewrite may run. An interruption from
+	// here is recovered by the pre-start resume (Task 2) or the ordinary conflicted/
+	// completed recovery against the refreshed receipt.
+	status, berr := deps.Planning.Client.BeginRebase(ctx, rc.wsDir, localHead, newBaseHead, ownedPrefix)
+	if berr != nil {
+		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, berr.Error(), id)
+	}
+	releaseLock()
+	// Pass refreshed (not rec): the result's OrigHead/BaseHead/Attempt and resolver
+	// counts must describe the refreshed rewrite, and a base refresh always retests.
+	return mapBegunRebase(ctx, deps, repoDir, op, rc, pr, refreshed, status, rebaseMapOptions{forceRetest: true})
 }
 
 // ---------------------------------------------------------------------------
@@ -1710,7 +1826,10 @@ func ownedRefPrefixFor(id int) string {
 }
 
 // newRebaseAttempt derives an opaque, non-empty attempt token from the injected
-// clock and the base head, distinguishing one rewrite attempt from another.
+// clock and the base head, distinguishing one rewrite attempt from another. A
+// base refresh (change 0438) targets a DIFFERENT base head than the recorded
+// attempt, so the token always differs from the superseded one even within a
+// single clock second — the base-head suffix is the discriminator.
 func newRebaseAttempt(deps FinalizeDeps, baseHead gitcli.ObjectID) string {
 	stamp := deps.Planning.Clock.Now().UTC().Format("20060102T150405Z")
 	short := string(baseHead)
