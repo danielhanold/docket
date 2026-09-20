@@ -2,7 +2,7 @@
 id: 418
 slug: 'surface-every-unmet-repository-health-postcondition'
 title: 'Surface every unmet repository health postcondition'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-10'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/surface-every-unmet-repository-health-postcondition'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-20T20:04:41Z'
 ---
 
 ## Artifacts
