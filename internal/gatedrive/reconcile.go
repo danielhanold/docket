@@ -53,6 +53,27 @@ type EpochLaunchReport struct {
 // An empty worktreeRoot or epochID has no epoch-linked worktree launches to
 // reconcile (a keyless/standalone run), so it accounts vacuously.
 func (d *Driver) ReconcileEpochLaunches(worktreeRoot, epochID string) (EpochLaunchReport, error) {
+	return d.accountEpochLaunches(worktreeRoot, epochID, false)
+}
+
+// ObserveEpochLaunches is the SUCCESS-closeout view of one epoch's launch
+// obligations (change 0441): the SAME walk, epoch linkage, and claimant probe as
+// ReconcileEpochLaunches, but observation-only — it never stops a process, never
+// settles a never-launched reservation terminal, and never mutates a record. Both
+// exported methods share one inventory (accountEpochLaunches) rather than copying a
+// second walk. A pending never-launched ticket stays pending (launch-pending) until
+// the completing launch-gate refusal settles it terminal; a replay then accounts.
+func (d *Driver) ObserveEpochLaunches(worktreeRoot, epochID string) (EpochLaunchReport, error) {
+	return d.accountEpochLaunches(worktreeRoot, epochID, true)
+}
+
+// accountEpochLaunches is the shared body behind ReconcileEpochLaunches (observeOnly
+// false: the cancellation mode that stops identified runs and settles proven
+// never-launched reservations terminal) and ObserveEpochLaunches (observeOnly true:
+// the success-closeout mode that stops nothing, settles nothing, and mutates no
+// record). The walk, epoch linkage, and per-drive claimant probe are identical; only
+// the terminal per-drive disposition differs, threaded through reconcileEpochDrive.
+func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly bool) (EpochLaunchReport, error) {
 	report := EpochLaunchReport{Accounted: true}
 	if worktreeRoot == "" || epochID == "" {
 		return report, nil
@@ -107,7 +128,7 @@ func (d *Driver) ReconcileEpochLaunches(worktreeRoot, epochID string) (EpochLaun
 		if linked != epochID {
 			continue // a clean resolution to another epoch (or epoch-less): not this epoch's obligation
 		}
-		settled, finding := d.reconcileEpochDrive(id, rec)
+		settled, finding := d.reconcileEpochDrive(id, rec, observeOnly)
 		if finding != "" {
 			report.Findings = append(report.Findings, finding)
 		}
@@ -118,14 +139,17 @@ func (d *Driver) ReconcileEpochLaunches(worktreeRoot, epochID string) (EpochLaun
 	return report, nil
 }
 
-// reconcileEpochDrive reconciles one epoch-linked drive's launch obligation and
+// reconcileEpochDrive accounts one epoch-linked drive's launch obligation and
 // reports whether it is settled plus a bounded, credential-free finding (drive id +
-// disposition token). It launches nothing and never mutates the drive verdict. A
-// terminal drive is already accounted by the slot/participant teardown. A
-// nonterminal drive is probed under its claimant flock: a busy claim is pending
-// launch/attach work (never waited on); a free claim lets it re-read the record and
-// resolve the exact reservation.
-func (d *Driver) reconcileEpochDrive(id string, rec driveRecord) (settled bool, finding string) {
+// disposition token). It launches nothing and never mutates the drive verdict when
+// observeOnly is set. A terminal drive is already accounted by the slot/participant
+// teardown. A nonterminal drive is probed under its claimant flock: a busy claim is
+// pending launch/attach work (never waited on); a free claim lets it re-read the
+// record and resolve the exact reservation. observeOnly selects the per-drive
+// disposition for an identified/attached run and a proven never-launched reservation:
+// cancellation stops / settles them, closeout only observes (never-launched stays
+// pending as launch-pending, an attached run is observed, not stopped).
+func (d *Driver) reconcileEpochDrive(id string, rec driveRecord, observeOnly bool) (settled bool, finding string) {
 	if isTerminalOutcome(rec.LastOutcome) {
 		return true, "" // teardown accounted by the slot/participant reconciliation
 	}
@@ -166,35 +190,70 @@ func (d *Driver) reconcileEpochDrive(id string, rec driveRecord) (settled bool, 
 		if cur.RelaunchToken == "" {
 			return false, "resolution-unresolved:" + id
 		}
-		return d.reconcileReservation(id, cur.RunRoot, cur.RelaunchToken, cur.OwnerGeneration)
+		return d.reconcileReservation(id, cur.RunRoot, cur.RelaunchToken, cur.OwnerGeneration, observeOnly)
 	}
 
 	// An attached run the DRIVE record names directly (the original, or a relaunch's
-	// replacement the worktree slot still records the predecessor for): stop it through
-	// proc and account only on proven teardown.
+	// replacement the worktree slot still records the predecessor for): cancellation
+	// stops it and accounts only on proven teardown; closeout only OBSERVES it.
+	if observeOnly {
+		return d.observeIdentifiedRun(id, cur.RawRunDir)
+	}
 	return d.stopIdentifiedRun(id, cur.RawRunDir)
 }
 
 // reconcileReservation resolves a reserved (but unattached) launch through the
-// process seam and reports whether the obligation is settled. A proven never-launched
-// is settled by settleNeverLaunchedCancelled (which also forecloses a later recovery
-// launch). An identified run is stopped through proc. An unresolved verdict or a
-// resolve error preserves unresolved evidence: pending. ownerGen is the drive's own
-// owner generation (read from the record under the held claim) — the CAS credential
-// settleNeverLaunchedCancelled needs; it is a locator, not authority.
-func (d *Driver) reconcileReservation(id, runRoot, token, ownerGen string) (bool, string) {
+// process seam and reports whether the obligation is settled. In cancellation mode a
+// proven never-launched is settled by settleNeverLaunchedCancelled (which also
+// forecloses a later recovery launch) and an identified run is stopped through proc;
+// in observeOnly mode a never-launched stays pending (launch-pending — settled later
+// by the completing launch-gate refusal, never here) and an identified run is only
+// observed. An unresolved verdict or a resolve error preserves unresolved evidence:
+// pending. ownerGen is the drive's own owner generation (read from the record under
+// the held claim) — the CAS credential settleNeverLaunchedCancelled needs; it is a
+// locator, not authority.
+func (d *Driver) reconcileReservation(id, runRoot, token, ownerGen string, observeOnly bool) (bool, string) {
 	res, rerr := d.proc.ResolveReservation(runRoot, token)
 	if rerr != nil || res == nil {
 		return false, "resolution-unresolved:" + id
 	}
 	switch res.Disposition {
 	case "never-launched":
+		if observeOnly {
+			// Closeout must not foreclose the ticket terminal: it stays pending until
+			// the completing launch-gate refusal settles it, and a replay accounts.
+			return false, "launch-pending:" + id
+		}
 		return d.settleNeverLaunchedCancelled(id, ownerGen)
 	case "identified":
+		if observeOnly {
+			return d.observeIdentifiedRun(id, res.RunDir)
+		}
 		return d.stopIdentifiedRun(id, res.RunDir)
 	default: // "unresolved" or any unexpected disposition: preserve evidence
 		return false, "resolution-unresolved:" + id
 	}
+}
+
+// observeIdentifiedRun is the observation-only counterpart of stopIdentifiedRun: it
+// reads one identified run's state through the process seam and reports whether
+// teardown is PROVEN, using the same proof rule (stopProvesTeardown) the driver's own
+// stop legs use — but it issues NO stop and mutates no record. An empty run dir or an
+// observation error preserves unresolved evidence (resolution-unresolved); a live or
+// signalled run stays pending (run-live); a proven-terminal run accounts the
+// obligation with an informational run-terminal finding.
+func (d *Driver) observeIdentifiedRun(id, runDir string) (bool, string) {
+	if runDir == "" {
+		return false, "resolution-unresolved:" + id
+	}
+	observation, err := d.proc.Observe(runDir)
+	if err != nil || observation == nil {
+		return false, "resolution-unresolved:" + id
+	}
+	if stopProvesTeardown(observation.State) {
+		return true, "run-terminal:" + id
+	}
+	return false, "run-live:" + id
 }
 
 // settleNeverLaunchedCancelled settles a reserved relaunch that provably never ran,

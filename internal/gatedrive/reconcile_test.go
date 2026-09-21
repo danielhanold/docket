@@ -562,6 +562,261 @@ func TestReconcileReplayConverges(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Observation-only launch accounting (change 0441 Task 4). ObserveEpochLaunches
+// is the SUCCESS-closeout view of one epoch's launch obligations: the same walk,
+// epoch linkage, and claimant probe as ReconcileEpochLaunches, but it NEVER stops
+// a process, NEVER settles a never-launched reservation terminal, and NEVER
+// mutates a record. Shared implementation, one inventory.
+// ---------------------------------------------------------------------------
+
+// TestObserveEpochLaunchesNeverStopsOrSettles proves an epoch-linked NONTERMINAL
+// drive with an attached run the fake proc reports RUNNING is reported pending
+// (run-live) in observe mode, that NO Stop is issued, and that the drive record on
+// disk is byte-identical afterward (observation mutates nothing).
+func TestObserveEpochLaunchesNeverStopsOrSettles(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	proc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			return obs(process.StateRunning, runDir), nil
+		},
+	}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		r.RawRunDir = "/runs/live"
+		r.RawOwnership = "live"
+	})
+	recPath := filepath.Join(store.root, id, recordFileName)
+	before, err := os.ReadFile(recPath)
+	if err != nil {
+		t.Fatalf("read record before: %v", err)
+	}
+
+	report, err := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+	if err != nil {
+		t.Fatalf("ObserveEpochLaunches: %v", err)
+	}
+	if report.Accounted {
+		t.Fatalf("a live attached run must NOT be accounted in observe mode, findings=%v", report.Findings)
+	}
+	if !reconcileFindingPresent(report.Findings, "run-live:"+id) {
+		t.Fatalf("findings = %v, want run-live:%s", report.Findings, id)
+	}
+	if proc.stopN != 0 {
+		t.Fatalf("observe mode must never stop a process, proc.Stop called %d times", proc.stopN)
+	}
+	after, err := os.ReadFile(recPath)
+	if err != nil {
+		t.Fatalf("read record after: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Fatalf("observe mode must not mutate the drive record:\nbefore=%s\nafter=%s", before, after)
+	}
+}
+
+// TestObserveEpochLaunchesAccountsProvenTerminalRun proves an attached run the fake
+// proc proves STOPPED is accounted (run-terminal) in observe mode with no Stop call.
+func TestObserveEpochLaunchesAccountsProvenTerminalRun(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	proc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			return obs(process.StateStopped, runDir), nil
+		},
+	}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		r.RawRunDir = "/runs/gone"
+		r.RawOwnership = "gone"
+	})
+
+	report, err := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+	if err != nil {
+		t.Fatalf("ObserveEpochLaunches: %v", err)
+	}
+	if !report.Accounted {
+		t.Fatalf("a proven-terminal run must be accounted in observe mode, findings=%v", report.Findings)
+	}
+	if !reconcileFindingPresent(report.Findings, "run-terminal:"+id) {
+		t.Fatalf("findings = %v, want run-terminal:%s", report.Findings, id)
+	}
+	if proc.stopN != 0 {
+		t.Fatalf("observe mode must never stop a process, proc.Stop called %d times", proc.stopN)
+	}
+}
+
+// TestObserveEpochLaunchesKeepsNeverLaunchedPending proves observe mode reports a
+// reserved-never-launched drive AND a bare (unlaunched, unreserved) drive as pending
+// (launch-pending) and — unlike reconcile — NEVER settles the reservation terminal:
+// the record's outcome is unchanged (the completing launch-gate refusal settles it
+// later, and a replay then accounts).
+func TestObserveEpochLaunchesKeepsNeverLaunchedPending(t *testing.T) {
+	t.Run("reserved-never-launched", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		proc := &fakeProc{
+			resolve: func(root, token string) (*process.ReservationResolution, error) {
+				return &process.ReservationResolution{Disposition: "never-launched"}, nil
+			},
+		}
+		d, store := newTestDriver(t, clk, proc, stableGit())
+		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+			r.RelaunchReserved = true
+			r.RelaunchToken = "aaaaaaaaaaaaaaaa"
+		})
+		before, err := store.Load(id)
+		if err != nil {
+			t.Fatalf("Load before: %v", err)
+		}
+
+		report, err := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+		if err != nil {
+			t.Fatalf("ObserveEpochLaunches: %v", err)
+		}
+		if report.Accounted {
+			t.Fatalf("observe must not account a never-launched reservation, findings=%v", report.Findings)
+		}
+		if !reconcileFindingPresent(report.Findings, "launch-pending:"+id) {
+			t.Fatalf("findings = %v, want launch-pending:%s", report.Findings, id)
+		}
+		after, err := store.Load(id)
+		if err != nil {
+			t.Fatalf("Load after: %v", err)
+		}
+		if after.LastOutcome != before.LastOutcome || isTerminalOutcome(after.LastOutcome) {
+			t.Fatalf("observe must never settle the reservation terminal: before=%v after=%v", before.LastOutcome, after.LastOutcome)
+		}
+	})
+
+	t.Run("bare-reservation", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		proc := &fakeProc{}
+		d, store := newTestDriver(t, clk, proc, stableGit())
+		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+			r.RawRunDir = ""
+			r.RawOwnership = ""
+		})
+		before, err := store.Load(id)
+		if err != nil {
+			t.Fatalf("Load before: %v", err)
+		}
+
+		report, err := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+		if err != nil {
+			t.Fatalf("ObserveEpochLaunches: %v", err)
+		}
+		if report.Accounted {
+			t.Fatalf("observe must not account a bare never-launched drive, findings=%v", report.Findings)
+		}
+		if !reconcileFindingPresent(report.Findings, "launch-pending:"+id) {
+			t.Fatalf("findings = %v, want launch-pending:%s", report.Findings, id)
+		}
+		after, err := store.Load(id)
+		if err != nil {
+			t.Fatalf("Load after: %v", err)
+		}
+		if after.LastOutcome != before.LastOutcome {
+			t.Fatalf("observe must not mutate the record: before=%v after=%v", before.LastOutcome, after.LastOutcome)
+		}
+	})
+}
+
+// TestObserveEpochLaunchesBusyClaimIsPending proves a held claimant flock is reported
+// claim-busy and Accounted=false in observe mode, and that observe probes nonblocking
+// (returns without waiting on the claim) and stops nothing.
+func TestObserveEpochLaunchesBusyClaimIsPending(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	proc := &fakeProc{}
+	d, store := newTestDriver(t, clk, proc, stableGit())
+	id, _ := seedScopedEpochDrive(t, store, "e1", nil)
+
+	claim, busy, err := store.tryRelaunchClaim(id)
+	if err != nil || busy {
+		t.Fatalf("tryRelaunchClaim = (busy=%v, err=%v), want a free claim", busy, err)
+	}
+	defer claim.close()
+
+	done := make(chan EpochLaunchReport, 1)
+	go func() {
+		r, _ := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+		done <- r
+	}()
+	select {
+	case report := <-done:
+		if report.Accounted {
+			t.Fatalf("a busy claim must NOT be accounted, findings=%v", report.Findings)
+		}
+		if !reconcileFindingPresent(report.Findings, "claim-busy:"+id) {
+			t.Fatalf("findings = %v, want claim-busy:%s", report.Findings, id)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("observe blocked on a busy claim; it must probe nonblocking and return promptly")
+	}
+	if proc.stopN != 0 {
+		t.Fatalf("observe mode must never stop, proc.Stop called %d times", proc.stopN)
+	}
+}
+
+// TestReconcileEpochLaunchesBehaviorUnchanged is the regression pin: after factoring
+// the shared body, the reconcile (cancel) mode still STOPS an identified run and
+// still SETTLES a proven never-launched reservation terminal HALTED "run-cancelled".
+func TestReconcileEpochLaunchesBehaviorUnchanged(t *testing.T) {
+	t.Run("identified-run-stopped", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		var stopped []string
+		proc := &fakeProc{
+			stop: func(runDir, reason string) (*process.StopOutcome, error) {
+				stopped = append(stopped, runDir)
+				return &process.StopOutcome{State: process.StateStopped, RunDir: runDir, Performed: true}, nil
+			},
+		}
+		d, store := newTestDriver(t, clk, proc, stableGit())
+		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+			r.RawRunDir = "/runs/replacement"
+			r.RawOwnership = "replacement"
+			r.RelaunchCount = 1
+		})
+
+		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		if err != nil {
+			t.Fatalf("ReconcileEpochLaunches: %v", err)
+		}
+		if !report.Accounted || !reconcileFindingPresent(report.Findings, "replacement-stopped:"+id) {
+			t.Fatalf("reconcile must still stop and account an identified run, findings=%v", report.Findings)
+		}
+		if len(stopped) != 1 || stopped[0] != "/runs/replacement" {
+			t.Fatalf("reconcile stopped %v, want exactly [/runs/replacement]", stopped)
+		}
+	})
+
+	t.Run("never-launched-settles-terminal", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		proc := &fakeProc{
+			resolve: func(root, token string) (*process.ReservationResolution, error) {
+				return &process.ReservationResolution{Disposition: "never-launched"}, nil
+			},
+		}
+		d, store := newTestDriver(t, clk, proc, stableGit())
+		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+			r.RelaunchReserved = true
+			r.RelaunchToken = "aaaaaaaaaaaaaaaa"
+		})
+
+		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		if err != nil {
+			t.Fatalf("ReconcileEpochLaunches: %v", err)
+		}
+		if !report.Accounted {
+			t.Fatalf("reconcile must account a proven never-launched reservation, findings=%v", report.Findings)
+		}
+		after, err := store.Load(id)
+		if err != nil {
+			t.Fatalf("Load after: %v", err)
+		}
+		if after.LastOutcome != HALTED || after.LastCause != "run-cancelled" {
+			t.Fatalf("reconcile must settle never-launched terminal HALTED run-cancelled, got %v/%q", after.LastOutcome, after.LastCause)
+		}
+	})
+}
+
 // TestReconcileReleasedSlotWithPendingDriveNotAccounted proves a released worktree
 // slot alone never settles a launch obligation: a scopeless drive whose slot was
 // released but that never launched is still reported pending.
