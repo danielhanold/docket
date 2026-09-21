@@ -113,6 +113,12 @@ type skillBudget struct {
 // slack — the ceilings are pinned at the exact new counts, so the ratchet still
 // reddens on any further regrowth.
 //
+// Change 0440 re-baselined the same surfaces once more for the reader-first
+// results shape (required Human action statement; Human actions and testing;
+// Known issues and follow-ups): results-template.md and the Step 6.5 /
+// convention prose that names the sections. Authored contract documentation,
+// not slack — ceilings stay pinned at the exact new counts.
+//
 // Change 0349's reserve-before-dispatch prose follows the 0410 baseline. Together
 // they bring docket-finalize-change/SKILL.md to 226 lines and 5179 words, so its
 // rounded ceilings remain a durable ratchet rather than silently dropping either
@@ -175,7 +181,7 @@ var skillBudgets = []skillBudget{
 	{"docket-implement-next/SKILL.md", 210, 7547},                // 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376; 0375: +gate-epoch resume pointer (word ceiling 7530 -> 7547)
 	{"docket-implement-next/references/edge-paths.md", 93, 1261}, // 0410: +resume/recovery + required-results reconciliation; 0375: +gate-epoch resume refusals (78/1091 -> 93/1261)
 	{"docket-implement-next/references/fix-loop.md", 190, 1958},  // 0410: +findings-to-results checkpoint linkage (see note above)
-	{"docket-implement-next/results-template.md", 51, 257},       // 0410: canonical five-section required template (see note above)
+	{"docket-implement-next/results-template.md", 64, 446},       // 0440: reader-first template — action statement + merged Known issues (see note above)
 	{"docket-review/SKILL.md", 110, 913},                         // 0410: +findings-return capture contract (see note above)
 	{"docket-new-change/SKILL.md", 61, 1700},
 	{"docket-new-change/change-template.md", 51, 250},
