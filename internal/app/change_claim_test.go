@@ -2,11 +2,14 @@ package app
 
 import (
 	"context"
+	"errors"
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"strings"
 	"testing"
+	"time"
 )
 
 // claimableChange renders a proposed, build-ready change: the canonical proposed
@@ -440,5 +443,73 @@ func TestClaimTerminalGateRefused(t *testing.T) {
 	}
 	if len(engine.calls) != 0 {
 		t.Errorf("engine called on a terminal gate context, want 0")
+	}
+}
+
+// claimEarlyErrOp is a minimal valid-keyed semantic operation for driving the
+// real engine's call-shape validation; Execute fails on the malformed
+// expectation before Plan can ever run.
+type claimEarlyErrOp struct{}
+
+func (claimEarlyErrOp) Key() transaction.OperationKey { return "change.claim" }
+
+func (claimEarlyErrOp) Plan(context.Context, transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
+	return transaction.MutationPlan{}, transaction.OperationResult{}, errors.New("unreachable: call-shape validation fails first")
+}
+
+// claimEngineClock pins the engine's clock; the validation path never reads it.
+type claimEngineClock struct{}
+
+func (claimEngineClock) Now() time.Time { return time.Unix(1758400000, 0).UTC() }
+
+// TestClaimResultRealEngineMalformedVersion is change 0350's end-to-end
+// regression: a REAL transaction.Engine given a malformed (shortened)
+// expected-version object id returns its base result — empty disposition —
+// with a typed *Failure from StageValidateRequest, and claimResultFromOutcome
+// must surface that as invalid-input with a populated failure diagnosis, not
+// a bare internal-error.
+func TestClaimResultRealEngineMalformedVersion(t *testing.T) {
+	client, err := gitcli.NewClient()
+	if err != nil {
+		t.Fatalf("gitcli.NewClient: %v", err)
+	}
+	eng, err := transaction.NewEngine(client, claimEngineClock{})
+	if err != nil {
+		t.Fatalf("transaction.NewEngine: %v", err)
+	}
+	res, execErr := eng.Execute(context.Background(), transaction.Request{
+		TargetRef: "refs/heads/docket",
+		Expected: []transaction.EntityExpectation{{
+			Path: "docs/changes/active/0350-surface.md",
+			// Shortened object id — the confirmed early-validation trigger
+			// (a full-length well-formed wrong id follows the contended
+			// path instead; see the change file's "## Why").
+			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: "abc123"},
+		}},
+		Operation: claimEarlyErrOp{},
+		// Loader deliberately nil: expectations are validated before the
+		// loader, so Execute must return before touching it or any git state.
+	})
+	if res.Disposition != "" {
+		t.Fatalf("Disposition = %q, want empty (early validation return)", res.Disposition)
+	}
+	if execErr == nil {
+		t.Fatal("Execute error = nil, want a typed *Failure")
+	}
+	out := claimResultFromOutcome(OperationChangeClaim, res, execErr)
+	if out.Result != ResultInvalidInput {
+		t.Fatalf("Result = %q, want %q", out.Result, ResultInvalidInput)
+	}
+	if out.Failure == nil {
+		t.Fatal("Failure = nil, want the typed diagnosis")
+	}
+	if out.Failure.Stage != string(transaction.StageValidateRequest) {
+		t.Errorf("Failure.Stage = %q, want %q", out.Failure.Stage, transaction.StageValidateRequest)
+	}
+	if out.Failure.Kind != string(transaction.KindInvalidInput) {
+		t.Errorf("Failure.Kind = %q, want %q", out.Failure.Kind, transaction.KindInvalidInput)
+	}
+	if !strings.Contains(out.Failure.Detail, "invalid expectations") {
+		t.Errorf("Failure.Detail = %q, want it to name the invalid expectations", out.Failure.Detail)
 	}
 }
