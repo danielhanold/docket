@@ -453,3 +453,82 @@ func TestCompleteSuccessfulRunForeignSuccessorUntouched(t *testing.T) {
 		t.Fatalf("successor slot state = %q, want reserved (untouched)", st)
 	}
 }
+
+// TestStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout is AC1/AC2's
+// end-to-end integration pin: a standalone finalize gate's worktree admission is
+// REFUSED before the successful closeout and ADMITTED after it, at the exact
+// admission shape the finalize path composes (GateLaunch reserves via the store's
+// standalone entrypoint ReserveRawWorktreeExecution). Before closeout the released
+// but still epoch-owned slot presents the finalize gate's empty epoch to the
+// reserveWorktreeExecution "RunEpochID != rec.RunEpochID" fence and is refused
+// ErrStaleRunEpoch (omission cannot detach a workflow-owned worktree). After
+// completeSuccessfulRun retires the slot the same epoch-less reservation admits, and
+// a following admitWorkflowMutation on the worktree is unfenced (a usable done
+// callback) — proving later workflow mutations on that worktree are not trapped by
+// the retired epoch.
+func TestStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout(t *testing.T) {
+	fx := newCompletionFixture(t)
+
+	// BEFORE closeout: the standalone finalize gate's admission shape presents an
+	// empty epoch to a slot the run epoch still owns (released, between drives) and is
+	// refused stale-run-epoch.
+	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); func() bool {
+		oe, ok := gatedrive.AsOwnershipError(err)
+		return !ok || oe.Kind != gatedrive.ErrStaleRunEpoch
+	}() {
+		t.Fatalf("before closeout: raw reserve must refuse stale-run-epoch, got %v", err)
+	}
+
+	// Close out the verified successful run.
+	if ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key); !ok {
+		t.Fatalf("closeout ok=false reason=%q findings=%v", reason, findings)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCompleted {
+		t.Fatalf("epoch state = %q, want completed", st)
+	}
+
+	// AFTER closeout: the same epoch-less reservation now admits (the slot was
+	// detached from its retired epoch); release it back so the worktree is idle.
+	token, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
+	if err != nil {
+		t.Fatalf("after closeout: raw reserve must admit, got %v", err)
+	}
+	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, token); err != nil {
+		t.Fatalf("release standalone reservation: %v", err)
+	}
+
+	// A subsequent workflow mutation on the worktree is unfenced: the retired epoch no
+	// longer owns it, so admitWorkflowMutation returns a usable done callback.
+	done, err := admitWorkflowMutation(fx.worktree, "pr.publish")
+	if err != nil || done == nil {
+		t.Fatalf("admitWorkflowMutation after closeout: done=%v err=%v, want a usable callback", done, err)
+	}
+	done(mutationStatusCompleted)
+}
+
+// TestOrdinaryReleaseStillRetainsEpochBetweenDrives is AC8's ordinary-release fence
+// probe: ReleaseWorktreeExecution on an epoch-owned slot leaves RunEpochID intact, so
+// a foreign/epoch-less reserve BETWEEN drives is still refused ErrStaleRunEpoch. Only
+// the attributed successful closeout (or an explicit cancellation) detaches the epoch;
+// a plain between-drives release never does. This pins the fence the change must NOT
+// weaken.
+func TestOrdinaryReleaseStillRetainsEpochBetweenDrives(t *testing.T) {
+	fx := newCancelFixture(t, true) // confirmed epoch-owned slot
+	token := slotReservationToken(t, fx.store, fx.worktree)
+	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, token); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != fx.epochID {
+		t.Fatalf("released slot RunEpochID = %q, want retained %q", epo, fx.epochID)
+	}
+	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
+		t.Fatalf("slot state = %q, want released", st)
+	}
+	// A between-drives foreign (epoch-less) reserve is still fenced.
+	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); func() bool {
+		oe, ok := gatedrive.AsOwnershipError(err)
+		return !ok || oe.Kind != gatedrive.ErrStaleRunEpoch
+	}() {
+		t.Fatalf("foreign reserve between drives must refuse stale-run-epoch, got %v", err)
+	}
+}
