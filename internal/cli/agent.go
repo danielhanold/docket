@@ -99,6 +99,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 					kind = "coordinator"
 				}
 				client.Registrar = epochParticipantRegistrar{repoDir: effectiveCWD, gateKey: runGateKey, epochID: runEpoch, kind: kind}
+				client.Terminal = epochTerminalRecorder{repoDir: effectiveCWD, gateKey: runGateKey, epochID: runEpoch}
 				if isRootCoordinator {
 					client.Canceller = epochLifecycleCanceller{ctx: c.Context(), repoDir: effectiveCWD, gateKey: runGateKey, epochID: runEpoch}
 					if guardian, gerr := spawnAgentDeathGuardian(effectiveCWD, runGateKey, runEpoch); gerr == nil {
@@ -111,7 +112,14 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 				setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultExternalFailed), Role: role, Reason: "root-entry-failed", Message: err.Error()})
 				return nil
 			}
-			setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultApplied), Role: role, ThreadID: out.ThreadID, TurnID: out.TurnID, Output: out.Output})
+			result := app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultApplied), Role: role, ThreadID: out.ThreadID, TurnID: out.TurnID, Output: out.Output}
+			if out.TerminalRecordFailed {
+				// The turn terminated but its terminal evidence could not be
+				// persisted: surface it so a downstream closeout knows the record
+				// is missing. The run itself is not flipped to failure (change 0441).
+				result.Message = "terminal evidence unrecorded; closeout will block until resolved"
+			}
+			setResult(result)
 			return nil
 		},
 	}
@@ -143,6 +151,19 @@ func (r epochParticipantRegistrar) RegisterParticipant(handle string) error {
 		Kind:         r.kind,
 		NativeHandle: handle,
 	})
+}
+
+// epochTerminalRecorder adapts app.RecordEpochParticipantTerminal to codexentry's
+// TerminalRecorder (change 0441 Task 9): after the entry's turn settles, it stamps
+// the exact terminal observation onto the matching run-epoch participant. The epoch
+// id is the expected locator so a stale linkage is rejected; the record carries no
+// capability, and app validates the status value.
+type epochTerminalRecorder struct {
+	repoDir, gateKey, epochID string
+}
+
+func (r epochTerminalRecorder) RecordTerminal(handle, turnID, status string) error {
+	return app.RecordEpochParticipantTerminal(r.repoDir, r.gateKey, r.epochID, handle, turnID, status)
 }
 
 // epochLifecycleCanceller adapts app.RunCancel to codexentry's LifecycleCanceller
