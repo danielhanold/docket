@@ -39,6 +39,28 @@ type ParticipantRegistrar interface {
 	RegisterParticipant(handle string) error
 }
 
+// TerminalRecorder persists the adapter's exact terminal observation of this
+// entry's native task (the thread/turn that terminated) as run-epoch evidence —
+// change 0441. It is recorded ONLY after the transport is torn down, so the
+// evidence reflects a settled turn rather than a still-open stream. status is
+// terminalCompleted or terminalFailed; a terminal failure is termination evidence
+// too (RunVerify independently decides implementation success). The app layer
+// wires the implementation; a nil Terminal records nothing (the honest state for
+// an entry with no run lifecycle).
+type TerminalRecorder interface {
+	RecordTerminal(handle, turnID, status string) error
+}
+
+// terminalCompleted / terminalFailed are the two terminal-observation statuses
+// this adapter records. They are literal strings matching the app layer's
+// exported ParticipantTerminalCompleted / ParticipantTerminalFailed constants —
+// the recorder validates the value and fails closed on any other, so this
+// package never imports the app layer for them (change 0441).
+const (
+	terminalCompleted = "completed"
+	terminalFailed    = "failed"
+)
+
 // LifecycleCanceller connects a catchable owner Stop (SIGTERM/SIGINT) to the run's
 // cancellation path: it fences the run epoch and tears the run down. It is injected
 // from the app layer ONLY for an entry that carries cancellation authority (the root
@@ -56,6 +78,9 @@ type Client struct {
 	// Canceller, when non-nil, is invoked once if a SIGTERM/SIGINT reaches this
 	// owner while it waits on the turn — the signal-connected cancellation path.
 	Canceller LifecycleCanceller
+	// Terminal, when non-nil, records this entry's exact-turn termination as
+	// run-epoch evidence after the turn settles and the transport is closed.
+	Terminal TerminalRecorder
 	// signalSource, when non-nil, replaces OS signal notification during the turn
 	// wait so tests drive the cancellation path deterministically. Production leaves
 	// it nil and the wait subscribes to real SIGTERM/SIGINT.
@@ -80,6 +105,11 @@ type Result struct {
 	Output   string
 	ThreadID string
 	TurnID   string
+	// TerminalRecordFailed is set when the turn produced terminal evidence but
+	// persisting it via the TerminalRecorder failed. A record failure never fakes
+	// evidence and never flips a successful run to failure — the caller surfaces
+	// it so a downstream closeout knows the evidence is missing (change 0441).
+	TerminalRecordFailed bool
 }
 
 // ValidateExecutionContext keeps Docket's root-entry surface closed over the
@@ -189,11 +219,37 @@ func (c Client) Enter(ctx context.Context, req Request) (Result, error) {
 		return Result{}, fmt.Errorf("coordinator turn returned a malformed result")
 	}
 
-	output, err := c.waitTurn(tr, thread.Thread.ID, turn.Turn.ID)
-	if err != nil {
-		return Result{}, err
+	output, waitErr := c.waitTurn(tr, thread.Thread.ID, turn.Turn.ID)
+
+	// Terminal observation (change 0441): record the exact turn's termination as
+	// run-epoch evidence, but ONLY after the transport's terminal response and
+	// teardown are accounted — close it explicitly here, before the idempotent
+	// deferred Close, so the record reflects a settled turn, not an open stream.
+	// waitTurn success is terminalCompleted; a turnFailedError is terminalFailed
+	// (a terminal failure IS termination evidence). Transport loss and every other
+	// plain error are NOT termination evidence and record nothing (AC4).
+	_ = tr.Close()
+	res := Result{ThreadID: thread.Thread.ID, TurnID: turn.Turn.ID}
+	var status string
+	var turnFailed turnFailedError
+	switch {
+	case waitErr == nil:
+		status = terminalCompleted
+	case errors.As(waitErr, &turnFailed):
+		status = terminalFailed
 	}
-	return Result{Output: output, ThreadID: thread.Thread.ID, TurnID: turn.Turn.ID}, nil
+	if status != "" && c.Terminal != nil {
+		if recErr := c.Terminal.RecordTerminal(thread.Thread.ID, turn.Turn.ID, status); recErr != nil {
+			// A record failure must not fake evidence and must not flip a
+			// successful run to failure: surface it, keep the run's own result.
+			res.TerminalRecordFailed = true
+		}
+	}
+	if waitErr != nil {
+		return res, waitErr
+	}
+	res.Output = output
+	return res, nil
 }
 
 func sendRequest(tr Transport, id int, method string, params any) error {
@@ -232,6 +288,20 @@ func waitResponse(tr Transport, id int, phase string) (json.RawMessage, error) {
 type recvFrame struct {
 	raw json.RawMessage
 	err error
+}
+
+// turnFailedError marks a TURN-TERMINAL non-completed outcome: the coordinator
+// turn reached a turn/completed frame with a non-"completed" status. It is
+// termination evidence (change 0441) — the run failed, but the exact turn
+// terminated, so Enter records it. EOF, malformed frames, an interactive-request
+// rejection, and "completed without a final agent message" stay plain errors and
+// are NOT termination evidence.
+type turnFailedError struct {
+	status, detail string
+}
+
+func (e turnFailedError) Error() string {
+	return "coordinator turn " + e.detail
 }
 
 // waitTurn observes the coordinator turn to completion. When a Canceller is wired
@@ -321,7 +391,7 @@ func (c Client) waitTurn(tr Transport, threadID, turnID string) (string, error) 
 					if p.Turn.Error != nil && p.Turn.Error.Message != "" {
 						detail += ": " + p.Turn.Error.Message
 					}
-					return "", fmt.Errorf("coordinator turn %s", detail)
+					return "", turnFailedError{status: p.Turn.Status, detail: detail}
 				}
 				if final == "" {
 					return "", fmt.Errorf("coordinator turn completed without a final agent message")

@@ -94,7 +94,7 @@ func newCompletionFixture(t *testing.T) completionFixture {
 	must(t, RegisterEpochParticipant(base.repo, base.key, base.epochID,
 		EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
 	must(t, RecordEpochParticipantTerminal(base.repo, base.key, base.epochID,
-		"turn-1", "t1", participantTerminalCompleted))
+		"turn-1", "t1", ParticipantTerminalCompleted))
 	return completionFixture{
 		repo: base.repo, key: base.key, epochID: base.epochID, worktree: base.worktree,
 		runDir: base.runDir, common: base.common, store: base.store,
@@ -217,7 +217,7 @@ func TestCompleteSuccessfulRunBlocksOnEveryUnsettledObligation(t *testing.T) {
 	}
 	registerDoneCoordinator := func(t *testing.T, repo, key, epochID string) {
 		must(t, RegisterEpochParticipant(repo, key, epochID, EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-		must(t, RecordEpochParticipantTerminal(repo, key, epochID, "turn-1", "t1", participantTerminalCompleted))
+		must(t, RecordEpochParticipantTerminal(repo, key, epochID, "turn-1", "t1", ParticipantTerminalCompleted))
 	}
 	rows := []row{
 		{"native-participant-unobserved", "participant-unobserved:coordinator", func(t *testing.T) (cancelSeams, string, string, string, string) {
@@ -311,7 +311,7 @@ func TestCompleteSuccessfulRunSkipsObservingNonReleasedOwnedSlot(t *testing.T) {
 	must(t, RegisterEpochParticipant(base.repo, base.key, base.epochID,
 		EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
 	must(t, RecordEpochParticipantTerminal(base.repo, base.key, base.epochID,
-		"turn-1", "t1", participantTerminalCompleted))
+		"turn-1", "t1", ParticipantTerminalCompleted))
 	observer := &fakeProcessObserver{defaultProven: true}
 	seams := cancelSeams{store: base.store, observer: observer,
 		launchObserver: &fakeLaunchObserver{report: gatedrive.EpochLaunchReport{Accounted: true}}}
@@ -435,7 +435,7 @@ func TestCompleteSuccessfulRunForeignSuccessorUntouched(t *testing.T) {
 		t.Fatalf("successor reserve: %v", err)
 	}
 	must(t, RegisterEpochParticipant(base.repo, base.key, base.epochID, EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-	must(t, RecordEpochParticipantTerminal(base.repo, base.key, base.epochID, "turn-1", "t1", participantTerminalCompleted))
+	must(t, RecordEpochParticipantTerminal(base.repo, base.key, base.epochID, "turn-1", "t1", ParticipantTerminalCompleted))
 	seams := cancelSeams{store: base.store,
 		observer:       &fakeProcessObserver{defaultProven: true},
 		launchObserver: &fakeLaunchObserver{report: gatedrive.EpochLaunchReport{Accounted: true}}}

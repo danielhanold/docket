@@ -102,20 +102,23 @@ type EpochParticipant struct {
 	// task — change 0441. Absent evidence means UNPROVEN, never implicitly
 	// complete; a terminal failure is termination evidence too (RunVerify
 	// independently decides implementation success). TerminalStatus is one of
-	// participantTerminalCompleted / participantTerminalFailed; TerminalObservedAt
+	// ParticipantTerminalCompleted / ParticipantTerminalFailed; TerminalObservedAt
 	// is an RFC3339 UTC stamp set when the evidence is first recorded.
 	TerminalStatus     string `json:"terminal_status,omitempty"`
 	TerminalTurn       string `json:"terminal_turn,omitempty"`
 	TerminalObservedAt string `json:"terminal_observed_at,omitempty"`
 }
 
-// participantTerminalCompleted / participantTerminalFailed are the only two
+// ParticipantTerminalCompleted / ParticipantTerminalFailed are the only two
 // terminal-observation statuses RecordEpochParticipantTerminal will store — a
 // terminal failure is termination evidence, not an implementation verdict
-// (change 0441). Any other value is malformed evidence and is refused.
+// (change 0441). Any other value is malformed evidence and is refused. They are
+// exported as the single canonical set for the codexentry/CLI adapter boundary
+// (change 0441 Task 9); the adapter passes literal strings matching these values
+// and the recorder validates, so no other package need import them.
 const (
-	participantTerminalCompleted = "completed"
-	participantTerminalFailed    = "failed"
+	ParticipantTerminalCompleted = "completed"
+	ParticipantTerminalFailed    = "failed"
 )
 
 // AdmittedMutation is one journaled workflow-mutation admission at a shared
@@ -342,7 +345,7 @@ func RegisterEpochParticipant(repoDir, gateKey, expectEpoch string, p EpochParti
 // expectEpoch mismatching EpochID is ErrEpochMismatch (a stale locator).
 func RecordEpochParticipantTerminal(repoDir, gateKey, expectEpoch, handle, turn, status string) error {
 	if handle == "" || turn == "" ||
-		(status != participantTerminalCompleted && status != participantTerminalFailed) {
+		(status != ParticipantTerminalCompleted && status != ParticipantTerminalFailed) {
 		return epochErr(ErrEpochMismatch, "record-participant-terminal", nil)
 	}
 	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {

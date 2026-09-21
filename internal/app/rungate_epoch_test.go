@@ -385,25 +385,25 @@ func TestSupersedeRefusesCompletingAndCompleted(t *testing.T) {
 func TestRecordEpochParticipantTerminal(t *testing.T) {
 	repo, key := mintEpochFixture(t)
 	must(t, RegisterEpochParticipant(repo, key, "", EpochParticipant{Kind: "coordinator", NativeHandle: "thread-1"}))
-	must(t, RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", participantTerminalCompleted))
+	must(t, RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalCompleted))
 	rec, _, _ := LoadEpochRecord(repo, key)
 	p := rec.Participants[0]
-	if p.TerminalStatus != participantTerminalCompleted || p.TerminalTurn != "turn-9" || p.TerminalObservedAt == "" {
+	if p.TerminalStatus != ParticipantTerminalCompleted || p.TerminalTurn != "turn-9" || p.TerminalObservedAt == "" {
 		t.Fatalf("evidence not persisted: %+v", p)
 	}
 	// Idempotent identical replay; conflicting evidence fails closed.
-	must(t, RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", participantTerminalCompleted))
-	if err := RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", participantTerminalFailed); err == nil {
+	must(t, RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalCompleted))
+	if err := RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalFailed); err == nil {
 		t.Fatal("conflicting terminal status accepted")
 	}
-	if err := RecordEpochParticipantTerminal(repo, key, "", "thread-1", "other-turn", participantTerminalCompleted); err == nil {
+	if err := RecordEpochParticipantTerminal(repo, key, "", "thread-1", "other-turn", ParticipantTerminalCompleted); err == nil {
 		t.Fatal("mismatched turn accepted") // AC4: mismatched turn cannot satisfy
 	}
 }
 
 func TestRecordEpochParticipantTerminalUnknownHandleAndBadInput(t *testing.T) {
 	repo, key := mintEpochFixture(t)
-	err := RecordEpochParticipantTerminal(repo, key, "", "ghost", "t", participantTerminalCompleted)
+	err := RecordEpochParticipantTerminal(repo, key, "", "ghost", "t", ParticipantTerminalCompleted)
 	if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochParticipantUnknown {
 		t.Fatalf("err %v", err)
 	}
@@ -421,6 +421,6 @@ func TestRecordEpochParticipantTerminalAllowedAfterFence(t *testing.T) {
 		repo, key := mintEpochFixture(t)
 		must(t, RegisterEpochParticipant(repo, key, "", EpochParticipant{Kind: "task", NativeHandle: "h1"}))
 		forceEpochState(t, repo, key, s)
-		must(t, RecordEpochParticipantTerminal(repo, key, "", "h1", "turn-1", participantTerminalFailed))
+		must(t, RecordEpochParticipantTerminal(repo, key, "", "h1", "turn-1", ParticipantTerminalFailed))
 	}
 }

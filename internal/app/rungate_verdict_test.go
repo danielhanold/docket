@@ -1211,7 +1211,7 @@ func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
 	must(t, RegisterEpochParticipant(repo, key, ep.EpochID,
 		EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
 	must(t, RecordEpochParticipantTerminal(repo, key, ep.EpochID,
-		"turn-1", "t1", participantTerminalCompleted))
+		"turn-1", "t1", ParticipantTerminalCompleted))
 
 	observer := &fakeProcessObserver{defaultProven: true}
 	launchObserver := &fakeLaunchObserver{report: gatedrive.EpochLaunchReport{Accounted: true}}
