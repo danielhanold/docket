@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/surface-the-swallowed-validation-failure-behind-a-bare-inter'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-21T07:23:26Z'
+reconciled: true
+claimed_at: '2026-09-21T07:25:52Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,8 @@ Relations: related [309, 329]; discovered_from [348]; adrs [50, 55]; no dependen
 
 Engine return-contract changes, validation-rule changes, new status/disposition/finding vocabulary, new failure fields, per-command error frameworks, retries, telemetry, frequency measurement, and unrelated interrupted-error handling. This grooming authorizes no implementation.
 
+## Reconcile log
+
+### 2026-09-21
+
+2026-09-21: Reconciled against current main (48e76b7c). The groomed design holds unchanged. Confirmed in code: transaction.Engine.Execute returns base (Result{Operation:op}, empty Disposition) plus a typed *Failure for every call-shape validation error (invalid operation key/expectations/idempotency key, non-branch target ref, nil loader) in internal/repository/transaction/engine.go. internal/app/planning.go mapOutcome routes empty disposition to its default arm -> ResultInternalError, and failureStatus returns nil on every non-failed disposition, so the invalid-input cause is swallowed. repairResultFromOutcome in internal/app/change_repair.go attaches failureStatus only in its explicit DispositionFailed arm, not its default arm. Scope, relations (related [309,329], discovered_from [348], adrs [50,55]), and the trivial verdict are all still accurate; no ADR or scope adjustment needed.
