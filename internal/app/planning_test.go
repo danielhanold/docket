@@ -319,6 +319,13 @@ func TestMapOutcome(t *testing.T) {
 		{"failed-cancelled", transaction.Result{Disposition: transaction.DispositionFailed}, fail(transaction.KindCancelled), ResultInvalidState, ResultInterrupted, false},
 		{"failed-no-failure", transaction.Result{Disposition: transaction.DispositionFailed}, errors.New("bare"), ResultInvalidState, ResultInternalError, false},
 		{"unknown-disposition", transaction.Result{Disposition: transaction.Disposition("bogus")}, nil, ResultInvalidState, ResultInternalError, false},
+		// Engine early call-shape validation: base result (empty disposition)
+		// plus a typed *Failure routes through mapFailure instead of
+		// flattening to internal-error (change 0350).
+		{"empty-disposition-typed-failure", transaction.Result{}, fail(transaction.KindInvalidInput), ResultInvalidState, ResultInvalidInput, false},
+		{"empty-disposition-typed-validation", transaction.Result{}, fail(transaction.KindValidation), ResultInvalidState, ResultInvalidState, false},
+		{"empty-disposition-untyped-error", transaction.Result{}, errors.New("bare"), ResultInvalidState, ResultInternalError, false},
+		{"empty-disposition-nil-error", transaction.Result{}, nil, ResultInvalidState, ResultInternalError, false},
 	}
 	for _, c := range cases {
 		got, replayed := mapOutcome(c.res, c.err, c.refusalKind)
