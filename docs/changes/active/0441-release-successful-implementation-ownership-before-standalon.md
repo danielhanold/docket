@@ -9,10 +9,10 @@ created: '2026-09-21'
 updated: '2026-09-21'
 depends_on: []
 stacked_on:
-related: [375, 435, 437]
+related: [375, 407, 433, 435, 437]
 discovered_from: []
-adrs: [118]
-spec:
+adrs: [87, 95, 105, 111, 118]
+spec: 'docs/superpowers/specs/2026-09-21-release-successful-implementation-ownership-before-standalon-design.md'
 plan:
 results:
 trivial: false
@@ -29,7 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
+| Spec | [2026-09-21-release-successful-implementation-ownership-before-standalon-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-21-release-successful-implementation-ownership-before-standalon-design.md) |
+| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,8 +39,8 @@ A successful implementation can record run-complete while leaving its run epoch 
 
 ## What changes
 
-Ensure verified successful implementation relinquishes run ownership so later standalone finalize can proceed safely. Investigate extending the existing cancellation accounting, epoch fencing, and ownership-checked slot retirement; this is a hypothesis to validate against implementation and prior decisions during grooming. Preserve protection against concurrent work and against old-epoch reuse.
+Finish successful implementation ownership at the existing keyed run-verdict boundary. Reuse epoch fencing, launch/process/mutation accounting, and ownership-checked slot retirement. Persist observed native-task completion in the existing participant records, and distinguish successful closeout from cancellation so finalize can proceed without inheriting stale authority. Preserve ordinary between-drive exclusion and fail closed on missing evidence. The linked spec records the implementation trace, prior decisions, minimal extensions, replay behavior, and acceptance tests.
 
 ## Out of scope
 
-Do not weaken finalize checks or ordinary between-drive ownership. No new daemon, generic coordination framework, configuration switch, retry budget, or unrelated lifecycle redesign.
+No daemon, background sweeper, new CLI command, configuration policy, generic coordination framework, retry layer, coordinator-topology redesign, or bulk historical cleanup. Do not bypass finalize checks, weaken between-drive ownership, or automatically call human cancellation. Implementation and planning are outside this grooming change.
