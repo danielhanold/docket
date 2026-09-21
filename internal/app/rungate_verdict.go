@@ -27,6 +27,21 @@ import (
 // unrecognized verdict, maps to `gate-stop <key> gate-unavailable <reason>` and
 // never authorizes a retry.
 //
+// COMPLETION (spec §successful-completion-flow, change 0441). The verdict remains
+// the sole authority MAPPER — it never re-derives RunVerify's run-complete. On a
+// keyed run-complete it additionally drives the successful-run ownership closeout
+// (gateCompleteRun → completeSuccessfulRun) so a standalone finalize gate can admit
+// on the same worktree without a stale-run-epoch refusal or a human cancellation. A
+// BLOCKED or lost closeout maps to `gate-stop <key> gate-unavailable <reason>` on the
+// existing gate-unavailable channel with the new bounded reason tokens (run-cancelled
+// / stale-run-epoch / completion-unaccounted / completion-unpersisted /
+// report-unpersisted / epoch-unreadable) and never reports success — RunVerify's own
+// verdict is reported as fact through those tokens, never re-derived. The closeout is
+// observation-only, fails closed on missing evidence, and consumes no retry. A
+// keyless/standalone/legacy dispatch (no epoch beside the record) keeps EXACTLY the
+// prior behavior. Unattributed observe mode is structurally unable to reach any of
+// this.
+//
 // OWNERSHIP (spec §gate-verdict, change 0407). A fresh gate resolves the verified
 // dispatch-to-claim binding — never a before-set/cardinality snapshot — so a keyed
 // verdict can never attribute a concurrent loop's change. resolveGateOwnership
@@ -115,6 +130,40 @@ const (
 	ReasonGateProofUnavailable = "proof-unavailable"
 )
 
+// The successful-run closeout reason tokens (change 0441). Each rides the existing
+// `gate-stop <key> gate-unavailable <reason>` channel when the keyed run-complete
+// verdict cannot report success: the report-line vocabulary is unchanged; only these
+// bounded reason spellings are new. The first four are RE-USED verbatim from Task 7's
+// completeSuccessfulRun return values (which flow straight through as r.Reason), so a
+// caller and the engine agree on one spelling; the last two are minted at this
+// mapping boundary. None consumes a retry.
+const (
+	// ReasonGateRunCancelled: a cancelling/cancelled run — never relabelled successful
+	// (an explicit human cancellation won, from active or from completing).
+	ReasonGateRunCancelled = "run-cancelled"
+	// ReasonGateStaleRunEpoch: a superseded epoch — the run this key named is stale.
+	ReasonGateStaleRunEpoch = "stale-run-epoch"
+	// ReasonGateCompletionUnaccounted: a live/busy/pending/uncertain obligation blocks
+	// completion (fail closed). The epoch stays durably completing; the remedy — named
+	// in the result's CompletionFindings — is to settle the evidence and repeat the same
+	// keyed verdict, or cancel explicitly.
+	ReasonGateCompletionUnaccounted = "completion-unaccounted"
+	// ReasonGateCompletionUnpersisted: the completing→completed transition could not be
+	// persisted for a reason other than a winning cancellation (fail closed, reportable).
+	ReasonGateCompletionUnpersisted = "completion-unpersisted"
+	// ReasonGateReportUnpersisted: the closeout finished and the epoch is durably
+	// completed, but the terminal gate REPORT mirror could not be saved. The failure is
+	// REPORTED, not hidden by the best-effort save (spec: "completion-path persistence
+	// failures must be reported"); the epoch is already completed, so a repeat of the
+	// same keyed verdict replays to gate-done run-complete once the fault clears.
+	ReasonGateReportUnpersisted = "report-unpersisted"
+	// ReasonGateEpochUnreadable: the run epoch record beside the key could not be read
+	// (a store fault, corruption, or schema mismatch — anything but a clean absence,
+	// which is the keyless/standalone/legacy shape). A record the store cannot read is
+	// never a free closeout; fail closed.
+	ReasonGateEpochUnreadable = "epoch-unreadable"
+)
+
 // RunGateVerdictResult is the protocol-v1 document `run gate-verdict` returns. It
 // renders exactly one attributed report line and always exits 0 (a produced
 // report line is not a process failure — learning exit-code-encodes-a-non-failure).
@@ -143,6 +192,13 @@ type RunGateVerdictResult struct {
 	// parsing is untouched.
 	AttemptsUsed int `json:"attempts_used,omitempty"`
 	AttemptLimit int `json:"attempt_limit,omitempty"`
+	// CompletionFindings carries the bounded, credential-free diagnostics the
+	// successful-run ownership closeout produced (change 0441): on a blocked closeout
+	// it names every unsettled obligation the operator must resolve before repeating
+	// the keyed verdict; on success it is empty (or carries only informational notes).
+	// It is ADDITIVE and diagnostic — omitempty keeps it off every other path — and
+	// never changes the report-line TOKENS, so existing report parsing is untouched.
+	CompletionFindings []string `json:"completion_findings,omitempty"`
 }
 
 // HumanText renders the single attributed report line. The field layout after
@@ -248,8 +304,16 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 
 	switch v.Verdict {
 	case VerdictRunComplete:
-		return persistGateVerdict(repoDir, key, rec,
-			gateVerdictLine(key, GateDecisionDone, VerdictRunComplete, id, true, nil))
+		// A verified run-complete additionally drives the successful-run ownership
+		// closeout (change 0441) so a standalone finalize gate can admit on the same
+		// worktree. The seam bundle is injectable (unit tests fake the observers);
+		// production composes productionCancelSeams(repoDir). RunVerify's verdict is
+		// still reported as fact — gateCompleteRun never re-derives it.
+		seams := productionCancelSeams(repoDir)
+		if wdeps.CancelSeams != nil {
+			seams = wdeps.CancelSeams(repoDir)
+		}
+		return gateCompleteRun(repoDir, key, rec, id, seams)
 	case VerdictRunUnclaimed:
 		return persistGateVerdict(repoDir, key, rec,
 			gateVerdictLine(key, GateDecisionDone, VerdictRunUnclaimed, id, true, nil))
@@ -340,6 +404,69 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 				r.Reason = GateReasonUnknownVerdict
 			}))
 	}
+}
+
+// gateCompleteRun maps a verified keyed run-complete onto the successful-run
+// ownership closeout (change 0441). The caller (RunGateVerdict) has already resolved
+// the confirmed claim binding and delegated the run predicate to RunVerify; this owns
+// only the ownership retirement.
+//
+//  1. Locate the run epoch beside the gate record. A clean ABSENCE (ErrEpochNotFound)
+//     is the keyless/standalone/legacy shape: EXACTLY the prior behavior — best-effort
+//     report mirror + gate-done run-complete. Any OTHER load fault fails closed
+//     (epoch-unreadable): a record the store cannot read is never a free closeout.
+//  2. Drive completeSuccessfulRun. A blocked/lost closeout maps to gate-stop
+//     gate-unavailable with the engine's bounded reason token and the diagnostic
+//     findings; completion loses without reporting success, and no retry is consumed
+//     (gateStopUnavailable leaves the permit untouched).
+//  3. On success the epoch is durably completed. The terminal report mirror is saved
+//     as a CHECKED write — a persistence failure is REPORTED (report-unpersisted),
+//     never hidden by the best-effort save; the epoch is already completed, so the
+//     remedy is the idempotent replay (a repeat of the same keyed verdict).
+func gateCompleteRun(repoDir, key string, rec GateRecord, id int, seams cancelSeams) RunGateVerdictResult {
+	// (1) Locate the run epoch. Absence is the keyless/standalone/legacy shape; any
+	// other fault fails closed.
+	if _, _, lerr := LoadEpochRecord(repoDir, key); lerr != nil {
+		if ee, ok := AsEpochError(lerr); ok && ee.Kind == ErrEpochNotFound {
+			return persistGateVerdict(repoDir, key, rec,
+				gateVerdictLine(key, GateDecisionDone, VerdictRunComplete, id, true, nil))
+		}
+		return persistGateVerdict(repoDir, key, rec,
+			gateVerdictLine(key, GateDecisionStop, GateOutcomeUnavailable, id, true, func(r *RunGateVerdictResult) {
+				r.Reason = ReasonGateEpochUnreadable
+			}))
+	}
+
+	// (2) Drive the ownership closeout. completeSuccessfulRun's reason is a bounded
+	// gate-unavailable token (run-cancelled / stale-run-epoch / completion-unaccounted /
+	// completion-unpersisted / epoch-unreadable), passed through verbatim; the findings
+	// name what to settle. A blocked closeout never reports success and spends no retry.
+	ok, reason, findings := completeSuccessfulRun(seams, repoDir, key)
+	if !ok {
+		return persistGateVerdict(repoDir, key, rec,
+			gateVerdictLine(key, GateDecisionStop, GateOutcomeUnavailable, id, true, func(r *RunGateVerdictResult) {
+				r.Reason = reason
+				r.CompletionFindings = findings
+			}))
+	}
+
+	// (3) Closeout succeeded; the epoch is durably completed. Save the terminal report
+	// mirror as a CHECKED write — a completion-path persistence failure is reported, not
+	// hidden. On failure the epoch stays completed, so the same keyed verdict replays to
+	// gate-done run-complete once the fault clears.
+	res := gateVerdictLine(key, GateDecisionDone, VerdictRunComplete, id, true, func(r *RunGateVerdictResult) {
+		r.CompletionFindings = findings
+	})
+	rec.Disposition = res.HumanText()
+	rec.Terminal = res.Terminal
+	if serr := SaveGateRecord(repoDir, key, rec); serr != nil {
+		return persistGateVerdict(repoDir, key, rec,
+			gateVerdictLine(key, GateDecisionStop, GateOutcomeUnavailable, id, true, func(r *RunGateVerdictResult) {
+				r.Reason = ReasonGateReportUnpersisted
+				r.CompletionFindings = findings
+			}))
+	}
+	return res
 }
 
 // gateContinueFromWaiting emits the nonterminal gate-continue for a RunVerify

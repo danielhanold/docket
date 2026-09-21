@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -1117,5 +1118,278 @@ func TestVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testing.T) {
 	}
 	if len(res.AmbiguousIDs) != 0 {
 		t.Errorf("no id may be named; got AmbiguousIDs=%v", res.AmbiguousIDs)
+	}
+}
+
+// --- successful-run ownership closeout on a keyed run-complete (change 0441) ------
+//
+// A verified keyed run-complete now additionally drives the epoch-ownership closeout
+// (gateCompleteRun → completeSuccessfulRun) so a standalone finalize gate can admit on
+// the same worktree. These tests wire Task 7's completion shape UNDER the key the
+// verdict loads: the run-verify fixture drives RunVerify to run-complete for change 3,
+// a confirmed binding + matching proof resolve ownership, and an active epoch bound to
+// a released epoch-owned slot (with a terminal-recorded coordinator participant and
+// permissive observation seams) is the ownership the closeout retires. The
+// keyless/standalone/legacy shape (no epoch beside the record) keeps EXACTLY the prior
+// behavior, and unattributed observe mode never touches ownership.
+
+// verdictCompletionFixture is one prepared run whose keyed verdict verifies
+// run-complete AND whose epoch ownership is ready to close out.
+type verdictCompletionFixture struct {
+	repo, key, epochID, worktree string
+	store                        *gatedrive.Store
+	deps                         PlanningDeps
+	wdeps                        WorkspaceDeps
+	gdeps                        GitHubDeps
+	observer                     *fakeProcessObserver
+	launchObserver               *fakeLaunchObserver
+}
+
+// seams returns the injected completion seam bundle for a direct completeSuccessfulRun
+// call (used to pre-drive the closeout before a persistence-fault replay test).
+func (fx verdictCompletionFixture) seams() cancelSeams {
+	return cancelSeams{store: fx.store, observer: fx.observer, launchObserver: fx.launchObserver}
+}
+
+func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
+	t.Helper()
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	repo := f.repo.invocation
+	common, err := gateGitCommonDir(repo)
+	if err != nil {
+		t.Fatalf("gateGitCommonDir: %v", err)
+	}
+	key := gateMintArmed(t, repo, nil, 1, "ha")
+	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1", ""); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+	}}
+
+	ep, err := MintEpochRecord(repo, key, "3")
+	if err != nil {
+		t.Fatalf("MintEpochRecord: %v", err)
+	}
+	worktree := filepath.Join(repo, "feature-wt")
+	if err := os.MkdirAll(worktree, 0o755); err != nil {
+		t.Fatalf("mkdir worktree: %v", err)
+	}
+	if err := epochCAS(repo, key, func(r *EpochRecord) error {
+		r.Worktree = worktree
+		return nil
+	}); err != nil {
+		t.Fatalf("epochCAS set worktree: %v", err)
+	}
+	store := gatedrive.OpenStore(common)
+	// A released epoch-owned slot (the run's drives are done) is exactly what the
+	// closeout retires — reserve+confirm+release, mirroring the cancel/completion
+	// fixtures. Release retains RunEpochID (between-drive ownership), so the slot is
+	// slotOwned+released until the closeout detaches it.
+	runDir := filepath.Join(worktree, "run-1")
+	token, terr := store.ReserveWorktreeExecutionForEpoch(common, worktree, ep.EpochID, nil)
+	if terr != nil {
+		t.Fatalf("ReserveWorktreeExecutionForEpoch: %v", terr)
+	}
+	if cerr := store.ConfirmWorktreeExecution(worktree, token, "run-1", runDir); cerr != nil {
+		t.Fatalf("ConfirmWorktreeExecution: %v", cerr)
+	}
+	slot, _, lerr := store.LoadWorktreeExecution(worktree)
+	if lerr != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", lerr)
+	}
+	if rerr := store.ReleaseWorktreeExecution(worktree, slot.ReservationToken); rerr != nil {
+		t.Fatalf("ReleaseWorktreeExecution: %v", rerr)
+	}
+	must(t, RegisterEpochParticipant(repo, key, ep.EpochID,
+		EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
+	must(t, RecordEpochParticipantTerminal(repo, key, ep.EpochID,
+		"turn-1", "t1", participantTerminalCompleted))
+
+	observer := &fakeProcessObserver{defaultProven: true}
+	launchObserver := &fakeLaunchObserver{report: gatedrive.EpochLaunchReport{Accounted: true}}
+	wdeps.CancelSeams = func(string) cancelSeams {
+		return cancelSeams{store: store, observer: observer, launchObserver: launchObserver}
+	}
+	return verdictCompletionFixture{
+		repo: repo, key: key, epochID: ep.EpochID, worktree: worktree, store: store,
+		deps: deps, wdeps: wdeps, gdeps: gdeps, observer: observer, launchObserver: launchObserver,
+	}
+}
+
+// TestVerdictRunCompleteClosesOutEpochOwnership: a keyed run-complete drives the
+// closeout — gate-done run-complete, the epoch is completed, and the slot's RunEpochID
+// is cleared so a standalone finalize gate can admit.
+func TestVerdictRunCompleteClosesOutEpochOwnership(t *testing.T) {
+	fx := newVerdictCompletionFixture(t)
+	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	if got, want := res.HumanText(), "gate-done "+fx.key+" run-complete 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCompleted {
+		t.Fatalf("epoch state = %q, want completed", st)
+	}
+	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load slot: %v", err)
+	}
+	if slot.RunEpochID != "" {
+		t.Fatalf("slot RunEpochID = %q, want cleared", slot.RunEpochID)
+	}
+}
+
+// TestVerdictRunCompleteWithoutEpochUnchanged: with no epoch beside the record the
+// verdict keeps EXACTLY the prior behavior — gate-done run-complete, no epoch
+// fabricated, no completion findings.
+func TestVerdictRunCompleteWithoutEpochUnchanged(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
+	if err := ReserveGateClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := ConfirmGateClaim(f.repo.invocation, key, 3, "claim-3-v", "r1", ""); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
+		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+	}}
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if len(res.CompletionFindings) != 0 {
+		t.Errorf("no-epoch path carried completion findings: %v", res.CompletionFindings)
+	}
+	if _, _, err := LoadEpochRecord(f.repo.invocation, key); !isEpochKind(err, ErrEpochNotFound) {
+		t.Fatalf("no epoch must be fabricated by the closeout: %v", err)
+	}
+}
+
+// TestVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess: one unproven obligation
+// (the released slot's run is not provably terminal) blocks the closeout —
+// gate-stop gate-unavailable completion-unaccounted with diagnostic findings, the epoch
+// stays completing (the fence holds), and no retry is spent (AC2 budget preservation).
+func TestVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess(t *testing.T) {
+	fx := newVerdictCompletionFixture(t)
+	fx.observer.defaultProven = false // the released slot's run is not provably terminal
+	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
+		t.Fatalf("decision/outcome = %q/%q, want gate-stop/gate-unavailable", res.Decision, res.Outcome)
+	}
+	if res.Reason != ReasonGateCompletionUnaccounted {
+		t.Fatalf("reason = %q, want %q", res.Reason, ReasonGateCompletionUnaccounted)
+	}
+	if len(res.CompletionFindings) == 0 {
+		t.Fatal("a blocked closeout carried no diagnostic findings to settle")
+	}
+	if !res.Terminal {
+		t.Error("a blocked closeout stop is terminal")
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCompleting {
+		t.Fatalf("epoch state = %q, want completing (the success fence holds)", st)
+	}
+	if gateRetryMarkerExists(t, fx.repo, fx.key) {
+		t.Error("a blocked closeout must never spend the retry")
+	}
+}
+
+// TestVerdictRunCompleteCancelledEpochNeverReportsSuccess: an explicit cancellation
+// that already won is never relabelled successful — gate-stop gate-unavailable
+// run-cancelled, never gate-done, and the epoch state is untouched.
+func TestVerdictRunCompleteCancelledEpochNeverReportsSuccess(t *testing.T) {
+	fx := newVerdictCompletionFixture(t)
+	forceEpochState(t, fx.repo, fx.key, EpochCancelled)
+	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
+		t.Fatalf("decision/outcome = %q/%q, want gate-stop/gate-unavailable", res.Decision, res.Outcome)
+	}
+	if res.Reason != ReasonGateRunCancelled {
+		t.Fatalf("reason = %q, want %q (never gate-done)", res.Reason, ReasonGateRunCancelled)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelled {
+		t.Fatalf("epoch state = %q, want cancelled (never relabelled)", st)
+	}
+}
+
+// TestVerdictRunCompleteReportPersistFailureIsReported: the closeout finishes (epoch
+// durably completed) but the terminal gate-report save fails — gate-stop
+// gate-unavailable report-unpersisted (the failure is reported, not hidden). A SECOND
+// verdict with the fault cleared replays the completed epoch to gate-done run-complete
+// (AC6 gate-report write failure + replay).
+func TestVerdictRunCompleteReportPersistFailureIsReported(t *testing.T) {
+	fx := newVerdictCompletionFixture(t)
+	// Pre-drive the closeout so the epoch is durably completed: a replay does NO epoch
+	// writes (the fence observes completed), isolating the checked report SAVE as the
+	// only write the read-only key dir can fail.
+	if ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key); !ok {
+		t.Fatalf("pre-closeout ok=false reason=%q findings=%v", reason, findings)
+	}
+	keyDir, err := gateKeyDir(fx.repo, fx.key, "test-persist-fault")
+	if err != nil {
+		t.Fatalf("gateKeyDir: %v", err)
+	}
+	if err := os.Chmod(keyDir, 0o500); err != nil {
+		t.Fatalf("chmod key dir read-only: %v", err)
+	}
+	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	if err := os.Chmod(keyDir, 0o700); err != nil {
+		t.Fatalf("restore key dir: %v", err)
+	}
+	if res.Decision != GateDecisionStop || res.Reason != ReasonGateReportUnpersisted {
+		t.Fatalf("decision/reason = %q/%q, want gate-stop/report-unpersisted", res.Decision, res.Reason)
+	}
+
+	// Fault cleared: the completed epoch replays to gate-done run-complete.
+	res2 := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	if got, want := res2.HumanText(), "gate-done "+fx.key+" run-complete 3"; got != want {
+		t.Fatalf("replay HumanText = %q, want %q", got, want)
+	}
+}
+
+// TestVerdictObserveModeNeverTouchesOwnership: the unattributed observe path over the
+// same epoch-backed complete fixture leaves the epoch and slot byte-identical (AC5) —
+// it holds no key, drives no closeout, and renders the plain observe run-complete line.
+func TestVerdictObserveModeNeverTouchesOwnership(t *testing.T) {
+	fx := newVerdictCompletionFixture(t)
+	_, genBefore, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("load epoch before: %v", err)
+	}
+	slotBefore, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load slot before: %v", err)
+	}
+
+	res := RunGateVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
+	if got, want := res.HumanText(), "gate-observe run-complete 3"; got != want {
+		t.Fatalf("observe HumanText = %q, want %q", got, want)
+	}
+
+	_, genAfter, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("load epoch after: %v", err)
+	}
+	if genAfter != genBefore {
+		t.Fatalf("observe mode wrote the epoch: generation %q -> %q", genBefore, genAfter)
+	}
+	slotAfter, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load slot after: %v", err)
+	}
+	if slotAfter.RunEpochID != slotBefore.RunEpochID || slotAfter.State != slotBefore.State {
+		t.Fatalf("observe mode mutated the slot: before {RunEpochID:%q State:%q} after {RunEpochID:%q State:%q}",
+			slotBefore.RunEpochID, slotBefore.State, slotAfter.RunEpochID, slotAfter.State)
 	}
 }

@@ -109,6 +109,13 @@ type WorkspaceDeps struct {
 	// ownership resolution (change 0407). A nil scanner fails closed there —
 	// unlike Continuation, ownership can never proceed without proof access.
 	ClaimProofs ClaimProofScanner
+	// CancelSeams overrides the cancellation/completion seam bundle the keyed
+	// run-complete verdict drives the successful-run ownership closeout with (change
+	// 0441); nil composes productionCancelSeams(repoDir). Unit tests inject
+	// permissive or adversarial seams; production callers leave it nil. It mirrors
+	// the resume path's GateScopeDeps.CancelSeams injection so both closeout drivers
+	// reach the same seam-factory shape.
+	CancelSeams func(repoDir string) cancelSeams
 }
 
 // WorkspaceOpResult is the protocol-v1 document the three workspace operations
