@@ -6,16 +6,16 @@ status: proposed
 priority: medium
 type: fix
 created: 2026-08-26
-updated: 2026-08-26
+updated: '2026-09-21'
 depends_on: []
 stacked_on:
-related: []
+related: [309, 329]
 discovered_from: [348]
-adrs: []
+adrs: [50, 55]
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
 branch:
 pr:
@@ -26,37 +26,33 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| ADRs | [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0055](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0055-exhaustive-vocabulary-mappings-require-array-pinned-set-equality.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-During change 348's implementation, `change claim` failed with a bare `internal-error` that carried
-no `failure` field. Root-causing it revealed a real defect masked by that opacity: when an early
-call-shape validation fails inside the transaction engine, it returns an **empty disposition**, and
-`mapOutcome` / `failureStatus` collapse that empty result into a generic `internal-error` — dropping
-the underlying validation `*Failure` entirely. The operator sees `internal-error` with nothing
-actionable, when a precise validation message ("wrong `--version` token", etc.) was available and
-swallowed.
+Early request validation returns a typed transaction.Failure through the engine's Go error channel with an empty disposition. The shared app mapper currently reports internal-error and the diagnosis helper returns nil, hiding the actual cause. A temporary real-engine reproduction against main 48e76b7c confirmed this for malformed expectations, invalid operation and idempotency keys, invalid target refs, and a missing loader.
 
-This is a diagnosability defect: a validation failure that the engine actually detected is
-indistinguishable, at the surface, from an unexpected internal crash. It cost real debugging time on
-348 (the true cause was passing the metadata-commit token instead of the record-blob oid as
-`--version`).
+The historical discovery during change 0348 remains valid context, but a full-length, well-formed incorrect object ID follows the existing contended path. A shortened or malformed object ID is the confirmed early-validation trigger; do not describe every wrong version as this bug.
 
 ## What changes
 
-Surface the swallowed validation `*Failure`: when an early call-shape validation returns an empty
-disposition, `mapOutcome` / `failureStatus` should propagate the real validation failure (its kind
-and message) into the reported `failure` field instead of collapsing to a bare `internal-error`.
+Trivial rationale: extend the existing diagnostic machinery from change 0329 to the engine's already-established early-error return shape. No new mechanism or policy is needed.
+
+- In internal/app/planning.go, make mapOutcome handle an empty disposition through existing mapFailure(err). Keep unknown non-empty dispositions mapped to internal-error.
+- Let failureStatus process an empty disposition with a non-nil error through its existing conversion, preserving stage, kind, detail, and wrapped cause. Empty disposition with nil error retains its existing internal-error/no-diagnosis behavior. Other dispositions retain their current behavior.
+- The caller audit found one additional envelope builder: repairResultFromOutcome in internal/app/change_repair.go currently attaches failure only in its explicit failed arm. Attach the shared diagnosis in its default mapping path too, so early errors receive the same existing failure field. Derive consumers with a whole-repo search of mapOutcome/mapFailure/failureStatus and the result-builder family.
+- Update the helper comments to describe both supported error shapes. Keep the transaction engine and its validation rules unchanged.
+
+Verification: extend existing app helper tables for empty disposition plus typed/wrapped, untyped, and nil errors; keep existing failed/unknown/non-failed controls. Add a real-engine malformed-version regression passed through claimResultFromOutcome and a focused repair-result regression asserting the populated failure fields. Remove each new mapping/propagation branch in turn and confirm the relevant tests fail, with caching disabled. Run the configured whole source suite at implementation's build gate and inspect its budget report.
+
+Evidence reviewed: change 0309 and its Outcomes and failure posture contract (call-shape errors use Go errors and the app maps them); change 0329 and commit c465f717 (shared optional failure field, findings reserved for refusals); change 0348 (discovery context). ADR-0050 supports behavior-based regression evidence; ADR-0055 distinguishes deliberate defaults from exhaustive vocabulary mappings. No vocabulary is being added, and no new ADR is warranted. Relevant learnings: groomed-root-cause-is-a-hypothesis and shared-resource-keeps-first-owner-assumptions.
+
+Relations: related [309, 329]; discovered_from [348]; adrs [50, 55]; no dependencies or stack parent.
 
 ## Out of scope
 
-- Changing the validation rules themselves — only how a detected validation failure is reported.
-- The 348 `--version` call-site bug, which was already worked around during that change.
+Engine return-contract changes, validation-rule changes, new status/disposition/finding vocabulary, new failure fields, per-command error frameworks, retries, telemetry, frequency measurement, and unrelated interrupted-error handling. This grooming authorizes no implementation.
 
-## Open questions
-
-- Exactly where the empty disposition originates (the specific validation branch) and whether the
-  fix belongs in the engine's return path or in `mapOutcome` / `failureStatus`.
-- Whether other call-shape validations share this empty-disposition path and are all fixed by one
-  change.

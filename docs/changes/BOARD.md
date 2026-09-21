@@ -20,6 +20,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | build-ready (trivial) |
 | [0433](active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md) | Pilot top-level Codex coordinators with one-level native dispatch | `high` | `refactor` | needs-brainstorm |
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-brainstorm |
 | [0414](active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | `low` | `chore` | needs-brainstorm |
@@ -28,7 +29,6 @@
 | [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-brainstorm |
 | [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | needs-brainstorm |
 | [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-brainstorm |
-| [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0292](active/0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | `high` | `feat` | needs-brainstorm |
