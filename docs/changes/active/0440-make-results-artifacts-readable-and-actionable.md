@@ -2,7 +2,7 @@
 id: 440
 slug: 'make-results-artifacts-readable-and-actionable'
 title: 'Make results artifacts readable and actionable'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-21'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/make-results-artifacts-readable-and-actionable'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-21T12:52:41Z'
 ---
 
 ## Artifacts
