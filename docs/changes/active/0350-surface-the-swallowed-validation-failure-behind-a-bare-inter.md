@@ -2,7 +2,7 @@
 id: 350
 slug: surface-the-swallowed-validation-failure-behind-a-bare-inter
 title: 'Surface the swallowed validation failure behind a bare internal-error in the transaction engine'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-26
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: 'fix/surface-the-swallowed-validation-failure-behind-a-bare-inter'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-21T07:23:26Z'
 ---
 
 ## Artifacts
