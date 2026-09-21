@@ -22,7 +22,7 @@ branch: 'refactor/make-results-artifacts-readable-and-actionable'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-21T12:57:08Z'
+claimed_at: '2026-09-21T13:05:16Z'
 ---
 
 ## Artifacts
