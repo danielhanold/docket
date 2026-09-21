@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/make-results-artifacts-readable-and-actionable'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-21T12:52:41Z'
+reconciled: true
+claimed_at: '2026-09-21T12:55:46Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Adopt the approved human-readable results specification: a short action statemen
 ## Out of scope
 
 Implementation during this capture; retrospective rewriting of historical results; changes to checkpoint ownership, exact-head evidence, merge policy, or post-merge behavior; readability scoring; new review rounds, lifecycle states, or configuration; automatic follow-up creation.
+
+## Reconcile log
+
+### 2026-09-21
+
+2026-09-21: Reconciled against current code. The approved spec still matches reality: the canonical results template (skills/docket-implement-next/results-template.md) carries the old section set (Outcome / Human testing / Verification performed / Findings and limitations / Follow-ups), the shared Go structural validator (internal/app/results_content.go, ValidateResultsContent) enforces the H1 title, no-placeholder, required substantive ## Outcome, and no empty/filler-section checks but has no action-statement check, and the embedded copy (internal/assets/embedded/tree/skills/docket-implement-next/results-template.md) is regenerated via cmd/genassets with a suite drift gate. Implementation surface: (1) rewrite the template to the new reading order (Human action statement -> Outcome -> Human actions and testing -> Verification performed -> Known issues and follow-ups); (2) update authoring/convention guidance in docket-implement-next Step 6.5 and docket-convention results guidance, plus any maintained references, and reconcile the prohibition on manually checking automated behavior; (3) extend ValidateResultsContent (ResultsPhaseFinal) with a substantive-action-statement check near the top while preserving Outcome/placeholder/empty/filler checks; (4) regenerate the embedded bundle. No scope, dependency, or relation change required; related [1,190,330,374,410] and adrs [102] remain correct.
