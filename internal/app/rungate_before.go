@@ -89,6 +89,18 @@ const (
 	// supersede transition faulted — fail closed rather than admit a replacement over
 	// an unresolvable run (change 0375 Task 12).
 	ReasonGateResumeEpochUnreadable = "resume-epoch-unreadable"
+	// ReasonGateResumeRunCompleting: a --resume id's prior epoch is COMPLETING — a
+	// keyed verdict verified the run complete and durably fenced the epoch, but
+	// closeout is unfinished, so the epoch still owns its worktree (change 0441).
+	// Resume never turns a completing run into a cancelled predecessor or reserves a
+	// replacement; the remedy is the keyed 'docket run gate-verdict' (finish closeout)
+	// or an explicit 'docket run cancel'.
+	ReasonGateResumeRunCompleting = "resume-run-completing"
+	// ReasonGateResumeRunCompleted: a --resume id's prior epoch is COMPLETED — the
+	// successful closeout finished and the run retired terminally (change 0441). There
+	// is nothing to resume: the remedy is 'docket run verify' and finalize. Never
+	// quiescence-checked into a supersede, never a replacement reservation.
+	ReasonGateResumeRunCompleted = "resume-run-completed"
 	// ReasonOwnerLifecycleUnavailable is the honest limitation an armed gate reports
 	// (change 0375 Task 13): the default dispatch route has NO owner-death or Stop
 	// lifecycle event that would cancel the run automatically, so a Stop is the
@@ -520,6 +532,23 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 					worktree:      worktree,
 					attemptLimit:  pin.Config.Effective.Run.MaxAttempts.Value,
 				})
+			case EpochCompleting:
+				// A verified successful run is durably fenced mid-closeout (change 0441):
+				// the epoch still owns the worktree, so resume must not relabel it a
+				// cancelled predecessor or reserve a replacement. Finish the closeout with
+				// the keyed verdict, or cancel explicitly.
+				return gateUnarmedMsg(ReasonGateResumeRunCompleting,
+					"change "+scopeChangeID+" completed its run and is closing out (epoch "+
+						oldEp.EpochID+"); re-run the keyed 'docket run gate-verdict' to finish "+
+						"closeout, or cancel explicitly with 'docket run cancel'")
+			case EpochCompleted:
+				// The successful closeout finished (change 0441): terminal, nothing to
+				// resume — never quiescence-checked into a supersede, never a replacement
+				// reservation. Verify and finalize instead.
+				return gateUnarmedMsg(ReasonGateResumeRunCompleted,
+					"change "+scopeChangeID+"'s run completed successfully (epoch "+
+						oldEp.EpochID+"); there is nothing to resume — verify with 'docket run "+
+						"verify --id "+scopeChangeID+"' and finalize instead")
 			default:
 				return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
 					"change "+scopeChangeID+" has an unrecognized run epoch state")

@@ -88,6 +88,77 @@ func TestResumeRefusesActiveEpochWithLocator(t *testing.T) {
 	}
 }
 
+// TestResumeRefusesCompletingEpochWithoutSuperseding: a resume of a change whose prior
+// epoch is COMPLETING (a verified successful run mid-closeout, change 0441) is refused
+// gate-unarmed with the run-completing reason — it names the keyed gate-verdict/cancel
+// remedy, never turns the closeout into a cancelled predecessor, and reserves no
+// replacement.
+func TestResumeRefusesCompletingEpochWithoutSuperseding(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	deps, wdeps := resumeEpochDeps(t)
+	priorKey, epochID := seedPriorEpoch(t, repoDir, EpochCompleting)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+	res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if res.Armed {
+		t.Fatalf("resume armed over a completing prior run: %q", res.HumanText())
+	}
+	if res.Reason != ReasonGateResumeRunCompleting {
+		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonGateResumeRunCompleting)
+	}
+	if !strings.Contains(res.Message, epochID) || !strings.Contains(res.Message, "gate-verdict") {
+		t.Fatalf("Message must name the epoch %q and the keyed gate-verdict remedy, got %q", epochID, res.Message)
+	}
+	if res.Key != "" || sp.calls != 0 {
+		t.Fatalf("completing refusal must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
+	}
+	ep, _, err := LoadEpochRecord(repoDir, priorKey)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.State != EpochCompleting {
+		t.Fatalf("resume must not mutate the completing epoch, got %q", ep.State)
+	}
+	if ep.ReplacementReserved != "" {
+		t.Fatalf("resume must reserve no replacement over a completing run, got %q", ep.ReplacementReserved)
+	}
+}
+
+// TestResumeRefusesCompletedEpochWithoutSuperseding: a resume of a change whose prior
+// epoch is COMPLETED (successful closeout finished, change 0441) is refused gate-unarmed
+// with the run-completed reason — there is nothing to resume; the state and any
+// reservation stay untouched (never quiescence-checked into a supersede).
+func TestResumeRefusesCompletedEpochWithoutSuperseding(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	deps, wdeps := resumeEpochDeps(t)
+	priorKey, epochID := seedPriorEpoch(t, repoDir, EpochCompleted)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+	res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if res.Armed {
+		t.Fatalf("resume armed over a completed prior run: %q", res.HumanText())
+	}
+	if res.Reason != ReasonGateResumeRunCompleted {
+		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonGateResumeRunCompleted)
+	}
+	if !strings.Contains(res.Message, epochID) || !strings.Contains(res.Message, "run verify") {
+		t.Fatalf("Message must name the epoch %q and the verify/finalize remedy, got %q", epochID, res.Message)
+	}
+	if res.Key != "" || sp.calls != 0 {
+		t.Fatalf("completed refusal must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
+	}
+	ep, _, err := LoadEpochRecord(repoDir, priorKey)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.State != EpochCompleted {
+		t.Fatalf("resume must not mutate the completed epoch, got %q", ep.State)
+	}
+	if ep.ReplacementReserved != "" {
+		t.Fatalf("resume must reserve no replacement over a completed run, got %q", ep.ReplacementReserved)
+	}
+}
+
 // TestResumeCancellingIsPending: a resume of a change whose prior epoch is CANCELLING
 // is refused cancellation-pending — cleanup is still in flight, no replacement.
 func TestResumeCancellingIsPending(t *testing.T) {
