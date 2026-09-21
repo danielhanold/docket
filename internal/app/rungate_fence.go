@@ -69,9 +69,10 @@ const (
 
 // MutationFenceError is the typed refusal a fenced run epoch raises at a mutation
 // boundary. Reason is one of the stable tokens the fence vocabulary defines —
-// "run-cancelled" (the owning epoch is cancelling/cancelled) or "stale-run-epoch"
-// (the owning epoch was superseded by a resume). It carries no credential, argv,
-// environment, or child output — only the bounded reason token.
+// "run-cancelled" (the owning epoch is cancelling/cancelled), "stale-run-epoch"
+// (the owning epoch was superseded by a resume), or "run-completed" (the owning
+// epoch is completing/completed a successful closeout, change 0441). It carries no
+// credential, argv, environment, or child output — only the bounded reason token.
 type MutationFenceError struct {
 	Reason string
 }
@@ -91,6 +92,11 @@ var (
 	// ErrStaleRunEpoch: the owning run epoch was superseded by a confirmed resume —
 	// this caller carries a stale run identity and is refused.
 	ErrStaleRunEpoch = &MutationFenceError{Reason: "stale-run-epoch"}
+	// ErrRunCompleted: the owning run epoch finished (or is finishing) a SUCCESSFUL
+	// closeout (change 0441) — completing/completed. No new mutation, launch, or
+	// registration from that epoch admits, and the refusal is distinguishable from
+	// cancellation so a caller can tell a successful retirement from a stop.
+	ErrRunCompleted = &MutationFenceError{Reason: "run-completed"}
 )
 
 // AsMutationFenceError unwraps err to a *MutationFenceError when one is in the
@@ -127,6 +133,9 @@ func noopJournalDone(string) {}
 //     exactly that entry after the mutation resolves.
 //   - Owning epoch CANCELLING/CANCELLED → (nil, ErrRunCancelled).
 //   - Owning epoch SUPERSEDED → (nil, ErrStaleRunEpoch).
+//   - Owning epoch COMPLETING/COMPLETED → (nil, ErrRunCompleted). A completed epoch
+//     is normally already excluded from findEpochByWorktree, so this arm chiefly
+//     fences a completing (mid-closeout) epoch; the completed arm is defense in depth.
 //   - Any epoch-store IO/corruption error while a slot NAMES an epoch → fail closed:
 //     (nil, err). A record the store cannot read is never treated as a free run.
 //
@@ -171,6 +180,13 @@ func admitWorkflowMutation(repoDir, op string) (mutationJournalDone, error) {
 			return ErrStaleRunEpoch
 		case EpochCancelling, EpochCancelled:
 			return ErrRunCancelled
+		case EpochCompleting, EpochCompleted:
+			// A successful closeout (fenced or finished) admits no new mutation, and
+			// its refusal is distinguishable from cancellation (change 0441). Defense
+			// in depth for completed: findEpochByWorktree already drops a completed
+			// epoch from ambient lookup, so this arm is normally reached only for
+			// completing.
+			return ErrRunCompleted
 		default:
 			// An unknown/corrupt state is never a free run: fail closed as cancelled.
 			return ErrRunCancelled
@@ -229,7 +245,9 @@ func canonicalWorktree(path string) (string, error) {
 // rungate root or no match is (found=false, err=nil) — no epoch owns the worktree.
 // A directory-enumeration IO error is returned so the caller fails closed. A gate
 // directory with no epoch.json, an epoch with no bound Worktree (a standalone or
-// not-yet-claimed run), or an UNREADABLE/corrupt record is skipped — the last a
+// not-yet-claimed run), a fully COMPLETED epoch (a successful closeout no longer owns
+// its worktree — change 0441; a completing epoch still does), or an UNREADABLE/corrupt
+// record is skipped — the last a
 // conservative, bounded fail-open confined to a corrupt UNRELATED record (the epoch
 // store fails closed on its own reads elsewhere), never a free run for the matched
 // epoch.
@@ -256,6 +274,9 @@ func findEpochByWorktree(repoDir, canon string) (gateKey string, found bool, err
 		}
 		if r.Worktree == "" {
 			continue // a standalone or not-yet-claimed run owns no worktree
+		}
+		if r.State == EpochCompleted {
+			continue // a fully completed epoch no longer owns any worktree (change 0441)
 		}
 		if epochOwnsWorktree(r.Worktree, canon) {
 			return key, true, nil

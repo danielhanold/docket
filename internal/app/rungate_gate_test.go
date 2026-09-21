@@ -230,6 +230,52 @@ func TestEpochLaunchGateRefusalMatrix(t *testing.T) {
 	}
 }
 
+// TestEpochLaunchGateRefusesCompletingAndCompleted: the launch gate refuses a start
+// (or a delayed-ticket relaunch) on a completing or completed epoch (change 0441) with
+// the distinct ErrRunCompleted token — its refusal is what later settles a pre-fence
+// never-launched ticket terminal — and never runs reserve.
+func TestEpochLaunchGateRefusesCompletingAndCompleted(t *testing.T) {
+	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
+		t.Run(string(s), func(t *testing.T) {
+			repo, common, key, epochID, worktree := epochGateFixture(t)
+			fenceEpoch(t, repo, key, s)
+			gate := epochLaunchGate(common)
+
+			called := false
+			err := gate(epochID, worktree, func() error {
+				called = true
+				return nil
+			})
+			if called {
+				t.Fatalf("a completing/completed refusal must never call reserve")
+			}
+			if !errors.Is(err, ErrRunCompleted) {
+				t.Fatalf("want ErrRunCompleted, got %v", err)
+			}
+		})
+	}
+}
+
+// TestEpochRevokedResolverRevokesCompletingAndCompleted: the takeover revocation
+// resolver reports revoked for a completing or completed epoch (change 0441), mirroring
+// the cancelled/superseded cases — a takeover of a completing/completed run refuses,
+// and explicit references to a completed epoch remain revoked.
+func TestEpochRevokedResolverRevokesCompletingAndCompleted(t *testing.T) {
+	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
+		t.Run(string(s), func(t *testing.T) {
+			repo, common, key, epochID, _ := epochGateFixture(t)
+			fenceEpoch(t, repo, key, s)
+			revoked, err := epochRevokedResolver(common)(epochID)
+			if err != nil {
+				t.Fatalf("resolver err: %v", err)
+			}
+			if !revoked {
+				t.Fatalf("state %q must be revoked", s)
+			}
+		})
+	}
+}
+
 // fenceEpoch flips an epoch to the given fenced/terminal state through the CAS, the
 // same durable transition run.cancel/resume drive it into.
 func fenceEpoch(t *testing.T, repo, key string, state epochState) {

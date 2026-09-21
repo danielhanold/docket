@@ -23,6 +23,7 @@
 //
 // FAIL CLOSED. Every location or liveness failure refuses through the EXISTING fence
 // vocabulary — cancelling/cancelled → ErrRunCancelled, superseded → ErrStaleRunEpoch,
+// completing/completed (a successful closeout, change 0441) → ErrRunCompleted,
 // a missing/wrong/omitted worktree binding → ErrStaleRunEpoch, and a
 // missing/ambiguous/corrupt/unreadable epoch → the typed EpochError. A record the
 // store cannot resolve to a single live, worktree-bound epoch is never a free pass.
@@ -81,6 +82,12 @@ func epochLaunchGate(gitCommonDir string) gatedrive.EpochLaunchGate {
 			return ErrRunCancelled
 		case EpochSuperseded:
 			return ErrStaleRunEpoch
+		case EpochCompleting, EpochCompleted:
+			// A successful closeout (fenced or finished) admits no launch, delayed
+			// ticket, or relaunch (change 0441). This refusal is what later settles a
+			// pre-fence never-launched ticket terminal, and it is distinguishable from
+			// a cancellation.
+			return ErrRunCompleted
 		default:
 			// An unknown state is never a live epoch: fail closed as cancelled, mirroring
 			// admitWorkflowMutation's unknown-state handling.

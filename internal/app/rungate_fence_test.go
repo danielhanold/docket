@@ -281,6 +281,50 @@ func TestFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T) {
 	}
 }
 
+// TestAdmitWorkflowMutationRefusesCompletingEpoch: a completing epoch (a verified
+// successful closeout is mid-flight, change 0441) still owns its worktree and refuses
+// a new mutation with the distinct run-completed reason — never relabelled as a
+// cancellation.
+func TestAdmitWorkflowMutationRefusesCompletingEpoch(t *testing.T) {
+	repoDir := newGateRepo(t)
+	mintFenceEpoch(t, repoDir, repoDir, EpochCompleting)
+
+	_, err := admitWorkflowMutation(repoDir, OperationPRPublish)
+	fe, ok := AsMutationFenceError(err)
+	if !ok || fe.Reason != "run-completed" {
+		t.Fatalf("err = %v, want a MutationFenceError with reason run-completed", err)
+	}
+}
+
+// TestCompletedEpochExcludedFromAmbientOwnerLookup: a fully completed epoch (change
+// 0441) no longer owns the worktree for ambient lookup, so a standalone mutation on
+// that worktree is admitted UNFENCED and findEpochByWorktree no longer names it. A
+// COMPLETING epoch, in contrast, is still the owner (its closeout has not finished).
+func TestCompletedEpochExcludedFromAmbientOwnerLookup(t *testing.T) {
+	repoDir := newGateRepo(t)
+	key := mintFenceEpoch(t, repoDir, repoDir, EpochCompleted)
+
+	done, err := admitWorkflowMutation(repoDir, OperationPRPublish)
+	if err != nil || done == nil {
+		t.Fatalf("completed epoch trapped a standalone mutation: err %v done %v", err, done)
+	}
+	done(mutationStatusCompleted) // must be a safe no-op for the unfenced admit
+
+	canon, cerr := canonicalWorktree(repoDir)
+	if cerr != nil {
+		t.Fatalf("canonicalWorktree(repoDir): %v", cerr)
+	}
+	if _, found, ferr := findEpochByWorktree(repoDir, canon); ferr != nil || found {
+		t.Fatalf("completed epoch still owns the worktree lookup (found %v err %v)", found, ferr)
+	}
+
+	// The same epoch, moved back to completing, is still the worktree owner.
+	fenceEpoch(t, repoDir, key, EpochCompleting)
+	if _, found, ferr := findEpochByWorktree(repoDir, canon); ferr != nil || !found {
+		t.Fatalf("completing epoch lost worktree ownership before closeout finished (found %v err %v)", found, ferr)
+	}
+}
+
 // TestFreshRunClaimBindsEpochWorktreeSoFenceActs is the BLOCKER regression (change
 // 0375): a FRESH (non-resume) run's claim confirmation must bind the epoch's Worktree
 // so the mutation fence locates the epoch. It drives the REAL arm→reserve→confirm
