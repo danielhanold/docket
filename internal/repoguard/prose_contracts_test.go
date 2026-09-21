@@ -301,6 +301,33 @@ var proseContracts = []proseContract{
 			"Task workers never edit the results file",
 			"a checkpoint never independently launches tests",
 		}},
+	// change 0440 — Step 6.5 and the convention now describe the reader-first
+	// results shape. Present phrases bind the action-statement requirement and
+	// the optional-walkthrough allowance; absent phrases are the retired
+	// old-section wording and the retired blanket prohibition on manually
+	// checking automated behavior (assert-detects-removal).
+	{sentinel: "change_0440_results_prose", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"**Human action:**",
+			"**Human actions and testing**",
+			"Known issues and follow-ups",
+			"An Optional walkthrough MAY exercise behavior automated tests already cover",
+		},
+		absent: []string{
+			"only functional scenarios the automated tests do **not** cover",
+			"under Findings and limitations or Verification performed",
+		}},
+	{sentinel: "change_0440_convention_results", file: "skills/docket-convention/SKILL.md",
+		present: []string{
+			"`**Human action:**` statement",
+			"`## Human actions and testing`",
+			"`## Known issues and follow-ups`",
+		},
+		absent: []string{
+			"`## Human testing`",
+			"`## Findings and limitations`",
+			"`## Follow-ups`",
+		}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
