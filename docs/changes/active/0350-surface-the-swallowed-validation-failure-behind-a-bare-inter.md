@@ -2,7 +2,7 @@
 id: 350
 slug: surface-the-swallowed-validation-failure-behind-a-bare-inter
 title: 'Surface the swallowed validation failure behind a bare internal-error in the transaction engine'
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: fix
 created: 2026-08-26
@@ -18,7 +18,7 @@ results: 'docs/results/2026-09-21-surface-the-swallowed-validation-failure-behin
 trivial: true
 auto_groomable:
 branch: 'fix/surface-the-swallowed-validation-failure-behind-a-bare-inter'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/320'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-21T07:35:29Z'
