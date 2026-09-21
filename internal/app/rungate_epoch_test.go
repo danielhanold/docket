@@ -290,6 +290,15 @@ func forceEpochState(t *testing.T, repo, key string, s epochState) {
 	}
 }
 
+// must fails the test immediately when err is non-nil, so a fixture setup step
+// whose failure is not the assertion under test reads as one line.
+func must(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestFenceEpochCompletingFromActive(t *testing.T) {
 	repo, key := mintEpochFixture(t) // reuse/extract the file's existing mint helper; changeID "441"
 	st, err := FenceEpochCompleting(repo, key, "")
@@ -370,5 +379,48 @@ func TestSupersedeRefusesCompletingAndCompleted(t *testing.T) {
 		if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochNotCancelled {
 			t.Fatalf("state %q superseded: %v", s, err)
 		}
+	}
+}
+
+func TestRecordEpochParticipantTerminal(t *testing.T) {
+	repo, key := mintEpochFixture(t)
+	must(t, RegisterEpochParticipant(repo, key, "", EpochParticipant{Kind: "coordinator", NativeHandle: "thread-1"}))
+	must(t, RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", participantTerminalCompleted))
+	rec, _, _ := LoadEpochRecord(repo, key)
+	p := rec.Participants[0]
+	if p.TerminalStatus != participantTerminalCompleted || p.TerminalTurn != "turn-9" || p.TerminalObservedAt == "" {
+		t.Fatalf("evidence not persisted: %+v", p)
+	}
+	// Idempotent identical replay; conflicting evidence fails closed.
+	must(t, RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", participantTerminalCompleted))
+	if err := RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", participantTerminalFailed); err == nil {
+		t.Fatal("conflicting terminal status accepted")
+	}
+	if err := RecordEpochParticipantTerminal(repo, key, "", "thread-1", "other-turn", participantTerminalCompleted); err == nil {
+		t.Fatal("mismatched turn accepted") // AC4: mismatched turn cannot satisfy
+	}
+}
+
+func TestRecordEpochParticipantTerminalUnknownHandleAndBadInput(t *testing.T) {
+	repo, key := mintEpochFixture(t)
+	err := RecordEpochParticipantTerminal(repo, key, "", "ghost", "t", participantTerminalCompleted)
+	if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochParticipantUnknown {
+		t.Fatalf("err %v", err)
+	}
+	for _, bad := range [][3]string{{"", "t", "completed"}, {"h", "", "completed"}, {"h", "t", ""}, {"h", "t", "yielded"}} {
+		if RecordEpochParticipantTerminal(repo, key, "", bad[0], bad[1], bad[2]) == nil {
+			t.Fatalf("malformed evidence %v accepted", bad)
+		}
+	}
+}
+
+func TestRecordEpochParticipantTerminalAllowedAfterFence(t *testing.T) {
+	// "Completion of an existing participant is allowed after the completing
+	// fence; registering or reopening work is not."
+	for _, s := range []epochState{EpochCompleting, EpochCancelling} {
+		repo, key := mintEpochFixture(t)
+		must(t, RegisterEpochParticipant(repo, key, "", EpochParticipant{Kind: "task", NativeHandle: "h1"}))
+		forceEpochState(t, repo, key, s)
+		must(t, RecordEpochParticipantTerminal(repo, key, "", "h1", "turn-1", participantTerminalFailed))
 	}
 }

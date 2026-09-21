@@ -98,7 +98,25 @@ type EpochParticipant struct {
 	Kind         string `json:"kind"` // coordinator|task|gate-scope|raw-run
 	NativeHandle string `json:"native_handle,omitempty"`
 	RegisteredAt string `json:"registered_at"`
+	// Terminal* persist the adapter's exact terminal observation of this native
+	// task — change 0441. Absent evidence means UNPROVEN, never implicitly
+	// complete; a terminal failure is termination evidence too (RunVerify
+	// independently decides implementation success). TerminalStatus is one of
+	// participantTerminalCompleted / participantTerminalFailed; TerminalObservedAt
+	// is an RFC3339 UTC stamp set when the evidence is first recorded.
+	TerminalStatus     string `json:"terminal_status,omitempty"`
+	TerminalTurn       string `json:"terminal_turn,omitempty"`
+	TerminalObservedAt string `json:"terminal_observed_at,omitempty"`
 }
+
+// participantTerminalCompleted / participantTerminalFailed are the only two
+// terminal-observation statuses RecordEpochParticipantTerminal will store — a
+// terminal failure is termination evidence, not an implementation verdict
+// (change 0441). Any other value is malformed evidence and is refused.
+const (
+	participantTerminalCompleted = "completed"
+	participantTerminalFailed    = "failed"
+)
 
 // AdmittedMutation is one journaled workflow-mutation admission at a shared
 // mutation boundary (transaction engine, PR publish, workspace publish). Status is
@@ -171,6 +189,10 @@ const (
 	ErrEpochAmbiguous EpochErrorKind = "epoch-ambiguous"
 	// ErrEpochIO: an underlying filesystem, lock, or randomness operation failed.
 	ErrEpochIO EpochErrorKind = "epoch-io"
+	// ErrEpochParticipantUnknown: a terminal-observation record named a native
+	// handle that no registered participant carries (change 0441) — evidence for a
+	// participant this epoch never registered is never stored.
+	ErrEpochParticipantUnknown EpochErrorKind = "epoch-participant-unknown"
 )
 
 // EpochError is the epoch store's typed failure carrying a stable kind and stage.
@@ -305,6 +327,50 @@ func RegisterEpochParticipant(repoDir, gateKey, expectEpoch string, p EpochParti
 		rec.Participants = append(rec.Participants, p)
 		return nil
 	})
+}
+
+// RecordEpochParticipantTerminal stamps the adapter's exact terminal observation
+// (change 0441) onto the participant whose NativeHandle equals handle. Completing
+// an ALREADY-registered participant's record is observation of fact, so — unlike
+// RegisterEpochParticipant — it is allowed in ANY epoch state (mirroring the
+// mutation journal's completion callback, which has no state gate); registering
+// NEW work stays active-only. It fails closed on malformed evidence: an empty
+// handle/turn or a status outside {completed, failed} is ErrEpochMismatch, and a
+// handle no participant carries is ErrEpochParticipantUnknown. It is idempotent on
+// identical evidence; a DIFFERENT already-recorded status or turn is ErrEpochMismatch
+// — recorded terminal evidence is never silently overwritten. A non-empty
+// expectEpoch mismatching EpochID is ErrEpochMismatch (a stale locator).
+func RecordEpochParticipantTerminal(repoDir, gateKey, expectEpoch, handle, turn, status string) error {
+	if handle == "" || turn == "" ||
+		(status != participantTerminalCompleted && status != participantTerminalFailed) {
+		return epochErr(ErrEpochMismatch, "record-participant-terminal", nil)
+	}
+	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+		if expectEpoch != "" && rec.EpochID != expectEpoch {
+			return epochErr(ErrEpochMismatch, "record-participant-terminal", nil)
+		}
+		for i := range rec.Participants {
+			p := &rec.Participants[i]
+			if p.NativeHandle != handle {
+				continue
+			}
+			if p.TerminalStatus != "" {
+				if p.TerminalStatus == status && p.TerminalTurn == turn {
+					return errEpochFenceNoWrite // idempotent replay of identical evidence
+				}
+				return epochErr(ErrEpochMismatch, "record-participant-terminal", nil)
+			}
+			p.TerminalStatus = status
+			p.TerminalTurn = turn
+			p.TerminalObservedAt = time.Now().UTC().Format(time.RFC3339)
+			return nil
+		}
+		return epochErr(ErrEpochParticipantUnknown, "record-participant-terminal", nil)
+	})
+	if errors.Is(err, errEpochFenceNoWrite) {
+		return nil
+	}
+	return err
 }
 
 // bindEpochChange binds the epoch's ChangeID once, at claim confirmation, so the
