@@ -263,3 +263,112 @@ func TestConfirmGateClaimNoEpochIsNoop(t *testing.T) {
 		t.Fatalf("no epoch must be fabricated by the claim, got %v", err)
 	}
 }
+
+// mintEpochFixture mints a gate-key directory and an active epoch beside it
+// (change 0441), returning the repo and the gate key the completion-lifecycle
+// tests drive. changeID "441" mirrors the change under test.
+func mintEpochFixture(t *testing.T) (repo, key string) {
+	t.Helper()
+	repo = newGateRepo(t)
+	key = mintTestGateKey(t, repo)
+	if _, err := MintEpochRecord(repo, key, "441"); err != nil {
+		t.Fatalf("MintEpochRecord: %v", err)
+	}
+	return repo, key
+}
+
+// forceEpochState drives the epoch record to state s through the CAS, standing in
+// for the durable transitions other tasks own so a lifecycle guard can be exercised
+// against an arbitrary state.
+func forceEpochState(t *testing.T, repo, key string, s epochState) {
+	t.Helper()
+	if err := epochCAS(repo, key, func(r *EpochRecord) error {
+		r.State = s
+		return nil
+	}); err != nil {
+		t.Fatalf("forceEpochState %q: %v", s, err)
+	}
+}
+
+func TestFenceEpochCompletingFromActive(t *testing.T) {
+	repo, key := mintEpochFixture(t) // reuse/extract the file's existing mint helper; changeID "441"
+	st, err := FenceEpochCompleting(repo, key, "")
+	if err != nil || st != EpochCompleting {
+		t.Fatalf("fence: state %q err %v", st, err)
+	}
+	rec, _, _ := LoadEpochRecord(repo, key)
+	if rec.State != EpochCompleting {
+		t.Fatalf("persisted state %q", rec.State)
+	}
+	// Idempotent replay resumes the same closeout.
+	if st, err = FenceEpochCompleting(repo, key, ""); err != nil || st != EpochCompleting {
+		t.Fatalf("replay: state %q err %v", st, err)
+	}
+}
+
+func TestFenceEpochCompletingNeverRelabelsTerminalStates(t *testing.T) {
+	for _, s := range []epochState{EpochCancelling, EpochCancelled, EpochSuperseded, epochState("garbage")} {
+		repo, key := mintEpochFixture(t)
+		forceEpochState(t, repo, key, s) // helper: epochCAS setting rec.State = s
+		st, err := FenceEpochCompleting(repo, key, "")
+		ee, ok := AsEpochError(err)
+		if !ok || ee.Kind != ErrEpochNotActive || st != s {
+			t.Fatalf("state %q: got st %q err %v", s, st, err)
+		}
+		rec, _, _ := LoadEpochRecord(repo, key)
+		if rec.State != s {
+			t.Fatalf("state %q was rewritten to %q", s, rec.State)
+		}
+	}
+}
+
+func TestFenceEpochCompletingRejectsStaleLocator(t *testing.T) {
+	repo, key := mintEpochFixture(t)
+	_, err := FenceEpochCompleting(repo, key, "not-the-epoch-id")
+	if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochMismatch {
+		t.Fatalf("err %v", err)
+	}
+}
+
+func TestCompleteEpochOnlyFromCompleting(t *testing.T) {
+	repo, key := mintEpochFixture(t)
+	if err := CompleteEpoch(repo, key); err == nil {
+		t.Fatal("completed from active") // never a shortcut past the fence
+	}
+	_, _ = FenceEpochCompleting(repo, key, "")
+	if err := CompleteEpoch(repo, key); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	if err := CompleteEpoch(repo, key); err != nil {
+		t.Fatalf("idempotent replay: %v", err) // completed receipt replay is safe
+	}
+	// Cancellation that won from completing makes completion lose.
+	repo2, key2 := mintEpochFixture(t)
+	_, _ = FenceEpochCompleting(repo2, key2, "")
+	forceEpochState(t, repo2, key2, EpochCancelling)
+	if err := CompleteEpoch(repo2, key2); err == nil {
+		t.Fatal("completion must lose to a cancellation that won")
+	}
+}
+
+func TestRegisterEpochParticipantRejectedOnCompletingAndCompleted(t *testing.T) {
+	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
+		repo, key := mintEpochFixture(t)
+		forceEpochState(t, repo, key, s)
+		err := RegisterEpochParticipant(repo, key, "", EpochParticipant{Kind: "task", NativeHandle: "h"})
+		if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochNotActive {
+			t.Fatalf("state %q admitted a registration: %v", s, err)
+		}
+	}
+}
+
+func TestSupersedeRefusesCompletingAndCompleted(t *testing.T) {
+	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
+		repo, key := mintEpochFixture(t)
+		forceEpochState(t, repo, key, s)
+		err := SupersedeCancelledEpoch(repo, key, "replacement-key")
+		if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochNotCancelled {
+			t.Fatalf("state %q superseded: %v", s, err)
+		}
+	}
+}

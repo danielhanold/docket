@@ -78,6 +78,18 @@ const (
 	EpochSuperseded epochState = "superseded"
 )
 
+// EpochCompleting / EpochCompleted: the successful-run closeout lifecycle
+// (change 0441). Completing is the durable success fence — RunGateVerdict
+// verified run-complete but ownership accounting/retirement is unfinished, so
+// the epoch still owns its worktree and admits no NEW registration, start,
+// mutation, takeover, or relaunch. Completed means retirement finished:
+// terminal, excluded from ambient worktree-owner lookup, revoked for explicit
+// references. Success is never encoded as cancellation.
+const (
+	EpochCompleting epochState = "completing"
+	EpochCompleted  epochState = "completed"
+)
+
 // EpochParticipant is one registered coordinator/worker/task/raw-run boundary the
 // epoch tracks so a cancellation knows what to stop. NativeHandle is the adapter's
 // own opaque task handle (a thread/turn id, a drive id) — a locator, never a
@@ -447,6 +459,65 @@ func acquireEpochLock(dir string) (*os.File, error) {
 // winner's reservation rather than reserving a second replacement. It is internal
 // to the supersede one-winner race and never surfaces as a typed EpochError.
 var errEpochAlreadySuperseded = errors.New("run epoch already superseded")
+
+// errEpochFenceNoWrite aborts a completion-lifecycle CAS with no write when the
+// observed state already satisfies the transition (idempotent replay).
+var errEpochFenceNoWrite = errors.New("run epoch completion state already satisfied")
+
+// FenceEpochCompleting compare-and-swaps an active epoch active→completing, the
+// durable success fence a verified keyed run-complete drives (change 0441). It
+// returns the state OBSERVED under the lock. active→fenced (EpochCompleting, nil);
+// already completing→idempotent replay (EpochCompleting, nil); completed→
+// (EpochCompleted, nil) (replay of a finished closeout); any cancelling/cancelled/
+// superseded/unknown state is returned as-is plus ErrEpochNotActive and is NEVER
+// relabelled successful. A non-empty expectEpoch mismatching EpochID is
+// ErrEpochMismatch — a stale locator confers no completion authority.
+func FenceEpochCompleting(repoDir, gateKey, expectEpoch string) (epochState, error) {
+	var observed epochState
+	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+		if expectEpoch != "" && rec.EpochID != expectEpoch {
+			return epochErr(ErrEpochMismatch, "fence-completing", nil)
+		}
+		observed = rec.State
+		switch rec.State {
+		case EpochActive:
+			rec.State = EpochCompleting
+			observed = EpochCompleting
+			return nil
+		case EpochCompleting, EpochCompleted:
+			return errEpochFenceNoWrite // idempotent observation, no write
+		default:
+			return epochErr(ErrEpochNotActive, "fence-completing", nil)
+		}
+	})
+	if errors.Is(err, errEpochFenceNoWrite) {
+		return observed, nil
+	}
+	return observed, err
+}
+
+// CompleteEpoch compare-and-swaps a fenced epoch completing→completed, retiring a
+// successful closeout (change 0441). already completed→idempotent nil (a completed
+// receipt replay is safe); ANY other state is ErrEpochNotActive — a concurrent
+// cancellation that won from completing makes completion lose, and there is no
+// shortcut past the fence from active.
+func CompleteEpoch(repoDir, gateKey string) error {
+	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+		switch rec.State {
+		case EpochCompleting:
+			rec.State = EpochCompleted
+			return nil
+		case EpochCompleted:
+			return errEpochFenceNoWrite
+		default:
+			return epochErr(ErrEpochNotActive, "complete-epoch", nil)
+		}
+	})
+	if errors.Is(err, errEpochFenceNoWrite) {
+		return nil
+	}
+	return err
+}
 
 // SupersedeCancelledEpoch atomically transitions a CONFIRMED-CANCELLED epoch to
 // superseded and records replacementKey as its one reserved replacement dispatch
