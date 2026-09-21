@@ -120,7 +120,8 @@ func RunAgentGuardianFromEnv() int {
 // concurrent or prior run.cancel that already fenced it leaves it cancelling) and,
 // only when the fence holds, reaps the run's participants and worktree slot. It
 // verifies the epoch id before writing so a stale guardian cannot fence a successor
-// epoch, and it never revives a terminal (cancelled/superseded) epoch.
+// epoch, and it never revives a non-active epoch — cancelled/superseded, or a
+// successful completing/completed closeout (change 0441).
 //
 // The guardian FENCES and reaps best-effort but deliberately does NOT finalize the
 // epoch to cancelled: reporting a run fully cancelled requires the authority
@@ -137,7 +138,9 @@ func guardianFenceAndReap(repoDir, gateKey, epochID string) {
 		if rec.State == EpochActive {
 			rec.State = EpochCancelling
 		}
-		// A cancelling/cancelled/superseded epoch is left exactly as found.
+		// A non-active epoch is left exactly as found: cancelling/cancelled/superseded,
+		// or a completing/completed successful closeout the keyed verdict resumes by
+		// replay (change 0441).
 		return nil
 	})
 	if ferr != nil {
