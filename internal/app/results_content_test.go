@@ -327,6 +327,12 @@ func TestValidateResultsContentActionStatement(t *testing.T) {
 			want:  []string{"results-action-statement-empty"},
 		},
 		{
+			name:  "unfilled scaffold statement refused final",
+			src:   "# T — Results\n\n**Human action:** <Whether human action is needed, …>\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  []string{"results-action-statement-empty"},
+		},
+		{
 			name:  "statement below first H2 does not count",
 			src:   "# T — Results\n\n## Outcome\n\n**Human action:** No required action.\n\nReal outcome prose.\n",
 			phase: ResultsPhaseFinal,
