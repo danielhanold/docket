@@ -2,7 +2,7 @@
 id: 440
 slug: 'make-results-artifacts-readable-and-actionable'
 title: 'Make results artifacts readable and actionable'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-21'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/make-results-artifacts-readable-and-actionable'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/321'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-21T13:05:16Z'
