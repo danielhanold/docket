@@ -249,7 +249,7 @@ func ValidateResultsContent(source []byte, phase ResultsPhase) []ResultsContentF
 			parts = append(parts, strings.TrimSpace(strings.TrimRight(lines[j].text, "\r")))
 		}
 		joined := strings.TrimSpace(strings.Join(parts, "\n"))
-		if joined == "" || isResultsFillerBody(joined) {
+		if joined == "" || isResultsFillerBody(joined) || isResultsScaffoldBody(joined) {
 			findings = append(findings, ResultsContentFinding{
 				Reason:  reasonResultsActionStatementEmpty,
 				Message: "the Human action statement after the title has no substantive text",
@@ -410,12 +410,20 @@ func parseResultsActionStatement(text string) (string, bool) {
 // scheme, so they are not matched. HTML comments (`<!--`) and http autolinks
 // (`<http…>`) fall out of the same rule (`!` and `h` are not uppercase letters).
 func isResultsPlaceholderLine(text string) bool {
-	s := stripResultsLeadMarkers(text)
-	if len(s) < 2 || s[0] != '<' {
-		return false
-	}
-	c := s[1]
-	return c >= 'A' && c <= 'Z'
+	return isResultsScaffoldBody(stripResultsLeadMarkers(text))
+}
+
+// isResultsScaffoldBody reports whether a body carries the canonical
+// results-template scaffold SHAPE: an angle bracket immediately followed by an
+// uppercase ASCII letter (the capitalized instruction phrases the template
+// emits, e.g. `<Whether human action is needed, …>`). It is the shared shape
+// rule behind both isResultsPlaceholderLine (any line) and the final-phase
+// action-statement check (a parsed statement body), so an unfilled template
+// placeholder can never satisfy either — see isResultsPlaceholderLine for why
+// the uppercase first letter separates scaffolding from inline HTML and
+// autolinks.
+func isResultsScaffoldBody(s string) bool {
+	return len(s) >= 2 && s[0] == '<' && s[1] >= 'A' && s[1] <= 'Z'
 }
 
 // stripResultsLeadMarkers removes leading whitespace, heading markers, and one
