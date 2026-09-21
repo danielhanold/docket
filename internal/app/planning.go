@@ -301,14 +301,25 @@ func mapFailure(err error) Result {
 	}
 }
 
-// failureStatus converts a failed transaction's typed Failure into the
-// envelope's failure diagnosis. It returns nil on every non-failed
-// disposition. A failed disposition whose error is missing or not a
-// *transaction.Failure is the same contract violation mapFailure reports as
-// internal-error; it still yields a diagnosis, so a failed result can never
-// again reach the caller cause-free.
+// failureStatus converts a transaction's typed Failure into the envelope's
+// failure diagnosis. Two outcome shapes carry one: a failed disposition
+// (mid-flight failure), and an empty disposition accompanied by a non-nil
+// error — the engine's call-shape validation return, produced before any
+// attempt runs. It returns nil on every other disposition, and on an empty
+// disposition with a nil error (that contract violation keeps its
+// internal-error/no-diagnosis shape at mapOutcome). A failed disposition
+// whose error is missing or not a *transaction.Failure is the same contract
+// violation mapFailure reports as internal-error; it still yields a
+// diagnosis, so a failed result can never again reach the caller cause-free.
 func failureStatus(res transaction.Result, execErr error) *FailureStatus {
-	if res.Disposition != transaction.DispositionFailed {
+	switch {
+	case res.Disposition == transaction.DispositionFailed:
+		// Mid-flight transaction failure — diagnose below even when the
+		// error is missing or untyped.
+	case res.Disposition == "" && execErr != nil:
+		// The engine's early call-shape validation return: base result
+		// (empty disposition) plus a typed *Failure. Same conversion.
+	default:
 		return nil
 	}
 	if execErr == nil {
