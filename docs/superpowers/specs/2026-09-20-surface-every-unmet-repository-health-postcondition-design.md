@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0418 — Surface every unmet repository health postcondition](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0418-surface-every-unmet-repository-health-postcondition.md)**
+> ↩ **[Change 0418 — Surface every unmet repository health postcondition](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-21-0418-surface-every-unmet-repository-health-postcondition.md)**
 <!-- docket:backlink:end -->
 
 # Report every applicable unmet repository health condition
