@@ -1149,3 +1149,47 @@ func TestRepairChargesNothing(t *testing.T) {
 		t.Fatalf("gate record AttemptLimit = %d, want 2 (unchanged)", rec.AttemptLimit)
 	}
 }
+
+// TestRunCancelWinsFromCompletingEpoch: an explicit human cancellation WINS from a
+// completing (successful, mid-closeout) epoch — the fence flips completing→cancelling
+// and the ordinary teardown/accounting runs to a proven cancellation, never a
+// completing/completed relabelling. Completion then loses (change 0441): its
+// completing→completed CAS refuses once this fence lands.
+func TestRunCancelWinsFromCompletingEpoch(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	forceEpochState(t, fx.repo, fx.key, EpochCompleting)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+	}
+	st := loadEpochState(t, fx.repo, fx.key)
+	if st != EpochCancelled && st != EpochCancelling {
+		t.Fatalf("epoch state = %q, want cancelling or cancelled — never completing/completed", st)
+	}
+}
+
+// TestRunCancelRefusesCompletedEpoch: a completed (successfully closed-out) run
+// cannot be cancelled — a no-op refusal carrying the completed-run explanation, never
+// a state regression and never cancellation-pending over durable terminal state
+// (change 0441).
+func TestRunCancelRefusesCompletedEpoch(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	forceEpochState(t, fx.repo, fx.key, EpochCompleted)
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+
+	if res.Disposition != CancelDispositionRefused {
+		t.Fatalf("disposition = %q, want refused (findings=%v)", res.Disposition, res.Findings)
+	}
+	if !hasFinding(res.Findings, "run-completed") {
+		t.Fatalf("findings = %v, want a run-completed finding", res.Findings)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCompleted {
+		t.Fatalf("epoch state = %q, want completed unchanged (no regression)", st)
+	}
+	if len(stopper.calls) != 0 {
+		t.Fatalf("a refused cancel of a completed run must stop nothing, got %v", stopper.calls)
+	}
+}
