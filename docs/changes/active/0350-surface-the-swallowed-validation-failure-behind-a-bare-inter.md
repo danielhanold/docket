@@ -13,7 +13,7 @@ related: [309, 329]
 discovered_from: [348]
 adrs: [50, 55]
 spec:
-plan:
+plan: 'docs/superpowers/plans/2026-09-21-0350-surface-swallowed-validation-failure.md'
 results:
 trivial: true
 auto_groomable:
@@ -29,6 +29,7 @@ claimed_at: '2026-09-21T07:27:33Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Plan | [2026-09-21-0350-surface-swallowed-validation-failure.md](https://github.com/danielhanold/docket/blob/fix/surface-the-swallowed-validation-failure-behind-a-bare-inter/docs/superpowers/plans/2026-09-21-0350-surface-swallowed-validation-failure.md) |
 | ADRs | [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0055](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0055-exhaustive-vocabulary-mappings-require-array-pinned-set-equality.md) |
 <!-- docket:artifacts:end -->
 
