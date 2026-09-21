@@ -8,6 +8,7 @@ import (
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
+	"strings"
 	"testing"
 	"time"
 )
@@ -148,5 +149,34 @@ func TestPRPublishAcceptsSkippedEvidenceAtExactHead(t *testing.T) {
 		repoDir, PRPublishRequest{ID: 7, Head: prHead, Title: "Add widget", Body: "Authored prose.\n", EvidenceRecord: prSkippedEvidenceBytes(t, prHead)})
 	if res.Reason == ReasonPREvidenceUnverified {
 		t.Fatalf("skipped evidence at the exact head was refused at the evidence conjunct: %q", res.Message)
+	}
+}
+
+// TestPRFenceRefusalMessageIsReasonAware pins the review fix (change 0441): the
+// human message must be accurate per fence reason. A run-completed fence is a
+// SUCCESSFUL closeout, so its message must NOT claim cancellation; a cancelled or
+// superseded fence keeps the existing cancelled-or-superseded wording. The
+// machine-readable Reason token rides through unchanged in every case.
+func TestPRFenceRefusalMessageIsReasonAware(t *testing.T) {
+	cancelled := prFenceRefusal(7, ErrRunCancelled)
+	if cancelled.Reason != "run-cancelled" {
+		t.Fatalf("cancelled reason = %q, want run-cancelled", cancelled.Reason)
+	}
+	if cancelled.Message != "the run that owns this change was cancelled or superseded; publish nothing" {
+		t.Fatalf("cancelled message unexpectedly changed: %q", cancelled.Message)
+	}
+	if superseded := prFenceRefusal(7, ErrStaleRunEpoch); superseded.Reason != "stale-run-epoch" ||
+		superseded.Message != cancelled.Message {
+		t.Fatalf("superseded reason=%q message=%q, want stale-run-epoch + the cancelled-or-superseded wording", superseded.Reason, superseded.Message)
+	}
+	completed := prFenceRefusal(7, ErrRunCompleted)
+	if completed.Reason != "run-completed" {
+		t.Fatalf("completed reason = %q, want run-completed (token must be unchanged)", completed.Reason)
+	}
+	if strings.Contains(completed.Message, "cancelled") || strings.Contains(completed.Message, "superseded") {
+		t.Fatalf("run-completed message falsely claims cancellation: %q", completed.Message)
+	}
+	if !strings.Contains(completed.Message, "finished successfully") {
+		t.Fatalf("run-completed message is not accurate for a successful closeout: %q", completed.Message)
 	}
 }

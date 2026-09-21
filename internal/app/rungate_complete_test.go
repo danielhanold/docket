@@ -532,3 +532,49 @@ func TestOrdinaryReleaseStillRetainsEpochBetweenDrives(t *testing.T) {
 		t.Fatalf("foreign reserve between drives must refuse stale-run-epoch, got %v", err)
 	}
 }
+
+// countFinding returns how many times token appears in findings.
+func countFinding(findings []string, token string) int {
+	n := 0
+	for _, f := range findings {
+		if f == token {
+			n++
+		}
+	}
+	return n
+}
+
+// TestCompleteSuccessfulRunDoesNotDuplicateFindings pins the diagnostic-noise fix
+// (change 0441 review finding): a participant or mutation that stays unsettled across
+// step (3)'s fenced-record accounting and step (4)'s reload re-enumeration must appear
+// exactly ONCE in the operator-facing CompletionFindings, not twice — while the
+// closeout still fails closed (ok=false, completion-unaccounted).
+func TestCompleteSuccessfulRunDoesNotDuplicateFindings(t *testing.T) {
+	t.Run("participant", func(t *testing.T) {
+		fx := newCompletionFixture(t)
+		// A registered native participant with no terminal evidence: unsettled on both reads.
+		must(t, RegisterEpochParticipant(fx.repo, fx.key, fx.epochID,
+			EpochParticipant{Kind: "coordinator", NativeHandle: "turn-2"}))
+		ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key)
+		if ok || reason != "completion-unaccounted" {
+			t.Fatalf("ok=%v reason=%q, want false/completion-unaccounted (findings=%v)", ok, reason, findings)
+		}
+		if got := countFinding(findings, "participant-unobserved:coordinator"); got != 1 {
+			t.Fatalf("participant-unobserved:coordinator appears %d times, want exactly 1 (findings=%v)", got, findings)
+		}
+	})
+	t.Run("mutation", func(t *testing.T) {
+		fx := newCompletionFixture(t)
+		must(t, epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+			r.AdmittedMutations = []AdmittedMutation{{OpKey: "pr.publish", Status: "admitted"}}
+			return nil
+		}))
+		ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key)
+		if ok || reason != "completion-unaccounted" {
+			t.Fatalf("ok=%v reason=%q, want false/completion-unaccounted (findings=%v)", ok, reason, findings)
+		}
+		if got := countFinding(findings, "mutation-pending:pr.publish"); got != 1 {
+			t.Fatalf("mutation-pending:pr.publish appears %d times, want exactly 1 (findings=%v)", got, findings)
+		}
+	})
+}
