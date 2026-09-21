@@ -246,7 +246,10 @@ func fenceBoardSurface(eff config.Effective) (inline bool, err error) {
 // mapOutcome folds a transaction outcome into the protocol-v1 result taxonomy
 // and reports whether the outcome was an idempotent replay. refusalKind is the
 // result a domain refusal maps to — an operation passes ResultInvalidState for a
-// state-shaped refusal or ResultInvalidInput for a request-shaped one.
+// state-shaped refusal or ResultInvalidInput for a request-shaped one. An
+// empty disposition is the engine's early call-shape validation return and
+// routes through mapFailure; an unknown non-empty disposition remains
+// internal-error.
 func mapOutcome(res transaction.Result, err error, refusalKind Result) (Result, bool) {
 	switch res.Disposition {
 	case transaction.DispositionApplied:
@@ -262,6 +265,14 @@ func mapOutcome(res transaction.Result, err error, refusalKind Result) (Result, 
 	case transaction.DispositionInterrupted:
 		return ResultInterrupted, false
 	case transaction.DispositionFailed:
+		return mapFailure(err), false
+	case "":
+		// The engine's call-shape validation fails before any attempt runs,
+		// returning its base result — an empty disposition — with a typed
+		// *Failure. Route it through the same failure mapping so the invalid
+		// input is named instead of flattened to internal-error; a nil or
+		// untyped error still lands on internal-error via mapFailure's
+		// AsFailure miss.
 		return mapFailure(err), false
 	default:
 		return ResultInternalError, false
