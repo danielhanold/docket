@@ -2,7 +2,7 @@
 id: 440
 slug: 'make-results-artifacts-readable-and-actionable'
 title: 'Make results artifacts readable and actionable'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-21'
@@ -22,7 +22,7 @@ branch: 'refactor/make-results-artifacts-readable-and-actionable'
 pr: 'https://github.com/danielhanold/docket/pull/321'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-21T13:05:16Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-21T13:05:16Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-21-make-results-artifacts-readable-and-actionable-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-21-make-results-artifacts-readable-and-actionable-design.md) |
-| Plan | [2026-09-21-make-results-artifacts-readable-and-actionable.md](https://github.com/danielhanold/docket/blob/refactor/make-results-artifacts-readable-and-actionable/docs/superpowers/plans/2026-09-21-make-results-artifacts-readable-and-actionable.md) |
-| Results | [2026-09-21-make-results-artifacts-readable-and-actionable-results.md](https://github.com/danielhanold/docket/blob/refactor/make-results-artifacts-readable-and-actionable/docs/results/2026-09-21-make-results-artifacts-readable-and-actionable-results.md) |
+| Plan | [2026-09-21-make-results-artifacts-readable-and-actionable.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-21-make-results-artifacts-readable-and-actionable.md) |
+| Results | [2026-09-21-make-results-artifacts-readable-and-actionable-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-21-make-results-artifacts-readable-and-actionable-results.md) |
 | ADRs | [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
