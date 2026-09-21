@@ -376,3 +376,35 @@ func repairRealDeps(t *testing.T, dir string, blob StatusBlob, gh *fakeRepairGit
 	}
 	return deps, engine
 }
+
+// TestRepairEarlyEngineErrorCarriesFailure pins change 0350's propagation for
+// the repair envelope: an engine call-shape validation error (empty
+// disposition + typed *Failure) must reach the caller as the mapped result
+// AND a populated failure diagnosis via the default mapping arm — not only
+// via the explicit DispositionFailed arm.
+func TestRepairEarlyEngineErrorCarriesFailure(t *testing.T) {
+	execErr := &transaction.Failure{
+		Stage:  transaction.StageValidateRequest,
+		Kind:   transaction.KindInvalidInput,
+		Detail: "invalid expectations",
+		Err:    errors.New("short object id"),
+	}
+	r := repairResultFromOutcome("branch", "fix/x", transaction.Result{}, execErr, 350)
+	if r.Result != ResultInvalidInput {
+		t.Fatalf("Result = %q, want %q", r.Result, ResultInvalidInput)
+	}
+	if r.Failure == nil {
+		t.Fatal("Failure = nil, want the typed diagnosis")
+	}
+	want := FailureStatus{
+		Stage:  string(transaction.StageValidateRequest),
+		Kind:   string(transaction.KindInvalidInput),
+		Detail: "invalid expectations: short object id",
+	}
+	if *r.Failure != want {
+		t.Errorf("Failure = %+v, want %+v", *r.Failure, want)
+	}
+	if r.ID != 350 {
+		t.Errorf("ID = %d, want 350", r.ID)
+	}
+}

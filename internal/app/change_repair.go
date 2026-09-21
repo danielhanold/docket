@@ -462,7 +462,9 @@ func repairConflict(message string, id int) *RepairIdentityResult {
 // repairResultFromOutcome folds the transaction outcome into the result
 // document. An applied outcome is the repair keyed on the field written; a
 // contended outcome is the record moving out from under the exact version
-// (stale-evidence); a failure carries its typed cause in the envelope.
+// (stale-evidence); a failure — mid-flight (failed disposition) or the engine's
+// early call-shape validation return (empty disposition with an error) — carries
+// its typed cause in the envelope's failure diagnosis.
 func repairResultFromOutcome(field, value string, res transaction.Result, execErr error, id int) RepairIdentityResult {
 	switch res.Disposition {
 	case transaction.DispositionApplied, transaction.DispositionAlreadyApplied:
@@ -490,9 +492,11 @@ func repairResultFromOutcome(field, value string, res transaction.Result, execEr
 		return r
 	default:
 		result, _ := mapOutcome(res, execErr, ResultInvalidState)
-		return newRepairResult(result, RepairIdentityResult{
+		r := newRepairResult(result, RepairIdentityResult{
 			ID: id, Reason: firstFindingCode(res.Findings), Findings: findingsToStatus(res.Findings),
 		})
+		r.Failure = failureStatus(res, execErr)
+		return r
 	}
 }
 
