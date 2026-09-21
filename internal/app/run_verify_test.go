@@ -31,13 +31,13 @@ const (
 // accepts it, so run verify's results content check adds no conjunct — the
 // fixture head must carry a genuinely valid results file now that a linked
 // results path is content-validated at the final boundary (change 0410).
-const rvResultsValidContent = "# Widget — Results\n\n## Outcome\n\nDelivered the widget behavior; the run now refuses the old path.\n"
+const rvResultsValidContent = "# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget behavior; the run now refuses the old path.\n"
 
 // rvResultsInvalidContent is a FINAL-invalid artifact: a whole-section filler
 // body (`None.`) under a real section, which ValidateResultsContent reports as
 // results-filler-section. The linked-but-invalid results path resolves to a
 // tracked regular file, so identity holds and only the content contract fails.
-const rvResultsInvalidContent = "# Widget — Results\n\n## Outcome\n\nReal outcome prose describing the delivered behavior.\n\n## Findings and limitations\n\nNone.\n"
+const rvResultsInvalidContent = "# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome prose describing the delivered behavior.\n\n## Findings and limitations\n\nNone.\n"
 
 func rvRecordedPR() string { return prRepo().Spec() + "#42" }
 
