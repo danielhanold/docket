@@ -323,17 +323,26 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 		// above; repairTerminalEpoch never revives the epoch, replays a mutation, resets
 		// a budget, regresses terminal state, or stops a replacement's process.
 		return repairTerminalEpoch(seams, ep)
-	case EpochActive:
+	case EpochActive, EpochCompleting:
+		// An explicit human cancellation WINS even from a completing (successful,
+		// mid-closeout) epoch (change 0441): fence active/completing→cancelling and run
+		// the existing teardown/accounting unchanged. Completion then loses without
+		// reporting success — its completing→completed CAS refuses once this fence
+		// lands. A concurrent cancel that already fenced it leaves it cancelling: not an
+		// error — cleanup simply resumes.
 		if ferr := epochCAS(repoDir, key, func(r *EpochRecord) error {
-			if r.State == EpochActive {
+			if r.State == EpochActive || r.State == EpochCompleting {
 				r.State = EpochCancelling
 			}
-			// A concurrent cancel that already fenced it leaves it cancelling: not an
-			// error — cleanup simply resumes.
 			return nil
 		}); ferr != nil {
 			return cancelRefused("fence-failed")
 		}
+	case EpochCompleted:
+		// A completed (successfully closed-out) run cannot be cancelled (change 0441):
+		// a no-op refusal with the completed-run explanation, never a state regression
+		// and never cancellation-pending over durable terminal state.
+		return cancelRefused("run-completed")
 	case EpochCancelling:
 		// Repeat: resume cleanup on the already-fenced epoch.
 	default:

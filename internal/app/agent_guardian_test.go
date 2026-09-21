@@ -201,3 +201,35 @@ func TestGuardianCannotMutate(t *testing.T) {
 		t.Fatalf("mutation after guardian fence = %v, want ErrRunCancelled", err)
 	}
 }
+
+// TestGuardianLeavesCompletingEpochForReplay pins the death guardian's completing
+// behavior (change 0441): the guardian fences ONLY an active epoch (guardianFenceAndReap
+// flips active→cancelling and reaps only when the fence lands), so an abrupt owner
+// death over a COMPLETING epoch — a keyed verdict verified run-complete and durably
+// fenced the epoch mid-closeout — leaves it exactly completing, untouched and
+// unreaped, so a keyed-verdict replay resumes the closeout. Success is never encoded
+// as cancellation. This is the mutation-evidence target: make the guardian CAS also
+// flip completing→cancelling and this reddens.
+func TestGuardianLeavesCompletingEpochForReplay(t *testing.T) {
+	handle, _, key, repo := spawnTestGuardian(t)
+
+	// The keyed verdict fenced the epoch to completing (successful closeout in
+	// flight). Force it BEFORE the owner dies so the guardian observes completing.
+	forceEpochState(t, repo, key, EpochCompleting)
+
+	// Simulate the owner dying: drop the pipe write end WITHOUT writing the marker.
+	if err := handle.pipeW.Close(); err != nil {
+		t.Fatalf("closing owner pipe: %v", err)
+	}
+	if err := handle.cmd.Wait(); err != nil {
+		t.Fatalf("guardian exited nonzero: %v", err)
+	}
+
+	ep, _, err := LoadEpochRecord(repo, key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.State != EpochCompleting {
+		t.Fatalf("epoch state = %s, want completing left untouched (the guardian fences only active; a keyed-verdict replay resumes closeout)", ep.State)
+	}
+}
