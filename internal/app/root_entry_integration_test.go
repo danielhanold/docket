@@ -56,7 +56,19 @@ func TestIntegrationWorkflowLifecycleRootEntryGateAttribution(t *testing.T) {
 					gdeps = complete(token)
 					completed = true
 				}}
-				client := codexentry.Client{Start: func(context.Context, string) (codexentry.Transport, error) { return tr, nil }}
+				// Wire the run-epoch lifecycle registration a real root-coordinator
+				// entry carries (internal/cli/agent.go's epochParticipantRegistrar /
+				// epochTerminalRecorder): the coordinator thread registers as a native
+				// participant before the turn and records its exact-turn terminal
+				// observation after it settles. Without this the successful-run closeout
+				// (change 0441) would observe an absent coordinator rather than the
+				// terminal-observed one a production run establishes.
+				lifecycle := epochLifecycleFixture{repo: node.dir, key: armed.Key, epoch: armed.Epoch}
+				client := codexentry.Client{
+					Start:     func(context.Context, string) (codexentry.Transport, error) { return tr, nil },
+					Registrar: lifecycle,
+					Terminal:  lifecycle,
+				}
 				_, err = client.Enter(ctx, codexentry.Request{
 					Contract: contract, CWD: node.dir, ApprovalPolicy: "never", Sandbox: "workspace-write",
 					UserRequest: "Please implement change 3.\nDispatch context: " + armed.DispatchContext + "\n",
@@ -138,3 +150,21 @@ func (tr *workflowRootTransport) Recv() (json.RawMessage, error) {
 }
 
 func (tr *workflowRootTransport) Close() error { tr.closed = true; return nil }
+
+// epochLifecycleFixture mirrors the production root-coordinator lifecycle seams
+// (internal/cli/agent.go): as a codexentry.ParticipantRegistrar it registers the
+// coordinator thread as a native run-epoch participant before the turn, and as a
+// codexentry.TerminalRecorder it stamps the exact-turn terminal observation after
+// the turn settles. It lets the end-to-end fixture establish the same terminal
+// evidence a real run does, so the successful-run closeout (change 0441) observes a
+// terminal-observed coordinator instead of an absent one.
+type epochLifecycleFixture struct{ repo, key, epoch string }
+
+func (e epochLifecycleFixture) RegisterParticipant(handle string) error {
+	return RegisterEpochParticipant(e.repo, e.key, e.epoch,
+		EpochParticipant{Kind: participantKindCoordinator, NativeHandle: handle})
+}
+
+func (e epochLifecycleFixture) RecordTerminal(handle, turnID, status string) error {
+	return RecordEpochParticipantTerminal(e.repo, e.key, e.epoch, handle, turnID, status)
+}
