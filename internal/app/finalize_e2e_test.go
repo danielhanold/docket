@@ -397,7 +397,7 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 	// before mark-implemented.
 	resultsPath := "docs/results/2026-08-17-" + slug + "-results.md"
 	writeRepoFile(t, wp, slug+".go", "package "+slug+"\n")
-	writeRepoFile(t, wp, resultsPath, "# "+title+" — Results\n\n## Outcome\n\nDelivered "+slug+" end to end; the gate certifies this head.\n")
+	writeRepoFile(t, wp, resultsPath, "# "+title+" — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered "+slug+" end to end; the gate certifies this head.\n")
 	blR := ArtifactBacklink(e.ctx, e.node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: resultsPath, ChangePath: recPath})
 	if blR.Result != ResultApplied {
 		t.Fatalf("artifact backlink (results) id %d = %q (reason %q)", id, blR.Result, blR.Reason)

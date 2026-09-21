@@ -18,8 +18,8 @@ import (
 // The PHASE is explicit precisely so shared helper code can never accidentally
 // claim final completion: a checkpoint attach runs only the both-phases checks
 // (a truthful in-progress artifact attaches), while the final content contract —
-// a required, substantive ## Outcome and no empty/filler sections — binds only at
-// the implemented boundary.
+// a required substantive Human action statement, a required, substantive ## Outcome,
+// and no empty/filler sections — binds only at the implemented boundary.
 
 // ResultsPhase selects how strict ValidateResultsContent is: a checkpoint attach
 // during implementation vs. the final implemented-boundary contract.
@@ -29,8 +29,9 @@ const (
 	// ResultsPhaseCheckpoint runs ONLY the both-phases checks (parse, title,
 	// placeholder) — a truthful in-progress artifact passes.
 	ResultsPhaseCheckpoint ResultsPhase = iota
-	// ResultsPhaseFinal adds the full content contract: a required, substantive
-	// ## Outcome and no empty or filler sections.
+	// ResultsPhaseFinal adds the full content contract: a required substantive
+	// Human action statement, a required, substantive `## Outcome`, and no empty
+	// or filler sections.
 	ResultsPhaseFinal
 )
 
@@ -52,6 +53,9 @@ const (
 	reasonResultsOutcomeEmpty   = "results-outcome-empty"
 	reasonResultsEmptySection   = "results-empty-section"
 	reasonResultsFillerSection  = "results-filler-section"
+
+	reasonResultsActionStatementMissing = "results-action-statement-missing"
+	reasonResultsActionStatementEmpty   = "results-action-statement-empty"
 )
 
 // fillerBodies is the closed set of whole-section filler bodies: a section whose
@@ -212,6 +216,54 @@ func ValidateResultsContent(source []byte, phase ResultsPhase) []ResultsContentF
 		return false
 	}
 
+	// Final phase (change 0440): a substantive "Human action:" statement must
+	// sit between the H1 title and the first H2. The statement's body is its
+	// same-line remainder plus its immediate continuation lines (the rest of
+	// that paragraph), so a wrapped statement is not misread as empty.
+	stmtFrom := 0
+	for _, h := range headings {
+		if h.level == 1 {
+			stmtFrom = h.line + 1
+			break
+		}
+	}
+	stmtTo := len(lines)
+	for _, h := range headings {
+		if h.level == 2 && h.line >= stmtFrom {
+			stmtTo = h.line
+			break
+		}
+	}
+	stmtFound := false
+	for i := stmtFrom; i < stmtTo; i++ {
+		if fenced[i] || inManaged(lines[i].start) || isHeading[i] {
+			continue
+		}
+		stmtBody, ok := parseResultsActionStatement(strings.TrimRight(lines[i].text, "\r"))
+		if !ok {
+			continue
+		}
+		stmtFound = true
+		parts := []string{stmtBody}
+		for j := i + 1; j < stmtTo && body[j] && !isHeading[j] && !fenced[j]; j++ {
+			parts = append(parts, strings.TrimSpace(strings.TrimRight(lines[j].text, "\r")))
+		}
+		joined := strings.TrimSpace(strings.Join(parts, "\n"))
+		if joined == "" || isResultsFillerBody(joined) {
+			findings = append(findings, ResultsContentFinding{
+				Reason:  reasonResultsActionStatementEmpty,
+				Message: "the Human action statement after the title has no substantive text",
+			})
+		}
+		break
+	}
+	if !stmtFound {
+		findings = append(findings, ResultsContentFinding{
+			Reason:  reasonResultsActionStatementMissing,
+			Message: "the final results artifact has no \"Human action:\" statement between the title and the first section",
+		})
+	}
+
 	outcomeIdx := -1
 	for hi, h := range headings {
 		if h.level == 2 && strings.EqualFold(h.text, "Outcome") {
@@ -310,6 +362,31 @@ func parseResultsHeading(text string) (level int, htext string, ok bool) {
 	return n, htext, true
 }
 
+// parseResultsActionStatement recognizes the required action-statement line
+// (change 0440): optional emphasis markers, the label "Human action" in any
+// case, optional emphasis around the colon, then the statement text. It
+// returns the same-line text after the colon (emphasis and whitespace
+// trimmed) and whether the line is an action-statement line at all. Detection
+// is keyed on this label-plus-colon SHAPE — never on an enumerated list of
+// statement spellings — so `**Human action:** …`, `**Human action**: …`, and
+// a plain `Human action: …` all match.
+func parseResultsActionStatement(text string) (string, bool) {
+	s := strings.TrimLeft(text, " \t")
+	s = strings.TrimLeft(s, "*_")
+	s = strings.TrimLeft(s, " \t")
+	const label = "human action"
+	if len(s) < len(label) || !strings.EqualFold(s[:len(label)], label) {
+		return "", false
+	}
+	s = strings.TrimLeft(s[len(label):], " \t*_")
+	if s == "" || s[0] != ':' {
+		return "", false
+	}
+	body := strings.TrimSpace(s[1:])
+	body = strings.TrimSpace(strings.Trim(body, "*_"))
+	return body, true
+}
+
 // isResultsPlaceholderLine reports whether a line is unfilled scaffolding from
 // the canonical results template (skills/docket-implement-next/results-template.md).
 //
@@ -322,7 +399,7 @@ func parseResultsHeading(text string) (level int, htext string, ok bool) {
 // It deliberately does NOT match on the bare content-word tokens
 // TODO/FIXME/TBD/XXX/TKTK/PLACEHOLDER: results prose legitimately discusses those
 // (e.g. "address the FIXME in retry logic", "the TODO is deferred to change
-// 0NNN"), especially in ## Findings and limitations and ## Follow-ups, and a
+// 0NNN"), especially in ## Known issues and follow-ups, and a
 // content word is not scaffolding. That vocabulary (change_attach.go's
 // placeholderTokenRE) governs plans — where those words mean unfinished work —
 // not results, and is intentionally not consulted here.

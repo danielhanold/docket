@@ -139,7 +139,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		// with its deterministic backlink stamped through the artifact-backlink
 		// operation, and is attached below.
 		writeRepoFile(t, wp, "widget.go", "package widget\n")
-		writeRepoFile(t, wp, resultsPath, "# Widget — Results\n\n## Outcome\n\nDelivered the widget end to end; the gate certifies this head.\n")
+		writeRepoFile(t, wp, resultsPath, "# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget end to end; the gate certifies this head.\n")
 		blR := ArtifactBacklink(ctx, node.deps, wp, ArtifactBacklinkRequest{ArtifactPath: resultsPath, ChangePath: recPath})
 		if blR.Result != ResultApplied {
 			t.Fatalf("artifact backlink (results) = %q (reason %q msg %q)", blR.Result, blR.Reason, blR.Message)

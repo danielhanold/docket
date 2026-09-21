@@ -34,14 +34,14 @@ func sameReasons(got, want []string) bool {
 // The two explicit cases the plan pins verbatim.
 
 func TestValidateResultsContentOutcomeOnlyFinal(t *testing.T) {
-	src := []byte("<!-- docket:backlink:start (generated — do not hand-edit) -->\n> home\n<!-- docket:backlink:end -->\n\n# Change title — Results\n\n## Outcome\n\nDelivered the thing; behavior X now refuses Y.\n")
+	src := []byte("<!-- docket:backlink:start (generated — do not hand-edit) -->\n> home\n<!-- docket:backlink:end -->\n\n# Change title — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the thing; behavior X now refuses Y.\n")
 	if fs := ValidateResultsContent(src, ResultsPhaseFinal); len(fs) != 0 {
 		t.Fatalf("want valid, got %v", fs)
 	}
 }
 
 func TestValidateResultsContentFillerSectionRefusedFinal(t *testing.T) {
-	src := []byte("# T — Results\n\n## Outcome\n\nReal outcome prose.\n\n## Findings and limitations\n\nNone.\n")
+	src := []byte("# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome prose.\n\n## Findings and limitations\n\nNone.\n")
 	fs := ValidateResultsContent(src, ResultsPhaseFinal)
 	if len(fs) != 1 || fs[0].Reason != "results-filler-section" {
 		t.Fatalf("want one results-filler-section, got %v", fs)
@@ -59,7 +59,7 @@ func TestValidateResultsContentTable(t *testing.T) {
 	}{
 		{
 			name:  "valid outcome-only final",
-			src:   "# T — Results\n\n## Outcome\n\nDelivered the thing; behavior X now refuses Y.\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the thing; behavior X now refuses Y.\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
@@ -71,7 +71,7 @@ func TestValidateResultsContentTable(t *testing.T) {
 		},
 		{
 			name:  "missing outcome refused final",
-			src:   "# T — Results\n\n## Human testing\n\n### Scenario\n\nDo X and observe Y.\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Human testing\n\n### Scenario\n\nDo X and observe Y.\n",
 			phase: ResultsPhaseFinal,
 			want:  []string{"results-outcome-missing"},
 		},
@@ -83,25 +83,25 @@ func TestValidateResultsContentTable(t *testing.T) {
 		},
 		{
 			name:  "empty outcome body refused final",
-			src:   "# T — Results\n\n## Outcome\n\n## Notes\n\nSome real notes.\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\n## Notes\n\nSome real notes.\n",
 			phase: ResultsPhaseFinal,
 			want:  []string{"results-outcome-empty"},
 		},
 		{
 			name:  "empty subsection under filled parent refused final",
-			src:   "# T — Results\n\n## Outcome\n\nReal outcome.\n\n## Human testing\n\nSetup paragraph here.\n\n### Empty scenario\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome.\n\n## Human testing\n\nSetup paragraph here.\n\n### Empty scenario\n",
 			phase: ResultsPhaseFinal,
 			want:  []string{"results-empty-section"},
 		},
 		{
 			name:  "filled sub under bodyless parent accepted final",
-			src:   "# T — Results\n\n## Outcome\n\nReal outcome.\n\n## Human testing\n\n### Scenario\n\nDo X and observe Y.\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome.\n\n## Human testing\n\n### Scenario\n\nDo X and observe Y.\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
 		{
 			name:  "None in prose is legal final",
-			src:   "# T — Results\n\n## Outcome\n\nNone of the flags are read at startup, so the change is inert.\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nNone of the flags are read at startup, so the change is inert.\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
@@ -122,7 +122,7 @@ func TestValidateResultsContentTable(t *testing.T) {
 		},
 		{
 			name:  "outcome-looking heading in fence ignored, real outcome validates",
-			src:   "# T — Results\n\n## Outcome\n\nReal outcome prose.\n\n## Notes\n\n```\n## Outcome\n```\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome prose.\n\n## Notes\n\n```\n## Outcome\n```\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
@@ -140,13 +140,13 @@ func TestValidateResultsContentTable(t *testing.T) {
 		},
 		{
 			name:  "backlink block at top does not count as body or title",
-			src:   backlink + "# T — Results\n\n## Outcome\n\nReal outcome prose.\n",
+			src:   backlink + "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome prose.\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
 		{
 			name:  "N/A whole-section filler refused final",
-			src:   "# T — Results\n\n## Outcome\n\nReal outcome.\n\n## Follow-ups\n\nN/A\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome.\n\n## Follow-ups\n\nN/A\n",
 			phase: ResultsPhaseFinal,
 			want:  []string{"results-filler-section"},
 		},
@@ -188,13 +188,13 @@ func TestResultsPlaceholderRedesign(t *testing.T) {
 		// the sections most prone to them and both phases.
 		{
 			name:  "FIXME discussed in findings accepted final",
-			src:   "# T — Results\n\n## Outcome\n\nDelivered the retry fix.\n\n## Findings and limitations\n\n### Retry logic\n\nWe still need to address the FIXME in retry logic; it is out of scope here.\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the retry fix.\n\n## Findings and limitations\n\n### Retry logic\n\nWe still need to address the FIXME in retry logic; it is out of scope here.\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
 		{
 			name:  "TODO deferred to a change accepted final",
-			src:   "# T — Results\n\n## Outcome\n\nShipped the parser.\n\n## Follow-ups\n\n### Deferred cleanup\n\nThe TODO is deferred to change 0NNN because it needs a schema change.\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nShipped the parser.\n\n## Follow-ups\n\n### Deferred cleanup\n\nThe TODO is deferred to change 0NNN because it needs a schema change.\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
@@ -206,14 +206,14 @@ func TestResultsPlaceholderRedesign(t *testing.T) {
 		},
 		{
 			name:  "XXX and PLACEHOLDER mentioned in prose accepted final",
-			src:   "# T — Results\n\n## Outcome\n\nWe replaced the literal XXX marker and the PLACEHOLDER token in the fixture with real values.\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nWe replaced the literal XXX marker and the PLACEHOLDER token in the fixture with real values.\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
 		// Finding 2: legitimate inline HTML and non-http autolinks are accepted.
 		{
 			name:  "inline HTML details/summary accepted final",
-			src:   "# T — Results\n\n## Outcome\n\nAdded a collapsible block:\n\n<details>\n<summary>Show detail</summary>\nBody text.\n</details>\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nAdded a collapsible block:\n\n<details>\n<summary>Show detail</summary>\nBody text.\n</details>\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
@@ -225,7 +225,7 @@ func TestResultsPlaceholderRedesign(t *testing.T) {
 		},
 		{
 			name:  "mailto autolink accepted final",
-			src:   "# T — Results\n\n## Outcome\n\nContact the owner:\n\n<mailto:owner@example.com>\n",
+			src:   "# T — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nContact the owner:\n\n<mailto:owner@example.com>\n",
 			phase: ResultsPhaseFinal,
 			want:  nil,
 		},
@@ -269,6 +269,93 @@ func TestResultsPlaceholderRedesign(t *testing.T) {
 			got := reasonsOf(ValidateResultsContent([]byte(tc.src), tc.phase))
 			if !sameReasons(got, tc.want) {
 				t.Fatalf("phase=%v\nsrc=%q\ngot reasons %v\nwant %v", tc.phase, tc.src, got, tc.want)
+			}
+		})
+	}
+}
+
+// Change 0440: the final boundary requires a substantive "Human action:"
+// statement between the H1 title and the first H2. Detection is shape-keyed
+// (label + colon, emphasis tolerated), never an enumerated statement list.
+func TestValidateResultsContentActionStatement(t *testing.T) {
+	cases := []struct {
+		name  string
+		src   string
+		phase ResultsPhase
+		want  []string
+	}{
+		{
+			name:  "bold statement accepted final",
+			src:   "# T — Results\n\n**Human action:** No required action or additional functional testing identified.\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  nil,
+		},
+		{
+			name:  "plain unbolded statement accepted final (shape, not spelling)",
+			src:   "# T — Results\n\nhuman action: Important verification remains; follow the scenario below.\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  nil,
+		},
+		{
+			name:  "colon-outside-bold form accepted final",
+			src:   "# T — Results\n\n**Human action**: No required action.\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  nil,
+		},
+		{
+			name:  "wrapped statement paragraph accepted final",
+			src:   "# T — Results\n\n**Human action:**\nImportant verification remains before relying on this feature.\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  nil,
+		},
+		{
+			name:  "missing statement refused final",
+			src:   "# T — Results\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  []string{"results-action-statement-missing"},
+		},
+		{
+			name:  "empty statement refused final",
+			src:   "# T — Results\n\n**Human action:**\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  []string{"results-action-statement-empty"},
+		},
+		{
+			name:  "filler statement refused final",
+			src:   "# T — Results\n\n**Human action:** None.\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  []string{"results-action-statement-empty"},
+		},
+		{
+			name:  "statement below first H2 does not count",
+			src:   "# T — Results\n\n## Outcome\n\n**Human action:** No required action.\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  []string{"results-action-statement-missing"},
+		},
+		{
+			name:  "statement only inside fence does not count",
+			src:   "# T — Results\n\n```\n**Human action:** No required action.\n```\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  []string{"results-action-statement-missing"},
+		},
+		{
+			name:  "missing statement accepted checkpoint",
+			src:   "# T — Results\n\n## Outcome\n\nBuild landed; review pending.\n",
+			phase: ResultsPhaseCheckpoint,
+			want:  nil,
+		},
+		{
+			name:  "pending assessment prose accepted final (settledness is coordinator judgment)",
+			src:   "# T — Results\n\n**Human action:** Assessment pending until review completes.\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  nil,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := reasonsOf(ValidateResultsContent([]byte(tc.src), tc.phase))
+			if !sameReasons(got, tc.want) {
+				t.Fatalf("got %v, want %v", got, tc.want)
 			}
 		})
 	}

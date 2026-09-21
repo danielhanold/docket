@@ -128,7 +128,7 @@ const (
 // phases.
 func miResultsArtifact() string {
 	return attachBacklinkBlock(3, "A change", groomPath(3, miSlug)) +
-		"\n# Widget — Results\n\n## Outcome\n\nDelivered the widget; behavior X now refuses Y.\n"
+		"\n# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nDelivered the widget; behavior X now refuses Y.\n"
 }
 
 // miResultsFinalInvalid carries the correct backlink and a real ## Outcome but a
@@ -136,7 +136,7 @@ func miResultsArtifact() string {
 // checkpoint phase yet fails the FINAL content contract (results-content-invalid).
 func miResultsFinalInvalid() string {
 	return attachBacklinkBlock(3, "A change", groomPath(3, miSlug)) +
-		"\n# Widget — Results\n\n## Outcome\n\nReal outcome prose.\n\n## Findings and limitations\n\nNone.\n"
+		"\n# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome prose.\n\n## Findings and limitations\n\nNone.\n"
 }
 
 // miResultsBacklinkMismatch carries a well-formed backlink that targets a DIFFERENT
@@ -144,7 +144,7 @@ func miResultsFinalInvalid() string {
 // even though its prose would satisfy the final content contract.
 func miResultsBacklinkMismatch() string {
 	return attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md") +
-		"\n# Widget — Results\n\n## Outcome\n\nReal outcome prose.\n"
+		"\n# Widget — Results\n\n**Human action:** No required action.\n\n## Outcome\n\nReal outcome prose.\n"
 }
 
 // miHeadFiles is the feature-head file set the happy mark-implemented fixtures
