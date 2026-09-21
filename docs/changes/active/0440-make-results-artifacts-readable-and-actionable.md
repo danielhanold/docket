@@ -13,7 +13,7 @@ related: [1, 190, 330, 374, 410]
 discovered_from: []
 adrs: [102]
 spec: 'docs/superpowers/specs/2026-09-21-make-results-artifacts-readable-and-actionable-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-21-make-results-artifacts-readable-and-actionable.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-21T12:57:08Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-21-make-results-artifacts-readable-and-actionable-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-21-make-results-artifacts-readable-and-actionable-design.md) |
+| Plan | [2026-09-21-make-results-artifacts-readable-and-actionable.md](https://github.com/danielhanold/docket/blob/refactor/make-results-artifacts-readable-and-actionable/docs/superpowers/plans/2026-09-21-make-results-artifacts-readable-and-actionable.md) |
 | ADRs | [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
