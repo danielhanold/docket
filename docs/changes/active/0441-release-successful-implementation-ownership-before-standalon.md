@@ -2,7 +2,7 @@
 id: 441
 slug: 'release-successful-implementation-ownership-before-standalon'
 title: 'Release successful implementation ownership before standalone finalize'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-21'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/release-successful-implementation-ownership-before-standalon'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/322'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-21T22:38:51Z'
