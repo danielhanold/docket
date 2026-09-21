@@ -251,19 +251,27 @@ var proseContracts = []proseContract{
 			"pass it to the claim as --gate-context",
 			"an invalid or conflicting gate context is a typed refusal that writes nothing — never retried as an ungated claim",
 		}},
-	// change 0410 — the canonical five-section required-results template. Each
-	// present phrase is one section heading on its own unwrapped line; the two
-	// absent phrases are the removed optional-template triggers (assert the state
-	// that was REMOVED, not just the new words — assert-detects-removal).
-	{sentinel: "change_0410_results_template", file: "skills/docket-implement-next/results-template.md",
+	// change 0410 introduced the canonical required template; change 0440
+	// re-shaped it around the reader: a required Human action statement after
+	// the title, and Human testing / Findings and limitations / Follow-ups
+	// merged into Human actions and testing + Known issues and follow-ups.
+	// Absent phrases are the REMOVED old section headings and the retired
+	// optional-template triggers (assert-detects-removal).
+	{sentinel: "change_0440_results_template", file: "skills/docket-implement-next/results-template.md",
 		present: []string{
+			"**Human action:**",
 			"## Outcome",
-			"## Human testing",
+			"## Human actions and testing",
 			"## Verification performed",
+			"## Known issues and follow-ups",
+		},
+		absent: []string{
+			"## Human testing",
 			"## Findings and limitations",
 			"## Follow-ups",
-		},
-		absent: []string{"OPTIONAL: write one only", "## Verify (human)"}},
+			"OPTIONAL: write one only",
+			"## Verify (human)",
+		}},
 	// change 0410 — implement-next Step 6.5 is mandatory, not an optional close-out.
 	// The present phrases bind the required-results obligation and the
 	// never-commit-under-a-live-gate checkpoint clause (each an unwrapped
