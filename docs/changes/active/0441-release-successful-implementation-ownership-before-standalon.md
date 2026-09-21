@@ -22,7 +22,7 @@ branch: 'fix/release-successful-implementation-ownership-before-standalon'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-21T19:57:21Z'
+claimed_at: '2026-09-21T22:38:51Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,7 @@ No daemon, background sweeper, new CLI command, configuration policy, generic co
 ### 2026-09-21
 
 2026-09-21: Reconciled at claim. Design baseline (main 329fa0a0) equals current integration HEAD, so the investigation trace, referenced symbols (RunGateVerdict, ReleaseWorktreeExecution, RetireWorktreeExecutionEpoch, EpochParticipant, findEpochByWorktree, processFinalizeGate.RunLocalGate), and cited ADRs (0087, 0095, 0105, 0111, 0118) are all current. Dependencies 0375/0407/0435/0437 are done; related 0433 remains proposed and is deliberately out of scope. No scope adjustment, relation change, or spec revision required.
+
+### 2026-09-21
+
+2026-09-21: Recorded ADR-0124 (successful-run ownership closeout extends the run-epoch lifecycle with completing/completed) in adrs:, produced by this build per the change's exclusions-and-implementation-boundary. ADR-0118 was extended by cross-link, not rewritten.
