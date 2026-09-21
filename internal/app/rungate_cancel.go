@@ -173,6 +173,15 @@ type cancelSeams struct {
 	stopper  cancelStopper
 	native   nativeTaskCanceller
 	launches epochLaunchReconciler
+	// observer and launchObserver are the OBSERVATION-ONLY seams the successful-run
+	// closeout (completeSuccessfulRun, change 0441) consumes: one shared seam bundle,
+	// two flows — cancellation STOPS (stopper/native/launches), completion only
+	// OBSERVES (observer/launchObserver). observer observes whether an execution's
+	// process is proven-terminal without stopping it; launchObserver walks an epoch's
+	// launch obligations without settling any. A nil observer/launchObserver proves
+	// nothing (fail closed), mirroring the nil-stopper/nil-reconciler rule.
+	observer       processObserver
+	launchObserver epochLaunchObserver
 	// retire overrides the slot epoch-retirement write (unit tests inject faults and
 	// successor races); nil delegates to store.RetireWorktreeExecutionEpoch. A nil
 	// store with a nil retire proves nothing (retireSlot fails closed).
@@ -220,6 +229,10 @@ func productionCancelSeams(repoDir string) cancelSeams {
 		stopper:  appGateStopper{},
 		native:   nil, // Task 13 wires the native adapter hook.
 		launches: appLaunchReconciler{store: store},
+		// The observation-only seams the successful-run closeout consumes (change 0441):
+		// a nil pairing would fail closed, so both are wired for the completion path.
+		observer:       appGateObserver{},
+		launchObserver: appLaunchObserver{store: store},
 	}
 }
 
@@ -806,5 +819,7 @@ func cancelEpochReason(err error) string {
 var (
 	_ cancelStopper         = appGateStopper{}
 	_ epochLaunchReconciler = appLaunchReconciler{}
+	_ processObserver       = appGateObserver{}
+	_ epochLaunchObserver   = appLaunchObserver{}
 	_ OperationResult       = RunCancelResult{}
 )
