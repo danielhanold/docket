@@ -109,6 +109,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0121](0121-version-tree-references-are-derived-from-complete-installed.md) — Version-tree references are derived from complete installed state, and uncertainty always retains (Accepted) ← change #323
 - [ADR-0122](0122-automatic-version-collection-is-a-post-commit-best-effort-pa.md) — Automatic version collection is a post-commit best-effort pass that never reclassifies its install (Accepted) ← change #323
 - [ADR-0123](0123-uninstall-is-asset-and-repository-independent-proof-gated-by.md) — Uninstall is asset- and repository-independent, proof-gated by ownership, and retains the CLI (Accepted) ← change #323
+- [ADR-0124](0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md) — Successful-run ownership closeout extends the run-epoch lifecycle with completing and completed (Accepted) ← change #441 · relates to ADR-0118
 
 ## Superseded / Reversed
 
