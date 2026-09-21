@@ -60,7 +60,10 @@ const (
 
 // epochState is the lifecycle state of one run epoch. Only an active epoch admits
 // a new participant registration; the cancelling/cancelled/superseded states are
-// the durable fence a later human cancellation or resume drives it into.
+// the durable fence a later human cancellation or resume drives it into, and the
+// completing/completed states are the durable fence a verified successful keyed-
+// verdict closeout drives it into (change 0441). Success is never encoded as
+// cancellation.
 type epochState string
 
 const (

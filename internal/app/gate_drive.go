@@ -664,8 +664,9 @@ func mapDriveFailure(err error) (Result, string) {
 	}
 	// A run-epoch mutation fence (rungate_fence.go) is a distinct refusal type
 	// carrying its OWN stable token — "run-cancelled" (the owning epoch is
-	// cancelling/cancelled) or "stale-run-epoch" (superseded by a resume). It never
-	// reaches the standalone gate-drive path today, but classifying it here is
+	// cancelling/cancelled), "stale-run-epoch" (superseded by a resume), or
+	// "run-completed" (a successful completing/completed closeout, change 0441). It
+	// never reaches the standalone gate-drive path today, but classifying it here is
 	// fail-safe: if a fenced-epoch error ever chains through this seam it surfaces its
 	// bounded token instead of leaking the wrapped refusal text or collapsing to the
 	// generic invalid-request. The Reason field is a fixed vocabulary token, never
