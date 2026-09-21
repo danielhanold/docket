@@ -393,8 +393,9 @@ func parseResultsActionStatement(text string) (string, bool) {
 // Detection is keyed on the template's own placeholder-instruction SHAPE: after
 // stripping leading heading/list markers and whitespace, an angle bracket
 // immediately followed by an uppercase ASCII letter — the capitalized English
-// instruction phrases the template emits (`<Change title>`, `<What was
-// delivered…>`, `<Finding>`, `<Human action.>`, `<Actionable follow-up>`).
+// instruction phrases the template emits (`<Change title>`, `<The original
+// problem…>`, `<short name of the action>`, `<Concrete step.>`, `<Problem or
+// follow-up>`, `<Whether human action is needed, …>`).
 //
 // It deliberately does NOT match on the bare content-word tokens
 // TODO/FIXME/TBD/XXX/TKTK/PLACEHOLDER: results prose legitimately discusses those
