@@ -2,7 +2,7 @@
 id: 441
 slug: 'release-successful-implementation-ownership-before-standalon'
 title: 'Release successful implementation ownership before standalone finalize'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-21'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/release-successful-implementation-ownership-before-standalon'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-21T19:35:35Z'
 ---
 
 ## Artifacts
