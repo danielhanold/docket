@@ -779,8 +779,11 @@ func findEpochDirByID(rungateRoot, epochID string) (dir string, rec EpochRecord,
 
 // epochRevokedResolver builds the gatedrive.EpochRevokedFunc the Takeover path
 // consults (change 0375 Task 12). It reads the app-owned run-epoch registry under
-// gitCommonDir and reports revoked=true when the named epoch is cancelled or
-// superseded — the states a takeover must refuse. A clean "no such epoch" is
+// gitCommonDir and reports revoked=true when the named epoch is cancelled,
+// superseded, or completing/completed (a successful closeout — change 0441; a
+// takeover of a completing/completed run refuses, and explicit references to a
+// completed epoch remain revoked) — the states a takeover must refuse. A clean
+// "no such epoch" is
 // (false, nil): a locator that resolves to nothing cannot prove a run was cancelled,
 // and the takeover's other guards still protect it. An enumeration/IO fault is
 // returned so the takeover fails closed (HALT epoch-unreadable).
@@ -794,7 +797,8 @@ func epochRevokedResolver(gitCommonDir string) func(string) (bool, error) {
 		if !ok {
 			return false, nil
 		}
-		return rec.State == EpochCancelled || rec.State == EpochSuperseded, nil
+		return rec.State == EpochCancelled || rec.State == EpochSuperseded ||
+			rec.State == EpochCompleting || rec.State == EpochCompleted, nil
 	}
 }
 
