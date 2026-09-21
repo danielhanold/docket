@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0350 — Surface the swallowed validation failure behind a bare internal-error in the transaction engine](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md)**
+> ↩ **[Change 0350 — Surface the swallowed validation failure behind a bare internal-error in the transaction engine](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-21-0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md)**
 <!-- docket:backlink:end -->
 # Surface the swallowed validation failure behind a bare internal-error in the transaction engine — Results
 
