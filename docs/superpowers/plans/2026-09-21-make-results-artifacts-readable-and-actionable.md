@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0440 — Make results artifacts readable and actionable](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0440-make-results-artifacts-readable-and-actionable.md)**
+> ↩ **[Change 0440 — Make results artifacts readable and actionable](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-21-0440-make-results-artifacts-readable-and-actionable.md)**
 <!-- docket:backlink:end -->
 # Make Results Artifacts Readable and Actionable — Implementation Plan
 
