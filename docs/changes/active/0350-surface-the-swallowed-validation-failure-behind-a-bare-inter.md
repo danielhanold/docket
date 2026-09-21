@@ -21,7 +21,7 @@ branch: 'fix/surface-the-swallowed-validation-failure-behind-a-bare-inter'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-21T07:27:33Z'
+claimed_at: '2026-09-21T07:35:29Z'
 ---
 
 ## Artifacts
