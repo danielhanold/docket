@@ -257,16 +257,13 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 }
 
 // prFenceRefusal builds a pr.publish refusal for a run-epoch mutation fence: the run
-// that owns this change's worktree is cancelled/superseded, so publication is
-// blocked with the stable fence reason and gh is never invoked. It carries no
-// credential — only the bounded reason token.
+// that owns this change's worktree is cancelled, superseded, or completing a
+// successful closeout, so publication is blocked with the stable fence reason and an
+// accurate reason-aware message (via fenceRefusalReasonMessage), and gh is never
+// invoked. It carries no credential — only the bounded reason token.
 func prFenceRefusal(id int, ferr error) PRPublishResult {
-	reason := "run-cancelled"
-	if fe, ok := AsMutationFenceError(ferr); ok {
-		reason = fe.Reason
-	}
-	return prRefusal(ResultBlocked, reason,
-		"the run that owns this change was cancelled or superseded; publish nothing", id)
+	reason, message := fenceRefusalReasonMessage(ferr, "change")
+	return prRefusal(ResultBlocked, reason, message, id)
 }
 
 // resolvePRChange pins context once, reads the corpus once, builds the snapshot,

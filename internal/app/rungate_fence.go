@@ -109,6 +109,30 @@ func AsMutationFenceError(err error) (*MutationFenceError, bool) {
 	return nil, false
 }
 
+// fenceRefusalReasonMessage resolves a run-epoch mutation fence error into its
+// stable machine reason token AND an accurate human message clause for the owned
+// subject ("change" / "workspace"). Only the reason token is machine-readable —
+// gate logic keys on it and it rides through unchanged. The message is explanatory
+// and reason-aware: a run-completed fence (change 0441) is a SUCCESSFUL closeout, so
+// its message never falsely claims cancellation; run-cancelled/stale-run-epoch keep
+// the cancelled-or-superseded wording. An unrecognized reason falls back to the
+// reason-neutral "no longer accepting mutations" phrasing.
+func fenceRefusalReasonMessage(ferr error, subject string) (reason, message string) {
+	reason = "run-cancelled"
+	if fe, ok := AsMutationFenceError(ferr); ok {
+		reason = fe.Reason
+	}
+	switch reason {
+	case "run-cancelled", "stale-run-epoch":
+		message = "the run that owns this " + subject + " was cancelled or superseded; publish nothing"
+	case "run-completed":
+		message = "the run that owns this " + subject + " finished successfully and is no longer accepting mutations; publish nothing"
+	default:
+		message = "the run that owns this " + subject + " is no longer accepting mutations; publish nothing"
+	}
+	return reason, message
+}
+
 // mutationJournalDone is the completion callback admitWorkflowMutation returns for
 // an admitted (active-epoch) mutation. The caller invokes it exactly once after the
 // mutation resolves — with mutationStatusCompleted on an observed success, or

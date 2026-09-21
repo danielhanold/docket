@@ -164,7 +164,14 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 	if pblocked || mblocked {
 		blocked = true
 	}
-	findings = appendFindings(findings, pf, mf)
+	// Step (3) already accounted the participant/mutation findings off the fenced
+	// record; step (4) re-enumerates the reloaded record to catch a late pre-fence
+	// append. A persistently-unsettled participant or mutation is therefore named by
+	// both reads, so dedupe (order-preserving) before returning — the operator-facing
+	// findings must not list the same token twice. This is cosmetic only: blocked is
+	// computed independently, so fail-closed behavior is unchanged (any finding still
+	// blocks).
+	findings = dedupeFindings(appendFindings(findings, pf, mf))
 
 	// (5) Blocked ⇒ the epoch stays durably completing; the remedy is to settle the
 	// named evidence and repeat the same keyed verdict. No retry/budget/attempt moves.
@@ -350,6 +357,27 @@ func appendFindings(groups ...[]string) []string {
 	var out []string
 	for _, g := range groups {
 		out = append(out, g...)
+	}
+	return out
+}
+
+// dedupeFindings returns findings with duplicate tokens removed, preserving each
+// token's first-occurrence order. The two-read completion accounting can name the
+// same persistently-unsettled obligation twice (step (3) off the fenced record and
+// step (4) off the reload); this keeps the operator-facing diagnostic free of that
+// cosmetic noise without altering the fail-closed blocked decision.
+func dedupeFindings(findings []string) []string {
+	if len(findings) < 2 {
+		return findings
+	}
+	seen := make(map[string]struct{}, len(findings))
+	out := make([]string, 0, len(findings))
+	for _, f := range findings {
+		if _, ok := seen[f]; ok {
+			continue
+		}
+		seen[f] = struct{}{}
+		out = append(out, f)
 	}
 	return out
 }
