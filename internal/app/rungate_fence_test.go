@@ -439,8 +439,14 @@ func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	}
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
-	if got, wantLine := res.HumanText(), "gate-done "+key+" run-complete 3"; got != wantLine {
-		t.Fatalf("HumanText = %q, want %q (recovery must still succeed)", got, wantLine)
+	// The verdict recovery binds the epoch worktree, then drives the successful-run
+	// ownership closeout (change 0441). Here that closeout fails CLOSED: the recovered
+	// epoch's feature worktree is not prepared yet (its directory is asserted absent
+	// above), so the worktree slot cannot be accounted (slot-unreadable) — the epoch is
+	// left durably completing while the WORKTREE BINDING this test guards is already
+	// persisted. The recovery (ownership resolution + worktree binding) still succeeded.
+	if got, wantLine := res.HumanText(), "gate-stop "+key+" gate-unavailable completion-unaccounted"; got != wantLine {
+		t.Fatalf("HumanText = %q, want %q (recovery binding must still land)", got, wantLine)
 	}
 
 	// (a) The recovery confirm bound the epoch's worktree, with the directory
@@ -453,9 +459,11 @@ func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 		t.Fatalf("epoch worktree = %q, want %q (verdict recovery must bind the run epoch's worktree)", epAfter.Worktree, want)
 	}
 
-	// (b) Cancel through RunCancel, then a workflow mutation from that feature
-	// worktree is refused run-cancelled. The dir exists by now (as it would after
-	// workspace.prepare); the fence canonicalizes at compare time.
+	// (b) Cancel through RunCancel — an explicit cancellation wins even from the
+	// completing epoch the blocked closeout left (change 0441) — then a workflow
+	// mutation from that feature worktree is refused run-cancelled. The dir exists by
+	// now (as it would after workspace.prepare); the fence canonicalizes at compare
+	// time, so it must locate the recovered epoch by its bound worktree.
 	if err := os.MkdirAll(want, 0o755); err != nil {
 		t.Fatalf("mkdir feature worktree: %v", err)
 	}
@@ -522,8 +530,12 @@ func TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	}
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
-	if got, wantLine := res.HumanText(), "gate-done "+key+" run-complete 3"; got != wantLine {
-		t.Fatalf("HumanText = %q, want %q (adoption must still succeed)", got, wantLine)
+	// Adoption binds the epoch worktree, then the successful-run closeout (change 0441)
+	// fails CLOSED: the adopted change's feature worktree is not prepared yet (asserted
+	// absent above), so the slot cannot be accounted (slot-unreadable) and the epoch is
+	// left completing while the ADOPTION binding this test guards is already persisted.
+	if got, wantLine := res.HumanText(), "gate-stop "+key+" gate-unavailable completion-unaccounted"; got != wantLine {
+		t.Fatalf("HumanText = %q, want %q (adoption binding must still land)", got, wantLine)
 	}
 	b, ok, berr := LoadGateClaimBinding(repo, key)
 	if berr != nil || !ok || !b.Confirmed || b.ChangeID != 3 {
@@ -545,6 +557,9 @@ func TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
 	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
+	// An explicit cancellation wins even from the completing epoch the blocked closeout
+	// left (change 0441); the fence must then locate the recovered epoch by its bound
+	// worktree and refuse the mutation run-cancelled.
 	cres := runCancel(seams, repo, key, ep.EpochID, "0427 regression stop")
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
