@@ -2198,3 +2198,172 @@ func TestIntegrationFinalizeRebasePublishedResultForwardRefresh(t *testing.T) {
 		t.Fatalf("post-refresh PublishRewrite = %q err %v, want published under lease %q", outcome, perr, published)
 	}
 }
+
+// assertPublishedRefusalRetained proves a refusal retained everything: the
+// on-disk receipt is byte-unchanged, the workspace head did not move, and the
+// remote feature head was not overwritten.
+func assertPublishedRefusalRetained(t *testing.T, f *rebaseFixture, want workspace.RebaseReceipt, wantLocal, wantRemote string) {
+	t.Helper()
+	rec, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("receipt after refusal: present=%v err=%v", present, err)
+	}
+	if rec != want {
+		t.Errorf("a refusal mutated the receipt:\n got %+v\nwant %+v", rec, want)
+	}
+	if got := f.localHead(); got != wantLocal {
+		t.Errorf("local head moved on a refusal: %q -> %q", wantLocal, got)
+	}
+	if got := runGit(t, f.repo.origin, "rev-parse", "refs/heads/feat/"+f.slug); got != wantRemote {
+		t.Errorf("remote feature head moved on a refusal: %q -> %q", wantRemote, got)
+	}
+}
+
+// TestIntegrationFinalizeRebasePublishedRefreshRefusals covers acceptance item 4
+// (and the remote-edit half of item 2): every moved remote that is NOT provably
+// this rewrite's published result is retained — no refresh, no overwrite, no
+// budget movement. Each subtest is the mutation detector for one admission
+// conjunct of admitPublishedRefresh.
+func TestIntegrationFinalizeRebasePublishedRefreshRefusals(t *testing.T) {
+	requireRealGit(t)
+	reenter := func(f *rebaseFixture, deps FinalizeDeps, head string) FinalizeRebaseResult {
+		return FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+	}
+
+	t.Run("missing-checkpoint-refuses", func(t *testing.T) {
+		f, deps, gate, _, published := setupPublishedRefresh(t)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		rec.PublishCheckpointHead, rec.PublishCheckpointBaseHead = "", ""
+		rec.PublishCheckpointCommand, rec.PublishCheckpointGate = "", ""
+		rec.PublishCheckpointPRNumber, rec.PublishCheckpointEvidence = "", ""
+		if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, rec); err != nil {
+			t.Fatal(err)
+		}
+		out := reenter(f, deps, published)
+		if out.Result != ResultBlocked || out.Reason != ReasonRebaseRemoteHeadMismatch {
+			t.Fatalf("= %q/%q, want blocked/remote-head-mismatch (no checkpoint proof)", out.Result, out.Reason)
+		}
+		if gate.calls != 1 {
+			t.Errorf("a refusal ran the gate (%d calls)", gate.calls)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, published)
+	})
+
+	t.Run("stale-evidence-refuses", func(t *testing.T) {
+		// Checkpoint evidence certifying a DIFFERENT head (the pre-rebase head A)
+		// must not admit: stale PR-body-shaped evidence never skips or admits.
+		f, deps, _, _, published := setupPublishedRefresh(t)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		rec.PublishCheckpointEvidence = greenEvidenceFor(t, f.head)
+		if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, rec); err != nil {
+			t.Fatal(err)
+		}
+		out := reenter(f, deps, published)
+		if out.Result != ResultBlocked || out.Reason != ReasonRebaseRemoteHeadMismatch {
+			t.Fatalf("= %q/%q, want blocked/remote-head-mismatch (evidence does not verify for B)", out.Result, out.Reason)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, published)
+	})
+
+	t.Run("checkpoint-head-mismatch-refuses", func(t *testing.T) {
+		// A checkpoint recorded for some OTHER head (here: the pre-rebase head A,
+		// with matching evidence so only the head conjunct differs) must not admit.
+		f, deps, _, _, published := setupPublishedRefresh(t)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		rec.PublishCheckpointHead = strings.ToLower(f.head)
+		rec.PublishCheckpointEvidence = greenEvidenceFor(t, f.head)
+		if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, rec); err != nil {
+			t.Fatal(err)
+		}
+		out := reenter(f, deps, published)
+		if out.Result != ResultBlocked || out.Reason != ReasonRebaseRemoteHeadMismatch {
+			t.Fatalf("= %q/%q, want blocked/remote-head-mismatch (checkpoint names another head)", out.Result, out.Reason)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, published)
+	})
+
+	t.Run("pr-number-mismatch-refuses", func(t *testing.T) {
+		f, deps, _, gh, published := setupPublishedRefresh(t)
+		pr := f.prForHead(published, "")
+		pr.Number = 2 // checkpoint recorded PR 1
+		gh.prs = []githubcli.PullRequest{pr}
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		out := reenter(f, deps, published)
+		if out.Result != ResultBlocked || out.Reason != ReasonRebaseRemoteHeadMismatch {
+			t.Fatalf("= %q/%q, want blocked/remote-head-mismatch (open PR is not the recorded one)", out.Result, out.Reason)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, published)
+	})
+
+	t.Run("foreign-remote-edit-refuses-without-overwrite", func(t *testing.T) {
+		// A third party pushed on top of B: remote != local, so the proof fails.
+		// The refusal must leave the foreign remote head in place (item 2's
+		// intervening-remote-edit requirement at the admission layer; the exact-
+		// lease push protects the publish layer).
+		f, deps, _, _, published := setupPublishedRefresh(t)
+		// The foreign commit is authored in the workspace store (which carries an
+		// identity), then force-pushed to the bare origin so the object travels with
+		// the ref update — a bare-repo update-ref to a workspace-only object fails.
+		foreign := runGit(t, f.wp, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "foreign edit")
+		runGit(t, f.wp, "push", "-q", "--force", f.repo.origin, foreign+":refs/heads/feat/"+f.slug)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		out := reenter(f, deps, published)
+		if out.Result != ResultBlocked || out.Reason != ReasonRebaseRemoteHeadMismatch {
+			t.Fatalf("= %q/%q, want blocked/remote-head-mismatch (remote is not the tested head)", out.Result, out.Reason)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, foreign)
+	})
+
+	t.Run("divergent-base-refuses", func(t *testing.T) {
+		// The base was force-rewritten (moved to a non-descendant of the recorded
+		// base): the published proof holds but forward-only ancestry fails.
+		f, deps, _, _, published := setupPublishedRefresh(t)
+		runGit(t, f.repo.origin, "update-ref", "refs/heads/main", f.baseTip)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		out := reenter(f, deps, published)
+		if out.Result != ResultBlocked || out.Reason != ReasonRebaseMovedBase {
+			t.Fatalf("= %q/%q, want blocked/base-moved-under-receipt (base does not descend the recorded base)", out.Result, out.Reason)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, published)
+	})
+
+	t.Run("unsettled-resolver-work-refuses", func(t *testing.T) {
+		f, deps, _, _, published := setupPublishedRefresh(t)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		rec.ResolverReservationToken = "res-outstanding"
+		rec.ResolverReservationStopped = strings.Repeat("a", 40)
+		if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, rec); err != nil {
+			t.Fatal(err)
+		}
+		out := reenter(f, deps, published)
+		if out.Result != ResultBlocked || out.Reason != ReasonRebaseMovedBase {
+			t.Fatalf("= %q/%q, want blocked/base-moved-under-receipt (unsettled resolver work)", out.Result, out.Reason)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, published)
+	})
+
+	t.Run("dirty-workspace-refuses", func(t *testing.T) {
+		f, deps, _, _, published := setupPublishedRefresh(t)
+		writeRepoFile(t, f.wp, "scratch.txt", "uncommitted\n")
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		out := reenter(f, deps, published)
+		if out.Result != ResultBlocked || out.Reason != ReasonRebaseWorkspaceDirty {
+			t.Fatalf("= %q/%q, want blocked/workspace-dirty", out.Result, out.Reason)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, published)
+	})
+
+	t.Run("replaying-the-old-head-fails-the-pr-check", func(t *testing.T) {
+		// Documented contract: post-publication re-entry must supply the CURRENT
+		// published head from context.finalize; replaying the pre-rebase head A
+		// correctly fails the PR-head check before any refresh classification.
+		f, deps, _, _, published := setupPublishedRefresh(t)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		out := reenter(f, deps, f.head)
+		if out.Result != ResultBlocked || out.Reason != ReasonRebasePRHeadMismatch {
+			t.Fatalf("= %q/%q, want blocked/pr-head-mismatch", out.Result, out.Reason)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, published)
+	})
+}
