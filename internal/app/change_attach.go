@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
@@ -33,8 +32,8 @@ import (
 // (for a plan) the commit must descend from the prepared base, carry the
 // ADR-0094 single-artifact delta (exactly the plan file, rename detection off —
 // learning diff-derived-allowlist-needs-no-renames), carry the plan-path commit
-// trailer, and hold no unresolved planning placeholder token. Only after every
-// check passes does the exact-version transaction open.
+// trailer, and carry no placeholder-only plan slot (change 0414). Only after
+// every check passes does the exact-version transaction open.
 //
 // Idempotency is keyed on the PROMISED state — the (id, path, blob-at-commit)
 // triple — so a lost-response retry replays the original applied receipt rather
@@ -111,8 +110,10 @@ const (
 	// ReasonAttachBacklinkMismatch: the artifact's backlink targets a different
 	// change than the one being attached.
 	ReasonAttachBacklinkMismatch = "backlink-mismatch"
-	// ReasonAttachPlaceholderToken: the plan still carries an unresolved planning
-	// placeholder token (the writing-plans "No Placeholders" contract).
+	// ReasonAttachPlaceholderToken: a plan slot — a section body or the
+	// pre-heading preamble — contains only a bare placeholder token (an
+	// unfilled slot; change 0414). A token mentioned inside substantive
+	// content never refuses.
 	ReasonAttachPlaceholderToken = "placeholder-token"
 	// ReasonAttachArtifactUnreadable: the verified commit or its blob could not be
 	// read for a reason other than plain absence.
@@ -122,11 +123,6 @@ const (
 	// document). The FINAL content contract binds at mark-implemented, not here.
 	ReasonAttachResultsContent = "results-content-invalid"
 )
-
-// placeholderTokenRE matches an unresolved planning placeholder token as a
-// whole word. The set mirrors the writing-plans "No Placeholders" contract; a
-// plan carrying any is not build-actionable and is refused (placeholder-token).
-var placeholderTokenRE = regexp.MustCompile(`\b(TBD|TODO|FIXME|TKTK|XXX|PLACEHOLDER)\b`)
 
 // ChangeAttachRequest is the closed request for one attach. ID and Version pin
 // the change record (exact submitted blob); Path is the canonical repo-relative
@@ -309,11 +305,16 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 		}
 	}
 
-	// (11, plan only) The plan carries no unresolved placeholder token.
+	// (11, plan only) No whole-slot placeholder filler (change 0414): a section
+	// or the pre-heading preamble whose ENTIRE authored body is one bare
+	// planning token (tbd/todo/fixme/tktk/xxx/placeholder, any case) is an
+	// unfilled slot and refuses. A plan that merely mentions such a token — an
+	// instruction, a code example, ambiguous prose — is build-actionable and
+	// attaches; completeness judgment stays with plan authoring and review.
 	if kind == attachKindPlan {
-		if placeholderTokenRE.Match(blob.Blob.Bytes) {
+		if slot, found := planPlaceholderSlot(blob.Blob.Bytes); found {
 			return attachRefusal(opKey, ResultInvalidState, kind, ReasonAttachPlaceholderToken,
-				"the plan still carries an unresolved planning placeholder token")
+				fmt.Sprintf("%s of the plan contains only a placeholder token; fill the slot with real content", slot))
 		}
 	}
 
