@@ -1,18 +1,12 @@
 # Backlog
 
-**443 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 13 proposed · ⚪ 11 deferred · ✅ 295 done · 🗑️ 119 killed
+**443 changes** — 🟢 1 in progress · 🟣 3 groomed · 🟡 13 proposed · ⚪ 11 deferred · ✅ 296 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0442](active/0442-rebase-again-when-main-advances-after-finalize-publishes.md) | Rebase again when main advances after finalize publishes | `medium` | `fix` | [#323](https://github.com/danielhanold/docket/pull/323) | awaiting merge |
 
 ## 🟣 Groomed (3)
 
@@ -86,7 +80,6 @@ graph TD
   0414
   0422
   0433
-  0442
   0443
   0192:::done
   0251:::done
@@ -96,10 +89,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (414)</summary>
+<details><summary>✅🗑️ Archive — done + killed (415)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0442](archive/2026-09-22-0442-rebase-again-when-main-advances-after-finalize-publishes.md) | Rebase again when main advances after finalize publishes | 2026-09-22 |
 | [0441](archive/2026-09-22-0441-release-successful-implementation-ownership-before-standalon.md) | Release successful implementation ownership before standalone finalize | 2026-09-22 |
 | [0440](archive/2026-09-21-0440-make-results-artifacts-readable-and-actionable.md) | Make results artifacts readable and actionable | 2026-09-21 |
 | [0418](archive/2026-09-21-0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | 2026-09-21 |
@@ -120,7 +114,6 @@ graph TD
 | [0430](archive/2026-09-17-0430-native-codex-acceptance-for-durable-review-evidence.md) | Native Codex acceptance for durable review evidence | 2026-09-17 |
 | [0323](archive/2026-09-17-0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | 2026-09-17 |
 | [0427](archive/2026-09-16-0427-verdict-path-gate-recovery-never-binds-the-run-epoch-s-workt.md) | Verdict-path gate recovery never binds the run epoch's worktree | 2026-09-16 |
-| [0415](archive/2026-09-16-0415-support-in-place-build-evidence-re-certification-for-an-impl.md) | Support in-place build-evidence re-certification for an implemented change | 2026-09-16 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -239,7 +232,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 44 done |
+| [2026-09](archive/) | 45 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
