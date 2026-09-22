@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'low'
 type: 'chore'
 created: '2026-09-08'
-updated: '2026-09-08'
+updated: '2026-09-22'
 depends_on: []
 stacked_on:
-related: []
+related: [315, 410, 440]
 discovered_from: [410]
-adrs: []
-spec:
+adrs: [18, 50, 94]
+spec: 'docs/superpowers/specs/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-design.md) |
+| ADRs | [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,11 +43,11 @@ Results validation instead treats an angle bracket followed by an uppercase ASCI
 
 ## What changes
 
-Groom and deliver one focused correction to placeholder detection in plans and results. Complete instructions, literal examples, valid HTML, and URI autolinks should pass, while actual unfinished authoring scaffolding should continue to fail with an accurate explanation.
+Correct placeholder detection in plans and results using the linked specification. Plan attachment rejects whole-slot filler while allowing substantive instructions, code examples, and ambiguous TODO prose. The human explicitly approved allowing “TODO: decide whether failed requests should retry or stop.” through attachment; existing plan authoring and review judge completeness.
 
-Treat “detect unfilled template structures instead of content words” as a design hypothesis, not a settled implementation. Trace the existing implementation and review relevant prior changes and architecture decisions before proposing a design, in interactive grooming or auto-grooming. Prefer extending established machinery; recommend a new mechanism or policy only when concrete evidence shows why the existing approach is insufficient.
+Results validation derives unfinished authoring prompts from the shipped embedded template, replacing capitalization guesses while preserving checkpoint/final requirements and the Human action statement. Extend the existing document, asset, and template-test machinery. Preserve Git identity and evidence guarantees, and mutation-prove both rejection of actual scaffolding and acceptance of legitimate content.
 
-Preserve the existing artifact-identity checks and the distinct checkpoint/final results requirements. Cover both results attachment and final completion, including the Human action statement. Define acceptance and rejection examples before choosing the detection rule, and mutation-test the resulting guards in both directions: genuine unfinished content must remain detectable, and legitimate content must not be blocked. Exercise the shipped results template so the validator remains coupled to the actual authoring structure.
+During grooming and implementation reconciliation, trace the current implementation and review relevant prior changes and ADRs before revising the design. Treat a proposed mechanism as a hypothesis and prefer extending established machinery; introduce a new mechanism or policy only when concrete evidence shows why existing machinery is insufficient.
 
 ## Out of scope
 
@@ -60,8 +64,3 @@ Initial implementation and history trace on 2026-09-22, against main at 3bc2475c
 - ADR-0094 preserves the Git-verifiable plan artifact and parent-owned attachment boundary. ADR-0018 permits pluggable planning skills, so a design must not assume all plans use one fixed template. ADR-0050 and the enumerated-floor learning caution against replacing an overbroad heuristic with a hand-enumerated exception list.
 - Relevant lessons: preserve the property behind a test when replacing its old premise (`test-premise-deleted-not-regated`); respect fenced examples when interpreting document structure (`section-slice-needs-a-named-terminator`); mutation-prove guards (`guards-are-code`).
 
-## Open questions
-
-- What is the precise boundary between an unfinished plan slot (for example, a section containing only TBD) and legitimate prose or an example discussing TODO/FIXME? Should ambiguous prose be left to the existing plan-authoring/review process rather than blocked by attachment?
-- Which existing structural parsing and scaffold checks can be shared without imposing the results document's section layout on custom plans?
-- What evidence-backed scaffold grammar accepts uppercase HTML/URI examples, recognizes the actual current template instructions, and handles the Human action statement consistently? A new marker convention is an alternative only if the existing representation cannot meet those requirements.
