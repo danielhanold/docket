@@ -63,4 +63,3 @@ Initial implementation and history trace on 2026-09-22, against main at 3bc2475c
 - `internal/app/results_contract_test.go`: `TestResultsTemplateFailsCheckpointValidation` already couples validation to `skills/docket-implement-next/results-template.md`; extend this established protection rather than replacing it with a hand-maintained phrase inventory.
 - ADR-0094 preserves the Git-verifiable plan artifact and parent-owned attachment boundary. ADR-0018 permits pluggable planning skills, so a design must not assume all plans use one fixed template. ADR-0050 and the enumerated-floor learning caution against replacing an overbroad heuristic with a hand-enumerated exception list.
 - Relevant lessons: preserve the property behind a test when replacing its old premise (`test-premise-deleted-not-regated`); respect fenced examples when interpreting document structure (`section-slice-needs-a-named-terminator`); mutation-prove guards (`guards-are-code`).
-
