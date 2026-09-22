@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/results-placeholder-heuristic-false-positives-on-uppercase-h'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-22T20:47:43Z'
+reconciled: true
+claimed_at: '2026-09-22T20:48:47Z'
 ---
 
 ## Artifacts
@@ -64,3 +64,9 @@ Initial implementation and history trace on 2026-09-22, against main at 3bc2475c
 - `internal/app/results_contract_test.go`: `TestResultsTemplateFailsCheckpointValidation` already couples validation to `skills/docket-implement-next/results-template.md`; extend this established protection rather than replacing it with a hand-maintained phrase inventory.
 - ADR-0094 preserves the Git-verifiable plan artifact and parent-owned attachment boundary. ADR-0018 permits pluggable planning skills, so a design must not assume all plans use one fixed template. ADR-0050 and the enumerated-floor learning caution against replacing an overbroad heuristic with a hand-enumerated exception list.
 - Relevant lessons: preserve the property behind a test when replacing its old premise (`test-premise-deleted-not-regated`); respect fenced examples when interpreting document structure (`section-slice-needs-a-named-terminator`); mutation-prove guards (`guards-are-code`).
+
+## Reconcile log
+
+### 2026-09-22
+
+2026-09-22: Reconciled against main at 3bc2475c (current HEAD). The spec was groomed today against this same commit, so the trace holds verbatim: internal/app/change_attach.go still carries placeholderTokenRE (`\b(TBD|TODO|FIXME|TKTK|XXX|PLACEHOLDER)\b`) applied to the whole plan blob at line 314; internal/app/results_content.go still owns ValidateResultsContent with isResultsPlaceholderLine/isResultsScaffoldBody keyed on an angle bracket followed by an uppercase ASCII letter; internal/app/results_contract_test.go still couples TestResultsTemplateFailsCheckpointValidation to the shipped template; internal/assets supplies the embedded results template. Related changes 0410 (removed the plan-word regex from results) and 0440 (extended the results validator to the Human action statement and revised the template) are both merged and reflected in current source. No scope change; design proceeds as written.
