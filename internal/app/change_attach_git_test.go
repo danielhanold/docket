@@ -43,9 +43,15 @@ func attachBacklinkBlock(id int, title, recPath string) string {
 }
 
 // attachHappyPlan renders a well-formed plan artifact: the correct backlink plus
-// an authored body carrying no placeholder token.
+// an authored body whose sections merely MENTION planning tokens (change 0414
+// acceptance — a plan that instructs about a token, and the human-approved
+// ambiguous decision sentence, both attach; only a whole-slot bare-token filler
+// refuses). Every slot here holds substantive content.
 func attachHappyPlan(id int, title, recPath string) string {
-	return attachBacklinkBlock(id, title, recPath) + "\n# Implementation Plan\n\nConcrete steps here.\n"
+	return attachBacklinkBlock(id, title, recPath) +
+		"\n# Implementation Plan\n\n## Task 1\n\nRemove the " + tok("todo") +
+		" in retry.go and replace it with bounded retry logic.\n\n" +
+		"## Error handling\n" + tok("todo") + ": decide whether failed requests should retry or stop.\n"
 }
 
 // attachSetup builds a main-mode repo with one in-progress change, prepares its

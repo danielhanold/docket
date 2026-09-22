@@ -204,11 +204,15 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 			reason: ReasonAttachBacklinkMismatch,
 		},
 		{
-			name: "plan carries an unresolved placeholder token",
+			name: "plan whose section body is only a placeholder token",
 			build: func(t *testing.T) ChangeAttachRequest {
 				f.reset(t)
-				withToken := attachBacklinkBlock(f.id, "A change", f.recPath) + "\n# Plan\n\nTODO: finish this section.\n"
-				head := f.commitPlan(t, map[string]string{f.planPath: withToken}, f.planPath)
+				// A whole-slot filler: the section's entire body is the bare
+				// token. A plan that merely MENTIONS a token attaches (the
+				// success test proves that direction).
+				withFillerSlot := attachBacklinkBlock(f.id, "A change", f.recPath) +
+					"\n# Plan\n\n## Error handling\n\n" + tok("tbd") + "\n"
+				head := f.commitPlan(t, map[string]string{f.planPath: withFillerSlot}, f.planPath)
 				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head}
 			},
 			reason: ReasonAttachPlaceholderToken,
