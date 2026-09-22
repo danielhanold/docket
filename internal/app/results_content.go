@@ -106,21 +106,7 @@ func ValidateResultsContent(source []byte, phase ResultsPhase) []ResultsContentF
 	// Fence-aware line classification: a line inside a fenced code block (``` or
 	// ~~~) is authored content, not structure — its heading-shaped and
 	// angle-bracket-shaped lines are ignored (section-slice-needs-a-named-terminator).
-	fenced := make([]bool, len(lines))
-	fenceChar := byte(0)
-	for i, ln := range lines {
-		trimmed := strings.TrimLeft(strings.TrimRight(ln.text, "\r"), " \t")
-		if run := fenceRunLen(trimmed); run >= 3 {
-			fenced[i] = true // the fence marker line itself is fenced territory
-			if fenceChar == 0 {
-				fenceChar = trimmed[0]
-			} else if trimmed[0] == fenceChar {
-				fenceChar = 0
-			}
-			continue
-		}
-		fenced[i] = fenceChar != 0
-	}
+	fenced := fenceMask(lines)
 
 	// Locate headings (outside fences and outside managed blocks) and body lines.
 	type hdr struct {
@@ -343,6 +329,53 @@ func leadingRun(s string, c byte) int {
 		n++
 	}
 	return n
+}
+
+// fenceMask classifies each line as inside (or a marker of) a ``` / ~~~
+// fenced code block. A fence closes only on a run of the SAME character at
+// least as long as the run that opened it (CommonMark), so a shorter embedded
+// run — a ``` example inside a ```` fence — cannot close the outer fence
+// (change 0414). Fence-marker lines themselves classify as fenced.
+func fenceMask(lines []rcLine) []bool {
+	fenced := make([]bool, len(lines))
+	fenceChar := byte(0)
+	fenceLen := 0
+	for i, ln := range lines {
+		trimmed := strings.TrimLeft(strings.TrimRight(ln.text, "\r"), " \t")
+		if run := fenceRunLen(trimmed); run >= 3 {
+			if fenceChar == 0 {
+				fenced[i] = true
+				fenceChar = trimmed[0]
+				fenceLen = run
+				continue
+			}
+			fenced[i] = true
+			if trimmed[0] == fenceChar && run >= fenceLen {
+				fenceChar = 0
+				fenceLen = 0
+			}
+			continue
+		}
+		fenced[i] = fenceChar != 0
+	}
+	return fenced
+}
+
+// frontmatterEnd returns the index of the first line after a leading YAML
+// frontmatter block (a first line of exactly "---" closed by a later "---" or
+// "..." line), or 0 when the document has none. An unclosed opener is not
+// frontmatter — nothing is excluded.
+func frontmatterEnd(lines []rcLine) int {
+	if len(lines) == 0 || strings.TrimRight(lines[0].text, "\r") != "---" {
+		return 0
+	}
+	for i := 1; i < len(lines); i++ {
+		t := strings.TrimRight(lines[i].text, "\r")
+		if t == "---" || t == "..." {
+			return i + 1
+		}
+	}
+	return 0
 }
 
 // parseResultsHeading recognizes an ATX heading (`#`..`######` then whitespace
