@@ -548,7 +548,7 @@ func checkpointDecision(cp publishCheckpoint, currentHead, liveBaseHead, resolve
 // configuration; checkpointDecision is deliberately not called here, so no old
 // base can be substituted to obtain a skip). Any missing or inconsistent proof
 // returns the retained lease refusal; nil means admitted.
-func admitPublishedRefresh(rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, localHead, remoteHead gitcli.ObjectID, id int) *FinalizeRebaseResult {
+func admitPublishedRefresh(pr githubcli.PullRequest, rec workspace.RebaseReceipt, localHead, remoteHead gitcli.ObjectID, id int) *FinalizeRebaseResult {
 	refuse := func() *FinalizeRebaseResult {
 		r := rebaseRefusal(OperationFinalizeRebase, ResultBlocked, RebaseDispBlocked, ReasonRebaseRemoteHeadMismatch,
 			"the remote feature head is not the receipt's recorded publication lease, and the owned checkpoint does not prove it is this rewrite's published result — retained, not refreshed", id)
@@ -1044,7 +1044,7 @@ func refreshOwnedRewrite(ctx context.Context, deps FinalizeDeps, repoDir string,
 	// Anything else — checkpoint-less, ambiguous, or foreign — is retained.
 	published := string(remoteHead) != rec.OrigRemoteHead
 	if published {
-		if r := admitPublishedRefresh(rc, pr, rec, localHead, remoteHead, id); r != nil {
+		if r := admitPublishedRefresh(pr, rec, localHead, remoteHead, id); r != nil {
 			return *r
 		}
 	}
