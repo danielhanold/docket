@@ -1086,6 +1086,33 @@ func refreshOwnedRewrite(ctx context.Context, deps FinalizeDeps, repoDir string,
 			"the owned rebase receipt changed while the refresh was being admitted; re-read context finalize", id)
 	}
 
+	// Published-case fact re-probe (change 0442): the write below adopts the
+	// moved remote head as this rewrite's own published result, so the exact
+	// facts that admitted it — the clean local head, the authoritative remote
+	// feature head, and the open PR — are re-proven under the lock, against the
+	// copies the lease replacement will act on. A changed fact is contended
+	// (re-read and re-admit); an unknown (errored) fact refuses without mutation.
+	if published {
+		insp, ierr := deps.Workspace.Inspect(ctx, workspace.InspectRequest{Repository: rc.repo, Target: rc.target})
+		if ierr != nil {
+			return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseWorkspaceProbe, ierr.Error(), id)
+		}
+		rref, perr := deps.Planning.Client.ProbeRemoteBranch(ctx, rc.repo, originRemote, rc.target.FeatureRef)
+		if perr != nil {
+			return rebaseRefusal(op, ResultExternalFailed, RebaseDispBlocked, ReasonRebaseRemoteFeatureProbe, perr.Error(), id)
+		}
+		pr2, prRefusal := probeRebasePR(ctx, deps, repoDir, rc, string(localHead))
+		if prRefusal != nil {
+			return *prRefusal
+		}
+		if insp.Kind != workspace.StateReady || insp.HeadCommit != localHead ||
+			rref.State != gitcli.RemoteRefFound || rref.Commit != remoteHead ||
+			pr2.Number != pr.Number {
+			return rebaseRefusal(op, ResultContended, RebaseDispContended, ReasonRebaseRefreshContended,
+				"the local, remote, or PR facts that admitted the published-result refresh changed while it was being admitted; re-read context finalize", id)
+		}
+	}
+
 	refreshed := disk
 	refreshed.OrigHead = string(localHead)
 	if published {
