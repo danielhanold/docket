@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/rebase-again-when-main-advances-after-finalize-publishes'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-22T02:09:42Z'
+reconciled: true
+claimed_at: '2026-09-22T02:11:52Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Extend the existing rebase refresh to recognize a published result proven by the
 ## Out of scope
 
 Checkpoint-less or ambiguous published heads; arbitrary remote edits; force-rewritten bases; rollback/reset; new commands, fields, stores, configuration, retry policies, or budget replenishment; merge-race detection changes; unrelated cleanup; implementation or implementation planning during grooming.
+
+## Reconcile log
+
+### 2026-09-22
+
+2026-09-22: Reconciled at claim. Integration branch main is at 3ab594194d4ba7887a9384d5f6a0855c7ba0c31c — the exact commit the spec was groomed against — so the source trace holds without drift. Confirmed the named finalize internals are present and unchanged: internal/app/finalize_rebase.go (recoverFromReceipt, refreshOwnedRewrite, publishCheckpointOf, checkpointDecision) and internal/workspace/rewrite.go / rebasereceipt.go (OrigHead, OrigRemoteHead, BaseHead, Attempt, checkpoint). Cited ADRs (10, 105, 112, 113, 118) and related changes (316, 349, 396, 408, 411, 438) remain accurate. No scope change; the bounded published-case admission extension in refreshOwnedRewrite/recoverFromReceipt stands as designed. Proceeding to plan and build.
