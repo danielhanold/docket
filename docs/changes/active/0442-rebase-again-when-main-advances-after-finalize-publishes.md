@@ -2,7 +2,7 @@
 id: 442
 slug: 'rebase-again-when-main-advances-after-finalize-publishes'
 title: 'Rebase again when main advances after finalize publishes'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-22'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/rebase-again-when-main-advances-after-finalize-publishes'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-22T02:09:42Z'
 ---
 
 ## Artifacts
