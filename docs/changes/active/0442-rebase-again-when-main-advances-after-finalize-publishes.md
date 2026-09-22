@@ -2,7 +2,7 @@
 id: 442
 slug: 'rebase-again-when-main-advances-after-finalize-publishes'
 title: 'Rebase again when main advances after finalize publishes'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-22'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/rebase-again-when-main-advances-after-finalize-publishes'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/323'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-22T04:01:52Z'
