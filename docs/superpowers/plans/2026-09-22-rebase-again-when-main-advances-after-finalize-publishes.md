@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0442 — Rebase again when main advances after finalize publishes](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0442-rebase-again-when-main-advances-after-finalize-publishes.md)**
+> ↩ **[Change 0442 — Rebase again when main advances after finalize publishes](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-22-0442-rebase-again-when-main-advances-after-finalize-publishes.md)**
 <!-- docket:backlink:end -->
 # Rebase Again When Main Advances After Finalize Publishes — Implementation Plan
 
