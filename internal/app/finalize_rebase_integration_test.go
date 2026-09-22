@@ -2367,3 +2367,133 @@ func TestIntegrationFinalizeRebasePublishedRefreshRefusals(t *testing.T) {
 		assertPublishedRefusalRetained(t, f, rec, published, published)
 	})
 }
+
+// hookOnLockWorkspace runs hook exactly once, at the moment the refresh acquires
+// the workspace operation lock — i.e. AFTER the lock-free classification admitted
+// the published case and BEFORE the under-lock fact re-probe. Every other method
+// delegates to the embedded real workspace.
+type hookOnLockWorkspace struct {
+	FinalizeWorkspace
+	hook  func()
+	fired bool
+}
+
+func (w *hookOnLockWorkspace) AcquireOperationLock(dir string) (func(), error) {
+	release, err := w.FinalizeWorkspace.AcquireOperationLock(dir)
+	if err != nil {
+		return release, err
+	}
+	if !w.fired {
+		w.fired = true
+		w.hook()
+	}
+	return release, err
+}
+
+// TestIntegrationFinalizeRebasePublishedRefreshUnderLockReprobe covers the spec's
+// decide-and-act requirement for the published case: the local/remote/PR facts
+// that admitted the lease replacement are re-proven under the operation lock;
+// changed facts refuse without mutation.
+func TestIntegrationFinalizeRebasePublishedRefreshUnderLockReprobe(t *testing.T) {
+	requireRealGit(t)
+
+	t.Run("remote-moved-between-admission-and-lock", func(t *testing.T) {
+		f, deps, _, _, published := setupPublishedRefresh(t)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		// At lock time, move the remote feature ref back to the pre-rebase head A:
+		// the lock-free admission saw B, the under-lock re-probe must see A and refuse.
+		deps.Workspace = &hookOnLockWorkspace{FinalizeWorkspace: deps.Workspace, hook: func() {
+			runGit(t, f.repo.origin, "update-ref", "refs/heads/feat/"+f.slug, f.head)
+		}}
+		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: published})
+		if out.Result != ResultContended || out.Reason != ReasonRebaseRefreshContended {
+			t.Fatalf("= %q/%q (msg %q), want contended/refresh-contended", out.Result, out.Reason, out.Message)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, f.head)
+	})
+
+	t.Run("pr-changed-between-admission-and-lock", func(t *testing.T) {
+		f, deps, _, gh, published := setupPublishedRefresh(t)
+		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		deps.Workspace = &hookOnLockWorkspace{FinalizeWorkspace: deps.Workspace, hook: func() {
+			gh.prs = []githubcli.PullRequest{f.prForHead(f.head, "")} // PR now names A
+		}}
+		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: published})
+		// The re-probe reuses probeRebasePR against the current local head, so a
+		// changed PR surfaces as its typed refusal; the receipt must be untouched.
+		if out.Result == ResultApplied {
+			t.Fatalf("a changed PR was refreshed over: %+v", out)
+		}
+		assertPublishedRefusalRetained(t, f, rec, published, published)
+	})
+}
+
+// TestIntegrationFinalizeRebasePublishedRefreshContended extends 0438's
+// divergeOnLockWorkspace coverage to the published case: a concurrent
+// refresh/continue rewrote the receipt between classification and lock; the
+// loser refuses refresh-contended and retains everything.
+func TestIntegrationFinalizeRebasePublishedRefreshContended(t *testing.T) {
+	requireRealGit(t)
+	f, deps, _, _, published := setupPublishedRefresh(t)
+	rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	diverged := rec
+	diverged.Attempt = "20260922T000000Z-winner"
+	deps.Workspace = &divergeOnLockWorkspace{FinalizeWorkspace: deps.Workspace, diverged: diverged}
+	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: published})
+	if out.Result != ResultContended || out.Reason != ReasonRebaseRefreshContended {
+		t.Fatalf("= %q/%q, want contended/refresh-contended", out.Result, out.Reason)
+	}
+	assertPublishedRefusalRetained(t, f, diverged, published, published)
+}
+
+// TestIntegrationFinalizeRebasePublishedRefreshInterruption covers acceptance
+// item 5's interruption leg: a crash after the refreshed receipt persisted but
+// before Git started resumes the SAME refreshed attempt (pre-start resume), and
+// a valid replay after completion reuses the new checkpoint without a duplicate
+// gate run.
+func TestIntegrationFinalizeRebasePublishedRefreshInterruption(t *testing.T) {
+	requireRealGit(t)
+	f, deps, gate, _, published := setupPublishedRefresh(t)
+	recBefore, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	newBaseHead := runGit(t, f.repo.origin, "rev-parse", "refs/heads/main")
+	// Hand-write the receipt the published refresh WOULD persist, Git untouched
+	// (the crash window between WriteRebaseReceipt and BeginRebase).
+	crashed := recBefore
+	crashed.OrigHead = published
+	crashed.OrigRemoteHead = published
+	crashed.BaseHead = newBaseHead
+	crashed.Attempt = "20260922T101010Z-published-refresh-crash"
+	crashed.GateDriveID, crashed.GateOwnerGeneration = "", ""
+	crashed.PublishCheckpointHead, crashed.PublishCheckpointBaseHead = "", ""
+	crashed.PublishCheckpointCommand, crashed.PublishCheckpointGate = "", ""
+	crashed.PublishCheckpointPRNumber, crashed.PublishCheckpointEvidence = "", ""
+	if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, crashed); err != nil {
+		t.Fatal(err)
+	}
+	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: published})
+	if out.Disposition != RebaseDispRebased || out.Attempt != crashed.Attempt {
+		t.Fatalf("pre-start resume = %q attempt %q (reason %q), want rebased with the recorded attempt %q",
+			out.Disposition, out.Attempt, out.Reason, crashed.Attempt)
+	}
+	if out.Gate == nil || out.Gate.Compose != gateComposeRan {
+		t.Fatalf("gate = %+v, want compose ran (recovery never skips on PR evidence)", out.Gate)
+	}
+	callsAfter := gate.calls
+	// Valid replay of the identical invocation: the completed rewrite's fresh
+	// checkpoint is reused — one refreshed attempt, no duplicate gate.
+	replay := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: published})
+	if replay.Disposition != RebaseDispRebased || replay.Gate == nil || replay.Gate.Compose != gateComposeSkipped {
+		t.Fatalf("replay = %q gate %+v, want rebased with the checkpoint skip", replay.Disposition, replay.Gate)
+	}
+	if gate.calls != callsAfter {
+		t.Errorf("replay re-ran the gate: %d -> %d calls", callsAfter, gate.calls)
+	}
+	if replay.Attempt != crashed.Attempt {
+		t.Errorf("replay attempt = %q, want the one refreshed attempt %q", replay.Attempt, crashed.Attempt)
+	}
+}
