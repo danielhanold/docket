@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -162,21 +163,22 @@ func TestValidateResultsContentTable(t *testing.T) {
 	}
 }
 
-// TestResultsPlaceholderRedesign covers the placeholder-detection redesign for
-// two whole-branch review findings, both in isResultsPlaceholderLine:
+// TestResultsPlaceholderRedesign covers placeholder detection across two axes
+// that the retired capitalization heuristic got wrong, plus the change-0414
+// derived-prompt matcher (firstTemplatePrompt):
 //
-//	Finding 1 (important) — bare content words TODO/FIXME/TBD/XXX/TKTK/PLACEHOLDER
-//	were matched as whole words anywhere in a line, wrongly refusing legitimate
-//	results prose that merely discusses them (especially in ## Findings and
-//	limitations / ## Follow-ups) with a misleading "scaffolding" diagnostic.
+//	Finding 1 — bare content words TODO/FIXME/TBD/XXX/TKTK/PLACEHOLDER in results
+//	prose are legitimate discussion (especially in ## Findings and limitations /
+//	## Follow-ups) and must never refuse.
 //
-//	Finding 2 (minor) — the angle-bracket clause matched any line beginning with
-//	"<" (other than "<!--"/"<http"), false-positiving on legitimate inline HTML
-//	(<details>, <summary>, <br>, <sub>) and non-http autolinks (<mailto:>, <tel:>).
+//	Finding 2 — legitimate inline HTML (<details>, <summary>, <br>, <sub>, and
+//	their UPPERCASE spellings) and autolinks (<mailto:>, <tel:>, <HTTPS://…>) are
+//	not emitted template prompts and are accepted regardless of case.
 //
-// Detection is now keyed on the canonical results-template scaffold shape (an
-// angle bracket enclosing a CAPITALIZED instruction phrase) — see
-// skills/docket-implement-next/results-template.md.
+// Detection now matches only the reserved authoring prompts DERIVED from the
+// canonical results template (skills/docket-implement-next/results-template.md),
+// so a lowercase prompt like `<short name of the action>` is caught while
+// uppercase markup passes.
 func TestResultsPlaceholderRedesign(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -235,30 +237,73 @@ func TestResultsPlaceholderRedesign(t *testing.T) {
 			phase: ResultsPhaseCheckpoint,
 			want:  nil,
 		},
-		// Regression: the actual unfilled template scaffold is still refused with
-		// the scaffold reason (the capitalized angle-bracket instruction shape),
-		// under heading and list markers too.
+		// Rejection: ACTUAL emitted template prompts, in every slot shape the
+		// template uses (change 0414 — derived prompts, not capitalization).
 		{
-			name:  "unfilled scaffold paragraph refused checkpoint",
+			name:  "unfilled H1 title prompt refused checkpoint",
+			src:   "# <Change title> — Results\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseCheckpoint,
+			want:  []string{"results-placeholder"},
+		},
+		{
+			name:  "unfilled inline heading prompt refused checkpoint (lowercase prompt)",
+			src:   "# T — Results\n\n## Human actions and testing\n\n### Important — <short name of the action>\n\nReal body.\n",
+			phase: ResultsPhaseCheckpoint,
+			want:  []string{"results-placeholder"},
+		},
+		{
+			name:  "unfilled inline Expected prompt refused checkpoint",
+			src:   "# T — Results\n\n## Outcome\n\nReal.\n\n## Human actions and testing\n\n1. Run the tool.\n   Expected: <Observable result.>\n",
+			phase: ResultsPhaseCheckpoint,
+			want:  []string{"results-placeholder"},
+		},
+		{
+			name:  "wrapped prompt reflowed across different line breaks still refused",
+			src:   "# T — Results\n\n## Outcome\n\n<The original problem,\nthe delivered behavior, and any material departure from the agreed design — lead with observable effects. Explain unfamiliar Docket concepts when necessary; include method names, stored fields, or internal identifiers\nonly when they help the reader understand a consequence or take action.>\n",
+			phase: ResultsPhaseCheckpoint,
+			want:  []string{"results-placeholder"},
+		},
+
+		// Deliberate consequences (spec "Consequences are deliberate"):
+		{
+			name:  "uppercase HTML tags accepted checkpoint",
+			src:   "# T — Results\n\n## Outcome\n\nAdded markup:\n\n<BR>\n<DETAILS><SUMMARY>More</SUMMARY>Body</DETAILS>\n<DIV CLASS=\"x\">attribute-bearing</DIV>\n<CUSTOM-TAG>custom</CUSTOM-TAG>\n",
+			phase: ResultsPhaseCheckpoint,
+			want:  nil,
+		},
+		{
+			name:  "uppercase URI schemes accepted final",
+			src:   "# T — Results\n\n**Human action:** <MAILTO:person@example.com> is the contact; see <HTTPS://example.com>.\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  nil,
+		},
+		{
+			name:  "custom placeholder-looking prose is not guessed",
 			src:   "# T — Results\n\n## Outcome\n\n<What was delivered and how the behavior changed.>\n",
 			phase: ResultsPhaseCheckpoint,
-			want:  []string{"results-placeholder"},
+			want:  nil,
 		},
 		{
-			name:  "unfilled scaffold under heading refused checkpoint",
-			src:   "# T — Results\n\n## Findings and limitations\n\n### <Finding>\n\nReal body.\n",
+			name:  "prompt quoted in inline code is a literal example",
+			src:   "# T — Results\n\n## Outcome\n\nThe validator now rejects `<Change title>` when left unfilled.\n",
 			phase: ResultsPhaseCheckpoint,
-			want:  []string{"results-placeholder"},
+			want:  nil,
 		},
 		{
-			name:  "unfilled scaffold under list marker refused checkpoint",
-			src:   "# T — Results\n\n## Human testing\n\n1. <Human action.>\n",
+			name:  "prompt inside a fenced example is a literal example",
+			src:   "# T — Results\n\n## Outcome\n\nReal.\n\n```\n# <Change title> — Results\n```\n",
 			phase: ResultsPhaseCheckpoint,
-			want:  []string{"results-placeholder"},
+			want:  nil,
 		},
 		{
-			name:  "unfilled H1 title scaffold refused checkpoint",
-			src:   "# <Change title> — Results\n\n## Outcome\n\nReal outcome prose.\n",
+			name:  "escaped opening bracket is a literal example",
+			src:   "# T — Results\n\n## Outcome\n\nAuthors must replace \\<Change title> with the real title.\n",
+			phase: ResultsPhaseCheckpoint,
+			want:  nil,
+		},
+		{
+			name:  "unescaped emitted prompt amid substantive content still refused",
+			src:   "# T — Results\n\n## Outcome\n\nWe shipped the fix and verified it end to end.\n<Concrete step.>\nMore real prose after.\n",
 			phase: ResultsPhaseCheckpoint,
 			want:  []string{"results-placeholder"},
 		},
@@ -327,10 +372,16 @@ func TestValidateResultsContentActionStatement(t *testing.T) {
 			want:  []string{"results-action-statement-empty"},
 		},
 		{
-			name:  "unfilled scaffold statement refused final",
-			src:   "# T — Results\n\n**Human action:** <Whether human action is needed, …>\n\n## Outcome\n\nReal outcome prose.\n",
+			name:  "statement still the template prompt refused final",
+			src:   "# T — Results\n\n**Human action:** <Whether human action is needed, in one or two sentences, consistent\nwith the sections below. During implementation this may say the assessment is pending;\nfinal results give a settled assessment.>\n\n## Outcome\n\nReal outcome prose.\n",
 			phase: ResultsPhaseFinal,
-			want:  []string{"results-action-statement-empty"},
+			want:  []string{"results-placeholder", "results-action-statement-empty"},
+		},
+		{
+			name:  "statement beginning with legitimate uppercase markup accepted final",
+			src:   "# T — Results\n\n**Human action:** <DETAILS> rendering must be checked by eye in the PR preview.\n\n## Outcome\n\nReal outcome prose.\n",
+			phase: ResultsPhaseFinal,
+			want:  nil,
 		},
 		{
 			name:  "statement below first H2 does not count",
@@ -368,18 +419,18 @@ func TestValidateResultsContentActionStatement(t *testing.T) {
 }
 
 // TestResultsPlaceholderScaffoldMessageIsScaffold pins that when the placeholder
-// finding fires it is the scaffold reason with the scaffold message — the only
-// trigger now is the template's angle-bracket shape, so the "scaffolding"
-// diagnostic can never misdescribe a content-word match (Finding 1's diagnostic
-// complaint).
+// finding fires it is the placeholder reason with a message naming the specific
+// unfilled template prompt (change 0414) — the only trigger now is a derived
+// template prompt, so the diagnostic can never misdescribe a content-word match
+// (Finding 1's diagnostic complaint).
 func TestResultsPlaceholderScaffoldMessageIsScaffold(t *testing.T) {
-	src := []byte("# T — Results\n\n## Outcome\n\n<What was delivered.>\n")
+	src := []byte("# <Change title> — Results\n\n## Outcome\n\nReal outcome prose.\n")
 	fs := ValidateResultsContent(src, ResultsPhaseCheckpoint)
 	if len(fs) != 1 || fs[0].Reason != "results-placeholder" {
 		t.Fatalf("want one results-placeholder, got %v", fs)
 	}
-	if !strings.Contains(fs[0].Message, "scaffolding") {
-		t.Fatalf("want scaffold message, got %q", fs[0].Message)
+	if !strings.Contains(fs[0].Message, "unfilled template prompt") {
+		t.Fatalf("want a message naming the unfilled template prompt, got %q", fs[0].Message)
 	}
 }
 
@@ -397,6 +448,24 @@ func TestValidateResultsContentScaffoldFinalContainsPlaceholder(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("want results-placeholder among findings, got %v", fs)
+	}
+}
+
+// A missing/unusable prompt source is a validator SETUP failure: a stable
+// results-template-invalid finding whose message blames the template, never a
+// pass and never an accusation against the author's document.
+func TestValidateResultsContentTemplateSetupFailure(t *testing.T) {
+	orig := resultsTemplatePrompts
+	defer func() { resultsTemplatePrompts = orig }()
+	resultsTemplatePrompts = func() ([]string, error) {
+		return nil, fmt.Errorf("boom: no template")
+	}
+	fs := ValidateResultsContent([]byte("# T — Results\n\n## Outcome\n\nReal prose.\n"), ResultsPhaseCheckpoint)
+	if len(fs) != 1 || fs[0].Reason != "results-template-invalid" {
+		t.Fatalf("findings = %#v, want exactly one results-template-invalid", fs)
+	}
+	if !strings.Contains(fs[0].Message, "validator setup failure") {
+		t.Fatalf("message must name the failure as the validator's, got %q", fs[0].Message)
 	}
 }
 

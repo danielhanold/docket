@@ -54,6 +54,12 @@ const (
 	reasonResultsEmptySection   = "results-empty-section"
 	reasonResultsFillerSection  = "results-filler-section"
 
+	// reasonResultsTemplateInvalid: the canonical results template could not
+	// supply authoring prompts (missing/malformed/empty embedded asset). A
+	// validator SETUP failure — it blames the binary's template, never the
+	// author's document, and it fails closed (change 0414).
+	reasonResultsTemplateInvalid = "results-template-invalid"
+
 	reasonResultsActionStatementMissing = "results-action-statement-missing"
 	reasonResultsActionStatementEmpty   = "results-action-statement-empty"
 )
@@ -148,18 +154,24 @@ func ValidateResultsContent(source []byte, phase ResultsPhase) []ResultsContentF
 		})
 	}
 
-	// Both phases: no unfilled authoring placeholder (first occurrence).
-	for i, ln := range lines {
-		if fenced[i] || inManaged(ln.start) {
-			continue
-		}
-		if isResultsPlaceholderLine(strings.TrimRight(ln.text, "\r")) {
-			findings = append(findings, ResultsContentFinding{
-				Reason:  reasonResultsPlaceholder,
-				Message: "the results artifact still carries unfilled authoring placeholder scaffolding",
-			})
-			break
-		}
+	// Both phases (change 0414): no complete occurrence of a reserved authoring
+	// prompt DERIVED from the shipped results template — outside code,
+	// comments, frontmatter, and managed blocks. Markup and autolinks pass
+	// regardless of capitalization (they are not emitted prompts); a literal
+	// copy of a prompt passes only in code or behind an escaped bracket;
+	// custom placeholder-looking prose is the author's and reviewer's call.
+	prompts, perr := resultsTemplatePrompts()
+	if perr != nil {
+		findings = append(findings, ResultsContentFinding{
+			Reason: reasonResultsTemplateInvalid,
+			Message: fmt.Sprintf("the canonical results template could not supply authoring prompts "+
+				"(validator setup failure — the artifact was not judged): %v", perr),
+		})
+	} else if p, ok := firstTemplatePrompt(authorProse(lines, fenced, frontmatterEnd(lines), inManaged), prompts); ok {
+		findings = append(findings, ResultsContentFinding{
+			Reason:  reasonResultsPlaceholder,
+			Message: fmt.Sprintf("the results artifact still carries the unfilled template prompt %q", p),
+		})
 	}
 
 	if phase != ResultsPhaseFinal {
@@ -235,7 +247,11 @@ func ValidateResultsContent(source []byte, phase ResultsPhase) []ResultsContentF
 			parts = append(parts, strings.TrimSpace(strings.TrimRight(lines[j].text, "\r")))
 		}
 		joined := strings.TrimSpace(strings.Join(parts, "\n"))
-		if joined == "" || isResultsFillerBody(joined) || isResultsScaffoldBody(joined) {
+		stillPrompt := false
+		if perr == nil {
+			_, stillPrompt = firstTemplatePrompt(joined, prompts)
+		}
+		if joined == "" || isResultsFillerBody(joined) || stillPrompt {
 			findings = append(findings, ResultsContentFinding{
 				Reason:  reasonResultsActionStatementEmpty,
 				Message: "the Human action statement after the title has no substantive text",
@@ -420,69 +436,23 @@ func parseResultsActionStatement(text string) (string, bool) {
 	return body, true
 }
 
-// isResultsPlaceholderLine reports whether a line is unfilled scaffolding from
-// the canonical results template (skills/docket-implement-next/results-template.md).
-//
-// Detection is keyed on the template's own placeholder-instruction SHAPE: after
-// stripping leading heading/list markers and whitespace, an angle bracket
-// immediately followed by an uppercase ASCII letter — the capitalized English
-// instruction phrases the template emits (`<Change title>`, `<The original
-// problem…>`, `<short name of the action>`, `<Concrete step.>`, `<Problem or
-// follow-up>`, `<Whether human action is needed, …>`).
-//
-// It deliberately does NOT match on the bare content-word tokens
-// TODO/FIXME/TBD/XXX/TKTK/PLACEHOLDER: results prose legitimately discusses those
-// (e.g. "address the FIXME in retry logic", "the TODO is deferred to change
-// 0NNN"), especially in ## Known issues and follow-ups, and a
-// content word is not scaffolding. That vocabulary (change_attach.go's
-// placeholderTokenRE) governs plans — where those words mean unfinished work —
-// not results, and is intentionally not consulted here.
-//
-// Keying on the UPPERCASE first letter is also what separates real scaffolding
-// from legitimate inline HTML (<details>, <summary>, <br>, <sub>) and non-http
-// autolinks (<mailto:…>, <tel:…>): those lead with a lowercase tag name or URI
-// scheme, so they are not matched. HTML comments (`<!--`) and http autolinks
-// (`<http…>`) fall out of the same rule (`!` and `h` are not uppercase letters).
-func isResultsPlaceholderLine(text string) bool {
-	return isResultsScaffoldBody(stripResultsLeadMarkers(text))
-}
-
-// isResultsScaffoldBody reports whether a body carries the canonical
-// results-template scaffold SHAPE: an angle bracket immediately followed by an
-// uppercase ASCII letter (the capitalized instruction phrases the template
-// emits, e.g. `<Whether human action is needed, …>`). It is the shared shape
-// rule behind both isResultsPlaceholderLine (any line) and the final-phase
-// action-statement check (a parsed statement body), so an unfilled template
-// placeholder can never satisfy either — see isResultsPlaceholderLine for why
-// the uppercase first letter separates scaffolding from inline HTML and
-// autolinks.
-func isResultsScaffoldBody(s string) bool {
-	return len(s) >= 2 && s[0] == '<' && s[1] >= 'A' && s[1] <= 'Z'
-}
-
-// stripResultsLeadMarkers removes leading whitespace, heading markers, and one
-// list/blockquote marker so an angle-bracket scaffold under any of them is seen.
-func stripResultsLeadMarkers(text string) string {
-	s := strings.TrimLeft(text, " \t")
-	for strings.HasPrefix(s, "#") {
-		s = s[1:]
-	}
-	s = strings.TrimLeft(s, " \t")
-	switch {
-	case s == "":
-		return s
-	case s[0] == '-' || s[0] == '*' || s[0] == '+' || s[0] == '>':
-		s = strings.TrimLeft(s[1:], " \t")
-	default:
-		j := 0
-		for j < len(s) && s[j] >= '0' && s[j] <= '9' {
-			j++
-		}
-		if j > 0 && j < len(s) && (s[j] == '.' || s[j] == ')') {
-			s = strings.TrimLeft(s[j+1:], " \t")
+// firstTemplatePrompt reports the first reserved prompt (template order) whose
+// complete, whitespace-normalized text occurs in the prose view. The prose is
+// masked for inline literals here, so callers pass raw prose (whole-document
+// author view, or an action-statement body). Because the reserved prompts are
+// DERIVED from the shipped results template (change 0414), matching no longer
+// guesses from capitalization: legitimate inline HTML (<details>, <BR>,
+// <DETAILS>) and autolinks (<mailto:…>, <HTTPS://…>) are not emitted prompts
+// and pass regardless of case, while a lowercase prompt like
+// `<short name of the action>` is caught.
+func firstTemplatePrompt(prose string, prompts []string) (string, bool) {
+	scan := normalizeWS(maskInlineLiterals(prose))
+	for _, p := range prompts {
+		if strings.Contains(scan, p) {
+			return p, true
 		}
 	}
-	return s
+	return "", false
 }
 
 // isResultsFillerBody reports whether a section's entire body reduces to a
