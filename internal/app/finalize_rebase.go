@@ -36,7 +36,11 @@ import (
 //     response-lost success is recovered by proving the same rewrite completed —
 //     never by rebasing a different head. A foreign/malformed rebase, a moved
 //     base, a changed remote feature head, a dirty worktree, or an errored probe
-//     is retained and blocked, never reset or adopted.
+//     is retained and blocked, never reset or adopted — with one exception: a
+//     remote feature head proven to be this rewrite's OWN published result by the
+//     owned publish checkpoint (change 0408) and matching local, remote, and PR
+//     heads is forward-refreshed onto the advanced base (change 0442,
+//     admitPublishedRefresh), never adopted blindly.
 //   - A resolver report is an authored hint, not authority. Every reported path is
 //     validated against the LIVE unmerged set before it is staged; a path outside
 //     that set refuses. Report bodies are never echoed into a result (Global
