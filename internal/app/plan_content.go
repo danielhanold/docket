@@ -28,13 +28,9 @@ var planFillerTokens = map[string]bool{
 // (whitespace-trimmed, lowercased, one optional trailing period removed) to a
 // bare placeholder token. An empty body is NOT filler — empty sections stay
 // with authoring/review judgment, exactly like results' isResultsFillerBody.
+// The reduction itself lives in the shared reducesToToken helper (results_content.go).
 func isPlanFillerBody(body string) bool {
-	s := strings.ToLower(strings.TrimSpace(body))
-	if s == "" {
-		return false
-	}
-	s = strings.TrimSpace(strings.TrimSuffix(s, "."))
-	return planFillerTokens[s]
+	return reducesToToken(body, planFillerTokens)
 }
 
 // planPlaceholderSlot reports the first unfilled slot of a committed plan: a

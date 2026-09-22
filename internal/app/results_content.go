@@ -455,14 +455,23 @@ func firstTemplatePrompt(prose string, prompts []string) (string, bool) {
 	return "", false
 }
 
-// isResultsFillerBody reports whether a section's entire body reduces to a
-// closed-set filler token (whitespace-stripped, lowercased, one optional trailing
-// dot removed). An empty body is not filler (it is handled by substantiveness).
-func isResultsFillerBody(body string) bool {
+// reducesToToken reports whether body reduces (whitespace-stripped, lowercased,
+// one optional trailing dot removed) to a member of set. An empty body reduces to
+// nothing and returns false — both isResultsFillerBody and isPlanFillerBody rely
+// on that (empty sections stay with substantiveness/authoring judgment). This is
+// the shared body-reduction seam behind both filler checks.
+func reducesToToken(body string, set map[string]bool) bool {
 	s := strings.ToLower(strings.TrimSpace(body))
 	if s == "" {
 		return false
 	}
 	s = strings.TrimSpace(strings.TrimSuffix(s, "."))
-	return fillerBodies[s]
+	return set[s]
+}
+
+// isResultsFillerBody reports whether a section's entire body reduces to a
+// closed-set filler token (whitespace-stripped, lowercased, one optional trailing
+// dot removed). An empty body is not filler (it is handled by substantiveness).
+func isResultsFillerBody(body string) bool {
+	return reducesToToken(body, fillerBodies)
 }
