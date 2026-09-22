@@ -2062,3 +2062,139 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshUnchangedRetests(t *test
 		t.Errorf("checkpoint base head after the replay = %q, want the NEW base %q", recFinal.PublishCheckpointBaseHead, rewritten)
 	}
 }
+
+// setupPublishedRefresh drives the exact pre-conditions of change 0442's gap: a
+// conflict-resolved rebase A→B whose local gate PASSED (recording the publish
+// checkpoint for B), B published through the real receipt-scoped publication
+// seam under the exact lease A (so the receipt's recorded lease is now stale),
+// the open PR renamed to B, and main advanced AGAIN after the publication. It
+// returns the fixture, the deps (headEvidenceGate so checkpoint evidence
+// certifies the head the gate actually saw), the two fakes, and the published
+// head B.
+func setupPublishedRefresh(t *testing.T) (*rebaseFixture, FinalizeDeps, *headEvidenceGate, *fakeRebaseGitHub, string) {
+	t.Helper()
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	// The base conflictingly rewrites the feature's file so the rebase stops and
+	// a resolver-authored resolution is carried into B.
+	f.repo.writerAdvance(t, "main", map[string]string{"feature.txt": "conflicting base content\n"})
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	gate := &headEvidenceGate{t: t}
+	deps := f.finalizeDeps(gh, gate)
+	begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if begin.Disposition != RebaseDispConflicted {
+		t.Fatalf("begin = %q (reason %q msg %q), want conflicted", begin.Disposition, begin.Reason, begin.Message)
+	}
+	_, cont := reserveResolveContinue(t, f, deps, begin.Attempt, begin.UnmergedPaths, 1)
+	if cont.Disposition != RebaseDispRebased || gate.calls != 1 {
+		t.Fatalf("continue = %q (reason %q) gate calls %d, want rebased with one gate run", cont.Disposition, cont.Reason, gate.calls)
+	}
+	published := f.localHead()
+	rec, present, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("receipt before publication: present=%v err=%v", present, err)
+	}
+	// The conflict-continue completion probes the open PR against its mid-rebase
+	// inspection head, which never equals the open PR's head, so it yields an empty
+	// PR (probeRebasePR head mismatch) and records no publish checkpoint. Record the
+	// completed-gate checkpoint for B directly — byte-identical to what a PASSED
+	// gate whose PR probe matched would have written (change 0408) — so the receipt
+	// proves docket's own tested result for B without a second gate run inflating
+	// the fixture's one-run count.
+	cmd, gatePolicy := resolvedFinalizeGateConfig(context.Background(), deps, f.repo.invocation)
+	rec.PublishCheckpointHead = strings.ToLower(published)
+	rec.PublishCheckpointBaseHead = rec.BaseHead
+	rec.PublishCheckpointCommand = cmd
+	rec.PublishCheckpointGate = gatePolicy
+	rec.PublishCheckpointPRNumber = fmt.Sprintf("%d", gh.prs[0].Number)
+	rec.PublishCheckpointEvidence = greenEvidenceFor(t, published)
+	if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, rec); err != nil {
+		t.Fatalf("recording the completed-gate checkpoint for B: %v", err)
+	}
+	rec, present, err = f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !present {
+		t.Fatalf("re-reading receipt after checkpoint record: present=%v err=%v", present, err)
+	}
+	if _, ok := publishCheckpointOf(rec); !ok {
+		t.Fatalf("no publish checkpoint recorded after the PASSED gate: %+v", rec)
+	}
+	// Publish B through the REAL publication seam: exact-lease push A→B. The
+	// receipt's recorded lease (OrigRemoteHead = A) is deliberately left stale —
+	// that is the gap under test.
+	outcome, perr := f.svc.PublishRewrite(context.Background(),
+		workspace.RewriteRequest{Dir: f.metaDir, Receipt: rec, NewHead: published})
+	if perr != nil || outcome != workspace.RewritePublished {
+		t.Fatalf("PublishRewrite = %q err %v, want published", outcome, perr)
+	}
+	// The open PR now names the published head B (as GitHub would after the push).
+	gh.prs = []githubcli.PullRequest{f.prForHead(published, "")}
+	// Main advances AFTER the publication and BEFORE the merge (non-conflicting).
+	f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "post-publish base work\n"})
+	return f, deps, gate, gh, published
+}
+
+// TestIntegrationFinalizeRebasePublishedResultForwardRefresh covers acceptance
+// item 1 (and the publish half of item 2) of the 0442 spec: re-entering
+// finalize.rebase with the PUBLISHED head B forward-refreshes the owned attempt
+// onto the advanced base — preserved resolution, new base ancestry, fresh
+// attempt token, lease re-keyed to B, unchanged resolver budget, and a fresh
+// suite run — and the next result publishes under exactly lease B.
+func TestIntegrationFinalizeRebasePublishedResultForwardRefresh(t *testing.T) {
+	requireRealGit(t)
+	f, deps, gate, _, published := setupPublishedRefresh(t)
+	recBefore, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+
+	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: published})
+	if out.Result != ResultApplied || out.Disposition != RebaseDispRebased {
+		t.Fatalf("published refresh = %q/%q (reason %q msg %q), want applied/rebased",
+			out.Result, out.Disposition, out.Reason, out.Message)
+	}
+	// A published refresh ALWAYS retests: old evidence/checkpoint never
+	// authorizes the refreshed head (spec: proof of publication, not a skip).
+	if out.Gate == nil || out.Gate.Compose != gateComposeRan || gate.calls != 2 {
+		t.Fatalf("gate = %+v calls %d, want compose ran with a second suite run", out.Gate, gate.calls)
+	}
+	// The conflict resolution carried into B survived the second rewrite.
+	if got := readRepoFile(t, f.wp, "feature.txt"); got != "reconciled content for cycle 1\n" {
+		t.Fatalf("resolution lost: feature.txt = %q", got)
+	}
+	next := f.localHead()
+	if next == published {
+		t.Fatalf("the refresh did not rewrite the head onto the advanced base")
+	}
+	rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if rec.OrigHead != published {
+		t.Errorf("refreshed OrigHead = %q, want the published head %q", rec.OrigHead, published)
+	}
+	if rec.OrigRemoteHead != published {
+		t.Errorf("refreshed lease = %q, want re-keyed to the proven published head %q (was %q)",
+			rec.OrigRemoteHead, published, recBefore.OrigRemoteHead)
+	}
+	if rec.Attempt == recBefore.Attempt {
+		t.Errorf("refresh kept the superseded attempt token %q", rec.Attempt)
+	}
+	if rec.BaseHead == recBefore.BaseHead {
+		t.Errorf("refreshed BaseHead unchanged %q; want the advanced base", rec.BaseHead)
+	}
+	if rec.ResolverLimit != recBefore.ResolverLimit || rec.ResolverUsed != recBefore.ResolverUsed {
+		t.Errorf("budget changed: %s/%s -> %s/%s (base movement never replenishes)",
+			recBefore.ResolverUsed, recBefore.ResolverLimit, rec.ResolverUsed, rec.ResolverLimit)
+	}
+	// The superseded checkpoint (old base) is gone; the refresh's own PASSED gate
+	// recorded a fresh one for the NEW head against the NEW base.
+	if rec.PublishCheckpointHead != next {
+		t.Errorf("checkpoint head = %q, want the refreshed head %q (old-base checkpoint must not survive)",
+			rec.PublishCheckpointHead, next)
+	}
+	if rec.PublishCheckpointBaseHead != rec.BaseHead {
+		t.Errorf("checkpoint base = %q, want the refreshed base %q", rec.PublishCheckpointBaseHead, rec.BaseHead)
+	}
+	// Acceptance item 2 (publish half): the next result publishes under exactly
+	// lease B — the re-keyed OrigRemoteHead is what the exact-lease push consumes.
+	outcome, perr := f.svc.PublishRewrite(context.Background(),
+		workspace.RewriteRequest{Dir: f.metaDir, Receipt: rec, NewHead: next})
+	if perr != nil || outcome != workspace.RewritePublished {
+		t.Fatalf("post-refresh PublishRewrite = %q err %v, want published under lease %q", outcome, perr, published)
+	}
+}

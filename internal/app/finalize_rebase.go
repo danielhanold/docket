@@ -531,6 +531,44 @@ func checkpointDecision(cp publishCheckpoint, currentHead, liveBaseHead, resolve
 		prNumber > 0 && cp.PRNumber == strconv.Itoa(prNumber)
 }
 
+// admitPublishedRefresh decides whether a remote feature head that no longer
+// equals the receipt's recorded publication lease is docket's OWN published
+// result (change 0442) — the one additional admissible moved-remote case.
+// Admission requires the receipt's complete publish checkpoint (change 0408)
+// whose tested head equals the current local head, the authoritative remote
+// feature head, AND the open PR's head; the checkpoint's recorded base must be
+// the receipt's recorded base, its PR number the open PR's, and its evidence
+// must re-verify green for that exact head. This proves a historical tested
+// result plus its current publication — it is NEVER permission to skip the new
+// suite run (the refresh always retests under the currently resolved
+// configuration; checkpointDecision is deliberately not called here, so no old
+// base can be substituted to obtain a skip). Any missing or inconsistent proof
+// returns the retained lease refusal; nil means admitted.
+func admitPublishedRefresh(rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, localHead, remoteHead gitcli.ObjectID, id int) *FinalizeRebaseResult {
+	refuse := func() *FinalizeRebaseResult {
+		r := rebaseRefusal(OperationFinalizeRebase, ResultBlocked, RebaseDispBlocked, ReasonRebaseRemoteHeadMismatch,
+			"the remote feature head is not the receipt's recorded publication lease, and the owned checkpoint does not prove it is this rewrite's published result — retained, not refreshed", id)
+		return &r
+	}
+	cp, ok := publishCheckpointOf(rec)
+	if !ok {
+		return refuse()
+	}
+	currentHead := strings.ToLower(string(localHead))
+	if currentHead == "" ||
+		cp.Head != currentHead ||
+		strings.ToLower(string(remoteHead)) != currentHead ||
+		strings.ToLower(pr.HeadCommit) != currentHead ||
+		cp.BaseHead != rec.BaseHead ||
+		cp.PRNumber != strconv.Itoa(pr.Number) {
+		return refuse()
+	}
+	if evidence.Verify([]byte(cp.Evidence), currentHead) != evidence.VerdictVerified {
+		return refuse()
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // rebase context
 // ---------------------------------------------------------------------------
@@ -960,13 +998,17 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	return refreshOwnedRewrite(ctx, deps, repoDir, rc, pr, rec, baseHead, remoteHead, ownedPrefix)
 }
 
-// refreshOwnedRewrite advances a completed, clean, quiescent, unpublished owned
-// rewrite onto the newly observed effective base head (change 0438). It preserves
-// prior resolutions (the rebase starts from the CURRENT head), the exact remote
-// publication lease, and the consumed resolver budget; it mints a fresh attempt
-// token and clears the gate pair and the superseded publish checkpoint, so nothing
+// refreshOwnedRewrite advances a completed, clean, quiescent owned rewrite onto
+// the newly observed effective base head (change 0438; the published case is
+// change 0442). It preserves prior resolutions (the rebase starts from the
+// CURRENT head) and the consumed resolver budget; it mints a fresh attempt token
+// and clears the gate pair and the superseded publish checkpoint, so nothing
 // recorded against the old base can authorize publication of the refreshed
-// rewrite. Every refusal retains local work.
+// rewrite. The remote publication lease is preserved unchanged for an UNPUBLISHED
+// rewrite (the remote feature head still equals the recorded lease) and re-keyed
+// to the proven published head for a PUBLISHED one (admitPublishedRefresh proved
+// the moved remote is this rewrite's own tested, published result). Every refusal
+// retains local work.
 func refreshOwnedRewrite(ctx context.Context, deps FinalizeDeps, repoDir string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, newBaseHead, remoteHead gitcli.ObjectID, ownedPrefix string) FinalizeRebaseResult {
 	op := OperationFinalizeRebase
 	id := int(rc.change.ID())
@@ -990,12 +1032,17 @@ func refreshOwnedRewrite(ctx context.Context, deps FinalizeDeps, repoDir string,
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseWorkspaceNotReady,
 			fmt.Sprintf("the feature workspace is %q, not the clean registered feature state", rc.insp.Kind), id)
 	}
-	// The publication lease must be intact: this recovery is for an UNPUBLISHED
-	// rewrite, so the remote feature head must still be the receipt's recorded lease
-	// value (spec §1).
-	if string(remoteHead) != rec.OrigRemoteHead {
-		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseRemoteHeadMismatch,
-			"the remote feature head is not the receipt's recorded publication lease; the rewrite may have been published or the remote moved — retained, not refreshed", id)
+	// Publication-lease classification (change 0442 extends change 0438): the
+	// unpublished case requires the remote feature head to still equal the
+	// recorded lease. The ONE additional admissible case is a moved remote that
+	// is provably this rewrite's own published result — the owned completed-gate
+	// checkpoint plus matching local, remote, and PR heads (admitPublishedRefresh).
+	// Anything else — checkpoint-less, ambiguous, or foreign — is retained.
+	published := string(remoteHead) != rec.OrigRemoteHead
+	if published {
+		if r := admitPublishedRefresh(rc, pr, rec, localHead, remoteHead, id); r != nil {
+			return *r
+		}
 	}
 	// Only forward base movement is in scope: the new base must descend the recorded
 	// one. A rewritten/divergent base keeps the moved-base refusal.
@@ -1041,6 +1088,11 @@ func refreshOwnedRewrite(ctx context.Context, deps FinalizeDeps, repoDir string,
 
 	refreshed := disk
 	refreshed.OrigHead = string(localHead)
+	if published {
+		// The proven published head becomes the new exact publication lease: the
+		// next PublishRewrite pushes over exactly this observed remote value.
+		refreshed.OrigRemoteHead = string(remoteHead)
+	}
 	refreshed.BaseHead = string(newBaseHead)
 	refreshed.Attempt = newRebaseAttempt(deps, newBaseHead)
 	refreshed.GateDriveID, refreshed.GateOwnerGeneration = "", ""
