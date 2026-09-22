@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0441 — Release successful implementation ownership before standalone finalize](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0441-release-successful-implementation-ownership-before-standalon.md)**
+> ↩ **[Change 0441 — Release successful implementation ownership before standalone finalize](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-22-0441-release-successful-implementation-ownership-before-standalon.md)**
 <!-- docket:backlink:end -->
 # Release successful implementation ownership before standalone finalize — Results
 
