@@ -1,13 +1,18 @@
 # Backlog
 
-**443 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 12 proposed · ⚪ 11 deferred · ✅ 296 done · 🗑️ 119 killed
+**443 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 12 proposed · ⚪ 11 deferred · ✅ 296 done · 🗑️ 119 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0414](active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | `low` | `chore` | [spec](../superpowers/specs/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-design.md) | `chore/results-placeholder-heuristic-false-positives-on-uppercase-h` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0414](active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | `low` | `chore` | [#324](https://github.com/danielhanold/docket/pull/324) | awaiting merge |
 
 ## 🟣 Groomed (3)
 

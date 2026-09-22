@@ -2,7 +2,7 @@
 id: 414
 slug: 'results-placeholder-heuristic-false-positives-on-uppercase-h'
 title: 'Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'chore'
 created: '2026-09-08'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/results-placeholder-heuristic-false-positives-on-uppercase-h'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/324'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-22T20:50:08Z'
