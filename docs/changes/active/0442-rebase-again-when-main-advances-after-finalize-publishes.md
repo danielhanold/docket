@@ -22,7 +22,7 @@ branch: 'fix/rebase-again-when-main-advances-after-finalize-publishes'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-22T02:14:28Z'
+claimed_at: '2026-09-22T02:26:45Z'
 ---
 
 ## Artifacts
