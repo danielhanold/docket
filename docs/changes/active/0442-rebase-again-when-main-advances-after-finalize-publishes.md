@@ -9,10 +9,10 @@ created: '2026-09-22'
 updated: '2026-09-22'
 depends_on: []
 stacked_on:
-related: [438, 408]
+related: [316, 349, 396, 408, 411, 438]
 discovered_from: []
-adrs: [105, 112, 113]
-spec:
+adrs: [10, 105, 112, 113, 118]
+spec: 'docs/superpowers/specs/2026-09-22-rebase-again-when-main-advances-after-finalize-publishes-design.md'
 plan:
 results:
 trivial: false
@@ -29,17 +29,18 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0112](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0112-a-completed-gate-publish-checkpoint-is-persisted-in-the-owne.md), [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md) |
+| Spec | [2026-09-22-rebase-again-when-main-advances-after-finalize-publishes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-22-rebase-again-when-main-advances-after-finalize-publishes-design.md) |
+| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0105](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md), [ADR-0112](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0112-a-completed-gate-publish-checkpoint-is-persisted-in-the-owne.md), [ADR-0113](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0113-resolver-dispatches-are-admitted-by-durable-pre-dispatch-res.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Change 0438 handles main advancing before finalize pushes its rebased head. If main advances after that push but before merge, the existing receipt still expects the remote feature branch at its pre-push head and finalize refuses another rebase, including when the remote contains its own tested result.
+Change 0438 handles main advancing before finalize pushes its rebased head. When main advances after that push but before merge, re-entering finalize still checks the remote feature branch against its pre-push lease and refuses, even when the remote contains Docket's own tested result. Source inspection confirms this gap; the separate session's reproduction was not independently replayed during grooming.
 
 ## What changes
 
-Extend the existing finalize rebase path to handle this exact post-publication case, preserving prior conflict resolutions, an exact remote lease, and fresh test evidence. During grooming, trace the implementation and relevant prior changes and ADRs; treat recognizing the published head and refreshing the owned attempt as a hypothesis. Prefer established receipt, refresh, and gate machinery.
+Extend the existing rebase refresh to recognize a published result proven by the owned test checkpoint and matching local, remote, and PR heads. Refresh the existing receipt with that exact remote lease and a fresh rewrite token, preserve prior conflict resolutions and consumed resolver budget, and run the configured finalize suite against the newer base. Reuse existing interruption, publication, and merge machinery. Add focused behavioral coverage and update finalize guidance.
 
 ## Out of scope
 
-New commands, configuration, recovery stores, retry policies, budget replenishment, rollback/reset, acceptance of arbitrary remote changes, force-rewritten base recovery, unrelated finalize cleanup, and implementation during grooming.
+Checkpoint-less or ambiguous published heads; arbitrary remote edits; force-rewritten bases; rollback/reset; new commands, fields, stores, configuration, retry policies, or budget replenishment; merge-race detection changes; unrelated cleanup; implementation or implementation planning during grooming.
