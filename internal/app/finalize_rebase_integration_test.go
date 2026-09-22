@@ -2267,12 +2267,16 @@ func TestIntegrationFinalizeRebasePublishedRefreshRefusals(t *testing.T) {
 	})
 
 	t.Run("checkpoint-head-mismatch-refuses", func(t *testing.T) {
-		// A checkpoint recorded for some OTHER head (here: the pre-rebase head A,
-		// with matching evidence so only the head conjunct differs) must not admit.
+		// A checkpoint whose recorded head names some OTHER head (the pre-rebase
+		// head A) must not admit — EVEN when its evidence still verifies for the
+		// current published head B. Keeping the evidence green for B isolates the
+		// cp.Head conjunct: only the recorded checkpoint head disagrees, so the
+		// evidence conjunct passes and this subtest reddens iff the cp.Head guard
+		// is removed (mutation detector for that conjunct alone).
 		f, deps, _, _, published := setupPublishedRefresh(t)
 		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
 		rec.PublishCheckpointHead = strings.ToLower(f.head)
-		rec.PublishCheckpointEvidence = greenEvidenceFor(t, f.head)
+		rec.PublishCheckpointEvidence = greenEvidenceFor(t, published)
 		if err := f.svc.WriteRebaseReceipt(context.Background(), f.metaDir, rec); err != nil {
 			t.Fatal(err)
 		}
