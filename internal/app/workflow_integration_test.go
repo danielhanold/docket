@@ -278,9 +278,10 @@ func TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent(t *testing.
 	t.Run("raw template scaffold refuses with results-content-invalid", func(t *testing.T) {
 		f := attachSetup(t)
 		// A correct backlink (so the backlink guard passes) fronting the unfilled
-		// authoring template: the H1 and the Outcome body are angle-bracket scaffolding.
+		// authoring template: the H1 and the Outcome body are unfilled emitted
+		// template prompts (change 0414 — derived from the shipped template).
 		scaffold := attachBacklinkBlock(f.id, "A change", f.recPath) +
-			"\n# <Change title> — Results\n\n## Outcome\n\n<What was delivered and how the behavior changed.>\n"
+			"\n# <Change title> — Results\n\n## Outcome\n\n<The original problem, the delivered behavior, and any material departure from the\nagreed design — lead with observable effects. Explain unfamiliar Docket concepts when\nnecessary; include method names, stored fields, or internal identifiers only when they\nhelp the reader understand a consequence or take action.>\n"
 		head := f.commitPlan(t, map[string]string{resultsPath: scaffold}, "")
 		res := ChangeAttachResults(f.ctx, f.deps, f.wdeps, f.invocation,
 			ChangeAttachRequest{ID: f.id, Version: f.version, Path: resultsPath, Commit: head})
