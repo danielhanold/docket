@@ -13,7 +13,7 @@ related: [315, 410, 440]
 discovered_from: [410]
 adrs: [18, 50, 94]
 spec: 'docs/superpowers/specs/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-22T20:50:08Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-design.md) |
+| Plan | [2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h.md](https://github.com/danielhanold/docket/blob/chore/results-placeholder-heuristic-false-positives-on-uppercase-h/docs/superpowers/plans/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h.md) |
 | ADRs | [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md) |
 <!-- docket:artifacts:end -->
 
