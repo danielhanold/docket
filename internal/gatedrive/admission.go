@@ -273,12 +273,36 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 // gate.drive.start only), so the success summary is deliberately dropped here; an
 // inventory REFUSAL still carries its summary on the returned OwnershipError.Legacy,
 // which the raw caller surfaces with the matched drive's locator (change 0446 §6).
-func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, proc recoverySeam) (token string, err error) {
-	token, _, err = s.reserveWorktreeExecution(admissionRecord{
+//
+// A worktree-busy / unresolved refusal decided on an occupying incumbent is final
+// only after finished-incumbent reconciliation (reconcileFinishedIncumbent, change
+// 0446 spec §3) inspected it with proc: a proven-finished incumbent — a completed
+// raw run nobody stopped, or a PASSED/FAILED drive whose release was interrupted —
+// is settled and the reservation retried ONCE, so no manual stop is needed merely
+// to update bookkeeping. An unsettled refusal carries the finding on
+// OwnershipError.Reconciliation. A raw launch owns no run epoch and holds no outer
+// lock here, so reconciliation runs inline.
+func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, proc incumbentProofSeam) (token string, err error) {
+	rec := admissionRecord{
 		RepoIdentity: repoIdentity,
 		WorktreeRoot: worktreeRoot,
 		Kind:         "raw",
-	}, proc)
+	}
+	var inventorySeam recoverySeam
+	if proc != nil {
+		inventorySeam = proc
+	}
+	token, _, err = s.reserveWorktreeExecution(rec, inventorySeam)
+	oe, ok := isIncumbentRefusal(err)
+	if !ok {
+		return token, err
+	}
+	settled, finding, _ := s.reconcileFinishedIncumbent(worktreeRoot, rec.RunEpochID, proc)
+	if !settled {
+		oe.Reconciliation = finding
+		return "", err
+	}
+	token, _, err = s.reserveWorktreeExecution(rec, inventorySeam)
 	return token, err
 }
 
@@ -673,6 +697,9 @@ func (s *Store) LoadWorktreeExecution(worktreeRoot string) (admissionRecord, str
 // (an absent record, a worktree it cannot yet resolve, a corrupt or unknown-schema
 // record) returns nil and defers to that authority, which re-checks and fails
 // closed. It never mutates and takes no lock, mirroring LoadWorktreeExecution.
+// Because it cannot see whether the occupant has provably finished, a caller must
+// not treat its refusal as final before finished-incumbent reconciliation
+// (reconcileFinishedIncumbent, change 0446 spec §3) had its chance.
 func (s *Store) WorktreeAdmissionRefusal(worktreeRoot string) error {
 	const op = "worktree-admission-refusal"
 	slot, _, err := s.LoadWorktreeExecution(worktreeRoot)

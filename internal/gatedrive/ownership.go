@@ -165,6 +165,13 @@ type OwnershipError struct {
 	// record read under the slot's flock. Nil for every other OwnershipError.
 	// Kind/Op/Legacy are unchanged by its presence.
 	Incumbent *IncumbentSnapshot
+	// Reconciliation is the bounded, credential-free finding the admission-boundary
+	// finished-incumbent reconciliation (reconcileFinishedIncumbent, change 0446 spec
+	// §3) recorded when it could NOT settle the incumbent — the obligation that keeps
+	// this refusal final (e.g. "incumbent-nonterminal", "incumbent-run-unproven",
+	// "release-write-failed"). Empty when reconciliation did not run. Kind/Op and the
+	// other fields are unchanged by its presence.
+	Reconciliation string
 }
 
 func (e *OwnershipError) Error() string {

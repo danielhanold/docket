@@ -153,7 +153,11 @@ const rawGateEpoch = ""
 // canonical worktree carries at most one reserved-or-running top-level gate
 // execution across scoped, scopeless, and raw launches, so a second raw launch
 // into a busy worktree is REFUSED (worktree-busy / unresolved-execution) with a
-// safe incumbent locator and no process spawned. Admission composes ONCE, here at
+// safe incumbent locator and no process spawned — but only after the reserve's
+// finished-incumbent reconciliation (change 0446 spec §3) could not prove the
+// incumbent finished: a completed raw run nobody stopped, or a PASSED/FAILED drive
+// whose release was interrupted, is settled with the process service's teardown
+// proof and this launch admits without a manual stop. Admission composes ONCE, here at
 // the public boundary; the gate driver's own ProcessSeam.Launch holds its ticket
 // from Tasks 3–5 and never re-reserves. A cwd outside any git worktree keeps the
 // pre-admission contract exactly: no slot, no reservation token.
@@ -241,6 +245,12 @@ func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, st
 // rawGateEpoch (none), and until Task 9 records epochs into slots this stays
 // dormant. A missing or unreadable slot is not a refusal here: the reserve is the
 // authority that fails closed on an unreadable record.
+//
+// This is an EPOCH-ownership refusal, not an incumbent-state one, so it precedes the
+// reserve's finished-incumbent reconciliation deliberately (change 0446 spec §3):
+// the epoch fence refuses a raw launch into an epoch-owned worktree whether or not
+// the incumbent execution has finished, so reconciling first could not change the
+// outcome — it would only mutate another run's slot on behalf of a refused start.
 func rawStaleEpochRefusal(store *gatedrive.Store, worktreeRoot string) (GateResult, bool) {
 	slot, _, err := store.LoadWorktreeExecution(worktreeRoot)
 	if err != nil {

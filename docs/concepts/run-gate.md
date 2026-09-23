@@ -68,12 +68,20 @@ verdict, not the worker's report, says what may happen next.
 
 A worktree runs one gate execution at a time, and the gate enforces that
 through a per-worktree **admission slot**. When a launch is refused because
-the slot is taken, the refusal means the slot is **occupied** — not that
-the occupying process is still running. A raw gate run keeps its slot until
-it is torn down explicitly, deliberately, even after the run itself has
-completed; a completed run is not a free slot. `reserveWorktreeExecution`
-is the point that decides admission, and it fails closed: any non-released
+the slot is taken, the refusal means the slot is **occupied** by an
+execution the admission could not prove finished — not necessarily that
+the occupying process is still running. `reserveWorktreeExecution` is the
+point that decides admission, and it fails closed: any non-released
 occupant refuses a new reservation.
+
+Before such a refusal is final, the admission inspects the exact occupant
+once (`reconcileFinishedIncumbent`). An occupant whose completion the
+existing records prove — a drive with a recorded PASSED/FAILED verdict, or
+a raw or halted run the process-recovery check proves torn down — is
+settled and the same admission continues, so a completed run that nobody
+stopped no longer needs a manual stop just to update bookkeeping. A live,
+still-owned, or unprovable occupant (a bare halted label is not proof)
+still refuses, and admission never stops an occupant to make room.
 
 So a busy-slot refusal is diagnosed, never guessed around:
 
@@ -88,8 +96,9 @@ So a busy-slot refusal is diagnosed, never guessed around:
   clean history and an occupied slot coexist.
 - **Recovery does not free the slot.** Process recovery (`gate recover`)
   classifies process records; it does not release a current raw admission
-  slot. Releasing that slot is the stop route's job (`releaseRawSlotForStop`),
-  not recovery's.
+  slot. Releasing that slot is the stop route's job (`releaseRawSlotForStop`)
+  or, for an occupant proven finished, the next admission's — not
+  recovery's.
 
 ## The invariants
 

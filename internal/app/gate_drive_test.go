@@ -12,6 +12,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gatedrive"
+	"github.com/danielhanold/docket/internal/process"
 )
 
 // fakeDriveEngine is a scriptable driveEngine: every method returns the same
@@ -43,6 +44,19 @@ type fakeDriveEngine struct {
 	// driver.
 	lastAck   [4]string
 	ackCalled bool
+	// reconcile, when set, answers ReconcileFinishedIncumbent (change 0446 §3); nil
+	// reports an unsettled incumbent. reconcileCount counts the consultations so a
+	// test can prove a busy advisory refusal reached reconciliation first.
+	reconcile      func(worktree, runEpochID string) (bool, string, error)
+	reconcileCount int
+}
+
+func (f *fakeDriveEngine) ReconcileFinishedIncumbent(worktree, runEpochID string) (bool, string, error) {
+	f.reconcileCount++
+	if f.reconcile == nil {
+		return false, "", nil
+	}
+	return f.reconcile(worktree, runEpochID)
 }
 
 func (f *fakeDriveEngine) recordStart(r gatedrive.StartRequest) {
@@ -870,6 +884,87 @@ func TestBusyRefusalChargesNoSuiteAttempt(t *testing.T) {
 	if eng.startCount != 0 {
 		t.Fatalf("a busy refusal must not reach the engine's admission, got %d", eng.startCount)
 	}
+}
+
+// finishedRunProof is a process-recovery seam scripted to one ClassifyRun
+// disposition, so the real store's finished-incumbent reconciliation can be driven
+// from the app layer without a live supervisor.
+type finishedRunProof struct{ disposition string }
+
+func (p finishedRunProof) ClassifyRun(runDir string, _ bool) (process.RecoveryEntry, error) {
+	return process.RecoveryEntry{RunDir: runDir, Disposition: p.disposition}, nil
+}
+
+func (p finishedRunProof) ResolveReservation(string, string) (*process.ReservationResolution, error) {
+	return &process.ReservationResolution{Disposition: "unresolved"}, nil
+}
+
+// TestBudgetedBuildReconcilesBeforeRefusal (change 0446 spec §3): the build owner's
+// advisory busy refusal is final only after the finished-incumbent reconciliation
+// had its chance. A raw incumbent whose run the process predicate proves torn down
+// is settled in the SAME durable store, and the start then admits and launches once,
+// charging exactly one suite attempt. The paired case — an incumbent the predicate
+// reports live — still refuses before the engine's admission and charges nothing.
+func TestBudgetedBuildReconcilesBeforeRefusal(t *testing.T) {
+	const runID = "0446dddddddddddddddddddddddddd01"
+	occupy := func(t *testing.T, dir string) (string, *gatedrive.Store) {
+		t.Helper()
+		worktree := testsupport.TempDir(t)
+		store := gatedrive.OpenStore(dir)
+		tok, err := store.ReserveRawWorktreeExecution("/repo", worktree, nil)
+		if err != nil {
+			t.Fatalf("occupy worktree slot: %v", err)
+		}
+		if err := store.ConfirmWorktreeExecution(worktree, tok, runID, "/runs/"+runID); err != nil {
+			t.Fatalf("confirm raw incumbent: %v", err)
+		}
+		return worktree, store
+	}
+
+	t.Run("finished incumbent settles and starts once", func(t *testing.T) {
+		svc, eng, dir := newBudgetTestBuildService(t, 4)
+		worktree, store := occupy(t, dir)
+		eng.reconcile = func(w, epoch string) (bool, string, error) {
+			return store.ReconcileFinishedIncumbent(w, epoch, finishedRunProof{disposition: "terminal"})
+		}
+
+		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0446"})
+		if got.Result != ResultApplied {
+			t.Fatalf("a finished incumbent must not refuse the build start: result=%s reason=%q msg=%q", got.Result, got.Reason, got.Message)
+		}
+		if eng.reconcileCount != 1 || eng.startCount != 1 || eng.startAdmittedCount != 1 {
+			t.Fatalf("reconcile=%d admit=%d launch=%d, want 1/1/1", eng.reconcileCount, eng.startCount, eng.startAdmittedCount)
+		}
+		if used, limit := suiteUsage(t, dir, "0446"); used != 1 || limit != 4 {
+			t.Fatalf("usage = (%d,%d), want exactly one charged attempt", used, limit)
+		}
+		slot, _, err := store.LoadWorktreeExecution(worktree)
+		if err != nil || string(slot.State) != "released" {
+			t.Fatalf("the finished incumbent's slot must be settled released, got state=%q err=%v", string(slot.State), err)
+		}
+	})
+
+	t.Run("live incumbent still refuses uncharged", func(t *testing.T) {
+		svc, eng, dir := newBudgetTestBuildService(t, 4)
+		worktree, store := occupy(t, dir)
+		eng.reconcile = func(w, epoch string) (bool, string, error) {
+			return store.ReconcileFinishedIncumbent(w, epoch, finishedRunProof{disposition: "live"})
+		}
+
+		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0446"})
+		if got.Result == ResultApplied || got.Reason != string(gatedrive.ErrWorktreeBusy) {
+			t.Fatalf("a live incumbent must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
+		}
+		if !strings.Contains(got.Message, "incumbent-run-unproven") {
+			t.Fatalf("refusal message must name the unsettled obligation, got %q", got.Message)
+		}
+		if eng.reconcileCount != 1 || eng.startCount != 0 {
+			t.Fatalf("reconcile=%d admit=%d, want reconciliation consulted and no admission", eng.reconcileCount, eng.startCount)
+		}
+		if used, limit := suiteUsage(t, dir, "0446"); used != 0 || limit != 0 {
+			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
+		}
+	})
 }
 
 // TestAdmitRefusalChargesNoSuiteAttempt proves the AUTHORITATIVE half of the
