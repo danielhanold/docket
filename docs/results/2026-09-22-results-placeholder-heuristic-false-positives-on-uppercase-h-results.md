@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0414 — Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md)**
+> ↩ **[Change 0414 — Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-23-0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md)**
 <!-- docket:backlink:end -->
 # Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes — Results
 
