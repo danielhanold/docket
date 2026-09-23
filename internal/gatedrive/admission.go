@@ -174,6 +174,78 @@ func (s *Store) admissionKeyFor(worktreeRoot, op string) (canonical, key string,
 	return canonical, key, nil
 }
 
+// admissionKeyStored returns the admission key for a worktree identity that was
+// already RECORDED — a slot's WorktreeRoot or an epoch's bound Worktree — for the
+// read/CAS entry points (LoadWorktreeExecution, admissionCAS, and so release,
+// mark-stopping, and RetireWorktreeExecutionEpoch) that must still address the slot
+// after the worktree directory was removed (change 0446 spec §2). Admitting a NEW
+// execution keeps the strict admissionKeyFor: only an existing, resolvable
+// worktree is ever reserved.
+//
+// Invariant: stored identities are EvalSymlinks output by construction (the reserve
+// only ever persists admissionKeyFor's canonical root), so a missing path keys on
+// its recorded spelling; a canonicalization failure on a missing path is not proof
+// the slot is absent. Resolution is therefore:
+//
+//   - EvalSymlinks succeeds → the resolved root (unchanged behavior for a live path
+//     or a live symlink alias).
+//   - EvalSymlinks fails fs.ErrNotExist → the nearest surviving ancestor is
+//     canonicalized and the missing tail is re-appended. For a canonical stored
+//     identity this is exactly filepath.Clean(stored); for an epoch's LOGICAL bound
+//     spelling (bindEpochWorktree does not canonicalize) it recovers the same key
+//     the slot was created under as long as the removed components were not
+//     themselves symlinks. A path recreated at the same location resolves to the
+//     same key either way.
+//   - any other canonicalization error (ENOTDIR, permission, IO) on the path or an
+//     ancestor → typed ErrInvalidID: a probe error is not clean absence.
+func (s *Store) admissionKeyStored(storedCanonical, op string) (string, error) {
+	if !filepath.IsAbs(storedCanonical) {
+		return "", storeErr(ErrInvalidID, op, nil)
+	}
+	canonical, err := filepath.EvalSymlinks(storedCanonical)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", storeErr(ErrInvalidID, op, err)
+		}
+		canonical, err = canonicalizeMissingPath(filepath.Clean(storedCanonical))
+		if err != nil {
+			return "", storeErr(ErrInvalidID, op, err)
+		}
+	}
+	key := admissionKey(canonical)
+	if key == "" {
+		return "", storeErr(ErrInvalidID, op, nil)
+	}
+	return key, nil
+}
+
+// canonicalizeMissingPath canonicalizes the nearest existing ancestor of an
+// absolute, cleaned path that does not itself exist and re-appends the missing
+// tail components. Any ancestor probe failure other than fs.ErrNotExist is
+// returned: only a genuinely missing component is keyed on its spelling.
+func canonicalizeMissingPath(clean string) (string, error) {
+	var tail []string
+	cur := clean
+	for {
+		parent := filepath.Dir(cur)
+		tail = append(tail, filepath.Base(cur))
+		if parent == cur {
+			return clean, nil // unreachable in practice: the root always resolves
+		}
+		resolved, err := filepath.EvalSymlinks(parent)
+		if err == nil {
+			for i := len(tail) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, tail[i])
+			}
+			return resolved, nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", err
+		}
+		cur = parent
+	}
+}
+
 // ReserveWorktreeExecution admits a new top-level gate execution for a worktree,
 // or refuses it. It serializes on the slot's flock, then reads the current
 // record: an absent or released slot is admitted; a reserved, executing, or
@@ -567,13 +639,15 @@ func (s *Store) MarkWorktreeExecutionStopping(worktreeRoot, token string) error 
 }
 
 // LoadWorktreeExecution reads and returns the current slot record for a worktree
-// and its physical generation. It validates the derived key and refuses a
+// and its physical generation. It keys a stored identity through
+// admissionKeyStored, so a slot stays addressable after its worktree directory was
+// removed (change 0446). It validates the derived key and refuses a
 // symlinked slot directory before touching the record, and fails closed on a
 // corrupt document or an unknown schema version. It takes no lock: the atomic
 // rename in every write guarantees a reader observes a whole document.
 func (s *Store) LoadWorktreeExecution(worktreeRoot string) (admissionRecord, string, error) {
 	const op = "load-worktree-execution"
-	_, key, err := s.admissionKeyFor(worktreeRoot, op)
+	key, err := s.admissionKeyStored(worktreeRoot, op)
 	if err != nil {
 		return admissionRecord{}, "", err
 	}
@@ -633,10 +707,12 @@ func verifyAdmissionToken(rec *admissionRecord, token, op string) error {
 // error mutate itself returns is a deliberate logical rejection (or a real IO
 // fault) and propagates immediately with no retry, so a rejected transition
 // writes nothing. The slot must already exist (a reserve created it); a
-// transition against an absent slot is a typed ErrNotFound.
+// transition against an absent slot is a typed ErrNotFound. The slot is keyed
+// through admissionKeyStored: every transition addresses an already-reserved slot
+// by its stored identity, which must stay reachable after worktree removal.
 func (s *Store) admissionCAS(worktreeRoot string, mutate func(*admissionRecord) error) error {
 	const op = "admission-cas"
-	_, key, err := s.admissionKeyFor(worktreeRoot, op)
+	key, err := s.admissionKeyStored(worktreeRoot, op)
 	if err != nil {
 		return err
 	}
