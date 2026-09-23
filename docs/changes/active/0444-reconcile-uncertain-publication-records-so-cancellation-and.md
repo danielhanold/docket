@@ -39,8 +39,8 @@ A publication whose result cannot be observed leaves an uncertain run-epoch jour
 
 ## What changes
 
-Extend the existing run-epoch publication entries with the original effect identity and use existing read-only Git/GitHub probes to settle uncertain entries during cancellation and successful closeout. Preserve fencing and resume rules, update only the proven original entry, and leave missing or ambiguous evidence pending. Cover identical successful retries, mismatched effects, interrupted persistence and legacy entries. The linked spec records the implementation trace, prior changes and ADRs, alternatives, and regression criteria.
+Extend the existing run-epoch publication entries with the original effect identity, and during cancellation and successful closeout settle an uncertain entry only when a later completed entry in the same epoch carries an identical identity — a local journal match with no Git/GitHub calls. Preserve fencing and resume rules, update only the matched original entry, and leave unmatched, missing or ambiguous evidence pending. Cover identical successful retries, mismatched identities, interrupted persistence and legacy entries. The linked spec records the implementation trace, prior changes and ADRs, alternatives, and regression criteria.
 
 ## Out of scope
 
-New cancellation/resume policy, force-clearing uncertain work, publication rollback, background services, new retry layers or persistent stores, generic effect recovery, unrelated workflow redesign, bulk legacy repair, and implementation during grooming. Entries without original identity or proof that the publication invocation returned remain fail-closed.
+New cancellation/resume policy, force-clearing uncertain work, publication rollback, background services, new retry layers or persistent stores, generic effect recovery, unrelated workflow redesign, bulk legacy repair, and implementation during grooming. Live remote re-observation, settling uncertain entries without a completed identical retry, and remote-destination binding are also out of scope. Entries without original identity or proof that the publication invocation returned remain fail-closed.
