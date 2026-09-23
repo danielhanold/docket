@@ -55,3 +55,14 @@ No remedy exists today. `docket gate history cleanup --dry-run` reports recovera
 - Treating an unresolvable worktree path as proof of unrelatedness in general. That fail-closed rule from 0428 stays unless the design gives a narrower proof.
 - Hand-deleting or editing drive records in `.git/docket/gate-drives/v1` as the fix. That's a one-off unblock, not the change.
 - Redesigning worktree admission or the run-epoch fence.
+
+## Open questions
+
+- To unblock change 444's own admission on 2026-09-23, the retaining drive record was
+  hand-moved out of `.git/docket/gate-drives/v1/` into a quarantine folder, preserved (not
+  deleted) at `/Users/homer/dev/docket-quarantine/gate-drives/b66ce1405cd813e5519c344360f61bd4/`
+  (`record.json` + `lock`, byte-identical to the retained record captured above). This is
+  fixture evidence for this change's regression test, not a remedy — `docket gate history
+  cleanup --dry-run` confirmed `retained: 0` immediately after the move. Restore it (or a copy)
+  into the drive store as the fixture for the exact-shape regression test this change adds, then
+  decide its disposition once the resolution path is designed.
