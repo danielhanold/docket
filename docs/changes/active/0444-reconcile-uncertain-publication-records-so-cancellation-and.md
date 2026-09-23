@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/reconcile-uncertain-publication-records-so-cancellation-and'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-23T06:54:11Z'
+reconciled: true
+claimed_at: '2026-09-23T06:54:57Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Extend the existing run-epoch publication entries with the original effect ident
 ## Out of scope
 
 New cancellation/resume policy, force-clearing uncertain work, publication rollback, background services, new retry layers or persistent stores, generic effect recovery, unrelated workflow redesign, bulk legacy repair, and implementation during grooming. Live remote re-observation, settling uncertain entries without a completed identical retry, and remote-destination binding are also out of scope. Entries without original identity or proof that the publication invocation returned remain fail-closed.
+
+## Reconcile log
+
+### 2026-09-23
+
+2026-09-23 — Reconciled against main 442770e1 (identical to the spec design baseline). All cited symbols (AdmittedMutation, admitWorkflowMutation, mutationJournalStatus, reconcileEpochTeardown, verifyTerminalEpochQuiescence, accountCompletionMutations, validateResumeQuiescence) exist as described; related 0313/0375/0435/0437/0441 are done; no newer archived change or ADR touches publication-journal reconciliation. Scope unchanged.
