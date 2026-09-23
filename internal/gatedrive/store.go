@@ -129,13 +129,18 @@ type storedRecord struct {
 // sibling gate-scopes root for recovery-scope records (scope.go), a sibling
 // gate-suite-budgets root for per-phase full-suite attempt budgets
 // (suitebudget.go), and a sibling gate-admission root for worktree execution
-// slots (admission.go). It holds no mutable state, so one Store is safe for
-// concurrent use across goroutines.
+// slots (admission.go). It holds no mutable state after composition, so one Store
+// is safe for concurrent use across goroutines.
 type Store struct {
 	root            string
 	scopeRoot       string
 	suiteBudgetRoot string
 	admissionRoot   string
+
+	// epochSettled is the optional app-injected run-epoch settlement read the
+	// admission fence consults for a RELEASED slot still naming another epoch
+	// (SetEpochSettledResolver, change 0446). Set once at composition.
+	epochSettled EpochSettledFunc
 }
 
 // OpenStore returns a Store rooted at <gitCommonDir>/docket/gate-drives/v1 with

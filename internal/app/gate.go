@@ -236,7 +236,13 @@ func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, st
 	if err != nil {
 		return "", "", nil, false
 	}
-	return wt.Root, repo.CommonDir, gatedrive.OpenStore(repo.CommonDir), true
+	store = gatedrive.OpenStore(repo.CommonDir)
+	// A released slot whose leftover run epoch is completed or confirmed-cancelled
+	// is settled by the reserve through exact-token retirement rather than refused
+	// stale-run-epoch (change 0446): the raw path wires the same settlement read the
+	// gate-drive constructors do.
+	store.SetEpochSettledResolver(epochSettledResolver(repo.CommonDir))
+	return wt.Root, repo.CommonDir, store, true
 }
 
 // rawStaleEpochRefusal enforces the run-epoch fence at the raw launch boundary: a
@@ -251,12 +257,19 @@ func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, st
 // the epoch fence refuses a raw launch into an epoch-owned worktree whether or not
 // the incumbent execution has finished, so reconciling first could not change the
 // outcome — it would only mutate another run's slot on behalf of a refused start.
+//
+// A RELEASED slot is the exception (change 0446 spec §§2, 5): its surviving
+// RunEpochID may name a completed or confirmed-cancelled run, which the reserve
+// settles through exact-token retirement. Refusing it here would pre-empt that
+// settlement, so a released slot defers to ReserveRawWorktreeExecution — the
+// authority that consults the settlement read and still refuses stale-run-epoch
+// whenever the named epoch is live, unreadable, or unresolved.
 func rawStaleEpochRefusal(store *gatedrive.Store, worktreeRoot string) (GateResult, bool) {
 	slot, _, err := store.LoadWorktreeExecution(worktreeRoot)
 	if err != nil {
 		return GateResult{}, false
 	}
-	if slot.RunEpochID != "" && slot.RunEpochID != rawGateEpoch {
+	if slot.RunEpochID != "" && slot.RunEpochID != rawGateEpoch && slot.State != "released" {
 		// Decide-and-act on the single LoadWorktreeExecution read above: the
 		// refusal's Cause is projected from the SAME slot record the fence
 		// decided on, never a second re-read that a later-changed slot could

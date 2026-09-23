@@ -808,6 +808,37 @@ func epochRevokedResolver(gitCommonDir string) func(string) (bool, error) {
 	}
 }
 
+// epochSettledResolver builds the gatedrive.EpochSettledFunc the worktree admission
+// fence consults when a RELEASED slot still names another run epoch (change 0446
+// spec §§2, 5). It reads the app-owned run-epoch registry under gitCommonDir and
+// reports settled=true only for an epoch whose readable record is terminal with
+// its accounting done: completed (successful closeout retired — a completed run is
+// never asked to be cancelled), cancelled (cancellation completed with full
+// accounting), or superseded (a resume superseded an already confirmed-cancelled
+// epoch). Active, cancelling, and completing epochs are NOT settled: they still own
+// the worktree between drives until their own closeout completes. A clean "no such
+// epoch" is (false, nil) — a slot-named epoch with no readable record is an
+// unresolved owner, never settlement — and an ambiguous id or an enumeration/IO
+// fault is returned as an error; the fence fails closed on both.
+func epochSettledResolver(gitCommonDir string) func(string) (bool, error) {
+	rungateRoot := filepath.Join(gitCommonDir, "docket", "rungate")
+	return func(epochID string) (bool, error) {
+		_, rec, err := findEpochDirByID(rungateRoot, epochID)
+		if err != nil {
+			if ee, ok := AsEpochError(err); ok && ee.Kind == ErrEpochNotFound {
+				return false, nil
+			}
+			return false, err
+		}
+		switch rec.State {
+		case EpochCompleted, EpochCancelled, EpochSuperseded:
+			return true, nil
+		default:
+			return false, nil
+		}
+	}
+}
+
 // epochToken mints a random 32-hex-char token (16 crypto-random bytes) for the
 // public EpochID locator and for the physical generation. Both are opaque lookup
 // tokens, never encoded state.

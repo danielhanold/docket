@@ -337,19 +337,49 @@ func (s *Store) ReserveWorktreeExecutionForEpoch(repoIdentity, worktreeRoot, run
 // inventory produced (nil when no legacy history was relevant) so a caller can
 // surface it on a successful start; on an inventory refusal the same summary rides
 // the returned OwnershipError.Legacy.
+//
+// Stale released-slot settlement (change 0446 spec §§2, 5). A RELEASED slot whose
+// surviving RunEpochID names another epoch is not refused outright: when the
+// app-injected EpochSettledFunc proves that epoch completed or confirmed-cancelled,
+// the leftover ownership is retired through RetireWorktreeExecutionEpoch with the
+// exact epoch and token read under the slot lock, and the reservation is retried
+// ONCE (settleStaleReleasedEpoch). The seam is consulted outside the slot lock. No
+// seam, a seam error, or an unsettled epoch keeps today's ErrStaleRunEpoch, so a
+// live epoch's between-drive ownership is preserved. A busy (non-released) slot
+// never consults the seam: its epoch fence is unchanged.
 func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam) (token string, legacy *LegacyHistorySummary, err error) {
+	token, legacy, stale, err := s.reserveWorktreeExecutionOnce(rec, proc)
+	if stale == nil {
+		return token, legacy, err
+	}
+	retry, serr := s.settleStaleReleasedEpoch(*stale)
+	if serr != nil {
+		return "", nil, serr
+	}
+	if !retry {
+		return token, legacy, err // the original stale-run-epoch refusal
+	}
+	token, legacy, _, err = s.reserveWorktreeExecutionOnce(rec, proc)
+	return token, legacy, err
+}
+
+// reserveWorktreeExecutionOnce is one locked reservation attempt. Besides the
+// reservation outcome it returns stale, non-nil only when the attempt refused
+// ErrStaleRunEpoch over a RELEASED slot and a settlement seam is wired — the exact
+// identity reserveWorktreeExecution may settle before its single retry.
+func (s *Store) reserveWorktreeExecutionOnce(rec admissionRecord, proc recoverySeam) (token string, legacy *LegacyHistorySummary, stale *staleReleasedEpoch, err error) {
 	const op = "reserve-worktree-execution"
 	canonical, key, err := s.admissionKeyFor(rec.WorktreeRoot, op)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 	dir := filepath.Join(s.admissionRoot, key)
 	if err := ensurePrivateDir(dir); err != nil {
-		return "", nil, storeErr(ErrIO, op, err)
+		return "", nil, nil, storeErr(ErrIO, op, err)
 	}
 	lock, err := acquireExclusiveLock(filepath.Join(dir, lockFileName))
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 	defer lock.Close()
 
@@ -367,10 +397,22 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 		// a same-epoch reservation falls through to the normal state machine (a released
 		// slot readmits; a busy slot returns ErrWorktreeBusy so a same-scope successor
 		// can reuse it).
+		//
+		// Only a RELEASED slot's leftover epoch is a settlement candidate (change 0446):
+		// the attempt still refuses here, but hands the exact epoch and token back so
+		// reserveWorktreeExecution can ask the settlement seam OUTSIDE this lock. A
+		// busy slot never becomes a candidate.
 		if stored.Record.RunEpochID != "" && stored.Record.RunEpochID != rec.RunEpochID {
 			oe := ownershipErr(ErrStaleRunEpoch, op)
 			oe.Incumbent = incumbentSnapshot(stored.Record)
-			return "", nil, oe
+			if stored.Record.State == admissionReleased && s.epochSettled != nil {
+				stale = &staleReleasedEpoch{
+					worktree: canonical,
+					epochID:  stored.Record.RunEpochID,
+					token:    stored.Record.ReservationToken,
+				}
+			}
+			return "", nil, stale, oe
 		}
 		switch stored.Record.State {
 		case admissionReleased:
@@ -378,13 +420,13 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 		case admissionUnresolved:
 			oe := ownershipErr(ErrUnresolvedExecution, op)
 			oe.Incumbent = incumbentSnapshot(stored.Record)
-			return "", nil, oe
+			return "", nil, nil, oe
 		default:
 			// reserved, executing, stopping, or any unrecognized non-released
 			// state: fail closed as busy — never a free slot.
 			oe := ownershipErr(ErrWorktreeBusy, op)
 			oe.Incumbent = incumbentSnapshot(stored.Record)
-			return "", nil, oe
+			return "", nil, nil, oe
 		}
 	case storeErrIs(rerr, ErrNotFound):
 		// Inventory is inside this slot's lock so no concurrent reservation can
@@ -394,18 +436,18 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 		// it. On an inventory refusal the summary rides err.Legacy.
 		sum, ierr := s.inventoryLegacyDrives(canonical, proc)
 		if ierr != nil {
-			return "", sum, ierr
+			return "", sum, nil, ierr
 		}
 		legacy = sum
 		prevGen = 0
 		firstAdmission = true
 	default:
-		return "", nil, rerr // unknown schema / corrupt / IO — fail closed
+		return "", nil, nil, rerr // unknown schema / corrupt / IO — fail closed
 	}
 
 	token, err = randomToken(genNBytes)
 	if err != nil {
-		return "", nil, storeErr(ErrIO, op, err)
+		return "", nil, nil, storeErr(ErrIO, op, err)
 	}
 	now := time.Now().UTC()
 	rec.SchemaVersion = admissionSchemaVersion
@@ -424,12 +466,12 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 
 	newGen, err := randomToken(genNBytes)
 	if err != nil {
-		return "", nil, storeErr(ErrIO, op, err)
+		return "", nil, nil, storeErr(ErrIO, op, err)
 	}
 	if err := writeAtomicJSON(filepath.Join(dir, recordFileName), storedAdmission{Generation: newGen, Record: rec}); err != nil {
-		return "", nil, storeErr(ErrIO, op, err)
+		return "", nil, nil, storeErr(ErrIO, op, err)
 	}
-	return token, legacy, nil
+	return token, legacy, nil, nil
 }
 
 // incumbentSnapshot projects the refusing slot's record into the bounded,

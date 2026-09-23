@@ -1037,9 +1037,12 @@ func TestFinalizeGateAdmitsAfterRetirement(t *testing.T) {
 	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
 		t.Fatalf("release: %v", err)
 	}
-	// BEFORE: the released slot still owns the worktree.
-	if _, refused := rawStaleEpochRefusal(fx.store, fx.worktree); !refused {
-		t.Fatal("pre-retirement: an epoch-less raw launch must be refused stale-run-epoch")
+	// BEFORE: the released slot still owns the worktree. The raw pre-check defers a
+	// RELEASED slot to the reserve (change 0446), which is the authority that refuses
+	// while the owning epoch is live — even with the production settlement read wired.
+	fx.store.SetEpochSettledResolver(epochSettledResolver(fx.common))
+	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); !isGateOwnership(err, gatedrive.ErrStaleRunEpoch) {
+		t.Fatalf("pre-retirement: an epoch-less raw reserve must be refused stale-run-epoch, got %v", err)
 	}
 	if _, err := fx.store.ReserveWorktreeExecutionForEpoch(fx.common, fx.worktree, "replacement-epoch", nil); err == nil {
 		t.Fatal("pre-retirement: a different epoch's reservation must be refused")
@@ -1191,5 +1194,95 @@ func TestRunCancelRefusesCompletedEpoch(t *testing.T) {
 	}
 	if len(stopper.calls) != 0 {
 		t.Fatalf("a refused cancel of a completed run must stop nothing, got %v", stopper.calls)
+	}
+}
+
+// isGateOwnership reports whether err is a gatedrive ownership error of kind.
+func isGateOwnership(err error, kind gatedrive.OwnershipErrorKind) bool {
+	oe, ok := gatedrive.AsOwnershipError(err)
+	return ok && oe.Kind == kind
+}
+
+// TestRawLaunchSettlesSettledEpochReleasedSlot (change 0446 spec §§2, 5): a
+// released slot whose leftover RunEpochID names a COMPLETED or confirmed-CANCELLED
+// epoch no longer blocks an epoch-less raw/finalize launch — the raw pre-check
+// defers the released slot to the reserve, which settles the epoch through the
+// production settlement read and exact-token retirement, so a successfully
+// completed run is never asked to be cancelled. An active, cancelling, or
+// completing epoch still owns its worktree: the reserve refuses stale-run-epoch and
+// the slot is left untouched.
+func TestRawLaunchSettlesSettledEpochReleasedSlot(t *testing.T) {
+	cases := []struct {
+		state   epochState
+		settled bool
+	}{
+		{EpochCompleted, true},
+		{EpochCancelled, true},
+		{EpochActive, false},
+		{EpochCancelling, false},
+		{EpochCompleting, false},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.state), func(t *testing.T) {
+			fx := newCancelFixture(t, true)
+			slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+			if err != nil {
+				t.Fatalf("load: %v", err)
+			}
+			if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
+				t.Fatalf("release: %v", err)
+			}
+			if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+				r.State = tc.state
+				return nil
+			}); err != nil {
+				t.Fatalf("set epoch state: %v", err)
+			}
+			fx.store.SetEpochSettledResolver(epochSettledResolver(fx.common))
+
+			if _, refused := rawStaleEpochRefusal(fx.store, fx.worktree); refused {
+				t.Fatal("a released slot must defer to the reserve, not be refused by the raw pre-check")
+			}
+			_, err = fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
+			if tc.settled {
+				if err != nil {
+					t.Fatalf("raw reserve over a %s epoch's released slot: %v", tc.state, err)
+				}
+				if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+					t.Fatalf("slot epoch = %q, want retired", epo)
+				}
+				return
+			}
+			if !isGateOwnership(err, gatedrive.ErrStaleRunEpoch) {
+				t.Fatalf("raw reserve over a %s epoch's released slot = %v, want stale-run-epoch", tc.state, err)
+			}
+			if st, epo := loadSlotState(t, fx.store, fx.worktree), loadSlotEpoch(t, fx.store, fx.worktree); st != "released" || epo != fx.epochID {
+				t.Fatalf("refused slot changed: state %q epoch %q", st, epo)
+			}
+		})
+	}
+}
+
+// TestRawStaleEpochRefusalStillFencesBusySlot: the raw pre-check keeps refusing a
+// BUSY slot another epoch owns — only a released slot defers to the reserve.
+func TestRawStaleEpochRefusalStillFencesBusySlot(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	fx.store.SetEpochSettledResolver(epochSettledResolver(fx.common))
+	if _, refused := rawStaleEpochRefusal(fx.store, fx.worktree); !refused {
+		t.Fatal("an executing epoch-owned slot must be refused stale-run-epoch by the raw pre-check")
+	}
+}
+
+// TestRawAdmissionStoreWiresEpochSettledResolver: the raw launch path's admission
+// store carries the production settlement read (change 0446) — without it a raw
+// reserve over a completed run's released slot would refuse stale-run-epoch.
+func TestRawAdmissionStoreWiresEpochSettledResolver(t *testing.T) {
+	repo := newGateRepo(t)
+	_, _, store, ok := resolveWorktreeAdmission(repo)
+	if !ok {
+		t.Fatal("resolveWorktreeAdmission: repo not resolved as a worktree")
+	}
+	if !store.EpochSettledResolverWired() {
+		t.Fatal("raw admission store: epoch settlement resolver not wired")
 	}
 }

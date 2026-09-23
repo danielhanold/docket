@@ -251,6 +251,10 @@ func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective
 	// 0437): wire the app-side epoch launch gate over the same registry. It fires only
 	// for a start carrying a RunEpochID, so standalone gates are unaffected.
 	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
+	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
+	// settled through exact-token retirement rather than refused stale-run-epoch
+	// (change 0446): wire the settlement read over the same registry.
+	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
 	budget := time.Duration(eff.GateObservation.Value) * time.Minute
 	// Provenance emits layer identities only — never a value — so it is safe to
 	// persist in the drive record. The owning key is <owner>.test_command, derived
@@ -290,6 +294,10 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	// 0437): wire the app-side epoch launch gate over the same registry. It fires only
 	// for a start carrying a RunEpochID, so standalone gates are unaffected.
 	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
+	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
+	// settled through exact-token retirement rather than refused stale-run-epoch
+	// (change 0446): wire the settlement read over the same registry.
+	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
 	return newGateDriveService(engine, 0, "", ""), "", ""
 }
 
@@ -331,6 +339,10 @@ func NewTaskGateDriveService(gitCommonDir, exePath string, eff config.Effective,
 	// 0437): wire the app-side epoch launch gate over the same registry. It fires only
 	// for a start carrying a RunEpochID, so standalone gates are unaffected.
 	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
+	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
+	// settled through exact-token retirement rather than refused stale-run-epoch
+	// (change 0446): wire the settlement read over the same registry.
+	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
 	budget := time.Duration(eff.GateObservation.Value) * time.Minute
 	svc := newGateDriveService(engine, budget, "", "task.argv=agent-supplied")
 	svc.owner = "task"
