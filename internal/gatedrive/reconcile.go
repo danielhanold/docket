@@ -11,6 +11,16 @@
 // evidence: it never erases a reservation that may have launched. The epoch is
 // already fenced, so this path takes NO epoch lock (the lock order forbids holding
 // the epoch while probing a per-drive claim).
+//
+// Attribution, not inheritance (change 0446 spec §4). The census accounts the
+// TARGET epoch's obligations, never all history: a drive record it cannot read, or
+// whose epoch linkage is lost, blocks the epoch only when a CURRENT reference names
+// it — the target worktree's slot (its reservation token, or the scope it names) or
+// a scope carrying this RunEpochID (its current/pending drive ids). Any other
+// unreadable or unlinked record is an informational history-unattributed finding
+// that does not clear Accounted. resolveDriveEpoch itself is untouched: losing a
+// drive's ownership proof still refuses that drive's own launch/relaunch; only the
+// census's attribution of the failure changes.
 package gatedrive
 
 import (
@@ -50,8 +60,11 @@ type EpochLaunchReport struct {
 // launched. It takes NO epoch lock (the epoch is already fenced; the lock order
 // forbids holding the epoch while probing a claim).
 //
-// An empty worktreeRoot or epochID has no epoch-linked worktree launches to
-// reconcile (a keyless/standalone run), so it accounts vacuously.
+// An empty epochID has no epoch-linked launches to reconcile (a keyless/standalone
+// run), so it accounts vacuously. An empty worktreeRoot is NOT proof of quiescence
+// (a superseded epoch has an empty Worktree yet its scope-linked drives are still
+// enumerable by RunEpochID): the registry walk still runs and only the slot-side
+// references are skipped, reported by an informational slot-check-deferred finding.
 func (d *Driver) ReconcileEpochLaunches(worktreeRoot, epochID string) (EpochLaunchReport, error) {
 	return d.accountEpochLaunches(worktreeRoot, epochID, false)
 }
@@ -73,11 +86,44 @@ func (d *Driver) ObserveEpochLaunches(worktreeRoot, epochID string) (EpochLaunch
 // the success-closeout mode that stops nothing, settles nothing, and mutates no
 // record). The walk, epoch linkage, and per-drive claimant probe are identical; only
 // the terminal per-drive disposition differs, threaded through reconcileEpochDrive.
+//
+// The walk applies change 0446 spec §4's attribution rules, in order, per record:
+//
+//  1. Terminal before linkage. A readable drive whose outcome is terminal
+//     (isTerminalOutcome: PASSED, FAILED, or HALTED) has a settled LAUNCH axis
+//     whether or not its linkage still resolves. This settles only the drive
+//     record's launch axis, never the execution: HALTED is not slot-release proof
+//     or completion evidence, and teardown stays the slot and participant checks'
+//     job (the "no blanket trust in HALTED" rule).
+//  2. Supported history. A record the executable reader refuses is retried through
+//     loadHistoricalDrive; a supported schema-2 record with a terminal outcome is
+//     settled history.
+//  3. Positive reference decides blocking. A still-unreadable record, or a readable
+//     nonterminal one whose resolveDriveEpoch linkage is lost, blocks
+//     (record-unreadable:/linkage-unresolved:) only when a current reference names
+//     it (censusRefs.names / censusRefs.namesUnreadable); otherwise it is an
+//     informational history-unattributed:<id>.
+//  4. A scope named by this epoch's current slot that cannot be read keeps the
+//     epoch unaccounted (censusReferences).
+//  5. An empty worktreeRoot skips only the slot-side references (the caller supplies
+//     the replacement worktree for those); it never accounts vacuously.
+//  6. Token rotation. An older nonterminal scopeless drive whose AdmissionToken the
+//     slot no longer holds resolves ok=false and, named by no current reference, is
+//     historical: every launch path verifies the current token before launching
+//     (StartAdmitted's verifyAdmittedSlot, authorizeRelaunch's resolveDriveEpoch,
+//     and the crash-window recovery's recoveryEpochRevoked, which settles instead
+//     of relaunching), so it has lost launch authority and the current token holder
+//     carries any live obligation.
 func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly bool) (EpochLaunchReport, error) {
 	report := EpochLaunchReport{Accounted: true}
-	if worktreeRoot == "" || epochID == "" {
+	if epochID == "" {
 		return report, nil
 	}
+	if worktreeRoot == "" {
+		report.Findings = append(report.Findings, "slot-check-deferred")
+	}
+
+	refs := d.censusReferences(worktreeRoot, epochID, &report)
 
 	entries, err := os.ReadDir(d.store.root)
 	if err != nil {
@@ -93,6 +139,15 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 	// inventoryLegacyDrives' sorted walk).
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 
+	// First pass: load every record, so whether the slot's current token has a
+	// READABLE holder is known before any unreadable record is attributed.
+	type walked struct {
+		id         string
+		rec        driveRecord
+		unreadable bool
+	}
+	var walk []walked
+	holderFound := false
 	for _, entry := range entries {
 		id := entry.Name()
 		if !entry.IsDir() || validateID(id) != nil {
@@ -106,29 +161,55 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 				// exactly as the legacy inventory skips it.
 				continue
 			}
-			// A corrupt / unknown-schema / IO-unreadable record cannot be attributed to
-			// an epoch, so it cannot be proven NOT to be this epoch's obligation: fail
-			// closed rather than silently drop it.
-			report.Accounted = false
-			report.Findings = append(report.Findings, "record-unreadable:"+id)
+			// Rule 2: a supported historical (schema-2) record with a terminal outcome
+			// is settled history, not an unreadable obligation.
+			if h, herr := d.store.loadHistoricalDrive(id); herr == nil && isTerminalOutcome(h.LastOutcome) {
+				continue
+			}
+			walk = append(walk, walked{id: id, unreadable: true})
 			continue
 		}
-		linked, ok, _ := d.resolveDriveEpoch(rec)
+		if refs.slotToken != "" && rec.AdmissionToken == refs.slotToken {
+			holderFound = true
+		}
+		walk = append(walk, walked{id: id, rec: rec})
+	}
+
+	for _, w := range walk {
+		if w.unreadable {
+			// Rule 3 for an unreadable record: the reference comes from the slot/scope
+			// side only — never from reading the record itself.
+			if refs.namesUnreadable(w.id, holderFound) {
+				report.Accounted = false
+				report.Findings = append(report.Findings, "record-unreadable:"+w.id)
+			} else {
+				report.Findings = append(report.Findings, "history-unattributed:"+w.id)
+			}
+			continue
+		}
+		// Rule 1: terminal before linkage. The launch axis of a terminal drive is
+		// settled; its teardown is the slot/participant checks' to prove.
+		if isTerminalOutcome(w.rec.LastOutcome) {
+			continue
+		}
+		linked, ok, _ := d.resolveDriveEpoch(w.rec)
 		if !ok {
 			// The drive's epoch linkage is LOST or unreadable (an unreadable scope, or a
-			// scopeless AdmissionToken the worktree slot no longer matches): it cannot be
-			// proven NOT to be this epoch's obligation, so fail closed rather than silently
-			// skip it — mirroring the record-unreadable leg above and the launch paths
-			// (authorizeRelaunch/recoveryEpochRevoked), which treat a lost linkage as
-			// refuse/revoked.
-			report.Accounted = false
-			report.Findings = append(report.Findings, "linkage-unresolved:"+id)
+			// scopeless AdmissionToken the worktree slot no longer matches). Rule 3: it
+			// fails closed only when a current reference names it; an unlinked record
+			// nothing current names is history (rule 6 covers a rotated scopeless token).
+			if refs.names(w.id, w.rec) {
+				report.Accounted = false
+				report.Findings = append(report.Findings, "linkage-unresolved:"+w.id)
+			} else {
+				report.Findings = append(report.Findings, "history-unattributed:"+w.id)
+			}
 			continue
 		}
 		if linked != epochID {
 			continue // a clean resolution to another epoch (or epoch-less): not this epoch's obligation
 		}
-		settled, finding := d.reconcileEpochDrive(id, rec, observeOnly)
+		settled, finding := d.reconcileEpochDrive(w.id, w.rec, observeOnly)
 		if finding != "" {
 			report.Findings = append(report.Findings, finding)
 		}
@@ -137,6 +218,110 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 		}
 	}
 	return report, nil
+}
+
+// censusRefs is the set of CURRENT references to the target epoch's drives, built
+// from existing records only (no reverse index): the drive ids scopes carrying the
+// epoch name as current or pending, and the target worktree slot's reservation token
+// when that slot names the epoch.
+type censusRefs struct {
+	ids map[string]bool
+	// slotToken is the target slot's ReservationToken when the slot's RunEpochID is
+	// the target epoch ("" otherwise, or when no worktree was supplied).
+	slotToken string
+	// slotOccupied reports that the target epoch's slot still holds an unreleased
+	// scoped/scopeless reservation, whose token some drive record must carry.
+	slotOccupied bool
+}
+
+// names reports whether a current reference names a READABLE drive: its id is a
+// scope's current/pending drive, or it carries the epoch slot's current token.
+func (r censusRefs) names(id string, rec driveRecord) bool {
+	if r.ids[id] {
+		return true
+	}
+	return r.slotToken != "" && rec.AdmissionToken == r.slotToken
+}
+
+// namesUnreadable reports whether a current reference names an UNREADABLE drive
+// without reading it: a scope names its id, or the epoch's occupied slot carries a
+// token no readable drive holds (holderFound false), so every unreadable record is a
+// candidate holder of that current reservation. A released slot is not inferred from:
+// release is proof its latest execution was vacated, and an orphan token (a start
+// whose reserved record was removed) is not an obligation.
+func (r censusRefs) namesUnreadable(id string, holderFound bool) bool {
+	if r.ids[id] {
+		return true
+	}
+	return r.slotOccupied && !holderFound
+}
+
+// censusReferences builds the census's current-reference set for epochID and
+// records the fail-closed findings for a required reference it cannot read: an
+// unreadable scope registry (the epoch's scopes cannot be enumerated), an unreadable
+// target slot, or an unreadable scope the epoch's slot names (rule 4). An unreadable
+// scope nothing current names is skipped: it establishes no reference, and any
+// nonterminal drive under it surfaces as history-unattributed in the walk.
+func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLaunchReport) censusRefs {
+	refs := censusRefs{ids: map[string]bool{}}
+	addScope := func(s scopeRecord) {
+		if s.CurrentDriveID != "" {
+			refs.ids[s.CurrentDriveID] = true
+		}
+		if s.PendingAckDriveID != "" {
+			refs.ids[s.PendingAckDriveID] = true
+		}
+	}
+
+	scopes, err := os.ReadDir(d.store.scopeRoot)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		report.Accounted = false
+		report.Findings = append(report.Findings, "scope-registry-unreadable")
+	}
+	for _, entry := range scopes {
+		if !entry.IsDir() || validateID(entry.Name()) != nil {
+			continue
+		}
+		s, lerr := d.store.LoadScope(entry.Name())
+		if lerr != nil {
+			continue
+		}
+		if s.RunEpochID == epochID {
+			addScope(s)
+		}
+	}
+
+	if worktreeRoot == "" {
+		return refs // rule 5: the slot-side references are the caller's to supply
+	}
+	slot, _, serr := d.store.LoadWorktreeExecution(worktreeRoot)
+	if serr != nil {
+		if storeErrIs(serr, ErrNotFound) {
+			return refs // no slot: nothing current is named from the slot side
+		}
+		// The target worktree's authoritative slot cannot be read: its references are
+		// unknown, so fail closed rather than infer the slot is empty.
+		report.Accounted = false
+		report.Findings = append(report.Findings, "slot-unreadable")
+		return refs
+	}
+	if slot.RunEpochID != epochID {
+		return refs // the slot names another epoch (or none): its occupant is not this epoch's
+	}
+	refs.slotToken = slot.ReservationToken
+	refs.slotOccupied = slot.ReservationToken != "" && slot.State != admissionReleased && slot.Kind != "raw"
+	if slot.ScopeID != "" {
+		s, lerr := d.store.LoadScope(slot.ScopeID)
+		if lerr != nil {
+			// Rule 4: a scope this epoch's current slot names cannot be read, so its
+			// current/pending drives cannot be followed. Fail closed.
+			report.Accounted = false
+			report.Findings = append(report.Findings, "scope-unreadable:"+slot.ScopeID)
+		} else {
+			addScope(s)
+		}
+	}
+	return refs
 }
 
 // reconcileEpochDrive accounts one epoch-linked drive's launch obligation and
