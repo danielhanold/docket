@@ -424,3 +424,44 @@ func TestRecordEpochParticipantTerminalAllowedAfterFence(t *testing.T) {
 		must(t, RecordEpochParticipantTerminal(repo, key, "", "h1", "turn-1", ParticipantTerminalFailed))
 	}
 }
+
+// TestEpochSettledResolverStates (change 0446): the admission settlement read
+// reports settled only for an epoch whose record is terminal with its accounting
+// done — completed, cancelled, superseded. Active, cancelling, and completing
+// epochs still own their worktree, and an unknown epoch id is an unresolved owner,
+// never settlement.
+func TestEpochSettledResolverStates(t *testing.T) {
+	cases := []struct {
+		state   epochState
+		settled bool
+	}{
+		{EpochActive, false},
+		{EpochCancelling, false},
+		{EpochCompleting, false},
+		{EpochCancelled, true},
+		{EpochSuperseded, true},
+		{EpochCompleted, true},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.state), func(t *testing.T) {
+			repo, common, key, epochID, _ := epochGateFixture(t)
+			if tc.state != EpochActive {
+				fenceEpoch(t, repo, key, tc.state)
+			}
+			settled, err := epochSettledResolver(common)(epochID)
+			if err != nil {
+				t.Fatalf("resolver err: %v", err)
+			}
+			if settled != tc.settled {
+				t.Fatalf("state %q settled = %v, want %v", tc.state, settled, tc.settled)
+			}
+		})
+	}
+	t.Run("unknown-epoch", func(t *testing.T) {
+		_, common, _, _, _ := epochGateFixture(t)
+		settled, err := epochSettledResolver(common)("0123456789abcdef0123456789abcdef")
+		if err != nil || settled {
+			t.Fatalf("unknown epoch = (%v, %v), want (false, nil)", settled, err)
+		}
+	})
+}

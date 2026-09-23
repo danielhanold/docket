@@ -122,6 +122,10 @@ func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error)
 	// the continuation seam's takeover/handoff synthesis either (change 0437): wire the
 	// app-side epoch launch gate over the same registry, beside the revocation resolver.
 	driver.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
+	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
+	// settled through exact-token retirement rather than refused stale-run-epoch
+	// (change 0446): wire the settlement read over the same registry.
+	driver.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
 	return &gatedriveContinuationSeam{store: store, driver: driver}, nil
 }
 

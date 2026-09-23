@@ -1304,7 +1304,9 @@ func TestGateDriveHumanTextRendersLegacyLines(t *testing.T) {
 // TestProductionConstructorsWireEpochLaunchGate proves every production gate-drive
 // constructor injects the app-side epoch launch gate into the driver it composes —
 // the wiring is where the takeover-only defect lived, so deleting any ONE
-// SetEpochLaunchGate line must redden this test (change 0437 Task 5).
+// SetEpochLaunchGate line must redden this test (change 0437 Task 5). It equally
+// proves each wires the released-slot epoch settlement read (change 0446): deleting
+// any ONE SetEpochSettledResolver line reddens it too.
 func TestProductionConstructorsWireEpochLaunchGate(t *testing.T) {
 	dir := testsupport.TempDir(t)
 	eff := buildEffWithMaxAttempts("go test ./...", 4)
@@ -1316,6 +1318,9 @@ func TestProductionConstructorsWireEpochLaunchGate(t *testing.T) {
 		}
 		if !d.EpochLaunchGateWired() {
 			t.Fatalf("%s: epoch launch gate not wired", name)
+		}
+		if !d.EpochSettledResolverWired() {
+			t.Fatalf("%s: epoch settlement resolver not wired", name)
 		}
 	}
 	driverOf := func(name string, svc *GateDriveService, res Result, reason string) *gatedrive.Driver {
