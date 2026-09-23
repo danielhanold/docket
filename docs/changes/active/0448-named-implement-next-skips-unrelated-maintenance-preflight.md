@@ -12,7 +12,7 @@ stacked_on:
 related: [389, 397, 444, 446]
 discovered_from: [446]
 adrs: [101, 106]
-spec:
+spec: 'docs/superpowers/specs/2026-09-23-named-implement-next-skips-unrelated-maintenance-preflight-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-23-named-implement-next-skips-unrelated-maintenance-preflight-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-23-named-implement-next-skips-unrelated-maintenance-preflight-design.md) |
 | ADRs | [ADR-0101](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md), [ADR-0106](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0106-implementation-preflight-is-a-deterministic-operation-not-a.md) |
 <!-- docket:artifacts:end -->
 
