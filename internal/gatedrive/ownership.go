@@ -145,6 +145,10 @@ type IncumbentSnapshot struct {
 	RawRunID   string // "" until a raw launch was confirmed
 	RawRunDir  string // "" until a raw launch was confirmed
 	EpochOwned bool   // a run epoch owns the slot (the epoch id itself is not projected)
+	// EpochUnresolved: the settlement seam reported that no readable run-epoch
+	// record carries the slot's epoch (ErrEpochUnresolved), so the owning run
+	// cannot be cancelled by key and epoch — the remedy must not suggest it.
+	EpochUnresolved bool
 }
 
 // OwnershipError is the ownership layer's typed failure. Like StoreError it

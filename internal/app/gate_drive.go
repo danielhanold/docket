@@ -809,8 +809,12 @@ func quoteOperand(path string) string {
 // DriveID is historical evidence at most and never selects guidance (change 0446).
 func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.IncumbentSnapshot) string {
 	switch {
+	case inc != nil && inc.EpochUnresolved:
+		// No readable epoch record carries the slot's epoch: run.cancel targets a run
+		// by key and epoch and cannot act on it, so it is never suggested here.
+		return "this worktree's execution slot names a workflow run epoch that no readable epoch record carries, so neither a continuation nor a cancellation by key and epoch can target it; inspect the per-gate-key epoch records under the repository's Git common dir (docket/rungate/<gate-key>/epoch.json) — a human must repair the damaged or missing record, or the slot's stale epoch reference, before a gate can start here; never a raw manual teardown"
 	case kind == gatedrive.ErrStaleRunEpoch || (inc != nil && inc.EpochOwned):
-		return "a workflow run epoch owns this worktree's execution slot; continue that run through its own gate-drive continuation, or cancel it with the run.cancel operation using that run's key and epoch — never a raw manual teardown and never a stale epoch presented as a bypass"
+		return "a workflow run epoch owns this worktree's execution slot; continue that run through its own gate-drive continuation, or — when that run's epoch record resolves — cancel it with the run.cancel operation using that run's key and epoch; if no readable epoch record carries it, run.cancel cannot target it and a human must repair that record under docket/rungate — never a raw manual teardown and never a stale epoch presented as a bypass"
 	case inc != nil && inc.Kind == "raw" && inc.RawRunDir != "" && rawRunIDShape.MatchString(inc.RawRunID):
 		dir := quoteOperand(inc.RawRunDir)
 		return "a raw gate run occupies this worktree's execution slot and admission could not prove it finished (a run whose completion is proven is settled automatically by the next admission); it may still be running. Inspect it with docket gate observe " + dir +

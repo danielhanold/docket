@@ -922,6 +922,13 @@ func TestSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
 			if reason, _ := fenceRefusalReasonMessage(aerr, "workspace"); reason != string(ErrEpochOwnerUnresolved) {
 				t.Fatalf("refusal reason = %q, want %q", reason, ErrEpochOwnerUnresolved)
 			}
+			// The remedy must be valid in this state: name where the epoch records
+			// live and that a human repairs them, and never point at run.cancel
+			// (which cannot resolve an epoch no readable record carries).
+			if msg := aerr.Error(); !strings.Contains(msg, filepath.Join("docket", "rungate")) ||
+				!strings.Contains(msg, "human") || !strings.Contains(msg, "run.cancel cannot") {
+				t.Fatalf("refusal %q must name the rungate store, human repair, and run.cancel's inapplicability", msg)
+			}
 
 			for _, wt := range []string{unref, companion} {
 				d, err := admitWorkflowMutation(wt, OperationPRPublish)
@@ -932,6 +939,62 @@ func TestSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestUnreadableSlotRefusesLocally (review fix): with no readable ambient owner, a
+// worktree whose execution slot the store cannot READ (corrupt or I/O-unreadable)
+// is not evidence that the slot names no epoch — the path fence refuses with
+// ErrEpochOwnerUnresolved naming the worktree instead of admitting unfenced. An
+// ABSENT slot still admits unfenced (the standalone contract).
+func TestUnreadableSlotRefusesLocally(t *testing.T) {
+	damage := map[string]func(t *testing.T, path string){
+		"corrupt": func(t *testing.T, path string) {
+			if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
+				t.Fatalf("corrupt slot: %v", err)
+			}
+		},
+		"io-unreadable": func(t *testing.T, path string) {
+			if err := os.Chmod(path, 0o000); err != nil {
+				t.Fatalf("chmod 000 slot: %v", err)
+			}
+			t.Cleanup(func() { _ = os.Chmod(path, 0o600) })
+			if f, err := os.Open(path); err == nil {
+				f.Close()
+				t.Skip("process can read a mode-000 file (running as root); the I/O case is unobservable")
+			}
+		},
+	}
+	for name, apply := range damage {
+		t.Run(name, func(t *testing.T) {
+			fx := newCancelFixture(t, true) // the slot names epoch E
+			canon := mustCanon(t, fx.worktree)
+			// Remove E's record so no ambient owner is readable; the slot is then the
+			// only evidence, and it is damaged.
+			if err := os.Remove(epochRecordPath(t, fx.repo, fx.key)); err != nil {
+				t.Fatalf("remove epoch record: %v", err)
+			}
+			apply(t, admissionRecordFile(t, fx.common, fx.worktree))
+
+			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish)
+			if ee, ok := AsEpochError(aerr); !ok || ee.Kind != ErrEpochOwnerUnresolved {
+				t.Fatalf("admit over an unreadable %s slot = %v, want ErrEpochOwnerUnresolved (never unfenced)", name, aerr)
+			}
+			if !strings.Contains(aerr.Error(), canon) || strings.Contains(aerr.Error(), "run.cancel using") {
+				t.Fatalf("refusal %q must name worktree %s and never suggest run.cancel", aerr, canon)
+			}
+		})
+	}
+	t.Run("absent-slot-admits", func(t *testing.T) {
+		fx := newCancelFixture(t, false)
+		if err := os.Remove(epochRecordPath(t, fx.repo, fx.key)); err != nil {
+			t.Fatalf("remove epoch record: %v", err)
+		}
+		done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish)
+		if err != nil {
+			t.Fatalf("absent slot must admit unfenced: %v", err)
+		}
+		done(mutationStatusCompleted)
+	})
 }
 
 // TestEpochCarryingFencesUnchangedByOwnerSelection (AC6, separate proof): owner

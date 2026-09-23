@@ -439,6 +439,28 @@ func TestFinalizeCleanupRetainsRootOnUnsettledRelease(t *testing.T) {
 	}
 }
 
+// TestFinalizeCleanupReportsWithheldRunRoot (review fix): a terminal document that
+// carries NO RunRoot — the driver withholds it for a HALTED drive whose slot
+// teardown was never proven — leaves the root the Start minted on disk. That
+// retention must surface as the bounded TeardownFinding, never silently.
+func TestFinalizeCleanupReportsWithheldRunRoot(t *testing.T) {
+	g := &processFinalizeGate{}
+	doc := gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: gatedrive.CauseUnknownObservation}
+	res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
+	if res.Outcome != FinalizeGateHalted {
+		t.Fatalf("outcome = %q, want halted", res.Outcome)
+	}
+	if res.TeardownFinding != teardownFindingRunRootRetainedUnsettled {
+		t.Fatalf("TeardownFinding = %q, want %q", res.TeardownFinding, teardownFindingRunRootRetainedUnsettled)
+	}
+	// A root the document does expose is removed and reports no retention.
+	root := runRootFixture(t)
+	doc.RunRoot = root
+	if res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc}); res.TeardownFinding != "" {
+		t.Fatalf("an exposed, removed root reported TeardownFinding %q", res.TeardownFinding)
+	}
+}
+
 // TestGateDriveHumanTextRendersReleaseFinding: a terminal document's release
 // finding is rendered for the human, never dropped from the text surface.
 func TestGateDriveHumanTextRendersReleaseFinding(t *testing.T) {
@@ -1528,7 +1550,13 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 			[]string{"occupies"}, []string{"gate stop", "driven gate occupies"}},
 		{"epoch owned", ownershipErrWith(gatedrive.ErrStaleRunEpoch, epochInc),
 			"worktree-admission", "",
-			[]string{"run.cancel"}, []string{"gate stop", "epoch-"}},
+			[]string{"run.cancel", "resolves"}, []string{"gate stop", "epoch-"}},
+		// A slot-named epoch no readable record carries: run.cancel cannot target
+		// it, so the remedy must not suggest it and names the store + human repair.
+		{"epoch unresolved", ownershipErrWith(gatedrive.ErrStaleRunEpoch,
+			&gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "released", EpochOwned: true, EpochUnresolved: true}),
+			"worktree-admission", "",
+			[]string{"docket/rungate", "human"}, []string{"run.cancel", "gate stop", "epoch-"}},
 		{"unknown identity", ownershipErrWith(gatedrive.ErrWorktreeBusy, blankInc),
 			"worktree-admission", "",
 			[]string{"occupies"}, []string{"gate stop", "gate observe"}},

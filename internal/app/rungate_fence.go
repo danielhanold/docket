@@ -179,7 +179,8 @@ func noopJournalDone(string) {}
 //     readable epoch record carries (corrupt, IO-unreadable, or absent) → fail closed
 //     with ErrEpochOwnerUnresolved naming the epoch id and worktree (change 0446 §1).
 //     A record the store cannot read is never treated as a free run when a current
-//     reference names it; an unreadable epoch no slot names stays diagnostic.
+//     reference names it; an unreadable epoch no slot names stays diagnostic. A slot
+//     the store cannot read at all (anything but absent) fails closed the same way.
 //   - Any registry enumeration or slot-store fault while resolving that owner → fail
 //     closed: (nil, err).
 //
@@ -389,9 +390,11 @@ func findEpochByWorktree(repoDir, canon string) (gateKey string, found bool, err
 // owner. It opens the gatedrive admission store at the repository's Git common dir
 // (the same store productionCancelSeams opens) and reads the worktree's slot:
 //
-//   - an absent or unreadable slot, or a slot with no RunEpochID, names nothing →
-//     nil (the unfenced admit is unchanged — a slot the store cannot read is the
-//     gate-admission authority's to refuse, not ambient ownership evidence);
+//   - an absent slot, or a slot with no RunEpochID, names nothing → nil (the
+//     unfenced admit is unchanged);
+//   - a slot the store cannot READ (corrupt, IO, invalid — any error but
+//     ErrNotFound) → ErrEpochOwnerUnresolved naming the worktree: an unreadable
+//     slot is not evidence that it names no epoch, so the fence fails closed;
 //   - a slot naming an epoch some readable record carries → nil (that epoch simply
 //     does not own this path now: completed, superseded, not yet bound, or bound
 //     elsewhere);
@@ -408,11 +411,26 @@ func slotNamedEpochUnresolved(repoDir, canon string) error {
 	if err != nil {
 		return err
 	}
+	rungateRoot := filepath.Join(common, "docket", "rungate")
 	slot, _, lerr := gatedrive.OpenStore(common).LoadWorktreeExecution(canon)
-	if lerr != nil || slot.RunEpochID == "" {
+	if lerr != nil {
+		if se, ok := gatedrive.AsStoreError(lerr); ok && se.Kind == gatedrive.ErrNotFound {
+			return nil // no slot: nothing names an epoch (the standalone contract)
+		}
+		// A slot the store cannot read (corrupt, IO, invalid) is not evidence that it
+		// names no epoch: fail closed. Only the bounded store kind is rendered.
+		kind := "unreadable"
+		if se, ok := gatedrive.AsStoreError(lerr); ok {
+			kind = string(se.Kind)
+		}
+		return epochErr(ErrEpochOwnerUnresolved, "find-by-worktree",
+			fmt.Errorf("the execution slot of worktree %s could not be read (%s), so whether a run epoch owns it is unknown; %s",
+				canon, kind, unresolvedOwnerRemedy(rungateRoot)))
+	}
+	if slot.RunEpochID == "" {
 		return nil
 	}
-	_, ok, ferr := findEpochByID(filepath.Join(common, "docket", "rungate"), slot.RunEpochID)
+	_, ok, ferr := findEpochByID(rungateRoot, slot.RunEpochID)
 	if ferr != nil {
 		return ferr
 	}
@@ -420,8 +438,20 @@ func slotNamedEpochUnresolved(repoDir, canon string) error {
 		return nil
 	}
 	return epochErr(ErrEpochOwnerUnresolved, "find-by-worktree",
-		fmt.Errorf("the execution slot of worktree %s names run epoch %s, but no readable epoch record carries it; inspect or repair that epoch record before mutating this worktree",
-			canon, slot.RunEpochID))
+		fmt.Errorf("the execution slot of worktree %s names run epoch %s, but no readable epoch record carries it; %s",
+			canon, slot.RunEpochID, unresolvedOwnerRemedy(rungateRoot)))
+}
+
+// unresolvedOwnerRemedy is the next step an ErrEpochOwnerUnresolved refusal prints.
+// It must be valid in the state that produced it: no readable epoch record resolves
+// the owner, so run.cancel (which targets a run by its key and epoch) cannot act on
+// it. The concrete step is inspecting the per-gate-key epoch records under the
+// rungate store and a human repair of the damaged or missing record (or of the
+// slot's stale reference) before this worktree is mutated.
+func unresolvedOwnerRemedy(rungateRoot string) string {
+	return "run.cancel cannot target an epoch no readable record carries — inspect the per-gate-key epoch records (" +
+		filepath.Join(rungateRoot, "<gate-key>", epochRecordFileName) +
+		"); a human must repair the damaged or missing record, or the worktree slot's stale reference, before mutating this worktree"
 }
 
 // epochOwnsWorktree reports whether an epoch's stored Worktree names the same
