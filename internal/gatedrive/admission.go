@@ -196,9 +196,11 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 // raw launch admits through exactly one authority and one lock/CAS discipline as
 // every scoped and scopeless start. proc is the caller's process-recovery seam,
 // used only for the first-admission legacy inventory; a nil proc fails a HALTED
-// legacy drive closed rather than assessing it. The raw launch's result document
-// does not surface the recovery summary (the spec carries it on gate.drive.start
-// only), so the summary the inventory returns is deliberately dropped here.
+// legacy drive closed rather than assessing it. A successful raw launch's result
+// document does not narrate the recovery summary (the spec carries it on
+// gate.drive.start only), so the success summary is deliberately dropped here; an
+// inventory REFUSAL still carries its summary on the returned OwnershipError.Legacy,
+// which the raw caller surfaces with the matched drive's locator (change 0446 §6).
 func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, proc recoverySeam) (token string, err error) {
 	token, _, err = s.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: repoIdentity,
@@ -349,19 +351,31 @@ func incumbentSnapshot(rec admissionRecord) *IncumbentSnapshot {
 }
 
 // inventoryLegacyDrives assesses EVERY pre-admission drive record through the
-// shared classifier (classifyLegacyDrive), then refuses ONCE if any record is
-// unassessable — the first blocker's locator in the returned OwnershipError.Op,
-// with all findings gathered in the summary. Records are walked in deterministic
-// id order so the first-blocker locator is stable across runs. A completed
-// (PASSED/FAILED) drive, a drive bound to a different worktree, and a HALTED drive
-// the seam proves torn down are nonblocking; an unreadable record, a nonterminal
-// state, or a HALTED drive not provably dead retains and blocks. It fails closed:
-// an unreadable record is uncertainty, never a free slot. Every locator is a safe
-// recovery token — a validated drive id, or the raw-name-free inventory-level
-// "inventory-legacy-drives" — and carries no command, environment, credential, or
-// arbitrary directory-name material. It returns a nil summary when no legacy
-// history was relevant (nothing was assessable), so a normal start narrates
-// nothing.
+// shared classifier (classifyLegacyDrive) and gathers every finding into the
+// summary, but refuses ONLY for a finding positively bound to worktreeRoot
+// (change 0446 spec §§1-2): the first such blocker's locator rides the returned
+// OwnershipError.Op, with all findings — bound and diagnostic — in the summary.
+// Records are walked in deterministic id order so the first-blocker locator is
+// stable across runs.
+//
+// A record positively bound to this worktree keeps the full assessment: a
+// nonterminal state, a HALTED drive not provably torn down, or a probe error
+// retains and blocks (a probe error is not clean absence). Everything else is
+// discovery, not required evidence, and never vetoes this admission: a
+// completed (PASSED/FAILED) drive, a drive bound to a different worktree or
+// whose binding cannot be resolved to this one, a stray registry entry, and an
+// unreadable or unknown-schema record. Unreadable records stay RETAINED
+// diagnostics so the history remains inspectable (docket gate history cleanup),
+// but their binding cannot be established, so they do not refuse. That is an
+// accepted residual that relies on ADR-0118's upgrade-quiescence contract — old
+// executors are quiesced before the slot protocol runs — rather than inferring
+// ownership of every worktree from a record nothing current names.
+//
+// Every locator is a safe recovery token — a validated drive id, or the
+// raw-name-free inventory-level "inventory-legacy-drives" — and carries no
+// command, environment, credential, or arbitrary directory-name material. It
+// returns a nil summary when no legacy history was relevant (nothing was
+// assessable), so a normal start narrates nothing.
 func (s *Store) inventoryLegacyDrives(worktreeRoot string, proc recoverySeam) (*LegacyHistorySummary, error) {
 	entries, err := os.ReadDir(s.root)
 	if err != nil {
@@ -371,18 +385,17 @@ func (s *Store) inventoryLegacyDrives(worktreeRoot string, proc recoverySeam) (*
 		return nil, ownershipErr(ErrUnresolvedExecution, "inventory-legacy-drives")
 	}
 	sum := &LegacyHistorySummary{}
+	retainedDiagnostic := false
 	firstLocator := ""
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 	for _, entry := range entries {
 		id := entry.Name()
 		if !entry.IsDir() || validateID(id) != nil {
-			// A non-directory or invalid-name entry is not a readable drive. Its
-			// arbitrary name never enters a diagnostic: use the safe inventory-level
-			// locator and record a finding that carries no drive id.
+			// A non-directory or invalid-name entry is not a readable drive and binds
+			// no worktree: a diagnostic, never a refusal. Its arbitrary name never
+			// enters a diagnostic — the finding carries no drive id.
 			sum.Retained = append(sum.Retained, LegacyFinding{DriveID: "", Class: LegacyRetained, Reason: "unrecognized entry in the drive registry"})
-			if firstLocator == "" {
-				firstLocator = "inventory-legacy-drives"
-			}
+			retainedDiagnostic = true
 			continue
 		}
 		h, lerr := s.loadHistoricalDrive(id)
@@ -391,25 +404,20 @@ func (s *Store) inventoryLegacyDrives(worktreeRoot string, proc recoverySeam) (*
 			// occupying execution: writeNewDrive creates the directory before it
 			// atomically writes the record, so a concurrent FIRST admission for a
 			// DIFFERENT worktree can observe this in-flight (or crashed-mid-creation)
-			// directory during its global census. A record-less directory has no
-			// worktree binding and has launched no process, so it is skipped rather
-			// than failing an unrelated worktree's admission closed. Same-worktree
-			// creations serialize on the worktree slot lock, so they never reach a
-			// concurrent census here. Every other load fault (a corrupt record, an
-			// unknown/legacy-unsupported schema, an IO error) is a genuine unreadable
-			// drive and retains.
+			// directory during its global census. It is skipped and never counted.
 			if storeErrIs(lerr, ErrNotFound) {
 				continue
 			}
+			// Every other load fault (a corrupt record, an unknown/legacy-unsupported
+			// schema, an IO error) is a genuine unreadable drive: retained and visible,
+			// but its worktree binding cannot be established, so it is diagnostic.
 			sum.Checked++
 			reason := "unreadable record"
 			if storeErrIs(lerr, ErrUnknownSchema) {
 				reason = "unknown schema"
 			}
 			sum.Retained = append(sum.Retained, LegacyFinding{DriveID: id, Class: LegacyRetained, Reason: reason})
-			if firstLocator == "" {
-				firstLocator = "inventory-legacy-drive-" + id
-			}
+			retainedDiagnostic = true
 			continue
 		}
 		sum.Checked++
@@ -419,7 +427,7 @@ func (s *Store) inventoryLegacyDrives(worktreeRoot string, proc recoverySeam) (*
 			sum.Recovered = append(sum.Recovered, id)
 		case LegacyRetained:
 			sum.Retained = append(sum.Retained, f)
-			if firstLocator == "" {
+			if matched, _ := s.legacyBindingMatches(h.WorktreePath, worktreeRoot); matched && firstLocator == "" {
 				firstLocator = "inventory-legacy-drive-" + id
 			}
 		}
@@ -429,7 +437,7 @@ func (s *Store) inventoryLegacyDrives(worktreeRoot string, proc recoverySeam) (*
 		oe.Legacy = sum
 		return sum, oe
 	}
-	if sum.Checked == 0 {
+	if sum.Checked == 0 && !retainedDiagnostic {
 		return nil, nil // no relevant legacy history: no summary narration
 	}
 	return sum, nil

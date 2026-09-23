@@ -185,9 +185,29 @@ func TestClassifyLegacyDrive(t *testing.T) {
 	h3 := waiting
 	h3.WorktreePath = wtB
 
-	// Case 4: WAITING whose worktree path is unresolvable — NOT proof of
-	// unrelatedness, so it is retained, never declared irrelevant.
+	// Case 4: WAITING whose worktree path is unresolvable and does not name the
+	// requested worktree — failing to resolve some OTHER path establishes no
+	// match, so it is a nonblocking diagnostic (change 0446 spec §1).
 	h4 := waiting // fixture worktree /repo/.worktrees/old-feature is gone
+
+	// Case 4b: WAITING whose stored path is unresolvable but spells the requested
+	// root exactly (a removed worktree's recorded canonical identity) — a
+	// positive binding, so it is retained.
+	h4b := waiting
+	h4b.WorktreePath = "/gone/requested-wt/"
+
+	// Case 4c: WAITING with a live symlink alias of the requested worktree — a
+	// positive binding through canonicalization.
+	aliasB := filepath.Join(testsupport.TempDir(t), "alias-b")
+	if err := os.Symlink(wtB, aliasB); err != nil {
+		t.Fatal(err)
+	}
+	h4c := waiting
+	h4c.WorktreePath = aliasB
+
+	// Case 4d: an empty stored worktree never matches.
+	h4d := waiting
+	h4d.WorktreePath = ""
 
 	// Case 5: WAITING same worktree — live/nonterminal is never guessed dead.
 	h5 := waiting
@@ -238,9 +258,24 @@ func TestClassifyLegacyDrive(t *testing.T) {
 			wantClass: LegacyNonblocking, reasonSub: "different worktree", wantMarks: 0,
 		},
 		{
-			name: "4-waiting-unresolvable-worktree-retained",
+			name: "4-waiting-unresolvable-other-worktree-diagnostic",
 			h:    h4, requested: canonA, apply: false,
+			wantClass: LegacyNonblocking, reasonSub: "binding unresolvable",
+		},
+		{
+			name: "4b-waiting-unresolvable-same-spelling-retained",
+			h:    h4b, requested: "/gone/requested-wt", apply: false,
 			wantClass: LegacyRetained, reasonSub: "nonterminal",
+		},
+		{
+			name: "4c-waiting-symlink-alias-retained",
+			h:    h4c, requested: canonB, apply: false,
+			wantClass: LegacyRetained, reasonSub: "nonterminal",
+		},
+		{
+			name: "4d-waiting-empty-worktree-diagnostic",
+			h:    h4d, requested: canonA, apply: false,
+			wantClass: LegacyNonblocking, reasonSub: "binding unresolvable",
 		},
 		{
 			name: "5-waiting-same-worktree-retained",
@@ -299,10 +334,13 @@ func TestClassifyLegacyDrive(t *testing.T) {
 			wantClass: LegacyRetained, reasonSub: "not provably torn down", wantMarks: 0,
 		},
 		{
-			name: "14-halted-worktree-gone-seam-terminal-nonblocking",
-			h:    halted, requested: canonA, apply: false,
-			fake:      fake(map[string]process.RecoveryEntry{halted.RawRunDir: {Disposition: "terminal"}}),
-			wantClass: LegacyNonblocking, reasonSub: "durable teardown", wantMarks: 0,
+			// A HALTED record whose (removed) worktree does not name the requested
+			// one is a diagnostic before the process seam is consulted: an
+			// abandonable run is never marked on another worktree's admission.
+			name: "14-halted-worktree-gone-other-worktree-diagnostic-no-mark",
+			h:    halted, requested: canonA, apply: true,
+			fake:      fake(map[string]process.RecoveryEntry{halted.RawRunDir: {Disposition: "abandonable"}}),
+			wantClass: LegacyNonblocking, reasonSub: "binding unresolvable", wantMarks: 0,
 		},
 		{
 			name: "15-nil-seam-halted-retained",
@@ -323,6 +361,9 @@ func TestClassifyLegacyDrive(t *testing.T) {
 			got := s.classifyLegacyDrive(c.h, c.requested, seam, c.apply)
 			if got.DriveID != c.h.ID {
 				t.Errorf("DriveID = %q, want %q", got.DriveID, c.h.ID)
+			}
+			if got.Worktree != c.h.WorktreePath {
+				t.Errorf("Worktree = %q, want the stored identity %q", got.Worktree, c.h.WorktreePath)
 			}
 			if got.Class != c.wantClass {
 				t.Errorf("Class = %q, want %q (reason %q)", got.Class, c.wantClass, got.Reason)
@@ -347,8 +388,10 @@ const haltedFixtureRunDir = "/tmp/docket-gate-old/run-root/000000000000000000000
 // census now assesses ALL records via the shared classifier: a terminal PASSED
 // drive bound to a removed worktree no longer blocks an unrelated worktree (the
 // reported defect), completed history admits and is counted, an abandonable HALTED
-// drive is recovered under apply, and every unassessable record refuses ONCE with a
-// safe locator and the summary attached to the OwnershipError.
+// drive is recovered under apply, every unassessable record positively bound to the
+// requested worktree refuses ONCE with a safe locator and the summary attached to
+// the OwnershipError, and unreadable or stray history that binds no worktree stays
+// a visible diagnostic that never refuses (change 0446).
 func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 	seamWith := func(entries map[string]process.RecoveryEntry) *fakeRecovery {
 		return &fakeRecovery{entries: entries}
@@ -393,43 +436,29 @@ func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 		}
 	})
 
-	// Case 3: a v1 (schema-1) record is unreadable for assessment: refuse ONCE with
-	// the drive's locator and name it in the summary.
-	t.Run("3-v1-schema-refuses-with-locator", func(t *testing.T) {
-		s := OpenStore(testsupport.TempDir(t))
-		id := copyLegacyFixture(t, s, "schema1")
-		wt := mkWorktree(t)
-		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
-		oe, ok := AsOwnershipError(err)
-		if !ok || oe.Kind != ErrUnresolvedExecution {
-			t.Fatalf("a v1 record must refuse with ErrUnresolvedExecution, got %v", err)
-		}
-		if oe.Op != "inventory-legacy-drive-"+id {
-			t.Fatalf("locator Op = %q, want inventory-legacy-drive-%s", oe.Op, id)
-		}
-		if oe.Legacy == nil || len(oe.Legacy.Retained) != 1 || oe.Legacy.Retained[0].DriveID != id {
-			t.Fatalf("summary must name the retained drive %s, got %+v", id, oe.Legacy)
-		}
-	})
+	// Cases 3-4 (change 0446): a v1 (schema-1) record and a corrupt record are
+	// unreadable for assessment, so no worktree binding can be established. They
+	// stay RETAINED diagnostics named in the success summary — the history stays
+	// inspectable — but never veto the admission (spec §§1-2; the ADR-0118
+	// quiescence contract is the accepted residual).
+	for _, fixture := range []string{"schema1", "corrupt"} {
+		t.Run("3-4-unreadable-"+fixture+"-is-diagnostic", func(t *testing.T) {
+			s := OpenStore(testsupport.TempDir(t))
+			id := copyLegacyFixture(t, s, fixture)
+			wt := mkWorktree(t)
+			token, legacy, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
+			if err != nil || token == "" {
+				t.Fatalf("an unreadable unreferenced %s record must not veto admission, got %v", fixture, err)
+			}
+			if legacy == nil || len(legacy.Retained) != 1 || legacy.Retained[0].DriveID != id || legacy.Retained[0].Class != LegacyRetained {
+				t.Fatalf("summary must keep the retained drive %s visible, got %+v", id, legacy)
+			}
+		})
+	}
 
-	// Case 4: a corrupt record refuses with the same shape.
-	t.Run("4-corrupt-refuses-with-locator", func(t *testing.T) {
-		s := OpenStore(testsupport.TempDir(t))
-		id := copyLegacyFixture(t, s, "corrupt")
-		wt := mkWorktree(t)
-		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
-		oe, ok := AsOwnershipError(err)
-		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
-			t.Fatalf("a corrupt record must refuse naming its id, got %v", err)
-		}
-		if oe.Legacy == nil || len(oe.Legacy.Retained) != 1 || oe.Legacy.Retained[0].DriveID != id {
-			t.Fatalf("summary must name the retained drive, got %+v", oe.Legacy)
-		}
-	})
-
-	// Case 5: a non-directory / invalid-name entry refuses with the SAFE
-	// inventory-level locator; the raw entry name never enters a diagnostic.
-	t.Run("5-invalid-entry-uses-safe-locator", func(t *testing.T) {
+	// Case 5: a non-directory / invalid-name entry is a diagnostic; the raw entry
+	// name never enters a diagnostic.
+	t.Run("5-invalid-entry-is-safe-diagnostic", func(t *testing.T) {
 		s := OpenStore(testsupport.TempDir(t))
 		if err := os.MkdirAll(s.root, 0o700); err != nil {
 			t.Fatal(err)
@@ -439,16 +468,17 @@ func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 			t.Fatal(err)
 		}
 		wt := mkWorktree(t)
-		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
-		oe, ok := AsOwnershipError(err)
-		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drives" {
-			t.Fatalf("an invalid entry must refuse with the safe inventory-level locator, got %v", err)
+		_, legacy, err := s.reserveWorktreeExecution(sampleAdmission(wt), seamWith(nil))
+		if err != nil {
+			t.Fatalf("a stray registry entry must not veto admission, got %v", err)
 		}
-		if strings.Contains(err.Error(), rawName) {
-			t.Fatalf("the raw entry name must never enter a diagnostic: %q", err.Error())
+		if legacy == nil || len(legacy.Retained) != 1 || legacy.Retained[0].DriveID != "" {
+			t.Fatalf("summary must record one retained finding with no drive id, got %+v", legacy)
 		}
-		if oe.Legacy == nil || len(oe.Legacy.Retained) != 1 || oe.Legacy.Retained[0].DriveID != "" {
-			t.Fatalf("summary must record one retained finding with no drive id, got %+v", oe.Legacy)
+		for _, f := range legacy.Retained {
+			if strings.Contains(f.Reason, rawName) || strings.Contains(f.Worktree, rawName) {
+				t.Fatalf("the raw entry name must never enter a diagnostic: %+v", f)
+			}
 		}
 	})
 
@@ -500,11 +530,13 @@ func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 		}
 	})
 
-	// Case 8: a HALTED drive the seam reports needs-inspection refuses, naming the id.
+	// Case 8: a same-worktree HALTED drive the seam reports needs-inspection
+	// refuses, naming the id.
 	t.Run("8-halted-needs-inspection-refuses", func(t *testing.T) {
 		s := OpenStore(testsupport.TempDir(t))
 		id := copyLegacyFixture(t, s, "halted")
 		wt := mkWorktree(t)
+		rewriteRecordField(t, s, id, `"worktree_path": "/repo/.worktrees/old-feature"`, `"worktree_path": "`+wt+`"`)
 		seam := seamWith(map[string]process.RecoveryEntry{haltedFixtureRunDir: {Disposition: "needs-inspection"}})
 		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
 		oe, ok := AsOwnershipError(err)
@@ -521,6 +553,7 @@ func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 		s := OpenStore(testsupport.TempDir(t))
 		id := copyLegacyFixture(t, s, "halted")
 		wt := mkWorktree(t)
+		rewriteRecordField(t, s, id, `"worktree_path": "/repo/.worktrees/old-feature"`, `"worktree_path": "`+wt+`"`)
 		seam := &fakeRecovery{err: errors.New("probe failed")}
 		_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
 		oe, ok := AsOwnershipError(err)
@@ -535,6 +568,7 @@ func TestReserveInventoriesLegacyHistoryThroughClassifier(t *testing.T) {
 		s := OpenStore(testsupport.TempDir(t))
 		id := copyLegacyFixture(t, s, "halted")
 		wt := mkWorktree(t)
+		rewriteRecordField(t, s, id, `"worktree_path": "/repo/.worktrees/old-feature"`, `"worktree_path": "`+wt+`"`)
 		_, err := s.ReserveWorktreeExecution(sampleAdmission(wt))
 		oe, ok := AsOwnershipError(err)
 		if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {

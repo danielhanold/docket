@@ -1353,9 +1353,12 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 			"worktree-admission", "incumbent-run:0123456789abcdef0123456789abcdef",
 			[]string{"gate observe", "gate stop", "'/runs/0123456789abcdef0123456789abcdef'", "completed"},
 			[]string{"token"}},
+		// A snapshot DriveID is historical evidence at most (no production writer
+		// sets a slot's DriveID — change 0446): the locator still renders it, but it
+		// never selects "driven gate" guidance.
 		{"driven busy", ownershipErrWith(gatedrive.ErrWorktreeBusy, drivenInc),
 			"worktree-admission", "incumbent-drive:" + drivenInc.DriveID,
-			[]string{"drive"}, []string{"gate stop"}},
+			[]string{"occupies"}, []string{"gate stop", "driven gate occupies"}},
 		{"epoch owned", ownershipErrWith(gatedrive.ErrStaleRunEpoch, epochInc),
 			"worktree-admission", "",
 			[]string{"run.cancel"}, []string{"gate stop", "epoch-"}},

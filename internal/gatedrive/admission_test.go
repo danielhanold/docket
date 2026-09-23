@@ -1,6 +1,9 @@
 package gatedrive
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -311,10 +314,12 @@ func TestFirstAdmissionInventoriesLegacyTerminalProvenDead(t *testing.T) {
 	}
 }
 
-// TestLegacyUnreadableRecordBlocks proves the first inventory never skips a
-// malformed historical record: unreadable history is uncertainty, not a free
-// slot.
-func TestLegacyUnreadableRecordBlocks(t *testing.T) {
+// TestLegacyUnreadableUnreferencedRecordIsDiagnostic proves the first inventory
+// never skips a malformed historical record — it stays a retained finding in the
+// summary — but, because its worktree binding cannot be established, it is
+// discovery rather than required evidence and does not veto an admission
+// (change 0446 spec §§1-2, relying on ADR-0118's upgrade-quiescence contract).
+func TestLegacyUnreadableUnreferencedRecordIsDiagnostic(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	wt := mkWorktree(t)
 	const corruptID = "0123456789abcdef0123456789abcdef"
@@ -326,9 +331,12 @@ func TestLegacyUnreadableRecordBlocks(t *testing.T) {
 		t.Fatalf("write corrupt legacy record: %v", err)
 	}
 
-	_, err := s.ReserveWorktreeExecution(sampleAdmission(wt))
-	if !isOwnership(err, ErrUnresolvedExecution) || !strings.Contains(err.Error(), corruptID) {
-		t.Fatalf("corrupt legacy record must block admission with its locator, got %v", err)
+	_, sum, err := s.reserveWorktreeExecution(sampleAdmission(wt), nil)
+	if err != nil {
+		t.Fatalf("an unreadable unreferenced legacy record must not block admission, got %v", err)
+	}
+	if sum == nil || len(sum.Retained) != 1 || sum.Retained[0].DriveID != corruptID {
+		t.Fatalf("the unreadable record must stay a retained diagnostic, got %+v", sum)
 	}
 }
 
@@ -340,7 +348,8 @@ func TestLegacyUnreadableRecordBlocks(t *testing.T) {
 // launched no process, so it must never fail an unrelated worktree's admission
 // closed — the exact spurious worktree-busy/unresolved refusal that broke two
 // concurrent gates on distinct worktrees of one repo. Contrast
-// TestLegacyUnreadableRecordBlocks: a PRESENT but corrupt record still blocks.
+// TestLegacyUnreadableUnreferencedRecordIsDiagnostic: a PRESENT but corrupt
+// record is still counted and reported as a retained diagnostic.
 func TestLegacyRecordlessDirDoesNotBlock(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	wt := mkWorktree(t)
@@ -437,5 +446,240 @@ func TestReserveStaleEpochCarriesSnapshot(t *testing.T) {
 	}
 	if oe.Incumbent == nil || !oe.Incumbent.EpochOwned {
 		t.Fatalf("stale-epoch snapshot = %+v", oe.Incumbent)
+	}
+}
+
+// snapshotRegistry reads every regular file below the drive registry root into a
+// path->bytes map, so a test can prove an admission rewrote or deleted nothing.
+func snapshotRegistry(t *testing.T, s *Store) map[string][]byte {
+	t.Helper()
+	out := map[string][]byte{}
+	err := filepath.WalkDir(s.root, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.Type().IsRegular() {
+			buf, rerr := os.ReadFile(p)
+			if rerr != nil {
+				return rerr
+			}
+			out[p] = buf
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("snapshot registry: %v", err)
+	}
+	return out
+}
+
+// seedLegacyDrive persists an executable-range drive record bound to worktree
+// with the given outcome, cause, and raw run dir, returning its id.
+func seedLegacyDrive(t *testing.T, s *Store, worktree string, outcome Outcome, cause, runDir string) string {
+	t.Helper()
+	rec := seedRecord(t)
+	rec.WorktreePath = worktree
+	rec.LastOutcome = outcome
+	rec.LastCause = cause
+	rec.RawRunDir = runDir
+	id, _, err := s.NewDrive(rec)
+	if err != nil {
+		t.Fatalf("seed legacy drive: %v", err)
+	}
+	return id
+}
+
+// writeRawDriveRecord installs raw bytes as drive id's record.json.
+func writeRawDriveRecord(t *testing.T, s *Store, id string, body []byte) {
+	t.Helper()
+	dir := filepath.Join(s.root, id)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, recordFileName), body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestFirstAdmissionUnrelatedHistoryIsDiagnostic (change 0446 spec §§1-2): history
+// that is not positively bound to the requested worktree — records bound to a
+// DIFFERENT worktree, records whose binding cannot be resolved at all (a removed
+// worktree, a never-existing path), unreadable records, unknown schemas, a stray
+// registry entry, and a schema-2 historical record — is diagnostic, never a veto.
+// A fresh worktree's FIRST reservation must succeed, the damaged records must stay
+// visible in the returned summary, and no seeded byte may change.
+func TestFirstAdmissionUnrelatedHistoryIsDiagnostic(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	other := mkWorktree(t)
+	removed := mkWorktree(t)
+	if err := os.RemoveAll(removed); err != nil {
+		t.Fatal(err)
+	}
+
+	seedLegacyDrive(t, s, other, PASSED, "", "/runs/gone-passed")
+	seedLegacyDrive(t, s, other, FAILED, "", "/runs/gone-failed")
+	for i, cause := range []string{"deadline-expired", "stopped-not-initiated", "launch-unresolved", "identity-mismatch"} {
+		seedLegacyDrive(t, s, other, HALTED, cause, "/runs/gone-halted-other-"+string(rune('a'+i)))
+		seedLegacyDrive(t, s, removed, HALTED, cause, "/runs/gone-halted-removed-"+string(rune('a'+i)))
+	}
+	seedLegacyDrive(t, s, other, WAITING, "", "/runs/gone-waiting-other")
+	seedLegacyDrive(t, s, removed, WAITING, "", "/runs/gone-waiting-removed")
+	seedLegacyDrive(t, s, "/repo", HALTED, "deadline-expired", "") // never-existing path, no run evidence
+	unsupportedID := "0446aaaaaaaaaaaaaaaaaaaaaaaaaa99"
+	writeRawDriveRecord(t, s, unsupportedID, []byte(`{"generation":"g","record":{"schema_version":99}}`))
+	malformedID := "0446aaaaaaaaaaaaaaaaaaaaaaaaaa98"
+	writeRawDriveRecord(t, s, malformedID, []byte("not-json"))
+	if err := os.WriteFile(filepath.Join(s.root, "stray-entry"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	copyLegacyFixture(t, s, "halted") // schema-2, HALTED, removed worktree
+
+	before := snapshotRegistry(t, s)
+	wt := mkWorktree(t)
+	seam := &fakeRecovery{} // every run dir answers "invalid": no teardown proof anywhere
+	token, sum, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
+	if err != nil {
+		t.Fatalf("unrelated history must not veto a fresh worktree's first admission, got %v", err)
+	}
+	if token == "" {
+		t.Fatal("a successful admission must mint a reservation token")
+	}
+	if sum == nil {
+		t.Fatal("assessed history must ride the success summary")
+	}
+	retained := map[string]LegacyFinding{}
+	for _, f := range sum.Retained {
+		retained[f.DriveID] = f
+	}
+	for _, id := range []string{unsupportedID, malformedID, ""} {
+		if _, ok := retained[id]; !ok {
+			t.Fatalf("damaged record %q must stay visible in the summary, got %+v", id, sum.Retained)
+		}
+	}
+	if len(seam.marks) != 0 {
+		t.Fatalf("unrelated history must never be marked, got %v", seam.marks)
+	}
+	after := snapshotRegistry(t, s)
+	if len(after) != len(before) {
+		t.Fatalf("registry file count changed %d -> %d", len(before), len(after))
+	}
+	for p, b := range before {
+		if string(after[p]) != string(b) {
+			t.Fatalf("historical record %s was rewritten or deleted", p)
+		}
+	}
+}
+
+// TestFirstAdmissionOwnBoundHistoryStillBlocks: a record positively bound to the
+// requested worktree keeps today's full assessment — a nonterminal record and an
+// unprovable HALTED record each refuse with the drive's locator, and the finding
+// names the matched worktree. A live symlink alias of the requested worktree is a
+// positive binding too.
+func TestFirstAdmissionOwnBoundHistoryStillBlocks(t *testing.T) {
+	cases := []struct {
+		name    string
+		outcome Outcome
+		alias   bool
+	}{
+		{"waiting", WAITING, false},
+		{"halted-unprovable", HALTED, false},
+		{"waiting-via-symlink-alias", WAITING, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := OpenStore(testsupport.TempDir(t))
+			wt := mkWorktree(t)
+			bound := wt
+			if c.alias {
+				bound = filepath.Join(testsupport.TempDir(t), "alias")
+				if err := os.Symlink(wt, bound); err != nil {
+					t.Fatal(err)
+				}
+			}
+			id := seedLegacyDrive(t, s, bound, c.outcome, "deadline-expired", "/runs/own-bound")
+			_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), &fakeRecovery{})
+			oe, ok := AsOwnershipError(err)
+			if !ok || oe.Kind != ErrUnresolvedExecution {
+				t.Fatalf("own-bound history must refuse ErrUnresolvedExecution, got %v", err)
+			}
+			if oe.Op != "inventory-legacy-drive-"+id {
+				t.Fatalf("locator Op = %q, want inventory-legacy-drive-%s", oe.Op, id)
+			}
+			if oe.Legacy == nil || len(oe.Legacy.Retained) != 1 {
+				t.Fatalf("summary must carry exactly the bound finding, got %+v", oe.Legacy)
+			}
+			if f := oe.Legacy.Retained[0]; f.DriveID != id || f.Worktree != bound {
+				t.Fatalf("finding must name the drive and its matched worktree (%s / %s), got %+v", id, bound, f)
+			}
+		})
+	}
+}
+
+// TestFirstAdmissionLiveIncumbentSameWorktreeBlocks: a HALTED record for the
+// requested worktree whose run the process seam reports live still refuses.
+func TestFirstAdmissionLiveIncumbentSameWorktreeBlocks(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	id := seedLegacyDrive(t, s, wt, HALTED, "deadline-expired", "/runs/live")
+	seam := &fakeRecovery{entries: map[string]process.RecoveryEntry{"/runs/live": {Disposition: "live"}}}
+	_, _, err := s.reserveWorktreeExecution(sampleAdmission(wt), seam)
+	oe, ok := AsOwnershipError(err)
+	if !ok || oe.Kind != ErrUnresolvedExecution || oe.Op != "inventory-legacy-drive-"+id {
+		t.Fatalf("a live same-worktree HALTED incumbent must refuse naming %s, got %v", id, err)
+	}
+	if len(seam.marks) != 0 {
+		t.Fatalf("a live run must never be marked, got %v", seam.marks)
+	}
+}
+
+// TestAdmissionSlotDriveIDHasNoProductionWriter pins the premise behind the app
+// layer's incumbentRemedyMessage having no drive-id branch (change 0446 spec
+// "Admission slot facts"): no production code in this package — the only package
+// that can name the unexported admissionRecord — ever sets a slot's DriveID. It
+// scans every non-test source file for the two syntactic write shapes: an
+// admissionRecord composite literal with a DriveID key, and an assignment whose
+// left side is a .DriveID selector. The selector shape is deliberately broad (no
+// type information): should a different type's DriveID field ever be assigned
+// here, narrow this guard rather than deleting it.
+func TestAdmissionSlotDriveIDHasNoProductionWriter(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	scanned := 0
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", name, err)
+		}
+		scanned++
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch x := n.(type) {
+			case *ast.CompositeLit:
+				if id, ok := x.Type.(*ast.Ident); ok && id.Name == "admissionRecord" {
+					for _, el := range x.Elts {
+						if kv, ok := el.(*ast.KeyValueExpr); ok {
+							if k, ok := kv.Key.(*ast.Ident); ok && k.Name == "DriveID" {
+								t.Errorf("%s: admissionRecord literal sets DriveID", fset.Position(kv.Pos()))
+							}
+						}
+					}
+				}
+			case *ast.AssignStmt:
+				for _, lhs := range x.Lhs {
+					if sel, ok := lhs.(*ast.SelectorExpr); ok && sel.Sel.Name == "DriveID" {
+						t.Errorf("%s: assignment to a .DriveID field", fset.Position(sel.Pos()))
+					}
+				}
+			}
+			return true
+		})
+	}
+	if scanned == 0 {
+		t.Fatal("scanned no production source files: the guard is vacuous")
 	}
 }
