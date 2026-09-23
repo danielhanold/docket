@@ -22,7 +22,7 @@ branch: 'fix/orphaned-halted-gate-drive-blocks-every-new-worktree-s-first'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-23T17:36:22Z'
+claimed_at: '2026-09-23T17:37:31Z'
 ---
 
 ## Artifacts
