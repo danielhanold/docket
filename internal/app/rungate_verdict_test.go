@@ -1278,12 +1278,17 @@ func TestVerdictRunCompleteWithoutEpochUnchanged(t *testing.T) {
 }
 
 // TestVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess: one unproven obligation
-// (the released slot's run is not provably terminal) blocks the closeout —
-// gate-stop gate-unavailable completion-unaccounted with diagnostic findings, the epoch
-// stays completing (the fence holds), and no retry is spent (AC2 budget preservation).
+// (a registered execution participant whose run is observed live) blocks the
+// closeout — gate-stop gate-unavailable completion-unaccounted with diagnostic
+// findings, the epoch stays completing (the fence holds), and no retry is spent (AC2
+// budget preservation). The released owned slot itself is NOT that obligation: its
+// release is the durable proof of its run (change 0446 spec §5), so it is never
+// re-observed.
 func TestVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
-	fx.observer.defaultProven = false // the released slot's run is not provably terminal
+	must(t, RegisterEpochParticipant(fx.repo, fx.key, fx.epochID,
+		EpochParticipant{Kind: "raw-run", NativeHandle: "exec-live"}))
+	fx.observer.defaultProven = false // the participant's run is not provably terminal
 	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
 	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
 		t.Fatalf("decision/outcome = %q/%q, want gate-stop/gate-unavailable", res.Decision, res.Outcome)

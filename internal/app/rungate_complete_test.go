@@ -1,6 +1,9 @@
 package app
 
 import (
+	"encoding/json"
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -234,6 +237,10 @@ func TestCompleteSuccessfulRunBlocksOnEveryUnsettledObligation(t *testing.T) {
 		}},
 		{"nil-observer", "process-observer-unavailable", func(t *testing.T) (cancelSeams, string, string, string, string) {
 			fx := newCompletionFixture(t)
+			// An execution participant needs observation; a released owned slot does
+			// not (its release is the durable proof — change 0446), so the nil
+			// observer is exercised through the participant pass.
+			must(t, RegisterEpochParticipant(fx.repo, fx.key, fx.epochID, EpochParticipant{Kind: "raw-run", NativeHandle: "exec-1"}))
 			s := fx.seams()
 			s.observer = nil
 			return s, fx.repo, fx.key, fx.epochID, fx.worktree
@@ -577,4 +584,261 @@ func TestCompleteSuccessfulRunDoesNotDuplicateFindings(t *testing.T) {
 			t.Fatalf("mutation-pending:pr.publish appears %d times, want exactly 1 (findings=%v)", got, findings)
 		}
 	})
+}
+
+// --- change 0446 Task 8: durable completion facts survive scratch cleanup (spec §5,
+// AC6). A released owned slot, an exact matching released slot, or a persisted
+// PASSED/FAILED drive record is the sufficient durable proof of an execution's
+// teardown; deleting the run's optional scratch directory must not reopen it. HALTED
+// is never that proof, and the absence of any durable record still blocks. ---
+
+// errScratchGone stands in for the production observer's failure on a run whose
+// scratch directory was removed: process.Observe cannot read what no longer exists.
+var errScratchGone = errors.New("run dir removed")
+
+// scratchObserver models the production processObserver over real scratch: a run
+// whose directory exists is proven terminal (it finished), a run whose directory
+// is gone cannot be observed at all. It records every handle it was asked about.
+type scratchObserver struct{ calls []string }
+
+func (o *scratchObserver) observeProcessTerminal(runDir string) (bool, error) {
+	o.calls = append(o.calls, runDir)
+	if _, err := os.Stat(runDir); err != nil {
+		return false, errScratchGone
+	}
+	return true, nil
+}
+
+// seedDriveRecord writes one drive record directly into the repository's drive
+// registry (the executable schema, 4) naming runDir as its current raw run and
+// outcome as its persisted LastOutcome. It stands in for a drive the supervisor
+// already committed terminal; only the fields the durable-proof read keys on are set.
+func seedDriveRecord(t *testing.T, common, id, worktree, runDir string, outcome gatedrive.Outcome) {
+	t.Helper()
+	dir := filepath.Join(common, "docket", "gate-drives", "v1", id)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir drive dir: %v", err)
+	}
+	doc := map[string]any{
+		"generation": "g-" + id,
+		"record": map[string]any{
+			"schema_version": 4,
+			"repo_identity":  common,
+			"worktree_path":  worktree,
+			"raw_run_dir":    runDir,
+			"last_outcome":   string(outcome),
+		},
+	}
+	buf, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("marshal drive record: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "record.json"), buf, 0o600); err != nil {
+		t.Fatalf("write drive record: %v", err)
+	}
+}
+
+// TestCompletionSlotReleasedOwnedNoReobservation: a RELEASED slot this epoch owns is
+// itself the durable proof of that slot's execution. Its run directory has been
+// deleted (scratch cleanup), so re-observing the process could only fail — and the
+// closeout must not reopen it: the slot leg is accounted and the observer is never
+// asked about the slot's run. Before the fix the re-observation turned the deleted
+// scratch into a process-unobserved blocker.
+func TestCompletionSlotReleasedOwnedNoReobservation(t *testing.T) {
+	fx := newCompletionFixture(t)
+	if _, err := os.Stat(fx.runDir); !os.IsNotExist(err) {
+		t.Fatalf("precondition: the slot's run dir %q must be absent (err=%v)", fx.runDir, err)
+	}
+	observer := &scratchObserver{}
+	seams := fx.seams()
+	seams.observer = observer
+
+	blocked, findings := accountCompletionSlot(seams, EpochRecord{EpochID: fx.epochID, Worktree: fx.worktree})
+	if blocked {
+		t.Fatalf("a released owned slot blocked on deleted scratch: findings=%v", findings)
+	}
+	if len(observer.calls) != 0 {
+		t.Fatalf("the released owned slot's run was re-observed: %v", observer.calls)
+	}
+
+	ok, reason, cfindings := completeSuccessfulRun(seams, fx.repo, fx.key)
+	if !ok {
+		t.Fatalf("closeout ok=false reason=%q findings=%v", reason, cfindings)
+	}
+	if len(observer.calls) != 0 {
+		t.Fatalf("closeout re-observed a run after scratch cleanup: %v", observer.calls)
+	}
+}
+
+// TestCompletionUnreleasedOwnedSlotStillBlocks: an owned slot still EXECUTING is a
+// live obligation — no durable release exists, so the slot leg blocks
+// slot-not-released exactly as before (unchanged safety).
+func TestCompletionUnreleasedOwnedSlotStillBlocks(t *testing.T) {
+	base := newCancelFixture(t, true) // epoch-owned slot left executing
+	seams := cancelSeams{store: base.store, observer: &scratchObserver{},
+		launchObserver: &fakeLaunchObserver{report: gatedrive.EpochLaunchReport{Accounted: true}}}
+	blocked, findings := accountCompletionSlot(seams, EpochRecord{EpochID: base.epochID, Worktree: base.worktree})
+	if !blocked || !hasFinding(findings, "slot-not-released") {
+		t.Fatalf("blocked=%v findings=%v, want blocked slot-not-released", blocked, findings)
+	}
+}
+
+// TestCompletionParticipantDurableProof: an execution participant whose direct
+// observation fails because its scratch is gone is accounted by an EXACT matching
+// durable record — the released slot recording that run, or the one persisted
+// PASSED/FAILED drive naming it. HALTED, a missing record, an ambiguous record, a
+// released slot recording a different run, an unreleased slot, and a live
+// observation all keep it blocking.
+func TestCompletionParticipantDurableProof(t *testing.T) {
+	const (
+		idA = "0446cccccccccccccccccccccccccc01"
+		idB = "0446cccccccccccccccccccccccccc02"
+	)
+	type setup func(t *testing.T, fx completionFixture) (handle string, seams cancelSeams)
+	gone := func(fx completionFixture) cancelSeams {
+		s := fx.seams()
+		s.observer = &fakeProcessObserver{err: errScratchGone}
+		return s
+	}
+	rows := []struct {
+		name    string
+		blocked bool
+		build   setup
+	}{
+		{"released slot records the run", false, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
+			return fx.runDir, gone(fx)
+		}},
+		{"persisted PASSED drive", false, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
+			h := filepath.Join(fx.worktree, "run-P")
+			seedDriveRecord(t, fx.common, idA, fx.worktree, h, gatedrive.PASSED)
+			return h, gone(fx)
+		}},
+		{"persisted FAILED drive", false, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
+			h := filepath.Join(fx.worktree, "run-F")
+			seedDriveRecord(t, fx.common, idA, fx.worktree, h, gatedrive.FAILED)
+			return h, gone(fx)
+		}},
+		{"HALTED drive is never execution proof", true, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
+			h := filepath.Join(fx.worktree, "run-H")
+			seedDriveRecord(t, fx.common, idA, fx.worktree, h, gatedrive.HALTED)
+			return h, gone(fx)
+		}},
+		{"WAITING drive is not terminal", true, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
+			h := filepath.Join(fx.worktree, "run-W")
+			seedDriveRecord(t, fx.common, idA, fx.worktree, h, gatedrive.WAITING)
+			return h, gone(fx)
+		}},
+		{"no durable record", true, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
+			return filepath.Join(fx.worktree, "run-none"), gone(fx)
+		}},
+		{"ambiguous drive records", true, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
+			h := filepath.Join(fx.worktree, "run-2")
+			seedDriveRecord(t, fx.common, idA, fx.worktree, h, gatedrive.PASSED)
+			seedDriveRecord(t, fx.common, idB, fx.worktree, h, gatedrive.PASSED)
+			return h, gone(fx)
+		}},
+		{"released slot records a different run", true, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
+			return filepath.Join(fx.worktree, "run-other"), gone(fx)
+		}},
+		{"live observation contradicts a PASSED record", true, func(t *testing.T, fx completionFixture) (string, cancelSeams) {
+			h := filepath.Join(fx.worktree, "run-L")
+			seedDriveRecord(t, fx.common, idA, fx.worktree, h, gatedrive.PASSED)
+			s := fx.seams()
+			s.observer = &fakeProcessObserver{defaultProven: false}
+			return h, s
+		}},
+	}
+	for _, r := range rows {
+		t.Run(r.name, func(t *testing.T) {
+			fx := newCompletionFixture(t)
+			handle, seams := r.build(t, fx)
+			ep := EpochRecord{EpochID: fx.epochID, Worktree: fx.worktree,
+				Participants: []EpochParticipant{{Kind: participantKindRawRun, NativeHandle: handle}}}
+			blocked, findings := accountCompletionParticipants(seams, ep)
+			if blocked != r.blocked {
+				t.Fatalf("blocked=%v findings=%v, want blocked=%v", blocked, findings, r.blocked)
+			}
+			if r.blocked && len(findings) == 0 {
+				t.Fatal("a blocked participant must name its unsettled run")
+			}
+		})
+	}
+
+	t.Run("unreleased slot recording the run", func(t *testing.T) {
+		base := newCancelFixture(t, true) // slot still executing base.runDir
+		seams := cancelSeams{store: base.store, observer: &fakeProcessObserver{err: errScratchGone}}
+		ep := EpochRecord{EpochID: base.epochID, Worktree: base.worktree,
+			Participants: []EpochParticipant{{Kind: participantKindGateScope, NativeHandle: base.runDir}}}
+		if blocked, findings := accountCompletionParticipants(seams, ep); !blocked {
+			t.Fatalf("an unreleased slot was accepted as execution proof: findings=%v", findings)
+		}
+	})
+}
+
+// TestCompleteThenScratchCleanupThenFinalizeAdmits (AC6): a successful run whose
+// first closeout was held by an in-flight mutation has its optional scratch removed
+// before the closeout is repeated; the repeat still completes on the durable release
+// facts. Then — with a cancelled, never-superseded predecessor epoch bound to the
+// same path in a directory that sorts first, and unrelated damaged drive and epoch
+// history present — the finalize gate's admission on that worktree, composed exactly
+// as GateLaunch composes it, admits.
+func TestCompleteThenScratchCleanupThenFinalizeAdmits(t *testing.T) {
+	fx := newCompletionFixture(t)
+	if err := os.MkdirAll(fx.runDir, 0o755); err != nil {
+		t.Fatalf("create the run's scratch: %v", err)
+	}
+	must(t, RegisterEpochParticipant(fx.repo, fx.key, fx.epochID,
+		EpochParticipant{Kind: participantKindGateScope, NativeHandle: fx.runDir}))
+	seams := fx.seams()
+	seams.observer = &scratchObserver{}
+
+	// The first closeout is held by a genuinely owned in-flight mutation.
+	seedPendingEpochMutation(t, fx.repo, fx.key)
+	if ok, reason, findings := completeSuccessfulRun(seams, fx.repo, fx.key); ok || !hasFinding(findings, "mutation-pending:") {
+		t.Fatalf("first closeout ok=%v reason=%q findings=%v, want held by mutation-pending", ok, reason, findings)
+	}
+
+	// Scratch cleanup, then the mutation settles and the closeout is repeated.
+	if err := os.RemoveAll(fx.runDir); err != nil {
+		t.Fatalf("remove scratch: %v", err)
+	}
+	reconcilePendingEpochMutations(t, fx.repo, fx.key)
+	if ok, reason, findings := completeSuccessfulRun(seams, fx.repo, fx.key); !ok {
+		t.Fatalf("closeout after scratch cleanup ok=false reason=%q findings=%v", reason, findings)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCompleted {
+		t.Fatalf("epoch state = %q, want completed", st)
+	}
+
+	// A cancelled never-superseded predecessor bound to the same path sorts first.
+	seedNamedEpoch(t, fx.repo, "0000-cancelled-predecessor", fx.worktree, EpochCancelled)
+	// Unrelated damaged history: a corrupt drive record and a corrupt epoch record.
+	badDrive := filepath.Join(fx.common, "docket", "gate-drives", "v1", "0446dddddddddddddddddddddddddd01")
+	if err := os.MkdirAll(badDrive, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(badDrive, "record.json"), []byte("{not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	badEpoch := filepath.Join(fx.common, "docket", "rungate", "ffff-damaged-unrelated")
+	if err := os.MkdirAll(badEpoch, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(badEpoch, epochRecordFileName), []byte("{not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Finalize's gate admission, composed as GateLaunch composes it.
+	store := gatedrive.OpenStore(fx.common)
+	store.SetEpochSettledResolver(epochSettledResolver(fx.common))
+	if refusal, refused := rawStaleEpochRefusal(store, fx.worktree); refused {
+		t.Fatalf("finalize admission refused at the epoch fence: %+v", refusal)
+	}
+	token, err := store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
+	if err != nil {
+		t.Fatalf("finalize gate admission on the completed worktree refused: %v", err)
+	}
+	if err := store.ReleaseWorktreeExecution(fx.worktree, token); err != nil {
+		t.Fatalf("release finalize reservation: %v", err)
+	}
 }

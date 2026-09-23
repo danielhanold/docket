@@ -233,6 +233,42 @@ func (s *Store) findIncumbentDrive(token string) (string, driveRecord, string) {
 	}
 }
 
+// TerminalDriveOutcomeForRunDir returns the persisted LastOutcome of the ONE readable
+// drive whose CURRENT raw run dir is exactly runDir (change 0446 spec §5). It is a
+// pure read of the supervisor-committed drive record — the durable completion fact a
+// run-closeout consumer relies on once the run's optional scratch is gone, instead of
+// reopening that ephemeral evidence. It interprets nothing: the caller decides which
+// outcomes it accepts (PASSED/FAILED are completion evidence; HALTED never is — spec
+// §4). An empty runDir, an unlistable registry, no match, or more than one match is
+// found=false (never a guess), and an unreadable record is not a match — so the
+// absence of an exact durable record keeps the caller's obligation unproven.
+func (s *Store) TerminalDriveOutcomeForRunDir(runDir string) (outcome Outcome, found bool) {
+	if runDir == "" {
+		return "", false
+	}
+	entries, err := os.ReadDir(s.root)
+	if err != nil {
+		return "", false
+	}
+	matches := 0
+	for _, entry := range entries {
+		id := entry.Name()
+		if !entry.IsDir() || validateID(id) != nil {
+			continue
+		}
+		rec, lerr := s.Load(id)
+		if lerr != nil || rec.RawRunDir != runDir {
+			continue
+		}
+		matches++
+		outcome = rec.LastOutcome
+	}
+	if matches != 1 {
+		return "", false
+	}
+	return outcome, true
+}
+
 // proveDriveFinished applies the driven rows of the decision table to the
 // current-token drive.
 func (s *Store) proveDriveFinished(id string, rec driveRecord, token string, proc incumbentProofSeam) (bool, string, func()) {

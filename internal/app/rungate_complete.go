@@ -233,8 +233,10 @@ func accountCompletionObligations(seams cancelSeams, ep EpochRecord) (bool, []st
 // native task (coordinator/task) must carry recorded terminal evidence
 // (TerminalStatus != "" — a terminal FAILURE still counts as observed; RunVerify
 // independently decided implementation success), and an execution participant
-// (gate-scope/raw-run) must observe a proven-terminal process. Absent evidence is
-// UNPROVEN and blocks (participant-unobserved / process-*).
+// (gate-scope/raw-run) must observe a proven-terminal process or, when that
+// observation fails, carry an exact durable execution proof
+// (executionParticipantProof). Absent evidence is UNPROVEN and blocks
+// (participant-unobserved / process-*).
 func accountCompletionParticipants(seams cancelSeams, ep EpochRecord) (bool, []string) {
 	blocked := false
 	var findings []string
@@ -246,13 +248,68 @@ func accountCompletionParticipants(seams cancelSeams, ep EpochRecord) (bool, []s
 				blocked = true
 			}
 		case isExecutionParticipant(p.Kind):
-			if proven, reason := observeTerminalProof(seams, p.NativeHandle); !proven {
+			if proven, reason := executionParticipantProof(seams, ep, p.NativeHandle); !proven {
 				findings = append(findings, reason)
 				blocked = true
 			}
 		}
 	}
 	return blocked, findings
+}
+
+// executionParticipantProof proves one execution participant's run terminal (change
+// 0446 spec §5) through the observation-only seam — it never stops. A non-terminal
+// (live/signalled) run is process-live:<handle>. Direct observation is tried first,
+// so a run observed LIVE is never overridden by a record. When the observation
+// itself FAILS — typically because the
+// run's optional scratch directory was cleaned up after it finished — the durable
+// fact already recorded is the sufficient proof: an exact matching released worktree
+// slot, or the one persisted PASSED/FAILED drive record naming the run
+// (durableExecutionProof). Nothing is synthesized from the missing files: with no
+// such record the participant stays process-unobserved and blocks. A nil observer is
+// not missing evidence and still blocks (process-observer-unavailable).
+func executionParticipantProof(seams cancelSeams, ep EpochRecord, handle string) (bool, string) {
+	if seams.observer == nil {
+		return false, "process-observer-unavailable"
+	}
+	proven, err := seams.observer.observeProcessTerminal(handle)
+	if err == nil {
+		if !proven {
+			return false, "process-live:" + handle
+		}
+		return true, ""
+	}
+	if durableExecutionProof(seams, ep, handle) {
+		return true, ""
+	}
+	return false, "process-unobserved:" + handle
+}
+
+// durableExecutionProof reports whether an existing durable record proves the
+// execution at handle finished. Two records qualify, each keyed on the EXACT run:
+//   - the epoch's worktree slot, RELEASED, recording handle as its run, and owned by
+//     this epoch (slotOwned, or slotLinkedLegacy after retirement cleared its epoch)
+//     — every slot writer releases only on proven teardown, so the release is itself
+//     that execution's terminal fact; a foreign or unowned slot proves nothing here;
+//   - the one readable drive whose current run is handle, with a persisted PASSED or
+//     FAILED outcome — the supervisor-committed completion evidence. HALTED is never
+//     accepted (spec §4: it is a fail-closed label, not proof of teardown), nor is a
+//     nonterminal, missing, unreadable, or ambiguous drive.
+func durableExecutionProof(seams cancelSeams, ep EpochRecord, handle string) bool {
+	if handle == "" || seams.store == nil {
+		return false
+	}
+	if ep.Worktree != "" {
+		if slot, _, err := seams.store.LoadWorktreeExecution(ep.Worktree); err == nil &&
+			string(slot.State) == "released" && slot.RawRunDir == handle {
+			switch classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) {
+			case slotOwned, slotLinkedLegacy:
+				return true
+			}
+		}
+	}
+	outcome, found := seams.store.TerminalDriveOutcomeForRunDir(handle)
+	return found && (outcome == gatedrive.PASSED || outcome == gatedrive.FAILED)
 }
 
 // accountCompletionMutations blocks on any admitted-not-completed mutation
@@ -300,8 +357,12 @@ func accountCompletionLaunches(seams cancelSeams, ep EpochRecord) (bool, []strin
 //   - slotUnowned that is RELEASED is torn down (our own prior detachment, or a
 //     released remnant) — nothing live to prove; an unreleased unowned slot is a live
 //     slot success cannot prove it owns and blocks (slot-ownership-unresolved);
-//   - slotOwned must be released (else slot-not-released) and, when it names a run,
-//     that run must observe proven-terminal (else process-*).
+//   - slotOwned must be released (else slot-not-released). A released owned slot is
+//     itself the sufficient durable proof of THAT slot's execution — every slot
+//     writer releases only on proven teardown — so its run is not re-observed
+//     (change 0446 spec §5): re-observation proved nothing about unaccounted
+//     participants or launches (their own passes cover those) and only turned a
+//     finished run's later scratch cleanup into a false blocker.
 func accountCompletionSlot(seams cancelSeams, ep EpochRecord) (bool, []string) {
 	if seams.store == nil || ep.Worktree == "" {
 		return false, nil
@@ -324,34 +385,11 @@ func accountCompletionSlot(seams cancelSeams, ep EpochRecord) (bool, []string) {
 		}
 		return true, []string{"slot-ownership-unresolved"} // a live slot we cannot prove ours
 	}
-	// slotOwned: only a released owned slot whose run is proven-terminal is settled.
+	// slotOwned: only a released owned slot is settled; the release is the proof.
 	if string(slot.State) != "released" {
 		return true, []string{"slot-not-released"}
 	}
-	if slot.RawRunDir != "" {
-		if proven, reason := observeTerminalProof(seams, slot.RawRunDir); !proven {
-			return true, []string{reason}
-		}
-	}
 	return false, nil
-}
-
-// observeTerminalProof observes one execution's process through the observation-only
-// seam and reports whether teardown is PROVEN. A nil observer proves nothing
-// (process-observer-unavailable); an observation error is process-unobserved:<handle>;
-// a non-terminal (live/signalled) run is process-live:<handle>. It never stops.
-func observeTerminalProof(seams cancelSeams, handle string) (bool, string) {
-	if seams.observer == nil {
-		return false, "process-observer-unavailable"
-	}
-	proven, err := seams.observer.observeProcessTerminal(handle)
-	if err != nil {
-		return false, "process-unobserved:" + handle
-	}
-	if !proven {
-		return false, "process-live:" + handle
-	}
-	return true, ""
 }
 
 // appendFindings concatenates finding slices into a fresh slice, so a caller can
