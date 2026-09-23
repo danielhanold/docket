@@ -1540,3 +1540,51 @@ func TestTerminalRepairSupersededThreadsReplacementWorktree(t *testing.T) {
 		}
 	})
 }
+
+// TestCancelRemovedWorktreeEpochReachesSlotByStoredIdentity (change 0446 spec AC2,
+// Task 10): cancelling an ACTIVE epoch whose feature worktree directory was removed
+// — with its slot still executing (the stop proves teardown) or already released
+// between drives — reaches the slot through its stored identity rather than
+// re-canonicalizing the missing path: the cancel completes, the slot is released
+// and detached from the epoch, a repeat is the idempotent no-op, and once the path
+// is recreated a replacement epoch's reservation admits over the same slot.
+func TestCancelRemovedWorktreeEpochReachesSlotByStoredIdentity(t *testing.T) {
+	for _, releasedFirst := range []bool{false, true} {
+		t.Run(map[bool]string{false: "executing-slot", true: "released-slot"}[releasedFirst], func(t *testing.T) {
+			fx := newCancelFixture(t, true)
+			if releasedFirst {
+				releaseFixtureSlot(t, fx)
+			}
+			if err := os.RemoveAll(fx.worktree); err != nil {
+				t.Fatalf("remove worktree: %v", err)
+			}
+			seams := cancelSeams{
+				store:    fx.store,
+				stopper:  &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}},
+				launches: okLaunchReconciler(),
+			}
+			res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+			if res.Disposition != CancelDispositionCancelled {
+				t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+			}
+			if hasFinding(res.Findings, "slot-unreadable") {
+				t.Fatalf("findings = %v: a removed worktree's slot is addressable by stored identity", res.Findings)
+			}
+			if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
+				t.Fatalf("slot state = %q, want released", st)
+			}
+			if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+				t.Fatalf("slot epoch = %q, want retired", epo)
+			}
+			if again := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop"); again.Disposition != CancelDispositionAlreadyCancelled {
+				t.Fatalf("repeat = %q, want already-cancelled (findings=%v)", again.Disposition, again.Findings)
+			}
+			if err := os.MkdirAll(fx.worktree, 0o755); err != nil {
+				t.Fatalf("recreate worktree: %v", err)
+			}
+			if _, err := fx.store.ReserveWorktreeExecutionForEpoch(fx.common, fx.worktree, "replacement-epoch", nil); err != nil {
+				t.Fatalf("a replacement epoch must admit on the recreated path: %v", err)
+			}
+		})
+	}
+}

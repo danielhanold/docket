@@ -39,6 +39,7 @@ package gatedrive
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -648,5 +649,162 @@ func TestIntegrationSequenceCredentialTheftRejected(t *testing.T) {
 		t.Fatalf("LoadScope B after theft: %v", err)
 	} else if scopeB.Closed {
 		t.Fatalf("a rejected cross-scope takeover must not close scope B")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Change 0446 Task 10 — spec AC2: same-worktree generations over real git and
+// the real process supervisor.
+// ---------------------------------------------------------------------------
+
+// genSettled is a thread-safe scripted EpochSettledFunc: an epoch is settled once
+// the test marks it (its run completed, or its cancellation was confirmed).
+type genSettled struct {
+	mu      sync.Mutex
+	settled map[string]bool
+}
+
+func (g *genSettled) settle(epochID string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.settled[epochID] = true
+}
+
+func (g *genSettled) resolve(epochID string) (bool, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.settled[epochID], nil
+}
+
+// TestIntegrationSameWorktreeGenerations (spec AC2) drives real generations of
+// executions through ONE worktree path over real git and the real process
+// supervisor, proving old records for that path never block the next permitted
+// drive once release or replacement is proven:
+//
+//   - drive → release → re-admit across several successive run epochs: a live
+//     epoch still owns the worktree between drives (a different epoch is fenced),
+//     and once it settles the next epoch admits over its released slot;
+//   - a symlink alias of the worktree reaches the SAME slot and admits;
+//   - the live-incumbent counter-case: a genuinely executing run on the canonical
+//     path refuses a start through the alias, and admits it once the run finishes;
+//   - the worktree is removed while its released slot still names the completed
+//     epoch: retirement reaches the slot through its stored identity (never
+//     re-canonicalization of the missing path), and a recreated worktree at the
+//     same path admits a new epoch;
+//   - a second remove/recreate leaves the settled epoch on the inherited slot, and
+//     the next (epoch-less) start settles it at admission instead of refusing.
+func TestIntegrationSameWorktreeGenerations(t *testing.T) {
+	skipUnlessSupported(t)
+	repo := seedSeqRepo(t)
+	wt := addLinkedWorktree(t, repo, "wt", "feat/gen")
+	store := OpenStore(commonDirOf(t, wt))
+	svc := mustService(t)
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
+	reapSupervisors(t, runRoot)
+	d := realSeqDriver(store, svc)
+	epochs := &genSettled{settled: map[string]bool{}}
+	d.SetEpochSettledResolver(epochs.resolve)
+
+	slotOf := func(path string) admissionRecord {
+		t.Helper()
+		slot, _, err := store.LoadWorktreeExecution(path)
+		if err != nil {
+			t.Fatalf("load slot for %s: %v", path, err)
+		}
+		return slot
+	}
+	passAt := func(path, branch, epoch, marker string) DriveDoc {
+		t.Helper()
+		req := realSeqStart(path, branch, runRoot, "0446", marker, seqPassCmd(marker))
+		req.RunEpochID = epoch
+		doc := driveSeqToTerminal(t, d, req)
+		if doc.Outcome != PASSED {
+			t.Fatalf("%s must PASS, got %s (%s)", marker, doc.Outcome, doc.Cause)
+		}
+		return doc
+	}
+
+	// 1. Several successive epochs on one path.
+	lastGen := 0
+	for i, epoch := range []string{"epoch-g1", "epoch-g2", "epoch-g3"} {
+		passAt(wt, "feat/gen", epoch, fmt.Sprintf("gen-%d", i+1))
+		slot := slotOf(wt)
+		if slot.State != admissionReleased || slot.RunEpochID != epoch {
+			t.Fatalf("after %s: slot %s/%q, want released/%s", epoch, slot.State, slot.RunEpochID, epoch)
+		}
+		if slot.ExecutionGen <= lastGen {
+			t.Fatalf("after %s: execution generation %d did not advance past %d", epoch, slot.ExecutionGen, lastGen)
+		}
+		lastGen = slot.ExecutionGen
+		if i == 0 {
+			// Unsettled: the live epoch owns its worktree between drives.
+			foreign := realSeqStart(wt, "feat/gen", runRoot, "0446", "foreign", seqPassCmd("foreign"))
+			foreign.RunEpochID = "epoch-foreign"
+			if _, err := d.Start(foreign); !isOwnershipKind(err, ErrStaleRunEpoch) {
+				t.Fatalf("an unsettled epoch must fence a different epoch, got %v", err)
+			}
+		}
+		epochs.settle(epoch)
+	}
+
+	// 2. A symlink alias reaches the same slot and admits (epoch-less start over the
+	// settled epoch-g3's released slot).
+	alias := filepath.Join(testsupport.TempDir(t), "wt-alias")
+	if err := os.Symlink(wt, alias); err != nil {
+		t.Fatalf("symlink alias: %v", err)
+	}
+	passAt(alias, "feat/gen", "", "gen-alias")
+	if slot := slotOf(wt); slot.ExecutionGen != lastGen+1 || slot.RunEpochID != "" {
+		t.Fatalf("the alias must reuse the canonical slot: gen %d (want %d) epoch %q", slot.ExecutionGen, lastGen+1, slot.RunEpochID)
+	}
+
+	// 3. Live-incumbent counter-case at the same canonical path.
+	release := filepath.Join(testsupport.TempDir(t), "release-live-run")
+	liveReq := realSeqStart(wt, "feat/gen", runRoot, "0446", "gen-live",
+		[]string{"/bin/sh", "-c", `while [ ! -f "$1" ]; do sleep 0.02; done`, "gen-live", release})
+	liveDoc, err := d.Start(liveReq)
+	if err != nil || liveDoc.Outcome != WAITING {
+		t.Fatalf("live run must start and WAIT: doc=%+v err=%v", liveDoc, err)
+	}
+	blocked := realSeqStart(alias, "feat/gen", runRoot, "0446", "gen-blocked", seqPassCmd("gen-blocked"))
+	if _, err := d.Start(blocked); !isOwnershipKind(err, ErrWorktreeBusy) && !isOwnershipKind(err, ErrUnresolvedExecution) {
+		t.Fatalf("a genuinely live incumbent must still refuse a start through the alias, got %v", err)
+	}
+	if slot := slotOf(wt); slot.State != admissionExecuting {
+		t.Fatalf("the refused start must leave the live incumbent executing, got %s", slot.State)
+	}
+	writeFile(t, filepath.Dir(release), filepath.Base(release), "go\n")
+	if term, _ := advanceUntilTerminal(t, d, liveDoc.DriveID, liveDoc.Generation); term.Outcome != PASSED {
+		t.Fatalf("live run must PASS once released, got %s (%s)", term.Outcome, term.Cause)
+	}
+	passAt(alias, "feat/gen", "", "gen-after-live")
+
+	// 4. Remove the worktree while its released slot names a completed epoch; retire
+	// through the stored identity; recreate the path; a new epoch admits.
+	passAt(wt, "feat/gen", "epoch-g4", "gen-4")
+	g4 := slotOf(wt)
+	git(t, repo, "worktree", "remove", "--force", wt)
+	if _, err := os.Stat(wt); !os.IsNotExist(err) {
+		t.Fatalf("worktree must be removed, stat err = %v", err)
+	}
+	removedSlot := slotOf(wt) // stored-identity addressing, not re-canonicalization
+	if removedSlot.RunEpochID != "epoch-g4" || removedSlot.ReservationToken != g4.ReservationToken {
+		t.Fatalf("the removed worktree's slot must resolve to its stored record, got epoch %q", removedSlot.RunEpochID)
+	}
+	if err := store.RetireWorktreeExecutionEpoch(wt, "epoch-g4", g4.ReservationToken); err != nil {
+		t.Fatalf("retire a removed worktree's epoch through its stored identity: %v", err)
+	}
+	git(t, repo, "worktree", "add", wt, "-b", "feat/gen-r1")
+	passAt(wt, "feat/gen-r1", "epoch-g5", "gen-5")
+
+	// 5. Remove and recreate again WITHOUT retiring: the settled epoch-g5 left on the
+	// inherited released slot is settled at admission, never refused.
+	epochs.settle("epoch-g5")
+	git(t, repo, "worktree", "remove", "--force", wt)
+	git(t, repo, "worktree", "add", wt, "-b", "feat/gen-r2")
+	passAt(wt, "feat/gen-r2", "", "gen-6")
+	if slot := slotOf(wt); slot.RunEpochID != "" || slot.State != admissionReleased {
+		t.Fatalf("final slot = %s/%q, want released and epoch-free", slot.State, slot.RunEpochID)
 	}
 }

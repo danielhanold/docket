@@ -1,9 +1,11 @@
 package gatedrive
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -898,4 +900,407 @@ func TestRecreatedWorktreePathInheritsAndSettles(t *testing.T) {
 	if got.LegacyInventoried {
 		t.Fatal("a readmit over the inherited slot must not re-run the legacy inventory")
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Change 0446 Task 10 — acceptance matrices (spec "Acceptance tests" AC1, AC3,
+// and the quarantine fixture note).
+// ---------------------------------------------------------------------------
+
+// quarantineFixtureID is the registry id the incident record was quarantined
+// under; the fixture is installed under the same id so the frozen bytes are
+// exercised exactly as they sat in the live registry.
+const quarantineFixtureID = "b66ce1405cd813e5519c344360f61bd4"
+
+// installQuarantineFixture installs testdata/quarantine-0368-record.json — a
+// VERBATIM copy of the sanitized record quarantined from the 0368 incident (a
+// schema-4 HALTED stopped-not-initiated drive whose worktree was removed and whose
+// scratch run root is gone) — into store s under its original id, and returns the
+// installed bytes. The fixture is only ever copied into an isolated test store,
+// never into a live registry. Note: the manually edited live CANCELLED epoch state
+// that accompanied the incident is not a test oracle; only this frozen record is.
+func installQuarantineFixture(t *testing.T, s *Store) []byte {
+	t.Helper()
+	buf, err := os.ReadFile(filepath.Join("testdata", "quarantine-0368-record.json"))
+	if err != nil {
+		t.Fatalf("read quarantine fixture: %v", err)
+	}
+	writeRawDriveRecord(t, s, quarantineFixtureID, buf)
+	rec, err := s.Load(quarantineFixtureID)
+	if err != nil {
+		t.Fatalf("the quarantine fixture must load through the executable reader: %v", err)
+	}
+	if rec.LastOutcome != HALTED || rec.LastCause != "stopped-not-initiated" || rec.AdmissionToken == "" {
+		t.Fatalf("fixture drifted: outcome %q cause %q token-present %v", rec.LastOutcome, rec.LastCause, rec.AdmissionToken != "")
+	}
+	return buf
+}
+
+// TestQuarantinedHaltedRecordIsNonblockingForUnrelatedWorktree: the exact record
+// that blocked every new worktree's first gate admission in the 0368 incident is
+// seeded into an isolated store; a fresh, unrelated worktree then admits through
+// every start shape — a scopeless (finalize-style) drive, a scoped (task-style)
+// drive, an epoch-carrying (build-style) drive, and a participating raw
+// reservation — and the epoch launch census of an unrelated epoch is accounted.
+// The frozen record's bytes never change.
+func TestQuarantinedHaltedRecordIsNonblockingForUnrelatedWorktree(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	fixture := installQuarantineFixture(t, s)
+	proc := &fakeProc{} // ClassifyRun answers "invalid": no teardown proof for anything
+	d := scopedTestDriver(s, &fakeClock{now: startEpoch()}, proc, stableGit())
+
+	scopeless := sampleStart()
+	scopeless.Worktree = mkWorktree(t)
+	if doc, err := d.Start(scopeless); err != nil || doc.Outcome != WAITING {
+		t.Fatalf("scopeless start over the quarantined record: doc=%+v err=%v", doc, err)
+	}
+	_, scoped := prepareScopedStartAt(t, s, mkWorktree(t), "0446")
+	if doc, err := d.Start(scoped); err != nil || doc.Outcome != WAITING {
+		t.Fatalf("scoped start over the quarantined record: doc=%+v err=%v", doc, err)
+	}
+	build := sampleStart()
+	build.Worktree = mkWorktree(t)
+	build.RunEpochID = "epoch-fresh"
+	if doc, err := d.Start(build); err != nil || doc.Outcome != WAITING {
+		t.Fatalf("epoch-carrying start over the quarantined record: doc=%+v err=%v", doc, err)
+	}
+	if _, err := s.ReserveRawWorktreeExecution("repo-x", mkWorktree(t), proc); err != nil {
+		t.Fatalf("raw reservation over the quarantined record: %v", err)
+	}
+
+	report, err := d.ObserveEpochLaunches(mkWorktree(t), "epoch-unrelated")
+	if err != nil {
+		t.Fatalf("ObserveEpochLaunches: %v", err)
+	}
+	if !report.Accounted {
+		t.Fatalf("the quarantined record must not leave an unrelated epoch unaccounted, findings=%v", report.Findings)
+	}
+
+	after, err := os.ReadFile(filepath.Join(s.root, quarantineFixtureID, recordFileName))
+	if err != nil {
+		t.Fatalf("re-read fixture: %v", err)
+	}
+	if string(after) != string(fixture) {
+		t.Fatal("admission rewrote the quarantined historical record")
+	}
+}
+
+// TestQuarantinedHaltedRecordStillInspectable: nonblocking is not invisible — the
+// repository-wide cleanup assessment still reports the quarantined record as
+// retained (its run cannot be proven torn down), naming its stored worktree, and a
+// dry run leaves it byte-for-byte untouched.
+func TestQuarantinedHaltedRecordStillInspectable(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	fixture := installQuarantineFixture(t, s)
+	d := scopedTestDriver(s, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+
+	out, err := d.CleanupHistory(HistoryCleanupRequest{DryRun: true})
+	if err != nil {
+		t.Fatalf("CleanupHistory: %v", err)
+	}
+	if len(out.Findings) != 1 || out.Checked != 1 || out.Retained != 1 {
+		t.Fatalf("want exactly the one retained quarantine finding, got %+v", out)
+	}
+	f := out.Findings[0]
+	if f.DriveID != quarantineFixtureID || f.Class != LegacyRetained {
+		t.Fatalf("finding = %+v, want %s retained", f, quarantineFixtureID)
+	}
+	if f.Worktree != "/Users/homer/dev/docket/.worktrees/resume-halted-preallocation-recovery" {
+		t.Fatalf("finding must name the record's stored worktree, got %q", f.Worktree)
+	}
+	after, err := os.ReadFile(filepath.Join(s.root, quarantineFixtureID, recordFileName))
+	if err != nil || string(after) != string(fixture) {
+		t.Fatalf("inspection must not rewrite the record (err=%v)", err)
+	}
+}
+
+// scratchAwareProc is a fakeProc whose ClassifyRun answers from the REAL
+// filesystem: a run dir that still exists reports "live" — the worst case an
+// unrelated historical record can present — and a deleted one "invalid". Every
+// probe is recorded so a test can prove admission never consulted unrelated
+// history at all.
+type scratchAwareProc struct {
+	*fakeProc
+	mu     sync.Mutex
+	probes []string
+}
+
+func (p *scratchAwareProc) ClassifyRun(runDir string, mark bool) (process.RecoveryEntry, error) {
+	p.mu.Lock()
+	p.probes = append(p.probes, runDir)
+	p.mu.Unlock()
+	if _, err := os.Stat(runDir); err == nil {
+		return process.RecoveryEntry{Disposition: "live"}, nil
+	}
+	return process.RecoveryEntry{Disposition: "invalid"}, nil
+}
+
+func (p *scratchAwareProc) probeCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.probes)
+}
+
+// seedMixedHistory seeds several records of every history class in the spec's AC1
+// matrix, none positively bound to a fresh worktree: for each of a live OTHER
+// worktree and a REMOVED one — PASSED, FAILED, HALTED under several causes (run
+// dirs under scratch), HALTED with no run dir, WAITING, a record naming a missing
+// scope, and a record carrying a token no slot holds — plus unsupported-schema and
+// malformed records, both schema-2 historical fixtures, the quarantined incident
+// record, and a stray registry entry. Every drive directory is then renamed to an
+// id drawn from a seeded permutation, so each seed exercises a different registry
+// (sorted id) order. It returns the final drive ids.
+func seedMixedHistory(t *testing.T, s *Store, seed int64, other, removed, scratch string) []string {
+	t.Helper()
+	for _, wt := range []string{other, removed} {
+		seedLegacyDrive(t, s, wt, PASSED, "", filepath.Join(scratch, "passed"))
+		seedLegacyDrive(t, s, wt, FAILED, "", filepath.Join(scratch, "failed"))
+		for _, cause := range []string{"deadline-expired", "stopped-not-initiated", "launch-unresolved", "identity-mismatch", "run-cancelled"} {
+			seedLegacyDrive(t, s, wt, HALTED, cause, filepath.Join(scratch, "halted-"+cause))
+		}
+		seedLegacyDrive(t, s, wt, HALTED, "deadline-expired", "")
+		seedLegacyDrive(t, s, wt, WAITING, "", filepath.Join(scratch, "waiting"))
+		for _, mutate := range []func(*driveRecord){
+			func(r *driveRecord) { r.ScopeID = "0446dddddddddddddddddddddddddd01" },        // missing scope
+			func(r *driveRecord) { r.AdmissionToken = "0446eeeeeeeeeeeeeeeeeeeeeeeeee02" }, // mismatched token
+		} {
+			rec := seedRecord(t)
+			rec.WorktreePath = wt
+			rec.LastOutcome = WAITING
+			rec.RawRunDir = filepath.Join(scratch, "linked")
+			mutate(&rec)
+			if _, _, err := s.NewDrive(rec); err != nil {
+				t.Fatalf("seed linked drive: %v", err)
+			}
+		}
+	}
+	writeRawDriveRecord(t, s, "0446aaaaaaaaaaaaaaaaaaaaaaaaaa99", []byte(`{"generation":"g","record":{"schema_version":99}}`))
+	writeRawDriveRecord(t, s, "0446aaaaaaaaaaaaaaaaaaaaaaaaaa98", []byte("not-json"))
+	copyLegacyFixture(t, s, "halted")
+	copyLegacyFixture(t, s, "waiting")
+	installQuarantineFixture(t, s)
+	if err := os.WriteFile(filepath.Join(s.root, "stray-entry"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{"passed", "failed", "waiting", "linked", "halted-deadline-expired",
+		"halted-stopped-not-initiated", "halted-launch-unresolved", "halted-identity-mismatch", "halted-run-cancelled"} {
+		if err := os.MkdirAll(filepath.Join(scratch, dir), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	entries, err := os.ReadDir(s.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, e := range entries {
+		if e.IsDir() {
+			ids = append(ids, e.Name())
+		}
+	}
+	perm := rand.New(rand.NewSource(seed)).Perm(len(ids))
+	final := make([]string, len(ids))
+	for i, id := range ids {
+		final[i] = fmt.Sprintf("0446%028x", perm[i])
+		if err := os.Rename(filepath.Join(s.root, id), filepath.Join(s.root, final[i])); err != nil {
+			t.Fatalf("reorder %s: %v", id, err)
+		}
+	}
+	return final
+}
+
+// TestFirstAdmissionMixedHistorySweep (spec AC1): many mixed historical records —
+// every class, several of each, under several registry orderings, and both before
+// and after their scratch run dirs are deleted — never veto an unrelated worktree.
+// With scratch present every recorded run even LOOKS live to the process seam, the
+// worst case an unrelated record can present. Every start shape admits (scopeless,
+// scoped, epoch-carrying, participating raw), admission probes no unrelated history,
+// no historical byte changes, and the repository-wide cleanup assessment still
+// reports every record with its class counters partitioning the findings exactly.
+func TestFirstAdmissionMixedHistorySweep(t *testing.T) {
+	for _, seed := range []int64{1, 2, 3} {
+		for _, deleteScratch := range []bool{false, true} {
+			t.Run(fmt.Sprintf("order-%d/scratch-deleted-%v", seed, deleteScratch), func(t *testing.T) {
+				s := OpenStore(testsupport.TempDir(t))
+				other := mkWorktree(t)
+				removed := mkWorktree(t)
+				if err := os.RemoveAll(removed); err != nil {
+					t.Fatal(err)
+				}
+				scratch := testsupport.TempDir(t)
+				ids := seedMixedHistory(t, s, seed, other, removed, scratch)
+				if deleteScratch {
+					if err := os.RemoveAll(scratch); err != nil {
+						t.Fatal(err)
+					}
+				}
+				before := snapshotRegistry(t, s)
+
+				proc := &scratchAwareProc{fakeProc: &fakeProc{}}
+				d := scopedTestDriver(s, &fakeClock{now: startEpoch()}, proc, stableGit())
+				scopeless := sampleStart()
+				scopeless.Worktree = mkWorktree(t)
+				if doc, err := d.Start(scopeless); err != nil || doc.Outcome != WAITING {
+					t.Fatalf("scopeless start: doc=%+v err=%v", doc, err)
+				}
+				_, scoped := prepareScopedStartAt(t, s, mkWorktree(t), "0446")
+				if doc, err := d.Start(scoped); err != nil || doc.Outcome != WAITING {
+					t.Fatalf("scoped start: doc=%+v err=%v", doc, err)
+				}
+				build := sampleStart()
+				build.Worktree = mkWorktree(t)
+				build.RunEpochID = "epoch-fresh"
+				if doc, err := d.Start(build); err != nil || doc.Outcome != WAITING {
+					t.Fatalf("epoch-carrying start: doc=%+v err=%v", doc, err)
+				}
+				if _, err := s.ReserveRawWorktreeExecution("repo-x", mkWorktree(t), proc); err != nil {
+					t.Fatalf("raw reservation: %v", err)
+				}
+				if n := proc.probeCount(); n != 0 {
+					t.Fatalf("admission probed unrelated history %d times: %v", n, proc.probes)
+				}
+
+				after := snapshotRegistry(t, s)
+				for p, b := range before {
+					if string(after[p]) != string(b) {
+						t.Fatalf("historical record %s was rewritten or deleted", p)
+					}
+				}
+
+				out, err := s.cleanupHistory(HistoryCleanupRequest{DryRun: true}, proc)
+				if err != nil {
+					t.Fatalf("cleanupHistory: %v", err)
+				}
+				if sum := out.Recovered + out.Recoverable + out.Retained + out.Nonblocking; sum != len(out.Findings) {
+					t.Fatalf("class counters sum %d != %d findings", sum, len(out.Findings))
+				}
+				seen := map[string]bool{}
+				stray := 0
+				for _, f := range out.Findings {
+					if f.DriveID == "" {
+						stray++
+						continue
+					}
+					seen[f.DriveID] = true
+				}
+				if stray != 1 {
+					t.Fatalf("want exactly one id-less stray finding, got %d", stray)
+				}
+				if out.Checked != len(out.Findings)-stray {
+					t.Fatalf("Checked = %d, want every id-bearing finding (%d)", out.Checked, len(out.Findings)-stray)
+				}
+				for _, id := range ids {
+					if !seen[id] {
+						t.Fatalf("seeded record %s missing from the cleanup assessment", id)
+					}
+				}
+				final := snapshotRegistry(t, s)
+				for p, b := range before {
+					if string(final[p]) != string(b) {
+						t.Fatalf("a dry-run assessment rewrote %s", p)
+					}
+				}
+			})
+		}
+	}
+}
+
+// TestTargetedCorruptionRefusesLocallyCompanionProceeds (spec AC3): corrupting the
+// EXACT drive a current reservation names refuses that worktree — with the
+// incumbent snapshot and the bounded reconciliation locator — and keeps its epoch
+// census unaccounted, while an unrelated corrupt record and a companion worktree in
+// the same store are unaffected. Covered in the two windows where the current
+// reference is the only link: reserved-before-launch (between Admit and
+// StartAdmitted) and a reserved relaunch (replacement reserved, not yet attached).
+func TestTargetedCorruptionRefusesLocallyCompanionProceeds(t *testing.T) {
+	setup := func(t *testing.T) (*Driver, *Store, *fakeProc, StartRequest) {
+		proc := &fakeProc{}
+		d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, proc, stableGit())
+		writeRawDriveRecord(t, store, "0446aaaaaaaaaaaaaaaaaaaaaaaaaa98", []byte("not-json")) // unrelated corruption
+		req := sampleStart()
+		req.Worktree = mkWorktree(t)
+		req.RunEpochID = "e1"
+		return d, store, proc, req
+	}
+	assertLocalRefusal := func(t *testing.T, d *Driver, store *Store, req StartRequest, id, wantState string) {
+		t.Helper()
+		slotBefore := readSlotBytes(t, store, req.Worktree)
+		_, err := d.Admit(req)
+		oe, ok := AsOwnershipError(err)
+		if !ok || oe.Kind != ErrWorktreeBusy {
+			t.Fatalf("a start over a corrupt current incumbent must refuse worktree-busy, got %v", err)
+		}
+		if oe.Incumbent == nil || oe.Incumbent.State != wantState {
+			t.Fatalf("refusal must carry the incumbent snapshot (state %s), got %+v", wantState, oe.Incumbent)
+		}
+		if oe.Reconciliation != findingDriveUnresolved {
+			t.Fatalf("reconciliation locator = %q, want %q", oe.Reconciliation, findingDriveUnresolved)
+		}
+		if string(readSlotBytes(t, store, req.Worktree)) != string(slotBefore) {
+			t.Fatal("a refused start must leave the corrupt incumbent's slot untouched")
+		}
+		report, err := d.ObserveEpochLaunches(req.Worktree, "e1")
+		if err != nil {
+			t.Fatalf("ObserveEpochLaunches: %v", err)
+		}
+		if report.Accounted || !findingFor(report.Findings, "record-unreadable", id) {
+			t.Fatalf("census must stay unaccounted naming record-unreadable:%s, got %+v", id, report)
+		}
+	}
+	assertCompanionProceeds := func(t *testing.T, d *Driver, proc *fakeProc) {
+		t.Helper()
+		launches := proc.launchN
+		companion := sampleStart()
+		companion.Worktree = mkWorktree(t)
+		doc, err := d.Start(companion)
+		if err != nil || doc.Outcome != WAITING {
+			t.Fatalf("the companion worktree must proceed: doc=%+v err=%v", doc, err)
+		}
+		if proc.launchN != launches+1 {
+			t.Fatalf("companion launches = %d, want exactly one", proc.launchN-launches)
+		}
+	}
+
+	t.Run("reserved-before-launch", func(t *testing.T) {
+		d, store, proc, req := setup(t)
+		ticket, err := d.Admit(req)
+		if err != nil {
+			t.Fatalf("Admit: %v", err)
+		}
+		corruptFile(t, filepath.Join(store.root, ticket.id, recordFileName))
+
+		if _, err := d.StartAdmitted(ticket); !isStoreKind(err, ErrCorruptRecord) {
+			t.Fatalf("the delayed launch of a corrupt reserved drive must refuse typed, got %v", err)
+		}
+		if proc.launchN != 0 {
+			t.Fatalf("a corrupt reserved drive must never launch, got %d launches", proc.launchN)
+		}
+		assertLocalRefusal(t, d, store, req, ticket.id, string(admissionReserved))
+		assertCompanionProceeds(t, d, proc)
+	})
+
+	t.Run("reserved-relaunch", func(t *testing.T) {
+		d, store, proc, req := setup(t)
+		doc, err := d.Start(req)
+		if err != nil || doc.Outcome != WAITING {
+			t.Fatalf("Start: doc=%+v err=%v", doc, err)
+		}
+		claim, err := store.reserveRelaunch(doc.DriveID, doc.Generation)
+		if err != nil {
+			t.Fatalf("reserveRelaunch: %v", err)
+		}
+		claim.close()
+		corruptFile(t, filepath.Join(store.root, doc.DriveID, recordFileName))
+
+		launches := proc.launchN
+		if adv, err := d.Advance(doc.DriveID, doc.Generation); err == nil && adv.Outcome != HALTED {
+			t.Fatalf("advancing a corrupt drive must halt or fail, got %+v", adv)
+		}
+		if proc.launchN != launches {
+			t.Fatal("a corrupt drive's reserved relaunch must never launch")
+		}
+		assertLocalRefusal(t, d, store, req, doc.DriveID, string(admissionExecuting))
+		assertCompanionProceeds(t, d, proc)
+	})
 }

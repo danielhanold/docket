@@ -3,6 +3,8 @@ package gatedrive
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1640,5 +1642,91 @@ func TestReconcileSuccessorRaceLeavesSuccessorUntouched(t *testing.T) {
 	requireIncumbentRefusal(t, err, store, req.Worktree, successor, admissionReserved)
 	if fired != 1 {
 		t.Fatalf("apply hook fired %d times; the successor must be re-evaluated, never released on its new token", fired)
+	}
+}
+
+// TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner (change 0446 spec AC7)
+// extends the pairwise one-worktree races above to the full contender set at once:
+// a scoped start, a scopeless start, a scopeless start through a SYMLINK ALIAS of
+// the worktree, and a participating raw reservation all rendezvous past their
+// unlocked pre-checks and contend for the one worktree slot. Exactly one wins
+// (at most one backend launch; the raw winner launches none), every loser is a
+// typed worktree refusal, and the slot names exactly the winner's reservation.
+// Several rounds widen the interleavings; run under -race.
+func TestSameWorktreeRaceAcrossOwnersRawAndAliasOneWinner(t *testing.T) {
+	for round := 0; round < 8; round++ {
+		t.Run(fmt.Sprintf("round-%d", round), func(t *testing.T) {
+			store := OpenStore(testsupport.TempDir(t))
+			wt := mkWorktree(t)
+			alias := filepath.Join(testsupport.TempDir(t), "alias")
+			if err := os.Symlink(wt, alias); err != nil {
+				t.Fatal(err)
+			}
+			_, scoped := prepareScopedStartAt(t, store, wt, "0342")
+			scopeless := sampleStart()
+			scopeless.Worktree = wt
+			scopeless.ChangeID = "0343"
+			viaAlias := sampleStart()
+			viaAlias.Worktree = alias
+			viaAlias.ChangeID = "0344"
+			reqs := []StartRequest{scoped, scopeless, viaAlias}
+
+			proc := &countingProc{}
+			var barrier sync.WaitGroup
+			barrier.Add(len(reqs) + 1)
+			git := &barrierGit{wg: &barrier, head: "HEAD1"}
+
+			errs := make([]error, len(reqs)+1)
+			var rawToken string
+			var wg sync.WaitGroup
+			for i := range reqs {
+				wg.Add(1)
+				go func(i int) {
+					defer wg.Done()
+					clk := &fakeClock{now: startEpoch()}
+					_, errs[i] = scopedTestDriver(store, clk, proc, git).Start(reqs[i])
+				}(i)
+			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				barrier.Done()
+				barrier.Wait()
+				rawToken, errs[len(reqs)] = store.ReserveRawWorktreeExecution("repo-x", wt, proc)
+			}()
+			wg.Wait()
+
+			winners := 0
+			for i, err := range errs {
+				if err == nil {
+					winners++
+					continue
+				}
+				if !isOwnershipKind(err, ErrWorktreeBusy) && !isOwnershipKind(err, ErrUnresolvedExecution) {
+					t.Fatalf("contender %d must lose with a typed worktree refusal, got %v", i, err)
+				}
+			}
+			if winners != 1 {
+				t.Fatalf("exactly one contender may win the worktree, got %d (errs=%v)", winners, errs)
+			}
+			rawWon := errs[len(reqs)] == nil
+			wantLaunches := 1
+			if rawWon {
+				wantLaunches = 0
+			}
+			if got := proc.launches(); got != wantLaunches {
+				t.Fatalf("launches = %d, want %d (raw won: %v)", got, wantLaunches, rawWon)
+			}
+			slot, _, err := store.LoadWorktreeExecution(alias)
+			if err != nil {
+				t.Fatalf("load slot through the alias: %v", err)
+			}
+			if rawWon && (slot.Kind != "raw" || slot.ReservationToken != rawToken) {
+				t.Fatalf("the raw winner's reservation must hold the slot, got kind %q", slot.Kind)
+			}
+			if !rawWon && slot.State != admissionExecuting {
+				t.Fatalf("a driven winner's slot must be executing, got %s", slot.State)
+			}
+		})
 	}
 }
