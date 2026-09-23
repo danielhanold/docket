@@ -1029,10 +1029,16 @@ func TestCLIDoesNotImportProcess(t *testing.T) {
 // --cwd sits inside a registered worktree reserves the slot, and a second launch
 // into the same worktree from a DISTINCT --root is refused with result "blocked",
 // reason "worktree-busy", exit 1, and no run_dir.
+//
+// The first run is genuinely LIVE (a long sleep): since change 0446 the admission
+// boundary settles a proven-finished raw incumbent, so a first run that had already
+// completed would rightly be admitted over and could not prove the busy refusal.
+// The finished-incumbent side is pinned by the app layer's
+// TestGateLaunchSettlesFinishedRawIncumbent.
 func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
 
-	out1, err1, code1 := runCLI(t, "--json", "gate", "launch", "--root", gateTempDir(t), "--cwd", wt, "--", "/bin/echo", "hi")
+	out1, err1, code1 := runCLI(t, "--json", "gate", "launch", "--root", gateTempDir(t), "--cwd", wt, "--", "/bin/sleep", "60")
 	if code1 != 0 || err1 != "" {
 		t.Fatalf("first launch: out=%q err=%q code=%d", out1, err1, code1)
 	}
@@ -1041,13 +1047,19 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 	if runDir == "" {
 		t.Fatalf("first launch produced no run_dir: %v", doc1)
 	}
-	t.Cleanup(func() { runCLI(t, "gate", "stop", runDir, "cleanup") })
+	// The reason is a flag: a positional reason is rejected as invalid input and
+	// would silently leave the live first run (and its supervisor) running.
+	t.Cleanup(func() { runCLI(t, "gate", "stop", runDir, "--reason", "test cleanup") })
 
 	out2, err2, code2 := runCLI(t, "--json", "gate", "launch", "--root", gateTempDir(t), "--cwd", wt, "--", "/bin/echo", "hi")
 	if err2 != "" {
 		t.Fatalf("second launch stderr=%q", err2)
 	}
 	doc2 := decodeOneJSON(t, out2)
+	if rd, _ := doc2["run_dir"].(string); rd != "" {
+		// Never expected; stop it so a wrongly admitted run does not leak.
+		t.Cleanup(func() { runCLI(t, "gate", "stop", rd, "--reason", "test cleanup") })
+	}
 	if doc2["operation"] != "gate.launch" || doc2["result"] != "blocked" {
 		t.Fatalf("second launch doc=%v, want blocked", doc2)
 	}
