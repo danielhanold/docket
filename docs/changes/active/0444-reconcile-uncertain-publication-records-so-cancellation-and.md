@@ -2,7 +2,7 @@
 id: 444
 slug: 'reconcile-uncertain-publication-records-so-cancellation-and'
 title: 'Reconcile uncertain publication records so cancellation and resume can finish'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-23'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/reconcile-uncertain-publication-records-so-cancellation-and'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-23T06:54:11Z'
 ---
 
 ## Artifacts
