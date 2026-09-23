@@ -310,3 +310,220 @@ func TestAdmitFailedReleaseWriteRefuses(t *testing.T) {
 		t.Fatalf("finding = %q, want release-write-failed", oe.Reconciliation)
 	}
 }
+
+// incumbentDriveID resolves the one drive whose admission token is the slot's
+// current token — the same link reconciliation follows.
+func incumbentDriveID(t *testing.T, store *Store, token string) string {
+	t.Helper()
+	id, _, f := store.findIncumbentDrive(token)
+	if f != "" {
+		t.Fatalf("seed incumbent drive not resolvable: %s", f)
+	}
+	return id
+}
+
+// TestReconcileSafeRefusalRows pins every remaining safe-refusal row of the
+// finished-incumbent decision table (proveIncumbentFinished / proveDriveFinished /
+// reconcileFinishedIncumbent): each refuses with its exact bounded finding, leaves
+// the slot's token and state untouched, and sends no stop. Every row is built so
+// that removing its guard would otherwise SETTLE (or change the finding), so each
+// guard is mutation-visible.
+func TestReconcileSafeRefusalRows(t *testing.T) {
+	type seeded struct {
+		token string
+		state admissionState
+		// reconcileEpoch, when set, reconciles directly with this requesting epoch
+		// instead of going through Admit (the epoch fence is only reachable when the
+		// slot is foreign to the caller, which the reserve fences before any
+		// incumbent refusal exists).
+		direct         bool
+		reconcileEpoch string
+	}
+	cases := []struct {
+		name    string
+		seam    *incumbentSeam
+		seed    func(t *testing.T, d *Driver, store *Store, seam *incumbentSeam, req StartRequest) seeded
+		finding string
+	}{
+		{
+			// A HALTED drive with full teardown proof would settle — but its launch
+			// claim is held by another claimant, who may be relaunching it.
+			name:    "claim busy",
+			seam:    &incumbentSeam{classify: classifyAs("terminal")},
+			finding: "incumbent-claim-busy",
+			seed: func(t *testing.T, d *Driver, store *Store, _ *incumbentSeam, req StartRequest) seeded {
+				token := haltedDriveIncumbent(t, d, store, req)
+				claim, busy, err := store.tryRelaunchClaim(incumbentDriveID(t, store, token))
+				if err != nil || busy {
+					t.Fatalf("hold seed claim: busy=%v err=%v", busy, err)
+				}
+				t.Cleanup(claim.close)
+				return seeded{token: token, state: admissionExecuting}
+			},
+		},
+		{
+			// A PASSED drive would settle on its own record — but an unattached
+			// relaunch reservation may still launch or be live.
+			name:    "relaunch pending",
+			seam:    &incumbentSeam{classify: classifyAs("terminal")},
+			finding: "incumbent-relaunch-pending",
+			seed: func(t *testing.T, d *Driver, store *Store, seam *incumbentSeam, req StartRequest) seeded {
+				token := finishedDriveIncumbent(t, d, store, seam, req)
+				if err := store.ownerCAS(incumbentDriveID(t, store, token), func(r *driveRecord) error {
+					r.RelaunchReserved = true
+					return nil
+				}); err != nil {
+					t.Fatalf("reserve relaunch: %v", err)
+				}
+				return seeded{token: token, state: admissionExecuting}
+			},
+		},
+		{
+			// A raw reservation with no confirmed run dir: its launcher may sit
+			// between reserve and launch, even though the proof seam would call any
+			// run terminal.
+			name:    "raw reservation pending",
+			seam:    &incumbentSeam{classify: classifyAs("terminal")},
+			finding: "incumbent-reservation-pending",
+			seed: func(t *testing.T, _ *Driver, store *Store, _ *incumbentSeam, req StartRequest) seeded {
+				token, err := store.ReserveRawWorktreeExecution("repo-x", req.Worktree, nil)
+				if err != nil {
+					t.Fatalf("raw reserve: %v", err)
+				}
+				return seeded{token: token, state: admissionReserved}
+			},
+		},
+		{
+			// Two readable drives carry the slot's token: the incumbent is not
+			// uniquely identified, so neither is trusted — even though both PASSED.
+			name:    "drive ambiguous",
+			seam:    &incumbentSeam{},
+			finding: "incumbent-drive-ambiguous",
+			seed: func(t *testing.T, d *Driver, store *Store, seam *incumbentSeam, req StartRequest) seeded {
+				other := incumbentStart(t)
+				otherToken := finishedDriveIncumbent(t, d, store, seam, other)
+				otherID := incumbentDriveID(t, store, otherToken)
+				token := finishedDriveIncumbent(t, d, store, seam, req)
+				if err := store.ownerCAS(otherID, func(r *driveRecord) error {
+					r.AdmissionToken = token
+					return nil
+				}); err != nil {
+					t.Fatalf("alias drive token: %v", err)
+				}
+				return seeded{token: token, state: admissionExecuting}
+			},
+		},
+		{
+			// A PASSED drive a DIFFERENT run epoch owns: the requester never touches
+			// it, however provably finished it is.
+			name:    "epoch fenced",
+			seam:    &incumbentSeam{},
+			finding: "incumbent-epoch-fenced",
+			seed: func(t *testing.T, d *Driver, store *Store, seam *incumbentSeam, req StartRequest) seeded {
+				req.RunEpochID = "E-owner"
+				token := finishedDriveIncumbent(t, d, store, seam, req)
+				if got := mustSlot(t, store, req.Worktree).RunEpochID; got != "E-owner" {
+					t.Fatalf("seed slot epoch = %q, want E-owner", got)
+				}
+				return seeded{token: token, state: admissionExecuting, direct: true, reconcileEpoch: "E-other"}
+			},
+		},
+		{
+			// A HALTED drive that never attached a run: its exact admission
+			// reservation resolves unresolved (not never-launched), so there is no
+			// teardown proof.
+			name: "halted never attached, reservation unresolved",
+			seam: &incumbentSeam{
+				classify: classifyAs("terminal"),
+				fakeProc: fakeProc{resolve: func(string, string) (*process.ReservationResolution, error) {
+					return &process.ReservationResolution{Disposition: "unresolved"}, nil
+				}},
+			},
+			finding: "incumbent-halted-unproven",
+			seed: func(t *testing.T, d *Driver, store *Store, _ *incumbentSeam, req StartRequest) seeded {
+				token := haltedNeverAttached(t, d, store, req)
+				return seeded{token: token, state: admissionExecuting}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			seam := tc.seam
+			d, store := newIncumbentDriver(t, seam)
+			req := incumbentStart(t)
+			sd := tc.seed(t, d, store, seam, req)
+			stops := seam.stopN
+
+			if sd.direct {
+				settled, finding, err := store.reconcileFinishedIncumbent(req.Worktree, sd.reconcileEpoch, seam)
+				if settled || err != nil {
+					t.Fatalf("reconcile settled=%v err=%v, want a clean refusal", settled, err)
+				}
+				if finding != tc.finding {
+					t.Fatalf("finding = %q, want %s", finding, tc.finding)
+				}
+				slot := mustSlot(t, store, req.Worktree)
+				if slot.ReservationToken != sd.token || slot.State != sd.state {
+					t.Fatalf("slot changed under a refusal: token match=%v state=%s", slot.ReservationToken == sd.token, slot.State)
+				}
+			} else {
+				ticket, err := d.Admit(req)
+				if ticket != nil {
+					t.Fatalf("an unproven incumbent must not admit")
+				}
+				oe := requireIncumbentRefusal(t, err, store, req.Worktree, sd.token, sd.state)
+				if oe.Reconciliation != tc.finding {
+					t.Fatalf("finding = %q, want %s", oe.Reconciliation, tc.finding)
+				}
+			}
+			if seam.stopN != stops {
+				t.Fatalf("reconciliation sent %d stop signal(s)", seam.stopN-stops)
+			}
+		})
+	}
+}
+
+// haltedNeverAttached seeds a HALTED drive with no recorded run dir (current or
+// prior): the shape of a drive that halted before its launch attached, whose only
+// possible teardown proof is ResolveReservation on its exact admission token.
+func haltedNeverAttached(t *testing.T, d *Driver, store *Store, req StartRequest) string {
+	t.Helper()
+	token := haltedDriveIncumbent(t, d, store, req)
+	if err := store.ownerCAS(incumbentDriveID(t, store, token), func(r *driveRecord) error {
+		r.RawRunDir = ""
+		r.PriorRawRunDir = ""
+		return nil
+	}); err != nil {
+		t.Fatalf("clear run dirs: %v", err)
+	}
+	return token
+}
+
+// TestAdmitSettlesHaltedNeverLaunched: a HALTED drive that never attached a run is
+// settled only on ResolveReservation's never-launched verdict for its EXACT
+// admission token — and that verdict is consulted, not the process classifier.
+func TestAdmitSettlesHaltedNeverLaunched(t *testing.T) {
+	var gotTokens []string
+	seam := &incumbentSeam{fakeProc: fakeProc{resolve: func(_, token string) (*process.ReservationResolution, error) {
+		gotTokens = append(gotTokens, token)
+		return &process.ReservationResolution{Disposition: "never-launched"}, nil
+	}}}
+	d, store := newIncumbentDriver(t, seam)
+	req := incumbentStart(t)
+	token := haltedNeverAttached(t, d, store, req)
+
+	stops, resolves := seam.stopN, seam.resolveN
+	ticket, err := d.Admit(req)
+	if err != nil || ticket == nil {
+		t.Fatalf("Admit over a proven never-launched HALTED incumbent: ticket=%v err=%v", ticket, err)
+	}
+	if seam.resolveN == resolves || gotTokens[len(gotTokens)-1] != token {
+		t.Fatalf("never-launched proof not resolved for the exact incumbent token (calls=%d)", seam.resolveN-resolves)
+	}
+	if seam.classifyN != 0 {
+		t.Fatalf("a never-attached drive has no run to classify, got %d classify call(s)", seam.classifyN)
+	}
+	if seam.stopN != stops {
+		t.Fatalf("admission sent a stop signal to make room")
+	}
+}
