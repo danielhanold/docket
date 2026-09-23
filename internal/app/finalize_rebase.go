@@ -195,6 +195,9 @@ type GateReport struct {
 	Locator      string            `json:"locator,omitempty"`
 	Evidence     string            `json:"evidence,omitempty"`
 	Continuation *GateContinuation `json:"continuation,omitempty"`
+	// TeardownFinding mirrors LocalGateResult.TeardownFinding: set only when the
+	// gate's run root was retained because release/teardown evidence was unsettled.
+	TeardownFinding string `json:"teardown_finding,omitempty"`
 }
 
 // FinalizeRebaseResult is the protocol-v1 document the three rebase operations
@@ -455,6 +458,12 @@ type LocalGateResult struct {
 	// Continuation is populated on a WAITING outcome only: the opaque handle the
 	// caller re-presents to advance the same drive on the next slice.
 	Continuation GateContinuation
+	// TeardownFinding is a bounded, credential-free token set when the gate's
+	// private run root was RETAINED because its release/teardown evidence was not
+	// settled (the drive document carried a ReleaseFinding, or a failed Start left
+	// launch evidence under the root). It never changes Outcome; it tells the human
+	// why a temp dir survived and that the slot may still need reconciliation.
+	TeardownFinding string
 }
 
 // FinalizeGate runs the resolved local suite in the feature workspace, observes
@@ -1680,7 +1689,7 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 		clearGateContinuation(ctx, deps, rc, rec, &out)
 		return out
 	}
-	base.Gate = &GateReport{Compose: gateComposeRan, Outcome: string(gres.Outcome), RunDir: gres.RunDir}
+	base.Gate = &GateReport{Compose: gateComposeRan, Outcome: string(gres.Outcome), RunDir: gres.RunDir, TeardownFinding: gres.TeardownFinding}
 	switch gres.Outcome {
 	case FinalizeGatePassed:
 		base.Gate.Evidence = gres.Evidence
@@ -2048,13 +2057,23 @@ func (g *processFinalizeGate) RunLocalGate(ctx context.Context, req LocalGateReq
 			RunRoot:             runRoot,
 			IdempotentSuiteGate: true,
 		})
-		// A Start command failure never persisted a drive, so the just-minted run
-		// root is orphaned (mapDriveOutcome cannot recover it — no drive document).
-		// Remove it here so a failed Start does not leak the temp dir. A drive that
-		// DID persist owns the root; its removal is at the terminal in mapDriveOutcome.
+		// A Start command failure returns no drive document, so mapDriveOutcome
+		// cannot recover the just-minted run root. A pre-launch refusal left it
+		// empty and it is removed so a failed Start does not leak the temp dir; a
+		// failure AFTER the launch (a lost launch response, a persist/confirm
+		// failure) may have left a run — and the slot unresolved — under it, so that
+		// root is launch evidence a later reconciliation needs and is retained
+		// (change 0446 spec §5). A drive that DID return a document owns the root;
+		// its removal is at the terminal in mapDriveOutcome.
+		retained := false
 		if out.Drive == nil {
-			removeGateRunRoot(runRoot)
+			retained = removeUnlaunchedGateRunRoot(runRoot)
 		}
+		res := g.mapDriveOutcome(ctx, req, out)
+		if retained && res.TeardownFinding == "" {
+			res.TeardownFinding = teardownFindingStartRootRetained
+		}
+		return res, nil
 	}
 	return g.mapDriveOutcome(ctx, req, out), nil
 }
@@ -2130,25 +2149,44 @@ func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGate
 	}
 	// Every remaining outcome is terminal (PASSED/FAILED/HALTED): the drive is done
 	// with its run root, so remove it once the outcome is mapped — for PASSED that
-	// means AFTER evidence is minted from the raw run dir below, which the deferred
-	// removal guarantees (defer runs after the return value is evaluated). doc.RunRoot
+	// means AFTER evidence is minted from the raw run dir (mapTerminalDrive returns
+	// before the removal below runs). doc.RunRoot
 	// is exposed on terminal documents only, so this recovers the root the ORIGINAL
 	// Start minted even when the terminal is reached on a later Advance slice. The one
 	// exception is a PASSED run whose evidence could not be minted: that maps to a
 	// halt and the raw run dir is the human's only diagnostic, so the root is retained
 	// (removal is gated on evidence actually being minted).
+	//
+	// Removal also waits for settled release evidence (change 0446 spec §5): a
+	// document whose slot release/teardown write failed carries a ReleaseFinding
+	// (and the driver withholds RunRoot for an unsettled HALTED slot). Such a root
+	// is retained — it is the evidence reconciliation needs — and the retention is
+	// surfaced as a bounded TeardownFinding; the outcome mapping is unchanged.
 	removeRoot := true
-	defer func() {
-		if removeRoot {
-			removeGateRunRoot(doc.RunRoot)
-		}
-	}()
+	var teardownFinding string
+	if doc.ReleaseFinding != "" {
+		removeRoot = false
+		teardownFinding = doc.ReleaseFinding
+	}
+	res := g.mapTerminalDrive(ctx, req, doc, &removeRoot)
+	if removeRoot {
+		removeGateRunRoot(doc.RunRoot)
+	}
+	res.TeardownFinding = teardownFinding
+	return res
+}
+
+// mapTerminalDrive maps a terminal (PASSED/FAILED/HALTED) driver document onto
+// the finalize gate result. It clears *removeRoot when the raw run dir must be
+// retained as the human's only diagnostic (a PASSED run whose evidence could not
+// be minted).
+func (g *processFinalizeGate) mapTerminalDrive(ctx context.Context, req LocalGateRequest, doc *gatedrive.DriveDoc, removeRoot *bool) LocalGateResult {
 	switch doc.Outcome {
 	case gatedrive.PASSED:
 		evd := EvidenceRecord(ctx, g.planning, g.wdeps, req.RepoDir,
 			EvidenceRecordRequest{ID: req.ID, RunDir: doc.RawRunDir, Head: req.Head})
 		if evd.Result != ResultApplied || evd.Block == "" {
-			removeRoot = false
+			*removeRoot = false
 			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable, RunDir: doc.RawRunDir}
 		}
 		return LocalGateResult{Outcome: FinalizeGatePassed, Evidence: evd.Block, RunDir: doc.RawRunDir}
@@ -2169,6 +2207,25 @@ func removeGateRunRoot(runRoot string) {
 		return
 	}
 	_ = os.RemoveAll(runRoot)
+}
+
+// teardownFindingStartRootRetained is the bounded TeardownFinding a failed Start
+// reports when its run root held launch evidence and was therefore retained.
+const teardownFindingStartRootRetained = "start-failed-run-root-retained"
+
+// removeUnlaunchedGateRunRoot removes the run root a failed Start minted ONLY when
+// nothing was launched under it: a non-recursive remove succeeds on an empty
+// directory and refuses a non-empty one, so a root holding a (possibly live) run
+// dir is never deleted. It reports whether the root was retained. An empty root
+// string, or a root already gone, is nothing to retain.
+func removeUnlaunchedGateRunRoot(runRoot string) (retained bool) {
+	if runRoot == "" {
+		return false
+	}
+	if err := os.Remove(runRoot); err != nil && !os.IsNotExist(err) {
+		return true
+	}
+	return false
 }
 
 // mapDriveHaltCause maps a driver HALTED cause token onto the closed finalize

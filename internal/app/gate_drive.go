@@ -893,6 +893,11 @@ func (r GateDriveResult) HumanText() string {
 		if r.Drive.RawRunDir != "" {
 			lines = append(lines, "raw_run_dir: "+r.Drive.RawRunDir)
 		}
+		// A terminal whose slot release could not be persisted says so, never
+		// silently (change 0446): the bounded token names the failed step.
+		if r.Drive.ReleaseFinding != "" {
+			lines = append(lines, "release_finding: "+r.Drive.ReleaseFinding)
+		}
 	}
 	if r.Reason != "" {
 		lines = append(lines, "reason: "+r.Reason)
