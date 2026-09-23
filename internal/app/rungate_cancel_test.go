@@ -1375,7 +1375,7 @@ func TestRetirementSitesConverge(t *testing.T) {
 			if err != nil {
 				t.Fatalf("LoadEpochRecord: %v", err)
 			}
-			ok, detail := validateResumeQuiescence(seams, fx.repo, ep)
+			ok, detail := validateResumeQuiescence(seams, fx.repo, ep, fx.worktree)
 			if !ok {
 				t.Fatalf("validateResumeQuiescence refused a successor-held slot: %q", detail)
 			}
@@ -1531,12 +1531,128 @@ func TestTerminalRepairSupersededThreadsReplacementWorktree(t *testing.T) {
 			t.Fatalf("slot epoch = %q, want the refused slot untouched", epo)
 		}
 	})
-	t.Run("unresolvable-replacement-refused", func(t *testing.T) {
+	t.Run("no-stored-identity-refused", func(t *testing.T) {
+		// A torn replacement whose gate records carry no resolvable scope worktree has
+		// no stored identity to address: refused with the exact locator, never inferred
+		// safe.
 		fx := newCancelFixture(t, false)
 		replKey := supersedeFixtureEpoch(t, fx, "", false) // replacement epoch never minted
 		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human repair")
 		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "replacement-worktree-unresolved:"+replKey) {
 			t.Fatalf("result = %q %v, want refused replacement-worktree-unresolved:%s", res.Disposition, res.Findings, replKey)
+		}
+	})
+}
+
+// tornResumeFixture reproduces a TORN resume the way armResumeReplacement leaves it:
+// the replacement's outer scope is prepared (binding the feature worktree) and its
+// gate record minted, the confirmed-cancelled predecessor is superseded reserving that
+// key, and then the arm fails before (neverMinted) or after (unbound) MintEpochRecord
+// — so no replacement epoch binds a worktree. It returns the replacement gate key.
+func tornResumeFixture(t *testing.T, fx cancelFixture, neverMinted bool) string {
+	t.Helper()
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = EpochCancelled; return nil }); err != nil {
+		t.Fatalf("force cancelled: %v", err)
+	}
+	grant, err := fx.store.PrepareScope(gatedrive.ScopeRequest{ChangeID: "42", Worktree: fx.worktree})
+	if err != nil {
+		t.Fatalf("PrepareScope(replacement): %v", err)
+	}
+	replKey, err := MintGateRecord(fx.repo, GateRecord{
+		Target:       gateBeforeStoredTarget,
+		AttemptLimit: 1,
+		Retry:        RetryUnused,
+		Disposition:  "gate-armed",
+		ScopeID:      grant.ScopeID,
+		ParentCap:    grant.ParentCapability,
+	})
+	if err != nil {
+		t.Fatalf("MintGateRecord(replacement): %v", err)
+	}
+	if err := SupersedeCancelledEpoch(fx.repo, fx.key, replKey); err != nil {
+		t.Fatalf("SupersedeCancelledEpoch: %v", err)
+	}
+	if !neverMinted {
+		if _, err := MintEpochRecord(fx.repo, replKey, ""); err != nil {
+			t.Fatalf("MintEpochRecord(replacement): %v", err)
+		}
+	}
+	return replKey
+}
+
+// TestTerminalRepairTornResumeConverges (change 0446 spec "Repeated cancellation,
+// completion, and admission after safe reconciliation converge using existing
+// operations"): a torn resume — the predecessor superseded, the replacement epoch never
+// minted or never bound — is not a permanent dead end. A repeat run.cancel against the
+// predecessor addresses the replacement's STORED worktree identity (the scope
+// armResumeReplacement prepared), runs the census with the predecessor's epoch id
+// there, retires a stale released slot, and a further repeat is the idempotent no-op.
+// A genuinely corrupt or cyclic replacement chain still fails closed.
+func TestTerminalRepairTornResumeConverges(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		neverMinted bool
+	}{{"replacement-never-minted", true}, {"replacement-unbound", false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := newCancelFixture(t, true)
+			releaseFixtureSlot(t, fx)
+			tornResumeFixture(t, fx, tc.neverMinted)
+			launches := okLaunchReconciler()
+			seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: launches}
+			res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human repair")
+			if res.Disposition != CancelDispositionCancelled {
+				t.Fatalf("disposition = %q, want cancelled via the stored replacement identity (findings=%v)", res.Disposition, res.Findings)
+			}
+			if len(launches.calls) != 1 || launches.calls[0] != fx.worktree+"|"+fx.epochID {
+				t.Fatalf("census calls = %v, want exactly [%s|%s]", launches.calls, fx.worktree, fx.epochID)
+			}
+			if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+				t.Fatalf("slot epoch = %q, want the predecessor's stale ownership retired", epo)
+			}
+			if again := runCancel(seams, fx.repo, fx.key, fx.epochID, "human repair"); again.Disposition != CancelDispositionAlreadyCancelled {
+				t.Fatalf("repeat = %q, want already-cancelled (findings=%v)", again.Disposition, again.Findings)
+			}
+			if st := loadEpochState(t, fx.repo, fx.key); st != EpochSuperseded {
+				t.Fatalf("epoch state = %q, want superseded (never regressed)", st)
+			}
+		})
+	}
+	t.Run("corrupt-replacement-refused", func(t *testing.T) {
+		fx := newCancelFixture(t, true)
+		releaseFixtureSlot(t, fx)
+		replKey := tornResumeFixture(t, fx, false)
+		dir, err := gateKeyDir(fx.repo, replKey, "test")
+		if err != nil {
+			t.Fatalf("gateKeyDir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, epochRecordFileName), []byte("{not json"), 0o600); err != nil {
+			t.Fatalf("corrupt replacement epoch: %v", err)
+		}
+		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human repair")
+		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "replacement-epoch-unreadable:"+replKey) {
+			t.Fatalf("result = %q %v, want refused replacement-epoch-unreadable:%s", res.Disposition, res.Findings, replKey)
+		}
+		if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != fx.epochID {
+			t.Fatalf("slot epoch = %q, want the refused slot untouched", epo)
+		}
+	})
+	t.Run("cyclic-chain-refused", func(t *testing.T) {
+		fx := newCancelFixture(t, true)
+		releaseFixtureSlot(t, fx)
+		replKey := tornResumeFixture(t, fx, false)
+		if err := epochCAS(fx.repo, replKey, func(r *EpochRecord) error {
+			r.State = EpochSuperseded
+			r.ReplacementReserved = fx.key // loops back to the predecessor
+			return nil
+		}); err != nil {
+			t.Fatalf("loop the chain: %v", err)
+		}
+		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human repair")
+		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "replacement-chain-cycle:"+fx.key) {
+			t.Fatalf("result = %q %v, want refused replacement-chain-cycle:%s", res.Disposition, res.Findings, fx.key)
+		}
+		if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != fx.epochID {
+			t.Fatalf("slot epoch = %q, want the refused slot untouched", epo)
 		}
 	})
 }

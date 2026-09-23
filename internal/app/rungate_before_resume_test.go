@@ -632,6 +632,85 @@ func TestResumeSupersededBranchAccountsScopeLinkedDrives(t *testing.T) {
 	}
 }
 
+// tornResumePrior leaves change 5's cancelled prior epoch superseded by a replacement
+// key whose epoch was never minted (neverMinted) or minted but never bound to a
+// worktree — the state armResumeReplacement leaves when MintEpochRecord or its
+// Worktree CAS fails after the supersede. It returns the prior epoch id and the
+// replacement key.
+func tornResumePrior(t *testing.T, repoDir string, neverMinted bool) (priorKey, priorEpoch, replKey string) {
+	t.Helper()
+	priorKey, priorEpoch = seedPriorEpoch(t, repoDir, EpochCancelled)
+	replKey = mintTestGateKey(t, repoDir)
+	if err := SupersedeCancelledEpoch(repoDir, priorKey, replKey); err != nil {
+		t.Fatalf("SupersedeCancelledEpoch: %v", err)
+	}
+	if !neverMinted {
+		if _, err := MintEpochRecord(repoDir, replKey, ""); err != nil {
+			t.Fatalf("MintEpochRecord(replacement): %v", err)
+		}
+	}
+	return priorKey, priorEpoch, replKey
+}
+
+// TestResumeTornReplacementConverges (change 0446 spec "Repeated cancellation,
+// completion, and admission after safe reconciliation converge using existing
+// operations"): after a torn resume a repeat `run.gate-before --resume` is not a
+// permanent dead end. The superseded branch addresses the request's own feature
+// worktree (what armResumeReplacement binds), runs the census with the predecessor's
+// epoch id there, and observes the single reserved key — repeatedly, minting nothing.
+// A corrupt replacement epoch still refuses, naming the unreadable record.
+func TestResumeTornReplacementConverges(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		neverMinted bool
+	}{{"replacement-never-minted", true}, {"replacement-unbound", false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir := newWorkingRepo(t, nil).invocation
+			_, priorEpoch, replKey := tornResumePrior(t, repoDir, tc.neverMinted)
+			epochsBefore := countEpochRecords(t, repoDir)
+			for i := 0; i < 2; i++ {
+				launches := okLaunchReconciler()
+				deps, wdeps := resumeEpochDeps(t)
+				sp := &fakeScopePrep{grant: sampleScopeGrant()}
+				d := sp.deps()
+				d.CancelSeams = func(string) cancelSeams { return cancelSeams{launches: launches} }
+				res := RunGateBefore(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
+				if res.Armed || res.Reason != ReasonGateResumeReplacementReserved || res.Key != replKey {
+					t.Fatalf("arm %d = armed %v reason %q key %q (%q), want the reserved key %q observed", i, res.Armed, res.Reason, res.Key, res.Message, replKey)
+				}
+				if len(launches.calls) != 1 || launches.calls[0] != "/tmp/wt/epsilon|"+priorEpoch {
+					t.Fatalf("census calls = %v, want exactly [/tmp/wt/epsilon|%s] (request worktree, predecessor epoch)", launches.calls, priorEpoch)
+				}
+				if sp.calls != 0 {
+					t.Fatalf("an observing arm must prepare no scope, got %d", sp.calls)
+				}
+			}
+			if got := countEpochRecords(t, repoDir); got != epochsBefore {
+				t.Fatalf("observing arms minted epochs: had %d, now %d", epochsBefore, got)
+			}
+		})
+	}
+	t.Run("corrupt-replacement-refused", func(t *testing.T) {
+		repoDir := newWorkingRepo(t, nil).invocation
+		_, _, replKey := tornResumePrior(t, repoDir, false)
+		dir, err := gateKeyDir(repoDir, replKey, "test")
+		if err != nil {
+			t.Fatalf("gateKeyDir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, epochRecordFileName), []byte("{not json"), 0o600); err != nil {
+			t.Fatalf("corrupt replacement epoch: %v", err)
+		}
+		deps, wdeps := resumeEpochDeps(t)
+		sp := &fakeScopePrep{grant: sampleScopeGrant()}
+		d := sp.deps()
+		d.CancelSeams = func(string) cancelSeams { return cancelSeams{launches: okLaunchReconciler()} }
+		res := RunGateBefore(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
+		if res.Armed || res.Reason != ReasonGateResumeCancellationPending || !strings.Contains(res.Message, "replacement-epoch-unreadable:"+replKey) {
+			t.Fatalf("result = armed %v reason %q message %q, want cancellation-pending naming replacement-epoch-unreadable:%s", res.Armed, res.Reason, res.Message, replKey)
+		}
+	})
+}
+
 // TestResumeSupersededChecksReplacementSlot (change 0446 spec §4): the superseded
 // branch's slot check uses the replacement's worktree slot to confirm the
 // predecessor's epoch no longer holds it — an unreleased predecessor-owned slot

@@ -341,9 +341,11 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 // the shared successor outcome, returned as the detail of an ok result. Incomplete
 // or unreadable proof returns ok=false with a bounded, credential-free detail for the
 // gate-unarmed message; it creates no replacement and yields no dispatch
-// authorization.
-func validateResumeQuiescence(seams cancelSeams, repoDir string, ep EpochRecord) (ok bool, detail string) {
-	slotEp, quiescent, findings := verifyTerminalEpochQuiescence(seams, repoDir, ep)
+// authorization. worktree is the resume request's verified feature worktree — the one
+// armResumeReplacement binds — which resolves a torn replacement chain (a replacement
+// epoch never minted or never bound) instead of dead-ending every repeat resume.
+func validateResumeQuiescence(seams cancelSeams, repoDir string, ep EpochRecord, worktree string) (ok bool, detail string) {
+	slotEp, quiescent, findings := verifyTerminalEpochQuiescence(seams, repoDir, ep, worktree)
 	if !quiescent {
 		return false, strings.Join(findings, "; ")
 	}
@@ -485,10 +487,16 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 					return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
 						"change "+scopeChangeID+" was superseded without a recorded replacement")
 				}
-				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp); !qok {
+				// A torn replacement (never minted or never bound) resolves through the
+				// request's own verified worktree, so a repeat arm converges on the
+				// reservation instead of dead-ending (resolveTerminalEpochSlot).
+				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp, worktree); !qok {
 					return gateUnarmedMsg(ReasonGateResumeCancellationPending,
 						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
-							"); the reserved replacement cannot be re-authorized until it is resolved")
+							"); the reserved replacement cannot be re-authorized until it is resolved — "+
+							"settle it with 'docket run cancel --key "+oldKey+" --epoch "+oldEp.EpochID+
+							" --reason <why>', then re-run this resume (a record named unreadable or "+
+							"cyclic is never inferred safe and must be readable again first)")
 				}
 				return gateResumeObserve(oldEp.ReplacementReserved)
 			case EpochCancelled:
@@ -497,7 +505,7 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 				// atomically supersede and reserve exactly one replacement dispatch (one
 				// winner under a concurrent-resume race). Unresolved evidence refuses on the
 				// existing gate-unarmed channel rather than reserving over an unquiesced run.
-				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp); !qok {
+				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp, worktree); !qok {
 					return gateUnarmedMsg(ReasonGateResumeCancellationPending,
 						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
 							"); resume cannot reserve a replacement — resolve it with 'docket run cancel'")
