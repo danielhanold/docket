@@ -193,6 +193,16 @@ const (
 	// ErrEpochAmbiguous: more than one non-superseded epoch matches one change id, so
 	// the run a resume targets cannot be resolved to a single epoch. Fail closed.
 	ErrEpochAmbiguous EpochErrorKind = "epoch-ambiguous"
+	// ErrEpochOwnerAmbiguous: two or more ACTIVE (or completing) epochs are bound to
+	// one canonical worktree, so ambient owner lookup (findEpochByWorktree) cannot name
+	// a single current owner. It is a contradiction, never resolved by directory order
+	// or timestamp: the path fence refuses locally (change 0446 spec §5).
+	ErrEpochOwnerAmbiguous EpochErrorKind = "epoch-owner-ambiguous"
+	// ErrEpochOwnerUnresolved: the worktree's execution slot names a RunEpochID that no
+	// readable epoch record carries, so the worktree's current owner is unresolved. The
+	// path fence refuses locally with that locator rather than admitting unfenced
+	// (change 0446 spec §1).
+	ErrEpochOwnerUnresolved EpochErrorKind = "epoch-owner-unresolved"
 	// ErrEpochIO: an underlying filesystem, lock, or randomness operation failed.
 	ErrEpochIO EpochErrorKind = "epoch-io"
 	// ErrEpochParticipantUnknown: a terminal-observation record named a native

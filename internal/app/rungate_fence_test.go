@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
@@ -380,6 +381,43 @@ func TestFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	}
 }
 
+// seedPendingEpochMutation journals one admitted-not-completed workflow mutation on
+// the epoch at key: a genuinely owned in-flight effect, which keeps the successful-run
+// closeout (change 0441) fail-closed with mutation-pending. The two verdict recovery
+// tests below use it to hold their epoch at completing so a later explicit
+// cancellation is meaningful. They formerly relied on the ABSENT feature directory
+// making the slot unreadable; change 0446 (spec §2) addresses a slot through its
+// stored identity, so a never-reserved slot now reads as truly absent (safely
+// detached) and the closeout would legitimately complete — an absent directory is not
+// an obligation, an owned pending mutation is.
+func seedPendingEpochMutation(t *testing.T, repo, key string) {
+	t.Helper()
+	if err := epochCAS(repo, key, func(r *EpochRecord) error {
+		r.AdmittedMutations = append(r.AdmittedMutations, AdmittedMutation{
+			OpKey:  OperationPRPublish,
+			Status: mutationStatusAdmitted,
+		})
+		return nil
+	}); err != nil {
+		t.Fatalf("journal a pending mutation: %v", err)
+	}
+}
+
+// reconcilePendingEpochMutations marks every journaled mutation on the epoch at key
+// completed — the in-flight effect resolved — so an explicit cancellation can account
+// it and reach cancelled.
+func reconcilePendingEpochMutations(t *testing.T, repo, key string) {
+	t.Helper()
+	if err := epochCAS(repo, key, func(r *EpochRecord) error {
+		for i := range r.AdmittedMutations {
+			r.AdmittedMutations[i].Status = mutationStatusCompleted
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("reconcile pending mutations: %v", err)
+	}
+}
+
 // TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs is the change-0427
 // regression for the unconfirmed-reservation recovery leg: a fresh epoch whose
 // Worktree is empty (as gate-before mints it — neither claim confirmation nor
@@ -437,14 +475,14 @@ func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	if _, serr := os.Stat(want); serr == nil {
 		t.Fatalf("precondition: feature dir %q must not exist yet (binding precedes workspace.prepare)", want)
 	}
+	seedPendingEpochMutation(t, repo, key)
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
 	// The verdict recovery binds the epoch worktree, then drives the successful-run
-	// ownership closeout (change 0441). Here that closeout fails CLOSED: the recovered
-	// epoch's feature worktree is not prepared yet (its directory is asserted absent
-	// above), so the worktree slot cannot be accounted (slot-unreadable) — the epoch is
-	// left durably completing while the WORKTREE BINDING this test guards is already
-	// persisted. The recovery (ownership resolution + worktree binding) still succeeded.
+	// ownership closeout (change 0441). Here that closeout fails CLOSED on the owned
+	// in-flight mutation seeded above (mutation-pending) — the epoch is left durably
+	// completing while the WORKTREE BINDING this test guards is already persisted. The
+	// recovery (ownership resolution + worktree binding) still succeeded.
 	if got, wantLine := res.HumanText(), "gate-stop "+key+" gate-unavailable completion-unaccounted"; got != wantLine {
 		t.Fatalf("HumanText = %q, want %q (recovery binding must still land)", got, wantLine)
 	}
@@ -472,6 +510,7 @@ func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
 	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
+	reconcilePendingEpochMutations(t, repo, key)
 	cres := runCancel(seams, repo, key, ep.EpochID, "0427 regression stop")
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
@@ -528,12 +567,13 @@ func TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	if _, serr := os.Stat(want); serr == nil {
 		t.Fatalf("precondition: feature dir %q must not exist yet", want)
 	}
+	seedPendingEpochMutation(t, repo, key)
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
 	// Adoption binds the epoch worktree, then the successful-run closeout (change 0441)
-	// fails CLOSED: the adopted change's feature worktree is not prepared yet (asserted
-	// absent above), so the slot cannot be accounted (slot-unreadable) and the epoch is
-	// left completing while the ADOPTION binding this test guards is already persisted.
+	// fails CLOSED on the owned in-flight mutation seeded above (mutation-pending), and
+	// the epoch is left completing while the ADOPTION binding this test guards is
+	// already persisted.
 	if got, wantLine := res.HumanText(), "gate-stop "+key+" gate-unavailable completion-unaccounted"; got != wantLine {
 		t.Fatalf("HumanText = %q, want %q (adoption binding must still land)", got, wantLine)
 	}
@@ -560,6 +600,7 @@ func TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	// An explicit cancellation wins even from the completing epoch the blocked closeout
 	// left (change 0441); the fence must then locate the recovered epoch by its bound
 	// worktree and refuse the mutation run-cancelled.
+	reconcilePendingEpochMutations(t, repo, key)
 	cres := runCancel(seams, repo, key, ep.EpochID, "0427 regression stop")
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
@@ -628,4 +669,314 @@ func TestVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(t *testing.T) {
 			t.Fatalf("binding present=%v err=%v, want NO reservation written (resolution precedes ReserveGateClaim)", ok, err)
 		}
 	})
+}
+
+// --- change 0446 Task 7: deterministic worktree owner selection and the
+// slot-named-epoch rule (spec §§1, 5; AC3, AC6). ---
+
+// seedNamedEpoch writes an epoch record for state bound to worktree under a gate-key
+// directory whose NAME the test chooses, so the directory order os.ReadDir yields is
+// controlled (a first-match selector would pick the lexically first key). It writes
+// the record through the store's own atomic writer and needs no gate record.
+func seedNamedEpoch(t *testing.T, repo, key, worktree string, state epochState) EpochRecord {
+	t.Helper()
+	common, err := gateGitCommonDir(repo)
+	if err != nil {
+		t.Fatalf("gateGitCommonDir: %v", err)
+	}
+	dir := filepath.Join(common, "docket", "rungate", key)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir gate-key dir: %v", err)
+	}
+	id, err := epochToken()
+	if err != nil {
+		t.Fatalf("epochToken: %v", err)
+	}
+	gen, err := epochToken()
+	if err != nil {
+		t.Fatalf("epochToken: %v", err)
+	}
+	rec := EpochRecord{
+		SchemaVersion: epochSchemaVersion,
+		GateKey:       key,
+		ChangeID:      "7",
+		State:         state,
+		EpochID:       id,
+		Worktree:      worktree,
+	}
+	if err := writeEpochAtomic(dir, storedEpoch{Generation: gen, Record: rec}); err != nil {
+		t.Fatalf("writeEpochAtomic: %v", err)
+	}
+	return rec
+}
+
+// epochRecordPath is the epoch.json path for key under repo's rungate root.
+func epochRecordPath(t *testing.T, repo, key string) string {
+	t.Helper()
+	common, err := gateGitCommonDir(repo)
+	if err != nil {
+		t.Fatalf("gateGitCommonDir: %v", err)
+	}
+	return filepath.Join(common, "docket", "rungate", key, epochRecordFileName)
+}
+
+func mustCanon(t *testing.T, path string) string {
+	t.Helper()
+	c, err := canonicalWorktree(path)
+	if err != nil {
+		t.Fatalf("canonicalWorktree(%q): %v", path, err)
+	}
+	return c
+}
+
+// TestOwnerSelectionActiveBeatsCancelledRegardlessOfOrder: a cancelled (and a
+// cancelling) never-superseded epoch bound to the same path as a fresh ACTIVE run is
+// not the ambient owner, whichever sorts first. The fence admits the active run's
+// mutation and journals it on the ACTIVE epoch. Before the fix, first-match selection
+// returned the cancelled record in the "fenced-first" ordering and refused the live
+// run with run-cancelled.
+func TestOwnerSelectionActiveBeatsCancelledRegardlessOfOrder(t *testing.T) {
+	for _, tc := range []struct {
+		name                  string
+		cancelled, cancelling string
+		active                string
+	}{
+		{name: "fenced records sort first", cancelled: "aaaa-cancelled", cancelling: "aaab-cancelling", active: "zzzz-active"},
+		{name: "active sorts first", cancelled: "yyyy-cancelled", cancelling: "zzzz-cancelling", active: "aaaa-active"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := newGateRepo(t)
+			seedNamedEpoch(t, repo, tc.cancelled, repo, EpochCancelled)
+			seedNamedEpoch(t, repo, tc.cancelling, repo, EpochCancelling)
+			seedNamedEpoch(t, repo, tc.active, repo, EpochActive)
+
+			key, found, err := findEpochByWorktree(repo, mustCanon(t, repo))
+			if err != nil || !found || key != tc.active {
+				t.Fatalf("findEpochByWorktree = (%q, %v, %v), want the active owner %q", key, found, err, tc.active)
+			}
+			done, err := admitWorkflowMutation(repo, OperationPRPublish)
+			if err != nil {
+				t.Fatalf("the active run's mutation was refused: %v", err)
+			}
+			done(mutationStatusCompleted)
+			ep, _, lerr := LoadEpochRecord(repo, tc.active)
+			if lerr != nil {
+				t.Fatalf("LoadEpochRecord(active): %v", lerr)
+			}
+			if len(ep.AdmittedMutations) != 1 || ep.AdmittedMutations[0].Status != mutationStatusCompleted {
+				t.Fatalf("active epoch journal = %+v, want exactly the one completed mutation", ep.AdmittedMutations)
+			}
+		})
+	}
+}
+
+// TestOwnerSelectionSoleCancelledStillFences: with no active owner, a cancelled or
+// cancelling non-superseded epoch bound to the path is still returned, so the fence
+// keeps refusing run-cancelled (dropping every terminal epoch from the lookup is not
+// a substitute). Several fenced records resolve deterministically to the lexically
+// first key.
+func TestOwnerSelectionSoleCancelledStillFences(t *testing.T) {
+	for _, state := range []epochState{EpochCancelled, EpochCancelling} {
+		t.Run(string(state), func(t *testing.T) {
+			repo := newGateRepo(t)
+			seedNamedEpoch(t, repo, "mmmm-fenced", repo, state)
+			key, found, err := findEpochByWorktree(repo, mustCanon(t, repo))
+			if err != nil || !found || key != "mmmm-fenced" {
+				t.Fatalf("findEpochByWorktree = (%q, %v, %v), want the sole fenced epoch", key, found, err)
+			}
+			_, aerr := admitWorkflowMutation(repo, OperationWorkspacePublish)
+			if fe, ok := AsMutationFenceError(aerr); !ok || fe.Reason != "run-cancelled" {
+				t.Fatalf("admit = %v, want run-cancelled from the sole %s owner", aerr, state)
+			}
+		})
+	}
+
+	t.Run("several fenced resolve to the first key", func(t *testing.T) {
+		repo := newGateRepo(t)
+		seedNamedEpoch(t, repo, "zzzz-cancelled", repo, EpochCancelled)
+		seedNamedEpoch(t, repo, "bbbb-cancelling", repo, EpochCancelling)
+		key, found, err := findEpochByWorktree(repo, mustCanon(t, repo))
+		if err != nil || !found || key != "bbbb-cancelling" {
+			t.Fatalf("findEpochByWorktree = (%q, %v, %v), want bbbb-cancelling", key, found, err)
+		}
+	})
+}
+
+// TestOwnerSelectionTwoActiveOwnersAmbiguous: two active (or active + completing)
+// epochs bound to one canonical path are a contradiction — a typed
+// ErrEpochOwnerAmbiguous naming the worktree, and the mutation is refused, never
+// silently admitted against one of them.
+func TestOwnerSelectionTwoActiveOwnersAmbiguous(t *testing.T) {
+	for _, second := range []epochState{EpochActive, EpochCompleting} {
+		t.Run(string(second), func(t *testing.T) {
+			repo := newGateRepo(t)
+			canon := mustCanon(t, repo)
+			seedNamedEpoch(t, repo, "aaaa-owner", repo, EpochActive)
+			seedNamedEpoch(t, repo, "bbbb-owner", repo, second)
+			seedNamedEpoch(t, repo, "cccc-cancelled", repo, EpochCancelled)
+
+			_, found, err := findEpochByWorktree(repo, canon)
+			if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochOwnerAmbiguous || found {
+				t.Fatalf("findEpochByWorktree = (found %v, %v), want ErrEpochOwnerAmbiguous", found, err)
+			}
+			if !strings.Contains(err.Error(), canon) {
+				t.Fatalf("ambiguity error %q must name the worktree %q", err, canon)
+			}
+			_, aerr := admitWorkflowMutation(repo, OperationPRPublish)
+			if ee, ok := AsEpochError(aerr); !ok || ee.Kind != ErrEpochOwnerAmbiguous {
+				t.Fatalf("admit = %v, want an ErrEpochOwnerAmbiguous refusal", aerr)
+			}
+			if reason, _ := fenceRefusalReasonMessage(aerr, "change"); reason != string(ErrEpochOwnerAmbiguous) {
+				t.Fatalf("refusal reason = %q, want %q (never relabelled run-cancelled)", reason, ErrEpochOwnerAmbiguous)
+			}
+			for _, k := range []string{"aaaa-owner", "bbbb-owner"} {
+				if ep, _, lerr := LoadEpochRecord(repo, k); lerr != nil || len(ep.AdmittedMutations) != 0 {
+					t.Fatalf("epoch %s journal = %+v (err %v), want nothing admitted", k, ep.AdmittedMutations, lerr)
+				}
+			}
+		})
+	}
+}
+
+// TestOwnerSelectionCompletedNeverOwns: a completed epoch is never the ambient
+// owner — alone it leaves the path unfenced, and beside a cancelled epoch the
+// cancelled one (not the completed one) is returned.
+func TestOwnerSelectionCompletedNeverOwns(t *testing.T) {
+	repo := newGateRepo(t)
+	canon := mustCanon(t, repo)
+	seedNamedEpoch(t, repo, "aaaa-completed", repo, EpochCompleted)
+	if key, found, err := findEpochByWorktree(repo, canon); err != nil || found {
+		t.Fatalf("findEpochByWorktree = (%q, %v, %v), want no owner for a completed epoch", key, found, err)
+	}
+	if _, err := admitWorkflowMutation(repo, OperationPRPublish); err != nil {
+		t.Fatalf("completed epoch fenced a mutation: %v", err)
+	}
+	seedNamedEpoch(t, repo, "zzzz-cancelled", repo, EpochCancelled)
+	if key, found, err := findEpochByWorktree(repo, canon); err != nil || !found || key != "zzzz-cancelled" {
+		t.Fatalf("findEpochByWorktree = (%q, %v, %v), want the cancelled epoch, never the completed one", key, found, err)
+	}
+}
+
+// TestSlotNamedEpochUnreadableRefusesLocally (AC3): the worktree's execution slot
+// names run epoch E. When no readable epoch record carries E — the record is corrupt,
+// I/O-unreadable, or gone — the path fence refuses locally with E and the worktree in
+// the error instead of admitting unfenced. The same damage to an epoch record NO slot
+// names stays diagnostic, and a companion unrelated worktree keeps admitting.
+func TestSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
+	damage := map[string]func(t *testing.T, path string){
+		"corrupt": func(t *testing.T, path string) {
+			if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
+				t.Fatalf("corrupt epoch record: %v", err)
+			}
+		},
+		"io-unreadable": func(t *testing.T, path string) {
+			if err := os.Chmod(path, 0o000); err != nil {
+				t.Fatalf("chmod 000 epoch record: %v", err)
+			}
+			t.Cleanup(func() { _ = os.Chmod(path, 0o600) })
+			if f, err := os.Open(path); err == nil {
+				f.Close()
+				t.Skip("process can read a mode-000 file (running as root); the I/O case is unobservable")
+			}
+		},
+		"absent": func(t *testing.T, path string) {
+			if err := os.Remove(path); err != nil {
+				t.Fatalf("remove epoch record: %v", err)
+			}
+		},
+	}
+	for name, apply := range damage {
+		t.Run(name, func(t *testing.T) {
+			fx := newCancelFixture(t, true) // active epoch E bound to fx.worktree; the slot names E
+			canon := mustCanon(t, fx.worktree)
+
+			// Control: while E is readable it is the owner and the mutation is admitted.
+			done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish)
+			if err != nil {
+				t.Fatalf("control admit on a readable active owner: %v", err)
+			}
+			done(mutationStatusCompleted)
+
+			// An UNREFERENCED epoch bound to another worktree (no slot names it),
+			// damaged the same way, and a companion worktree with no owner at all.
+			unref := filepath.Join(fx.repo, "unreferenced-wt")
+			companion := filepath.Join(fx.repo, "companion-wt")
+			for _, d := range []string{unref, companion} {
+				if err := os.MkdirAll(d, 0o755); err != nil {
+					t.Fatalf("mkdir %s: %v", d, err)
+				}
+			}
+			seedNamedEpoch(t, fx.repo, "unreferenced-epoch", unref, EpochActive)
+
+			apply(t, epochRecordPath(t, fx.repo, fx.key))
+			apply(t, epochRecordPath(t, fx.repo, "unreferenced-epoch"))
+
+			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish)
+			ee, ok := AsEpochError(aerr)
+			if !ok || ee.Kind != ErrEpochOwnerUnresolved {
+				t.Fatalf("admit on a slot-named %s epoch = %v, want ErrEpochOwnerUnresolved (fail closed, never unfenced)", name, aerr)
+			}
+			if !strings.Contains(aerr.Error(), fx.epochID) || !strings.Contains(aerr.Error(), canon) {
+				t.Fatalf("refusal %q must name epoch %s and worktree %s", aerr, fx.epochID, canon)
+			}
+			if reason, _ := fenceRefusalReasonMessage(aerr, "workspace"); reason != string(ErrEpochOwnerUnresolved) {
+				t.Fatalf("refusal reason = %q, want %q", reason, ErrEpochOwnerUnresolved)
+			}
+
+			for _, wt := range []string{unref, companion} {
+				d, err := admitWorkflowMutation(wt, OperationPRPublish)
+				if err != nil {
+					t.Fatalf("worktree %s refused by damage to a record no slot of it names: %v", wt, err)
+				}
+				d(mutationStatusCompleted)
+			}
+		})
+	}
+}
+
+// TestEpochCarryingFencesUnchangedByOwnerSelection (AC6, separate proof): owner
+// selection answers only "who owns this path now". After a NEW active owner binds the
+// path, the stale epoch's own epoch-carrying fences still refuse it — the launch gate
+// (by id) and the takeover revocation resolver — for a cancelled, superseded, and
+// completed stale epoch alike, while ambient lookup names the new owner.
+func TestEpochCarryingFencesUnchangedByOwnerSelection(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		stale func(t *testing.T, repo, key string)
+		want  *MutationFenceError
+	}{
+		{name: "cancelled", want: ErrRunCancelled, stale: func(t *testing.T, repo, key string) {
+			fenceEpoch(t, repo, key, EpochCancelled)
+		}},
+		{name: "superseded", want: ErrStaleRunEpoch, stale: func(t *testing.T, repo, key string) {
+			fenceEpoch(t, repo, key, EpochCancelled)
+			if err := SupersedeCancelledEpoch(repo, key, "zzzz-new-owner"); err != nil {
+				t.Fatalf("SupersedeCancelledEpoch: %v", err)
+			}
+		}},
+		{name: "completed", want: ErrRunCompleted, stale: func(t *testing.T, repo, key string) {
+			fenceEpoch(t, repo, key, EpochCompleted)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo, common, key, staleID, worktree := epochGateFixture(t)
+			tc.stale(t, repo, key)
+			seedNamedEpoch(t, repo, "zzzz-new-owner", worktree, EpochActive)
+
+			if got, found, err := findEpochByWorktree(repo, mustCanon(t, worktree)); err != nil || !found || got != "zzzz-new-owner" {
+				t.Fatalf("ambient owner = (%q, %v, %v), want the new active owner", got, found, err)
+			}
+			calls := 0
+			lerr := epochLaunchGate(common)(staleID, worktree, func() error { calls++; return nil })
+			if fe, ok := AsMutationFenceError(lerr); !ok || fe != tc.want {
+				t.Fatalf("launch gate for the stale %s epoch = %v, want %v", tc.name, lerr, tc.want)
+			}
+			if calls != 0 {
+				t.Fatalf("the stale epoch's reserve ran %d times; it must never run", calls)
+			}
+			if revoked, err := epochRevokedResolver(common)(staleID); err != nil || !revoked {
+				t.Fatalf("takeover resolver for the stale %s epoch = (%v, %v), want revoked", tc.name, revoked, err)
+			}
+		})
+	}
 }
