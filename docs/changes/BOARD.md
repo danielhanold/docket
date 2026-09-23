@@ -1,13 +1,18 @@
 # Backlog
 
-**446 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 297 done · 🗑️ 119 killed
+**446 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 297 done · 🗑️ 119 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` | [spec](../superpowers/specs/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md) | `fix/reconcile-uncertain-publication-records-so-cancellation-and` | run halted — needs you |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
+
+## 🔴 Blocked (1)
+
+| # | Title | Priority | Type | PR | Reason |
+|---|-------|----------|------|----|--------|
+| [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` |  | Blocked by change 446. Resume can't arm: run.gate-before --resume 444 is refused with cancellation-pending, because resume's quiescence re-check walks the whole drive registry and fails closed on 99 unrelated linkage-unresolved drives. The halted epoch 9c0c78c95d02aff4dff08a36145a29b4 (key implement-next-20260923t065151z-64967-5863) was hand-set to cancelled, but the re-check still recomputes the findings. Once 446 lands, re-arm with run.gate-before implement-next --resume 444 and re-dispatch implement-next with id 444. |
 
 ## 🟣 Groomed (3)
 
