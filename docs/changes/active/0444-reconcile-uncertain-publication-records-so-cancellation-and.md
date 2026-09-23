@@ -13,7 +13,7 @@ related: [313, 375, 435, 437, 441]
 discovered_from: []
 adrs: [118, 124]
 spec: 'docs/superpowers/specs/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-23T06:56:06Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md) |
+| Plan | [2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and.md](https://github.com/danielhanold/docket/blob/fix/reconcile-uncertain-publication-records-so-cancellation-and/docs/superpowers/plans/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and.md) |
 | ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md) |
 <!-- docket:artifacts:end -->
 
