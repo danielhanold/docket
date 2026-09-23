@@ -1,12 +1,12 @@
 # Backlog
 
-**445 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 13 proposed · ⚪ 11 deferred · ✅ 297 done · 🗑️ 119 killed
+**446 changes** — 🟢 2 in progress · 🟣 3 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 297 done · 🗑️ 119 killed
 
 ## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` | [spec](../superpowers/specs/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md) | `fix/reconcile-uncertain-publication-records-so-cancellation-and` |  |
+| [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` | [spec](../superpowers/specs/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md) | `fix/reconcile-uncertain-publication-records-so-cancellation-and` | run halted — needs you |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
 ## 🟣 Groomed (3)
@@ -17,10 +17,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (13)
+## 🟡 Proposed (14)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0446](active/0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | `critical` | `fix` | needs-brainstorm |
 | [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | needs-brainstorm |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-brainstorm |
 | [0433](active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md) | Pilot top-level Codex coordinators with one-level native dispatch | `high` | `refactor` | needs-brainstorm |
@@ -83,6 +84,7 @@ graph TD
   0443
   0444
   0445
+  0446
   0192:::done
   0251:::done
   0370:::done
