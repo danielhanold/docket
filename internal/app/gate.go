@@ -49,6 +49,10 @@ type GateResult struct {
 	StdoutLog string    `json:"stdout_log,omitempty"`
 	StderrLog string    `json:"stderr_log,omitempty"`
 	Reason    string    `json:"reason,omitempty"`
+	// LegacyHistory carries the first-admission legacy inventory summary on an
+	// inventory refusal of a raw launch (change 0446 spec §6), so the raw path
+	// names the matched drive and its worktree instead of a bare refusal.
+	LegacyHistory *gatedrive.LegacyHistorySummary `json:"legacy_history,omitempty"`
 }
 
 // GateRecoverResult is gate.recover's own protocol document. Recovery is a
@@ -168,7 +172,8 @@ func GateLaunch(root, cwd string, argv []string) GateResult {
 		t, aerr := store.ReserveRawWorktreeExecution(repoIdentity, worktreeRoot, svc)
 		if aerr != nil {
 			r, reason := mapAdmissionFailure(aerr)
-			return GateResult{Envelope: NewEnvelope(OperationGateLaunch, r), Reason: reason, Cause: admissionRefusalCause(aerr)}
+			return GateResult{Envelope: NewEnvelope(OperationGateLaunch, r), Reason: reason,
+				Cause: admissionRefusalCause(aerr), LegacyHistory: admissionRefusalLegacy(aerr)}
 		}
 		token = t
 	}
@@ -264,17 +269,37 @@ func rawStaleEpochRefusal(store *gatedrive.Store, worktreeRoot string) (GateResu
 	return GateResult{}, false
 }
 
-// admissionRefusalCause derives the refusal's safe incumbent locator from the
-// snapshot the ownership error itself carries — the exact record the refusal
-// was decided on under the admission lock. It never re-reads the slot: a later
-// changed slot must not be represented as this refusal's cause. A snapshot-free
-// or non-ownership error yields "".
+// admissionRefusalCause derives the refusal's safe locator from the ownership
+// error itself. A first-admission legacy-inventory refusal yields its validated
+// inventory locator (legacyInventoryLocator — the matched drive, never an
+// arbitrary name), so a raw refusal names the historical drive bound to its
+// worktree (change 0446 spec §6). Any other refusal derives the incumbent locator
+// from the snapshot the error carries — the exact record the refusal was decided
+// on under the admission lock; it never re-reads the slot, so a later changed slot
+// cannot be represented as this refusal's cause. A snapshot-free or non-ownership
+// error yields "".
 func admissionRefusalCause(err error) string {
 	oe, ok := gatedrive.AsOwnershipError(err)
 	if !ok {
 		return ""
 	}
+	if _, locator, isInventory := legacyInventoryLocator(oe.Op); isInventory {
+		return locator
+	}
 	return incumbentRefusalLocator(oe.Incumbent)
+}
+
+// admissionRefusalLegacy returns the legacy inventory summary an inventory
+// refusal carries (its findings name each record's worktree), or nil.
+func admissionRefusalLegacy(err error) *gatedrive.LegacyHistorySummary {
+	oe, ok := gatedrive.AsOwnershipError(err)
+	if !ok {
+		return nil
+	}
+	if _, _, isInventory := legacyInventoryLocator(oe.Op); !isInventory {
+		return nil
+	}
+	return oe.Legacy
 }
 
 // mapAdmissionFailure classifies a worktree-admission rejection into a protocol

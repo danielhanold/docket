@@ -7,6 +7,7 @@ import (
 	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -225,5 +226,57 @@ func TestGateLaunchRefusalCauseFromSnapshot(t *testing.T) {
 	}
 	if got := admissionRefusalCause(errors.New("io")); got != "" {
 		t.Fatalf("non-ownership cause = %q, want empty", got)
+	}
+}
+
+// TestGateLaunchLegacyInventoryRefusalNamesMatchedDrive (change 0446 spec §6): a
+// raw launch refused by the first-admission legacy inventory — a nonterminal
+// historical drive bound to THIS worktree — carries the drive's locator as its
+// Cause and the inventory summary whose finding names the matched worktree,
+// instead of a bare unresolved-execution with an empty cause. A second, unrelated
+// worktree of the same repository is not vetoed by that record.
+func TestGateLaunchLegacyInventoryRefusalNamesMatchedDrive(t *testing.T) {
+	requireRealGit(t)
+	worktree, gitDir := initGitRepo(t, "")
+	const id = "0446bbbbbbbbbbbbbbbbbbbbbbbbbb01"
+	dir := filepath.Join(gitDir, "docket", "gate-drives", "v1", id)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	record := `{"generation":"g","record":{"schema_version":2,"repo_identity":"` + gitDir +
+		`","worktree_path":"` + worktree + `","started_at":"2026-08-01T14:00:00Z","last_outcome":"WAITING"}}`
+	if err := os.WriteFile(filepath.Join(dir, "record.json"), []byte(record), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	res := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/echo", "hi"})
+	if res.RunDir != "" {
+		GateStop(res.RunDir, "test cleanup")
+		t.Fatalf("refused launch produced a run handle: %+v", res)
+	}
+	if res.Result != ResultBlocked || res.Reason != string(gatedrive.ErrUnresolvedExecution) {
+		t.Fatalf("result/reason = %s/%q, want blocked/unresolved-execution", res.Result, res.Reason)
+	}
+	if res.Cause != "inventory-legacy-drive-"+id {
+		t.Fatalf("raw refusal cause = %q, want the matched drive locator", res.Cause)
+	}
+	if res.LegacyHistory == nil || len(res.LegacyHistory.Retained) != 1 ||
+		res.LegacyHistory.Retained[0].DriveID != id || res.LegacyHistory.Retained[0].Worktree != worktree {
+		t.Fatalf("raw refusal must carry the matched finding naming its worktree, got %+v", res.LegacyHistory)
+	}
+	if !strings.Contains(res.HumanText(), "cause: inventory-legacy-drive-"+id) {
+		t.Fatalf("human text must render the locator:\n%s", res.HumanText())
+	}
+
+	// The same record never vetoes a different worktree of the same repository.
+	other := filepath.Join(testsupport.TempDir(t), "other")
+	runGit(t, worktree, "commit", "--allow-empty", "-m", "base")
+	runGit(t, worktree, "worktree", "add", other)
+	ok := GateLaunch(testsupport.TempDir(t), other, []string{"/bin/echo", "hi"})
+	if ok.RunDir != "" {
+		t.Cleanup(func() { waitGateRunTerminal(t, ok.RunDir); GateStop(ok.RunDir, "test cleanup") })
+	}
+	if ok.Result != ResultApplied {
+		t.Fatalf("an unrelated worktree must admit, got %s (%q, cause %q)", ok.Result, ok.Reason, ok.Cause)
 	}
 }

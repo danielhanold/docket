@@ -631,7 +631,7 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 			if stage, locator, isInventory := legacyInventoryLocator(oe.Op); isInventory {
 				result.Stage, result.Locator = stage, locator
 				result.LegacyHistory = oe.Legacy
-				result.Message = "historical gate drives block this admission; inspect or recover them with docket gate history cleanup (--dry-run first); run.cancel applies only to a live run with an owning epoch"
+				result.Message = legacyInventoryMessage(oe.Op)
 			} else if oe.Incumbent != nil {
 				// A CURRENT worktree-admission refusal diagnoses from the exact
 				// incumbent snapshot the refusal was decided on (never a re-read).
@@ -762,6 +762,10 @@ func quoteOperand(path string) string {
 // suggests a raw manual teardown for a driven or epoch-owned slot, renders the raw
 // stop guidance only when a confirmed RawRunDir + valid RawRunID exist, and never
 // projects a reservation token, owner generation, capability, or epoch id.
+//
+// There is deliberately no drive-id branch: no production writer sets the admission
+// slot's DriveID (TestAdmissionSlotDriveIDHasNoProductionWriter), so a snapshot's
+// DriveID is historical evidence at most and never selects guidance (change 0446).
 func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.IncumbentSnapshot) string {
 	switch {
 	case kind == gatedrive.ErrStaleRunEpoch || (inc != nil && inc.EpochOwned):
@@ -772,13 +776,25 @@ func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.In
 			", then settle the slot with docket gate stop " + dir + " --reason <why> — stopping a still-running run cancels it; stopping an already-completed run settles its slot (the stop operation itself decides whether teardown is proven)"
 	case inc != nil && inc.Kind == "raw":
 		return "a raw gate reservation occupies this worktree's execution slot but its run identity is not recorded; do not start a second gate here — resolve the incumbent before retrying"
-	case inc != nil && inc.DriveID != "":
-		return "a driven gate occupies this worktree's execution slot; advance or recover it through its owning drive's continuation (gate drive advance or the parent workflow), never a raw manual teardown"
 	case kind == gatedrive.ErrUnresolvedExecution:
 		return ownershipNextAction(gatedrive.ErrUnresolvedExecution)
 	default:
 		return "an execution occupies this worktree's admission slot but its identity could not be established; do not start a second gate here and do not guess a stop target — resolve the incumbent first"
 	}
+}
+
+// legacyInventoryMessage is the next-action guidance for a first-admission legacy
+// inventory refusal. Only history positively bound to the requested worktree can
+// refuse (change 0446), so the message names that one matched obligation — the
+// locator identifies the drive and the legacy summary carries its worktree —
+// rather than implying every retained record in the repository blocks. The
+// inventory-level op means the drive registry itself could not be read.
+func legacyInventoryMessage(op string) string {
+	const tail = "; inspect or recover it with docket gate history cleanup (--dry-run first); unrelated or unreadable history never blocks an admission; run.cancel applies only to a live run with an owning epoch"
+	if op == "inventory-legacy-drives" {
+		return "the gate drive registry could not be read to assess the requested worktree's pre-slot history" + tail
+	}
+	return "a historical gate drive bound to the requested worktree blocks its admission (the locator names the drive, the legacy summary its worktree)" + tail
 }
 
 // legacyInventoryLocator recognizes the inventory refusal ops and returns a

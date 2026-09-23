@@ -31,11 +31,16 @@ const (
 )
 
 // LegacyFinding is one drive's assessment. Reason is a bounded token/phrase;
-// DriveID is always a validated id (never an arbitrary directory name).
+// DriveID is always a validated id (never an arbitrary directory name). Worktree
+// is the assessed record's stored worktree identity (change 0446 spec §6), so a
+// refusal names the worktree whose obligation blocked it and a diagnostic names
+// the worktree an unrelated record belongs to. It is a report field only — drive
+// records on disk are unchanged — and is empty when the record was unreadable.
 type LegacyFinding struct {
-	DriveID string `json:"drive_id"`
-	Class   string `json:"class"`
-	Reason  string `json:"reason"`
+	DriveID  string `json:"drive_id"`
+	Class    string `json:"class"`
+	Reason   string `json:"reason"`
+	Worktree string `json:"worktree,omitempty"`
 }
 
 // LegacyHistorySummary is the compact recovery summary carried on successful
@@ -147,15 +152,20 @@ func historicalView(id string, r driveRecord) historicalDrive {
 //     cannot undo it, so it is nonblocking regardless of where its worktree now
 //     resolves (or whether it resolves at all).
 //  2. Only a not-conclusively-completed record establishes the worktree
-//     binding: a valid binding to a DIFFERENT worktree is irrelevant to this
-//     admission, but an unresolvable path is NOT proof of unrelatedness.
+//     binding, and only a POSITIVE binding to the requested worktree makes it
+//     this admission's obligation (legacyBindingMatches). A binding to a
+//     different worktree, and a binding that cannot be resolved to the
+//     requested one, are nonblocking diagnostics: failing to resolve some other
+//     historical path does not establish a match (change 0446 spec §1). A
+//     repository-wide pass (requestedWorktree=="") skips this step entirely and
+//     assesses every record.
 //  3. A terminal HALTED record is assessed through the process predicate, with
 //     BOTH the current and prior recorded run dirs required to prove teardown; a
 //     probe error or missing run evidence retains — a probe error is not clean
 //     absence.
 //  4. Any other nonterminal state (WAITING or empty) is never guessed dead.
 func (s *Store) classifyLegacyDrive(h historicalDrive, requestedWorktree string, proc recoverySeam, apply bool) LegacyFinding {
-	f := LegacyFinding{DriveID: h.ID}
+	f := LegacyFinding{DriveID: h.ID, Worktree: h.WorktreePath}
 	// 1. Trustworthy completed history is nonblocking BEFORE any path
 	//    resolution: a supervisor-committed PASSED/FAILED outcome is durable
 	//    evidence a removed worktree or temp dir cannot undo.
@@ -163,12 +173,19 @@ func (s *Store) classifyLegacyDrive(h historicalDrive, requestedWorktree string,
 		f.Class, f.Reason = LegacyNonblocking, "completed terminal outcome ("+string(h.LastOutcome)+")"
 		return f
 	}
-	// 2. Not conclusively completed: establish the worktree binding. A valid
-	//    binding to a DIFFERENT worktree is irrelevant to this admission; an
-	//    unresolvable path is NOT proof of unrelatedness or teardown.
+	// 2. Not conclusively completed: establish the worktree binding — the
+	//    relevance boundary (change 0446 spec §1). Only a record POSITIVELY
+	//    bound to the requested worktree is assessed further; anything else is
+	//    a diagnostic, never an obligation of this admission.
 	if requestedWorktree != "" {
-		if legacyRoot, _, err := s.admissionKeyFor(h.WorktreePath, "inventory-legacy-drive"); err == nil && legacyRoot != requestedWorktree {
-			f.Class, f.Reason = LegacyNonblocking, "bound to a different worktree"
+		matched, resolvable := s.legacyBindingMatches(h.WorktreePath, requestedWorktree)
+		if !matched {
+			f.Class = LegacyNonblocking
+			if resolvable {
+				f.Reason = "bound to a different worktree"
+			} else {
+				f.Reason = "worktree binding unresolvable (diagnostic)"
+			}
 			return f
 		}
 	}
@@ -219,6 +236,28 @@ func (s *Store) classifyLegacyDrive(h historicalDrive, requestedWorktree string,
 	return f
 }
 
+// legacyBindingMatches reports whether a historical record's stored worktree
+// identity positively names requestedWorktree (a canonical root). resolvable is
+// true when the stored path canonicalized, so a non-match is a proven binding
+// to a different worktree rather than an unresolvable one.
+//
+// A stored path that canonicalizes matches when its canonical root equals the
+// requested one — so a live symlink alias of the requested worktree matches. A
+// stored path that cannot be canonicalized (typically a removed directory)
+// matches only when its cleaned spelling equals the requested root: the stored
+// identity was written canonical, so a byte-equal spelling still names the same
+// worktree, while an unequal unresolvable path establishes no match. An empty
+// stored path never matches.
+func (s *Store) legacyBindingMatches(stored, requestedWorktree string) (matched, resolvable bool) {
+	if stored == "" {
+		return false, false
+	}
+	if root, _, err := s.admissionKeyFor(stored, "inventory-legacy-drive"); err == nil {
+		return root == requestedWorktree, true
+	}
+	return filepath.Clean(stored) == requestedWorktree, false
+}
+
 // HistoryCleanupRequest selects the manual assessment's scope. An empty DriveID
 // scans the whole registry in ascending id order; a non-empty DriveID must
 // validate (a traversal or malformed id is refused before anything is scanned).
@@ -229,8 +268,11 @@ type HistoryCleanupRequest struct {
 }
 
 // HistoryCleanupOutcome reports every candidate with its class and reason. It is
-// a report, never a refusal — a mixed outcome still returns, and Retained > 0
-// means blockers remain visible rather than complete recovery. Checked counts
+// a report, never a refusal — a mixed outcome still returns. Retained findings
+// are honest repository-wide history that could not be settled; they are NOT a
+// census of admission blockers: only a retained record positively bound to the
+// worktree being admitted can refuse that admission (inventoryLegacyDrives),
+// so Retained > 0 never implies every worktree is blocked. Checked counts
 // every real (readable or unreadable) record assessed; a record-less directory
 // and an unrecognised registry entry are NOT counted, mirroring the
 // first-admission inventory. The four class counters partition Findings by class.
