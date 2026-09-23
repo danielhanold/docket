@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/orphaned-halted-gate-drive-blocks-every-new-worktree-s-first'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-23T17:34:52Z'
+reconciled: true
+claimed_at: '2026-09-23T17:36:22Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,8 @@ On 2026-09-23 the broader named-workflow scope was split into three critical cha
 
 New orchestration systems, commands, force flags, persistent stores or schemas, retirement receipts, background cleanup, leases/TTLs, age cutoffs, retry allowances, storage relocation, general garbage collection, and a second liveness implementation. No automatic cancellation to make room, no blanket trust in HALTED, no dropping positively owned pending work, no manual gate-record editing, and no treating change status as process-death proof. Automatic finalize queue ordering and driver stop/continue behavior are excluded. Named-start maintenance (change 448) and metadata validation/board rendering (change 449) are separate follow-on changes. Shared infrastructure failures, real dependencies, and actual ownership conflicts remain valid blockers. Publication-journal reconciliation remains change 444's work. Implementation and implementation planning are separate from grooming.
 
+## Reconcile log
+
+### 2026-09-23
+
+Reconciled against origin/main 442770e1 (change 0414 merged; no gate-admission, run-cancel, or gate-drive code changed since grooming on 2026-09-23). Related 444 is blocked; 448/449 wait on this change. Scope, spec, and relations stand unchanged.
