@@ -1168,3 +1168,204 @@ func TestReconcileReleasedSlotWithPendingDriveNotAccounted(t *testing.T) {
 		t.Fatalf("findings = %v, want launch-pending:%s", report.Findings, ticket.id)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Missing named drives (change 0446 spec §4: "Follow current/pending scope
+// references so a corrupt or missing named drive is still detected"). A drive id a
+// current reference names whose record is absent keeps the epoch unaccounted
+// (record-missing:<id>) — EXCEPT the scope's reserved current drive whose
+// reservation the existing records positively prove was withdrawn before any
+// launch: an open pending-ack journal (the successor admission's retire/clear half
+// never completed, and launch strictly follows it), or the epoch slot released
+// under this scope (release proves the latest execution vacated, and a missing
+// record can never pass StartAdmitted's revalidation). Those removeReservedDrive
+// legs stay accounted, so cancellation is never stranded on them.
+// ---------------------------------------------------------------------------
+
+// censusModes runs both census entry points, so a missing-record rule is proven
+// on the cancellation AND the success-closeout view.
+func censusModes(d *Driver) []struct {
+	name string
+	run  func(string, string) (EpochLaunchReport, error)
+} {
+	return []struct {
+		name string
+		run  func(string, string) (EpochLaunchReport, error)
+	}{{"reconcile", d.ReconcileEpochLaunches}, {"observe", d.ObserveEpochLaunches}}
+}
+
+// TestCensusScopeNamedMissingDriveBlocks proves a drive a current scope reference
+// names but whose record is gone fails the epoch closed with record-missing:<id>:
+// a launch-confirmed current drive whose directory was deleted, the same drive
+// reduced to a record-less directory, a reserved current drive with no withdrawal
+// proof (no open pending-ack, no released slot for this scope), a launch-confirmed
+// drive whose slot was released under its scope, and a pending-ack predecessor (a launched drive by construction) whose directory was deleted.
+func TestCensusScopeNamedMissingDriveBlocks(t *testing.T) {
+	launchedMissing := func(t *testing.T, store *Store, recordLess bool) string {
+		t.Helper()
+		id, _ := seedScopedEpochDrive(t, store, "e1", nil)
+		rec, err := store.Load(id)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if err := store.confirmScopeLaunch(rec.ScopeID, id); err != nil {
+			t.Fatalf("confirmScopeLaunch: %v", err)
+		}
+		if recordLess {
+			if err := os.Remove(filepath.Join(store.root, id, recordFileName)); err != nil {
+				t.Fatalf("remove record: %v", err)
+			}
+		} else if err := os.RemoveAll(filepath.Join(store.root, id)); err != nil {
+			t.Fatalf("remove drive: %v", err)
+		}
+		return id
+	}
+
+	cases := []struct {
+		name string
+		seed func(t *testing.T, d *Driver, store *Store) string
+	}{
+		{"launched-deleted", func(t *testing.T, d *Driver, store *Store) string { return launchedMissing(t, store, false) }},
+		{"launched-record-less", func(t *testing.T, d *Driver, store *Store) string { return launchedMissing(t, store, true) }},
+		{"reserved-unproven", func(t *testing.T, d *Driver, store *Store) string {
+			id, _ := seedScopedEpochDrive(t, store, "e1", nil) // reserved, no slot, no pending-ack
+			if err := os.RemoveAll(filepath.Join(store.root, id)); err != nil {
+				t.Fatalf("remove drive: %v", err)
+			}
+			return id
+		}},
+		{"launched-released-slot-deleted", func(t *testing.T, d *Driver, store *Store) string {
+			// A launch-confirmed drive whose slot was released under its scope: the
+			// released slot proves teardown, never that the named drive was withdrawn.
+			ticket, scopeID := admitEpochDrive(t, d, store, "e1", true)
+			if err := store.confirmScopeLaunch(scopeID, ticket.id); err != nil {
+				t.Fatalf("confirmScopeLaunch: %v", err)
+			}
+			if err := store.ReleaseWorktreeExecution(sampleWorktree(), ticket.token); err != nil {
+				t.Fatalf("ReleaseWorktreeExecution: %v", err)
+			}
+			if err := os.RemoveAll(filepath.Join(store.root, ticket.id)); err != nil {
+				t.Fatalf("remove drive: %v", err)
+			}
+			return ticket.id
+		}},
+		{"pending-ack-predecessor-deleted", func(t *testing.T, d *Driver, store *Store) string {
+			pred, scopeID, childCap := seedLaunchedScopePredecessor(t, store)
+			succ, _, err := store.NewReservedDrive(seedRecord(t))
+			if err != nil {
+				t.Fatalf("NewReservedDrive: %v", err)
+			}
+			if err := store.reserveScopeDrive(scopeID, childCap, succ, predecessorReceipt{DriveID: pred.id, OwnerGen: pred.gen}); err != nil {
+				t.Fatalf("reserveScopeDrive (successor): %v", err)
+			}
+			if err := os.RemoveAll(filepath.Join(store.root, pred.id)); err != nil {
+				t.Fatalf("remove predecessor: %v", err)
+			}
+			return pred.id
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+			id := tc.seed(t, d, store)
+			for _, mode := range censusModes(d) {
+				report, err := mode.run(sampleWorktree(), "e1")
+				if err != nil {
+					t.Fatalf("%s: %v", mode.name, err)
+				}
+				if report.Accounted {
+					t.Fatalf("%s: a scope-named missing drive must fail closed, findings=%v", mode.name, report.Findings)
+				}
+				if !findingFor(report.Findings, "record-missing", id) {
+					t.Fatalf("%s: findings = %v, want record-missing:%s", mode.name, report.Findings, id)
+				}
+			}
+		})
+	}
+}
+
+// scopePredecessor is a launched, PASSED scope drive a successor can acknowledge.
+type scopePredecessor struct{ id, gen string }
+
+// seedLaunchedScopePredecessor seeds a launch-confirmed PASSED drive as the current
+// drive of a fresh scope carrying epoch e1, returning it, the scope id, and the
+// scope's child capability (for a successor reservation).
+func seedLaunchedScopePredecessor(t *testing.T, store *Store) (scopePredecessor, string, string) {
+	t.Helper()
+	sreq := scopeReqFor(sampleStart(), "")
+	sreq.RunEpochID = "e1"
+	grant, err := store.PrepareScope(sreq)
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	rec := seedRecord(t)
+	rec.ScopeID = grant.ScopeID
+	rec.LastOutcome = PASSED
+	id, _, err := store.NewDrive(rec)
+	if err != nil {
+		t.Fatalf("NewDrive: %v", err)
+	}
+	if err := store.reserveScopeDrive(grant.ScopeID, grant.ChildCapability, id, predecessorReceipt{}); err != nil {
+		t.Fatalf("reserveScopeDrive: %v", err)
+	}
+	if err := store.confirmScopeLaunch(grant.ScopeID, id); err != nil {
+		t.Fatalf("confirmScopeLaunch: %v", err)
+	}
+	return scopePredecessor{id: id, gen: rec.OwnerGeneration}, grant.ScopeID, grant.ChildCapability
+}
+
+// TestCensusWithdrawnReservationStaysAccounted proves the legitimate
+// removeReservedDrive legs never strand cancellation: a scope still naming a
+// removed, never-launched reserved drive is accounted (an informational
+// reservation-withdrawn:<id>, never record-missing) when the records prove the
+// withdrawal — the successor admission's retirePredecessor failure leg (open
+// pending-ack journal), and a real scoped Admit abandoned through AbandonAdmission
+// (the epoch slot released under this scope).
+func TestCensusWithdrawnReservationStaysAccounted(t *testing.T) {
+	cases := []struct {
+		name string
+		seed func(t *testing.T, d *Driver, store *Store) string
+	}{
+		{"retire-predecessor-failure-leg", func(t *testing.T, d *Driver, store *Store) string {
+			pred, scopeID, childCap := seedLaunchedScopePredecessor(t, store)
+			succ, _, err := store.NewReservedDrive(seedRecord(t))
+			if err != nil {
+				t.Fatalf("NewReservedDrive: %v", err)
+			}
+			if err := store.reserveScopeDrive(scopeID, childCap, succ, predecessorReceipt{DriveID: pred.id, OwnerGen: pred.gen}); err != nil {
+				t.Fatalf("reserveScopeDrive (successor): %v", err)
+			}
+			// admitScoped's retirePredecessor failure leg: the won reservation's
+			// never-launched record is removed while the journal stays open.
+			if err := store.removeReservedDrive(succ); err != nil {
+				t.Fatalf("removeReservedDrive: %v", err)
+			}
+			return succ
+		}},
+		{"abandon-admission", func(t *testing.T, d *Driver, store *Store) string {
+			ticket, _ := admitEpochDrive(t, d, store, "e1", true)
+			if err := d.AbandonAdmission(ticket); err != nil {
+				t.Fatalf("AbandonAdmission: %v", err)
+			}
+			return ticket.id
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+			id := tc.seed(t, d, store)
+			for _, mode := range censusModes(d) {
+				report, err := mode.run(sampleWorktree(), "e1")
+				if err != nil {
+					t.Fatalf("%s: %v", mode.name, err)
+				}
+				if !report.Accounted {
+					t.Fatalf("%s: a proven-withdrawn reservation must stay accounted, findings=%v", mode.name, report.Findings)
+				}
+				if findingFor(report.Findings, "record-missing", id) || !findingFor(report.Findings, "reservation-withdrawn", id) {
+					t.Fatalf("%s: findings = %v, want reservation-withdrawn:%s", mode.name, report.Findings, id)
+				}
+			}
+		})
+	}
+}

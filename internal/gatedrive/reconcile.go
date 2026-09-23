@@ -115,6 +115,13 @@ func (d *Driver) ObserveEpochLaunches(worktreeRoot, epochID string) (EpochLaunch
 //     and the crash-window recovery's recoveryEpochRevoked, which settles instead
 //     of relaunching), so it has lost launch authority and the current token holder
 //     carries any live obligation.
+//  7. Missing named drive. A drive id a current reference names (a scope's
+//     current/pending drive) whose record is absent — no directory, or a
+//     record-less one — blocks as record-missing:<id>, unless the records prove
+//     the named drive was only reserved and its reservation withdrawn before any
+//     launch (censusRefs.withdrawn): then it is an informational
+//     reservation-withdrawn:<id>, so the removeReservedDrive legs never strand
+//     cancellation.
 func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly bool) (EpochLaunchReport, error) {
 	report := EpochLaunchReport{Accounted: true}
 	if epochID == "" {
@@ -126,7 +133,10 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 	entries, err := os.ReadDir(d.store.root)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return report, nil // no drive registry yet: nothing was ever launched
+			// No drive registry yet: nothing was ever launched — but a current
+			// reference naming a drive is still a missing named drive (rule 7).
+			refs.accountMissing(map[string]bool{}, &report)
+			return report, nil
 		}
 		// The registry itself is unreadable: fail closed rather than claim accounted.
 		report.Accounted = false
@@ -146,6 +156,9 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 	}
 	var walk []walked
 	holderFound := false
+	// present records every id with a record the census could see (readable,
+	// unreadable, or settled history) — a named id outside it is missing (rule 7).
+	present := map[string]bool{}
 	for _, entry := range entries {
 		id := entry.Name()
 		if !entry.IsDir() || validateID(id) != nil {
@@ -156,9 +169,11 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 			if storeErrIs(lerr, ErrNotFound) {
 				// A record-less directory (an in-flight or crashed-mid-creation drive)
 				// has launched no process and names no obligation, so it is skipped
-				// exactly as the legacy inventory skips it.
+				// exactly as the legacy inventory skips it — unless a current reference
+				// names it, which rule 7 reports (it is absent from present).
 				continue
 			}
+			present[id] = true
 			// Rule 2: a supported historical (schema-2) record with a terminal outcome
 			// is settled history, not an unreadable obligation.
 			if h, herr := d.store.loadHistoricalDrive(id); herr == nil && isTerminalOutcome(h.LastOutcome) {
@@ -170,8 +185,10 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 		if refs.slotToken != "" && rec.AdmissionToken == refs.slotToken {
 			holderFound = true
 		}
+		present[id] = true
 		walk = append(walk, walked{id: id, rec: rec})
 	}
+	refs.accountMissing(present, &report)
 
 	for _, w := range walk {
 		if w.unreadable {
@@ -230,6 +247,60 @@ type censusRefs struct {
 	// slotOccupied reports that the target epoch's slot still holds an unreleased
 	// scoped/scopeless reservation, whose token some drive record must carry.
 	slotOccupied bool
+	// reservedBy maps a drive id to the scope naming it as a reserved (never
+	// launch-confirmed) current drive; journalOpen marks those whose scope still
+	// carries an open pending-ack journal.
+	reservedBy  map[string]string
+	journalOpen map[string]bool
+	// releasedScope is the scope the target epoch's scoped slot was released under
+	// ("" when the slot is not a released scoped slot of this epoch).
+	releasedScope string
+}
+
+// withdrawn reports whether the records positively prove a named drive was only
+// reserved and its reservation withdrawn before any launch, so its missing record
+// is not an obligation. It requires the drive be named as a scope's reserved
+// current drive (never launch-confirmed, since confirmScopeLaunch follows every
+// launch) and one of:
+//
+//   - an open pending-ack journal on that scope: admitScoped launches a successor
+//     only after retirePredecessor and clearPendingAck both succeed, so an open
+//     journal proves the admission half never completed (its failure legs remove
+//     the never-launched record);
+//   - the epoch's slot released under that scope: the scope's reservation is the
+//     slot's latest (admission reserves or rotates the slot before the record is
+//     minted), release proves that execution vacated, and a missing record can never
+//     pass StartAdmitted's revalidation (AbandonAdmission's leg).
+//
+// Anything else — a launched or pending-ack reference, a reserved drive whose slot
+// moved on or is still held — is not proof, and the missing drive blocks.
+func (r censusRefs) withdrawn(id string) bool {
+	scopeID, reserved := r.reservedBy[id]
+	if !reserved {
+		return false
+	}
+	return r.journalOpen[id] || (r.releasedScope != "" && scopeID == r.releasedScope)
+}
+
+// accountMissing applies rule 7: every id a current reference names that has no
+// record among present is a missing named drive — record-missing:<id> keeps the
+// epoch unaccounted — unless withdrawn proves it never launched.
+func (r censusRefs) accountMissing(present map[string]bool, report *EpochLaunchReport) {
+	ids := make([]string, 0, len(r.ids))
+	for id := range r.ids {
+		if !present[id] {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		if r.withdrawn(id) {
+			report.Findings = append(report.Findings, "reservation-withdrawn:"+id)
+			continue
+		}
+		report.Accounted = false
+		report.Findings = append(report.Findings, "record-missing:"+id)
+	}
 }
 
 // names reports whether a current reference names a READABLE drive: its id is a
@@ -261,10 +332,20 @@ func (r censusRefs) namesUnreadable(id string, holderFound bool) bool {
 // scope nothing current names is skipped: it establishes no reference, and any
 // nonterminal drive under it surfaces as history-unattributed in the walk.
 func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLaunchReport) censusRefs {
-	refs := censusRefs{ids: map[string]bool{}}
-	addScope := func(s scopeRecord) {
+	refs := censusRefs{
+		ids:         map[string]bool{},
+		reservedBy:  map[string]string{},
+		journalOpen: map[string]bool{},
+	}
+	addScope := func(scopeID string, s scopeRecord) {
 		if s.CurrentDriveID != "" {
 			refs.ids[s.CurrentDriveID] = true
+			if s.CurrentDriveState == scopeStateReserved {
+				refs.reservedBy[s.CurrentDriveID] = scopeID
+				if s.PendingAckDriveID != "" {
+					refs.journalOpen[s.CurrentDriveID] = true
+				}
+			}
 		}
 		if s.PendingAckDriveID != "" {
 			refs.ids[s.PendingAckDriveID] = true
@@ -285,7 +366,7 @@ func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLau
 			continue
 		}
 		if s.RunEpochID == epochID {
-			addScope(s)
+			addScope(entry.Name(), s)
 		}
 	}
 
@@ -308,6 +389,9 @@ func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLau
 	}
 	refs.slotToken = slot.ReservationToken
 	refs.slotOccupied = slot.ReservationToken != "" && slot.State != admissionReleased && slot.Kind != "raw"
+	if slot.State == admissionReleased && slot.ScopeID != "" {
+		refs.releasedScope = slot.ScopeID
+	}
 	if slot.ScopeID != "" {
 		s, lerr := d.store.LoadScope(slot.ScopeID)
 		if lerr != nil {
@@ -316,7 +400,7 @@ func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLau
 			report.Accounted = false
 			report.Findings = append(report.Findings, "scope-unreadable:"+slot.ScopeID)
 		} else {
-			addScope(s)
+			addScope(slot.ScopeID, s)
 		}
 	}
 	return refs
