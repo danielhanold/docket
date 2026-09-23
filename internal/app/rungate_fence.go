@@ -48,10 +48,14 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
@@ -116,11 +120,19 @@ func AsMutationFenceError(err error) (*MutationFenceError, bool) {
 // and reason-aware: a run-completed fence (change 0441) is a SUCCESSFUL closeout, so
 // its message never falsely claims cancellation; run-cancelled/stale-run-epoch keep
 // the cancelled-or-superseded wording. An unrecognized reason falls back to the
-// reason-neutral "no longer accepting mutations" phrasing.
+// reason-neutral "no longer accepting mutations" phrasing. An owner-resolution
+// refusal (ErrEpochOwnerAmbiguous / ErrEpochOwnerUnresolved, change 0446) reports its
+// own kind as the reason, never relabelled as a cancellation.
 func fenceRefusalReasonMessage(ferr error, subject string) (reason, message string) {
 	reason = "run-cancelled"
 	if fe, ok := AsMutationFenceError(ferr); ok {
 		reason = fe.Reason
+	} else if ee, ok := AsEpochError(ferr); ok &&
+		(ee.Kind == ErrEpochOwnerAmbiguous || ee.Kind == ErrEpochOwnerUnresolved) {
+		// An unresolved or contradictory CURRENT owner (change 0446 §§1, 5) is not a
+		// cancellation: surface its own kind and the locator the error carries.
+		return string(ee.Kind), "the run that owns this " + subject + " cannot be resolved (" +
+			ferr.Error() + "); publish nothing"
 	}
 	switch reason {
 	case "run-cancelled", "stale-run-epoch":
@@ -150,8 +162,9 @@ func noopJournalDone(string) {}
 // is the operation key journaled. It returns a completion callback and an error:
 //
 //   - No owning epoch (no registered worktree, no slot, a standalone-gate slot with
-//     no epoch, or a pruned epoch) → (noopJournalDone, nil): admit UNFENCED. This is
-//     the standalone contract — a mutation outside any workflow run is unchanged.
+//     no epoch, or a pruned epoch no slot names) → (noopJournalDone, nil): admit
+//     UNFENCED. This is the standalone contract — a mutation outside any workflow run
+//     is unchanged.
 //   - Owning epoch ACTIVE → journal an `admitted` entry under the epoch's
 //     compare-and-swap and return (done, nil). `done(completed|uncertain)` updates
 //     exactly that entry after the mutation resolves.
@@ -160,8 +173,15 @@ func noopJournalDone(string) {}
 //   - Owning epoch COMPLETING/COMPLETED → (nil, ErrRunCompleted). A completed epoch
 //     is normally already excluded from findEpochByWorktree, so this arm chiefly
 //     fences a completing (mid-closeout) epoch; the completed arm is defense in depth.
-//   - Any epoch-store IO/corruption error while a slot NAMES an epoch → fail closed:
-//     (nil, err). A record the store cannot read is never treated as a free run.
+//   - Two or more active owners bound to the worktree → (nil, ErrEpochOwnerAmbiguous):
+//     a contradiction refuses locally, never resolved by order (change 0446 §5).
+//   - No ambient owner, but the worktree's execution slot NAMES a RunEpochID that no
+//     readable epoch record carries (corrupt, IO-unreadable, or absent) → fail closed
+//     with ErrEpochOwnerUnresolved naming the epoch id and worktree (change 0446 §1).
+//     A record the store cannot read is never treated as a free run when a current
+//     reference names it; an unreadable epoch no slot names stays diagnostic.
+//   - Any registry enumeration or slot-store fault while resolving that owner → fail
+//     closed: (nil, err).
 //
 // The state gate and the `admitted` append happen in ONE epochCAS, so a cancellation
 // that fences the epoch between the slot read and the journal write is observed
@@ -169,7 +189,14 @@ func noopJournalDone(string) {}
 func admitWorkflowMutation(repoDir, op string) (mutationJournalDone, error) {
 	// Canonicalize the change's feature worktree so a different spelling of one
 	// worktree cannot dodge the fence. A path that cannot be canonicalized (it does
-	// not exist) owns no epoch — admit unfenced.
+	// not exist) owns no epoch — admit unfenced. This fail-open on the CALLER's own
+	// uncanonicalizable repoDir is an accepted residual risk the change 0446 spec
+	// records verbatim ("The path fence also fails open when the caller's own
+	// `repoDir` cannot be canonicalized; keep that behavior unless implementation
+	// shows a named caller relies on it, and record the decision"). Decision: kept.
+	// The production callers (MutationAdmissionHook, PRPublish, WorkspacePublish)
+	// pass the repository directory the mutation itself runs in, so a missing path
+	// cannot run the mutation either; none relies on the fence refusing it.
 	canon, err := canonicalWorktree(repoDir)
 	if err != nil {
 		return noopJournalDone, nil
@@ -177,13 +204,19 @@ func admitWorkflowMutation(repoDir, op string) (mutationJournalDone, error) {
 
 	gateKey, found, ferr := findEpochByWorktree(repoDir, canon)
 	if ferr != nil {
-		// The registry could not be enumerated: fail closed rather than admit a
-		// mutation whose owning epoch might be fenced.
+		// The registry could not be enumerated, or two active owners contradict each
+		// other: fail closed rather than admit a mutation whose owner is unknown.
 		return nil, ferr
 	}
 	if !found {
-		// No run epoch owns this worktree (standalone use, or the run's epoch was
-		// pruned with its gate record): the mutation is unfenced.
+		// No readable run epoch owns this worktree. Before admitting unfenced, honour
+		// the worktree slot's positive reference (spec §1): a slot naming an epoch that
+		// no readable record carries means the current owner is unresolved.
+		if uerr := slotNamedEpochUnresolved(repoDir, canon); uerr != nil {
+			return nil, uerr
+		}
+		// Standalone use, or the run's epoch was pruned with its gate record and no
+		// slot names it: the mutation is unfenced.
 		return noopJournalDone, nil
 	}
 
@@ -263,18 +296,39 @@ func canonicalWorktree(path string) (string, error) {
 	return filepath.EvalSymlinks(abs)
 }
 
-// findEpochByWorktree locates the run epoch whose canonical Worktree equals canon by
-// scanning the repository's rungate root (each gate-key directory may hold one
-// epoch.json beside its gate record). It returns that epoch's gate key. A missing
-// rungate root or no match is (found=false, err=nil) — no epoch owns the worktree.
-// A directory-enumeration IO error is returned so the caller fails closed. A gate
-// directory with no epoch.json, an epoch with no bound Worktree (a standalone or
-// not-yet-claimed run), a fully COMPLETED epoch (a successful closeout no longer owns
-// its worktree — change 0441; a completing epoch still does), or an UNREADABLE/corrupt
-// record is skipped — the last a
-// conservative, bounded fail-open confined to a corrupt UNRELATED record (the epoch
-// store fails closed on its own reads elsewhere), never a free run for the matched
-// epoch.
+// findEpochByWorktree resolves the CURRENT ambient owner of the canonical worktree
+// canon by scanning the repository's rungate root (each gate-key directory may hold
+// one epoch.json beside its gate record) and returns the owning epoch's gate key. It
+// collects EVERY matching epoch first and then selects deterministically (change
+// 0446 spec §5, following FindEpochByChange's established shape) — never the first
+// directory-order match:
+//
+//   - exactly one active or completing match is the owner, regardless of directory
+//     order and of any cancelled/cancelling record bound to the same path (a fresh run
+//     is not masked by a never-superseded cancelled predecessor);
+//   - two or more active/completing matches are a contradiction: a typed
+//     ErrEpochOwnerAmbiguous naming the worktree, never one chosen by order;
+//   - with no active/completing match, a fenced (cancelling, cancelled, or — only
+//     when its Worktree was never cleared — superseded) match is still returned, so
+//     the mutation fence keeps refusing until the recovery/replacement workflow
+//     authorizes current work. Every fenced match refuses identically, so the
+//     lexically first gate key is returned for stability.
+//
+// A match whose state is none of the known ones is counted with the active matches:
+// it cannot be proven to have stopped owning the path, so it can neither be outranked
+// silently nor let another active owner through unchallenged (admitWorkflowMutation
+// fails it closed as run-cancelled when it is the sole match).
+//
+// A missing rungate root or no match is (found=false, err=nil). A directory-
+// enumeration IO error is returned so the caller fails closed. A gate directory with
+// no epoch.json, an epoch with no bound Worktree (a standalone or not-yet-claimed
+// run, and every superseded epoch — SupersedeCancelledEpoch clears it), a fully
+// COMPLETED epoch (a successful closeout no longer owns its worktree — change 0441; a
+// completing epoch still does), or an UNREADABLE/corrupt record is skipped. Skipping
+// an unreadable record is discovery, not required evidence (spec §1): the required
+// half — a slot that NAMES an epoch no readable record carries — is enforced by
+// admitWorkflowMutation through that positive slot reference, never by failing
+// closed on every unreadable sibling.
 func findEpochByWorktree(repoDir, canon string) (gateKey string, found bool, err error) {
 	root, rerr := gateRoot(repoDir)
 	if rerr != nil {
@@ -287,6 +341,7 @@ func findEpochByWorktree(repoDir, canon string) (gateKey string, found bool, err
 		}
 		return "", false, derr
 	}
+	var owners, fenced []string
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -302,11 +357,71 @@ func findEpochByWorktree(repoDir, canon string) (gateKey string, found bool, err
 		if r.State == EpochCompleted {
 			continue // a fully completed epoch no longer owns any worktree (change 0441)
 		}
-		if epochOwnsWorktree(r.Worktree, canon) {
-			return key, true, nil
+		if !epochOwnsWorktree(r.Worktree, canon) {
+			continue
+		}
+		switch r.State {
+		case EpochCancelling, EpochCancelled, EpochSuperseded:
+			fenced = append(fenced, key)
+		default: // active, completing, or an unknown state that cannot be outranked
+			owners = append(owners, key)
 		}
 	}
+	switch {
+	case len(owners) == 1:
+		return owners[0], true, nil
+	case len(owners) > 1:
+		sort.Strings(owners)
+		return "", false, epochErr(ErrEpochOwnerAmbiguous, "find-by-worktree",
+			fmt.Errorf("%d active run epochs (gate keys %s) are bound to worktree %s",
+				len(owners), strings.Join(owners, ", "), canon))
+	case len(fenced) > 0:
+		sort.Strings(fenced)
+		return fenced[0], true, nil
+	}
 	return "", false, nil
+}
+
+// slotNamedEpochUnresolved enforces the required-evidence half of ambient owner
+// lookup (change 0446 spec §1): "when the requested worktree's slot names a
+// `RunEpochID`, ambient owner lookup for that worktree must resolve that epoch to a
+// readable record". It is consulted only after findEpochByWorktree found no readable
+// owner. It opens the gatedrive admission store at the repository's Git common dir
+// (the same store productionCancelSeams opens) and reads the worktree's slot:
+//
+//   - an absent or unreadable slot, or a slot with no RunEpochID, names nothing →
+//     nil (the unfenced admit is unchanged — a slot the store cannot read is the
+//     gate-admission authority's to refuse, not ambient ownership evidence);
+//   - a slot naming an epoch some readable record carries → nil (that epoch simply
+//     does not own this path now: completed, superseded, not yet bound, or bound
+//     elsewhere);
+//   - a slot naming an epoch NO readable record carries → ErrEpochOwnerUnresolved
+//     naming the epoch id and worktree. The positive reference comes from the slot,
+//     so the refusal never depends on reading the unreadable record itself;
+//   - a common-dir, registry-enumeration, or ambiguous-id fault → that error (fail
+//     closed).
+//
+// The epoch id is a public locator, never a credential (ADR-0111), so the locator
+// carries it verbatim.
+func slotNamedEpochUnresolved(repoDir, canon string) error {
+	common, err := gateGitCommonDir(repoDir)
+	if err != nil {
+		return err
+	}
+	slot, _, lerr := gatedrive.OpenStore(common).LoadWorktreeExecution(canon)
+	if lerr != nil || slot.RunEpochID == "" {
+		return nil
+	}
+	_, ok, ferr := findEpochByID(filepath.Join(common, "docket", "rungate"), slot.RunEpochID)
+	if ferr != nil {
+		return ferr
+	}
+	if ok {
+		return nil
+	}
+	return epochErr(ErrEpochOwnerUnresolved, "find-by-worktree",
+		fmt.Errorf("the execution slot of worktree %s names run epoch %s, but no readable epoch record carries it; inspect or repair that epoch record before mutating this worktree",
+			canon, slot.RunEpochID))
 }
 
 // epochOwnsWorktree reports whether an epoch's stored Worktree names the same
