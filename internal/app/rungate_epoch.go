@@ -44,6 +44,8 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
 // epochSchemaVersion is the on-disk EpochRecord schema this store understands. A
@@ -827,16 +829,18 @@ func epochRevokedResolver(gitCommonDir string) func(string) (bool, error) {
 // accounting), or superseded (a resume superseded an already confirmed-cancelled
 // epoch). Active, cancelling, and completing epochs are NOT settled: they still own
 // the worktree between drives until their own closeout completes. A clean "no such
-// epoch" is (false, nil) — a slot-named epoch with no readable record is an
-// unresolved owner, never settlement — and an ambiguous id or an enumeration/IO
-// fault is returned as an error; the fence fails closed on both.
+// epoch" is (false, gatedrive.ErrEpochUnresolved) — a slot-named epoch with no
+// readable record is an unresolved owner, never settlement — and an ambiguous id or
+// an enumeration/IO fault is returned as an error; the fence fails closed on all.
 func epochSettledResolver(gitCommonDir string) func(string) (bool, error) {
 	rungateRoot := filepath.Join(gitCommonDir, "docket", "rungate")
 	return func(epochID string) (bool, error) {
 		_, rec, err := findEpochDirByID(rungateRoot, epochID)
 		if err != nil {
 			if ee, ok := AsEpochError(err); ok && ee.Kind == ErrEpochNotFound {
-				return false, nil
+				// Unsettled, and typed so the admission refusal's remedy never points
+				// at a run.cancel that cannot resolve this epoch.
+				return false, gatedrive.ErrEpochUnresolved
 			}
 			return false, err
 		}

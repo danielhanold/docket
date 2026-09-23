@@ -352,12 +352,17 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 	if stale == nil {
 		return token, legacy, err
 	}
-	retry, serr := s.settleStaleReleasedEpoch(*stale)
+	retry, unresolved, serr := s.settleStaleReleasedEpoch(*stale)
 	if serr != nil {
 		return "", nil, serr
 	}
 	if !retry {
-		return token, legacy, err // the original stale-run-epoch refusal
+		// The original stale-run-epoch refusal. When no readable record carries the
+		// slot's epoch, the snapshot says so: run.cancel cannot resolve it.
+		if oe, ok := AsOwnershipError(err); ok && unresolved && oe.Incumbent != nil {
+			oe.Incumbent.EpochUnresolved = true
+		}
+		return token, legacy, err
 	}
 	token, legacy, _, err = s.reserveWorktreeExecutionOnce(rec, proc)
 	return token, legacy, err

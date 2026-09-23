@@ -25,12 +25,18 @@ import (
 // SETTLED: its successful closeout completed, or its cancellation completed with
 // confirmed accounting (the epoch's terminal state in its readable record). An
 // active, cancelling, or completing epoch is not settled — it may still own its
-// worktree between drives. A clean "no such epoch" is (false, nil): a slot-named
-// epoch that resolves to no readable record is an unresolved owner, never proof of
-// settlement. An enumeration/IO fault is a non-nil error; the admission fence
+// worktree between drives. A clean "no such epoch" is (false, ErrEpochUnresolved):
+// a slot-named epoch that resolves to no readable record is an unresolved owner,
+// never proof of settlement. An enumeration/IO fault is a non-nil error; the admission fence
 // treats both as unsettled and keeps refusing (fail closed). It never returns a
 // credential.
 type EpochSettledFunc func(epochID string) (settled bool, err error)
+
+// ErrEpochUnresolved is the sentinel an EpochSettledFunc wraps when NO readable
+// run-epoch record carries the named epoch. It is unsettled (the fence keeps
+// refusing), and the refusal's incumbent snapshot is marked EpochUnresolved so its
+// remedy never points at a cancellation that cannot resolve that epoch.
+var ErrEpochUnresolved = errors.New("run epoch record unresolved")
 
 // SetEpochSettledResolver injects the optional run-epoch settlement seam the
 // worktree admission fence consults (change 0446 spec §§2, 5). The application
@@ -74,21 +80,28 @@ type staleReleasedEpoch struct {
 // successor raced it) still returns retry=true: the caller's single retry re-reads
 // the ACTUAL slot under the lock and applies the fence to it without settling
 // again. A retirement store fault is returned as err (never reported as admission).
-func (s *Store) settleStaleReleasedEpoch(st staleReleasedEpoch) (retry bool, err error) {
+//
+// unresolved reports that the seam found NO readable record for the epoch
+// (ErrEpochUnresolved): the refusal stands, and the caller marks its incumbent
+// snapshot so the remedy never suggests cancelling an epoch that cannot resolve.
+func (s *Store) settleStaleReleasedEpoch(st staleReleasedEpoch) (retry, unresolved bool, err error) {
 	if s.epochSettled == nil {
-		return false, nil
+		return false, false, nil
 	}
 	settled, serr := s.epochSettled(st.epochID)
+	if errors.Is(serr, ErrEpochUnresolved) {
+		return false, true, nil
+	}
 	if serr != nil || !settled {
-		return false, nil
+		return false, false, nil
 	}
 	if rerr := s.RetireWorktreeExecutionEpoch(st.worktree, st.epochID, st.token); rerr != nil {
 		if _, ok := AsOwnershipError(rerr); ok {
-			return true, nil
+			return true, false, nil
 		}
-		return false, rerr
+		return false, false, rerr
 	}
-	return true, nil
+	return true, false, nil
 }
 
 // errEpochAlreadyDetached aborts the CAS with no write when the slot carries no

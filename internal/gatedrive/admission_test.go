@@ -842,6 +842,44 @@ func TestReleasedSlotSeamErrorFailsClosed(t *testing.T) {
 	}
 }
 
+// TestReleasedSlotUnresolvedEpochMarksIncumbent: when the settlement seam reports
+// that NO readable record carries the released slot's epoch (ErrEpochUnresolved),
+// the refusal stays ErrStaleRunEpoch with the slot untouched, and its incumbent
+// snapshot says the epoch is unresolved — so the printed remedy never points at a
+// run.cancel that cannot resolve that epoch. An unsettled epoch and any other seam
+// error leave the flag clear.
+func TestReleasedSlotUnresolvedEpochMarksIncumbent(t *testing.T) {
+	cases := []struct {
+		name string
+		seam *settledSeam
+		want bool
+	}{
+		{"unresolved", &settledSeam{err: fmt.Errorf("lookup: %w", ErrEpochUnresolved)}, true},
+		{"unsettled", &settledSeam{settled: map[string]bool{"epoch-e1": false}}, false},
+		{"other-error", &settledSeam{err: os.ErrPermission}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store, worktree, repoID := newAdmissionFixture(t)
+			releasedEpochSlot(t, store, worktree, repoID)
+			store.SetEpochSettledResolver(tc.seam.resolve)
+			before := readSlotBytes(t, store, worktree)
+
+			_, err := store.ReserveWorktreeExecutionForEpoch(repoID, worktree, "epoch-e2", nil)
+			oe, ok := AsOwnershipError(err)
+			if !ok || oe.Kind != ErrStaleRunEpoch || oe.Incumbent == nil {
+				t.Fatalf("err = %v, want stale-run-epoch with an incumbent snapshot", err)
+			}
+			if oe.Incumbent.EpochUnresolved != tc.want {
+				t.Fatalf("EpochUnresolved = %v, want %v", oe.Incumbent.EpochUnresolved, tc.want)
+			}
+			if string(readSlotBytes(t, store, worktree)) != string(before) {
+				t.Fatal("a fenced reservation must not touch the slot")
+			}
+		})
+	}
+}
+
 // TestBusySlotNeverConsultsSettledSeam: the epoch fence on a busy slot is
 // unchanged — an executing slot another epoch owns refuses ErrStaleRunEpoch and
 // the settlement seam is never asked, even when it would answer settled.

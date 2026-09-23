@@ -2,10 +2,13 @@ package app
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
 // These are the run-epoch registry tests (change 0375 Task 9). The epoch lives
@@ -460,8 +463,8 @@ func TestEpochSettledResolverStates(t *testing.T) {
 	t.Run("unknown-epoch", func(t *testing.T) {
 		_, common, _, _, _ := epochGateFixture(t)
 		settled, err := epochSettledResolver(common)("0123456789abcdef0123456789abcdef")
-		if err != nil || settled {
-			t.Fatalf("unknown epoch = (%v, %v), want (false, nil)", settled, err)
+		if !errors.Is(err, gatedrive.ErrEpochUnresolved) || settled {
+			t.Fatalf("unknown epoch = (%v, %v), want (false, ErrEpochUnresolved)", settled, err)
 		}
 	})
 }
