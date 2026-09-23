@@ -496,11 +496,28 @@ func retireSlotOwnership(seams cancelSeams, ep EpochRecord) slotRetirement {
 // slot to confirm the predecessor's token and epoch no longer hold it"). The
 // replacement is followed through ReplacementReserved — the replacement's GATE KEY,
 // so its epoch is read by LoadEpochRecord — and, when that replacement was itself
-// superseded, onward along the chain until an epoch that binds a worktree. The chain
-// names each record positively, so a replacement that cannot be read, has no epoch,
-// binds no worktree, or loops is refused with an exact locator
-// (replacement-worktree-unresolved:<gate key>) rather than inferred safe.
-func resolveTerminalEpochSlot(repoDir string, ep EpochRecord) (EpochRecord, string) {
+// superseded, onward along the chain until an epoch that binds a worktree.
+//
+// A TORN resume ends the chain at a replacement that binds no worktree:
+// armResumeReplacement supersedes, then mints the replacement epoch, then binds its
+// Worktree, so a failure between leaves the replacement epoch never minted
+// (ErrEpochNotFound) or minted unbound. That is a known, recoverable shape — not
+// corruption — so it resolves to an EXISTING stored identity rather than dead-ending
+// every later resume and cancel (change 0446 spec: "Repeated cancellation,
+// completion, and admission after safe reconciliation converge using existing
+// operations"): requestWorktree when the caller holds one (a resume's verified
+// feature worktree — exactly what armResumeReplacement binds), else the replacement
+// gate record's prepared scope worktree (armResumeReplacement prepares that scope
+// before the supersede), else the predecessor gate record's scope worktree
+// (storedScopeWorktree). Only when none exists is it refused
+// replacement-worktree-unresolved:<gate key>.
+//
+// A genuinely bad chain still fails closed with its exact locator, never inferred
+// safe: a replacement epoch that cannot be read (corrupt, I/O) is
+// replacement-epoch-unreadable:<gate key>, a superseded link that records no
+// replacement is replacement-worktree-unresolved, and a loop is
+// replacement-chain-cycle:<gate key>.
+func resolveTerminalEpochSlot(seams cancelSeams, repoDir string, ep EpochRecord, requestWorktree string) (EpochRecord, string) {
 	if ep.Worktree != "" || ep.State != EpochSuperseded {
 		return ep, ""
 	}
@@ -508,32 +525,69 @@ func resolveTerminalEpochSlot(repoDir string, ep EpochRecord) (EpochRecord, stri
 	if ep.GateKey != "" {
 		seen[ep.GateKey] = true
 	}
-	unresolved := func(key string) (EpochRecord, string) {
-		if key == "" {
-			return ep, "replacement-worktree-unresolved"
+	bind := func(worktree string) (EpochRecord, string) {
+		out := ep
+		out.Worktree = worktree
+		return out, ""
+	}
+	// torn resolves an unbound chain tail (tailKey) to the first existing stored
+	// identity, in the order documented above.
+	torn := func(tailKey string) (EpochRecord, string) {
+		w := requestWorktree
+		if w == "" {
+			w = storedScopeWorktree(seams, repoDir, tailKey)
 		}
-		return ep, "replacement-worktree-unresolved:" + key
+		if w == "" {
+			w = storedScopeWorktree(seams, repoDir, ep.GateKey)
+		}
+		if w == "" {
+			return ep, "replacement-worktree-unresolved:" + tailKey
+		}
+		return bind(w)
 	}
 	key := ep.ReplacementReserved
 	for {
-		if key == "" || seen[key] {
-			return unresolved(key)
+		if key == "" {
+			return ep, "replacement-worktree-unresolved"
+		}
+		if seen[key] {
+			return ep, "replacement-chain-cycle:" + key
 		}
 		seen[key] = true
 		rec, _, err := LoadEpochRecord(repoDir, key)
 		if err != nil {
-			return unresolved(key)
+			if ee, ok := AsEpochError(err); ok && ee.Kind == ErrEpochNotFound {
+				return torn(key) // the replacement epoch was never minted
+			}
+			return ep, "replacement-epoch-unreadable:" + key
 		}
 		if rec.Worktree != "" {
-			out := ep
-			out.Worktree = rec.Worktree
-			return out, ""
+			return bind(rec.Worktree)
 		}
 		if rec.State != EpochSuperseded {
-			return unresolved(key)
+			return torn(key) // minted but never bound to its worktree
 		}
 		key = rec.ReplacementReserved
 	}
+}
+
+// storedScopeWorktree returns the feature worktree recorded on the outer recovery
+// scope the gate record under gateKey names, or "" when there is none to read — no
+// store, no such gate record, no scope id, or an unreadable scope. It is an identity
+// lookup only: "" never means safe, it means this source has no identity to offer.
+func storedScopeWorktree(seams cancelSeams, repoDir, gateKey string) string {
+	if seams.store == nil || gateKey == "" {
+		return ""
+	}
+	rec, err := LoadGateRecord(repoDir, gateKey)
+	if err != nil || rec.ScopeID == "" {
+		return ""
+	}
+	scope, err := seams.store.LoadScope(rec.ScopeID)
+	if err != nil {
+		return ""
+	}
+	return scope.Worktree
 }
 
 // verifyTerminalEpochQuiescence revalidates a terminal (cancelled/superseded)
@@ -549,10 +603,13 @@ func resolveTerminalEpochSlot(repoDir string, ep EpochRecord) (EpochRecord, stri
 // an unresolved relaunch), or an admitted-not-completed mutation is non-quiescence
 // with a bounded finding. It performs no epoch or slot write, and it does not
 // re-prove participants, which terminal repair deliberately does not re-enumerate.
-func verifyTerminalEpochQuiescence(seams cancelSeams, repoDir string, ep EpochRecord) (EpochRecord, bool, []string) {
+// requestWorktree is the caller's own verified worktree identity, if any (resume's
+// feature worktree; "" for run.cancel), used only to resolve a torn replacement
+// chain (resolveTerminalEpochSlot).
+func verifyTerminalEpochQuiescence(seams cancelSeams, repoDir string, ep EpochRecord, requestWorktree string) (EpochRecord, bool, []string) {
 	var findings []string
 	quiescent := true
-	slotEp, rfinding := resolveTerminalEpochSlot(repoDir, ep)
+	slotEp, rfinding := resolveTerminalEpochSlot(seams, repoDir, ep, requestWorktree)
 	if rfinding != "" {
 		findings = append(findings, rfinding)
 		quiescent = false
@@ -591,7 +648,7 @@ func verifyTerminalEpochQuiescence(seams cancelSeams, repoDir string, ep EpochRe
 // a general recovery engine: it uses only the records already present, and missing
 // or contradictory evidence fails closed to refused. It never writes the epoch record.
 func repairTerminalEpoch(seams cancelSeams, repoDir string, ep EpochRecord) RunCancelResult {
-	slotEp, quiescent, findings := verifyTerminalEpochQuiescence(seams, repoDir, ep)
+	slotEp, quiescent, findings := verifyTerminalEpochQuiescence(seams, repoDir, ep, "")
 	if !quiescent {
 		return cancelResult(CancelDispositionRefused, findings)
 	}
