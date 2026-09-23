@@ -2,7 +2,7 @@
 id: 446
 slug: 'orphaned-halted-gate-drive-blocks-every-new-worktree-s-first'
 title: 'Orphaned halted gate drive blocks every new worktree''s first gate admission'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-23'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/orphaned-halted-gate-drive-blocks-every-new-worktree-s-first'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-23T17:34:52Z'
 ---
 
 ## Artifacts
