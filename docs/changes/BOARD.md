@@ -1,13 +1,18 @@
 # Backlog
 
-**449 changes** — 🟢 2 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 297 done · 🗑️ 119 killed
+**449 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 297 done · 🗑️ 119 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0446](active/0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | `critical` | `fix` | [spec](../superpowers/specs/2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-design.md) | `fix/orphaned-halted-gate-drive-blocks-every-new-worktree-s-first` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0446](active/0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | `critical` | `fix` | [#325](https://github.com/danielhanold/docket/pull/325) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
@@ -28,7 +33,7 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0449](active/0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | `critical` | `fix` | ⏳ waiting on #448 — not yet built |
-| [0448](active/0448-named-implement-next-skips-unrelated-maintenance-preflight.md) | Named implement-next skips unrelated maintenance preflight | `critical` | `fix` | ⏳ waiting on #446 — not yet built |
+| [0448](active/0448-named-implement-next-skips-unrelated-maintenance-preflight.md) | Named implement-next skips unrelated maintenance preflight | `critical` | `fix` | ⏳ waiting on #446 — needs your merge |
 | [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | needs-brainstorm |
 | [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | needs-brainstorm |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-brainstorm |

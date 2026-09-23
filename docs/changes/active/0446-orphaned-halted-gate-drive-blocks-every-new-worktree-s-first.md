@@ -2,7 +2,7 @@
 id: 446
 slug: 'orphaned-halted-gate-drive-blocks-every-new-worktree-s-first'
 title: 'Orphaned halted gate drive blocks every new worktree''s first gate admission'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-23'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/orphaned-halted-gate-drive-blocks-every-new-worktree-s-first'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/325'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-23T20:27:57Z'
