@@ -1,6 +1,7 @@
 package gatedrive
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -343,5 +344,133 @@ func TestReserveWorktreeExecutionForEpochRecordsOwnership(t *testing.T) {
 	}
 	if _, _, lerr := s.LoadWorktreeExecution(wt2); lerr == nil {
 		t.Fatalf("empty-epoch reserve must not create a slot")
+	}
+}
+
+// removedWorktreeSlot builds the removed-worktree fixture every stored-identity
+// addressing test (change 0446 Task 2) starts from: it reserves a slot for a real
+// worktree through the exported epoch entry point, releases it with its token,
+// reads the slot's STORED canonical identity (WorktreeRoot — EvalSymlinks output
+// by construction), then removes the worktree directory. It returns the logical
+// spelling the caller created, the stored identity, and the reservation token.
+func removedWorktreeSlot(t *testing.T, s *Store) (logical, stored, token string) {
+	t.Helper()
+	logical = mkWorktree(t)
+	token, err := s.ReserveWorktreeExecutionForEpoch("repo-1", logical, "ep-1", nil)
+	if err != nil {
+		t.Fatalf("reserve: %v", err)
+	}
+	if err := s.ReleaseWorktreeExecution(logical, token); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	slot, _, err := s.LoadWorktreeExecution(logical)
+	if err != nil {
+		t.Fatalf("load before removal: %v", err)
+	}
+	stored = slot.WorktreeRoot
+	if err := os.RemoveAll(logical); err != nil {
+		t.Fatalf("remove worktree: %v", err)
+	}
+	if _, err := os.Lstat(stored); !os.IsNotExist(err) {
+		t.Fatalf("fixture: stored identity %q still exists after removal (err=%v)", stored, err)
+	}
+	return logical, stored, token
+}
+
+// TestRetireEpochAfterWorktreeRemoved: cancellation completion of an epoch whose
+// worktree was removed addresses the slot through the canonical identity already
+// stored on it rather than re-canonicalizing a path that no longer exists (spec
+// §2) — retirement finds the slot and clears RunEpochID, preserving the rest.
+func TestRetireEpochAfterWorktreeRemoved(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	_, stored, token := removedWorktreeSlot(t, s)
+
+	if err := s.RetireWorktreeExecutionEpoch(stored, "ep-1", token); err != nil {
+		t.Fatalf("retire after worktree removal: %v", err)
+	}
+	after, _, err := s.LoadWorktreeExecution(stored)
+	if err != nil {
+		t.Fatalf("load after retire: %v", err)
+	}
+	if after.RunEpochID != "" {
+		t.Fatalf("RunEpochID = %q, want cleared", after.RunEpochID)
+	}
+	if after.State != admissionReleased || after.ReservationToken != token {
+		t.Fatalf("retire must only detach the epoch: got %+v", after)
+	}
+}
+
+// TestLoadWorktreeExecutionAfterRemovalFindsSlot: after the worktree directory is
+// removed, LoadWorktreeExecution(storedRoot) returns the slot record, not
+// ErrInvalidID. The logical spelling the epoch may have bound (bindEpochWorktree
+// stores the LOGICAL path, e.g. under /var/folders → /private/var on macOS) keys to
+// the same slot: its surviving ancestors still resolve, so the missing tail is
+// appended to their canonical form.
+func TestLoadWorktreeExecutionAfterRemovalFindsSlot(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	logical, stored, token := removedWorktreeSlot(t, s)
+
+	for _, spelling := range []string{stored, logical} {
+		slot, _, err := s.LoadWorktreeExecution(spelling)
+		if err != nil {
+			t.Fatalf("load %q after removal: %v", spelling, err)
+		}
+		if slot.ReservationToken != token || slot.RunEpochID != "ep-1" || slot.WorktreeRoot != stored {
+			t.Fatalf("load %q returned a different slot: %+v", spelling, slot)
+		}
+	}
+}
+
+// TestReserveAfterWorktreeRemovedStaysStrict: admitting a NEW execution still
+// requires an existing, resolvable worktree — only read/CAS entry points that
+// receive stored identities tolerate a missing path.
+func TestReserveAfterWorktreeRemovedStaysStrict(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	_, stored, _ := removedWorktreeSlot(t, s)
+
+	_, err := s.ReserveWorktreeExecutionForEpoch("repo-1", stored, "ep-1", nil)
+	se, ok := AsStoreError(err)
+	if !ok || se.Kind != ErrInvalidID {
+		t.Fatalf("reserve on a removed worktree: want ErrInvalidID, got %v", err)
+	}
+}
+
+// TestLoadWorktreeExecutionProbeErrorIsNotAbsence: a canonicalization failure
+// other than a missing path (here ENOTDIR — a path component is a regular file) is
+// a typed ErrInvalidID, never keyed on the spelling: a probe error is not clean
+// absence.
+func TestLoadWorktreeExecutionProbeErrorIsNotAbsence(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	file := filepath.Join(testsupport.TempDir(t), "plain-file")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+	_, _, err := s.LoadWorktreeExecution(filepath.Join(file, "wt"))
+	se, ok := AsStoreError(err)
+	if !ok || se.Kind != ErrInvalidID {
+		t.Fatalf("ENOTDIR probe: want ErrInvalidID, got %v", err)
+	}
+}
+
+// TestLoadWorktreeExecutionSymlinkAliasStillResolves: a live symlink alias of the
+// worktree still resolves to the same slot (canonicalise every symlink hop) — the
+// stored-identity path changes nothing for a path that exists.
+func TestLoadWorktreeExecutionSymlinkAliasStillResolves(t *testing.T) {
+	s := OpenStore(testsupport.TempDir(t))
+	wt := mkWorktree(t)
+	token := retireFixtureSlot(t, s, wt)
+	alias := filepath.Join(testsupport.TempDir(t), "alias")
+	if err := os.Symlink(wt, alias); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+	slot, _, err := s.LoadWorktreeExecution(alias)
+	if err != nil {
+		t.Fatalf("load via alias: %v", err)
+	}
+	if slot.ReservationToken != token {
+		t.Fatalf("alias resolved to a different slot: %+v", slot)
+	}
+	if err := s.RetireWorktreeExecutionEpoch(alias, "ep-1", token); err != nil {
+		t.Fatalf("retire via alias: %v", err)
 	}
 }
