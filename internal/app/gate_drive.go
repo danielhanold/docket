@@ -103,6 +103,10 @@ type driveEngine interface {
 	Claim(id, handoffID string) (gatedrive.DriveDoc, error)
 	Takeover(scopeID, parentCap, driveID string) (gatedrive.DriveDoc, error)
 	PrepareScope(gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error)
+	// ReconcileFinishedIncumbent settles a proven-finished incumbent on a worktree's
+	// execution slot with the engine's own process seam (change 0446 spec §3), so an
+	// advisory busy refusal is final only after reconciliation had its chance.
+	ReconcileFinishedIncumbent(worktree, runEpochID string) (settled bool, finding string, err error)
 }
 
 // GateDriveService is the in-process seam over the native gate driver. It owns
@@ -406,7 +410,11 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 //
 //  1. Advisory admission precheck — a plainly busy/unresolved worktree slot
 //     short-circuits BEFORE any charge. It is advisory (WorktreeAdmissionRefusal
-//     defers to the authoritative reserve on anything it cannot read).
+//     defers to the authoritative reserve on anything it cannot read), and its
+//     refusal is final only after finished-incumbent reconciliation (change 0446
+//     spec §3) could not settle the incumbent: a proven-finished incumbent is
+//     settled and the start continues, so this early short-circuit never refuses a
+//     start the authoritative admission would admit. Reconciliation charges nothing.
 //  2. Advisory budget precheck — an already-spent phase budget short-circuits
 //     before admission, so an exhausted start neither reserves the worktree slot
 //     nor mints a reserved drive it would have to abandon.
@@ -424,7 +432,13 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 // change fixes (a worktree-busy refusal must reserve no attempt).
 func (s *GateDriveService) startBudgetedBuild(req GateDriveStartRequest, startReq gatedrive.StartRequest) GateDriveResult {
 	if err := s.budgetStore.WorktreeAdmissionRefusal(req.Worktree); err != nil {
-		return mapDriveResult(OperationGateDriveStart, gatedrive.DriveDoc{}, err)
+		settled, finding, _ := s.engine.ReconcileFinishedIncumbent(req.Worktree, req.RunEpochID)
+		if !settled {
+			if oe, ok := gatedrive.AsOwnershipError(err); ok {
+				oe.Reconciliation = finding
+			}
+			return mapDriveResult(OperationGateDriveStart, gatedrive.DriveDoc{}, err)
+		}
 	}
 	if refusal, refused := s.suiteBudgetPrecheck(req); refused {
 		return refusal
@@ -641,6 +655,11 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 			} else {
 				result.Message = ownershipNextAction(oe.Kind)
 			}
+			// A refusal finished-incumbent reconciliation could not settle names the
+			// obligation that keeps it final (a bounded finding token, change 0446 §6).
+			if oe.Reconciliation != "" {
+				result.Message = appendReconciliationFinding(result.Message, oe.Reconciliation)
+			}
 		} else if fe, ok := AsMutationFenceError(err); ok {
 			result.Message = fenceNextAction(fe.Reason)
 		}
@@ -705,7 +724,7 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	case gatedrive.ErrUnresolvedLaunchTransition:
 		return "a prior launch transition is unresolved; recover via the parent, not a retry"
 	case gatedrive.ErrWorktreeBusy:
-		return "this worktree's gate execution slot is occupied (the occupying process may have already completed); wait for the incumbent or settle its slot through its own stop/cancel route — do not start a second gate in the same worktree"
+		return "this worktree's gate execution slot is occupied by an execution admission could not prove finished (a proven-finished occupant is settled automatically); wait for the incumbent or settle its slot through its own stop/cancel route — do not start a second gate in the same worktree"
 	case gatedrive.ErrUnresolvedExecution:
 		return "a prior execution in this worktree is unresolved; recover it through the parent or run.cancel, never a blind re-start"
 	case gatedrive.ErrStaleRunEpoch:
@@ -719,6 +738,16 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	default:
 		return ""
 	}
+}
+
+// appendReconciliationFinding appends the bounded finished-incumbent
+// reconciliation finding to a refusal's next-action message.
+func appendReconciliationFinding(message, finding string) string {
+	note := "finished-incumbent check: " + finding
+	if message == "" {
+		return note
+	}
+	return message + " (" + note + ")"
 }
 
 // stageWorktreeAdmission is the typed refusal site for a CURRENT worktree
@@ -772,7 +801,7 @@ func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.In
 		return "a workflow run epoch owns this worktree's execution slot; continue that run through its own gate-drive continuation, or cancel it with the run.cancel operation using that run's key and epoch — never a raw manual teardown and never a stale epoch presented as a bypass"
 	case inc != nil && inc.Kind == "raw" && inc.RawRunDir != "" && rawRunIDShape.MatchString(inc.RawRunID):
 		dir := quoteOperand(inc.RawRunDir)
-		return "a raw gate run occupies this worktree's execution slot; the slot stays occupied until explicit teardown, even after the run completes. Inspect it with docket gate observe " + dir +
+		return "a raw gate run occupies this worktree's execution slot and admission could not prove it finished (a run whose completion is proven is settled automatically by the next admission); it may still be running. Inspect it with docket gate observe " + dir +
 			", then settle the slot with docket gate stop " + dir + " --reason <why> — stopping a still-running run cancels it; stopping an already-completed run settles its slot (the stop operation itself decides whether teardown is proven)"
 	case inc != nil && inc.Kind == "raw":
 		return "a raw gate reservation occupies this worktree's execution slot but its run identity is not recorded; do not start a second gate here — resolve the incumbent before retrying"

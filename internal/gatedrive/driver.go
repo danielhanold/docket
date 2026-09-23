@@ -368,7 +368,10 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 // worktree-busy / unresolved-execution / scope-busy slot, or a lost scope
 // reservation) returns a typed error and reserves nothing the caller must later
 // account for: no process was launched, and any freshly minted worktree slot with
-// no adopter is released before returning. On success it returns the ticket
+// no adopter is released before returning. A worktree-busy / unresolved refusal
+// is returned only after finished-incumbent reconciliation could not settle the
+// incumbent (its bounded finding rides OwnershipError.Reconciliation); admission
+// never stops an incumbent to make room. On success it returns the ticket
 // StartAdmitted (or AbandonAdmission) consumes.
 func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	if len(req.Command) == 0 || req.Command[0] == "" {
@@ -444,15 +447,36 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	// fingerprint (above) and precheckScopedStart stay OUTSIDE the gate; the lock
 	// order inside reserve is unchanged (admission → scope → drive).
 	var ticket *AdmissionTicket
-	err = d.epochGated(req.RunEpochID, req.Worktree, func() error {
-		var aerr error
-		if req.ScopeID == "" {
-			ticket, aerr = d.admitScopeless(rec, ownerGen, req.RunEpochID)
+	admit := func() error {
+		return d.epochGated(req.RunEpochID, req.Worktree, func() error {
+			var aerr error
+			if req.ScopeID == "" {
+				ticket, aerr = d.admitScopeless(rec, ownerGen, req.RunEpochID)
+			} else {
+				ticket, aerr = d.admitScoped(req, rec, ownerGen)
+			}
+			return aerr
+		})
+	}
+	err = admit()
+	// Finished-incumbent reconciliation (change 0446 spec §3). A worktree-busy /
+	// unresolved-execution refusal decided on an occupying incumbent is final only
+	// after the exact incumbent was inspected: a proven-finished one is settled and
+	// this SAME admission retries its reservation once. Reconciliation probes
+	// processes, so it runs OUTSIDE the epoch gate (probe outside outer locks) and
+	// applies its release under the slot CAS with the expected token; the retry then
+	// re-enters the gate, which revalidates the epoch. The pre-reserve checks above
+	// (command/budget, precheckScopedStart, ComputeFingerprint) validate the request
+	// or the requesting scope's own slot and never depend on the incumbent, so none
+	// of them can refuse a finished incumbent before this point.
+	if oe, ok := isIncumbentRefusal(err); ok {
+		settled, finding, _ := d.reconcileFinishedIncumbent(req.Worktree, req.RunEpochID)
+		if settled {
+			err = admit()
 		} else {
-			ticket, aerr = d.admitScoped(req, rec, ownerGen)
+			oe.Reconciliation = finding
 		}
-		return aerr
-	})
+	}
 	if err != nil {
 		return nil, err
 	}

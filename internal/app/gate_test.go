@@ -119,9 +119,10 @@ func TestGateLaunchInsideWorktreeReservesSlot(t *testing.T) {
 func TestGateLaunchSecondRefusedWhileFirstLives(t *testing.T) {
 	requireRealGit(t)
 	worktree, _ := initGitRepo(t, "")
-	// The first run's slot stays reserved until a GateStop-proven teardown, so it
-	// blocks a second admission regardless of the first command's own lifetime.
-	first := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/echo", "hi"})
+	// The first run is genuinely LIVE (a long sleep), so the admission-boundary
+	// finished-incumbent reconciliation (change 0446 spec §3) has no teardown proof
+	// and the slot still blocks a second admission.
+	first := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/sleep", "60"})
 	t.Cleanup(func() { GateStop(first.RunDir, "test cleanup") })
 	if first.Result != ResultApplied || first.RunID == "" {
 		t.Fatalf("first launch: result=%s reason=%q", first.Result, first.Reason)
@@ -140,6 +141,55 @@ func TestGateLaunchSecondRefusedWhileFirstLives(t *testing.T) {
 	if !strings.Contains(second.Cause, first.RunID) {
 		t.Fatalf("refusal cause %q does not locate the incumbent run %q", second.Cause, first.RunID)
 	}
+}
+
+// TestGateLaunchSettlesFinishedRawIncumbent (change 0446 spec §3): a COMPLETED raw
+// run whose slot was never stopped no longer blocks the worktree. The next raw
+// launch's normal admission proves the incumbent torn down through the process
+// predicate, settles its slot, and admits — with no manual GateStop and no second
+// launch attempt.
+func TestGateLaunchSettlesFinishedRawIncumbent(t *testing.T) {
+	requireRealGit(t)
+	worktree, gitDir := initGitRepo(t, "")
+	first := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/echo", "hi"})
+	if first.Result != ResultApplied || first.RunDir == "" {
+		t.Fatalf("first launch: result=%s reason=%q", first.Result, first.Reason)
+	}
+	waitRawRunTornDown(t, first.RunDir)
+	if slot, _, err := gatedrive.OpenStore(gitDir).LoadWorktreeExecution(worktree); err != nil || string(slot.State) != "executing" {
+		t.Fatalf("a completed raw run keeps its slot occupied until settled: state=%q err=%v", string(slot.State), err)
+	}
+
+	second := GateLaunch(testsupport.TempDir(t), worktree, []string{"/bin/echo", "hi"})
+	if second.RunDir != "" {
+		t.Cleanup(func() { waitGateRunTerminal(t, second.RunDir); GateStop(second.RunDir, "test cleanup") })
+	}
+	if second.Result != ResultApplied || second.RunDir == "" || second.RunDir == first.RunDir {
+		t.Fatalf("a proven-finished raw incumbent must not block the next launch: result=%s reason=%q cause=%q",
+			second.Result, second.Reason, second.Cause)
+	}
+	slot, _, err := gatedrive.OpenStore(gitDir).LoadWorktreeExecution(worktree)
+	if err != nil || slot.RawRunDir != second.RunDir {
+		t.Fatalf("the slot must now hold the second run, got %q err=%v", slot.RawRunDir, err)
+	}
+}
+
+// waitRawRunTornDown polls the process predicate reconciliation consults until the
+// run's supervisor has released it with a durable terminal record, so a following
+// admission deterministically sees positive teardown proof.
+func waitRawRunTornDown(t *testing.T, runDir string) {
+	t.Helper()
+	svc, _, reason := gateService()
+	if svc == nil {
+		t.Fatalf("gate service: %s", reason)
+	}
+	for i := 0; i < 300; i++ {
+		if e, err := svc.ClassifyRun(runDir, false); err == nil && e.Disposition == "terminal" {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("run never reached a torn-down terminal disposition")
 }
 
 // TestGateLaunchOutsideGitUnchanged proves a launch whose cwd is outside any git

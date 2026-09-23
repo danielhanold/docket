@@ -1546,3 +1546,99 @@ func TestBarrierSuccessorUnderCancel(t *testing.T) {
 		t.Fatalf("a fenced successor leaves nothing pending, got %+v", report)
 	}
 }
+
+// --- change 0446 spec §3 / AC7: finished-incumbent reconciliation under races ---
+
+// TestConcurrentAdmitsOverFinishedIncumbentAdmitOnce races several Admits over ONE
+// proven-finished incumbent (a PASSED drive whose release was interrupted). Every
+// racer may reconcile the incumbent, but the slot CAS with the exact expected token
+// and state lets only one reconciliation release it and the reserve under the slot
+// lock admits exactly one execution; every loser is refused with the winner's slot
+// intact.
+func TestConcurrentAdmitsOverFinishedIncumbentAdmitOnce(t *testing.T) {
+	seam := &incumbentSeam{}
+	d, store := newIncumbentDriver(t, seam)
+	req := incumbentStart(t)
+	finishedDriveIncumbent(t, d, store, seam, req)
+
+	const racers = 4
+	var (
+		start   sync.WaitGroup
+		done    sync.WaitGroup
+		mu      sync.Mutex
+		tickets []*AdmissionTicket
+		refused int
+	)
+	start.Add(1)
+	for i := 0; i < racers; i++ {
+		done.Add(1)
+		go func() {
+			defer done.Done()
+			start.Wait()
+			ticket, err := d.Admit(req)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				if oe, ok := AsOwnershipError(err); !ok || (oe.Kind != ErrWorktreeBusy && oe.Kind != ErrUnresolvedExecution) {
+					t.Errorf("a losing racer must be refused worktree-busy/unresolved, got %v", err)
+				}
+				refused++
+				return
+			}
+			tickets = append(tickets, ticket)
+		}()
+	}
+	start.Done()
+	done.Wait()
+
+	if len(tickets) != 1 || refused != racers-1 {
+		t.Fatalf("admitted %d, refused %d; want exactly one admission over one finished incumbent", len(tickets), refused)
+	}
+	slot := mustSlot(t, store, req.Worktree)
+	if slot.State != admissionReserved || slot.ReservationToken != tickets[0].token {
+		t.Fatalf("the winner's reservation must hold the slot: state=%s", slot.State)
+	}
+	launches := seam.launchN
+	if _, err := d.StartAdmitted(tickets[0]); err != nil {
+		t.Fatalf("StartAdmitted: %v", err)
+	}
+	if seam.launchN != launches+1 {
+		t.Fatalf("launches = %d, want exactly one", seam.launchN-launches)
+	}
+}
+
+// TestReconcileSuccessorRaceLeavesSuccessorUntouched: a successor reservation lands
+// between reconciliation's probe and its CAS (the probe proved the OLD incumbent
+// finished). The CAS with the old expected token fails, reconciliation re-evaluates
+// the ACTUAL incumbent once — never releasing it with the newly observed token — and
+// the admission is refused with the successor's slot byte-identical.
+func TestReconcileSuccessorRaceLeavesSuccessorUntouched(t *testing.T) {
+	seam := &incumbentSeam{}
+	d, store := newIncumbentDriver(t, seam)
+	req := incumbentStart(t)
+	old := finishedDriveIncumbent(t, d, store, seam, req)
+
+	fired := 0
+	var successor string
+	incumbentApplyHook = func() {
+		fired++
+		if fired > 1 {
+			return
+		}
+		tok, err := store.rotateWorktreeExecutionForSuccessor(req.Worktree, old)
+		if err != nil {
+			t.Errorf("successor rotation: %v", err)
+		}
+		successor = tok
+	}
+	t.Cleanup(func() { incumbentApplyHook = nil })
+
+	ticket, err := d.Admit(req)
+	if ticket != nil {
+		t.Fatalf("the admission must not win over a successor that raced the settle")
+	}
+	requireIncumbentRefusal(t, err, store, req.Worktree, successor, admissionReserved)
+	if fired != 1 {
+		t.Fatalf("apply hook fired %d times; the successor must be re-evaluated, never released on its new token", fired)
+	}
+}
