@@ -9,10 +9,10 @@ created: '2026-09-23'
 updated: '2026-09-23'
 depends_on: []
 stacked_on:
-related: [375, 437, 441]
+related: [313, 375, 435, 437, 441]
 discovered_from: []
 adrs: [118, 124]
-spec:
+spec: 'docs/superpowers/specs/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md) |
 | ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md) |
 <!-- docket:artifacts:end -->
 
@@ -38,8 +39,8 @@ A publication whose result cannot be observed leaves an uncertain run-epoch jour
 
 ## What changes
 
-Make cancellation able to account for the original publication obligation using authoritative evidence, preserving existing fencing and resume safety. Investigate whether extending the existing journal with enough publication identity and reusing existing remote probes is sufficient; this is a design hypothesis, not a prescribed new subsystem. Trace implementation and relevant prior changes and ADRs during grooming, and select the smallest repair that covers the reported successful-retry case.
+Extend the existing run-epoch publication entries with the original effect identity and use existing read-only Git/GitHub probes to settle uncertain entries during cancellation and successful closeout. Preserve fencing and resume rules, update only the proven original entry, and leave missing or ambiguous evidence pending. Cover identical successful retries, mismatched effects, interrupted persistence and legacy entries. The linked spec records the implementation trace, prior changes and ADRs, alternatives, and regression criteria.
 
 ## Out of scope
 
-New cancellation or resume policy, force-clearing uncertain work, undoing published work, background reconciliation services, generic retry frameworks, unrelated workflow redesign, and implementation during grooming.
+New cancellation/resume policy, force-clearing uncertain work, publication rollback, background services, new retry layers or persistent stores, generic effect recovery, unrelated workflow redesign, bulk legacy repair, and implementation during grooming. Entries without original identity or proof that the publication invocation returned remain fail-closed.
