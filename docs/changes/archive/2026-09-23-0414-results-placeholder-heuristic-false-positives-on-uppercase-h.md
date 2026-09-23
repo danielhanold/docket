@@ -2,11 +2,11 @@
 id: 414
 slug: 'results-placeholder-heuristic-false-positives-on-uppercase-h'
 title: 'Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'chore'
 created: '2026-09-08'
-updated: '2026-09-22'
+updated: '2026-09-23'
 depends_on: []
 stacked_on:
 related: [315, 410, 440]
@@ -22,7 +22,7 @@ branch: 'chore/results-placeholder-heuristic-false-positives-on-uppercase-h'
 pr: 'https://github.com/danielhanold/docket/pull/324'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-22T20:50:08Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-22T20:50:08Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-design.md) |
-| Plan | [2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h.md](https://github.com/danielhanold/docket/blob/chore/results-placeholder-heuristic-false-positives-on-uppercase-h/docs/superpowers/plans/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h.md) |
-| Results | [2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-results.md](https://github.com/danielhanold/docket/blob/chore/results-placeholder-heuristic-false-positives-on-uppercase-h/docs/results/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-results.md) |
+| Plan | [2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h.md) |
+| Results | [2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-22-results-placeholder-heuristic-false-positives-on-uppercase-h-results.md) |
 | ADRs | [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md) |
 <!-- docket:artifacts:end -->
 
