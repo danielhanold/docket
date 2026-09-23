@@ -331,44 +331,24 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 // reserve a replacement (EpochCancelled) or re-authorize a previously reserved one
 // (EpochSuperseded) — the same bounded proof terminal repair uses
 // (verifyTerminalEpochQuiescence; the cancellation command's last reported
-// disposition is not durable authority). When the evidence is accounted and a
-// RELEASED slot still carries the old epoch's ownership, it performs the same
-// ownership-checked retirement (cancelSeams.retireSlot) so the replacement's own
-// reservation is not refused stale-run-epoch. It never cancels or alters an
-// already-reserved successor, and a foreign slot alone (classifySlotOwnership: a
-// different nonempty RunEpochID is a foreign owner) neither proves nor disproves
-// quiescence. Incomplete or unreadable proof returns ok=false with a bounded,
-// credential-free detail for the gate-unarmed message; it creates no replacement and
-// yields no dispatch authorization.
-func validateResumeQuiescence(seams cancelSeams, ep EpochRecord) (ok bool, detail string) {
-	quiescent, findings := verifyTerminalEpochQuiescence(seams, ep)
+// disposition is not durable authority). For a superseded epoch, whose Worktree
+// supersession cleared, that proof resolves the replacement's worktree and runs the
+// launch census with the old epoch id against it (change 0446 spec §4). When the
+// evidence is accounted it retires, through the shared retirement
+// (retireSlotOwnership), a RELEASED slot that still carries the old epoch's
+// ownership, so the replacement's own reservation is not refused stale-run-epoch. It
+// never cancels or alters an already-reserved successor: a successor-held slot is
+// the shared successor outcome, returned as the detail of an ok result. Incomplete
+// or unreadable proof returns ok=false with a bounded, credential-free detail for the
+// gate-unarmed message; it creates no replacement and yields no dispatch
+// authorization.
+func validateResumeQuiescence(seams cancelSeams, repoDir string, ep EpochRecord) (ok bool, detail string) {
+	slotEp, quiescent, findings := verifyTerminalEpochQuiescence(seams, repoDir, ep)
 	if !quiescent {
 		return false, strings.Join(findings, "; ")
 	}
-	if seams.store == nil || ep.Worktree == "" {
-		return true, ""
-	}
-	slot, _, err := seams.store.LoadWorktreeExecution(ep.Worktree)
-	if err != nil {
-		if se, aok := gatedrive.AsStoreError(err); aok && se.Kind == gatedrive.ErrNotFound {
-			return true, ""
-		}
-		return false, "slot-unreadable"
-	}
-	if classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) != slotOwned {
-		return true, "" // absent ownership, or a foreign successor: neutral
-	}
-	if string(slot.State) != "released" {
-		return false, "slot-not-released"
-	}
-	if rerr := seams.retireSlot(ep.Worktree, ep.EpochID, slot.ReservationToken); rerr != nil {
-		cur, _, lerr := seams.store.LoadWorktreeExecution(ep.Worktree)
-		if lerr == nil && (cur.RunEpochID == "" || cur.RunEpochID != ep.EpochID) {
-			return true, "" // concurrently retired, or replaced by a successor: neutral
-		}
-		return false, "slot-retire-failed"
-	}
-	return true, ""
+	r := retireSlotOwnership(seams, slotEp)
+	return r.detached, r.finding
 }
 
 // RunGateBefore arms the implement-next run gate. On a bad target it returns a
@@ -505,7 +485,7 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 					return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
 						"change "+scopeChangeID+" was superseded without a recorded replacement")
 				}
-				if qok, detail := validateResumeQuiescence(seams, oldEp); !qok {
+				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp); !qok {
 					return gateUnarmedMsg(ReasonGateResumeCancellationPending,
 						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
 							"); the reserved replacement cannot be re-authorized until it is resolved")
@@ -517,7 +497,7 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 				// atomically supersede and reserve exactly one replacement dispatch (one
 				// winner under a concurrent-resume race). Unresolved evidence refuses on the
 				// existing gate-unarmed channel rather than reserving over an unquiesced run.
-				if qok, detail := validateResumeQuiescence(seams, oldEp); !qok {
+				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp); !qok {
 					return gateUnarmedMsg(ReasonGateResumeCancellationPending,
 						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
 							"); resume cannot reserve a replacement — resolve it with 'docket run cancel'")

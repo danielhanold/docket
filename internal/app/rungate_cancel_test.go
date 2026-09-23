@@ -1286,3 +1286,257 @@ func TestRawAdmissionStoreWiresEpochSettledResolver(t *testing.T) {
 		t.Fatal("raw admission store: epoch settlement resolver not wired")
 	}
 }
+
+// admissionRecordFile returns the worktree slot's record path at the documented
+// storage layout (see removeAdmissionRecord): the byte-identity probe the
+// retirement-convergence tests use to prove a successor's slot is untouched.
+func admissionRecordFile(t *testing.T, common, worktree string) string {
+	t.Helper()
+	canon, err := filepath.EvalSymlinks(worktree)
+	if err != nil {
+		t.Fatalf("EvalSymlinks: %v", err)
+	}
+	sum := sha256.Sum256([]byte(canon))
+	return filepath.Join(common, "docket", "gate-admission", "v1", hex.EncodeToString(sum[:]), "record.json")
+}
+
+// readAdmissionRecord reads the slot's raw record bytes.
+func readAdmissionRecord(t *testing.T, common, worktree string) []byte {
+	t.Helper()
+	buf, err := os.ReadFile(admissionRecordFile(t, common, worktree))
+	if err != nil {
+		t.Fatalf("read admission record: %v", err)
+	}
+	return buf
+}
+
+// releaseFixtureSlot releases the fixture's epoch-owned slot (RunEpochID retained,
+// exactly as an ordinary between-drives release leaves it) and returns its token.
+func releaseFixtureSlot(t *testing.T, fx cancelFixture) string {
+	t.Helper()
+	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	return slot.ReservationToken
+}
+
+// installSuccessor detaches the fixture epoch from its released slot out-of-band and
+// lets a SUCCESSOR epoch reserve and release it — a released slot whose RunEpochID
+// the successor now holds.
+func installSuccessor(t *testing.T, fx cancelFixture, token string) {
+	t.Helper()
+	if err := fx.store.RetireWorktreeExecutionEpoch(fx.worktree, fx.epochID, token); err != nil {
+		t.Fatalf("out-of-band retire: %v", err)
+	}
+	stok, err := fx.store.ReserveWorktreeExecutionForEpoch(fx.common, fx.worktree, "successor-epoch", nil)
+	if err != nil {
+		t.Fatalf("successor reserve: %v", err)
+	}
+	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, stok); err != nil {
+		t.Fatalf("successor release: %v", err)
+	}
+}
+
+// TestRetirementSitesConverge (change 0446 spec §4, AC5): the three slot-retirement
+// sites — runCancel's completion, repairTerminalEpoch, and validateResumeQuiescence —
+// share ONE retirement implementation, so a successor holding the slot (whether it
+// already held it or won the retirement CAS race) yields one defined outcome at
+// every site: the slot-replaced-by-successor finding, the operation still accounted
+// (cancelled / already-cancelled / quiescent), the successor's slot byte-identical,
+// and the epoch never regressed.
+func TestRetirementSitesConverge(t *testing.T) {
+	type site struct {
+		name       string
+		epochState epochState // the state the epoch is in when the site runs
+		wantState  epochState // the epoch state after the site ran
+		run        func(t *testing.T, fx cancelFixture, seams cancelSeams) []string
+	}
+	sites := []site{
+		{"runCancel", EpochActive, EpochCancelled, func(t *testing.T, fx cancelFixture, seams cancelSeams) []string {
+			res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+			if res.Disposition != CancelDispositionCancelled {
+				t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+			}
+			return res.Findings
+		}},
+		{"repairTerminalEpoch", EpochCancelled, EpochCancelled, func(t *testing.T, fx cancelFixture, seams cancelSeams) []string {
+			res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human repair")
+			if res.Disposition != CancelDispositionAlreadyCancelled {
+				t.Fatalf("disposition = %q, want already-cancelled (findings=%v)", res.Disposition, res.Findings)
+			}
+			return res.Findings
+		}},
+		{"validateResumeQuiescence", EpochCancelled, EpochCancelled, func(t *testing.T, fx cancelFixture, seams cancelSeams) []string {
+			ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+			if err != nil {
+				t.Fatalf("LoadEpochRecord: %v", err)
+			}
+			ok, detail := validateResumeQuiescence(seams, fx.repo, ep)
+			if !ok {
+				t.Fatalf("validateResumeQuiescence refused a successor-held slot: %q", detail)
+			}
+			return []string{detail}
+		}},
+	}
+	for _, s := range sites {
+		for _, raced := range []bool{false, true} {
+			name := s.name + "/preheld"
+			if raced {
+				name = s.name + "/raced"
+			}
+			t.Run(name, func(t *testing.T) {
+				fx := newCancelFixture(t, true)
+				token := releaseFixtureSlot(t, fx)
+				stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+				seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
+				var successorBytes []byte
+				if raced {
+					// The successor wins between the site's slot load and its retire CAS.
+					seams.retire = func(worktree, epoch, tok string) error {
+						if successorBytes == nil {
+							installSuccessor(t, fx, token)
+							successorBytes = readAdmissionRecord(t, fx.common, fx.worktree)
+						}
+						return fx.store.RetireWorktreeExecutionEpoch(worktree, epoch, tok)
+					}
+				} else {
+					installSuccessor(t, fx, token)
+					successorBytes = readAdmissionRecord(t, fx.common, fx.worktree)
+				}
+				if s.epochState != EpochActive {
+					if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = s.epochState; return nil }); err != nil {
+						t.Fatalf("set epoch state: %v", err)
+					}
+				}
+
+				findings := s.run(t, fx, seams)
+
+				if !hasFinding(findings, "slot-replaced-by-successor") {
+					t.Fatalf("findings = %v, want the one defined successor outcome slot-replaced-by-successor", findings)
+				}
+				if successorBytes == nil {
+					t.Fatal("the raced retirement never reached the retire CAS")
+				}
+				if got := readAdmissionRecord(t, fx.common, fx.worktree); string(got) != string(successorBytes) {
+					t.Fatalf("the successor's slot changed:\nbefore %s\nafter  %s", successorBytes, got)
+				}
+				if st := loadEpochState(t, fx.repo, fx.key); st != s.wantState {
+					t.Fatalf("epoch state = %q, want %q (never regressed)", st, s.wantState)
+				}
+			})
+		}
+	}
+}
+
+// TestRepairTerminalEpochRemovedWorktree (change 0446 spec §5, AC2): a terminal
+// epoch whose feature worktree directory was REMOVED still has its stale released
+// slot retired by terminal repair — the slot is reached through its stored identity,
+// never reported slot-unreadable — and a repeat repair is the idempotent no-op.
+func TestRepairTerminalEpochRemovedWorktree(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	releaseFixtureSlot(t, fx)
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = EpochCancelled; return nil }); err != nil {
+		t.Fatalf("force cancelled: %v", err)
+	}
+	if err := os.RemoveAll(fx.worktree); err != nil {
+		t.Fatalf("remove worktree: %v", err)
+	}
+	seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
+	res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human repair")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q, want cancelled (stale slot retired via stored identity; findings=%v)", res.Disposition, res.Findings)
+	}
+	if hasFinding(res.Findings, "slot-unreadable") {
+		t.Fatalf("findings = %v: a removed worktree's slot is addressable by stored identity", res.Findings)
+	}
+	if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+		t.Fatalf("slot epoch = %q, want retired", epo)
+	}
+	if res2 := runCancel(seams, fx.repo, fx.key, fx.epochID, "human repair"); res2.Disposition != CancelDispositionAlreadyCancelled {
+		t.Fatalf("repeat = %q, want already-cancelled (findings=%v)", res2.Disposition, res2.Findings)
+	}
+}
+
+// supersedeFixtureEpoch confirms the fixture epoch cancelled and supersedes it with a
+// freshly minted replacement gate key whose epoch binds replacementWorktree ("" leaves
+// the replacement epoch unbound), mirroring armResumeReplacement's order. The
+// superseded epoch's own Worktree is cleared by SupersedeCancelledEpoch. It returns
+// the replacement's gate key.
+func supersedeFixtureEpoch(t *testing.T, fx cancelFixture, replacementWorktree string, mintReplacementEpoch bool) string {
+	t.Helper()
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = EpochCancelled; return nil }); err != nil {
+		t.Fatalf("force cancelled: %v", err)
+	}
+	replKey := mintTestGateKey(t, fx.repo)
+	if err := SupersedeCancelledEpoch(fx.repo, fx.key, replKey); err != nil {
+		t.Fatalf("SupersedeCancelledEpoch: %v", err)
+	}
+	if mintReplacementEpoch {
+		if _, err := MintEpochRecord(fx.repo, replKey, ""); err != nil {
+			t.Fatalf("MintEpochRecord(replacement): %v", err)
+		}
+		if replacementWorktree != "" {
+			if err := epochCAS(fx.repo, replKey, func(r *EpochRecord) error { r.Worktree = replacementWorktree; return nil }); err != nil {
+				t.Fatalf("bind replacement worktree: %v", err)
+			}
+		}
+	}
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.State != EpochSuperseded || ep.Worktree != "" {
+		t.Fatalf("superseded fixture = state %q worktree %q, want superseded with a cleared worktree", ep.State, ep.Worktree)
+	}
+	return replKey
+}
+
+// TestTerminalRepairSupersededThreadsReplacementWorktree (change 0446 spec §4, AC5):
+// a SUPERSEDED epoch has an empty Worktree, which is not proof of quiescence. Terminal
+// repair resolves the replacement epoch's worktree through ReplacementReserved, runs
+// the launch census with the predecessor's epoch id against THAT worktree, and — when
+// the replacement's slot still carries the predecessor's RunEpochID — retires it.
+func TestTerminalRepairSupersededThreadsReplacementWorktree(t *testing.T) {
+	t.Run("stale-released-slot-retired", func(t *testing.T) {
+		fx := newCancelFixture(t, true)
+		releaseFixtureSlot(t, fx)
+		supersedeFixtureEpoch(t, fx, fx.worktree, true)
+		launches := okLaunchReconciler()
+		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: launches}, fx.repo, fx.key, fx.epochID, "human repair")
+		if res.Disposition != CancelDispositionCancelled {
+			t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
+		}
+		if len(launches.calls) != 1 || launches.calls[0] != fx.worktree+"|"+fx.epochID {
+			t.Fatalf("census calls = %v, want exactly [%s|%s] (the replacement's worktree, the predecessor's epoch)", launches.calls, fx.worktree, fx.epochID)
+		}
+		if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != "" {
+			t.Fatalf("slot epoch = %q, want the predecessor's stale ownership retired", epo)
+		}
+		if st := loadEpochState(t, fx.repo, fx.key); st != EpochSuperseded {
+			t.Fatalf("epoch state = %q, want superseded (never regressed)", st)
+		}
+	})
+	t.Run("unreleased-predecessor-slot-refused", func(t *testing.T) {
+		fx := newCancelFixture(t, true) // slot left executing under the predecessor
+		supersedeFixtureEpoch(t, fx, fx.worktree, true)
+		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human repair")
+		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "slot-not-released") {
+			t.Fatalf("result = %q %v, want refused slot-not-released", res.Disposition, res.Findings)
+		}
+		if epo := loadSlotEpoch(t, fx.store, fx.worktree); epo != fx.epochID {
+			t.Fatalf("slot epoch = %q, want the refused slot untouched", epo)
+		}
+	})
+	t.Run("unresolvable-replacement-refused", func(t *testing.T) {
+		fx := newCancelFixture(t, false)
+		replKey := supersedeFixtureEpoch(t, fx, "", false) // replacement epoch never minted
+		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human repair")
+		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "replacement-worktree-unresolved:"+replKey) {
+			t.Fatalf("result = %q %v, want refused replacement-worktree-unresolved:%s", res.Disposition, res.Findings, replKey)
+		}
+	})
+}

@@ -782,8 +782,8 @@ func TestCensusSchema2HistoricalTerminalSettles(t *testing.T) {
 
 // TestCensusSupersededEpochStillEnumerates proves rule 5 (AC5's superseded branch):
 // an empty worktreeRoot is not proof of quiescence — the census still walks the
-// registry and accounts the epoch's scope-linked drives, deferring only the slot
-// check.
+// registry and accounts the epoch's scope-linked drives, skipping only the slot
+// side (the app layer supplies a superseded epoch's replacement worktree for it).
 func TestCensusSupersededEpochStillEnumerates(t *testing.T) {
 	d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
 	id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
@@ -804,9 +804,6 @@ func TestCensusSupersededEpochStillEnumerates(t *testing.T) {
 		}
 		if !findingFor(report.Findings, "launch-pending", id) {
 			t.Fatalf("%s: findings = %v, want launch-pending:%s", mode.name, report.Findings, id)
-		}
-		if !reconcileFindingPresent(report.Findings, "slot-check-deferred") {
-			t.Fatalf("%s: findings = %v, want slot-check-deferred", mode.name, report.Findings)
 		}
 	}
 }

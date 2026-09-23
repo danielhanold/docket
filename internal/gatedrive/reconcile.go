@@ -64,7 +64,8 @@ type EpochLaunchReport struct {
 // run), so it accounts vacuously. An empty worktreeRoot is NOT proof of quiescence
 // (a superseded epoch has an empty Worktree yet its scope-linked drives are still
 // enumerable by RunEpochID): the registry walk still runs and only the slot-side
-// references are skipped, reported by an informational slot-check-deferred finding.
+// references are skipped. A superseded epoch's caller supplies the replacement's
+// worktree (the app's resolveTerminalEpochSlot), so the slot side is checked there.
 func (d *Driver) ReconcileEpochLaunches(worktreeRoot, epochID string) (EpochLaunchReport, error) {
 	return d.accountEpochLaunches(worktreeRoot, epochID, false)
 }
@@ -118,9 +119,6 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 	report := EpochLaunchReport{Accounted: true}
 	if epochID == "" {
 		return report, nil
-	}
-	if worktreeRoot == "" {
-		report.Findings = append(report.Findings, "slot-check-deferred")
 	}
 
 	refs := d.censusReferences(worktreeRoot, epochID, &report)
