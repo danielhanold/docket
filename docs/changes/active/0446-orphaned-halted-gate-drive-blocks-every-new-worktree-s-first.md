@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [368, 375, 428, 435, 437, 439, 441, 444]
 discovered_from: [444]
-adrs: [87, 95, 118, 120, 124]
+adrs: [87, 95, 118, 120, 124, 125]
 spec: 'docs/superpowers/specs/2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-design.md'
 plan: 'docs/superpowers/plans/2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md'
 results:
@@ -22,7 +22,7 @@ branch: 'fix/orphaned-halted-gate-drive-blocks-every-new-worktree-s-first'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-23T17:46:30Z'
+claimed_at: '2026-09-23T20:27:57Z'
 ---
 
 ## Artifacts
@@ -32,7 +32,7 @@ claimed_at: '2026-09-23T17:46:30Z'
 |---|---|
 | Spec | [2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first-design.md) |
 | Plan | [2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md](https://github.com/danielhanold/docket/blob/fix/orphaned-halted-gate-drive-blocks-every-new-worktree-s-first/docs/superpowers/plans/2026-09-23-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) |
-| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md) |
+| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0120](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0120-historical-gate-drive-schemas-are-assessed-never-executed.md), [ADR-0124](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0124-successful-run-ownership-closeout-extends-the-run-epoch-life.md), [ADR-0125](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -62,3 +62,7 @@ New orchestration systems, commands, force flags, persistent stores or schemas, 
 ### 2026-09-23
 
 Reconciled against origin/main 442770e1 (change 0414 merged; no gate-admission, run-cancel, or gate-drive code changed since grooming on 2026-09-23). Related 444 is blocked; 448/449 wait on this change. Scope, spec, and relations stand unchanged.
+
+### 2026-09-23
+
+Recorded ADR-0125 (historical gate discovery has no global veto; partially supersedes ADR-0118/ADR-0120 clauses) produced during implementation.
