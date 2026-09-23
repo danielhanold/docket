@@ -1190,8 +1190,7 @@ func (d *Driver) Advance(id, ownerGen string) (DriveDoc, error) {
 	// A terminal drive is idempotent: return the recorded verdict without
 	// re-driving the (already consumed or torn-down) run.
 	if isTerminalOutcome(rec.LastOutcome) {
-		_ = d.releaseAdmissionIfProven(rec)
-		return d.recordedDoc(id, ownerGen, rec), nil
+		return d.settledTerminalDoc(id, ownerGen, rec), nil
 	}
 	var claim *relaunchClaim
 	if rec.RelaunchReserved {
@@ -1368,8 +1367,7 @@ func (d *Driver) driveAndPersistClaim(id, ownerGen string, rec driveRecord, clai
 			if lerr != nil {
 				return DriveDoc{}, lerr
 			}
-			_ = d.releaseAdmissionIfProven(cur)
-			return d.recordedDoc(id, ownerGen, cur), nil
+			return d.settledTerminalDoc(id, ownerGen, cur), nil
 		}
 		return DriveDoc{}, err
 	}
@@ -1378,56 +1376,105 @@ func (d *Driver) driveAndPersistClaim(id, ownerGen string, rec driveRecord, clai
 	if err != nil {
 		return DriveDoc{}, err
 	}
-	_ = d.releaseAdmissionIfProven(cur)
-	return d.recordedDoc(id, ownerGen, cur), nil
+	return d.settledTerminalDoc(id, ownerGen, cur), nil
+}
+
+// settledTerminalDoc runs the terminal slot release for rec and builds the outcome
+// document from what that release PROVED (change 0446 spec §5 audit). The release
+// error is never discarded: a failed release/stopping/unresolved write rides the
+// document as a bounded ReleaseFinding, and the private run root is advertised only
+// when the slot's release evidence is settled — a caller that removes the root at
+// the terminal must never delete the evidence a still-required reconciliation needs.
+// A non-terminal record has nothing to release and is returned as recorded.
+func (d *Driver) settledTerminalDoc(id, ownerGen string, rec driveRecord) DriveDoc {
+	if !isTerminalOutcome(rec.LastOutcome) {
+		return d.recordedDoc(id, ownerGen, rec)
+	}
+	settled, err := d.releaseAdmissionIfProven(rec)
+	doc := d.recordedDocWithRoot(id, ownerGen, rec, settled && err == nil)
+	if err != nil {
+		doc.ReleaseFinding = releaseFinding(err)
+	}
+	return doc
+}
+
+// releaseFinding reduces a release-step error to a bounded, credential-free token:
+// the typed store/ownership op and kind only — never the wrapped error text, which
+// can carry host paths. An untyped error is reported as a generic io finding.
+func releaseFinding(err error) string {
+	if oe, ok := AsOwnershipError(err); ok {
+		return "release-unsettled:" + oe.Op + ":" + string(oe.Kind)
+	}
+	if se, ok := AsStoreError(err); ok {
+		return "release-unsettled:" + se.Op + ":" + string(se.Kind)
+	}
+	return "release-unsettled:io"
 }
 
 // releaseAdmissionIfProven frees the drive's worktree execution slot once the
 // drive's teardown is proven, so the next top-level execution — a different scope, a
 // scopeless start, or this scope's next sequential drive — can admit onto the same
-// worktree. A drive with no admission token (a scopeless start) has no slot to free
-// and is skipped. On a PASSED or FAILED verdict the slot is released outright: the
-// supervisor reports those only after writing its terminal record, so the child
-// group has ended and the worktree is genuinely idle, and the release is proven by
-// the same observation that produced the verdict. A HALTED verdict is handled here
-// too, but its process may still be live, so the document alone does not prove
-// teardown: the slot is Observe/Stopped and released only when that proves the group
-// has ended (Stop performed, or the observation proves teardown); when it cannot be
-// resolved the slot is marked unresolved or stopping rather than freed. The release
-// verifies the slot's reservation token and is idempotent under it, so a stale drive
-// cannot free a successor's slot and a concurrent-writer race that both observe the
-// terminal never double-frees.
-func (d *Driver) releaseAdmissionIfProven(rec driveRecord) error {
+// worktree. It reports settled=true only when the slot is PROVEN not to be held by
+// this drive's execution any more (released under its token, already released, or
+// already carrying a successor's token), and returns every write/read error rather
+// than dropping it (change 0446).
+//
+// A record with no admission token carries no slot this driver can free: every
+// admission path (admitScopeless and admitScoped alike) stamps a token, so an
+// empty token is a legacy/raw-history record. For PASSED/FAILED its process has
+// finished, so it is settled; for HALTED nothing proves teardown, so it is not.
+//
+// On a PASSED or FAILED verdict the slot is released outright: the supervisor
+// reports those only after writing its terminal record, so the child group has
+// ended and the worktree is genuinely idle, and the release is proven by the same
+// observation that produced the verdict. A HALTED verdict is handled here too, but
+// its process may still be live, so the document alone does not prove teardown:
+// the slot is Observe/Stopped and released only when that proves the group has
+// ended (Stop performed, or the observation proves teardown); when it cannot be
+// resolved the slot is marked unresolved or stopping rather than freed, and
+// settled is false. HALTED is never itself release proof. The release verifies the
+// slot's reservation token and is idempotent under it, so a stale drive cannot free
+// a successor's slot and a concurrent-writer race that both observe the terminal
+// never double-frees.
+func (d *Driver) releaseAdmissionIfProven(rec driveRecord) (settled bool, err error) {
+	finished := rec.LastOutcome == PASSED || rec.LastOutcome == FAILED
 	if rec.AdmissionToken == "" {
-		return nil
+		return finished, nil
 	}
-	if rec.LastOutcome == PASSED || rec.LastOutcome == FAILED {
-		return d.store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken)
-	}
-	if rec.LastOutcome != HALTED {
-		return nil
+	if !finished && rec.LastOutcome != HALTED {
+		return false, nil
 	}
 	// A launch failure can already have released this token after a proven
-	// never-launched resolution. A later idempotent Advance must preserve that
-	// historical release instead of converting it to uncertainty.
+	// never-launched resolution, and a successor may already hold the slot under
+	// its own token. Either way this drive no longer holds it: preserve that
+	// historical release instead of rewriting (or converting it to uncertainty).
 	slot, _, err := d.store.LoadWorktreeExecution(rec.WorktreePath)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if slot.ReservationToken != rec.AdmissionToken || slot.State == admissionReleased {
-		return nil
+		return true, nil
+	}
+	if finished {
+		if err := d.store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
 	if rec.RawRunDir == "" {
-		return d.store.MarkWorktreeExecutionUnresolved(rec.WorktreePath, rec.AdmissionToken)
+		return false, d.store.MarkWorktreeExecutionUnresolved(rec.WorktreePath, rec.AdmissionToken)
 	}
 	stopped, serr := d.proc.Stop(rec.RawRunDir, "gatedrive-halt-release")
 	if serr != nil {
-		return d.store.MarkWorktreeExecutionUnresolved(rec.WorktreePath, rec.AdmissionToken)
+		return false, d.store.MarkWorktreeExecutionUnresolved(rec.WorktreePath, rec.AdmissionToken)
 	}
 	if stopped != nil && (stopped.Performed || stopProvesTeardown(stopped.State)) {
-		return d.store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken)
+		if err := d.store.ReleaseWorktreeExecution(rec.WorktreePath, rec.AdmissionToken); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
-	return d.store.MarkWorktreeExecutionStopping(rec.WorktreePath, rec.AdmissionToken)
+	return false, d.store.MarkWorktreeExecutionStopping(rec.WorktreePath, rec.AdmissionToken)
 }
 
 // stopProvesTeardown reports whether a Stop outcome's resulting process state
@@ -1984,11 +2031,20 @@ func (d *Driver) stopIfOwned(runDir string) bool {
 }
 
 // recordedDoc builds the outcome document from an authoritative persisted record
-// (a terminal re-advance, a concurrent-writer verdict, or a just-persisted
-// transition). Only PASSED exposes the raw run dir; every terminal outcome
-// exposes the private run root so the owning caller can remove it at the
-// terminal.
+// on a path that ran NO slot release (a busy relaunch claim, a crash-window
+// reservation settled HALTED, an acknowledgement). Only PASSED exposes the raw run
+// dir. PASSED/FAILED expose the private run root (the supervisor wrote its terminal
+// record, so the process has ended); HALTED withholds it, because nothing on such a
+// path proved the slot's teardown (change 0446). A path that just ran the release
+// uses settledTerminalDoc, which gates the root on what the release proved.
 func (d *Driver) recordedDoc(id, ownerGen string, rec driveRecord) DriveDoc {
+	return d.recordedDocWithRoot(id, ownerGen, rec, rec.LastOutcome != HALTED)
+}
+
+// recordedDocWithRoot is recordedDoc with the run-root exposure made explicit:
+// exposeRoot is the caller's statement that the drive's slot release/teardown
+// evidence is settled. A terminal document carries RunRoot only when it is true.
+func (d *Driver) recordedDocWithRoot(id, ownerGen string, rec driveRecord, exposeRoot bool) DriveDoc {
 	doc := DriveDoc{
 		ProtocolVersion: ProtocolVersion,
 		DriveID:         id,
@@ -2003,9 +2059,10 @@ func (d *Driver) recordedDoc(id, ownerGen string, rec driveRecord) DriveDoc {
 	}
 	// A terminal document exposes the private run root so the owning caller that
 	// minted it removes it at the terminal (WAITING retains it — a relaunch may
-	// still replay under it). haltDoc paths (empty or stale-owner records) never
-	// reach here, so a superseded owner never deletes a live drive's root.
-	if isTerminalOutcome(rec.LastOutcome) {
+	// still replay under it) — but only once release evidence is settled
+	// (exposeRoot). haltDoc paths (empty or stale-owner records) never reach here,
+	// so a superseded owner never deletes a live drive's root.
+	if isTerminalOutcome(rec.LastOutcome) && exposeRoot {
 		doc.RunRoot = rec.RunRoot
 	}
 	return doc

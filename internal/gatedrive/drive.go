@@ -136,7 +136,19 @@ type DriveDoc struct {
 	// for exactly one purpose: the owning caller that minted the root removes it at
 	// the terminal to avoid leaking one temp dir per drive across retries. Like
 	// RawRunDir it is a host path, not a secret; it carries no argv/env/credential.
+	// It is advertised only once the drive's worktree-slot release evidence is
+	// settled (change 0446): a HALTED drive whose slot was only marked
+	// stopping/unresolved, or any terminal whose release write failed, withholds it,
+	// because the root is the evidence a later reconciliation needs.
 	RunRoot string `json:"run_root,omitempty"`
+	// ReleaseFinding is a bounded, credential-free token set when the terminal
+	// document's worktree-slot release (or its fail-closed stopping/unresolved
+	// marking) could not be persisted — e.g. "release-unsettled:<op>:<kind>". It is
+	// never silently dropped: a caller that sees it retains the run root and
+	// surfaces a local persistence/teardown finding. Empty (omitted) when the
+	// release step succeeded or had nothing to do. An omitempty addition does not
+	// bump ProtocolVersion.
+	ReleaseFinding string `json:"release_finding,omitempty"`
 	// LegacyHistory is the compact first-admission legacy-drive recovery summary,
 	// populated on a START document only and only when the census actually assessed
 	// legacy history (Checked > 0). An ordinary start over a store with no legacy

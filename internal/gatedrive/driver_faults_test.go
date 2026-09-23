@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/process"
@@ -688,4 +689,207 @@ func TestFaultFinalAckInterruptedThenRestart(t *testing.T) {
 	if rproc.launchN != 0 {
 		t.Fatalf("a refused post-recovery successor must never launch, got %d", rproc.launchN)
 	}
+}
+
+// --- change 0446 Task 9: terminal-result and cleanup audit -------------------
+
+// slotDirFor returns the on-disk admission slot directory the store keys for
+// worktree, so a fault test can make the next slot write fail (read-only dir).
+func slotDirFor(t *testing.T, store *Store, worktree string) string {
+	t.Helper()
+	canonical, err := filepath.EvalSymlinks(worktree)
+	if err != nil {
+		t.Fatalf("canonical worktree: %v", err)
+	}
+	return filepath.Join(store.admissionRoot, admissionKey(canonical))
+}
+
+// freezeSlot makes the worktree slot directory read-only so the next release /
+// stopping / unresolved write fails, and restores it at cleanup.
+func freezeSlot(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatalf("freeze slot dir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+}
+
+// TestReleaseFailureSurfacesOnTerminalDoc (change 0446 spec §5 audit): a release
+// write that fails at the terminal is never silently dropped. Both the persisted-
+// transition site (a live drive reaching PASSED on a slice) and the idempotent
+// terminal re-advance site carry a bounded ReleaseFinding, withhold the run root,
+// and leave the slot NOT freed.
+func TestReleaseFailureSurfacesOnTerminalDoc(t *testing.T) {
+	t.Run("slice-persisted-terminal", func(t *testing.T) {
+		clk := &fakeClock{now: startEpoch()}
+		running := true
+		proc := &fakeProc{observe: func(runDir string) (*process.Observation, error) {
+			if running {
+				return obs(process.StateRunning, runDir), nil
+			}
+			return obs(process.StatePassed, runDir), nil
+		}}
+		d, store := newTestDriver(t, clk, proc, stableGit())
+		req := sampleStart()
+		doc, err := d.Start(req)
+		if err != nil || doc.Outcome != WAITING {
+			t.Fatalf("Start: %v %s", err, doc.Outcome)
+		}
+		freezeSlot(t, slotDirFor(t, store, req.Worktree))
+		running = false
+		doc, err = d.Advance(doc.DriveID, doc.Generation)
+		if err != nil {
+			t.Fatalf("Advance: %v", err)
+		}
+		if doc.Outcome != PASSED {
+			t.Fatalf("outcome = %s, want PASSED", doc.Outcome)
+		}
+		if doc.ReleaseFinding == "" {
+			t.Fatalf("a failed release at the terminal must surface a ReleaseFinding")
+		}
+		if doc.RunRoot != "" {
+			t.Fatalf("a terminal whose release failed must withhold the run root, got %q", doc.RunRoot)
+		}
+		slot, _, err := store.LoadWorktreeExecution(req.Worktree)
+		if err != nil {
+			t.Fatalf("load slot: %v", err)
+		}
+		if slot.State == admissionReleased {
+			t.Fatalf("the slot must NOT be freed when its release write failed")
+		}
+	})
+	t.Run("terminal-readvance", func(t *testing.T) {
+		store := OpenStore(testsupport.TempDir(t))
+		wt := mkWorktree(t)
+		token, err := store.ReserveWorktreeExecution(sampleAdmission(wt))
+		if err != nil {
+			t.Fatalf("reserve admission: %v", err)
+		}
+		if err := store.ConfirmWorktreeExecution(wt, token, "run-t9", "/runs/t9"); err != nil {
+			t.Fatalf("confirm admission: %v", err)
+		}
+		rec := seedRecord(t)
+		rec.WorktreePath = wt
+		rec.RawRunDir = "/runs/t9"
+		rec.AdmissionToken = token
+		rec.LastOutcome = FAILED
+		id, owner := seedDrive(t, store, rec)
+		freezeSlot(t, slotDirFor(t, store, wt))
+
+		d := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+		doc, err := d.Advance(id, owner)
+		if err != nil {
+			t.Fatalf("Advance: %v", err)
+		}
+		if doc.ReleaseFinding == "" {
+			t.Fatalf("a failed release on terminal re-advance must surface a ReleaseFinding")
+		}
+		if strings.Contains(doc.ReleaseFinding, token) || strings.Contains(doc.ReleaseFinding, wt) {
+			t.Fatalf("ReleaseFinding %q must be bounded and credential-free", doc.ReleaseFinding)
+		}
+		if doc.RunRoot != "" {
+			t.Fatalf("a terminal whose release failed must withhold the run root, got %q", doc.RunRoot)
+		}
+		slot, _, err := store.LoadWorktreeExecution(wt)
+		if err != nil {
+			t.Fatalf("load slot: %v", err)
+		}
+		if slot.State != admissionExecuting {
+			t.Fatalf("slot state = %q, want executing (not freed)", slot.State)
+		}
+	})
+}
+
+// TestHaltedDocWithholdsRunRootWhenSlotUnsettled (change 0446 spec §5 audit): a
+// HALTED terminal advertises its run root only when the slot's release evidence
+// is settled. A halt whose Stop could not prove teardown marks the slot stopping
+// and withholds the root; a halt whose Stop proved teardown releases the slot and
+// exposes it. PASSED/FAILED with a settled release are unchanged (exposed).
+func TestHaltedDocWithholdsRunRootWhenSlotUnsettled(t *testing.T) {
+	seedHalted := func(t *testing.T) (*Store, string, string, string) {
+		store := OpenStore(testsupport.TempDir(t))
+		wt := mkWorktree(t)
+		token, err := store.ReserveWorktreeExecution(sampleAdmission(wt))
+		if err != nil {
+			t.Fatalf("reserve admission: %v", err)
+		}
+		if err := store.ConfirmWorktreeExecution(wt, token, "run-h", "/runs/h"); err != nil {
+			t.Fatalf("confirm admission: %v", err)
+		}
+		rec := seedRecord(t)
+		rec.WorktreePath = wt
+		rec.RawRunDir = "/runs/h"
+		rec.AdmissionToken = token
+		rec.LastOutcome = HALTED
+		rec.LastCause = "stopped-not-initiated"
+		id, owner := seedDrive(t, store, rec)
+		return store, wt, id, owner
+	}
+	t.Run("unproven-stop-withholds", func(t *testing.T) {
+		store, wt, id, owner := seedHalted(t)
+		proc := &fakeProc{stop: func(runDir, _ string) (*process.StopOutcome, error) {
+			return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir}, nil
+		}}
+		doc, err := NewDriver(store, &fakeClock{now: startEpoch()}, proc, stableGit()).Advance(id, owner)
+		if err != nil {
+			t.Fatalf("Advance: %v", err)
+		}
+		slot, _, err := store.LoadWorktreeExecution(wt)
+		if err != nil {
+			t.Fatalf("load slot: %v", err)
+		}
+		if slot.State != admissionStopping {
+			t.Fatalf("slot state = %q, want stopping", slot.State)
+		}
+		if doc.RunRoot != "" {
+			t.Fatalf("HALTED with an unsettled slot must withhold RunRoot, got %q", doc.RunRoot)
+		}
+		if doc.ReleaseFinding != "" {
+			t.Fatalf("a persisted stopping mark is not a release failure, got finding %q", doc.ReleaseFinding)
+		}
+	})
+	t.Run("proven-stop-exposes", func(t *testing.T) {
+		store, wt, id, owner := seedHalted(t)
+		doc, err := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit()).Advance(id, owner)
+		if err != nil {
+			t.Fatalf("Advance: %v", err)
+		}
+		slot, _, err := store.LoadWorktreeExecution(wt)
+		if err != nil {
+			t.Fatalf("load slot: %v", err)
+		}
+		if slot.State != admissionReleased {
+			t.Fatalf("slot state = %q, want released", slot.State)
+		}
+		if doc.RunRoot == "" {
+			t.Fatalf("HALTED with a proven release must expose RunRoot")
+		}
+	})
+	t.Run("tokenless-halted-withholds", func(t *testing.T) {
+		store := OpenStore(testsupport.TempDir(t))
+		rec := seedRecord(t)
+		rec.LastOutcome = HALTED
+		rec.LastCause = "stopped-not-initiated"
+		id, owner := seedDrive(t, store, rec)
+		doc, err := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit()).Advance(id, owner)
+		if err != nil {
+			t.Fatalf("Advance: %v", err)
+		}
+		if doc.RunRoot != "" {
+			t.Fatalf("a tokenless (legacy) HALTED record proves no teardown; RunRoot must be withheld, got %q", doc.RunRoot)
+		}
+	})
+	t.Run("passed-settled-exposes", func(t *testing.T) {
+		store, _, id, owner := seedHalted(t)
+		if err := store.ownerCAS(id, func(r *driveRecord) error { r.LastOutcome = PASSED; r.LastCause = ""; return nil }); err != nil {
+			t.Fatalf("flip to PASSED: %v", err)
+		}
+		doc, err := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit()).Advance(id, owner)
+		if err != nil {
+			t.Fatalf("Advance: %v", err)
+		}
+		if doc.RunRoot == "" || doc.ReleaseFinding != "" {
+			t.Fatalf("PASSED with a settled release must expose RunRoot and carry no finding, got root %q finding %q", doc.RunRoot, doc.ReleaseFinding)
+		}
+	})
 }

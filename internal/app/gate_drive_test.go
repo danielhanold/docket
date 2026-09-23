@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -397,6 +398,72 @@ func TestMapDriveOutcomeRetainsRunRootWhileWaiting(t *testing.T) {
 	}
 	if !dirExists(t, root) {
 		t.Fatalf("a live WAITING drive must retain its run root %q", root)
+	}
+}
+
+// TestFinalizeCleanupRetainsRootOnUnsettledRelease (change 0446 spec §5 audit):
+// a terminal document whose slot release was interrupted (it carries a
+// ReleaseFinding) must NOT have its run root removed by finalize's terminal
+// cleanup — the root is the evidence a later reconciliation needs, and deleting
+// it is exactly the "time bomb" normal cleanup must not recreate. The retained
+// root is surfaced as a bounded TeardownFinding; the outcome mapping is unchanged.
+func TestFinalizeCleanupRetainsRootOnUnsettledRelease(t *testing.T) {
+	g := &processFinalizeGate{}
+	for _, tc := range []struct {
+		name string
+		doc  gatedrive.DriveDoc
+		want FinalizeGateOutcome
+	}{
+		{"failed", gatedrive.DriveDoc{Outcome: gatedrive.FAILED}, FinalizeGateFailed},
+		{"halted", gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: gatedrive.CauseUnknownObservation}, FinalizeGateHalted},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := runRootFixture(t)
+			doc := tc.doc
+			doc.RunRoot = root
+			doc.ReleaseFinding = "release-unsettled:admission-cas:io"
+			res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
+			if res.Outcome != tc.want {
+				t.Fatalf("outcome = %q, want %q", res.Outcome, tc.want)
+			}
+			if !dirExists(t, root) {
+				t.Fatalf("an unsettled release must retain the run root %q", root)
+			}
+			if res.TeardownFinding == "" {
+				t.Fatalf("a retained run root must surface a TeardownFinding")
+			}
+			if strings.Contains(res.TeardownFinding, root) {
+				t.Fatalf("TeardownFinding %q must not carry a host path", res.TeardownFinding)
+			}
+		})
+	}
+}
+
+// TestGateDriveHumanTextRendersReleaseFinding: a terminal document's release
+// finding is rendered for the human, never dropped from the text surface.
+func TestGateDriveHumanTextRendersReleaseFinding(t *testing.T) {
+	r := GateDriveResult{Drive: &gatedrive.DriveDoc{Outcome: gatedrive.PASSED, ReleaseFinding: "release-unsettled:admission-cas:io"}}
+	if got := r.HumanText(); !strings.Contains(got, "release_finding: release-unsettled:admission-cas:io") {
+		t.Fatalf("HumanText must render the release finding, got:\n%s", got)
+	}
+}
+
+// TestFailedStartRetainsRootHoldingLaunchEvidence (change 0446 spec §5 audit): a
+// Start that fails with no drive document removes the minted run root ONLY when
+// nothing was launched under it. A root holding launch evidence (a run dir the
+// process backend created before the failure) is retained and reported; an empty
+// root (a pre-launch admission refusal) is still removed so it does not leak.
+func TestFailedStartRetainsRootHoldingLaunchEvidence(t *testing.T) {
+	empty := runRootFixture(t)
+	if retained := removeUnlaunchedGateRunRoot(empty); retained || dirExists(t, empty) {
+		t.Fatalf("an empty run root (nothing launched) must be removed; retained=%v", retained)
+	}
+	launched := runRootFixture(t)
+	if err := os.MkdirAll(filepath.Join(launched, "run-1"), 0o700); err != nil {
+		t.Fatalf("seed launch evidence: %v", err)
+	}
+	if retained := removeUnlaunchedGateRunRoot(launched); !retained || !dirExists(t, filepath.Join(launched, "run-1")) {
+		t.Fatalf("a run root holding launch evidence must be retained; retained=%v", retained)
 	}
 }
 
