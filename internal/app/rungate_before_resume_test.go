@@ -559,3 +559,135 @@ func TestResumeDoesNotResetSuiteBudget(t *testing.T) {
 		t.Fatalf("resume changed the suite budget: before (%d/%d) after (%d/%d)", usedBefore, limitBefore, usedAfter, limitAfter)
 	}
 }
+
+// armSupersededPrior runs the winner resume (permissive production seams) so the
+// prior cancelled epoch is superseded with its Worktree cleared and a replacement
+// reserved, then rebinds the replacement epoch to a real worktree directory (the
+// resume fixture's inspect path is not a real directory). It returns the prior key,
+// the prior epoch id, and the replacement's worktree.
+func armSupersededPrior(t *testing.T, repoDir string) (priorKey, priorEpoch, worktree string) {
+	t.Helper()
+	priorKey, priorEpoch = seedPriorEpoch(t, repoDir, EpochCancelled)
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	first := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if !first.Armed {
+		t.Fatalf("winner arm must reserve the replacement: %q", first.HumanText())
+	}
+	prior, _, err := LoadEpochRecord(repoDir, priorKey)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord(prior): %v", err)
+	}
+	if prior.State != EpochSuperseded || prior.Worktree != "" || prior.ReplacementReserved != first.Key {
+		t.Fatalf("prior = state %q worktree %q reserved %q, want superseded/cleared/%q", prior.State, prior.Worktree, prior.ReplacementReserved, first.Key)
+	}
+	worktree = testsupport.TempDir(t)
+	if err := epochCAS(repoDir, first.Key, func(r *EpochRecord) error { r.Worktree = worktree; return nil }); err != nil {
+		t.Fatalf("rebind replacement worktree: %v", err)
+	}
+	return priorKey, priorEpoch, worktree
+}
+
+// TestResumeSupersededBranchAccountsScopeLinkedDrives (change 0446 AC5): on the
+// superseded branch the old epoch's Worktree is empty, which is not proof of
+// quiescence. The launch census runs with the PREDECESSOR's epoch id against the
+// REPLACEMENT's worktree (threaded through ReplacementReserved), and an unaccounted
+// scope-linked launch it reports refuses the re-authorization instead of reporting
+// "accounted".
+func TestResumeSupersededBranchAccountsScopeLinkedDrives(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	priorKey, priorEpoch, worktree := armSupersededPrior(t, repoDir)
+	reservedBefore := func() string {
+		ep, _, err := LoadEpochRecord(repoDir, priorKey)
+		if err != nil {
+			t.Fatalf("LoadEpochRecord: %v", err)
+		}
+		return ep.ReplacementReserved
+	}()
+
+	launches := &fakeLaunchReconciler{report: gatedrive.EpochLaunchReport{
+		Accounted: false, Findings: []string{"launch-pending:d1"}}}
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	d := sp.deps()
+	d.CancelSeams = func(string) cancelSeams { return cancelSeams{launches: launches} }
+	res := RunGateBefore(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
+	if res.Armed || res.Reason != ReasonGateResumeCancellationPending {
+		t.Fatalf("superseded re-arm over an unaccounted scope-linked launch = armed %v reason %q, want refused %q", res.Armed, res.Reason, ReasonGateResumeCancellationPending)
+	}
+	if !strings.Contains(res.Message, "launch-pending:d1") {
+		t.Fatalf("Message must carry the launch finding, got %q", res.Message)
+	}
+	if len(launches.calls) != 1 || launches.calls[0] != worktree+"|"+priorEpoch {
+		t.Fatalf("census calls = %v, want exactly [%s|%s] (replacement worktree, predecessor epoch)", launches.calls, worktree, priorEpoch)
+	}
+	if got := func() string {
+		ep, _, err := LoadEpochRecord(repoDir, priorKey)
+		if err != nil {
+			t.Fatalf("LoadEpochRecord: %v", err)
+		}
+		return ep.ReplacementReserved
+	}(); got != reservedBefore {
+		t.Fatalf("refusal altered the reservation: %q -> %q", reservedBefore, got)
+	}
+}
+
+// TestResumeSupersededChecksReplacementSlot (change 0446 spec §4): the superseded
+// branch's slot check uses the replacement's worktree slot to confirm the
+// predecessor's epoch no longer holds it — an unreleased predecessor-owned slot
+// refuses, a released one is retired through the shared retirement and then
+// observed, and a slot the replacement itself holds is the successor outcome.
+func TestResumeSupersededChecksReplacementSlot(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		owner     func(priorEpoch string) string
+		release   bool
+		wantArmed bool   // true: the reservation is observed
+		wantEpoch string // "" = retired, "prior" = the predecessor's id kept, else literal
+	}{
+		{"predecessor-unreleased-refuses", func(p string) string { return p }, false, false, "prior"},
+		{"predecessor-released-retired", func(p string) string { return p }, true, true, ""},
+		{"replacement-held-neutral", func(string) string { return "replacement-epoch" }, true, true, "replacement-epoch"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir := newWorkingRepo(t, nil).invocation
+			_, priorEpoch, worktree := armSupersededPrior(t, repoDir)
+			common, err := gateGitCommonDir(repoDir)
+			if err != nil {
+				t.Fatalf("gateGitCommonDir: %v", err)
+			}
+			store := gatedrive.OpenStore(common)
+			token, err := store.ReserveWorktreeExecutionForEpoch(common, worktree, tc.owner(priorEpoch), nil)
+			if err != nil {
+				t.Fatalf("reserve: %v", err)
+			}
+			if tc.release {
+				if err := store.ReleaseWorktreeExecution(worktree, token); err != nil {
+					t.Fatalf("release: %v", err)
+				}
+			}
+
+			deps, wdeps := resumeEpochDeps(t)
+			sp := &fakeScopePrep{grant: sampleScopeGrant()}
+			d := sp.deps()
+			d.CancelSeams = func(string) cancelSeams { return cancelSeams{store: store, launches: okLaunchReconciler()} }
+			res := RunGateBefore(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
+			if tc.wantArmed {
+				if res.Reason != ReasonGateResumeReplacementReserved {
+					t.Fatalf("Reason = %q (%q), want the reservation observed", res.Reason, res.Message)
+				}
+			} else {
+				if res.Reason != ReasonGateResumeCancellationPending || !strings.Contains(res.Message, "slot-not-released") {
+					t.Fatalf("result = %q %q, want cancellation-pending naming slot-not-released", res.Reason, res.Message)
+				}
+			}
+			want := tc.wantEpoch
+			if want == "prior" {
+				want = priorEpoch
+			}
+			if epo := loadSlotEpoch(t, store, worktree); epo != want {
+				t.Fatalf("slot epoch = %q, want %q", epo, want)
+			}
+		})
+	}
+}

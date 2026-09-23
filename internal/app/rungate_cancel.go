@@ -335,7 +335,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 		// historical repair over the records already present. Authority was validated
 		// above; repairTerminalEpoch never revives the epoch, replays a mutation, resets
 		// a budget, regresses terminal state, or stops a replacement's process.
-		return repairTerminalEpoch(seams, ep)
+		return repairTerminalEpoch(seams, repoDir, ep)
 	case EpochActive, EpochCompleting:
 		// An explicit human cancellation WINS even from a completing (successful,
 		// mid-closeout) epoch (change 0441): fence active/completing→cancelling and run
@@ -407,69 +407,160 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 	return cancelResult(CancelDispositionCancelled, findings)
 }
 
-// retireWorktreeSlotOwnership retires the fenced epoch's ownership of its RELEASED
-// worktree slot — the cancellation-specific detachment ordinary execution release
-// never performs (ordinary ReleaseWorktreeExecution retains RunEpochID for
-// between-drive ownership). It runs ONLY after complete accounting, inside the
-// authorized completion decision. It returns whether ownership is accounted
-// detached (retired now, already detached, absent, foreign, or not provably ours)
-// and a bounded finding when it is not. On a raced retirement CAS it re-reads ONCE
-// and distinguishes a successor to leave alone from unresolved old work — never
-// retrying with a successor's reservation token (classifySlotOwnership treats a
-// different nonempty RunEpochID as a foreign owner).
+// slotRetirement is the one outcome shape of the shared slot retirement
+// (retireSlotOwnership). detached reports that the epoch's ownership of the slot is
+// accounted detached — retired now, already detached, absent, epoch-less, or held by
+// a successor; retired reports that THIS call wrote the retirement (terminal repair
+// distinguishes an applied repair from an idempotent no-op on it); finding is the
+// bounded, credential-free finding, when any.
+type slotRetirement struct {
+	detached bool
+	retired  bool
+	finding  string
+}
+
+// retireWorktreeSlotOwnership retires the epoch's ownership of its RELEASED worktree
+// slot and reports (detached, finding) — the cancellation-specific detachment
+// ordinary execution release never performs (ordinary ReleaseWorktreeExecution
+// retains RunEpochID for between-drives ownership). It is the single retirement
+// implementation (change 0446 spec §4): runCancel's completion, successful-run
+// closeout, repairTerminalEpoch, and validateResumeQuiescence all retire through
+// retireSlotOwnership, so a successor holding the slot yields one defined outcome at
+// every site. It runs ONLY after complete accounting, inside the authorized
+// completion decision.
 func retireWorktreeSlotOwnership(seams cancelSeams, ep EpochRecord) (bool, string) {
+	r := retireSlotOwnership(seams, ep)
+	return r.detached, r.finding
+}
+
+// retireSlotOwnership is the shared body behind every retirement site. It touches
+// ONLY a slot this epoch owns (classifySlotOwnership: a different nonempty RunEpochID
+// is a foreign owner, never cleared, never retried with its token), and only once
+// that slot is released. Outcomes:
+//   - a nil store or an empty ep.Worktree (a keyless/standalone run owns no slot), an
+//     absent slot, or an epoch-less slot (linked or not: it carries no RunEpochID
+//     ownership field to retire) → detached;
+//   - a slot a different nonempty RunEpochID holds — whether the successor already
+//     held it or won the retirement CAS race (the re-read below) — → detached with
+//     the one defined successor finding "slot-replaced-by-successor", the successor
+//     untouched;
+//   - an owned slot that is not released → not detached, "slot-not-released";
+//   - an unreadable slot → not detached, "slot-unreadable";
+//   - a refused retirement CAS is re-read ONCE: an already-cleared field (a
+//     concurrent replay's retirement) is detached, a successor is the successor
+//     outcome, anything else is not detached, "slot-retire-failed".
+//
+// A superseded epoch's cleared Worktree is resolved to its replacement's worktree by
+// the caller (resolveTerminalEpochSlot) before this runs, so the predecessor's stale
+// ownership of that slot is retired here too.
+func retireSlotOwnership(seams cancelSeams, ep EpochRecord) slotRetirement {
 	if seams.store == nil || ep.Worktree == "" {
-		return true, "" // keyless/standalone: no slot ownership to retire
+		return slotRetirement{detached: true} // keyless/standalone: no slot ownership to retire
 	}
 	slot, _, err := seams.store.LoadWorktreeExecution(ep.Worktree)
 	if err != nil {
 		if se, ok := gatedrive.AsStoreError(err); ok && se.Kind == gatedrive.ErrNotFound {
-			return true, "" // absent after full accounting: idempotently detached
+			return slotRetirement{detached: true} // absent after full accounting: idempotently detached
 		}
-		return false, "slot-unreadable"
+		return slotRetirement{finding: "slot-unreadable"}
 	}
 	switch classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) {
-	case slotForeign, slotUnowned, slotLinkedLegacy:
-		// Foreign/successor: never cleared. Epoch-less (linked or not): carries no
-		// RunEpochID ownership field to retire.
-		return true, ""
+	case slotForeign:
+		return slotRetirement{detached: true, finding: "slot-replaced-by-successor"}
+	case slotUnowned, slotLinkedLegacy:
+		return slotRetirement{detached: true}
 	}
 	// slotOwned: only a released owned slot may be detached.
 	if string(slot.State) != "released" {
-		return false, "slot-not-released"
+		return slotRetirement{finding: "slot-not-released"}
 	}
 	if rerr := seams.retireSlot(ep.Worktree, ep.EpochID, slot.ReservationToken); rerr != nil {
-		// Re-read once: a successor may have replaced the slot between the load and
-		// the CAS. An already-cleared field (a concurrent replay's retirement) or a
-		// foreign owner now is accounted; anything else stays pending.
 		cur, _, lerr := seams.store.LoadWorktreeExecution(ep.Worktree)
 		if lerr == nil && cur.RunEpochID == "" {
-			return true, ""
+			return slotRetirement{detached: true}
 		}
 		if lerr == nil && cur.RunEpochID != ep.EpochID {
-			return true, "slot-replaced-by-successor"
+			return slotRetirement{detached: true, finding: "slot-replaced-by-successor"}
 		}
-		return false, "slot-retire-failed"
+		return slotRetirement{finding: "slot-retire-failed"}
 	}
-	return true, ""
+	return slotRetirement{detached: true, retired: true}
+}
+
+// resolveTerminalEpochSlot returns ep with the worktree whose slot a TERMINAL epoch's
+// quiescence checks address, plus a bounded finding when that worktree cannot be
+// resolved. An epoch that still records its Worktree (or any non-superseded epoch)
+// is returned unchanged. A SUPERSEDED epoch's Worktree was cleared by
+// SupersedeCancelledEpoch, but an empty worktree is not proof of quiescence (change
+// 0446 spec §4: "For a superseded epoch, that check uses the replacement's worktree
+// slot to confirm the predecessor's token and epoch no longer hold it"). The
+// replacement is followed through ReplacementReserved — the replacement's GATE KEY,
+// so its epoch is read by LoadEpochRecord — and, when that replacement was itself
+// superseded, onward along the chain until an epoch that binds a worktree. The chain
+// names each record positively, so a replacement that cannot be read, has no epoch,
+// binds no worktree, or loops is refused with an exact locator
+// (replacement-worktree-unresolved:<gate key>) rather than inferred safe.
+func resolveTerminalEpochSlot(repoDir string, ep EpochRecord) (EpochRecord, string) {
+	if ep.Worktree != "" || ep.State != EpochSuperseded {
+		return ep, ""
+	}
+	seen := map[string]bool{}
+	if ep.GateKey != "" {
+		seen[ep.GateKey] = true
+	}
+	unresolved := func(key string) (EpochRecord, string) {
+		if key == "" {
+			return ep, "replacement-worktree-unresolved"
+		}
+		return ep, "replacement-worktree-unresolved:" + key
+	}
+	key := ep.ReplacementReserved
+	for {
+		if key == "" || seen[key] {
+			return unresolved(key)
+		}
+		seen[key] = true
+		rec, _, err := LoadEpochRecord(repoDir, key)
+		if err != nil {
+			return unresolved(key)
+		}
+		if rec.Worktree != "" {
+			out := ep
+			out.Worktree = rec.Worktree
+			return out, ""
+		}
+		if rec.State != EpochSuperseded {
+			return unresolved(key)
+		}
+		key = rec.ReplacementReserved
+	}
 }
 
 // verifyTerminalEpochQuiescence revalidates a terminal (cancelled/superseded)
 // epoch's EXISTING launch and mutation evidence using the same bounded accounting
 // cancellation uses — change 0437's launch reconciler plus the admitted-mutation
-// journal (reconcileEpochTeardown's steps (5c) and (7)). It fails closed: an absent
-// or erroring reconciler, an unaccounted launch obligation (a busy claim, an
-// unresolved relaunch), or an admitted-not-completed mutation is non-quiescence with
-// a bounded finding. It performs no epoch or slot write. Task 7's resume validation
-// consumes it unchanged (it does not re-prove participants, which terminal repair
-// deliberately does not re-enumerate).
-func verifyTerminalEpochQuiescence(seams cancelSeams, ep EpochRecord) (bool, []string) {
+// journal (reconcileEpochTeardown's steps (5c) and (7)). It first resolves the slot
+// worktree (resolveTerminalEpochSlot) and returns that resolved record, which the
+// caller hands to the shared retirement: for a superseded epoch the launch census
+// runs with the PREDECESSOR's epoch id against the REPLACEMENT's worktree, so both
+// the scope-linked drives (enumerable by RunEpochID) and the replacement slot's
+// references are accounted. It fails closed: an unresolvable replacement worktree,
+// an absent or erroring reconciler, an unaccounted launch obligation (a busy claim,
+// an unresolved relaunch), or an admitted-not-completed mutation is non-quiescence
+// with a bounded finding. It performs no epoch or slot write, and it does not
+// re-prove participants, which terminal repair deliberately does not re-enumerate.
+func verifyTerminalEpochQuiescence(seams cancelSeams, repoDir string, ep EpochRecord) (EpochRecord, bool, []string) {
 	var findings []string
 	quiescent := true
+	slotEp, rfinding := resolveTerminalEpochSlot(repoDir, ep)
+	if rfinding != "" {
+		findings = append(findings, rfinding)
+		quiescent = false
+	}
 	if seams.launches == nil {
 		findings = append(findings, "launch-reconciler-unavailable")
 		quiescent = false
-	} else if report, err := seams.launches.reconcile(ep.Worktree, ep.EpochID); err != nil {
+	} else if report, err := seams.launches.reconcile(slotEp.Worktree, ep.EpochID); err != nil {
 		findings = append(findings, "launch-reconcile-failed")
 		quiescent = false
 	} else {
@@ -484,62 +575,38 @@ func verifyTerminalEpochQuiescence(seams cancelSeams, ep EpochRecord) (bool, []s
 			quiescent = false
 		}
 	}
-	return quiescent, findings
+	return slotEp, quiescent, findings
 }
 
 // repairTerminalEpoch is the bounded repair a repeat run.cancel performs against a
 // DURABLY terminal (cancelled/superseded) epoch: after re-proving quiescence
-// (verifyTerminalEpochQuiescence) it retires a released slot that still carries this
-// epoch's RunEpochID — the historical stale-ownership incident this change closes —
-// and otherwise no-ops idempotently. An unsafe or unverifiable history is refused
-// with its specific finding — never cancellation-pending over durable terminal state,
-// never a regression to cancelling, never a revived epoch, and never a touched
-// successor. It is not a general recovery engine: it uses only the records already
-// present, and missing or contradictory evidence fails closed to refused. It never
-// writes the epoch record (terminal state is preserved) and touches ONLY a slot this
-// epoch owns (classifySlotOwnership: a different nonempty RunEpochID is a foreign
-// owner, left untouched).
-func repairTerminalEpoch(seams cancelSeams, ep EpochRecord) RunCancelResult {
-	quiescent, findings := verifyTerminalEpochQuiescence(seams, ep)
+// (verifyTerminalEpochQuiescence) it retires, through the shared retirement
+// (retireSlotOwnership), a released slot that still carries this epoch's RunEpochID —
+// the historical stale-ownership incident change 0435 closed — and otherwise no-ops
+// idempotently. A retirement it wrote is cancelled (applied); an already-detached,
+// absent, epoch-less, or successor-held slot is already-cancelled (the successor
+// finding surfaced, the successor untouched); an unsafe or unverifiable history is
+// refused with its specific finding — never cancellation-pending over durable
+// terminal state, never a regression to cancelling, never a revived epoch. It is not
+// a general recovery engine: it uses only the records already present, and missing
+// or contradictory evidence fails closed to refused. It never writes the epoch record.
+func repairTerminalEpoch(seams cancelSeams, repoDir string, ep EpochRecord) RunCancelResult {
+	slotEp, quiescent, findings := verifyTerminalEpochQuiescence(seams, repoDir, ep)
 	if !quiescent {
 		return cancelResult(CancelDispositionRefused, findings)
 	}
-	if seams.store == nil || ep.Worktree == "" {
-		// A keyless/standalone terminal epoch owns no slot: nothing to repair.
+	r := retireSlotOwnership(seams, slotEp)
+	if r.finding != "" {
+		findings = append(findings, r.finding)
+	}
+	switch {
+	case !r.detached:
+		return cancelResult(CancelDispositionRefused, findings)
+	case r.retired:
+		return cancelResult(CancelDispositionCancelled, findings)
+	default:
 		return cancelResult(CancelDispositionAlreadyCancelled, findings)
 	}
-	slot, _, err := seams.store.LoadWorktreeExecution(ep.Worktree)
-	if err != nil {
-		if se, ok := gatedrive.AsStoreError(err); ok && se.Kind == gatedrive.ErrNotFound {
-			// A missing slot is an idempotent no-op ONLY after the accounting above.
-			return cancelResult(CancelDispositionAlreadyCancelled, findings)
-		}
-		return cancelResult(CancelDispositionRefused, append(findings, "slot-unreadable"))
-	}
-	if classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) != slotOwned {
-		// An empty epoch field (already retired) or a foreign successor: nothing of
-		// this epoch's to repair — the foreign slot is neither touched nor read as
-		// disproof of a completed cancellation.
-		return cancelResult(CancelDispositionAlreadyCancelled, findings)
-	}
-	if string(slot.State) != "released" {
-		// A nonreleased owned slot under a terminal epoch is contradictory history —
-		// not safely repairable by this bounded path. Leave it fenced and untouched
-		// (never regressed to pending over durable terminal state).
-		return cancelResult(CancelDispositionRefused, append(findings, "slot-not-released"))
-	}
-	if rerr := seams.retireSlot(ep.Worktree, ep.EpochID, slot.ReservationToken); rerr != nil {
-		// Re-read once: a successor may have replaced the slot, or a concurrent replay
-		// may have already retired it. An already-cleared field or a foreign owner now
-		// is the idempotent no-op; anything else is refused (never retried with the
-		// successor's token).
-		cur, _, lerr := seams.store.LoadWorktreeExecution(ep.Worktree)
-		if lerr == nil && (cur.RunEpochID == "" || cur.RunEpochID != ep.EpochID) {
-			return cancelResult(CancelDispositionAlreadyCancelled, findings)
-		}
-		return cancelResult(CancelDispositionRefused, append(findings, "slot-retire-failed"))
-	}
-	return cancelResult(CancelDispositionCancelled, findings)
 }
 
 // reconcileEpochTeardown performs the cancellation teardown accounting for an

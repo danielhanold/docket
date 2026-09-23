@@ -182,9 +182,12 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 	// (6) Retire the released-slot ownership — reused verbatim from cancellation
 	// (ownership-checked, expected-token/expected-epoch, successor-safe, idempotent on
 	// absent/detached). A failed retirement keeps the epoch completing (repeatable).
+	// The shared retirement reports a successor-held slot with the same
+	// slot-replaced-by-successor token accountCompletionSlot already surfaced, so the
+	// append is deduped to keep the operator-facing findings single.
 	retired, rfinding := retireWorktreeSlotOwnership(seams, ep)
 	if rfinding != "" {
-		findings = append(findings, rfinding)
+		findings = dedupeFindings(append(findings, rfinding))
 	}
 	if !retired {
 		return false, "completion-unaccounted", findings
