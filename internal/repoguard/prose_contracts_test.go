@@ -347,6 +347,10 @@ var proseContracts = []proseContract{
 			// its carry proof (children-retarget-required), so the only
 			// closeout trigger is the waiting-dependency refusal.
 			"A `not-ready-stack-base-unresolved` refusal is never a closeout trigger",
+			// The status projection exposes the unmet set as the id list
+			// `unmet_dependencies` (app.StatusChange), never a `depends_on`
+			// field, so the closeout set is read off that real field.
+			"take the named change's `unmet_dependencies` ids from its `changes[]` entry, keeping each id whose own `changes[]` entry has `status` `implemented`",
 		},
 		absent: []string{
 			"Then, before selection, run the **implementation preflight** inline",
@@ -354,6 +358,7 @@ var proseContracts = []proseContract{
 			"a single id `90` is the degenerate case",
 			"(or `not-ready-stack-base-unresolved` for a stacked change)",
 			"its stack ancestors whose `status` is `implemented`",
+			"the named change's `depends_on` ids whose `status` is `implemented`",
 		}},
 	// change 0448 — the convention's Composition paragraph carries the same
 	// exemption: the step-0 preflight is selection-path only, and a single
