@@ -563,3 +563,37 @@ func TestContextImplementationBranchFactsFailure(t *testing.T) {
 		t.Errorf("failed facts read fabricated a bundle: %+v", got.Context)
 	}
 }
+
+// TestImplementationContextAutoSelectionSurvivesMalformedStackBranch (change
+// 0454, spec Testing 4): automatic selection shares the whole-corpus branch
+// probe with status. A change whose recorded branch: is not a valid git branch
+// name must not fail selection external-failed: the probe never asks for the
+// malformed names (poisoned), their stacked children read
+// stack-base-unresolved and are skipped, and the top healthy build-ready
+// change is selected.
+func TestImplementationContextAutoSelectionSurvivesMalformedStackBranch(t *testing.T) {
+	pin := docketPin(t)
+	inner := &fakeReader{pin: pin, corpus: malformedStackCorpus(t), facts: domain.NewBranchFacts(map[string]bool{"feat/ok": true})}
+	reader := poisoned(inner, "feat/a..parent", "feat/a:b", "feat/a:c")
+	got := ContextImplementation(context.Background(), PlanningDeps{Reader: reader, Clock: testClock()}, "", ImplementationContextRequest{})
+	if got.Result == ResultExternalFailed {
+		t.Fatalf("automatic selection over a malformed stack branch failed external-failed (%s: %s)", got.Reason, got.Message)
+	}
+	if got.Result != ResultApplied || got.Context == nil {
+		t.Fatalf("result=%q reason=%q message=%q, want applied with a bundle", got.Result, got.Reason, got.Message)
+	}
+	// The top healthy build-ready change is 0006 (stacked on the present,
+	// well-formed feat/ok). The malformed parents' children 0003/0004 rank
+	// ahead of it by id, so selecting 0006 proves they were skipped as
+	// stack-base-unresolved rather than failing the read.
+	if s := got.Context.Change.Summary; s == nil || s.ID != 6 {
+		t.Fatalf("selected change = %+v, want 0006 (the top healthy build-ready change)", s)
+	}
+	for _, ask := range reader.asks {
+		for _, b := range ask {
+			if b == "feat/a..parent" || b == "feat/a:b" || b == "feat/a:c" {
+				t.Errorf("branch probe asked for malformed name %q", b)
+			}
+		}
+	}
+}
