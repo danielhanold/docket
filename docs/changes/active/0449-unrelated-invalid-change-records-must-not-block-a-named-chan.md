@@ -22,7 +22,7 @@ branch: 'fix/unrelated-invalid-change-records-must-not-block-a-named-chan'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T15:32:09Z'
+claimed_at: '2026-09-24T15:43:07Z'
 ---
 
 ## Artifacts
