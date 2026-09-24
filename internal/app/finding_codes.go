@@ -123,6 +123,7 @@ const (
 	FCEmptySpecMarkdown         FindingCode = "empty-spec_markdown"
 	FCInvalidSpecMarkdown       FindingCode = "invalid-spec_markdown"
 	FCMissingRationale          FindingCode = "missing-rationale"
+	FCEmptyRevise               FindingCode = "empty-revise"
 	FCInvalidOutcome            FindingCode = "invalid-outcome"
 	FCInvalidSpecSectionHeading FindingCode = "invalid-spec-section-heading"
 	FCEmptyReconcileLogEntry    FindingCode = "empty-reconcile_log_entry"
@@ -206,6 +207,7 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyReason,
 	FCEmptyReconcileLogEntry,
 	FCEmptyReport,
+	FCEmptyRevise,
 	FCEmptySpecMarkdown,
 	FCEmptyTargetPath,
 	FCEmptyTargetVersion,
