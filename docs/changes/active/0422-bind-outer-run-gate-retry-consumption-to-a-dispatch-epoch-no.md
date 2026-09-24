@@ -2,11 +2,11 @@
 id: 422
 slug: 'bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no'
 title: 'Bind outer run-gate retry consumption to a dispatch epoch, not each observation'
-status: 'in-progress'
+status: 'blocked'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-10'
-updated: '2026-09-15'
+updated: '2026-09-24'
 depends_on: []
 stacked_on:
 related: [421, 425, 426, 427]
@@ -20,7 +20,7 @@ auto_groomable:
 branch_prefix:
 branch: 'chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no'
 pr:
-blocked_by:
+blocked_by: 'Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change.'
 reconciled: true
 claimed_at: '2026-09-15T12:55:21Z'
 ---
