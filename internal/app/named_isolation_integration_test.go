@@ -42,7 +42,11 @@ import (
 // caller-supplied repair entries, dropping one named operation's Scope, or a
 // whole-corpus stackBranches probe on a named caller (context, claim,
 // workspace prepare, clear-block) reddens the flow tests; deleting the
-// relevance check reddens the defective-dependency refusal.
+// relevance check reddens the defective-dependency refusal. Deleting the
+// pre-effect validation guard in loadMergeContext (namedPreEffectErrors)
+// reddens merge-refuses-defective-B-before-effect with one issued merge call;
+// making that guard strict (a nil, whole-corpus scope) reddens
+// merge-already-landed-verifies-beside-broken-A on the unrelated record's error.
 
 // namedIsolationInvalidBranch is the unrelated stack parent's recorded branch:
 // not a valid ref name, so a live probe of it fails as an external error.
@@ -323,12 +327,22 @@ func TestIntegrationNamedClaimRefusesDefectiveDependency(t *testing.T) {
 	}
 }
 
-// TestIntegrationNamedFinalizeFlowIsolation drives B's named finalize path —
-// block, clear-block, merge (landed out of band: merge-already-landed
-// recovery), archive closeout, and cleanup — with the unrelated stack and old
-// runtime records present throughout and A's corruption introduced BETWEEN the
-// merge and closeout. The paired refusal corrupts B's own record at the same
-// point: closeout refuses before any archive effect.
+// TestIntegrationNamedFinalizeFlowIsolation drives B's named finalize path by
+// id with the unrelated stack and old runtime records present throughout:
+//
+//   - closeout-and-cleanup-apply: block, clear-block, a merge landed out of
+//     band, then archive closeout and cleanup, with A's corruption introduced
+//     BETWEEN the merge and closeout;
+//   - defective-B-refuses-before-archive: the same point, but B's own record
+//     is corrupted too — closeout refuses before any archive effect;
+//   - merge-already-landed-verifies-beside-broken-A: FinalizeMerge's
+//     merge-already-landed recovery with A (unparseable) and an unrelated
+//     parseable-but-invalid record present verifies the merge — unrelated
+//     errors never veto the merge step;
+//   - merge-refuses-defective-B-before-effect: FinalizeMerge on an open,
+//     otherwise-mergeable PR whose record B carries its own error refuses with
+//     ReasonMergeRecordInvalid and issues NO merge call — B must pass relevant
+//     validation before the irreversible GitHub effect.
 func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 	requireRealGit(t)
 
@@ -417,6 +431,101 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 		}
 		if _, ok := originFile(t, f.repo.origin, f.branch, recPath); !ok {
 			t.Errorf("refused closeout relocated B away from its active path")
+		}
+		assertRuntimeIntact(t, runtime)
+	})
+
+	// unrelatedInvalidPath is a parseable but invalid unrelated record: unlike
+	// the unparseable A it lands in the built validation report as an error
+	// finding, so a merge gate that validated the whole corpus would refuse on it.
+	unrelatedInvalidPath := groomPath(30, "a-invalid")
+	unrelatedInvalid := func(t *testing.T) string {
+		t.Helper()
+		src := lifecycleChange(30, "a-invalid", "proposed")
+		out := strings.Replace(src, "type: feat\n", "type: 'Not A Token'\n", 1)
+		if out == src {
+			t.Fatal("unrelated invalid fixture did not rewrite the record; the fixture shape changed")
+		}
+		return out
+	}
+	mergeRequest := func(t *testing.T, f *closeoutFixture) FinalizeMergeRequest {
+		t.Helper()
+		return FinalizeMergeRequest{
+			ID: f.id, Version: blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)),
+			Head: f.head, ExplicitID: true,
+		}
+	}
+
+	t.Run("merge-already-landed-verifies-beside-broken-A", func(t *testing.T) {
+		f, runtime := setup(t)
+		mergeCommit := f.mergeIntoBase(t)
+		advanceDocketOrigin(t, f.repo, map[string]string{
+			unrelatedBrokenPath: unrelatedBrokenBytes, unrelatedInvalidPath: unrelatedInvalid(t),
+		})
+		gh := &fakeMergeGitHub{
+			repo: retargetRepo(), probeOutcome: githubcli.MergeAlreadyMerged,
+			probeFacts: mergedFactsFor(f.head, "main", mergeCommit),
+		}
+		res := FinalizeMerge(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, mergeRequest(t, f))
+		if res.Result != ResultNoOp || res.Disposition != MergeDispAlreadyMerged || res.Merge == nil {
+			t.Fatalf("merge-already-landed beside unrelated invalid records = %q disp %q (reason %q msg %q findings %+v), want no-op already-merged verified",
+				res.Result, res.Disposition, res.Reason, res.Message, res.Findings)
+		}
+		if res.Merge.MergeCommit != mergeCommit {
+			t.Errorf("verified merge commit = %q, want %q", res.Merge.MergeCommit, mergeCommit)
+		}
+		if gh.mergeCalls != 0 {
+			t.Errorf("merge-already-landed recovery issued %d merge call(s); want 0", gh.mergeCalls)
+		}
+		assertRuntimeIntact(t, runtime)
+	})
+
+	t.Run("merge-refuses-defective-B-before-effect", func(t *testing.T) {
+		f, runtime := setup(t)
+		recPath := groomPath(f.id, f.slug)
+		cur, _ := originFile(t, f.repo.origin, f.branch, recPath)
+		bad := strings.Replace(cur, "type: feat\n", "type: 'Not A Token'\n", 1)
+		if bad == cur {
+			t.Fatal("B defect fixture did not rewrite the record; the fixture shape changed")
+		}
+		advanceDocketOrigin(t, f.repo, map[string]string{
+			unrelatedBrokenPath: unrelatedBrokenBytes, unrelatedInvalidPath: unrelatedInvalid(t), recPath: bad,
+		})
+		tip := originTip(t, f.repo.origin, f.branch)
+		mainTip := originTip(t, f.repo.origin, "main")
+
+		// Every other merge conjunct holds: the one open canonical PR at the
+		// exact head, targeting main, carrying green evidence — so only the
+		// relevant-validation guard stands between B and the GitHub merge.
+		pr := f.prForHead(f.head, greenEvidenceFor(t, f.head))
+		pr.Number = closeoutPR
+		gh := &fakeMergeGitHub{
+			repo:         retargetRepo(),
+			openByHead:   map[string][]githubcli.PullRequest{"feat/" + f.slug: {pr}},
+			mergeOutcome: githubcli.MergeMerged,
+			mergeFacts:   mergedFactsFor(f.head, "main", strings.Repeat("f", 40)),
+		}
+		res := FinalizeMerge(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, mergeRequest(t, f))
+		if gh.mergeCalls != 0 {
+			t.Fatalf("a merge of defective B issued %d merge call(s); want 0 (refuse before the external effect)", gh.mergeCalls)
+		}
+		if res.Result == ResultApplied || res.Result == ResultNoOp || res.Merge != nil {
+			t.Fatalf("merge of defective B = %q disp %q, want a refusal", res.Result, res.Disposition)
+		}
+		if res.Reason != ReasonMergeRecordInvalid {
+			t.Errorf("reason = %q (msg %q), want %q", res.Reason, res.Message, ReasonMergeRecordInvalid)
+		}
+		assertRefusalBeyondUnrelated(t, res.Reason, res.Findings)
+		for _, fd := range res.Findings {
+			if fd.Path == unrelatedInvalidPath || fd.Path == unrelatedBrokenPath {
+				t.Errorf("merge refusal carries an unrelated record's finding %+v", fd)
+			}
+		}
+		if after := originTip(t, f.repo.origin, f.branch); after != tip {
+			t.Errorf("a refused merge moved the metadata branch %s -> %s", tip, after)
+		}
+		if after := originTip(t, f.repo.origin, "main"); after != mainTip {
+			t.Errorf("a refused merge moved the integration branch %s -> %s", mainTip, after)
 		}
 		assertRuntimeIntact(t, runtime)
 	})

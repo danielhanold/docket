@@ -148,6 +148,11 @@ const (
 	// ReasonMergeHeadMoved: the seam reports the PR head moved from the expected
 	// head; no merge landed.
 	ReasonMergeHeadMoved = "head-moved"
+	// ReasonMergeRecordInvalid: the change's own record, or a record it
+	// structurally requires (a depends_on target or stack ancestor), carries a
+	// validation error (change 0449); refused before any GitHub call. An
+	// unrelated record's errors never produce it.
+	ReasonMergeRecordInvalid = "record-invalid"
 )
 
 // FinalizeMergeRequest is the closed request for `finalize merge`. ID names the
@@ -309,9 +314,10 @@ type mergeContext struct {
 
 // loadMergeContext performs the fresh reload every merge decision reads from,
 // running the capability preflight before any external effect and refusing with
-// a typed merge result for every pre-effect condition. It pins once, reads the
-// corpus once, and resolves the change/version/body/base/target/repo from that
-// one authoritative copy (decide-and-act-on-the-same-copy).
+// a typed merge result for every pre-effect condition — including a validation
+// error relevant to the change (namedPreEffectErrors, change 0449). It pins
+// once, reads the corpus once, and resolves the change/version/body/base/
+// target/repo from that one authoritative copy (decide-and-act-on-the-same-copy).
 func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id int) (*mergeContext, *FinalizeMergeResult) {
 	reader := deps.Planning.Reader
 	pin, err := reader.PinContext(ctx, repoDir)
@@ -354,6 +360,17 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 			msg = fmt.Sprintf("more than one record claims change id %04d; refusing to choose", id)
 		}
 		r := mergeRefusal(result, MergeDispBlocked, reason, msg, id)
+		return nil, &r
+	}
+	// B must pass relevant validation before the irreversible GitHub merge
+	// (change 0449): an error on B or on a record B structurally requires
+	// refuses here, before any GitHub call, while an unrelated record's errors
+	// never veto the merge. This holds on the merge-already-landed recovery path
+	// too — closeout would refuse the same defect, so a verified no-op that can
+	// only strand B there is never reported.
+	if bad := namedPreEffectErrors(build, id, c.Path()); len(bad) > 0 {
+		r := mergeRefusal(ResultInvalidState, MergeDispBlocked, ReasonMergeRecordInvalid, namedPreEffectMessage(id, bad), id)
+		r.Findings = findingsToStatus(bad)
 		return nil, &r
 	}
 

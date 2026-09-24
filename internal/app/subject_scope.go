@@ -1,8 +1,12 @@
 package app
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
@@ -66,6 +70,39 @@ func changeScope(id int, recPath string, withDescendants bool, extra ...string) 
 		}
 		return set, nil
 	}}
+}
+
+// namedPreEffectErrors is the pre-external-effect validation gate for a named
+// change (change 0449 spec: "B must pass relevant validation before an
+// external effect, while A's unrelated findings cannot veto it"). It returns
+// the built corpus's error findings relevant to change id at recPath — its
+// changeScope closure (the record, every carrier of its id, its depends_on
+// targets and stack ancestors) under the transaction engine's own relevance
+// rule, transaction.RelevantErrors. A named operation about to act on GitHub
+// refuses on any of them.
+//
+// Parse failures (parseCorpus's findings) are not consulted: every scope path
+// comes from a parsed snapshot record, so an unparseable record is never a
+// subject, and a structural citation of one surfaces as the change's own
+// dangling-reference error in build.Report.
+func namedPreEffectErrors(build repository.BuildResult, id int, recPath string) []domain.Finding {
+	return transaction.RelevantErrors(changeScope(id, recPath, false),
+		transaction.LoadedState{Snapshot: build.Snapshot, Report: build.Report})
+}
+
+// namedPreEffectMessage renders the explanatory (non-parsed) message for a
+// namedPreEffectErrors refusal, naming each relevant finding's code and path.
+func namedPreEffectMessage(id int, bad []domain.Finding) string {
+	parts := make([]string, 0, len(bad))
+	for _, f := range bad {
+		where := f.Entity.Path
+		if where == "" {
+			where = entityIdentity(f.Entity)
+		}
+		parts = append(parts, f.Code+" at "+where)
+	}
+	return fmt.Sprintf("change %04d or a record it structurally requires carries a validation error (%s); repair it before any GitHub effect",
+		id, strings.Join(parts, "; "))
 }
 
 // changesCarrying returns every change record in snap whose id is id — one for
