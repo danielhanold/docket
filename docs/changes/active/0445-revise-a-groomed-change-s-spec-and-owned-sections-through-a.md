@@ -13,7 +13,7 @@ related: [382, 444]
 discovered_from: [444]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-24-0445-revise-groomed-change-typed-operation.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-24T20:05:01Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md) |
+| Plan | [2026-09-24-0445-revise-groomed-change-typed-operation.md](https://github.com/danielhanold/docket/blob/feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a/docs/superpowers/plans/2026-09-24-0445-revise-groomed-change-typed-operation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
