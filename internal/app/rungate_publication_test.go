@@ -140,3 +140,113 @@ func TestAdmissionJournalsPublicationDescriptorAndLegacyDecodes(t *testing.T) {
 		t.Fatal("legacy entry must decode with a nil descriptor")
 	}
 }
+
+// TestPublicationRetryMatchMatrix: an uncertain entry is settled ONLY by a later
+// (higher-index) completed entry with the same operation and a field-for-field
+// identical VALID descriptor. Everything else leaves it pending.
+func TestPublicationRetryMatchMatrix(t *testing.T) {
+	base := MutationPublication{
+		RepoHost: "github.com", RepoOwner: "o", RepoName: "r",
+		HeadRef: "fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		BaseBranch:  "main",
+		TitleDigest: publicationDigest("pr-title", "t"),
+		BodyDigest:  publicationDigest("pr-body", "b"),
+	}
+	alter := func(f func(*MutationPublication)) *MutationPublication {
+		c := base
+		f(&c)
+		return &c
+	}
+	rec := func(entries ...AdmittedMutation) EpochRecord {
+		return EpochRecord{AdmittedMutations: entries}
+	}
+	uncertain := AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusUncertain, Publication: &base}
+
+	cases := []struct {
+		name string
+		rec  EpochRecord
+		want bool
+	}{
+		{"identical completed retry settles", rec(uncertain,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base}), true},
+		{"no later entry", rec(uncertain), false},
+		{"later identical but admitted", rec(uncertain,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusAdmitted, Publication: &base}), false},
+		{"later identical but uncertain", rec(uncertain,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusUncertain, Publication: &base}), false},
+		{"identical completed at LOWER index never settles", rec(
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base},
+			uncertain), false},
+		{"different operation", rec(uncertain,
+			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &base}), false},
+		{"missing descriptor on the retry", rec(uncertain,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted}), false},
+		{"missing descriptor on the original (legacy)", rec(
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusUncertain},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base}), false},
+		{"malformed descriptor on the retry", rec(uncertain,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+				Publication: alter(func(p *MutationPublication) { p.BaseBranch = "" })}), false},
+		{"different owner", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+			Publication: alter(func(p *MutationPublication) { p.RepoOwner = "other" })}), false},
+		{"different head commit", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+			Publication: alter(func(p *MutationPublication) { p.HeadCommit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" })}), false},
+		{"different head branch", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+			Publication: alter(func(p *MutationPublication) { p.HeadRef = "fix/other" })}), false},
+		{"different base", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+			Publication: alter(func(p *MutationPublication) { p.BaseBranch = "develop" })}), false},
+		{"different title digest", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+			Publication: alter(func(p *MutationPublication) { p.TitleDigest = publicationDigest("pr-title", "T2") })}), false},
+		{"different body digest", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+			Publication: alter(func(p *MutationPublication) { p.BodyDigest = publicationDigest("pr-body", "B2") })}), false},
+		{"eligible only when uncertain: completed original is not a match target", rec(
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base}), false},
+		{"still-admitted original is not eligible", rec(
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusAdmitted, Publication: &base},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base}), false},
+	}
+	for _, tc := range cases {
+		if got := publicationRetryMatch(tc.rec, 0); got != tc.want {
+			t.Errorf("%s: match = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+
+	// Workspace analog: identical settles, a differing remote/ref/repo-dir does not.
+	wsBase := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	wsUncertain := AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &wsBase}
+	if !publicationRetryMatch(rec(wsUncertain,
+		AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &wsBase}), 0) {
+		t.Error("identical completed workspace retry must settle")
+	}
+	for name, f := range map[string]func(*MutationPublication){
+		"remote":   func(p *MutationPublication) { p.Remote = "backup" },
+		"ref":      func(p *MutationPublication) { p.HeadRef = "refs/heads/other" },
+		"repo dir": func(p *MutationPublication) { p.RepoDir = "/elsewhere/.git" },
+		"head":     func(p *MutationPublication) { p.HeadCommit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+	} {
+		c := wsBase
+		f(&c)
+		if publicationRetryMatch(rec(wsUncertain,
+			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &c}), 0) {
+			t.Errorf("workspace retry differing in %s must not settle", name)
+		}
+	}
+}
+
+// TestSettleablePublicationIndexes: collects every settleable index, ascending, and
+// nothing else.
+func TestSettleablePublicationIndexes(t *testing.T) {
+	base := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	r := EpochRecord{AdmittedMutations: []AdmittedMutation{
+		{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &base}, // 0: settleable
+		{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain},                     // 1: legacy, pending
+		{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &base}, // 2: the retry
+	}}
+	got := settleablePublicationIndexes(r)
+	if len(got) != 1 || got[0] != 0 {
+		t.Fatalf("settleable = %v, want [0]", got)
+	}
+}

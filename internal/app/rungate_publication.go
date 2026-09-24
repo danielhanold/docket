@@ -74,3 +74,48 @@ func validPublication(op string, p *MutationPublication) bool {
 		return false
 	}
 }
+
+// publicationRetryMatch reports whether journal entry i is an uncertain
+// publication settled by a later completed identical retry — the ONLY settling
+// evidence this change accepts (spec "Match against a completed identical
+// retry"). Eligibility: status uncertain AND a valid descriptor for its own
+// operation. Settlement: some HIGHER-index entry in the same record with the
+// same OpKey, a valid descriptor equal field-for-field, and status completed.
+// A still-admitted, uncertain, lower-index, cross-operation, descriptor-less,
+// or malformed candidate never settles. Pure over the record: no IO, no Git,
+// no GitHub.
+func publicationRetryMatch(rec EpochRecord, i int) bool {
+	if i < 0 || i >= len(rec.AdmittedMutations) {
+		return false
+	}
+	m := rec.AdmittedMutations[i]
+	if m.Status != mutationStatusUncertain || !validPublication(m.OpKey, m.Publication) {
+		return false
+	}
+	for j := i + 1; j < len(rec.AdmittedMutations); j++ {
+		c := rec.AdmittedMutations[j]
+		if c.Status != mutationStatusCompleted || c.OpKey != m.OpKey {
+			continue
+		}
+		if !validPublication(c.OpKey, c.Publication) {
+			continue
+		}
+		if *c.Publication == *m.Publication {
+			return true
+		}
+	}
+	return false
+}
+
+// settleablePublicationIndexes returns, ascending, every journal index
+// publicationRetryMatch settles. The settlement writer re-derives this under
+// the epoch lock; accounting callers never act on a stale copy.
+func settleablePublicationIndexes(rec EpochRecord) []int {
+	var idxs []int
+	for i := range rec.AdmittedMutations {
+		if publicationRetryMatch(rec, i) {
+			idxs = append(idxs, i)
+		}
+	}
+	return idxs
+}
