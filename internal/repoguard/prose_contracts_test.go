@@ -342,11 +342,18 @@ var proseContracts = []proseContract{
 			"a named request **never falls back to selecting another change**",
 			"For **each** id in that set — and never any other change — run one `finalize.closeout` operation",
 			"An unrelated change's closeout is never attempted here",
+			// A stack-base refusal never triggers closeout: closing out an
+			// ancestor while the named change is not yet stacked-merged fails
+			// its carry proof (children-retarget-required), so the only
+			// closeout trigger is the waiting-dependency refusal.
+			"A `not-ready-stack-base-unresolved` refusal is never a closeout trigger",
 		},
 		absent: []string{
 			"Then, before selection, run the **implementation preflight** inline",
 			"a single id is the degenerate case",
 			"a single id `90` is the degenerate case",
+			"(or `not-ready-stack-base-unresolved` for a stacked change)",
+			"its stack ancestors whose `status` is `implemented`",
 		}},
 	// change 0448 — the convention's Composition paragraph carries the same
 	// exemption: the step-0 preflight is selection-path only, and a single
