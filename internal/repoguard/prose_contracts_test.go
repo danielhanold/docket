@@ -329,17 +329,37 @@ var proseContracts = []proseContract{
 			"`## Follow-ups`",
 		}},
 	// change 0448 — a single-explicit-id (named) invocation skips the
-	// maintenance preflight and never falls back to selection; its own merged
-	// dependencies get a BOUNDED finalize.closeout limited to that dependency
-	// set. Present phrases bind each claim inside one sentence; the absent
-	// phrase is the retired UNCONDITIONAL preflight opener, so restoring
-	// mandatory maintenance on a named request reddens this row
-	// (assert-detects-removal). Mutation-tested at introduction.
+	// maintenance preflight and never falls back to selection. Present phrases
+	// bind each claim inside one sentence; the absent phrase is the retired
+	// UNCONDITIONAL preflight opener, so restoring mandatory maintenance on a
+	// named request reddens this row (assert-detects-removal). Mutation-tested
+	// at introduction.
 	{sentinel: "change_0448_named_preflight_skip", file: "skills/docket-implement-next/SKILL.md",
 		present: []string{
 			"**Named invocation — no maintenance preflight.**",
 			"The named path never runs `maintenance.preflight` or any maintenance sweep first",
 			"a named request **never falls back to selecting another change**",
+			// The bounded own-dependency closeout lives in edge-paths.md
+			// (progressive disclosure); SKILL.md keeps only the blocking
+			// pointer at its trigger, pinned so the edge cannot go unread.
+			"refuses `not-ready-waiting-dependency`, **read `references/edge-paths.md` now (blocking)** for the bounded closeout",
+			// Negative counterpart: the exemption is exactly one id, so no
+			// argument and an id set still run the maintenance preflight.
+			// Deleting "or an id set" reddens this row (mutation-tested).
+			"Otherwise — no argument, or an id set — run, before selection, the **implementation preflight** inline",
+			"an **id allowlist** of two or more ids",
+		},
+		absent: []string{
+			"Then, before selection, run the **implementation preflight** inline",
+			"a single id is the degenerate case",
+			"a single id `90` is the degenerate case",
+		}},
+	// change 0448 — the named change's own merged dependencies get a BOUNDED
+	// finalize.closeout limited to that dependency set, read on demand from
+	// edge-paths.md at the waiting-dependency trigger.
+	{sentinel: "change_0448_named_preflight_skip", file: "skills/docket-implement-next/references/edge-paths.md",
+		present: []string{
+			"## Named invocation's own merged dependencies (Step 0, bounded closeout)",
 			"For **each** id in that set — and never any other change — run one `finalize.closeout` operation",
 			"An unrelated change's closeout is never attempted here",
 			// A stack-base refusal never triggers closeout: closing out an
@@ -351,11 +371,6 @@ var proseContracts = []proseContract{
 			// `unmet_dependencies` (app.StatusChange), never a `depends_on`
 			// field, so the closeout set is read off that real field.
 			"take the named change's `unmet_dependencies` ids from its `changes[]` entry, keeping each id whose own `changes[]` entry has `status` `implemented`",
-			// Negative counterpart: the exemption is exactly one id, so no
-			// argument and an id set still run the maintenance preflight.
-			// Deleting "or an id set" reddens this row (mutation-tested).
-			"Otherwise — no argument, or an id set — run, before selection, the **implementation preflight** inline",
-			"an **id allowlist** of two or more ids",
 			// finalize.closeout success keys on the envelope `result`, and the
 			// waiting-dependency refusal on the reason `pr-not-merged` — never
 			// on the `disposition` token (FinalizeCloseout, CloseoutResult).
@@ -364,9 +379,6 @@ var proseContracts = []proseContract{
 			"if that single re-read still refuses",
 		},
 		absent: []string{
-			"Then, before selection, run the **implementation preflight** inline",
-			"a single id is the degenerate case",
-			"a single id `90` is the degenerate case",
 			"(or `not-ready-stack-base-unresolved` for a stacked change)",
 			"its stack ancestors whose `status` is `implemented`",
 			"the named change's `depends_on` ids whose `status` is `implemented`",
