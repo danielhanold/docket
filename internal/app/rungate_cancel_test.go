@@ -450,7 +450,7 @@ func TestCancelSettlesUncertainPublicationWithIdenticalRetry(t *testing.T) {
 	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationPRPublish, Status: mutationStatusUncertain, Publication: &desc},
-			{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &desc},
+			{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
 		}
 		return nil
 	}); err != nil {
@@ -513,7 +513,7 @@ func TestCancelStaysPendingWithoutCompletedIdenticalRetry(t *testing.T) {
 	// cancel now converges.
 	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
 		r.AdmittedMutations = append(r.AdmittedMutations,
-			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc})
+			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc})
 		return nil
 	}); err != nil {
 		t.Fatalf("append retry: %v", err)

@@ -147,15 +147,17 @@ func fenceRefusalReasonMessage(ferr error, subject string) (reason, message stri
 
 // mutationJournalDone is the completion callback admitWorkflowMutation returns for
 // an admitted (active-epoch) mutation. The caller invokes it exactly once after the
-// mutation resolves — with mutationStatusCompleted on an observed success, or
-// mutationStatusUncertain when the remote outcome could not be observed. It is
-// best-effort: a journal-write failure never fails the (already-performed) mutation,
-// and a repeated cancellation re-enumerates the journal to reconcile it.
-type mutationJournalDone func(status string)
+// mutation resolves — with mutationStatusCompleted on an observed outcome, or
+// mutationStatusUncertain when the remote outcome could not be observed — and with
+// verified true ONLY when the boundary observed the operation's postcondition
+// (mutationJournalOutcome derives both from the final Result). It is best-effort: a
+// journal-write failure never fails the (already-performed) mutation, and a
+// repeated cancellation re-enumerates the journal to reconcile it.
+type mutationJournalDone func(status string, verified bool)
 
 // noopJournalDone is the completion callback for an UNFENCED mutation (no owning
 // epoch): there is nothing to reconcile, so completion is a no-op.
-func noopJournalDone(string) {}
+func noopJournalDone(string, bool) {}
 
 // admitWorkflowMutation is the run-epoch admission gate every covered mutation
 // boundary passes through. repoDir is the change's canonical feature worktree; op
@@ -168,8 +170,8 @@ func noopJournalDone(string) {}
 //     UNFENCED. This is the standalone contract — a mutation outside any workflow run
 //     is unchanged.
 //   - Owning epoch ACTIVE → journal an `admitted` entry under the epoch's
-//     compare-and-swap and return (done, nil). `done(completed|uncertain)` updates
-//     exactly that entry after the mutation resolves.
+//     compare-and-swap and return (done, nil). `done(completed|uncertain, verified)`
+//     updates exactly that entry after the mutation resolves.
 //   - Owning epoch CANCELLING/CANCELLED → (nil, ErrRunCancelled).
 //   - Owning epoch SUPERSEDED → (nil, ErrStaleRunEpoch).
 //   - Owning epoch COMPLETING/COMPLETED → (nil, ErrRunCompleted). A completed epoch
@@ -257,14 +259,16 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 		return nil, cerr
 	}
 
-	done := func(status string) {
+	done := func(status string, verified bool) {
 		// Best-effort reconciliation: update exactly the entry this admission appended.
 		// No state gate — marking an in-flight mutation completed/uncertain must work
 		// even after the epoch was fenced, so a cancellation can move from pending to
-		// cancelled once every admitted mutation is reconciled.
+		// cancelled once every admitted mutation is reconciled. Verified is persisted
+		// only beside a completed status: an uncertain entry never carries it.
 		_ = epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
 			if idx >= 0 && idx < len(rec.AdmittedMutations) {
 				rec.AdmittedMutations[idx].Status = status
+				rec.AdmittedMutations[idx].Verified = verified && status == mutationStatusCompleted
 			}
 			return nil
 		})
@@ -272,19 +276,28 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 	return done, nil
 }
 
-// mutationJournalStatus maps a boundary's final protocol Result to the completion
-// status its admitted-mutation journal entry gets. An UNOBSERVED remote outcome —
-// an external failure (a transport error, or an explicit unknown disposition) or an
+// mutationJournalOutcome maps a boundary's final protocol Result to the completion
+// status its admitted-mutation journal entry gets, and whether that completion
+// VERIFIED the operation's postcondition. An UNOBSERVED remote outcome — an
+// external failure (a transport error, or an explicit unknown disposition) or an
 // interruption — is `uncertain`, so a cancellation stays pending until it is
-// reconciled; every observed outcome (applied, no-op, contended, or a pre-mutation
-// refusal that pushed nothing) is `completed`. Fail-safe: when in doubt an outcome
-// is treated as uncertain, never prematurely completed.
-func mutationJournalStatus(r Result) string {
+// reconciled; every other outcome (applied, no-op, contended, or a local refusal or
+// internal error that pushed nothing) is `completed` for its OWN accounting. Only
+// applied and no-op are verified: those are the dispositions the adapter reaches
+// after observing the exact postcondition (EnsurePullRequest's post-mutation
+// verification; PublishHead's reprobe), so only they may later stand as settling
+// evidence for an uncertain identical publication (publicationRetryMatch). A
+// contended, refused, or internally failed retry proves nothing about the remote.
+// Fail-safe both ways: when in doubt an outcome is uncertain, never prematurely
+// completed, and unverified, never counted as proof.
+func mutationJournalOutcome(r Result) (status string, verified bool) {
 	switch r {
 	case ResultExternalFailed, ResultInterrupted:
-		return mutationStatusUncertain
+		return mutationStatusUncertain, false
+	case ResultApplied, ResultNoOp:
+		return mutationStatusCompleted, true
 	default:
-		return mutationStatusCompleted
+		return mutationStatusCompleted, false
 	}
 }
 
@@ -489,7 +502,7 @@ func MutationAdmissionHook(repoDir string) func(transaction.OperationKey) error 
 		if err != nil {
 			return err
 		}
-		done(mutationStatusCompleted)
+		done(mutationStatusCompleted, false) // no publication postcondition is claimed
 		return nil
 	}
 }

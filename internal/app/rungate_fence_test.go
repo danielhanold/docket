@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -202,7 +203,7 @@ func TestInFlightMutationReconcilesBeforeCancelled(t *testing.T) {
 
 	// Reconcile the in-flight mutation, then a repeated cancel resumes cleanup and
 	// reaches cancelled.
-	done(mutationStatusCompleted)
+	done(mutationStatusCompleted, false)
 
 	res2 := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
 	if res2.Disposition != CancelDispositionCancelled {
@@ -224,7 +225,7 @@ func TestStandaloneMutationUnfenced(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no-epoch admit returned error %v, want unfenced", err)
 	}
-	done(mutationStatusCompleted) // must be a safe no-op
+	done(mutationStatusCompleted, false) // must be a safe no-op
 
 	// (b) An epoch that owns a DIFFERENT worktree does not fence this one, even when
 	// cancelled.
@@ -238,7 +239,7 @@ func TestStandaloneMutationUnfenced(t *testing.T) {
 	if err != nil {
 		t.Fatalf("admit refused by an unrelated worktree's epoch: %v", err)
 	}
-	done2(mutationStatusCompleted)
+	done2(mutationStatusCompleted, false)
 }
 
 // TestFenceRefusesSupersededEpochAsStale: a superseded epoch (a resume replaced it)
@@ -310,7 +311,7 @@ func TestCompletedEpochExcludedFromAmbientOwnerLookup(t *testing.T) {
 	if err != nil || done == nil {
 		t.Fatalf("completed epoch trapped a standalone mutation: err %v done %v", err, done)
 	}
-	done(mutationStatusCompleted) // must be a safe no-op for the unfenced admit
+	done(mutationStatusCompleted, false) // must be a safe no-op for the unfenced admit
 
 	canon, cerr := canonicalWorktree(repoDir)
 	if cerr != nil {
@@ -1264,5 +1265,141 @@ func TestProductionUncertainThenIdenticalRetryThenCancel(t *testing.T) {
 				t.Fatalf("cancel finding %q leaks %q", f, secret)
 			}
 		}
+	}
+}
+
+// assertUnverifiedRetryLeavesOriginalPending runs the REAL cancel path over a
+// journal the production boundary wrote as [uncertain original, admitted-then-
+// resolved identical retry] and asserts the retry verified NOTHING it could settle
+// with: the original stays uncertain, cancellation stays cancellation-pending with
+// the exclusion finding, and no settlement is reported (change 0444 review
+// blocker: a refused/failed retry must never count as proof).
+func assertUnverifiedRetryLeavesOriginalPending(t *testing.T, fx cancelFixture, op string) {
+	t.Helper()
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if len(ep.AdmittedMutations) != 2 || ep.AdmittedMutations[0].Status != mutationStatusUncertain {
+		t.Fatalf("journal = %+v, want [uncertain original, resolved retry]", ep.AdmittedMutations)
+	}
+	a, b := ep.AdmittedMutations[0].Publication, ep.AdmittedMutations[1].Publication
+	if !validPublication(op, a) || !validPublication(op, b) || *a != *b {
+		t.Fatalf("descriptors = %+v / %+v, want two identical valid descriptors (else the case is vacuous)", a, b)
+	}
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition == CancelDispositionCancelled {
+		t.Fatalf("disposition = cancelled (findings %v): an unverified retry settled the uncertain original", res.Findings)
+	}
+	if !hasFinding(res.Findings, "mutation-pending:"+op) {
+		t.Fatalf("findings = %v, want mutation-pending:%s (exclusion retained)", res.Findings, op)
+	}
+	if hasFinding(res.Findings, "mutation-settled") {
+		t.Fatalf("findings = %v; an unverified retry must settle nothing", res.Findings)
+	}
+	ep, _, err = LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord after cancel: %v", err)
+	}
+	if s := ep.AdmittedMutations[0].Status; s != mutationStatusUncertain {
+		t.Fatalf("original = %q after cancel, want uncertain (missing evidence never counts as success)", s)
+	}
+}
+
+// TestProductionUnverifiedPRRetryNeverSettles (change 0444 review blocker): an
+// identical pr.publish retry admitted after an uncertain first attempt, which then
+// resolves contended, refused (invalid-state / invalid-input), or with an internal
+// error, verified no postcondition — so it never settles the original. The applied
+// positive control lives in TestProductionUncertainThenIdenticalRetryThenCancel.
+func TestProductionUnverifiedPRRetryNeverSettles(t *testing.T) {
+	cases := []struct {
+		name  string
+		retry *fakeGitHub
+		want  Result
+	}{
+		{"contended", &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureContended}}, ResultContended},
+		{"invalid-state", &fakeGitHub{repo: prRepo(), ensureErr: &githubcli.Failure{
+			Op: "ensure-pull-request", Stage: githubcli.StageDecode, Kind: githubcli.KindInvalidState, Detail: "unexpected pull request shape"}}, ResultInvalidState},
+		{"invalid-input", &fakeGitHub{repo: prRepo(), ensureErr: &githubcli.Failure{
+			Op: "ensure-pull-request", Stage: githubcli.StageValidate, Kind: githubcli.KindInvalidInput, Detail: "bad request"}}, ResultInvalidInput},
+		{"internal-error", &fakeGitHub{repo: prRepo(), ensureErr: errors.New("adapter panic recovered")}, ResultInternalError},
+		{"unknown-disposition", &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: "bogus"}}, ResultInternalError},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := newCancelFixture(t, true)
+			deps := workspaceDepsFor(t, prReader(t))
+			req := PRPublishRequest{ID: 7, Head: prHead, Title: "Add widget", Body: "Prose.\n", EvidenceRecord: prEvidenceBytes(t, prHead)}
+			ghFail := &fakeGitHub{repo: prRepo(), ensureErr: &githubcli.Failure{
+				Op: "ensure-pull-request", Stage: githubcli.StageInvoke, Kind: githubcli.KindExternal, Detail: "transport reset"}}
+			if res := PRPublish(context.Background(), deps, WorkspaceDeps{Service: readyService(prHead)}, GitHubDeps{Service: ghFail}, fx.worktree, req); res.Result != ResultExternalFailed {
+				t.Fatalf("first attempt result = %q (reason %q), want external-failed", res.Result, res.Reason)
+			}
+			if res := PRPublish(context.Background(), deps, WorkspaceDeps{Service: readyService(prHead)}, GitHubDeps{Service: tc.retry}, fx.worktree, req); res.Result != tc.want {
+				t.Fatalf("retry result = %q (reason %q), want %q", res.Result, res.Reason, tc.want)
+			}
+			if len(tc.retry.ensureCalls) != 1 {
+				t.Fatalf("retry ensure calls = %d, want 1 (the retry must be admitted and reach the adapter)", len(tc.retry.ensureCalls))
+			}
+			assertUnverifiedRetryLeavesOriginalPending(t, fx, OperationPRPublish)
+		})
+	}
+}
+
+// TestProductionUnverifiedWorkspaceRetryNeverSettles (change 0444 review
+// blocker): the workspace.publish analog. An identical retry that PublishHead
+// resolves contended, refuses locally (invalid-state "workspace is not in a ready
+// phase" from its reinspection), or fails with an internal error never settles the
+// uncertain original; an applied retry (the positive control) does, proving the
+// fixture journals through the real fence.
+func TestProductionUnverifiedWorkspaceRetryNeverSettles(t *testing.T) {
+	const head = "abcdef0000000000000000000000000000000000"
+	ready := workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(head)}
+	cases := []struct {
+		name   string
+		retry  *fakeWorkspaceService
+		want   Result
+		settle bool
+	}{
+		{"applied (positive control)", &fakeWorkspaceService{inspection: ready,
+			publishRes: workspace.PublishResult{Disposition: workspace.PublishPublished, Head: gitcli.ObjectID(head)}}, ResultApplied, true},
+		{"already-published (positive control)", &fakeWorkspaceService{inspection: ready,
+			publishRes: workspace.PublishResult{Disposition: workspace.PublishAlreadyPublished, Head: gitcli.ObjectID(head)}}, ResultNoOp, true},
+		{"contended", &fakeWorkspaceService{inspection: ready,
+			publishRes: workspace.PublishResult{Disposition: workspace.PublishContended, Head: gitcli.ObjectID(head)}}, ResultContended, false},
+		{"invalid-state", &fakeWorkspaceService{inspection: ready,
+			publishErr: &workspace.Failure{Op: "publish-head", Kind: workspace.KindInvalidState, Detail: "workspace is not in a ready phase"}}, ResultInvalidState, false},
+		{"invalid-input", &fakeWorkspaceService{inspection: ready,
+			publishErr: &workspace.Failure{Op: "publish-head", Kind: workspace.KindInvalidInput, Detail: "bad target"}}, ResultInvalidInput, false},
+		{"internal-error", &fakeWorkspaceService{inspection: ready,
+			publishRes: workspace.PublishResult{Disposition: "bogus"}}, ResultInternalError, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := newCancelFixture(t, true)
+			reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")}}
+			deps := workspaceDepsFor(t, reader)
+			req := WorkspacePublishRequest{ID: 7, Head: head}
+			first := &fakeWorkspaceService{inspection: ready, publishRes: workspace.PublishResult{Disposition: workspace.PublishUnknown}}
+			if res := WorkspacePublish(context.Background(), deps, WorkspaceDeps{Service: first}, fx.worktree, req); res.Result != ResultExternalFailed {
+				t.Fatalf("first attempt result = %q (reason %q), want external-failed", res.Result, res.Reason)
+			}
+			if res := WorkspacePublish(context.Background(), deps, WorkspaceDeps{Service: tc.retry}, fx.worktree, req); res.Result != tc.want {
+				t.Fatalf("retry result = %q (reason %q), want %q", res.Result, res.Reason, tc.want)
+			}
+			if len(tc.retry.publishCalls) != 1 {
+				t.Fatalf("retry PublishHead calls = %d, want 1 (the retry must be admitted and reach the adapter)", len(tc.retry.publishCalls))
+			}
+			if !tc.settle {
+				assertUnverifiedRetryLeavesOriginalPending(t, fx, OperationWorkspacePublish)
+				return
+			}
+			stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+			res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+			if res.Disposition != CancelDispositionCancelled {
+				t.Fatalf("disposition = %q (findings %v), want cancelled via a verified identical retry", res.Disposition, res.Findings)
+			}
+		})
 	}
 }

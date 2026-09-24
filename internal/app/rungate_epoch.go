@@ -134,10 +134,17 @@ const (
 // Publication is the optional immutable publication identity captured at admission
 // (change 0444) — additive schema-v1 field; nil on legacy and non-publication
 // entries. Reconciliation trusts it only when validPublication accepts it.
+// Verified records whether the completion OBSERVED the operation's postcondition
+// (the boundary resolved applied or no-op) — distinct from Status completed, which
+// also covers pushed-nothing outcomes (contended, a local refusal, an internal
+// error) where no postcondition was verified. Only a Verified completed entry is
+// settling evidence for an uncertain identical publication. Additive schema-v1
+// field: absent (legacy) decodes false — never verified, fail-safe.
 type AdmittedMutation struct {
 	OpKey       string               `json:"op_key"`
 	Status      string               `json:"status"` // admitted|completed|uncertain
 	Publication *MutationPublication `json:"publication,omitempty"`
+	Verified    bool                 `json:"verified,omitempty"`
 }
 
 // EpochRecord is the durable run-epoch state. GateKey binds it to the arming gate

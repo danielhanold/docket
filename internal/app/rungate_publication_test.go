@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -113,7 +114,7 @@ func TestAdmissionJournalsPublicationDescriptorAndLegacyDecodes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("admitWorkflowMutation: %v", err)
 	}
-	done(mutationStatusUncertain)
+	done(mutationStatusUncertain, false)
 
 	ep, _, lerr := LoadEpochRecord(fx.repo, fx.key)
 	if lerr != nil {
@@ -148,8 +149,8 @@ func TestAdmissionJournalsPublicationDescriptorAndLegacyDecodes(t *testing.T) {
 }
 
 // TestPublicationRetryMatchMatrix: an uncertain entry is settled ONLY by a later
-// (higher-index) completed entry with the same operation and a field-for-field
-// identical VALID descriptor. Everything else leaves it pending.
+// (higher-index) completed AND verified entry with the same operation and a
+// field-for-field identical VALID descriptor. Everything else leaves it pending.
 func TestPublicationRetryMatchMatrix(t *testing.T) {
 	base := MutationPublication{
 		RepoHost: "github.com", RepoOwner: "o", RepoName: "r",
@@ -174,43 +175,53 @@ func TestPublicationRetryMatchMatrix(t *testing.T) {
 		want bool
 	}{
 		{"identical completed retry settles", rec(uncertain,
-			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base}), true},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true, Publication: &base}), true},
 		{"no later entry", rec(uncertain), false},
 		{"later identical but admitted", rec(uncertain,
 			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusAdmitted, Publication: &base}), false},
 		{"later identical but uncertain", rec(uncertain,
 			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusUncertain, Publication: &base}), false},
 		{"identical completed at LOWER index never settles", rec(
-			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true, Publication: &base},
 			uncertain), false},
 		{"different operation", rec(uncertain,
-			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &base}), false},
+			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &base}), false},
 		{"missing descriptor on the retry", rec(uncertain,
-			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted}), false},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true}), false},
+		// Change 0444 review blocker: a completed retry that did NOT verify its
+		// postcondition (contended, a local refusal, an internal error) or a legacy
+		// completed entry with no verified flag is never settling evidence — missing
+		// evidence never counts as success.
+		{"identical completed but unverified retry", rec(uncertain,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base}), false},
+		{"verified flag on a non-completed retry never settles", rec(uncertain,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusAdmitted, Verified: true, Publication: &base}), false},
+		{"verified flag on an uncertain retry never settles", rec(uncertain,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusUncertain, Verified: true, Publication: &base}), false},
 		{"missing descriptor on the original (legacy)", rec(
 			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusUncertain},
-			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base}), false},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true, Publication: &base}), false},
 		{"malformed descriptor on the retry", rec(uncertain,
-			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true,
 				Publication: alter(func(p *MutationPublication) { p.BaseBranch = "" })}), false},
-		{"different owner", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+		{"different owner", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true,
 			Publication: alter(func(p *MutationPublication) { p.RepoOwner = "other" })}), false},
-		{"different head commit", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+		{"different head commit", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true,
 			Publication: alter(func(p *MutationPublication) { p.HeadCommit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" })}), false},
-		{"different head branch", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+		{"different head branch", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true,
 			Publication: alter(func(p *MutationPublication) { p.HeadRef = "fix/other" })}), false},
-		{"different base", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+		{"different base", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true,
 			Publication: alter(func(p *MutationPublication) { p.BaseBranch = "develop" })}), false},
-		{"different title digest", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+		{"different title digest", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true,
 			Publication: alter(func(p *MutationPublication) { p.TitleDigest = publicationDigest("pr-title", "T2") })}), false},
-		{"different body digest", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted,
+		{"different body digest", rec(uncertain, AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true,
 			Publication: alter(func(p *MutationPublication) { p.BodyDigest = publicationDigest("pr-body", "B2") })}), false},
 		{"eligible only when uncertain: completed original is not a match target", rec(
-			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base},
-			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base}), false},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true, Publication: &base},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true, Publication: &base}), false},
 		{"still-admitted original is not eligible", rec(
 			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusAdmitted, Publication: &base},
-			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &base}), false},
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Verified: true, Publication: &base}), false},
 	}
 	for _, tc := range cases {
 		if got := publicationRetryMatch(tc.rec, 0); got != tc.want {
@@ -223,7 +234,7 @@ func TestPublicationRetryMatchMatrix(t *testing.T) {
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	wsUncertain := AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &wsBase}
 	if !publicationRetryMatch(rec(wsUncertain,
-		AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &wsBase}), 0) {
+		AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &wsBase}), 0) {
 		t.Error("identical completed workspace retry must settle")
 	}
 	for name, f := range map[string]func(*MutationPublication){
@@ -235,9 +246,123 @@ func TestPublicationRetryMatchMatrix(t *testing.T) {
 		c := wsBase
 		f(&c)
 		if publicationRetryMatch(rec(wsUncertain,
-			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &c}), 0) {
+			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &c}), 0) {
 			t.Errorf("workspace retry differing in %s must not settle", name)
 		}
+	}
+}
+
+// TestMutationJournalOutcomeVerifiesOnlyObservedPostcondition (change 0444 review
+// blocker): only applied and no-op verify the postcondition; contended, every local
+// refusal, and an internal error are completed-for-accounting but UNVERIFIED; an
+// external failure or interruption is uncertain and unverified. An unknown future
+// Result is unverified (fail-safe).
+func TestMutationJournalOutcomeVerifiesOnlyObservedPostcondition(t *testing.T) {
+	cases := []struct {
+		r        Result
+		status   string
+		verified bool
+	}{
+		{ResultApplied, mutationStatusCompleted, true},
+		{ResultNoOp, mutationStatusCompleted, true},
+		{ResultContended, mutationStatusCompleted, false},
+		{ResultInvalidInput, mutationStatusCompleted, false},
+		{ResultInvalidState, mutationStatusCompleted, false},
+		{ResultBlocked, mutationStatusCompleted, false},
+		{ResultUnsupportedConfig, mutationStatusCompleted, false},
+		{ResultGateFailed, mutationStatusCompleted, false},
+		{ResultInternalError, mutationStatusCompleted, false},
+		{ResultExternalFailed, mutationStatusUncertain, false},
+		{ResultInterrupted, mutationStatusUncertain, false},
+		{Result("some-future-result"), mutationStatusCompleted, false},
+	}
+	for _, tc := range cases {
+		status, verified := mutationJournalOutcome(tc.r)
+		if status != tc.status || verified != tc.verified {
+			t.Errorf("mutationJournalOutcome(%q) = (%q, %v), want (%q, %v)", tc.r, status, verified, tc.status, tc.verified)
+		}
+	}
+}
+
+// TestJournaledRetryOutcomeGatesSettlement (change 0444 review blocker): through the
+// REAL admission + completion callback, an identical retry settles the uncertain
+// original ONLY when its final Result verified the postcondition. A retry resolved
+// contended, invalid-state, invalid-input, or internal-error persists completed
+// but unverified and leaves the original pending; a verified flag handed to an
+// uncertain completion is never persisted; and a legacy completed entry decoded
+// without the field is unverified.
+func TestJournaledRetryOutcomeGatesSettlement(t *testing.T) {
+	fx := newCancelFixture(t, false)
+	cases := []struct {
+		r      Result
+		settle bool
+	}{
+		{ResultApplied, true},
+		{ResultNoOp, true},
+		{ResultContended, false},
+		{ResultInvalidState, false},
+		{ResultInvalidInput, false},
+		{ResultInternalError, false},
+	}
+	for n, tc := range cases {
+		desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+			HeadRef: "refs/heads/fix/outcome", HeadCommit: fmt.Sprintf("%040x", n+1)}
+		od, err := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &desc)
+		if err != nil {
+			t.Fatalf("%s: admit original: %v", tc.r, err)
+		}
+		od(mutationJournalOutcome(ResultExternalFailed))
+		rd, err := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &desc)
+		if err != nil {
+			t.Fatalf("%s: admit retry: %v", tc.r, err)
+		}
+		rd(mutationJournalOutcome(tc.r))
+		ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+		if err != nil {
+			t.Fatalf("%s: LoadEpochRecord: %v", tc.r, err)
+		}
+		orig, retry := len(ep.AdmittedMutations)-2, len(ep.AdmittedMutations)-1
+		if ep.AdmittedMutations[orig].Status != mutationStatusUncertain || ep.AdmittedMutations[orig].Verified {
+			t.Fatalf("%s: original = %+v, want uncertain and unverified", tc.r, ep.AdmittedMutations[orig])
+		}
+		if ep.AdmittedMutations[retry].Status != mutationStatusCompleted || ep.AdmittedMutations[retry].Verified != tc.settle {
+			t.Fatalf("%s: retry = %+v, want completed with verified=%v", tc.r, ep.AdmittedMutations[retry], tc.settle)
+		}
+		if got := publicationRetryMatch(ep, orig); got != tc.settle {
+			t.Fatalf("%s: publicationRetryMatch = %v, want %v", tc.r, got, tc.settle)
+		}
+	}
+
+	// A verified flag handed alongside an uncertain completion is never persisted.
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/uncertain-verified", HeadCommit: fmt.Sprintf("%040x", 99)}
+	ud, err := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &desc)
+	if err != nil {
+		t.Fatalf("admit: %v", err)
+	}
+	ud(mutationStatusUncertain, true)
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if last := ep.AdmittedMutations[len(ep.AdmittedMutations)-1]; last.Verified {
+		t.Fatalf("uncertain entry persisted verified: %+v", last)
+	}
+
+	// Legacy decode: a completed entry written before the field existed is
+	// unverified and never settles an identical uncertain original.
+	var legacy AdmittedMutation
+	if err := json.Unmarshal([]byte(`{"op_key":"workspace.publish","status":"completed",`+
+		`"publication":{"repo_dir":"/repo/.git","remote":"origin","head_ref":"refs/heads/fix/legacy",`+
+		`"head_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`), &legacy); err != nil {
+		t.Fatalf("decode legacy entry: %v", err)
+	}
+	if legacy.Verified || !validPublication(OperationWorkspacePublish, legacy.Publication) {
+		t.Fatalf("legacy entry = %+v, want a valid descriptor and verified=false", legacy)
+	}
+	orig := AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: legacy.Publication}
+	if publicationRetryMatch(EpochRecord{AdmittedMutations: []AdmittedMutation{orig, legacy}}, 0) {
+		t.Fatal("a legacy completed entry with no verified flag must never settle")
 	}
 }
 
@@ -247,9 +372,9 @@ func TestSettleablePublicationIndexes(t *testing.T) {
 	base := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	r := EpochRecord{AdmittedMutations: []AdmittedMutation{
-		{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &base}, // 0: settleable
-		{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain},                     // 1: legacy, pending
-		{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &base}, // 2: the retry
+		{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &base},                 // 0: settleable
+		{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain},                                     // 1: legacy, pending
+		{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &base}, // 2: the retry
 	}}
 	got := settleablePublicationIndexes(r)
 	if len(got) != 1 || got[0] != 0 {
@@ -271,7 +396,7 @@ func TestSettleUncertainPublicationsDurable(t *testing.T) {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
 			{OpKey: OperationPRPublish, Status: mutationStatusUncertain}, // legacy: stays pending
-			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
 		}
 		return nil
 	}); err != nil {
@@ -368,7 +493,7 @@ func TestSettleUncertainPublicationsWriteFailureReportsNoSettlement(t *testing.T
 	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
-			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
 		}
 		return nil
 	}); err != nil {
@@ -416,7 +541,7 @@ func TestSettlementNeverDowngradesUnderRacingCallback(t *testing.T) {
 	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
-			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
 		}
 		return nil
 	}); err != nil {
@@ -454,7 +579,7 @@ func TestSettlementNeverDowngradesUnderRacingCallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("admit original: %v", err)
 	}
-	origDone(mutationStatusUncertain)
+	origDone(mutationStatusUncertain, false)
 	retryDone, err := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &d2)
 	if err != nil {
 		t.Fatalf("admit retry: %v", err)
@@ -462,7 +587,7 @@ func TestSettlementNeverDowngradesUnderRacingCallback(t *testing.T) {
 	if s, f := settleUncertainPublications(fx.repo, fx.key); len(s) != 0 || len(f) != 0 {
 		t.Fatalf("settled=%v findings=%v before the retry completed, want none", s, f)
 	}
-	retryDone(mutationStatusCompleted)
+	retryDone(mutationStatusCompleted, true)
 	if s, f := settleUncertainPublications(fx.repo, fx.key); len(s) != 1 || len(f) != 0 {
 		t.Fatalf("settled=%v findings=%v after the retry completed, want one settlement", s, f)
 	}
@@ -498,7 +623,7 @@ func TestSettlementNeverDowngradesUnderRacingCallback(t *testing.T) {
 		if aerr != nil {
 			t.Fatalf("round %d: admit original: %v", round, aerr)
 		}
-		od(mutationStatusUncertain)
+		od(mutationStatusUncertain, false)
 		rdone, aerr := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &rd)
 		if aerr != nil {
 			t.Fatalf("round %d: admit retry: %v", round, aerr)
@@ -528,7 +653,7 @@ func TestSettlementNeverDowngradesUnderRacingCallback(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			rdone(mutationStatusCompleted)
+			rdone(mutationStatusCompleted, true)
 		}()
 		// Unrelated admissions APPENDED during the race: a settlement that wrote a
 		// record matched outside the lock (a stale snapshot) would silently drop them.
@@ -620,7 +745,7 @@ func TestSettlementInterruptionConverges(t *testing.T) {
 	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
-			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
 		}
 		return nil
 	}); err != nil {

@@ -511,7 +511,7 @@ func TestStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout(t *testing
 	if err != nil || done == nil {
 		t.Fatalf("admitWorkflowMutation after closeout: done=%v err=%v, want a usable callback", done, err)
 	}
-	done(mutationStatusCompleted)
+	done(mutationStatusCompleted, false)
 }
 
 // TestOrdinaryReleaseStillRetainsEpochBetweenDrives is AC8's ordinary-release fence
@@ -857,7 +857,7 @@ func TestCompleteSuccessfulRunSettlesUncertainPublication(t *testing.T) {
 	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
-			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
 		}
 		return nil
 	}); err != nil {
@@ -930,6 +930,39 @@ func TestCompleteSuccessfulRunStillBlocksWithoutRetry(t *testing.T) {
 	}
 }
 
+// TestCompleteSuccessfulRunBlocksOnUnverifiedRetry (change 0444 review blocker):
+// an identical retry that completed WITHOUT verifying its postcondition (contended,
+// refused, internally failed — journaled completed, verified false) is no evidence,
+// so the attributed closeout stays blocked and the original stays uncertain.
+func TestCompleteSuccessfulRunBlocksOnUnverifiedRetry(t *testing.T) {
+	fx := newCompletionFixture(t)
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed journal: %v", err)
+	}
+	ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key)
+	if ok || reason != "completion-unaccounted" {
+		t.Fatalf("ok=%v reason=%q findings=%v, want blocked completion-unaccounted", ok, reason, findings)
+	}
+	if hasFinding(findings, "mutation-settled") {
+		t.Fatalf("findings = %v; an unverified retry must settle nothing", findings)
+	}
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.AdmittedMutations[0].Status != mutationStatusUncertain {
+		t.Fatalf("original status = %q, want still uncertain", ep.AdmittedMutations[0].Status)
+	}
+}
+
 // TestReadOnlyPathsNeverSettle (change 0444): the read-only verification predicates
 // report the pending truth of a settleable pair but write NOTHING — the durable
 // record is byte-identical after they run (RunVerify and unattributed verdicts consume
@@ -943,7 +976,7 @@ func TestReadOnlyPathsNeverSettle(t *testing.T) {
 		r.State = EpochCancelled
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
-			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
 		}
 		return nil
 	}); err != nil {

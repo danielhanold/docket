@@ -1,13 +1,16 @@
 // Publication-identity reconciliation for the run-epoch mutation journal
 // (change 0444). A publication whose remote outcome could not be observed leaves
 // an `uncertain` admitted-mutation entry; when a LATER admission in the SAME
-// epoch with an IDENTICAL publication identity completed, the completed retry's
-// adapter already verified the exact postcondition (githubcli EnsurePullRequest's
-// post-mutation verification; workspace PublishHead's reprobeAfterPush), so the
-// original obligation is settled by a LOCAL journal comparison — no Git or GitHub
-// call is ever made here. Everything in this file is a pure function of the
-// durable epoch record, except settleUncertainPublications, which persists the
-// settlement through the ordinary epochCAS.
+// epoch with an IDENTICAL publication identity completed VERIFIED (applied or
+// no-op — the retry's adapter observed the exact postcondition: githubcli
+// EnsurePullRequest's post-mutation verification; workspace PublishHead's
+// reprobeAfterPush), the original obligation is settled by a LOCAL journal
+// comparison — no Git or GitHub call is ever made here. A retry that completed
+// without verifying (contended, a local refusal, an internal error) is no
+// evidence. Everything in this file is a pure function of the durable epoch
+// record, except settleUncertainPublications, which persists the settlement
+// through the ordinary epochCAS (a settled original becomes completed but stays
+// unverified: its own attempt observed nothing).
 package app
 
 import (
@@ -77,13 +80,16 @@ func validPublication(op string, p *MutationPublication) bool {
 }
 
 // publicationRetryMatch reports whether journal entry i is an uncertain
-// publication settled by a later completed identical retry — the ONLY settling
+// publication settled by a later verified identical retry — the ONLY settling
 // evidence this change accepts (spec "Match against a completed identical
 // retry"). Eligibility: status uncertain AND a valid descriptor for its own
 // operation. Settlement: some HIGHER-index entry in the same record with the
-// same OpKey, a valid descriptor equal field-for-field, and status completed.
-// A still-admitted, uncertain, lower-index, cross-operation, descriptor-less,
-// or malformed candidate never settles. Pure over the record: no IO, no Git,
+// same OpKey, a valid descriptor equal field-for-field, status completed, AND
+// Verified (the retry observed the postcondition — mutationJournalOutcome). A
+// still-admitted, uncertain, completed-but-unverified (contended, refused,
+// internally failed, or a legacy entry with no verified flag), lower-index,
+// cross-operation, descriptor-less, or malformed candidate never settles —
+// missing evidence never counts as success. Pure over the record: no IO, no Git,
 // no GitHub.
 func publicationRetryMatch(rec EpochRecord, i int) bool {
 	if i < 0 || i >= len(rec.AdmittedMutations) {
@@ -95,7 +101,7 @@ func publicationRetryMatch(rec EpochRecord, i int) bool {
 	}
 	for j := i + 1; j < len(rec.AdmittedMutations); j++ {
 		c := rec.AdmittedMutations[j]
-		if c.Status != mutationStatusCompleted || c.OpKey != m.OpKey {
+		if c.Status != mutationStatusCompleted || !c.Verified || c.OpKey != m.OpKey {
 			continue
 		}
 		if !validPublication(c.OpKey, c.Publication) {
@@ -122,7 +128,7 @@ func settleablePublicationIndexes(rec EpochRecord) []int {
 }
 
 // settleUncertainPublications durably settles every uncertain publication entry
-// proven by a later completed identical retry (change 0444). The whole
+// proven by a later verified identical retry (change 0444). The whole
 // re-read + match + write runs under one epochCAS, so the matches are
 // re-derived from the FRESH record under the lock — an appended unrelated
 // entry can never be cleared by an older snapshot, a raced completion
