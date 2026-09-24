@@ -13,6 +13,7 @@ package app
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 )
 
 // MutationPublication is the immutable publication identity captured at a
@@ -118,4 +119,43 @@ func settleablePublicationIndexes(rec EpochRecord) []int {
 		}
 	}
 	return idxs
+}
+
+// settleUncertainPublications durably settles every uncertain publication entry
+// proven by a later completed identical retry (change 0444). The whole
+// re-read + match + write runs under one epochCAS, so the matches are
+// re-derived from the FRESH record under the lock — an appended unrelated
+// entry can never be cleared by an older snapshot, a raced completion
+// callback or concurrent cancel serializes, and completed is never
+// downgraded (the only transition is uncertain→completed on a matched
+// original; identity, siblings, participants, and epoch state are untouched).
+// It is invoked ONLY from authorized write paths (cancellation teardown and
+// the attributed keyed successful closeout); read-only verification paths
+// never call it. A persistence/read failure is a bounded finding
+// ("mutation-settle-failed") — the entry stays uncertain, exclusion is
+// retained, and repeating the same cancel/keyed verdict retries the write.
+// A no-match pass writes nothing (errEpochFenceNoWrite).
+func settleUncertainPublications(repoDir, gateKey string) (settled, findings []string) {
+	var tokens []string
+	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+		tokens = nil // the closure's view is the fresh locked record; never carry a stale pass
+		idxs := settleablePublicationIndexes(*rec)
+		if len(idxs) == 0 {
+			return errEpochFenceNoWrite
+		}
+		for _, i := range idxs {
+			rec.AdmittedMutations[i].Status = mutationStatusCompleted
+			tokens = append(tokens, "mutation-settled:"+rec.AdmittedMutations[i].OpKey)
+		}
+		return nil
+	})
+	if errors.Is(err, errEpochFenceNoWrite) {
+		return nil, nil // nothing to settle: no write, no finding
+	}
+	if err != nil {
+		// The write never landed: discard any tokens the aborted closure
+		// accumulated so no settlement is ever reported that is not durable.
+		return nil, []string{"mutation-settle-failed"}
+	}
+	return tokens, nil
 }

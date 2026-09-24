@@ -1,6 +1,10 @@
 package app
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 // TestPublicationDigestDomainSeparated: digests are sha256-hex, label-separated with
 // an unambiguous NUL boundary so ("a","bc") can never collide with ("ab","c") or a
@@ -248,5 +252,150 @@ func TestSettleablePublicationIndexes(t *testing.T) {
 	got := settleablePublicationIndexes(r)
 	if len(got) != 1 || got[0] != 0 {
 		t.Fatalf("settleable = %v, want [0]", got)
+	}
+}
+
+// TestSettleUncertainPublicationsDurable: settlement re-derives matches under the
+// epoch lock, flips ONLY matched originals uncertain→completed, is idempotent, and
+// never touches unmatched entries, participants, or epoch state.
+func TestSettleUncertainPublicationsDurable(t *testing.T) {
+	fx := newCancelFixture(t, false)
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	participant := EpochParticipant{Kind: "task", NativeHandle: "handle-1", RegisteredAt: "2026-09-23T00:00:00Z"}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.State = EpochCancelling // settlement is observation of fact; it works on a fenced epoch
+		r.Participants = []EpochParticipant{participant}
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
+			{OpKey: OperationPRPublish, Status: mutationStatusUncertain}, // legacy: stays pending
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed journal: %v", err)
+	}
+	before, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord (before): %v", err)
+	}
+
+	settled, findings := settleUncertainPublications(fx.repo, fx.key)
+	if len(findings) != 0 {
+		t.Fatalf("findings = %v, want none", findings)
+	}
+	if len(settled) != 1 || settled[0] != "mutation-settled:"+OperationWorkspacePublish {
+		t.Fatalf("settled = %v, want [mutation-settled:workspace.publish]", settled)
+	}
+
+	ep, gen, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if len(ep.AdmittedMutations) != 3 {
+		t.Fatalf("journal length = %d, want 3 (settlement never appends or drops entries)", len(ep.AdmittedMutations))
+	}
+	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
+		t.Fatal("matched original must be durably completed — assert the RECORD changed, not a result string")
+	}
+	if ep.AdmittedMutations[0].OpKey != OperationWorkspacePublish ||
+		ep.AdmittedMutations[0].Publication == nil || *ep.AdmittedMutations[0].Publication != desc {
+		t.Fatal("settlement must preserve the entry's identity")
+	}
+	if ep.AdmittedMutations[1].Status != mutationStatusUncertain || ep.AdmittedMutations[1].Publication != nil {
+		t.Fatal("legacy descriptor-less entry must remain pending and untouched")
+	}
+	if ep.AdmittedMutations[2].Status != mutationStatusCompleted ||
+		ep.AdmittedMutations[2].Publication == nil || *ep.AdmittedMutations[2].Publication != desc {
+		t.Fatal("the settling retry entry must be untouched")
+	}
+	if ep.State != EpochCancelling {
+		t.Fatalf("epoch state = %q; settlement must never transition the epoch", ep.State)
+	}
+	if ep.EpochID != before.EpochID || ep.ChangeID != before.ChangeID || ep.Worktree != before.Worktree {
+		t.Fatal("settlement must never touch epoch identity fields")
+	}
+	if len(ep.Participants) != 1 || ep.Participants[0] != participant {
+		t.Fatalf("participants = %+v; settlement must never touch participants", ep.Participants)
+	}
+
+	// Idempotent replay: nothing left to settle, no findings, and NO write — the
+	// physical generation does not rotate.
+	settled2, findings2 := settleUncertainPublications(fx.repo, fx.key)
+	if len(settled2) != 0 || len(findings2) != 0 {
+		t.Fatalf("replay settled=%v findings=%v, want none", settled2, findings2)
+	}
+	_, gen2, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord (replay): %v", err)
+	}
+	if gen2 != gen {
+		t.Fatalf("replay rotated generation %q -> %q; a no-match pass must write nothing", gen, gen2)
+	}
+}
+
+// TestSettleUncertainPublicationsFailureIsBoundedFinding: an unreadable epoch is a
+// bounded finding, never a panic and never a fabricated settlement.
+func TestSettleUncertainPublicationsFailureIsBoundedFinding(t *testing.T) {
+	fx := newCancelFixture(t, false)
+	// Corrupt the record so the CAS read fails closed.
+	dir := filepath.Join(fx.common, "docket", "rungate", fx.key)
+	if err := os.WriteFile(filepath.Join(dir, epochRecordFileName), []byte("{not json"), 0o600); err != nil {
+		t.Fatalf("corrupt record: %v", err)
+	}
+	settled, findings := settleUncertainPublications(fx.repo, fx.key)
+	if len(settled) != 0 {
+		t.Fatalf("settled = %v, want none on failure", settled)
+	}
+	if len(findings) != 1 || findings[0] != "mutation-settle-failed" {
+		t.Fatalf("findings = %v, want [mutation-settle-failed]", findings)
+	}
+}
+
+// TestSettleUncertainPublicationsWriteFailureReportsNoSettlement: when matches are
+// found under the lock but the atomic write cannot land, the writer reports the
+// bounded finding and NO settled tokens (the closure's accumulated tokens are
+// discarded), and the durable entry stays uncertain — exclusion is retained.
+func TestSettleUncertainPublicationsWriteFailureReportsNoSettlement(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory write permission")
+	}
+	fx := newCancelFixture(t, false)
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed journal: %v", err)
+	}
+	// The lock file already exists (the seed CAS created it); a read-only key dir
+	// still lets the CAS lock and read, but the same-directory temp file cannot be
+	// created, so the write fails AFTER the match closure ran.
+	dir := filepath.Join(fx.common, "docket", "rungate", fx.key)
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatalf("chmod key dir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+	settled, findings := settleUncertainPublications(fx.repo, fx.key)
+	if len(settled) != 0 {
+		t.Fatalf("settled = %v, want none when the write never landed", settled)
+	}
+	if len(findings) != 1 || findings[0] != "mutation-settle-failed" {
+		t.Fatalf("findings = %v, want [mutation-settle-failed]", findings)
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatalf("restore key dir: %v", err)
+	}
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.AdmittedMutations[0].Status != mutationStatusUncertain {
+		t.Fatal("a failed settlement write must leave the original entry uncertain")
 	}
 }
