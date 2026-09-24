@@ -423,7 +423,7 @@ func repairProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin Statu
 		// No resolvable current branch: no branch-keyed owned workspace to conflict.
 		return nil
 	}
-	facts, err := deps.Planning.Reader.BranchFacts(ctx, pin, stackBranches(snap))
+	facts, err := deps.Planning.Reader.BranchFacts(ctx, pin, stackBranchesFor(snap, c))
 	if err != nil {
 		return repairConflict(fmt.Sprintf("could not resolve branch facts for change %04d's workspace check", id), id)
 	}

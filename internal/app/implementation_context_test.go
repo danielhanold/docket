@@ -446,7 +446,8 @@ func TestContextImplementationReportsHalt(t *testing.T) {
 // reader's facts gets an applied bundle — build-ready, claim-eligible, and an
 // effective base resolved to the parent's recorded branch — through BOTH
 // automatic selection and explicit-id inspection. The reader is asked for
-// exactly the deterministic stackBranches set, once, with the original pin.
+// exactly the deterministic probe set (stackBranches for selection,
+// stackBranchesFor for an explicit id — equal here), once, with the original pin.
 func TestContextImplementationStackedLiveParentUsesRemoteFacts(t *testing.T) {
 	pin := docketPin(t)
 	specPath := "docs/changes/specs/spec-child.md"
@@ -485,7 +486,7 @@ func TestContextImplementationStackedLiveParentUsesRemoteFacts(t *testing.T) {
 				t.Errorf("effective base = %+v, want resolved/feat/parent (the parent's recorded branch, not the integration branch)", b.EffectiveBase)
 			}
 			// The reader was asked exactly once, for the deterministic
-			// stackBranches(snapshot) set, with the original pin threaded.
+			// probe set, with the original pin threaded.
 			if len(fake.branchAsks) != 1 {
 				t.Fatalf("BranchFacts called %d times, want exactly 1 (asks: %v)", len(fake.branchAsks), fake.branchAsks)
 			}

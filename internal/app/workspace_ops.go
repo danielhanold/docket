@@ -225,7 +225,7 @@ func loadWorkspaceContext(ctx context.Context, deps PlanningDeps, repoDir string
 		}
 	}
 
-	facts, err := deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))
+	facts, err := deps.Reader.BranchFacts(ctx, pin, stackBranchesFor(snap, c))
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		r := newWorkspaceResult(opKey, result, WorkspaceOpResult{ID: id, Reason: reason, Message: err.Error()})

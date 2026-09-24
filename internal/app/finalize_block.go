@@ -364,7 +364,7 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	// Reprobe the four removal conjuncts against fresh live facts before any
 	// mutation. Each unresolved external probe is unknown (retain); each cleanly
 	// missing conjunct refuses and leaves the marker.
-	facts, err := reader.BranchFacts(ctx, pin, stackBranches(snap))
+	facts, err := reader.BranchFacts(ctx, pin, stackBranchesFor(snap, c))
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		return blockRefusal(OperationFinalizeClearBlock, result, BlockDispRefused, reason, err.Error(), req.ID)

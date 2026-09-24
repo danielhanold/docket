@@ -255,8 +255,20 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 	// re-proves eligibility there; this read only supplies the pre-claim gate
 	// with real remote evidence instead of a fabricated empty set. A failed
 	// lookup is a typed failure, never an empty fact set — an observation
-	// failure must not be misreported as proven branch absence.
-	facts, err := deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))
+	// failure must not be misreported as proven branch absence. Automatic
+	// selection ranks the whole corpus, so it probes every stack branch; an
+	// explicit id that names exactly one record consults only that change's
+	// readiness and base, so its probe is bounded to stackBranchesFor and an
+	// unrelated stack whose branch cannot be probed never blocks it (change
+	// 0449). An id naming no single record keeps the whole-corpus probe; its
+	// refusal comes from selectContextChange as before.
+	branches := stackBranches(snap)
+	if req.ID > 0 {
+		if named, out := snap.Change(domain.ChangeID(req.ID)); out == domain.LookupFound {
+			branches = stackBranchesFor(snap, named)
+		}
+	}
+	facts, err := deps.Reader.BranchFacts(ctx, pin, branches)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		return newContextResult(result, reason, err.Error(), nil)

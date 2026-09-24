@@ -231,7 +231,7 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 	if err != nil {
 		return retargetRefusal(ResultExternalFailed, ReasonRetargetRepositoryUnresolved, err.Error(), req.ID)
 	}
-	facts, err := reader.BranchFacts(ctx, pin, stackBranches(snap))
+	facts, err := reader.BranchFacts(ctx, pin, stackBranchesFor(snap, parent))
 	if err != nil {
 		return retargetRefusal(ResultExternalFailed, ReasonRetargetBranchFactsUnresolved, err.Error(), req.ID)
 	}
