@@ -1,18 +1,13 @@
 # Backlog
 
-**455 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 303 done · 🗑️ 119 killed
+**455 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 303 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | [spec](../superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md) | `feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a` |  |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0454](active/0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md) | Whole-repository status must not fail on an unrelated change's invalid branch name | `critical` | `fix` | [#331](https://github.com/danielhanold/docket/pull/331) | awaiting merge |
+| [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | [#332](https://github.com/danielhanold/docket/pull/332) | awaiting merge |
 
 ## 🔴 Blocked (1)
 

@@ -2,7 +2,7 @@
 id: 445
 slug: 'revise-a-groomed-change-s-spec-and-owned-sections-through-a'
 title: 'Revise a groomed change''s spec and owned sections through a typed operation'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-23'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/332'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-24T20:12:58Z'
