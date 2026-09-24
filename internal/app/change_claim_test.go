@@ -7,6 +7,7 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -625,6 +626,19 @@ func TestChangeClaimUnrelatedInvalidRecordProgress(t *testing.T) {
 		t.Errorf("claimed record on origin is not in-progress:\n%s", rec)
 	}
 	assertUnrelatedBrokenIntact(t, repo)
+	// The board landed in the same applied commit (change 0449 Task 8): B's
+	// row in its new section AND the repair notice naming the unparseable A,
+	// which the snapshot cannot see and the board used to drop silently.
+	board, ok := originFile(t, repo.origin, "docket", "docs/changes/BOARD.md")
+	if !ok {
+		t.Fatal("claim beside an unrelated unparseable record published no board")
+	}
+	if !strings.Contains(board, "## 🟢 In progress (1)") || !strings.Contains(board, "(active/"+path.Base(recPath)+")") {
+		t.Errorf("board lacks B's in-progress row:\n%s", board)
+	}
+	if !strings.Contains(board, "| `"+unrelatedBrokenPath+"` | unclosed-frontmatter |") {
+		t.Errorf("board lacks the repair notice naming the unrelated record:\n%s", board)
+	}
 
 	refresh := ChangeRefreshClaim(ctx, later.deps, later.dir, ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
 	if refresh.Result != ResultApplied {

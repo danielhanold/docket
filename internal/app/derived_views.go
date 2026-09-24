@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"path"
+	"sort"
+	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
@@ -61,9 +64,47 @@ func boardPresentation(eff config.Effective) render.BoardPresentation {
 
 // renderCanonicalBoard renders snap through the one canonical board renderer with
 // the caller's presentation policy (built via boardPresentation from the resolved
-// config). This is the only call site of render.Board in internal/app.
-func renderCanonicalBoard(snap domain.Snapshot, pres render.BoardPresentation) ([]byte, error) {
-	return render.Board(render.BoardInput{Snapshot: snap, Presentation: pres})
+// config) and the records the snapshot cannot see (boardUnrenderable), which the
+// board surfaces in its repair notice. This is the only call site of render.Board
+// in internal/app.
+func renderCanonicalBoard(snap domain.Snapshot, unrenderable []render.BoardUnrenderable, pres render.BoardPresentation) ([]byte, error) {
+	return render.Board(render.BoardInput{Snapshot: snap, Presentation: pres, Unrenderable: unrenderable})
+}
+
+// boardUnrenderable derives the board's caller-supplied repair entries from a
+// loaded state (change 0449): every change record path in st.Sources — under
+// the active or archive directory of changesDir — that has no corresponding
+// change in st.Snapshot. The key is the SHAPE absent-from-snapshot, never an
+// enumerated finding-code list: a record that failed to parse or to decode is
+// equally invisible to the renderer. The reason is the Code of the first
+// error-severity finding whose entity names that path, else "unreadable". The
+// result is sorted by path; a healthy state yields nil.
+func boardUnrenderable(st transaction.LoadedState, changesDir string) []render.BoardUnrenderable {
+	activePfx := path.Join(changesDir, "active") + "/"
+	archivePfx := path.Join(changesDir, "archive") + "/"
+	rendered := make(map[string]bool)
+	for _, c := range st.Snapshot.Changes() {
+		rendered[c.Path()] = true
+	}
+	var out []render.BoardUnrenderable
+	for p := range st.Sources {
+		if !strings.HasPrefix(p, activePfx) && !strings.HasPrefix(p, archivePfx) {
+			continue
+		}
+		if rendered[p] {
+			continue
+		}
+		reason := "unreadable"
+		for _, f := range st.Report.Findings() {
+			if f.Severity == domain.SeverityError && f.Entity.Path == p {
+				reason = f.Code
+				break
+			}
+		}
+		out = append(out, render.BoardUnrenderable{Path: p, Reason: reason})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out
 }
 
 // renderCanonicalADRIndex renders snap through the one canonical ADR-index
@@ -89,11 +130,15 @@ func renderCanonicalADRIndex(snap domain.Snapshot) ([]byte, error) {
 // before-state is load-bearing: a stale before-state render would recommit the
 // pre-mutation board.
 //
+// unrenderable is the caller's boardUnrenderable(st.State, changesDir): the
+// records the candidate snapshot cannot see, surfaced in the board's repair
+// notice so an unparseable unrelated record stays visible (change 0449).
+//
 // On a render or probe error the function returns the error and leaves files
 // unmodified — the append happens only after both the render and the probe
 // succeed, so there is never a partial append.
-func includeBoard(ctx context.Context, tree transaction.Tree, boardPath string, candidate domain.Snapshot, pres render.BoardPresentation, files *[]transaction.FileMutation) error {
-	boardBytes, err := renderCanonicalBoard(candidate, pres)
+func includeBoard(ctx context.Context, tree transaction.Tree, boardPath string, candidate domain.Snapshot, unrenderable []render.BoardUnrenderable, pres render.BoardPresentation, files *[]transaction.FileMutation) error {
+	boardBytes, err := renderCanonicalBoard(candidate, withoutCandidateChanges(unrenderable, candidate), pres)
 	if err != nil {
 		return fmt.Errorf("rendering board: %w", err)
 	}
@@ -113,6 +158,27 @@ func includeBoard(ctx context.Context, tree transaction.Tree, boardPath string, 
 		})
 	}
 	return nil
+}
+
+// withoutCandidateChanges drops the entries whose path the candidate snapshot
+// carries as a change: the list is derived from the operation's BEFORE state, so
+// a record the operation itself made renderable must render as a row, never also
+// in the repair notice.
+func withoutCandidateChanges(unrenderable []render.BoardUnrenderable, candidate domain.Snapshot) []render.BoardUnrenderable {
+	if len(unrenderable) == 0 {
+		return unrenderable
+	}
+	present := make(map[string]bool)
+	for _, c := range candidate.Changes() {
+		present[c.Path()] = true
+	}
+	var out []render.BoardUnrenderable
+	for _, u := range unrenderable {
+		if !present[u.Path] {
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 // includeADRIndex renders the candidate after-state through the canonical

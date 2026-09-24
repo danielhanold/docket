@@ -17,6 +17,7 @@ import (
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
+	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
 // This file is the read-only `repository check` service. It gathers the same
@@ -577,7 +578,7 @@ func derivedViewFindings(cfg config.Effective, corpus checkCorpus) []reposetup.D
 	var out []reposetup.DerivedFinding
 
 	if corpus.board.present {
-		if canonical, err := renderCanonicalBoard(snap, boardPresentation(cfg)); err == nil {
+		if canonical, err := renderCanonicalBoard(snap, corpusBoardUnrenderable(cfg, corpus.records), boardPresentation(cfg)); err == nil {
 			if derivedBytesDiffer(canonical, corpus.board.bytes) {
 				out = append(out, reposetup.DerivedFinding{
 					View:       reposetup.DerivedViewBoard,
@@ -702,10 +703,25 @@ func markerMalformed(err error) bool {
 // records, skipping any record whose frontmatter cannot be parsed (those are
 // named by the frontmatter path). ok is false when the whole-corpus build fails.
 func buildCorpusSnapshot(cfg config.Effective, recs []corpusRecord) (domain.Snapshot, bool) {
+	st, ok := buildCorpusState(cfg, recs)
+	return st.Snapshot, ok
+}
+
+// buildCorpusState is buildCorpusSnapshot plus what the board's repair notice
+// needs (change 0449): every record's exact bytes in Sources (parse-failed ones
+// included) and a report carrying the build findings plus one parse finding per
+// unparseable record — the same shape the planning loader produces, so
+// boardUnrenderable derives identical entries on the check/migrate path and a
+// mutation's notice-bearing board never reads as stale.
+func buildCorpusState(cfg config.Effective, recs []corpusRecord) (transaction.LoadedState, bool) {
 	inputs := make([]repository.InputDocument, 0, len(recs))
+	sources := make(map[string][]byte, len(recs))
+	var parseFindings []domain.Finding
 	for _, r := range recs {
+		sources[r.path] = r.bytes
 		doc, err := document.Parse(r.bytes)
 		if err != nil {
+			parseFindings = append(parseFindings, planningParseFinding(r.kind, r.path, err))
 			continue
 		}
 		inputs = append(inputs, repository.InputDocument{
@@ -714,9 +730,23 @@ func buildCorpusSnapshot(cfg config.Effective, recs []corpusRecord) (domain.Snap
 	}
 	build, err := repository.BuildSnapshot(repository.BuildInput{Config: cfg, Documents: inputs})
 	if err != nil {
-		return domain.Snapshot{}, false
+		return transaction.LoadedState{}, false
 	}
-	return build.Snapshot, true
+	return transaction.LoadedState{
+		Snapshot: build.Snapshot,
+		Report:   domain.NewValidationReport(append(build.Report.Findings(), parseFindings...)),
+		Sources:  sources,
+	}, true
+}
+
+// corpusBoardUnrenderable derives the board's repair entries for the
+// check/migrate corpus through the same boardUnrenderable the mutations use.
+func corpusBoardUnrenderable(cfg config.Effective, recs []corpusRecord) []render.BoardUnrenderable {
+	st, ok := buildCorpusState(cfg, recs)
+	if !ok {
+		return nil
+	}
+	return boardUnrenderable(st, cfg.ChangesDir.Value)
 }
 
 // corpusRecord is one metadata record read for report-only validation.
