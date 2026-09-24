@@ -22,7 +22,7 @@ branch: 'feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T20:05:01Z'
+claimed_at: '2026-09-24T20:12:58Z'
 ---
 
 ## Artifacts
