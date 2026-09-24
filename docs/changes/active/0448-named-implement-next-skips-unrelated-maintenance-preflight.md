@@ -2,7 +2,7 @@
 id: 448
 slug: 'named-implement-next-skips-unrelated-maintenance-preflight'
 title: 'Named implement-next skips unrelated maintenance preflight'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-23'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/named-implement-next-skips-unrelated-maintenance-preflight'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/328'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-24T06:57:47Z'
