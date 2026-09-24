@@ -648,6 +648,51 @@ func TestChangeClaimUnrelatedInvalidRecordProgress(t *testing.T) {
 	assertUnrelatedBrokenIntact(t, repo)
 }
 
+// TestChangeClaimUnrelatedDependentsOfBrokenProgress is the canonical real-world
+// shape of the 0449 bug one step removed: the unparseable A (id 99) has
+// unrelated dependents — C depends on 99 and E is stacked on 99 — so the corpus
+// also carries error-severity dangling references whose target id no parsed
+// record carries. Those ids name no record, so they cannot name B's subjects;
+// B's claim applies and C and E are left byte-identical. The refusal rows keep
+// the converse: B itself depending on the unparseable A still refuses.
+//
+// Mutation check (run manually; noted in the commit): make
+// transaction.resolveRef treat an absent lookup as unresolvable again and this
+// test reddens with the claim refused on C's and E's dangling references.
+func TestChangeClaimUnrelatedDependentsOfBrokenProgress(t *testing.T) {
+	requireRealGit(t)
+	const id = 3
+	recPath := groomPath(id, "widget")
+	consumerPath, stackedPath := groomPath(4, "consumer"), groomPath(5, "stacked")
+	consumer := strings.Replace(claimableChange(4, "consumer"), "depends_on: []\n", "depends_on: [99]\n", 1)
+	stacked := stackedOn(claimableChange(5, "stacked"), 99)
+	if !strings.Contains(consumer, "depends_on: [99]") || !strings.Contains(stacked, "stacked_on: 99") {
+		t.Fatal("dependent fixtures did not rewrite their records; the fixture shape changed")
+	}
+	repo := newWorkingRepo(t, map[string]string{
+		recPath:             claimableChange(id, "widget"),
+		consumerPath:        consumer,
+		stackedPath:         stacked,
+		unrelatedBrokenPath: unrelatedBrokenBytes,
+	})
+	node := planningDepsFor(t, repo.invocation)
+
+	claim := ChangeClaim(context.Background(), node.deps, node.dir, ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
+	if claim.Result != ResultApplied {
+		t.Fatalf("claim beside unrelated dependents of an unparseable record = %q (disposition %q findings %v), want applied",
+			claim.Result, claim.Disposition, claim.Findings)
+	}
+	if rec, _ := originFile(t, repo.origin, "docket", recPath); !strings.Contains(rec, "status: 'in-progress'") {
+		t.Errorf("claimed record on origin is not in-progress:\n%s", rec)
+	}
+	for p, want := range map[string]string{consumerPath: consumer, stackedPath: stacked} {
+		if got, ok := originFile(t, repo.origin, "docket", p); !ok || got != want {
+			t.Errorf("unrelated dependent %s on origin changed (present %v):\n%s", p, ok, got)
+		}
+	}
+	assertUnrelatedBrokenIntact(t, repo)
+}
+
 func TestChangeClaimUnrelatedInvalidRecordRefusals(t *testing.T) {
 	requireRealGit(t)
 	const id = 3

@@ -183,11 +183,30 @@ func TestFindingPaths(t *testing.T) {
 			[]gitcli.RepoPath{scPathADR}, true},
 		{"learning slug resolves", domain.Finding{Code: "c", Entity: domain.EntityRef{Kind: domain.EntityLearning, Slug: "some-lesson"}},
 			[]gitcli.RepoPath{scPathL}, true},
-		{"absent related member fails", scDangling(91, scPathA1, 50, "absent"), nil, false},
+		// An absent id names no record, so it contributes no path; the finding
+		// still anchors on its path-bearing Entity.
+		{"absent related member contributes no path", scDangling(91, scPathA1, 50, "absent"), []gitcli.RepoPath{scPathA1}, true},
+		{"absent related adr contributes no path", domain.Finding{Code: "c", Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{{Kind: domain.EntityADR, ID: 6}}}, []gitcli.RepoPath{scPathA1}, true},
+		{"absent related learning contributes no path", domain.Finding{Code: "c", Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{{Kind: domain.EntityLearning, Slug: "nope"}}}, []gitcli.RepoPath{scPathA1}, true},
+		// A finding anchored to no record at all cannot be proven unrelated.
 		{"absent entity id fails", domain.Finding{Code: "c", Entity: scChangeID(50)}, nil, false},
 		{"absent adr fails", domain.Finding{Code: "c", Entity: domain.EntityRef{Kind: domain.EntityADR, ID: 6}}, nil, false},
 		{"absent learning fails", domain.Finding{Code: "c", Entity: domain.EntityRef{Kind: domain.EntityLearning, Slug: "nope"}}, nil, false},
+		{"every member absent fails", domain.Finding{Code: "c", Entity: scChangeID(50), Related: []domain.EntityRef{scChangeID(51)}}, nil, false},
 		{"kind-only entity fails", domain.Finding{Code: "c", Entity: domain.EntityRef{Kind: domain.EntityChange}}, nil, false},
+		// A malformed ref beside a path-bearing Entity still fails closed.
+		{"kind-only related member fails", domain.Finding{Code: "c", Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{{Kind: domain.EntityChange}}}, nil, false},
+		{"non-positive related id fails", domain.Finding{Code: "c", Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{scChangeID(0)}}, nil, false},
+		{"negative related adr id fails", domain.Finding{Code: "c", Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{{Kind: domain.EntityADR, ID: -1}}}, nil, false},
+		{"slugless related learning fails", domain.Finding{Code: "c", Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{{Kind: domain.EntityLearning}}}, nil, false},
+		{"pathless repository related member fails", domain.Finding{Code: "c", Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{{Kind: domain.EntityRepo}}}, nil, false},
 		{"repository entity without a path fails", domain.Finding{Code: "c", Entity: domain.EntityRef{Kind: domain.EntityRepo}}, nil, false},
 		{"artifact entity without a path fails", domain.Finding{Code: "c", Entity: domain.EntityRef{Kind: domain.EntityArtifact, Slug: "x"}}, nil, false},
 		{"path wins over id", domain.Finding{Code: "c", Entity: scPathRef(50, scPathA1)}, []gitcli.RepoPath{scPathA1}, true},
@@ -204,10 +223,34 @@ func TestFindingPaths(t *testing.T) {
 		})
 	}
 
-	t.Run("ambiguous related member fails", func(t *testing.T) {
+	t.Run("ambiguous member resolves to every carrier", func(t *testing.T) {
 		dup := scState(scSnapshot(scChange(20, scPathB), scChange(91, scPathA1), scChange(91, scPathA2)), scBlobs())
+		got, ok := findingPaths(scCycle(20, 91), dup)
+		if !ok || !slices.Equal(got, []gitcli.RepoPath{scPathB, scPathA1, scPathA2}) {
+			t.Fatalf("paths = %v ok = %v, want B plus both carriers of 91", got, ok)
+		}
+	})
+	t.Run("ambiguous adr and learning resolve to every carrier", func(t *testing.T) {
+		const adr2, l2 = "docs/adrs/0005-y.md", "docs/learnings/some-lesson-2.md"
+		dup := scState(domain.NewSnapshot(domain.SnapshotSpec{
+			ADRs: []domain.ADR{domain.NewADR(domain.ADRSpec{ID: 5, Slug: "x", Path: scPathADR}),
+				domain.NewADR(domain.ADRSpec{ID: 5, Slug: "y", Path: adr2})},
+			Learnings: []domain.Learning{domain.NewLearning(domain.LearningSpec{Slug: "some-lesson", Path: scPathL}),
+				domain.NewLearning(domain.LearningSpec{Slug: "some-lesson", Path: l2})},
+		}), scBlobs())
+		f := domain.Finding{Code: "c", Entity: domain.EntityRef{Kind: domain.EntityADR, ID: 5},
+			Related: []domain.EntityRef{{Kind: domain.EntityLearning, Slug: "some-lesson"}}}
+		got, ok := findingPaths(f, dup)
+		want := []gitcli.RepoPath{scPathADR, adr2, scPathL, l2}
+		slices.Sort(want)
+		if !ok || !slices.Equal(got, want) {
+			t.Fatalf("paths = %v ok = %v, want every ADR and learning carrier %v", got, ok, want)
+		}
+	})
+	t.Run("ambiguous carrier with no path fails", func(t *testing.T) {
+		dup := scState(scSnapshot(scChange(20, scPathB), scChange(91, scPathA1), scChange(91, "")), scBlobs())
 		if _, ok := findingPaths(scCycle(20, 91), dup); ok {
-			t.Fatal("an ambiguous Related id resolved")
+			t.Fatal("an ambiguous id with a pathless carrier resolved")
 		}
 	})
 	t.Run("record with no path fails", func(t *testing.T) {
@@ -240,8 +283,52 @@ func TestFindingRelevant(t *testing.T) {
 		}
 	})
 	t.Run("unresolvable finding is relevant", func(t *testing.T) {
-		if !findingRelevant(scDangling(91, scPathA1, 50, "absent"), scScope(), &before, nil) {
+		malformed := domain.Finding{Code: "c", Severity: domain.SeverityError, Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{scChangeID(0)}}
+		if !findingRelevant(malformed, scScope(), &before, nil) {
 			t.Fatal("an unresolvable finding was judged unrelated")
+		}
+		if !findingRelevant(domain.Finding{Code: "c", Entity: scChangeID(50)}, scScope(), &before, &before) {
+			t.Fatal("a finding anchored to no record was judged unrelated")
+		}
+	})
+	// The canonical 0449 case: unrelated C depends on the unparseable A, whose id
+	// no parsed record carries. The absent target names no record and so cannot
+	// name a subject; C's own path is the finding's only anchor.
+	t.Run("unrelated dangling reference to an absent id is not relevant", func(t *testing.T) {
+		if findingRelevant(scDangling(91, scPathA1, 50, "absent"), scScope(), &before, &before) {
+			t.Fatal("an unrelated record's dangling reference to an absent id was judged relevant")
+		}
+	})
+	t.Run("subject's own dangling reference to an absent id is relevant", func(t *testing.T) {
+		if !findingRelevant(scDangling(20, scPathB, 50, "absent"), scScope(), &before, &before) {
+			t.Fatal("B's own dangling reference escaped relevance")
+		}
+	})
+	t.Run("ambiguous id with a subject among its carriers is relevant", func(t *testing.T) {
+		dup := scState(scSnapshot(scChange(20, scPathB), scChange(20, scPathA2), scChange(91, scPathA1)), scBlobs())
+		if !findingRelevant(scDangling(91, scPathA1, 20, "ambiguous"), scScope(), &dup, &dup) {
+			t.Fatal("an ambiguous reference whose carriers include B was judged unrelated")
+		}
+	})
+	t.Run("ambiguous id carried only by unrelated records is not relevant", func(t *testing.T) {
+		dup := scState(scSnapshot(scChange(20, scPathB), scChange(50, scPathA2), scChange(50, scPathA3), scChange(91, scPathA1)), scBlobs())
+		if findingRelevant(scDangling(91, scPathA1, 50, "ambiguous"), scScope(), &dup, &dup) {
+			t.Fatal("an ambiguous reference carried only by unrelated records was judged relevant")
+		}
+	})
+	t.Run("absent id created on a subject path in the candidate is relevant", func(t *testing.T) {
+		// Before, 50 is absent; the candidate (B's plan) creates 50 on a subject path.
+		const created = "docs/changes/active/0050-new.md"
+		after := scState(scSnapshot(scChange(20, scPathB), scChange(50, created), scChange(91, scPathA1)), scBlobs())
+		f := domain.Finding{Code: "c", Severity: domain.SeverityError, Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{scChangeID(50)}}
+		scope := map[gitcli.RepoPath]bool{scPathB: true, created: true}
+		if findingRelevant(f, scope, &before, nil) {
+			t.Fatal("fixture invalid: the finding must be unrelated in the before state alone")
+		}
+		if !findingRelevant(f, scope, &before, &after) {
+			t.Fatal("an absent id the candidate creates on a subject path was judged unrelated")
 		}
 	})
 	t.Run("empty or nil scope makes everything relevant", func(t *testing.T) {
@@ -395,11 +482,61 @@ func TestScopedAfterErrors(t *testing.T) {
 			t.Fatalf("refused = %v, want both changed-count findings", got)
 		}
 	})
+	// The flip must refuse on the KEY: both findings are unrelated in both
+	// states and every path they resolve to is unchanged, so relevance and the
+	// blob rule each pass and only the Detail[lookup] change can refuse. The
+	// controls prove the same shapes grandfather when the key is stable.
+	ambigSnap := scSnapshot(scChange(20, scPathB), scChange(10, scPathD), scChange(91, scPathA1),
+		scChange(92, scPathA2), scChange(50, scPathA3), scChange(50, scPathA4))
+	t.Run("dangling to an absent id on an unrelated record is grandfathered", func(t *testing.T) {
+		f := scDangling(91, scPathA1, 50, "absent")
+		if got := scopedAfterErrors(scState(snap, scBlobs(), f), scState(snap, scBlobs(), f), scScope()); len(got) != 0 {
+			t.Fatalf("refused = %v, want the unchanged unrelated dangling reference grandfathered", got)
+		}
+	})
+	t.Run("dangling to an ambiguous id with unchanged unrelated carriers is grandfathered", func(t *testing.T) {
+		f := scDangling(91, scPathA1, 50, "ambiguous")
+		if got := scopedAfterErrors(scState(ambigSnap, scBlobs(), f), scState(ambigSnap, scBlobs(), f), scScope()); len(got) != 0 {
+			t.Fatalf("refused = %v, want the unchanged unrelated ambiguous reference grandfathered", got)
+		}
+	})
 	t.Run("dangling lookup flip absent to ambiguous refuses", func(t *testing.T) {
-		before := scState(snap, scBlobs(), scDangling(91, scPathA1, 50, "absent"))
-		after := scState(snap, scBlobs(), scDangling(91, scPathA1, 50, "ambiguous"))
-		if got := scopedAfterErrors(before, after, scScope()); len(got) != 1 {
+		fBefore, fAfter := scDangling(91, scPathA1, 50, "absent"), scDangling(91, scPathA1, 50, "ambiguous")
+		before, after := scState(snap, scBlobs(), fBefore), scState(ambigSnap, scBlobs(), fAfter)
+		if findingRelevant(fAfter, scScope(), &before, &after) {
+			t.Fatal("fixture invalid: the flipped finding must be unrelated so only its key can refuse it")
+		}
+		if got := scopedAfterErrors(before, after, scScope()); !slices.Equal(keys(got), keys([]domain.Finding{fAfter})) {
 			t.Fatalf("refused = %v, want the flipped dangling finding", got)
+		}
+	})
+	t.Run("dangling lookup flip ambiguous to absent refuses", func(t *testing.T) {
+		fBefore, fAfter := scDangling(91, scPathA1, 50, "ambiguous"), scDangling(91, scPathA1, 50, "absent")
+		before, after := scState(ambigSnap, scBlobs(), fBefore), scState(snap, scBlobs(), fAfter)
+		if findingRelevant(fAfter, scScope(), &before, &after) {
+			t.Fatal("fixture invalid: the flipped finding must be unrelated so only its key can refuse it")
+		}
+		if got := scopedAfterErrors(before, after, scScope()); !slices.Equal(keys(got), keys([]domain.Finding{fAfter})) {
+			t.Fatalf("refused = %v, want the flipped dangling finding", got)
+		}
+	})
+	t.Run("absent id the candidate creates off-scope refuses on the new path", func(t *testing.T) {
+		// Same key in both states, unrelated to scope in both: only the blob
+		// rule over the candidate's resolution of 50 (a path with no before
+		// blob) can refuse it. An absent id resolving to no path must not let
+		// the candidate's new carrier escape that check.
+		const created = "docs/changes/active/0050-new.md"
+		f := domain.Finding{Code: "c", Severity: domain.SeverityError, Entity: scPathRef(91, scPathA1),
+			Related: []domain.EntityRef{scChangeID(50)}}
+		afterBlobs := scBlobs()
+		afterBlobs[created] = "n0"
+		after := scState(scSnapshot(scChange(20, scPathB), scChange(50, created), scChange(91, scPathA1)), afterBlobs, f)
+		before := scState(snap, scBlobs(), f)
+		if findingRelevant(f, scScope(), &before, &after) {
+			t.Fatal("fixture invalid: the finding must be unrelated so only the blob rule can refuse it")
+		}
+		if got := scopedAfterErrors(before, after, scScope()); len(got) != 1 {
+			t.Fatalf("refused = %v, want the finding whose id the candidate newly carries", got)
 		}
 	})
 	t.Run("disappearance is not a license for a different error", func(t *testing.T) {
