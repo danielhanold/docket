@@ -8,6 +8,7 @@ import (
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"path"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -716,6 +717,98 @@ func TestChangeClaimUnrelatedDependentsOfBrokenProgress(t *testing.T) {
 		}
 	}
 	assertUnrelatedBrokenIntact(t, repo)
+}
+
+// unrelatedProgressShape is one spec acceptance-1 unrelated-damage shape seeded
+// beside B, with no record B names: files are the seeded records, and every one
+// of them must stay byte-identical while a finding on one of them (by path, or
+// by identity for a pathless corpus-level finding such as a cycle) is still
+// reported.
+type unrelatedProgressShape struct {
+	name  string
+	files map[string]string
+	ids   []string
+}
+
+// unrelatedProgressShapes derives the production-loader progress shapes beyond
+// the unparseable record: an A1/A2 duplicate-id pair nothing depends on, an
+// A1↔A2 depends_on cycle, an active record whose status is done, and an ADR
+// whose status is outside the four spellings.
+func unrelatedProgressShapes(t *testing.T) []unrelatedProgressShape {
+	t.Helper()
+	dependsOn := func(src string, dep int) string {
+		out := strings.Replace(src, "depends_on: []\n", "depends_on: ["+itoaTest(dep)+"]\n", 1)
+		if out == src {
+			t.Fatal("cycle fixture did not rewrite depends_on; the fixture shape changed")
+		}
+		return out
+	}
+	return []unrelatedProgressShape{
+		{name: "duplicate-id pair", files: map[string]string{
+			groomPath(98, "dup-one"): claimableChange(98, "dup-one"),
+			groomPath(98, "dup-two"): claimableChange(98, "dup-two"),
+		}, ids: []string{"0098"}},
+		{name: "depends_on cycle", files: map[string]string{
+			groomPath(96, "cyc-one"): dependsOn(claimableChange(96, "cyc-one"), 97),
+			groomPath(97, "cyc-two"): dependsOn(claimableChange(97, "cyc-two"), 96),
+		}, ids: []string{"0096", "0097"}},
+		{name: "active record with status done", files: map[string]string{
+			groomPath(95, "done-active"): lifecycleChange(95, "done-active", "done"),
+		}, ids: []string{"0095"}},
+		{name: "ADR with invalid status", files: map[string]string{
+			"docs/adrs/0901-bogus.md": fixtureADRWithStatus(901, "bogus", "Bogus"),
+		}},
+	}
+}
+
+// assertUnrelatedShapeIntact proves every seeded record of the shape is
+// byte-identical on the origin's branch and that a status read still reports a
+// finding on one of them — the named write neither repaired nor hid the damage.
+func assertUnrelatedShapeIntact(t *testing.T, repo *gitRepo, branch string, shape unrelatedProgressShape) {
+	t.Helper()
+	for p, want := range shape.files {
+		if got, ok := originFile(t, repo.origin, branch, p); !ok || got != want {
+			t.Errorf("%s: unrelated record %s on origin changed (present %v):\n%s", shape.name, p, ok, got)
+		}
+	}
+	st := Status(context.Background(), NewGitStatusReader(newGitClient(t)), StatusOptions{RepoDir: cloneOrigin(t, repo.origin)})
+	for _, f := range st.Findings {
+		if _, ok := shape.files[f.Path]; ok {
+			return
+		}
+		if f.Path == "" && slices.Contains(shape.ids, f.Identity) {
+			return
+		}
+	}
+	t.Errorf("%s: status no longer reports a finding on the unrelated records; findings %+v", shape.name, st.Findings)
+}
+
+// TestChangeClaimUnrelatedShapesProgress drives B's claim through the
+// production loader and engine beside each unrelated-damage shape: B applies,
+// the damaged records are byte-identical, and the finding is still reported.
+func TestChangeClaimUnrelatedShapesProgress(t *testing.T) {
+	requireRealGit(t)
+	const id = 3
+	recPath := groomPath(id, "widget")
+	for _, shape := range unrelatedProgressShapes(t) {
+		t.Run(shape.name, func(t *testing.T) {
+			files := map[string]string{recPath: claimableChange(id, "widget")}
+			for p, b := range shape.files {
+				files[p] = b
+			}
+			repo := newWorkingRepo(t, files)
+			node := planningDepsFor(t, repo.invocation)
+			res := ChangeClaim(context.Background(), node.deps, node.dir,
+				ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
+			if res.Result != ResultApplied {
+				t.Fatalf("claim beside %s = %q (disposition %q findings %v), want applied", shape.name, res.Result, res.Disposition, res.Findings)
+			}
+			if rec, _ := originFile(t, repo.origin, "docket", recPath); !strings.Contains(rec, "status: 'in-progress'") {
+				t.Errorf("claimed record on origin is not in-progress:\n%s", rec)
+			}
+			assertUnrelatedShapeIntact(t, repo, "docket", shape)
+		})
+	}
 }
 
 func TestChangeClaimUnrelatedInvalidRecordRefusals(t *testing.T) {

@@ -623,6 +623,31 @@ func TestADRUnrelatedInvalidRecordProgress(t *testing.T) {
 	}
 }
 
+// TestADRRecordIndexSurfacesUnparseableUnrelatedADR: an ADR record beside an
+// unrelated unparseable ADR applies, leaves that ADR's bytes untouched, and
+// publishes an index whose repair notice names it — the index used to drop it
+// silently (change 0449).
+func TestADRRecordIndexSurfacesUnparseableUnrelatedADR(t *testing.T) {
+	requireRealGit(t)
+	const brokenADR, brokenADRBytes = "docs/adrs/0009-broken.md", "---\nid: 9\nslug: broken\n"
+	repo := newWorkingRepo(t, map[string]string{
+		adrPath("0001", "one"): fixtureADR(1, "one"),
+		brokenADR:              brokenADRBytes,
+	})
+	node := planningDepsFor(t, repo.invocation)
+	res := ADRRecordOp(context.Background(), node.deps, node.dir, validADRRecordRequest())
+	if res.Result != ResultApplied {
+		t.Fatalf("adr record beside an unrelated unparseable ADR = %q (findings %v), want applied", res.Result, res.Findings)
+	}
+	if got, ok := originFile(t, repo.origin, "docket", brokenADR); !ok || got != brokenADRBytes {
+		t.Errorf("unrelated unparseable ADR on origin = %q (present %v), want its exact seeded bytes", got, ok)
+	}
+	index, ok := originFile(t, repo.origin, "docket", adrsIndexPath)
+	if !ok || !strings.Contains(index, "| `"+brokenADR+"` | unclosed-frontmatter |") {
+		t.Fatalf("published ADR index lacks the repair notice naming %s:\n%s", brokenADR, index)
+	}
+}
+
 func TestADRUnrelatedInvalidRecordRefusals(t *testing.T) {
 	requireRealGit(t)
 	producerPath := groomPath(3, adrProducerSlug)

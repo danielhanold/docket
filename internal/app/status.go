@@ -390,31 +390,23 @@ func stackBranches(snap domain.Snapshot) []string {
 }
 
 // stackBranchesFor bounds the live branch-fact probe to what named decisions
-// about c actually consult: the recorded branches of c's stack ancestors, of c
-// itself, and of the stack ancestors of c's direct depends_on targets (their
-// readiness feeds EvaluateReadiness for c). Sorted, deduped. A named operation
-// uses it instead of the whole-corpus stackBranches, so an unrelated stack
-// whose branch cannot be probed never blocks it (change 0449); read-only
-// status and automatic selection keep the whole-corpus probe.
+// about c actually consult: the recorded branches of c's stack ancestors
+// (domain.StackAncestors), which is exactly the set ResolveEffectiveBase(snap,
+// c, facts) asks HasBranch about. EvaluateReadiness and ClaimEligibility reach
+// branch facts only through that one ResolveEffectiveBase call on c —
+// EvaluateDependencies consults none — and no named caller (claim, context,
+// workspace, merge, clear-block, repair, retarget) reads a fact for c's own
+// branch or for a dependency's stack. Sorted, deduped. A named operation uses
+// it instead of the whole-corpus stackBranches, so an unrelated stack — even a
+// dependency's — whose branch cannot be probed never blocks it (change 0449);
+// read-only status and automatic selection keep the whole-corpus probe.
 func stackBranchesFor(snap domain.Snapshot, c domain.Change) []string {
 	seen := make(map[string]bool)
-	addBranch := func(ch domain.Change) {
-		if b := ch.Branch(); b.State == domain.FieldPresent && b.Value != "" {
-			seen[b.Value] = true
-		}
-	}
-	addAncestors := func(ch domain.Change) {
-		for _, ancestorID := range domain.StackAncestors(snap, ch) {
-			if ancestor, out := snap.Change(ancestorID); out == domain.LookupFound {
-				addBranch(ancestor)
+	for _, ancestorID := range domain.StackAncestors(snap, c) {
+		if ancestor, out := snap.Change(ancestorID); out == domain.LookupFound {
+			if b := ancestor.Branch(); b.State == domain.FieldPresent && b.Value != "" {
+				seen[b.Value] = true
 			}
-		}
-	}
-	addBranch(c)
-	addAncestors(c)
-	for _, depID := range c.DependsOn() {
-		if dep, out := snap.Change(depID); out == domain.LookupFound {
-			addAncestors(dep)
 		}
 	}
 	branches := make([]string, 0, len(seen))

@@ -580,6 +580,14 @@ func (f boardRecordFault) Error() string { return f.msg }
 // table-safe line. An empty list writes nothing, so a healthy repository's
 // board is byte-identical to the pre-0449 render.
 func writeBoardRepairNotice(b *strings.Builder, entries []BoardUnrenderable) {
+	writeRepairNotice(b, "These records could not be rendered; counts above cover rendered records only.", entries)
+}
+
+// writeRepairNotice is the shared "Needs repair" section writer the board and
+// the ADR index both emit: a heading counting the deduped entries, the
+// caller's one-line preamble, then a "Record | Problem" table sorted by path.
+// An empty list writes nothing.
+func writeRepairNotice(b *strings.Builder, preamble string, entries []BoardUnrenderable) {
 	if len(entries) == 0 {
 		return
 	}
@@ -595,7 +603,7 @@ func writeBoardRepairNotice(b *strings.Builder, entries []BoardUnrenderable) {
 	sort.SliceStable(uniq, func(i, j int) bool { return uniq[i].Path < uniq[j].Path })
 
 	fmt.Fprintf(b, "\n## 🛠 Needs repair (%d)\n\n", len(uniq))
-	b.WriteString("These records could not be rendered; counts above cover rendered records only.\n\n")
+	b.WriteString(preamble + "\n\n")
 	b.WriteString("| Record | Problem |\n|---|---|\n")
 	for _, e := range uniq {
 		fmt.Fprintf(b, "| `%s` | %s |\n", e.Path, boardRepairCell(e.Reason))

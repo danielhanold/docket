@@ -402,7 +402,7 @@ func (o adrRecordOp) Plan(ctx context.Context, st transaction.AttemptState) (tra
 	files := []transaction.FileMutation{
 		{Path: gitcli.RepoPath(adrRelPath), Kind: transaction.MutationCreate, Bytes: adrBytes},
 	}
-	if err := includeADRIndex(ctx, st.Tree, candidate, indexPath, &files); err != nil {
+	if err := includeADRIndex(ctx, st.Tree, candidate, adrIndexUnrenderable(st.State, o.adrsDir), indexPath, &files); err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr record: %w", err)
 	}
 
@@ -928,7 +928,7 @@ func (o adrReplaceOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 		{Path: gitcli.RepoPath(adrRelPath), Kind: transaction.MutationCreate, Bytes: adrBytes},
 		{Path: gitcli.RepoPath(o.req.Target.Path), Kind: transaction.MutationReplace, Bytes: oldBytes},
 	}
-	if err := includeADRIndex(ctx, st.Tree, candidate, indexPath, &files); err != nil {
+	if err := includeADRIndex(ctx, st.Tree, candidate, adrIndexUnrenderable(st.State, o.adrsDir), indexPath, &files); err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: %w", err)
 	}
 

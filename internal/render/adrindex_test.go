@@ -103,3 +103,35 @@ func TestADRIndexDeterministic(t *testing.T) {
 		t.Fatalf("non-deterministic adr index:\n%s\n---\n%s", a, b)
 	}
 }
+
+// TestADRIndexWithRepairAppendsNotice (change 0449): a non-empty repair list
+// appends the "Needs repair" table after the Deprecated group — deduped and
+// sorted by path, reasons flattened — and an empty list is byte-identical to
+// ADRIndex, so a healthy ledger's index is unchanged.
+func TestADRIndexWithRepairAppendsNotice(t *testing.T) {
+	snap := domain.NewSnapshot(domain.SnapshotSpec{})
+	plain, err := render.ADRIndex(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if none, _ := render.ADRIndexWithRepair(snap, nil); !bytes.Equal(none, plain) {
+		t.Fatalf("empty repair list changed the index:\n%s", none)
+	}
+	got, err := render.ADRIndexWithRepair(snap, []render.BoardUnrenderable{
+		{Path: "docs/adrs/0010-b.md", Reason: "unreadable"},
+		{Path: "docs/adrs/0009-a.md", Reason: "unclosed-frontmatter"},
+		{Path: "docs/adrs/0010-b.md", Reason: "dup"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := string(plain) +
+		"\n## 🛠 Needs repair (2)\n\n" +
+		"These ADR records could not be read and are missing from the index above.\n\n" +
+		"| Record | Problem |\n|---|---|\n" +
+		"| `docs/adrs/0009-a.md` | unclosed-frontmatter |\n" +
+		"| `docs/adrs/0010-b.md` | unreadable |\n"
+	if string(got) != want {
+		t.Fatalf("repair notice mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}

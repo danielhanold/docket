@@ -86,9 +86,35 @@ func boardUnrenderable(st transaction.LoadedState, changesDir string) []render.B
 	for _, c := range st.Snapshot.Changes() {
 		rendered[c.Path()] = true
 	}
+	return sourcesAbsentFromSnapshot(st, rendered, func(p string) bool {
+		return strings.HasPrefix(p, activePfx) || strings.HasPrefix(p, archivePfx)
+	})
+}
+
+// adrIndexUnrenderable is boardUnrenderable's ADR-index counterpart (change
+// 0449): every ADR record path in st.Sources — under adrsDir, excluding the
+// generated index itself — that has no corresponding ADR in st.Snapshot, so an
+// unparseable or undecodable unrelated ADR is surfaced in the index's repair
+// notice instead of silently vanishing from it. Same shape key, same reason
+// derivation, sorted by path; a healthy state yields nil.
+func adrIndexUnrenderable(st transaction.LoadedState, adrsDir string) []render.BoardUnrenderable {
+	adrsPfx := path.Clean(adrsDir) + "/"
+	rendered := make(map[string]bool)
+	for _, a := range st.Snapshot.ADRs() {
+		rendered[a.Path()] = true
+	}
+	return sourcesAbsentFromSnapshot(st, rendered, func(p string) bool {
+		return strings.HasPrefix(p, adrsPfx) && !isDerivedIndex(path.Base(p))
+	})
+}
+
+// sourcesAbsentFromSnapshot lists every in-scope path of st.Sources that is not
+// in rendered, each with the Code of the first error-severity finding naming
+// that path (else "unreadable"), sorted by path; nil when none.
+func sourcesAbsentFromSnapshot(st transaction.LoadedState, rendered map[string]bool, inScope func(string) bool) []render.BoardUnrenderable {
 	var out []render.BoardUnrenderable
 	for p := range st.Sources {
-		if !strings.HasPrefix(p, activePfx) && !strings.HasPrefix(p, archivePfx) {
+		if !inScope(p) {
 			continue
 		}
 		if rendered[p] {
@@ -108,9 +134,11 @@ func boardUnrenderable(st transaction.LoadedState, changesDir string) []render.B
 }
 
 // renderCanonicalADRIndex renders snap through the one canonical ADR-index
-// renderer. This is the only call site of render.ADRIndex in internal/app.
-func renderCanonicalADRIndex(snap domain.Snapshot) ([]byte, error) {
-	return render.ADRIndex(snap)
+// renderer, with the ADR records the snapshot cannot see (adrIndexUnrenderable)
+// surfaced in the index's repair notice. This is the only call site of the
+// render.ADRIndex family in internal/app.
+func renderCanonicalADRIndex(snap domain.Snapshot, unrenderable []render.BoardUnrenderable) ([]byte, error) {
+	return render.ADRIndexWithRepair(snap, unrenderable)
 }
 
 // includeBoard renders the candidate after-state through the canonical board
@@ -187,8 +215,13 @@ func withoutCandidateChanges(unrenderable []render.BoardUnrenderable, candidate 
 // unconditionally — a create when the index is absent, a replace otherwise. On a
 // render or probe error the function returns the error and leaves files
 // unmodified (no partial append).
-func includeADRIndex(ctx context.Context, tree transaction.Tree, candidate domain.Snapshot, indexPath string, files *[]transaction.FileMutation) error {
-	indexBytes, err := renderCanonicalADRIndex(candidate)
+//
+// unrenderable is the caller's adrIndexUnrenderable(st.State, adrsDir): the ADR
+// records the candidate cannot see, surfaced in the index's repair notice so an
+// unparseable unrelated ADR stays visible (change 0449). Entries the candidate
+// does carry are dropped, exactly as includeBoard drops them.
+func includeADRIndex(ctx context.Context, tree transaction.Tree, candidate domain.Snapshot, unrenderable []render.BoardUnrenderable, indexPath string, files *[]transaction.FileMutation) error {
+	indexBytes, err := renderCanonicalADRIndex(candidate, withoutCandidateADRs(unrenderable, candidate))
 	if err != nil {
 		return fmt.Errorf("rendering index: %w", err)
 	}
@@ -204,4 +237,23 @@ func includeADRIndex(ctx context.Context, tree transaction.Tree, candidate domai
 		Path: gitcli.RepoPath(indexPath), Kind: kind, Bytes: indexBytes,
 	})
 	return nil
+}
+
+// withoutCandidateADRs drops the entries whose path the candidate snapshot
+// carries as an ADR — withoutCandidateChanges' ADR counterpart.
+func withoutCandidateADRs(unrenderable []render.BoardUnrenderable, candidate domain.Snapshot) []render.BoardUnrenderable {
+	if len(unrenderable) == 0 {
+		return unrenderable
+	}
+	present := make(map[string]bool)
+	for _, a := range candidate.ADRs() {
+		present[a.Path()] = true
+	}
+	var out []render.BoardUnrenderable
+	for _, u := range unrenderable {
+		if !present[u.Path] {
+			out = append(out, u)
+		}
+	}
+	return out
 }
