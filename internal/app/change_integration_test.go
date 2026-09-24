@@ -4020,3 +4020,40 @@ func TestIntegrationChangeRuntimeRunVerifyWaitingTerminalOverridesDeadline(t *te
 		t.Fatalf("verdict = %q, want %q", res.Verdict, VerdictRunWaiting)
 	}
 }
+
+func TestIntegrationChangeAuthoringReviseAppliedResult(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	specPath := "docs/superpowers/specs/2026-08-01-add-a-widget-design.md"
+	receipt := mustMarshal(t, changeGroomReceipt{
+		ID: 2, Op: OperationChangeGroom, Outcome: string(GroomRevise), SpecPath: specPath,
+	})
+	engine := &recordingEngine{result: transaction.Result{
+		Disposition:   transaction.DispositionApplied,
+		AppliedCommit: "cafebabecafebabecafebabecafebabecafebabe",
+		Receipt:       receipt,
+	}}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeGroom(context.Background(), deps, repoDir, validReviseRequest())
+
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied", res.Result)
+	}
+	if res.Outcome != string(GroomRevise) {
+		t.Errorf("outcome = %q, want revise", res.Outcome)
+	}
+	if res.ID != 2 || res.SpecPath != specPath {
+		t.Errorf("identity from receipt = (%d, %q)", res.ID, res.SpecPath)
+	}
+	// Spec items 10/11 (engine-level): the CAS expectation pins the exact
+	// submitted version on every call, revise included — repeatability is a
+	// second standard call with the freshly-read version, nothing more.
+	if len(engine.calls) != 1 {
+		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
+	}
+	exp := engine.calls[0].Expected
+	if len(exp) != 1 || string(exp[0].Version.ObjectID) != validReviseRequest().Version {
+		t.Errorf("revise did not pin the exact submitted version: %+v", exp)
+	}
+}
