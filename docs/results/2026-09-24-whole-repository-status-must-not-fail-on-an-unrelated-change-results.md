@@ -1,3 +1,6 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0454 — Whole-repository status must not fail on an unrelated change's invalid branch name](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md)**
+<!-- docket:backlink:end -->
 # Whole-repository status must not fail on an unrelated change's invalid branch name — Results
 
 **Human action:** No human action is needed before merge. The optional walkthrough below shows the new finding in real `docket status` output, if you want to see it.
