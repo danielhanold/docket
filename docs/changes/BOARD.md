@@ -1,6 +1,6 @@
 # Backlog
 
-**451 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 299 done · 🗑️ 119 killed
+**451 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 300 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,10 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0451](active/0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md) | Workspace publish refuses a feature head that moved after the app-level check | `low` | `chore` | [#327](https://github.com/danielhanold/docket/pull/327) | awaiting merge |
 | [0448](active/0448-named-implement-next-skips-unrelated-maintenance-preflight.md) | Named implement-next skips unrelated maintenance preflight | `critical` | `fix` | [#328](https://github.com/danielhanold/docket/pull/328) | awaiting merge |
 
 ## 🟣 Groomed (3)
@@ -95,21 +94,20 @@ graph TD
   0446 --> 0448
   0448 --> 0449
   0450
-  0444 --> 0451
   0192:::done
   0251:::done
   0370:::done
   0393:::done
   0407:::done
-  0444:::done
   0446:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (418)</summary>
+<details><summary>✅🗑️ Archive — done + killed (419)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0451](archive/2026-09-24-0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md) | Workspace publish refuses a feature head that moved after the app-level check | 2026-09-24 |
 | [0446](archive/2026-09-24-0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | 2026-09-24 |
 | [0444](archive/2026-09-24-0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | 2026-09-24 |
 | [0414](archive/2026-09-23-0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | 2026-09-23 |
@@ -124,7 +122,6 @@ graph TD
 | [0437](archive/2026-09-19-0437-reject-revoked-run-epochs-before-gate-start-admission.md) | Reject revoked run epochs before gate-start admission | 2026-09-19 |
 | [0436](archive/2026-09-19-0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) | test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red | 2026-09-19 |
 | [0368](archive/2026-09-19-0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | 2026-09-19 |
-| [0434](archive/2026-09-18-0434-move-load-sensitive-tests-out-of-the-default-parallel-suite.md) | Move load-sensitive tests out of the default parallel suite lane | 2026-09-18 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -249,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 48 done |
+| [2026-09](archive/) | 49 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

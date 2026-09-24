@@ -2,7 +2,7 @@
 id: 451
 slug: 'workspace-publish-refuses-a-feature-head-that-moved-after-th'
 title: 'Workspace publish refuses a feature head that moved after the app-level check'
-status: 'implemented'
+status: 'done'
 priority: 'low'
 type: 'chore'
 created: '2026-09-24'
@@ -22,7 +22,7 @@ branch: 'chore/workspace-publish-refuses-a-feature-head-that-moved-after-th'
 pr: 'https://github.com/danielhanold/docket/pull/327'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T06:27:22Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,8 @@ claimed_at: '2026-09-24T06:27:22Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-09-24-0451-workspace-publish-expected-head.md](https://github.com/danielhanold/docket/blob/chore/workspace-publish-refuses-a-feature-head-that-moved-after-th/docs/superpowers/plans/2026-09-24-0451-workspace-publish-expected-head.md) |
-| Results | [2026-09-24-workspace-publish-refuses-a-feature-head-that-moved-after-th-results.md](https://github.com/danielhanold/docket/blob/chore/workspace-publish-refuses-a-feature-head-that-moved-after-th/docs/results/2026-09-24-workspace-publish-refuses-a-feature-head-that-moved-after-th-results.md) |
+| Plan | [2026-09-24-0451-workspace-publish-expected-head.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-24-0451-workspace-publish-expected-head.md) |
+| Results | [2026-09-24-workspace-publish-refuses-a-feature-head-that-moved-after-th-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-24-workspace-publish-refuses-a-feature-head-that-moved-after-th-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
