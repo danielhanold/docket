@@ -506,7 +506,7 @@ func TestStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout(t *testing
 
 	// A subsequent workflow mutation on the worktree is unfenced: the retired epoch no
 	// longer owns it, so admitWorkflowMutation returns a usable done callback.
-	done, err := admitWorkflowMutation(fx.worktree, "pr.publish")
+	done, err := admitWorkflowMutation(fx.worktree, "pr.publish", nil)
 	if err != nil || done == nil {
 		t.Fatalf("admitWorkflowMutation after closeout: done=%v err=%v, want a usable callback", done, err)
 	}

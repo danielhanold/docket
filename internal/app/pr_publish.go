@@ -229,7 +229,7 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	// `uncertain` on an unobserved remote outcome (an EnsureUnknown or transport
 	// failure), so a cancellation stays pending until the effect is reconciled. A
 	// standalone/no-epoch run admits unfenced (the journal callback is a no-op).
-	done, ferr := admitWorkflowMutation(repoDir, OperationPRPublish)
+	done, ferr := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
 	if ferr != nil {
 		return prFenceRefusal(req.ID, ferr)
 	}

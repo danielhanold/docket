@@ -396,7 +396,7 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 	// the admission, then this reconciles it once the push resolves (uncertain when
 	// the remote outcome could not be observed). A standalone/no-epoch run admits
 	// unfenced (the journal callback is a no-op).
-	done, ferr := admitWorkflowMutation(repoDir, OperationWorkspacePublish)
+	done, ferr := admitWorkflowMutation(repoDir, OperationWorkspacePublish, nil)
 	if ferr != nil {
 		return workspaceFenceRefusal(req.ID, ferr)
 	}
