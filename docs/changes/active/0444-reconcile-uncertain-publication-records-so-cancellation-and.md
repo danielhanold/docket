@@ -54,15 +54,3 @@ New cancellation/resume policy, force-clearing uncertain work, publication rollb
 
 2026-09-23 — Reconciled against main 442770e1 (identical to the spec design baseline). All cited symbols (AdmittedMutation, admitWorkflowMutation, mutationJournalStatus, reconcileEpochTeardown, verifyTerminalEpochQuiescence, accountCompletionMutations, validateResumeQuiescence) exist as described; related 0313/0375/0435/0437/0441 are done; no newer archived change or ADR touches publication-journal reconciliation. Scope unchanged.
 
-## Finalize blocked
-
-### 2026-09-24 — attempt 20260924T052908Z-5744b4958103
-
-<!-- attempt:20260924T052908Z-5744b4958103 -->
-
-- Reason: repair-needs-signoff
-- Head: 1d1a28dbeb3be83520e1b76ca38bd0ca068ec4fe
-- PR: #326
-- Comment: https://github.com/danielhanold/docket/pull/326#issuecomment-5808492515
-
-Remedy: Review commit 1d1a28db on PR #326, then re-run docket-finalize-change 444 to clear the block and merge.

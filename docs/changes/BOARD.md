@@ -1,6 +1,6 @@
 # Backlog
 
-**451 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 298 done · 🗑️ 119 killed
+**451 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 298 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,11 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
-## 🔵 Built (1)
+## 🔴 Blocked (1)
 
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` | [#326](https://github.com/danielhanold/docket/pull/326) | awaiting merge |
+| # | Title | Priority | Type | PR | Reason |
+|---|-------|----------|------|----|--------|
+| [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` | [#326](https://github.com/danielhanold/docket/pull/326) | finalize blocked — needs you |
 
 ## 🟣 Groomed (4)
 
