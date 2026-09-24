@@ -1474,6 +1474,54 @@ func TestBarrierSameScopeFirstStartContention(t *testing.T) {
 	}
 }
 
+// TestSameScopeFirstStartLateLoserDoesNotRotate deterministically pins the losing
+// interleaving of TestBarrierSameScopeFirstStartContention: a receipt-less first
+// start that passed precheckScopedStart before the winner published the scope, and
+// whose worktree admission runs only AFTER the winner confirmed the slot to
+// executing. Rotation is successor-only, so the late loser must be refused typed
+// ErrScopeSecondDrive with the winner's executing reservation untouched — same
+// state, same token, same ExecutionGen.
+func TestSameScopeFirstStartLateLoserDoesNotRotate(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	_, req := prepareScopedStart(t, store)
+
+	// The winner: a full first start that launches and confirms its slot.
+	doc, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("winner Start: %v", err)
+	}
+	if doc.Outcome != WAITING {
+		t.Fatalf("winner must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
+	}
+	before, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if before.State != admissionExecuting {
+		t.Fatalf("precondition: the winner's slot must be executing, got %q", before.State)
+	}
+
+	// The late loser: the SAME receipt-less request reaches worktree admission only
+	// now. Calling admitScopedWorktree directly models the loser that already passed
+	// its precheck against the then-empty scope; admission must refuse typed and
+	// must not rotate the winner's live reservation.
+	_, _, _, _, _, aerr := d.admitScopedWorktree(req)
+	if !isOwnershipKind(aerr, ErrScopeSecondDrive) {
+		t.Fatalf("a late receipt-less first start must refuse ErrScopeSecondDrive, got %v", aerr)
+	}
+	after, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
+	}
+	if after.State != admissionExecuting || after.ReservationToken != before.ReservationToken || after.ExecutionGen != before.ExecutionGen {
+		t.Fatalf("the winner's executing reservation must be untouched: state %q->%q, token changed=%v, gen %d->%d",
+			before.State, after.State, after.ReservationToken != before.ReservationToken, before.ExecutionGen, after.ExecutionGen)
+	}
+}
+
 // TestBarrierSuccessorUnderCancel proves the successor path under a mid-flight
 // fence: a fenced successor start refuses without launching, and it leaves the slot
 // EITHER the predecessor's executing reservation (refused before rotation) OR
