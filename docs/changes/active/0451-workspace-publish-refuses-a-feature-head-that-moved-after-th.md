@@ -2,7 +2,7 @@
 id: 451
 slug: 'workspace-publish-refuses-a-feature-head-that-moved-after-th'
 title: 'Workspace publish refuses a feature head that moved after the app-level check'
-status: 'in-progress'
+status: 'implemented'
 priority: 'low'
 type: 'chore'
 created: '2026-09-24'
@@ -19,7 +19,7 @@ trivial: true
 auto_groomable:
 branch_prefix:
 branch: 'chore/workspace-publish-refuses-a-feature-head-that-moved-after-th'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/327'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-24T06:27:22Z'
