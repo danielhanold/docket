@@ -412,9 +412,10 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 	}
 
 	res, err := wdeps.Service.PublishHead(ctx, workspace.PublishRequest{
-		Repository: wc.repo,
-		Remote:     originRemote,
-		Target:     target,
+		Repository:   wc.repo,
+		Remote:       originRemote,
+		Target:       target,
+		ExpectedHead: gitcli.ObjectID(req.Head),
 	})
 	if err != nil {
 		out := mapWorkspaceFailure(OperationWorkspacePublish, req.ID, err)
@@ -422,10 +423,11 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 		return out
 	}
 	out := publishResult(OperationWorkspacePublish, req.ID, target, res)
-	// PublishHead reads its own local head under its lock, after the Inspect above,
-	// so a commit landing in between makes it act on a head other than the journaled
-	// req.Head. Such a completion observed a postcondition for a DIFFERENT commit
-	// (or, with no head, for none we can name), so it is never verified evidence for
+	// PublishHead re-proves req.Head under its own lock (ExpectedHead, change
+	// 0451), so a head that moved after the Inspect above is refused before any
+	// push. The verified flag still independently requires the acted-on head to
+	// be the journaled req.Head: a completion observed for a DIFFERENT commit
+	// (or, with no head, for none we can name) is never verified evidence for
 	// this entry's publication identity and can never settle an uncertain one.
 	status, verified := mutationJournalOutcome(out.Result)
 	if string(res.Head) != req.Head {
