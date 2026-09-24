@@ -1,8 +1,10 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -397,5 +399,306 @@ func TestSettleUncertainPublicationsWriteFailureReportsNoSettlement(t *testing.T
 	}
 	if ep.AdmittedMutations[0].Status != mutationStatusUncertain {
 		t.Fatal("a failed settlement write must leave the original entry uncertain")
+	}
+}
+
+// TestSettlementNeverDowngradesUnderRacingCallback (change 0444 acceptance 6): a
+// completion callback racing the settlement (both under the epoch CAS) can never
+// regress completed→uncertain or lose its own completed write, and an unrelated
+// entry appended between match and write is never cleared — the settlement
+// re-derives its matches from the fresh record under the lock.
+func TestSettlementNeverDowngradesUnderRacingCallback(t *testing.T) {
+	fx := newCancelFixture(t, false)
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	other := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/other", HeadCommit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	// An unrelated admission lands right before settlement runs.
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = append(r.AdmittedMutations,
+			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusAdmitted, Publication: &other})
+		return nil
+	}); err != nil {
+		t.Fatalf("append racer: %v", err)
+	}
+	settled, findings := settleUncertainPublications(fx.repo, fx.key)
+	if len(findings) != 0 || len(settled) != 1 {
+		t.Fatalf("settled=%v findings=%v, want one settlement and no finding", settled, findings)
+	}
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.AdmittedMutations[2].Status != mutationStatusAdmitted {
+		t.Fatal("the racing unrelated admission must be untouched")
+	}
+	if ep.AdmittedMutations[0].Status != mutationStatusCompleted || ep.AdmittedMutations[1].Status != mutationStatusCompleted {
+		t.Fatal("the matched original must be settled and a completed entry must never be downgraded")
+	}
+
+	// Deterministic ordering: settlement BEFORE the retry's completion callback
+	// lands settles nothing (the retry is still admitted, so it is no evidence);
+	// the callback then lands completed and a repeat settlement converges.
+	d2 := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w2", HeadCommit: "cccccccccccccccccccccccccccccccccccccccc"}
+	origDone, err := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &d2)
+	if err != nil {
+		t.Fatalf("admit original: %v", err)
+	}
+	origDone(mutationStatusUncertain)
+	retryDone, err := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &d2)
+	if err != nil {
+		t.Fatalf("admit retry: %v", err)
+	}
+	if s, f := settleUncertainPublications(fx.repo, fx.key); len(s) != 0 || len(f) != 0 {
+		t.Fatalf("settled=%v findings=%v before the retry completed, want none", s, f)
+	}
+	retryDone(mutationStatusCompleted)
+	if s, f := settleUncertainPublications(fx.repo, fx.key); len(s) != 1 || len(f) != 0 {
+		t.Fatalf("settled=%v findings=%v after the retry completed, want one settlement", s, f)
+	}
+	ep, _, err = LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord (ordering): %v", err)
+	}
+	for i := 3; i <= 4; i++ {
+		if ep.AdmittedMutations[i].Status != mutationStatusCompleted {
+			t.Fatalf("entry %d = %q after ordered callback + settlement, want completed", i, ep.AdmittedMutations[i].Status)
+		}
+	}
+
+	// Real parallelism: each round journals an uncertain original, an in-flight
+	// identical retry, and an unrelated in-flight admission through the REAL
+	// admission gate, then races eight settlements against the retry's completion
+	// callback and four fresh unrelated admissions. The flock-serialized CAS must
+	// keep every invariant in every round: the callback's completed write is never
+	// lost or downgraded, no racing admission is dropped by a settlement write,
+	// the unrelated admissions and every earlier entry are untouched, and the
+	// original is only ever uncertain or completed.
+	for round := range 12 {
+		rd := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+			HeadRef: "refs/heads/fix/round", HeadCommit: fmt.Sprintf("%040x", round+1)}
+		ru := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+			HeadRef: "refs/heads/fix/unrelated", HeadCommit: fmt.Sprintf("%040x", round+1)}
+		before, _, lerr := LoadEpochRecord(fx.repo, fx.key)
+		if lerr != nil {
+			t.Fatalf("round %d: load: %v", round, lerr)
+		}
+		base := len(before.AdmittedMutations)
+		od, aerr := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &rd)
+		if aerr != nil {
+			t.Fatalf("round %d: admit original: %v", round, aerr)
+		}
+		od(mutationStatusUncertain)
+		rdone, aerr := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &rd)
+		if aerr != nil {
+			t.Fatalf("round %d: admit retry: %v", round, aerr)
+		}
+		if _, aerr := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &ru); aerr != nil {
+			t.Fatalf("round %d: admit unrelated: %v", round, aerr)
+		}
+
+		start := make(chan struct{})
+		var (
+			wg       sync.WaitGroup
+			mu       sync.Mutex
+			raceFind []string
+		)
+		for range 8 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				_, f := settleUncertainPublications(fx.repo, fx.key)
+				mu.Lock()
+				raceFind = append(raceFind, f...)
+				mu.Unlock()
+			}()
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			rdone(mutationStatusCompleted)
+		}()
+		// Unrelated admissions APPENDED during the race: a settlement that wrote a
+		// record matched outside the lock (a stale snapshot) would silently drop them.
+		const racers = 4
+		var admitErrs []error
+		for k := range racers {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				cp := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+					HeadRef: fmt.Sprintf("refs/heads/fix/racer-%d", k), HeadCommit: rd.HeadCommit}
+				if _, err := admitWorkflowMutation(fx.worktree, OperationWorkspacePublish, &cp); err != nil {
+					mu.Lock()
+					admitErrs = append(admitErrs, err)
+					mu.Unlock()
+				}
+			}()
+		}
+		close(start)
+		wg.Wait()
+		if len(raceFind) != 0 {
+			t.Fatalf("round %d: concurrent settlement findings = %v, want none (the lock serializes, never fails)", round, raceFind)
+		}
+		if len(admitErrs) != 0 {
+			t.Fatalf("round %d: racing admissions failed: %v", round, admitErrs)
+		}
+
+		got, _, lerr := LoadEpochRecord(fx.repo, fx.key)
+		if lerr != nil {
+			t.Fatalf("round %d: load after race: %v", round, lerr)
+		}
+		if len(got.AdmittedMutations) != base+3+racers {
+			t.Fatalf("round %d: journal length = %d, want %d (a racing admission was lost)", round, len(got.AdmittedMutations), base+3+racers)
+		}
+		seen := map[string]bool{}
+		for _, m := range got.AdmittedMutations[base+3:] {
+			if m.Status != mutationStatusAdmitted || m.Publication == nil {
+				t.Fatalf("round %d: racing admission = %+v, want an untouched admitted entry", round, m)
+			}
+			seen[m.Publication.HeadRef] = true
+		}
+		if len(seen) != racers {
+			t.Fatalf("round %d: racing admissions present = %v, want %d distinct", round, seen, racers)
+		}
+		for i := range base {
+			if got.AdmittedMutations[i].Status != before.AdmittedMutations[i].Status {
+				t.Fatalf("round %d: earlier entry %d changed %q -> %q", round, i,
+					before.AdmittedMutations[i].Status, got.AdmittedMutations[i].Status)
+			}
+		}
+		if s := got.AdmittedMutations[base].Status; s != mutationStatusUncertain && s != mutationStatusCompleted {
+			t.Fatalf("round %d: original = %q, want uncertain or completed", round, s)
+		}
+		if s := got.AdmittedMutations[base+1].Status; s != mutationStatusCompleted {
+			t.Fatalf("round %d: retry = %q after its completion callback, want completed (a lost or downgraded callback write)", round, s)
+		}
+		if s := got.AdmittedMutations[base+2].Status; s != mutationStatusAdmitted {
+			t.Fatalf("round %d: unrelated admission = %q, want admitted (untouched)", round, s)
+		}
+
+		// Convergence: whatever the interleaving, one more settlement settles it.
+		if _, f := settleUncertainPublications(fx.repo, fx.key); len(f) != 0 {
+			t.Fatalf("round %d: convergence findings = %v", round, f)
+		}
+		conv, _, lerr := LoadEpochRecord(fx.repo, fx.key)
+		if lerr != nil {
+			t.Fatalf("round %d: load after convergence: %v", round, lerr)
+		}
+		if s := conv.AdmittedMutations[base].Status; s != mutationStatusCompleted {
+			t.Fatalf("round %d: original = %q after convergence, want completed", round, s)
+		}
+	}
+}
+
+// TestSettlementInterruptionConverges (change 0444 acceptance 6): a settlement
+// whose durable write cannot land never lets cancellation claim `cancelled` — the
+// entry stays uncertain, exclusion is retained, and the bounded finding names the
+// failure — and once the record is writable again, repeating the SAME cancel
+// converges. (An interruption AFTER a successful write is a harmless idempotent
+// replay, proven by TestSettleUncertainPublicationsDurable's replay assert.)
+func TestSettlementInterruptionConverges(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory write permission")
+	}
+	fx := newCancelFixture(t, true)
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	// A read-only key dir still lets the CAS lock and read, but the same-directory
+	// temp file cannot be created, so every epoch write fails.
+	dir := filepath.Join(fx.common, "docket", "rungate", fx.key)
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	originalStatus := func(when string) string {
+		t.Helper()
+		ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+		if err != nil {
+			t.Fatalf("LoadEpochRecord (%s): %v", when, err)
+		}
+		return ep.AdmittedMutations[0].Status
+	}
+
+	// (a) Unwritable before the cancel: the fence itself cannot land, so the
+	// cancel refuses — never cancelled — and the entry and epoch are untouched.
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
+	pre := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	if pre.Disposition == CancelDispositionCancelled {
+		t.Fatalf("disposition = cancelled with an unwritable epoch; findings=%v", pre.Findings)
+	}
+	if s := originalStatus("unwritable fence"); s != mutationStatusUncertain {
+		t.Fatalf("original = %q after a failed fence, want uncertain", s)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochActive {
+		t.Fatalf("epoch state = %q after a failed fence, want active (nothing landed)", st)
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatalf("chmod back: %v", err)
+	}
+
+	// (b) Interrupted between the fence and the settlement: the fence lands, then
+	// the store turns unwritable during teardown (the process stop), so ONLY the
+	// settlement write fails. Cancellation must stay pending with the bounded
+	// finding, report no settlement, and leave the entry uncertain.
+	stopper.onStop = func(string) {
+		if err := os.Chmod(dir, 0o500); err != nil {
+			t.Errorf("chmod mid-teardown: %v", err)
+		}
+	}
+	res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionPending {
+		t.Fatalf("disposition = %q with an unpersistable settlement (findings %v), want cancellation-pending", res.Disposition, res.Findings)
+	}
+	if !hasFinding(res.Findings, "mutation-settle-failed") {
+		t.Fatalf("findings = %v, want mutation-settle-failed", res.Findings)
+	}
+	if !hasFinding(res.Findings, "mutation-pending:"+OperationWorkspacePublish) {
+		t.Fatalf("findings = %v, want mutation-pending:workspace.publish (exclusion retained)", res.Findings)
+	}
+	if hasFinding(res.Findings, "mutation-settled") {
+		t.Fatalf("findings = %v; a settlement that never landed must not be reported", res.Findings)
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatalf("chmod back: %v", err)
+	}
+	if s := originalStatus("interrupted settlement"); s != mutationStatusUncertain {
+		t.Fatalf("original = %q after a failed settlement write, want uncertain", s)
+	}
+	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelling {
+		t.Fatalf("epoch state = %q, want cancelling (the fence is durably held)", st)
+	}
+
+	// (c) Writable again: the SAME repeat cancel converges.
+	stopper.onStop = nil
+	res2 := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	if res2.Disposition != CancelDispositionCancelled {
+		t.Fatalf("repeat disposition = %q (findings %v), want cancelled", res2.Disposition, res2.Findings)
+	}
+	if s := originalStatus("repeat cancel"); s != mutationStatusCompleted {
+		t.Fatalf("original = %q after the converged repeat cancel, want completed", s)
 	}
 }
