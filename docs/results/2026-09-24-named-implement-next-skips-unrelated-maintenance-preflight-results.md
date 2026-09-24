@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0448 — Named implement-next skips unrelated maintenance preflight](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0448-named-implement-next-skips-unrelated-maintenance-preflight.md)**
+> ↩ **[Change 0448 — Named implement-next skips unrelated maintenance preflight](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-24-0448-named-implement-next-skips-unrelated-maintenance-preflight.md)**
 <!-- docket:backlink:end -->
 # Named implement-next skips unrelated maintenance preflight — Results
 
