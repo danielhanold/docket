@@ -95,6 +95,7 @@ type SectionEditRequest struct {
 type ChangeGroomResult struct {
 	Envelope
 	ID       int             `json:"id,omitempty"`
+	Outcome  string          `json:"outcome,omitempty"`
 	SpecPath string          `json:"spec_path,omitempty"`
 	Revision string          `json:"committed_revision,omitempty"`
 	Findings []StatusFinding `json:"findings"`
@@ -104,6 +105,9 @@ type ChangeGroomResult struct {
 func (r ChangeGroomResult) HumanText() string {
 	switch r.Result {
 	case ResultApplied:
+		if r.Outcome == string(GroomRevise) {
+			return fmt.Sprintf("change %04d revised — %s", r.ID, r.Revision)
+		}
 		if r.SpecPath != "" {
 			return fmt.Sprintf("change %04d groomed (spec %s) — %s", r.ID, r.SpecPath, r.Revision)
 		}
@@ -215,6 +219,7 @@ func changeGroomResultFromOutcome(res transaction.Result, execErr error) ChangeG
 	if result == ResultApplied {
 		if rec, ok := decodeChangeGroomReceipt(res.Receipt); ok {
 			out.ID = rec.ID
+			out.Outcome = rec.Outcome
 			out.SpecPath = rec.SpecPath
 		}
 		out.Revision = string(res.AppliedCommit)
@@ -537,6 +542,11 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	receiptSpecPath := ""
 	if o.req.Outcome == GroomSpec {
 		receiptSpecPath = specPath
+	}
+	if reviseSpec {
+		// A revise that replaced the spec body names the existing linked path; a
+		// sections-only revise leaves it empty, like the trivial outcome.
+		receiptSpecPath = c.Spec().Value
 	}
 	receipt, err := json.Marshal(changeGroomReceipt{
 		ID: o.req.ChangeID, Op: OperationChangeGroom, Outcome: string(o.req.Outcome), SpecPath: receiptSpecPath,

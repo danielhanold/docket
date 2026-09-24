@@ -676,3 +676,17 @@ func TestChangeGroomPlanReviseRepeatable(t *testing.T) {
 		t.Errorf("second revise did not land:\n%s", spec)
 	}
 }
+
+func TestChangeGroomResultHumanTextRevise(t *testing.T) {
+	r := newChangeGroomResult(ResultApplied, ChangeGroomResult{
+		ID: 7, Outcome: string(GroomRevise), SpecPath: "docs/superpowers/specs/x.md",
+		Revision: "cafebabecafebabecafebabecafebabecafebabe",
+	})
+	got := r.HumanText()
+	want := "change 0007 revised — cafebabecafebabecafebabecafebabecafebabe"
+	if got != want {
+		// Review Focus 4: a revise carrying a spec path must NOT render as
+		// "groomed (spec …)".
+		t.Errorf("HumanText = %q, want %q", got, want)
+	}
+}
