@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-23'
-updated: '2026-09-23'
+updated: '2026-09-24'
 depends_on: []
 stacked_on:
 related: [382, 444]
 discovered_from: [444]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,8 +38,8 @@ A common workflow is: groom a change to a spec, review the spec, then adjust it.
 
 ## What changes
 
-Add a typed, catalog-listed way to revise an already-groomed change: replace its linked spec's authored body and/or rewrite its owned proposal sections (Why / What changes / Out of scope / Open questions) in one metadata transaction, pinned to the record's exact version, stamping `updated:`, preserving the generated backlink and Artifacts blocks, and re-rendering derived views as other writes do. Interactive skills (docket-new-change, docket-groom-next) and their docs point to it for the review-then-adjust step. Whether this is a new operation or a relaxed `change.groom` gate, and which statuses permit revision, is for the brainstorm.
+Add a `revise` outcome to the existing `change.groom` operation (no new catalog operation, no new CLI verb) gated on the complement of the current groom gate — a `proposed` change that already has a spec or is trivial-verdicted, i.e. already groomed. `revise` reuses the existing `spec_markdown` field (whole spec-body replace, targeting the change's existing spec path — never a new one) and the existing `sections` field (the same owned-proposal-section splice groom/trivial already use); it never writes `spec:` or `trivial:`, so flipping a change between spec'd and trivial stays structurally impossible. Repeatable: a change may be revised any number of times while it stays `proposed`, each call a standard exact-version CAS write. `docket-groom-next`'s explicit-id path gains a carve-out to route an already-groomed change to this flow instead of erroring, replacing its documented hand-edit-plus-plain-git workaround; `docket-new-change` gains a pointer to the same path for its own post-groom adjust case.
 
 ## Out of scope
 
-Editing frozen build records (merged plans and results), Accepted ADRs, or terminal (done/killed) changes. Changing the spec path or relinking a different spec file. Revising trivial changes into spec'd ones or vice versa. Any automatic or autonomous spec revision. Review tooling or approval workflow for specs.
+Editing frozen build records (merged plans and results), Accepted ADRs, or terminal (done/killed) changes. Changing the spec path or relinking a different spec file. Revising trivial changes into spec'd ones or vice versa (structurally impossible under this design, not just disallowed by convention). Revising an in-progress change — that stays change.reconcile's existing job (its SpecSections already covers it). Section-level (partial) spec patching — revise's spec edit is whole-body replace only, matching change.groom's existing spec outcome. Any automatic or autonomous spec revision. Review tooling or approval workflow for specs.
