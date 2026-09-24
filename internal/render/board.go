@@ -1,6 +1,7 @@
 package render
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -29,7 +30,8 @@ import (
 //
 //  1. "# Backlog\n\n".
 //  2. Counts line: "**<total> changes** — <seg>\n", where <total> is every
-//     change record (active + archive) and <seg> joins "<emoji> <n> <label>"
+//     RENDERED change record (active + archive; records in the repair notice
+//     are excluded) and <seg> joins "<emoji> <n> <label>"
 //     with " · ", iterating the configured section order over the six rendered
 //     groups (count = classified membership) then the terminal done/killed
 //     archive counts, skipping any group with a zero count. Group labels:
@@ -88,6 +90,15 @@ import (
 //     the 15 most recent collapse into a trailing per-YYYY-MM "Older done
 //     (collapsed)" digest. The Merged date is the archive filename's leading
 //     YYYY-MM-DD. The archive is a fixed footer, outside section order/sorting.
+//  6. The repair notice (change 0449), rendered only when at least one record
+//     could not be rendered: "\n## 🛠 Needs repair (<n>)\n\n", a one-line
+//     preamble, then a "Record | Problem" table, one row per record path
+//     (deduped, sorted by path). Its population is the caller's
+//     BoardInput.Unrenderable (records Snapshot cannot see) plus every active
+//     record whose classification or row fails with a per-record fault
+//     (boardRecordFault). Such a record renders no row, no count, and no graph
+//     node. An invalid presentation or an unknown section is NOT a record fault
+//     and still aborts the render.
 //
 // Links are repo-relative from docs/changes/ (active/<file>, archive/<file>);
 // the board carries no web-URL variant.
@@ -106,6 +117,17 @@ type BoardInput struct {
 	// drives its row order. A caller building options fills it from config; the
 	// renderer invents no defaults and refuses an invalid presentation.
 	Presentation BoardPresentation
+	// Unrenderable names records invisible to Snapshot (a record that failed to
+	// parse or decode has no domain.Change) that the caller wants surfaced in
+	// the board's repair notice (change 0449). Board() merges them with the
+	// records it could not classify or render itself.
+	Unrenderable []BoardUnrenderable
+}
+
+// BoardUnrenderable names one record the board cannot render, by path.
+type BoardUnrenderable struct {
+	Path   string // repo-relative record path
+	Reason string // one line: the finding code or the classify/readiness error text
 }
 
 // BoardSection is one rendered board group — a closed vocabulary deliberately
@@ -263,7 +285,7 @@ func boardClassify(in BoardInput, c domain.Change) (BoardSection, error) {
 	case domain.StatusDeferred:
 		return BoardSectionDeferred, nil
 	}
-	return "", fmt.Errorf("render: board: change %04d has non-active status %q", int(c.ID()), c.Status())
+	return "", boardRecordFault{fmt.Sprintf("render: board: change %04d has non-active status %q", int(c.ID()), c.Status())}
 }
 
 // sortBoardSection orders rows in place per s. The comparator is total and
@@ -341,18 +363,57 @@ func Board(in BoardInput) ([]byte, error) {
 	var archiveChanges []domain.Change
 	archiveCount := map[domain.Status]int{}
 
+	// unrenderable collects every record this render cannot draw: the
+	// caller-supplied entries (records Snapshot cannot see) plus each active
+	// record whose classification or row rendering fails with a per-record
+	// fault. One bad record never aborts the board (change 0449); a renderer
+	// or configuration fault (invalid presentation, unknown section) still does.
+	unrenderable := append([]BoardUnrenderable(nil), in.Unrenderable...)
+
+	var classified []domain.Change
 	for _, c := range in.Snapshot.Changes() {
 		switch c.Location() {
 		case domain.LocationActive:
 			sec, err := boardClassify(in, c)
 			if err != nil {
-				return nil, err
+				unrenderable = append(unrenderable, BoardUnrenderable{Path: c.Path(), Reason: err.Error()})
+				continue
 			}
 			bySection[sec] = append(bySection[sec], c)
-			activeAll = append(activeAll, c)
+			classified = append(classified, c)
 		case domain.LocationArchive:
 			archiveChanges = append(archiveChanges, c)
 			archiveCount[c.Status()]++
+		}
+	}
+
+	// Render every section's rows BEFORE the counts line, so a record whose row
+	// cannot render drops out of the counts, the section, and the graph alike.
+	rowLines := map[BoardSection][]string{}
+	dropped := map[string]bool{}
+	for _, s := range in.Presentation.SectionOrder {
+		rows := bySection[s]
+		sortBoardSection(rows, in.Presentation.Sorting[s])
+		kept := rows[:0:0]
+		for _, c := range rows {
+			line, err := boardSectionRow(in, s, c)
+			if err != nil {
+				var fault boardRecordFault
+				if !errors.As(err, &fault) {
+					return nil, err
+				}
+				unrenderable = append(unrenderable, BoardUnrenderable{Path: c.Path(), Reason: err.Error()})
+				dropped[c.Path()] = true
+				continue
+			}
+			kept = append(kept, c)
+			rowLines[s] = append(rowLines[s], line)
+		}
+		bySection[s] = kept
+	}
+	for _, c := range classified {
+		if !dropped[c.Path()] {
+			activeAll = append(activeAll, c)
 		}
 	}
 	sortByID(activeAll)
@@ -386,14 +447,9 @@ func Board(in BoardInput) ([]byte, error) {
 		if len(rows) == 0 {
 			continue
 		}
-		sortBoardSection(rows, in.Presentation.Sorting[s])
 		fmt.Fprintf(&b, "\n## %s %s (%d)\n\n", boardSectionEmoji(s), boardSectionHeading(s), len(rows))
 		b.WriteString(boardSectionTableHeader(s))
-		for _, c := range rows {
-			line, err := boardSectionRow(in, s, c)
-			if err != nil {
-				return nil, err
-			}
+		for _, line := range rowLines[s] {
 			b.WriteString(line)
 		}
 	}
@@ -505,7 +561,52 @@ func Board(in BoardInput) ([]byte, error) {
 		b.WriteString("\n</details>\n")
 	}
 
+	writeBoardRepairNotice(&b, unrenderable)
+
 	return []byte(b.String()), nil
+}
+
+// boardRecordFault marks an error as a fault of ONE record (it cannot be
+// classified or its row cannot be rendered), as opposed to a renderer or
+// configuration fault. Board() moves a record-fault record into the repair
+// notice and keeps rendering; every other error still aborts the render.
+type boardRecordFault struct{ msg string }
+
+func (f boardRecordFault) Error() string { return f.msg }
+
+// writeBoardRepairNotice emits the "Needs repair" section after the archive
+// block when at least one record could not be rendered: entries deduped by
+// path (first reason wins) and sorted by path, each reason flattened to one
+// table-safe line. An empty list writes nothing, so a healthy repository's
+// board is byte-identical to the pre-0449 render.
+func writeBoardRepairNotice(b *strings.Builder, entries []BoardUnrenderable) {
+	if len(entries) == 0 {
+		return
+	}
+	seen := make(map[string]bool, len(entries))
+	uniq := make([]BoardUnrenderable, 0, len(entries))
+	for _, e := range entries {
+		if seen[e.Path] {
+			continue
+		}
+		seen[e.Path] = true
+		uniq = append(uniq, e)
+	}
+	sort.SliceStable(uniq, func(i, j int) bool { return uniq[i].Path < uniq[j].Path })
+
+	fmt.Fprintf(b, "\n## 🛠 Needs repair (%d)\n\n", len(uniq))
+	b.WriteString("These records could not be rendered; counts above cover rendered records only.\n\n")
+	b.WriteString("| Record | Problem |\n|---|---|\n")
+	for _, e := range uniq {
+		fmt.Fprintf(b, "| `%s` | %s |\n", e.Path, boardRepairCell(e.Reason))
+	}
+}
+
+// boardRepairCell flattens a reason into one Markdown table cell: line breaks
+// become spaces and a literal pipe is escaped so it cannot split the row.
+func boardRepairCell(reason string) string {
+	r := strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "|", "\\|")
+	return strings.TrimSpace(r.Replace(reason))
 }
 
 // boardSectionRow renders one active change's table row for its rendered
@@ -606,9 +707,10 @@ func boardReadinessCell(in BoardInput, c domain.Change) (string, error) {
 	default:
 		// A proposed row never reaches here for a well-formed corpus: readiness
 		// reports not-proposed only for a non-proposed change, and invalid only
-		// for a duplicate/negative id or an unusable slug — both of which the
-		// app layer's whole-repository validation rejects before rendering.
-		return "", fmt.Errorf("render: board: proposed change %04d has unexpected readiness %q", int(c.ID()), r.Kind)
+		// for a duplicate/negative id or an unusable slug. A corpus carrying such
+		// an unrelated defect is still rendered (change 0449), so this is a
+		// per-record fault that moves the record into the repair notice.
+		return "", boardRecordFault{fmt.Sprintf("render: board: proposed change %04d has unexpected readiness %q", int(c.ID()), r.Kind)}
 	}
 }
 

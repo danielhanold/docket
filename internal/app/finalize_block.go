@@ -854,7 +854,7 @@ func planInlineBoard(ctx context.Context, st transaction.AttemptState, snap doma
 		return files, nil
 	}
 	boardPath := path.Join(changesDir, "BOARD.md")
-	if err := includeBoard(ctx, st.Tree, boardPath, snap, pres, &files); err != nil {
+	if err := includeBoard(ctx, st.Tree, boardPath, snap, boardUnrenderable(st.State, changesDir), pres, &files); err != nil {
 		return nil, err
 	}
 	return files, nil

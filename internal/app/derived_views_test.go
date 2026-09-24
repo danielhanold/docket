@@ -12,6 +12,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
@@ -92,11 +93,11 @@ func TestBoardRenderHonorsConfiguredPresentation(t *testing.T) {
 	})
 	snap := domain.NewSnapshot(domain.SnapshotSpec{Changes: []domain.Change{blocked, proposed}})
 
-	def, err := renderCanonicalBoard(snap, render.DefaultBoardPresentation())
+	def, err := renderCanonicalBoard(snap, nil, render.DefaultBoardPresentation())
 	if err != nil {
 		t.Fatalf("default render: %v", err)
 	}
-	got, err := renderCanonicalBoard(snap, boardPresentation(resolveBoardTestConfig(t)))
+	got, err := renderCanonicalBoard(snap, nil, boardPresentation(resolveBoardTestConfig(t)))
 	if err != nil {
 		t.Fatalf("configured render: %v", err)
 	}
@@ -150,7 +151,7 @@ func TestIncludeBoardCreatesWhenBoardAbsentBytesMatchDirectRender(t *testing.T) 
 	snap, boardPath, _, want := derivedViewsSnapshot(t)
 	tree := newFakeTree(map[string]string{}) // no board on the base tree
 	var files []transaction.FileMutation
-	if err := includeBoard(context.Background(), tree, boardPath, snap, boardPresentation(derivedTestConfig()), &files); err != nil {
+	if err := includeBoard(context.Background(), tree, boardPath, snap, nil, boardPresentation(derivedTestConfig()), &files); err != nil {
 		t.Fatalf("includeBoard: %v", err)
 	}
 	if len(files) != 1 {
@@ -171,7 +172,7 @@ func TestIncludeBoardReplacesWhenBoardPresentAndDiffers(t *testing.T) {
 	snap, boardPath, _, want := derivedViewsSnapshot(t)
 	tree := newFakeTree(map[string]string{boardPath: "# stale board\n"})
 	var files []transaction.FileMutation
-	if err := includeBoard(context.Background(), tree, boardPath, snap, boardPresentation(derivedTestConfig()), &files); err != nil {
+	if err := includeBoard(context.Background(), tree, boardPath, snap, nil, boardPresentation(derivedTestConfig()), &files); err != nil {
 		t.Fatalf("includeBoard: %v", err)
 	}
 	if len(files) != 1 {
@@ -193,7 +194,7 @@ func TestIncludeBoardSkipsWhenByteIdentical(t *testing.T) {
 	snap, boardPath, _, want := derivedViewsSnapshot(t)
 	tree := newFakeTree(map[string]string{boardPath: string(want)})
 	var files []transaction.FileMutation
-	if err := includeBoard(context.Background(), tree, boardPath, snap, boardPresentation(derivedTestConfig()), &files); err != nil {
+	if err := includeBoard(context.Background(), tree, boardPath, snap, nil, boardPresentation(derivedTestConfig()), &files); err != nil {
 		t.Fatalf("includeBoard: %v", err)
 	}
 	if len(files) != 0 {
@@ -211,7 +212,7 @@ func TestIncludeBoardProbeErrorLeavesFilesUnmodified(t *testing.T) {
 	snap, boardPath, _, _ := derivedViewsSnapshot(t)
 	files := []transaction.FileMutation{{Path: "docs/changes/active/0001-example.md", Kind: transaction.MutationReplace, Bytes: []byte("x")}}
 	before := len(files)
-	if err := includeBoard(context.Background(), errReadTree{}, boardPath, snap, boardPresentation(derivedTestConfig()), &files); err == nil {
+	if err := includeBoard(context.Background(), errReadTree{}, boardPath, snap, nil, boardPresentation(derivedTestConfig()), &files); err == nil {
 		t.Fatal("includeBoard: want an error from the failing probe")
 	}
 	if len(files) != before {
@@ -253,5 +254,129 @@ func TestIncludeADRIndexReplacesWhenIndexPresent(t *testing.T) {
 	}
 	if files[0].Kind != transaction.MutationReplace {
 		t.Errorf("Kind = %q, want replace", files[0].Kind)
+	}
+}
+
+// --- change 0449: records the snapshot cannot see surface on the board ---
+
+// TestBoardUnrenderableDerivesAbsentChangeRecords pins boardUnrenderable's
+// shape-keyed population: every change record (active or archive) present in
+// Sources but absent from the snapshot is one entry, its reason taken from the
+// error finding naming that path (else "unreadable"); non-change records (an
+// ADR, a learning) and records the snapshot does carry never appear.
+func TestBoardUnrenderableDerivesAbsentChangeRecords(t *testing.T) {
+	b := domain.NewChange(domain.ChangeSpec{
+		ID: 3, Slug: "widget", Title: "Widget", Status: domain.StatusProposed,
+		Location: domain.LocationActive, Path: "docs/changes/active/0003-widget.md",
+	})
+	st := transaction.LoadedState{
+		Snapshot: domain.NewSnapshot(domain.SnapshotSpec{Changes: []domain.Change{b}}),
+		Report: domain.NewValidationReport([]domain.Finding{
+			{Code: "unclosed-frontmatter", Severity: domain.SeverityError,
+				Entity: domain.EntityRef{Kind: domain.EntityChange, Path: "docs/changes/active/0099-broken.md"}},
+			{Code: "some-warning", Severity: domain.SeverityWarning,
+				Entity: domain.EntityRef{Kind: domain.EntityChange, Path: "docs/changes/archive/2026-01-01-0042-gone.md"}},
+		}),
+		Sources: map[string][]byte{
+			"docs/changes/active/0003-widget.md":           []byte("healthy"),
+			"docs/changes/active/0099-broken.md":           []byte("---\nid: 99\n"),
+			"docs/changes/archive/2026-01-01-0042-gone.md": []byte("undecodable"),
+			"docs/adrs/0001-broken.md":                     []byte("---\n"),
+			"docs/changes/learnings/broken.md":             []byte("---\n"),
+		},
+	}
+	got := boardUnrenderable(st, "docs/changes")
+	want := []render.BoardUnrenderable{
+		{Path: "docs/changes/active/0099-broken.md", Reason: "unclosed-frontmatter"},
+		{Path: "docs/changes/archive/2026-01-01-0042-gone.md", Reason: "unreadable"},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("boardUnrenderable = %+v, want %+v", got, want)
+	}
+
+	healthy := st
+	healthy.Sources = map[string][]byte{"docs/changes/active/0003-widget.md": []byte("healthy")}
+	if got := boardUnrenderable(healthy, "docs/changes"); got != nil {
+		t.Errorf("healthy state yields %+v, want nil", got)
+	}
+}
+
+// TestIncludeBoardSurfacesUnrenderable proves includeBoard threads the caller's
+// unrenderable entries into the canonical render: the declared board carries
+// the repair notice naming the record.
+func TestIncludeBoardSurfacesUnrenderable(t *testing.T) {
+	snap, boardPath, _, _ := derivedViewsSnapshot(t)
+	unr := []render.BoardUnrenderable{{Path: "docs/changes/active/0099-broken.md", Reason: "unclosed-frontmatter"}}
+	want, err := render.Board(render.BoardInput{Snapshot: snap, Presentation: boardPresentation(derivedTestConfig()), Unrenderable: unr})
+	if err != nil {
+		t.Fatalf("render board: %v", err)
+	}
+	var files []transaction.FileMutation
+	if err := includeBoard(context.Background(), newFakeTree(map[string]string{}), boardPath, snap, unr, boardPresentation(derivedTestConfig()), &files); err != nil {
+		t.Fatalf("includeBoard: %v", err)
+	}
+	if len(files) != 1 || !bytes.Equal(files[0].Bytes, want) {
+		t.Fatalf("includeBoard did not declare the notice-bearing canonical board")
+	}
+	if !strings.Contains(string(files[0].Bytes), "| `docs/changes/active/0099-broken.md` | unclosed-frontmatter |") {
+		t.Errorf("declared board lacks the repair notice:\n%s", files[0].Bytes)
+	}
+}
+
+// TestIncludeBoardDropsEntriesTheCandidateRenders proves the before-state
+// derived list never double-reports a record the operation itself made
+// renderable: an entry whose path the candidate carries as a change renders as
+// that change's row only, with no repair notice.
+func TestIncludeBoardDropsEntriesTheCandidateRenders(t *testing.T) {
+	snap, boardPath, _, want := derivedViewsSnapshot(t)
+	var rendered string
+	for _, c := range snap.Changes() {
+		rendered = c.Path()
+	}
+	unr := []render.BoardUnrenderable{{Path: rendered, Reason: "unclosed-frontmatter"}}
+	var files []transaction.FileMutation
+	if err := includeBoard(context.Background(), newFakeTree(map[string]string{}), boardPath, snap, unr, boardPresentation(derivedTestConfig()), &files); err != nil {
+		t.Fatalf("includeBoard: %v", err)
+	}
+	if len(files) != 1 || !bytes.Equal(files[0].Bytes, want) {
+		t.Fatalf("a candidate-rendered record also landed in the repair notice:\n%s", files[0].Bytes)
+	}
+}
+
+// TestDerivedViewFindingsAcceptsNoticeBearingBoard proves the check/migrate
+// canonical render derives the same repair entries the mutations do: a
+// committed board carrying the notice for an unparseable record is NOT stale,
+// while the pre-0449 board that silently omitted the record now is.
+func TestDerivedViewFindingsAcceptsNoticeBearingBoard(t *testing.T) {
+	cfg := derivedTestConfig()
+	p, canonical := canonicalChangeRecord(t, cfg)
+	recs := []corpusRecord{
+		{path: p, bytes: canonical, kind: repository.KindChange, location: repository.LocationActive},
+		{path: "docs/changes/active/0099-broken.md", bytes: []byte("---\nid: 99\nslug: broken\n"), kind: repository.KindChange, location: repository.LocationActive},
+	}
+	snap, ok := buildCorpusSnapshot(cfg, recs)
+	if !ok {
+		t.Fatal("buildCorpusSnapshot failed")
+	}
+	withNotice, err := renderCanonicalBoard(snap, []render.BoardUnrenderable{{Path: "docs/changes/active/0099-broken.md", Reason: "unclosed-frontmatter"}}, boardPresentation(cfg))
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(string(withNotice), "0099-broken.md") {
+		t.Fatalf("fixture board lacks the notice:\n%s", withNotice)
+	}
+	link := render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}
+	for _, f := range derivedViewFindings(cfg, checkCorpus{records: recs, link: link, board: corpusFile{present: true, bytes: withNotice}}) {
+		if f.Code == reposetup.CodeBoardStale {
+			t.Errorf("notice-bearing board reported stale: %+v", f)
+		}
+	}
+	silent, _ := renderCanonicalBoard(snap, nil, boardPresentation(cfg))
+	stale := false
+	for _, f := range derivedViewFindings(cfg, checkCorpus{records: recs, link: link, board: corpusFile{present: true, bytes: silent}}) {
+		stale = stale || f.Code == reposetup.CodeBoardStale
+	}
+	if !stale {
+		t.Error("a board silently omitting the unparseable record is not reported stale")
 	}
 }

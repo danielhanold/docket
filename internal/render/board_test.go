@@ -1136,3 +1136,164 @@ func TestBoardMermaidBytesIdenticalAcrossPresentations(t *testing.T) {
 			defMermaid, permutedMermaid)
 	}
 }
+
+// --- change 0449: per-record tolerance and the "Needs repair" notice ---
+
+// repairHeading is the repair-notice heading prefix every 0449 board test keys on.
+const repairHeading = "## 🛠 Needs repair ("
+
+// renderRepair renders changes plus caller-supplied unrenderable entries under
+// the default presentation, failing the test on a render error.
+func renderRepair(t *testing.T, unrenderable []render.BoardUnrenderable, changes ...domain.Change) string {
+	t.Helper()
+	snap := domain.NewSnapshot(domain.SnapshotSpec{Changes: changes})
+	out, err := render.Board(render.BoardInput{
+		Snapshot: snap, Presentation: render.DefaultBoardPresentation(), Unrenderable: unrenderable,
+	})
+	if err != nil {
+		t.Fatalf("Board aborted instead of rendering the usable records: %v", err)
+	}
+	return string(out)
+}
+
+// TestBoardUnclassifiableRecordLandsInRepairNotice pins the flipped
+// boardClassify abort: an active-located record carrying a terminal status used
+// to fail the whole render; now the healthy record B renders normally and the
+// bad record surfaces by path in the repair notice.
+func TestBoardUnclassifiableRecordLandsInRepairNotice(t *testing.T) {
+	b := domain.NewChange(proposedChange(3, "widget", "Widget B"))
+	bad := domain.NewChange(domain.ChangeSpec{
+		ID: 5, Slug: "bad", Title: "Bad A", Status: domain.StatusDone,
+		Location: domain.LocationActive, Path: "docs/changes/active/0005-bad.md",
+	})
+	out := renderRepair(t, nil, b, bad)
+
+	if !strings.Contains(out, "| [0003](active/0003-widget.md) | Widget B |") {
+		t.Errorf("healthy record B missing from the board:\n%s", out)
+	}
+	if strings.Contains(out, "Bad A") {
+		t.Errorf("unrenderable record rendered a row:\n%s", out)
+	}
+	if !strings.Contains(out, repairHeading+"1)") {
+		t.Errorf("repair notice missing or miscounted:\n%s", out)
+	}
+	if !strings.Contains(out, "| `docs/changes/active/0005-bad.md` | ") {
+		t.Errorf("repair notice does not name the bad record by path:\n%s", out)
+	}
+}
+
+// TestBoardUnreadinessRecordLandsInRepairNotice pins the second per-record
+// abort (boardReadinessCell's unexpected readiness): two proposed records
+// sharing an id evaluate ReadyInvalid; both surface in the notice while the
+// unrelated healthy record renders.
+func TestBoardUnreadinessRecordLandsInRepairNotice(t *testing.T) {
+	b := domain.NewChange(proposedChange(3, "widget", "Widget B"))
+	d1 := domain.NewChange(proposedChange(7, "dup-one", "Dup One"))
+	d2 := domain.NewChange(proposedChange(7, "dup-two", "Dup Two"))
+	out := renderRepair(t, nil, b, d1, d2)
+
+	if !strings.Contains(out, "Widget B") {
+		t.Errorf("healthy record B missing:\n%s", out)
+	}
+	if !strings.Contains(out, repairHeading+"2)") {
+		t.Errorf("want both duplicate-id records in the repair notice:\n%s", out)
+	}
+	if !strings.Contains(out, "**1 changes** — 🟡 1 proposed") {
+		t.Errorf("counts line must describe rendered records only:\n%s", out)
+	}
+}
+
+// TestBoardCallerUnrenderableSortedDeduped proves caller-supplied entries (the
+// parse-failed records Snapshot cannot see) surface in the notice sorted by
+// path, deduped by path, with table-breaking reason bytes neutralized.
+func TestBoardCallerUnrenderableSortedDeduped(t *testing.T) {
+	b := domain.NewChange(proposedChange(3, "widget", "Widget B"))
+	out := renderRepair(t, []render.BoardUnrenderable{
+		{Path: "docs/changes/active/0099-broken.md", Reason: "unclosed-frontmatter"},
+		{Path: "docs/changes/active/0042-other.md", Reason: "bad | pipe\nnewline"},
+		{Path: "docs/changes/active/0099-broken.md", Reason: "unclosed-frontmatter"},
+	}, b)
+
+	if !strings.Contains(out, repairHeading+"2)") {
+		t.Fatalf("want exactly two deduped entries:\n%s", out)
+	}
+	first := strings.Index(out, "`docs/changes/active/0042-other.md`")
+	second := strings.Index(out, "`docs/changes/active/0099-broken.md`")
+	if first < 0 || second < 0 || first > second {
+		t.Errorf("entries not sorted by path (0042 at %d, 0099 at %d):\n%s", first, second, out)
+	}
+	if strings.Count(out, "0099-broken.md") != 1 {
+		t.Errorf("duplicate path not deduped:\n%s", out)
+	}
+	if !strings.Contains(out, "| `docs/changes/active/0042-other.md` | bad \\| pipe newline |\n") {
+		t.Errorf("reason not sanitized into one table cell:\n%s", out)
+	}
+	if !strings.Contains(out, "| `docs/changes/active/0099-broken.md` | unclosed-frontmatter |\n") {
+		t.Errorf("caller reason not rendered verbatim:\n%s", out)
+	}
+	// The notice follows everything else: it is the board's last section.
+	if idx := strings.Index(out, repairHeading); idx < strings.Index(out, "```mermaid") {
+		t.Errorf("repair notice must follow the mermaid graph/archive:\n%s", out)
+	}
+}
+
+// TestBoardRepairNoticeFollowsArchive pins the notice's position after the
+// terminal <details> archive block.
+func TestBoardRepairNoticeFollowsArchive(t *testing.T) {
+	b := domain.NewChange(proposedChange(3, "widget", "Widget B"))
+	done := domain.NewChange(domain.ChangeSpec{
+		ID: 1, Slug: "old", Title: "Old", Status: domain.StatusDone,
+		Location: domain.LocationArchive, Path: "docs/changes/archive/2026-01-01-0001-old.md",
+	})
+	out := renderRepair(t, []render.BoardUnrenderable{{Path: "docs/changes/active/0099-broken.md", Reason: "x"}}, b, done)
+	if !strings.HasSuffix(out, "| `docs/changes/active/0099-broken.md` | x |\n") {
+		t.Errorf("repair table is not the board's tail:\n%s", out)
+	}
+	if strings.Index(out, repairHeading) < strings.Index(out, "</details>") {
+		t.Errorf("repair notice precedes the archive block:\n%s", out)
+	}
+	if !strings.Contains(out, "\n## 🛠 Needs repair (1)\n\nThese records could not be rendered; counts above cover rendered records only.\n\n| Record | Problem |\n|---|---|\n") {
+		t.Errorf("repair notice preamble drifted:\n%s", out)
+	}
+}
+
+// TestBoardEmptyUnrenderableIsByteIdenticalToGolden proves an empty (non-nil)
+// caller list over the healthy fixture corpus renders the golden byte-for-byte:
+// no notice appears for a healthy repository.
+func TestBoardEmptyUnrenderableIsByteIdenticalToGolden(t *testing.T) {
+	want, err := os.ReadFile(filepath.Join("testdata", "board", "board.golden"))
+	if err != nil {
+		t.Fatalf("read golden: %v", err)
+	}
+	got, err := render.Board(render.BoardInput{
+		Snapshot: boardCorpusSnapshot(t), Presentation: render.DefaultBoardPresentation(),
+		Unrenderable: []render.BoardUnrenderable{},
+	})
+	if err != nil {
+		t.Fatalf("Board: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("empty unrenderable list changed the healthy board:\n%s", got)
+	}
+}
+
+// TestBoardCountsExcludeUnrenderable pins the counts line to rendered records:
+// the unclassifiable record and the caller-supplied one are both excluded.
+func TestBoardCountsExcludeUnrenderable(t *testing.T) {
+	b := domain.NewChange(proposedChange(3, "widget", "Widget B"))
+	c := domain.NewChange(proposedChange(4, "gadget", "Gadget C"))
+	bad := domain.NewChange(domain.ChangeSpec{
+		ID: 5, Slug: "bad", Title: "Bad A", Status: domain.StatusKilled,
+		Location: domain.LocationActive, Path: "docs/changes/active/0005-bad.md",
+	})
+	out := renderRepair(t, []render.BoardUnrenderable{{Path: "docs/changes/active/0099-broken.md", Reason: "x"}}, b, c, bad)
+	if !strings.Contains(out, "**2 changes** — 🟡 2 proposed\n") {
+		t.Errorf("counts line counts unrenderable records:\n%s", out)
+	}
+	if !strings.Contains(out, repairHeading+"2)") {
+		t.Errorf("want the classify failure and the caller entry in the notice:\n%s", out)
+	}
+	if strings.Contains(out, "  0005") {
+		t.Errorf("unrenderable record leaked into the mermaid graph:\n%s", out)
+	}
+}
