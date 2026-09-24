@@ -336,6 +336,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
 		}},
 		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(req.ID, recPath, false),
 		Operation: txOp,
 	})
 	return lifecycleResultFromOutcome(op, res, execErr)

@@ -239,6 +239,7 @@ func RepairIdentity(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.ExpectVersion)},
 		}},
 		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(req.ID, recPath, false),
 		Operation: op,
 	})
 	return repairResultFromOutcome(field, value, res, execErr, req.ID)

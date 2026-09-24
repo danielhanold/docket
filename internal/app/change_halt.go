@@ -214,6 +214,7 @@ func ChangeHalt(ctx context.Context, deps PlanningDeps, repoDir string, req Halt
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
 		}},
 		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(req.ID, recPath, false),
 		Operation: op,
 	})
 	return haltResultFromOutcome(OperationChangeHalt, res, execErr, HaltDispHalted, ReasonHaltNotInProgress)
@@ -326,6 +327,7 @@ func ChangeResumeHalted(ctx context.Context, deps PlanningDeps, wdeps WorkspaceD
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
 		}},
 		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(req.ID, recPath, false),
 		Operation: op,
 	})
 	return haltResultFromOutcome(OperationChangeResumeHalted, res, execErr, HaltDispResumed, ReasonResumeNotHalted)
