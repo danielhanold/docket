@@ -85,6 +85,10 @@ func (l planningLoader) Load(ctx context.Context, t transaction.Tree) (transacti
 	}
 	var paths []gitcli.RepoPath
 	var meta []classified
+	// blobIDs records every classified corpus record's tree blob object id —
+	// parse-failed records included — so the scoped after-gate (change 0449)
+	// can prove an unrelated invalid record byte-for-byte unchanged.
+	blobIDs := make(map[string]gitcli.ObjectID, len(entries))
 	for _, e := range entries {
 		if e.Type != "blob" {
 			continue
@@ -95,6 +99,7 @@ func (l planningLoader) Load(ctx context.Context, t transaction.Tree) (transacti
 		}
 		paths = append(paths, e.Path)
 		meta = append(meta, classified{kind: kind, location: loc})
+		blobIDs[string(e.Path)] = e.ObjectID
 	}
 
 	blobs, err := t.ReadBlobs(ctx, paths)
@@ -121,6 +126,9 @@ func (l planningLoader) Load(ctx context.Context, t transaction.Tree) (transacti
 		doc, perr := document.Parse(b.Blob.Bytes)
 		if perr != nil {
 			parseFindings = append(parseFindings, planningParseFinding(meta[i].kind, rel, perr))
+			// Retain the exact bytes (never a Document) so an unchanged
+			// parse-failed record is provable across before/after states.
+			sources[rel] = append([]byte(nil), b.Blob.Bytes...)
 			continue
 		}
 		in.Documents = append(in.Documents, repository.InputDocument{
@@ -146,6 +154,7 @@ func (l planningLoader) Load(ctx context.Context, t transaction.Tree) (transacti
 		Report:    report,
 		Documents: documents,
 		Sources:   sources,
+		Blobs:     blobIDs,
 	}, nil
 }
 
