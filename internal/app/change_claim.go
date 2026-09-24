@@ -251,6 +251,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		}},
 		Idempotency: &transaction.IdempotencyKey{RequestID: claimRequestID(req), Digest: digest},
 		Loader:      newPlanningLoader(eff),
+		Scope:       changeScope(req.ID, recPath, false),
 		Operation:   op,
 	})
 
@@ -327,6 +328,7 @@ func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, 
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
 		}},
 		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(req.ID, recPath, false),
 		Operation: op,
 	})
 

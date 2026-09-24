@@ -197,6 +197,7 @@ func ChangeReconcile(ctx context.Context, deps PlanningDeps, repoDir string, req
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
 		}},
 		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(req.ID, recPath, false),
 		Operation: op,
 	})
 
