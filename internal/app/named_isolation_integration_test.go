@@ -13,7 +13,6 @@ import (
 
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/githubcli"
-	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/testsupport"
 	"github.com/danielhanold/docket/internal/workspace"
 )
@@ -116,26 +115,38 @@ func assertRuntimeIntact(t *testing.T, seeded map[string][]byte) {
 }
 
 // assertUnrelatedBytesIntact proves the unrelated broken record is
-// byte-identical on the origin metadata ref and that the status pipeline's
-// parse step still reports it as an error finding. (The whole-repository status
-// read itself refuses here — its unbounded branch-fact probe reaches the
-// unrelated invalid branch — which is why this does not go through Status.)
+// byte-identical on the origin metadata ref, then runs the production
+// whole-repository Status read over the repository (change 0454) and proves it
+// survives the unrelated damage: the read applies, the unparseable record A
+// still surfaces as an error finding on its path, and the unrelated stack
+// parent (change 20) recording the invalid branch namedIsolationInvalidBranch
+// surfaces as its own branch-malformed error finding instead of failing the
+// whole read on the live branch probe.
 func assertUnrelatedBytesIntact(t *testing.T, repo *gitRepo, branch string) {
 	t.Helper()
 	got, ok := originFile(t, repo.origin, branch, unrelatedBrokenPath)
 	if !ok || got != unrelatedBrokenBytes {
 		t.Fatalf("unrelated broken record on origin = %q (present %v), want its exact seeded bytes", got, ok)
 	}
-	_, findings := parseCorpus([]StatusBlob{{
-		Kind: repository.KindChange, Location: repository.LocationActive,
-		Path: unrelatedBrokenPath, Version: "v", Data: []byte(got),
-	}})
-	for _, f := range findings {
+	res := Status(context.Background(), NewGitStatusReader(newGitClient(t)), StatusOptions{RepoDir: repo.invocation})
+	if res.Result != ResultApplied {
+		t.Fatalf("whole-repository Status beside the unrelated damage = %s (%s: %s), want applied", res.Result, res.Reason, res.Message)
+	}
+	parseErr, malformed := false, false
+	for _, f := range res.Findings {
 		if f.Path == unrelatedBrokenPath && f.Severity == "error" {
-			return
+			parseErr = true
+		}
+		if f.Code == string(FCBranchMalformed) && f.Identity == "0020" && f.Severity == "error" {
+			malformed = true
 		}
 	}
-	t.Errorf("the unrelated record no longer parses to an error finding; findings %+v", findings)
+	if !parseErr {
+		t.Errorf("Status no longer reports the unrelated record %s as an error finding; findings %+v", unrelatedBrokenPath, res.Findings)
+	}
+	if !malformed {
+		t.Errorf("Status reports no %s error finding for the unrelated stack parent 0020 (branch %q); findings %+v", FCBranchMalformed, namedIsolationInvalidBranch, res.Findings)
+	}
 }
 
 // namedIsolationCheck is the per-step oracle: the unrelated broken record's
