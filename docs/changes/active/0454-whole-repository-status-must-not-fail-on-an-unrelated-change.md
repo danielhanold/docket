@@ -22,7 +22,7 @@ branch: 'fix/whole-repository-status-must-not-fail-on-an-unrelated-change'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T20:23:57Z'
+claimed_at: '2026-09-24T20:25:08Z'
 ---
 
 ## Artifacts
