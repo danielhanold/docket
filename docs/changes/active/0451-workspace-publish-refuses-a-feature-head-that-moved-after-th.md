@@ -2,7 +2,7 @@
 id: 451
 slug: 'workspace-publish-refuses-a-feature-head-that-moved-after-th'
 title: 'Workspace publish refuses a feature head that moved after the app-level check'
-status: 'proposed'
+status: 'in-progress'
 priority: 'low'
 type: 'chore'
 created: '2026-09-24'
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/workspace-publish-refuses-a-feature-head-that-moved-after-th'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-24T06:21:38Z'
 ---
 
 ## Artifacts
