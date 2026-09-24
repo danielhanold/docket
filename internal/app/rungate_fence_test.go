@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -1041,5 +1042,81 @@ func TestEpochCarryingFencesUnchangedByOwnerSelection(t *testing.T) {
 				t.Fatalf("takeover resolver for the stale %s epoch = (%v, %v), want revoked", tc.name, revoked, err)
 			}
 		})
+	}
+}
+
+// TestPRPublishJournalsPublicationIdentity: a fenced (active-epoch) PR publish
+// journals a VALID descriptor carrying the resolved repo identity, exact head
+// branch + full commit, base branch, and title/body digests — and the journal
+// bytes never contain the raw title or body (digests only). (change 0444)
+func TestPRPublishJournalsPublicationIdentity(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	key := mintFenceEpoch(t, repoDir, repoDir, EpochActive)
+
+	gh := &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureCreated, PR: prMatchPR("verified")}}
+	deps := workspaceDepsFor(t, prReader(t))
+	const secretTitle = "Add widget SEKRET-TITLE-BYTES"
+	const secretBody = "Authored prose SEKRET-BODY-BYTES.\n"
+
+	res := PRPublish(context.Background(), deps, WorkspaceDeps{Service: readyService(prHead)}, GitHubDeps{Service: gh},
+		repoDir, PRPublishRequest{ID: 7, Head: prHead, Title: secretTitle, Body: secretBody, EvidenceRecord: prEvidenceBytes(t, prHead)})
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q (reason %q), want applied", res.Result, res.Reason)
+	}
+	if len(gh.ensureCalls) != 1 {
+		t.Fatalf("EnsurePullRequest calls = %d, want 1", len(gh.ensureCalls))
+	}
+	call := gh.ensureCalls[0]
+
+	ep, _, err := LoadEpochRecord(repoDir, key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if len(ep.AdmittedMutations) != 1 {
+		t.Fatalf("journal length = %d, want 1", len(ep.AdmittedMutations))
+	}
+	m := ep.AdmittedMutations[0]
+	if m.Status != mutationStatusCompleted {
+		t.Fatalf("status = %q, want completed (observed EnsureCreated)", m.Status)
+	}
+	if !validPublication(OperationPRPublish, m.Publication) {
+		t.Fatalf("journaled descriptor must be valid, got %+v", m.Publication)
+	}
+	p := m.Publication
+	want := prRepo()
+	if p.RepoHost != want.Host || p.RepoOwner != want.Owner || p.RepoName != want.Name {
+		t.Fatalf("repo identity = %s/%s/%s, want %s", p.RepoHost, p.RepoOwner, p.RepoName, want.Spec())
+	}
+	if p.HeadCommit != prHead {
+		t.Fatalf("HeadCommit = %q, want the requested head %q", p.HeadCommit, prHead)
+	}
+	// The descriptor carries exactly the identity handed to the adapter.
+	if p.HeadRef != call.HeadBranch || p.BaseBranch != call.BaseBranch {
+		t.Fatalf("head/base = %q/%q, want the adapter's %q/%q", p.HeadRef, p.BaseBranch, call.HeadBranch, call.BaseBranch)
+	}
+	if p.TitleDigest != publicationDigest("pr-title", secretTitle) {
+		t.Fatal("TitleDigest must be the deterministic digest of the requested title")
+	}
+	if p.BodyDigest != publicationDigest("pr-body", call.Body) {
+		t.Fatal("BodyDigest must digest the fully assembled body handed to the adapter")
+	}
+	if p.BodyDigest == publicationDigest("pr-body", secretBody) {
+		// The assembled body (backlink + evidence woven in) differs from the raw prose.
+		t.Fatal("BodyDigest must digest the assembled body, not the raw authored prose")
+	}
+
+	// Leak check on the durable record bytes: digests only, never content.
+	common, cerr := gateGitCommonDir(repoDir)
+	if cerr != nil {
+		t.Fatalf("gateGitCommonDir: %v", cerr)
+	}
+	raw, rerr := os.ReadFile(filepath.Join(rungateRootOf(common), key, epochRecordFileName))
+	if rerr != nil {
+		t.Fatalf("read epoch record: %v", rerr)
+	}
+	for _, secret := range []string{"SEKRET-TITLE-BYTES", "SEKRET-BODY-BYTES"} {
+		if bytes.Contains(raw, []byte(secret)) {
+			t.Fatalf("journal bytes leak %q", secret)
+		}
 	}
 }
