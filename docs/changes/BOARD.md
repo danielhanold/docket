@@ -1,12 +1,6 @@
 # Backlog
 
-**453 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 5 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 302 done · 🗑️ 119 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0449](active/0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | `critical` | `fix` | [#330](https://github.com/danielhanold/docket/pull/330) | awaiting merge |
+**453 changes** — 🔴 1 blocked · 🟣 5 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 303 done · 🗑️ 119 killed
 
 ## 🔴 Blocked (1)
 
@@ -91,7 +85,6 @@ graph TD
   0443
   0445
   0447
-  0448 --> 0449
   0450
   0453
   0192:::done
@@ -99,16 +92,16 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
-  0448:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (421)</summary>
+<details><summary>✅🗑️ Archive — done + killed (422)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0452](archive/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md) | Same-scope first-start loser must not rotate the winner's executing worktree slot | 2026-09-24 |
 | [0451](archive/2026-09-24-0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md) | Workspace publish refuses a feature head that moved after the app-level check | 2026-09-24 |
+| [0449](archive/2026-09-24-0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | 2026-09-24 |
 | [0448](archive/2026-09-24-0448-named-implement-next-skips-unrelated-maintenance-preflight.md) | Named implement-next skips unrelated maintenance preflight | 2026-09-24 |
 | [0446](archive/2026-09-24-0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | 2026-09-24 |
 | [0444](archive/2026-09-24-0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | 2026-09-24 |
@@ -121,7 +114,6 @@ graph TD
 | [0439](archive/2026-09-20-0439-leaked-worktree-gate-admission-slot-stuck-in-executing-block.md) | Leaked worktree gate-admission slot stuck in "executing" blocks finalize.rebase with a swallowed unavailable error | 2026-09-20 |
 | [0438](archive/2026-09-20-0438-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged.md) | finalize.rebase-abort can't recover a completed-but-unmerged rebase whose base later moved | 2026-09-20 |
 | [0435](archive/2026-09-20-0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | 2026-09-20 |
-| [0437](archive/2026-09-19-0437-reject-revoked-run-epochs-before-gate-start-admission.md) | Reject revoked run epochs before gate-start admission | 2026-09-19 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -246,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 51 done |
+| [2026-09](archive/) | 52 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

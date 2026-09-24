@@ -2,7 +2,7 @@
 id: 449
 slug: 'unrelated-invalid-change-records-must-not-block-a-named-chan'
 title: 'Unrelated invalid change records must not block a named change''s metadata writes or board'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-23'
@@ -22,7 +22,7 @@ branch: 'fix/unrelated-invalid-change-records-must-not-block-a-named-chan'
 pr: 'https://github.com/danielhanold/docket/pull/330'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T15:43:07Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-24T15:43:07Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md) |
-| Plan | [2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan.md](https://github.com/danielhanold/docket/blob/fix/unrelated-invalid-change-records-must-not-block-a-named-chan/docs/superpowers/plans/2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan.md) |
-| Results | [2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan-results.md](https://github.com/danielhanold/docket/blob/fix/unrelated-invalid-change-records-must-not-block-a-named-chan/docs/results/2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan-results.md) |
+| Plan | [2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan.md) |
+| Results | [2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan-results.md) |
 | ADRs | [ADR-0093](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0093-repository-reference-severity-graded-by-structural-role.md), [ADR-0127](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0127-scoped-metadata-validation-for-named-operations.md) |
 <!-- docket:artifacts:end -->
 

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0449 — Unrelated invalid change records must not block a named change's metadata writes or board](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md)**
+> ↩ **[Change 0449 — Unrelated invalid change records must not block a named change's metadata writes or board](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-24-0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md)**
 <!-- docket:backlink:end -->
 
 # Change 0449 — Unrelated invalid change records must not block a named change's metadata writes or board
