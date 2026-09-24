@@ -1144,6 +1144,13 @@ func TestWorkspacePublishJournalsPublicationIdentity(t *testing.T) {
 		t.Fatalf("PublishHead calls = %d, want 1", len(svc.publishCalls))
 	}
 	call := svc.publishCalls[0]
+	// The adapter must be handed the SAME head the app-level check approved as
+	// its locked expectation — the optional field defaults to empty, so only
+	// this assert makes deleting the caller wiring redden (change 0451;
+	// learnings: defaulted-param-hides-caller-wiring).
+	if call.ExpectedHead != gitcli.ObjectID(head) {
+		t.Fatalf("PublishHead ExpectedHead = %q, want the checked head %q", call.ExpectedHead, head)
+	}
 
 	ep, _, err := LoadEpochRecord(repoDir, key)
 	if err != nil {
