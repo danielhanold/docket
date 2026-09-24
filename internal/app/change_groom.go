@@ -42,6 +42,11 @@ const (
 	// GroomTrivial marks the change trivial with an authored rationale, writing
 	// no spec file.
 	GroomTrivial GroomOutcome = "trivial"
+	// GroomRevise adjusts an already-groomed proposed change: a whole-body
+	// replace of its existing linked spec, owned proposal-section edits, or
+	// both. It never writes spec: or trivial:, so a change can never flip
+	// between spec'd and trivial through this outcome.
+	GroomRevise GroomOutcome = "revise"
 )
 
 // specsDir is the metadata-tree directory design specs live in. It is a fixed v1
@@ -244,8 +249,16 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		if !hasAuthoredRationale(req.Sections) {
 			addShape(FCMissingRationale, "the trivial outcome requires a non-empty authored rationale among the section edits")
 		}
+	case GroomRevise:
+		if strings.TrimSpace(req.SpecMarkdown) != "" {
+			if _, perr := document.Parse([]byte(req.SpecMarkdown)); perr != nil {
+				addShape(FCInvalidSpecMarkdown, "spec_markdown must parse as a Markdown document: "+perr.Error())
+			}
+		} else if !hasEffectiveSectionEdit(req.Sections) {
+			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown or at least one replace/remove section edit")
+		}
 	default:
-		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial", req.Outcome))
+		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial, revise", req.Outcome))
 	}
 
 	findings = append(findings, validateGroomSections(req.Sections)...)
@@ -257,6 +270,20 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 func hasAuthoredRationale(sections []SectionEditRequest) bool {
 	for _, s := range sections {
 		if s.Intent == string(render.SectionReplace) && strings.TrimSpace(s.Markdown) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// hasEffectiveSectionEdit reports whether the section edits carry at least one
+// replace or remove — the revise outcome's minimum effective input. A
+// preserve-only or empty list changes nothing and is refused as an empty
+// revise; relationship-field patches alone do not qualify.
+func hasEffectiveSectionEdit(sections []SectionEditRequest) bool {
+	for _, s := range sections {
+		switch render.SectionIntent(s.Intent) {
+		case render.SectionReplace, render.SectionRemove:
 			return true
 		}
 	}

@@ -229,6 +229,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	emitted = append(emitted, validateLearningRecordShape(LearningRecordRequest{Topics: []string{""}})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomSpec})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomOutcome("bogus")})...)
 	emitted = append(emitted, validateChangeReconcileShape(ChangeReconcileRequest{
 		Sections:     map[string]string{"## Not Owned": "x"},

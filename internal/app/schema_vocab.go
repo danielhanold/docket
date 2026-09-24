@@ -68,7 +68,7 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 	v["section_intents"] = Vocabulary{Members: members(len(render.AllSectionIntents), func(i int) string {
 		return string(render.AllSectionIntents[i])
 	})}
-	v["groom_outcomes"] = Vocabulary{Members: []string{string(GroomSpec), string(GroomTrivial)}}
+	v["groom_outcomes"] = Vocabulary{Members: []string{string(GroomSpec), string(GroomTrivial), string(GroomRevise)}}
 	v["change_types"] = Vocabulary{Pattern: changeTypePattern}
 	v["effects"] = Vocabulary{Members: effects}
 

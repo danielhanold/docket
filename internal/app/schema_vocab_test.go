@@ -45,7 +45,7 @@ func TestSchemaVocabulariesCore(t *testing.T) {
 
 	assertVocabMembers(t, v, "priorities", []string{"critical", "high", "medium", "low"})
 	assertVocabMembers(t, v, "section_intents", []string{"preserve", "replace", "remove"})
-	assertVocabMembers(t, v, "groom_outcomes", []string{"spec", "trivial"})
+	assertVocabMembers(t, v, "groom_outcomes", []string{"spec", "trivial", "revise"})
 	assertVocabMembers(t, v, "statuses", []string{
 		"proposed", "in-progress", "blocked", "deferred",
 		"implemented", "stacked-merged", "done", "killed",

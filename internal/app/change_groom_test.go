@@ -387,3 +387,94 @@ func TestChangeGroomPlanToleratesMissingUpdatedField(t *testing.T) {
 		t.Errorf("updated not inserted from the clock on a record lacking it:\n%s", rec)
 	}
 }
+
+// revisableChange renders a proposed change already groomed to a spec: the
+// groomable fixture with spec: linked to specPath.
+func revisableChange(id int, slug, specPath string) string {
+	return strings.Replace(groomableChange(id, slug), "spec:\n", "spec: '"+specPath+"'\n", 1)
+}
+
+// trivialChange renders a proposed change already groomed by trivial verdict.
+func trivialChange(id int, slug string) string {
+	return strings.Replace(groomableChange(id, slug), "trivial: false", "trivial: true", 1)
+}
+
+// validReviseRequest is a well-formed revise request (sections + spec body)
+// against the revisable fixture at id 2 / slug add-a-widget.
+func validReviseRequest() ChangeGroomRequest {
+	return ChangeGroomRequest{
+		ChangeID:     2,
+		Path:         groomPath(2, "add-a-widget"),
+		Version:      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Outcome:      GroomRevise,
+		SpecMarkdown: "# Design\n\nThe revised design body.\n",
+		Sections: []SectionEditRequest{
+			{Heading: "## What changes", Intent: "replace", Markdown: "Narrowed what.\n"},
+		},
+	}
+}
+
+func TestChangeGroomReviseShapeValidation(t *testing.T) {
+	cases := []struct {
+		name string
+		mut  func(*ChangeGroomRequest)
+		code string // "" means the request must pass shape validation
+	}{
+		{"valid revise passes", func(r *ChangeGroomRequest) {}, ""},
+		{"sections-only revise passes", func(r *ChangeGroomRequest) { r.SpecMarkdown = "" }, ""},
+		{"spec-only revise passes", func(r *ChangeGroomRequest) { r.Sections = nil }, ""},
+		{"empty revise refused", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown = ""
+			r.Sections = nil
+		}, "empty-revise"},
+		{"all-preserve revise refused", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown = ""
+			r.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "preserve"}}
+		}, "empty-revise"},
+		{"relationships-only revise refused", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown = ""
+			r.Sections = nil
+			r.DependsOn = []int{1}
+		}, "empty-revise"},
+		{"unparseable revise spec_markdown refused", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown = "---\nid: 1\n"
+		}, "invalid-spec_markdown"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := validReviseRequest()
+			c.mut(&req)
+			findings := validateChangeGroomShape(req)
+			if c.code == "" {
+				if len(findings) != 0 {
+					t.Fatalf("unexpected shape findings: %v", findings)
+				}
+				return
+			}
+			if !hasFindingCode(findings, c.code) {
+				t.Errorf("missing finding %q; got %v", c.code, findings)
+			}
+		})
+	}
+}
+
+func TestChangeGroomEmptyReviseRefusedWithoutEngineCall(t *testing.T) {
+	req := validReviseRequest()
+	req.SpecMarkdown = ""
+	req.Sections = nil
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeGroom(context.Background(), deps, "", req)
+
+	if res.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want invalid-input", res.Result)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called %d times on an empty revise, want 0", len(engine.calls))
+	}
+	if !hasFindingCode(res.Findings, "empty-revise") {
+		t.Errorf("missing finding empty-revise; got %v", res.Findings)
+	}
+}
