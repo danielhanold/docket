@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/named-implement-next-skips-unrelated-maintenance-preflight'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-24T06:26:08Z'
+reconciled: true
+claimed_at: '2026-09-24T06:27:42Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ Built after change 446 and before the metadata-validation change, in succession.
 ## Out of scope
 
 New commands, flags, preflight scopes, verdict policies, background cleanup, or deferred queues. No-ID selection behavior, automatic finalize ordering, and driver stop/continue policy. Gate admission and run bookkeeping (change 446). Scoped metadata validation and board rendering (the follow-on change).
+
+## Reconcile log
+
+### 2026-09-24
+
+2026-09-24 — Reconciled against main c67d07ad. Dependency 446 is done, and 444 landed; neither touched the grounding sites. `skills/docket-implement-next/SKILL.md`, `internal/app/maintenance_preflight.go` and the sweep worklist in `internal/app/maintenance.go` are unchanged since the spec's grounding commit 442770e, so the spec stands as written. Named-entry callers found by search on main: `skills/docket-implement-next/SKILL.md` (and its embedded copy under `internal/assets/embedded/tree/`), `skills/docket-convention/SKILL.md` Composition (and embedded copy), and prose-contract guards in `internal/repoguard/prose_contracts_test.go`. No scope change.
