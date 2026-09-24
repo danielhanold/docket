@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/same-scope-first-start-loser-must-not-rotate-the-winner-s-ex'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-24T16:19:06Z'
+reconciled: true
+claimed_at: '2026-09-24T16:19:43Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,9 @@ The failure is a real admission bug, not a test defect. In `admitScopedWorktree`
 ## Open questions
 
 None. This is trivial: the root cause is traced and reproduced (about 48% failures under `GOMAXPROCS=1 -race`), and the fix is a single receipt guard in one switch arm. A scratch run of it passed 500/500 plus the full `gatedrive` package. The only remaining work is the guard, a deterministic regression test, and a comment update. No design choice is open.
+
+## Reconcile log
+
+### 2026-09-24
+
+Reconciled against main 9d4cb1fe: admitScopedWorktree (internal/gatedrive/driver.go) still rotates an executing same-scope slot for any start, receipt or not; isSameScopeRaceLoss unchanged. Related 437/446/375/405 are done and do not touch this arm. Scope stands as written: receipt guard in the admissionExecuting case, deterministic late-loser regression test with mutation check, doc-comment update.
