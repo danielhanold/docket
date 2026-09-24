@@ -202,6 +202,7 @@ func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opK
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(version)},
 		}},
 		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(id, recPath, false),
 		Operation: op,
 	})
 

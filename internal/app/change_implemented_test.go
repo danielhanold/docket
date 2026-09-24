@@ -266,3 +266,64 @@ func TestMarkImplementedAcceptsSkippedEvidence(t *testing.T) {
 		t.Fatalf("result = %q, want applied — skipped evidence at the exact head must certify implemented (findings %v)", res.Result, res.Findings)
 	}
 }
+
+// --- 0449: unrelated invalid records never block a named mark-implemented ---
+// Shares the unrelated-broken-record fixtures with change_claim_test.go. Unlike
+// the fake-engine conjunct rows above, these drive the production engine and
+// the production status reader over a corpus that also carries an unrelated
+// unparseable record; the GitHub and workspace seams stay scripted.
+
+// miRealRun runs mark-implemented through the production planning seams over
+// repo, with every reprobe conjunct satisfied for head.
+func miRealRun(t *testing.T, repo *gitRepo, recPath, head string) ChangeLifecycleResult {
+	t.Helper()
+	node := planningDepsFor(t, repo.invocation)
+	wdeps := WorkspaceDeps{Service: &fakeWorkspaceService{
+		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(head)},
+	}}
+	gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{happyPR(head)}}}
+	req := MarkImplementedRequest{
+		ID: 3, Version: blobVersionAt(t, repo.origin, "docket", recPath), Head: head,
+		PR: prRepo().Spec() + "#42", EvidenceRecord: prEvidenceBytes(t, head),
+	}
+	return ChangeMarkImplemented(context.Background(), node.deps, wdeps, gdeps, node.dir, req)
+}
+
+func TestMarkImplementedUnrelatedInvalidRecordProgress(t *testing.T) {
+	requireRealGit(t)
+	recPath := groomPath(3, miSlug)
+	repo := newWorkingRepo(t, map[string]string{
+		recPath:             miRecord(3, miSlug, miPlanPath(), miResultsPath, true, false),
+		unrelatedBrokenPath: unrelatedBrokenBytes,
+	})
+	head := miAdvanceHead(t, repo)
+
+	res := miRealRun(t, repo, recPath, head)
+	if res.Result != ResultApplied || res.Status != "implemented" {
+		t.Fatalf("mark-implemented beside an unrelated unparseable record = %q status %q (findings %v), want applied implemented",
+			res.Result, res.Status, res.Findings)
+	}
+	assertUnrelatedBrokenIntact(t, repo)
+}
+
+func TestMarkImplementedUnrelatedInvalidRecordRefusals(t *testing.T) {
+	requireRealGit(t)
+	recPath := groomPath(3, miSlug)
+	src := miRecord(3, miSlug, miPlanPath(), miResultsPath, true, false)
+	for _, c := range unrelatedRefusalCases(t, 3, recPath, src, lifecycleChange(3, "dupe", "in-progress")) {
+		t.Run(c.name, func(t *testing.T) {
+			repo := newWorkingRepo(t, c.files)
+			head := miAdvanceHead(t, repo)
+			tip := originTip(t, repo.origin, "docket")
+
+			res := miRealRun(t, repo, recPath, head)
+			if res.Result == ResultApplied {
+				t.Fatalf("mark-implemented applied despite %s; want a refusal", c.name)
+			}
+			assertRefusalBeyondUnrelated(t, "", res.Findings)
+			if got := originTip(t, repo.origin, "docket"); got != tip {
+				t.Errorf("a refused mark-implemented moved the metadata branch %s -> %s", tip, got)
+			}
+		})
+	}
+}

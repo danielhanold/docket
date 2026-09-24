@@ -408,3 +408,67 @@ func TestRepairEarlyEngineErrorCarriesFailure(t *testing.T) {
 		t.Errorf("ID = %d, want 350", r.ID)
 	}
 }
+
+// --- 0449: unrelated invalid records never block a named repair-identity ----
+// Shares the unrelated-broken-record fixtures with change_claim_test.go. These
+// rows drive the production engine and status reader (repairRealDeps above
+// records the transaction instead) over a corpus that also carries an
+// unrelated unparseable record, adopting the PR head feat/renamed.
+
+// repairRealRun runs an AdoptPRHead repair through the production planning
+// seams over repo, with the candidate branch present and no owned workspace.
+func repairRealRun(t *testing.T, repo *gitRepo, recPath string) RepairIdentityResult {
+	t.Helper()
+	node := planningDepsFor(t, repo.invocation)
+	deps := FinalizeDeps{
+		Planning:  node.deps,
+		GitHub:    repairGitHub("feat/renamed"),
+		Workspace: &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}},
+	}
+	return RepairIdentity(context.Background(), deps, node.dir, RepairIdentityRequest{
+		ID: 3, ExpectVersion: blobVersionAt(t, repo.origin, "docket", recPath),
+		AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+	})
+}
+
+func TestRepairIdentityUnrelatedInvalidRecordProgress(t *testing.T) {
+	requireRealGit(t)
+	recPath := groomPath(3, "widget")
+	repo := newWorkingRepo(t, map[string]string{
+		recPath:             repairRecord(3, "widget", ""),
+		unrelatedBrokenPath: unrelatedBrokenBytes,
+	})
+	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
+
+	res := repairRealRun(t, repo, recPath)
+	if res.Result != ResultApplied || res.Branch != "feat/renamed" {
+		t.Fatalf("repair-identity beside an unrelated unparseable record = %q reason %q branch %q (findings %v), want applied feat/renamed",
+			res.Result, res.Reason, res.Branch, res.Findings)
+	}
+	rec, _ := originFile(t, repo.origin, "docket", recPath)
+	if !strings.Contains(rec, "branch: 'feat/renamed'") {
+		t.Errorf("repaired record on origin does not carry the adopted branch:\n%s", rec)
+	}
+	assertUnrelatedBrokenIntact(t, repo)
+}
+
+func TestRepairIdentityUnrelatedInvalidRecordRefusals(t *testing.T) {
+	requireRealGit(t)
+	recPath := groomPath(3, "widget")
+	for _, c := range unrelatedRefusalCases(t, 3, recPath, repairRecord(3, "widget", ""), repairRecord(3, "dupe", "")) {
+		t.Run(c.name, func(t *testing.T) {
+			repo := newWorkingRepo(t, c.files)
+			repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
+			tip := originTip(t, repo.origin, "docket")
+
+			res := repairRealRun(t, repo, recPath)
+			if res.Result == ResultApplied {
+				t.Fatalf("repair-identity applied despite %s; want a refusal", c.name)
+			}
+			assertRefusalBeyondUnrelated(t, res.Reason, res.Findings)
+			if got := originTip(t, repo.origin, "docket"); got != tip {
+				t.Errorf("a refused repair-identity moved the metadata branch %s -> %s", tip, got)
+			}
+		})
+	}
+}
