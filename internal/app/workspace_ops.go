@@ -58,7 +58,8 @@ const (
 	// base do not form a valid workspace.Target.
 	ReasonWorkspaceMalformedTarget = "malformed-target"
 	// ReasonWorkspaceHeadMismatch is returned by publish when the workspace's
-	// reinspected head differs from the caller's expected head: nothing is pushed.
+	// reinspected head differs from the caller's expected head — whether caught
+	// by the app-level Inspect or by PublishHead under its lock: nothing is pushed.
 	ReasonWorkspaceHeadMismatch = "head-mismatch"
 )
 
@@ -419,6 +420,20 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 	})
 	if err != nil {
 		out := mapWorkspaceFailure(OperationWorkspacePublish, req.ID, err)
+		// A head that moved AFTER the Inspect above is refused by PublishHead under
+		// its lock as an invalid-state Failure carrying the moved local head. Surface
+		// it with the same head-mismatch shape as the pre-lock check, so it stays
+		// distinguishable from a dirty or non-ready workspace. The result is still
+		// invalid-state, so the journal outcome below is unchanged (unverified).
+		if f, ok := workspace.AsFailure(err); ok && f.Kind == workspace.KindInvalidState &&
+			res.Head != "" && string(res.Head) != req.Head {
+			out = newWorkspaceResult(OperationWorkspacePublish, ResultInvalidState, WorkspaceOpResult{
+				ID:      req.ID,
+				Head:    req.Head,
+				Reason:  ReasonWorkspaceHeadMismatch,
+				Message: "the workspace head moved past the expected head before the push; publish nothing",
+			})
+		}
 		done(mutationJournalOutcome(out.Result))
 		return out
 	}

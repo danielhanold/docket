@@ -1180,6 +1180,59 @@ func TestWorkspacePublishJournalsPublicationIdentity(t *testing.T) {
 	}
 }
 
+// TestWorkspacePublishMovedHeadUnderLockIsHeadMismatch (change 0451 review
+// finding): a head that moves AFTER WorkspacePublish's own Inspect is refused by
+// PublishHead under its lock (an invalid-state Failure carrying the moved local
+// head). That refusal must surface the same head-mismatch shape as the pre-lock
+// check — never the generic invalid-state reason a dirty or non-ready workspace
+// carries — and its journal entry still resolves completed and unverified. An
+// invalid-state refusal that names no moved head keeps the generic mapping.
+func TestWorkspacePublishMovedHeadUnderLockIsHeadMismatch(t *testing.T) {
+	const head = "abcdef0000000000000000000000000000000000"
+	const movedHead = "fedcba0000000000000000000000000000000000"
+	ready := workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(head)}
+	moved := &workspace.Failure{Op: "publish-head", Stage: "verify", Kind: workspace.KindInvalidState,
+		Detail: "workspace head moved past the expected head; nothing pushed"}
+	cases := []struct {
+		name       string
+		resHead    string
+		wantReason string
+	}{
+		{"moved head", movedHead, ReasonWorkspaceHeadMismatch},
+		{"no head named", "", string(workspace.KindInvalidState)},
+		{"same head", head, string(workspace.KindInvalidState)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir := newWorkingRepo(t, nil).invocation
+			key := mintFenceEpoch(t, repoDir, repoDir, EpochActive)
+			reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")}}
+			svc := &fakeWorkspaceService{inspection: ready, publishErr: moved,
+				publishRes: workspace.PublishResult{Disposition: workspace.PublishFailed, Head: gitcli.ObjectID(tc.resHead)}}
+			res := WorkspacePublish(context.Background(), workspaceDepsFor(t, reader), WorkspaceDeps{Service: svc},
+				repoDir, WorkspacePublishRequest{ID: 7, Head: head})
+			if res.Result != ResultInvalidState || res.Reason != tc.wantReason {
+				t.Fatalf("result = %q reason %q, want invalid-state reason %q", res.Result, res.Reason, tc.wantReason)
+			}
+			if tc.wantReason == ReasonWorkspaceHeadMismatch {
+				if res.Head != head {
+					t.Fatalf("head = %q, want the caller's expected head %q", res.Head, head)
+				}
+				if !strings.Contains(res.Message, "publish nothing") {
+					t.Fatalf("message = %q, want it to say nothing was published", res.Message)
+				}
+			}
+			ep, _, err := LoadEpochRecord(repoDir, key)
+			if err != nil {
+				t.Fatalf("LoadEpochRecord: %v", err)
+			}
+			if len(ep.AdmittedMutations) != 1 || ep.AdmittedMutations[0].Status != mutationStatusCompleted || ep.AdmittedMutations[0].Verified {
+				t.Fatalf("journal = %+v, want one completed, unverified entry", ep.AdmittedMutations)
+			}
+		})
+	}
+}
+
 // TestProductionUncertainThenIdenticalRetryThenCancel (change 0444 acceptance 7
 // and 8): descriptors journaled by the REAL PRPublish boundary — an uncertain first
 // attempt (an external/transport adapter failure), then an identical successful
