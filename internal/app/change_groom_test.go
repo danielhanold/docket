@@ -57,6 +57,13 @@ func padID(id int) string {
 	return s
 }
 
+// groomBacklinkedSpecMarkdown is a spec body that still carries a
+// docket:backlink managed block — the file as read, not the body the groom
+// operation expects.
+const groomBacklinkedSpecMarkdown = "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
+	"> old backlink\n" +
+	"<!-- docket:backlink:end -->\n\n# Design\n\nThe design body.\n"
+
 // validGroomSpecRequest is a well-formed spec-outcome groom request against the
 // groomable fixture at id 2 / slug add-a-widget.
 func validGroomSpecRequest() ChangeGroomRequest {
@@ -87,6 +94,11 @@ func TestChangeGroomRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		{"unknown outcome", func(r *ChangeGroomRequest) { r.Outcome = "maybe" }, "invalid-outcome"},
 		{"spec outcome empty markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "" }, "empty-spec_markdown"},
 		{"spec outcome unparseable markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "---\nid: 1\n" }, "invalid-spec_markdown"},
+		// The writer prepends the backlink block itself; an authored one would
+		// commit a duplicate marker pair.
+		{"spec outcome markdown carrying a backlink block", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown = groomBacklinkedSpecMarkdown
+		}, "invalid-spec_markdown"},
 		{"section unowned heading", func(r *ChangeGroomRequest) {
 			r.Sections = []SectionEditRequest{{Heading: "## Nope", Intent: "replace", Markdown: "x\n"}}
 		}, "invalid-section-heading"},
@@ -440,6 +452,12 @@ func TestChangeGroomReviseShapeValidation(t *testing.T) {
 		}, "empty-revise"},
 		{"unparseable revise spec_markdown refused", func(r *ChangeGroomRequest) {
 			r.SpecMarkdown = "---\nid: 1\n"
+		}, "invalid-spec_markdown"},
+		// An author resubmitting the spec file as read keeps its backlink block;
+		// the revise re-renders that block itself, so the resubmission is refused
+		// rather than committed with a duplicate marker pair.
+		{"revise spec_markdown carrying a backlink block refused", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown = groomBacklinkedSpecMarkdown
 		}, "invalid-spec_markdown"},
 		// A spec-body revise overwrites the spec file, so it must pin it.
 		{"spec revise without spec_version refused", func(r *ChangeGroomRequest) {
