@@ -13,7 +13,7 @@ related: [309, 310, 312, 337, 367, 446, 448]
 discovered_from: [446]
 adrs: [93]
 spec: 'docs/superpowers/specs/2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-24T15:32:09Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md) |
+| Plan | [2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan.md](https://github.com/danielhanold/docket/blob/fix/unrelated-invalid-change-records-must-not-block-a-named-chan/docs/superpowers/plans/2026-09-24-unrelated-invalid-change-records-must-not-block-a-named-chan.md) |
 | ADRs | [ADR-0093](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0093-repository-reference-severity-graded-by-structural-role.md) |
 <!-- docket:artifacts:end -->
 
