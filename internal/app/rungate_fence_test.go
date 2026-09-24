@@ -1171,3 +1171,98 @@ func TestWorkspacePublishJournalsPublicationIdentity(t *testing.T) {
 		t.Fatalf("descriptor must carry the exact feature ref and canonical repo dir: %+v", p)
 	}
 }
+
+// TestProductionUncertainThenIdenticalRetryThenCancel (change 0444 acceptance 7
+// and 8): descriptors journaled by the REAL PRPublish boundary — an uncertain first
+// attempt (an external/transport adapter failure), then an identical successful
+// retry, both in one run epoch — are matched by the REAL cancel path, which reaches
+// cancelled while issuing NO GitHub call (the capture adapters' counters do not
+// move during cancellation) and leaking no title/body bytes into the durable
+// journal or the cancel findings.
+func TestProductionUncertainThenIdenticalRetryThenCancel(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	// The fixture epoch owns fx.worktree (a real directory inside the fixture's git
+	// repository), so PRPublish invoked at that worktree resolves the admission
+	// fence to exactly this epoch and journals into it.
+	repoDir := fx.worktree
+
+	const secretTitle = "Add widget SEKRET-TITLE-BYTES"
+	const secretBody = "Authored prose SEKRET-BODY-BYTES.\n"
+	deps := workspaceDepsFor(t, prReader(t))
+	req := PRPublishRequest{ID: 7, Head: prHead, Title: secretTitle, Body: secretBody, EvidenceRecord: prEvidenceBytes(t, prHead)}
+
+	// Attempt 1: the adapter fails externally (outcome unobservable) -> uncertain.
+	ghFail := &fakeGitHub{repo: prRepo(), ensureErr: &githubcli.Failure{
+		Op: "ensure-pull-request", Stage: githubcli.StageInvoke, Kind: githubcli.KindExternal, Detail: "transport reset",
+	}}
+	if res := PRPublish(context.Background(), deps, WorkspaceDeps{Service: readyService(prHead)}, GitHubDeps{Service: ghFail}, repoDir, req); res.Result != ResultExternalFailed {
+		t.Fatalf("first attempt result = %q (reason %q), want external-failed", res.Result, res.Reason)
+	}
+	// Attempt 2: the identical request succeeds -> completed, identical descriptor.
+	ghOK := &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureCreated, PR: prMatchPR("verified")}}
+	if res := PRPublish(context.Background(), deps, WorkspaceDeps{Service: readyService(prHead)}, GitHubDeps{Service: ghOK}, repoDir, req); res.Result != ResultApplied {
+		t.Fatalf("retry result = %q (reason %q), want applied", res.Result, res.Reason)
+	}
+	if len(ghFail.ensureCalls) != 1 || len(ghOK.ensureCalls) != 1 {
+		t.Fatalf("ensure calls = %d/%d, want 1/1", len(ghFail.ensureCalls), len(ghOK.ensureCalls))
+	}
+
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if len(ep.AdmittedMutations) != 2 ||
+		ep.AdmittedMutations[0].Status != mutationStatusUncertain ||
+		ep.AdmittedMutations[1].Status != mutationStatusCompleted {
+		t.Fatalf("journal = %+v, want [uncertain, completed]", ep.AdmittedMutations)
+	}
+	// Both descriptors come from the production boundary and must be valid and
+	// field-for-field identical — that is what the cancel path matches on.
+	a, b := ep.AdmittedMutations[0].Publication, ep.AdmittedMutations[1].Publication
+	if !validPublication(OperationPRPublish, a) || !validPublication(OperationPRPublish, b) || *a != *b {
+		t.Fatalf("production descriptors = %+v / %+v, want two identical valid descriptors", a, b)
+	}
+
+	// Cancellation matches through the PRODUCTION-journaled descriptors. It takes no
+	// GitHub deps at all, and every adapter capture counter must hold still.
+	snapshot := func() [6]int {
+		return [6]int{
+			len(ghFail.ensureCalls), ghFail.discoverCalls, len(ghFail.probeCalls),
+			len(ghOK.ensureCalls), ghOK.discoverCalls, len(ghOK.probeCalls),
+		}
+	}
+	before := snapshot()
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q (findings %v), want cancelled via the production-journaled match", res.Disposition, res.Findings)
+	}
+	if after := snapshot(); after != before {
+		t.Fatalf("adapter calls moved during cancellation %v -> %v; reconciliation must issue no GitHub call", before, after)
+	}
+
+	ep, _, err = LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord after cancel: %v", err)
+	}
+	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
+		t.Fatalf("original entry status = %q, want durably completed", ep.AdmittedMutations[0].Status)
+	}
+
+	// Leak audit: neither the durable journal bytes nor the cancel findings carry
+	// title/body content — digests and bounded tokens only.
+	raw, rerr := os.ReadFile(filepath.Join(rungateRootOf(fx.common), fx.key, epochRecordFileName))
+	if rerr != nil {
+		t.Fatalf("read epoch record: %v", rerr)
+	}
+	for _, secret := range []string{"SEKRET-TITLE-BYTES", "SEKRET-BODY-BYTES"} {
+		if bytes.Contains(raw, []byte(secret)) {
+			t.Fatalf("journal bytes leak %q", secret)
+		}
+		for _, f := range res.Findings {
+			if bytes.Contains([]byte(f), []byte(secret)) {
+				t.Fatalf("cancel finding %q leaks %q", f, secret)
+			}
+		}
+	}
+}
