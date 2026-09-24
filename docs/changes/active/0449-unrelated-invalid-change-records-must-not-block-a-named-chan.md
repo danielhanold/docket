@@ -2,11 +2,11 @@
 id: 449
 slug: 'unrelated-invalid-change-records-must-not-block-a-named-chan'
 title: 'Unrelated invalid change records must not block a named change''s metadata writes or board'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-23'
-updated: '2026-09-23'
+updated: '2026-09-24'
 depends_on: [448]
 stacked_on:
 related: [309, 310, 312, 337, 367, 446, 448]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/unrelated-invalid-change-records-must-not-block-a-named-chan'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-24T15:29:23Z'
 ---
 
 ## Artifacts
