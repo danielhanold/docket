@@ -2,7 +2,7 @@
 id: 454
 slug: 'whole-repository-status-must-not-fail-on-an-unrelated-change'
 title: 'Whole-repository status must not fail on an unrelated change''s invalid branch name'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-24'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/whole-repository-status-must-not-fail-on-an-unrelated-change'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/331'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-24T20:32:08Z'
