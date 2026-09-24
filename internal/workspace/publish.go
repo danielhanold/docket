@@ -113,7 +113,7 @@ func (s *Service) PublishHead(ctx context.Context, req PublishRequest) (PublishR
 	if req.ExpectedHead != "" && localHead != req.ExpectedHead {
 		return PublishResult{Disposition: PublishFailed, Head: localHead},
 			&Failure{Op: publishOp, Stage: "verify", Kind: KindInvalidState,
-				Detail: "workspace head moved past the expected head; nothing pushed"}
+				Detail: "workspace head differs from the expected head; nothing pushed"}
 	}
 
 	ref := target.FeatureRef
