@@ -2,7 +2,7 @@
 id: 444
 slug: 'reconcile-uncertain-publication-records-so-cancellation-and'
 title: 'Reconcile uncertain publication records so cancellation and resume can finish'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-23'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/reconcile-uncertain-publication-records-so-cancellation-and'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/326'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-24T04:26:41Z'
