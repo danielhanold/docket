@@ -573,6 +573,16 @@ func relevantBeforeErrors(before LoadedState, subjects map[gitcli.RepoPath]bool)
 	return out
 }
 
+// RelevantErrors returns st's error findings relevant to scope's subjects
+// resolved in st — exactly the before-gate's rule (resolveGateSubjects feeding
+// relevantBeforeErrors), for a caller that must validate a named change before
+// an external effect outside any transaction (change 0449: PR publication and
+// the GitHub merge). A nil scope, a nil resolver, a resolver error, or an empty
+// resolved set is strict: every error finding is returned.
+func RelevantErrors(scope *ValidationScope, st LoadedState) []domain.Finding {
+	return relevantBeforeErrors(st, resolveGateSubjects(scope, st))
+}
+
 // planPaths returns the declared path set of a plan, in declaration order.
 func planPaths(plan MutationPlan) []gitcli.RepoPath {
 	paths := make([]gitcli.RepoPath, 0, len(plan.Files))

@@ -120,10 +120,16 @@ type mergeFixture struct {
 
 // mergeParentRecord is the parent lifecycle record carrying a canonical PR
 // reference, and optionally an appended authored body section (e.g. a durable
-// "## Finalize blocked" marker).
+// "## Finalize blocked" marker). An implemented record also carries the plan
+// its state guarantees (repository's implementedFacts), so the record is
+// coherent — `finalize merge` validates the change before any GitHub effect
+// (change 0449) and would refuse an incoherent one as record-invalid.
 func mergeParentRecord(id int, slug, status, pr, extraBody string) string {
 	rec := lifecycleChange(id, slug, status)
 	rec = strings.Replace(rec, "blocked_by:\n", "pr: '"+pr+"'\nblocked_by:\n", 1)
+	if status == "implemented" {
+		rec = strings.Replace(rec, "plan:\n", "plan: docs/superpowers/plans/2026-08-16-"+slug+"-plan.md\n", 1)
+	}
 	if extraBody != "" {
 		rec += "\n" + extraBody + "\n"
 	}

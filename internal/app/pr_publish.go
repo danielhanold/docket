@@ -71,6 +71,11 @@ const (
 	// into the authored body (a malformed managed-block population, e.g.); maps to
 	// invalid-state and predates any gh call.
 	ReasonPRBodyAssemblyFailed = "body-assembly-failed"
+	// ReasonPRRecordInvalid: the change's own record, or a record it
+	// structurally requires (a depends_on target or stack ancestor), carries a
+	// validation error (change 0449); maps to invalid-state and predates any gh
+	// call. An unrelated record's errors never produce it.
+	ReasonPRRecordInvalid = "record-invalid"
 )
 
 // GitHubService is the seam `pr publish` delegates its GitHub mechanics to.
@@ -128,6 +133,9 @@ type PRPublishResult struct {
 	Disposition string `json:"disposition,omitempty"`
 	Reason      string `json:"reason,omitempty"`
 	Message     string `json:"message,omitempty"`
+	// Findings names the relevant validation errors behind a record-invalid
+	// refusal; absent on every other outcome.
+	Findings []StatusFinding `json:"findings,omitempty"`
 }
 
 // HumanText renders the one-line human summary. It names identity, disposition,
@@ -284,7 +292,9 @@ func prFenceRefusal(id int, ferr error) PRPublishResult {
 
 // resolvePRChange pins context once, reads the corpus once, builds the snapshot,
 // and returns the change named by id (a typed unknown/ambiguous refusal otherwise)
-// with the link context its backlink renders under.
+// with the link context its backlink renders under. A validation error relevant
+// to the change (namedPreEffectErrors, change 0449) is a typed record-invalid
+// refusal.
 func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id int) (domain.Change, render.LinkContext, *PRPublishResult) {
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
@@ -313,6 +323,15 @@ func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id 
 			msg = fmt.Sprintf("more than one record claims change id %04d; refusing to choose", id)
 		}
 		r := prRefusal(result, reason, msg, id)
+		return domain.Change{}, render.LinkContext{}, &r
+	}
+	// B must pass relevant validation before the GitHub publication (change
+	// 0449): an error on B or on a record B structurally requires refuses here,
+	// before the run-epoch admission and EnsurePullRequest, while an unrelated
+	// record's errors never veto it.
+	if bad := namedPreEffectErrors(build, id, c.Path()); len(bad) > 0 {
+		r := prRefusal(ResultInvalidState, ReasonPRRecordInvalid, namedPreEffectMessage(id, bad), id)
+		r.Findings = findingsToStatus(bad)
 		return domain.Change{}, render.LinkContext{}, &r
 	}
 	return c, linkContextOf(pin), nil
