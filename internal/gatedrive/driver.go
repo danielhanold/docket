@@ -1070,14 +1070,14 @@ func (d *Driver) launchScoped(t *AdmissionTicket, claim *relaunchClaim) (DriveDo
 // worktree slot) arbitrates same-scope races. Rotation is successor-only: a start
 // carrying a predecessor receipt that finds a same-scope EXECUTING slot (a successor
 // continuing the sequence in the terminal-before-release window) ROTATES it to its
-// OWN fresh reservation — a new ReservationToken and bumped
-// ExecutionGen — so the predecessor's stale token can never free or poison the
-// successor's slot, and the successor confirms and owns its own post-launch failure
-// legs (ownsSlot=true). A RECEIPT-LESS first start that finds a same-scope executing
-// slot has raced an already-launched drive and is refused typed ErrScopeSecondDrive
-// without touching the slot. A slot held by a DIFFERENT scope, or in a
-// stopping/unresolved state, is a genuine cross-scope refusal returned verbatim. ErrUnresolvedExecution and
-// every other error (an unresolvable worktree, an IO fault) fail closed unchanged.
+// OWN fresh reservation — a new ReservationToken and bumped ExecutionGen — so the
+// predecessor's stale token can never free or poison the successor's slot, and the
+// successor confirms and owns its own post-launch failure legs (ownsSlot=true). A
+// RECEIPT-LESS first start that finds a same-scope executing slot has raced an
+// already-launched drive and is refused typed ErrScopeSecondDrive without touching the
+// slot. A slot held by a DIFFERENT scope, or in a stopping/unresolved state, is a
+// genuine cross-scope refusal returned verbatim. ErrUnresolvedExecution and every other
+// error (an unresolvable worktree, an IO fault) fail closed unchanged.
 func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFresh, ownsSlot, rotated bool, legacy *LegacyHistorySummary, err error) {
 	rec := admissionRecord{
 		RepoIdentity: req.RepoDir,
