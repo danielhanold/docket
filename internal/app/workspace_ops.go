@@ -418,11 +418,11 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 	})
 	if err != nil {
 		out := mapWorkspaceFailure(OperationWorkspacePublish, req.ID, err)
-		done(mutationJournalStatus(out.Result))
+		done(mutationJournalOutcome(out.Result))
 		return out
 	}
 	out := publishResult(OperationWorkspacePublish, req.ID, target, res)
-	done(mutationJournalStatus(out.Result))
+	done(mutationJournalOutcome(out.Result))
 	return out
 }
 

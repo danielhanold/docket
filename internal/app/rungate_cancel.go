@@ -672,7 +672,7 @@ func repairTerminalEpoch(seams cancelSeams, repoDir string, ep EpochRecord) RunC
 // silence), stop each registered execution participant and the worktree admission
 // slot on proven teardown, RE-ENUMERATE the participants after stopping (a launch
 // admitted before the fence won and can register after the first snapshot), settle
-// uncertain publications a later completed identical retry proves (change 0444), and
+// uncertain publications a later verified identical retry proves (change 0444), and
 // reconcile the admitted-mutation journal (an admitted-not-completed entry keeps
 // the run pending). It returns whether the run is fully accounted, the bounded
 // credential-free findings, and a non-nil err only for an epoch re-read fault.
@@ -780,7 +780,7 @@ func reconcileEpochTeardown(seams cancelSeams, repoDir, gateKey string, ep Epoch
 
 	// (7) Reconcile admitted mutations from the re-enumerated (post-settlement)
 	// journal: any admitted-not-completed entry (in-flight, or uncertain with no
-	// completed identical retry) keeps cancellation pending so a premature
+	// verified identical retry) keeps cancellation pending so a premature
 	// `cancelled` never claims a mutation is done.
 	for _, m := range reEp.AdmittedMutations {
 		if m.Status != mutationStatusCompleted {

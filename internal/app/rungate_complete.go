@@ -9,7 +9,7 @@
 // OBSERVATION ONLY. Closeout stops nothing and signals nothing: it never invokes
 // native cancellation, never process.Stop, and never settles a never-launched
 // reservation terminal. Its one journal repair is settleUncertainPublications (change
-// 0444) — an uncertain→completed flip of publication entries a later completed
+// 0444) — an uncertain→completed flip of publication entries a later verified
 // identical retry proves, derived from the durable journal alone with no Git or
 // GitHub call. It reuses cancellation's accounting SHAPES
 // through the two observation seams (processObserver / epochLaunchObserver) and the

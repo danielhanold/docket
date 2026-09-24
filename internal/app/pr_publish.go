@@ -264,11 +264,11 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	})
 	if ensErr != nil {
 		out := mapGitHubFailure(ensErr, req.ID)
-		done(mutationJournalStatus(out.Result))
+		done(mutationJournalOutcome(out.Result))
 		return out
 	}
 	out := prResultFromEnsure(repo, req.ID, res)
-	done(mutationJournalStatus(out.Result))
+	done(mutationJournalOutcome(out.Result))
 	return out
 }
 

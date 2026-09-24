@@ -178,7 +178,7 @@ func TestGuardianCannotMutate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mutation refused while active: %v", err)
 	}
-	done(mutationStatusCompleted)
+	done(mutationStatusCompleted, false)
 
 	// Now the owner dies abruptly and the guardian fences the epoch.
 	marker, err := AgentGuardianMarkerPath(repo, key)
