@@ -2,7 +2,7 @@
 id: 444
 slug: 'reconcile-uncertain-publication-records-so-cancellation-and'
 title: 'Reconcile uncertain publication records so cancellation and resume can finish'
-status: 'blocked'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-23'
@@ -20,7 +20,7 @@ auto_groomable:
 branch_prefix:
 branch: 'fix/reconcile-uncertain-publication-records-so-cancellation-and'
 pr:
-blocked_by: 'Blocked by change 446. Resume can''t arm: run.gate-before --resume 444 is refused with cancellation-pending, because resume''s quiescence re-check walks the whole drive registry and fails closed on 99 unrelated linkage-unresolved drives. The halted epoch 9c0c78c95d02aff4dff08a36145a29b4 (key implement-next-20260923t065151z-64967-5863) was hand-set to cancelled, but the re-check still recomputes the findings. Once 446 lands, re-arm with run.gate-before implement-next --resume 444 and re-dispatch implement-next with id 444.'
+blocked_by:
 reconciled: true
 claimed_at: '2026-09-23T07:06:33Z'
 ---
