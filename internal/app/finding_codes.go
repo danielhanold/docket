@@ -83,6 +83,12 @@ const (
 	FCParseFailed                         FindingCode = "parse-failed"
 	FCSweepPRFactsUnresolved              FindingCode = "sweep-pr-facts-unresolved"
 
+	// Whole-repository status branch check (change 0454): a displayed active
+	// change records a branch: value that is not a valid git branch name. The
+	// token deliberately reuses the spelling finalize's skip reason and
+	// recordedBranch's errBranchMalformed already emit.
+	FCBranchMalformed FindingCode = "branch-malformed"
+
 	// Schema-surface request-shape finding (change 0399, Task 7): SchemaFor
 	// returns ok=false for an id absent from the operation-schema registry, and
 	// the cli maps that to ResultInvalidInput carrying this code.
@@ -167,6 +173,7 @@ var AllFindingCodes = []FindingCode{
 	FCArtifactMissing,
 	FCArtifactRenderFailed,
 	FCAuthoredInputTooLarge,
+	FCBranchMalformed,
 	FindingCode("branch-still-exists"),
 	FCCollectionPending,
 	FCDanglingReference,
