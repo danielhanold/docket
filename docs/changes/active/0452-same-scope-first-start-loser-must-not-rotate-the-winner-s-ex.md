@@ -22,7 +22,7 @@ branch: 'fix/same-scope-first-start-loser-must-not-rotate-the-winner-s-ex'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T16:19:43Z'
+claimed_at: '2026-09-24T16:20:57Z'
 ---
 
 ## Artifacts
