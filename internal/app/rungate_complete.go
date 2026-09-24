@@ -32,9 +32,10 @@
 // completed CAS refuses once a cancel fence lands).
 //
 // LOCK ORDERING. The epoch writes (FenceEpochCompleting, settleUncertainPublications,
-// CompleteEpoch) each run under their own epochCAS; ALL proof — participant observation, process observation, the worktree
-// slot load, and the launch walk — runs OUTSIDE any epoch or admission lock, never
-// holding a lock across a process observation or a per-drive claim probe.
+// CompleteEpoch) each run under their own epochCAS; ALL proof — participant
+// observation, process observation, the worktree slot load, and the launch walk —
+// runs OUTSIDE any epoch or admission lock, never holding a lock across a process
+// observation or a per-drive claim probe.
 package app
 
 import (
@@ -106,7 +107,9 @@ func (o appLaunchObserver) observe(worktree, epochID string) (gatedrive.EpochLau
 // injected seams, returning ok, a bounded reason token for the gate-unavailable
 // channel when ok is false (one of run-cancelled, stale-run-epoch,
 // completion-unaccounted, completion-unpersisted, epoch-unreadable), and the bounded
-// credential-free findings that name every unsettled obligation. The caller (Task 8)
+// credential-free findings that name every unsettled obligation; findings may also
+// carry informational mutation-settled:<op> tokens, even on a successful closeout.
+// The caller (Task 8)
 // has already resolved the confirmed claim binding and the run-complete verdict; this
 // function owns only the ownership retirement. See the file header for the
 // observation-only, fail-closed, never-relabel, and lock-ordering contracts.
