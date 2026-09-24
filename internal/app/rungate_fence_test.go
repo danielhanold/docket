@@ -1350,11 +1350,12 @@ func TestProductionUnverifiedPRRetryNeverSettles(t *testing.T) {
 // TestProductionUnverifiedWorkspaceRetryNeverSettles (change 0444 review
 // blocker): the workspace.publish analog. An identical retry that PublishHead
 // resolves contended, refuses locally (invalid-state "workspace is not in a ready
-// phase" from its reinspection), or fails with an internal error never settles the
-// uncertain original; an applied retry (the positive control) does, proving the
+// phase" from its reinspection), fails with an internal error, or reports a head
+// other than the journaled one never settles the uncertain original; an applied retry (the positive control) does, proving the
 // fixture journals through the real fence.
 func TestProductionUnverifiedWorkspaceRetryNeverSettles(t *testing.T) {
 	const head = "abcdef0000000000000000000000000000000000"
+	const movedHead = "fedcba0000000000000000000000000000000000"
 	ready := workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(head)}
 	cases := []struct {
 		name   string
@@ -1366,6 +1367,17 @@ func TestProductionUnverifiedWorkspaceRetryNeverSettles(t *testing.T) {
 			publishRes: workspace.PublishResult{Disposition: workspace.PublishPublished, Head: gitcli.ObjectID(head)}}, ResultApplied, true},
 		{"already-published (positive control)", &fakeWorkspaceService{inspection: ready,
 			publishRes: workspace.PublishResult{Disposition: workspace.PublishAlreadyPublished, Head: gitcli.ObjectID(head)}}, ResultNoOp, true},
+		// Moved head (change 0444 review finding): PublishHead reads its own local
+		// head under its lock, after the app-level Inspect, so a commit landing in
+		// between makes it push a head other than the journaled req.Head. That
+		// completion observed a postcondition for a DIFFERENT commit and must never
+		// settle an uncertain entry for req.Head — nor may a result carrying no head.
+		{"published a moved head", &fakeWorkspaceService{inspection: ready,
+			publishRes: workspace.PublishResult{Disposition: workspace.PublishPublished, Head: gitcli.ObjectID(movedHead)}}, ResultApplied, false},
+		{"already-published a moved head", &fakeWorkspaceService{inspection: ready,
+			publishRes: workspace.PublishResult{Disposition: workspace.PublishAlreadyPublished, Head: gitcli.ObjectID(movedHead)}}, ResultNoOp, false},
+		{"published with no head", &fakeWorkspaceService{inspection: ready,
+			publishRes: workspace.PublishResult{Disposition: workspace.PublishPublished}}, ResultApplied, false},
 		{"contended", &fakeWorkspaceService{inspection: ready,
 			publishRes: workspace.PublishResult{Disposition: workspace.PublishContended, Head: gitcli.ObjectID(head)}}, ResultContended, false},
 		{"invalid-state", &fakeWorkspaceService{inspection: ready,
