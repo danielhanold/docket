@@ -14,7 +14,7 @@ discovered_from: [444]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md'
 plan: 'docs/superpowers/plans/2026-09-24-0445-revise-groomed-change-typed-operation.md'
-results:
+results: 'docs/results/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-24T20:12:58Z'
 |---|---|
 | Spec | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md) |
 | Plan | [2026-09-24-0445-revise-groomed-change-typed-operation.md](https://github.com/danielhanold/docket/blob/feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a/docs/superpowers/plans/2026-09-24-0445-revise-groomed-change-typed-operation.md) |
+| Results | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-results.md](https://github.com/danielhanold/docket/blob/feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a/docs/results/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
