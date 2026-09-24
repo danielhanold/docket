@@ -19,6 +19,8 @@ package transaction
 import (
 	"context"
 	"errors"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/domain"
@@ -36,6 +38,13 @@ type Request struct {
 	Idempotency *IdempotencyKey
 	Loader      StateLoader
 	Operation   SemanticOperation
+	// Scope, when non-nil, narrows the before-gate, the post-plan recheck, and
+	// the after-gate to errors relevant to the operation's resolved subjects,
+	// grandfathering only exact pre-existing errors confined to unrelated,
+	// unchanged records (change 0449). A nil Scope keeps the strict whole-corpus
+	// gates; so does a scope whose resolver is nil, errors, or resolves nothing.
+	// It is resolved fresh from every attempt's loaded states, never cached.
+	Scope *ValidationScope
 }
 
 // maxAttempts bounds the attempt loop: the initial attempt plus at most three
@@ -256,8 +265,11 @@ func (e *Engine) runCandidate(ctx context.Context, repo gitcli.Repository, remot
 	if err != nil {
 		return e.externalOutcome(ctx, StageLoadBefore, acc, "loading base state", err), true, run
 	}
-	if before.Report.HasErrors() {
-		return refusedOutcome(acc, StageLoadBefore, errorFindings(before.Report.Findings())), true, run
+	// The before-gate. gateScope is nil for the strict path (no Scope, or one that
+	// cannot be resolved), which makes every error relevant — today's gate exactly.
+	gateScope := beforeGateScope(req.Scope, before, expectations)
+	if bad := relevantBeforeErrors(before, gateScope); len(bad) > 0 {
+		return refusedOutcome(acc, StageLoadBefore, bad), true, run
 	}
 
 	// 6. Check every expectation against the base tree. A mismatch — on any attempt —
@@ -283,6 +295,15 @@ func (e *Engine) runCandidate(ctx context.Context, repo gitcli.Repository, remot
 		return attemptOutcome{result: acc, err: &Failure{Stage: StagePlan, Kind: KindInvalidInput, Detail: "operation produced an invalid plan", Err: err}}, true, run
 	}
 
+	// 7a. Post-plan recheck: every path the plan declares joins the scope, and the
+	// base is rechecked under the widened set before any effect, so a record the
+	// plan writes can never carry a grandfathered pre-existing error. On the strict
+	// path the scope stays nil and the before-gate already proved the base clean.
+	gateScope = widenGateScope(gateScope, planPaths(plan))
+	if bad := relevantBeforeErrors(before, gateScope); len(bad) > 0 {
+		return refusedOutcome(acc, StagePlan, bad), true, run
+	}
+
 	// 8. Layer the plan over base, load the after-state, and run both gates.
 	overlay, err := newOverlayTree(baseTree, plan)
 	if err != nil {
@@ -293,8 +314,12 @@ func (e *Engine) runCandidate(ctx context.Context, repo gitcli.Repository, remot
 	if err != nil {
 		return e.externalOutcome(ctx, StageLoadAfter, acc, "loading after state", err), true, run
 	}
-	if after.Report.HasErrors() {
-		return refusedOutcome(acc, StageLoadAfter, errorFindings(after.Report.Findings())), true, run
+	// The after-gate: the candidate's own subjects join the scope (a dependency the
+	// plan adds is required too), and every after-state error refuses unless it is
+	// an exact, unchanged, unrelated pre-existing one. Strict refuses them all.
+	gateScope = afterGateScope(req.Scope, gateScope, after)
+	if bad := scopedAfterErrors(before, after, gateScope); len(bad) > 0 {
+		return refusedOutcome(acc, StageLoadAfter, bad), true, run
 	}
 	if evo := errorFindings(req.Loader.ValidateEvolution(before, after)); len(evo) > 0 {
 		return refusedOutcome(acc, StageLoadAfter, evo), true, run
@@ -463,6 +488,89 @@ func checkExpectations(ctx context.Context, tree Tree, exps []EntityExpectation)
 		}
 	}
 	return mismatched, nil
+}
+
+// resolveGateSubjects runs scope's resolver against st and returns the resolved
+// subject set, or nil — the strict whole-corpus signal — when there is no scope,
+// no resolver, a resolver error, or nothing usable resolved. Only true-valued,
+// non-empty paths count, so a resolver cannot fail open with a set that names
+// nothing. The result is a fresh map the caller may widen.
+func resolveGateSubjects(scope *ValidationScope, st LoadedState) map[gitcli.RepoPath]bool {
+	if scope == nil || scope.Subjects == nil {
+		return nil
+	}
+	resolved, err := scope.Subjects(st)
+	if err != nil {
+		return nil
+	}
+	out := make(map[gitcli.RepoPath]bool, len(resolved))
+	for p, in := range resolved {
+		if in && p != "" {
+			out[p] = true
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// beforeGateScope derives the before-gate's subject set from the fresh base: the
+// resolver's subjects plus every path the request pins in its expectations (the
+// records it acts on are known before Plan). Nil means strict.
+func beforeGateScope(scope *ValidationScope, before LoadedState, exps []EntityExpectation) map[gitcli.RepoPath]bool {
+	subjects := resolveGateSubjects(scope, before)
+	if subjects == nil {
+		return nil
+	}
+	for _, e := range exps {
+		subjects[e.Path] = true
+	}
+	return subjects
+}
+
+// widenGateScope returns subjects ∪ paths as a fresh set. A nil (strict) scope
+// stays nil: widening must never turn strict validation into scoped validation.
+func widenGateScope(subjects map[gitcli.RepoPath]bool, paths []gitcli.RepoPath) map[gitcli.RepoPath]bool {
+	if subjects == nil {
+		return nil
+	}
+	out := make(map[gitcli.RepoPath]bool, len(subjects)+len(paths))
+	for p := range subjects {
+		out[p] = true
+	}
+	for _, p := range paths {
+		out[p] = true
+	}
+	return out
+}
+
+// afterGateScope widens the post-plan subject set with the subjects resolved from
+// the candidate state, so a record the plan newly requires is validated too. A
+// strict scope stays strict, and a candidate the resolver cannot resolve drops
+// the after-gate to strict — fail closed.
+func afterGateScope(scope *ValidationScope, subjects map[gitcli.RepoPath]bool, after LoadedState) map[gitcli.RepoPath]bool {
+	if subjects == nil {
+		return nil
+	}
+	candidate := resolveGateSubjects(scope, after)
+	if candidate == nil {
+		return nil
+	}
+	return widenGateScope(subjects, slices.Collect(maps.Keys(candidate)))
+}
+
+// relevantBeforeErrors returns the base's error findings that refuse under
+// subjects: those relevant to the set in the before state. A nil set makes every
+// error relevant, so the strict gate and the scoped gate share this one path.
+func relevantBeforeErrors(before LoadedState, subjects map[gitcli.RepoPath]bool) []domain.Finding {
+	var out []domain.Finding
+	for _, f := range errorFindings(before.Report.Findings()) {
+		if findingRelevant(f, subjects, &before, nil) {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // planPaths returns the declared path set of a plan, in declaration order.
