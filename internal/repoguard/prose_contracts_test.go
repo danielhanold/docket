@@ -328,6 +328,26 @@ var proseContracts = []proseContract{
 			"`## Findings and limitations`",
 			"`## Follow-ups`",
 		}},
+	// change 0448 — a single-explicit-id (named) invocation skips the
+	// maintenance preflight and never falls back to selection; its own merged
+	// dependencies get a BOUNDED finalize.closeout limited to that dependency
+	// set. Present phrases bind each claim inside one sentence; the absent
+	// phrase is the retired UNCONDITIONAL preflight opener, so restoring
+	// mandatory maintenance on a named request reddens this row
+	// (assert-detects-removal). Mutation-tested at introduction.
+	{sentinel: "change_0448_named_preflight_skip", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"**Named invocation — no maintenance preflight.**",
+			"The named path never runs `maintenance.preflight` or any maintenance sweep first",
+			"a named request **never falls back to selecting another change**",
+			"For **each** id in that set — and never any other change — run one `finalize.closeout` operation",
+			"An unrelated change's closeout is never attempted here",
+		},
+		absent: []string{
+			"Then, before selection, run the **implementation preflight** inline",
+			"a single id is the degenerate case",
+			"a single id `90` is the degenerate case",
+		}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
