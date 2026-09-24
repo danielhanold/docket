@@ -1,18 +1,12 @@
 # Backlog
 
-**451 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 298 done · 🗑️ 119 killed
+**451 changes** — 🟢 1 in progress · 🟣 4 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 299 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
-
-## 🔴 Blocked (1)
-
-| # | Title | Priority | Type | PR | Reason |
-|---|-------|----------|------|----|--------|
-| [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` | [#326](https://github.com/danielhanold/docket/pull/326) | finalize blocked — needs you |
 
 ## 🟣 Groomed (4)
 
@@ -27,7 +21,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0451](active/0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md) | Workspace publish refuses a feature head that moved after the app-level check | `low` | `chore` | ⏳ waiting on #444 — needs your merge |
+| [0451](active/0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md) | Workspace publish refuses a feature head that moved after the app-level check | `low` | `chore` | build-ready (trivial) |
 | [0450](active/0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | `high` | `chore` | needs-brainstorm |
 | [0449](active/0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | `critical` | `fix` | ⏳ waiting on #448 — not yet built |
 | [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | needs-brainstorm |
@@ -91,7 +85,6 @@ graph TD
   0422
   0433
   0443
-  0444
   0445
   0447
   0446 --> 0448
@@ -103,15 +96,17 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
+  0444:::done
   0446:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (417)</summary>
+<details><summary>✅🗑️ Archive — done + killed (418)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0446](archive/2026-09-24-0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | 2026-09-24 |
+| [0444](archive/2026-09-24-0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | 2026-09-24 |
 | [0414](archive/2026-09-23-0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | 2026-09-23 |
 | [0442](archive/2026-09-22-0442-rebase-again-when-main-advances-after-finalize-publishes.md) | Rebase again when main advances after finalize publishes | 2026-09-22 |
 | [0441](archive/2026-09-22-0441-release-successful-implementation-ownership-before-standalon.md) | Release successful implementation ownership before standalone finalize | 2026-09-22 |
@@ -130,7 +125,6 @@ graph TD
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
 | [0425](archive/2026-09-18-0425-restore-native-codex-dispatch-for-multi-agent-v2-docket-coor.md) | Restore native Codex dispatch for Multi-Agent V2 Docket coordinators | 2026-09-18 |
 | [0424](archive/2026-09-18-0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | 2026-09-18 |
-| [0411](archive/2026-09-18-0411-steer-post-completion-durable-write-failures-to-rebase-conti.md) | Steer post-completion durable-write failures to rebase-continue, not abort | 2026-09-18 |
 | [0430](archive/2026-09-17-0430-native-codex-acceptance-for-durable-review-evidence.md) | Native Codex acceptance for durable review evidence | 2026-09-17 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
@@ -250,7 +244,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 47 done |
+| [2026-09](archive/) | 48 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

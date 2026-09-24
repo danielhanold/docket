@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0444 — Reconcile uncertain publication records so cancellation and resume can finish](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md)**
+> ↩ **[Change 0444 — Reconcile uncertain publication records so cancellation and resume can finish](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-24-0444-reconcile-uncertain-publication-records-so-cancellation-and.md)**
 <!-- docket:backlink:end -->
 
 # Reconcile uncertain publication records
