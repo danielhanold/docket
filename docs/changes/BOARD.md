@@ -1,12 +1,12 @@
 # Backlog
 
-**453 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 5 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 302 done · 🗑️ 119 killed
+**453 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 5 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 302 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0449](active/0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | `critical` | `fix` | [spec](../superpowers/specs/2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md) | `fix/unrelated-invalid-change-records-must-not-block-a-named-chan` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0449](active/0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | `critical` | `fix` | [#330](https://github.com/danielhanold/docket/pull/330) | awaiting merge |
 
 ## 🔴 Blocked (1)
 

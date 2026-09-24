@@ -2,7 +2,7 @@
 id: 449
 slug: 'unrelated-invalid-change-records-must-not-block-a-named-chan'
 title: 'Unrelated invalid change records must not block a named change''s metadata writes or board'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-23'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/unrelated-invalid-change-records-must-not-block-a-named-chan'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/330'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-24T15:43:07Z'
