@@ -13,7 +13,7 @@ related: [444]
 discovered_from: [444]
 adrs: []
 spec:
-plan:
+plan: 'docs/superpowers/plans/2026-09-24-0451-workspace-publish-expected-head.md'
 results:
 trivial: true
 auto_groomable:
@@ -28,6 +28,9 @@ claimed_at: '2026-09-24T06:23:32Z'
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Plan | [2026-09-24-0451-workspace-publish-expected-head.md](https://github.com/danielhanold/docket/blob/chore/workspace-publish-refuses-a-feature-head-that-moved-after-th/docs/superpowers/plans/2026-09-24-0451-workspace-publish-expected-head.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
