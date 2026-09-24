@@ -2,7 +2,7 @@
 id: 454
 slug: 'whole-repository-status-must-not-fail-on-an-unrelated-change'
 title: 'Whole-repository status must not fail on an unrelated change''s invalid branch name'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-24'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/whole-repository-status-must-not-fail-on-an-unrelated-change'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-24T20:23:27Z'
 ---
 
 ## Artifacts
