@@ -189,7 +189,8 @@ func Status(ctx context.Context, reader StatusReader, opts StatusOptions) Status
 
 	displayed := activeChanges(snap, opts.Types, priorities)
 	changes := make([]StatusChange, 0, len(displayed))
-	// 6. Artifact checks accumulate their findings alongside the change rows.
+	// 6. Artifact checks and the branch-malformed check (change 0454)
+	//    accumulate their findings alongside the change rows.
 	var artifactFindings []StatusFinding
 	for _, c := range displayed {
 		changes = append(changes, statusChange(snap, c, facts, readySet, blobByPath))
@@ -198,6 +199,7 @@ func Status(ctx context.Context, reader StatusReader, opts StatusOptions) Status
 			return statusFailure(ctx, pin, ferr)
 		}
 		artifactFindings = append(artifactFindings, f...)
+		artifactFindings = append(artifactFindings, branchMalformedCheck(c, blobByPath)...)
 	}
 
 	// 7. Assemble findings in their fixed order; the records inventory is
@@ -550,6 +552,40 @@ func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c d
 		}
 	}
 	return findings, nil
+}
+
+// branchMalformedCheck reports one error finding when a displayed active
+// change's recorded branch: cannot be a git branch name (gitcli.ValidBranchName,
+// the same predicate the whole-corpus probe filters on — change 0454). The
+// remedy is branched on the same condition that decides which repair can work
+// in this exact state: a parseable pr: names the typed repair-identity
+// adopt-pr-head command with the id, record version, and PR number filled in
+// (the head branch must be read from the PR itself — status stays offline);
+// otherwise no typed operation edits branch:, so the remedy is the hand edit
+// plus repository migrate to re-render the board. An absent or empty branch:
+// is a distinct, benign state here and produces no finding.
+func branchMalformedCheck(c domain.Change, blobByPath map[string]StatusBlob) []StatusFinding {
+	b := c.Branch()
+	if b.State != domain.FieldPresent || b.Value == "" || gitcli.ValidBranchName(b.Value) {
+		return nil
+	}
+	remedy := "correct branch: on the change record on the docket branch (the real feature branch, or clear it if no branch was ever created), then run: docket repository migrate to re-render the board"
+	if pr := c.PR(); pr.State == domain.FieldPresent {
+		if n, ok := parsePRRef(pr.Value); ok {
+			remedy = fmt.Sprintf("run: docket change repair-identity --id %d --expect-version %s --adopt-pr-head --expect-pr %d --expect-head <the head branch shown on PR #%d>",
+				int(c.ID()), blobByPath[c.Path()].Version, n, n)
+		}
+	}
+	return []StatusFinding{{
+		Code:     string(FCBranchMalformed),
+		Severity: string(domain.SeverityError),
+		Entity:   string(domain.EntityChange),
+		Identity: changeIdentity(c.ID()),
+		Field:    "branch",
+		Message: fmt.Sprintf("change %s records branch: %q, which is not a valid git branch name",
+			changeIdentity(c.ID()), b.Value),
+		Remedy: remedy,
+	}}
 }
 
 // corpusRecords is the artifact-integrity inventory over the COMPLETE corpus:
