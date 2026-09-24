@@ -1,6 +1,6 @@
 # Backlog
 
-**449 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 297 done · 🗑️ 119 killed
+**449 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 298 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
@@ -8,32 +8,26 @@
 |---|-------|----------|------|------|--------|-----------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0446](active/0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | `critical` | `fix` | [#325](https://github.com/danielhanold/docket/pull/325) | awaiting merge |
-
 ## 🔴 Blocked (1)
 
 | # | Title | Priority | Type | PR | Reason |
 |---|-------|----------|------|----|--------|
 | [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` |  | Blocked by change 446. Resume can't arm: run.gate-before --resume 444 is refused with cancellation-pending, because resume's quiescence re-check walks the whole drive registry and fails closed on 99 unrelated linkage-unresolved drives. The halted epoch 9c0c78c95d02aff4dff08a36145a29b4 (key implement-next-20260923t065151z-64967-5863) was hand-set to cancelled, but the re-check still recomputes the findings. Once 446 lands, re-arm with run.gate-before implement-next --resume 444 and re-dispatch implement-next with id 444. |
 
-## 🟣 Groomed (3)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0448](active/0448-named-implement-next-skips-unrelated-maintenance-preflight.md) | Named implement-next skips unrelated maintenance preflight | `critical` | `fix` | [spec](../superpowers/specs/2026-09-23-named-implement-next-skips-unrelated-maintenance-preflight-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (16)
+## 🟡 Proposed (15)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0449](active/0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | `critical` | `fix` | ⏳ waiting on #448 — not yet built |
-| [0448](active/0448-named-implement-next-skips-unrelated-maintenance-preflight.md) | Named implement-next skips unrelated maintenance preflight | `critical` | `fix` | ⏳ waiting on #446 — needs your merge |
 | [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | needs-brainstorm |
 | [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | needs-brainstorm |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-brainstorm |
@@ -97,7 +91,6 @@ graph TD
   0443
   0444
   0445
-  0446
   0447
   0446 --> 0448
   0448 --> 0449
@@ -106,13 +99,15 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
+  0446:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (416)</summary>
+<details><summary>✅🗑️ Archive — done + killed (417)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0446](archive/2026-09-24-0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | 2026-09-24 |
 | [0414](archive/2026-09-23-0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | 2026-09-23 |
 | [0442](archive/2026-09-22-0442-rebase-again-when-main-advances-after-finalize-publishes.md) | Rebase again when main advances after finalize publishes | 2026-09-22 |
 | [0441](archive/2026-09-22-0441-release-successful-implementation-ownership-before-standalon.md) | Release successful implementation ownership before standalone finalize | 2026-09-22 |
@@ -133,7 +128,6 @@ graph TD
 | [0424](archive/2026-09-18-0424-validate-codex-coordinator-models-against-a-versioned-capabi.md) | Validate Codex coordinator models against a versioned capability registry | 2026-09-18 |
 | [0411](archive/2026-09-18-0411-steer-post-completion-durable-write-failures-to-rebase-conti.md) | Steer post-completion durable-write failures to rebase-continue, not abort | 2026-09-18 |
 | [0430](archive/2026-09-17-0430-native-codex-acceptance-for-durable-review-evidence.md) | Native Codex acceptance for durable review evidence | 2026-09-17 |
-| [0323](archive/2026-09-17-0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | 2026-09-17 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
@@ -252,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 46 done |
+| [2026-09](archive/) | 47 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
