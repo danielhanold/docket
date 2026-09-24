@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"strings"
@@ -658,6 +659,41 @@ func reviseFixtureFiles() map[string]string {
 	}
 }
 
+// reviseFixtureAtStatus is reviseFixtureFiles with the record moved off
+// proposed to status at recPath (a terminal status lives under archive/), extra
+// carrying whatever frontmatter that status requires to load coherently —
+// spec acceptance item 7's non-proposed refusal rows.
+func reviseFixtureAtStatus(recPath, status, extra string) map[string]string {
+	files := reviseFixtureFiles()
+	src := groomPath(2, "add-a-widget")
+	rec := strings.Replace(files[src], "status: proposed\n", "status: "+status+"\n"+extra, 1)
+	if status == "implemented" {
+		rec = strings.Replace(rec, "plan:\n", "plan: 'docs/superpowers/plans/2026-08-10-add-a-widget.md'\n", 1)
+	}
+	delete(files, src)
+	files[recPath] = rec
+	return files
+}
+
+const (
+	reviseArchivePath       = "docs/changes/archive/2026-08-10-0002-add-a-widget.md"
+	reviseClaimFields       = "branch: 'feat/add-a-widget'\nclaimed_at: '2026-08-10T00:00:00Z'\n"
+	reviseImplementedFields = reviseClaimFields + "pr: 'https://github.com/o/r/pull/7'\nreconciled: true\n"
+)
+
+// assertGroomReceiptSpecPath decodes the plan's canonical receipt and pins its
+// spec_path field.
+func assertGroomReceiptSpecPath(t *testing.T, plan transaction.MutationPlan, want string) {
+	t.Helper()
+	var rec changeGroomReceipt
+	if err := json.Unmarshal(plan.Receipt, &rec); err != nil {
+		t.Fatalf("decoding receipt %s: %v", plan.Receipt, err)
+	}
+	if rec.SpecPath != want {
+		t.Errorf("receipt spec_path = %q, want %q (receipt %s)", rec.SpecPath, want, plan.Receipt)
+	}
+}
+
 func TestChangeGroomPlanReviseSectionsOnly(t *testing.T) {
 	files := reviseFixtureFiles()
 	files["docs/changes/BOARD.md"] = "# Backlog\n\nold\n"
@@ -687,6 +723,8 @@ func TestChangeGroomPlanReviseSectionsOnly(t *testing.T) {
 	if !strings.Contains(rec, "trivial: false") {
 		t.Errorf("trivial field changed under revise:\n%s", rec)
 	}
+	// A sections-only revise replaced no spec body, so its receipt names none.
+	assertGroomReceiptSpecPath(t, plan, "")
 }
 
 func TestChangeGroomPlanReviseSpecBodyOnly(t *testing.T) {
@@ -733,6 +771,8 @@ func TestChangeGroomPlanReviseSpecBodyOnly(t *testing.T) {
 	if !strings.Contains(rec, "spec: '"+reviseSpecPath+"'") || !strings.Contains(rec, "trivial: false") {
 		t.Errorf("groomed-outcome fields changed under a spec-only revise:\n%s", rec)
 	}
+	// The receipt names the existing linked spec path the revise replaced.
+	assertGroomReceiptSpecPath(t, plan, reviseSpecPath)
 }
 
 func TestChangeGroomPlanReviseBoth(t *testing.T) {
@@ -792,6 +832,16 @@ func TestChangeGroomPlanReviseRefusals(t *testing.T) {
 				revisableChange(2, "add-a-widget", reviseSpecPath),
 				"status: proposed\n", "status: blocked\nblocked_by: 'waiting'\n", 1),
 		}, func(r *ChangeGroomRequest) {}, "not-revisable"},
+		{"not-revisable in-progress", reviseFixtureAtStatus(groomPath(2, "add-a-widget"), "in-progress", reviseClaimFields),
+			func(r *ChangeGroomRequest) {}, "not-revisable"},
+		{"not-revisable deferred", reviseFixtureAtStatus(groomPath(2, "add-a-widget"), "deferred", ""),
+			func(r *ChangeGroomRequest) {}, "not-revisable"},
+		{"not-revisable implemented", reviseFixtureAtStatus(groomPath(2, "add-a-widget"), "implemented", reviseImplementedFields),
+			func(r *ChangeGroomRequest) {}, "not-revisable"},
+		{"not-revisable done", reviseFixtureAtStatus(reviseArchivePath, "done", ""),
+			func(r *ChangeGroomRequest) { r.Path = reviseArchivePath }, "not-revisable"},
+		{"not-revisable killed", reviseFixtureAtStatus(reviseArchivePath, "killed", ""),
+			func(r *ChangeGroomRequest) { r.Path = reviseArchivePath }, "not-revisable"},
 		// Review Focus 3: dangling spec link — spec: names a path absent from
 		// the tree; never silently mint a file.
 		{"spec-file-missing", map[string]string{
