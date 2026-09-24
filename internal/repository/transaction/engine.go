@@ -318,7 +318,8 @@ func (e *Engine) runCandidate(ctx context.Context, repo gitcli.Repository, remot
 	// plan adds is required too), and every after-state error refuses unless it is
 	// an exact, unchanged, unrelated pre-existing one. Strict refuses them all.
 	gateScope = afterGateScope(req.Scope, gateScope, after)
-	if bad := scopedAfterErrors(before, after, gateScope); len(bad) > 0 {
+	bad, kept := scopedAfterGate(before, after, gateScope)
+	if len(bad) > 0 {
 		return refusedOutcome(acc, StageLoadAfter, bad), true, run
 	}
 	if evo := errorFindings(req.Loader.ValidateEvolution(before, after)); len(evo) > 0 {
@@ -335,6 +336,7 @@ func (e *Engine) runCandidate(ctx context.Context, repo gitcli.Repository, remot
 	// nothing to replay — and must not be "fixed" by persisting a receipt here.
 	if len(plan.Files) == 0 {
 		acc.Disposition = DispositionNoOp
+		acc.Findings = cloneFindings(kept)
 		return attemptOutcome{result: acc}, true, run
 	}
 
@@ -369,11 +371,11 @@ func (e *Engine) runCandidate(ctx context.Context, repo gitcli.Repository, remot
 	pushRes, perr := e.client.PushLease(ctx, repo, remote, ref, commit, baseCommit)
 	if perr != nil {
 		// The push could not be classified structurally — probe whether it landed.
-		return e.classifyUnknownPush(ctx, repo, remote, ref, commit, acc, plan, cand, &run), true, run
+		return withGrandfathered(e.classifyUnknownPush(ctx, repo, remote, ref, commit, acc, plan, cand, &run), kept), true, run
 	}
 	switch pushRes.Disposition {
 	case gitcli.PushApplied:
-		return e.appliedOutcome(acc, commit, plan, cand), true, run
+		return withGrandfathered(e.appliedOutcome(acc, commit, plan, cand), kept), true, run
 	case gitcli.PushLeaseLost:
 		acc.RemoteCommit = pushRes.Remote
 		*lastRemote = pushRes.Remote
@@ -384,8 +386,20 @@ func (e *Engine) runCandidate(ctx context.Context, repo gitcli.Repository, remot
 			acc.RemoteCommit = pushRes.Remote
 			*lastRemote = pushRes.Remote
 		}
-		return e.classifyUnknownPush(ctx, repo, remote, ref, commit, acc, plan, cand, &run), true, run
+		return withGrandfathered(e.classifyUnknownPush(ctx, repo, remote, ref, commit, acc, plan, cand, &run), kept), true, run
 	}
+}
+
+// withGrandfathered attaches the after-gate's grandfathered unrelated error
+// findings to an applied outcome (spec §1 step 5: unrelated health findings
+// travel through the result's findings without turning an applied operation
+// into a failure). Any other disposition is returned unchanged, so a lease-loss
+// retry never carries one attempt's findings into the next.
+func withGrandfathered(o attemptOutcome, kept []domain.Finding) attemptOutcome {
+	if o.result.Disposition == DispositionApplied {
+		o.result.Findings = cloneFindings(kept)
+	}
+	return o
 }
 
 // appliedOutcome finalizes an applied push: it stamps the pushed phase (best

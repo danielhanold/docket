@@ -621,6 +621,7 @@ func TestChangeClaimUnrelatedInvalidRecordProgress(t *testing.T) {
 		t.Fatalf("claim beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
 			claim.Result, claim.Disposition, claim.Findings)
 	}
+	assertAppliedSurfacesUnrelated(t, claim)
 	rec, _ := originFile(t, repo.origin, "docket", recPath)
 	if !strings.Contains(rec, "status: 'in-progress'") {
 		t.Errorf("claimed record on origin is not in-progress:\n%s", rec)
@@ -645,7 +646,31 @@ func TestChangeClaimUnrelatedInvalidRecordProgress(t *testing.T) {
 		t.Fatalf("refresh-claim beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
 			refresh.Result, refresh.Disposition, refresh.Findings)
 	}
+	assertAppliedSurfacesUnrelated(t, refresh)
 	assertUnrelatedBrokenIntact(t, repo)
+}
+
+// assertAppliedSurfacesUnrelated proves an applied claim beside the unrelated
+// broken record keeps its applied disposition AND lists A's grandfathered
+// error finding (spec §1 step 5): the scoped gate accepted a corpus error, so
+// the result must say so rather than read clean, and the surfaced error must
+// not turn the applied result into a failure or change its exit code.
+// Mutation check: drop the engine's kept findings from the applied result and
+// this reddens.
+func assertAppliedSurfacesUnrelated(t *testing.T, r ChangeClaimResult) {
+	t.Helper()
+	if r.Result != ResultApplied || r.Disposition != ClaimDispositionApplied {
+		t.Fatalf("result = %q disposition = %q, want applied/applied", r.Result, r.Disposition)
+	}
+	if ExitCode(r.Result) != ExitCode(ResultApplied) {
+		t.Errorf("exit code = %d, want the applied exit code %d", ExitCode(r.Result), ExitCode(ResultApplied))
+	}
+	for _, f := range r.Findings {
+		if f.Path == unrelatedBrokenPath && f.Severity == "error" {
+			return
+		}
+	}
+	t.Errorf("applied claim findings %+v omit the unrelated record's error finding on %s", r.Findings, unrelatedBrokenPath)
 }
 
 // TestChangeClaimUnrelatedDependentsOfBrokenProgress is the canonical real-world

@@ -178,9 +178,7 @@ func TestEngineScopeAppliesDespiteUnrelatedError(t *testing.T) {
 			if res.Disposition != DispositionApplied {
 				t.Fatalf("disposition = %q, want applied (findings %v)", res.Disposition, res.Findings)
 			}
-			if len(res.Findings) != 0 {
-				t.Errorf("applied result carried refusal findings %v", res.Findings)
-			}
+			assertGrandfatheredSurfaced(t, res.Findings)
 			if got := r.blobID(t, scopeUnrelatedPath); got != aBlob {
 				t.Errorf("unrelated record blob changed: %q -> %q", aBlob, got)
 			}
@@ -189,6 +187,43 @@ func TestEngineScopeAppliesDespiteUnrelatedError(t *testing.T) {
 				t.Errorf("committed paths = %v, want [%s]", paths, scopeSubjectPath)
 			}
 		})
+	}
+}
+
+// assertGrandfatheredSurfaced proves an applied or no-op scoped result carries
+// the unrelated record A's grandfathered error finding — and only it, at its
+// error severity (spec §1 step 5: unrelated health findings travel through the
+// result's findings without changing the disposition). Mutation check: drop the
+// kept findings from the applied/no-op result in runCandidate and this reddens.
+func assertGrandfatheredSurfaced(t *testing.T, findings []domain.Finding) {
+	t.Helper()
+	if len(findings) == 0 {
+		t.Fatal("result dropped the grandfathered unrelated finding; want it surfaced")
+	}
+	for _, f := range findings {
+		if f.Entity.Path != scopeUnrelatedPath || f.Severity != domain.SeverityError {
+			t.Errorf("surfaced finding %+v; want only A's error findings at %s", f, scopeUnrelatedPath)
+		}
+	}
+}
+
+// TestEngineScopeNoOpSurfacesUnrelatedError is the no-op sibling of the
+// progress case: an empty plan beside the unrelated invalid A is still no-op,
+// and still reports A's grandfathered error finding.
+func TestEngineScopeNoOpSurfacesUnrelatedError(t *testing.T) {
+	r := newMainModeRepos(t)
+	client, repo := r.discover(t)
+	eng := newEngine(t, client)
+	r.advanceOrigin(t, scopeUnrelatedPath, scopeUnrelatedRecord())
+	base := r.originTip(t)
+
+	res := execScoped(t, eng, r, repo, &scopeLoader{}, staticScope(nil, scopeSubjectPath), nil, &scriptedOp{})
+	if res.Disposition != DispositionNoOp {
+		t.Fatalf("disposition = %q, want no-op (findings %v)", res.Disposition, res.Findings)
+	}
+	assertGrandfatheredSurfaced(t, res.Findings)
+	if r.originTip(t) != base {
+		t.Error("origin advanced on a no-op")
 	}
 }
 
