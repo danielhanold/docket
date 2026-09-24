@@ -1,6 +1,6 @@
 # Backlog
 
-**451 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 301 done · 🗑️ 119 killed
+**452 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 301 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
@@ -23,10 +23,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (14)
+## 🟡 Proposed (15)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0452](active/0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md) | Same-scope first-start loser must not rotate the winner's executing worktree slot | `high` | `fix` | needs-brainstorm |
 | [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | needs-brainstorm |
 | [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | needs-brainstorm |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-brainstorm |
@@ -92,6 +93,7 @@ graph TD
   0447
   0448 --> 0449
   0450
+  0452
   0192:::done
   0251:::done
   0370:::done
