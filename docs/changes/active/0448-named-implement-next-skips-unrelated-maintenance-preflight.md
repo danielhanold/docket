@@ -2,11 +2,11 @@
 id: 448
 slug: 'named-implement-next-skips-unrelated-maintenance-preflight'
 title: 'Named implement-next skips unrelated maintenance preflight'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-23'
-updated: '2026-09-23'
+updated: '2026-09-24'
 depends_on: [446]
 stacked_on:
 related: [389, 397, 444, 446]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/named-implement-next-skips-unrelated-maintenance-preflight'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-24T06:26:08Z'
 ---
 
 ## Artifacts
