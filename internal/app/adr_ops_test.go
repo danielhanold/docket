@@ -571,3 +571,79 @@ func assertCanonicalADRReceipt(t *testing.T, receipt []byte, id int, path string
 		t.Errorf("receipt is not canonical:\n got %s\nwant %s", receipt, remar)
 	}
 }
+
+// --- 0449: unrelated invalid records never block a required ADR write -------
+// Shares the unrelated-broken-record fixtures with change_claim_test.go. These
+// drive the production engine: the corpus carries an unrelated unparseable
+// change record A, which the ADR index (rendered from the snapshot, where A
+// simply is not) and the scoped gates must both tolerate.
+//
+// Mutation check (run manually; noted in the commit): delete the `Scope:` field
+// from ADRRecordOp's (or adrReplace's) transaction.Request and
+// `go test ./internal/app/ -run 'TestADR.*Unrelated' -count=1` reddens on that
+// progress row with the before-gate refusal the bug produced.
+
+const adrProducerSlug = "widget"
+
+func TestADRUnrelatedInvalidRecordProgress(t *testing.T) {
+	requireRealGit(t)
+	producerPath := groomPath(3, adrProducerSlug)
+	targetPath := adrPath("0001", "one")
+	rows := []struct {
+		name string
+		run  func(t *testing.T, repo *gitRepo, node realNode) ADRResult
+	}{
+		{name: "record", run: func(t *testing.T, repo *gitRepo, node realNode) ADRResult {
+			return ADRRecordOp(context.Background(), node.deps, node.dir, validADRRecordRequest())
+		}},
+		{name: "record with producing change", run: func(t *testing.T, repo *gitRepo, node realNode) ADRResult {
+			req := validADRRecordRequest()
+			req.Change = &ADRProducingChange{ID: 3, Path: producerPath, Version: blobVersionAt(t, repo.origin, "docket", producerPath)}
+			return ADRRecordOp(context.Background(), node.deps, node.dir, req)
+		}},
+		{name: "supersede", run: func(t *testing.T, repo *gitRepo, node realNode) ADRResult {
+			req := validADRReplaceRequest()
+			req.Target.Version = blobVersionAt(t, repo.origin, "docket", targetPath)
+			return ADRSupersede(context.Background(), node.deps, node.dir, req)
+		}},
+	}
+	for _, r := range rows {
+		t.Run(r.name, func(t *testing.T) {
+			repo := newWorkingRepo(t, map[string]string{
+				producerPath:        lifecycleChange(3, adrProducerSlug, "in-progress"),
+				targetPath:          fixtureADR(1, "one"),
+				unrelatedBrokenPath: unrelatedBrokenBytes,
+			})
+			res := r.run(t, repo, planningDepsFor(t, repo.invocation))
+			if res.Result != ResultApplied {
+				t.Fatalf("%s beside an unrelated unparseable record = %q (findings %v), want applied", r.name, res.Result, res.Findings)
+			}
+			assertUnrelatedBrokenIntact(t, repo)
+		})
+	}
+}
+
+func TestADRUnrelatedInvalidRecordRefusals(t *testing.T) {
+	requireRealGit(t)
+	producerPath := groomPath(3, adrProducerSlug)
+	cases := unrelatedRefusalCases(t, 3, producerPath,
+		lifecycleChange(3, adrProducerSlug, "in-progress"), lifecycleChange(3, "dupe", "in-progress"))
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			repo := newWorkingRepo(t, c.files)
+			node := planningDepsFor(t, repo.invocation)
+			tip := originTip(t, repo.origin, "docket")
+
+			req := validADRRecordRequest()
+			req.Change = &ADRProducingChange{ID: 3, Path: producerPath, Version: blobVersionAt(t, repo.origin, "docket", producerPath)}
+			res := ADRRecordOp(context.Background(), node.deps, node.dir, req)
+			if res.Result == ResultApplied {
+				t.Fatalf("adr record applied despite %s on its producing change; want a refusal", c.name)
+			}
+			assertRefusalBeyondUnrelated(t, "", res.Findings)
+			if got := originTip(t, repo.origin, "docket"); got != tip {
+				t.Errorf("a refused adr record moved the metadata branch %s -> %s", tip, got)
+			}
+		})
+	}
+}

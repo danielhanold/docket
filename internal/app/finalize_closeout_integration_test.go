@@ -1166,3 +1166,141 @@ func TestIntegrationFinalizeCloseoutStackedPreservation(t *testing.T) {
 		}
 	})
 }
+
+// --- 0449: unrelated invalid records never block a named closeout -----------
+// Shares the unrelated-broken-record fixtures with change_claim_test.go. The
+// archive path is the multi-record closeout (root plus carried descendants);
+// the stacked path edits the record in place. Both drive the production engine
+// over a corpus that also carries an unrelated unparseable record A.
+//
+// Mutation check (run manually; noted in the commit): delete the `Scope:` field
+// from runCloseoutArchiveTransaction's transaction.Request and
+// `go test -tags integration ./internal/app/ -run 'TestIntegrationFinalizeCloseoutUnrelated' -count=1`
+// reddens on the archive progress rows with the before-gate refusal the bug
+// produced.
+
+func TestIntegrationFinalizeCloseoutUnrelatedInvalidRecordArchive(t *testing.T) {
+	requireRealGit(t)
+	// A's corruption lands either before the merge or between the merge and
+	// closeout; neither ordering may block B's archive.
+	for _, afterMerge := range []bool{false, true} {
+		name := "seeded-before-merge"
+		if afterMerge {
+			name = "seeded-between-merge-and-closeout"
+		}
+		t.Run(name, func(t *testing.T) {
+			f := setupCloseoutFixture(t, planRepoModeDocket())
+			seed := func() {
+				f.repo.writerAdvance(t, f.branch, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
+			}
+			if !afterMerge {
+				seed()
+			}
+			mergeCommit := f.mergeIntoBase(t)
+			if afterMerge {
+				seed()
+			}
+			res := FinalizeCloseout(context.Background(), f.closeoutDeps(f.baselineMergedFake(f.head, mergeCommit)), f.repo.invocation, f.id, CloseoutNotes{})
+			if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
+				t.Fatalf("closeout beside an unrelated unparseable record = %q disp %q (reason %q msg %q findings %v), want applied done-archived",
+					res.Result, res.Disposition, res.Reason, res.Message, res.Findings)
+			}
+			if _, ok := originFile(t, f.repo.origin, f.branch, res.ArchivePath); !ok {
+				t.Errorf("archived record absent at %q", res.ArchivePath)
+			}
+			assertUnrelatedBrokenIntact(t, f.repo)
+		})
+	}
+}
+
+func TestIntegrationFinalizeCloseoutUnrelatedInvalidRecordStacked(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModeDocket())
+	recPath, mc := f.carryLiveParent(t, "implemented", "feat/parent")
+	f.repo.writerAdvance(t, f.branch, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
+	gh := &fakeCloseoutGitHub{
+		repo: retargetRepo(),
+		merged: map[int]closeoutProbe{
+			closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/parent", mc)},
+		},
+	}
+
+	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+	if res.Result != ResultApplied || res.Disposition != CloseoutDispStackedMerged {
+		t.Fatalf("stacked closeout beside an unrelated unparseable record = %q disp %q (reason %q msg %q findings %v), want applied stacked-merged",
+			res.Result, res.Disposition, res.Reason, res.Message, res.Findings)
+	}
+	if rec, _ := originFile(t, f.repo.origin, f.branch, recPath); !strings.Contains(rec, "status: 'stacked-merged'") {
+		t.Errorf("record not stacked-merged in place:\n%s", rec)
+	}
+	assertUnrelatedBrokenIntact(t, f.repo)
+}
+
+// TestIntegrationFinalizeCloseoutUnrelatedInvalidRecordCarriedDescendant proves
+// the root-carry archive applies beside an unrelated unparseable A with a
+// healthy carried descendant, and refuses — landing nothing — when the carried
+// descendant itself is defective, even though the candidate relocates that
+// descendant's active path into the archive (the before-state obligation).
+func TestIntegrationFinalizeCloseoutUnrelatedInvalidRecordCarriedDescendant(t *testing.T) {
+	requireRealGit(t)
+	descPath := groomPath(6, "gadget")
+	descPlan := "docs/superpowers/plans/2026-08-16-gadget-plan.md"
+
+	run := func(t *testing.T, defective bool) (*closeoutFixture, string, CloseoutResult) {
+		f := setupCloseoutFixture(t, planRepoModeDocket())
+		desc := closeoutRecord(6, "gadget", "stacked-merged", "github.com/acme/widget#8", "", descPlan, "")
+		desc = strings.Replace(desc, "stacked_on:\n", "stacked_on: 5\n", 1)
+		if defective {
+			bad := strings.Replace(desc, "type: feat\n", "type: 'Not A Token'\n", 1)
+			if bad == desc {
+				t.Fatal("descendant defect fixture did not rewrite the record; the fixture shape changed")
+			}
+			desc = bad
+		}
+		f.repo.writerAdvance(t, f.branch, map[string]string{
+			descPath:            desc,
+			descPlan:            artifactWithBacklink(descPath, "Gadget plan", "The gadget plan."),
+			unrelatedBrokenPath: unrelatedBrokenBytes,
+		})
+		childMerge := f.carryOntoRootFeature(t, map[string]string{"gadget.txt": "gadget work\n"})
+		mergeCommit := f.mergeIntoBase(t)
+		f.fetchAllIntoInvocation(t)
+		tip := originTip(t, f.repo.origin, f.branch)
+		gh := &fakeCloseoutGitHub{
+			repo: retargetRepo(),
+			merged: map[int]closeoutProbe{
+				closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", mergeCommit)},
+				8:          {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(childMerge, "feat/widget", childMerge)},
+			},
+		}
+		return f, tip, FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+	}
+
+	t.Run("healthy-descendant-archives", func(t *testing.T) {
+		f, _, res := run(t, false)
+		if res.Result != ResultApplied || res.Disposition != CloseoutDispRootArchived {
+			t.Fatalf("root carry beside an unrelated unparseable record = %q disp %q (reason %q msg %q findings %v), want applied root-archived",
+				res.Result, res.Disposition, res.Reason, res.Message, res.Findings)
+		}
+		if got := res.CarriedIDs; len(got) != 1 || got[0] != 6 {
+			t.Errorf("carried ids = %v, want [6]", got)
+		}
+		assertUnrelatedBrokenIntact(t, f.repo)
+	})
+
+	t.Run("defective-descendant-refuses", func(t *testing.T) {
+		f, tip, res := run(t, true)
+		if res.Result == ResultApplied || res.Result == ResultNoOp {
+			t.Fatalf("root carry applied despite a defective carried descendant: %q disp %q", res.Result, res.Disposition)
+		}
+		assertRefusalBeyondUnrelated(t, res.Reason, res.Findings)
+		if after := originTip(t, f.repo.origin, f.branch); after != tip {
+			t.Errorf("a refused root carry moved the metadata branch %s -> %s", tip, after)
+		}
+		for _, p := range []string{groomPath(f.id, f.slug), descPath} {
+			if _, ok := originFile(t, f.repo.origin, f.branch, p); !ok {
+				t.Errorf("refused closeout relocated %q away from its active path", p)
+			}
+		}
+	})
+}
