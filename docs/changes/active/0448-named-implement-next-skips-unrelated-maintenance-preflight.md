@@ -14,7 +14,7 @@ discovered_from: [446]
 adrs: [101, 106]
 spec: 'docs/superpowers/specs/2026-09-23-named-implement-next-skips-unrelated-maintenance-preflight-design.md'
 plan: 'docs/superpowers/plans/2026-09-24-named-implement-next-skips-unrelated-maintenance-preflight.md'
-results:
+results: 'docs/results/2026-09-24-named-implement-next-skips-unrelated-maintenance-preflight-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-24T06:57:47Z'
 |---|---|
 | Spec | [2026-09-23-named-implement-next-skips-unrelated-maintenance-preflight-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-23-named-implement-next-skips-unrelated-maintenance-preflight-design.md) |
 | Plan | [2026-09-24-named-implement-next-skips-unrelated-maintenance-preflight.md](https://github.com/danielhanold/docket/blob/fix/named-implement-next-skips-unrelated-maintenance-preflight/docs/superpowers/plans/2026-09-24-named-implement-next-skips-unrelated-maintenance-preflight.md) |
+| Results | [2026-09-24-named-implement-next-skips-unrelated-maintenance-preflight-results.md](https://github.com/danielhanold/docket/blob/fix/named-implement-next-skips-unrelated-maintenance-preflight/docs/results/2026-09-24-named-implement-next-skips-unrelated-maintenance-preflight-results.md) |
 | ADRs | [ADR-0101](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md), [ADR-0106](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0106-implementation-preflight-is-a-deterministic-operation-not-a.md) |
 <!-- docket:artifacts:end -->
 
