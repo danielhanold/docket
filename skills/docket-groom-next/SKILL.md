@@ -1,6 +1,6 @@
 ---
 name: docket-groom-next
-description: Use when stubs are sitting at needs-brainstorm on the docket board and you want the next one designed — selecting the next needs-brainstorm change (proposed, no spec, not trivial) deterministically and grooming it to build-ready through an interactive brainstorm with the human, exiting with a linked spec, a trivial verdict, a kill, or a defer. Selection is autonomous; the design conversation is not. Writes markdown only — never branches, worktrees, or code.
+description: Use when stubs are sitting at needs-brainstorm on the docket board and you want the next one designed — selecting the next needs-brainstorm change (proposed, no spec, not trivial) deterministically and grooming it to build-ready through an interactive brainstorm with the human, exiting with a linked spec, a trivial verdict, a kill, or a defer — or revising an already-groomed proposed change by explicit id. Selection is autonomous; the design conversation is not. Writes markdown only — never branches, worktrees, or code.
 ---
 
 # docket-groom-next — the groomer (interactive)
@@ -68,7 +68,7 @@ All five exits reuse existing transitions — this skill introduces no new lifec
 
 ### Step 5 — The transaction lands (no separate board pass)
 
-The Step-4 typed op is the whole write: it re-checks the pinned exact `version`, commits the change record, the spec, the `## Artifacts` block, and the inline board in one metadata commit pushed to `origin/docket` under an exact-lease push — so there is no separate hand-staged commit and **no separate Board pass** (the readiness cell flips from needs-brainstorm, or the row leaves the Proposed section on a kill or defer, in that same commit). On a `contended` refusal the op writes nothing: re-sync (re-run the `repository.prepare` operation), re-read the record's `path` + `version` from the `status` operation, and — if it is no longer needs-brainstorm (someone else groomed, killed, or claimed it) — STOP and report rather than overwrite; otherwise re-author and retry. STOP — grooming never implements.
+The Step-4 typed op is the whole write: it re-checks the pinned exact `version`, commits the change record, the spec, the `## Artifacts` block, and the inline board in one metadata commit pushed to `origin/docket` under an exact-lease push — so there is no separate hand-staged commit and **no separate Board pass** (the readiness cell flips from needs-brainstorm, or the row leaves the Proposed section on a kill or defer, in that same commit; a revise keeps the row build-ready). On a `contended` refusal the op writes nothing: re-sync (re-run the `repository.prepare` operation), re-read the record's `path` + `version` from the `status` operation, and — if it is no longer needs-brainstorm (someone else groomed, killed, or claimed it) — STOP and report rather than overwrite; otherwise re-author and retry. On a revise, also re-read the spec (a fresh `spec_version`) and stop only if the change is no longer an already-groomed `proposed` change. STOP — grooming never implements.
 
 ## Concurrency — no claim
 
