@@ -433,6 +433,104 @@ func TestCancelPendingOnUncompletedMutation(t *testing.T) {
 	}
 }
 
+// TestCancelSettlesUncertainPublicationWithIdenticalRetry (change 0444 acceptance
+// 1): an uncertain PR publication plus a later completed identical retry — with
+// every process teardown proven — lets cancellation durably complete the original
+// entry and report cancelled; the terminal epoch is then quiescent for resume and
+// SupersedeCancelledEpoch admits exactly one replacement.
+func TestCancelSettlesUncertainPublicationWithIdenticalRetry(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	desc := MutationPublication{
+		RepoHost: "github.com", RepoOwner: "o", RepoName: "r",
+		HeadRef: "fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		BaseBranch:  "main",
+		TitleDigest: publicationDigest("pr-title", "t"),
+		BodyDigest:  publicationDigest("pr-body", "b"),
+	}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationPRPublish, Status: mutationStatusUncertain, Publication: &desc},
+			{OpKey: OperationPRPublish, Status: mutationStatusCompleted, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed journal: %v", err)
+	}
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+
+	if res.Disposition != CancelDispositionCancelled {
+		t.Fatalf("disposition = %q (findings %v), want cancelled", res.Disposition, res.Findings)
+	}
+	if hasFinding(res.Findings, "mutation-pending") {
+		t.Fatalf("findings = %v, must not report the settled mutation pending", res.Findings)
+	}
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
+		t.Fatal("the ORIGINAL record must be durably completed, not merely the result string")
+	}
+	// Resume path: the terminal epoch is quiescent and admits its one replacement.
+	if ok, detail := validateResumeQuiescence(cancelSeams{store: fx.store, launches: okLaunchReconciler()}, ep); !ok {
+		t.Fatalf("resume quiescence = %q, want quiescent after settlement", detail)
+	}
+	if err := SupersedeCancelledEpoch(fx.repo, fx.key, "replacement-key"); err != nil {
+		t.Fatalf("SupersedeCancelledEpoch: %v (resume must admit exactly one replacement)", err)
+	}
+}
+
+// TestCancelStaysPendingWithoutCompletedIdenticalRetry (change 0444 acceptance 2):
+// a workspace publication settles analogously, and an uncertain entry with NO
+// completed identical retry keeps cancellation-pending — then a subsequent
+// identical completed retry lets the SAME pending cancellation finish (acceptance
+// 4 tail).
+func TestCancelStaysPendingWithoutCompletedIdenticalRetry(t *testing.T) {
+	fx := newCancelFixture(t, true)
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed journal: %v", err)
+	}
+	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
+	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
+
+	first := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	if first.Disposition != CancelDispositionPending {
+		t.Fatalf("disposition = %q, want cancellation-pending (no completed identical retry)", first.Disposition)
+	}
+	if !hasFinding(first.Findings, "mutation-pending:"+OperationWorkspacePublish) {
+		t.Fatalf("findings = %v, want mutation-pending:workspace.publish", first.Findings)
+	}
+
+	// A subsequent identical successful retry lands in the journal; the SAME repeat
+	// cancel now converges.
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = append(r.AdmittedMutations,
+			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc})
+		return nil
+	}); err != nil {
+		t.Fatalf("append retry: %v", err)
+	}
+	second := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	if second.Disposition != CancelDispositionCancelled {
+		t.Fatalf("repeat disposition = %q (findings %v), want cancelled", second.Disposition, second.Findings)
+	}
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
+		t.Fatal("the ORIGINAL workspace record must be durably completed after the repeat cancel")
+	}
+}
+
 // TestCancelNativeAdapterAbsentIsFindingNotSilence: with no native adapter wired, a
 // native participant yields an explicit finding while the process teardown still
 // accounts the run to cancelled.
