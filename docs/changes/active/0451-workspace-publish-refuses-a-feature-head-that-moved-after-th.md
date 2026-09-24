@@ -22,7 +22,7 @@ branch: 'chore/workspace-publish-refuses-a-feature-head-that-moved-after-th'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T06:23:32Z'
+claimed_at: '2026-09-24T06:27:22Z'
 ---
 
 ## Artifacts
