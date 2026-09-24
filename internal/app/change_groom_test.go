@@ -478,3 +478,201 @@ func TestChangeGroomEmptyReviseRefusedWithoutEngineCall(t *testing.T) {
 		t.Errorf("missing finding empty-revise; got %v", res.Findings)
 	}
 }
+
+const reviseSpecPath = "docs/superpowers/specs/2026-08-01-add-a-widget-design.md"
+
+// reviseFixtureFiles is the fake tree for a revisable spec'd change: the
+// record with spec: linked, and the spec file itself with a backlink block.
+func reviseFixtureFiles() map[string]string {
+	return map[string]string{
+		groomPath(2, "add-a-widget"): revisableChange(2, "add-a-widget", reviseSpecPath),
+		reviseSpecPath: "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
+			"> old backlink\n" +
+			"<!-- docket:backlink:end -->\n\n# Design\n\nThe original design body.\n",
+	}
+}
+
+func TestChangeGroomPlanReviseSectionsOnly(t *testing.T) {
+	files := reviseFixtureFiles()
+	files["docs/changes/BOARD.md"] = "# Backlog\n\nold\n"
+	req := validReviseRequest()
+	req.SpecMarkdown = "" // sections only
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	// Spec item 1: record + board replaced; the spec file is NOT in the plan,
+	// so it stays byte-identical by construction.
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+		"docs/changes/BOARD.md":      transaction.MutationReplace,
+	})
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if strings.Contains(rec, "Original what.") || !strings.Contains(rec, "Narrowed what.") {
+		t.Errorf("## What changes section not replaced:\n%s", rec)
+	}
+	if !strings.Contains(rec, "updated: '2026-08-16'") {
+		t.Errorf("updated not stamped from the clock:\n%s", rec)
+	}
+	// Spec item 9: revise never flips the groomed-outcome fields.
+	if !strings.Contains(rec, "spec: '"+reviseSpecPath+"'") {
+		t.Errorf("spec field changed under revise:\n%s", rec)
+	}
+	if !strings.Contains(rec, "trivial: false") {
+		t.Errorf("trivial field changed under revise:\n%s", rec)
+	}
+}
+
+func TestChangeGroomPlanReviseSpecBodyOnly(t *testing.T) {
+	files := reviseFixtureFiles()
+	before := files[groomPath(2, "add-a-widget")]
+	req := validReviseRequest()
+	req.Sections = nil // spec body only
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	// Spec item 2: the spec file is REPLACED at the existing path, never created
+	// at a new dated path.
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+		reviseSpecPath:               transaction.MutationReplace,
+	})
+	spec := string(groomedRecordBytes(t, plan, reviseSpecPath))
+	if !strings.Contains(spec, "docket:backlink:start") {
+		t.Errorf("revised spec file missing backlink block:\n%s", spec)
+	}
+	if !strings.Contains(spec, "The revised design body.") || strings.Contains(spec, "The original design body.") {
+		t.Errorf("spec body not replaced:\n%s", spec)
+	}
+	// Spec item 2: the record's sections are byte-identical apart from
+	// updated:. The docket:artifacts block legitimately re-renders (the same
+	// call every groom outcome makes — the empty fixture block gains a Spec
+	// row), so compare the authored body AFTER the artifacts block, plus the
+	// frontmatter fields, rather than the whole file.
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	bodyAfterArtifacts := func(s string) string {
+		i := strings.Index(s, "docket:artifacts:end")
+		if i < 0 {
+			t.Fatalf("record lacks the artifacts end marker:\n%s", s)
+		}
+		return s[i:]
+	}
+	if got, want := bodyAfterArtifacts(rec), bodyAfterArtifacts(before); got != want {
+		t.Errorf("authored body changed under a spec-only revise:\ngot:\n%s\nwant:\n%s", got, want)
+	}
+	if !strings.Contains(rec, "updated: '2026-08-16'") {
+		t.Errorf("updated not stamped:\n%s", rec)
+	}
+	if !strings.Contains(rec, "spec: '"+reviseSpecPath+"'") || !strings.Contains(rec, "trivial: false") {
+		t.Errorf("groomed-outcome fields changed under a spec-only revise:\n%s", rec)
+	}
+}
+
+func TestChangeGroomPlanReviseBoth(t *testing.T) {
+	// Spec item 3: both edits land in one plan.
+	plan, opRes := groomPlanFor(t, reviseFixtureFiles(), baseGroomOp([]string{}, validReviseRequest()))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+		reviseSpecPath:               transaction.MutationReplace,
+	})
+}
+
+func TestChangeGroomPlanReviseTrivialRationale(t *testing.T) {
+	// Spec item 4: sections-only revise of a trivial-verdicted change.
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget"),
+	}
+	req := validReviseRequest()
+	req.SpecMarkdown = ""
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+	})
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if !strings.Contains(rec, "trivial: true") {
+		t.Errorf("trivial verdict lost under revise:\n%s", rec)
+	}
+	if strings.Contains(rec, "spec: '") {
+		t.Errorf("revise of a trivial change wrote a spec link:\n%s", rec)
+	}
+}
+
+func TestChangeGroomPlanReviseRefusals(t *testing.T) {
+	cases := []struct {
+		name  string
+		files map[string]string
+		mut   func(*ChangeGroomRequest)
+		code  string
+	}{
+		// Spec item 5: spec_markdown against a trivial-only (no-spec) change.
+		{"spec-not-linked", map[string]string{
+			groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget"),
+		}, func(r *ChangeGroomRequest) {}, "spec-not-linked"},
+		// Spec item 6: a needs-brainstorm change is groom's target, not revise's.
+		{"not-revisable needs-brainstorm", map[string]string{
+			groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
+		}, func(r *ChangeGroomRequest) {}, "not-revisable"},
+		// Spec item 7: a non-proposed change.
+		{"not-revisable blocked", map[string]string{
+			groomPath(2, "add-a-widget"): strings.Replace(
+				revisableChange(2, "add-a-widget", reviseSpecPath),
+				"status: proposed\n", "status: blocked\nblocked_by: 'waiting'\n", 1),
+		}, func(r *ChangeGroomRequest) {}, "not-revisable"},
+		// Review Focus 3: dangling spec link — spec: names a path absent from
+		// the tree; never silently mint a file.
+		{"spec-file-missing", map[string]string{
+			groomPath(2, "add-a-widget"): revisableChange(2, "add-a-widget", reviseSpecPath),
+		}, func(r *ChangeGroomRequest) {}, "spec-file-missing"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := validReviseRequest()
+			c.mut(&req)
+			plan, opRes := groomPlanFor(t, c.files, baseGroomOp([]string{}, req))
+			if !opRes.Refused {
+				t.Fatalf("expected a refusal, got plan files %v", planPaths(plan))
+			}
+			found := false
+			for _, f := range opRes.Findings {
+				if f.Code == c.code {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("missing refusal code %q; got %v", c.code, opRes.Findings)
+			}
+			if len(plan.Files) != 0 {
+				t.Errorf("refused plan still carries files: %v", planPaths(plan))
+			}
+		})
+	}
+}
+
+func TestChangeGroomPlanReviseRepeatable(t *testing.T) {
+	// Spec item 11 (plan level): a second revise over the first revise's own
+	// output succeeds — no one-shot marker exists.
+	files := reviseFixtureFiles()
+	plan1, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, validReviseRequest()))
+	if opRes.Refused {
+		t.Fatalf("first revise refused: %v", opRes.Findings)
+	}
+	files[groomPath(2, "add-a-widget")] = string(groomedRecordBytes(t, plan1, groomPath(2, "add-a-widget")))
+	files[reviseSpecPath] = string(groomedRecordBytes(t, plan1, reviseSpecPath))
+	req2 := validReviseRequest()
+	req2.SpecMarkdown = "# Design\n\nThe twice-revised body.\n"
+	plan2, opRes2 := groomPlanFor(t, files, baseGroomOp([]string{}, req2))
+	if opRes2.Refused {
+		t.Fatalf("second revise refused: %v", opRes2.Findings)
+	}
+	spec := string(groomedRecordBytes(t, plan2, reviseSpecPath))
+	if !strings.Contains(spec, "The twice-revised body.") {
+		t.Errorf("second revise did not land:\n%s", spec)
+	}
+}
