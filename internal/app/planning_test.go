@@ -210,6 +210,57 @@ func TestNewPlanningLoaderParseFailureIsFinding(t *testing.T) {
 	}
 }
 
+// TestNewPlanningLoaderRetainsParseFailedSourceAndBlobIDs pins change 0449's
+// loader contract: a parse-failed record keeps its exact source bytes and its
+// tree blob object id so the scoped after-gate can prove it unchanged, while it
+// stays out of Documents and still surfaces as an error finding.
+func TestNewPlanningLoaderRetainsParseFailedSourceAndBlobIDs(t *testing.T) {
+	const (
+		goodPath = "docs/changes/active/0001-good.md"
+		badPath  = "docs/changes/active/0002-bad.md"
+		badBody  = "---\nid: 2\n"
+	)
+	tree := newFakeTree(map[string]string{
+		goodPath: fixtureChange(1, "good"),
+		badPath:  badBody,
+	})
+	// Give each tree entry a distinct object id so the assertion proves the id
+	// is taken from the listed tree entry, not a shared placeholder.
+	wantIDs := map[gitcli.RepoPath]gitcli.ObjectID{
+		goodPath: "1111111111111111111111111111111111111111",
+		badPath:  "2222222222222222222222222222222222222222",
+	}
+	for i := range tree.entries {
+		tree.entries[i].ObjectID = wantIDs[tree.entries[i].Path]
+	}
+
+	st, err := newPlanningLoader(planningTestConfig([]string{"inline"})).Load(context.Background(), tree)
+	if err != nil {
+		t.Fatalf("Load must not return a Go error for a parse failure: %v", err)
+	}
+	var sawParse bool
+	for _, f := range st.Report.Findings() {
+		if f.Entity.Path == badPath && f.Code == document_KindUnclosedFrontmatter {
+			sawParse = true
+		}
+	}
+	if !sawParse {
+		t.Error("parse failure no longer surfaces as an error finding")
+	}
+	if _, ok := st.Documents[badPath]; ok {
+		t.Error("unparseable record leaked into Documents")
+	}
+	if got, ok := st.Sources[badPath]; !ok || string(got) != badBody {
+		t.Errorf("Sources[bad] = %q (present=%v), want exact bytes %q", got, ok, badBody)
+	}
+	if got := st.Blobs[badPath]; got != wantIDs[badPath] {
+		t.Errorf("Blobs[bad] = %q, want tree entry id %q", got, wantIDs[badPath])
+	}
+	if got := st.Blobs[goodPath]; got != wantIDs[goodPath] {
+		t.Errorf("Blobs[good] = %q, want tree entry id %q", got, wantIDs[goodPath])
+	}
+}
+
 // document_KindUnclosedFrontmatter mirrors document.KindUnclosedFrontmatter
 // without importing the package for one constant in the test.
 const document_KindUnclosedFrontmatter = "unclosed-frontmatter"
