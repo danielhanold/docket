@@ -756,11 +756,11 @@ func TestOwnerSelectionActiveBeatsCancelledRegardlessOfOrder(t *testing.T) {
 			if err != nil || !found || key != tc.active {
 				t.Fatalf("findEpochByWorktree = (%q, %v, %v), want the active owner %q", key, found, err, tc.active)
 			}
-			done, err := admitWorkflowMutation(repo, OperationPRPublish)
+			done, err := admitWorkflowMutation(repo, OperationPRPublish, nil)
 			if err != nil {
 				t.Fatalf("the active run's mutation was refused: %v", err)
 			}
-			done(mutationStatusCompleted)
+			done(mutationStatusCompleted, false)
 			ep, _, lerr := LoadEpochRecord(repo, tc.active)
 			if lerr != nil {
 				t.Fatalf("LoadEpochRecord(active): %v", lerr)
@@ -786,7 +786,7 @@ func TestOwnerSelectionSoleCancelledStillFences(t *testing.T) {
 			if err != nil || !found || key != "mmmm-fenced" {
 				t.Fatalf("findEpochByWorktree = (%q, %v, %v), want the sole fenced epoch", key, found, err)
 			}
-			_, aerr := admitWorkflowMutation(repo, OperationWorkspacePublish)
+			_, aerr := admitWorkflowMutation(repo, OperationWorkspacePublish, nil)
 			if fe, ok := AsMutationFenceError(aerr); !ok || fe.Reason != "run-cancelled" {
 				t.Fatalf("admit = %v, want run-cancelled from the sole %s owner", aerr, state)
 			}
@@ -824,7 +824,7 @@ func TestOwnerSelectionTwoActiveOwnersAmbiguous(t *testing.T) {
 			if !strings.Contains(err.Error(), canon) {
 				t.Fatalf("ambiguity error %q must name the worktree %q", err, canon)
 			}
-			_, aerr := admitWorkflowMutation(repo, OperationPRPublish)
+			_, aerr := admitWorkflowMutation(repo, OperationPRPublish, nil)
 			if ee, ok := AsEpochError(aerr); !ok || ee.Kind != ErrEpochOwnerAmbiguous {
 				t.Fatalf("admit = %v, want an ErrEpochOwnerAmbiguous refusal", aerr)
 			}
@@ -850,7 +850,7 @@ func TestOwnerSelectionCompletedNeverOwns(t *testing.T) {
 	if key, found, err := findEpochByWorktree(repo, canon); err != nil || found {
 		t.Fatalf("findEpochByWorktree = (%q, %v, %v), want no owner for a completed epoch", key, found, err)
 	}
-	if _, err := admitWorkflowMutation(repo, OperationPRPublish); err != nil {
+	if _, err := admitWorkflowMutation(repo, OperationPRPublish, nil); err != nil {
 		t.Fatalf("completed epoch fenced a mutation: %v", err)
 	}
 	seedNamedEpoch(t, repo, "zzzz-cancelled", repo, EpochCancelled)
@@ -893,11 +893,11 @@ func TestSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
 			canon := mustCanon(t, fx.worktree)
 
 			// Control: while E is readable it is the owner and the mutation is admitted.
-			done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish)
+			done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
 			if err != nil {
 				t.Fatalf("control admit on a readable active owner: %v", err)
 			}
-			done(mutationStatusCompleted)
+			done(mutationStatusCompleted, false)
 
 			// An UNREFERENCED epoch bound to another worktree (no slot names it),
 			// damaged the same way, and a companion worktree with no owner at all.
@@ -913,7 +913,7 @@ func TestSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
 			apply(t, epochRecordPath(t, fx.repo, fx.key))
 			apply(t, epochRecordPath(t, fx.repo, "unreferenced-epoch"))
 
-			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish)
+			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
 			ee, ok := AsEpochError(aerr)
 			if !ok || ee.Kind != ErrEpochOwnerUnresolved {
 				t.Fatalf("admit on a slot-named %s epoch = %v, want ErrEpochOwnerUnresolved (fail closed, never unfenced)", name, aerr)
@@ -933,11 +933,11 @@ func TestSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
 			}
 
 			for _, wt := range []string{unref, companion} {
-				d, err := admitWorkflowMutation(wt, OperationPRPublish)
+				d, err := admitWorkflowMutation(wt, OperationPRPublish, nil)
 				if err != nil {
 					t.Fatalf("worktree %s refused by damage to a record no slot of it names: %v", wt, err)
 				}
-				d(mutationStatusCompleted)
+				d(mutationStatusCompleted, false)
 			}
 		})
 	}
@@ -977,7 +977,7 @@ func TestUnreadableSlotRefusesLocally(t *testing.T) {
 			}
 			apply(t, admissionRecordFile(t, fx.common, fx.worktree))
 
-			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish)
+			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
 			if ee, ok := AsEpochError(aerr); !ok || ee.Kind != ErrEpochOwnerUnresolved {
 				t.Fatalf("admit over an unreadable %s slot = %v, want ErrEpochOwnerUnresolved (never unfenced)", name, aerr)
 			}
@@ -991,11 +991,11 @@ func TestUnreadableSlotRefusesLocally(t *testing.T) {
 		if err := os.Remove(epochRecordPath(t, fx.repo, fx.key)); err != nil {
 			t.Fatalf("remove epoch record: %v", err)
 		}
-		done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish)
+		done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
 		if err != nil {
 			t.Fatalf("absent slot must admit unfenced: %v", err)
 		}
-		done(mutationStatusCompleted)
+		done(mutationStatusCompleted, false)
 	})
 }
 

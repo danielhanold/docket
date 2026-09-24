@@ -473,7 +473,7 @@ func TestCancelSettlesUncertainPublicationWithIdenticalRetry(t *testing.T) {
 		t.Fatal("the ORIGINAL record must be durably completed, not merely the result string")
 	}
 	// Resume path: the terminal epoch is quiescent and admits its one replacement.
-	if ok, detail := validateResumeQuiescence(cancelSeams{store: fx.store, launches: okLaunchReconciler()}, ep); !ok {
+	if ok, detail := validateResumeQuiescence(cancelSeams{store: fx.store, launches: okLaunchReconciler()}, fx.repo, ep, fx.worktree); !ok {
 		t.Fatalf("resume quiescence = %q, want quiescent after settlement", detail)
 	}
 	if err := SupersedeCancelledEpoch(fx.repo, fx.key, "replacement-key"); err != nil {
