@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/domain"
 )
 
 // cleanSweep builds an applied implementation-scope sweep whose entries are all
@@ -190,5 +192,37 @@ func TestPreflightHumanText(t *testing.T) {
 	}
 	if !strings.Contains(human, "status:") {
 		t.Fatalf("HumanText missing status one-liner: %q", human)
+	}
+}
+
+// TestPreflightForwardsBranchMalformedFinding (change 0454, spec Testing 5):
+// preflight's post-sweep read is the real Status bound exactly as
+// MaintenancePreflight binds it. Over a corpus carrying malformed recorded
+// branches it returns its normal verdict — not an external failure — and
+// forwards the per-change branch-malformed finding in its status half.
+func TestPreflightForwardsBranchMalformedFinding(t *testing.T) {
+	pin := docketPin(t)
+	inner := &fakeReader{pin: pin, corpus: malformedStackCorpus(t), facts: domain.NewBranchFacts(map[string]bool{"feat/ok": true})}
+	reader := poisoned(inner, "feat/a..parent", "feat/a:b", "feat/a:c")
+	res := maintenancePreflight(context.Background(), preflightOps{
+		sweep: func(context.Context) MaintenanceResult { return cleanSweep() },
+		status: func(ctx context.Context) StatusResult {
+			return Status(ctx, reader, StatusOptions{RepoDir: ".", IncludeRecords: false})
+		},
+	})
+	if res.Result != ResultApplied || res.Preflight != PreflightClean {
+		t.Fatalf("preflight = %s/%s (%s: %s), want applied/clean", res.Result, res.Preflight, res.Reason, res.Message)
+	}
+	if res.Status == nil {
+		t.Fatal("preflight omitted its status half over a malformed stack branch")
+	}
+	var forOne int
+	for _, f := range res.Status.Findings {
+		if f.Code == string(FCBranchMalformed) && f.Identity == "0001" {
+			forOne++
+		}
+	}
+	if forOne != 1 {
+		t.Fatalf("forwarded branch-malformed findings for 0001 = %d, want exactly 1 (findings: %+v)", forOne, res.Status.Findings)
 	}
 }
