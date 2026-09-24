@@ -10,9 +10,9 @@ updated: '2026-09-24'
 depends_on: []
 stacked_on:
 related: [444, 446]
-discovered_from: []
-adrs: []
-spec:
+discovered_from: [444]
+adrs: [12]
+spec: 'docs/superpowers/specs/2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md'
 plan:
 results:
 trivial: false
@@ -27,19 +27,24 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md) |
+| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-`change.block` moves a change to `blocked` and records `blocked_by`, but nothing reverses it. When the blocker clears, the only way back is a hand edit of the frontmatter plus a plain git commit on `docket`. That skips the transaction engine's version check and replay, and it leaves BOARD.md stale until a human runs `docket repository migrate`. It also blocks the resume path: `run.gate-before --resume` and `change.resume-halted` both require `in-progress` and refuse a `blocked` change (`resume-unverified` and `not-halted`). Hit on change 444 on 2026-09-24, after its blocker, change 446, merged.
+`change.block` moves a change to `blocked` and `change.defer` moves one to `deferred`, but neither has a typed inverse. When the blocker clears or a deferred change comes back, the only way out is a hand edit of the frontmatter plus a plain git commit on `docket`. That skips the transaction engine's version check and replay, and it leaves BOARD.md stale until a human runs `docket repository migrate`. The convention text still tells agents to do exactly that. Hit on change 444 on 2026-09-24: after its blocker, change 446, merged, 444 was hand-edited from `blocked` back to `in-progress` before `change.resume-halted` could run.
 
 ## What changes
 
-- Add a `change.unblock` operation (`docket change unblock`) to the capability catalog. It is the inverse of `change.block`: it takes the change id and the exact record version, restores the status the change had before it was blocked, clears `blocked_by`, and commits through the transaction engine with a board re-render.
-- Decide how the pre-block status is found: record it at block time or derive it from history. Refuse when the status can't be established rather than guessing.
-- A change that was halted and then blocked must come back in a state `change.resume-halted` accepts, so the resume flow works without hand edits.
-- Update the docket-convention and skill text that describes a blocked change so it names `change.unblock` as the way out.
+- Add `change.unblock` (`docket change unblock`): `blocked` → `in-progress`, clearing `blocked_by`.
+- Add `change.revive` (`docket change revive`): `deferred` → `proposed`.
+- Both expose domain transitions that already exist (`domain.Unblock`, `domain.Revive`) through the existing lifecycle driver that `change.block` and `change.defer` use: exact-version pin, `updated:` refresh, artifact-block and board re-render in one metadata commit. A change in any other status is refused with nothing written.
+- No pre-block status is recorded: `change.block` only accepts `in-progress`, so `in-progress` is always the right target. A halted-then-blocked change keeps its `## Run halted` section and resumes with `change.resume-halted` after unblock.
+- Update the docket-convention lifecycle rules to name `change.unblock` and `change.revive` in place of the hand edit.
 
 ## Out of scope
 
-Automatically unblocking when a dependency lands (a sweep or watcher). Changing `change.block` semantics beyond anything needed to record the pre-block status. The `finalize.block` / `finalize.clear-block` pair.
+Automatically unblocking when a dependency lands (a sweep or watcher) — `blocked_by` is free text, and machine-trackable dependencies already use `depends_on:`. Recovery for stack-kill descendants (`KillStackParent` is not wired to any operation, and its exits are re-scope, re-parent, or kill). The `finalize.block` / `finalize.clear-block` pair. Changing `change.block` or `domain.Revive` semantics, including clearing `branch:`/`claimed_at:` on revive.
