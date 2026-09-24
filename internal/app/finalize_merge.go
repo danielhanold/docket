@@ -366,7 +366,7 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 		}
 	}
 
-	facts, err := reader.BranchFacts(ctx, pin, stackBranches(snap))
+	facts, err := reader.BranchFacts(ctx, pin, stackBranchesFor(snap, c))
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		r := mergeRefusal(result, MergeDispBlocked, reason, err.Error(), id)

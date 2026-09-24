@@ -389,6 +389,42 @@ func stackBranches(snap domain.Snapshot) []string {
 	return branches
 }
 
+// stackBranchesFor bounds the live branch-fact probe to what named decisions
+// about c actually consult: the recorded branches of c's stack ancestors, of c
+// itself, and of the stack ancestors of c's direct depends_on targets (their
+// readiness feeds EvaluateReadiness for c). Sorted, deduped. A named operation
+// uses it instead of the whole-corpus stackBranches, so an unrelated stack
+// whose branch cannot be probed never blocks it (change 0449); read-only
+// status and automatic selection keep the whole-corpus probe.
+func stackBranchesFor(snap domain.Snapshot, c domain.Change) []string {
+	seen := make(map[string]bool)
+	addBranch := func(ch domain.Change) {
+		if b := ch.Branch(); b.State == domain.FieldPresent && b.Value != "" {
+			seen[b.Value] = true
+		}
+	}
+	addAncestors := func(ch domain.Change) {
+		for _, ancestorID := range domain.StackAncestors(snap, ch) {
+			if ancestor, out := snap.Change(ancestorID); out == domain.LookupFound {
+				addBranch(ancestor)
+			}
+		}
+	}
+	addBranch(c)
+	addAncestors(c)
+	for _, depID := range c.DependsOn() {
+		if dep, out := snap.Change(depID); out == domain.LookupFound {
+			addAncestors(dep)
+		}
+	}
+	branches := make([]string, 0, len(seen))
+	for b := range seen {
+		branches = append(branches, b)
+	}
+	sort.Strings(branches)
+	return branches
+}
+
 // activeChanges returns the active changes passing the type/priority
 // projection, in ascending numeric ID order.
 func activeChanges(snap domain.Snapshot, types []string, priorities []domain.Priority) []domain.Change {

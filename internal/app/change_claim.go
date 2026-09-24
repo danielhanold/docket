@@ -383,9 +383,10 @@ func claimPreflight(ctx context.Context, deps PlanningDeps, repoDir, opKey strin
 }
 
 // resolveClaimTarget reads the metadata corpus once, resolves the target
-// change's current canonical record path, and asks the reader which
-// stack-ancestor feature branches exist on the remote (the facts effective-base
-// resolution consults). An id that names no single record is refused here,
+// change's current canonical record path, and asks the reader which of the
+// target's own base/stack feature branches exist on the remote (the facts
+// effective-base resolution consults, bounded by stackBranchesFor so an
+// unrelated stack never blocks this claim). An id that names no single record is refused here,
 // before any engine call, with a typed unknown-change or ambiguous-change
 // reason. This pre-read is a supporting observation; the authoritative record
 // state is re-read fresh inside the transaction.
@@ -419,7 +420,7 @@ func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, e
 		return "", "", domain.BranchFacts{}, &r
 	}
 
-	facts, err := deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))
+	facts, err := deps.Reader.BranchFacts(ctx, pin, stackBranchesFor(snap, c))
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
