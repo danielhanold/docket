@@ -85,69 +85,92 @@ func canonicalFindingKey(f domain.Finding) string {
 	return string(b)
 }
 
-// resolveRef maps one reference to its record path in snap: a non-empty Path is
-// itself; otherwise a change or ADR resolves by (positive) ID and a learning by
-// Slug, and only an exactly-one-record lookup with a non-empty path resolves.
-// Any other shape — absent, ambiguous, kind-only, non-numeric identity with no
-// path — is unresolvable.
-func resolveRef(r domain.EntityRef, snap domain.Snapshot) (gitcli.RepoPath, bool) {
+// resolveRef maps one reference to the paths of every record in snap that
+// carries it: a non-empty Path is itself; otherwise a change or ADR resolves by
+// (positive) ID and a learning by (non-empty) Slug, to the paths of ALL records
+// carrying that identity:
+//
+//   - found: the one carrier's path;
+//   - ambiguous: every carrier's path — the snapshot picks no winner, so
+//     neither does relevance (app.changesCarrying's rule), and each carrier is
+//     then checked for scope membership and unchanged bytes;
+//   - absent: no path. No record in this state carries the identity, so it
+//     names no record — it cannot be a subject, and there are no bytes it could
+//     have changed. It does not make the reference unresolvable: the identity
+//     is well-formed and its lookup is definitive. A plan that makes the id
+//     present is still caught, because the finding is resolved in the
+//     candidate state too, where the new carrier's path is a plan path (in
+//     scope) with no before-state blob.
+//
+// ok=false (unresolvable, fail closed) only for a malformed reference: no path
+// and a kind-only, non-positive-id, or slugless identity, or a kind with no
+// identity lookup; and for a carrier whose record has no path.
+func resolveRef(r domain.EntityRef, snap domain.Snapshot) ([]gitcli.RepoPath, bool) {
 	if r.Path != "" {
-		return gitcli.RepoPath(r.Path), true
+		return []gitcli.RepoPath{gitcli.RepoPath(r.Path)}, true
 	}
-	var path string
+	var carriers []string
 	switch r.Kind {
 	case domain.EntityChange:
 		if r.ID <= 0 {
-			return "", false
+			return nil, false
 		}
-		c, out := snap.Change(domain.ChangeID(r.ID))
-		if out != domain.LookupFound {
-			return "", false
+		for _, c := range snap.Changes() {
+			if c.ID() == domain.ChangeID(r.ID) {
+				carriers = append(carriers, c.Path())
+			}
 		}
-		path = c.Path()
 	case domain.EntityADR:
 		if r.ID <= 0 {
-			return "", false
+			return nil, false
 		}
-		a, out := snap.ADR(domain.ADRID(r.ID))
-		if out != domain.LookupFound {
-			return "", false
+		for _, a := range snap.ADRs() {
+			if a.ID() == domain.ADRID(r.ID) {
+				carriers = append(carriers, a.Path())
+			}
 		}
-		path = a.Path()
 	case domain.EntityLearning:
 		if r.Slug == "" {
-			return "", false
+			return nil, false
 		}
-		l, out := snap.Learning(r.Slug)
-		if out != domain.LookupFound {
-			return "", false
+		for _, l := range snap.Learnings() {
+			if l.Slug() == r.Slug {
+				carriers = append(carriers, l.Path())
+			}
 		}
-		path = l.Path()
 	default:
-		return "", false
+		return nil, false
 	}
-	if path == "" {
-		return "", false
+	paths := make([]gitcli.RepoPath, 0, len(carriers))
+	for _, p := range carriers {
+		if p == "" {
+			return nil, false
+		}
+		paths = append(paths, gitcli.RepoPath(p))
 	}
-	return gitcli.RepoPath(path), true
+	return paths, true
 }
 
 // findingPaths resolves every EntityRef a finding carries (Entity + all
-// Related) to record paths in st: a non-empty Path is itself; a change ID
-// resolves through st.Snapshot.Change, an ADR ID through st.Snapshot.ADR, a
-// learning slug through st.Snapshot.Learning. ok=false when ANY ref fails to
-// resolve — the caller must then treat the finding as relevant (fail closed).
-// The returned paths are de-duplicated and sorted.
+// Related) to record paths in st via resolveRef: a non-empty Path is itself; an
+// id or slug contributes every record carrying it (none when absent). ok=false
+// when ANY ref is malformed, or when the finding resolves to no path at all — a
+// finding anchored to no record cannot be proven confined to unrelated,
+// unchanged records — and the caller must then treat it as relevant (fail
+// closed). The returned paths are de-duplicated and sorted.
 func findingPaths(f domain.Finding, st LoadedState) (paths []gitcli.RepoPath, ok bool) {
 	refs := make([]domain.EntityRef, 0, 1+len(f.Related))
 	refs = append(refs, f.Entity)
 	refs = append(refs, f.Related...)
 	for _, r := range refs {
-		p, ok := resolveRef(r, st.Snapshot)
+		ps, ok := resolveRef(r, st.Snapshot)
 		if !ok {
 			return nil, false
 		}
-		paths = append(paths, p)
+		paths = append(paths, ps...)
+	}
+	if len(paths) == 0 {
+		return nil, false
 	}
 	slices.Sort(paths)
 	return slices.Compact(paths), true
