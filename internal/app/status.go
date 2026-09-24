@@ -10,6 +10,7 @@ import (
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -368,6 +369,14 @@ func parseFinding(b StatusBlob, err error) StatusFinding {
 // stackBranches collects the recorded branch of every stack ancestor of every
 // change — exactly the branch names ResolveEffectiveBase consults through
 // BranchFacts. The set is sorted so the reader is asked deterministically.
+//
+// A recorded name failing gitcli.ValidBranchName cannot exist on the remote,
+// so leaving it out of the probe is an accurate statement of absence, not a
+// guess: BranchFacts.HasBranch returns false for it and ResolveEffectiveBase
+// reports BaseBranchAbsent, so one change's malformed branch: no longer fails
+// the whole read (change 0454). A well-formed name whose probe fails for a real
+// reason still fails the read. stackBranchesFor deliberately does not filter:
+// named operations keep failing closed on their own stack (change 0449).
 func stackBranches(snap domain.Snapshot) []string {
 	seen := make(map[string]bool)
 	for _, c := range snap.Changes() {
@@ -376,7 +385,7 @@ func stackBranches(snap domain.Snapshot) []string {
 			if out != domain.LookupFound {
 				continue
 			}
-			if b := ancestor.Branch(); b.State == domain.FieldPresent && b.Value != "" {
+			if b := ancestor.Branch(); b.State == domain.FieldPresent && b.Value != "" && gitcli.ValidBranchName(b.Value) {
 				seen[b.Value] = true
 			}
 		}
