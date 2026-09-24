@@ -20,14 +20,19 @@ import (
 
 // This file is the `change groom` planning operation: it grooms a proposed,
 // needs-design change to build-ready by one of two authored outcomes — a full
-// spec, or a trivial verdict — landing the change's source mutation and every
+// spec, or a trivial verdict — or, by the third outcome (revise), adjusts an
+// already-groomed proposed change in place: a whole-body replace of its existing
+// linked spec and/or owned proposal-section edits, never touching spec: or
+// trivial:. Every outcome lands the change's source mutation and every
 // affected v1-owned derived view (the change record's owned proposal sections,
-// its typed fields, its artifact block; a new spec file for the spec outcome;
-// the inline board) as one validated atomic transaction. Grooming is a
+// its typed fields, its artifact block; a new spec file for the spec outcome, a
+// replaced one for a spec-body revise; the inline board) as one validated
+// atomic transaction. Grooming is a
 // non-allocating edit of an existing record, so it pins the submitted record
 // version with an exact-blob entity expectation rather than an idempotency key,
 // and it never touches claim metadata. It decides no lifecycle policy beyond the
-// groom gate the spec fixes here (proposed, needs-design, not yet trivial).
+// groom gate the spec fixes here (proposed, needs-design, not yet trivial) and
+// its exact complement, the revise gate (proposed, already spec'd or trivial).
 
 // OperationChangeGroom is the operation key `change groom` records in its result
 // envelope and its transaction trailer.
@@ -358,7 +363,8 @@ func (o changeGroomOp) Key() transaction.OperationKey { return OperationChangeGr
 // Plan gates the groom against the attempt's snapshot, splices the owned
 // proposal sections, patches the typed fields, re-renders the artifact block,
 // and assembles the closed plan: the groomed change record, the new spec file
-// (spec outcome), and the re-rendered board when inline is enabled.
+// (spec outcome) or the replaced existing spec file (a spec-body revise), and
+// the re-rendered board when inline is enabled.
 func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
 	snap := st.State.Snapshot
 
@@ -366,12 +372,39 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	if out != domain.LookupFound {
 		return refuseGroom("not-found", fmt.Sprintf("change %04d is not present in the current corpus", o.req.ChangeID))
 	}
-	// Groom gate: the change must be proposed, still need design (no spec, not
-	// yet trivial). Grooming never inspects or sets claim metadata.
-	if c.Status() != domain.StatusProposed || c.Spec().Value != "" || c.Trivial() {
+	// Groom/revise gate. A proposed change is either needs-design (groomable)
+	// or already-groomed (revisable) — the two gates are exact complements, so
+	// no proposed change satisfies both and none satisfies neither. Neither
+	// gate inspects or sets claim metadata.
+	if o.req.Outcome == GroomRevise {
+		if c.Status() != domain.StatusProposed || (c.Spec().Value == "" && !c.Trivial()) {
+			return refuseGroom("not-revisable",
+				fmt.Sprintf("change %04d is not an already-groomed proposed change (status %q, spec %q, trivial %v)",
+					o.req.ChangeID, c.Status(), c.Spec().Value, c.Trivial()))
+		}
+	} else if c.Status() != domain.StatusProposed || c.Spec().Value != "" || c.Trivial() {
 		return refuseGroom("not-groomable",
 			fmt.Sprintf("change %04d is not a proposed, needs-design change (status %q, spec %q, trivial %v)",
 				o.req.ChangeID, c.Status(), c.Spec().Value, c.Trivial()))
+	}
+
+	// Revise spec-body decision, resolved before any mutation is assembled: a
+	// non-empty SpecMarkdown replaces the change's EXISTING linked spec — never
+	// a new path — and requires both the link and the file to exist.
+	reviseSpec := o.req.Outcome == GroomRevise && strings.TrimSpace(o.req.SpecMarkdown) != ""
+	if reviseSpec {
+		if c.Spec().Value == "" {
+			return refuseGroom("spec-not-linked",
+				fmt.Sprintf("change %04d has no linked spec to revise (spec_markdown was submitted against a trivial-only change)", o.req.ChangeID))
+		}
+		exists, err := treeHasPath(ctx, st.Tree, c.Spec().Value)
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, err
+		}
+		if !exists {
+			return refuseGroom("spec-file-missing",
+				fmt.Sprintf("change %04d links spec %q but no such file exists on the tree", o.req.ChangeID, c.Spec().Value))
+		}
 	}
 
 	src, ok := st.State.Sources[o.req.Path]
@@ -479,6 +512,18 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		specBytes := assembleSpecFile(backlink, o.req.SpecMarkdown)
 		files = append(files, transaction.FileMutation{
 			Path: gitcli.RepoPath(specPath), Kind: transaction.MutationCreate, Bytes: specBytes,
+		})
+	}
+	if reviseSpec {
+		// Whole-body replace at the change's existing linked spec path; the
+		// backlink block is re-rendered exactly as the spec outcome writes it.
+		backlink, err := render.BacklinkContent(gc, o.link)
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: rendering spec backlink: %w", err)
+		}
+		files = append(files, transaction.FileMutation{
+			Path: gitcli.RepoPath(c.Spec().Value), Kind: transaction.MutationReplace,
+			Bytes: assembleSpecFile(backlink, o.req.SpecMarkdown),
 		})
 	}
 
