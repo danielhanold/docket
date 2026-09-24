@@ -248,17 +248,28 @@ func baselineErrors(before LoadedState, scope map[gitcli.RepoPath]bool) errorBas
 // disappeared before-state error licenses nothing: only an exact key match
 // against remaining baseline count can grandfather.
 func scopedAfterErrors(before, after LoadedState, scope map[gitcli.RepoPath]bool) []domain.Finding {
+	refused, _ := scopedAfterGate(before, after, scope)
+	return refused
+}
+
+// scopedAfterGate is scopedAfterErrors that also returns the after-state error
+// findings it grandfathered, in report order. The engine surfaces those on an
+// applied or no-op result (spec §1 step 5): the gate knowingly accepted them,
+// so a caller still sees them and keys on the typed disposition, never on
+// "has any error finding". The strict path grandfathers nothing.
+func scopedAfterGate(before, after LoadedState, scope map[gitcli.RepoPath]bool) (refused, kept []domain.Finding) {
 	base := baselineErrors(before, scope)
-	var refused []domain.Finding
 	for _, f := range after.Report.Findings() {
 		if f.Severity != domain.SeverityError {
 			continue
 		}
-		if !grandfathered(f, base, before, after, scope) {
+		if grandfathered(f, base, before, after, scope) {
+			kept = append(kept, f)
+		} else {
 			refused = append(refused, f)
 		}
 	}
-	return refused
+	return refused, kept
 }
 
 // grandfathered applies scopedAfterErrors' three conditions to one after-state

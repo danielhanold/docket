@@ -38,7 +38,7 @@ type Result struct {
 	Attempts        int
 	Receipt         []byte            // decoded validated receipt on applied/already-applied
 	ContendedPaths  []gitcli.RepoPath // paths only, never bytes
-	Findings        []domain.Finding  // refusal / validation diagnostics
+	Findings        []domain.Finding  // refusal diagnostics; on applied/no-op, grandfathered unrelated errors
 	CleanupWarnings []string          // e.g. "cleanup-pending: <transaction-id>"
 }
 

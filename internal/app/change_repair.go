@@ -469,7 +469,9 @@ func repairConflict(message string, id int) *RepairIdentityResult {
 func repairResultFromOutcome(field, value string, res transaction.Result, execErr error, id int) RepairIdentityResult {
 	switch res.Disposition {
 	case transaction.DispositionApplied, transaction.DispositionAlreadyApplied:
-		out := RepairIdentityResult{ID: id, Revision: string(res.AppliedCommit)}
+		// Unrelated grandfathered findings ride along (change 0449); the disposition
+		// stays keyed on the engine's, never on the presence of a finding.
+		out := RepairIdentityResult{ID: id, Revision: string(res.AppliedCommit), Findings: findingsToStatus(res.Findings)}
 		if field == "branch" {
 			out.Reason = RepairRepairedBranch
 			out.Branch = value
@@ -493,9 +495,13 @@ func repairResultFromOutcome(field, value string, res transaction.Result, execEr
 		return r
 	default:
 		result, _ := mapOutcome(res, execErr, ResultInvalidState)
-		r := newRepairResult(result, RepairIdentityResult{
-			ID: id, Reason: firstFindingCode(res.Findings), Findings: findingsToStatus(res.Findings),
-		})
+		out := RepairIdentityResult{ID: id, Findings: findingsToStatus(res.Findings)}
+		// Only a refusal's findings name its reason: a no-op may carry unrelated
+		// grandfathered findings (change 0449) that are not a repair reason.
+		if res.Disposition == transaction.DispositionRefused {
+			out.Reason = firstFindingCode(res.Findings)
+		}
+		r := newRepairResult(result, out)
 		r.Failure = failureStatus(res, execErr)
 		return r
 	}
