@@ -13,7 +13,9 @@ package workspace
 //	   published, or forced. Recorded-base ancestry is NOT required for a ready
 //	   workspace: a manual parent rebase legitimately rewrites the creation base out
 //	   of the head's ancestry, and the manifest/ref/registration/head identity still
-//	   prove ownership (change 0429);
+//	   prove ownership (change 0429); when the request carries an expected head,
+//	   the reinspected head must equal it (a moved head is refused with nothing
+//	   pushed, change 0451);
 //	3. probe the authoritative remote feature ref structurally (ProbeRemoteBranch);
 //	   an unobservable remote is `unknown` with no fabricated remote id;
 //	4. the remote already equal to the local HEAD is `already-published` (keyed on
@@ -45,11 +47,15 @@ import (
 const publishOp = "publish-head"
 
 // PublishRequest names the repository, the remote to publish to, and the fully
-// validated target whose owned ready workspace HEAD is published.
+// validated target whose owned ready workspace HEAD is published. ExpectedHead
+// is OPTIONAL: when non-empty, the reinspected local head must equal it or the
+// publish is refused with nothing pushed — the caller's pre-lock head check is
+// re-proven under the operation lock (change 0451). Empty means no expectation.
 type PublishRequest struct {
-	Repository gitcli.Repository
-	Remote     gitcli.RemoteName
-	Target     Target
+	Repository   gitcli.Repository
+	Remote       gitcli.RemoteName
+	Target       Target
+	ExpectedHead gitcli.ObjectID
 }
 
 // PublishResult is the value outcome of a PublishHead. Head is the intended local
@@ -96,6 +102,18 @@ func (s *Service) PublishHead(ctx context.Context, req PublishRequest) (PublishR
 	localHead, ferr := s.reinspectForPublish(ctx, repo, dir, target, intendedPath)
 	if ferr != nil {
 		return PublishResult{Disposition: PublishFailed}, ferr
+	}
+
+	// The caller's expected head is re-proven against the head the LOCKED
+	// reinspect just returned — deciding on the same copy the push would act
+	// on. A commit that landed after the app-level check moved the head, and
+	// publishing it would push a commit nobody checked: refuse, push nothing.
+	// Same refusal class as the PR path's moved-head gate in EnsurePullRequest
+	// ("GitHub reports a head commit other than the expected published head").
+	if req.ExpectedHead != "" && localHead != req.ExpectedHead {
+		return PublishResult{Disposition: PublishFailed, Head: localHead},
+			&Failure{Op: publishOp, Stage: "verify", Kind: KindInvalidState,
+				Detail: "workspace head moved past the expected head; nothing pushed"}
 	}
 
 	ref := target.FeatureRef

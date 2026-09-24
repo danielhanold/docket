@@ -448,3 +448,73 @@ func TestPublishPushFailsRefAbsentFailed(t *testing.T) {
 		t.Errorf("origin feat ref exists; the push must not have landed")
 	}
 }
+
+// TestPublishExpectedHeadMoved proves PublishHead refuses under its own
+// operation lock when the reinspected local head is not the caller's
+// ExpectedHead — the moved-head window between the app-level check and the
+// locked reinspect (change 0451). The refusal mirrors the PR path's
+// moved-head gate in EnsurePullRequest ("GitHub reports a head commit other
+// than the expected published head"): failed + invalid-state, and NOTHING is
+// pushed — the origin feature ref stays absent.
+func TestPublishExpectedHeadMoved(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	ws := wsPathOf(repo)
+
+	// The head the app-level check approved…
+	checked := commitInWorkspace(t, ws, "feature.txt", "feature work\n")
+	// …and a commit that lands after that check, before the locked publish.
+	moved := commitInWorkspace(t, ws, "late.txt", "late work\n")
+	if moved == checked {
+		t.Fatalf("fixture: the second commit did not move the head")
+	}
+
+	res, err := svc.PublishHead(context.Background(), PublishRequest{
+		Repository:   repo,
+		Remote:       "origin",
+		Target:       tgt,
+		ExpectedHead: checked,
+	})
+	if err == nil {
+		t.Fatalf("PublishHead accepted a moved head; result %+v", res)
+	}
+	f, ok := AsFailure(err)
+	if !ok || f.Kind != KindInvalidState {
+		t.Errorf("error = %v; want a Failure of kind %q", err, KindInvalidState)
+	}
+	if res.Disposition != PublishFailed {
+		t.Errorf("Disposition = %q; want failed", res.Disposition)
+	}
+	if _, exists := originFeatCommit(t, r); exists {
+		t.Errorf("origin feat ref exists after a refused publish; nothing must be pushed")
+	}
+}
+
+// TestPublishExpectedHeadMatches pins the other side of the change 0451 gate:
+// an ExpectedHead equal to the reinspected head is no obstacle — the exact
+// checked commit is published onto the origin feature ref.
+func TestPublishExpectedHeadMatches(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	checked := commitInWorkspace(t, wsPathOf(repo), "feature.txt", "feature work\n")
+
+	res, err := svc.PublishHead(context.Background(), PublishRequest{
+		Repository:   repo,
+		Remote:       "origin",
+		Target:       tgt,
+		ExpectedHead: checked,
+	})
+	if err != nil {
+		t.Fatalf("PublishHead refused a matching expected head: %v", err)
+	}
+	if res.Disposition != PublishPublished || res.Head != checked {
+		t.Errorf("result = %+v; want published head %s", res, checked)
+	}
+	if got, ok := originFeatCommit(t, r); !ok || got != checked {
+		t.Errorf("origin feat = %q (exists %v); want %s", got, ok, checked)
+	}
+}
