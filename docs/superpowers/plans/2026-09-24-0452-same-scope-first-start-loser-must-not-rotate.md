@@ -226,5 +226,5 @@ No commit (nothing changed). Carry both command lines and their `ok` results int
 - **Type consistency:** `admitScopedWorktree`'s six-value return, the slot fields (`State`, `ReservationToken`, `ExecutionGen`), and the helper signatures in Task 1 match the current source; `ownershipErr(ErrScopeSecondDrive, "start")` matches the package's constructor and the precheck's existing use of the same kind/op pair.
 
 <!-- docket:backlink:start -->
-> ↩ **[Change 0452 — Same-scope first-start loser must not rotate the winner's executing worktree slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md)**
+> ↩ **[Change 0452 — Same-scope first-start loser must not rotate the winner's executing worktree slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md)**
 <!-- docket:backlink:end -->

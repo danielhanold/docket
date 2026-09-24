@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0452 — Same-scope first-start loser must not rotate the winner's executing worktree slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md)**
+> ↩ **[Change 0452 — Same-scope first-start loser must not rotate the winner's executing worktree slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md)**
 <!-- docket:backlink:end -->
 # Same-scope first-start loser must not rotate the winner's executing worktree slot — Results
 
