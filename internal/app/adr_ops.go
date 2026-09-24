@@ -58,6 +58,17 @@ type ADRProducingChange struct {
 	Version string `json:"version"`
 }
 
+// adrProducingChangePaths returns the producing change's record path as an ADR
+// write's structural subject (change 0449), or none when no change is supplied.
+// The new ADR's own path is allocated inside Plan, so the engine's post-plan
+// union — not this pre-plan set — makes it a subject.
+func adrProducingChangePaths(c *ADRProducingChange) []string {
+	if c == nil {
+		return nil
+	}
+	return []string{c.Path}
+}
+
 // ADRResult is the protocol-v1 document `adr record` returns. It embeds the
 // envelope; the identity fields are populated on a successful apply or an
 // idempotent replay, and Findings carries every refusal or validation
@@ -188,6 +199,7 @@ func ADRRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, req ADR
 		TargetRef:   gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
 		Loader:      newPlanningLoader(eff),
+		Scope:       adrScope("", adrProducingChangePaths(req.Change), path.Join(eff.ADRsDir.Value, "README.md")),
 		Operation:   op,
 	}
 	// A supplied producing change is pinned by an exact-blob entity expectation so
@@ -705,6 +717,7 @@ func adrReplace(ctx context.Context, deps PlanningDeps, repoDir, opKey string, r
 		TargetRef:   gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
 		Loader:      newPlanningLoader(eff),
+		Scope:       adrScope(req.Target.Path, adrProducingChangePaths(req.Successor.Change), path.Join(eff.ADRsDir.Value, "README.md")),
 		Operation:   op,
 		Expected:    expected,
 	})

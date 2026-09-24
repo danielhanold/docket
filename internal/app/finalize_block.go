@@ -307,6 +307,7 @@ func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req B
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
 		}},
 		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(req.ID, recPath, false),
 		Operation: op,
 	})
 	return blockResultFromOutcome(OperationFinalizeBlock, res, execErr, url, req.ID)
@@ -461,6 +462,7 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
 		}},
 		Loader:    newPlanningLoader(eff),
+		Scope:     changeScope(req.ID, recPath, false),
 		Operation: op,
 	})
 	return clearBlockResultFromOutcome(res, execErr, req.ID)

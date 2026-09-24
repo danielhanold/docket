@@ -194,3 +194,70 @@ func setupBlockedFixture(t *testing.T, m planRepoMode) *rebaseFixture {
 	f.version = blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
 	return f
 }
+
+// --- 0449: unrelated invalid records never block a named block/clear-block ---
+// Shares the unrelated-broken-record fixtures with change_claim_test.go. Both
+// operations drive the production engine over the real feature workspace; the
+// corpus also carries an unrelated unparseable record A.
+//
+// Mutation check (run manually; noted in the commit): delete the `Scope:` field
+// from FinalizeBlock's (or FinalizeClearBlock's) transaction.Request and
+// `go test ./internal/app/ -run 'TestFinalize.*BlockUnrelated' -count=1` reddens
+// on that progress row with the before-gate refusal the bug produced.
+
+func blockTestRequest(f *rebaseFixture) BlockRequest {
+	return BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
+		Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix and retry.\n"}
+}
+
+func TestFinalizeBlockUnrelatedInvalidRecordProgress(t *testing.T) {
+	f := setupRebaseFixtureStatus(t, planRepoModeDocket(), "in-progress")
+	f.repo.writerAdvance(t, f.branch, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
+	gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
+
+	got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, blockTestRequest(f))
+	if got.Result != ResultApplied || got.Disposition != BlockDispRecorded {
+		t.Fatalf("finalize block beside an unrelated unparseable record = %q disp %q reason %q (findings %v), want applied recorded",
+			got.Result, got.Disposition, got.Reason, got.Findings)
+	}
+	assertUnrelatedBrokenIntact(t, f.repo)
+}
+
+func TestFinalizeClearBlockUnrelatedInvalidRecordProgress(t *testing.T) {
+	f := setupBlockedFixture(t, planRepoModeDocket())
+	f.repo.writerAdvance(t, f.branch, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
+	gh := &fakeBlockGitHub{repo: retargetRepo(),
+		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
+
+	got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
+		ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
+	if got.Result != ResultApplied || got.Disposition != BlockDispCleared {
+		t.Fatalf("finalize clear-block beside an unrelated unparseable record = %q disp %q reason %q (findings %v), want applied cleared",
+			got.Result, got.Disposition, got.Reason, got.Findings)
+	}
+	assertUnrelatedBrokenIntact(t, f.repo)
+}
+
+func TestFinalizeBlockUnrelatedInvalidRecordRefusals(t *testing.T) {
+	id, slug := rebaseFixtureID, rebaseFixtureSlug
+	recPath := groomPath(id, slug)
+	cases := unrelatedRefusalCases(t, id, recPath, lifecycleChange(id, slug, "in-progress"), lifecycleChange(id, "dupe", "in-progress"))
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := setupRebaseFixtureStatus(t, planRepoModeDocket(), "in-progress")
+			f.repo.writerAdvance(t, f.branch, c.files)
+			f.version = blobVersionAt(t, f.repo.origin, f.branch, recPath)
+			tip := originTip(t, f.repo.origin, f.branch)
+			gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
+
+			got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, blockTestRequest(f))
+			if got.Result == ResultApplied {
+				t.Fatalf("finalize block applied despite %s; want a refusal", c.name)
+			}
+			assertRefusalBeyondUnrelated(t, got.Reason, got.Findings)
+			if after := originTip(t, f.repo.origin, f.branch); after != tip {
+				t.Errorf("a refused finalize block moved the metadata branch %s -> %s", tip, after)
+			}
+		})
+	}
+}

@@ -766,6 +766,7 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(cc.version)},
 		}},
 		Loader:    newPlanningLoader(cc.eff),
+		Scope:     changeScope(id, cc.change.Path(), true),
 		Operation: op,
 	})
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
@@ -795,6 +796,12 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 	id := int(cc.change.ID())
 
 	expectations := make([]transaction.EntityExpectation, 0, len(targets))
+	// Every carried target's active and archive path is a subject even if stack
+	// traversal misses it in a degraded snapshot (change 0449).
+	targetPaths := make([]string, 0, 2*len(targets))
+	for _, tg := range targets {
+		targetPaths = append(targetPaths, tg.activePath, tg.archivePath)
+	}
 	for _, tg := range targets {
 		version := cc.blobVersions[tg.activePath]
 		expectations = append(expectations, transaction.EntityExpectation{
@@ -819,6 +826,7 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected:   expectations,
 		Loader:     newPlanningLoader(cc.eff),
+		Scope:      changeScope(id, cc.change.Path(), true, targetPaths...),
 		Operation:  op,
 	})
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
