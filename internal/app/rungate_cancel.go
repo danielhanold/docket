@@ -671,12 +671,15 @@ func repairTerminalEpoch(seams cancelSeams, repoDir string, ep EpochRecord) RunC
 // tasks through the adapter hook (an absent adapter is a bounded FINDING, not
 // silence), stop each registered execution participant and the worktree admission
 // slot on proven teardown, RE-ENUMERATE the participants after stopping (a launch
-// admitted before the fence won and can register after the first snapshot), and
+// admitted before the fence won and can register after the first snapshot), settle
+// uncertain publications a later completed identical retry proves (change 0444), and
 // reconcile the admitted-mutation journal (an admitted-not-completed entry keeps
 // the run pending). It returns whether the run is fully accounted, the bounded
 // credential-free findings, and a non-nil err only for an epoch re-read fault.
 //
-// It NEVER validates authority and NEVER transitions the epoch: the caller fences
+// It NEVER validates authority and NEVER transitions the epoch (its only epoch write
+// is settleUncertainPublications' uncertain→completed flip of retry-proven journal
+// entries, which leaves the epoch state untouched): the caller fences
 // first — run.cancel under the authority conjunction, or the detached death
 // guardian on abrupt owner death — and finalizes cancelling→cancelled after. Both
 // callers share this one accounting so the two fencing authorities reconcile a run
@@ -749,6 +752,18 @@ func reconcileEpochTeardown(seams cancelSeams, repoDir, gateKey string, ep Epoch
 		}
 	}
 
+	// (5d) Settle uncertain publications proven by a later completed identical
+	// retry (change 0444) — a durable, journal-derived repair with NO Git or
+	// GitHub call. Runs before the re-enumeration reload so steps (6)-(7)
+	// evaluate the settled record. Shared by both fencing authorities
+	// (run.cancel and the death guardian): settlement is observation of durable
+	// journal fact, like the completion callback. A failed settlement write is
+	// a bounded finding; the entry stays uncertain and step (7) keeps the
+	// cancellation pending, so exclusion is retained until a repeat converges.
+	settledTokens, sfindings := settleUncertainPublications(repoDir, gateKey)
+	findings = append(findings, settledTokens...)
+	findings = append(findings, sfindings...)
+
 	// (6) RE-ENUMERATE after stopping: a launch admitted before the fence won and can
 	// register a participant after the snapshot in (5). Any execution participant not
 	// proven-stopped in this pass is unaccounted — a repeat resumes its cleanup.
@@ -763,9 +778,10 @@ func reconcileEpochTeardown(seams cancelSeams, repoDir, gateKey string, ep Epoch
 		}
 	}
 
-	// (7) Reconcile admitted mutations from the re-enumerated journal: any
-	// admitted-not-completed entry (in-flight or uncertain) keeps cancellation
-	// pending so a premature `cancelled` never claims a mutation is done.
+	// (7) Reconcile admitted mutations from the re-enumerated (post-settlement)
+	// journal: any admitted-not-completed entry (in-flight, or uncertain with no
+	// completed identical retry) keeps cancellation pending so a premature
+	// `cancelled` never claims a mutation is done.
 	for _, m := range reEp.AdmittedMutations {
 		if m.Status != mutationStatusCompleted {
 			findings = append(findings, "mutation-pending:"+m.OpKey)
