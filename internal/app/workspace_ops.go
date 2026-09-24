@@ -422,7 +422,16 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 		return out
 	}
 	out := publishResult(OperationWorkspacePublish, req.ID, target, res)
-	done(mutationJournalOutcome(out.Result))
+	// PublishHead reads its own local head under its lock, after the Inspect above,
+	// so a commit landing in between makes it act on a head other than the journaled
+	// req.Head. Such a completion observed a postcondition for a DIFFERENT commit
+	// (or, with no head, for none we can name), so it is never verified evidence for
+	// this entry's publication identity and can never settle an uncertain one.
+	status, verified := mutationJournalOutcome(out.Result)
+	if string(res.Head) != req.Head {
+		verified = false
+	}
+	done(status, verified)
 	return out
 }
 
