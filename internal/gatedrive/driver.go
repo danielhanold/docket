@@ -1067,13 +1067,16 @@ func (d *Driver) launchScoped(t *AdmissionTicket, claim *relaunchClaim) (DriveDo
 // scope — a concurrent same-scope first-start peer that won the reservation, or the
 // predecessor whose executing slot this scope's successor continues under. A start that
 // finds a same-scope RESERVED peer ADOPTS the incumbent token so the scope slot (not the
-// worktree slot) arbitrates same-scope races. A start that finds a same-scope EXECUTING
-// slot (a successor continuing the sequence in the terminal-before-release window)
-// ROTATES it to its OWN fresh reservation — a new ReservationToken and bumped
+// worktree slot) arbitrates same-scope races. Rotation is successor-only: a start
+// carrying a predecessor receipt that finds a same-scope EXECUTING slot (a successor
+// continuing the sequence in the terminal-before-release window) ROTATES it to its
+// OWN fresh reservation — a new ReservationToken and bumped
 // ExecutionGen — so the predecessor's stale token can never free or poison the
 // successor's slot, and the successor confirms and owns its own post-launch failure
-// legs (ownsSlot=true). A slot held by a DIFFERENT scope, or in a stopping/unresolved
-// state, is a genuine cross-scope refusal returned verbatim. ErrUnresolvedExecution and
+// legs (ownsSlot=true). A RECEIPT-LESS first start that finds a same-scope executing
+// slot has raced an already-launched drive and is refused typed ErrScopeSecondDrive
+// without touching the slot. A slot held by a DIFFERENT scope, or in a
+// stopping/unresolved state, is a genuine cross-scope refusal returned verbatim. ErrUnresolvedExecution and
 // every other error (an unresolvable worktree, an IO fault) fail closed unchanged.
 func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFresh, ownsSlot, rotated bool, legacy *LegacyHistorySummary, err error) {
 	rec := admissionRecord{
@@ -1101,6 +1104,16 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 		case admissionReserved:
 			return slot.ReservationToken, false, true, false, nil, nil // adopt a peer's reservation; still confirm it
 		case admissionExecuting:
+			// Rotation is successor-only. A receipt-less first start that reaches an
+			// executing same-scope slot has raced an already-launched same-scope drive
+			// past its precheck (the winner confirmed while this loser was in flight):
+			// refuse with the same typed rejection precheckScopedStart gives that
+			// condition, without touching the winner's live reservation. Rotating here
+			// would replace the winner's token under the loser's hands and strand the
+			// winner's run under a reserved slot with a foreign token.
+			if req.PredecessorDriveID == "" {
+				return "", false, false, false, nil, ownershipErr(ErrScopeSecondDrive, "start")
+			}
 			// A same-scope successor continues over the executing slot: rotate it to
 			// this start's OWN fresh reservation rather than reusing the predecessor's
 			// token. The successor then confirms and owns its slot (ownsSlot=true), and
