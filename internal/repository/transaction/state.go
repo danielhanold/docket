@@ -18,7 +18,24 @@ type LoadedState struct {
 	Report    domain.ValidationReport
 	Documents map[string]document.Document // keyed by repo-relative path; defensively copied views
 	Sources   map[string][]byte            // exact bytes per path (evolution input)
+	// Blobs maps every corpus path to its exact tree blob object id, INCLUDING
+	// records that failed to parse. Overlay-touched paths carry "" (the overlay
+	// tree clears ids), which the scoped after-gate reads as "changed" — fail
+	// closed. A nil map proves nothing unchanged, so nothing is grandfathered.
+	Blobs map[string]gitcli.ObjectID
 }
+
+// SubjectResolver resolves the operation's required record paths from a loaded
+// state. It is called for the before state and again for the candidate state.
+type SubjectResolver func(st LoadedState) (map[gitcli.RepoPath]bool, error)
+
+// ValidationScope is the bounded in-memory subject contract (change 0449): a
+// named operation's before/after gates refuse only errors relevant to the
+// resolved subject set, grandfathering exact pre-existing error findings
+// confined to unrelated, unchanged records. A nil scope, a nil resolver, a
+// resolver error, or an empty resolved set keeps strict whole-corpus
+// validation — absence of scope never means "ignore every error".
+type ValidationScope struct{ Subjects SubjectResolver }
 
 // StateLoader turns a read-only Tree into a complete LoadedState and compares
 // two states for illegal evolution. It is caller-supplied so the engine never
