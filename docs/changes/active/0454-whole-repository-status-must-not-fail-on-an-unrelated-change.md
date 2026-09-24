@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/whole-repository-status-must-not-fail-on-an-unrelated-change'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-24T20:23:27Z'
+reconciled: true
+claimed_at: '2026-09-24T20:23:57Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,9 @@ This applies ADR-0127's existing report-per-record model to the read it left out
 - Making a malformed branch a snapshot-validation error, or refusing writes because of it.
 - Merging the narrower branch-shape checks used elsewhere into the gitcli one.
 - `repository check`, which does not probe branch facts.
+
+## Reconcile log
+
+### 2026-09-24
+
+2026-09-24 — Reconciled against main 4bfc4485 (0449 merged). Anchors verified present: stackBranches/stackBranchesFor and artifactChecks (internal/app/status.go), validateRefName (internal/gitcli/types.go), recordedBranch (internal/app/branch_identity.go), parsePRRef (internal/app/finalize_context.go). No FCBranchMalformed constant exists yet. Scope unchanged.
