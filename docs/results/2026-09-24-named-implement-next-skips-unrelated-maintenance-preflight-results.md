@@ -3,7 +3,7 @@
 <!-- docket:backlink:end -->
 # Named implement-next skips unrelated maintenance preflight — Results
 
-**Human action:** Please review the raised size ceiling for the implement-next skill (see Known issues and follow-ups) before you merge. Nothing else needs a person.
+**Human action:** None. The size-ceiling question raised at review was settled in-branch (see Known issues and follow-ups).
 
 ## Outcome
 
@@ -17,7 +17,7 @@ A stacked change whose stack base is unresolved does not trigger a closeout; it 
 
 Runs with no id, or with a list of two or more ids, keep the preflight exactly as before. Running `maintenance.preflight` or `maintenance.sweep` directly is also unchanged, so unrelated problems still show up there.
 
-This is a workflow-instruction change only; no Go behavior changed. The edits are in `skills/docket-implement-next/SKILL.md` and the convention's *Composition* paragraph, along with their embedded copies. New prose-contract guard rows now fail if the named-path wording is removed or the bounded closeout is widened.
+This is a workflow-instruction change only; no Go behavior changed. The edits are in `skills/docket-implement-next/SKILL.md` (with the bounded-closeout procedure in `references/edge-paths.md`, behind a blocking pointer) and the convention's *Composition* paragraph, along with their embedded copies. New prose-contract guard rows now fail if the named-path wording is removed or the bounded closeout is widened.
 
 ## Verification performed
 
@@ -29,13 +29,11 @@ This is a workflow-instruction change only; no Go behavior changed. The edits ar
   - closeout success is keyed on the envelope `result`;
   - a negative guard proves that an id list still runs the preflight;
   - the `docket-status` skill now describes the preflight as selection-path only.
-- The whole-suite build gate ran through the Go runner (`build.test_command`) on the certified head. The PR's build-evidence block records the result. Several `BUDGET WATCH` lines appeared for long-running integration test files under parallel load (first overrun streak). None was confirmed serially.
+- The whole-suite build gate ran through the Go runner (`build.test_command`) on the certified head. The PR's build-evidence block records the result. Several `BUDGET WATCH` lines appeared for long-running integration test files under parallel load (first overrun streak). None was ### Implement-next skill size ceiling
 
-## Known issues and follow-ups
+This affects repository maintainers, not users. The new prose first pushed `skills/docket-implement-next/SKILL.md` past its `TestSkillSizeBudgets` ceiling, and the build raised it to 214 lines / 8270 words, against the file header's rule that ceilings only move down. At the human's direction, the bounded-closeout paragraph then moved into `references/edge-paths.md` (it only applies when a dependency refuses), leaving a one-sentence blocking pointer at its trigger. That lowered the SKILL.md ceiling to 214 / 8025 and raised the `edge-paths.md` ceiling to 118 / 1554 by the relocated text. The prose-contract row for the closeout moved with it and was mutation-checked in its new home. The SKILL.md word count is still above its pre-change 7716, because the named-invocation paragraph itself stays inline.
 
-### Implement-next skill size ceiling raised
-
-This affects repository maintainers, not users. The new prose makes `skills/docket-implement-next/SKILL.md` exceed its `TestSkillSizeBudgets` ceiling. The ceiling was raised to the new exact counts (214 lines / 8270 words) in `internal/repoguard/budgets_test.go`, with a change-0448 note. The file already records earlier raises made the same way (0375, 0393, 0440, 0442). Its header rule, though, says a ceiling may only move down. This is confirmed, not suspected. A reviewer should decide whether to accept the raise or shorten the skill in a follow-up change. One way to shorten it is to move the bounded-closeout paragraph into `references/edge-paths.md`, since that paragraph only applies when a dependency refuses.
+t paragraph only applies when a dependency refuses.
 
 ### Named-path behavior is covered by prose guards only
 

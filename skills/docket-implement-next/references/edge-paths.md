@@ -1,8 +1,33 @@
 # edge-paths — the implementer's rare edges
 
-The rare edges of `docket-implement-next` — read at the trigger moment named in SKILL.md (a
-reconcile-kill, a resume of an `in-progress` change, or Step 7's PR-body assembly). Loaded on
-demand; sibling files are not auto-loaded with the skill.
+The rare edges of `docket-implement-next` — read at the trigger moment named in SKILL.md (a named
+invocation waiting on its own dependency, a reconcile-kill, a resume of an `in-progress` change, or
+Step 7's PR-body assembly). Loaded on demand; sibling files are not auto-loaded with the skill.
+
+## Named invocation's own merged dependencies (Step 0, bounded closeout)
+
+Triggered when a named (single explicit id) run's `context.implementation` read refuses
+`not-ready-waiting-dependency`. Read the named change's own unmet set — run the `status` operation
+with `--json` (a write-free read) and take the named change's `unmet_dependencies` ids from its `changes[]` entry, keeping each id whose own `changes[]` entry has `status` `implemented`.
+
+For **each** id in that set — and never any other change — run one `finalize.closeout` operation
+with `--id <that id>` (resolve argv from the capability catalog). The operation itself re-proves the
+merged PR and applies the one verified terminal shape, so run no cleanup suffix and no reclaim, and
+never widen or recurse beyond this set. Map each envelope locally and key success on the envelope `result` `applied` or `no-op` — never on its `disposition` token:
+
+- Every closeout succeeds → re-run the `repository.prepare` operation and re-run
+  `context.implementation --id` once; if that single re-read still refuses (an applied closeout can
+  leave the dependency not `done`), report that as the ordinary local refusal.
+- A closeout refused with reason `pr-not-merged` → the dependency is genuinely unmerged; surface the
+  ordinary waiting-dependency refusal naming that id (remedy: merge its PR, then
+  `docket-finalize-change` or the explicit `finalize.closeout` operation).
+- Any other outcome → a failure of the named change's **own** dependency; halt before claiming
+  through the pre-claim run-reporting path, naming that dependency id and the same remedy.
+
+An unrelated change's closeout is never attempted here, and a dependency unmet for any
+non-`implemented` reason keeps its ordinary local refusal unchanged. A `not-ready-stack-base-unresolved` refusal is never a closeout trigger and keeps its ordinary local
+refusal: an ancestor's closeout cannot prove the carry of a named change not yet `stacked-merged`
+(`children-retarget-required`).
 
 ## Reconcile-kill (Step 3, change OBSOLETE)
 
