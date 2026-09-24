@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -840,5 +841,136 @@ func TestCompleteThenScratchCleanupThenFinalizeAdmits(t *testing.T) {
 	}
 	if err := store.ReleaseWorktreeExecution(fx.worktree, token); err != nil {
 		t.Fatalf("release finalize reservation: %v", err)
+	}
+}
+
+// TestCompleteSuccessfulRunSettlesUncertainPublication (change 0444 acceptance 3): the
+// REAL attributed closeout path settles an uncertain publication proven by a later
+// completed identical retry, then completes the epoch — surfacing the settlement token
+// in the returned findings, and sending no stop, cancelling no native task, and never
+// driving the stop-capable launch seam (the same no-stop proof as
+// TestCompleteSuccessfulRunSendsNoStops).
+func TestCompleteSuccessfulRunSettlesUncertainPublication(t *testing.T) {
+	fx := newCompletionFixture(t)
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed journal: %v", err)
+	}
+	stopper := &fakeCancelStopper{proven: map[string]bool{}}
+	native := &fakeNativeCanceller{}
+	recon := okLaunchReconciler()
+	seams := cancelSeams{store: fx.store, stopper: stopper, native: native, launches: recon,
+		observer: fx.observer, launchObserver: fx.launchObserver}
+
+	ok, reason, findings := completeSuccessfulRun(seams, fx.repo, fx.key)
+	if !ok {
+		t.Fatalf("closeout blocked: reason=%q findings=%v; a settled journal must complete", reason, findings)
+	}
+	if countFinding(findings, "mutation-settled:"+OperationWorkspacePublish) != 1 {
+		t.Fatalf("findings = %v, want exactly one mutation-settled:%s surfaced", findings, OperationWorkspacePublish)
+	}
+	if hasFinding(findings, "mutation-pending") {
+		t.Fatalf("findings = %v, must not report the settled mutation pending", findings)
+	}
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.State != EpochCompleted {
+		t.Fatalf("state = %q, want completed", ep.State)
+	}
+	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
+		t.Fatal("the original entry must be durably settled by the closeout")
+	}
+	if len(stopper.calls) != 0 || len(native.calls) != 0 || len(recon.calls) != 0 {
+		t.Fatalf("closeout must stop nothing: stops=%v native=%v reconcile=%v",
+			stopper.calls, native.calls, recon.calls)
+	}
+}
+
+// TestCompleteSuccessfulRunStillBlocksWithoutRetry (change 0444): an uncertain
+// publication with no completed identical retry keeps the closeout blocked
+// (completion-unaccounted) and the entry uncertain — change 0441's fail-closed
+// accounting is not weakened by settlement.
+func TestCompleteSuccessfulRunStillBlocksWithoutRetry(t *testing.T) {
+	fx := newCompletionFixture(t)
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed journal: %v", err)
+	}
+	ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key)
+	if ok || reason != "completion-unaccounted" {
+		t.Fatalf("ok=%v reason=%q findings=%v, want blocked completion-unaccounted", ok, reason, findings)
+	}
+	if !hasFinding(findings, "mutation-pending:"+OperationWorkspacePublish) {
+		t.Fatalf("findings = %v, want mutation-pending:%s", findings, OperationWorkspacePublish)
+	}
+	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.State != EpochCompleting {
+		t.Fatalf("state = %q, want completing (the success fence holds while blocked)", ep.State)
+	}
+	if ep.AdmittedMutations[0].Status != mutationStatusUncertain {
+		t.Fatalf("unmatched entry status = %q, want still uncertain", ep.AdmittedMutations[0].Status)
+	}
+}
+
+// TestReadOnlyPathsNeverSettle (change 0444): the read-only verification predicates
+// report the pending truth of a settleable pair but write NOTHING — the durable
+// record is byte-identical after they run (RunVerify and unattributed verdicts consume
+// these same predicates). Settlement is a write, and only cancellation and the
+// attributed keyed closeout may write.
+func TestReadOnlyPathsNeverSettle(t *testing.T) {
+	fx := newCancelFixture(t, false)
+	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
+		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.State = EpochCancelled
+		r.AdmittedMutations = []AdmittedMutation{
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
+			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Publication: &desc},
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seed journal: %v", err)
+	}
+	recPath := filepath.Join(fx.common, "docket", "rungate", fx.key, epochRecordFileName)
+	before, err := os.ReadFile(recPath)
+	if err != nil {
+		t.Fatalf("read record: %v", err)
+	}
+	ep, _, lerr := LoadEpochRecord(fx.repo, fx.key)
+	if lerr != nil {
+		t.Fatalf("LoadEpochRecord: %v", lerr)
+	}
+	seams := cancelSeams{launches: okLaunchReconciler()}
+	if _, quiescent, vf := verifyTerminalEpochQuiescence(seams, fx.repo, ep, fx.worktree); quiescent ||
+		!hasFinding(vf, "mutation-pending:"+OperationWorkspacePublish) {
+		t.Fatalf("verifyTerminalEpochQuiescence = %v %v, want the unsettled entry reported pending", quiescent, vf)
+	}
+	if rok, detail := validateResumeQuiescence(seams, fx.repo, ep, fx.worktree); rok {
+		t.Fatalf("validateResumeQuiescence ok (detail %q), want the unsettled entry to block", detail)
+	}
+	after, err := os.ReadFile(recPath)
+	if err != nil {
+		t.Fatalf("re-read record: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("read-only verification paths must not write the epoch record")
 	}
 }

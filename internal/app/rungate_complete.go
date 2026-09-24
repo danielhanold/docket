@@ -6,9 +6,12 @@
 // path on a verified run-complete (Task 8 wires the caller); RunVerify stays
 // read-only and unattributed observe verdicts never reach it.
 //
-// OBSERVATION ONLY. Closeout stops nothing, signals nothing, and settles nothing: it
-// never invokes native cancellation, never process.Stop, and never settles a
-// never-launched reservation terminal. It reuses cancellation's accounting SHAPES
+// OBSERVATION ONLY. Closeout stops nothing and signals nothing: it never invokes
+// native cancellation, never process.Stop, and never settles a never-launched
+// reservation terminal. Its one journal repair is settleUncertainPublications (change
+// 0444) — an uncertain→completed flip of publication entries a later completed
+// identical retry proves, derived from the durable journal alone with no Git or
+// GitHub call. It reuses cancellation's accounting SHAPES
 // through the two observation seams (processObserver / epochLaunchObserver) and the
 // shared classifySlotOwnership / retireWorktreeSlotOwnership helpers, but every
 // per-participant, per-process, per-slot, and per-launch decision is a pure
@@ -28,8 +31,8 @@
 // completion then loses without reporting success (CompleteEpoch's completing→
 // completed CAS refuses once a cancel fence lands).
 //
-// LOCK ORDERING. The two epoch writes (FenceEpochCompleting, CompleteEpoch) run under
-// epochCAS; ALL proof — participant observation, process observation, the worktree
+// LOCK ORDERING. The epoch writes (FenceEpochCompleting, settleUncertainPublications,
+// CompleteEpoch) each run under their own epochCAS; ALL proof — participant observation, process observation, the worktree
 // slot load, and the launch walk — runs OUTSIDE any epoch or admission lock, never
 // holding a lock across a process observation or a per-drive claim probe.
 package app
@@ -131,17 +134,32 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 		return true, "", nil // idempotent completed-receipt replay
 	}
 
+	// (1b) Settle uncertain publications proven by a later completed identical
+	// retry (change 0444) — journal-derived evidence only, persisted through the
+	// ordinary epoch CAS. The attributed keyed closeout is a WRITE path (unlike
+	// RunVerify and unattributed verdicts, which stay read-only), but it still
+	// stops no task, launches no mutation, and settles no never-launched
+	// reservation: the only write is uncertain→completed on matched journal
+	// entries. It runs before the step (2) reload so both the step (3) accounting
+	// read and the step (4) re-enumeration read see the settled journal. A failed
+	// settlement is a bounded finding; the entry stays uncertain and the
+	// accounting below blocks fail-closed as before.
+	settledTokens, sfindings := settleUncertainPublications(repoDir, gateKey)
+	findings = appendFindings(settledTokens, sfindings)
+
 	// (2) Reload the fenced record. All remaining proof runs OUTSIDE the epoch lock.
 	ep, _, lerr := LoadEpochRecord(repoDir, gateKey)
 	if lerr != nil {
-		return false, "epoch-unreadable", nil
+		return false, "epoch-unreadable", findings
 	}
 
 	// (3) Observation-only accounting over the fenced record. Any blocking obligation
 	// (an unobserved native task, a live/unproven execution process, an unreleased or
 	// unprovable owned slot, an unaccounted launch, an uncompleted mutation) fails
-	// closed; informational findings (a successor slot) are accounted.
-	blocked, findings := accountCompletionObligations(seams, ep)
+	// closed; informational findings (a successor slot) are accounted. The step (1b)
+	// settlement tokens stay ahead of the accounting findings.
+	blocked, afindings := accountCompletionObligations(seams, ep)
+	findings = appendFindings(findings, afindings)
 
 	// (4) RE-ENUMERATE before retirement: an operation admitted pre-fence may have
 	// appended a participant or a mutation between the fence and step (3)'s read (the
