@@ -230,6 +230,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomSpec})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, SpecMarkdown: "# x\n"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomOutcome("bogus")})...)
 	emitted = append(emitted, validateChangeReconcileShape(ChangeReconcileRequest{
 		Sections:     map[string]string{"## Not Owned": "x"},
@@ -255,7 +256,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 		FCInvalidChangeDotID, FCEmptyChangePath, FCEmptyChangeVersion,
 		FCInvalidTargetID, FCEmptyTargetPath, FCEmptyTargetVersion,
 		FCEmptyHook, FCEmptyApply, FCEmptyWarStory, FCInvalidTopics,
-		FCEmptySpecMarkdown, FCMissingRationale, FCInvalidOutcome,
+		FCEmptySpecMarkdown, FCEmptySpecPath, FCEmptySpecVersion, FCMissingRationale, FCInvalidOutcome,
 		FCInvalidSpecSectionHeading, FCEmptyReconcileLogEntry,
 		FCInvalidPRNumber, FCInvalidAttempt, FCEmptyHead,
 	}

@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:66e534a66c018b687e4207ce2db67dd5b531ff4ea67240c887fc4aa8a571286a",
+  "asset_set_id": "sha256:9bb2287976620b2cf4453d6abcf4bc8d30bed4e3a0352f981f907516df02edb6",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -399,8 +399,8 @@
       "path": "skills/docket-groom-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 12376,
-      "sha256": "72221065b4c25d870d90a930efd2fef6383c51fd963e4b980250dfde9304e1a0"
+      "size": 12656,
+      "sha256": "6fbabb5ea32d9a1bc57aafe0930bf67d72b719a3e9b35e908cb88ab02200c69f"
     },
     {
       "path": "skills/docket-implement-next/SKILL.md",

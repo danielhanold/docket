@@ -96,6 +96,13 @@ func TestReflectDescriptorChangeGroomRequest(t *testing.T) {
 	if sm.Required || sm.Type != "string" {
 		t.Errorf("spec_markdown = %+v, want optional string", sm)
 	}
+	// spec_path + spec_version: the optional spec pin (conditionally required
+	// by the validator on a spec-body revise, so not docket:"required").
+	for _, key := range []string{"spec_path", "spec_version"} {
+		if f := fieldByKey(t, d, key); f.Required || f.Type != "string" {
+			t.Errorf("%s = %+v, want optional string", key, f)
+		}
+	}
 
 	// sections repeated object with heading/intent/markdown.
 	sec := fieldByKey(t, d, "sections")

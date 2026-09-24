@@ -30,8 +30,9 @@ import (
 // replaced one for a spec-body revise; the inline board) as one validated
 // atomic transaction. Grooming is a
 // non-allocating edit of an existing record, so it pins the submitted record
-// version with an exact-blob entity expectation rather than an idempotency key,
-// and it never touches claim metadata. It decides no lifecycle policy beyond the
+// version with an exact-blob entity expectation rather than an idempotency key
+// (plus a second one on the linked spec file for a spec-body revise), and it
+// never touches claim metadata. It decides no lifecycle policy beyond the
 // groom gate the spec fixes here (proposed, needs-design, not yet trivial) and
 // its exact complement, the revise gate (proposed, already spec'd or trivial).
 
@@ -72,6 +73,15 @@ type ChangeGroomRequest struct {
 
 	SpecMarkdown string               `json:"spec_markdown,omitempty"` // required for the spec outcome
 	Sections     []SectionEditRequest `json:"sections"`                // proposal-section edits
+
+	// SpecPath and SpecVersion pin the change's existing linked spec file — its
+	// repo path and exact full blob object id — exactly as Path and Version pin
+	// the record. They travel together, and a revise carrying spec_markdown
+	// requires both: the whole-body replace overwrites the spec file, so the
+	// spec is pinned by its own exact-blob entity expectation and a concurrent
+	// spec edit contends instead of being silently clobbered.
+	SpecPath    string `json:"spec_path,omitempty"`
+	SpecVersion string `json:"spec_version,omitempty"`
 
 	DependsOn      []int `json:"depends_on"`
 	Related        []int `json:"related"`
@@ -194,16 +204,29 @@ func ChangeGroom(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		changesDir: eff.ChangesDir.Value,
 	}
 
+	// The record is always pinned by an exact-blob entity expectation; a spec
+	// pin adds a second one on the linked spec file, so a spec-body revise that
+	// races another revise or a concurrent spec edit contends rather than
+	// silently clobbering it (the record alone does not change on a same-day
+	// spec-only revise, so its pin cannot catch that race).
+	expected := []transaction.EntityExpectation{{
+		Path:    gitcli.RepoPath(req.Path),
+		Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+	}}
+	if req.SpecPath != "" {
+		expected = append(expected, transaction.EntityExpectation{
+			Path:    gitcli.RepoPath(req.SpecPath),
+			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.SpecVersion)},
+		})
+	}
+
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository: repo,
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
-		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(req.Path),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
-		}},
-		Loader:    newPlanningLoader(eff),
-		Operation: op,
+		Expected:   expected,
+		Loader:     newPlanningLoader(eff),
+		Operation:  op,
 	})
 
 	return changeGroomResultFromOutcome(res, execErr)
@@ -270,6 +293,19 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		}
 	default:
 		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial, revise", req.Outcome))
+	}
+
+	// The spec pin (spec_path + spec_version) travels as a pair on any outcome,
+	// and a spec-body revise requires it: the whole-body replace overwrites the
+	// linked spec file, which must therefore be pinned exactly like the record.
+	specPinned := strings.TrimSpace(req.SpecPath) != "" || strings.TrimSpace(req.SpecVersion) != ""
+	if specPinned || (req.Outcome == GroomRevise && strings.TrimSpace(req.SpecMarkdown) != "") {
+		if strings.TrimSpace(req.SpecPath) == "" {
+			addShape(FCEmptySpecPath, "spec_path must name the change's linked spec path whenever spec_version is given or a revise carries spec_markdown")
+		}
+		if strings.TrimSpace(req.SpecVersion) == "" {
+			addShape(FCEmptySpecVersion, "spec_version must be the exact full blob object id of the linked spec whenever spec_path is given or a revise carries spec_markdown")
+		}
 	}
 
 	findings = append(findings, validateGroomSections(req.Sections)...)
@@ -413,6 +449,14 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 			return refuseGroom("spec-file-missing",
 				fmt.Sprintf("change %04d links spec %q but no such file exists on the tree", o.req.ChangeID, c.Spec().Value))
 		}
+	}
+
+	// A spec pin must name the change's linked spec: the engine checked the pin
+	// on spec_path, so a pin on any other path would leave the file actually
+	// overwritten unpinned. A trivial change links no spec, so any pin refuses.
+	if o.req.SpecPath != "" && o.req.SpecPath != c.Spec().Value {
+		return refuseGroom("spec-path-mismatch",
+			fmt.Sprintf("spec_path %q does not name change %04d's linked spec %q", o.req.SpecPath, o.req.ChangeID, c.Spec().Value))
 	}
 
 	src, ok := st.State.Sources[o.req.Path]
