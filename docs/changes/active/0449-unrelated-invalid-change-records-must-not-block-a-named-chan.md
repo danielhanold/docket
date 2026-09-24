@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/unrelated-invalid-change-records-must-not-block-a-named-chan'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-24T15:29:23Z'
+reconciled: true
+claimed_at: '2026-09-24T15:30:11Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ Built last, after changes 446 and 448.
 ## Out of scope
 
 User-supplied ignore lists, error-code allowlists, persisted baselines, a second transaction engine, an alternate renderer, new lifecycle statuses, or permissive parsers. Read-only health checks keep reporting the whole repository. Gate admission and run bookkeeping (change 446). Named-start maintenance preflight (change 448).
+
+## Reconcile log
+
+### 2026-09-24
+
+2026-09-24 — Reconciled at claim against main 9d4cb1fe. Dependency 0448 and the split-origin change 0446 are both done. The code anchors the spec grounds on are still present unchanged in shape: `Engine.runCandidate` still refuses on `before.Report.HasErrors()` before planning (internal/repository/transaction/engine.go) and `planningLoader.Load` still lives in internal/app/planning.go. No work landed elsewhere that covers this scope; scope, relations, and design stand as written.
