@@ -15,7 +15,7 @@ adrs: []
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
 branch_prefix:
 branch:
@@ -45,3 +45,7 @@ The failure is a real admission bug, not a test defect. In `admitScopedWorktree`
 
 - Broader rework of worktree/scope admission arbitration.
 - A general CI change to run the suite under `GOMAXPROCS=1`. If that is wanted, it is a separate change.
+
+## Open questions
+
+None. This is trivial: the root cause is traced and reproduced (about 48% failures under `GOMAXPROCS=1 -race`), and the fix is a single receipt guard in one switch arm. A scratch run of it passed 500/500 plus the full `gatedrive` package. The only remaining work is the guard, a deterministic regression test, and a comment update. No design choice is open.

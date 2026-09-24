@@ -27,7 +27,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0452](active/0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md) | Same-scope first-start loser must not rotate the winner's executing worktree slot | `high` | `fix` | needs-brainstorm |
+| [0452](active/0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md) | Same-scope first-start loser must not rotate the winner's executing worktree slot | `high` | `fix` | build-ready (trivial) |
 | [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | needs-brainstorm |
 | [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | needs-brainstorm |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-brainstorm |
