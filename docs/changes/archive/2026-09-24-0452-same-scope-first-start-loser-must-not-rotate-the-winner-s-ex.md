@@ -2,7 +2,7 @@
 id: 452
 slug: 'same-scope-first-start-loser-must-not-rotate-the-winner-s-ex'
 title: 'Same-scope first-start loser must not rotate the winner''s executing worktree slot'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-09-24'
@@ -22,7 +22,7 @@ branch: 'fix/same-scope-first-start-loser-must-not-rotate-the-winner-s-ex'
 pr: 'https://github.com/danielhanold/docket/pull/329'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T16:25:28Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,8 @@ claimed_at: '2026-09-24T16:25:28Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-09-24-0452-same-scope-first-start-loser-must-not-rotate.md](https://github.com/danielhanold/docket/blob/fix/same-scope-first-start-loser-must-not-rotate-the-winner-s-ex/docs/superpowers/plans/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate.md) |
-| Results | [2026-09-24-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex-results.md](https://github.com/danielhanold/docket/blob/fix/same-scope-first-start-loser-must-not-rotate-the-winner-s-ex/docs/results/2026-09-24-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex-results.md) |
+| Plan | [2026-09-24-0452-same-scope-first-start-loser-must-not-rotate.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate.md) |
+| Results | [2026-09-24-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-24-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

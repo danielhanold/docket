@@ -1,18 +1,12 @@
 # Backlog
 
-**453 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 5 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 301 done · 🗑️ 119 killed
+**453 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 5 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 302 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0449](active/0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | `critical` | `fix` | [spec](../superpowers/specs/2026-09-23-unrelated-invalid-change-records-must-not-block-a-named-chan-design.md) | `fix/unrelated-invalid-change-records-must-not-block-a-named-chan` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0452](active/0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md) | Same-scope first-start loser must not rotate the winner's executing worktree slot | `high` | `fix` | [#329](https://github.com/danielhanold/docket/pull/329) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
@@ -99,7 +93,6 @@ graph TD
   0447
   0448 --> 0449
   0450
-  0452
   0453
   0192:::done
   0251:::done
@@ -110,10 +103,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (420)</summary>
+<details><summary>✅🗑️ Archive — done + killed (421)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0452](archive/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md) | Same-scope first-start loser must not rotate the winner's executing worktree slot | 2026-09-24 |
 | [0451](archive/2026-09-24-0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md) | Workspace publish refuses a feature head that moved after the app-level check | 2026-09-24 |
 | [0448](archive/2026-09-24-0448-named-implement-next-skips-unrelated-maintenance-preflight.md) | Named implement-next skips unrelated maintenance preflight | 2026-09-24 |
 | [0446](archive/2026-09-24-0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | 2026-09-24 |
@@ -128,7 +122,6 @@ graph TD
 | [0438](archive/2026-09-20-0438-finalize-rebase-abort-can-t-recover-a-completed-but-unmerged.md) | finalize.rebase-abort can't recover a completed-but-unmerged rebase whose base later moved | 2026-09-20 |
 | [0435](archive/2026-09-20-0435-docket-run-cancel-leaves-a-stale-runepochid-on-a-released-ga.md) | docket run cancel leaves a stale RunEpochID on a released gate-admission slot | 2026-09-20 |
 | [0437](archive/2026-09-19-0437-reject-revoked-run-epochs-before-gate-start-admission.md) | Reject revoked run epochs before gate-start admission | 2026-09-19 |
-| [0436](archive/2026-09-19-0436-test-go-toolchain-sh-s-gofmt-check-ignores-the-pinned-toolch.md) | test_go_toolchain.sh's gofmt check ignores the pinned toolchain, flip-flopping CI red | 2026-09-19 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -253,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 50 done |
+| [2026-09](archive/) | 51 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
