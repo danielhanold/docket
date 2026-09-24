@@ -1,6 +1,6 @@
 # Backlog
 
-**449 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 298 done · 🗑️ 119 killed
+**450 changes** — 🟢 2 in progress · 🟣 4 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 298 done · 🗑️ 119 killed
 
 ## 🟢 In progress (2)
 
@@ -18,10 +18,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (16)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0450](active/0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | `high` | `chore` | needs-brainstorm |
 | [0449](active/0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | `critical` | `fix` | ⏳ waiting on #448 — not yet built |
 | [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | needs-brainstorm |
 | [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | needs-brainstorm |
@@ -89,6 +90,7 @@ graph TD
   0447
   0446 --> 0448
   0448 --> 0449
+  0450
   0192:::done
   0251:::done
   0370:::done
