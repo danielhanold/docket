@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-24T20:01:55Z'
+reconciled: true
+claimed_at: '2026-09-24T20:02:41Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Add a `revise` outcome to the existing `change.groom` operation (no new catalog 
 ## Out of scope
 
 Editing frozen build records (merged plans and results), Accepted ADRs, or terminal (done/killed) changes. Changing the spec path or relinking a different spec file. Revising trivial changes into spec'd ones or vice versa (structurally impossible under this design, not just disallowed by convention). Revising an in-progress change — that stays change.reconcile's existing job (its SpecSections already covers it). Section-level (partial) spec patching — revise's spec edit is whole-body replace only, matching change.groom's existing spec outcome. Any automatic or autonomous spec revision. Review tooling or approval workflow for specs.
+
+## Reconcile log
+
+### 2026-09-24
+
+2026-09-24 — Reconciled against main 4bfc4485. internal/app/change_groom.go still matches the spec's baseline: GroomOutcome has only spec/trivial, the not-groomable gate is unchanged, and FCInvalidOutcome still names two outcomes. skills/docket-groom-next/SKILL.md still carries the hand-edit workaround line this change removes. Related 0444 is done and 0382 (create-request scalars) does not touch groom. No scope change; the skill edits land in the repo's skills/ sources (docket-groom-next, docket-new-change).
