@@ -159,7 +159,9 @@ type skillBudget struct {
 // not-yet-stacked-merged named change and returns children-retarget-required.
 // A second review fix named the real status field (8233 -> 8241): the closeout
 // set is read off `unmet_dependencies` (app.StatusChange), since the status
-// projection exposes no `depends_on` field.
+// projection exposes no `depends_on` field. A third review fix keyed the closeout mapping on
+// the envelope `result` and reason `pr-not-merged` rather than `disposition`
+// tokens, and named the still-refusing re-read (8241 -> 8270).
 //
 // Change 0419 (repair-attempts configurable, built-in default 3 -> 10) added the
 // required repair-attempt budget payload line and rewired the repair contract in
@@ -191,7 +193,7 @@ var skillBudgets = []skillBudget{
 	{"docket-finalize-change/SKILL.md", 239, 5520},                   // 0442: +post-publication base-advance guidance (word ceiling 5421 -> 5520); de-duplicated the shared forward-rebase mechanic against the 0438 unpublished-case paragraph (reclaimed 57 words), but the distinct published-refresh facts plus the retained 0438 guidance cannot fit the old ceiling without deleting required guidance; 0411: +reconciliation-write recovery exception paragraph in the resolver loop (ceilings 238/5232 -> 239/5421); 0413: +generated-bundle mixed-conflict handoff sentence in the resolver-loop block (word ceiling 5200 -> 5232); 0419: +repair-attempt budget payload line and rewired repair contract (line ceiling 236 -> 238); 0393: +exact payload, marker, and direct-dispatch lines atop 0349/0410 (see note above)
 	{"docket-finalize-change/references/gate-failure.md", 147, 1901}, // 0411: +reconciliation-write exception section and abort-set carve-out (ceilings 135/1472 -> 147/1901); 0413: +conflicted_paths-lists-authored-only rule in the resolver-report section (line ceiling 133 -> 135, word ceiling 1465 -> 1472); 0419: +repair-attempt budget payload and rewired repair contract prose (word ceiling 1450 -> 1465); 0349: +reserve-before-dispatch resolver protocol prose; 0375: +worktree-slot note for the scopeless finalize gate (120/1300 -> 133/1450)
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 214, 8241},                // 0448: +named-invocation branch and bounded own-dependency closeout (ceilings 210/7716 -> 214/8223 -> 214/8233 -> 214/8241); 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376; 0375: +gate-epoch resume pointer (word ceiling 7530 -> 7547); 0440: reader-first results prose
+	{"docket-implement-next/SKILL.md", 214, 8270},                // 0448: +named-invocation branch and bounded own-dependency closeout (ceilings 210/7716 -> 214/8223 -> 214/8233 -> 214/8241 -> 214/8270); 0393: +exact payload, marker, and direct-dispatch lines atop 0410/0354/0376; 0375: +gate-epoch resume pointer (word ceiling 7530 -> 7547); 0440: reader-first results prose
 	{"docket-implement-next/references/edge-paths.md", 93, 1261}, // 0410: +resume/recovery + required-results reconciliation; 0375: +gate-epoch resume refusals (78/1091 -> 93/1261)
 	{"docket-implement-next/references/fix-loop.md", 190, 1958},  // 0410: +findings-to-results checkpoint linkage (see note above)
 	{"docket-implement-next/results-template.md", 64, 446},       // 0440: reader-first template — action statement + merged Known issues (see note above)
