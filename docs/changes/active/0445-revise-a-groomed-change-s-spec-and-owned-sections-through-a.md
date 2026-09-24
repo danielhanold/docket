@@ -2,7 +2,7 @@
 id: 445
 slug: 'revise-a-groomed-change-s-spec-and-owned-sections-through-a'
 title: 'Revise a groomed change''s spec and owned sections through a typed operation'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-23'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-24T20:01:55Z'
 ---
 
 ## Artifacts

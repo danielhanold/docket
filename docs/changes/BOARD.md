@@ -1,6 +1,12 @@
 # Backlog
 
-**455 changes** — 🔴 1 blocked · 🟣 5 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 303 done · 🗑️ 119 killed
+**455 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 303 done · 🗑️ 119 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | [spec](../superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md) | `feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a` |  |
 
 ## 🔴 Blocked (1)
 
@@ -8,12 +14,11 @@
 |---|-------|----------|------|----|--------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
 
-## 🟣 Groomed (5)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0450](active/0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | `high` | `chore` | [spec](../superpowers/specs/2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md) |
-| [0445](active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | `medium` | `feat` | [spec](../superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
