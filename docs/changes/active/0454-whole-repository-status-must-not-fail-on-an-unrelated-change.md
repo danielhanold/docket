@@ -12,7 +12,7 @@ stacked_on:
 related: [449]
 discovered_from: [449]
 adrs: [127]
-spec:
+spec: 'docs/superpowers/specs/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-design.md) |
 | ADRs | [ADR-0127](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0127-scoped-metadata-validation-for-named-operations.md) |
 <!-- docket:artifacts:end -->
 
@@ -38,8 +39,19 @@ Change 0449 stopped one broken change record from blocking named operations on o
 
 ## What changes
 
-Make `docket status` report an invalid branch name on one change as a finding against that change, and still render the rest of the backlog, readiness, selection, and health. The branch-fact probe should skip or isolate the defective record instead of aborting the whole read. The design needs to settle how the finding is shaped in status's JSON and human output, whether the affected change is excluded from build-ready selection, and how `repository check` and the health checks report it. This should stay consistent with 0449's repair-notice model (ADR-0127).
+Make the three whole-repository reads that share one live branch probe (`docket status`, `maintenance.preflight`, and automatic `context.implementation` selection) survive a change whose recorded `branch:` is not a valid git ref name.
+
+- Complete gitcli's ref-name check to git's own `check-ref-format` rules and export it, so the probe and its caller use the same rule.
+- The whole-corpus probe (`stackBranches`) skips any name that fails the check. Such a name cannot exist on the remote, so it counts as absent. A child stacked on that parent is then not build-ready through the existing `stack-base-unresolved` path; no new selection logic.
+- `docket status` reports an error-severity `branch-malformed` finding on every displayed active change with a malformed branch, alongside its existing artifact health findings, and still renders the rest of the backlog. The finding reaches the preflight envelope with no format change.
+- 0449's integration test goes through the real `Status` read instead of routing around it.
+
+This applies ADR-0127's existing report-per-record model to the read it left out. No new ADR.
 
 ## Out of scope
 
-Changing named-operation validation scoping, which 0449 already did. Repairing or auto-correcting the invalid branch name itself. Other whole-repository reads unless the design finds they share the same probe path.
+- Named-operation validation scoping, done by 0449. The named probe (`stackBranchesFor`) is unchanged.
+- Repairing, rewriting, or auto-clearing the malformed `branch:` value.
+- Making a malformed branch a snapshot-validation error, or refusing writes because of it.
+- Merging the narrower branch-shape checks used elsewhere into the gitcli one.
+- `repository check`, which does not probe branch facts.
