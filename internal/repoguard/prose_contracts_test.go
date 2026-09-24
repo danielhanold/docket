@@ -351,6 +351,17 @@ var proseContracts = []proseContract{
 			// `unmet_dependencies` (app.StatusChange), never a `depends_on`
 			// field, so the closeout set is read off that real field.
 			"take the named change's `unmet_dependencies` ids from its `changes[]` entry, keeping each id whose own `changes[]` entry has `status` `implemented`",
+			// Negative counterpart: the exemption is exactly one id, so no
+			// argument and an id set still run the maintenance preflight.
+			// Deleting "or an id set" reddens this row (mutation-tested).
+			"Otherwise — no argument, or an id set — run, before selection, the **implementation preflight** inline",
+			"an **id allowlist** of two or more ids",
+			// finalize.closeout success keys on the envelope `result`, and the
+			// waiting-dependency refusal on the reason `pr-not-merged` — never
+			// on the `disposition` token (FinalizeCloseout, CloseoutResult).
+			"key success on the envelope `result` `applied` or `no-op`",
+			"reason `pr-not-merged`",
+			"if that single re-read still refuses",
 		},
 		absent: []string{
 			"Then, before selection, run the **implementation preflight** inline",
@@ -368,6 +379,18 @@ var proseContracts = []proseContract{
 	{sentinel: "change_0448_named_preflight_skip", file: "skills/docket-convention/SKILL.md",
 		present: []string{
 			"an invocation naming exactly one explicit change id skips the preflight and goes directly to `context.implementation --id`",
+		}},
+	// change 0448 — docket-status names implement-next's Step 0 preflight
+	// only as its selection-path step: a named (single-id) invocation skips
+	// it, so the status prose must not describe it as unconditional.
+	{sentinel: "change_0448_named_preflight_skip", file: "skills/docket-status/SKILL.md",
+		present: []string{
+			"which `docket-implement-next` runs inline at its Step 0 on its selection path (no id or an id set)",
+			"(`docket-implement-next` Step 0 runs that operation inline on its selection path — no id or an id set)",
+		},
+		absent: []string{
+			"runs inline at its Step 0 — not a mode of this skill",
+			"(`docket-implement-next` Step 0 runs that operation inline)",
 		}},
 }
 
