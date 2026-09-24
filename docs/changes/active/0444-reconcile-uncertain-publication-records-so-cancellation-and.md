@@ -22,7 +22,7 @@ branch: 'fix/reconcile-uncertain-publication-records-so-cancellation-and'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-23T07:06:33Z'
+claimed_at: '2026-09-24T03:39:41Z'
 ---
 
 ## Artifacts
@@ -53,17 +53,3 @@ New cancellation/resume policy, force-clearing uncertain work, publication rollb
 
 2026-09-23 — Reconciled against main 442770e1 (identical to the spec design baseline). All cited symbols (AdmittedMutation, admitWorkflowMutation, mutationJournalStatus, reconcileEpochTeardown, verifyTerminalEpochQuiescence, accountCompletionMutations, validateResumeQuiescence) exist as described; related 0313/0375/0435/0437/0441 are done; no newer archived change or ADR touches publication-journal reconciliation. Scope unchanged.
 
-## Run halted
-
-### 2026-09-23
-
-The build stopped at Step 5, task 1 of 10, before any code was committed. The implementer run halted and needs a human.
-
-**Cause.** Every `gate.drive.start` in the feature worktree `.worktrees/reconcile-uncertain-publication-records-so-cancellation-and` is refused with `unresolved-execution` (stage `legacy-inventory`). A historical gate drive, `b66ce1405cd813e5519c344360f61bd4`, is retained as "halted run not provably torn down (invalid)". `docket gate history cleanup --repo-dir <worktree> --drive-id b66ce1405cd813e5519c344360f61bd4 --dry-run` reports `recoverable: 0, retained: 1`, so it cannot be recovered automatically. `run.cancel` does not apply because that drive has no owning epoch.
-
-**State left behind.**
-- Claim held; plan committed at `5c514d6f` and attached.
-- One uncommitted file in the worktree: `internal/app/rungate_publication_test.go` (Task 1's tests, exactly as the plan wrote them). It was left for a resumed worker to keep.
-- No drive was started, so there is no handoff token to claim.
-
-**To resume.** A human inspects the retained drive record and clears it (confirm it is dead, then recover or remove it). Then re-arm with `run.gate-before implement-next --resume 444` and re-dispatch implement-next with id 444 through `change.resume-halted --acknowledge-quiescent`.
