@@ -513,3 +513,170 @@ func TestClaimResultRealEngineMalformedVersion(t *testing.T) {
 		t.Errorf("Failure.Detail = %q, want it to name the invalid expectations", out.Failure.Detail)
 	}
 }
+
+// --- 0449: unrelated invalid records never block a named claim --------------
+//
+// These real-git tests drive the production operations through a real
+// transaction.Engine and the production planning loader over a corpus that also
+// carries an UNRELATED unparseable change record (A, id 99). The progress rows
+// are the reproduction of the 0449 bug: under the strict whole-corpus gate A's
+// parse finding refused every named write. The refusal rows prove the scope is
+// bounded — a defect on B, B depending on the unparseable A, and a duplicate of
+// B's id still refuse, and nothing moves on the origin.
+//
+// Mutation check (run manually; noted in the commit): delete the `Scope:` field
+// from ChangeClaim's transaction.Request and
+// `go test ./internal/app/ -run 'TestChangeClaim.*Unrelated' -count=1` reddens on
+// the progress row with the before-gate refusal the bug produced.
+
+// unrelatedBrokenPath is the unrelated change record A every 0449 row seeds; its
+// bytes open a frontmatter block and never close it, so document.Parse rejects
+// it and the loader reports a parse finding on this path.
+const (
+	unrelatedBrokenPath  = "docs/changes/active/0099-broken.md"
+	unrelatedBrokenBytes = "---\nid: 99\nslug: broken\n"
+)
+
+// unrelatedRefusalCase is one bounded-scope refusal row: the metadata files
+// seeded beside B (which always include the unrelated broken A).
+type unrelatedRefusalCase struct {
+	name  string
+	files map[string]string
+}
+
+// unrelatedRefusalCases derives the three refusal rows from B's healthy record
+// src at recPath: a validation defect on B itself (an unknown type), B
+// depending on the unparseable A (a dangling depends_on error on B), and a
+// second record carrying B's id.
+func unrelatedRefusalCases(t *testing.T, id int, recPath, src, dupeSrc string) []unrelatedRefusalCase {
+	t.Helper()
+	// An ill-shaped type token is an error finding on B that still leaves B
+	// decodable, so B stays in the snapshot and the defect is B's own.
+	defect := strings.Replace(src, "type: feat\n", "type: 'Not A Token'\n", 1)
+	dependent := strings.Replace(src, "depends_on: []\n", "depends_on: [99]\n", 1)
+	if defect == src || dependent == src {
+		t.Fatal("refusal fixtures did not rewrite B's record; the fixture shape changed")
+	}
+	return []unrelatedRefusalCase{
+		{name: "defect on B", files: map[string]string{recPath: defect, unrelatedBrokenPath: unrelatedBrokenBytes}},
+		{name: "B depends on unparseable A", files: map[string]string{recPath: dependent, unrelatedBrokenPath: unrelatedBrokenBytes}},
+		{name: "duplicate of B's id", files: map[string]string{
+			recPath: src, groomPath(id, "dupe"): dupeSrc, unrelatedBrokenPath: unrelatedBrokenBytes,
+		}},
+	}
+}
+
+// assertUnrelatedBrokenIntact proves the unrelated broken record is
+// byte-identical on the origin's metadata branch and that a subsequent status
+// read still reports its parse finding — the named write neither repaired nor
+// hid it.
+func assertUnrelatedBrokenIntact(t *testing.T, repo *gitRepo) {
+	t.Helper()
+	got, ok := originFile(t, repo.origin, "docket", unrelatedBrokenPath)
+	if !ok || got != unrelatedBrokenBytes {
+		t.Errorf("unrelated broken record on origin = %q (present %v), want its exact seeded bytes", got, ok)
+	}
+	st := Status(context.Background(), NewGitStatusReader(newGitClient(t)), StatusOptions{RepoDir: cloneOrigin(t, repo.origin)})
+	for _, f := range st.Findings {
+		if f.Path == unrelatedBrokenPath && f.Severity == "error" {
+			return
+		}
+	}
+	t.Errorf("status no longer reports the unrelated parse finding on %s; findings %+v", unrelatedBrokenPath, st.Findings)
+}
+
+// assertRefusalBeyondUnrelated proves a refusal is attributed to B's own
+// bounded scope — not merely to the unrelated broken record — by requiring a
+// finding on some other path (or a pathless typed refusal such as an ambiguous
+// id, or a typed refusal reason). A refusal carrying only A's parse finding is
+// the strict-gate bug shape.
+func assertRefusalBeyondUnrelated(t *testing.T, reason string, findings []StatusFinding) {
+	t.Helper()
+	if reason != "" && reason != "unclosed-frontmatter" {
+		return
+	}
+	for _, f := range findings {
+		if f.Path != unrelatedBrokenPath {
+			return
+		}
+	}
+	t.Errorf("refusal carries only the unrelated record's findings %+v; want a finding naming B's own defect", findings)
+}
+
+func TestChangeClaimUnrelatedInvalidRecordProgress(t *testing.T) {
+	requireRealGit(t)
+	const id = 3
+	recPath := groomPath(id, "widget")
+	repo := newWorkingRepo(t, map[string]string{
+		recPath:             claimableChange(id, "widget"),
+		unrelatedBrokenPath: unrelatedBrokenBytes,
+	})
+	node := planningDepsFor(t, repo.invocation)
+	later := planningDepsForClock(t, repo.invocation, fixedClock{t: time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)})
+	ctx := context.Background()
+
+	claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
+	if claim.Result != ResultApplied {
+		t.Fatalf("claim beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
+			claim.Result, claim.Disposition, claim.Findings)
+	}
+	rec, _ := originFile(t, repo.origin, "docket", recPath)
+	if !strings.Contains(rec, "status: 'in-progress'") {
+		t.Errorf("claimed record on origin is not in-progress:\n%s", rec)
+	}
+	assertUnrelatedBrokenIntact(t, repo)
+
+	refresh := ChangeRefreshClaim(ctx, later.deps, later.dir, ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
+	if refresh.Result != ResultApplied {
+		t.Fatalf("refresh-claim beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
+			refresh.Result, refresh.Disposition, refresh.Findings)
+	}
+	assertUnrelatedBrokenIntact(t, repo)
+}
+
+func TestChangeClaimUnrelatedInvalidRecordRefusals(t *testing.T) {
+	requireRealGit(t)
+	const id = 3
+	recPath := groomPath(id, "widget")
+	for _, c := range unrelatedRefusalCases(t, id, recPath, claimableChange(id, "widget"), claimableChange(id, "dupe")) {
+		t.Run(c.name, func(t *testing.T) {
+			repo := newWorkingRepo(t, c.files)
+			node := planningDepsFor(t, repo.invocation)
+			tip := originTip(t, repo.origin, "docket")
+
+			res := ChangeClaim(context.Background(), node.deps, node.dir,
+				ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
+			if res.Result == ResultApplied {
+				t.Fatalf("claim applied despite %s; want a refusal", c.name)
+			}
+			assertRefusalBeyondUnrelated(t, res.Disposition, res.Findings)
+			if got := originTip(t, repo.origin, "docket"); got != tip {
+				t.Errorf("a refused claim moved the metadata branch %s -> %s", tip, got)
+			}
+		})
+	}
+}
+
+func TestChangeRefreshClaimUnrelatedInvalidRecordRefusals(t *testing.T) {
+	requireRealGit(t)
+	const id = 3
+	recPath := groomPath(id, "widget")
+	src := lifecycleChange(id, "widget", "in-progress")
+	for _, c := range unrelatedRefusalCases(t, id, recPath, src, lifecycleChange(id, "dupe", "in-progress")) {
+		t.Run(c.name, func(t *testing.T) {
+			repo := newWorkingRepo(t, c.files)
+			node := planningDepsFor(t, repo.invocation)
+			tip := originTip(t, repo.origin, "docket")
+
+			res := ChangeRefreshClaim(context.Background(), node.deps, node.dir,
+				ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
+			if res.Result == ResultApplied {
+				t.Fatalf("refresh-claim applied despite %s; want a refusal", c.name)
+			}
+			assertRefusalBeyondUnrelated(t, res.Disposition, res.Findings)
+			if got := originTip(t, repo.origin, "docket"); got != tip {
+				t.Errorf("a refused refresh-claim moved the metadata branch %s -> %s", tip, got)
+			}
+		})
+	}
+}

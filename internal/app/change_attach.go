@@ -347,6 +347,7 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 		}},
 		Idempotency: &transaction.IdempotencyKey{RequestID: attachRequestID(kind, req), Digest: digest},
 		Loader:      newPlanningLoader(eff),
+		Scope:       changeScope(req.ID, ac.recPath, false),
 		Operation:   op,
 	})
 

@@ -6,6 +6,7 @@ import (
 	"github.com/danielhanold/docket/internal/workspace"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -75,15 +76,24 @@ type attachFixture struct {
 
 func attachSetup(t *testing.T) *attachFixture {
 	t.Helper()
+	return attachSetupWith(t, nil)
+}
+
+// attachSetupWith is attachSetup with extra metadata files seeded beside the
+// in-progress change (change 0449 seeds an unrelated unparseable record).
+func attachSetupWith(t *testing.T, extra map[string]string) *attachFixture {
+	t.Helper()
 	requireRealGit(t)
 	const (
 		id   = 3
 		slug = "widget"
 	)
 	recPath := groomPath(id, slug)
-	repo := newWorkingRepo(t, map[string]string{
-		recPath: lifecycleChange(id, slug, "in-progress"),
-	})
+	files := map[string]string{recPath: lifecycleChange(id, slug, "in-progress")}
+	for rel, content := range extra {
+		files[rel] = content
+	}
+	repo := newWorkingRepo(t, files)
 	version := blobVersionAt(t, repo.origin, "docket", recPath)
 
 	node := planningDepsFor(t, repo.invocation)
@@ -127,4 +137,67 @@ func (f *attachFixture) commitPlan(t *testing.T, files map[string]string, traile
 	}
 	runGit(t, f.wp, args...)
 	return runGit(t, f.wp, "rev-parse", "HEAD")
+}
+
+// --- 0449: unrelated invalid records never block a named attach -------------
+// Shares the unrelated-broken-record fixtures with change_claim_test.go. The
+// refusal rows inject their defect onto the origin AFTER the workspace is
+// prepared, so the attach transaction itself is what must refuse.
+
+// advanceDocketOrigin commits files onto the origin's metadata branch through
+// the writer clone, first syncing the writer to the origin tip so an engine
+// commit made since setup never turns the push into a non-fast-forward.
+func advanceDocketOrigin(t *testing.T, repo *gitRepo, files map[string]string) {
+	t.Helper()
+	runGit(t, repo.writer, "fetch", "-q", "origin", "docket")
+	runGit(t, repo.writer, "checkout", "-q", "-B", "docket", "FETCH_HEAD")
+	for rel, content := range files {
+		writeRepoFile(t, repo.writer, rel, content)
+	}
+	runGit(t, repo.writer, "add", "-A")
+	runGit(t, repo.writer, "commit", "-q", "-m", "advance docket")
+	runGit(t, repo.writer, "push", "-q", "origin", "docket")
+}
+
+func TestChangeAttachUnrelatedInvalidRecordProgress(t *testing.T) {
+	f := attachSetupWith(t, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
+	head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
+
+	res := ChangeAttachPlan(f.ctx, f.deps, f.wdeps, f.invocation, ChangeAttachRequest{
+		ID: f.id, Version: blobVersionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath, Commit: head,
+	})
+	if res.Result != ResultApplied {
+		t.Fatalf("attach-plan beside an unrelated unparseable record = %q (reason %q findings %v), want applied",
+			res.Result, res.Reason, res.Findings)
+	}
+	rec, _ := originFile(t, f.repo.origin, "docket", f.recPath)
+	if !strings.Contains(rec, "plan: '"+f.planPath+"'") && !strings.Contains(rec, "plan: "+f.planPath) {
+		t.Errorf("attached record on origin does not carry the plan path:\n%s", rec)
+	}
+	assertUnrelatedBrokenIntact(t, f.repo)
+}
+
+func TestChangeAttachUnrelatedInvalidRecordRefusals(t *testing.T) {
+	requireRealGit(t)
+	src := lifecycleChange(3, "widget", "in-progress")
+	cases := unrelatedRefusalCases(t, 3, groomPath(3, "widget"), src, lifecycleChange(3, "dupe", "in-progress"))
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := attachSetupWith(t, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
+			head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
+			advanceDocketOrigin(t, f.repo, c.files)
+			tip := originTip(t, f.repo.origin, "docket")
+
+			res := ChangeAttachPlan(f.ctx, f.deps, f.wdeps, f.invocation, ChangeAttachRequest{
+				ID: f.id, Version: blobVersionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath, Commit: head,
+			})
+			if res.Result == ResultApplied {
+				t.Fatalf("attach-plan applied despite %s; want a refusal", c.name)
+			}
+			assertRefusalBeyondUnrelated(t, res.Reason, res.Findings)
+			if got := originTip(t, f.repo.origin, "docket"); got != tip {
+				t.Errorf("a refused attach moved the metadata branch %s -> %s", tip, got)
+			}
+		})
+	}
 }
