@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-23'
-updated: '2026-09-23'
+updated: '2026-09-24'
 depends_on: []
 stacked_on:
 related: [313, 375, 435, 437, 441]
@@ -22,7 +22,7 @@ branch: 'fix/reconcile-uncertain-publication-records-so-cancellation-and'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T03:39:41Z'
+claimed_at: '2026-09-24T03:42:25Z'
 ---
 
 ## Artifacts

@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` | [spec](../superpowers/specs/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md) | `fix/reconcile-uncertain-publication-records-so-cancellation-and` | run halted — needs you |
+| [0444](active/0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | `medium` | `fix` | [spec](../superpowers/specs/2026-09-23-reconcile-uncertain-publication-records-so-cancellation-and-design.md) | `fix/reconcile-uncertain-publication-records-so-cancellation-and` |  |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` | [spec](../superpowers/specs/2026-09-15-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no-design.md) | `chore/bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no` | run halted — needs you |
 
 ## 🟣 Groomed (4)
