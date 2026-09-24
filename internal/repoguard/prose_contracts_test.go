@@ -348,6 +348,15 @@ var proseContracts = []proseContract{
 			"a single id is the degenerate case",
 			"a single id `90` is the degenerate case",
 		}},
+	// change 0448 — the convention's Composition paragraph carries the same
+	// exemption: the step-0 preflight is selection-path only, and a single
+	// explicit id goes directly to the authoritative explicit-id read. The
+	// phrase is one bound clause, not floating vocabulary; the 0397 row above
+	// still pins the surviving inline-operation sentence.
+	{sentinel: "change_0448_named_preflight_skip", file: "skills/docket-convention/SKILL.md",
+		present: []string{
+			"an invocation naming exactly one explicit change id skips the preflight and goes directly to `context.implementation --id`",
+		}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
