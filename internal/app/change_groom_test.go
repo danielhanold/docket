@@ -408,6 +408,8 @@ func validReviseRequest() ChangeGroomRequest {
 		Version:      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Outcome:      GroomRevise,
 		SpecMarkdown: "# Design\n\nThe revised design body.\n",
+		SpecPath:     reviseSpecPath,
+		SpecVersion:  "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		Sections: []SectionEditRequest{
 			{Heading: "## What changes", Intent: "replace", Markdown: "Narrowed what.\n"},
 		},
@@ -439,6 +441,26 @@ func TestChangeGroomReviseShapeValidation(t *testing.T) {
 		{"unparseable revise spec_markdown refused", func(r *ChangeGroomRequest) {
 			r.SpecMarkdown = "---\nid: 1\n"
 		}, "invalid-spec_markdown"},
+		// A spec-body revise overwrites the spec file, so it must pin it.
+		{"spec revise without spec_version refused", func(r *ChangeGroomRequest) {
+			r.SpecVersion = ""
+		}, "empty-spec_version"},
+		{"spec revise without spec_path refused", func(r *ChangeGroomRequest) {
+			r.SpecPath = ""
+		}, "empty-spec_path"},
+		{"spec revise without any spec pin refused", func(r *ChangeGroomRequest) {
+			r.SpecPath, r.SpecVersion = "", ""
+		}, "empty-spec_version"},
+		{"sections-only revise without a spec pin passes", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown, r.SpecPath, r.SpecVersion = "", "", ""
+		}, ""},
+		// The pin fields travel together on any outcome: a half pin is refused.
+		{"sections-only revise half pin refused", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown, r.SpecVersion = "", ""
+		}, "empty-spec_version"},
+		{"sections-only revise path-less pin refused", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown, r.SpecPath = "", ""
+		}, "empty-spec_path"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -476,6 +498,132 @@ func TestChangeGroomEmptyReviseRefusedWithoutEngineCall(t *testing.T) {
 	}
 	if !hasFindingCode(res.Findings, "empty-revise") {
 		t.Errorf("missing finding empty-revise; got %v", res.Findings)
+	}
+}
+
+// TestChangeGroomSpecReviseWithoutSpecVersionRefusedWithoutEngineCall pins the
+// review finding: a spec-body revise that does not pin the spec file's blob
+// version is a shape refusal, never an unpinned whole-body replace.
+func TestChangeGroomSpecReviseWithoutSpecVersionRefusedWithoutEngineCall(t *testing.T) {
+	req := validReviseRequest()
+	req.SpecVersion = ""
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeGroom(context.Background(), deps, "", req)
+
+	if res.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want invalid-input", res.Result)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called %d times on an unpinned spec revise, want 0", len(engine.calls))
+	}
+	if !hasFindingCode(res.Findings, "empty-spec_version") {
+		t.Errorf("missing finding empty-spec_version; got %v", res.Findings)
+	}
+}
+
+// TestChangeGroomRevisePinsSpecExpectation proves the spec pin reaches the
+// engine: a spec-body revise submits the record expectation AND a second
+// exact-blob expectation on the linked spec path, while a revise with no spec
+// pin submits the record expectation alone.
+func TestChangeGroomRevisePinsSpecExpectation(t *testing.T) {
+	cases := []struct {
+		name string
+		mut  func(*ChangeGroomRequest)
+		want map[string]string // path -> pinned blob id
+	}{
+		{"spec-body revise pins record and spec", func(r *ChangeGroomRequest) {}, map[string]string{
+			groomPath(2, "add-a-widget"): validReviseRequest().Version,
+			reviseSpecPath:               validReviseRequest().SpecVersion,
+		}},
+		{"sections-only revise without a pin pins only the record", func(r *ChangeGroomRequest) {
+			r.SpecMarkdown, r.SpecPath, r.SpecVersion = "", "", ""
+		}, map[string]string{
+			groomPath(2, "add-a-widget"): validReviseRequest().Version,
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			repoDir := newWorkingRepo(t, nil).invocation
+			engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
+			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+			deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
+			req := validReviseRequest()
+			c.mut(&req)
+
+			ChangeGroom(context.Background(), deps, repoDir, req)
+
+			if len(engine.calls) != 1 {
+				t.Fatalf("engine calls = %d, want 1", len(engine.calls))
+			}
+			got := map[string]string{}
+			for _, e := range engine.calls[0].Expected {
+				if e.Version.Kind != transaction.VersionBlob {
+					t.Errorf("expectation %q kind = %q, want blob", e.Path, e.Version.Kind)
+				}
+				got[string(e.Path)] = string(e.Version.ObjectID)
+			}
+			if len(got) != len(c.want) {
+				t.Fatalf("expectations = %v, want %v", got, c.want)
+			}
+			for p, v := range c.want {
+				if got[p] != v {
+					t.Errorf("expectation on %q = %q, want %q (all: %v)", p, got[p], v, got)
+				}
+			}
+		})
+	}
+}
+
+// TestChangeGroomReviseSpecVersionContendsRealGit drives the finding's exact
+// race through a real engine and a bare origin: two revises pinned to the SAME
+// record version (a same-day spec-only revise leaves the record bytes
+// unchanged) and the same spec version. The first applies; the second's spec
+// pin is stale, so it contends and writes nothing instead of clobbering the
+// first revise's spec body.
+func TestChangeGroomReviseSpecVersionContendsRealGit(t *testing.T) {
+	requireRealGit(t)
+	recPath := groomPath(2, "add-a-widget")
+	repo := newWorkingRepo(t, reviseFixtureFiles())
+	node := planningDepsFor(t, repo.invocation)
+
+	revise := func(body, recV, specV string) ChangeGroomResult {
+		req := validReviseRequest()
+		req.Sections = nil
+		req.SpecMarkdown = "# Design\n\n" + body + "\n"
+		req.Version, req.SpecVersion = recV, specV
+		return ChangeGroom(context.Background(), node.deps, node.dir, req)
+	}
+
+	// Settle the record (updated: today, artifacts rendered) with a matching
+	// pin — the matching-version apply path.
+	if res := revise("Settling body.", blobVersionAt(t, repo.origin, "docket", recPath),
+		blobVersionAt(t, repo.origin, "docket", reviseSpecPath)); res.Result != ResultApplied {
+		t.Fatalf("settling revise = %q (findings %v), want applied", res.Result, res.Findings)
+	}
+	recV := blobVersionAt(t, repo.origin, "docket", recPath)
+	specV := blobVersionAt(t, repo.origin, "docket", reviseSpecPath)
+
+	if res := revise("Body A.", recV, specV); res.Result != ResultApplied {
+		t.Fatalf("revise A = %q (findings %v), want applied", res.Result, res.Findings)
+	}
+	if got := blobVersionAt(t, repo.origin, "docket", recPath); got != recV {
+		t.Fatalf("precondition: a same-day spec-only revise must leave the record version unchanged (%s -> %s)", recV, got)
+	}
+	tip := originTip(t, repo.origin, "docket")
+
+	res := revise("Body B.", recV, specV) // stale spec pin, current record pin
+	if res.Result != ResultContended {
+		t.Fatalf("revise B over a stale spec_version = %q (findings %v), want contended", res.Result, res.Findings)
+	}
+	if got := originTip(t, repo.origin, "docket"); got != tip {
+		t.Errorf("a contended revise moved the metadata branch %s -> %s", tip, got)
+	}
+	spec, _ := originFile(t, repo.origin, "docket", reviseSpecPath)
+	if !strings.Contains(spec, "Body A.") || strings.Contains(spec, "Body B.") {
+		t.Errorf("revise A's spec body was clobbered:\n%s", spec)
 	}
 }
 
@@ -587,7 +735,8 @@ func TestChangeGroomPlanReviseTrivialRationale(t *testing.T) {
 		groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget"),
 	}
 	req := validReviseRequest()
-	req.SpecMarkdown = ""
+	// A trivial change links no spec, so there is no spec file to pin.
+	req.SpecMarkdown, req.SpecPath, req.SpecVersion = "", "", ""
 	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
 	if opRes.Refused {
 		t.Fatalf("unexpected refusal: %v", opRes.Findings)
@@ -630,6 +779,18 @@ func TestChangeGroomPlanReviseRefusals(t *testing.T) {
 		{"spec-file-missing", map[string]string{
 			groomPath(2, "add-a-widget"): revisableChange(2, "add-a-widget", reviseSpecPath),
 		}, func(r *ChangeGroomRequest) {}, "spec-file-missing"},
+		// The spec pin must name the change's linked spec: a pin on any other
+		// path would leave the file actually overwritten unpinned.
+		{"spec-path-mismatch", reviseFixtureFiles(), func(r *ChangeGroomRequest) {
+			r.SpecPath = "docs/superpowers/specs/2026-08-01-other-design.md"
+		}, "spec-path-mismatch"},
+		{"spec-path-mismatch sections-only pin", reviseFixtureFiles(), func(r *ChangeGroomRequest) {
+			r.SpecMarkdown = ""
+			r.SpecPath = "docs/superpowers/specs/2026-08-01-other-design.md"
+		}, "spec-path-mismatch"},
+		{"spec-path-mismatch pin on a trivial change", map[string]string{
+			groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget"),
+		}, func(r *ChangeGroomRequest) { r.SpecMarkdown = "" }, "spec-path-mismatch"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

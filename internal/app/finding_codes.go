@@ -122,6 +122,8 @@ const (
 	FCInvalidTopics             FindingCode = "invalid-topics"
 	FCEmptySpecMarkdown         FindingCode = "empty-spec_markdown"
 	FCInvalidSpecMarkdown       FindingCode = "invalid-spec_markdown"
+	FCEmptySpecPath             FindingCode = "empty-spec_path"
+	FCEmptySpecVersion          FindingCode = "empty-spec_version"
 	FCMissingRationale          FindingCode = "missing-rationale"
 	FCEmptyRevise               FindingCode = "empty-revise"
 	FCInvalidOutcome            FindingCode = "invalid-outcome"
@@ -157,10 +159,11 @@ const (
 // enumerated empty-<field> expansions (empty-{title,why,what_changes,
 // out_of_scope,context,decision,consequences,alternatives,change-path,
 // change-version,target-path,target-version,hook,apply,war_story,spec_markdown,
-// reconcile_log_entry,head}). Each expands to exactly one registered member, so
-// the vocabulary is closed over every value these ops can emit and the minting
-// guard (addShape/adrFinding/learningFinding in ctorLit, plus the composite-
-// literal and FindingCode("…") backstops) reddens on any unregistered mint.
+// spec_path,spec_version,reconcile_log_entry,head}). Each expands to exactly
+// one registered member, so the vocabulary is closed over every value these
+// ops can emit and the minting guard (addShape/adrFinding/learningFinding in
+// ctorLit, plus the composite-literal and FindingCode("…") backstops) reddens
+// on any unregistered mint.
 //
 // KNOWN GAPS (still deferred): the app-local ReasonBacklink*/ReasonCloseout*
 // reason families surface through fail.Reason rather than a literal Code:/
@@ -209,6 +212,8 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyReport,
 	FCEmptyRevise,
 	FCEmptySpecMarkdown,
+	FCEmptySpecPath,
+	FCEmptySpecVersion,
 	FCEmptyTargetPath,
 	FCEmptyTargetVersion,
 	FCEmptyTitle,
