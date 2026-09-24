@@ -276,8 +276,8 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 	case GroomSpec:
 		if strings.TrimSpace(req.SpecMarkdown) == "" {
 			addShape(FCEmptySpecMarkdown, "spec_markdown must be non-empty for the spec outcome")
-		} else if _, perr := document.Parse([]byte(req.SpecMarkdown)); perr != nil {
-			addShape(FCInvalidSpecMarkdown, "spec_markdown must parse as a Markdown document: "+perr.Error())
+		} else if msg := specMarkdownShapeProblem(req.SpecMarkdown); msg != "" {
+			addShape(FCInvalidSpecMarkdown, msg)
 		}
 	case GroomTrivial:
 		if !hasAuthoredRationale(req.Sections) {
@@ -285,8 +285,8 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		}
 	case GroomRevise:
 		if strings.TrimSpace(req.SpecMarkdown) != "" {
-			if _, perr := document.Parse([]byte(req.SpecMarkdown)); perr != nil {
-				addShape(FCInvalidSpecMarkdown, "spec_markdown must parse as a Markdown document: "+perr.Error())
+			if msg := specMarkdownShapeProblem(req.SpecMarkdown); msg != "" {
+				addShape(FCInvalidSpecMarkdown, msg)
 			}
 		} else if !hasEffectiveSectionEdit(req.Sections) {
 			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown or at least one replace/remove section edit")
@@ -310,6 +310,22 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 
 	findings = append(findings, validateGroomSections(req.Sections)...)
 	return findings
+}
+
+// specMarkdownShapeProblem returns why an authored spec_markdown is unusable, or
+// "" when it is usable. It must parse as a Markdown document, and it must be the
+// spec body only: assembleSpecFile prepends the rendered docket:backlink block
+// itself, so a body that already carries one (a spec file resubmitted as read)
+// would commit a duplicate marker pair. It is refused, never silently stripped.
+func specMarkdownShapeProblem(markdown string) string {
+	doc, err := document.Parse([]byte(markdown))
+	if err != nil {
+		return "spec_markdown must parse as a Markdown document: " + err.Error()
+	}
+	if _, ok := doc.Block(backlinkBlockName); ok {
+		return "spec_markdown must be the spec body without its docket:backlink block; the operation renders that block itself"
+	}
+	return ""
 }
 
 // hasAuthoredRationale reports whether the section edits carry at least one
