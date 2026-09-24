@@ -14,7 +14,7 @@ discovered_from: [444]
 adrs: []
 spec:
 plan: 'docs/superpowers/plans/2026-09-24-0451-workspace-publish-expected-head.md'
-results:
+results: 'docs/results/2026-09-24-workspace-publish-refuses-a-feature-head-that-moved-after-th-results.md'
 trivial: true
 auto_groomable:
 branch_prefix:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-24T06:27:22Z'
 | Artifact | Link |
 |---|---|
 | Plan | [2026-09-24-0451-workspace-publish-expected-head.md](https://github.com/danielhanold/docket/blob/chore/workspace-publish-refuses-a-feature-head-that-moved-after-th/docs/superpowers/plans/2026-09-24-0451-workspace-publish-expected-head.md) |
+| Results | [2026-09-24-workspace-publish-refuses-a-feature-head-that-moved-after-th-results.md](https://github.com/danielhanold/docket/blob/chore/workspace-publish-refuses-a-feature-head-that-moved-after-th/docs/results/2026-09-24-workspace-publish-refuses-a-feature-head-that-moved-after-th-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
