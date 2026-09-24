@@ -229,7 +229,23 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	// `uncertain` on an unobserved remote outcome (an EnsureUnknown or transport
 	// failure), so a cancellation stays pending until the effect is reconciled. A
 	// standalone/no-epoch run admits unfenced (the journal callback is a no-op).
-	done, ferr := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
+	// The admission journals the immutable publication identity (change 0444):
+	// resolved repo, exact head branch + full requested commit, effective base, and
+	// digests of the requested title and the fully assembled body — so a later
+	// identical retry can settle an uncertain entry from local journal evidence
+	// alone. Every field is taken from values already resolved and verified above,
+	// never re-derived later from mutable state.
+	pub := &MutationPublication{
+		RepoHost:    repo.Host,
+		RepoOwner:   repo.Owner,
+		RepoName:    repo.Name,
+		HeadRef:     headBranch,
+		HeadCommit:  req.Head,
+		BaseBranch:  baseBranch,
+		TitleDigest: publicationDigest("pr-title", req.Title),
+		BodyDigest:  publicationDigest("pr-body", string(body)),
+	}
+	done, ferr := admitWorkflowMutation(repoDir, OperationPRPublish, pub)
 	if ferr != nil {
 		return prFenceRefusal(req.ID, ferr)
 	}
