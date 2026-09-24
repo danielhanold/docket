@@ -101,7 +101,7 @@ one finding:
 | `entity_identity` | the change identity (`changeIdentity`) |
 | `field` | `branch` |
 | `message` | names the change and quotes the recorded value as not a valid git branch name |
-| `remedy` | correct or clear `branch:` on that change record |
+| `remedy` | the concrete next step for this record's state; see *Remedy text* below |
 
 - The finding sorts with the artifact findings: `assembleFindings` already orders that group by
   identity, then field.
@@ -110,6 +110,31 @@ one finding:
 - The finding covers every displayed active change, not only stack parents. It costs nothing
   extra, and a malformed branch anywhere already breaks finalize and named post-claim operations,
   so status is where a human should see it.
+
+#### Remedy text
+
+`StatusFinding.Remedy` must be valid for the exact reported state, so the text depends on whether
+the record has a PR. Status stays offline: it fills in only values it already holds (the change
+id, the record's blob version from the pinned corpus, and the PR number parsed from `pr:` with the
+existing `parsePRRef`). It never reads GitHub.
+
+- **The record's `pr:` parses to a PR number:** name the existing typed repair, which adopts the
+  PR's own head branch as `branch:`:
+  `docket change repair-identity --id <N> --expect-version <version> --adopt-pr-head --expect-pr <pr> --expect-head <the PR's head branch>`.
+  Id, version, and PR number are filled in. The text tells the human to take the head branch from
+  the PR itself. `repair-identity` re-checks every value and refuses on drift, so a stale remedy
+  can never write.
+- **No `pr:`, or one that does not parse:** no typed operation edits `branch:`. The remedy says to
+  correct `branch:` on the change record on the `docket` branch (the real feature branch, or clear
+  it if no branch was ever created), then run `docket repository migrate` to re-render the board,
+  which a hand edit leaves stale.
+
+`repair-identity`'s workspace gate (`repairProveWorkspaceClear`) skips the workspace check only
+when `recordedBranch` calls the current branch malformed. `recordedBranch`'s own shape check is
+narrower than the completed gitcli predicate: `feat/a:b` passes it, then fails later as a
+workspace conflict. To make the PR-case remedy work for every name status flags, `recordedBranch`
+delegates its shape check to the exported gitcli predicate. The effect is fail-closed: a name git
+would reject is refused as `branch-malformed` earlier, rather than failing inside git.
 
 The finding is deliberately **not** a snapshot-validation finding. Adding it to
 `repository.BuildSnapshot`'s report would put it in the ADR-0127 transaction engine's
@@ -140,7 +165,13 @@ It sets no new policy.
 6. **0449 integration test:** change `assertUnrelatedBytesIntact` (and its comment) to go through
    the real `Status` over the `feat/a..parent` fixture and assert the finding, instead of routing
    around it.
-7. **Regression:** a well-formed branch whose probe fails for a real external reason still yields
+7. **Remedy variants:** a malformed record with a parseable `pr:` gets the `repair-identity`
+   remedy with its id, version, and PR number filled in. One with no `pr:` gets the hand-edit and
+   `repository migrate` remedy. Mutation: swapping the branch condition makes this red.
+8. **The PR-case remedy works:** `change repair-identity --adopt-pr-head` (fake GitHub, adopted
+   head present on the remote) applies on records whose branch is `feat/a..parent` and on records
+   whose branch is `feat/a:b`. The `feat/a:b` row fails without the `recordedBranch` delegation.
+9. **Regression:** a well-formed branch whose probe fails for a real external reason still yields
    `external-failed` for the whole read.
 
 Run the whole suite at the build gate (`build.test_command`).
@@ -150,7 +181,7 @@ Run the whole suite at the build gate (`build.test_command`).
 - Named-operation validation scoping (done by 0449).
 - Repairing, rewriting, or auto-clearing the malformed `branch:` value.
 - Making a malformed `branch:` a snapshot-validation error, or refusing writes on it.
-- Merging the narrower branch-shape predicates (`recordedBranch`, `domain.malformedBranchRef`,
-  `transaction.validRefShape`) into the gitcli one. They serve different callers and each fails
-  closed on its own.
+- Merging `domain.malformedBranchRef` or `transaction.validRefShape` into the gitcli predicate.
+  Only `recordedBranch` delegates, because the remedy depends on it.
+- A new typed operation for editing `branch:` on a record without a PR.
 - `repository check`, which does not probe branch facts.
