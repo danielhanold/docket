@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0446 — Orphaned halted gate drive blocks every new worktree's first gate admission](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md)**
+> ↩ **[Change 0446 — Orphaned halted gate drive blocks every new worktree's first gate admission](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-24-0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md)**
 <!-- docket:backlink:end -->
 # Change 0446 — Historical gate bookkeeping must not block current execution — Implementation Plan
 
