@@ -15,7 +15,7 @@ adrs: []
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
 branch_prefix:
 branch:
@@ -32,6 +32,8 @@ reconciled: false
 ## Why
 
 `WorkspacePublish` (internal/app/workspace_ops.go) checks that the worktree head equals the caller's expected head. It then admits the run-epoch mutation and calls `workspace.Service.PublishHead`, which re-reads the local head under its own lock and pushes whatever it finds. If a commit lands in between, the newer head is pushed. The window is milliseconds, and only a writer outside the run (a person, or an editor or agent inside `.worktrees/`) can hit it. The push is fast-forward-only with a lease, so nothing on the remote is overwritten. Change 0444 already logs such a push as unverified so it can never settle an uncertain journal entry, and `run.verify` reports `evidence-unverified` at the new head. The PR path already refuses a moved head through its expected-head check, so the two publish paths should behave the same. Found in change 0444's review (results file, Known issues).
+
+**Trivial:** the fix adds one request field, one comparison under the lock that already exists, and one test. It follows the moved-head refusal the PR path already has, with no design choices open, so no spec is needed.
 
 ## What changes
 
