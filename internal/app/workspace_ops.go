@@ -395,8 +395,18 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 	// or superseded epoch refuses, and NOTHING is published; an active epoch journals
 	// the admission, then this reconciles it once the push resolves (uncertain when
 	// the remote outcome could not be observed). A standalone/no-epoch run admits
-	// unfenced (the journal callback is a no-op).
-	done, ferr := admitWorkflowMutation(repoDir, OperationWorkspacePublish, nil)
+	// unfenced (the journal callback is a no-op). The admission journals the
+	// immutable publication identity (change 0444): canonical repository identity,
+	// remote name, exact feature ref, and the full intended commit — the same head
+	// the reinspection above just proved current — so a later identical retry can
+	// settle an uncertain entry from local journal evidence alone.
+	pub := &MutationPublication{
+		RepoDir:    wc.repo.CommonDir,
+		Remote:     string(originRemote),
+		HeadRef:    string(target.FeatureRef),
+		HeadCommit: req.Head,
+	}
+	done, ferr := admitWorkflowMutation(repoDir, OperationWorkspacePublish, pub)
 	if ferr != nil {
 		return workspaceFenceRefusal(req.ID, ferr)
 	}
