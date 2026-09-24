@@ -1120,3 +1120,54 @@ func TestPRPublishJournalsPublicationIdentity(t *testing.T) {
 		}
 	}
 }
+
+// TestWorkspacePublishJournalsPublicationIdentity: an active-epoch workspace
+// publish journals a VALID workspace descriptor: canonical repo identity, remote
+// name, exact feature ref, and the full intended commit. (change 0444)
+func TestWorkspacePublishJournalsPublicationIdentity(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	key := mintFenceEpoch(t, repoDir, repoDir, EpochActive)
+
+	const head = "abcdef0000000000000000000000000000000000"
+	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")}}
+	svc := &fakeWorkspaceService{
+		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(head)},
+		publishRes: workspace.PublishResult{Disposition: workspace.PublishPublished, Head: gitcli.ObjectID(head)},
+	}
+	res := WorkspacePublish(context.Background(), workspaceDepsFor(t, reader), WorkspaceDeps{Service: svc},
+		repoDir, WorkspacePublishRequest{ID: 7, Head: head})
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q (reason %q), want applied", res.Result, res.Reason)
+	}
+	if len(svc.publishCalls) != 1 {
+		t.Fatalf("PublishHead calls = %d, want 1", len(svc.publishCalls))
+	}
+	call := svc.publishCalls[0]
+
+	ep, _, err := LoadEpochRecord(repoDir, key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if len(ep.AdmittedMutations) != 1 {
+		t.Fatalf("journal length = %d, want 1", len(ep.AdmittedMutations))
+	}
+	m := ep.AdmittedMutations[0]
+	if m.Status != mutationStatusCompleted {
+		t.Fatalf("status = %q, want completed (observed PublishPublished)", m.Status)
+	}
+	if !validPublication(OperationWorkspacePublish, m.Publication) {
+		t.Fatalf("journaled descriptor must be valid, got %+v", m.Publication)
+	}
+	p := m.Publication
+	if p.HeadCommit != head || p.Remote != "origin" {
+		t.Fatalf("descriptor = %+v, want head %q on origin", p, head)
+	}
+	// The descriptor carries exactly the identity handed to the adapter.
+	if p.Remote != string(call.Remote) || p.HeadRef != string(call.Target.FeatureRef) || p.RepoDir != call.Repository.CommonDir {
+		t.Fatalf("descriptor = %+v, want the adapter's remote %q, ref %q, common dir %q",
+			p, call.Remote, call.Target.FeatureRef, call.Repository.CommonDir)
+	}
+	if p.HeadRef == "" || p.RepoDir == "" {
+		t.Fatalf("descriptor must carry the exact feature ref and canonical repo dir: %+v", p)
+	}
+}
