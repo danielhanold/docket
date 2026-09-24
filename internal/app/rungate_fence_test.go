@@ -181,7 +181,7 @@ func TestInFlightMutationReconcilesBeforeCancelled(t *testing.T) {
 	fx := newCancelFixture(t, false) // active epoch + authority, no slot to reconcile
 
 	// A workflow mutation is admitted (in flight) but not yet completed.
-	done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish)
+	done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
 	if err != nil {
 		t.Fatalf("admitWorkflowMutation on an active epoch: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestStandaloneMutationUnfenced(t *testing.T) {
 	repoDir := newGateRepo(t)
 
 	// (a) No epoch at all.
-	done, err := admitWorkflowMutation(repoDir, OperationPRPublish)
+	done, err := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
 	if err != nil {
 		t.Fatalf("no-epoch admit returned error %v, want unfenced", err)
 	}
@@ -233,7 +233,7 @@ func TestStandaloneMutationUnfenced(t *testing.T) {
 	}
 	mintFenceEpoch(t, repoDir, other, EpochCancelling)
 
-	done2, err := admitWorkflowMutation(repoDir, OperationPRPublish)
+	done2, err := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
 	if err != nil {
 		t.Fatalf("admit refused by an unrelated worktree's epoch: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestFenceRefusesSupersededEpochAsStale(t *testing.T) {
 	repoDir := newGateRepo(t)
 	mintFenceEpoch(t, repoDir, repoDir, EpochSuperseded)
 
-	_, err := admitWorkflowMutation(repoDir, OperationWorkspacePublish)
+	_, err := admitWorkflowMutation(repoDir, OperationWorkspacePublish, nil)
 	fe, ok := AsMutationFenceError(err)
 	if !ok {
 		t.Fatalf("err = %v, want a MutationFenceError", err)
@@ -276,7 +276,7 @@ func TestFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T) {
 
 	// The mutation runs with the canonical spelling; the fence resolves the epoch's
 	// aliased Worktree to the same canonical path and refuses.
-	_, err = admitWorkflowMutation(canonRepo, OperationPRPublish)
+	_, err = admitWorkflowMutation(canonRepo, OperationPRPublish, nil)
 	if fe, ok := AsMutationFenceError(err); !ok || fe.Reason != "run-cancelled" {
 		t.Fatalf("err = %v, want run-cancelled across the symlink alias", err)
 	}
@@ -290,7 +290,7 @@ func TestAdmitWorkflowMutationRefusesCompletingEpoch(t *testing.T) {
 	repoDir := newGateRepo(t)
 	mintFenceEpoch(t, repoDir, repoDir, EpochCompleting)
 
-	_, err := admitWorkflowMutation(repoDir, OperationPRPublish)
+	_, err := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
 	fe, ok := AsMutationFenceError(err)
 	if !ok || fe.Reason != "run-completed" {
 		t.Fatalf("err = %v, want a MutationFenceError with reason run-completed", err)
@@ -305,7 +305,7 @@ func TestCompletedEpochExcludedFromAmbientOwnerLookup(t *testing.T) {
 	repoDir := newGateRepo(t)
 	key := mintFenceEpoch(t, repoDir, repoDir, EpochCompleted)
 
-	done, err := admitWorkflowMutation(repoDir, OperationPRPublish)
+	done, err := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
 	if err != nil || done == nil {
 		t.Fatalf("completed epoch trapped a standalone mutation: err %v done %v", err, done)
 	}
@@ -375,7 +375,7 @@ func TestFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("epochCAS to cancelling: %v", err)
 	}
-	_, ferr := admitWorkflowMutation(worktree, OperationPRPublish)
+	_, ferr := admitWorkflowMutation(worktree, OperationPRPublish, nil)
 	if fe, ok := AsMutationFenceError(ferr); !ok || fe.Reason != "run-cancelled" {
 		t.Fatalf("mutation after cancel = %v, want run-cancelled (the fence must locate the fresh epoch)", ferr)
 	}
@@ -515,7 +515,7 @@ func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
 	}
-	_, ferr := admitWorkflowMutation(want, OperationPRPublish)
+	_, ferr := admitWorkflowMutation(want, OperationPRPublish, nil)
 	if fe, ok := AsMutationFenceError(ferr); !ok || fe.Reason != "run-cancelled" {
 		t.Fatalf("mutation after cancel = %v, want a run-cancelled MutationFenceError (the fence must locate the recovered epoch)", ferr)
 	}
@@ -605,7 +605,7 @@ func TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
 	}
-	_, ferr := admitWorkflowMutation(want, OperationPRPublish)
+	_, ferr := admitWorkflowMutation(want, OperationPRPublish, nil)
 	if fe, ok := AsMutationFenceError(ferr); !ok || fe.Reason != "run-cancelled" {
 		t.Fatalf("mutation after cancel = %v, want a run-cancelled MutationFenceError", ferr)
 	}

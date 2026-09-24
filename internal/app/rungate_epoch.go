@@ -131,9 +131,13 @@ const (
 // admitted|completed|uncertain; a cancellation stays pending until every admitted
 // entry is completed or uncertain-reconciled (Task 11 wires the journal writes,
 // Task 10 reads them). OpKey is the bounded operation key, never argv/env/content.
+// Publication is the optional immutable publication identity captured at admission
+// (change 0444) — additive schema-v1 field; nil on legacy and non-publication
+// entries. Reconciliation trusts it only when validPublication accepts it.
 type AdmittedMutation struct {
-	OpKey  string `json:"op_key"`
-	Status string `json:"status"` // admitted|completed|uncertain
+	OpKey       string               `json:"op_key"`
+	Status      string               `json:"status"` // admitted|completed|uncertain
+	Publication *MutationPublication `json:"publication,omitempty"`
 }
 
 // EpochRecord is the durable run-epoch state. GateKey binds it to the arming gate

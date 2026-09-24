@@ -174,7 +174,7 @@ func TestGuardianCannotMutate(t *testing.T) {
 
 	// While active, a workflow mutation is admitted — the guardian participant
 	// confers no block.
-	done, err := admitWorkflowMutation(repo, "test.mutation.pre")
+	done, err := admitWorkflowMutation(repo, "test.mutation.pre", nil)
 	if err != nil {
 		t.Fatalf("mutation refused while active: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestGuardianCannotMutate(t *testing.T) {
 	}
 
 	// Under the guardian's fence, no workflow mutation is admitted.
-	if _, err := admitWorkflowMutation(repo, "test.mutation.post"); !errors.Is(err, ErrRunCancelled) {
+	if _, err := admitWorkflowMutation(repo, "test.mutation.post", nil); !errors.Is(err, ErrRunCancelled) {
 		t.Fatalf("mutation after guardian fence = %v, want ErrRunCancelled", err)
 	}
 }

@@ -90,3 +90,53 @@ func TestValidPublicationPerOp(t *testing.T) {
 		}
 	}
 }
+
+// TestAdmissionJournalsPublicationDescriptorAndLegacyDecodes: an admission carrying a
+// descriptor persists it verbatim in the journal entry (schema v1, additive field);
+// an existing entry WITHOUT the field still decodes (legacy compatibility).
+func TestAdmissionJournalsPublicationDescriptorAndLegacyDecodes(t *testing.T) {
+	fx := newCancelFixture(t, false) // active epoch bound to the fixture worktree
+	pub := &MutationPublication{
+		RepoHost: "github.com", RepoOwner: "o", RepoName: "r",
+		HeadRef: "fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		BaseBranch:  "main",
+		TitleDigest: publicationDigest("pr-title", "t"),
+		BodyDigest:  publicationDigest("pr-body", "b"),
+	}
+	done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish, pub)
+	if err != nil {
+		t.Fatalf("admitWorkflowMutation: %v", err)
+	}
+	done(mutationStatusUncertain)
+
+	ep, _, lerr := LoadEpochRecord(fx.repo, fx.key)
+	if lerr != nil {
+		t.Fatalf("LoadEpochRecord: %v", lerr)
+	}
+	if len(ep.AdmittedMutations) != 1 {
+		t.Fatalf("journal length = %d, want 1", len(ep.AdmittedMutations))
+	}
+	got := ep.AdmittedMutations[0]
+	if got.Status != mutationStatusUncertain || got.OpKey != OperationPRPublish {
+		t.Fatalf("entry = %+v, want uncertain pr.publish", got)
+	}
+	if got.Publication == nil || *got.Publication != *pub {
+		t.Fatalf("persisted descriptor = %+v, want %+v", got.Publication, pub)
+	}
+
+	// Legacy shape: an entry with no publication field decodes and stays usable.
+	if cerr := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+		r.AdmittedMutations = append(r.AdmittedMutations,
+			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted})
+		return nil
+	}); cerr != nil {
+		t.Fatalf("epochCAS append legacy: %v", cerr)
+	}
+	ep2, _, lerr2 := LoadEpochRecord(fx.repo, fx.key)
+	if lerr2 != nil {
+		t.Fatalf("LoadEpochRecord after legacy append: %v", lerr2)
+	}
+	if ep2.AdmittedMutations[1].Publication != nil {
+		t.Fatal("legacy entry must decode with a nil descriptor")
+	}
+}

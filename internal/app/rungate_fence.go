@@ -159,7 +159,9 @@ func noopJournalDone(string) {}
 
 // admitWorkflowMutation is the run-epoch admission gate every covered mutation
 // boundary passes through. repoDir is the change's canonical feature worktree; op
-// is the operation key journaled. It returns a completion callback and an error:
+// is the operation key journaled. pub is the optional publication identity
+// journaled with the admission (change 0444); nil for non-publication boundaries.
+// It returns a completion callback and an error:
 //
 //   - No owning epoch (no registered worktree, no slot, a standalone-gate slot with
 //     no epoch, or a pruned epoch no slot names) → (noopJournalDone, nil): admit
@@ -187,7 +189,7 @@ func noopJournalDone(string) {}
 // The state gate and the `admitted` append happen in ONE epochCAS, so a cancellation
 // that fences the epoch between the slot read and the journal write is observed
 // atomically — there is no admit-then-fenced window.
-func admitWorkflowMutation(repoDir, op string) (mutationJournalDone, error) {
+func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutationJournalDone, error) {
 	// Canonicalize the change's feature worktree so a different spelling of one
 	// worktree cannot dodge the fence. A path that cannot be canonicalized (it does
 	// not exist) owns no epoch — admit unfenced. This fail-open on the CALLER's own
@@ -230,8 +232,9 @@ func admitWorkflowMutation(repoDir, op string) (mutationJournalDone, error) {
 		case EpochActive:
 			idx = len(rec.AdmittedMutations)
 			rec.AdmittedMutations = append(rec.AdmittedMutations, AdmittedMutation{
-				OpKey:  op,
-				Status: mutationStatusAdmitted,
+				OpKey:       op,
+				Status:      mutationStatusAdmitted,
+				Publication: pub,
 			})
 			return nil
 		case EpochSuperseded:
@@ -482,7 +485,7 @@ func epochOwnsWorktree(stored, canon string) bool {
 // admitted→completed/uncertain in-flight journaling that genuinely matters.
 func MutationAdmissionHook(repoDir string) func(transaction.OperationKey) error {
 	return func(op transaction.OperationKey) error {
-		done, err := admitWorkflowMutation(repoDir, string(op))
+		done, err := admitWorkflowMutation(repoDir, string(op), nil)
 		if err != nil {
 			return err
 		}
