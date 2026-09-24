@@ -2,7 +2,7 @@
 id: 452
 slug: 'same-scope-first-start-loser-must-not-rotate-the-winner-s-ex'
 title: 'Same-scope first-start loser must not rotate the winner''s executing worktree slot'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-24'
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/same-scope-first-start-loser-must-not-rotate-the-winner-s-ex'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-24T16:19:06Z'
 ---
 
 ## Artifacts
