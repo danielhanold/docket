@@ -1,6 +1,6 @@
 # Backlog
 
-**453 changes** — 🔴 1 blocked · 🟣 5 groomed · 🟡 14 proposed · ⚪ 11 deferred · ✅ 303 done · 🗑️ 119 killed
+**454 changes** — 🔴 1 blocked · 🟣 5 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 303 done · 🗑️ 119 killed
 
 ## 🔴 Blocked (1)
 
@@ -18,10 +18,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (14)
+## 🟡 Proposed (15)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0454](active/0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md) | Whole-repository status must not fail on an unrelated change's invalid branch name | `critical` | `fix` | needs-brainstorm |
 | [0453](active/0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md) | Two successors sharing one stale predecessor receipt can still free a live worktree slot | `high` | `fix` | needs-brainstorm |
 | [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | needs-brainstorm |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-brainstorm |
@@ -87,6 +88,7 @@ graph TD
   0447
   0450
   0453
+  0454
   0192:::done
   0251:::done
   0370:::done
