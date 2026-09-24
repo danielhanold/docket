@@ -592,7 +592,7 @@ func derivedViewFindings(cfg config.Effective, corpus checkCorpus) []reposetup.D
 	}
 
 	if corpus.adrIndex.present {
-		if canonical, err := renderCanonicalADRIndex(snap); err == nil {
+		if canonical, err := renderCanonicalADRIndex(snap, corpusADRIndexUnrenderable(cfg, corpus.records)); err == nil {
 			if derivedBytesDiffer(canonical, corpus.adrIndex.bytes) {
 				out = append(out, reposetup.DerivedFinding{
 					View:       reposetup.DerivedViewADRIndex,
@@ -747,6 +747,17 @@ func corpusBoardUnrenderable(cfg config.Effective, recs []corpusRecord) []render
 		return nil
 	}
 	return boardUnrenderable(st, cfg.ChangesDir.Value)
+}
+
+// corpusADRIndexUnrenderable derives the ADR index's repair entries for the
+// check/migrate corpus through the same adrIndexUnrenderable the ADR mutations
+// use, so a notice-bearing index is never reported stale.
+func corpusADRIndexUnrenderable(cfg config.Effective, recs []corpusRecord) []render.BoardUnrenderable {
+	st, ok := buildCorpusState(cfg, recs)
+	if !ok {
+		return nil
+	}
+	return adrIndexUnrenderable(st, cfg.ADRsDir.Value)
 }
 
 // corpusRecord is one metadata record read for report-only validation.

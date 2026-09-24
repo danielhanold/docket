@@ -43,7 +43,21 @@ import (
 //	where <adr-list> joins the ids with ", " as "ADR-<pad>" each. Ids are
 //	zero-padded to four digits. The file cell is the ADR's basename (the script
 //	reads a flat --adrs-dir and emits basename links).
+//
+// ADRIndex is ADRIndexWithRepair with no repair entries, so a healthy ledger's
+// index stays byte-identical to the script's output.
 func ADRIndex(snap domain.Snapshot) ([]byte, error) {
+	return ADRIndexWithRepair(snap, nil)
+}
+
+// ADRIndexWithRepair renders the index and then, only when unrenderable is
+// non-empty, a trailing repair notice (change 0449): "\n## 🛠 Needs repair
+// (<n>)\n\n", a one-line preamble, then the board's "Record | Problem" table,
+// one row per ADR record path (deduped, sorted by path). unrenderable names
+// the ADR records the snapshot cannot see (a record that failed to parse or
+// decode has no domain.ADR), so an unparseable unrelated ADR is surfaced
+// rather than silently dropped from the index.
+func ADRIndexWithRepair(snap domain.Snapshot, unrenderable []BoardUnrenderable) ([]byte, error) {
 	var active, supRev, deprecated []domain.ADR
 	for _, a := range snap.ADRs() {
 		switch adrIndexGroup(a.RawStatus()) {
@@ -62,6 +76,7 @@ func ADRIndex(snap domain.Snapshot) ([]byte, error) {
 	adrEmitGroup(&b, "Active", active)
 	adrEmitGroup(&b, "Superseded / Reversed", supRev)
 	adrEmitGroup(&b, "Deprecated", deprecated)
+	writeRepairNotice(&b, "These ADR records could not be read and are missing from the index above.", unrenderable)
 	return []byte(b.String()), nil
 }
 

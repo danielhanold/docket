@@ -185,7 +185,7 @@ func composeDerivedRepairBytes(sc setupContext, snap domain.Snapshot, corpus che
 	case boardCorpusPath(sc.cfg):
 		return renderCanonicalBoard(snap, corpusBoardUnrenderable(sc.cfg, corpus.records), boardPresentation(sc.cfg))
 	case adrIndexCorpusPath(sc.cfg):
-		return renderCanonicalADRIndex(snap)
+		return renderCanonicalADRIndex(snap, corpusADRIndexUnrenderable(sc.cfg, corpus.records))
 	}
 	// An artifact-links record.
 	rec, ok := recByPath[file]

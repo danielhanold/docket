@@ -228,7 +228,7 @@ func TestIncludeADRIndexCreatesWhenIndexAbsentBytesMatchDirectRender(t *testing.
 	}
 	tree := newFakeTree(map[string]string{})
 	var files []transaction.FileMutation
-	if err := includeADRIndex(context.Background(), tree, snap, adrIndexPath, &files); err != nil {
+	if err := includeADRIndex(context.Background(), tree, snap, nil, adrIndexPath, &files); err != nil {
 		t.Fatalf("includeADRIndex: %v", err)
 	}
 	if len(files) != 1 {
@@ -246,7 +246,7 @@ func TestIncludeADRIndexReplacesWhenIndexPresent(t *testing.T) {
 	snap, _, adrIndexPath, _ := derivedViewsSnapshot(t)
 	tree := newFakeTree(map[string]string{adrIndexPath: "# stale index\n"})
 	var files []transaction.FileMutation
-	if err := includeADRIndex(context.Background(), tree, snap, adrIndexPath, &files); err != nil {
+	if err := includeADRIndex(context.Background(), tree, snap, nil, adrIndexPath, &files); err != nil {
 		t.Fatalf("includeADRIndex: %v", err)
 	}
 	if len(files) != 1 {
@@ -378,5 +378,104 @@ func TestDerivedViewFindingsAcceptsNoticeBearingBoard(t *testing.T) {
 	}
 	if !stale {
 		t.Error("a board silently omitting the unparseable record is not reported stale")
+	}
+}
+
+// --- change 0449: ADR records the snapshot cannot see surface on the index ---
+
+// TestADRIndexUnrenderableDerivesAbsentADRRecords pins adrIndexUnrenderable's
+// shape-keyed population: every ADR record under the ADR directory present in
+// Sources but absent from the snapshot is one entry (reason from the error
+// finding naming it, else "unreadable"); the generated index itself, change
+// records, and ADRs the snapshot does carry never appear.
+func TestADRIndexUnrenderableDerivesAbsentADRRecords(t *testing.T) {
+	good := domain.NewADR(domain.ADRSpec{ID: 1, Slug: "good", Title: "Good", RawStatus: "Accepted", Path: "docs/adrs/0001-good.md"})
+	st := transaction.LoadedState{
+		Snapshot: domain.NewSnapshot(domain.SnapshotSpec{ADRs: []domain.ADR{good}}),
+		Report: domain.NewValidationReport([]domain.Finding{
+			{Code: "unclosed-frontmatter", Severity: domain.SeverityError,
+				Entity: domain.EntityRef{Kind: domain.EntityADR, Path: "docs/adrs/0009-broken.md"}},
+		}),
+		Sources: map[string][]byte{
+			"docs/adrs/0001-good.md":             []byte("healthy"),
+			"docs/adrs/0009-broken.md":           []byte("---\nid: 9\n"),
+			"docs/adrs/0010-undecodable.md":      []byte("undecodable"),
+			"docs/adrs/README.md":                []byte("# index"),
+			"docs/changes/active/0099-broken.md": []byte("---\n"),
+		},
+	}
+	got := adrIndexUnrenderable(st, "docs/adrs")
+	want := []render.BoardUnrenderable{
+		{Path: "docs/adrs/0009-broken.md", Reason: "unclosed-frontmatter"},
+		{Path: "docs/adrs/0010-undecodable.md", Reason: "unreadable"},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("adrIndexUnrenderable = %+v, want %+v", got, want)
+	}
+	healthy := st
+	healthy.Sources = map[string][]byte{"docs/adrs/0001-good.md": []byte("healthy"), "docs/adrs/README.md": []byte("# index")}
+	if got := adrIndexUnrenderable(healthy, "docs/adrs"); got != nil {
+		t.Errorf("healthy state yields %+v, want nil", got)
+	}
+}
+
+// TestIncludeADRIndexSurfacesUnrenderable proves includeADRIndex threads the
+// caller's entries into the canonical render — the declared index carries the
+// repair notice naming the record — and drops an entry the candidate renders.
+func TestIncludeADRIndexSurfacesUnrenderable(t *testing.T) {
+	snap, _, adrIndexPath, _ := derivedViewsSnapshot(t)
+	unr := []render.BoardUnrenderable{{Path: "docs/adrs/0009-broken.md", Reason: "unclosed-frontmatter"}}
+	var files []transaction.FileMutation
+	if err := includeADRIndex(context.Background(), newFakeTree(map[string]string{}), snap, unr, adrIndexPath, &files); err != nil {
+		t.Fatalf("includeADRIndex: %v", err)
+	}
+	if len(files) != 1 || !strings.Contains(string(files[0].Bytes), "| `docs/adrs/0009-broken.md` | unclosed-frontmatter |") {
+		t.Fatalf("declared ADR index lacks the repair notice:\n%s", files[0].Bytes)
+	}
+
+	good := domain.NewADR(domain.ADRSpec{ID: 1, Slug: "good", Title: "Good", RawStatus: "Accepted", Path: "docs/adrs/0001-good.md"})
+	withADR := domain.NewSnapshot(domain.SnapshotSpec{ADRs: []domain.ADR{good}})
+	want, _ := render.ADRIndex(withADR)
+	files = nil
+	if err := includeADRIndex(context.Background(), newFakeTree(map[string]string{}), withADR,
+		[]render.BoardUnrenderable{{Path: good.Path(), Reason: "unclosed-frontmatter"}}, adrIndexPath, &files); err != nil {
+		t.Fatalf("includeADRIndex: %v", err)
+	}
+	if len(files) != 1 || !bytes.Equal(files[0].Bytes, want) {
+		t.Fatalf("a candidate-rendered ADR also landed in the repair notice:\n%s", files[0].Bytes)
+	}
+}
+
+// TestDerivedViewFindingsAcceptsNoticeBearingADRIndex proves the check/migrate
+// canonical ADR-index render derives the same repair entries the ADR mutations
+// do: an index carrying the notice for an unparseable ADR is NOT stale, while
+// one silently omitting it is.
+func TestDerivedViewFindingsAcceptsNoticeBearingADRIndex(t *testing.T) {
+	cfg := derivedTestConfig()
+	recs := []corpusRecord{
+		{path: "docs/adrs/0001-good.md", bytes: []byte(fixtureADR(1, "good")), kind: repository.KindADR, location: repository.LocationLedger},
+		{path: "docs/adrs/0009-broken.md", bytes: []byte("---\nid: 9\nslug: broken\n"), kind: repository.KindADR, location: repository.LocationLedger},
+	}
+	snap, ok := buildCorpusSnapshot(cfg, recs)
+	if !ok {
+		t.Fatal("buildCorpusSnapshot failed")
+	}
+	withNotice, err := renderCanonicalADRIndex(snap, []render.BoardUnrenderable{{Path: "docs/adrs/0009-broken.md", Reason: "unclosed-frontmatter"}})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	link := render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}
+	for _, f := range derivedViewFindings(cfg, checkCorpus{records: recs, link: link, adrIndex: corpusFile{present: true, bytes: withNotice}}) {
+		if f.Code == reposetup.CodeADRIndexStale {
+			t.Errorf("notice-bearing ADR index reported stale: %+v", f)
+		}
+	}
+	silent, _ := renderCanonicalADRIndex(snap, nil)
+	stale := false
+	for _, f := range derivedViewFindings(cfg, checkCorpus{records: recs, link: link, adrIndex: corpusFile{present: true, bytes: silent}}) {
+		stale = stale || f.Code == reposetup.CodeADRIndexStale
+	}
+	if !stale {
+		t.Error("an ADR index silently omitting the unparseable record is not reported stale")
 	}
 }

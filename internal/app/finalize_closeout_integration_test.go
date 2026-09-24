@@ -1213,6 +1213,30 @@ func TestIntegrationFinalizeCloseoutUnrelatedInvalidRecordArchive(t *testing.T) 
 	}
 }
 
+// TestIntegrationFinalizeCloseoutUnrelatedShapesArchive drives B's archive
+// closeout through the production loader beside each spec acceptance-1
+// unrelated-damage shape (unrelatedProgressShapes): B archives, the damaged
+// records are byte-identical, and the finding is still reported.
+func TestIntegrationFinalizeCloseoutUnrelatedShapesArchive(t *testing.T) {
+	requireRealGit(t)
+	for _, shape := range unrelatedProgressShapes(t) {
+		t.Run(shape.name, func(t *testing.T) {
+			f := setupCloseoutFixture(t, planRepoModeDocket())
+			f.repo.writerAdvance(t, f.branch, shape.files)
+			mergeCommit := f.mergeIntoBase(t)
+			res := FinalizeCloseout(context.Background(), f.closeoutDeps(f.baselineMergedFake(f.head, mergeCommit)), f.repo.invocation, f.id, CloseoutNotes{})
+			if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
+				t.Fatalf("closeout beside %s = %q disp %q (reason %q msg %q findings %v), want applied done-archived",
+					shape.name, res.Result, res.Disposition, res.Reason, res.Message, res.Findings)
+			}
+			if _, ok := originFile(t, f.repo.origin, f.branch, res.ArchivePath); !ok {
+				t.Errorf("archived record absent at %q", res.ArchivePath)
+			}
+			assertUnrelatedShapeIntact(t, f.repo, f.branch, shape)
+		})
+	}
+}
+
 func TestIntegrationFinalizeCloseoutUnrelatedInvalidRecordStacked(t *testing.T) {
 	requireRealGit(t)
 	f := setupCloseoutFixture(t, planRepoModeDocket())

@@ -87,9 +87,10 @@ func mustChange(t *testing.T, snap domain.Snapshot, id int) domain.Change {
 }
 
 // TestStackBranchesForBoundsToOwnBaseAndStack: B (stacked on a two-deep chain,
-// depending on a stacked D) probes exactly its ancestors' branches, its own,
-// and the stack ancestors of its direct depends_on target — never the branch of
-// an unrelated stacked A.
+// depending on a stacked D) probes exactly its stack ancestors' branches — the
+// set ResolveEffectiveBase(snap, B, …) consults. Never its own branch, never a
+// dependency's stack (EvaluateDependencies reads no branch facts), and never
+// the branch of an unrelated stacked A.
 func TestStackBranchesForBoundsToOwnBaseAndStack(t *testing.T) {
 	snap := snapshotOf(t, []StatusBlob{
 		stackFixtureBlob(10, "a-parent", "in-progress", "feat/a-parent", ""),
@@ -101,7 +102,7 @@ func TestStackBranchesForBoundsToOwnBaseAndStack(t *testing.T) {
 		stackFixtureBlob(40, "b", "in-progress", "feat/b", "stacked_on: 21\ndepends_on: [31]\n"),
 	})
 	got := stackBranchesFor(snap, mustChange(t, snap, 40))
-	want := []string{"feat/b", "feat/d-parent", "feat/p-one", "feat/p-two"}
+	want := []string{"feat/p-one", "feat/p-two"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("stackBranchesFor(B) = %v, want %v", got, want)
 	}
@@ -137,6 +138,27 @@ func TestContextImplementationNamedIDProbesOnlyOwnStack(t *testing.T) {
 		got := ContextImplementation(context.Background(), PlanningDeps{Reader: reader, Clock: testClock()}, "", ImplementationContextRequest{ID: 30})
 		if got.Result != ResultExternalFailed || !strings.Contains(got.Message, poisonProbe) {
 			t.Fatalf("named context with B's own parent unprobeable = %q (%s: %s), want the external probe failure", got.Result, got.Reason, got.Message)
+		}
+	})
+
+	// An explicit id naming no single record probes nothing, so an unrelated
+	// unprobeable branch never replaces the typed unknown/ambiguous refusal
+	// with an external failure.
+	t.Run("absent-id-keeps-typed-refusal", func(t *testing.T) {
+		corpus := append(append([]StatusBlob(nil), unrelated...), stackFixtureBlob(30, "b", "proposed", "", ""))
+		reader := poisoned(&fakeReader{pin: pin, corpus: corpus, facts: domain.NewBranchFacts(nil)}, "feat/a-parent")
+		got := ContextImplementation(context.Background(), PlanningDeps{Reader: reader, Clock: testClock()}, "", ImplementationContextRequest{ID: 77})
+		if got.Result != ResultInvalidInput || got.Reason != ReasonContextUnknownChange {
+			t.Fatalf("absent id beside an unprobeable unrelated stack = %q (%s: %s), want invalid-input %s", got.Result, got.Reason, got.Message, ReasonContextUnknownChange)
+		}
+	})
+	t.Run("ambiguous-id-keeps-typed-refusal", func(t *testing.T) {
+		dupe := stackFixtureBlob(30, "b-dupe", "proposed", "", "")
+		corpus := append(append([]StatusBlob(nil), unrelated...), stackFixtureBlob(30, "b", "proposed", "", ""), dupe)
+		reader := poisoned(&fakeReader{pin: pin, corpus: corpus, facts: domain.NewBranchFacts(nil)}, "feat/a-parent")
+		got := ContextImplementation(context.Background(), PlanningDeps{Reader: reader, Clock: testClock()}, "", ImplementationContextRequest{ID: 30})
+		if got.Result != ResultInvalidState || got.Reason != ReasonContextAmbiguousID {
+			t.Fatalf("ambiguous id beside an unprobeable unrelated stack = %q (%s: %s), want invalid-state %s", got.Result, got.Reason, got.Message, ReasonContextAmbiguousID)
 		}
 	})
 
