@@ -47,10 +47,33 @@ func TestValidateRefName(t *testing.T) {
 	}
 	bad := []RefName{"main", "heads/main", "refs/", "refs/heads/", "-refs/heads/x",
 		"refs/heads/a b", "refs/heads/a..b", "refs/heads/a.lock", "refs/heads/a@{1}",
-		"refs/heads/*", "refs/heads/a\\z", "refs/heads/.hidden", "refs/heads/a\x00b"}
+		"refs/heads/*", "refs/heads/a\\z", "refs/heads/.hidden", "refs/heads/a\x00b",
+		// check-ref-format completion (change 0454): control chars, ~ ^ : ? [, trailing dot.
+		"refs/heads/a\x01b", "refs/heads/a\x1fb", "refs/heads/a\x7fb",
+		"refs/heads/a~b", "refs/heads/a^b", "refs/heads/a:b",
+		"refs/heads/a?b", "refs/heads/a[b", "refs/heads/a."}
 	for _, r := range bad {
 		if err := validateRefName(r); err == nil {
 			t.Errorf("validateRefName(%q) accepted", r)
+		}
+	}
+}
+
+func TestValidBranchName(t *testing.T) {
+	good := []string{"main", "feat/x", "fix/whole-repository-status", "a.b/c-d"}
+	for _, b := range good {
+		if !ValidBranchName(b) {
+			t.Errorf("ValidBranchName(%q) = false, want true", b)
+		}
+	}
+	// Includes the two fixture names every later task reuses: feat/a..parent
+	// (old grammar already rejected) and feat/a:b (only the completed grammar
+	// rejects it locally; git itself always did).
+	bad := []string{"", "feat/a..parent", "feat/a:b", "a b", "a~b", "a^b", "a?b",
+		"a[b", "a.", "a\x01b", "@{x", "a\\b", "a*", ".hidden", "a.lock", "a/", "a//b"}
+	for _, b := range bad {
+		if ValidBranchName(b) {
+			t.Errorf("ValidBranchName(%q) = true, want false", b)
 		}
 	}
 }

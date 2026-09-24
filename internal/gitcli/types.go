@@ -111,9 +111,24 @@ func validateRemoteName(r RemoteName) error {
 	return nil
 }
 
-// validateRefName requires a "refs/"-prefixed name with at least two
-// components and rejects NUL, whitespace, a leading "-", empty components,
-// "."/".." components, "@{", "\\", a trailing ".lock" component, and "*".
+// ValidBranchName reports whether short is a name git's check-ref-format
+// accepts as refs/heads/<short> — exactly the question the live branch probe
+// asks before fetching (FetchBranch validates the refs/heads/-prefixed name).
+// It is the app layer's one sanctioned predicate for deciding that a recorded
+// branch: value cannot exist as a ref (change 0454). It deliberately shares
+// validateRefName so the caller and the probe can never diverge.
+func ValidBranchName(short string) bool {
+	return validateRefName(RefName("refs/heads/"+short)) == nil
+}
+
+// validateRefName implements git's check-ref-format rules for a full ref
+// name: it requires a "refs/"-prefixed name with at least two components and
+// rejects NUL and other ASCII control characters (below 0x20, and DEL),
+// whitespace, a leading "-", empty components, "."/".." components, a
+// component with a leading dot, "..", "@{", "\\", "*", "~", "^", ":", "?", "[",
+// a trailing ".lock" component, and a trailing ".". The control-character,
+// "~^:?[" and trailing-dot rules complete the grammar (change 0454), so a name
+// git would reject fails here as an invalid request rather than reaching git.
 func validateRefName(r RefName) error {
 	s := string(r)
 	if s == "" {
@@ -127,6 +142,17 @@ func validateRefName(r RefName) error {
 	}
 	if strings.ContainsAny(s, " \t\r\n\v\f") {
 		return errors.New("gitcli: ref name contains whitespace")
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 || s[i] == 0x7F {
+			return errors.New("gitcli: ref name contains control character")
+		}
+	}
+	if strings.ContainsAny(s, "~^:?[") {
+		return errors.New("gitcli: ref name contains ~, ^, :, ? or [")
+	}
+	if strings.HasSuffix(s, ".") {
+		return errors.New("gitcli: ref name ends in dot")
 	}
 	if strings.Contains(s, "@{") {
 		return errors.New("gitcli: ref name contains @{")
