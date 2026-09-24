@@ -677,6 +677,77 @@ func TestChangeGroomPlanReviseRepeatable(t *testing.T) {
 	}
 }
 
+// reviseSettledFiles runs validReviseRequest once and feeds its output back as
+// the tree: the record's updated: already equals the clock date and its
+// docket:artifacts block is already rendered, so a follow-up revise that
+// changes nothing in the record yields record bytes identical to the source.
+func reviseSettledFiles(t *testing.T) map[string]string {
+	t.Helper()
+	files := reviseFixtureFiles()
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, validReviseRequest()))
+	if opRes.Refused {
+		t.Fatalf("settling revise refused: %v", opRes.Findings)
+	}
+	files[groomPath(2, "add-a-widget")] = string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	files[reviseSpecPath] = string(groomedRecordBytes(t, plan, reviseSpecPath))
+	return files
+}
+
+// TestChangeGroomPlanReviseOmitsUnchangedRecord pins the review blocker: the
+// engine's verifyActualDelta rejects a declared path whose bytes did not change,
+// so a spec-only revise whose record re-renders byte-identical (updated: already
+// today, artifacts already rendered) must declare ONLY the spec file.
+func TestChangeGroomPlanReviseOmitsUnchangedRecord(t *testing.T) {
+	files := reviseSettledFiles(t)
+	req := validReviseRequest()
+	req.Sections = nil
+	req.SpecMarkdown = "# Design\n\nA different body.\n"
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		reviseSpecPath: transaction.MutationReplace,
+	})
+}
+
+// TestChangeGroomPlanReviseIdenticalIsNoOp pins that a revise whose spec body
+// and section text equal what is already on the tree declares nothing: an
+// empty plan the engine commits as a clean no-op, never an unchanged replace
+// the delta verifier fails.
+func TestChangeGroomPlanReviseIdenticalIsNoOp(t *testing.T) {
+	files := reviseSettledFiles(t)
+	files["docs/changes/BOARD.md"] = "# Backlog\n\nold\n"
+	// Settle the board too, so inline rendering has nothing to change.
+	boardPlan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, validReviseRequest()))
+	if opRes.Refused {
+		t.Fatalf("board-settling revise refused: %v", opRes.Findings)
+	}
+	files["docs/changes/BOARD.md"] = string(groomedRecordBytes(t, boardPlan, "docs/changes/BOARD.md"))
+
+	cases := []struct {
+		name string
+		mut  func(*ChangeGroomRequest)
+	}{
+		{"identical spec and section", func(r *ChangeGroomRequest) {}},
+		{"identical spec only", func(r *ChangeGroomRequest) { r.Sections = nil }},
+		{"identical section only", func(r *ChangeGroomRequest) { r.SpecMarkdown = "" }},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := validReviseRequest()
+			c.mut(&req)
+			plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, req))
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			if len(plan.Files) != 0 {
+				t.Errorf("identical revise declared files %v, want an empty (no-op) plan", planPaths(plan))
+			}
+		})
+	}
+}
+
 func TestChangeGroomResultHumanTextRevise(t *testing.T) {
 	r := newChangeGroomResult(ResultApplied, ChangeGroomResult{
 		ID: 7, Outcome: string(GroomRevise), SpecPath: "docs/superpowers/specs/x.md",

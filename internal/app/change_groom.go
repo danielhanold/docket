@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -397,15 +398,17 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	// non-empty SpecMarkdown replaces the change's EXISTING linked spec — never
 	// a new path — and requires both the link and the file to exist.
 	reviseSpec := o.req.Outcome == GroomRevise && strings.TrimSpace(o.req.SpecMarkdown) != ""
+	var existingSpec []byte
 	if reviseSpec {
 		if c.Spec().Value == "" {
 			return refuseGroom("spec-not-linked",
 				fmt.Sprintf("change %04d has no linked spec to revise (spec_markdown was submitted against a trivial-only change)", o.req.ChangeID))
 		}
-		exists, err := treeHasPath(ctx, st.Tree, c.Spec().Value)
+		blob, exists, err := treeBlob(ctx, st.Tree, c.Spec().Value)
 		if err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, err
 		}
+		existingSpec = blob
 		if !exists {
 			return refuseGroom("spec-file-missing",
 				fmt.Sprintf("change %04d links spec %q but no such file exists on the tree", o.req.ChangeID, c.Spec().Value))
@@ -505,8 +508,16 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: writing artifact block: %w", err)
 	}
 
-	files := []transaction.FileMutation{
-		{Path: gitcli.RepoPath(o.req.Path), Kind: transaction.MutationReplace, Bytes: finalBytes},
+	// Declare only paths whose bytes actually change: the engine's delta verifier
+	// rejects a declared path that is not an actual change, so a revise that
+	// re-renders the record byte-identical (updated: already today, artifacts
+	// already rendered, identical section text) must not declare it. An empty
+	// plan is the engine's clean no-op path — the same skip includeBoard makes.
+	var files []transaction.FileMutation
+	if !bytes.Equal(finalBytes, src) {
+		files = append(files, transaction.FileMutation{
+			Path: gitcli.RepoPath(o.req.Path), Kind: transaction.MutationReplace, Bytes: finalBytes,
+		})
 	}
 
 	if o.req.Outcome == GroomSpec {
@@ -526,10 +537,12 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		if err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: rendering spec backlink: %w", err)
 		}
-		files = append(files, transaction.FileMutation{
-			Path: gitcli.RepoPath(c.Spec().Value), Kind: transaction.MutationReplace,
-			Bytes: assembleSpecFile(backlink, o.req.SpecMarkdown),
-		})
+		// An identical spec body is not an actual change; skip the declaration.
+		if specBytes := assembleSpecFile(backlink, o.req.SpecMarkdown); !bytes.Equal(specBytes, existingSpec) {
+			files = append(files, transaction.FileMutation{
+				Path: gitcli.RepoPath(c.Spec().Value), Kind: transaction.MutationReplace, Bytes: specBytes,
+			})
+		}
 	}
 
 	if o.inline {
@@ -653,9 +666,19 @@ func buildGroomCandidate(eff config.Effective, docs map[string]document.Document
 
 // treeHasPath reports whether path exists as a blob on the base tree.
 func treeHasPath(ctx context.Context, tree transaction.Tree, path string) (bool, error) {
+	_, found, err := treeBlob(ctx, tree, path)
+	return found, err
+}
+
+// treeBlob reads path's blob bytes from the base tree, reporting whether it
+// exists.
+func treeBlob(ctx context.Context, tree transaction.Tree, path string) ([]byte, bool, error) {
 	results, err := tree.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(path)})
 	if err != nil {
-		return false, fmt.Errorf("change groom: probing path %q: %w", path, err)
+		return nil, false, fmt.Errorf("change groom: probing path %q: %w", path, err)
 	}
-	return len(results) == 1 && results[0].Found, nil
+	if len(results) != 1 || !results[0].Found {
+		return nil, false, nil
+	}
+	return results[0].Blob.Bytes, true, nil
 }
