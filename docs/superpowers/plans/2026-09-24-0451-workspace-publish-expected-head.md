@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0451 — Workspace publish refuses a feature head that moved after the app-level check](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md)**
+> ↩ **[Change 0451 — Workspace publish refuses a feature head that moved after the app-level check](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-24-0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md)**
 <!-- docket:backlink:end -->
 # Workspace Publish Expected-Head Refusal Implementation Plan
 
