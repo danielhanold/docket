@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/workspace-publish-refuses-a-feature-head-that-moved-after-th'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-24T06:21:38Z'
+reconciled: true
+claimed_at: '2026-09-24T06:22:25Z'
 ---
 
 ## Artifacts
@@ -46,3 +46,9 @@ claimed_at: '2026-09-24T06:21:38Z'
 ## Out of scope
 
 Changing the gate or journal accounting (change 0444 owns it). Other publish or push paths. Changing the remote lease or fast-forward rules.
+
+## Reconcile log
+
+### 2026-09-24
+
+2026-09-24 — Re-read against main c67d07ad (0444 merged). WorkspacePublish still checks the head via Inspect and then calls PublishHead, which re-reads the local head under its lock with no expected-head comparison; the 0444 unverified-journal guard is present. Scope unchanged: add an expected head to PublishRequest, refuse under the lock on mismatch, pass req.Head, add a unit test.
