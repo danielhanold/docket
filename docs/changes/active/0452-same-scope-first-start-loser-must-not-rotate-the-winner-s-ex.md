@@ -14,7 +14,7 @@ discovered_from: [448, 444]
 adrs: []
 spec:
 plan: 'docs/superpowers/plans/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate.md'
-results:
+results: 'docs/results/2026-09-24-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex-results.md'
 trivial: true
 auto_groomable:
 branch_prefix:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-24T16:25:28Z'
 | Artifact | Link |
 |---|---|
 | Plan | [2026-09-24-0452-same-scope-first-start-loser-must-not-rotate.md](https://github.com/danielhanold/docket/blob/fix/same-scope-first-start-loser-must-not-rotate-the-winner-s-ex/docs/superpowers/plans/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate.md) |
+| Results | [2026-09-24-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex-results.md](https://github.com/danielhanold/docket/blob/fix/same-scope-first-start-loser-must-not-rotate-the-winner-s-ex/docs/results/2026-09-24-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
