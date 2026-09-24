@@ -40,6 +40,15 @@ func TestRecordedBranch(t *testing.T) {
 		{"dotdot", present("a..b"), "", errBranchMalformed},
 		{"leading dash", present("-lead"), "", errBranchMalformed},
 		{"whitespace", present("a b"), "", errBranchMalformed},
+		// Change 0454: the shape check delegates to gitcli.ValidBranchName, so
+		// every name the probe filter and status's branch-malformed finding
+		// reject is refused here too. feat/a:b is the discriminating row — only
+		// the delegated (completed) grammar rejects it.
+		{"stack dotdot", present("feat/a..parent"), "", errBranchMalformed},
+		{"colon", present("feat/a:b"), "", errBranchMalformed},
+		{"tilde", present("a~b"), "", errBranchMalformed},
+		{"trailing dot", present("a."), "", errBranchMalformed},
+		{"lock suffix", present("feat/x.lock"), "", errBranchMalformed},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

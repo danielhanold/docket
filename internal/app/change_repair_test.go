@@ -472,3 +472,42 @@ func TestRepairIdentityUnrelatedInvalidRecordRefusals(t *testing.T) {
 		})
 	}
 }
+
+// TestRepairAdoptPRHeadAppliesOnMalformedRecordedBranch proves the PR-case
+// remedy status prints for a branch-malformed record (change 0454) actually
+// applies: adopting the PR head over a recorded branch: git would reject lands
+// applied, because recordedBranch refuses the malformed name and the workspace
+// gate then skips the branch-keyed inspection instead of failing inside git.
+// The workspace seam is the real service, so an inspection of the malformed
+// name would reach gitcli and fail there. feat/a:b is the discriminating row —
+// only the delegated gitcli predicate rejects it; without the delegation the
+// gate inspects it and refuses as workspace-conflict.
+func TestRepairAdoptPRHeadAppliesOnMalformedRecordedBranch(t *testing.T) {
+	requireRealGit(t)
+	for _, recorded := range []string{"feat/a..parent", "feat/a:b"} {
+		t.Run(recorded, func(t *testing.T) {
+			recPath := groomPath(3, "widget")
+			repo := newWorkingRepo(t, map[string]string{recPath: repairRecord(3, "widget", recorded)})
+			repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
+
+			node := planningDepsFor(t, repo.invocation)
+			svc, err := workspace.NewService(node.deps.Client)
+			if err != nil {
+				t.Fatalf("workspace.NewService: %v", err)
+			}
+			deps := FinalizeDeps{Planning: node.deps, GitHub: repairGitHub("feat/renamed"), Workspace: svc}
+			res := RepairIdentity(context.Background(), deps, node.dir, RepairIdentityRequest{
+				ID: 3, ExpectVersion: blobVersionAt(t, repo.origin, "docket", recPath),
+				AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+			})
+			if res.Result != ResultApplied || res.Branch != "feat/renamed" {
+				t.Fatalf("adopt-pr-head over recorded branch %q = %q reason %q branch %q (msg %q, findings %v), want applied feat/renamed",
+					recorded, res.Result, res.Reason, res.Branch, res.Message, res.Findings)
+			}
+			rec, _ := originFile(t, repo.origin, "docket", recPath)
+			if !strings.Contains(rec, "branch: 'feat/renamed'") {
+				t.Errorf("repaired record on origin does not carry the adopted branch:\n%s", rec)
+			}
+		})
+	}
+}
