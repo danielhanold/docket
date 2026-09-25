@@ -2,11 +2,11 @@
 id: 450
 slug: 'typed-change-unblock-operation-to-reverse-change-block'
 title: 'Typed change.unblock operation to reverse change.block'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'chore'
 created: '2026-09-24'
-updated: '2026-09-24'
+updated: '2026-09-25'
 depends_on: []
 stacked_on:
 related: [444, 446]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/typed-change-unblock-operation-to-reverse-change-block'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-25T11:08:45Z'
 ---
 
 ## Artifacts
