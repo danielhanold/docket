@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0445 — Revise a groomed change's spec and owned sections through a typed operation](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md)**
+> ↩ **[Change 0445 — Revise a groomed change's spec and owned sections through a typed operation](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-25-0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md)**
 <!-- docket:backlink:end -->
 
 # Revise a groomed change's spec and owned sections through a typed operation

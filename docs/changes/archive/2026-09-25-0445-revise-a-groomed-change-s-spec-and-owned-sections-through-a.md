@@ -2,11 +2,11 @@
 id: 445
 slug: 'revise-a-groomed-change-s-spec-and-owned-sections-through-a'
 title: 'Revise a groomed change''s spec and owned sections through a typed operation'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-23'
-updated: '2026-09-24'
+updated: '2026-09-25'
 depends_on: []
 stacked_on:
 related: [382, 444]
@@ -22,7 +22,7 @@ branch: 'feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a'
 pr: 'https://github.com/danielhanold/docket/pull/332'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T20:12:58Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-24T20:12:58Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-design.md) |
-| Plan | [2026-09-24-0445-revise-groomed-change-typed-operation.md](https://github.com/danielhanold/docket/blob/feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a/docs/superpowers/plans/2026-09-24-0445-revise-groomed-change-typed-operation.md) |
-| Results | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-results.md](https://github.com/danielhanold/docket/blob/feat/revise-a-groomed-change-s-spec-and-owned-sections-through-a/docs/results/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-results.md) |
+| Plan | [2026-09-24-0445-revise-groomed-change-typed-operation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-24-0445-revise-groomed-change-typed-operation.md) |
+| Results | [2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-24-revise-a-groomed-change-s-spec-and-owned-sections-through-a-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
