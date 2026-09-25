@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/attach-refuses-a-same-path-same-day-re-attach-with-verify-de'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-25T14:13:58Z'
+reconciled: true
+claimed_at: '2026-09-25T14:14:33Z'
 ---
 
 ## Artifacts
@@ -68,3 +68,9 @@ Each hit so far was harmless: the first attachment already set `results:` to the
 - The board declaration, already fixed by change 0335.
 - An audit of the other record-writing operations, done at grooming time and clean. Every other unconditional record declaration is a status transition (claim, halt, implemented, lifecycle, reclaim, kill, repair, closeout, finalize block), so its bytes always change. The rest are already guarded (groom revise via 0445, board via 0335).
 - Implement-next skill wording. A `no-op` envelope already reads as success.
+
+## Reconcile log
+
+### 2026-09-25
+
+2026-09-25: Re-verified against main 79860b07. changeAttachOp.Plan still declares the change record unconditionally as MutationReplace (internal/app/change_attach.go); change_groom.go carries the reference guard ("Declare only paths whose bytes actually change"). Scope unchanged; no new constraints.
