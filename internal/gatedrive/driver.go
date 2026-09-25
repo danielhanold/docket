@@ -844,6 +844,12 @@ func (d *Driver) launchScopeless(t *AdmissionTicket, claim *relaunchClaim) (Driv
 	return startDocWithLegacy(doc, derr, t.legacy)
 }
 
+// scopedAdmissionHook is a package-private test seam fired once per scoped admission,
+// after admitScopedWorktree has returned this start's worktree token and before
+// reserveScopeDrive arbitrates the scope slot. Production leaves it nil; a test sets
+// it to land a same-scope sibling's start at exactly that instant (change 0453).
+var scopedAdmissionHook func(req StartRequest)
+
 // admitScoped runs the pre-launch admission half of the pinned scoped-start order
 // (change 0405 Tasks 3–4 plus change 0375 worktree admission):
 //
@@ -882,6 +888,9 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 	if aerr != nil {
 		return nil, aerr
 	}
+	if scopedAdmissionHook != nil {
+		scopedAdmissionHook(req)
+	}
 	rec.AdmissionToken = token
 	// releasable unifies "freshly reserved" and "rotated": either way this start
 	// alone owns the reservation and must release it on a genuine pre-launch failure.
@@ -911,10 +920,12 @@ func (d *Driver) admitScoped(req StartRequest, rec driveRecord, ownerGen string)
 		// Release the worktree slot ONLY when THIS start freshly reserved it AND the
 		// loss is not a same-scope race: a same-scope peer that beat us to the scope slot
 		// has adopted our reservation (there is at most one fresh reservation per worktree
-		// at a time), so releasing it would free a slot the winner is using. A genuine
-		// failure (scope closed, an IO fault, an identity mismatch) has no adopter, so the
-		// fresh (or rotated) reservation must be released rather than leaked.
-		if releasable && !isSameScopeRaceLoss(rerr) {
+		// at a time), so releasing it would free a slot the winner is using. A successor
+		// refused ErrStalePredecessor because a SIBLING consumed the same receipt is the
+		// same race (siblingMayHoldReservation). A genuine failure (scope closed, an IO
+		// fault, an identity mismatch) has no adopter, so the fresh (or rotated)
+		// reservation must be released rather than leaked.
+		if releasable && !isSameScopeRaceLoss(rerr) && !d.siblingMayHoldReservation(req.ScopeID, receipt, token, rerr) {
 			_ = d.store.ReleaseWorktreeExecution(req.Worktree, token)
 		}
 		return nil, rerr
@@ -1124,13 +1135,19 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 			// (receipt drive id vs the scope's CurrentDriveID) evaluated earlier, so
 			// a second successor holding a retired predecessor's receipt never
 			// rotates a live slot that its inevitable ErrStalePredecessor cleanup
-			// would then release (change 0453). Reading the scope AFTER the slot
-			// read is sufficient: a slot executing under a successor's token was
-			// confirmed only after that successor's reserveScopeDrive advanced the
-			// scope, and the scope never moves back to an earlier drive; a racer
-			// holding an older slot token is refused by the rotation's own token
-			// check. A scope load failure fails closed unchanged, like the
-			// unreadable-slot leg above.
+			// would then release (change 0453). This unlocked read excludes only a
+			// successor that arrives AFTER a sibling launched on the same receipt:
+			// for that ordering, reading the scope after the slot read suffices,
+			// because a slot executing under a successor's token was confirmed only
+			// after that successor's reserveScopeDrive advanced the scope, the scope
+			// never moves back to an earlier drive, and a racer holding an older
+			// slot token is refused by the rotation's own token check. It does NOT
+			// serialize two successors that both pass it while the receipt is still
+			// current: the second can adopt this start's rotated reservation and win
+			// the scope slot, so this start's later ErrStalePredecessor must leave
+			// the reservation to that adopter — admitScoped's reserveScopeDrive
+			// failure leg does (siblingMayHoldReservation). A scope load failure
+			// fails closed unchanged, like the unreadable-slot leg above.
 			scope, serr := d.store.LoadScope(req.ScopeID)
 			if serr != nil {
 				return "", false, false, false, nil, serr
@@ -1194,6 +1211,64 @@ func isSameScopeRaceLoss(err error) bool {
 		return false
 	}
 	return oe.Kind == ErrScopeBusy || oe.Kind == ErrScopeSecondDrive
+}
+
+// siblingMayHoldReservation reports whether a successor start whose reserveScopeDrive
+// was refused ErrStalePredecessor may have had its fresh or rotated worktree
+// reservation ADOPTED by a same-scope sibling, so the reservation must be left in
+// place rather than released (change 0453). It is the successor counterpart of
+// isSameScopeRaceLoss.
+//
+// Two successors can present the same predecessor receipt P. Admissions are not
+// serialized across them (an epoch-less scope runs the admission body directly), so
+// the pre-rotation staleness guard in admitScopedWorktree does not exclude this
+// interleaving: S2 passes the guard while P is current and rotates (or freshly
+// reserves) the slot to T; S1 finds a same-scope RESERVED slot and adopts T; S1 wins
+// reserveScopeDrive, retires P, launches, and confirms the slot executing under T;
+// only then does S2's reserveScopeDrive refuse ErrStalePredecessor. Releasing T there
+// would free S1's live slot.
+//
+// The reservation is left in place when the reloaded scope shows either sign of a
+// sibling:
+//
+//   - PriorDriveID still names the receipt's drive: a sibling consumed THIS receipt.
+//     A sibling that did so while this start held T could take the worktree only by
+//     adopting T — always the case for a rotated start, whose pre-rotation guard saw
+//     the receipt current — and a sibling adopting T may still be on its way to the
+//     scope slot. (A freshly reserving start can also lose to a sibling that
+//     consumed the receipt earlier and released its own slot; T is then merely
+//     leaked, which fails closed as below.)
+//   - The scope's current drive carries T as its AdmissionToken: a later drive of
+//     the sequence adopted T after the scope moved past the receipt's successor.
+//
+// An unreadable scope or current drive record cannot prove T unadopted and also
+// keeps it. Keeping is the fail-closed direction: a leaked reserved slot is adopted
+// by the scope's next start and refuses every other admission until recovery,
+// whereas releasing an adopted one frees a live slot. Every other rejection, and a
+// stale receipt showing neither sign (a receipt the scope never advanced from, or
+// one it has moved two drives past with T unadopted), has no adopter and is released.
+func (d *Driver) siblingMayHoldReservation(scopeID string, receipt predecessorReceipt, token string, rerr error) bool {
+	if receipt.empty() {
+		return false
+	}
+	if oe, ok := AsOwnershipError(rerr); !ok || oe.Kind != ErrStalePredecessor {
+		return false
+	}
+	scope, err := d.store.LoadScope(scopeID)
+	if err != nil {
+		return true
+	}
+	if scope.PriorDriveID == receipt.DriveID {
+		return true
+	}
+	if scope.CurrentDriveID == "" {
+		return false
+	}
+	cur, err := d.store.Load(scope.CurrentDriveID)
+	if err != nil {
+		return true
+	}
+	return cur.AdmissionToken == token
 }
 
 // Advance resumes a drive through at most one slice. It loads the durable record

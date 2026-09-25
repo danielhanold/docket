@@ -1679,6 +1679,295 @@ func TestSameScopeSuccessorScopeReadFailureFailsClosed(t *testing.T) {
 	}
 }
 
+// hookGit is a GitSeam whose onHead fires once, on the next fingerprint's first
+// read. Start fingerprints AFTER precheckScopedStart and BEFORE worktree admission,
+// so a test uses it to land a sibling's whole start between the two.
+type hookGit struct {
+	*fakeGit
+	onHead func()
+}
+
+func (g *hookGit) HeadOID(dir string) (string, error) {
+	if fn := g.onHead; fn != nil {
+		g.onHead = nil
+		fn()
+	}
+	return g.fakeGit.HeadOID(dir)
+}
+
+// siblingFixture is an epoch-less scope whose first drive P has launched and
+// settled PASSED, so successors may present P's receipt.
+type siblingFixture struct {
+	d     *Driver
+	store *Store
+	proc  *fakeProc
+	git   *hookGit
+	req   StartRequest
+	pred  DriveDoc
+}
+
+func newSiblingFixture(t *testing.T) *siblingFixture {
+	t.Helper()
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{}
+	git := &hookGit{fakeGit: stableGit()}
+	d := scopedTestDriver(store, clk, proc, git)
+	_, req := prepareScopedStart(t, store)
+	if req.RunEpochID != "" {
+		t.Fatalf("precondition: the scope must be epoch-less (admissions unserialized), got epoch %q", req.RunEpochID)
+	}
+	f := &siblingFixture{d: d, store: store, proc: proc, git: git, req: req}
+	f.pred = f.startWaiting(t, req, "predecessor P")
+	f.settlePassed(t, f.pred)
+	return f
+}
+
+func (f *siblingFixture) successorOf(doc DriveDoc) StartRequest {
+	s := f.req
+	s.PredecessorDriveID = doc.DriveID
+	s.PredecessorOwnerGen = doc.Generation
+	return s
+}
+
+func (f *siblingFixture) startWaiting(t *testing.T, req StartRequest, who string) DriveDoc {
+	t.Helper()
+	doc, err := f.d.Start(req)
+	if err != nil {
+		t.Fatalf("%s Start: %v", who, err)
+	}
+	if doc.Outcome != WAITING {
+		t.Fatalf("%s must WAIT, got %s (%s)", who, doc.Outcome, doc.Cause)
+	}
+	return doc
+}
+
+func (f *siblingFixture) settlePassed(t *testing.T, doc DriveDoc) {
+	t.Helper()
+	if err := f.store.ownerCAS(doc.DriveID, func(r *driveRecord) error {
+		r.LastOutcome = PASSED
+		return nil
+	}); err != nil {
+		t.Fatalf("settle %s PASSED: %v", doc.DriveID, err)
+	}
+}
+
+func (f *siblingFixture) slot(t *testing.T) admissionRecord {
+	t.Helper()
+	slot, _, err := f.store.LoadWorktreeExecution(f.req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	return slot
+}
+
+// releaseSlot releases the settled drive's worktree slot, closing the
+// terminal-before-release window so the next start freshly reserves.
+func (f *siblingFixture) releaseSlot(t *testing.T) {
+	t.Helper()
+	if err := f.store.ReleaseWorktreeExecution(f.req.Worktree, f.slot(t).ReservationToken); err != nil {
+		t.Fatalf("release settled slot: %v", err)
+	}
+}
+
+// assertExecutingUnder asserts the worktree slot is executing under token AND
+// that token is the named winner's own admission token — the winner's live slot.
+func (f *siblingFixture) assertExecutingUnder(t *testing.T, winnerID, token string) {
+	t.Helper()
+	slot := f.slot(t)
+	if slot.State != admissionExecuting || slot.ReservationToken != token {
+		t.Fatalf("the winner's slot must stay executing under the adopted token: state %q, token kept=%v",
+			slot.State, slot.ReservationToken == token)
+	}
+	rec, err := f.store.Load(winnerID)
+	if err != nil {
+		t.Fatalf("load winner: %v", err)
+	}
+	if rec.AdmissionToken != token {
+		t.Fatalf("the winner must run under the adopted token")
+	}
+}
+
+func setScopedAdmissionHook(t *testing.T, fn func(StartRequest)) {
+	t.Helper()
+	scopedAdmissionHook = fn
+	t.Cleanup(func() { scopedAdmissionHook = nil })
+}
+
+// TestStaleSuccessorLeavesSiblingAdoptedReservation pins change 0453's
+// admitScoped failure leg: two successors present the same predecessor receipt on
+// an epoch-less scope (admissions unserialized). S2 takes the worktree first —
+// rotating P's executing slot, or freshly reserving a released one — to token T,
+// then pauses before reserveScopeDrive (scopedAdmissionHook). A same-scope sibling
+// adopts T, wins the scope slot, launches, and confirms T executing. S2's
+// reserveScopeDrive then refuses ErrStalePredecessor, and S2 must NOT release T:
+// the sibling's slot stays executing under T. Each subtest isolates one of
+// siblingMayHoldReservation's signs.
+func TestStaleSuccessorLeavesSiblingAdoptedReservation(t *testing.T) {
+	// runS2 starts S2 with P's receipt and asserts its admission reached the seam.
+	// hookOnce fires onAdmitted exactly once, at S2's own scopedAdmissionHook, with
+	// S2's worktree token (which it asserts is RESERVED).
+	runS2 := func(t *testing.T, f *siblingFixture, armed *bool) error {
+		t.Helper()
+		_, err := f.d.Start(f.successorOf(f.pred))
+		if *armed {
+			t.Fatalf("S2's admission never reached the scope-reservation seam")
+		}
+		return err
+	}
+	hookOnce := func(t *testing.T, f *siblingFixture, armed *bool, onAdmitted func(token string)) {
+		setScopedAdmissionHook(t, func(r StartRequest) {
+			if !*armed || r.PredecessorDriveID != f.pred.DriveID {
+				return
+			}
+			*armed = false
+			slot := f.slot(t)
+			if slot.State != admissionReserved {
+				t.Fatalf("S2 must hold a RESERVED worktree slot at the seam, got %q", slot.State)
+			}
+			onAdmitted(slot.ReservationToken)
+		})
+	}
+
+	// P's receipt consumed by a sibling that adopted S2's token: both signs hold.
+	for _, tc := range []struct {
+		name        string
+		releasePred bool // P's slot released before S2: S2 freshly reserves instead of rotating
+	}{
+		{name: "rotated", releasePred: false},
+		{name: "fresh", releasePred: true},
+	} {
+		t.Run(tc.name+"/sibling-adopts-and-wins", func(t *testing.T) {
+			f := newSiblingFixture(t)
+			predToken := f.slot(t).ReservationToken
+			if tc.releasePred {
+				f.releaseSlot(t)
+			}
+			launches := f.proc.launchN
+			var s2Token string
+			var s1 DriveDoc
+			armed := true
+			hookOnce(t, f, &armed, func(token string) {
+				s2Token = token
+				// S1: the SAME receipt. It adopts S2's reserved token, wins the
+				// scope slot, retires P, launches, and confirms the slot executing.
+				s1 = f.startWaiting(t, f.successorOf(f.pred), "sibling S1")
+			})
+			s2Err := runS2(t, f, &armed)
+			if !isOwnershipKind(s2Err, ErrStalePredecessor) {
+				t.Fatalf("S2 must lose the scope slot ErrStalePredecessor, got %v", s2Err)
+			}
+			if s2Token == predToken {
+				t.Fatalf("S2 must have taken its OWN token (rotated or fresh) before losing")
+			}
+			if f.proc.launchN != launches+1 {
+				t.Fatalf("exactly the winner S1 must launch, launched %d->%d", launches, f.proc.launchN)
+			}
+			f.assertExecutingUnder(t, s1.DriveID, s2Token)
+		})
+	}
+
+	// The scope has moved past the receipt's consumer: only the current drive's
+	// AdmissionToken shows the adoption.
+	t.Run("fresh/later-drive-adopts-and-wins", func(t *testing.T) {
+		f := newSiblingFixture(t)
+		f.releaseSlot(t)
+		armed := false
+		var c DriveDoc
+		// Between S2's precheck (P current) and its worktree admission, sibling C
+		// consumes P's receipt, completes, and releases its own slot.
+		f.git.onHead = func() {
+			c = f.startWaiting(t, f.successorOf(f.pred), "sibling C")
+			f.settlePassed(t, c)
+			f.releaseSlot(t)
+			armed = true
+		}
+		var s2Token string
+		var cNext DriveDoc
+		hookOnce(t, f, &armed, func(token string) {
+			s2Token = token
+			// C's successor adopts S2's fresh token and wins the scope slot.
+			cNext = f.startWaiting(t, f.successorOf(c), "C's successor")
+		})
+		s2Err := runS2(t, f, &armed)
+		if !isOwnershipKind(s2Err, ErrStalePredecessor) {
+			t.Fatalf("S2 must lose the scope slot ErrStalePredecessor, got %v", s2Err)
+		}
+		scope, err := f.store.LoadScope(f.req.ScopeID)
+		if err != nil {
+			t.Fatalf("LoadScope: %v", err)
+		}
+		if scope.PriorDriveID == f.pred.DriveID {
+			t.Fatalf("precondition: the scope must have moved past P's consumer")
+		}
+		f.assertExecutingUnder(t, cNext.DriveID, s2Token)
+	})
+
+	// The receipt's consumer ran earlier on its own token; an adopter of S2's token
+	// is still on its way to the scope slot when S2 loses. Only PriorDriveID shows it.
+	t.Run("fresh/adopter-pending-when-s2-loses", func(t *testing.T) {
+		f := newSiblingFixture(t)
+		f.releaseSlot(t)
+		armed := false
+		var c DriveDoc
+		f.git.onHead = func() {
+			c = f.startWaiting(t, f.successorOf(f.pred), "sibling C")
+			f.settlePassed(t, c)
+			f.releaseSlot(t)
+			armed = true
+		}
+		type result struct {
+			doc DriveDoc
+			err error
+		}
+		adopted := make(chan struct{})
+		proceed := make(chan struct{})
+		done := make(chan result, 1)
+		var s2Token string
+		var early *result
+		setScopedAdmissionHook(t, func(r StartRequest) {
+			if r.PredecessorDriveID == c.DriveID && c.DriveID != "" {
+				// C's successor, in its own goroutine: it has ADOPTED S2's token and
+				// now pauses before its reserveScopeDrive.
+				adopted <- struct{}{}
+				<-proceed
+				return
+			}
+			if !armed || r.PredecessorDriveID != f.pred.DriveID {
+				return
+			}
+			armed = false
+			s2Token = f.slot(t).ReservationToken
+			next := f.successorOf(c)
+			go func() {
+				doc, err := f.d.Start(next)
+				done <- result{doc, err}
+			}()
+			select {
+			case <-adopted:
+			case r := <-done:
+				early = &r
+			}
+		})
+		s2Err := runS2(t, f, &armed)
+		close(proceed)
+		if early != nil {
+			t.Fatalf("C's successor finished before adopting S2's token: %+v", *early)
+		}
+		if !isOwnershipKind(s2Err, ErrStalePredecessor) {
+			t.Fatalf("S2 must lose the scope slot ErrStalePredecessor, got %v", s2Err)
+		}
+		r := <-done
+		if r.err != nil {
+			t.Fatalf("the pending adopter must still launch on the token S2 left it: %v", r.err)
+		}
+		if r.doc.Outcome != WAITING {
+			t.Fatalf("the pending adopter must WAIT, got %s (%s)", r.doc.Outcome, r.doc.Cause)
+		}
+		f.assertExecutingUnder(t, r.doc.DriveID, s2Token)
+	})
+}
+
 // TestBarrierSuccessorUnderCancel proves the successor path under a mid-flight
 // fence: a fenced successor start refuses without launching, and it leaves the slot
 // EITHER the predecessor's executing reservation (refused before rotation) OR
