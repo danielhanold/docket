@@ -27,6 +27,12 @@ func TestRequiredTagMatchesValidator(t *testing.T) {
 		{"change.defer", ChangeDeferRequest{}, func() []StatusFinding {
 			return ChangeDefer(context.Background(), PlanningDeps{}, "", ChangeDeferRequest{}).Findings
 		}},
+		{"change.unblock", ChangeUnblockRequest{}, func() []StatusFinding {
+			return ChangeUnblock(context.Background(), PlanningDeps{}, "", ChangeUnblockRequest{}).Findings
+		}},
+		{"change.revive", ChangeReviveRequest{}, func() []StatusFinding {
+			return ChangeRevive(context.Background(), PlanningDeps{}, "", ChangeReviveRequest{}).Findings
+		}},
 		{"change.create", ChangeCreateRequest{}, func() []StatusFinding {
 			return validateChangeCreateShape(ChangeCreateRequest{})
 		}},

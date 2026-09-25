@@ -40,6 +40,8 @@ var assetIndependent = map[string]bool{
 	"change groom":            true,
 	"change block":            true,
 	"change defer":            true,
+	"change unblock":          true,
+	"change revive":           true,
 	"change kill":             true,
 	"change claim":            true,
 	"change refresh-claim":    true,
