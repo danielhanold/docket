@@ -404,6 +404,312 @@ func TestChangeBlockPlanToleratesMissingUpdatedField(t *testing.T) {
 	}
 }
 
+// --- change unblock / change revive ------------------------------------------
+
+func validUnblockRequest() ChangeUnblockRequest {
+	return ChangeUnblockRequest{ChangeID: 3, Path: groomPath(3, "widget"), Version: blobV}
+}
+
+func validReviveRequest() ChangeReviveRequest {
+	return ChangeReviveRequest{ChangeID: 3, Path: groomPath(3, "widget"), Version: blobV}
+}
+
+func unblockOp(surfaces []string, id int, recPath string) changeLifecycleOp {
+	return baseLifecycleOp(OperationChangeUnblock, surfaces, id, recPath,
+		func(c domain.Change) (domain.ActionResult, *domain.PolicyFailure) { return domain.Unblock(c) }, nil)
+}
+
+func reviveOp(surfaces []string, id int, recPath string) changeLifecycleOp {
+	return baseLifecycleOp(OperationChangeRevive, surfaces, id, recPath,
+		func(c domain.Change) (domain.ActionResult, *domain.PolicyFailure) { return domain.Revive(c) }, nil)
+}
+
+// pinnedShapeCases are the request-shape failures common to every pinned-entity
+// lifecycle request without an authored payload (unblock, revive): each
+// mutates the valid (id, path, version) triple and names the expected finding.
+var pinnedShapeCases = []struct {
+	name string
+	mut  func(id *int, path, version *string)
+	code string
+}{
+	{"non-positive change id", func(id *int, _, _ *string) { *id = 0 }, "invalid-change_id"},
+	{"empty path", func(_ *int, p, _ *string) { *p = "" }, "empty-path"},
+	{"empty version", func(_ *int, _, v *string) { *v = " " }, "empty-version"},
+}
+
+func TestChangeUnblockRejectsBadShapeWithoutEngineCall(t *testing.T) {
+	for _, c := range pinnedShapeCases {
+		t.Run(c.name, func(t *testing.T) {
+			req := validUnblockRequest()
+			c.mut(&req.ChangeID, &req.Path, &req.Version)
+			engine := &recordingEngine{}
+			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+			res := ChangeUnblock(context.Background(), deps, "", req)
+
+			if res.Result != ResultInvalidInput {
+				t.Fatalf("result = %q, want invalid-input", res.Result)
+			}
+			if res.Operation != OperationChangeUnblock {
+				t.Errorf("operation = %q, want %q", res.Operation, OperationChangeUnblock)
+			}
+			if len(engine.calls) != 0 {
+				t.Errorf("engine called %d times on a shape failure, want 0", len(engine.calls))
+			}
+			if !hasFindingCode(res.Findings, c.code) {
+				t.Errorf("missing finding %q; got %v", c.code, res.Findings)
+			}
+		})
+	}
+}
+
+func TestChangeReviveRejectsBadShapeWithoutEngineCall(t *testing.T) {
+	for _, c := range pinnedShapeCases {
+		t.Run(c.name, func(t *testing.T) {
+			req := validReviveRequest()
+			c.mut(&req.ChangeID, &req.Path, &req.Version)
+			engine := &recordingEngine{}
+			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+			res := ChangeRevive(context.Background(), deps, "", req)
+
+			if res.Result != ResultInvalidInput {
+				t.Fatalf("result = %q, want invalid-input", res.Result)
+			}
+			if res.Operation != OperationChangeRevive {
+				t.Errorf("operation = %q, want %q", res.Operation, OperationChangeRevive)
+			}
+			if len(engine.calls) != 0 {
+				t.Errorf("engine called %d times on a shape failure, want 0", len(engine.calls))
+			}
+			if !hasFindingCode(res.Findings, c.code) {
+				t.Errorf("missing finding %q; got %v", c.code, res.Findings)
+			}
+		})
+	}
+}
+
+func TestChangeUnblockFencesGithubBoardSurface(t *testing.T) {
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline", "github"})}
+	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeUnblock(context.Background(), deps, "", validUnblockRequest())
+
+	if res.Result != ResultUnsupportedConfig {
+		t.Fatalf("result = %q, want unsupported-config", res.Result)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called despite a fenced board surface")
+	}
+}
+
+func TestChangeReviveFencesGithubBoardSurface(t *testing.T) {
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"github"})}
+	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeRevive(context.Background(), deps, "", validReviveRequest())
+
+	if res.Result != ResultUnsupportedConfig {
+		t.Fatalf("result = %q, want unsupported-config", res.Result)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called despite a fenced board surface")
+	}
+}
+
+func TestChangeUnblockPlanFileSet(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	src := strings.Replace(lifecycleChange(3, "widget", "blocked"),
+		"blocked_by: 'waiting on infra'\n", "blocked_by: 'waiting on 0446'\n", 1)
+	files := map[string]string{
+		recPath:                 src,
+		"docs/changes/BOARD.md": "# Backlog\n\nold\n",
+	}
+	plan, opRes := lifecyclePlanFor(t, files, unblockOp([]string{"inline"}, 3, recPath))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		recPath:                 transaction.MutationReplace,
+		"docs/changes/BOARD.md": transaction.MutationReplace,
+	})
+
+	rec := lifecycleRecordBytes(t, plan, recPath)
+	if !strings.Contains(rec, "status: 'in-progress'") {
+		t.Errorf("status not set to in-progress:\n%s", rec)
+	}
+	if !strings.Contains(rec, "\nblocked_by:\n") || strings.Contains(rec, "waiting on 0446") {
+		t.Errorf("blocked_by not cleared to the bare null form:\n%s", rec)
+	}
+	if !strings.Contains(rec, "updated: '2026-08-16'") {
+		t.Errorf("updated not stamped from the clock:\n%s", rec)
+	}
+	if !strings.Contains(rec, "docket:artifacts:start") {
+		t.Errorf("artifact block missing:\n%s", rec)
+	}
+	if !strings.Contains(rec, "branch: feat/widget\n") || !strings.Contains(rec, "claimed_at: 2026-08-02T00:00:00Z\n") {
+		t.Errorf("unblock must leave the claim facts intact:\n%s", rec)
+	}
+	if plan.CommitSubject != "change 0003 → in-progress" {
+		t.Errorf("commit subject = %q, want %q", plan.CommitSubject, "change 0003 → in-progress")
+	}
+	rc, ok := decodeChangeLifecycleReceipt(plan.Receipt)
+	if !ok || rc != (changeLifecycleReceipt{ID: 3, Op: "change.unblock", Status: "in-progress"}) {
+		t.Errorf("receipt = %+v (ok=%v), want {3 change.unblock in-progress}", rc, ok)
+	}
+}
+
+// deferredWithClaim renders a deferred record that still carries the branch and
+// claim stamp a deferral of an in-progress change leaves behind.
+func deferredWithClaim() string {
+	return strings.Replace(lifecycleChange(3, "widget", "deferred"), "trivial: false\n",
+		"trivial: false\nbranch: 'feat/widget'\nclaimed_at: 2026-08-02T00:00:00Z\n", 1)
+}
+
+func TestChangeRevivePlanFileSet(t *testing.T) {
+	// A deferred record WITHOUT a ## Why deferred section (deferred by an old
+	// tool or a hand edit): revive passes no section edits, so it still applies.
+	recPath := groomPath(3, "widget")
+	src := deferredWithClaim()
+	if strings.Contains(src, "## Why deferred") {
+		t.Fatalf("fixture unexpectedly carries ## Why deferred:\n%s", src)
+	}
+	files := map[string]string{recPath: src}
+	plan, opRes := lifecyclePlanFor(t, files, reviveOp([]string{}, 3, recPath))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		recPath: transaction.MutationReplace,
+	})
+
+	rec := lifecycleRecordBytes(t, plan, recPath)
+	if !strings.Contains(rec, "status: 'proposed'") {
+		t.Errorf("status not set to proposed:\n%s", rec)
+	}
+	if !strings.Contains(rec, "updated: '2026-08-16'") {
+		t.Errorf("updated not stamped:\n%s", rec)
+	}
+	if !strings.Contains(rec, "branch: 'feat/widget'\n") || !strings.Contains(rec, "claimed_at: 2026-08-02T00:00:00Z\n") {
+		t.Errorf("revive must leave branch and claimed_at byte-intact:\n%s", rec)
+	}
+	if strings.Contains(rec, "## Why deferred") {
+		t.Errorf("revive must not add a ## Why deferred section:\n%s", rec)
+	}
+	if plan.CommitSubject != "change 0003 → proposed" {
+		t.Errorf("commit subject = %q, want %q", plan.CommitSubject, "change 0003 → proposed")
+	}
+	rc, ok := decodeChangeLifecycleReceipt(plan.Receipt)
+	if !ok || rc != (changeLifecycleReceipt{ID: 3, Op: "change.revive", Status: "proposed"}) {
+		t.Errorf("receipt = %+v (ok=%v), want {3 change.revive proposed}", rc, ok)
+	}
+}
+
+func TestChangeRevivePlanPreservesWhyDeferredAndClaim(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	src := deferredWithClaim() + "\n## Why deferred\n\nParked for X.\n"
+	files := map[string]string{recPath: src}
+	plan, opRes := lifecyclePlanFor(t, files, reviveOp([]string{}, 3, recPath))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := lifecycleRecordBytes(t, plan, recPath)
+	if !strings.Contains(rec, "status: 'proposed'") {
+		t.Errorf("status not set to proposed:\n%s", rec)
+	}
+	if !strings.Contains(rec, "\n## Why deferred\n\nParked for X.\n") {
+		t.Errorf("## Why deferred section did not survive byte-identically:\n%s", rec)
+	}
+	if !strings.Contains(rec, "branch: 'feat/widget'\n") || !strings.Contains(rec, "claimed_at: 2026-08-02T00:00:00Z\n") {
+		t.Errorf("revive must leave branch and claimed_at byte-intact:\n%s", rec)
+	}
+}
+
+func TestChangeUnblockPlanSourceStatusMatrix(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	cases := []struct {
+		status  string
+		refused bool
+	}{
+		{"blocked", false},
+		{"proposed", true},
+		{"in-progress", true},
+		{"deferred", true},
+	}
+	for _, c := range cases {
+		t.Run(c.status, func(t *testing.T) {
+			files := map[string]string{recPath: lifecycleChange(3, "widget", c.status)}
+			plan, opRes := lifecyclePlanFor(t, files, unblockOp([]string{}, 3, recPath))
+			if opRes.Refused != c.refused {
+				t.Fatalf("unblock from %q: refused=%v, want %v (findings %v)", c.status, opRes.Refused, c.refused, opRes.Findings)
+			}
+			if c.refused {
+				if !hasDomainFindingCode(opRes.Findings, "illegal-source-status") {
+					t.Errorf("unblock from %q: missing illegal-source-status finding; got %v", c.status, opRes.Findings)
+				}
+				if len(plan.Files) != 0 {
+					t.Errorf("unblock from %q: refused plan still carries files %v", c.status, planPaths(plan))
+				}
+			}
+		})
+	}
+}
+
+func TestChangeRevivePlanSourceStatusMatrix(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	cases := []struct {
+		status  string
+		refused bool
+	}{
+		{"deferred", false},
+		{"proposed", true},
+		{"in-progress", true},
+		{"blocked", true},
+	}
+	for _, c := range cases {
+		t.Run(c.status, func(t *testing.T) {
+			files := map[string]string{recPath: lifecycleChange(3, "widget", c.status)}
+			plan, opRes := lifecyclePlanFor(t, files, reviveOp([]string{}, 3, recPath))
+			if opRes.Refused != c.refused {
+				t.Fatalf("revive from %q: refused=%v, want %v (findings %v)", c.status, opRes.Refused, c.refused, opRes.Findings)
+			}
+			if c.refused {
+				if !hasDomainFindingCode(opRes.Findings, "illegal-source-status") {
+					t.Errorf("revive from %q: missing illegal-source-status finding; got %v", c.status, opRes.Findings)
+				}
+				if len(plan.Files) != 0 {
+					t.Errorf("revive from %q: refused plan still carries files %v", c.status, planPaths(plan))
+				}
+			}
+		})
+	}
+}
+
+// TestChangeUnblockPlanToleratesMissingUpdatedField pins that an unblock over a
+// Bash-era record lacking updated: inserts the field rather than internal-erroring.
+func TestChangeUnblockPlanToleratesMissingUpdatedField(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	src := lifecycleChange(3, "widget", "blocked")
+	src = strings.Replace(src, "updated: 2026-08-02\n", "", 1)
+	if strings.Contains(src, "updated:") {
+		t.Fatalf("fixture still carries an updated field:\n%s", src)
+	}
+
+	files := map[string]string{recPath: src}
+	plan, opRes := lifecyclePlanFor(t, files, unblockOp([]string{}, 3, recPath))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := lifecycleRecordBytes(t, plan, recPath)
+	if !strings.Contains(rec, "updated: '2026-08-16'") {
+		t.Errorf("updated not inserted from the clock on a record lacking it:\n%s", rec)
+	}
+}
+
 // hasDomainFindingCode reports whether any domain finding carries code.
 func hasDomainFindingCode(findings []domain.Finding, code string) bool {
 	for _, f := range findings {
