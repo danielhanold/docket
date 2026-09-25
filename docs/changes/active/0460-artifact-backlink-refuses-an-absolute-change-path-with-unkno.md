@@ -12,7 +12,7 @@ stacked_on:
 related: []
 discovered_from: [458]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,8 +38,10 @@ During change 0458's implement-next run, `docket artifact backlink --change <abs
 
 ## What changes
 
-Make artifact.backlink resolve an absolute --change path that points inside the repository (or its .docket metadata worktree) to the same change as the repo-relative form. If a path can't be resolved, reject it with an error that names the path problem rather than `unknown-change`. Check the --artifact flag for the same behavior. Add tests for the absolute and relative forms.
+Make `artifact.backlink` validate `--change` as a canonical repository-relative path, the rule `--artifact` and `change.attach-plan`/`attach-results` already enforce. An absolute path is refused with the existing typed `absolute-path` reason. A `..` escape, an empty value, or a non-canonical spelling is refused as `path-escape`. Each message names the flag and the expected form. Only a well-formed path that matches no record still returns `unknown-change`. Also fix the `docket-implement-next` results-checkpoint prose, which leaves the path form unstated and so led the agent to build the absolute path. Add tests for the absolute, escape, and non-canonical forms and the repo-relative happy path, plus a regression test that absolute `--artifact` stays refused.
+
+The stub proposed accepting absolute paths. Grooming decided against it: that would be a new policy that departs from every other path flag, and it would need dual-root plus symlink canonicalisation that no caller needs (see the spec).
 
 ## Out of scope
 
-Path handling in other operations beyond a check of --artifact on the same command; the gate-drive scope-closed issue found in the same run (tracked separately).
+Accepting absolute paths on any flag; path handling in other operations; the gate-drive `scope-closed` issue found in the same 0458 run (tracked separately).
