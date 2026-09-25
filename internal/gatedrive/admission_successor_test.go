@@ -209,10 +209,18 @@ func TestLatePredecessorReleaseCannotFreeSuccessor(t *testing.T) {
 
 // TestSuccessorAdmissionFailureLegsReleaseRotatedSlot proves a post-rotation
 // admission-half failure releases the rotated reservation (never leaks it, never
-// leaves it blocking). A stale receipt — naming a reusable PASSED drive that is
-// NOT the scope's current drive — passes the unlocked precheck but is refused by
-// the reserveScopeDrive authority AFTER the rotation ran; the rotated slot must be
-// released, and the scope state stays byte-unchanged from the failure's contract.
+// leaves it blocking), and that a stale receipt never reaches that leg at all.
+//
+// A stale receipt — naming a reusable PASSED drive that is NOT the scope's current
+// drive — passes the unlocked precheck, but admitScopedWorktree applies
+// reserveScopeDrive's staleness predicate BEFORE the rotation (change 0453): it is
+// refused ErrStalePredecessor with the executing slot unrotated.
+//
+// A FRESH receipt whose scope closes between the unlocked precheck and admission
+// (modelled through the epoch-gate seam, which runs after precheck and wraps the
+// admission body) rotates the slot and is then refused ErrScopeClosed by the
+// reserveScopeDrive authority: the rotated slot must be released, and the scope
+// record stays byte-unchanged by the failed reservation.
 func TestSuccessorAdmissionFailureLegsReleaseRotatedSlot(t *testing.T) {
 	clk := &fakeClock{now: startEpoch()}
 	store := OpenStore(testsupport.TempDir(t))
@@ -261,7 +269,41 @@ func TestSuccessorAdmissionFailureLegsReleaseRotatedSlot(t *testing.T) {
 
 	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
 	if err != nil {
-		t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
+		t.Fatalf("LoadWorktreeExecution after stale refusal: %v", err)
+	}
+	if slot.State != admissionExecuting || slot.ReservationToken != predSlot.ReservationToken || slot.ExecutionGen != predSlot.ExecutionGen {
+		t.Fatalf("a stale receipt must be refused BEFORE rotation: state %q, token changed=%v, gen %d->%d",
+			slot.State, slot.ReservationToken != predSlot.ReservationToken, predSlot.ExecutionGen, slot.ExecutionGen)
+	}
+	if !bytes.Equal(scopeBefore, readScopeBytes(t, store, req.ScopeID)) {
+		t.Fatalf("a refused stale successor must leave the scope record byte-unchanged")
+	}
+
+	// Post-rotation failure leg: a fresh receipt whose scope closes after the
+	// unlocked precheck. The gate closes the scope, then runs the admission body.
+	var scopeClosed []byte
+	d.SetEpochLaunchGate(func(_, _ string, reserve func() error) error {
+		if err := store.scopeCAS(req.ScopeID, func(rec *scopeRecord) error {
+			rec.Closed = true
+			return nil
+		}); err != nil {
+			t.Fatalf("close scope mid-admission: %v", err)
+		}
+		scopeClosed = readScopeBytes(t, store, req.ScopeID)
+		return reserve()
+	})
+	fresh := req
+	fresh.PredecessorDriveID = cur.DriveID
+	fresh.PredecessorOwnerGen = cur.Generation
+	if _, serr := d.Start(fresh); !isOwnership(serr, ErrScopeClosed) {
+		t.Fatalf("a successor whose scope closed mid-admission must be refused ErrScopeClosed, got %v", serr)
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("a refused successor must never launch, launched %d->%d", launchesBefore, proc.launchN)
+	}
+	slot, _, err = store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution after post-rotation refusal: %v", err)
 	}
 	if slot.State != admissionReleased {
 		t.Fatalf("a post-rotation failure must RELEASE the rotated reservation, got %q", slot.State)
@@ -269,7 +311,7 @@ func TestSuccessorAdmissionFailureLegsReleaseRotatedSlot(t *testing.T) {
 	if slot.ReservationToken == predSlot.ReservationToken {
 		t.Fatalf("the rotation must have minted a fresh token before the failing leg")
 	}
-	if !bytes.Equal(scopeBefore, readScopeBytes(t, store, req.ScopeID)) {
+	if scopeClosed == nil || !bytes.Equal(scopeClosed, readScopeBytes(t, store, req.ScopeID)) {
 		t.Fatalf("a failed successor reservation must leave the scope record byte-unchanged")
 	}
 }

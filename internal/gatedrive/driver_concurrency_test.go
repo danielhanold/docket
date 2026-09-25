@@ -1522,6 +1522,95 @@ func TestSameScopeFirstStartLateLoserDoesNotRotate(t *testing.T) {
 	}
 }
 
+// TestSameScopeSuccessorStaleReceiptDoesNotRotate deterministically pins the
+// two-successor sibling of TestSameScopeFirstStartLateLoserDoesNotRotate
+// (change 0453): successors S1 and S2 both present predecessor P's receipt and
+// both passed precheckScopedStart before S1 retired P. S1 wins — launches and
+// leaves the worktree slot executing under its own token. S2's worktree
+// admission runs only now, with a receipt that no longer names the scope's
+// CURRENT drive: it must refuse typed ErrStalePredecessor WITHOUT rotating,
+// so its failure cleanup can never release S1's live reservation — same
+// state, same token, same ExecutionGen.
+func TestSameScopeSuccessorStaleReceiptDoesNotRotate(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	_, req := prepareScopedStart(t, store)
+
+	// Predecessor P: a full first start that launches, then settles to a
+	// durable PASSED in the terminal-before-release window (the
+	// TestBarrierSuccessorUnderCancel pattern), so successors may present it.
+	first, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("predecessor Start: %v", err)
+	}
+	if first.Outcome != WAITING {
+		t.Fatalf("predecessor must WAIT, got %s (%s)", first.Outcome, first.Cause)
+	}
+	if err := store.ownerCAS(first.DriveID, func(r *driveRecord) error {
+		r.LastOutcome = PASSED
+		return nil
+	}); err != nil {
+		t.Fatalf("settle predecessor terminal: %v", err)
+	}
+
+	// Successor S1 with P's receipt: rotates P's slot, launches, and leaves the
+	// worktree slot executing under S1's OWN token.
+	succ := req
+	succ.PredecessorDriveID = first.DriveID
+	succ.PredecessorOwnerGen = first.Generation
+	s1, err := d.Start(succ)
+	if err != nil {
+		t.Fatalf("successor S1 Start: %v", err)
+	}
+	if s1.Outcome != WAITING {
+		t.Fatalf("S1 must WAIT, got %s (%s)", s1.Outcome, s1.Cause)
+	}
+	before, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if before.State != admissionExecuting {
+		t.Fatalf("precondition: S1's slot must be executing, got %q", before.State)
+	}
+
+	// S2: the SAME (now-stale) P receipt reaches worktree admission only now.
+	// Calling admitScopedWorktree directly models the successor that already
+	// passed its precheck before P was retired; admission must refuse typed
+	// and must not rotate S1's live reservation.
+	_, _, _, _, _, aerr := d.admitScopedWorktree(succ)
+	if !isOwnershipKind(aerr, ErrStalePredecessor) {
+		t.Fatalf("a stale-receipt successor must refuse ErrStalePredecessor, got %v", aerr)
+	}
+	after, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
+	}
+	if after.State != admissionExecuting || after.ReservationToken != before.ReservationToken || after.ExecutionGen != before.ExecutionGen {
+		t.Fatalf("S1's executing reservation must be untouched: state %q->%q, token changed=%v, gen %d->%d",
+			before.State, after.State, after.ReservationToken != before.ReservationToken, before.ExecutionGen, after.ExecutionGen)
+	}
+
+	// Belt and suspenders: the FULL Start path for S2 must also launch nothing
+	// and leave S1's slot intact, whatever typed refusal its precheck produces.
+	launchesBefore := proc.launchN
+	if _, serr := d.Start(succ); serr == nil {
+		t.Fatalf("a stale-receipt successor Start must refuse")
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("a stale-receipt successor must never launch, launched %d->%d", launchesBefore, proc.launchN)
+	}
+	final, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution after full Start: %v", err)
+	}
+	if final.State != admissionExecuting || final.ReservationToken != before.ReservationToken || final.ExecutionGen != before.ExecutionGen {
+		t.Fatalf("S1's executing reservation must survive S2's full Start: state %q, token changed=%v, gen %d->%d",
+			final.State, final.ReservationToken != before.ReservationToken, before.ExecutionGen, final.ExecutionGen)
+	}
+}
+
 // TestBarrierSuccessorUnderCancel proves the successor path under a mid-flight
 // fence: a fenced successor start refuses without launching, and it leaves the slot
 // EITHER the predecessor's executing reservation (refused before rotation) OR

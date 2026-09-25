@@ -1072,7 +1072,11 @@ func (d *Driver) launchScoped(t *AdmissionTicket, claim *relaunchClaim) (DriveDo
 // continuing the sequence in the terminal-before-release window) ROTATES it to its
 // OWN fresh reservation — a new ReservationToken and bumped ExecutionGen — so the
 // predecessor's stale token can never free or poison the successor's slot, and the
-// successor confirms and owns its own post-launch failure legs (ownsSlot=true). A
+// successor confirms and owns its own post-launch failure legs (ownsSlot=true).
+// Rotation additionally requires the presented receipt to still name the
+// scope's CURRENT drive (reserveScopeDrive's own staleness predicate, applied
+// before the mutating step): a successor whose predecessor was already
+// superseded is refused typed ErrStalePredecessor without touching the slot. A
 // RECEIPT-LESS first start that finds a same-scope executing slot has raced an
 // already-launched drive and is refused typed ErrScopeSecondDrive without touching the
 // slot. A slot held by a DIFFERENT scope, or in a stopping/unresolved state, is a
@@ -1113,6 +1117,26 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 			// winner's run under a reserved slot with a foreign token.
 			if req.PredecessorDriveID == "" {
 				return "", false, false, false, nil, ownershipErr(ErrScopeSecondDrive, "start")
+			}
+			// The receipt must still name the scope's CURRENT drive before the one
+			// mutating admission step (the rotation) runs. reserveScopeDrive stays
+			// the authority for the scope slot — this is its own staleness predicate
+			// (receipt drive id vs the scope's CurrentDriveID) evaluated earlier, so
+			// a second successor holding a retired predecessor's receipt never
+			// rotates a live slot that its inevitable ErrStalePredecessor cleanup
+			// would then release (change 0453). Reading the scope AFTER the slot
+			// read is sufficient: a slot executing under a successor's token was
+			// confirmed only after that successor's reserveScopeDrive advanced the
+			// scope, and the scope never moves back to an earlier drive; a racer
+			// holding an older slot token is refused by the rotation's own token
+			// check. A scope load failure fails closed unchanged, like the
+			// unreadable-slot leg above.
+			scope, serr := d.store.LoadScope(req.ScopeID)
+			if serr != nil {
+				return "", false, false, false, nil, serr
+			}
+			if scope.CurrentDriveID != req.PredecessorDriveID {
+				return "", false, false, false, nil, ownershipErr(ErrStalePredecessor, "start")
 			}
 			// A same-scope successor continues over the executing slot: rotate it to
 			// this start's OWN fresh reservation rather than reusing the predecessor's
