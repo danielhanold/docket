@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0454 — Whole-repository status must not fail on an unrelated change's invalid branch name](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md)**
+> ↩ **[Change 0454 — Whole-repository status must not fail on an unrelated change's invalid branch name](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-25-0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md)**
 <!-- docket:backlink:end -->
 # Whole-Repository Status Survives an Unrelated Invalid Branch Name — Implementation Plan
 
