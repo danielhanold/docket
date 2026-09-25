@@ -1084,10 +1084,12 @@ func (d *Driver) launchScoped(t *AdmissionTicket, claim *relaunchClaim) (DriveDo
 // OWN fresh reservation — a new ReservationToken and bumped ExecutionGen — so the
 // predecessor's stale token can never free or poison the successor's slot, and the
 // successor confirms and owns its own post-launch failure legs (ownsSlot=true).
-// Rotation additionally requires the presented receipt to still name the
-// scope's CURRENT drive (reserveScopeDrive's own staleness predicate, applied
+// Rotation additionally requires the scope to still admit the presented receipt
+// (reserveScopeDrive's own ordered predicate, scopeReserveRefusal, applied
 // before the mutating step): a successor whose predecessor was already
-// superseded is refused typed ErrStalePredecessor without touching the slot. A
+// superseded is refused typed ErrStalePredecessor, and one refused by an earlier
+// clause (a closed scope, a busy slot, ...) gets that clause's typed refusal,
+// all without touching the slot. A
 // RECEIPT-LESS first start that finds a same-scope executing slot has raced an
 // already-launched drive and is refused typed ErrScopeSecondDrive without touching the
 // slot. A slot held by a DIFFERENT scope, or in a stopping/unresolved state, is a
@@ -1129,13 +1131,17 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 			if req.PredecessorDriveID == "" {
 				return "", false, false, false, nil, ownershipErr(ErrScopeSecondDrive, "start")
 			}
-			// The receipt must still name the scope's CURRENT drive before the one
-			// mutating admission step (the rotation) runs. reserveScopeDrive stays
-			// the authority for the scope slot — this is its own staleness predicate
-			// (receipt drive id vs the scope's CurrentDriveID) evaluated earlier, so
-			// a second successor holding a retired predecessor's receipt never
-			// rotates a live slot that its inevitable ErrStalePredecessor cleanup
-			// would then release (change 0453). This unlocked read excludes only a
+			// The scope must still admit this successor before the one mutating
+			// admission step (the rotation) runs. reserveScopeDrive stays the
+			// authority for the scope slot — this evaluates its WHOLE ordered
+			// predicate (scopeReserveRefusal: capability, closed, receipt shape,
+			// reserved slot, pending ack, then staleness) earlier, on an unlocked
+			// snapshot, so a second successor holding a retired predecessor's
+			// receipt never rotates a live slot that its inevitable
+			// ErrStalePredecessor cleanup would then release (change 0453), and a
+			// condition the authority checks before staleness (a closed scope, say)
+			// surfaces its own typed refusal rather than ErrStalePredecessor. Any
+			// refusal leaves the slot untouched. This unlocked read excludes only a
 			// successor that arrives AFTER a sibling launched on the same receipt:
 			// for that ordering, reading the scope after the slot read suffices,
 			// because a slot executing under a successor's token was confirmed only
@@ -1152,8 +1158,9 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 			if serr != nil {
 				return "", false, false, false, nil, serr
 			}
-			if scope.CurrentDriveID != req.PredecessorDriveID {
-				return "", false, false, false, nil, ownershipErr(ErrStalePredecessor, "start")
+			receipt := predecessorReceipt{DriveID: req.PredecessorDriveID, OwnerGen: req.PredecessorOwnerGen}
+			if refusal := scopeReserveRefusal(scope, req.ChildCapability, receipt, "start"); refusal != nil {
+				return "", false, false, false, nil, refusal
 			}
 			// A same-scope successor continues over the executing slot: rotate it to
 			// this start's OWN fresh reservation rather than reusing the predecessor's

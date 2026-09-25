@@ -279,42 +279,23 @@ func (s *Store) LoadScope(id string) (scopeRecord, error) {
 // (reserved), records the predecessor as PriorDriveID, journals the pending ack,
 // and increments DriveCount. Retiring the predecessor's recovery authority is the
 // caller's journaled second half (Task 4 retirePredecessor + clearPendingAck).
+// The ordered refusal predicate is scopeReserveRefusal, shared with the
+// pre-rotation guard in admitScopedWorktree.
 func (s *Store) reserveScopeDrive(scopeID, childCapability, newDriveID string, receipt predecessorReceipt) error {
 	return s.scopeCAS(scopeID, func(rec *scopeRecord) error {
-		if childCapability == "" || rec.ChildCapHash != capHash(childCapability) {
-			return ownershipErr(ErrScopeCapabilityMismatch, "reserve-scope-drive")
-		}
-		if rec.Closed {
-			return ownershipErr(ErrScopeClosed, "reserve-scope-drive")
-		}
-		if receipt.halfFilled() {
-			return ownershipErr(ErrStalePredecessor, "reserve-scope-drive")
+		if err := scopeReserveRefusal(*rec, childCapability, receipt, "reserve-scope-drive"); err != nil {
+			return err
 		}
 		if rec.CurrentDriveID == "" {
-			// Empty slot: only a first start (empty receipt) may fill it.
-			if !receipt.empty() {
-				return ownershipErr(ErrStalePredecessor, "reserve-scope-drive")
-			}
+			// Empty slot: a first start (scopeReserveRefusal admitted only an empty
+			// receipt here) fills it.
 			rec.CurrentDriveID = newDriveID
 			rec.CurrentDriveState = scopeStateReserved
 			rec.DriveCount++
 			return nil
 		}
-		// Occupied slot: a mid-transition state fails closed before the receipt is
-		// even considered, so a reservation in flight or an unretired predecessor is
-		// never overwritten.
-		if rec.CurrentDriveState == scopeStateReserved {
-			return ownershipErr(ErrScopeBusy, "reserve-scope-drive")
-		}
-		if rec.PendingAckDriveID != "" {
-			return ownershipErr(ErrUnresolvedLaunchTransition, "reserve-scope-drive")
-		}
-		if receipt.empty() {
-			return ownershipErr(ErrScopeSecondDrive, "reserve-scope-drive")
-		}
-		if receipt.DriveID != rec.CurrentDriveID {
-			return ownershipErr(ErrStalePredecessor, "reserve-scope-drive")
-		}
+		// Occupied slot: scopeReserveRefusal admitted only a successor whose receipt
+		// names the current launched drive with no pending ack.
 		rec.PriorDriveID = rec.CurrentDriveID
 		rec.CurrentDriveID = newDriveID
 		rec.CurrentDriveState = scopeStateReserved
@@ -323,6 +304,69 @@ func (s *Store) reserveScopeDrive(scopeID, childCapability, newDriveID string, r
 		rec.DriveCount++
 		return nil
 	})
+}
+
+// scopeReserveRefusal is reserveScopeDrive's ordered refusal predicate as a pure
+// function of one scope record snapshot: it returns the typed refusal
+// reserveScopeDrive would give a start presenting childCapability and receipt
+// against rec, or nil when that start would be admitted to the slot. The order is
+// the authority's — capability, closed, receipt shape, then slot state — so the
+// FIRST failing clause names the refusal:
+//
+//   - a missing or wrong child capability is ErrScopeCapabilityMismatch;
+//   - a closed scope is ErrScopeClosed;
+//   - a half-filled receipt is ErrStalePredecessor;
+//   - an EMPTY slot admits only an empty receipt (else ErrStalePredecessor);
+//   - an OCCUPIED slot refuses a reserved (unconfirmed) current drive
+//     ErrScopeBusy, a journaled pending ack ErrUnresolvedLaunchTransition, an
+//     empty receipt ErrScopeSecondDrive, and a receipt naming a non-current drive
+//     ErrStalePredecessor.
+//
+// op names the calling operation in the returned error. reserveScopeDrive
+// evaluates it under the scope lock (the authority); admitScopedWorktree
+// evaluates the same whole predicate on an unlocked snapshot before its one
+// mutating step (the successor rotation), so a condition the authority checks
+// before staleness surfaces its own typed refusal there rather than being
+// reported as ErrStalePredecessor, and a receipt naming the current drive that
+// fails an earlier clause is refused before it rotates a live slot. No clause
+// wrongly refuses a legitimate successor at that earlier point: the capability
+// hash never changes after prepare, a close is one-way, the authority refuses a
+// reserved or pending-ack slot whatever the receipt (and a drive still reserved in
+// its scope has no durable result a successor could acknowledge), and the scope
+// never moves back to an earlier drive — so a refusal on the snapshot never turns
+// away a successor the authority would admit.
+func scopeReserveRefusal(rec scopeRecord, childCapability string, receipt predecessorReceipt, op string) error {
+	if childCapability == "" || rec.ChildCapHash != capHash(childCapability) {
+		return ownershipErr(ErrScopeCapabilityMismatch, op)
+	}
+	if rec.Closed {
+		return ownershipErr(ErrScopeClosed, op)
+	}
+	if receipt.halfFilled() {
+		return ownershipErr(ErrStalePredecessor, op)
+	}
+	if rec.CurrentDriveID == "" {
+		if !receipt.empty() {
+			return ownershipErr(ErrStalePredecessor, op)
+		}
+		return nil
+	}
+	// Occupied slot: a mid-transition state fails closed before the receipt is
+	// even considered, so a reservation in flight or an unretired predecessor is
+	// never overwritten.
+	if rec.CurrentDriveState == scopeStateReserved {
+		return ownershipErr(ErrScopeBusy, op)
+	}
+	if rec.PendingAckDriveID != "" {
+		return ownershipErr(ErrUnresolvedLaunchTransition, op)
+	}
+	if receipt.empty() {
+		return ownershipErr(ErrScopeSecondDrive, op)
+	}
+	if receipt.DriveID != rec.CurrentDriveID {
+		return ownershipErr(ErrStalePredecessor, op)
+	}
+	return nil
 }
 
 // confirmScopeLaunch flips the slot's current drive from reserved to launched
