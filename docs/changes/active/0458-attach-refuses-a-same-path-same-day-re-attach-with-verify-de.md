@@ -2,7 +2,7 @@
 id: 458
 slug: 'attach-refuses-a-same-path-same-day-re-attach-with-verify-de'
 title: 'Attach refuses a same-path same-day re-attach with verify-delta invalid-state'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-25'
@@ -19,7 +19,7 @@ trivial: true
 auto_groomable:
 branch_prefix:
 branch: 'fix/attach-refuses-a-same-path-same-day-re-attach-with-verify-de'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/335'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-25T14:18:07Z'

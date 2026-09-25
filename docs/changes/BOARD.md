@@ -1,12 +1,12 @@
 # Backlog
 
-**458 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 307 done · 🗑️ 119 killed
+**458 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 307 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0458](active/0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md) | Attach refuses a same-path same-day re-attach with verify-delta invalid-state | `high` | `fix` | [spec](../) | `fix/attach-refuses-a-same-path-same-day-re-attach-with-verify-de` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0458](active/0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md) | Attach refuses a same-path same-day re-attach with verify-delta invalid-state | `high` | `fix` | [#335](https://github.com/danielhanold/docket/pull/335) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
