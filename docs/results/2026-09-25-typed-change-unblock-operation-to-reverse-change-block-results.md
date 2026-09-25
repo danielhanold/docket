@@ -3,7 +3,7 @@
 <!-- docket:backlink:end -->
 # Typed change.unblock operation to reverse change.block — Results
 
-**Human action:** None required to merge. One optional walkthrough is below if you want to see the two new commands work on a scratch repository.
+**Human action:** None required. The change is ready to merge. One optional walkthrough is below if you want to see the two new commands work on a scratch repository.
 
 ## Outcome
 
@@ -44,4 +44,5 @@ Cleanup: delete the scratch repository.
 - Each of the four plan tasks ran focused tests through the gate driver: the lifecycle unit tests, the `internal/app` integration tests (`-tags integration`), the `internal/cli` and `internal/app` packages in full, and the `internal/assets` and `internal/repoguard` tests. All passed.
 - Where it applied, each task showed a failing test first: the missing types, then the unregistered commands.
 - Mutation check on the regression test: making `ChangeUnblock` call the revive transition caused the 0444 regression test to fail as intended. The mutation was reverted.
-- The full-suite build gate and the whole-branch review happen after this checkpoint. The build evidence in the PR body records their outcome.
+- The full build suite (`go run ./cmd/docket development test`) passed. Several integration and race test files printed `BUDGET WATCH` lines, meaning they ran longer than budget while tests ran in parallel. These are screening notes, not failures, and no serial run confirmed a breach.
+- The whole-branch review returned one important finding. The spec asked for real-engine integration tests that check the board row for an applied unblock and revive, but the first applied tests used a fake engine. The finding was fixed in commit e5ba1ead: a new real-engine defer-then-revive test, plus checks of the commit subject and board row on the unblock step of the 0444 regression. A deliberately broken expectation made the new assertions fail, so they do catch mistakes. The full suite was then run again at the final head. The build evidence in the PR body records that run.
