@@ -20,7 +20,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0458](active/0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md) | Attach refuses a same-path same-day re-attach with verify-delta invalid-state | `high` | `fix` | needs-brainstorm |
+| [0458](active/0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md) | Attach refuses a same-path same-day re-attach with verify-delta invalid-state | `high` | `fix` | build-ready (trivial) |
 | [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-brainstorm |
 | [0456](active/0456-show-finding-remedies-in-docket-status-human-view.md) | Show finding remedies in docket status human view | `medium` | `chore` | needs-brainstorm |
 | [0455](active/0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | `medium` | `docs` | needs-brainstorm |

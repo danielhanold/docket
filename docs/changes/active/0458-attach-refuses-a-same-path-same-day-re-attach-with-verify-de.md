@@ -9,13 +9,13 @@ created: '2026-09-25'
 updated: '2026-09-25'
 depends_on: []
 stacked_on:
-related: [315, 335, 450]
+related: [315, 335, 445, 450]
 discovered_from: [450]
 adrs: []
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
 branch_prefix:
 branch:
@@ -54,13 +54,16 @@ Each hit so far was harmless: the first attachment already set `results:` to the
 
 ## What changes
 
-- Attach declares the change record only when its re-rendered bytes differ from the committed source. When nothing changed, the plan is empty and the operation takes the engine's existing no-op path (`len(plan.Files) == 0` returns `DispositionNoOp`).
-- Decide and document what a same-path re-attach reports to callers (`no-op` versus `applied`), so implement-next's checkpoint flow treats it as success.
-- Add a regression test that attaches the same path twice on the same day, for both `attach-plan` and `attach-results`, with the inline board on. It should fail before the fix.
-- Audit the other record-writing operations for the same unconditional-declaration shape, and fix or list any that can re-render a byte-identical record.
+**Trivial verdict (groomed 2026-09-25).** The fix already exists in the codebase. Change 0445 (`d9cc87e1`) fixed this bug class in `change.groom` revise, and this change applies the same guard to attach. There is no design question left.
+
+- In `changeAttachOp.Plan` (`internal/app/change_attach.go`), declare the change record only when `!bytes.Equal(finalBytes, src)`. Copy the shape and comment of the `change_groom.go` guard ("Declare only paths whose bytes actually change"). Leave the `includeBoard` call as it is.
+- A same-path, same-day re-attach then produces an empty plan, and the engine's existing `len(plan.Files) == 0` path returns `no-op`. By design, that path persists no receipt and no idempotency record (see the engine's step-9 comment). `no-op` is the correct, self-explanatory answer to implement-next's "reattach before completion". No Go caller consumes attach's disposition, and `change.mark-implemented` reads the results file at the tested head on its own. No skill-text change is needed.
+- Add a regression test that attaches the same path twice on the same day, for both `attach-plan` and `attach-results`, with the inline board on. The second call must return `no-op` with no commit, and the test must fail before the fix.
 
 ## Out of scope
 
 - Changing the engine's two-way delta guard. It is correct: a plan must describe reality.
 - Changing attach idempotency keying.
 - The board declaration, already fixed by change 0335.
+- An audit of the other record-writing operations, done at grooming time and clean. Every other unconditional record declaration is a status transition (claim, halt, implemented, lifecycle, reclaim, kill, repair, closeout, finalize block), so its bytes always change. The rest are already guarded (groom revise via 0445, board via 0335).
+- Implement-next skill wording. A `no-op` envelope already reads as success.
