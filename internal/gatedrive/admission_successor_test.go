@@ -216,11 +216,13 @@ func TestLatePredecessorReleaseCannotFreeSuccessor(t *testing.T) {
 // reserveScopeDrive's staleness predicate BEFORE the rotation (change 0453): it is
 // refused ErrStalePredecessor with the executing slot unrotated.
 //
-// A FRESH receipt whose scope closes between the unlocked precheck and admission
-// (modelled through the epoch-gate seam, which runs after precheck and wraps the
-// admission body) rotates the slot and is then refused ErrScopeClosed by the
+// A FRESH receipt whose scope closes after the rotation but before the scope
+// reservation (modelled through scopedAdmissionHook, which fires between worktree
+// admission and reserveScopeDrive) is refused ErrScopeClosed by the
 // reserveScopeDrive authority: the rotated slot must be released, and the scope
-// record stays byte-unchanged by the failed reservation.
+// record stays byte-unchanged by the failed reservation. (A scope already closed
+// when the guard reads it is refused before the rotation —
+// TestSameScopeSuccessorGuardAppliesWholeReservePredicate.)
 func TestSuccessorAdmissionFailureLegsReleaseRotatedSlot(t *testing.T) {
 	clk := &fakeClock{now: startEpoch()}
 	store := OpenStore(testsupport.TempDir(t))
@@ -280,9 +282,10 @@ func TestSuccessorAdmissionFailureLegsReleaseRotatedSlot(t *testing.T) {
 	}
 
 	// Post-rotation failure leg: a fresh receipt whose scope closes after the
-	// unlocked precheck. The gate closes the scope, then runs the admission body.
+	// rotation. The hook fires once worktree admission (the rotation) has run and
+	// closes the scope before reserveScopeDrive arbitrates it.
 	var scopeClosed []byte
-	d.SetEpochLaunchGate(func(_, _ string, reserve func() error) error {
+	setScopedAdmissionHook(t, func(StartRequest) {
 		if err := store.scopeCAS(req.ScopeID, func(rec *scopeRecord) error {
 			rec.Closed = true
 			return nil
@@ -290,7 +293,6 @@ func TestSuccessorAdmissionFailureLegsReleaseRotatedSlot(t *testing.T) {
 			t.Fatalf("close scope mid-admission: %v", err)
 		}
 		scopeClosed = readScopeBytes(t, store, req.ScopeID)
-		return reserve()
 	})
 	fresh := req
 	fresh.PredecessorDriveID = cur.DriveID

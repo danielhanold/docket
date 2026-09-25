@@ -1,6 +1,7 @@
 package gatedrive
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -1676,6 +1677,147 @@ func TestSameScopeSuccessorScopeReadFailureFailsClosed(t *testing.T) {
 	if after.State != admissionExecuting || after.ReservationToken != before.ReservationToken || after.ExecutionGen != before.ExecutionGen {
 		t.Fatalf("a failed scope read must leave S1's reservation untouched: state %q->%q, token changed=%v, gen %d->%d",
 			before.State, after.State, after.ReservationToken != before.ReservationToken, before.ExecutionGen, after.ExecutionGen)
+	}
+}
+
+// TestSameScopeSuccessorGuardAppliesWholeReservePredicate pins that the
+// pre-rotation guard in admitScopedWorktree applies reserveScopeDrive's WHOLE
+// ordered predicate (scopeReserveRefusal), not only its final staleness clause
+// (change 0453 review finding): a scope condition that the authority checks
+// BEFORE staleness must surface its own typed refusal — never be masked as
+// ErrStalePredecessor — and a receipt that names the current drive but fails an
+// earlier clause must be refused before the rotation. Every case refuses with
+// S1's executing reservation and the scope record untouched, and the guard's
+// verdict equals the reserveScopeDrive authority's on the same scope snapshot.
+func TestSameScopeSuccessorGuardAppliesWholeReservePredicate(t *testing.T) {
+	// setScope edits the stored scope record directly (an out-of-band state).
+	setScope := func(t *testing.T, store *Store, scopeID string, fn func(*scopeRecord)) {
+		t.Helper()
+		if err := store.scopeCAS(scopeID, func(rec *scopeRecord) error {
+			fn(rec)
+			return nil
+		}); err != nil {
+			t.Fatalf("mutate scope: %v", err)
+		}
+	}
+	cases := []struct {
+		name string
+		// mutate edits the scope record (and may edit S2's request) after S1 is
+		// executing; s1ID is the scope's current drive.
+		mutate func(t *testing.T, store *Store, req *StartRequest, s1ID string)
+		want   OwnershipErrorKind
+	}{
+		{
+			name: "closed scope with a stale receipt is ErrScopeClosed",
+			mutate: func(t *testing.T, store *Store, req *StartRequest, _ string) {
+				setScope(t, store, req.ScopeID, func(rec *scopeRecord) { rec.Closed = true })
+			},
+			want: ErrScopeClosed,
+		},
+		{
+			name: "capability mismatch with a stale receipt is ErrScopeCapabilityMismatch",
+			mutate: func(_ *testing.T, _ *Store, req *StartRequest, _ string) {
+				req.ChildCapability = "not-the-scope-capability"
+			},
+			want: ErrScopeCapabilityMismatch,
+		},
+		{
+			name: "reserved scope slot with a stale receipt is ErrScopeBusy",
+			mutate: func(t *testing.T, store *Store, req *StartRequest, _ string) {
+				setScope(t, store, req.ScopeID, func(rec *scopeRecord) { rec.CurrentDriveState = scopeStateReserved })
+			},
+			want: ErrScopeBusy,
+		},
+		{
+			name: "pending ack with a stale receipt is ErrUnresolvedLaunchTransition",
+			mutate: func(t *testing.T, store *Store, req *StartRequest, _ string) {
+				setScope(t, store, req.ScopeID, func(rec *scopeRecord) {
+					rec.PendingAckDriveID = "unretired-predecessor"
+					rec.PendingAckOwnerGen = "unretired-generation"
+				})
+			},
+			want: ErrUnresolvedLaunchTransition,
+		},
+		{
+			name: "half-filled receipt naming the current drive is ErrStalePredecessor before rotation",
+			mutate: func(_ *testing.T, _ *Store, req *StartRequest, s1ID string) {
+				req.PredecessorDriveID = s1ID
+				req.PredecessorOwnerGen = ""
+			},
+			want: ErrStalePredecessor,
+		},
+		{
+			name: "closed scope with a receipt naming the current drive is ErrScopeClosed before rotation",
+			mutate: func(t *testing.T, store *Store, req *StartRequest, s1ID string) {
+				setScope(t, store, req.ScopeID, func(rec *scopeRecord) { rec.Closed = true })
+				req.PredecessorDriveID = s1ID
+				req.PredecessorOwnerGen = "any-generation"
+			},
+			want: ErrScopeClosed,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			clk := &fakeClock{now: startEpoch()}
+			store := OpenStore(testsupport.TempDir(t))
+			d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
+			_, req := prepareScopedStart(t, store)
+
+			// P launches and settles PASSED; S1 presents P's receipt, rotates, and
+			// leaves the worktree slot executing under its own token.
+			first, err := d.Start(req)
+			if err != nil {
+				t.Fatalf("predecessor Start: %v", err)
+			}
+			if err := store.ownerCAS(first.DriveID, func(r *driveRecord) error {
+				r.LastOutcome = PASSED
+				return nil
+			}); err != nil {
+				t.Fatalf("settle predecessor terminal: %v", err)
+			}
+			succ := req
+			succ.PredecessorDriveID = first.DriveID
+			succ.PredecessorOwnerGen = first.Generation
+			s1, err := d.Start(succ)
+			if err != nil {
+				t.Fatalf("successor S1 Start: %v", err)
+			}
+			before, _, err := store.LoadWorktreeExecution(req.Worktree)
+			if err != nil {
+				t.Fatalf("LoadWorktreeExecution: %v", err)
+			}
+			if before.State != admissionExecuting {
+				t.Fatalf("precondition: S1's slot must be executing, got %q", before.State)
+			}
+
+			// S2 keeps P's (now-stale) receipt unless the case rewrites it.
+			s2 := succ
+			tc.mutate(t, store, &s2, s1.DriveID)
+			scopeBefore := readScopeBytes(t, store, req.ScopeID)
+
+			_, _, _, _, _, aerr := d.admitScopedWorktree(s2)
+			if !isOwnershipKind(aerr, tc.want) {
+				t.Fatalf("the guard must refuse %v (reserveScopeDrive's ordered verdict), got %v", tc.want, aerr)
+			}
+			after, _, err := store.LoadWorktreeExecution(req.Worktree)
+			if err != nil {
+				t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
+			}
+			if after.State != admissionExecuting || after.ReservationToken != before.ReservationToken || after.ExecutionGen != before.ExecutionGen {
+				t.Fatalf("S1's executing reservation must be untouched: state %q->%q, token changed=%v, gen %d->%d",
+					before.State, after.State, after.ReservationToken != before.ReservationToken, before.ExecutionGen, after.ExecutionGen)
+			}
+			if !bytes.Equal(scopeBefore, readScopeBytes(t, store, req.ScopeID)) {
+				t.Fatalf("a guard refusal must leave the scope record byte-unchanged")
+			}
+
+			// Parity: the reserveScopeDrive authority, on the same snapshot, refuses
+			// with the same kind (and, refusing, writes nothing).
+			receipt := predecessorReceipt{DriveID: s2.PredecessorDriveID, OwnerGen: s2.PredecessorOwnerGen}
+			if rerr := store.reserveScopeDrive(req.ScopeID, s2.ChildCapability, "parity-probe", receipt); !isOwnershipKind(rerr, tc.want) {
+				t.Fatalf("parity: reserveScopeDrive must refuse %v on the same snapshot, got %v", tc.want, rerr)
+			}
+		})
 	}
 }
 
