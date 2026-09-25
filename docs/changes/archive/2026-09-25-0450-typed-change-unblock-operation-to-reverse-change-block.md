@@ -2,7 +2,7 @@
 id: 450
 slug: 'typed-change-unblock-operation-to-reverse-change-block'
 title: 'Typed change.unblock operation to reverse change.block'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'chore'
 created: '2026-09-24'
@@ -22,7 +22,7 @@ branch: 'chore/typed-change-unblock-operation-to-reverse-change-block'
 pr: 'https://github.com/danielhanold/docket/pull/334'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-25T11:15:13Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-25T11:15:13Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md) |
-| Plan | [2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md](https://github.com/danielhanold/docket/blob/chore/typed-change-unblock-operation-to-reverse-change-block/docs/superpowers/plans/2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md) |
-| Results | [2026-09-25-typed-change-unblock-operation-to-reverse-change-block-results.md](https://github.com/danielhanold/docket/blob/chore/typed-change-unblock-operation-to-reverse-change-block/docs/results/2026-09-25-typed-change-unblock-operation-to-reverse-change-block-results.md) |
+| Plan | [2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md) |
+| Results | [2026-09-25-typed-change-unblock-operation-to-reverse-change-block-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-25-typed-change-unblock-operation-to-reverse-change-block-results.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 

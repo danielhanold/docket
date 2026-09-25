@@ -1,12 +1,6 @@
 # Backlog
 
-**458 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 306 done · 🗑️ 119 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0450](active/0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | `high` | `chore` | [#334](https://github.com/danielhanold/docket/pull/334) | awaiting merge |
+**458 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 307 done · 🗑️ 119 killed
 
 ## 🔴 Blocked (1)
 
@@ -91,7 +85,6 @@ graph TD
   0433
   0443
   0447
-  0450
   0455
   0456
   0457
@@ -104,12 +97,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (425)</summary>
+<details><summary>✅🗑️ Archive — done + killed (426)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0454](archive/2026-09-25-0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md) | Whole-repository status must not fail on an unrelated change's invalid branch name | 2026-09-25 |
 | [0453](archive/2026-09-25-0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md) | Two successors sharing one stale predecessor receipt can still free a live worktree slot | 2026-09-25 |
+| [0450](archive/2026-09-25-0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | 2026-09-25 |
 | [0445](archive/2026-09-25-0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | 2026-09-25 |
 | [0452](archive/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md) | Same-scope first-start loser must not rotate the winner's executing worktree slot | 2026-09-24 |
 | [0451](archive/2026-09-24-0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md) | Workspace publish refuses a feature head that moved after the app-level check | 2026-09-24 |
@@ -122,7 +116,6 @@ graph TD
 | [0441](archive/2026-09-22-0441-release-successful-implementation-ownership-before-standalon.md) | Release successful implementation ownership before standalone finalize | 2026-09-22 |
 | [0440](archive/2026-09-21-0440-make-results-artifacts-readable-and-actionable.md) | Make results artifacts readable and actionable | 2026-09-21 |
 | [0418](archive/2026-09-21-0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | 2026-09-21 |
-| [0350](archive/2026-09-21-0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | 2026-09-21 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -247,7 +240,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 55 done |
+| [2026-09](archive/) | 56 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
