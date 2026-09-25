@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0453 — Two successors sharing one stale predecessor receipt can still free a live worktree slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md)**
+> ↩ **[Change 0453 — Two successors sharing one stale predecessor receipt can still free a live worktree slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-25-0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md)**
 <!-- docket:backlink:end -->
 # Successor stale-receipt must not rotate a live worktree slot — Implementation Plan
 
