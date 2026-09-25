@@ -22,7 +22,7 @@ branch: 'fix/two-successors-sharing-one-stale-predecessor-receipt-can-sti'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-25T09:13:06Z'
+claimed_at: '2026-09-25T09:15:05Z'
 ---
 
 ## Artifacts
