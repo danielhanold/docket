@@ -713,6 +713,132 @@ func TestIntegrationChangeAuthoringDeferAppliedResultCarriesDeferStatus(t *testi
 	}
 }
 
+func TestIntegrationChangeAuthoringUnblockAppliedResult(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	receipt := mustMarshal(t, changeLifecycleReceipt{
+		ID: 3, Op: OperationChangeUnblock, Status: "in-progress",
+	})
+	engine := &recordingEngine{result: transaction.Result{
+		Disposition:   transaction.DispositionApplied,
+		AppliedCommit: "abababababababababababababababababababab",
+		Receipt:       receipt,
+	}}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeUnblock(context.Background(), deps, repoDir, validUnblockRequest())
+
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied", res.Result)
+	}
+	if res.ID != 3 || res.Status != "in-progress" {
+		t.Errorf("identity from receipt = (%d, %q)", res.ID, res.Status)
+	}
+	if res.Revision != "abababababababababababababababababababab" {
+		t.Errorf("revision = %q", res.Revision)
+	}
+	if res.Operation != OperationChangeUnblock {
+		t.Errorf("operation = %q, want %q", res.Operation, OperationChangeUnblock)
+	}
+	assertSingleLifecycleEngineCall(t, engine, OperationChangeUnblock)
+}
+
+func TestIntegrationChangeAuthoringReviveAppliedResultCarriesProposedStatus(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	receipt := mustMarshal(t, changeLifecycleReceipt{
+		ID: 3, Op: OperationChangeRevive, Status: "proposed",
+	})
+	engine := &recordingEngine{result: transaction.Result{
+		Disposition:   transaction.DispositionApplied,
+		AppliedCommit: "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+		Receipt:       receipt,
+	}}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeRevive(context.Background(), deps, repoDir, validReviveRequest())
+
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied", res.Result)
+	}
+	if res.ID != 3 || res.Status != "proposed" {
+		t.Errorf("identity from receipt = (%d, %q)", res.ID, res.Status)
+	}
+	if res.Revision != "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd" {
+		t.Errorf("revision = %q", res.Revision)
+	}
+	if res.Operation != OperationChangeRevive {
+		t.Errorf("operation = %q, want %q", res.Operation, OperationChangeRevive)
+	}
+	assertSingleLifecycleEngineCall(t, engine, OperationChangeRevive)
+}
+
+// assertSingleLifecycleEngineCall pins the one engine call a lifecycle
+// transition submits: the operation key, the metadata target ref, no
+// idempotency key, and exactly one entity expectation pinning the request's
+// path at the exact submitted blob version.
+func assertSingleLifecycleEngineCall(t *testing.T, engine *recordingEngine, op string) {
+	t.Helper()
+	if len(engine.calls) != 1 {
+		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
+	}
+	req := engine.calls[0]
+	if string(req.Operation.Key()) != op {
+		t.Errorf("operation key = %q, want %q", req.Operation.Key(), op)
+	}
+	if req.TargetRef != "refs/heads/docket" {
+		t.Errorf("target ref = %q, want refs/heads/docket", req.TargetRef)
+	}
+	if req.Idempotency != nil {
+		t.Errorf("lifecycle is non-allocating; it must carry no idempotency key, got %+v", req.Idempotency)
+	}
+	if len(req.Expected) != 1 {
+		t.Fatalf("expected %d entity expectations, want 1", len(req.Expected))
+	}
+	exp := req.Expected[0]
+	if string(exp.Path) != groomPath(3, "widget") {
+		t.Errorf("expectation path = %q", exp.Path)
+	}
+	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
+		t.Errorf("expectation version = %+v, want blob %s", exp.Version, blobV)
+	}
+}
+
+// Version drift between read and submit is a lost race: the engine reports
+// contended and the lifecycle result must say so, never a write over a moved
+// record (change 0450 Review Focus 2).
+func TestIntegrationChangeAuthoringUnblockContendedOnVersionDrift(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeUnblock(context.Background(), deps, repoDir, validUnblockRequest())
+
+	if res.Result != ResultContended {
+		t.Fatalf("result = %q, want contended", res.Result)
+	}
+	if res.Findings == nil {
+		t.Errorf("Findings must marshal as [], not nil")
+	}
+}
+
+func TestIntegrationChangeAuthoringReviveContendedOnVersionDrift(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeRevive(context.Background(), deps, repoDir, validReviveRequest())
+
+	if res.Result != ResultContended {
+		t.Fatalf("result = %q, want contended", res.Result)
+	}
+	if res.Findings == nil {
+		t.Errorf("Findings must marshal as [], not nil")
+	}
+}
+
 // TestEvidenceRecordFromPassedRun: a green terminal record plus a feature head
 // matching the request produces an immutable record carrying the OBSERVED gate
 // command (never a request field) and the exact head; the rendered block
@@ -2941,6 +3067,85 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 			})
 		})
 	}
+}
+
+// TestIntegrationChangeRuntimeUnblockThenResumeHalted proves the 0444 path as
+// typed operations end to end: a halted in-progress change is blocked, then
+// unblocked (status back to in-progress, blocked_by cleared, ## Run halted
+// preserved), then resume-halted succeeds and removes exactly the marker.
+func TestIntegrationChangeRuntimeUnblockThenResumeHalted(t *testing.T) {
+	for _, m := range planRepoModes() {
+		t.Run(m.name, func(t *testing.T) {
+			f := setupHaltedFixture(t, m)
+			recPath := groomPath(f.id, f.slug)
+
+			// 1. Block the halted change through the real engine.
+			blocked := ChangeBlock(context.Background(), f.deps, f.repo.invocation, ChangeBlockRequest{
+				ChangeID: f.id, Path: recPath, Version: f.version, Reason: "waiting on 0446",
+			})
+			if blocked.Result != ResultApplied || blocked.Status != "blocked" {
+				t.Fatalf("block = %q status %q (findings %v), want applied blocked",
+					blocked.Result, blocked.Status, blocked.Findings)
+			}
+
+			// 2. The record is blocked, the reason recorded, the marker intact.
+			rec, _ := originFile(t, f.repo.origin, f.branch, recPath)
+			if !recordHasStatus(rec, "blocked") {
+				t.Fatalf("post-block record not blocked:\n%s", rec)
+			}
+			for _, want := range []string{"blocked_by: 'waiting on 0446'", "## Run halted"} {
+				if !strings.Contains(rec, want) {
+					t.Fatalf("post-block record missing %q:\n%s", want, rec)
+				}
+			}
+
+			// 3. Unblock with the post-block version.
+			unblocked := ChangeUnblock(context.Background(), f.deps, f.repo.invocation, ChangeUnblockRequest{
+				ChangeID: f.id, Path: recPath, Version: blobVersionAt(t, f.repo.origin, f.branch, recPath),
+			})
+			if unblocked.Result != ResultApplied || unblocked.Status != "in-progress" {
+				t.Fatalf("unblock = %q status %q (findings %v), want applied in-progress",
+					unblocked.Result, unblocked.Status, unblocked.Findings)
+			}
+			rec, _ = originFile(t, f.repo.origin, f.branch, recPath)
+			if !recordHasStatus(rec, "in-progress") {
+				t.Errorf("unblock did not restore in-progress:\n%s", rec)
+			}
+			if !strings.Contains(rec, "\nblocked_by:\n") || strings.Contains(rec, "waiting on 0446") {
+				t.Errorf("blocked_by not cleared to the bare null form:\n%s", rec)
+			}
+			if !strings.Contains(rec, "## Run halted") {
+				t.Fatalf("unblock dropped the ## Run halted marker:\n%s", rec)
+			}
+
+			// 4. Resume-halted with a quiescent workspace and the post-unblock
+			// version recovers the change and removes exactly the marker.
+			resumed := ChangeResumeHalted(context.Background(), f.deps,
+				WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
+				ResumeRequest{ID: f.id, Version: blobVersionAt(t, f.repo.origin, f.branch, recPath), AcknowledgeQuiescent: true})
+			if resumed.Result != ResultApplied || resumed.Disposition != HaltDispResumed {
+				t.Fatalf("resume = %q disp %q reason %q", resumed.Result, resumed.Disposition, resumed.Reason)
+			}
+			rec, _ = originFile(t, f.repo.origin, f.branch, recPath)
+			if strings.Contains(rec, "## Run halted") {
+				t.Errorf("marker not removed on resume after unblock:\n%s", rec)
+			}
+			if !recordHasStatus(rec, "in-progress") {
+				t.Errorf("resume after unblock left status other than in-progress:\n%s", rec)
+			}
+			for _, want := range []string{"branch: feat/widget", "## Why\n\nOriginal why."} {
+				if !strings.Contains(rec, want) {
+					t.Errorf("resume after unblock missing %q:\n%s", want, rec)
+				}
+			}
+		})
+	}
+}
+
+// recordHasStatus reports whether the record's status line carries want, in
+// either the bare or the writer's single-quoted scalar form.
+func recordHasStatus(rec, want string) bool {
+	return strings.Contains(rec, "\nstatus: "+want+"\n") || strings.Contains(rec, "\nstatus: '"+want+"'\n")
 }
 
 // TestIntegrationChangeRuntimeResumeHaltedRemoteProbeErrors is change 0368's coverage
