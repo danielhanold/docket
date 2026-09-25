@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -711,8 +712,17 @@ func (o changeAttachOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change attach: writing artifact block: %w", err)
 	}
 
-	files := []transaction.FileMutation{
-		{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: finalBytes},
+	// Declare only paths whose bytes actually change: the engine's delta
+	// verifier rejects a declared path that is not an actual change, so a
+	// same-path same-day re-attach that re-renders the record byte-identical
+	// (field already set, updated: already today, artifact block unchanged)
+	// must not declare it. An empty plan is the engine's clean no-op path —
+	// the same skip includeBoard makes (change 0458).
+	var files []transaction.FileMutation
+	if !bytes.Equal(finalBytes, src) {
+		files = append(files, transaction.FileMutation{
+			Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: finalBytes,
+		})
 	}
 	if o.inline {
 		// Attaching an artifact edits no board-visible field, so includeBoard's
