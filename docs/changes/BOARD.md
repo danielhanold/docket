@@ -1,6 +1,6 @@
 # Backlog
 
-**459 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 17 proposed · ⚪ 11 deferred · ✅ 307 done · 🗑️ 119 killed
+**460 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 307 done · 🗑️ 119 killed
 
 ## 🔵 Built (1)
 
@@ -22,10 +22,11 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 
-## 🟡 Proposed (17)
+## 🟡 Proposed (18)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0460](active/0460-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md) | artifact.backlink refuses an absolute --change path with unknown-change | `high` | `fix` | needs-brainstorm |
 | [0459](active/0459-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md) | Worker's gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive | `high` | `fix` | needs-brainstorm |
 | [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-brainstorm |
 | [0456](active/0456-show-finding-remedies-in-docket-status-human-view.md) | Show finding remedies in docket status human view | `medium` | `chore` | needs-brainstorm |
@@ -96,6 +97,7 @@ graph TD
   0457
   0458
   0459
+  0460
   0192:::done
   0251:::done
   0370:::done
