@@ -13,7 +13,7 @@ related: [452, 437, 446, 375, 405]
 discovered_from: [452]
 adrs: [118, 117]
 spec: 'docs/superpowers/specs/2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-25T09:15:05Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti-design.md) |
+| Plan | [2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md](https://github.com/danielhanold/docket/blob/fix/two-successors-sharing-one-stale-predecessor-receipt-can-sti/docs/superpowers/plans/2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md) |
 | ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md) |
 <!-- docket:artifacts:end -->
 
