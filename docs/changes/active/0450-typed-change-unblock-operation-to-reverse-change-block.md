@@ -14,7 +14,7 @@ discovered_from: [444]
 adrs: [12]
 spec: 'docs/superpowers/specs/2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md'
 plan: 'docs/superpowers/plans/2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md'
-results:
+results: 'docs/results/2026-09-25-typed-change-unblock-operation-to-reverse-change-block-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-25T11:15:13Z'
 |---|---|
 | Spec | [2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md) |
 | Plan | [2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md](https://github.com/danielhanold/docket/blob/chore/typed-change-unblock-operation-to-reverse-change-block/docs/superpowers/plans/2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md) |
+| Results | [2026-09-25-typed-change-unblock-operation-to-reverse-change-block-results.md](https://github.com/danielhanold/docket/blob/chore/typed-change-unblock-operation-to-reverse-change-block/docs/results/2026-09-25-typed-change-unblock-operation-to-reverse-change-block-results.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
