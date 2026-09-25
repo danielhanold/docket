@@ -14,7 +14,7 @@ discovered_from: [450]
 adrs: []
 spec:
 plan: 'docs/superpowers/plans/2026-09-25-attach-same-day-reattach-noop-plan.md'
-results:
+results: 'docs/results/2026-09-25-attach-refuses-a-same-path-same-day-re-attach-with-verify-de-results.md'
 trivial: true
 auto_groomable:
 branch_prefix:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-25T14:18:07Z'
 | Artifact | Link |
 |---|---|
 | Plan | [2026-09-25-attach-same-day-reattach-noop-plan.md](https://github.com/danielhanold/docket/blob/fix/attach-refuses-a-same-path-same-day-re-attach-with-verify-de/docs/superpowers/plans/2026-09-25-attach-same-day-reattach-noop-plan.md) |
+| Results | [2026-09-25-attach-refuses-a-same-path-same-day-re-attach-with-verify-de-results.md](https://github.com/danielhanold/docket/blob/fix/attach-refuses-a-same-path-same-day-re-attach-with-verify-de/docs/results/2026-09-25-attach-refuses-a-same-path-same-day-re-attach-with-verify-de-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
