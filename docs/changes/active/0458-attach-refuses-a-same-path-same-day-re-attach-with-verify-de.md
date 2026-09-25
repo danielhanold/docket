@@ -13,7 +13,7 @@ related: [315, 335, 445, 450]
 discovered_from: [450]
 adrs: []
 spec:
-plan:
+plan: 'docs/superpowers/plans/2026-09-25-attach-same-day-reattach-noop-plan.md'
 results:
 trivial: true
 auto_groomable:
@@ -28,6 +28,9 @@ claimed_at: '2026-09-25T14:15:42Z'
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Plan | [2026-09-25-attach-same-day-reattach-noop-plan.md](https://github.com/danielhanold/docket/blob/fix/attach-refuses-a-same-path-same-day-re-attach-with-verify-de/docs/superpowers/plans/2026-09-25-attach-same-day-reattach-noop-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
