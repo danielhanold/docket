@@ -1611,6 +1611,74 @@ func TestSameScopeSuccessorStaleReceiptDoesNotRotate(t *testing.T) {
 	}
 }
 
+// TestSameScopeSuccessorScopeReadFailureFailsClosed pins the guard's error leg
+// (change 0453): when the scope record cannot be read at the pre-rotation
+// staleness check, admission must fail closed with the load error itself —
+// never rotate, and never degrade into an ErrStalePredecessor verdict computed
+// against a zero-valued record.
+func TestSameScopeSuccessorScopeReadFailureFailsClosed(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	proc := &fakeProc{}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	_, req := prepareScopedStart(t, store)
+
+	// Predecessor P launches and settles terminal; successor S1 rotates,
+	// launches, and leaves the slot executing under its own token (the
+	// TestSameScopeSuccessorStaleReceiptDoesNotRotate fixture).
+	first, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("predecessor Start: %v", err)
+	}
+	if err := store.ownerCAS(first.DriveID, func(r *driveRecord) error {
+		r.LastOutcome = PASSED
+		return nil
+	}); err != nil {
+		t.Fatalf("settle predecessor terminal: %v", err)
+	}
+	succ := req
+	succ.PredecessorDriveID = first.DriveID
+	succ.PredecessorOwnerGen = first.Generation
+	if _, err := d.Start(succ); err != nil {
+		t.Fatalf("successor S1 Start: %v", err)
+	}
+	before, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution: %v", err)
+	}
+	if before.State != admissionExecuting {
+		t.Fatalf("precondition: S1's slot must be executing, got %q", before.State)
+	}
+
+	// Corrupt the stored scope record so the guard's LoadScope fails.
+	dir, err := store.scopeDir(req.ScopeID)
+	if err != nil {
+		t.Fatalf("scopeDir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, recordFileName), []byte("{corrupt"), 0o644); err != nil {
+		t.Fatalf("corrupt scope record: %v", err)
+	}
+
+	_, _, _, _, _, aerr := d.admitScopedWorktree(succ)
+	if aerr == nil {
+		t.Fatalf("a failed scope read must refuse admission")
+	}
+	if isOwnershipKind(aerr, ErrStalePredecessor) {
+		t.Fatalf("a failed scope read must surface the load error, not a staleness verdict: %v", aerr)
+	}
+	if !isStoreKind(aerr, ErrCorruptRecord) {
+		t.Fatalf("a failed scope read must surface the scope load error itself (ErrCorruptRecord), got %v", aerr)
+	}
+	after, _, err := store.LoadWorktreeExecution(req.Worktree)
+	if err != nil {
+		t.Fatalf("LoadWorktreeExecution after refusal: %v", err)
+	}
+	if after.State != admissionExecuting || after.ReservationToken != before.ReservationToken || after.ExecutionGen != before.ExecutionGen {
+		t.Fatalf("a failed scope read must leave S1's reservation untouched: state %q->%q, token changed=%v, gen %d->%d",
+			before.State, after.State, after.ReservationToken != before.ReservationToken, before.ExecutionGen, after.ExecutionGen)
+	}
+}
+
 // TestBarrierSuccessorUnderCancel proves the successor path under a mid-flight
 // fence: a fenced successor start refuses without launching, and it leaves the slot
 // EITHER the predecessor's executing reservation (refused before rotation) OR
