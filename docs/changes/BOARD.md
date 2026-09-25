@@ -1,12 +1,6 @@
 # Backlog
 
-**460 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 307 done · 🗑️ 119 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0458](active/0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md) | Attach refuses a same-path same-day re-attach with verify-delta invalid-state | `high` | `fix` | [#335](https://github.com/danielhanold/docket/pull/335) | awaiting merge |
+**460 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 18 proposed · ⚪ 11 deferred · ✅ 308 done · 🗑️ 119 killed
 
 ## 🔴 Blocked (1)
 
@@ -95,7 +89,6 @@ graph TD
   0455
   0456
   0457
-  0458
   0459
   0460
   0192:::done
@@ -106,10 +99,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (426)</summary>
+<details><summary>✅🗑️ Archive — done + killed (427)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0458](archive/2026-09-25-0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md) | Attach refuses a same-path same-day re-attach with verify-delta invalid-state | 2026-09-25 |
 | [0454](archive/2026-09-25-0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md) | Whole-repository status must not fail on an unrelated change's invalid branch name | 2026-09-25 |
 | [0453](archive/2026-09-25-0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md) | Two successors sharing one stale predecessor receipt can still free a live worktree slot | 2026-09-25 |
 | [0450](archive/2026-09-25-0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | 2026-09-25 |
@@ -124,7 +118,6 @@ graph TD
 | [0442](archive/2026-09-22-0442-rebase-again-when-main-advances-after-finalize-publishes.md) | Rebase again when main advances after finalize publishes | 2026-09-22 |
 | [0441](archive/2026-09-22-0441-release-successful-implementation-ownership-before-standalon.md) | Release successful implementation ownership before standalone finalize | 2026-09-22 |
 | [0440](archive/2026-09-21-0440-make-results-artifacts-readable-and-actionable.md) | Make results artifacts readable and actionable | 2026-09-21 |
-| [0418](archive/2026-09-21-0418-surface-every-unmet-repository-health-postcondition.md) | Surface every unmet repository health postcondition | 2026-09-21 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -249,7 +242,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 56 done |
+| [2026-09](archive/) | 57 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
