@@ -2,11 +2,11 @@
 id: 454
 slug: 'whole-repository-status-must-not-fail-on-an-unrelated-change'
 title: 'Whole-repository status must not fail on an unrelated change''s invalid branch name'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-24'
-updated: '2026-09-24'
+updated: '2026-09-25'
 depends_on: []
 stacked_on:
 related: [449]
@@ -22,7 +22,7 @@ branch: 'fix/whole-repository-status-must-not-fail-on-an-unrelated-change'
 pr: 'https://github.com/danielhanold/docket/pull/331'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-24T20:32:08Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-24T20:32:08Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-design.md) |
-| Plan | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change.md](https://github.com/danielhanold/docket/blob/fix/whole-repository-status-must-not-fail-on-an-unrelated-change/docs/superpowers/plans/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change.md) |
-| Results | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-results.md](https://github.com/danielhanold/docket/blob/fix/whole-repository-status-must-not-fail-on-an-unrelated-change/docs/results/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-results.md) |
+| Plan | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change.md) |
+| Results | [2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-24-whole-repository-status-must-not-fail-on-an-unrelated-change-results.md) |
 | ADRs | [ADR-0127](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0127-scoped-metadata-validation-for-named-operations.md) |
 <!-- docket:artifacts:end -->
 
