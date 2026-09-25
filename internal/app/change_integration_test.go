@@ -3117,6 +3117,11 @@ func TestIntegrationChangeRuntimeUnblockThenResumeHalted(t *testing.T) {
 			if !strings.Contains(rec, "## Run halted") {
 				t.Fatalf("unblock dropped the ## Run halted marker:\n%s", rec)
 			}
+			// The unblock commit carries the transition subject and the
+			// re-rendered board: the change's row sits under In progress and the
+			// Blocked section is gone.
+			assertLifecycleCommit(t, f.repo.origin, f.branch, unblocked, f.id, "in-progress")
+			assertBoardRowUnder(t, f.repo.origin, f.branch, recPath, "## 🟢 In progress (", "## 🔴 Blocked (")
 
 			// 4. Resume-halted with a quiescent workspace and the post-unblock
 			// version recovers the change and removes exactly the marker.
@@ -3139,6 +3144,99 @@ func TestIntegrationChangeRuntimeUnblockThenResumeHalted(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestIntegrationChangeRuntimeDeferThenRevive proves change revive end to end
+// through the real transaction engine (change 0450 spec Testing): a proposed
+// change is deferred, then revived — the record returns to proposed with its
+// ## Why deferred rationale kept, the receipt names the change and status, the
+// applied commit carries the `change NNNN → proposed` subject, and the
+// committed BOARD.md lists the change under Proposed with no Deferred section.
+func TestIntegrationChangeRuntimeDeferThenRevive(t *testing.T) {
+	for _, m := range planRepoModes() {
+		t.Run(m.name, func(t *testing.T) {
+			requireRealGit(t)
+			const id, slug = 5, "widget"
+			recPath := groomPath(id, slug)
+			repo := buildConfiguredRepo(t, m, recPath, lifecycleChange(id, slug, "proposed"))
+			node := planningDepsFor(t, repo.invocation)
+			ctx := context.Background()
+
+			// 1. Defer the proposed change through the real engine.
+			deferred := ChangeDefer(ctx, node.deps, node.dir, ChangeDeferRequest{
+				ChangeID: id, Path: recPath, Version: blobVersionAt(t, repo.origin, m.branch, recPath),
+				WhyDeferred: "Parked pending a decision.\n",
+			})
+			if deferred.Result != ResultApplied || deferred.Status != "deferred" {
+				t.Fatalf("defer = %q status %q (findings %v), want applied deferred",
+					deferred.Result, deferred.Status, deferred.Findings)
+			}
+			assertBoardRowUnder(t, repo.origin, m.branch, recPath, "## ⚪ Deferred (", "## 🟡 Proposed (")
+
+			// 2. Revive with the post-defer version.
+			revived := ChangeRevive(ctx, node.deps, node.dir, ChangeReviveRequest{
+				ChangeID: id, Path: recPath, Version: blobVersionAt(t, repo.origin, m.branch, recPath),
+			})
+			if revived.Result != ResultApplied || revived.Status != "proposed" {
+				t.Fatalf("revive = %q status %q (findings %v), want applied proposed",
+					revived.Result, revived.Status, revived.Findings)
+			}
+			if revived.ID != id || revived.Operation != OperationChangeRevive {
+				t.Errorf("revive receipt identity = (%d, %q), want (%d, %q)",
+					revived.ID, revived.Operation, id, OperationChangeRevive)
+			}
+			rec, _ := originFile(t, repo.origin, m.branch, recPath)
+			if !recordHasStatus(rec, "proposed") {
+				t.Errorf("revive did not restore proposed:\n%s", rec)
+			}
+			if !strings.Contains(rec, "## Why deferred\n\nParked pending a decision.\n") {
+				t.Errorf("revive dropped the ## Why deferred rationale:\n%s", rec)
+			}
+			assertLifecycleCommit(t, repo.origin, m.branch, revived, id, "proposed")
+			assertBoardRowUnder(t, repo.origin, m.branch, recPath, "## 🟡 Proposed (", "## ⚪ Deferred (")
+			assertBoardMatchesCommitted(t, repo.origin, m.branch, node.dir)
+		})
+	}
+}
+
+// assertLifecycleCommit proves an applied lifecycle result's committed revision
+// is the metadata branch tip and that commit carries the transition subject
+// `change NNNN → <status>`.
+func assertLifecycleCommit(t *testing.T, origin, branch string, res ChangeLifecycleResult, id int, status string) {
+	t.Helper()
+	tip := originTip(t, origin, branch)
+	if res.Revision != tip {
+		t.Errorf("committed revision = %q, want metadata tip %q", res.Revision, tip)
+	}
+	want := fmt.Sprintf("change %04d → %s", id, status)
+	if got := runGit(t, origin, "log", "-1", "--format=%s", tip); got != want {
+		t.Errorf("commit subject = %q, want %q", got, want)
+	}
+}
+
+// assertBoardRowUnder proves the committed BOARD.md lists recPath's row inside
+// the section whose heading starts with wantHeading, and carries no section
+// whose heading starts with absentHeading (the change was its only member).
+func assertBoardRowUnder(t *testing.T, origin, branch, recPath, wantHeading, absentHeading string) {
+	t.Helper()
+	board, ok := originFile(t, origin, branch, "docs/changes/BOARD.md")
+	if !ok {
+		t.Fatalf("BOARD.md absent on %s", branch)
+	}
+	start := strings.Index(board, wantHeading)
+	if start < 0 {
+		t.Fatalf("board lacks a %q section:\n%s", wantHeading, board)
+	}
+	section := board[start+len(wantHeading):]
+	if end := strings.Index(section, "\n## "); end >= 0 {
+		section = section[:end]
+	}
+	if row := "(active/" + filepath.Base(recPath) + ")"; !strings.Contains(section, row) {
+		t.Errorf("board section %q lacks the change row %q:\n%s", wantHeading, row, board)
+	}
+	if strings.Contains(board, absentHeading) {
+		t.Errorf("board still carries a %q section:\n%s", absentHeading, board)
 	}
 }
 
