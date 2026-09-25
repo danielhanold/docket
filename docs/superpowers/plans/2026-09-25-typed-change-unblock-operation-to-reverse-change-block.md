@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0450 — Typed change.unblock operation to reverse change.block](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0450-typed-change-unblock-operation-to-reverse-change-block.md)**
+> ↩ **[Change 0450 — Typed change.unblock operation to reverse change.block](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-25-0450-typed-change-unblock-operation-to-reverse-change-block.md)**
 <!-- docket:backlink:end -->
 # Typed `change.unblock` and `change.revive` Implementation Plan
 
