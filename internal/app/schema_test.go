@@ -96,11 +96,16 @@ func TestReflectDescriptorChangeGroomRequest(t *testing.T) {
 	if sm.Required || sm.Type != "string" {
 		t.Errorf("spec_markdown = %+v, want optional string", sm)
 	}
-	// spec_path + spec_version: the optional spec pin (conditionally required
-	// by the validator on a spec-body revise, so not docket:"required").
-	for _, key := range []string{"spec_path", "spec_version"} {
-		if f := fieldByKey(t, d, key); f.Required || f.Type != "string" {
-			t.Errorf("%s = %+v, want optional string", key, f)
+	// spec_version: the linked spec's pin (conditionally required by the
+	// validator on a spec-body revise, so not docket:"required").
+	if f := fieldByKey(t, d, "spec_version"); f.Required || f.Type != "string" {
+		t.Errorf("spec_version = %+v, want optional string", f)
+	}
+	// No caller-supplied spec path: the spec pinned is always the one the
+	// record's spec: field links.
+	for _, f := range d.Fields {
+		if f.Key == "spec_path" {
+			t.Errorf("request carries a spec_path field; the linked spec path comes from the record")
 		}
 	}
 

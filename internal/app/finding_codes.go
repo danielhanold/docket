@@ -122,8 +122,8 @@ const (
 	FCInvalidTopics             FindingCode = "invalid-topics"
 	FCEmptySpecMarkdown         FindingCode = "empty-spec_markdown"
 	FCInvalidSpecMarkdown       FindingCode = "invalid-spec_markdown"
-	FCEmptySpecPath             FindingCode = "empty-spec_path"
 	FCEmptySpecVersion          FindingCode = "empty-spec_version"
+	FCInvalidSpecVersion        FindingCode = "invalid-spec_version"
 	FCMissingRationale          FindingCode = "missing-rationale"
 	FCEmptyRevise               FindingCode = "empty-revise"
 	FCInvalidOutcome            FindingCode = "invalid-outcome"
@@ -155,11 +155,11 @@ const (
 // through their addShape/adrFinding/learningFinding closures are now registered
 // FindingCode constants (change 0399, review): invalid-request_id,
 // invalid-stacked_on, invalid-{target-id,topics,change-id,outcome,pr_number,
-// attempt,spec_markdown,spec-section-heading}, missing-rationale, and the
+// attempt,spec_markdown,spec_version,spec-section-heading}, missing-rationale, and the
 // enumerated empty-<field> expansions (empty-{title,why,what_changes,
 // out_of_scope,context,decision,consequences,alternatives,change-path,
 // change-version,target-path,target-version,hook,apply,war_story,spec_markdown,
-// spec_path,spec_version,reconcile_log_entry,head}). Each expands to exactly
+// spec_version,reconcile_log_entry,head}). Each expands to exactly
 // one registered member, so the vocabulary is closed over every value these
 // ops can emit and the minting guard (addShape/adrFinding/learningFinding in
 // ctorLit, plus the composite-literal and FindingCode("…") backstops) reddens
@@ -212,7 +212,6 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyReport,
 	FCEmptyRevise,
 	FCEmptySpecMarkdown,
-	FCEmptySpecPath,
 	FCEmptySpecVersion,
 	FCEmptyTargetPath,
 	FCEmptyTargetVersion,
@@ -251,6 +250,7 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidSlug,
 	FCInvalidSpecSectionHeading,
 	FCInvalidSpecMarkdown,
+	FCInvalidSpecVersion,
 	FCInvalidStackedOn,
 	FindingCode("invalid-successor-id"),
 	FCInvalidTargetID,

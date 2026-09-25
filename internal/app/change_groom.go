@@ -31,8 +31,8 @@ import (
 // atomic transaction. Grooming is a
 // non-allocating edit of an existing record, so it pins the submitted record
 // version with an exact-blob entity expectation rather than an idempotency key
-// (plus a second one on the linked spec file for a spec-body revise), and it
-// never touches claim metadata. It decides no lifecycle policy beyond the
+// (a spec-body revise also checks the linked spec file's blob id in Plan), and
+// it never touches claim metadata. It decides no lifecycle policy beyond the
 // groom gate the spec fixes here (proposed, needs-design, not yet trivial) and
 // its exact complement, the revise gate (proposed, already spec'd or trivial).
 
@@ -56,6 +56,10 @@ const (
 	GroomRevise GroomOutcome = "revise"
 )
 
+// reasonSpecVersionMismatch is the Plan refusal for a stale spec_version on a
+// spec-body revise; changeGroomResultFromOutcome maps it onto contended.
+const reasonSpecVersionMismatch = "spec-version-mismatch"
+
 // specsDir is the metadata-tree directory design specs live in. It is a fixed v1
 // location (the Bash grooming skills write here); it is not configurable.
 const specsDir = "docs/superpowers/specs"
@@ -74,13 +78,11 @@ type ChangeGroomRequest struct {
 	SpecMarkdown string               `json:"spec_markdown,omitempty"` // required for the spec outcome
 	Sections     []SectionEditRequest `json:"sections"`                // proposal-section edits
 
-	// SpecPath and SpecVersion pin the change's existing linked spec file — its
-	// repo path and exact full blob object id — exactly as Path and Version pin
-	// the record. They travel together, and a revise carrying spec_markdown
-	// requires both: the whole-body replace overwrites the spec file, so the
-	// spec is pinned by its own exact-blob entity expectation and a concurrent
-	// spec edit contends instead of being silently clobbered.
-	SpecPath    string `json:"spec_path,omitempty"`
+	// SpecVersion pins the change's existing linked spec file (the path the
+	// record's spec: field names) by its exact full blob object id. A revise
+	// carrying spec_markdown requires it and no other request accepts it: the
+	// whole-body replace overwrites the spec file, so a concurrent spec edit
+	// contends instead of being silently clobbered.
 	SpecVersion string `json:"spec_version,omitempty"`
 
 	DependsOn      []int `json:"depends_on"`
@@ -204,40 +206,39 @@ func ChangeGroom(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		changesDir: eff.ChangesDir.Value,
 	}
 
-	// The record is always pinned by an exact-blob entity expectation; a spec
-	// pin adds a second one on the linked spec file, so a spec-body revise that
-	// races another revise or a concurrent spec edit contends rather than
-	// silently clobbering it (the record alone does not change on a same-day
-	// spec-only revise, so its pin cannot catch that race).
-	expected := []transaction.EntityExpectation{{
-		Path:    gitcli.RepoPath(req.Path),
-		Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
-	}}
-	if req.SpecPath != "" {
-		expected = append(expected, transaction.EntityExpectation{
-			Path:    gitcli.RepoPath(req.SpecPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.SpecVersion)},
-		})
-	}
-
+	// The engine pins the record. A spec-body revise's spec_version is checked
+	// in Plan instead, against the blob at the path the record links — the
+	// engine checks expectations before the record is read, and Plan runs on
+	// the same fetched base, so the check is just as exact.
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository: repo,
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
-		Expected:   expected,
-		Loader:     newPlanningLoader(eff),
-		Operation:  op,
+		Expected: []transaction.EntityExpectation{{
+			Path:    gitcli.RepoPath(req.Path),
+			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+		}},
+		Loader:    newPlanningLoader(eff),
+		Operation: op,
 	})
 
 	return changeGroomResultFromOutcome(res, execErr)
 }
 
 // changeGroomResultFromOutcome folds a transaction outcome into the result
-// document. A refusal from this operation is always state-shaped (the groom
-// gate, a taken spec path, or an evolution refusal), so the refusal maps onto
-// invalid-state.
+// document. A refusal from this operation is state-shaped (the groom gate, a
+// taken spec path, or an evolution refusal), so it maps onto invalid-state —
+// except a stale spec_version, the spec file's analogue of a stale record
+// version, which maps onto contended like the engine's own pin mismatch.
 func changeGroomResultFromOutcome(res transaction.Result, execErr error) ChangeGroomResult {
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
+	if res.Disposition == transaction.DispositionRefused {
+		for _, f := range res.Findings {
+			if f.Code == reasonSpecVersionMismatch {
+				result = ResultContended
+			}
+		}
+	}
 
 	out := ChangeGroomResult{Findings: findingsToStatus(res.Findings)}
 	if result == ResultApplied {
@@ -295,17 +296,16 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial, revise", req.Outcome))
 	}
 
-	// The spec pin (spec_path + spec_version) travels as a pair on any outcome,
-	// and a spec-body revise requires it: the whole-body replace overwrites the
-	// linked spec file, which must therefore be pinned exactly like the record.
-	specPinned := strings.TrimSpace(req.SpecPath) != "" || strings.TrimSpace(req.SpecVersion) != ""
-	if specPinned || (req.Outcome == GroomRevise && strings.TrimSpace(req.SpecMarkdown) != "") {
-		if strings.TrimSpace(req.SpecPath) == "" {
-			addShape(FCEmptySpecPath, "spec_path must name the change's linked spec path whenever spec_version is given or a revise carries spec_markdown")
-		}
-		if strings.TrimSpace(req.SpecVersion) == "" {
-			addShape(FCEmptySpecVersion, "spec_version must be the exact full blob object id of the linked spec whenever spec_path is given or a revise carries spec_markdown")
-		}
+	// A spec-body revise overwrites the linked spec file, so it must pin that
+	// file's version exactly like the record. Nothing else checks spec_version,
+	// so it is refused anywhere else rather than silently ignored.
+	specRevise := req.Outcome == GroomRevise && strings.TrimSpace(req.SpecMarkdown) != ""
+	hasSpecVersion := strings.TrimSpace(req.SpecVersion) != ""
+	switch {
+	case specRevise && !hasSpecVersion:
+		addShape(FCEmptySpecVersion, "spec_version must be the exact full blob object id of the linked spec when a revise carries spec_markdown")
+	case !specRevise && hasSpecVersion:
+		addShape(FCInvalidSpecVersion, "spec_version applies only to a revise that carries spec_markdown")
 	}
 
 	findings = append(findings, validateGroomSections(req.Sections)...)
@@ -456,7 +456,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 			return refuseGroom("spec-not-linked",
 				fmt.Sprintf("change %04d has no linked spec to revise (spec_markdown was submitted against a trivial-only change)", o.req.ChangeID))
 		}
-		blob, exists, err := treeBlob(ctx, st.Tree, c.Spec().Value)
+		blob, blobID, exists, err := treeBlob(ctx, st.Tree, c.Spec().Value)
 		if err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, err
 		}
@@ -465,14 +465,14 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 			return refuseGroom("spec-file-missing",
 				fmt.Sprintf("change %04d links spec %q but no such file exists on the tree", o.req.ChangeID, c.Spec().Value))
 		}
-	}
-
-	// A spec pin must name the change's linked spec: the engine checked the pin
-	// on spec_path, so a pin on any other path would leave the file actually
-	// overwritten unpinned. A trivial change links no spec, so any pin refuses.
-	if o.req.SpecPath != "" && o.req.SpecPath != c.Spec().Value {
-		return refuseGroom("spec-path-mismatch",
-			fmt.Sprintf("spec_path %q does not name change %04d's linked spec %q", o.req.SpecPath, o.req.ChangeID, c.Spec().Value))
+		// The whole-body replace overwrites the spec file, so it is pinned like
+		// the record: a stale spec_version refuses (mapped to contended) rather
+		// than clobbering a concurrent spec edit. The record's pin cannot catch
+		// that race — a same-day spec-only revise leaves the record unchanged.
+		if string(blobID) != o.req.SpecVersion {
+			return refuseGroom(reasonSpecVersionMismatch,
+				fmt.Sprintf("spec %q moved since the submitted spec_version; re-read it and retry", c.Spec().Value))
+		}
 	}
 
 	src, ok := st.State.Sources[o.req.Path]
@@ -726,19 +726,19 @@ func buildGroomCandidate(eff config.Effective, docs map[string]document.Document
 
 // treeHasPath reports whether path exists as a blob on the base tree.
 func treeHasPath(ctx context.Context, tree transaction.Tree, path string) (bool, error) {
-	_, found, err := treeBlob(ctx, tree, path)
+	_, _, found, err := treeBlob(ctx, tree, path)
 	return found, err
 }
 
-// treeBlob reads path's blob bytes from the base tree, reporting whether it
-// exists.
-func treeBlob(ctx context.Context, tree transaction.Tree, path string) ([]byte, bool, error) {
+// treeBlob reads path's blob bytes and object id from the base tree, reporting
+// whether it exists.
+func treeBlob(ctx context.Context, tree transaction.Tree, path string) ([]byte, gitcli.ObjectID, bool, error) {
 	results, err := tree.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(path)})
 	if err != nil {
-		return nil, false, fmt.Errorf("change groom: probing path %q: %w", path, err)
+		return nil, "", false, fmt.Errorf("change groom: probing path %q: %w", path, err)
 	}
 	if len(results) != 1 || !results[0].Found {
-		return nil, false, nil
+		return nil, "", false, nil
 	}
-	return results[0].Blob.Bytes, true, nil
+	return results[0].Blob.Bytes, results[0].Blob.ObjectID, true, nil
 }
