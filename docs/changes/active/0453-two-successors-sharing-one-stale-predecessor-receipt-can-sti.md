@@ -2,7 +2,7 @@
 id: 453
 slug: 'two-successors-sharing-one-stale-predecessor-receipt-can-sti'
 title: 'Two successors sharing one stale predecessor receipt can still free a live worktree slot'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-24'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/two-successors-sharing-one-stale-predecessor-receipt-can-sti'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-25T09:12:23Z'
 ---
 
 ## Artifacts
