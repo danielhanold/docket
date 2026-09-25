@@ -2,7 +2,7 @@
 id: 453
 slug: 'two-successors-sharing-one-stale-predecessor-receipt-can-sti'
 title: 'Two successors sharing one stale predecessor receipt can still free a live worktree slot'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-24'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/two-successors-sharing-one-stale-predecessor-receipt-can-sti'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/333'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-25T09:19:54Z'

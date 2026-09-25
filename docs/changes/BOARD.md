@@ -1,12 +1,12 @@
 # Backlog
 
-**456 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 305 done · 🗑️ 119 killed
+**456 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 305 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0453](active/0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md) | Two successors sharing one stale predecessor receipt can still free a live worktree slot | `high` | `fix` | [spec](../superpowers/specs/2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti-design.md) | `fix/two-successors-sharing-one-stale-predecessor-receipt-can-sti` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0453](active/0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md) | Two successors sharing one stale predecessor receipt can still free a live worktree slot | `high` | `fix` | [#333](https://github.com/danielhanold/docket/pull/333) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
