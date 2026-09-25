@@ -4052,12 +4052,11 @@ func TestIntegrationChangeAuthoringReviseAppliedResult(t *testing.T) {
 	if len(engine.calls) != 1 {
 		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
 	}
-	// A spec-body revise also pins the linked spec file by its submitted blob
-	// version, so a concurrent spec edit contends rather than being clobbered.
+	// The engine pins the record alone; the spec file's version is checked in
+	// Plan against the path the record links (no caller-supplied spec path).
 	exp := engine.calls[0].Expected
-	if len(exp) != 2 ||
-		string(exp[0].Path) != validReviseRequest().Path || string(exp[0].Version.ObjectID) != validReviseRequest().Version ||
-		string(exp[1].Path) != validReviseRequest().SpecPath || string(exp[1].Version.ObjectID) != validReviseRequest().SpecVersion {
-		t.Errorf("revise did not pin the exact submitted record and spec versions: %+v", exp)
+	if len(exp) != 1 ||
+		string(exp[0].Path) != validReviseRequest().Path || string(exp[0].Version.ObjectID) != validReviseRequest().Version {
+		t.Errorf("revise did not pin exactly the submitted record version: %+v", exp)
 	}
 }
