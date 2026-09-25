@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/two-successors-sharing-one-stale-predecessor-receipt-can-sti'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-25T09:12:23Z'
+reconciled: true
+claimed_at: '2026-09-25T09:13:06Z'
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ See the write-up in change 452's results file (docs/results/2026-09-24-same-scop
 - Any other admission/arbitration path unrelated to receipt staleness on rotation.
 - Re-litigating change 452's fix.
 - Changing the worktree-first admission order fixed by ADR-0118.
+
+## Reconcile log
+
+### 2026-09-25
+
+2026-09-25 — Re-read against origin/main (de5eb974): admitScopedWorktree still rotates an executing same-scope slot for any receipt-bearing start without checking the receipt names the scope current drive; change 452 fix (receipt-less refusal) is in place. Spec design and test plan still apply unchanged; no scope adjustment.
