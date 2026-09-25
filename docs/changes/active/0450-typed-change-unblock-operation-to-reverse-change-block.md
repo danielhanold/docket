@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/typed-change-unblock-operation-to-reverse-change-block'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-25T11:08:45Z'
+reconciled: true
+claimed_at: '2026-09-25T11:09:24Z'
 ---
 
 ## Artifacts
@@ -49,3 +49,9 @@ claimed_at: '2026-09-25T11:08:45Z'
 ## Out of scope
 
 Automatically unblocking when a dependency lands (a sweep or watcher) — `blocked_by` is free text, and machine-trackable dependencies already use `depends_on:`. Recovery for stack-kill descendants (`KillStackParent` is not wired to any operation, and its exits are re-scope, re-parent, or kill). The `finalize.block` / `finalize.clear-block` pair. Changing `change.block` or `domain.Revive` semantics, including clearing `branch:`/`claimed_at:` on revive.
+
+## Reconcile log
+
+### 2026-09-25
+
+Reconciled against main 309b1e29 and docket da7d24a1. domain.Unblock and domain.Revive (internal/domain/actions.go) still exist unwired; executeChangeLifecycle in internal/app/change_lifecycle.go still drives only change.block/change.defer. Related 0444 and 0446 are done. Scope unchanged; spec stands as written.
