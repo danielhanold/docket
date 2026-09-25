@@ -2,7 +2,7 @@
 id: 458
 slug: 'attach-refuses-a-same-path-same-day-re-attach-with-verify-de'
 title: 'Attach refuses a same-path same-day re-attach with verify-delta invalid-state'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-25'
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/attach-refuses-a-same-path-same-day-re-attach-with-verify-de'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-25T14:13:58Z'
 ---
 
 ## Artifacts
