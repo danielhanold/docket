@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'high'
 type: 'fix'
 created: '2026-09-24'
-updated: '2026-09-24'
+updated: '2026-09-25'
 depends_on: []
 stacked_on:
 related: [452, 437, 446, 375, 405]
 discovered_from: [452]
-adrs: []
-spec:
+adrs: [118, 117]
+spec: 'docs/superpowers/specs/2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-25-two-successors-sharing-one-stale-predecessor-receipt-can-sti-design.md) |
+| ADRs | [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0117](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0117-sequential-test-drives-within-one-worker-recovery-scope.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,10 +43,11 @@ See the write-up in change 452's results file (docs/results/2026-09-24-same-scop
 
 ## What changes
 
-- In `admitScopedWorktree`'s rotation path, before rotating an executing same-scope slot, verify the presenting start's predecessor receipt still names the scope's CURRENT drive (not just that the slot is same-scope and executing). A stale receipt refuses `ErrStalePredecessor` without touching the slot.
-- A deterministic two-successor regression test modeled on `TestSameScopeFirstStartLateLoserDoesNotRotate` (added in change 452): two successors present the same stale receipt, the first admits and executes, the second must be refused without rotating or releasing the first's slot. Mutation-check it against the unguarded code.
+- Guard the successor rotation in `admitScopedWorktree`: before rotating an executing same-scope slot, confirm the presented receipt names the scope's CURRENT drive (the same predicate `reserveScopeDrive` already applies); a stale receipt refuses `ErrStalePredecessor` without touching the slot. It reuses the existing scope record and token-checked rotation, and adds no new mechanism.
+- A deterministic two-successor regression test modeled on `TestSameScopeFirstStartLateLoserDoesNotRotate`, mutation-checked against the unguarded code.
 
 ## Out of scope
 
 - Any other admission/arbitration path unrelated to receipt staleness on rotation.
-- Re-litigating change 452's fix, which is unrelated and already merged/mergeable.
+- Re-litigating change 452's fix.
+- Changing the worktree-first admission order fixed by ADR-0118.
