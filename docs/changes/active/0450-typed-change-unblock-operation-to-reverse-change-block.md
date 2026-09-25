@@ -13,7 +13,7 @@ related: [444, 446]
 discovered_from: [444]
 adrs: [12]
 spec: 'docs/superpowers/specs/2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-25T11:10:34Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md) |
+| Plan | [2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md](https://github.com/danielhanold/docket/blob/chore/typed-change-unblock-operation-to-reverse-change-block/docs/superpowers/plans/2026-09-25-typed-change-unblock-operation-to-reverse-change-block.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
