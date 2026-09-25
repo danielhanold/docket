@@ -158,3 +158,48 @@ func TestChangeAttachRejectsBadShape(t *testing.T) {
 		})
 	}
 }
+
+// --- TestChangeAttachIdenticalReattachIsNoOp --------------------------------
+
+// TestChangeAttachIdenticalReattachIsNoOp pins the same-path same-day
+// re-attach (change 0458): once the record already stores the artifact path
+// with today's updated date and a rendered artifact block, re-running the
+// identical attach must declare NO files — an empty plan the engine commits
+// as a clean no-op — never an unchanged replace the engine's delta verifier
+// (verifyActualDelta) refuses as invalid-state. Both kinds, inline board on.
+func TestChangeAttachIdenticalReattachIsNoOp(t *testing.T) {
+	cases := []struct {
+		kind     string
+		artifact string
+	}{
+		{attachKindPlan, "docs/superpowers/plans/2026-09-25-widget-plan.md"},
+		{attachKindResults, "docs/results/2026-09-25-widget-results.md"},
+	}
+	for _, c := range cases {
+		t.Run(c.kind, func(t *testing.T) {
+			recPath := groomPath(3, "widget")
+			files := map[string]string{
+				recPath:                 lifecycleChange(3, "widget", "in-progress"),
+				"docs/changes/BOARD.md": "# Backlog\n\nold\n",
+			}
+			op := baseAttachOp([]string{"inline"}, 3, c.kind, c.artifact)
+
+			// First attach: settle the record and the board on the tree.
+			first, opRes := attachPlanFor(t, files, op)
+			if opRes.Refused {
+				t.Fatalf("first attach refused: %v", opRes.Findings)
+			}
+			files[recPath] = lifecycleRecordBytes(t, first, recPath)
+			files["docs/changes/BOARD.md"] = lifecycleRecordBytes(t, first, "docs/changes/BOARD.md")
+
+			// Identical re-attach, same clock day: nothing may be declared.
+			second, opRes := attachPlanFor(t, files, op)
+			if opRes.Refused {
+				t.Fatalf("re-attach refused: %v", opRes.Findings)
+			}
+			if len(second.Files) != 0 {
+				t.Errorf("identical re-attach declared files %v, want an empty (no-op) plan", planPaths(second))
+			}
+		})
+	}
+}
