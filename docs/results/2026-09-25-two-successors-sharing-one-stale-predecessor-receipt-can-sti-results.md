@@ -1,3 +1,6 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0453 — Two successors sharing one stale predecessor receipt can still free a live worktree slot](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md)**
+<!-- docket:backlink:end -->
 # Two successors sharing one stale predecessor receipt can still free a live worktree slot — Results
 
 **Human action:** No action is required before merge. One optional item is worth a look: a narrow leftover race on freshly reserved successor starts (see Known issues).
