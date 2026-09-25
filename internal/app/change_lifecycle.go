@@ -16,24 +16,28 @@ import (
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
-// This file is the `change block` and `change defer` planning operations: two
-// non-allocating lifecycle transitions that land one change's owned frontmatter
-// changes and every affected v1-owned derived view (the change record's typed
-// lifecycle fields, its refreshed updated date, its re-rendered artifact block,
-// and — for defer — its ## Why deferred authored section; plus the inline board)
-// as one validated atomic transaction. The domain owns legality: domain.Block
-// and domain.Defer decide whether the current status may take the transition and
-// yield the exact FieldChanges to apply, so this layer decides no lifecycle
-// policy of its own. Both operations edit an existing record, so each pins the
-// submitted record version with an exact-blob entity expectation rather than an
-// idempotency key. Neither inspects any process, branch, worktree, or PR state.
+// This file is the `change block`, `change defer`, `change unblock`, and
+// `change revive` planning operations: four non-allocating lifecycle transitions
+// that land one change's owned frontmatter changes and every affected v1-owned
+// derived view (the change record's typed lifecycle fields, its refreshed
+// updated date, its re-rendered artifact block, and — for defer only — its
+// ## Why deferred authored section; unblock and revive edit no sections; plus
+// the inline board) as one validated atomic transaction. The domain owns
+// legality: domain.Block, domain.Defer, domain.Unblock, and domain.Revive decide
+// whether the current status may take the transition and yield the exact
+// FieldChanges to apply, so this layer decides no lifecycle policy of its own.
+// Every operation edits an existing record, so each pins the submitted record
+// version with an exact-blob entity expectation rather than an idempotency key.
+// None inspects any process, branch, worktree, or PR state.
 
-// OperationChangeBlock and OperationChangeDefer are the operation keys the two
-// lifecycle transitions record in their result envelopes and transaction
-// trailers.
+// OperationChangeBlock, OperationChangeDefer, OperationChangeUnblock, and
+// OperationChangeRevive are the operation keys the lifecycle transitions record
+// in their result envelopes and transaction trailers.
 const (
-	OperationChangeBlock = "change.block"
-	OperationChangeDefer = "change.defer"
+	OperationChangeBlock   = "change.block"
+	OperationChangeDefer   = "change.defer"
+	OperationChangeUnblock = "change.unblock"
+	OperationChangeRevive  = "change.revive"
 )
 
 // whyDeferredHeading is the owned authored section `change defer` replaces (or
@@ -61,8 +65,27 @@ type ChangeDeferRequest struct {
 	WhyDeferred string `json:"why_deferred" docket:"required"`
 }
 
-// ChangeLifecycleResult is the protocol-v1 document `change block` and
-// `change defer` return. It embeds the envelope; Status carries the resulting
+// ChangeUnblockRequest is the closed, caller-supplied request for one unblock.
+// Path and Version pin the exact submitted record. No reason field: the commit
+// subject records the transition and the cleared blocked_by text stays in git
+// history.
+type ChangeUnblockRequest struct {
+	ChangeID int    `json:"change_id" docket:"required"`
+	Path     string `json:"path" docket:"required"`
+	Version  string `json:"version" docket:"required"`
+}
+
+// ChangeReviveRequest is the closed, caller-supplied request for one revive.
+// Path and Version pin the exact submitted record.
+type ChangeReviveRequest struct {
+	ChangeID int    `json:"change_id" docket:"required"`
+	Path     string `json:"path" docket:"required"`
+	Version  string `json:"version" docket:"required"`
+}
+
+// ChangeLifecycleResult is the protocol-v1 document every change lifecycle
+// transition (`change block`, `change defer`, `change unblock`, `change revive`)
+// returns. It embeds the envelope; Status carries the resulting
 // stored status on a successful apply, and Findings carries every refusal or
 // validation diagnostic (marshalled as [] never null).
 type ChangeLifecycleResult struct {
@@ -146,7 +169,39 @@ func ChangeDefer(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeDefer, req.ChangeID, req.Path, req.Version, action, sections)
 }
 
-// executeChangeLifecycle is the shared driver both transitions compose after
+// ChangeUnblock validates the request, pins authoritative context, and drives
+// one atomic transaction that unblocks the change (blocked → in-progress,
+// clearing blocked_by) and — when inline is enabled — re-renders the board.
+// Every failure that predates the transaction (bad request shape, a github
+// board surface) returns without an engine call.
+func ChangeUnblock(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeUnblockRequest) ChangeLifecycleResult {
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
+	if len(findings) > 0 {
+		return newChangeLifecycleResult(OperationChangeUnblock, ResultInvalidInput, ChangeLifecycleResult{Findings: findings})
+	}
+	action := func(c domain.Change) (domain.ActionResult, *domain.PolicyFailure) {
+		return domain.Unblock(c)
+	}
+	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeUnblock, req.ChangeID, req.Path, req.Version, action, nil)
+}
+
+// ChangeRevive validates the request, pins authoritative context, and drives
+// one atomic transaction that revives the change (deferred → proposed). The
+// ## Why deferred section, branch, and claim stamp are left untouched, per
+// domain.Revive's contract. Every failure that predates the transaction (bad
+// request shape, a github board surface) returns without an engine call.
+func ChangeRevive(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeReviveRequest) ChangeLifecycleResult {
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
+	if len(findings) > 0 {
+		return newChangeLifecycleResult(OperationChangeRevive, ResultInvalidInput, ChangeLifecycleResult{Findings: findings})
+	}
+	action := func(c domain.Change) (domain.ActionResult, *domain.PolicyFailure) {
+		return domain.Revive(c)
+	}
+	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeRevive, req.ChangeID, req.Path, req.Version, action, nil)
+}
+
+// executeChangeLifecycle is the shared driver every transition composes after
 // their own request-shape validation: it pins context, fences the board
 // surface, discovers the repository, and submits one exact-version transaction
 // carrying the supplied domain action and section edits.
@@ -210,7 +265,7 @@ func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opK
 }
 
 // lifecycleResultFromOutcome folds a transaction outcome into the result
-// document. A refusal from either transition is always state-shaped (an illegal
+// document. A refusal from any transition is always state-shaped (an illegal
 // source status, a not-found record), so the refusal maps onto invalid-state.
 func lifecycleResultFromOutcome(opKey string, res transaction.Result, execErr error) ChangeLifecycleResult {
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
@@ -228,8 +283,8 @@ func lifecycleResultFromOutcome(opKey string, res transaction.Result, execErr er
 	return r
 }
 
-// validateLifecycleShape runs the pinned-entity request checks common to both
-// transitions: a positive change id and non-empty path and version. idKey is the
+// validateLifecycleShape runs the pinned-entity request checks common to every
+// transition: a positive change id and non-empty path and version. idKey is the
 // JSON key the caller's request actually decodes the id field under ("id" or
 // "change_id"), so the id-shape finding names the real key in its message; its
 // code is the registered FindingCode invalidIDCode selects for that key by a
@@ -400,8 +455,9 @@ func (o changeLifecycleOp) Plan(ctx context.Context, st transaction.AttemptState
 
 // lifecycleFieldValue renders one FieldChange's target value as a document
 // value: a cleared field (empty target) becomes the bare null form, any other
-// value a single-quoted string. Block and defer only ever set string-valued
-// owned fields (status, blocked_by).
+// value a single-quoted string. The lifecycle transitions only ever set
+// string-valued owned fields (status, blocked_by); unblock clears blocked_by via
+// the empty target.
 func lifecycleFieldValue(to string) document.Value {
 	if to == "" {
 		return document.Null()
