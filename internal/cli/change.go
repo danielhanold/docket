@@ -92,6 +92,28 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		}, EffectMetadataWrite)
 
+	unblock := changeSubcommand("change", "unblock",
+		"Unblock a blocked change back to in-progress, clearing blocked_by, from a JSON request",
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
+			var req app.ChangeUnblockRequest
+			if err := decodeRequestFlag(c, &req); err != nil {
+				return err
+			}
+			setResult(app.ChangeUnblock(c.Context(), deps, repoDir, req))
+			return nil
+		}, EffectMetadataWrite)
+
+	revive := changeSubcommand("change", "revive",
+		"Revive a deferred change back to proposed, from a JSON request",
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
+			var req app.ChangeReviveRequest
+			if err := decodeRequestFlag(c, &req); err != nil {
+				return err
+			}
+			setResult(app.ChangeRevive(c.Context(), deps, repoDir, req))
+			return nil
+		}, EffectMetadataWrite)
+
 	kill := changeSubcommand("change", "kill",
 		"Kill a change, archiving it, from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
@@ -165,7 +187,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	repairIdentity := newRepairIdentitySubcommand(setResult)
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented, repairIdentity)
+	changeCmd.AddCommand(create, groom, block, deferCmd, unblock, revive, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented, repairIdentity)
 	return changeCmd
 }
 

@@ -69,6 +69,8 @@ func TestEnvelopeNotShadowed(t *testing.T) {
 		{"change.groom", newChangeGroomResult(ResultApplied, ChangeGroomResult{})},
 		{"change.block", newChangeLifecycleResult(OperationChangeBlock, ResultApplied, ChangeLifecycleResult{})},
 		{"change.defer", newChangeLifecycleResult(OperationChangeDefer, ResultApplied, ChangeLifecycleResult{})},
+		{"change.unblock", newChangeLifecycleResult(OperationChangeUnblock, ResultApplied, ChangeLifecycleResult{})},
+		{"change.revive", newChangeLifecycleResult(OperationChangeRevive, ResultApplied, ChangeLifecycleResult{})},
 		{"change.kill", newChangeKillResult(ResultApplied, ChangeKillResult{})},
 		{"learning.record", newLearningResult(OperationLearningRecord, ResultApplied, LearningResult{})},
 		{"learning.update", newLearningResult(OperationLearningUpdate, ResultApplied, LearningResult{})},
