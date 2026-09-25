@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0458 — Attach refuses a same-path same-day re-attach with verify-delta invalid-state](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md)**
+> ↩ **[Change 0458 — Attach refuses a same-path same-day re-attach with verify-delta invalid-state](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-25-0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md)**
 <!-- docket:backlink:end -->
 # Attach refuses a same-path same-day re-attach with verify-delta invalid-state — Results
 
