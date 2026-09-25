@@ -2,7 +2,7 @@
 id: 450
 slug: 'typed-change-unblock-operation-to-reverse-change-block'
 title: 'Typed change.unblock operation to reverse change.block'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'chore'
 created: '2026-09-24'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/typed-change-unblock-operation-to-reverse-change-block'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/334'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-25T11:15:13Z'

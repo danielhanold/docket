@@ -1,12 +1,12 @@
 # Backlog
 
-**457 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 306 done · 🗑️ 119 killed
+**457 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 306 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0450](active/0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | `high` | `chore` | [spec](../superpowers/specs/2026-09-24-typed-change-unblock-operation-to-reverse-change-block-design.md) | `chore/typed-change-unblock-operation-to-reverse-change-block` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0450](active/0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | `high` | `chore` | [#334](https://github.com/danielhanold/docket/pull/334) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
