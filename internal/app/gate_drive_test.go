@@ -706,6 +706,41 @@ func TestAcknowledgeForwardsArgsAndMapsDoc(t *testing.T) {
 	}
 }
 
+// TestAcknowledgeScopeTransferredEnvelope is the change-0459 app-layer pin: a
+// scope-transferred ownership rejection surfaces reason "scope-transferred"
+// under invalid-input, with a next-action message that names the real state
+// (parent claimed/took over; report on the continuation's verdict; fresh scope
+// for further tests) and never says BLOCKED — while the reworded scope-closed
+// message keeps BLOCKED and drops the old "transferred or" wording.
+func TestAcknowledgeScopeTransferredEnvelope(t *testing.T) {
+	bad := &fakeDriveEngine{err: &gatedrive.OwnershipError{Kind: gatedrive.ErrScopeTransferred, Op: "acknowledge"}}
+	svc := newGateDriveService(bad, 0, "", "")
+	got := svc.Acknowledge("sc-x", "childcap", "dx", "genx")
+	if got.Result != ResultInvalidInput || got.Drive != nil {
+		t.Fatalf("scope-transferred must map to invalid-input with no drive, got result=%s", got.Result)
+	}
+	if got.Reason != string(gatedrive.ErrScopeTransferred) {
+		t.Fatalf("reason = %q, want %q", got.Reason, string(gatedrive.ErrScopeTransferred))
+	}
+	if strings.Contains(got.Message, "BLOCKED") {
+		t.Fatalf("the scope-transferred message must never direct the worker to BLOCKED, got %q", got.Message)
+	}
+	for _, want := range []string{"parent claimed or took over", "verdict your continuation supplied", "fresh scope"} {
+		if !strings.Contains(got.Message, want) {
+			t.Fatalf("scope-transferred message must contain %q, got %q", want, got.Message)
+		}
+	}
+
+	// The finished-scope message: still directs BLOCKED, no longer claims a transfer.
+	closedMsg := ownershipNextAction(gatedrive.ErrScopeClosed)
+	if !strings.Contains(closedMsg, "BLOCKED") {
+		t.Fatalf("the scope-closed message must keep directing BLOCKED, got %q", closedMsg)
+	}
+	if strings.Contains(closedMsg, "transferred") {
+		t.Fatalf("the scope-closed message must no longer say transferred, got %q", closedMsg)
+	}
+}
+
 // TestTakeoverMapsDoc proves Takeover delegates to the engine, carries a
 // successful document verbatim under the takeover operation name, and maps a
 // command failure through the shared mapDriveFailure classifier.
