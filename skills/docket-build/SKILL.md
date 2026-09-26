@@ -141,8 +141,16 @@ capture the **fresh** owner generation from its response, and drive the same dri
 operation calls yourself to a terminal disposition — never a raw observe loop, background suite, or
 notification wait. When agent judgment is needed again, dispatch a fresh worker for the **same** task
 and worktree with an explicit continuation; a trusted `PASSED` is not re-driven for a changed
-transcript. Waiting consumes neither the task's repair allowance nor its one escalation. If you must
-unwind, hand off to your parent rather than stranding the drive.
+transcript. The continuation — a same-agent resume or a fresh dispatch alike — must carry
+the claimed drive's id, its terminal verdict, and an explicit statement that the original scope is closed
+by your claim and must never be acknowledged or reused. When the continued task may still need test
+drives, run `gate.drive.prepare-scope` again
+for the same change, task, phase, branch, and worktree (and dispatch context) and include the new
+start-ready scope bundle — child capability only; the parent capability stays in your notes, as for
+any dispatch. Reading the continuation's return is unchanged: a `COMPLETE` is settled against git
+state exactly as *Reading a worker's return* requires. Waiting consumes neither the task's repair
+allowance nor its one escalation. If you must unwind, hand off to your parent rather than stranding
+the drive.
 
 **Exceptional branch — a return with no valid handoff.** When the worker's dispatch returns
 **without** a valid handoff while its scope still binds a nonterminal (or terminal-unconsumed) drive,

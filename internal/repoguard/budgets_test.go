@@ -177,7 +177,7 @@ var skillBudgets = []skillBudget{
 	{"docket-adr/adr-template.md", 26, 90},
 	{"docket-auto-groom/SKILL.md", 70, 1750},
 	{"docket-brainstorm/SKILL.md", 84, 692},
-	{"docket-build/SKILL.md", 424, 4284}, // 0405: sequential-drive contract; 0420: shell-safe capture; 0421: budgeted repair cycle (see note above)
+	{"docket-build/SKILL.md", 432, 4391}, // 0459: +continuation carries the claimed verdict, closed-scope statement, and fresh prepare-scope bundle (424/4284 -> 432/4391); 0405: sequential-drive contract; 0420: shell-safe capture; 0421: budgeted repair cycle (see note above)
 	// 0154: docket-build/references/delegation-execution.md removed — it was the
 	// evidence record for the Bash delegation facade that change 0370 deleted; its
 	// budget row is deleted with it.
@@ -185,7 +185,7 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
-	{"docket-build-task/SKILL.md", 188, 1964}, // 0405: sequential-drive receipt and acknowledgement; 0420: shell-safe capture; 0375: worktree-busy-not-a-retry rule (179/1842 -> 188/1964)
+	{"docket-build-task/SKILL.md", 204, 2151}, // 0459: +post-handoff continuation never acknowledges or reuses the transferred scope (188/1964 -> 204/2151); 0405: sequential-drive receipt and acknowledgement; 0420: shell-safe capture; 0375: worktree-busy-not-a-retry rule (179/1842 -> 188/1964)
 	{"docket-convention/SKILL.md", 400, 7969}, // 0410: +required-results lifecycle prose; 0399: +schema request/result contract prose; 0388: +sync-integration prose (see note above)
 	// 0154: docket-convention/github-board-mirror.md removed — the GitHub mirror is
 	// retired (unsupported, mutation-blocking); its budget row is deleted with it.
