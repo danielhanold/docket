@@ -728,7 +728,9 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	case gatedrive.ErrHandoffOutstanding:
 		return "claim the outstanding handoff instead of starting or taking over"
 	case gatedrive.ErrScopeClosed:
-		return "scope authority was transferred or finished; stop and return BLOCKED"
+		return "this scope was already finished by its terminal acknowledgement; stop and return BLOCKED"
+	case gatedrive.ErrScopeTransferred:
+		return "the parent claimed or took over this scope's drive; this scope is no longer yours — report on the verdict your continuation supplied, and run further tests only under a fresh scope"
 	case gatedrive.ErrStalePredecessor:
 		return "the presented predecessor is not the scope's current drive"
 	case gatedrive.ErrPredecessorNotReusable:
