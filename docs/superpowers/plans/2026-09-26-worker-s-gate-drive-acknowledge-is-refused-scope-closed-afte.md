@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0459 — Worker's gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0459-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md)**
+> ↩ **[Change 0459 — Worker's gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-26-0459-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md)**
 <!-- docket:backlink:end -->
 # Worker scope-transferred refusal (change 0459) Implementation Plan
 
