@@ -2,7 +2,7 @@
 id: 459
 slug: 'worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte'
 title: 'Worker''s gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-25'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/337'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-26T12:32:24Z'
