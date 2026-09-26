@@ -404,6 +404,25 @@ var proseContracts = []proseContract{
 			"runs inline at its Step 0 — not a mode of this skill",
 			"(`docket-implement-next` Step 0 runs that operation inline)",
 		}},
+	// change 0459 — a handed-off worker's scope authority ends at the parent's
+	// claim: the worker contract forbids acknowledging or reusing the claim-closed
+	// scope, keys the outcome to the continuation's verdict, names the honest
+	// BLOCKED for a missing fresh bundle, and classifies scope-transferred as a
+	// misapplied-rule signal; the parent contract makes the continuation carry the
+	// verdict, the closed-scope statement, and a fresh prepare-scope bundle.
+	{sentinel: "change_0459_scope_transferred", file: "skills/docket-build-task/SKILL.md",
+		present: []string{
+			"never `acknowledge` the original scope and never start a drive on it",
+			"A `scope-transferred` refusal means you misapplied this rule",
+			"Report on the terminal verdict your continuation supplies",
+			"never `COMPLETE` on that verdict",
+			"\"continuation needs a fresh scope\"",
+		}},
+	{sentinel: "change_0459_scope_transferred", file: "skills/docket-build/SKILL.md",
+		present: []string{
+			"the claimed drive's id, its terminal verdict, and an explicit statement that the original scope is closed",
+			"run `gate.drive.prepare-scope` again",
+		}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
