@@ -1,12 +1,6 @@
 # Backlog
 
-**460 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 309 done · 🗑️ 119 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0459](active/0459-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md) | Worker's gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive | `high` | `fix` | [#337](https://github.com/danielhanold/docket/pull/337) | awaiting merge |
+**460 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 310 done · 🗑️ 119 killed
 
 ## 🔴 Blocked (1)
 
@@ -93,7 +87,6 @@ graph TD
   0455
   0456
   0457
-  0459
   0192:::done
   0251:::done
   0370:::done
@@ -102,11 +95,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (428)</summary>
+<details><summary>✅🗑️ Archive — done + killed (429)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0460](archive/2026-09-26-0460-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md) | artifact.backlink refuses an absolute --change path with unknown-change | 2026-09-26 |
+| [0459](archive/2026-09-26-0459-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md) | Worker's gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive | 2026-09-26 |
 | [0458](archive/2026-09-25-0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md) | Attach refuses a same-path same-day re-attach with verify-delta invalid-state | 2026-09-25 |
 | [0454](archive/2026-09-25-0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md) | Whole-repository status must not fail on an unrelated change's invalid branch name | 2026-09-25 |
 | [0453](archive/2026-09-25-0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md) | Two successors sharing one stale predecessor receipt can still free a live worktree slot | 2026-09-25 |
@@ -120,7 +114,6 @@ graph TD
 | [0444](archive/2026-09-24-0444-reconcile-uncertain-publication-records-so-cancellation-and.md) | Reconcile uncertain publication records so cancellation and resume can finish | 2026-09-24 |
 | [0414](archive/2026-09-23-0414-results-placeholder-heuristic-false-positives-on-uppercase-h.md) | Results placeholder heuristic false-positives on uppercase HTML tags and URI schemes | 2026-09-23 |
 | [0442](archive/2026-09-22-0442-rebase-again-when-main-advances-after-finalize-publishes.md) | Rebase again when main advances after finalize publishes | 2026-09-22 |
-| [0441](archive/2026-09-22-0441-release-successful-implementation-ownership-before-standalon.md) | Release successful implementation ownership before standalone finalize | 2026-09-22 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -245,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 58 done |
+| [2026-09](archive/) | 59 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

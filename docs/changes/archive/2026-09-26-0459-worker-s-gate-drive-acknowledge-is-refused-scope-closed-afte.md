@@ -2,7 +2,7 @@
 id: 459
 slug: 'worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte'
 title: 'Worker''s gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-09-25'
@@ -22,7 +22,7 @@ branch: 'fix/worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte'
 pr: 'https://github.com/danielhanold/docket/pull/337'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-26T12:32:24Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-26T12:32:24Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-design.md) |
-| Plan | [2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md](https://github.com/danielhanold/docket/blob/fix/worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte/docs/superpowers/plans/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md) |
-| Results | [2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-results.md](https://github.com/danielhanold/docket/blob/fix/worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte/docs/results/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-results.md) |
+| Plan | [2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md) |
+| Results | [2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
