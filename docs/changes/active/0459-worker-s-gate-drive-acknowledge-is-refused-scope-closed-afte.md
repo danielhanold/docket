@@ -40,11 +40,11 @@ During change 0458's implement-next run, Task 2's worker ran a package-test driv
 
 Keep the gate-drive authority model strict and fix the contracts around it. A parent's claim of a handed-off drive still closes the worker's recovery scope.
 
-- **Worker contract** (docket-build-task): a worker that handed off () never acknowledges or reuses its original scope when continued. It reports on the terminal verdict the continuation supplies, and runs further test drives only under a fresh scope bundle.
+- **Worker contract** (docket-build-task): a worker that handed off (`WAITING`) never acknowledges or reuses its original scope when continued. It reports on the terminal verdict the continuation supplies, and runs further test drives only under a fresh scope bundle.
 - **Parent contract** (docket-build): the continuation carries the claimed drive's id and terminal verdict, says the original scope is closed, and includes a freshly prepared scope bundle when more drives may be needed.
-- **Binary**:  and a scoped  on a scope closed by a claim or takeover return a distinct typed refusal, , whose message names the real state and never says "return BLOCKED". A normally finished scope keeps . The parent-side takeover path is unchanged.
-- A regression test reproduces the handoff → claim → advance → acknowledge sequence, alongside contract guards in .
+- **Binary**: `gate.drive.acknowledge` and a scoped `gate.drive.start` on a scope closed by a claim or takeover return a distinct typed refusal, `scope-transferred`, whose message names the real state and never says "return BLOCKED". A normally finished scope keeps `scope-closed`. The parent-side takeover path is unchanged.
+- A regression test reproduces the handoff → claim → advance → acknowledge sequence, alongside contract guards in `internal/repoguard`.
 
 ## Out of scope
 
-Broader gate-drive handoff/claim redesign (claim keeps closing the scope); the parent-side takeover path and its  semantics; the artifact.backlink absolute-path issue found in the same run (change 0460).
+Broader gate-drive handoff/claim redesign (claim keeps closing the scope); the parent-side takeover path and its `scope-closed` semantics; the artifact.backlink absolute-path issue found in the same run (change 0460).
