@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'high'
 type: 'fix'
 created: '2026-09-25'
-updated: '2026-09-25'
+updated: '2026-09-26'
 depends_on: []
 stacked_on:
-related: []
+related: [460]
 discovered_from: [458]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,8 +38,13 @@ During change 0458's implement-next run, Task 2's worker ran a package-test driv
 
 ## What changes
 
-Design question to settle at groom time: after a parent claims a WAITING drive, should (a) the worker still be allowed to close its own scope, or (b) the worker recognize `scope-closed` after a claim as a terminal success and return COMPLETE instead of BLOCKED? Either way, the continuation flow (gate drive claim / acknowledge, and the docket-build-task worker contract) must stop producing a BLOCKED status for work that completed. Add a regression test that reproduces the claim-then-acknowledge sequence.
+Keep the gate-drive authority model strict and fix the contracts around it. A parent's claim of a handed-off drive still closes the worker's recovery scope.
+
+- **Worker contract** (docket-build-task): a worker that handed off () never acknowledges or reuses its original scope when continued. It reports on the terminal verdict the continuation supplies, and runs further test drives only under a fresh scope bundle.
+- **Parent contract** (docket-build): the continuation carries the claimed drive's id and terminal verdict, says the original scope is closed, and includes a freshly prepared scope bundle when more drives may be needed.
+- **Binary**:  and a scoped  on a scope closed by a claim or takeover return a distinct typed refusal, , whose message names the real state and never says "return BLOCKED". A normally finished scope keeps . The parent-side takeover path is unchanged.
+- A regression test reproduces the handoff → claim → advance → acknowledge sequence, alongside contract guards in .
 
 ## Out of scope
 
-Other gate-drive handoff redesign beyond the claim/acknowledge interaction; the artifact.backlink absolute-path issue found in the same run (tracked separately).
+Broader gate-drive handoff/claim redesign (claim keeps closing the scope); the parent-side takeover path and its  semantics; the artifact.backlink absolute-path issue found in the same run (change 0460).
