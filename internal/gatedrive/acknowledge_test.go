@@ -295,11 +295,13 @@ func TestAcknowledgePostRetirementOwnerGenAsymmetry(t *testing.T) {
 	})
 }
 
-// TestTransferredScopeRefusalOrdering pins two boundaries of the change-0459
+// TestTransferredScopeRefusalOrdering pins the boundaries of the change-0459
 // split: a wrong child capability on a claim-closed scope is still refused
-// scope-capability-mismatch (a transferred scope leaks nothing to an
-// unauthenticated caller), and bindScopeChange on a claim-closed scope keeps
-// the parent-side ErrScopeClosed (the spec's "Unchanged" list).
+// scope-capability-mismatch on both acknowledge and scoped start (a transferred
+// scope leaks nothing to an unauthenticated caller), the worker's own
+// acknowledge losing closeScopeFinal's race to a claim is ErrScopeTransferred,
+// and bindScopeChange on a claim-closed scope keeps the parent-side
+// ErrScopeClosed (the spec's "Unchanged" list).
 func TestTransferredScopeRefusalOrdering(t *testing.T) {
 	t.Run("wrong capability outranks transferred", func(t *testing.T) {
 		d, store, grant, started, _ := startedScope(t, passObserveProc())
@@ -308,6 +310,29 @@ func TestTransferredScopeRefusalOrdering(t *testing.T) {
 		}
 		if _, err := d.Acknowledge(grant.ScopeID, "wrong-capability", started.DriveID, started.Generation); !isOwnershipKind(err, ErrScopeCapabilityMismatch) {
 			t.Fatalf("wrong capability on a transferred scope must stay ErrScopeCapabilityMismatch, got %v", err)
+		}
+	})
+	t.Run("wrong capability outranks transferred on a scoped start", func(t *testing.T) {
+		d, store, grant, started, req := startedScope(t, passObserveProc())
+		if err := store.closeScope(grant.ScopeID); err != nil {
+			t.Fatalf("closeScope: %v", err)
+		}
+		succ := successorReq(req, started)
+		succ.ChildCapability = "wrong-capability"
+		if _, err := d.Start(succ); !isOwnershipKind(err, ErrScopeCapabilityMismatch) {
+			t.Fatalf("wrong capability on a transferred scope's start must stay ErrScopeCapabilityMismatch, got %v", err)
+		}
+	})
+	t.Run("close-final race with a claim is transferred", func(t *testing.T) {
+		// The worker's own acknowledge lost the race: a claim/takeover closed the
+		// scope (Closed && !FinalAcked) between retirePredecessor and
+		// closeScopeFinal. The refusal must name the transfer, not a finished scope.
+		_, store, grant, started, _ := startedScope(t, passObserveProc())
+		if err := store.closeScope(grant.ScopeID); err != nil {
+			t.Fatalf("closeScope: %v", err)
+		}
+		if err := store.closeScopeFinal(grant.ScopeID, started.DriveID); !isOwnershipKind(err, ErrScopeTransferred) {
+			t.Fatalf("closeScopeFinal on a claim-closed scope must fail ErrScopeTransferred, got %v", err)
 		}
 	})
 	t.Run("bind-scope-change keeps scope-closed", func(t *testing.T) {
@@ -501,8 +526,9 @@ func TestAcknowledgePostAckSuccessorRefused(t *testing.T) {
 // TestCloseScopeFinalRevalidates unit-tests the closeScopeFinal store transition
 // directly: it closes a scope as FinalAcked ONLY when driveID is still the scope's
 // current drive (the revalidation-after-authority the lock order requires); a
-// mismatched drive id is ErrStalePredecessor with no write, and an already-closed
-// scope is ErrScopeClosed.
+// mismatched drive id is ErrStalePredecessor with no write, and a scope already
+// closed by its terminal acknowledgement is ErrScopeClosed (a claim-closed scope is
+// ErrScopeTransferred; see TestTransferredScopeRefusalOrdering).
 func TestCloseScopeFinalRevalidates(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
 	grant, err := store.PrepareScope(sampleScopeReq())

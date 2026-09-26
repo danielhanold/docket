@@ -78,14 +78,14 @@ const (
 	// its own terminal acknowledgement (Closed && FinalAcked). A closed scope is
 	// terminal.
 	ErrScopeClosed OwnershipErrorKind = "scope-closed"
-	// ErrScopeTransferred: a child-capability transition (an acknowledgement, or
-	// a scoped start) was attempted on a scope closed by a claim or takeover
+	// ErrScopeTransferred: a child-capability transition (an acknowledgement —
+	// including one whose closeScopeFinal lost the race to a claim — or a scoped
+	// start) was attempted on a scope closed by a claim or takeover
 	// (Closed && !FinalAcked) — authority over the scope's drive moved to the
 	// parent, so the scope is no longer the worker's to acknowledge or reuse.
 	// Distinct from ErrScopeClosed so the refusal names the real state instead of
 	// directing a finished worker to report BLOCKED (change 0459). Parent-side
-	// paths (takeoverClose, bindScopeChange, closeScopeFinal's race branch) keep
-	// ErrScopeClosed.
+	// paths (takeoverClose, bindScopeChange) keep ErrScopeClosed.
 	ErrScopeTransferred OwnershipErrorKind = "scope-transferred"
 	// ErrScopeIdentityMismatch: a scope's identity (its bound change, or an
 	// identity field a takeover re-verifies) no longer matches what the caller
