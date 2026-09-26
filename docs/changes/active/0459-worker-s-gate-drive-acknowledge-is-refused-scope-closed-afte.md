@@ -2,7 +2,7 @@
 id: 459
 slug: 'worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte'
 title: 'Worker''s gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-25'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-26T12:11:02Z'
 ---
 
 ## Artifacts
