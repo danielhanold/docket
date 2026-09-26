@@ -235,3 +235,65 @@ func TestArtifactBacklinkUnknownChange(t *testing.T) {
 		t.Fatalf("file mutated for an unknown change: %q", out)
 	}
 }
+
+// TestArtifactBacklinkChangePathValidation: --change is validated as a
+// canonical repository-relative path before the corpus read — the same rule
+// --artifact and the attach operations enforce. A malformed spelling is a
+// typed refusal naming the flag and the expected form, never unknown-change,
+// and the artifact is left byte-identical.
+func TestArtifactBacklinkChangePathValidation(t *testing.T) {
+	pin := docketPin(t)
+	corpus := backlinkCorpus()
+
+	cases := []struct {
+		name       string
+		changePath string
+		reason     string
+	}{
+		// The 0458 shape: an absolute spelling of a path whose repo-relative
+		// tail names a real record must refuse, never resolve.
+		{"absolute", "/work/repo/" + backlinkChangePath, ReasonBacklinkAbsolutePath},
+		{"dotdot-escape", "../" + backlinkChangePath, ReasonBacklinkPathEscape},
+		{"non-canonical-dot", "./" + backlinkChangePath, ReasonBacklinkPathEscape},
+		{"interior-dotdot", "docs/changes/active/../active/0315-claim.md", ReasonBacklinkPathEscape},
+		{"trailing-slash", backlinkChangePath + "/", ReasonBacklinkPathEscape},
+		{"empty", "", ReasonBacklinkPathEscape},
+		{"whitespace-only", "  ", ReasonBacklinkPathEscape},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := testsupport.TempDir(t)
+			artifact := filepath.Join(root, "plan.md")
+			original := []byte("# Plan\n\nAuthored body.\n")
+			if err := os.WriteFile(artifact, original, 0o644); err != nil {
+				t.Fatalf("seed artifact: %v", err)
+			}
+
+			got := ArtifactBacklink(context.Background(), backlinkDeps(&fakeReader{pin: pin, corpus: corpus}), root,
+				ArtifactBacklinkRequest{ArtifactPath: "plan.md", ChangePath: tc.changePath})
+
+			if got.Result != ResultInvalidInput {
+				t.Fatalf("result=%q, want %q (reason=%q message=%q)", got.Result, ResultInvalidInput, got.Reason, got.Message)
+			}
+			if got.Reason != tc.reason {
+				t.Fatalf("reason=%q, want %q (message=%q)", got.Reason, tc.reason, got.Message)
+			}
+			// The message must name the flag and the expected form — the 0458
+			// failure was precisely a message that named neither.
+			if !strings.Contains(got.Message, "--change") {
+				t.Fatalf("message does not name the --change flag: %q", got.Message)
+			}
+			if !strings.Contains(got.Message, "repository-relative") {
+				t.Fatalf("message does not name the expected form: %q", got.Message)
+			}
+			// Refusal predates any write.
+			out, err := os.ReadFile(artifact)
+			if err != nil {
+				t.Fatalf("read back: %v", err)
+			}
+			if string(out) != string(original) {
+				t.Fatalf("file mutated on refusal:\n got %q\nwant %q", out, original)
+			}
+		})
+	}
+}

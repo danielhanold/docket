@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -42,11 +43,13 @@ const (
 // The stable machine reasons `artifact backlink` reports for its typed refusals.
 // Message text is explanatory and must not be parsed.
 const (
-	// ReasonBacklinkAbsolutePath: the artifact path is absolute; paths crossing
-	// the CLI are canonical repository-relative (Global Constraints).
+	// ReasonBacklinkAbsolutePath: the artifact or change path is absolute;
+	// paths crossing the CLI are canonical repository-relative (Global
+	// Constraints).
 	ReasonBacklinkAbsolutePath = "absolute-path"
 	// ReasonBacklinkPathEscape: the artifact path escapes the worktree with a
-	// `..` traversal.
+	// `..` traversal, or the change path is empty, escaping, or a
+	// non-canonical spelling.
 	ReasonBacklinkPathEscape = "path-escape"
 	// ReasonBacklinkSymlinkEscape: a symlink hop on the artifact path resolves to
 	// a physical location outside the worktree.
@@ -58,8 +61,8 @@ const (
 	// malformed (dangling/out-of-order/nested markers); the block is not rewritten
 	// and the file is left untouched.
 	ReasonBacklinkMalformedMarkers = "malformed-markers"
-	// ReasonBacklinkUnknownChange: the --change path names no record in the
-	// corpus, so no backlink can be rendered.
+	// ReasonBacklinkUnknownChange: the well-formed --change path names no
+	// record in the corpus, so no backlink can be rendered.
 	ReasonBacklinkUnknownChange = "unknown-change"
 	// ReasonBacklinkRepoUnreadable: the worktree root cannot be canonicalised.
 	ReasonBacklinkRepoUnreadable = "repo-unreadable"
@@ -168,13 +171,20 @@ func ArtifactBacklink(ctx context.Context, deps PlanningDeps, repoDir string, re
 			fmt.Sprintf("artifact %q has a malformed managed-block population: %v", req.ArtifactPath, err))
 	}
 
-	// 4. Resolve the target change from one pinned corpus read.
+	// 4. Validate --change lexically before the corpus read: a malformed
+	//    spelling is refused by form, so unknown-change is reached only by a
+	//    well-formed path that names no record.
+	if reason, msg := validateBacklinkChangePath(req.ChangePath); reason != "" {
+		return backlinkRefusal(ResultInvalidInput, reason, msg)
+	}
+
+	// 5. Resolve the target change from one pinned corpus read.
 	change, refusal := resolveBacklinkChange(ctx, deps, repoDir, req.ChangePath)
 	if refusal != nil {
 		return *refusal
 	}
 
-	// 5. Render the deterministic backlink block and reduce it to the interior the
+	// 6. Render the deterministic backlink block and reduce it to the interior the
 	//    document layer manages between the markers it owns.
 	block, err := render.BacklinkContent(change.change, change.link)
 	if err != nil {
@@ -182,7 +192,7 @@ func ArtifactBacklink(ctx context.Context, deps PlanningDeps, repoDir string, re
 	}
 	interior := backlinkInterior(block)
 
-	// 6. Rewrite (or insert) the managed block.
+	// 7. Rewrite (or insert) the managed block.
 	var ps document.PatchSet
 	if _, ok := doc.Block(backlinkBlockName); ok {
 		ps.ReplaceBlock(backlinkBlockName, interior)
@@ -201,7 +211,7 @@ func ArtifactBacklink(ctx context.Context, deps PlanningDeps, repoDir string, re
 
 	applied := ArtifactBacklinkResult{Artifact: req.ArtifactPath, Change: change.change.Path()}
 
-	// 7. Idempotent write: unchanged bytes are a no-op, so a re-run yields a
+	// 8. Idempotent write: unchanged bytes are a no-op, so a re-run yields a
 	//    byte-identical file and no needless mtime churn.
 	if string(updated) == string(original) {
 		applied.Disposition = backlinkDispositionUnchanged
@@ -331,4 +341,39 @@ func resolveEveryHop(p string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(parentReal, filepath.Base(p)), nil
+}
+
+// validateBacklinkChangePath proves the --change value is a canonical
+// repository-relative path — the one rule every path flag crossing the CLI
+// follows (--artifact above, verifyAttachPath in change_attach.go). The check
+// is purely lexical: the change record lives in the pinned git corpus, not on
+// the feature worktree's filesystem, so there is no containment root to
+// resolve against and no symlink to canonicalise. It mirrors verifyAttachPath
+// deliberately (learning duplicated-gate-copies-the-whole-predicate: all four
+// checks, not just the absolute-path threshold) without factoring it out, so
+// the attach operations' observable reasons and messages stay untouched. It
+// returns a stable refusal reason and a message naming the flag and the
+// expected form, or ("", "") for a well-formed path.
+func validateBacklinkChangePath(changePath string) (string, string) {
+	const form = "pass the canonical repository-relative change path (e.g. docs/changes/active/<id>-<slug>.md)"
+	if strings.TrimSpace(changePath) == "" {
+		return ReasonBacklinkPathEscape,
+			fmt.Sprintf("--change path is empty; %s", form)
+	}
+	if filepath.IsAbs(changePath) {
+		return ReasonBacklinkAbsolutePath,
+			fmt.Sprintf("--change path %q is absolute; %s", changePath, form)
+	}
+	if !filepath.IsLocal(filepath.FromSlash(changePath)) {
+		return ReasonBacklinkPathEscape,
+			fmt.Sprintf("--change path %q escapes the repository root; %s", changePath, form)
+	}
+	// Clean is a no-op for a canonical path; an input that changes under Clean
+	// is non-canonical (a `./`, `//`, interior `..`, or trailing-slash
+	// spelling) and is refused as an escape, matching verifyAttachPath.
+	if clean := path.Clean(changePath); clean != changePath {
+		return ReasonBacklinkPathEscape,
+			fmt.Sprintf("--change path %q is not in canonical repository-relative form; %s", changePath, form)
+	}
+	return "", ""
 }
