@@ -1,11 +1,12 @@
 # Backlog
 
-**460 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 308 done · 🗑️ 119 killed
+**460 changes** — 🟢 2 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 11 deferred · ✅ 308 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
+| [0460](active/0460-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md) | artifact.backlink refuses an absolute --change path with unknown-change | `high` | `fix` | [spec](../superpowers/specs/2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md) | `fix/artifact-backlink-refuses-an-absolute-change-path-with-unkno` |  |
 | [0459](active/0459-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md) | Worker's gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive | `high` | `fix` | [spec](../superpowers/specs/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-design.md) | `fix/worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte` |  |
 
 ## 🔴 Blocked (1)
@@ -14,11 +15,10 @@
 |---|-------|----------|------|----|--------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
 
-## 🟣 Groomed (4)
+## 🟣 Groomed (3)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0460](active/0460-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md) | artifact.backlink refuses an absolute --change path with unknown-change | `high` | `fix` | [spec](../superpowers/specs/2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |

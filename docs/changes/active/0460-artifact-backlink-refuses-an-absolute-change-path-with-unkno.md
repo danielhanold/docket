@@ -2,11 +2,11 @@
 id: 460
 slug: 'artifact-backlink-refuses-an-absolute-change-path-with-unkno'
 title: 'artifact.backlink refuses an absolute --change path with unknown-change'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-25'
-updated: '2026-09-25'
+updated: '2026-09-26'
 depends_on: []
 stacked_on:
 related: []
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/artifact-backlink-refuses-an-absolute-change-path-with-unkno'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-26T12:11:18Z'
 ---
 
 ## Artifacts
