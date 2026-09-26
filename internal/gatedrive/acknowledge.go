@@ -47,8 +47,9 @@ func (d *Driver) Acknowledge(scopeID, childCapability, driveID, ownerGen string)
 	// successful acknowledgement: a scope that is Closed AND FinalAcked, still naming
 	// this drive, whose drive record is already owner-cleared with a durable
 	// PASSED/FAILED verdict, is the recorded terminal — return its document with no
-	// write. A scope closed by a claim or takeover (FinalAcked false), or a
-	// non-matching drive, is a fail-closed ErrScopeClosed.
+	// write. A scope closed by a claim or takeover (FinalAcked false) is
+	// ErrScopeTransferred — authority moved to the parent; a FinalAcked scope with a
+	// non-matching drive is a fail-closed ErrScopeClosed.
 	//
 	// Intentional ownerGen asymmetry (change 0405): unlike the normal path, this
 	// branch does NOT verify the presented ownerGen — childCapability (checked above)
@@ -72,6 +73,11 @@ func (d *Driver) Acknowledge(scopeID, childCapability, driveID, ownerGen string)
 			if rec.OwnerGeneration == "" && (rec.LastOutcome == PASSED || rec.LastOutcome == FAILED) {
 				return d.recordedDoc(driveID, ownerGen, rec), nil
 			}
+		}
+		if !scope.FinalAcked {
+			// Closed by a claim or takeover, not by a terminal acknowledgement:
+			// scope authority transferred to the parent (change 0459).
+			return DriveDoc{}, ownershipErr(ErrScopeTransferred, "acknowledge")
 		}
 		return DriveDoc{}, ownershipErr(ErrScopeClosed, "acknowledge")
 	}

@@ -74,9 +74,19 @@ const (
 	// opening a second drive. A receipt-less start is refused rather than
 	// overwriting the current one.
 	ErrScopeSecondDrive OwnershipErrorKind = "scope-second-live-drive"
-	// ErrScopeClosed: a transition was attempted on a scope already closed by a
-	// normal claim or an event-authorized takeover. A closed scope is terminal.
+	// ErrScopeClosed: a transition was attempted on a scope already finished by
+	// its own terminal acknowledgement (Closed && FinalAcked). A closed scope is
+	// terminal.
 	ErrScopeClosed OwnershipErrorKind = "scope-closed"
+	// ErrScopeTransferred: a child-capability transition (an acknowledgement, or
+	// a scoped start) was attempted on a scope closed by a claim or takeover
+	// (Closed && !FinalAcked) — authority over the scope's drive moved to the
+	// parent, so the scope is no longer the worker's to acknowledge or reuse.
+	// Distinct from ErrScopeClosed so the refusal names the real state instead of
+	// directing a finished worker to report BLOCKED (change 0459). Parent-side
+	// paths (takeoverClose, bindScopeChange, closeScopeFinal's race branch) keep
+	// ErrScopeClosed.
+	ErrScopeTransferred OwnershipErrorKind = "scope-transferred"
 	// ErrScopeIdentityMismatch: a scope's identity (its bound change, or an
 	// identity field a takeover re-verifies) no longer matches what the caller
 	// presented — e.g. rebinding a scope to a different change. Fail closed.

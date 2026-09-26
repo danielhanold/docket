@@ -1112,11 +1112,12 @@ func TestTakeoverRaceVsFinalAcknowledge(t *testing.T) {
 			t.Fatalf("the takeover must win, got HALTED %s", took.Cause)
 		}
 		// The final acknowledgement can no longer consume this scope: the takeover
-		// closed it (Closed, not FinalAcked), so the ack is refused ErrScopeClosed and
-		// writes nothing — the takeover, not the ack, owns this terminal transition.
+		// closed it (Closed, not FinalAcked), so the ack is refused ErrScopeTransferred
+		// (change 0459: authority moved to the parent) and writes nothing — the
+		// takeover, not the ack, owns this terminal transition.
 		scopeBytes := readScopeBytes(t, store, grant.ScopeID)
-		if _, aerr := d.Acknowledge(grant.ScopeID, grant.ChildCapability, second.DriveID, second.Generation); !isOwnershipKind(aerr, ErrScopeClosed) {
-			t.Fatalf("an ack after a takeover closed the scope must fail ErrScopeClosed, got %v", aerr)
+		if _, aerr := d.Acknowledge(grant.ScopeID, grant.ChildCapability, second.DriveID, second.Generation); !isOwnershipKind(aerr, ErrScopeTransferred) {
+			t.Fatalf("an ack after a takeover closed the scope must fail ErrScopeTransferred, got %v", aerr)
 		}
 		if string(scopeBytes) != string(readScopeBytes(t, store, grant.ScopeID)) {
 			t.Fatalf("a refused ack must not rewrite the scope record")
