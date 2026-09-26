@@ -100,7 +100,7 @@ For any `agent.enter` route: Write a request file containing the user's request 
 A shell-tool yield carrying a live task/session identity is a liveness transition, not completion. You must retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism. Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved. Only after terminal output is collected may implement-next run the parent's keyed `run.gate-verdict` and obey its report. Coordinator prose, thread or turn ids, and process exit alone do not prove gate ownership or completion. Do not substitute `codex exec`, another harness, a generic agent, or a parent relay.
 <!-- docket:dispatch:end -->
 
-### Grooming or Auto-Grooming Guidelines
+## Guidelines for Grooming and Auto-Grooming
 - Follow the YAGNI principle.
 - Trace the existing implementation and review relevant prior changes and architecture decisions before proposing a design.
 - Treat the stub’s proposed solution as a hypothesis.
