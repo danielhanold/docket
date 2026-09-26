@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0460 — artifact.backlink refuses an absolute --change path with unknown-change](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0460-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md)**
+> ↩ **[Change 0460 — artifact.backlink refuses an absolute --change path with unknown-change](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-26-0460-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md)**
 <!-- docket:backlink:end -->
 # artifact.backlink `--change` Path Validation Implementation Plan
 
