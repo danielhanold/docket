@@ -14,7 +14,7 @@ discovered_from: [458]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-design.md'
 plan: 'docs/superpowers/plans/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md'
-results:
+results: 'docs/results/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-26T12:32:24Z'
 |---|---|
 | Spec | [2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-design.md) |
 | Plan | [2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md](https://github.com/danielhanold/docket/blob/fix/worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte/docs/superpowers/plans/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md) |
+| Results | [2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-results.md](https://github.com/danielhanold/docket/blob/fix/worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte/docs/results/2026-09-26-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
