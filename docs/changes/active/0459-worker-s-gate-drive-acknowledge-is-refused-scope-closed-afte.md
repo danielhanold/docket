@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-26T12:11:02Z'
+reconciled: true
+claimed_at: '2026-09-26T12:12:45Z'
 ---
 
 ## Artifacts
@@ -49,3 +49,9 @@ Keep the gate-drive authority model strict and fix the contracts around it. A pa
 ## Out of scope
 
 Broader gate-drive handoff/claim redesign (claim keeps closing the scope); the parent-side takeover path and its `scope-closed` semantics; the artifact.backlink absolute-path issue found in the same run (change 0460).
+
+## Reconcile log
+
+### 2026-09-26
+
+2026-09-26 — Reconciled against main d1ca501b. Every code site the spec names still matches: ErrScopeClosed in ownership.go, the Acknowledge closed-scope branch (acknowledge.go), the scoped-start closed-scope check (driver.go), the ownershipNextAction scope-closed message (internal/app/gate_drive.go), and the takeover / bind-scope-change paths that must keep scope-closed. The worker contract still mandates acknowledge-or-BLOCKED. Change 0458 (discovered_from) is merged; 0460 stays separate. No scope change.
