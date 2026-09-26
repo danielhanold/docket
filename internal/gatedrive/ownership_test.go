@@ -38,8 +38,9 @@ func newHandedOffDrive(t *testing.T) (s *Store, id, oldOwner string, receipt han
 	return s, id, oldOwner, receipt
 }
 
-// TestOwnershipKindSpellings pins the exact wire spellings of the four sequential
-// scope kinds Task 1 adds: later tasks return these and the app-layer mapping
+// TestOwnershipKindSpellings pins the exact wire spellings of the sequential scope
+// kinds, including the two closed-scope terminals (scope-closed, scope-transferred):
+// later tasks return these and the app-layer mapping
 // surfaces them verbatim, so a rename here is a protocol break the guard catches.
 func TestOwnershipKindSpellings(t *testing.T) {
 	cases := map[OwnershipErrorKind]string{
@@ -47,6 +48,8 @@ func TestOwnershipKindSpellings(t *testing.T) {
 		ErrPredecessorNotReusable:     "predecessor-not-reusable",
 		ErrUnresolvedLaunchTransition: "unresolved-launch-transition",
 		ErrScopeBusy:                  "scope-busy",
+		ErrScopeClosed:                "scope-closed",
+		ErrScopeTransferred:           "scope-transferred",
 	}
 	for kind, want := range cases {
 		if string(kind) != want {

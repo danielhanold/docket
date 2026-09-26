@@ -388,17 +388,39 @@ func TestAcknowledgeRefusals(t *testing.T) {
 		assertUnchanged(t, store, grant.ScopeID, scopeBytes, started.DriveID, driveBytes)
 	})
 
-	t.Run("scope closed by claim or takeover", func(t *testing.T) {
+	t.Run("scope closed by claim or takeover is transferred", func(t *testing.T) {
 		d, store, grant, started, _ := startedScope(t, passObserveProc())
 		if err := store.closeScope(grant.ScopeID); err != nil {
 			t.Fatalf("closeScope: %v", err)
 		}
 		scopeBytes := readScopeBytes(t, store, grant.ScopeID)
 		driveBytes := readDriveBytes(t, store, started.DriveID)
-		if _, err := d.Acknowledge(grant.ScopeID, grant.ChildCapability, started.DriveID, started.Generation); !isOwnershipKind(err, ErrScopeClosed) {
-			t.Fatalf("a scope closed (not final-acked) must reject ack ErrScopeClosed, got %v", err)
+		if _, err := d.Acknowledge(grant.ScopeID, grant.ChildCapability, started.DriveID, started.Generation); !isOwnershipKind(err, ErrScopeTransferred) {
+			t.Fatalf("a claim/takeover-closed scope (not final-acked) must reject ack ErrScopeTransferred, got %v", err)
 		}
 		assertUnchanged(t, store, grant.ScopeID, scopeBytes, started.DriveID, driveBytes)
+	})
+
+	t.Run("final-acked scope with a non-matching drive stays scope-closed", func(t *testing.T) {
+		d, store, grant, started, _ := startedScope(t, passObserveProc())
+		if started.Outcome != PASSED {
+			t.Fatalf("want a PASSED current drive, got %s", started.Outcome)
+		}
+		// A NORMAL terminal acknowledgement closes the scope with FinalAcked.
+		if _, err := d.Acknowledge(grant.ScopeID, grant.ChildCapability, started.DriveID, started.Generation); err != nil {
+			t.Fatalf("terminal Acknowledge: %v", err)
+		}
+		// A separate durable drive: acknowledging it against the finished scope is
+		// the finished-scope refusal, never the transferred one.
+		other := seedRecord(t)
+		other.LastOutcome = PASSED
+		otherID, otherGen := seedDrive(t, store, other)
+		scopeBytes := readScopeBytes(t, store, grant.ScopeID)
+		otherBytes := readDriveBytes(t, store, otherID)
+		if _, err := d.Acknowledge(grant.ScopeID, grant.ChildCapability, otherID, otherGen); !isOwnershipKind(err, ErrScopeClosed) {
+			t.Fatalf("a FinalAcked scope must keep the scope-closed refusal, got %v", err)
+		}
+		assertUnchanged(t, store, grant.ScopeID, scopeBytes, otherID, otherBytes)
 	})
 
 	t.Run("reserved slot", func(t *testing.T) {
