@@ -145,7 +145,8 @@ func (d *Driver) Acknowledge(scopeID, childCapability, driveID, ownerGen string)
 	// Close the scope as terminally acknowledged, revalidating the slot under the
 	// scope lock (revalidate-after-authority). The owner is already retired, so a
 	// concurrent transition that moved the slot fails this close closed rather than
-	// closing over the wrong drive.
+	// closing over the wrong drive; a claim or takeover that closed the scope in
+	// between surfaces as ErrScopeTransferred, not ErrScopeClosed.
 	if cerr := d.store.closeScopeFinal(scopeID, driveID); cerr != nil {
 		return DriveDoc{}, cerr
 	}
@@ -162,11 +163,18 @@ func (d *Driver) Acknowledge(scopeID, childCapability, driveID, ownerGen string)
 // FinalAcked, but ONLY when driveID is still the scope's current drive — the
 // revalidation-after-authority the lock order requires (a concurrent transition
 // that moved the slot between the caller's read and this close is caught here). A
-// mismatched drive id is a fail-closed ErrStalePredecessor; an already-closed
-// scope is ErrScopeClosed. On any rejection the persisted record is untouched.
+// mismatched drive id is a fail-closed ErrStalePredecessor. An already-closed
+// scope is ErrScopeClosed when it was finished by its terminal acknowledgement
+// (FinalAcked), and ErrScopeTransferred when a claim or takeover closed it
+// (!FinalAcked) — the worker's own acknowledgement lost the race between
+// retirePredecessor and this close, so authority moved to the parent (change
+// 0459). On any rejection the persisted record is untouched.
 func (s *Store) closeScopeFinal(scopeID, driveID string) error {
 	return s.scopeCAS(scopeID, func(rec *scopeRecord) error {
 		if rec.Closed {
+			if !rec.FinalAcked {
+				return ownershipErr(ErrScopeTransferred, "acknowledge-close")
+			}
 			return ownershipErr(ErrScopeClosed, "acknowledge-close")
 		}
 		if rec.CurrentDriveID != driveID {

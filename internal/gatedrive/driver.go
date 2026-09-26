@@ -678,6 +678,12 @@ func (d *Driver) precheckScopedStart(req StartRequest) error {
 	if err != nil {
 		return err
 	}
+	// The child capability is checked before the closed state, matching Acknowledge
+	// and scopeReserveRefusal, so a rejected credential never learns whether the
+	// scope was transferred or finished.
+	if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
+		return ownershipErr(ErrScopeCapabilityMismatch, "start")
+	}
 	if scope.Closed {
 		if !scope.FinalAcked {
 			// Closed by a claim or takeover: scope authority transferred to the
@@ -685,9 +691,6 @@ func (d *Driver) precheckScopedStart(req StartRequest) error {
 			return ownershipErr(ErrScopeTransferred, "start")
 		}
 		return ownershipErr(ErrScopeClosed, "start")
-	}
-	if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
-		return ownershipErr(ErrScopeCapabilityMismatch, "start")
 	}
 
 	receipt := predecessorReceipt{DriveID: req.PredecessorDriveID, OwnerGen: req.PredecessorOwnerGen}
