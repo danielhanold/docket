@@ -13,7 +13,7 @@ related: []
 discovered_from: [458]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-26T12:12:54Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md) |
+| Plan | [2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md](https://github.com/danielhanold/docket/blob/fix/artifact-backlink-refuses-an-absolute-change-path-with-unkno/docs/superpowers/plans/2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
