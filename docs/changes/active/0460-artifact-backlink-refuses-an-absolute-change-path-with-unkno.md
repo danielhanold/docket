@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/artifact-backlink-refuses-an-absolute-change-path-with-unkno'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-26T12:11:18Z'
+reconciled: true
+claimed_at: '2026-09-26T12:11:47Z'
 ---
 
 ## Artifacts
@@ -46,3 +46,9 @@ The stub proposed accepting absolute paths. Grooming decided against it: that wo
 ## Out of scope
 
 Accepting absolute paths on any flag; path handling in other operations; the gate-drive `scope-closed` issue found in the same 0458 run (tracked separately).
+
+## Reconcile log
+
+### 2026-09-26
+
+2026-09-26 — Reconciled against main d1ca501b. Traced internal/app/artifact_backlink.go: ArtifactBacklink still passes req.ChangePath raw to resolveBacklinkChange with no lexical validation; containedArtifactPath and verifyAttachPath (change_attach.go) still carry the canonical-path rule the spec mirrors. Change 0458 (discovered_from) has merged and does not touch this path. Scope unchanged.
