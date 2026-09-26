@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:99499348930cd7288941f1c5f8207d27e814d01aec0773189fd01268fb903a23",
+  "asset_set_id": "sha256:ffac8db623e2f3660fca51a30267487ebfc39c86d071d8a0ad2fe57d9afeb3b4",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -301,15 +301,15 @@
       "path": "skills/docket-build-task/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 12765,
-      "sha256": "1ad6289f881105cda0c34ecbbdd2b441113925a0f33ee1a270bfcd91c46c8186"
+      "size": 13990,
+      "sha256": "37ecdd531f0e43a7935b64955f87ca343c83e46de2425f78d2cf005c8122bc6a"
     },
     {
       "path": "skills/docket-build/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 28876,
-      "sha256": "4505b15a67fd24feeefeb137bbfcdfb9dd6420e98fe83919109e1c44e20f8216"
+      "size": 29562,
+      "sha256": "6f1d155314e9c530bbcba49a856c1fdef4968626cf02858eec114ebdc5dfed4c"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",

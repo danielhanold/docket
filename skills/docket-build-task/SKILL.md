@@ -108,6 +108,22 @@ authorize a success report, and a failed acknowledgement returns `BLOCKED` with 
 never `COMPLETE`. Acknowledgement retires the scope's recovery authority, not your evidence: keep the
 final drive id and verdict in `VERIFICATION`/`NOTES`.
 
+**Continued after a `WAITING` handoff — the original scope is no longer yours.** A worker that
+performed `gate.drive.handoff` and returned `WAITING` surrendered its drive; the parent's `claim`
+closed the scope, so when you are resumed or re-dispatched to continue that task you
+never `acknowledge` the original scope and never start a drive on it.
+A `scope-transferred` refusal means you misapplied this rule
+— it is not an acknowledgement failure of an owned scope and it never means the work failed.
+Report on the terminal verdict your continuation supplies
+(the handed-off drive id and its `PASSED`/`FAILED` disposition) plus your own work:
+`PASSED` with exactly one task commit → `COMPLETE`; `FAILED` → the existing repair discretion, and
+never `COMPLETE` on that verdict. Any further test drive runs only under the fresh scope bundle the
+continuation provides, under the normal sequential-drive rules above; with no fresh bundle you
+cannot run tests — return `BLOCKED` naming
+"continuation needs a fresh scope".
+The rule that a failed acknowledgement returns `BLOCKED`, never `COMPLETE`, continues to bind the
+scopes you still own, and the final drive id and verdict stay in `VERIFICATION`/`NOTES` as always.
+
 Two obligations the cycle does not relax:
 
 - A bug fix requires a **failing regression test** that reproduces the bug before the fix.
