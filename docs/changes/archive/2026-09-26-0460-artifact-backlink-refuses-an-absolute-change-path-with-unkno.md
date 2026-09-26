@@ -2,7 +2,7 @@
 id: 460
 slug: 'artifact-backlink-refuses-an-absolute-change-path-with-unkno'
 title: 'artifact.backlink refuses an absolute --change path with unknown-change'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-09-25'
@@ -22,7 +22,7 @@ branch: 'fix/artifact-backlink-refuses-an-absolute-change-path-with-unkno'
 pr: 'https://github.com/danielhanold/docket/pull/336'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-26T12:19:54Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-26T12:19:54Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-25-artifact-backlink-refuses-an-absolute-change-path-with-unkno-design.md) |
-| Plan | [2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md](https://github.com/danielhanold/docket/blob/fix/artifact-backlink-refuses-an-absolute-change-path-with-unkno/docs/superpowers/plans/2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md) |
-| Results | [2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno-results.md](https://github.com/danielhanold/docket/blob/fix/artifact-backlink-refuses-an-absolute-change-path-with-unkno/docs/results/2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno-results.md) |
+| Plan | [2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md) |
+| Results | [2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-26-artifact-backlink-refuses-an-absolute-change-path-with-unkno-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
