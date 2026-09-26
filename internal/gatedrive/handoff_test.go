@@ -310,7 +310,7 @@ func porcelain(t *testing.T, repo string) string {
 // path mid-sequence (spec verification 7): after a completed predecessor, the
 // current WAITING successor is handed off and cooperatively claimed; Claim closes
 // the child's scope (later worker dispatches get fresh scopes), so a further
-// successor start is refused ErrScopeClosed and the child's original owner
+// successor start is refused ErrScopeTransferred (change 0459) and the child's original owner
 // generation is dead.
 func TestScopedWaitingHandoffClaimClosesScope(t *testing.T) {
 	clk := &fakeClock{now: startEpoch()}
@@ -378,8 +378,8 @@ func TestScopedWaitingHandoffClaimClosesScope(t *testing.T) {
 	further.PredecessorDriveID = second.DriveID
 	further.PredecessorOwnerGen = claimed.Generation
 	launchesBefore := proc.launchN
-	if _, err := d.Start(further); !isOwnershipKind(err, ErrScopeClosed) {
-		t.Fatalf("a successor start under a claimed (closed) scope must fail ErrScopeClosed, got %v", err)
+	if _, err := d.Start(further); !isOwnershipKind(err, ErrScopeTransferred) {
+		t.Fatalf("a successor start under a claimed (transferred) scope must fail ErrScopeTransferred, got %v", err)
 	}
 	if proc.launchN != launchesBefore {
 		t.Fatalf("a rejected successor start must not launch, launched %d->%d", launchesBefore, proc.launchN)
@@ -392,5 +392,80 @@ func TestScopedWaitingHandoffClaimClosesScope(t *testing.T) {
 	}
 	if stale.Outcome != HALTED {
 		t.Fatalf("the child's original owner must be dead after handoff/claim, got %s", stale.Outcome)
+	}
+}
+
+// TestClaimedScopeAcknowledgeAndStartAreTransferred is the change-0459
+// regression: a worker hands off its WAITING drive, the parent claims it and
+// advances it to PASSED, and the returning worker's child-capability operations
+// on the original scope — acknowledge, and a scoped start — are refused with the
+// distinct ErrScopeTransferred (never the finished-scope ErrScopeClosed), with
+// nothing written and nothing launched. Observed on change 0458 Task 2, where
+// the old ErrScopeClosed refusal steered a finished worker into a false BLOCKED.
+func TestClaimedScopeAcknowledgeAndStartAreTransferred(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	running := true
+	proc := &fakeProc{
+		observe: func(runDir string) (*process.Observation, error) {
+			if running {
+				return obs(process.StateRunning, runDir), nil
+			}
+			return obs(process.StatePassed, runDir), nil
+		},
+	}
+	d := scopedTestDriver(store, clk, proc, stableGit())
+	req := sampleStart()
+	grant, err := store.PrepareScope(scopeReqFor(req, ""))
+	if err != nil {
+		t.Fatalf("PrepareScope: %v", err)
+	}
+	req.ScopeID = grant.ScopeID
+	req.ChildCapability = grant.ChildCapability
+
+	started, err := d.Start(req)
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if started.Outcome != WAITING {
+		t.Fatalf("drive must WAIT, got %s (%s)", started.Outcome, started.Cause)
+	}
+
+	// Worker hands off; parent claims and advances to the terminal PASSED.
+	handoff, err := d.Handoff(started.DriveID, started.Generation)
+	if err != nil {
+		t.Fatalf("Handoff: %v", err)
+	}
+	claimed, err := d.Claim(started.DriveID, handoff.Generation)
+	if err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+	running = false
+	final, err := d.Advance(started.DriveID, claimed.Generation)
+	if err != nil {
+		t.Fatalf("Advance: %v", err)
+	}
+	if final.Outcome != PASSED {
+		t.Fatalf("parent-driven drive must PASS, got %s (%s)", final.Outcome, final.Cause)
+	}
+
+	// The returning worker's acknowledge on its original scope: transferred, no write.
+	scopeBytes := readScopeBytes(t, store, grant.ScopeID)
+	driveBytes := readDriveBytes(t, store, started.DriveID)
+	if _, err := d.Acknowledge(grant.ScopeID, grant.ChildCapability, started.DriveID, started.Generation); !isOwnershipKind(err, ErrScopeTransferred) {
+		t.Fatalf("acknowledge after a parent claim must be ErrScopeTransferred, got %v", err)
+	}
+	assertUnchanged(t, store, grant.ScopeID, scopeBytes, started.DriveID, driveBytes)
+
+	// A scoped start under the same scope: transferred, nothing launched.
+	further := req
+	further.PredecessorDriveID = started.DriveID
+	further.PredecessorOwnerGen = claimed.Generation
+	launchesBefore := proc.launchN
+	if _, err := d.Start(further); !isOwnershipKind(err, ErrScopeTransferred) {
+		t.Fatalf("a scoped start under a claim-closed scope must be ErrScopeTransferred, got %v", err)
+	}
+	if proc.launchN != launchesBefore {
+		t.Fatalf("a transferred-scope start must not launch, launched %d->%d", launchesBefore, proc.launchN)
 	}
 }

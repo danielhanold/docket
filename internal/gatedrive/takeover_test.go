@@ -948,7 +948,7 @@ func TestClaimScopeForTakeoverRevalidates(t *testing.T) {
 // rendezvous at the fingerprint barrier, then contend on the scope. Exactly one
 // wins a coherent ownership transition — either the start wins (the takeover HALTs
 // scope-busy/scope-closed and supersedes no generation) or the takeover wins (the
-// start is rejected ErrScopeClosed) — and at most the winner's Launch happened. Run
+// start is rejected ErrScopeTransferred, change 0459) — and at most the winner's Launch happened. Run
 // under -race.
 func TestTakeoverRaceVsSuccessorStart(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
@@ -1045,13 +1045,13 @@ func TestTakeoverRaceVsSuccessorStart(t *testing.T) {
 			t.Fatalf("the predecessor must be retired (owner cleared) by the winning successor, got %q", firstRec.OwnerGeneration)
 		}
 	} else {
-		// The takeover wins: nothing launched, the start is rejected ErrScopeClosed, the
+		// The takeover wins: nothing launched, the start is rejected ErrScopeTransferred, the
 		// scope is closed, and the predecessor's owner is the takeover's fresh generation.
 		if proc.launches() != 0 {
 			t.Fatalf("when the takeover wins no successor launch must happen, got %d", proc.launches())
 		}
-		if !isOwnershipKind(startErr, ErrScopeClosed) {
-			t.Fatalf("a losing successor start must be rejected ErrScopeClosed, got %v", startErr)
+		if !isOwnershipKind(startErr, ErrScopeTransferred) {
+			t.Fatalf("a losing successor start must be rejected ErrScopeTransferred, got %v", startErr)
 		}
 		if !scope.Closed {
 			t.Fatalf("when the takeover wins the scope must be closed")

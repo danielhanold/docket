@@ -333,8 +333,10 @@ func TestScopeReserveReceiptShape(t *testing.T) {
 }
 
 // TestScopeReserveCapabilityAndClosed proves reserveScopeDrive refuses a wrong or
-// empty capability (ErrScopeCapabilityMismatch) and a closed scope
-// (ErrScopeClosed), and that each rejection leaves the persisted bytes unchanged.
+// empty capability (ErrScopeCapabilityMismatch), a scope closed by a claim or
+// takeover (ErrScopeTransferred, change 0459), and a scope closed by its terminal
+// acknowledgement (ErrScopeClosed), and that each rejection leaves the persisted
+// bytes unchanged.
 func TestScopeReserveCapabilityAndClosed(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	grant, err := s.PrepareScope(sampleScopeReq())
@@ -359,11 +361,30 @@ func TestScopeReserveCapabilityAndClosed(t *testing.T) {
 		t.Fatalf("closeScope: %v", err)
 	}
 	before := readScopeBytes(t, s, closed.ScopeID)
-	if err := s.reserveScopeDrive(closed.ScopeID, closed.ChildCapability, scopeDriveA, predecessorReceipt{}); !isOwnershipKind(err, ErrScopeClosed) {
-		t.Fatalf("reserve on a closed scope must fail ErrScopeClosed, got %v", err)
+	if err := s.reserveScopeDrive(closed.ScopeID, closed.ChildCapability, scopeDriveA, predecessorReceipt{}); !isOwnershipKind(err, ErrScopeTransferred) {
+		t.Fatalf("reserve on a claim/takeover-closed scope must fail ErrScopeTransferred, got %v", err)
 	}
 	if after := readScopeBytes(t, s, closed.ScopeID); string(after) != string(before) {
 		t.Fatalf("a rejected reserve on a closed scope must not write: bytes changed")
+	}
+
+	finished, err := s.PrepareScope(sampleScopeReq())
+	if err != nil {
+		t.Fatalf("PrepareScope finished: %v", err)
+	}
+	if err := s.scopeCAS(finished.ScopeID, func(rec *scopeRecord) error {
+		rec.Closed = true
+		rec.FinalAcked = true
+		return nil
+	}); err != nil {
+		t.Fatalf("final-ack close: %v", err)
+	}
+	before = readScopeBytes(t, s, finished.ScopeID)
+	if err := s.reserveScopeDrive(finished.ScopeID, finished.ChildCapability, scopeDriveA, predecessorReceipt{}); !isOwnershipKind(err, ErrScopeClosed) {
+		t.Fatalf("reserve on a final-acked scope must fail ErrScopeClosed, got %v", err)
+	}
+	if after := readScopeBytes(t, s, finished.ScopeID); string(after) != string(before) {
+		t.Fatalf("a rejected reserve on a final-acked scope must not write: bytes changed")
 	}
 }
 

@@ -679,6 +679,11 @@ func (d *Driver) precheckScopedStart(req StartRequest) error {
 		return err
 	}
 	if scope.Closed {
+		if !scope.FinalAcked {
+			// Closed by a claim or takeover: scope authority transferred to the
+			// parent, not finished by its own terminal acknowledgement (change 0459).
+			return ownershipErr(ErrScopeTransferred, "start")
+		}
 		return ownershipErr(ErrScopeClosed, "start")
 	}
 	if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
