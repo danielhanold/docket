@@ -1708,9 +1708,20 @@ func TestSameScopeSuccessorGuardAppliesWholeReservePredicate(t *testing.T) {
 		want   OwnershipErrorKind
 	}{
 		{
-			name: "closed scope with a stale receipt is ErrScopeClosed",
+			// A claim/takeover-style close (not FinalAcked) is transferred (change 0459).
+			name: "transferred scope with a stale receipt is ErrScopeTransferred",
 			mutate: func(t *testing.T, store *Store, req *StartRequest, _ string) {
 				setScope(t, store, req.ScopeID, func(rec *scopeRecord) { rec.Closed = true })
+			},
+			want: ErrScopeTransferred,
+		},
+		{
+			name: "final-acked closed scope with a stale receipt is ErrScopeClosed",
+			mutate: func(t *testing.T, store *Store, req *StartRequest, _ string) {
+				setScope(t, store, req.ScopeID, func(rec *scopeRecord) {
+					rec.Closed = true
+					rec.FinalAcked = true
+				})
 			},
 			want: ErrScopeClosed,
 		},
@@ -1747,13 +1758,13 @@ func TestSameScopeSuccessorGuardAppliesWholeReservePredicate(t *testing.T) {
 			want: ErrStalePredecessor,
 		},
 		{
-			name: "closed scope with a receipt naming the current drive is ErrScopeClosed before rotation",
+			name: "transferred scope with a receipt naming the current drive is ErrScopeTransferred before rotation",
 			mutate: func(t *testing.T, store *Store, req *StartRequest, s1ID string) {
 				setScope(t, store, req.ScopeID, func(rec *scopeRecord) { rec.Closed = true })
 				req.PredecessorDriveID = s1ID
 				req.PredecessorOwnerGen = "any-generation"
 			},
-			want: ErrScopeClosed,
+			want: ErrScopeTransferred,
 		},
 	}
 	for _, tc := range cases {

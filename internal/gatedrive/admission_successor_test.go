@@ -218,8 +218,9 @@ func TestLatePredecessorReleaseCannotFreeSuccessor(t *testing.T) {
 //
 // A FRESH receipt whose scope closes after the rotation but before the scope
 // reservation (modelled through scopedAdmissionHook, which fires between worktree
-// admission and reserveScopeDrive) is refused ErrScopeClosed by the
-// reserveScopeDrive authority: the rotated slot must be released, and the scope
+// admission and reserveScopeDrive) is refused ErrScopeTransferred by the
+// reserveScopeDrive authority (a claim/takeover-style close, not FinalAcked —
+// change 0459): the rotated slot must be released, and the scope
 // record stays byte-unchanged by the failed reservation. (A scope already closed
 // when the guard reads it is refused before the rotation —
 // TestSameScopeSuccessorGuardAppliesWholeReservePredicate.)
@@ -297,8 +298,8 @@ func TestSuccessorAdmissionFailureLegsReleaseRotatedSlot(t *testing.T) {
 	fresh := req
 	fresh.PredecessorDriveID = cur.DriveID
 	fresh.PredecessorOwnerGen = cur.Generation
-	if _, serr := d.Start(fresh); !isOwnership(serr, ErrScopeClosed) {
-		t.Fatalf("a successor whose scope closed mid-admission must be refused ErrScopeClosed, got %v", serr)
+	if _, serr := d.Start(fresh); !isOwnership(serr, ErrScopeTransferred) {
+		t.Fatalf("a successor whose scope closed (not final-acked) mid-admission must be refused ErrScopeTransferred, got %v", serr)
 	}
 	if proc.launchN != launchesBefore {
 		t.Fatalf("a refused successor must never launch, launched %d->%d", launchesBefore, proc.launchN)

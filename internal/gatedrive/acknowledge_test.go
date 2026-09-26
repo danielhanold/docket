@@ -295,6 +295,32 @@ func TestAcknowledgePostRetirementOwnerGenAsymmetry(t *testing.T) {
 	})
 }
 
+// TestTransferredScopeRefusalOrdering pins two boundaries of the change-0459
+// split: a wrong child capability on a claim-closed scope is still refused
+// scope-capability-mismatch (a transferred scope leaks nothing to an
+// unauthenticated caller), and bindScopeChange on a claim-closed scope keeps
+// the parent-side ErrScopeClosed (the spec's "Unchanged" list).
+func TestTransferredScopeRefusalOrdering(t *testing.T) {
+	t.Run("wrong capability outranks transferred", func(t *testing.T) {
+		d, store, grant, started, _ := startedScope(t, passObserveProc())
+		if err := store.closeScope(grant.ScopeID); err != nil {
+			t.Fatalf("closeScope: %v", err)
+		}
+		if _, err := d.Acknowledge(grant.ScopeID, "wrong-capability", started.DriveID, started.Generation); !isOwnershipKind(err, ErrScopeCapabilityMismatch) {
+			t.Fatalf("wrong capability on a transferred scope must stay ErrScopeCapabilityMismatch, got %v", err)
+		}
+	})
+	t.Run("bind-scope-change keeps scope-closed", func(t *testing.T) {
+		_, store, grant, _, _ := startedScope(t, passObserveProc())
+		if err := store.closeScope(grant.ScopeID); err != nil {
+			t.Fatalf("closeScope: %v", err)
+		}
+		if err := store.bindScopeChange(grant.ScopeID, "0459"); !isOwnershipKind(err, ErrScopeClosed) {
+			t.Fatalf("bindScopeChange on a closed scope must keep ErrScopeClosed, got %v", err)
+		}
+	})
+}
+
 // TestAcknowledgeRefusals reproduces the acknowledgement half of spec verification
 // 4: every wrong-credential, wrong-drive, non-terminal, or mid-transition
 // acknowledgement is a typed rejection that writes NOTHING (asserted by a

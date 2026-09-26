@@ -314,7 +314,8 @@ func (s *Store) reserveScopeDrive(scopeID, childCapability, newDriveID string, r
 // FIRST failing clause names the refusal:
 //
 //   - a missing or wrong child capability is ErrScopeCapabilityMismatch;
-//   - a closed scope is ErrScopeClosed;
+//   - a scope closed by its terminal acknowledgement is ErrScopeClosed, and one
+//     closed by a claim or takeover is ErrScopeTransferred;
 //   - a half-filled receipt is ErrStalePredecessor;
 //   - an EMPTY slot admits only an empty receipt (else ErrStalePredecessor);
 //   - an OCCUPIED slot refuses a reserved (unconfirmed) current drive
@@ -340,6 +341,9 @@ func scopeReserveRefusal(rec scopeRecord, childCapability string, receipt predec
 		return ownershipErr(ErrScopeCapabilityMismatch, op)
 	}
 	if rec.Closed {
+		if !rec.FinalAcked {
+			return ownershipErr(ErrScopeTransferred, op)
+		}
 		return ownershipErr(ErrScopeClosed, op)
 	}
 	if receipt.halfFilled() {

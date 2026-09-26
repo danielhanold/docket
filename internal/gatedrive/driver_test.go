@@ -2026,7 +2026,7 @@ func TestScopedSuccessorPredecessorStateRejections(t *testing.T) {
 		}
 	})
 
-	t.Run("closed scope", func(t *testing.T) {
+	t.Run("transferred scope", func(t *testing.T) {
 		clk := &fakeClock{now: startEpoch()}
 		store := OpenStore(testsupport.TempDir(t))
 		proc := passObserveProc()
@@ -2043,8 +2043,8 @@ func TestScopedSuccessorPredecessorStateRejections(t *testing.T) {
 		succ.PredecessorDriveID = first.DriveID
 		succ.PredecessorOwnerGen = first.Generation
 		launchesBefore := proc.launchN
-		if _, err := d.Start(succ); !isOwnershipKind(err, ErrScopeClosed) {
-			t.Fatalf("a closed scope must reject a successor ErrScopeClosed, got %v", err)
+		if _, err := d.Start(succ); !isOwnershipKind(err, ErrScopeTransferred) {
+			t.Fatalf("a claim/takeover-closed scope must reject a successor ErrScopeTransferred (change 0459), got %v", err)
 		}
 		if proc.launchN != launchesBefore {
 			t.Fatalf("no launch on a rejected successor")
