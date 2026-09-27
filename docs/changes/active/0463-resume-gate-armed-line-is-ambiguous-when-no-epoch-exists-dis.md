@@ -22,7 +22,7 @@ branch: 'fix/resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T20:36:05Z'
+claimed_at: '2026-09-27T20:37:50Z'
 ---
 
 ## Artifacts
