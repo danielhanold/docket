@@ -33,6 +33,40 @@ An [alphabetical index](#alphabetical-index) closes the page.
 
 ## Repository and branches
 
+### Bootstrap guard
+
+The first-run check that probes whether the `docket` branch exists and whether the planning
+surface still sits on the integration branch, and then proceeds, creates the orphan branch, or
+stops with a migrate prompt.
+
+**Used for:** making sure no skill ever writes into a half-migrated repository. It surfaces as the
+disposition of `repository.prepare`.
+
+### Docket-mode / single-branch mode
+
+Docket-mode is the default layout: metadata on the metadata branch, code on the integration
+branch. A **single-branch** (legacy) layout keeps the backlog on the integration branch.
+
+**Used for:** deciding where docket reads and writes. A single-branch repo is refused with a
+migration prompt rather than half-initialised.
+
+```sh
+docket repository init      # fresh repo: create the orphan docket branch
+docket repository migrate   # legacy single-branch repo: move the backlog (human-typed only)
+```
+
+### Feature branch
+
+The branch a single change's code is built on, minted at claim as `<type>/<slug>` (or
+`<branch_prefix>/<slug>`) and recorded in the change's `branch:` field.
+
+**Used for:** carrying the code, plan, and results of one change. It never modifies docket
+metadata. Branches are named by slug, not id — read `branch:` rather than grepping for the number.
+
+```sh
+docket status --records --json   # each change's branch/pr fields
+```
+
 ### Integration branch
 
 The branch code lands on, usually `main`.
@@ -70,39 +104,14 @@ docket repository prepare --repo-dir . --json   # create/sync .docket/ and print
 git -C .docket log --oneline -3                  # inspect it without cd-ing into it
 ```
 
-### Docket-mode / single-branch mode
+### Terminal record / terminal publish
 
-Docket-mode is the default layout: metadata on the metadata branch, code on the integration
-branch. A **single-branch** (legacy) layout keeps the backlog on the integration branch.
+The terminal record is a change's archived file (plus results) once it reaches `done` or `killed`.
+Terminal publish was the opt-in copying of those records onto the integration branch.
 
-**Used for:** deciding where docket reads and writes. A single-branch repo is refused with a
-migration prompt rather than half-initialised.
-
-```sh
-docket repository init      # fresh repo: create the orphan docket branch
-docket repository migrate   # legacy single-branch repo: move the backlog (human-typed only)
-```
-
-### Bootstrap guard
-
-The first-run check that probes whether the `docket` branch exists and whether the planning
-surface still sits on the integration branch, and then proceeds, creates the orphan branch, or
-stops with a migrate prompt.
-
-**Used for:** making sure no skill ever writes into a half-migrated repository. It surfaces as the
-disposition of `repository.prepare`.
-
-### Feature branch
-
-The branch a single change's code is built on, minted at claim as `<type>/<slug>` (or
-`<branch_prefix>/<slug>`) and recorded in the change's `branch:` field.
-
-**Used for:** carrying the code, plan, and results of one change. It never modifies docket
-metadata. Branches are named by slug, not id — read `branch:` rather than grepping for the number.
-
-```sh
-docket status --records --json   # each change's branch/pr fields
-```
+**Used for:** historical browsing. `terminal_publish` is still parsed and coordination-fenced but
+is deferred from Go v1 and activates nothing; the integration branch gets code, plans, and results
+through PRs alone.
 
 ### Worktree / feature workspace
 
@@ -117,18 +126,36 @@ docket workspace inspect --id 412
 docket workspace prepare --id 412 --version <version>
 ```
 
-### Terminal record / terminal publish
-
-The terminal record is a change's archived file (plus results) once it reaches `done` or `killed`.
-Terminal publish was the opt-in copying of those records onto the integration branch.
-
-**Used for:** historical browsing. `terminal_publish` is still parsed and coordination-fenced but
-is deferred from Go v1 and activates nothing; the integration branch gets code, plans, and results
-through PRs alone.
-
 ---
 
 ## Work records
+
+### ADR
+
+An architecture decision record: one file per decision, immutable once accepted.
+
+**Used for:** keeping the *why* of a non-obvious decision. After acceptance only its `status:` line
+changes; a reversal or supersession is always a new ADR. The index (`<adrs_dir>/README.md`) is
+generated.
+
+```sh
+docket adr record    --request adr.json
+docket adr supersede --request supersede.json
+docket adr reverse   --request reverse.json
+```
+
+### Board
+
+The generated overview of every change and its state, never edited by hand.
+
+**Used for:** reading the backlog at a glance (`BOARD.md` on the metadata branch). Every typed
+mutation re-renders it inside its own commit. `board_surfaces: [inline]` turns it on; `[]` turns it
+off.
+
+```sh
+docket status              # the same information, human-readable
+docket repository check    # surfaces a stale or hand-edited board
+```
 
 ### Change
 
@@ -144,23 +171,6 @@ docket schema --operation change.create        # the request fields
 docket change create --request new-change.json  # usually driven by docket-new-change
 ```
 
-### Stub
-
-A change captured without a design — `proposed`, no spec, not trivial. In lifecycle terms it is
-**needs-brainstorm**.
-
-**Used for:** capturing an idea quickly and designing it later with grooming.
-
-### Manifest
-
-The frontmatter block at the top of a change file. Its fields (`status`, `priority`, `type`,
-`depends_on`, `stacked_on`, `related`, `discovered_from`, `adrs`, `spec`, `plan`, `results`,
-`trivial`, `auto_groomable`, `branch`, `claimed_at`, `pr`, `blocked_by`, `reconciled`, …) are owned
-by the `docket-convention` skill (see [`fields.md`](fields.md)).
-
-**Used for:** the machine-readable state of a change. Edit it only through typed operations; a
-hand edit leaves the board stale.
-
 ### Change version (`--version`)
 
 An opaque per-change revision token — the `version` field of each change in `docket status --json`.
@@ -173,57 +183,16 @@ docket status --json | jq -r '.changes[] | select(.id==412) | .version'
 docket change claim --id 412 --version <that-token>
 ```
 
-### Spec
+### Derived view / generated block / backlink
 
-The design document a change links to, written before building.
+A derived view is anything rendered from the change files rather than authored: the board, each
+change's `## Artifacts` link block, and the `docket:backlink` block stamped at the top of every
+spec, plan, results file, and PR body. Each has exactly one writer and is never hand-edited.
 
-**Used for:** giving the build everything it needs to implement without guessing. Stored on the
-metadata branch and linked from the `spec:` field; produced by a brainstorm or by auto-groom.
-
-### Trivial
-
-A change marked `trivial: true` — small and mechanical enough to need no spec.
-
-**Used for:** skipping the design step. A trivial change with its dependencies merged is
-build-ready without a spec.
-
-### Plan
-
-The task-by-task breakdown a build follows, written on the feature branch.
-
-**Used for:** routing each task to a build profile. The plan file lives on the feature branch; the
-`plan:` field is attached on the metadata branch. A merged plan is a frozen build record — never
-hand-edited afterwards.
+**Used for:** keeping links between a change and its artifacts correct in both directions.
 
 ```sh
-docket change attach-plan --id 412 --version <v> --path docs/superpowers/plans/<file>.md --commit <sha>
-```
-
-### Results
-
-The close-out record of what a build actually did — required for every implemented change,
-trivial included.
-
-**Used for:** telling the human what to check (`**Human action:**`, `## Outcome`, verification,
-known follow-ups). The file lives in `<results_dir>` on the feature branch; the `results:` field is
-attached on the metadata branch.
-
-```sh
-docket change attach-results --id 412 --version <v> --path docs/results/<file>.md --commit <sha>
-```
-
-### ADR
-
-An architecture decision record: one file per decision, immutable once accepted.
-
-**Used for:** keeping the *why* of a non-obvious decision. After acceptance only its `status:` line
-changes; a reversal or supersession is always a new ADR. The index (`<adrs_dir>/README.md`) is
-generated.
-
-```sh
-docket adr record    --request adr.json
-docket adr supersede --request supersede.json
-docket adr reverse   --request reverse.json
+docket artifact backlink --artifact docs/results/<file>.md --change docs/changes/active/0412-<slug>.md
 ```
 
 ### Learnings / finding / promotion
@@ -241,29 +210,26 @@ docket learning record --request finding.json
 docket learning update --request finding-update.json
 ```
 
-### Board
+### Manifest
 
-The generated overview of every change and its state, never edited by hand.
+The frontmatter block at the top of a change file. Its fields (`status`, `priority`, `type`,
+`depends_on`, `stacked_on`, `related`, `discovered_from`, `adrs`, `spec`, `plan`, `results`,
+`trivial`, `auto_groomable`, `branch`, `claimed_at`, `pr`, `blocked_by`, `reconciled`, …) are owned
+by the `docket-convention` skill (see [`fields.md`](fields.md)).
 
-**Used for:** reading the backlog at a glance (`BOARD.md` on the metadata branch). Every typed
-mutation re-renders it inside its own commit. `board_surfaces: [inline]` turns it on; `[]` turns it
-off.
+**Used for:** the machine-readable state of a change. Edit it only through typed operations; a
+hand edit leaves the board stale.
 
-```sh
-docket status              # the same information, human-readable
-docket repository check    # surfaces a stale or hand-edited board
-```
+### Plan
 
-### Derived view / generated block / backlink
+The task-by-task breakdown a build follows, written on the feature branch.
 
-A derived view is anything rendered from the change files rather than authored: the board, each
-change's `## Artifacts` link block, and the `docket:backlink` block stamped at the top of every
-spec, plan, results file, and PR body. Each has exactly one writer and is never hand-edited.
-
-**Used for:** keeping links between a change and its artifacts correct in both directions.
+**Used for:** routing each task to a build profile. The plan file lives on the feature branch; the
+`plan:` field is attached on the metadata branch. A merged plan is a frozen build record — never
+hand-edited afterwards.
 
 ```sh
-docket artifact backlink --artifact docs/results/<file>.md --change docs/changes/active/0412-<slug>.md
+docket change attach-plan --id 412 --version <v> --path docs/superpowers/plans/<file>.md --commit <sha>
 ```
 
 ### Presence-encoded section
@@ -274,6 +240,40 @@ A body section whose mere presence is state: `## Run halted`, `## Finalize block
 **Used for:** making a stop verifiable in git rather than a claim in a report. The board's
 "needs you" cells are driven by these sections; each has a named operation that writes and removes
 it.
+
+### Results
+
+The close-out record of what a build actually did — required for every implemented change,
+trivial included.
+
+**Used for:** telling the human what to check (`**Human action:**`, `## Outcome`, verification,
+known follow-ups). The file lives in `<results_dir>` on the feature branch; the `results:` field is
+attached on the metadata branch.
+
+```sh
+docket change attach-results --id 412 --version <v> --path docs/results/<file>.md --commit <sha>
+```
+
+### Spec
+
+The design document a change links to, written before building.
+
+**Used for:** giving the build everything it needs to implement without guessing. Stored on the
+metadata branch and linked from the `spec:` field; produced by a brainstorm or by auto-groom.
+
+### Stub
+
+A change captured without a design — `proposed`, no spec, not trivial. In lifecycle terms it is
+**needs-brainstorm**.
+
+**Used for:** capturing an idea quickly and designing it later with grooming.
+
+### Trivial
+
+A change marked `trivial: true` — small and mechanical enough to need no spec.
+
+**Used for:** skipping the design step. A trivial change with its dependencies merged is
+build-ready without a spec.
 
 ---
 
@@ -293,44 +293,23 @@ Statuses: `proposed` · `in-progress` · `blocked` · `deferred` · `implemented
 | `done` | PR merged and archived (happy terminal) | finalize close-out / sweep |
 | `killed` | Abandoned as obsolete (sad terminal) | `change kill`, reconcile |
 
-### Readiness: build-ready / needs-brainstorm / not-proposed
+### Archive
 
-**Build-ready** is a proposed change that has a spec or is marked trivial and whose dependencies
-are all merged. **Needs-brainstorm** is a proposed change with neither a spec nor a trivial mark; it
-needs a design conversation first. Anything not `proposed` reads `not-proposed`.
+The single physical move of a change file from `active/` to `archive/<UTC-date>-NNNN-<slug>.md` on
+a terminal transition (`done` or `killed`). It is idempotent.
 
-**Used for:** selection. Only build-ready changes can be implemented; only needs-brainstorm changes
-can be groomed. Selection order is priority → age (`created`) → lowest id.
+### Block / unblock, defer / revive, kill
 
-```sh
-docket status --json | jq '.changes[] | {id, readiness, readiness_reason, unmet_dependencies}'
-```
-
-### Dependency (`depends_on`) / implicitly blocked
-
-A change id that must reach `done` before this change is build-ready. An unsatisfied dependency
-makes a change *implicitly* blocked — it is skipped, not marked `blocked` — and the board shows
-**waiting on #N** (with "needs your merge" when #N is already `implemented`).
-
-**Used for:** ordering work. Use explicit `blocked` only for blockers docket cannot infer.
-
-### Related / discovered_from
-
-Informational cross-links. `related:` is read by reconcile; `discovered_from:` records which change
-surfaced this one. Neither gates readiness.
-
-### Stacked change / effective base
-
-A stacked change is a change built on another change's unmerged branch rather than on the
-integration branch, named by the single-integer `stacked_on:` field. Its **effective base** is its
-parent's merge destination, and it can be build-ready before the parent merges once that base
-resolves.
-
-**Used for:** building a chain of dependent PRs without waiting for each to merge. On the board an
-unresolved base reads *waiting on #A — stack base not built*.
+Typed transitions for the side exits: **block** records an external blocker, **unblock** clears it
+and returns to `in-progress`; **defer** shelves a change with `## Why deferred`, **revive** returns
+it to `proposed`; **kill** archives it as obsolete with `## Why killed`.
 
 ```sh
-docket status --json | jq '.changes[] | select(.id==413) | .effective_base'
+docket change block   --request block.json
+docket change unblock --request unblock.json
+docket change defer   --request defer.json
+docket change revive  --request revive.json
+docket change kill    --request kill.json
 ```
 
 ### Claim / claim lease / reclaim
@@ -351,19 +330,13 @@ docket change reclaim       --id 412 --version <v>   # refuses with lease-not-ex
 
 Config: `reclaim.lease_ttl` (hours) and `reclaim.auto`.
 
-### Block / unblock, defer / revive, kill
+### Dependency (`depends_on`) / implicitly blocked
 
-Typed transitions for the side exits: **block** records an external blocker, **unblock** clears it
-and returns to `in-progress`; **defer** shelves a change with `## Why deferred`, **revive** returns
-it to `proposed`; **kill** archives it as obsolete with `## Why killed`.
+A change id that must reach `done` before this change is build-ready. An unsatisfied dependency
+makes a change *implicitly* blocked — it is skipped, not marked `blocked` — and the board shows
+**waiting on #N** (with "needs your merge" when #N is already `implemented`).
 
-```sh
-docket change block   --request block.json
-docket change unblock --request unblock.json
-docket change defer   --request defer.json
-docket change revive  --request revive.json
-docket change kill    --request kill.json
-```
+**Used for:** ordering work. Use explicit `blocked` only for blockers docket cannot infer.
 
 ### Halt / resume-halted
 
@@ -376,14 +349,76 @@ docket change halt          --id 412 --version <v> --input halt.json
 docket change resume-halted --id 412 --version <v>
 ```
 
-### Archive
+### Readiness: build-ready / needs-brainstorm / not-proposed
 
-The single physical move of a change file from `active/` to `archive/<UTC-date>-NNNN-<slug>.md` on
-a terminal transition (`done` or `killed`). It is idempotent.
+**Build-ready** is a proposed change that has a spec or is marked trivial and whose dependencies
+are all merged. **Needs-brainstorm** is a proposed change with neither a spec nor a trivial mark; it
+needs a design conversation first. Anything not `proposed` reads `not-proposed`.
+
+**Used for:** selection. Only build-ready changes can be implemented; only needs-brainstorm changes
+can be groomed. Selection order is priority → age (`created`) → lowest id.
+
+```sh
+docket status --json | jq '.changes[] | {id, readiness, readiness_reason, unmet_dependencies}'
+```
+
+### Related / discovered_from
+
+Informational cross-links. `related:` is read by reconcile; `discovered_from:` records which change
+surfaced this one. Neither gates readiness.
+
+### Stacked change / effective base
+
+A stacked change is a change built on another change's unmerged branch rather than on the
+integration branch, named by the single-integer `stacked_on:` field. Its **effective base** is its
+parent's merge destination, and it can be build-ready before the parent merges once that base
+resolves.
+
+**Used for:** building a chain of dependent PRs without waiting for each to merge. On the board an
+unresolved base reads *waiting on #A — stack base not built*.
+
+```sh
+docket status --json | jq '.changes[] | select(.id==413) | .effective_base'
+```
 
 ---
 
 ## Grooming
+
+### Abstain / re-arm
+
+**Abstain** is auto-groom declining to design a stub it cannot safely default: it flips
+`auto_groomable: false` and writes `## Auto-groom blocked`. **Re-arm** is the human supplying the
+missing context and flipping it back, which removes that section in the same commit.
+
+```sh
+# groom.json: {"change_id": 412, "version": "<v>", "outcome": "rearm", ...}
+docket change groom --request groom.json
+```
+
+### Auto-groom / auto-groomable / autonomous-eligible
+
+**Auto-groom** grooms stubs with no human, gated by an adversarial **critic**. A stub is
+**auto-groomable** when its `auto_groomable:` override is `true`, or unset and the repo's
+`auto_groom` knob is `true`. It is **autonomous-eligible** when it is needs-brainstorm *and*
+auto-groomable.
+
+**Used for:** draining design work unattended. Arm a stub by committing `auto_groomable: true`
+before dispatch; an uncommitted flag fails preflight.
+
+### Brainstorm / consultant
+
+A **brainstorm** is the design conversation that produces a spec. In docket's own brainstorm role
+the parent holds the dialogue with you, then dispatches the **consultant**
+(`docket-brainstorm-consultant`) once to author the spec or return critique.
+
+**Used for:** turning intent into a spec during `docket-new-change` or `docket-groom-next`.
+
+### Critic
+
+`docket-auto-groom-critic` — the agent that attacks an auto-groom draft and returns exactly one
+verdict. It never improves the draft; if it cannot be dispatched, auto-groom abstains rather than
+self-critiquing.
 
 ### Groom
 
@@ -399,44 +434,55 @@ docket schema --operation change.groom
 docket change groom --request groom.json
 ```
 
-### Brainstorm / consultant
-
-A **brainstorm** is the design conversation that produces a spec. In docket's own brainstorm role
-the parent holds the dialogue with you, then dispatches the **consultant**
-(`docket-brainstorm-consultant`) once to author the spec or return critique.
-
-**Used for:** turning intent into a spec during `docket-new-change` or `docket-groom-next`.
-
-### Auto-groom / auto-groomable / autonomous-eligible
-
-**Auto-groom** grooms stubs with no human, gated by an adversarial **critic**. A stub is
-**auto-groomable** when its `auto_groomable:` override is `true`, or unset and the repo's
-`auto_groom` knob is `true`. It is **autonomous-eligible** when it is needs-brainstorm *and*
-auto-groomable.
-
-**Used for:** draining design work unattended. Arm a stub by committing `auto_groomable: true`
-before dispatch; an uncommitted flag fails preflight.
-
-### Abstain / re-arm
-
-**Abstain** is auto-groom declining to design a stub it cannot safely default: it flips
-`auto_groomable: false` and writes `## Auto-groom blocked`. **Re-arm** is the human supplying the
-missing context and flipping it back, which removes that section in the same commit.
-
-```sh
-# groom.json: {"change_id": 412, "version": "<v>", "outcome": "rearm", ...}
-docket change groom --request groom.json
-```
-
-### Critic
-
-`docket-auto-groom-critic` — the agent that attacks an auto-groom draft and returns exactly one
-verdict. It never improves the draft; if it cannot be dispatched, auto-groom abstains rather than
-self-critiquing.
-
 ---
 
 ## Building a change
+
+### Budget watch / serially confirmed breach
+
+Wall-clock lines the suite runner prints even on a green run. `BUDGET WATCH:` and
+`PARALLEL-SENSITIVE:` are screening findings (parallel timings are machine-dependent);
+`SERIAL CONFIRMED OVER BUDGET:` is an authoritative breach to act on. Neither fails the run.
+
+### Build evidence
+
+The committed record of that gate run, read by the reviewer. It certifies an exact tested commit.
+
+**Used for:** letting review and finalize trust a record rather than a worker's word. Adding a
+commit after the evidence was recorded makes it stale (`evidence-unverified`).
+
+```sh
+docket evidence record    --id 412 --head <sha> --run <run-dir>
+docket evidence verify    --head <sha> --record <evidence-file>
+docket evidence recertify --id 412
+```
+
+### Build gate
+
+The full test-suite run at the end of a build that must be green before review. Its command is
+`build.test_command`; `build.max_attempts` (default 4) caps the initial run plus repair-and-rerun
+cycles before a red suite halts for a human.
+
+**Used for:** catching a test a single task broke without ever running. The verdict is tri-state:
+pass, fail, or halt.
+
+### Build profile / escalation
+
+A build profile is one of four worker tiers (economy, standard, premium, max) a plan task is
+routed to by risk. Standard is the default and the "uncertainty sink". A worker that finds its
+task beyond its tier returns under-capacity and the task **escalates** one tier — at most once.
+
+**Used for:** paying premium rates only where mistakes are expensive. Each profile is its own agent
+(`docket-build-economy`, `-standard`, `-premium`, `-max`) with its own model and effort pin.
+
+### Implementation context
+
+The read-only bundle implement-next assembles before claiming: the selected change, its readiness,
+and what it needs to proceed.
+
+```sh
+docket context implementation --id 412 --json
+```
 
 ### Implement-next / the drainer
 
@@ -453,6 +499,20 @@ the run gate. Pass an explicit id to resume an `in-progress` change — a bare r
 /loop docket-implement-next 412 413 414   # drain several back-to-back
 ```
 
+### Mark implemented
+
+The transition to `implemented` once the PR is open, carrying the evidence and PR reference.
+
+```sh
+docket pr publish --id 412 --head <sha> --evidence <file> --body pr-body.md
+docket change mark-implemented --id 412 --version <v> --head <sha> --pr <url> --evidence <file>
+```
+
+### Plan writer
+
+`docket-plan-writer` — the agent implement-next dispatches to invoke the plan skill, commit the
+plan with its backlink on the feature branch, and return `PLAN_PATH=<path>`.
+
 ### Preflight
 
 The implementation-scope sweep that runs at the start of a selection-path implement-next
@@ -461,15 +521,6 @@ post-sweep read. A run that names one explicit id skips it.
 
 ```sh
 docket maintenance preflight --json
-```
-
-### Implementation context
-
-The read-only bundle implement-next assembles before claiming: the selected change, its readiness,
-and what it needs to proceed.
-
-```sh
-docket context implementation --id 412 --json
 ```
 
 ### Reconcile / reconcile log
@@ -483,6 +534,18 @@ for a human.
 
 ```sh
 docket change reconcile --input reconcile.json
+```
+
+### Run verify
+
+A read-only check of one change's claim-to-implemented postconditions (committed plan and results,
+evidence, PR, status) that reports a closed verdict.
+
+**Used for:** trusting git, not a completion report. Run it whenever a dispatched build says it
+finished.
+
+```sh
+docket run verify --id 412
 ```
 
 ### Workflow role
@@ -501,80 +564,9 @@ skills:
   build: docket-build
 ```
 
-### Plan writer
-
-`docket-plan-writer` — the agent implement-next dispatches to invoke the plan skill, commit the
-plan with its backlink on the feature branch, and return `PLAN_PATH=<path>`.
-
-### Build profile / escalation
-
-A build profile is one of four worker tiers (economy, standard, premium, max) a plan task is
-routed to by risk. Standard is the default and the "uncertainty sink". A worker that finds its
-task beyond its tier returns under-capacity and the task **escalates** one tier — at most once.
-
-**Used for:** paying premium rates only where mistakes are expensive. Each profile is its own agent
-(`docket-build-economy`, `-standard`, `-premium`, `-max`) with its own model and effort pin.
-
-### Build gate
-
-The full test-suite run at the end of a build that must be green before review. Its command is
-`build.test_command`; `build.max_attempts` (default 4) caps the initial run plus repair-and-rerun
-cycles before a red suite halts for a human.
-
-**Used for:** catching a test a single task broke without ever running. The verdict is tri-state:
-pass, fail, or halt.
-
-### Build evidence
-
-The committed record of that gate run, read by the reviewer. It certifies an exact tested commit.
-
-**Used for:** letting review and finalize trust a record rather than a worker's word. Adding a
-commit after the evidence was recorded makes it stale (`evidence-unverified`).
-
-```sh
-docket evidence record    --id 412 --head <sha> --run <run-dir>
-docket evidence verify    --head <sha> --record <evidence-file>
-docket evidence recertify --id 412
-```
-
-### Budget watch / serially confirmed breach
-
-Wall-clock lines the suite runner prints even on a green run. `BUDGET WATCH:` and
-`PARALLEL-SENSITIVE:` are screening findings (parallel timings are machine-dependent);
-`SERIAL CONFIRMED OVER BUDGET:` is an authoritative breach to act on. Neither fails the run.
-
-### Mark implemented
-
-The transition to `implemented` once the PR is open, carrying the evidence and PR reference.
-
-```sh
-docket pr publish --id 412 --head <sha> --evidence <file> --body pr-body.md
-docket change mark-implemented --id 412 --version <v> --head <sha> --pr <url> --evidence <file>
-```
-
-### Run verify
-
-A read-only check of one change's claim-to-implemented postconditions (committed plan and results,
-evidence, PR, status) that reports a closed verdict.
-
-**Used for:** trusting git, not a completion report. Run it whenever a dispatched build says it
-finished.
-
-```sh
-docket run verify --id 412
-```
-
 ---
 
 ## The run gate
-
-### Run gate
-
-The bookkeeping around a launched build run: who launched it, whether it finished, whether it may
-be retried. It keeps that state durably, outside the worker's prose.
-
-**Used for:** deciding whether to dispatch again. A completion notification is the child's claim,
-never the parent's verdict.
 
 ### Arm / gate key / run epoch / dispatch context
 
@@ -587,6 +579,32 @@ can never authorise a re-dispatch.
 ```sh
 docket run gate-before implement-next
 docket run gate-before implement-next --resume 412   # resuming an in-progress change
+```
+
+### Attribution / unattributed read
+
+**Attribution** is tying a finish to the exact launch that produced it, by the gate key — never by
+timing or names. With no key, an **unattributed** read reports on a named change id but cannot
+authorise a re-dispatch. Attribution is conservative: when unsure, the gate declines to credit.
+
+### Cancel
+
+The explicit stop for a dispatched run — there is no automatic Stop button. It fences the run
+epoch so nothing new attaches, tears down its tasks and processes, and reports `cancelled`,
+`cancellation-pending` (re-run to finish), `already-cancelled`, or `refused`. It never counts as a
+failure and never earns a retry.
+
+```sh
+docket run cancel --key <key> --epoch <epoch> --reason "superseded by 413"
+```
+
+### Continuation
+
+A single-use id handed out with `gate-continue`, redeemed by the resumed controller so the same
+attempt carries on.
+
+```sh
+docket run gate-claim <key> <continuation-id>
 ```
 
 ### Gate verdict
@@ -608,53 +626,33 @@ docket run gate-verdict <key>
 docket run gate-verdict --unattributed 412   # no key: observe-only, can never authorise a retry
 ```
 
-### Attribution / unattributed read
-
-**Attribution** is tying a finish to the exact launch that produced it, by the gate key — never by
-timing or names. With no key, an **unattributed** read reports on a named change id but cannot
-authorise a re-dispatch. Attribution is conservative: when unsure, the gate declines to credit.
-
-### Continuation
-
-A single-use id handed out with `gate-continue`, redeemed by the resumed controller so the same
-attempt carries on.
-
-```sh
-docket run gate-claim <key> <continuation-id>
-```
-
-### Cancel
-
-The explicit stop for a dispatched run — there is no automatic Stop button. It fences the run
-epoch so nothing new attaches, tears down its tasks and processes, and reports `cancelled`,
-`cancellation-pending` (re-run to finish), `already-cancelled`, or `refused`. It never counts as a
-failure and never earns a retry.
-
-```sh
-docket run cancel --key <key> --epoch <epoch> --reason "superseded by 413"
-```
-
 ### Resume dispositions
 
 What arming with `--resume` reports when a prior run exists: `resume-active-run` (the prior epoch
 may still be live — cancel it or continue it), `cancellation-pending` (finish the cancel first), or
 `resume-replacement-reserved` (exactly one replacement dispatch is reserved; dispatch that one).
 
+### Run gate
+
+The bookkeeping around a launched build run: who launched it, whether it finished, whether it may
+be retried. It keeps that state durably, outside the worker's prose.
+
+**Used for:** deciding whether to dispatch again. A completion notification is the child's claim,
+never the parent's verdict.
+
 ---
 
 ## Supervised gate runs
 
-### Gate run / run dir
+### Admission slot
 
-A **gate run** is a supervised local execution of a command (usually the test suite) launched
-under docket's native supervisor, with a durable **run dir** holding its record.
+The per-worktree slot that lets only one gate execution run at a time. A busy-slot refusal means
+the slot is **occupied** by a run admission could not prove finished — not necessarily a live
+process. Inspect with `gate observe`, settle with `gate stop`; history cleanup and `gate recover`
+do not free it.
 
 ```sh
-docket gate launch  --cwd <worktree> --root <run-root> -- ./run-tests.sh
-docket gate observe <run-dir>
-docket gate stop    <run-dir> --reason "wrong branch"
-docket gate recover --root <run-root>
-docket gate cleanup <run-dir>
+docket gate history cleanup --repo-dir . --dry-run   # historical drives only — not slot evidence
 ```
 
 ### Gate drive / slice / owner generation / handoff / takeover
@@ -675,30 +673,22 @@ docket gate drive handoff --drive-id <id> --owner-gen <gen>
 docket gate drive claim   --drive-id <id> --handoff-id <token>
 ```
 
-### Admission slot
+### Gate run / run dir
 
-The per-worktree slot that lets only one gate execution run at a time. A busy-slot refusal means
-the slot is **occupied** by a run admission could not prove finished — not necessarily a live
-process. Inspect with `gate observe`, settle with `gate stop`; history cleanup and `gate recover`
-do not free it.
+A **gate run** is a supervised local execution of a command (usually the test suite) launched
+under docket's native supervisor, with a durable **run dir** holding its record.
 
 ```sh
-docket gate history cleanup --repo-dir . --dry-run   # historical drives only — not slot evidence
+docket gate launch  --cwd <worktree> --root <run-root> -- ./run-tests.sh
+docket gate observe <run-dir>
+docket gate stop    <run-dir> --reason "wrong branch"
+docket gate recover --root <run-root>
+docket gate cleanup <run-dir>
 ```
 
 ---
 
 ## Review
-
-### Review rung
-
-One of three pinned reviewer agents — `docket-review-lean`, `docket-review-standard`,
-`docket-review-deep` — all running the same read-only whole-branch contract. The rung is chosen
-deterministically one step above the build: economy → lean, standard → standard, premium/max →
-deep, bumped one step for a diff over 1500 changed lines.
-
-**Used for:** a whole-branch review before the PR opens. Reviewers never fix, dispatch, or run the
-suite.
 
 ### Finding severity: blocker / important / minor
 
@@ -710,9 +700,25 @@ The bounded in-branch repair that runs after review and before the PR opens: fin
 to build profiles as fix tasks (`review.max_fix_tasks`, default 10), then one full-suite run
 confirms. Anything left unfixed becomes a line in the PR body.
 
+### Review rung
+
+One of three pinned reviewer agents — `docket-review-lean`, `docket-review-standard`,
+`docket-review-deep` — all running the same read-only whole-branch contract. The rung is chosen
+deterministically one step above the build: economy → lean, standard → standard, premium/max →
+deep, bumped one step for a diff over 1500 changed lines.
+
+**Used for:** a whole-branch review before the PR opens. Reviewers never fix, dispatch, or run the
+suite.
+
 ---
 
 ## Finalize and close-out
+
+### Closeout / closeout notes
+
+**Closeout** is the terminal transition that archives the change (`done-archived`,
+`stacked-merged`, or `root-archived` for a stack root). **Closeout notes** is the optional final
+body section it writes (`### Verification`, `### Late findings`).
 
 ### Finalize
 
@@ -730,19 +736,6 @@ docket finalize closeout --id 412
 docket finalize cleanup  --id 412
 ```
 
-### Finalize gate
-
-How finalize validates the rebased branch before merging: `finalize.gate` is `local` (run the
-suite here, default), `ci` (poll GitHub checks), `both`, or `off` (trust the PR's CI).
-
-### Rebase resolver / integration repair
-
-The two specialised finalize workers, split at the rebase-completion boundary.
-`docket-rebase-resolver` reconciles each conflicted hunk by intent
-(`finalize.resolver_max_attempts`, default 10). `docket-integration-repair` makes a red rebased
-suite green with a minimal fix, never weakening a test (`finalize.repair_max_attempts`, default 6).
-Neither may be substituted inline.
-
 ### Finalize blocked / reason token / clear-block
 
 When a gate failure needs a human, finalize writes `## Finalize blocked` with a typed **reason
@@ -754,16 +747,23 @@ finalize skill's `references/gate-failure.md`.
 docket finalize clear-block --id 412 --version <v> --head <sha> --pr-number 301
 ```
 
+### Finalize gate
+
+How finalize validates the rebased branch before merging: `finalize.gate` is `local` (run the
+suite here, default), `ci` (poll GitHub checks), `both`, or `off` (trust the PR's CI).
+
 ### Merge policy / branch protection
 
 Whether a merge needs a human approval is settled before finalize runs. The single-maintainer path
 is branch protection that requires a PR but zero approvals.
 
-### Closeout / closeout notes
+### Rebase resolver / integration repair
 
-**Closeout** is the terminal transition that archives the change (`done-archived`,
-`stacked-merged`, or `root-archived` for a stack root). **Closeout notes** is the optional final
-body section it writes (`### Verification`, `### Late findings`).
+The two specialised finalize workers, split at the rebase-completion boundary.
+`docket-rebase-resolver` reconciles each conflicted hunk by intent
+(`finalize.resolver_max_attempts`, default 10). `docket-integration-repair` makes a red rebased
+suite green with a minimal fix, never weakening a test (`finalize.repair_max_attempts`, default 6).
+Neither may be substituted inline.
 
 ### Retarget children
 
@@ -787,17 +787,6 @@ docket repository sync-integration --repo-dir . --json
 
 ## Status, health, and maintenance
 
-### Status
-
-The read-only report of backlog state, readiness, selection, and repository health. It never writes
-— not even the board.
-
-```sh
-docket status
-docket status --priority high --type fix
-docket status --records --json
-```
-
 ### Health check / health code
 
 A health check is a status-time scan for things a human should look at: stale claims, broken
@@ -807,16 +796,6 @@ links, stalled dependencies. Each result carries a **finding code** (for example
 ```sh
 docket status --json | jq '.findings[] | {code, message, remedy}'
 docket repository check
-```
-
-### Sweep
-
-The pass that observes merged PRs and closes their changes out to `done`. `maintenance.sweep`
-runs the full scope; preflight runs the implementation scope.
-
-```sh
-docket maintenance sweep
-docket maintenance sweep --scope implementation
 ```
 
 ### Repository check / migrate
@@ -829,16 +808,35 @@ docket repository check
 docket repository migrate --repair-frontmatter
 ```
 
+### Status
+
+The read-only report of backlog state, readiness, selection, and repository health. It never writes
+— not even the board.
+
+```sh
+docket status
+docket status --priority high --type fix
+docket status --records --json
+```
+
+### Sweep
+
+The pass that observes merged PRs and closes their changes out to `done`. `maintenance.sweep`
+runs the full scope; preflight runs the implementation scope.
+
+```sh
+docket maintenance sweep
+docket maintenance sweep --scope implementation
+```
+
 ---
 
 ## Skills, agents, and harnesses
 
-### Skill
+### Abort-and-report
 
-A named, reusable instruction set an agent loads for one job (a `skills/<name>/SKILL.md`).
-
-**Used for:** holding a workflow's instructions once, independent of the tool that runs them. The
-shared contract every docket skill loads first is `docket-convention`.
+The rule every autonomous wrapper carries: an unmet precondition or blocking ambiguity is surfaced
+and stopped on, never turned into an interactive prompt.
 
 ### Agent / wrapper
 
@@ -852,12 +850,16 @@ docket install --harness cursor
 docket install check
 ```
 
-### Harness
+### Agent enter
 
-The tool that runs the agent: Claude Code, Cursor, Codex, or opencode.
+The Codex entry point that launches a registered docket role as a foreground root thread with the
+right cwd, sandbox, approval policy, and (for feature children) the owning workflow's worktree.
+Other harnesses dispatch named agents natively instead.
 
-**Used for:** targeting generated wrappers (`agent_harnesses:`) and picking per-harness model
-defaults from the shipped sidecar `agents/harness-defaults.yml`.
+```sh
+docket agent enter --role <role> --request req.md --cwd "$PWD" \
+  --approval-policy <policy> --sandbox <mode> --run-epoch <epoch> --run-gate-key <key>
+```
 
 ### Dispatch
 
@@ -879,16 +881,12 @@ repair agents are a **carve-out**: abort-and-report, never inline.
 On harnesses that support it, a skill can run as a fork of the current context rather than a fresh
 agent. A fork's `completed` report is not proof it finished — verify git state.
 
-### Agent enter
+### Harness
 
-The Codex entry point that launches a registered docket role as a foreground root thread with the
-right cwd, sandbox, approval policy, and (for feature children) the owning workflow's worktree.
-Other harnesses dispatch named agents natively instead.
+The tool that runs the agent: Claude Code, Cursor, Codex, or opencode.
 
-```sh
-docket agent enter --role <role> --request req.md --cwd "$PWD" \
-  --approval-policy <policy> --sandbox <mode> --run-epoch <epoch> --run-gate-key <key>
-```
+**Used for:** targeting generated wrappers (`agent_harnesses:`) and picking per-harness model
+defaults from the shipped sidecar `agents/harness-defaults.yml`.
 
 ### Runner / delegation
 
@@ -901,14 +899,26 @@ agents:
     build-economy: { runner: opencode, model: openrouter/<model>, effort: medium }
 ```
 
-### Abort-and-report
+### Skill
 
-The rule every autonomous wrapper carries: an unmet precondition or blocking ambiguity is surfaced
-and stopped on, never turned into an interactive prompt.
+A named, reusable instruction set an agent loads for one job (a `skills/<name>/SKILL.md`).
+
+**Used for:** holding a workflow's instructions once, independent of the tool that runs them. The
+shared contract every docket skill loads first is `docket-convention`.
 
 ---
 
 ## Configuration
+
+### Auto-capture / discovered work
+
+Work an autonomous run discovers mid-run is reported in its final report, never silently minted.
+`auto_capture` is parsed but deferred from Go v1 — capture deliberately with `docket change create`.
+
+### Change types
+
+The allowed `type:` values (`change_types`, default `chore, docs, feat, fix, refactor, perf`). The
+type also becomes the feature-branch prefix.
 
 ### Config layers
 
@@ -928,25 +938,11 @@ set in the committed repo config. The **fence** ignores (with a warning) a coord
 any other layer. Each key's **scope tag** in the example file is `repo-only`, `any layer`, or
 `local-only`.
 
-### Change types
-
-The allowed `type:` values (`change_types`, default `chore, docs, feat, fix, refactor, perf`). The
-type also becomes the feature-branch prefix.
-
-### Priority
-
-`critical` > `high` > `medium` (default) > `low` — the first key of selection order.
-
 ### Dummy mode / persona / "In plain terms"
 
 `dummy_mode` calibrates human-facing prose to a described reader (the **persona**). Dialogue and
 reports are rewritten; results, change sections, and PR bodies get an additive
 `### In plain terms` block. Agents never read that block as a decision input.
-
-### Auto-capture / discovered work
-
-Work an autonomous run discovers mid-run is reported in its final report, never silently minted.
-`auto_capture` is parsed but deferred from Go v1 — capture deliberately with `docket change create`.
 
 ### Inert / deferred setting
 
@@ -954,14 +950,13 @@ A config key that is parsed but activates nothing in the current binary (for exa
 `terminal_publish`, `auto_capture`). Status surfaces them as `inert-setting` / `deferred-setting`
 findings.
 
+### Priority
+
+`critical` > `high` > `medium` (default) > `low` — the first key of selection order.
+
 ---
 
 ## Operations and the CLI protocol
-
-### Operation / operation id
-
-A single `docket` capability with a stable dotted id (`change.claim`, `run.gate-verdict`,
-`finalize.merge`). Skills resolve the command for an id from the catalog rather than hard-coding it.
 
 ### Capability catalog
 
@@ -972,21 +967,27 @@ of hard-coding commands. Each entry carries its `argv`, signature, and **effects
 docket capabilities --json | jq -r '.commands[] | "\(.id)\t\(.argv|join(" "))"'
 ```
 
+### Contended
+
+The outcome when a compare-and-swap lost a race with another writer (another session or loop). It
+is not a failure of your input: re-read and retry.
+
 ### Effects
 
 The closed set describing what an operation may touch: `read`, `local-write`, `metadata-write`,
 `external-write` (GitHub, pushes), `process-control`. A workflow stops if an operation's effects
 exceed what it is authorised to do.
 
-### Schema / request file
+### Finding / finding code / remedy
 
-`docket schema` emits every operation's request and result fields plus the closed vocabularies.
-A **request file** (`--request` / `--input`) is a JSON body built from that schema.
+A structured diagnostic attached to a result: a `code`, a `severity`, the entity it concerns, a
+`message`, and a `remedy` naming the next command. The full code list is the `finding_codes`
+vocabulary.
 
-```sh
-docket schema --operation change.kill
-docket schema --json | jq '.vocabularies | keys'
-```
+### Operation / operation id
+
+A single `docket` capability with a stable dotted id (`change.claim`, `run.gate-verdict`,
+`finalize.merge`). Skills resolve the command for an id from the catalog rather than hard-coding it.
 
 ### Protocol-v1 envelope
 
@@ -1000,16 +1001,15 @@ The **result** is the envelope's top-level outcome (`applied`, `no-op`, `contend
 outcome an operation reports: applied, no-op, refused, or error — plus operation-specific closed
 sets (`claim_dispositions`, `merge_dispositions`, `sync_dispositions`, …) listed by `docket schema`.
 
-### Contended
+### Schema / request file
 
-The outcome when a compare-and-swap lost a race with another writer (another session or loop). It
-is not a failure of your input: re-read and retry.
+`docket schema` emits every operation's request and result fields plus the closed vocabularies.
+A **request file** (`--request` / `--input`) is a JSON body built from that schema.
 
-### Finding / finding code / remedy
-
-A structured diagnostic attached to a result: a `code`, a `severity`, the entity it concerns, a
-`message`, and a `remedy` naming the next command. The full code list is the `finding_codes`
-vocabulary.
+```sh
+docket schema --operation change.kill
+docket schema --json | jq '.vocabularies | keys'
+```
 
 ### Version / development install
 
@@ -1025,100 +1025,100 @@ docket development install --source ~/dev/docket
 
 ## Alphabetical index
 
-[Abort-and-report](#abort-and-report) ·
-[Abstain / re-arm](#abstain--re-arm) ·
-[Admission slot](#admission-slot) ·
-[ADR](#adr) ·
-[Agent / wrapper](#agent--wrapper) ·
-[Agent enter](#agent-enter) ·
-[Archive](#archive) ·
-[Arm / gate key / run epoch / dispatch context](#arm--gate-key--run-epoch--dispatch-context) ·
-[Attribution](#attribution--unattributed-read) ·
-[Auto-capture](#auto-capture--discovered-work) ·
-[Auto-groom](#auto-groom--auto-groomable--autonomous-eligible) ·
-[Block / unblock, defer / revive, kill](#block--unblock-defer--revive-kill) ·
-[Board](#board) ·
-[Bootstrap guard](#bootstrap-guard) ·
-[Brainstorm / consultant](#brainstorm--consultant) ·
-[Budget watch](#budget-watch--serially-confirmed-breach) ·
-[Build evidence](#build-evidence) ·
-[Build gate](#build-gate) ·
-[Build profile / escalation](#build-profile--escalation) ·
-[Build-ready](#readiness-build-ready--needs-brainstorm--not-proposed) ·
-[Cancel](#cancel) ·
-[Capability catalog](#capability-catalog) ·
-[Change](#change) ·
-[Change types](#change-types) ·
-[Change version](#change-version---version) ·
-[Claim / claim lease / reclaim](#claim--claim-lease--reclaim) ·
-[Closeout](#closeout--closeout-notes) ·
-[Config layers](#config-layers) ·
-[Contended](#contended) ·
-[Continuation](#continuation) ·
-[Coordination key](#coordination-key--scope-tag--fence) ·
-[Critic](#critic) ·
-[Dependency](#dependency-depends_on--implicitly-blocked) ·
-[Derived view / backlink](#derived-view--generated-block--backlink) ·
-[Dispatch](#dispatch) ·
-[Dispatch tiers](#dispatch-tiers-a--b--c-and-the-carve-out) ·
-[Disposition](#result--disposition) ·
-[Docket-mode](#docket-mode--single-branch-mode) ·
-[Dummy mode](#dummy-mode--persona--in-plain-terms) ·
-[Effects](#effects) ·
-[Feature branch](#feature-branch) ·
-[Finalize](#finalize) ·
-[Finalize blocked](#finalize-blocked--reason-token--clear-block) ·
-[Finalize gate](#finalize-gate) ·
-[Finding](#finding--finding-code--remedy) ·
-[Fix loop](#fix-loop) ·
-[Fork](#fork--forked-skill) ·
-[Gate drive](#gate-drive--slice--owner-generation--handoff--takeover) ·
-[Gate run / run dir](#gate-run--run-dir) ·
-[Gate verdict](#gate-verdict) ·
-[Groom](#groom) ·
-[Halt / resume-halted](#halt--resume-halted) ·
-[Harness](#harness) ·
-[Health check](#health-check--health-code) ·
-[Implement-next](#implement-next--the-drainer) ·
-[Implementation context](#implementation-context) ·
-[Inert / deferred setting](#inert--deferred-setting) ·
-[Integration branch](#integration-branch) ·
-[Learnings](#learnings--finding--promotion) ·
-[Manifest](#manifest) ·
-[Mark implemented](#mark-implemented) ·
-[Merge policy](#merge-policy--branch-protection) ·
-[Metadata branch](#metadata-branch) ·
-[Metadata worktree](#metadata-worktree) ·
-[Operation](#operation--operation-id) ·
-[Plan](#plan) ·
-[Plan writer](#plan-writer) ·
-[Preflight](#preflight) ·
-[Presence-encoded section](#presence-encoded-section) ·
-[Priority](#priority) ·
-[Protocol-v1 envelope](#protocol-v1-envelope) ·
-[Rebase resolver / integration repair](#rebase-resolver--integration-repair) ·
-[Reconcile](#reconcile--reconcile-log) ·
-[Related / discovered_from](#related--discovered_from) ·
-[Repository check / migrate](#repository-check--migrate) ·
-[Result](#result--disposition) ·
-[Results](#results) ·
-[Resume dispositions](#resume-dispositions) ·
-[Retarget children](#retarget-children) ·
-[Review rung](#review-rung) ·
-[Run gate](#run-gate) ·
-[Run verify](#run-verify) ·
-[Runner / delegation](#runner--delegation) ·
-[Schema / request file](#schema--request-file) ·
-[Severity](#finding-severity-blocker--important--minor) ·
-[Skill](#skill) ·
-[Spec](#spec) ·
-[Stacked change](#stacked-change--effective-base) ·
-[Status](#status) ·
-[Stub](#stub) ·
-[Sweep](#sweep) ·
-[Sync integration](#sync-integration) ·
-[Terminal record](#terminal-record--terminal-publish) ·
-[Trivial](#trivial) ·
-[Version / development install](#version--development-install) ·
-[Workflow role](#workflow-role) ·
-[Worktree](#worktree--feature-workspace)
+- [Abort-and-report](#abort-and-report)
+- [Abstain / re-arm](#abstain--re-arm)
+- [Admission slot](#admission-slot)
+- [ADR](#adr)
+- [Agent / wrapper](#agent--wrapper)
+- [Agent enter](#agent-enter)
+- [Archive](#archive)
+- [Arm / gate key / run epoch / dispatch context](#arm--gate-key--run-epoch--dispatch-context)
+- [Attribution](#attribution--unattributed-read)
+- [Auto-capture](#auto-capture--discovered-work)
+- [Auto-groom](#auto-groom--auto-groomable--autonomous-eligible)
+- [Block / unblock, defer / revive, kill](#block--unblock-defer--revive-kill)
+- [Board](#board)
+- [Bootstrap guard](#bootstrap-guard)
+- [Brainstorm / consultant](#brainstorm--consultant)
+- [Budget watch](#budget-watch--serially-confirmed-breach)
+- [Build evidence](#build-evidence)
+- [Build gate](#build-gate)
+- [Build profile / escalation](#build-profile--escalation)
+- [Build-ready](#readiness-build-ready--needs-brainstorm--not-proposed)
+- [Cancel](#cancel)
+- [Capability catalog](#capability-catalog)
+- [Change](#change)
+- [Change types](#change-types)
+- [Change version](#change-version---version)
+- [Claim / claim lease / reclaim](#claim--claim-lease--reclaim)
+- [Closeout](#closeout--closeout-notes)
+- [Config layers](#config-layers)
+- [Contended](#contended)
+- [Continuation](#continuation)
+- [Coordination key](#coordination-key--scope-tag--fence)
+- [Critic](#critic)
+- [Dependency](#dependency-depends_on--implicitly-blocked)
+- [Derived view / backlink](#derived-view--generated-block--backlink)
+- [Dispatch](#dispatch)
+- [Dispatch tiers](#dispatch-tiers-a--b--c-and-the-carve-out)
+- [Disposition](#result--disposition)
+- [Docket-mode](#docket-mode--single-branch-mode)
+- [Dummy mode](#dummy-mode--persona--in-plain-terms)
+- [Effects](#effects)
+- [Feature branch](#feature-branch)
+- [Finalize](#finalize)
+- [Finalize blocked](#finalize-blocked--reason-token--clear-block)
+- [Finalize gate](#finalize-gate)
+- [Finding](#finding--finding-code--remedy)
+- [Fix loop](#fix-loop)
+- [Fork](#fork--forked-skill)
+- [Gate drive](#gate-drive--slice--owner-generation--handoff--takeover)
+- [Gate run / run dir](#gate-run--run-dir)
+- [Gate verdict](#gate-verdict)
+- [Groom](#groom)
+- [Halt / resume-halted](#halt--resume-halted)
+- [Harness](#harness)
+- [Health check](#health-check--health-code)
+- [Implementation context](#implementation-context)
+- [Implement-next](#implement-next--the-drainer)
+- [Inert / deferred setting](#inert--deferred-setting)
+- [Integration branch](#integration-branch)
+- [Learnings](#learnings--finding--promotion)
+- [Manifest](#manifest)
+- [Mark implemented](#mark-implemented)
+- [Merge policy](#merge-policy--branch-protection)
+- [Metadata branch](#metadata-branch)
+- [Metadata worktree](#metadata-worktree)
+- [Operation](#operation--operation-id)
+- [Plan](#plan)
+- [Plan writer](#plan-writer)
+- [Preflight](#preflight)
+- [Presence-encoded section](#presence-encoded-section)
+- [Priority](#priority)
+- [Protocol-v1 envelope](#protocol-v1-envelope)
+- [Rebase resolver / integration repair](#rebase-resolver--integration-repair)
+- [Reconcile](#reconcile--reconcile-log)
+- [Related / discovered_from](#related--discovered_from)
+- [Repository check / migrate](#repository-check--migrate)
+- [Result](#result--disposition)
+- [Results](#results)
+- [Resume dispositions](#resume-dispositions)
+- [Retarget children](#retarget-children)
+- [Review rung](#review-rung)
+- [Run gate](#run-gate)
+- [Run verify](#run-verify)
+- [Runner / delegation](#runner--delegation)
+- [Schema / request file](#schema--request-file)
+- [Severity](#finding-severity-blocker--important--minor)
+- [Skill](#skill)
+- [Spec](#spec)
+- [Stacked change](#stacked-change--effective-base)
+- [Status](#status)
+- [Stub](#stub)
+- [Sweep](#sweep)
+- [Sync integration](#sync-integration)
+- [Terminal record](#terminal-record--terminal-publish)
+- [Trivial](#trivial)
+- [Version / development install](#version--development-install)
+- [Workflow role](#workflow-role)
+- [Worktree](#worktree--feature-workspace)
