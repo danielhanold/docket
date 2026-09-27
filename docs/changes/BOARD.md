@@ -1,18 +1,12 @@
 # Backlog
 
-**462 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 313 done · 🗑️ 119 killed
+**462 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 314 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | [spec](../superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md) | `feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars` | run halted — needs you |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | [#340](https://github.com/danielhanold/docket/pull/340) | awaiting merge |
+| [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | [spec](../superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md) | `feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars` |  |
 
 ## 🔴 Blocked (1)
 
@@ -91,7 +85,6 @@ graph TD
   0422
   0433
   0443
-  0447
   0457
   0461
   0462
@@ -103,12 +96,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (432)</summary>
+<details><summary>✅🗑️ Archive — done + killed (433)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0456](archive/2026-09-27-0456-show-finding-remedies-in-docket-status-human-view.md) | Show finding remedies in docket status human view | 2026-09-27 |
 | [0455](archive/2026-09-27-0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | 2026-09-27 |
+| [0447](archive/2026-09-27-0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | 2026-09-27 |
 | [0398](archive/2026-09-27-0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) | Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages | 2026-09-27 |
 | [0460](archive/2026-09-26-0460-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md) | artifact.backlink refuses an absolute --change path with unknown-change | 2026-09-26 |
 | [0459](archive/2026-09-26-0459-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md) | Worker's gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive | 2026-09-26 |
@@ -121,7 +115,6 @@ graph TD
 | [0451](archive/2026-09-24-0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md) | Workspace publish refuses a feature head that moved after the app-level check | 2026-09-24 |
 | [0449](archive/2026-09-24-0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | 2026-09-24 |
 | [0448](archive/2026-09-24-0448-named-implement-next-skips-unrelated-maintenance-preflight.md) | Named implement-next skips unrelated maintenance preflight | 2026-09-24 |
-| [0446](archive/2026-09-24-0446-orphaned-halted-gate-drive-blocks-every-new-worktree-s-first.md) | Orphaned halted gate drive blocks every new worktree's first gate admission | 2026-09-24 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -246,7 +239,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 62 done |
+| [2026-09](archive/) | 63 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
