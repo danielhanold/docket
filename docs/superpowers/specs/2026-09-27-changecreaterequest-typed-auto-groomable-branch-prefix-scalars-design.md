@@ -49,7 +49,7 @@ Add two optional fields to `ChangeCreateRequest`:
 - `BranchPrefix string` (`json:"branch_prefix"`). Empty (after normalization) means unset.
 
 Both flow into `changeCreatePayload`, so the idempotency digest binds them. The **normalized**
-prefix is what gets digested: requests carrying `hotfix/` and `hotfix` are the same request. The
+prefix is what gets digested: requests carrying `Hotfix/` and `hotfix` are the same request. The
 schema descriptor is reflected from the struct, so both fields appear in `docket schema` with no
 hand edit.
 
@@ -61,8 +61,10 @@ Add `domain.NormalizeBranchPrefix(raw string) (normalized string, ok bool)` besi
 1. Trim surrounding whitespace. This is new: the skill never did it, and `" hotfix"` would
    otherwise reach claim and fail there.
 2. Strip exactly one trailing `/` (moved from the skill).
-3. If the result is empty → `("", true)`, meaning unset.
-4. Otherwise require `ValidBranchComponent(result)`, which already refuses an embedded `/`,
+3. Lowercase the result (new). Branch prefixes are lowercase-only, matching the change-type
+   token grammar (`^[a-z][a-z0-9-]*$`), so `Hotfix` and `HOTFIX/` both store as `hotfix`.
+4. If the result is empty → `("", true)`, meaning unset.
+5. Otherwise require `ValidBranchComponent(result)`, which already refuses an embedded `/`,
    `refs`, `..`, `@{`, a leading `-`/`.`, a trailing `.`/`.lock`, whitespace, and git-illegal
    bytes.
 
@@ -73,8 +75,6 @@ verbatim. The create op stores the normalized value.
 
 Deliberately **not** normalized:
 
-- **Case.** Git branch names are case-sensitive, so lowercasing would silently change the human's
-  request.
 - **`refs/heads/<x>`.** It is not rewritten to `<x>`. Guessing intent from a qualified ref is the
   silent rewrite the existing rule refuses.
 
@@ -167,7 +167,7 @@ new outcomes.
 **Normalization**
 
 - A table test for `domain.NormalizeBranchPrefix` covering: `hotfix` → `hotfix`,
-  `  hotfix  ` → `hotfix`, `hotfix/` → `hotfix`, `hotfix//` → refused, `/hotfix` → refused,
+  `  hotfix  ` → `hotfix`, `hotfix/` → `hotfix`, `Hotfix` → `hotfix`, `HOTFIX/` → `hotfix`, `hotfix//` → refused, `/hotfix` → refused,
   `team/hotfix` → refused, `refs` → refused, `refs/heads/x` → refused, `-x` → refused,
   `x.lock` → refused, `""` → unset, `"   "` → unset, `/` → unset.
 
@@ -177,7 +177,7 @@ new outcomes.
 - `branch_prefix` set writes the normalized value, and a round-trip decode plus `MintBranch`
   yields `<prefix>/<slug>`.
 - An invalid prefix is refused with `invalid-branch_prefix` and no commit.
-- Creates with `hotfix/` and `hotfix` under the same `request_id` replay instead of conflicting.
+- Creates with `Hotfix/` and `hotfix` under the same `request_id` replay instead of conflicting.
 - Differing `auto_groomable` under the same `request_id` conflicts.
 - The schema descriptor lists both fields.
 
@@ -206,6 +206,7 @@ new outcomes.
 - Any change to what `auto_groomable` or `branch_prefix` *mean* (tri-state inheritance, how claim
   consumes the prefix).
 - Moving auto-groom selection or eligibility into Go.
-- Lowercasing or other case normalization of `branch_prefix`, and rewriting `refs/heads/<x>`.
-- Normalizing prefixes already present on existing records, or loosening claim-time validation.
+- Rewriting `refs/heads/<x>` to `<x>`.
+- Normalizing (including lowercasing) prefixes already present on existing records, or loosening
+  or case-folding claim-time validation. Only newly created records are normalized.
 - Other frontmatter fields `change.create` does not accept today.
