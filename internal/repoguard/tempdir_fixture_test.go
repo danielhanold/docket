@@ -113,10 +113,12 @@ func maskProse(src []byte, maskStrings bool) []byte {
 	return out
 }
 
-// exemptMarkerLines returns the 1-based lines that carry a justified
-// tempdir-exempt marker. It lexes the RAW source with go/scanner (the masked
-// view blanks comments), so only a real // comment token counts: marker text
-// inside a string literal or a /* */ block never exempts.
+// exemptMarkerLines maps each 1-based line that carries a justified
+// tempdir-exempt marker to whether that marker is standalone — the first
+// non-whitespace token on its line — rather than trailing code. It lexes the
+// RAW source with go/scanner (the masked view blanks comments), so only a real
+// // comment token counts: marker text inside a string literal or a /* */
+// block never exempts.
 func exemptMarkerLines(src []byte) map[int]bool {
 	lines := map[int]bool{}
 	fset := token.NewFileSet()
@@ -129,7 +131,9 @@ func exemptMarkerLines(src []byte) map[int]bool {
 			break
 		}
 		if tok == token.COMMENT && tempdirExemptRe.MatchString(lit) {
-			lines[f.Line(pos)] = true
+			off := f.Offset(pos)
+			lineStart := f.Offset(f.LineStart(f.Line(pos)))
+			lines[f.Line(pos)] = len(bytes.TrimSpace(src[lineStart:off])) == 0
 		}
 	}
 	return lines
@@ -137,8 +141,9 @@ func exemptMarkerLines(src []byte) map[int]bool {
 
 // mkdirTempViolations finds every executable <ident>.MkdirTemp( call in src
 // (comments and string/char literals masked) and splits them by line into
-// violations and exempt calls. A call is exempt only when its own line or the
-// line immediately above carries a justified marker (exemptMarkerLines).
+// violations and exempt calls. A call is exempt only when its own line carries
+// a justified marker, or the line immediately above carries a standalone one
+// (exemptMarkerLines): a marker trailing one call never also covers the next.
 func mkdirTempViolations(src []byte) (violations, exempt []int) {
 	markers := exemptMarkerLines(src)
 	callView := maskProse(src, true)
@@ -146,7 +151,8 @@ func mkdirTempViolations(src []byte) (violations, exempt []int) {
 		// maskProse blanks in place and preserves newlines, so offsets in the
 		// masked view map to the same line numbers as the raw source.
 		line := 1 + bytes.Count(callView[:loc[0]], []byte("\n"))
-		if markers[line] || markers[line-1] {
+		_, ownLine := markers[line]
+		if ownLine || markers[line-1] {
 			exempt = append(exempt, line)
 		} else {
 			violations = append(violations, line)
@@ -258,6 +264,7 @@ func TestMkdirTempViolations(t *testing.T) {
 		{"marker in string", "package p\nfunc f() {\n\t_ = \"// tempdir-exempt: not a comment\"\n\td, _ := os.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{4}, nil},
 		{"block comment marker", "package p\nfunc f() {\n\t/* tempdir-exempt: block comments do not count */\n\td, _ := os.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{4}, nil},
 		{"consecutive calls", "package p\nfunc f() {\n\t// tempdir-exempt: first only\n\ta, _ := os.MkdirTemp(\"\", \"a\")\n\tb, _ := os.MkdirTemp(\"\", \"b\")\n\t_, _ = a, b\n}\n", []int{5}, []int{4}},
+		{"trailing marker does not cover next line", "package p\nfunc f() {\n\ta, _ := os.MkdirTemp(\"\", \"a\") // tempdir-exempt: first only\n\tb, _ := os.MkdirTemp(\"\", \"b\")\n\t_, _ = a, b\n}\n", []int{4}, []int{3}},
 		{"non-os receiver", "package p\nfunc f() {\n\td, _ := afs.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{3}, nil},
 	}
 	for _, c := range cases {
