@@ -1288,6 +1288,36 @@ func TestChangeGroomPlanRearmRefusals(t *testing.T) {
 	}
 }
 
+// TestChangeGroomRearmFencedMarkerAgreesWithBoard — a heading-shaped
+// "## Auto-groom blocked" line inside fenced code is not the abstain section:
+// the decoded record (which the board's cell keys on) and rearm's section scan
+// must agree, so the board never shows "needs you" on a record rearm reports
+// as having nothing to re-arm.
+func TestChangeGroomRearmFencedMarkerAgreesWithBoard(t *testing.T) {
+	rec := strings.Replace(groomableChange(2, "add-a-widget"), "trivial: false\n", "trivial: false\nauto_groomable: true\n", 1) +
+		"\n## Notes\n\n```md\n## Auto-groom blocked\n```\n"
+	files := map[string]string{groomPath(2, "add-a-widget"): rec}
+	before, err := newPlanningLoader(planningTestConfig([]string{})).Load(context.Background(), newFakeTree(files))
+	if err != nil {
+		t.Fatalf("loader.Load: %v", err)
+	}
+	c, out := before.Snapshot.Change(2)
+	if out != domain.LookupFound {
+		t.Fatalf("change 2 lookup = %v", out)
+	}
+	if c.HasAutoGroomBlocked() {
+		t.Errorf("decoded record reports a fenced heading as the abstain marker; the board would show it blocked")
+	}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, rearmRequest()))
+	found := false
+	for _, f := range opRes.Findings {
+		found = found || f.Code == "nothing-to-rearm"
+	}
+	if !opRes.Refused || len(plan.Files) != 0 || !found {
+		t.Errorf("rearm over a fenced marker: refused=%v files=%v findings=%v, want nothing-to-rearm", opRes.Refused, planPaths(plan), opRes.Findings)
+	}
+}
+
 func TestChangeGroomResultHumanTextRearm(t *testing.T) {
 	r := newChangeGroomResult(ResultApplied, ChangeGroomResult{ID: 7, Outcome: string(GroomRearm), Revision: "cafe"})
 	if got, want := r.HumanText(), "change 0007 re-armed for auto-groom — cafe"; got != want {
