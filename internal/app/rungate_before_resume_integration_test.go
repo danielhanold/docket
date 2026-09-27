@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -771,5 +772,154 @@ func TestIntegrationGateArmResumeSupersededChecksReplacementSlot(t *testing.T) {
 				t.Fatalf("slot epoch = %q, want %q", epo, want)
 			}
 		})
+	}
+}
+
+// TestEpochlessResumeMintsBoundEpoch (change 0463): resuming an in-progress change
+// that has NO prior run epoch (its first dispatch was never armed) mints one. The
+// epoch is bound to the change and to the verified feature worktree, and the result
+// carries its id, so the armed line is always `gate-armed <key> <epoch> <dispatch-context>`.
+func TestEpochlessResumeMintsBoundEpoch(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	if _, _, found, err := FindEpochByChange(repoDir, "5"); err != nil || found {
+		t.Fatalf("fixture must start epochless: found=%v err=%v", found, err)
+	}
+
+	res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if !res.Armed || res.Key == "" {
+		t.Fatalf("an epochless resume must arm: %q", res.HumanText())
+	}
+	if res.Epoch == "" {
+		t.Fatalf("an epochless resume armed with no epoch: %q", res.HumanText())
+	}
+	ep, _, err := LoadEpochRecord(repoDir, res.Key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord: %v", err)
+	}
+	if ep.EpochID != res.Epoch {
+		t.Errorf("result Epoch = %q, want the minted epoch id %q", res.Epoch, ep.EpochID)
+	}
+	if ep.ChangeID != "5" {
+		t.Errorf("epoch ChangeID = %q, want \"5\" (bound to the resumed change)", ep.ChangeID)
+	}
+	if ep.State != EpochActive {
+		t.Errorf("epoch state = %q, want active", ep.State)
+	}
+	if ep.Worktree != "/tmp/wt/epsilon" {
+		t.Errorf("epoch Worktree = %q, want the verified feature worktree /tmp/wt/epsilon", ep.Worktree)
+	}
+	// JSON consumers see the epoch on this path too, and the shape is unchanged.
+	buf, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, want := range []string{`"epoch":"` + res.Epoch + `"`, `"key":"` + res.Key + `"`, `"dispatch_context":"` + scopeGrantChild + `"`} {
+		if !strings.Contains(string(buf), want) {
+			t.Errorf("JSON result missing %s: %s", want, buf)
+		}
+	}
+}
+
+// TestRepeatEpochlessResumeRefusedActive (change 0463): after an epochless resume
+// mints its epoch, a SECOND resume of the same change finds that epoch active and
+// refuses resume-active-run with the safe locator, the same single-live-run
+// protection every other epoch gets. It mints nothing and prepares no scope.
+func TestRepeatEpochlessResumeRefusedActive(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	first := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if !first.Armed {
+		t.Fatalf("first epochless resume must arm: %q", first.HumanText())
+	}
+
+	deps2, wdeps2 := resumeEpochDeps(t)
+	sp2 := &fakeScopePrep{grant: sampleScopeGrant()}
+	second := RunGateBefore(context.Background(), deps2, wdeps2, sp2.deps(), repoDir, "implement-next", 5)
+	if second.Armed {
+		t.Fatalf("a repeat resume over a live minted epoch must not arm: %q", second.HumanText())
+	}
+	if second.Reason != ReasonGateResumeActiveRun {
+		t.Fatalf("Reason = %q, want %q", second.Reason, ReasonGateResumeActiveRun)
+	}
+	if !strings.Contains(second.Message, first.Epoch) || !strings.Contains(second.Message, first.Key) {
+		t.Fatalf("locator must name epoch %q and key %q, got %q", first.Epoch, first.Key, second.Message)
+	}
+	if second.Key != "" || sp2.calls != 0 {
+		t.Fatalf("an active refusal mints nothing: key=%q calls=%d", second.Key, sp2.calls)
+	}
+}
+
+// TestEpochlessResumeEpochJoinsCancelCycle (change 0463, Review Focus 2): the epoch
+// an epochless resume mints goes through the ordinary lifecycle. Once confirmed
+// cancelled, the next resume supersedes it and reserves exactly one replacement,
+// which carries its own fresh epoch.
+func TestEpochlessResumeEpochJoinsCancelCycle(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+	first := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if !first.Armed {
+		t.Fatalf("first epochless resume must arm: %q", first.HumanText())
+	}
+	// A confirmed run.cancel leaves the epoch cancelled.
+	if err := epochCAS(repoDir, first.Key, func(r *EpochRecord) error {
+		r.State = EpochCancelled
+		return nil
+	}); err != nil {
+		t.Fatalf("epochCAS cancel: %v", err)
+	}
+
+	deps2, wdeps2 := resumeEpochDeps(t)
+	sp2 := &fakeScopePrep{grant: sampleScopeGrant()}
+	repl := RunGateBefore(context.Background(), deps2, wdeps2, sp2.deps(), repoDir, "implement-next", 5)
+	if !repl.Armed || repl.Epoch == "" || repl.Epoch == first.Epoch {
+		t.Fatalf("the resume after cancel must arm one replacement with a fresh epoch: %q (first epoch %q)", repl.HumanText(), first.Epoch)
+	}
+	prior, _, err := LoadEpochRecord(repoDir, first.Key)
+	if err != nil {
+		t.Fatalf("LoadEpochRecord(prior): %v", err)
+	}
+	if prior.State != EpochSuperseded || prior.ReplacementReserved != repl.Key {
+		t.Fatalf("prior epoch = (%q, reserved %q), want superseded reserving %q", prior.State, prior.ReplacementReserved, repl.Key)
+	}
+}
+
+// TestConcurrentEpochlessResumeEpochsFailSafe (change 0463 decision 4, a documenting
+// test): epoch locks are per gate key, so two epochless resumes that race past
+// FindEpochByChange can each mint an active epoch for one change. The next resume
+// must then fail closed as resume-epoch-unreadable and must never arm a third run.
+func TestConcurrentEpochlessResumeEpochsFailSafe(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	seedPriorEpoch(t, repoDir, EpochActive)
+	seedPriorEpoch(t, repoDir, EpochActive)
+	deps, wdeps := resumeEpochDeps(t)
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
+
+	res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if res.Armed {
+		t.Fatalf("an ambiguous pair of live epochs must never arm: %q", res.HumanText())
+	}
+	if res.Reason != ReasonGateResumeEpochUnreadable {
+		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonGateResumeEpochUnreadable)
+	}
+	if res.Key != "" || sp.calls != 0 {
+		t.Fatalf("a fail-closed refusal mints nothing: key=%q calls=%d", res.Key, sp.calls)
+	}
+}
+
+// TestArmedGateResultRequiresEpoch (change 0463): the armed constructor refuses to
+// arm without an epoch. That guarantee is what makes the positional three-token
+// line unambiguous.
+func TestArmedGateResultRequiresEpoch(t *testing.T) {
+	if got := armedGateResult("k", "", "ctx"); got.Armed || got.Reason != ReasonGateMintFailed || got.Key != "" || got.DispatchContext != "" {
+		t.Fatalf("an epochless armed result must fail closed as gate-unarmed mint-failed, got %+v", got)
+	}
+	got := armedGateResult("k", "e", "ctx")
+	if !got.Armed || got.Result != ResultApplied || got.Key != "k" || got.Epoch != "e" || got.DispatchContext != "ctx" ||
+		got.Target != gateBeforeStoredTarget || got.OwnerLifecycle != ReasonOwnerLifecycleUnavailable {
+		t.Fatalf("armed result fields wrong: %+v", got)
 	}
 }

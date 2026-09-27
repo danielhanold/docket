@@ -155,8 +155,9 @@ type RunGateBeforeResult struct {
 	// the operator threads into `run.cancel --epoch <id>` — the primary human Stop —
 	// and the dispatcher threads into each `--run-epoch` flag (agent.enter, gate drive
 	// start, gate drive prepare-scope). Without it the documented Stop path names an
-	// epoch the arm never surfaced (change 0375). Empty only on a legacy resume arm
-	// that shares no epoch; the resume-active locator already prints the epoch there.
+	// epoch the arm never surfaced (change 0375). Never empty on an armed result
+	// (change 0463): armedGateResult refuses to arm without one, so the positional
+	// `gate-armed <key> <epoch> <dispatch-context>` line always has three tokens.
 	Epoch   string `json:"epoch,omitempty"`
 	Target  string `json:"target,omitempty"`
 	Reason  string `json:"reason,omitempty"`
@@ -227,6 +228,26 @@ func gateResumeObserve(reservedKey string) RunGateBeforeResult {
 		Reason:  ReasonGateResumeReplacementReserved,
 		Key:     reservedKey,
 		Message: "a replacement dispatch is already reserved under gate key " + reservedKey + "; a second cannot be armed",
+	})
+}
+
+// armedGateResult builds the armed report for key. Every armed gate carries a run
+// epoch (change 0463): parents read the `gate-armed <key> <epoch> <dispatch-context>`
+// line positionally, and both tokens are 32-hex, so the line is unambiguous only
+// when the epoch slot is always filled. An empty epoch therefore fails closed as
+// gate-unarmed mint-failed. It never prints a two-token line whose dispatch context
+// a parent would read as the epoch.
+func armedGateResult(key, epochID, dispatchContext string) RunGateBeforeResult {
+	if epochID == "" {
+		return gateUnarmed(ReasonGateMintFailed)
+	}
+	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{
+		Armed:           true,
+		Key:             key,
+		Epoch:           epochID,
+		Target:          gateBeforeStoredTarget,
+		DispatchContext: dispatchContext,
+		OwnerLifecycle:  ReasonOwnerLifecycleUnavailable,
 	})
 }
 
@@ -317,14 +338,7 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 	// The replacement dispatch gets a fresh live epoch; surface its public id so the
 	// resumed run's Stop path (`run.cancel --epoch`) and `--run-epoch` flags are
 	// followable, exactly as a fresh arm's are (change 0375).
-	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{
-		Armed:           true,
-		Key:             key,
-		Epoch:           epochRec.EpochID,
-		Target:          gateBeforeStoredTarget,
-		DispatchContext: grant.ChildCapability,
-		OwnerLifecycle:  ReasonOwnerLifecycleUnavailable,
-	})
+	return armedGateResult(key, epochRec.EpochID, grant.ChildCapability)
 }
 
 // validateResumeQuiescence re-proves the OLD epoch's quiescence before resume may
@@ -357,8 +371,9 @@ func validateResumeQuiescence(seams cancelSeams, repoDir string, ep EpochRecord,
 // usage error (non-zero exit); otherwise it re-syncs, reads the in-progress
 // claim set, captures the dispatch epoch after that read, optionally verifies an
 // explicit resume id, prepares the OUTER recovery scope (change 0359), mints the
-// durable record, and returns `gate-armed <key> <dispatch-context>` — degrading
-// any arming failure to a `gate-unarmed <reason>` report line that still exits 0.
+// durable record and its run epoch, and returns `gate-armed <key> <epoch>
+// <dispatch-context>` — degrading any arming failure to a `gate-unarmed <reason>`
+// report line that still exits 0.
 //
 // resumeID (0 = none) requests explicit resume attribution: the id is pre-bound
 // as the record's AttributedID ONLY when it is a verified in-progress change with
@@ -448,9 +463,10 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		// (4a) Resume SHARES the run epoch's admission (change 0375 Task 12, spec
 		// "run.gate-before --resume and direct implement-next resume must share the same
 		// admission path"). Locate the change's prior epoch; its state decides whether a
-		// replacement may be admitted. No prior epoch (a legacy/pre-epoch resume, or an
-		// unclaimed run that never bound one) falls through to the existing resume arm,
-		// which shares no epoch and reserves no replacement.
+		// replacement may be admitted. No prior epoch (a legacy/pre-epoch resume, or a
+		// first dispatch that was never armed) falls through to the ordinary arm below,
+		// which mints and binds a fresh epoch for the resumed change (step 6a, change
+		// 0463), so the armed line always carries one.
 		oldKey, oldEp, foundEp, ferr := FindEpochByChange(repoDir, scopeChangeID)
 		if ferr != nil {
 			return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
@@ -584,37 +600,46 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		return gateUnarmed(ReasonGateMintFailed)
 	}
 
-	// (6a) A fresh (non-resume) arm binds a NEW run epoch beside the just-minted gate
-	// record, keyed by the gate key (rungate_epoch.go). The epoch is the durable
-	// coordinator fence a later human cancellation flips and a resume supersedes; its
-	// EpochID travels onto each scoped start's worktree slot so an omitted or stale
-	// epoch cannot detach the worktree. A mint failure unarms fail-closed: an armed
-	// gate must carry a live epoch (the orphan gate record left behind is inert — no
-	// key is returned, so nothing dispatches against it). A resume arm does NOT mint
-	// here: it shares the change's existing epoch, whose supersede-and-reserve is
-	// Task 12's; for change 0375 Task 9 only the fresh arm binds an epoch.
-	var epochID string
-	if resumeID == 0 {
-		epochRec, eerr := MintEpochRecord(repoDir, key, scopeChangeID)
-		if eerr != nil {
+	// (6a) Every armed gate binds a run epoch beside the just-minted gate record,
+	// keyed by the gate key (rungate_epoch.go). The epoch is the durable coordinator
+	// fence that a later human cancellation flips and a resume supersedes. Its EpochID
+	// travels onto each scoped start's worktree slot, so an omitted or stale epoch
+	// cannot detach the worktree. Two arms reach this step: a FRESH arm, and a RESUME
+	// whose change has no prior epoch (a legacy/pre-epoch run, or a first dispatch
+	// that was never armed; change 0463). A resume that found a prior epoch never gets
+	// here, because every found state has already returned above (a refusal, an
+	// observed reservation, or armResumeReplacement, which mints its own).
+	//
+	// The epoch is minted unbound. A fresh arm binds ChangeID and Worktree later, at
+	// claim confirmation (bindEpochChange / bindEpochWorktree). A resume has already
+	// claimed, so it binds both NOW, in one epochCAS, the same way
+	// armResumeReplacement binds its worktree. Why both are needed:
+	//   - epochLaunchGate refuses an active epoch that has no Worktree, so an unbound
+	//     resume epoch would be refused on first use.
+	//   - With ChangeID bound, a later resume of the same change finds this epoch
+	//     active and refuses resume-active-run.
+	// Binding both in one CAS means a failed bind leaves an UNBOUND orphan (inert,
+	// like a fresh arm's), never an orphan that names the change. A mint or bind
+	// failure unarms fail-closed; the orphan gate record left behind is inert, because
+	// no key is returned and nothing dispatches against it.
+	epochRec, eerr := MintEpochRecord(repoDir, key, "")
+	if eerr != nil {
+		return gateUnarmed(ReasonGateMintFailed)
+	}
+	if resumeID != 0 {
+		if werr := epochCAS(repoDir, key, func(rec *EpochRecord) error {
+			rec.ChangeID = scopeChangeID
+			rec.Worktree = worktree
+			return nil
+		}); werr != nil {
 			return gateUnarmed(ReasonGateMintFailed)
 		}
-		// Surface the just-minted public epoch id so the documented Stop path is
-		// followable: `run.cancel --epoch <id>` and every `--run-epoch` dispatch flag
-		// consume exactly this value (change 0375).
-		epochID = epochRec.EpochID
 	}
 
 	// (7) Report the armed gate with its dispatch context, its run epoch id, and the
 	// honest owner-lifecycle caveat: the dispatched route has no automatic Stop, so a
 	// Stop is the explicit `run.cancel` operation keyed by this epoch (change 0375
-	// Task 13).
-	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{
-		Armed:           true,
-		Key:             key,
-		Epoch:           epochID,
-		Target:          gateBeforeStoredTarget,
-		DispatchContext: grant.ChildCapability,
-		OwnerLifecycle:  ReasonOwnerLifecycleUnavailable,
-	})
+	// Task 13). armedGateResult refuses an empty epoch, so the line is always three
+	// tokens (change 0463).
+	return armedGateResult(key, epochRec.EpochID, grant.ChildCapability)
 }
