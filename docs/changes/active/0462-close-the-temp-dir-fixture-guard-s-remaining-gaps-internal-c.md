@@ -9,10 +9,10 @@ created: '2026-09-27'
 updated: '2026-09-27'
 depends_on: []
 stacked_on:
-related: [398]
+related: [398, 373]
 discovered_from: [398]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,12 +42,13 @@ Change 0398 extended the testsupport temp-dir fixture and the TestRealProcessPac
 ## What changes
 
 - Replace internal/cli/gate_test.go's private gateTempDir helper with the shared testsupport.TempDir fixture and delete the helper.
-- Widen the guard so private temp-dir helpers built on os.MkdirTemp (or a similar ad hoc temp-dir spelling) in real-process test packages are caught, keyed on syntactic shape rather than one helper name.
-- Harden the guard's scan-root coverage so dropping a root (and its non-vacuity check) cannot silently narrow it — for example by deriving the roots from the repository layout instead of a hand-listed pair.
-- Mutation-test each widening: restore the helper / drop a root and watch the guard redden.
+- Widen the guard to ban any executable `<ident>.MkdirTemp(` call in real-process test packages, unless the call carries an adjacent `// tempdir-exempt: <reason>` marker with a non-empty reason. Mark the legitimate existing sites (TestMain binary builds, process-lifetime sync.Once dirs, failure evidence, the /tmp-alias test, and a MkdirTemp nested in a fixture dir), each with a site-specific reason.
+- Replace the guard's hand-listed scanRoots with the shared repoguard.MaintainedFiles whole-repo walk, keeping the realProcFloors population floors, so coverage can't be narrowed by one quiet edit to the guard.
+- Mutation-test each widening (restore the helper, strip or blank a marker, add an unmarked helper elsewhere, skip cmd/) and watch the guard redden.
 
 ## Out of scope
 
 - Converting test temp dirs outside the real-process packages the guard already targets.
-- Any change to the testsupport.TempDir fixture's own behavior.
+- Any change to the testsupport.TempDir fixture's own behavior, including new lifetime modes for the exempt sites.
 - Re-opening 0398's already-converted cmd/ sites.
+- os.CreateTemp (temp files) and calls through interface values or shadowing helpers.
