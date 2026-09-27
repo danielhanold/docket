@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -24,8 +25,10 @@ import (
 // spec, or a trivial verdict — or, by the third outcome (revise), adjusts an
 // already-groomed proposed change in place: a whole-body replace of its existing
 // linked spec and/or owned proposal-section edits, never touching spec: or
-// trivial:. Every outcome lands the change's source mutation and every
-// affected v1-owned derived view (the change record's owned proposal sections,
+// trivial:. The abstain outcome records an autonomous groom's abstain on a
+// needs-design change — auto_groomable: false plus one dated
+// "## Auto-groom blocked" entry — under the same groom gate. Every outcome
+// lands the change's source mutation and every affected v1-owned derived view (the change record's owned proposal sections,
 // its typed fields, its artifact block; a new spec file for the spec outcome, a
 // replaced one for a spec-body revise; the inline board) as one validated
 // atomic transaction. Grooming is a
@@ -54,6 +57,12 @@ const (
 	// both. It never writes spec: or trivial:, so a change can never flip
 	// between spec'd and trivial through this outcome.
 	GroomRevise GroomOutcome = "revise"
+	// GroomAbstain records an autonomous groom's abstain on a needs-brainstorm
+	// change: it sets auto_groomable: false and appends one dated entry to the
+	// ## Auto-groom blocked section. It never writes spec: or trivial:, and it
+	// accepts no section, spec, or relationship edits — an autonomous caller
+	// cannot rewrite the proposal through it.
+	GroomAbstain GroomOutcome = "abstain"
 )
 
 // reasonSpecVersionMismatch is the Plan refusal for a stale spec_version on a
@@ -63,6 +72,11 @@ const reasonSpecVersionMismatch = "spec-version-mismatch"
 // specsDir is the metadata-tree directory design specs live in. It is a fixed v1
 // location (the Bash grooming skills write here); it is not configurable.
 const specsDir = "docs/superpowers/specs"
+
+// autoGroomBlockedHeading is the presence-encoded abstain section: the abstain
+// outcome appends to it, and the board's "auto-groom blocked — needs you" cell
+// keys on its presence (domain.ReadyAutoGroomBlocked).
+const autoGroomBlockedHeading = "## Auto-groom blocked"
 
 // ChangeGroomRequest is the closed, caller-supplied request for one groom. Path
 // and Version pin the exact submitted record; the relationship collections are
@@ -84,6 +98,12 @@ type ChangeGroomRequest struct {
 	// whole-body replace overwrites the spec file, so a concurrent spec edit
 	// contends instead of being silently clobbered.
 	SpecVersion string `json:"spec_version,omitempty"`
+
+	// BlockedNote is the authored body of one ## Auto-groom blocked entry. The
+	// abstain outcome requires it and no other outcome accepts it; the operation
+	// owns the heading and the dated "Recorded <date> (UTC)." lead line, so the
+	// note must not carry a column-zero "## " heading or an unterminated fence.
+	BlockedNote string `json:"blocked_note,omitempty"`
 
 	DependsOn      []int `json:"depends_on"`
 	Related        []int `json:"related"`
@@ -118,6 +138,9 @@ type ChangeGroomResult struct {
 func (r ChangeGroomResult) HumanText() string {
 	switch r.Result {
 	case ResultApplied:
+		if r.Outcome == string(GroomAbstain) {
+			return fmt.Sprintf("change %04d auto-groom abstained — %s", r.ID, r.Revision)
+		}
 		if r.Outcome == string(GroomRevise) {
 			return fmt.Sprintf("change %04d revised — %s", r.ID, r.Revision)
 		}
@@ -292,9 +315,43 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		} else if !hasEffectiveSectionEdit(req.Sections) {
 			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown or at least one replace/remove section edit")
 		}
+	case GroomAbstain:
+		if strings.TrimSpace(req.BlockedNote) == "" {
+			addShape(FCEmptyBlockedNote, "blocked_note must be non-empty for the abstain outcome")
+		} else if err := render.ValidateSectionBody([]byte(req.BlockedNote)); err != nil {
+			addShape(FCInvalidBlockedNote, blockedNoteBodyDiagnostic(err))
+		}
+		if strings.TrimSpace(req.SpecMarkdown) != "" {
+			addShape(FCInvalidSpecMarkdown, "spec_markdown is not accepted by the abstain outcome")
+		}
+		if len(req.Sections) > 0 {
+			addShape(FCInvalidSections, "sections are not accepted by the abstain outcome; an abstain cannot rewrite the proposal")
+		}
+		for _, rel := range []struct {
+			name string
+			set  bool
+			code FindingCode
+		}{
+			{"depends_on", req.DependsOn != nil, FCInvalidDependsOn},
+			{"related", req.Related != nil, FCInvalidRelated},
+			{"discovered_from", req.DiscoveredFrom != nil, FCInvalidDiscoveredFrom},
+			{"adrs", req.ADRs != nil, FCInvalidADRs},
+			{"stacked_on", req.StackedOn != nil, FCInvalidStackedOn},
+		} {
+			if rel.set {
+				addShape(rel.code, rel.name+" is not accepted by the abstain outcome")
+			}
+		}
 	default:
-		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial, revise", req.Outcome))
+		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial, revise, abstain", req.Outcome))
 	}
+
+	// blocked_note is the abstain entry's body; nothing else reads it, so it is
+	// refused anywhere else rather than silently ignored.
+	if req.Outcome != GroomAbstain && req.BlockedNote != "" {
+		addShape(FCInvalidBlockedNote, "blocked_note applies only to the abstain outcome")
+	}
+	boundAuthored(&findings, "blocked_note", req.BlockedNote)
 
 	// A spec-body revise overwrites the linked spec file, so it must pin that
 	// file's version exactly like the record. Nothing else checks spec_version,
@@ -326,6 +383,29 @@ func specMarkdownShapeProblem(markdown string) string {
 		return "spec_markdown must be the spec body without its docket:backlink block; the operation renders that block itself"
 	}
 	return ""
+}
+
+// blockedNoteBodyDiagnostic maps a section-body validation error onto an
+// actionable, static diagnostic that never echoes the authored note.
+func blockedNoteBodyDiagnostic(err error) string {
+	if errors.Is(err, render.ErrSectionBodyUnterminatedFence) {
+		return "blocked_note leaves a code fence unterminated; close the fence so the sections after \"## Auto-groom blocked\" stay visible"
+	}
+	return "blocked_note carries a column-zero \"## \" heading outside fenced code; the operation owns the \"## Auto-groom blocked\" heading — author body text, lists, or \"###\"-or-deeper subsections, and put heading examples inside closed code fences"
+}
+
+// autoGroomBlockedMarkdown is the ## Auto-groom blocked body after one more
+// abstain: the prior entries (when the section exists) followed by one new
+// entry — "Recorded <date> (UTC).", a blank line, then the note — so earlier
+// entries are preserved, never replaced.
+func autoGroomBlockedMarkdown(oldBody string, present bool, date, note string) string {
+	entry := "Recorded " + date + " (UTC).\n\n" + strings.TrimRight(note, "\r\n")
+	if present {
+		if trimmed := strings.Trim(oldBody, "\r\n"); trimmed != "" {
+			return trimmed + "\n\n" + entry
+		}
+	}
+	return entry
 }
 
 // hasAuthoredRationale reports whether the section edits carry at least one
@@ -482,7 +562,21 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	}
 
 	// Splice the owned proposal sections first, over the exact source bytes.
-	edited, err := render.ApplySectionEdits(src, render.ChangeOwnedHeadings, toSectionEdits(o.req.Sections))
+	edits := toSectionEdits(o.req.Sections)
+	if o.req.Outcome == GroomAbstain {
+		// Append one dated entry, preserving earlier ones. The body is sliced at
+		// its NAMED terminator (the next top-level heading) by the same
+		// fence-aware scan the splice uses; a duplicate heading refuses.
+		oldBody, present, err := namedSectionBody(src, autoGroomBlockedHeading)
+		if err != nil {
+			return refuseGroom(string(FCSectionEditFailed), err.Error())
+		}
+		edits = append(edits, render.SectionEdit{
+			Heading: autoGroomBlockedHeading, Intent: render.SectionReplace,
+			Markdown: autoGroomBlockedMarkdown(oldBody, present, o.clock.Now().UTC().Format("2006-01-02"), o.req.BlockedNote),
+		})
+	}
+	edited, err := render.ApplySectionEdits(src, render.ChangeOwnedHeadings, edits)
 	if err != nil {
 		return refuseGroom("section-edit-failed", err.Error())
 	}
@@ -511,6 +605,11 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	}
 	if o.req.Outcome == GroomTrivial {
 		ps.SetField("trivial", document.Bool(true))
+	}
+	if o.req.Outcome == GroomAbstain {
+		// upsertField: a record without the key (hand-authored or pre-template)
+		// gets it inserted rather than failing on a missing patch target.
+		upsertField(&ps, doc1, "auto_groomable", document.Bool(false))
 	}
 	// upsertField (not bare SetField): the updated: field is inserted when a record
 	// lacks it (a Bash-era or hand-authored record), so this op degrades like the

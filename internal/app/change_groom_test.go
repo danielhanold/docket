@@ -959,3 +959,193 @@ func TestChangeGroomResultHumanTextRevise(t *testing.T) {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }
+
+// abstainRequest is a well-formed abstain request against the groomable fixture
+// at id 2 / slug add-a-widget. The note uses a ### subsection, which is legal.
+func abstainRequest() ChangeGroomRequest {
+	return ChangeGroomRequest{
+		ChangeID:    2,
+		Path:        groomPath(2, "add-a-widget"),
+		Version:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Outcome:     GroomAbstain,
+		BlockedNote: "The storage decision needs a human.\n\n### What to supply\n\nPick the backend.\n",
+	}
+}
+
+// abstainedChange is the groomable fixture after one earlier abstain: an
+// explicit auto_groomable: false and a one-entry ## Auto-groom blocked section.
+func abstainedChange(id int, slug string) string {
+	return strings.Replace(groomableChange(id, slug), "trivial: false\n", "trivial: false\nauto_groomable: false\n", 1) +
+		"\n## Auto-groom blocked\n\nRecorded 2026-08-01 (UTC).\n\nFirst note.\n"
+}
+
+func TestChangeGroomAbstainShapeValidation(t *testing.T) {
+	one := 1
+	cases := []struct {
+		name string
+		mut  func(*ChangeGroomRequest)
+		code string // "" means the request must pass shape validation
+	}{
+		{"valid abstain passes", func(r *ChangeGroomRequest) {}, ""},
+		{"blank blocked_note", func(r *ChangeGroomRequest) { r.BlockedNote = "  \n" }, "empty-blocked_note"},
+		{"blocked_note smuggling a structural heading", func(r *ChangeGroomRequest) {
+			r.BlockedNote = "Context.\n\n## Why\n\nsmuggled\n"
+		}, "invalid-blocked_note"},
+		{"blocked_note with an unterminated fence", func(r *ChangeGroomRequest) {
+			r.BlockedNote = "Context.\n\n```\nnever closed\n"
+		}, "invalid-blocked_note"},
+		{"abstain with sections", func(r *ChangeGroomRequest) {
+			r.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "rewrite\n"}}
+		}, "invalid-sections"},
+		{"abstain with spec_markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "# Design\n" }, "invalid-spec_markdown"},
+		{"abstain with spec_version", func(r *ChangeGroomRequest) { r.SpecVersion = "a" }, "invalid-spec_version"},
+		{"abstain with depends_on", func(r *ChangeGroomRequest) { r.DependsOn = []int{1} }, "invalid-depends_on"},
+		{"abstain with an explicit empty related", func(r *ChangeGroomRequest) { r.Related = []int{} }, "invalid-related"},
+		{"abstain with discovered_from", func(r *ChangeGroomRequest) { r.DiscoveredFrom = []int{1} }, "invalid-discovered_from"},
+		{"abstain with adrs", func(r *ChangeGroomRequest) { r.ADRs = []int{1} }, "invalid-adrs"},
+		{"abstain with stacked_on", func(r *ChangeGroomRequest) { r.StackedOn = &one }, "invalid-stacked_on"},
+		{"blocked_note on the spec outcome", func(r *ChangeGroomRequest) {
+			r.Outcome, r.SpecMarkdown = GroomSpec, "# Design\n"
+		}, "invalid-blocked_note"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := abstainRequest()
+			c.mut(&req)
+			findings := validateChangeGroomShape(req)
+			if c.code == "" {
+				if len(findings) != 0 {
+					t.Fatalf("want no findings, got %v", findings)
+				}
+				return
+			}
+			if !hasFindingCode(findings, c.code) {
+				t.Errorf("missing finding %q; got %v", c.code, findings)
+			}
+		})
+	}
+}
+
+func TestChangeGroomAbstainBadNoteRefusedWithoutEngineCall(t *testing.T) {
+	req := abstainRequest()
+	req.BlockedNote = "Context.\n\n## Why\n\nsmuggled\n"
+	engine := &recordingEngine{}
+	deps := PlanningDeps{Engine: engine, Reader: &fakeChangeReader{pin: mainModePin([]string{"inline"})}, Clock: testClock()}
+
+	res := ChangeGroom(context.Background(), deps, "", req)
+
+	if res.Result != ResultInvalidInput || len(engine.calls) != 0 {
+		t.Fatalf("result = %q with %d engine calls, want invalid-input and none", res.Result, len(engine.calls))
+	}
+	// The refusal must come from the shape check itself: an empty repoDir also
+	// yields invalid-input further down, so the result alone would pass even if
+	// blocked_note were never validated.
+	if !hasFindingCode(res.Findings, "invalid-blocked_note") {
+		t.Errorf("missing invalid-blocked_note; got %v", res.Findings)
+	}
+}
+
+func TestChangeGroomPlanAbstainSetsFlagSectionAndBoard(t *testing.T) {
+	cases := []struct {
+		name string
+		rec  string
+	}{
+		// Review Focus 4: a record with no auto_groomable key gets it inserted.
+		{"field absent", groomableChange(2, "add-a-widget")},
+		{"field armed true", strings.Replace(groomableChange(2, "add-a-widget"), "trivial: false\n", "trivial: false\nauto_groomable: true\n", 1)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			files := map[string]string{
+				groomPath(2, "add-a-widget"): c.rec,
+				"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+			}
+			plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, abstainRequest()))
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+				groomPath(2, "add-a-widget"): transaction.MutationReplace,
+				"docs/changes/BOARD.md":      transaction.MutationReplace,
+			})
+			rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+			for _, want := range []string{
+				"\nauto_groomable: false\n",
+				"updated: '2026-08-16'",
+				"## Auto-groom blocked\n\nRecorded 2026-08-16 (UTC).\n\nThe storage decision needs a human.",
+				"### What to supply",
+				"\nspec:\n", "trivial: false", // groom scalars untouched
+				"Original why.", "An open question.", // proposal untouched
+			} {
+				if !strings.Contains(rec, want) {
+					t.Errorf("record missing %q:\n%s", want, rec)
+				}
+			}
+			if strings.Contains(rec, "auto_groomable: true") {
+				t.Errorf("abstain left the stub armed:\n%s", rec)
+			}
+			board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
+			if !strings.Contains(board, "auto-groom blocked — needs you") {
+				t.Errorf("board row did not flip to auto-groom blocked in the same plan:\n%s", board)
+			}
+			var receipt changeGroomReceipt
+			if err := json.Unmarshal(plan.Receipt, &receipt); err != nil || receipt.Outcome != "abstain" || receipt.SpecPath != "" {
+				t.Errorf("receipt = %s (%v), want outcome abstain and no spec_path", plan.Receipt, err)
+			}
+		})
+	}
+}
+
+func TestChangeGroomPlanAbstainAppendsSecondEntry(t *testing.T) {
+	files := map[string]string{groomPath(2, "add-a-widget"): abstainedChange(2, "add-a-widget")}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, abstainRequest()))
+	if opRes.Refused {
+		t.Fatalf("a second abstain must append, not refuse: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if n := strings.Count(rec, "## Auto-groom blocked"); n != 1 {
+		t.Fatalf("section heading appears %d times, want exactly 1:\n%s", n, rec)
+	}
+	first := strings.Index(rec, "Recorded 2026-08-01 (UTC).\n\nFirst note.")
+	second := strings.Index(rec, "Recorded 2026-08-16 (UTC).\n\nThe storage decision needs a human.")
+	if first < 0 || second < 0 || first > second {
+		t.Errorf("entries missing or out of order (first=%d second=%d):\n%s", first, second, rec)
+	}
+}
+
+func TestChangeGroomPlanAbstainRefusesNonGroomable(t *testing.T) {
+	cases := []struct {
+		name string
+		rec  string
+	}{
+		{"spec'd", revisableChange(2, "add-a-widget", reviseSpecPath)},
+		{"trivial", trivialChange(2, "add-a-widget")},
+		{"not proposed", strings.Replace(groomableChange(2, "add-a-widget"), "status: proposed\n", "status: blocked\nblocked_by: 'waiting on infra'\n", 1)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			files := map[string]string{groomPath(2, "add-a-widget"): c.rec}
+			if c.name == "spec'd" {
+				files[reviseSpecPath] = reviseFixtureFiles()[reviseSpecPath]
+			}
+			plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, abstainRequest()))
+			if !opRes.Refused || len(plan.Files) != 0 {
+				t.Fatalf("want a refusal writing nothing, got refused=%v files=%v", opRes.Refused, planPaths(plan))
+			}
+			found := false
+			for _, f := range opRes.Findings {
+				found = found || f.Code == "not-groomable"
+			}
+			if !found {
+				t.Errorf("missing not-groomable; got %v", opRes.Findings)
+			}
+		})
+	}
+}
+
+func TestChangeGroomResultHumanTextAbstain(t *testing.T) {
+	r := newChangeGroomResult(ResultApplied, ChangeGroomResult{ID: 7, Outcome: string(GroomAbstain), Revision: "cafe"})
+	if got, want := r.HumanText(), "change 0007 auto-groom abstained — cafe"; got != want {
+		t.Errorf("HumanText = %q, want %q", got, want)
+	}
+}

@@ -127,6 +127,9 @@ const (
 	FCInvalidSpecVersion        FindingCode = "invalid-spec_version"
 	FCMissingRationale          FindingCode = "missing-rationale"
 	FCEmptyRevise               FindingCode = "empty-revise"
+	FCEmptyBlockedNote          FindingCode = "empty-blocked_note"
+	FCInvalidBlockedNote        FindingCode = "invalid-blocked_note"
+	FCInvalidSections           FindingCode = "invalid-sections"
 	FCInvalidOutcome            FindingCode = "invalid-outcome"
 	FCInvalidSpecSectionHeading FindingCode = "invalid-spec-section-heading"
 	FCEmptyReconcileLogEntry    FindingCode = "empty-reconcile_log_entry"
@@ -194,6 +197,7 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyAlternatives,
 	FCEmptyApply,
 	FCEmptyAttempt,
+	FCEmptyBlockedNote,
 	FCEmptyChangePath,
 	FCEmptyChangeVersion,
 	FCEmptyChildPRVersion,
@@ -229,6 +233,7 @@ var AllFindingCodes = []FindingCode{
 	FindingCode(ReasonStatusInterrupted),
 	FCInvalidADRs,
 	FCInvalidAttempt,
+	FCInvalidBlockedNote,
 	FCInvalidBranchPrefix,
 	FCInvalidChangeDotID,
 	FCInvalidChangeID,
@@ -249,6 +254,7 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidSectionHeading,
 	FCInvalidSectionIntent,
 	FCInvalidSectionMarkdown,
+	FCInvalidSections,
 	FCInvalidSlug,
 	FCInvalidSpecSectionHeading,
 	FCInvalidSpecMarkdown,
