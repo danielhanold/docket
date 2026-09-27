@@ -72,3 +72,32 @@ func runEpochLocator(gitCommonDir string) func(string) error {
 		return err
 	}
 }
+
+// CheckRunEpochLinkage verifies, before agent.enter spawns anything, that the
+// presented (--run-gate-key, --run-epoch) pair names a real run epoch (change 0463).
+// It returns nil when the gate key's epoch record carries exactly epochID, and
+// otherwise ALWAYS an *EpochError:
+//   - a gate key with no directory, a malformed key, or no epoch record:
+//     ErrEpochNotFound (the pair names no epoch);
+//   - a different recorded id: ErrEpochMismatch;
+//   - a corrupt record: keeps ErrEpochCorrupt;
+//   - any other resolution fault: ErrEpochIO.
+//
+// It only reads. It never checks liveness, because participant registration still
+// refuses a non-active epoch.
+func CheckRunEpochLinkage(repoDir, gateKey, epochID string) error {
+	rec, _, err := LoadEpochRecord(repoDir, gateKey)
+	if err != nil {
+		if _, ok := AsEpochError(err); ok {
+			return err
+		}
+		if ge, ok := AsGateStoreError(err); ok && (ge.Kind == ErrGateNotFound || ge.Kind == ErrGateMalformedKey) {
+			return epochErr(ErrEpochNotFound, "check-linkage", nil)
+		}
+		return epochErr(ErrEpochIO, "check-linkage", err)
+	}
+	if rec.EpochID != epochID {
+		return epochErr(ErrEpochMismatch, "check-linkage", nil)
+	}
+	return nil
+}
