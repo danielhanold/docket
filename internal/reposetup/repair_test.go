@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/document"
 )
 
 // planOne runs PlanRepairs and returns the findings; it fails the test on a
@@ -399,5 +401,75 @@ func TestRepairBareScalarsKeepTheirVerdict(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// parityStrings are adversarial title values: every YAML indicator a plain
+// scalar may not start with, the boolean/null/number/date keywords, embedded
+// ": " / " #" / trailing ":", apostrophes and double quotes, escapes-looking
+// bytes, and non-ASCII. The canonical writer always single-quotes a string
+// (document.String), so no row can make it emit a double-quoted scalar; the
+// double-quoted shape is covered by TestRepairWellFormedQuotedScalarNoFinding.
+var parityStrings = []string{
+	"", "yes", "no", "true", "false", "on", "off", "null", "~", "123", "1.5", "2026-01-01",
+	"it's", "''", "a' b", "\"dq\"", "a: b", "trailing:", "x #y", "#hash",
+	"-lead", "?q", ":30", ",comma", "[x]", "]x", "{x}", "}x", "&anchor", "*alias",
+	"!tag", "|pipe", ">fold", "%pct", "@at", "`tick`",
+	"back\\slash", "tab\there", "héllo wörld — ✓",
+}
+
+// TestRepairWriterCheckerParity proves the checker agrees with the writer
+// (ADR-0071): whatever string the canonical writer renders into a string
+// field, PlanRepairs reports NO finding for it — through both write paths,
+// document.New (a brand-new record) and PatchSet via applyValue (rewriting an
+// existing field). Red on revert of change 0447's planQuote fix.
+func TestRepairWriterCheckerParity(t *testing.T) {
+	const path = "docs/changes/active/0007-x.md"
+	for _, s := range parityStrings {
+		t.Run(fmt.Sprintf("%q", s), func(t *testing.T) {
+			built, err := document.New([]document.FieldSpec{
+				{Name: "id", Value: document.Int(7)},
+				{Name: "slug", Value: document.String("x")},
+				{Name: "title", Value: document.String(s)},
+				{Name: "type", Value: document.String("fix")},
+			}, "body\n")
+			if err != nil {
+				t.Fatalf("document.New(%q): %v", s, err)
+			}
+			assertParity(t, path, built, s)
+
+			doc, err := document.Parse([]byte("---\nid: 7\ntitle: placeholder\n---\nbody\n"))
+			if err != nil {
+				t.Fatalf("parse seed: %v", err)
+			}
+			patched, err := applyValue(doc, "title", document.String(s))
+			if err != nil {
+				t.Fatalf("applyValue(%q): %v", s, err)
+			}
+			assertParity(t, path, patched, s)
+		})
+	}
+}
+
+// assertParity checks one writer-rendered record: the title round-trips to s
+// (so the row really exercised s), the token is quoted (so the row really
+// exercised the quoted path), and PlanRepairs finds nothing.
+func assertParity(t *testing.T, path string, rec []byte, s string) {
+	t.Helper()
+	doc, err := document.Parse(rec)
+	if err != nil {
+		t.Fatalf("writer output does not reparse: %v\n%s", err, rec)
+	}
+	var fm struct {
+		Title string `yaml:"title"`
+	}
+	if err := doc.DecodeFrontmatter(&fm); err != nil || fm.Title != s {
+		t.Fatalf("title round-trip = %q (err %v), want %q", fm.Title, err, s)
+	}
+	if !bytes.Contains(rec, []byte("\ntitle: '")) {
+		t.Fatalf("writer did not single-quote the title; parity row is vacuous:\n%s", rec)
+	}
+	if fs := planOne(t, path, string(rec), false); len(fs) != 0 {
+		t.Fatalf("checker disagrees with writer for %q: %+v\n%s", s, fs, rec)
 	}
 }
