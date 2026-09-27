@@ -427,3 +427,66 @@ func TestAgentEnterRequiresClosedExecutionContext(t *testing.T) {
 		})
 	}
 }
+
+// TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch (change 0463): an agent.enter
+// whose --run-gate-key/--run-epoch pair names no run epoch, or names a different one,
+// is refused with a named token BEFORE Codex is spawned. A stub codex that records
+// any invocation proves nothing launched. The presented value never appears in the
+// JSON or human output.
+func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
+	seedAgentInstallation(t)
+	repo := gateDriveRepo(t)
+	bin := testsupport.TempDir(t)
+	marker := filepath.Join(bin, "codex-invoked")
+	stub := "#!/bin/sh\ntouch '" + strings.ReplaceAll(marker, "'", "'\\''") + "'\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(bin, "codex"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	const bogus = "0790b760e26444866ef2e156ba383326"
+	mintKey := func() string {
+		key, err := app.MintGateRecord(repo, app.GateRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "gate-armed"})
+		if err != nil {
+			t.Fatalf("MintGateRecord: %v", err)
+		}
+		return key
+	}
+	bare := mintKey()
+	withEpoch := mintKey()
+	if _, err := app.MintEpochRecord(repo, withEpoch, "463"); err != nil {
+		t.Fatalf("MintEpochRecord: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name, key, wantReason string
+	}{
+		{"gate key with no epoch", bare, "unknown-run-epoch"},
+		{"epoch id not the key's", withEpoch, "stale-run-epoch"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base := []string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
+				"--approval-policy", "never", "--sandbox", "workspace-write", "--run-gate-key", tc.key, "--run-epoch", bogus}
+			var out, stderr bytes.Buffer
+			Run(append(base, "--json"), strings.NewReader("req"), &out, &stderr, devInfo(), hostFacts())
+			var res app.AgentEnterResult
+			if err := json.Unmarshal(out.Bytes(), &res); err != nil {
+				t.Fatalf("decode %q: %v (stderr %q)", out.String(), err, stderr.String())
+			}
+			if res.Result != app.ResultInvalidInput || res.Reason != tc.wantReason {
+				t.Fatalf("got (%s, %q), want (invalid-input, %q): %+v", res.Result, res.Reason, tc.wantReason, res)
+			}
+			if strings.Contains(out.String(), bogus) {
+				t.Fatalf("JSON output leaked the presented value: %s", out.String())
+			}
+			var human, herr bytes.Buffer
+			Run(base, strings.NewReader("req"), &human, &herr, devInfo(), hostFacts())
+			if !strings.Contains(human.String()+herr.String(), "--run-epoch") || strings.Contains(human.String()+herr.String(), bogus) {
+				t.Fatalf("human output must name the remedy and never the value: out=%q err=%q", human.String(), herr.String())
+			}
+			if _, err := os.Stat(marker); err == nil {
+				t.Fatalf("codex was launched despite a bad run-epoch linkage")
+			}
+		})
+	}
+}

@@ -94,6 +94,14 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			// capability continues to carry authority.
 			isRootCoordinator := contract.LaunchPosture == harness.LaunchRootCoordinator
 			if runGateKey != "" && runEpoch != "" {
+				// Preflight the linkage BEFORE anything is spawned (change 0463). An unknown
+				// or mismatched epoch refuses with its named token, instead of surfacing as a
+				// generic root-entry failure after Codex already started a thread.
+				if lerr := app.CheckRunEpochLinkage(effectiveCWD, runGateKey, runEpoch); lerr != nil {
+					res, reason, _ := app.ClassifyRunEpochError(lerr)
+					setResult(runEpochRefusal(role, res, reason))
+					return nil
+				}
 				kind := "task"
 				if isRootCoordinator {
 					kind = "coordinator"
@@ -109,6 +117,12 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			}
 			out, err := client.Enter(c.Context(), codexentry.Request{Contract: contract, UserRequest: string(request), CWD: effectiveCWD, ApprovalPolicy: approval, Sandbox: sandbox, Skills: skills})
 			if err != nil {
+				// A registration-time epoch fault (e.g. the epoch was fenced after the
+				// preflight) keeps its named token (change 0463).
+				if res, reason, ok := app.ClassifyRunEpochError(err); ok {
+					setResult(runEpochRefusal(role, res, reason))
+					return nil
+				}
 				setResult(app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, app.ResultExternalFailed), Role: role, Reason: "root-entry-failed", Message: err.Error()})
 				return nil
 			}
@@ -151,6 +165,17 @@ func (r epochParticipantRegistrar) RegisterParticipant(handle string) error {
 		Kind:         r.kind,
 		NativeHandle: handle,
 	})
+}
+
+// runEpochRefusal renders a typed run-epoch linkage failure as the agent.enter
+// refusal (change 0463): the named reason token and a credential-free next action.
+// It never includes the presented value.
+func runEpochRefusal(role string, res app.Result, reason string) app.AgentEnterResult {
+	msg := app.RunEpochNextAction(reason)
+	if msg == "" {
+		msg = "run-epoch linkage refused (" + reason + ")"
+	}
+	return app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, res), Role: role, Reason: reason, Message: msg}
 }
 
 // epochTerminalRecorder adapts app.RecordEpochParticipantTerminal to codexentry's

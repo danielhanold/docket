@@ -3,6 +3,8 @@ package app
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -61,5 +63,41 @@ func TestRunEpochNextAction(t *testing.T) {
 	}
 	if got := RunEpochNextAction("epoch-io"); got != "" {
 		t.Errorf("an unmapped reason must yield no message, got %q", got)
+	}
+}
+
+// TestCheckRunEpochLinkage (change 0463): the agent.enter preflight answers with a
+// typed EpochError. Not-found covers both a gate key with no epoch and a gate key
+// that does not exist (the pair names no epoch). Mismatch covers a different
+// recorded id. A matching pair is nil.
+func TestCheckRunEpochLinkage(t *testing.T) {
+	repo := newGateRepo(t)
+	bare := mintTestGateKey(t, repo)
+	if err := CheckRunEpochLinkage(repo, bare, "0790b760e26444866ef2e156ba383326"); !isEpochKind(err, ErrEpochNotFound) {
+		t.Fatalf("gate key without an epoch: got %v, want epoch-not-found", err)
+	}
+
+	withEpoch := mintTestGateKey(t, repo)
+	ep, err := MintEpochRecord(repo, withEpoch, "463")
+	if err != nil {
+		t.Fatalf("MintEpochRecord: %v", err)
+	}
+	if err := CheckRunEpochLinkage(repo, withEpoch, ep.EpochID); err != nil {
+		t.Fatalf("matching pair must pass, got %v", err)
+	}
+	if err := CheckRunEpochLinkage(repo, withEpoch, "0790b760e26444866ef2e156ba383326"); !isEpochKind(err, ErrEpochMismatch) {
+		t.Fatalf("wrong epoch id: got %v, want epoch-mismatch", err)
+	}
+
+	gone := mintTestGateKey(t, repo)
+	root, rerr := gateRoot(repo)
+	if rerr != nil {
+		t.Fatalf("gateRoot: %v", rerr)
+	}
+	if err := os.RemoveAll(filepath.Join(root, gone)); err != nil {
+		t.Fatalf("remove gate dir: %v", err)
+	}
+	if err := CheckRunEpochLinkage(repo, gone, ep.EpochID); !isEpochKind(err, ErrEpochNotFound) {
+		t.Fatalf("absent gate key: got %v, want epoch-not-found", err)
 	}
 }
