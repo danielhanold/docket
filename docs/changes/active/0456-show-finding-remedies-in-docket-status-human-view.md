@@ -14,7 +14,7 @@ discovered_from: [454]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-27-show-finding-remedies-in-docket-status-human-view-design.md'
 plan: 'docs/superpowers/plans/2026-09-27-show-finding-remedies-in-docket-status-human-view.md'
-results:
+results: 'docs/results/2026-09-27-show-finding-remedies-in-docket-status-human-view-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-27T08:41:55Z'
 |---|---|
 | Spec | [2026-09-27-show-finding-remedies-in-docket-status-human-view-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-show-finding-remedies-in-docket-status-human-view-design.md) |
 | Plan | [2026-09-27-show-finding-remedies-in-docket-status-human-view.md](https://github.com/danielhanold/docket/blob/chore/show-finding-remedies-in-docket-status-human-view/docs/superpowers/plans/2026-09-27-show-finding-remedies-in-docket-status-human-view.md) |
+| Results | [2026-09-27-show-finding-remedies-in-docket-status-human-view-results.md](https://github.com/danielhanold/docket/blob/chore/show-finding-remedies-in-docket-status-human-view/docs/results/2026-09-27-show-finding-remedies-in-docket-status-human-view-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
