@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/show-finding-remedies-in-docket-status-human-view'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-27T08:30:18Z'
+reconciled: true
+claimed_at: '2026-09-27T08:31:51Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ claimed_at: '2026-09-27T08:30:18Z'
 ## Out of scope
 
 Changing the JSON output (including a notice summary counter), rendering `related` in the human view, the set of findings or their remedy text, other commands' renderers, and any flag to toggle the new output.
+
+## Reconcile log
+
+### 2026-09-27
+
+2026-09-27 — Reconciled against main cdb425c0: internal/app/status_human.go still counts only error/warning (countFindings) and writeFinding still drops Remedy; last touched by 0363, no intervening change covers this. Related 0454 is done. Scope unchanged.
