@@ -21,7 +21,7 @@ branch: 'feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T11:40:35Z'
+claimed_at: '2026-09-27T11:42:40Z'
 ---
 
 ## Artifacts
