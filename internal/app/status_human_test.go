@@ -366,6 +366,32 @@ func TestStatusHumanTextRemedies(t *testing.T) {
 	}
 }
 
+// TestStatusHumanTextRemedyBlankInteriorLine: a blank interior remedy line
+// renders as a bare empty line, never as four trailing spaces.
+func TestStatusHumanTextRemedyBlankInteriorLine(t *testing.T) {
+	r := NewStatusResult(ResultApplied, StatusResult{
+		Context: StatusContext{
+			DefaultBranch:         "main",
+			DefaultBranchRevision: "666666666666",
+			IntegrationBranch:     "main",
+			IntegrationRevision:   "666666666666",
+		},
+		Findings: []StatusFinding{
+			{Code: "gap", Severity: "error", Message: "e1", Remedy: "step one\n\nstep two"},
+		},
+	})
+	got := r.HumanText()
+	wantFrag := "    remedy: step one\n\n    step two"
+	if !strings.Contains(got, wantFrag) {
+		t.Errorf("missing %q in:\n%q", wantFrag, got)
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if strings.TrimRight(line, " \t") != line {
+			t.Errorf("trailing whitespace on line %q", line)
+		}
+	}
+}
+
 // TestStatusHumanTextUnknownSeverityDropped: the DTO severity set is closed
 // (error | warning | notice); a finding carrying any other string is counted
 // nowhere and rendered nowhere — there is deliberately no catch-all group.
