@@ -13,7 +13,7 @@ related: [352, 191, 266]
 discovered_from: [446]
 adrs: [71]
 spec: 'docs/superpowers/specs/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-27T11:09:32Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md) |
+| Plan | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte.md](https://github.com/danielhanold/docket/blob/fix/repository-check-flags-docket-s-own-single-quoted-frontmatte/docs/superpowers/plans/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) |
 | ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
