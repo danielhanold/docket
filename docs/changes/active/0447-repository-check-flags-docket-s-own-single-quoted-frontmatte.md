@@ -14,7 +14,7 @@ discovered_from: [446]
 adrs: [71]
 spec: 'docs/superpowers/specs/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md'
 plan: 'docs/superpowers/plans/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte.md'
-results:
+results: 'docs/results/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-27T11:36:14Z'
 |---|---|
 | Spec | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md) |
 | Plan | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte.md](https://github.com/danielhanold/docket/blob/fix/repository-check-flags-docket-s-own-single-quoted-frontmatte/docs/superpowers/plans/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) |
+| Results | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-results.md](https://github.com/danielhanold/docket/blob/fix/repository-check-flags-docket-s-own-single-quoted-frontmatte/docs/results/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-results.md) |
 | ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
