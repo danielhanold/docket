@@ -4,6 +4,8 @@ The exact fields, keys, commands, and vocabularies — and, for each, the one su
 current value. Every page here is a pointer: it names where a fact lives and how to read it today,
 so nothing on these pages can drift out of step with the binary and skills you actually have.
 
+- [`glossary.md`](glossary.md) — every docket term grouped by layer: what it is, what it is for, and
+  the CLI command that reaches it.
 - [`cli.md`](cli.md) — the `docket` commands by noun, each pointing at its `--help` and the
   capability catalog for the current verbs and flags.
 - [`fields.md`](fields.md) — the change-manifest and ADR fields, owned by the `docket-convention`
