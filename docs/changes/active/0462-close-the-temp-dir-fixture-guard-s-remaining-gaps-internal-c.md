@@ -2,7 +2,7 @@
 id: 462
 slug: 'close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c'
 title: 'Close the temp-dir fixture guard''s remaining gaps (internal/cli gateTempDir, scan-root removal)'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-27'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/343'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-27T20:19:30Z'

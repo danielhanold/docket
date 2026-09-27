@@ -1,12 +1,12 @@
 # Backlog
 
-**463 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 315 done · 🗑️ 119 killed
+**463 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 315 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0462](active/0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) | Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal) | `medium` | `chore` | [spec](../superpowers/specs/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md) | `chore/close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0462](active/0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) | Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal) | `medium` | `chore` | [#343](https://github.com/danielhanold/docket/pull/343) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
