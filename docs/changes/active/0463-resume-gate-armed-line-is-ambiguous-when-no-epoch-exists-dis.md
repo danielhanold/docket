@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-27T20:35:12Z'
+reconciled: true
+claimed_at: '2026-09-27T20:36:05Z'
 ---
 
 ## Artifacts
@@ -70,3 +70,9 @@ When a resume has no prior run epoch, make the arm always mint one, so the `gate
 - **A per-change resume lock.** Two concurrent epochless resumes of one change can each mint an epoch. The result fails safe (later resumes refuse as `resume-epoch-unreadable`), so no new lock is added.
 - **Other catch-all refusals.** Redesigning the gate-drive refusal vocabulary beyond the epoch-related cases above.
 - **Agent spelling bug in the same run.** The resumed run's first `gate drive start` also omitted `--change-id`/`--phase`/`--gate-context`. That is the child's call-site spelling, not the refusal cause.
+
+## Reconcile log
+
+### 2026-09-27
+
+2026-09-27 — Reconciled against origin/main 86f14149. Traced internal/app/rungate_before.go: the epochless resume branch is still present (step 6a mints only when resumeID == 0; HumanText still omits an empty epoch). Recent 0446/0459 commits touched resume replacement and scope-transfer paths but not the epochless branch or mapDriveFailure EpochError handling. Scope and spec unchanged.
