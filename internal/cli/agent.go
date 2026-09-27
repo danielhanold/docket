@@ -93,6 +93,17 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			// confer. The epoch id is a public locator; the dispatch-context child
 			// capability continues to carry authority.
 			isRootCoordinator := contract.LaunchPosture == harness.LaunchRootCoordinator
+			if runGateKey == "" && runEpoch != "" {
+				// A lone --run-epoch (the shape AGENTS.md documents) carries no gate key to
+				// register against, but it is still preflighted for existence so a misrouted
+				// token (0382: the dispatch context passed as the epoch) refuses with
+				// unknown-run-epoch instead of proceeding silently unlinked (change 0463).
+				if lerr := app.CheckRunEpochExists(effectiveCWD, runEpoch); lerr != nil {
+					res, reason, _ := app.ClassifyRunEpochError(lerr)
+					setResult(runEpochRefusal(role, res, reason))
+					return nil
+				}
+			}
 			if runGateKey != "" && runEpoch != "" {
 				// Preflight the linkage BEFORE anything is spawned (change 0463). An unknown
 				// or mismatched epoch refuses with its named token, instead of surfacing as a
