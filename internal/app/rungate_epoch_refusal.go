@@ -1,5 +1,7 @@
 package app
 
+import "path/filepath"
+
 // This file is the run-epoch refusal vocabulary (change 0463). The run epoch is a
 // public locator (ADR-0111) that a caller threads into --run-epoch flags (gate drive
 // start, gate drive prepare-scope, agent.enter). When the presented value cannot be
@@ -53,5 +55,20 @@ func RunEpochNextAction(reason string) string {
 		return "the --run-epoch value is not the run epoch this gate key carries; pass the <epoch> printed on the same gate-armed line as the key"
 	default:
 		return ""
+	}
+}
+
+// runEpochLocator builds the existence check prepare-scope runs on a presented
+// --run-epoch. It resolves the id to exactly one epoch record under gitCommonDir's
+// run-epoch registry through findEpochDirByID (the same locator the epoch launch
+// gate uses) and returns its typed EpochError (not-found, ambiguous, IO) unchanged.
+// It checks RESOLVABILITY only, never liveness: a scope may legitimately carry a
+// cancelled epoch (the takeover revocation gate reads it later), and the launch gate
+// still enforces liveness and worktree ownership at start.
+func runEpochLocator(gitCommonDir string) func(string) error {
+	rungateRoot := filepath.Join(gitCommonDir, "docket", "rungate")
+	return func(epochID string) error {
+		_, _, err := findEpochDirByID(rungateRoot, epochID)
+		return err
 	}
 }
