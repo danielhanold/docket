@@ -2,7 +2,7 @@
 id: 447
 slug: 'repository-check-flags-docket-s-own-single-quoted-frontmatte'
 title: 'repository check flags docket''s own single-quoted frontmatter as needing manual review'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-23'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/repository-check-flags-docket-s-own-single-quoted-frontmatte'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-27T11:07:22Z'
 ---
 
 ## Artifacts
