@@ -101,6 +101,9 @@ func TestReflectDescriptorChangeGroomRequest(t *testing.T) {
 	if f := fieldByKey(t, d, "spec_version"); f.Required || f.Type != "string" {
 		t.Errorf("spec_version = %+v, want optional string", f)
 	}
+	if f := fieldByKey(t, d, "blocked_note"); f.Required || f.Type != "string" {
+		t.Errorf("blocked_note = %+v, want optional string", f)
+	}
 	// No caller-supplied spec path: the spec pinned is always the one the
 	// record's spec: field links.
 	for _, f := range d.Fields {
