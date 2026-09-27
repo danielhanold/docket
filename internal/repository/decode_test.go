@@ -804,3 +804,33 @@ func TestDecodeChangeNonScalarWhereScalarExpected(t *testing.T) {
 		t.Errorf("no field-malformed finding for branch: %v", findingCodes(findings))
 	}
 }
+
+// TestDecodeChangeAutoGroomable — auto_groomable decodes as a tri-state: absent,
+// valueless (inherit), or an explicit true/false override. A non-boolean value
+// is malformed with a finding, never a silent true or false.
+func TestDecodeChangeAutoGroomable(t *testing.T) {
+	cases := []struct {
+		name      string
+		line      string // frontmatter line; "" = key absent
+		want      domain.OptionalBool
+		malformed bool
+	}{
+		{"absent", "", domain.OptionalBool{}, false},
+		{"valueless", "auto_groomable:\n", domain.OptionalBool{State: domain.FieldEmpty}, false},
+		{"true", "auto_groomable: true\n", domain.OptionalBool{State: domain.FieldPresent, Value: true, Raw: "true"}, false},
+		{"false", "auto_groomable: false\n", domain.OptionalBool{State: domain.FieldPresent, Value: false, Raw: "false"}, false},
+		{"non-boolean", "auto_groomable: yes\n", domain.OptionalBool{State: domain.FieldMalformed, Raw: "yes"}, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			src := "---\nid: 1\nslug: s\n" + c.line + "---\n\nbody\n"
+			change, findings := decodeChange(input(t, KindChange, LocationActive, "docs/changes/active/0001-s.md", src))
+			if got := change.AutoGroomable(); got != c.want {
+				t.Errorf("AutoGroomable = %+v, want %+v", got, c.want)
+			}
+			if got := hasFinding(findings, CodeFieldMalformed, "auto_groomable"); got != c.malformed {
+				t.Errorf("field-malformed(auto_groomable) = %v, want %v; findings %v", got, c.malformed, findingCodes(findings))
+			}
+		})
+	}
+}

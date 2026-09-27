@@ -424,6 +424,7 @@ func newChangeBuilder(c Change) *changeBuilder {
 		Plan:           c.Plan(),
 		Results:        c.Results(),
 		Trivial:        c.Trivial(),
+		AutoGroomable:  c.AutoGroomable(),
 		BranchPrefix:   c.BranchPrefix(),
 		Branch:         c.Branch(),
 		ClaimedAt:      c.ClaimedAt(),
