@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseStatus(t *testing.T) {
 	tests := []struct {
@@ -210,4 +213,68 @@ func TestMintBranch(t *testing.T) {
 	if got := MintBranch("chore", OptionalString{State: FieldPresent, Value: ""}, "s"); got != "chore/s" {
 		t.Fatalf("empty prefix mint = %q, want chore/s", got)
 	}
+}
+
+func TestNormalizeBranchPrefix(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want string
+		ok   bool
+	}{
+		{"hotfix", "hotfix", true},
+		{"  hotfix  ", "hotfix", true},
+		{"hotfix/", "hotfix", true},
+		{"Hotfix", "hotfix", true},
+		{"HOTFIX/", "hotfix", true},
+		{" Hotfix/ ", "hotfix", true},
+		{"hotfix//", "", false},
+		{"/hotfix", "", false},
+		{"team/hotfix", "", false},
+		{"refs", "", false},
+		{"REFS", "", false},
+		{"refs/heads/x", "", false},
+		{"-x", "", false},
+		{"x.lock", "", false},
+		{"hot fix", "", false},
+		{"", "", true},
+		{"   ", "", true},
+		{"/", "", true},
+	}
+	for _, c := range cases {
+		got, ok := NormalizeBranchPrefix(c.raw)
+		if got != c.want || ok != c.ok {
+			t.Errorf("NormalizeBranchPrefix(%q) = (%q, %v), want (%q, %v)", c.raw, got, ok, c.want, c.ok)
+		}
+	}
+}
+
+// FuzzNormalizeBranchPrefix ties the normalizer to the reader it feeds: every
+// accepted non-empty output must pass claim-time ValidBranchComponent, be
+// lowercase, and be a fixed point — so a stored prefix can never fail at claim
+// and a retry of the stored value replays.
+func FuzzNormalizeBranchPrefix(f *testing.F) {
+	for _, s := range []string{"hotfix", " Hotfix/ ", "a/b", "refs", "", "/", "x.lock", "HOTFIX//"} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, raw string) {
+		got, ok := NormalizeBranchPrefix(raw)
+		if !ok {
+			if got != "" {
+				t.Fatalf("refused %q but returned %q", raw, got)
+			}
+			return
+		}
+		if got == "" {
+			return
+		}
+		if !ValidBranchComponent(got) {
+			t.Fatalf("normalized %q -> %q fails claim-time ValidBranchComponent", raw, got)
+		}
+		if got != strings.ToLower(got) {
+			t.Fatalf("normalized %q -> %q is not lowercase", raw, got)
+		}
+		if again, ok2 := NormalizeBranchPrefix(got); !ok2 || again != got {
+			t.Fatalf("not idempotent: %q -> %q -> (%q, %v)", raw, got, again, ok2)
+		}
+	})
 }
