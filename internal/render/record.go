@@ -28,6 +28,8 @@ type NewChangeRecord struct {
 	Related        []domain.ChangeID
 	DiscoveredFrom []domain.ChangeID
 	ADRs           []domain.ADRID
+	AutoGroomable  *bool  // nil ⇒ null (inherit the repo's auto_groom)
+	BranchPrefix   string // already normalized by the app layer; "" ⇒ null
 	Why            string // markdown body, no heading line
 	WhatChanges    string // markdown body, no heading line
 	OutOfScope     string // markdown body, no heading line
@@ -59,8 +61,8 @@ func ChangeRecord(r NewChangeRecord) ([]byte, error) {
 		{Name: "plan", Value: document.Null()},
 		{Name: "results", Value: document.Null()},
 		{Name: "trivial", Value: document.Bool(false)},
-		{Name: "auto_groomable", Value: document.Null()},
-		{Name: "branch_prefix", Value: document.Null()},
+		{Name: "auto_groomable", Value: optionalBoolValue(r.AutoGroomable)},
+		{Name: "branch_prefix", Value: optionalStringValue(r.BranchPrefix)},
 		{Name: "branch", Value: document.Null()},
 		{Name: "pr", Value: document.Null()},
 		{Name: "blocked_by", Value: document.Null()},
@@ -73,6 +75,24 @@ func ChangeRecord(r NewChangeRecord) ([]byte, error) {
 		section("## Out of scope", r.OutOfScope),
 	)
 	return document.New(fields, body)
+}
+
+// optionalBoolValue renders a tri-state create-time scalar: nil is the
+// canonical null, anything else an explicit boolean.
+func optionalBoolValue(v *bool) document.Value {
+	if v == nil {
+		return document.Null()
+	}
+	return document.Bool(*v)
+}
+
+// optionalStringValue renders an optional create-time text scalar: empty is the
+// canonical null, anything else a quoted-by-construction string (ADR-0071).
+func optionalStringValue(s string) document.Value {
+	if s == "" {
+		return document.Null()
+	}
+	return document.String(s)
 }
 
 // NewLearningRecord describes one canonical newly-recorded learning finding.

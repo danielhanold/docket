@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -196,5 +197,42 @@ func TestRelationshipCollectionsRenderFlowSeqs(t *testing.T) {
 	}
 	if !bytes.Contains(full, []byte("depends_on: [3, 5]\n")) {
 		t.Fatalf("populated depends_on not rendered as [3, 5]:\n%s", full)
+	}
+}
+
+// TestChangeRecordDraftScalars pins the two create-time scalars: unset renders
+// the canonical null (the golden's shape), a set value renders a boolean or a
+// single-quoted string by construction.
+func TestChangeRecordDraftScalars(t *testing.T) {
+	yes, no := true, false
+	cases := []struct {
+		name       string
+		auto       *bool
+		prefix     string
+		wantAuto   string
+		wantPrefix string
+	}{
+		{"unset", nil, "", "\nauto_groomable:\n", "\nbranch_prefix:\n"},
+		{"true with prefix", &yes, "hotfix", "\nauto_groomable: true\n", "\nbranch_prefix: 'hotfix'\n"},
+		{"explicit false", &no, "", "\nauto_groomable: false\n", "\nbranch_prefix:\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := render.ChangeRecord(render.NewChangeRecord{
+				ID: 1, Slug: "s", Title: "T", Type: "feat", Priority: "medium", Created: goldenDate,
+				AutoGroomable: c.auto, BranchPrefix: c.prefix,
+				Why: "w", WhatChanges: "c", OutOfScope: "o",
+			})
+			if err != nil {
+				t.Fatalf("ChangeRecord: %v", err)
+			}
+			s := string(got)
+			if !strings.Contains(s, c.wantAuto) || !strings.Contains(s, c.wantPrefix) {
+				t.Errorf("record missing %q / %q:\n%s", c.wantAuto, c.wantPrefix, s)
+			}
+			if _, err := document.Parse(got); err != nil {
+				t.Errorf("record does not reparse: %v", err)
+			}
+		})
 	}
 }
