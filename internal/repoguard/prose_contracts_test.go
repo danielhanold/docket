@@ -212,6 +212,12 @@ var proseContracts = []proseContract{
 	// guide by change 0402 — and the comparison page).
 	{sentinel: "change_0400_readme_landing", file: "README.md",
 		present: []string{"](docs/README.md)", "](docs/comparison/ai-native-sdlc-playbook.md)"}},
+	// change 0382 — both draft-time scalars ride in the change.create request;
+	// the post-create plain-git frontmatter edit and the skill-owned
+	// normalization rules are gone (normalization is domain.NormalizeBranchPrefix).
+	{sentinel: "change_0382_typed_create_scalars", file: "skills/docket-new-change/SKILL.md",
+		present: []string{"`invalid-branch_prefix`"},
+		absent:  []string{"Two draft-time scalars `create` does not carry", "strip one presentation-only trailing slash"}},
 	// change 0389 — implementation-scope sweep + the two completion barriers.
 	// docket-status owns the COMMAND barrier: a backgrounded sweep is observed
 	// to its terminal envelope, never declared done by proxy signals; and an

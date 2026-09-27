@@ -202,7 +202,7 @@ var skillBudgets = []skillBudget{
 	{"docket-implement-next/references/fix-loop.md", 190, 1958},      // 0410: +findings-to-results checkpoint linkage (see note above)
 	{"docket-implement-next/results-template.md", 64, 446},           // 0440: reader-first template — action statement + merged Known issues (see note above)
 	{"docket-review/SKILL.md", 110, 913},                             // 0410: +findings-return capture contract (see note above)
-	{"docket-new-change/SKILL.md", 61, 1706},                         // 0445: +pointer to the docket-groom-next revise path after landing (word ceiling 1700 -> 1706)
+	{"docket-new-change/SKILL.md", 61, 1675},                         // 0445: +pointer to the docket-groom-next revise path after landing (word ceiling 1700 -> 1706); 0382: draft-time scalars moved into change.create (ceiling 1706 -> 1675)
 	{"docket-new-change/change-template.md", 51, 250},
 	{"docket-status/SKILL.md", 140, 3065}, // 0388: +sync-integration prose (see note above)
 }
