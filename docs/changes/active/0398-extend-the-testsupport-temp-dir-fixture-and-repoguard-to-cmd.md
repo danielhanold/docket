@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-27T11:17:12Z'
+reconciled: true
+claimed_at: '2026-09-27T11:17:47Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ Widen the repoguard real-process derivation (`TestRealProcessPackagesUseFixtureT
 ## Out of scope
 
 The internal/ package set already covered by 0373; changing the fixture's semantics or the runner concurrency cap (ADR-0108).
+
+## Reconcile log
+
+### 2026-09-27
+
+2026-09-27 — Re-verified against main @ e244dfd26: the 12 bare t.TempDir() sites, gateTempDir (4 call sites), and the internal-only scanRoot const in TestRealProcessPackagesUseFixtureTempDir are all as the spec describes. No scope change.
