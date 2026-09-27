@@ -400,6 +400,14 @@ func TestDecodeChangePresenceMarkers(t *testing.T) {
 		{"deeper heading level does not count", "### Auto-groom blocked\n", [4]bool{false, false, false, false}},
 		{"prose mention does not count", "The run halted; see ## Run halted below.\n", [4]bool{false, false, false, false}},
 		{"CRLF body still matches", "## Run halted\r\n", [4]bool{true, false, false, false}},
+		// A heading-shaped line inside fenced code is content, not a section: the
+		// board and the section-editing operations (rearm) must agree on it.
+		{"backtick-fenced heading does not count", "```\n## Auto-groom blocked\n## Run halted\n```\n", [4]bool{false, false, false, false}},
+		{"tilde-fenced heading does not count", "~~~md\n## Finalize blocked\n## Publish deferred\n~~~\n", [4]bool{false, false, false, false}},
+		{"shorter run does not close the fence", "````\n```\n## Auto-groom blocked\n````\n", [4]bool{false, false, false, false}},
+		{"info string does not close the fence", "```\n```go\n## Auto-groom blocked\n```\n", [4]bool{false, false, false, false}},
+		{"heading after a closed fence counts", "```\nx\n```\n\n## Auto-groom blocked\n", [4]bool{false, true, false, false}},
+		{"unterminated fence hides the rest", "```\n## Run halted\n", [4]bool{false, false, false, false}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -820,6 +828,7 @@ func TestDecodeChangeAutoGroomable(t *testing.T) {
 		{"true", "auto_groomable: true\n", domain.OptionalBool{State: domain.FieldPresent, Value: true, Raw: "true"}, false},
 		{"false", "auto_groomable: false\n", domain.OptionalBool{State: domain.FieldPresent, Value: false, Raw: "false"}, false},
 		{"non-boolean", "auto_groomable: yes\n", domain.OptionalBool{State: domain.FieldMalformed, Raw: "yes"}, true},
+		{"non-scalar", "auto_groomable: [true]\n", domain.OptionalBool{State: domain.FieldMalformed}, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -830,6 +839,13 @@ func TestDecodeChangeAutoGroomable(t *testing.T) {
 			}
 			if got := hasFinding(findings, CodeFieldMalformed, "auto_groomable"); got != c.malformed {
 				t.Errorf("field-malformed(auto_groomable) = %v, want %v; findings %v", got, c.malformed, findingCodes(findings))
+			}
+			// auto_groomable is human input nothing gates on: a bad value is a
+			// warning, never an error that makes publish/finalize refuse the record.
+			for _, f := range findings {
+				if f.Field == "auto_groomable" && f.Severity != domain.SeverityWarning {
+					t.Errorf("auto_groomable finding %s severity = %v, want warning", f.Code, f.Severity)
+				}
 			}
 		})
 	}

@@ -179,6 +179,12 @@ func (d *decoder) malformed(field, raw string) {
 	d.report(CodeFieldMalformed, field, domain.SeverityError, map[string]string{"raw": raw})
 }
 
+// malformedWarning is malformed at warning severity, for a field whose bad
+// value degrades to "unset" rather than invalidating the record.
+func (d *decoder) malformedWarning(field, raw string) {
+	d.report(CodeFieldMalformed, field, domain.SeverityWarning, map[string]string{"raw": raw})
+}
+
 // state classifies how a captured scalar appeared. The located frontmatter
 // entry is consulted for the "key present, no value" shape, so a key the YAML
 // tree resolves to null and a key the byte locator sees as valueless agree.
@@ -286,7 +292,10 @@ func (d *decoder) boolean(name string, s scalar) bool {
 
 // optionalBool converts a scalar into a tri-state boolean: absent and valueless
 // stay distinguishable from an explicit false, and a value that is not a YAML
-// boolean is a finding, never a silent true or false.
+// boolean is a finding, never a silent true or false. The finding is a
+// warning: the only optional boolean is auto_groomable, human input that
+// gates no record validity, so a bad value must not make publish or finalize
+// refuse a record that was otherwise valid — it is simply not a true.
 func (d *decoder) optionalBool(name string, s scalar) domain.OptionalBool {
 	switch d.state(name, s) {
 	case domain.FieldAbsent:
@@ -294,7 +303,7 @@ func (d *decoder) optionalBool(name string, s scalar) domain.OptionalBool {
 	case domain.FieldEmpty:
 		return domain.OptionalBool{State: domain.FieldEmpty}
 	case domain.FieldMalformed:
-		d.malformed(name, s.raw)
+		d.malformedWarning(name, s.raw)
 		return domain.OptionalBool{State: domain.FieldMalformed, Raw: s.raw}
 	}
 	switch s.raw {
@@ -303,7 +312,7 @@ func (d *decoder) optionalBool(name string, s scalar) domain.OptionalBool {
 	case "false":
 		return domain.OptionalBool{State: domain.FieldPresent, Value: false, Raw: s.raw}
 	}
-	d.malformed(name, s.raw)
+	d.malformedWarning(name, s.raw)
 	return domain.OptionalBool{State: domain.FieldMalformed, Raw: s.raw}
 }
 
@@ -429,14 +438,47 @@ const (
 )
 
 // hasHeading reports whether text carries heading as a whole line, matched
-// exactly — no leading whitespace, no trailing text, CRLF tolerated.
+// exactly — no leading whitespace, no trailing text, CRLF tolerated. A line
+// inside a fenced code block is content, not a section: the operations that
+// write and remove these sections scan headings the same fence-aware way
+// (internal/app scanTopHeadings), so the board and those operations agree on
+// whether a marker is present.
 func hasHeading(text, heading string) bool {
+	fence := ""
 	for line := range strings.SplitSeq(text, "\n") {
-		if strings.TrimSuffix(line, "\r") == heading {
+		line = strings.TrimSuffix(line, "\r")
+		if run, ok := fenceRun(line); ok {
+			switch {
+			case fence == "":
+				fence = run
+			case run[0] == fence[0] && len(run) >= len(fence) && strings.TrimSpace(line) == run:
+				fence = ""
+			}
+			continue
+		}
+		if fence == "" && line == heading {
 			return true
 		}
 	}
 	return false
+}
+
+// fenceRun returns the leading delimiter run of a code-fence line — three or
+// more backticks or tildes after at most three spaces — and whether the line
+// is one. It mirrors internal/app fenceRunBytes.
+func fenceRun(line string) (string, bool) {
+	s := strings.TrimLeft(line, " ")
+	if len(line)-len(s) > 3 || len(s) < 3 || (s[0] != '`' && s[0] != '~') {
+		return "", false
+	}
+	n := 0
+	for n < len(s) && s[n] == s[0] {
+		n++
+	}
+	if n < 3 {
+		return "", false
+	}
+	return s[:n], true
 }
 
 // archiveDate parses the "YYYY-MM-DD-" prefix an archived record's filename
