@@ -49,6 +49,11 @@ func fixtureTree(t *testing.T) string {
 	// .git internals must never be walked.
 	writeFile(t, root, ".git/config", "[core]\n")
 	writeFile(t, root, ".worktrees/sib/go.mod", "module y\n")
+	// Hidden directories (other than .github) are local harness installs and
+	// metadata checkouts, at any depth.
+	writeFile(t, root, ".docket/internal/x/x_test.go", "package x\n")
+	writeFile(t, root, ".claude/agents/docket-status.md", "agent\n")
+	writeFile(t, root, "internal/app/.cache/stale.go", "package app\n")
 	return root
 }
 
@@ -79,6 +84,9 @@ func TestMaintainedFilesIncludesAndExcludes(t *testing.T) {
 		"tests/fixtures/hygiene/bad.sh",
 		".git/config",
 		".worktrees/sib/go.mod",
+		".docket/internal/x/x_test.go",
+		".claude/agents/docket-status.md",
+		"internal/app/.cache/stale.go",
 	}
 	for _, bad := range mustExclude {
 		if slices.Contains(files, bad) {

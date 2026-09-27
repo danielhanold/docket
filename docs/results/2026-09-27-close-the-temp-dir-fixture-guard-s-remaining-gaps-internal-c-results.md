@@ -34,9 +34,9 @@ This differs from the design in one way. The spec listed `internal/app/gate_driv
 
 ## Known issues and follow-ups
 
-### Shared walker includes `.docket/` when run from the main checkout
+### Shared walker included `.docket/` when run from the main checkout — resolved in this change
 
-Running the guard from the primary checkout instead of a feature worktree makes the whole-repo walk include the `.docket/` metadata worktree. That worktree holds two fixture `greeting_test.go` files. Neither one starts a process, so the guard's result does not change today. If a future fixture there spawns processes, the guard could start flagging metadata files. This is suspected, not seen. A possible follow-up is to exclude `.docket` in `repoguard.MaintainedFiles`, which would need a separate change.
+Running a guard from the primary checkout instead of a feature worktree made the whole-repo walk include the `.docket/` metadata worktree and the local harness installs (`.claude/`, `.codex/`, `.cursor/`, `.agents/`, `.superpowers/`). At the human's request after review, this change now resolves that inside its own scope. `repoguard.MaintainedFiles` prunes every hidden directory at any depth except `.github/`, which is the only tracked hidden directory and stays in the scan. That rule also covers the old `.git`/`.worktrees` exclusions. `TestMaintainedFilesIncludesAndExcludes` pins both directions with `.docket/…`, `.claude/…`, a nested `internal/app/.cache/…`, and the existing `.github/workflows/ci.yml` inclusion. It was mutation-tested: without the `.github` carve-out the test turns red, and before the rule was added the new exclusion cases were red.
 
 ### Suite budget watch lines
 

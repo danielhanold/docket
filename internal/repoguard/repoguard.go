@@ -27,7 +27,11 @@
 //     Accepted ADRs) — the convention forbids rewriting it, so a guard cannot
 //     demand a repair there (frozen-fixture-corpus-trips-repo-wide-scans).
 //   - tests/fixtures: crafted fixtures for the shell suite, not maintained source.
-//   - .git, .worktrees: version-control internals and sibling checkouts.
+//   - any hidden directory except .github: .git and .worktrees (version-control
+//     internals and sibling checkouts), .docket (the metadata checkout, which
+//     carries its own copy of the tree when a guard runs from the main
+//     checkout), and the local harness installs (.claude, .codex, .cursor, ...).
+//     .github is tracked, maintained source and stays in-population.
 //
 // # Fail-closed
 //
@@ -84,8 +88,11 @@ func isExcludedDir(rel, name string) bool {
 	if name == "testdata" {
 		return true
 	}
-	// Version-control internals / sibling checkouts, at any depth.
-	if name == ".git" || name == ".worktrees" {
+	// Hidden directories, at any depth: version-control internals (.git), sibling
+	// checkouts (.worktrees), the metadata checkout (.docket), and local harness
+	// installs (.claude, .codex, .cursor, ...). .github is the one tracked,
+	// maintained hidden directory, so it stays in.
+	if strings.HasPrefix(name, ".") && name != ".github" {
 		return true
 	}
 	// Exact-location corpora.
