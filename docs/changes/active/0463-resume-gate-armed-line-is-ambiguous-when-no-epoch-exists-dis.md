@@ -2,7 +2,7 @@
 id: 463
 slug: 'resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis'
 title: 'Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-27'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/345'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-27T21:29:12Z'
