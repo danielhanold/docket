@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/repository-check-flags-docket-s-own-single-quoted-frontmatte'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-27T11:07:22Z'
+reconciled: true
+claimed_at: '2026-09-27T11:08:16Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ So any correctly quoted string field reports as needing manual review. A newly c
 - The other large findings families (`artifact-links-stale`, `drop-terminal-claimed-at`). Those are separate issues with their own repair paths.
 - Changing the writer's quoting policy (ADR-0071).
 - Hand-editing existing records.
+
+## Reconcile log
+
+### 2026-09-27
+
+2026-09-27 — Reconciled against origin/main e244dfd26: planQuote, unsafeScalarShape, and decodesToStringLiteral still exist in internal/reposetup/repair.go as the spec describes; no equivalent quoted-scalar helper has landed elsewhere. Scope, relations, and spec unchanged.
