@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-02'
-updated: '2026-09-02'
+updated: '2026-09-27'
 depends_on: []
 stacked_on:
-related: []
+related: [373]
 discovered_from: [373]
 adrs: [108]
-spec:
+spec: 'docs/superpowers/specs/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
@@ -38,7 +39,7 @@ Change 0373 bounded total Go test load and added the internal/testsupport temp-d
 
 ## What changes
 
-Extend the repoguard's real-process package derivation to include cmd/ test packages, convert their bare t.TempDir() call sites (starting with cmd/docket/gate_cli_test.go) to testsupport.TempDir(t), and remove the now-redundant private gateTempDir helper in favor of the shared fixture.
+Widen the repoguard real-process derivation (`TestRealProcessPackagesUseFixtureTempDir`) from the `internal/`-only `scanRoot` to an explicit `internal` + `cmd` root list, with a `cmd/docket` population floor alongside the existing `internal/process` one. Convert every bare `t.TempDir()` in the derived `cmd/` real-process packages (`cmd/docket`, `cmd/releasepkg` — 12 sites across 5 files) to `testsupport.TempDir(t)`, and delete the private `gateTempDir` helper in `cmd/docket/gate_cli_test.go` in favor of the shared fixture. Mutation-test the widened guard. Detailed design in the linked spec.
 
 ## Out of scope
 
