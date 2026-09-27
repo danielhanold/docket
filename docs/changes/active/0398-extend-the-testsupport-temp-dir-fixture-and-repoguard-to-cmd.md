@@ -2,7 +2,7 @@
 id: 398
 slug: 'extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd'
 title: 'Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-02'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-27T11:17:12Z'
 ---
 
 ## Artifacts
