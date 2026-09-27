@@ -2,7 +2,7 @@
 id: 456
 slug: 'show-finding-remedies-in-docket-status-human-view'
 title: 'Show finding remedies in docket status human view'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-25'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/show-finding-remedies-in-docket-status-human-view'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-27T08:30:18Z'
 ---
 
 ## Artifacts
