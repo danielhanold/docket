@@ -2,7 +2,7 @@
 id: 382
 slug: 'changecreaterequest-typed-auto-groomable-branch-prefix-scalars'
 title: 'ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars'
-status: 'implemented'
+status: 'done'
 priority: medium
 type: feat
 created: '2026-08-31'
@@ -21,7 +21,7 @@ branch: 'feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars'
 pr: 'https://github.com/danielhanold/docket/pull/342'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T17:49:58Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,8 @@ claimed_at: '2026-09-27T17:49:58Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md) |
-| Plan | [2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md](https://github.com/danielhanold/docket/blob/feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars/docs/superpowers/plans/2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md) |
-| Results | [2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-results.md](https://github.com/danielhanold/docket/blob/feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars/docs/results/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-results.md) |
+| Plan | [2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md) |
+| Results | [2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
