@@ -1,18 +1,13 @@
 # Backlog
 
-**461 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 312 done · 🗑️ 119 killed
+**461 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 312 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0398](active/0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) | Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages | `medium` | `chore` | [spec](../superpowers/specs/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md) | `chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd` |  |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | [#340](https://github.com/danielhanold/docket/pull/340) | awaiting merge |
+| [0398](active/0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) | Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages | `medium` | `chore` | [#341](https://github.com/danielhanold/docket/pull/341) | awaiting merge |
 
 ## 🔴 Blocked (1)
 

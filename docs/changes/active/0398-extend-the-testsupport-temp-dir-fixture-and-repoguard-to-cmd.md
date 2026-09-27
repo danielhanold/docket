@@ -2,7 +2,7 @@
 id: 398
 slug: 'extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd'
 title: 'Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-02'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/341'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-27T11:23:06Z'
