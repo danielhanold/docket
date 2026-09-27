@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0447 — repository check flags docket's own single-quoted frontmatter as needing manual review](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md)**
+> ↩ **[Change 0447 — repository check flags docket's own single-quoted frontmatter as needing manual review](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-27-0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md)**
 <!-- docket:backlink:end -->
 # Repository Check: Stop Flagging Writer-Quoted Scalars — Implementation Plan
 
