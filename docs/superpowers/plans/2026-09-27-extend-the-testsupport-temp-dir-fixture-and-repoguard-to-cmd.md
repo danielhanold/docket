@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0398 — Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md)**
+> ↩ **[Change 0398 — Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-27-0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md)**
 <!-- docket:backlink:end -->
 # Extend the testsupport Temp-Dir Fixture and Repoguard to `cmd/`: Implementation Plan
 
