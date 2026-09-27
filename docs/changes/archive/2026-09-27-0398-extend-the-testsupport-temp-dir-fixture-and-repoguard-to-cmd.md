@@ -2,7 +2,7 @@
 id: 398
 slug: 'extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd'
 title: 'Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-02'
@@ -22,7 +22,7 @@ branch: 'chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd'
 pr: 'https://github.com/danielhanold/docket/pull/341'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T11:23:06Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-27T11:23:06Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md) |
-| Plan | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md](https://github.com/danielhanold/docket/blob/chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd/docs/superpowers/plans/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) |
-| Results | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-results.md](https://github.com/danielhanold/docket/blob/chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd/docs/results/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-results.md) |
+| Plan | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) |
+| Results | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
