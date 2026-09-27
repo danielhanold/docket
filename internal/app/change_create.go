@@ -52,6 +52,14 @@ type ChangeCreateRequest struct {
 	Related        []int `json:"related"`
 	DiscoveredFrom []int `json:"discovered_from"`
 	ADRs           []int `json:"adrs"`
+
+	// AutoGroomable is the optional per-change auto-groom override: nil leaves
+	// the record unset (inherit the repo's auto_groom); true/false are explicit.
+	AutoGroomable *bool `json:"auto_groomable"`
+	// BranchPrefix is the optional mint-prefix override, as the human typed it.
+	// It is normalized by domain.NormalizeBranchPrefix before it is validated,
+	// digested, or stored; empty after normalization means unset.
+	BranchPrefix string `json:"branch_prefix"`
 }
 
 // ChangeCreateResult is the protocol-v1 document `change create` returns. It
@@ -119,6 +127,10 @@ type changeCreatePayload struct {
 	Related        []int  `json:"related"`
 	DiscoveredFrom []int  `json:"discovered_from"`
 	ADRs           []int  `json:"adrs"`
+	// The draft-time scalars are omitempty so a request carrying neither digests
+	// exactly as it did before change 0382 and a pre-0382 retry still replays.
+	AutoGroomable *bool  `json:"auto_groomable,omitempty"`
+	BranchPrefix  string `json:"branch_prefix,omitempty"`
 }
 
 func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
@@ -134,7 +146,18 @@ func changeCreateSemanticPayload(req ChangeCreateRequest) changeCreatePayload {
 		Related:        req.Related,
 		DiscoveredFrom: req.DiscoveredFrom,
 		ADRs:           req.ADRs,
+		AutoGroomable:  req.AutoGroomable,
+		BranchPrefix:   normalizedBranchPrefix(req),
 	}
+}
+
+// normalizedBranchPrefix is the stored, digested spelling of the request's
+// branch_prefix. The request was shape-validated first, so a refused value never
+// reaches the digest or Plan; the ok discarded here is enforced by
+// validateChangeCreateShape.
+func normalizedBranchPrefix(req ChangeCreateRequest) string {
+	p, _ := domain.NormalizeBranchPrefix(req.BranchPrefix)
+	return p
 }
 
 // ChangeCreate validates the request, pins authoritative context, and drives one
@@ -293,6 +316,11 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 	}
 	if req.StackedOn != nil && *req.StackedOn <= 0 {
 		addShape(FCInvalidStackedOn, "stacked_on must be a positive change id")
+	}
+	if _, ok := domain.NormalizeBranchPrefix(req.BranchPrefix); !ok {
+		addShape(FCInvalidBranchPrefix, fmt.Sprintf(
+			"branch_prefix %q is not a usable branch prefix: after trimming whitespace, one trailing \"/\", and lowercasing, it must be a single git ref component — no \"/\" (never refs/-qualified), not \"refs\", no \"..\", \"@{\", whitespace, or any of ~^:?*[\\, not starting with \"-\" or \".\", not ending with \".\" or \".lock\"",
+			req.BranchPrefix))
 	}
 	return findings
 }
@@ -458,6 +486,8 @@ func (o changeCreateOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		Related:        toChangeIDs(o.req.Related),
 		DiscoveredFrom: toChangeIDs(o.req.DiscoveredFrom),
 		ADRs:           toADRIDs(o.req.ADRs),
+		AutoGroomable:  o.req.AutoGroomable,
+		BranchPrefix:   normalizedBranchPrefix(o.req),
 		Why:            o.req.Why,
 		WhatChanges:    o.req.WhatChanges,
 		OutOfScope:     o.req.OutOfScope,

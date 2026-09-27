@@ -140,6 +140,7 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 		"request_id", "title", "type", "priority",
 		"why", "what_changes", "out_of_scope",
 		"depends_on", "stacked_on", "related", "discovered_from", "adrs",
+		"auto_groomable", "branch_prefix",
 	}
 	if !reflect.DeepEqual(keys, want) {
 		t.Fatalf("keys = %v, want %v", keys, want)
@@ -155,6 +156,12 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 	so := fieldByKey(t, d, "stacked_on")
 	if so.Repeated || so.Type != "int" {
 		t.Errorf("stacked_on = %+v, want non-repeated int", so)
+	}
+	if f := fieldByKey(t, d, "auto_groomable"); f.Repeated || f.Type != "bool" {
+		t.Errorf("auto_groomable = %+v, want optional scalar bool", f)
+	}
+	if f := fieldByKey(t, d, "branch_prefix"); f.Repeated || f.Type != "string" {
+		t.Errorf("branch_prefix = %+v, want optional string", f)
 	}
 
 	// Required set per Task 4's tags.
