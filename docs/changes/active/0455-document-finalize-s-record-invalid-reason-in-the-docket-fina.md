@@ -2,7 +2,7 @@
 id: 455
 slug: 'document-finalize-s-record-invalid-reason-in-the-docket-fina'
 title: 'Document finalize''s record-invalid reason in the docket-finalize-change skill'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-24'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/document-finalize-s-record-invalid-reason-in-the-docket-fina'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-27T09:58:58Z'
 ---
 
 ## Artifacts
