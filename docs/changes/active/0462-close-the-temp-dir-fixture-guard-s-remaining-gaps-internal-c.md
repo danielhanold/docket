@@ -22,7 +22,7 @@ branch: 'chore/close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T19:55:42Z'
+claimed_at: '2026-09-27T19:56:55Z'
 ---
 
 ## Artifacts
