@@ -2,7 +2,7 @@
 id: 455
 slug: 'document-finalize-s-record-invalid-reason-in-the-docket-fina'
 title: 'Document finalize''s record-invalid reason in the docket-finalize-change skill'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-24'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'docs/document-finalize-s-record-invalid-reason-in-the-docket-fina'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/339'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-27T10:04:32Z'

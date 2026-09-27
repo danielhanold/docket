@@ -1,12 +1,12 @@
 # Backlog
 
-**460 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 311 done · 🗑️ 119 killed
+**460 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 311 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0455](active/0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | `medium` | `docs` | [spec](../superpowers/specs/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md) | `docs/document-finalize-s-record-invalid-reason-in-the-docket-fina` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0455](active/0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | `medium` | `docs` | [#339](https://github.com/danielhanold/docket/pull/339) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
