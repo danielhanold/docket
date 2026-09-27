@@ -9,10 +9,10 @@ created: '2026-09-27'
 updated: '2026-09-27'
 depends_on: []
 stacked_on:
-related: [345, 375, 359, 441]
+related: [345, 375, 359, 441, 435]
 discovered_from: [382]
-adrs: []
-spec:
+adrs: [111, 118]
+spec: 'docs/superpowers/specs/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md) |
+| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -49,26 +53,19 @@ During change 0382's resumed implement-next run (2026-09-27), the build suite ga
 
 ## What changes
 
-Make the resume arm's output unambiguous and make the misuse fail loudly and specifically. Candidate scope, to be settled at grooming:
+When a resume has no prior run epoch, make the arm always mint one, so the `gate-armed` line always has exactly three tokens and a misused epoch fails loudly and specifically.
 
-- **Unambiguous human line.** When no epoch exists, `run.gate-before` must never print a positional line that can be read as `<key> <epoch> <dispatch-context>`. Options:
-  - an explicit placeholder token (e.g. `gate-armed <key> no-epoch <dispatch-context>`)
-  - a distinct disposition (e.g. `gate-armed-epochless`)
-  - labelled fields
-  - always minting a fresh epoch on resume when none exists, so the three-token contract always holds (preferred if safe, since it also restores `run.cancel`/fence coverage for the resumed run)
-- **Consistent contract text.** Align the AGENTS.md / CLAUDE.md run-gate rule, `docket-implement-next`, and the `run gate-before` CLI help (`internal/cli/run.go`'s `Short` still says `gate-armed <key> <dispatch-context>`) with whatever the line becomes. Any prose that documents the 3-token form must also say how to recognise an epochless arm.
-- **Specific refusal token.** When `gate drive start` / `gate drive prepare-scope` / `agent.enter` get a `--run-epoch` that names no known epoch, or is malformed, return a stable reason token such as `unknown-run-epoch` instead of the catch-all `invalid-request` from `mapDriveFailure`. Consider also detecting a value whose hash matches a known dispatch-context / child capability and refusing with a token that says so, without echoing the value.
-- **Regression tests (mutation-tested per repo rules).** Cover: resume-with-no-prior-epoch output shape; the unknown-epoch refusal token; and that the epochless arm cannot be mis-parsed by the documented 3-token reader.
-
-**Open questions for grooming:**
-
-- Is minting a fresh epoch on a no-prior-epoch resume safe with respect to change 0375/0435's single-live-run and replacement-reservation invariants? Or must the epochless branch stay epochless and only its output change?
-- Should `run.gate-before` gain a `--json` shape that the documented parent procedure reads instead of positional text, retiring the positional contract entirely?
-- Should the driver distinguish "unknown epoch" from "epoch not owned by this worktree" in its refusal tokens?
+- **Every armed gate carries an epoch.** When `run.gate-before --resume <id>` finds no prior epoch for the change, it now mints one, as a fresh arm does. The epoch is bound to the change id and to the verified feature worktree. This makes the documented `gate-armed <key> <epoch> <dispatch-context>` line true on every armed path and restores `run.cancel`/fence coverage for resumed runs. A mint or bind failure fails closed as `gate-unarmed mint-failed`.
+- **The human line is always three tokens.** The optional-epoch branch in `HumanText` is removed. Stale code comments and the `gate-before` CLI help text, which describe the old two-token form, are corrected. The parent-facing prose (AGENTS.md, cursor run-gate rule) already documents the three-token form and needs no edit; the build confirms this with a repo-wide grep. The JSON shape and the positional contract are unchanged.
+- **Unknown epochs get a named refusal.** A `--run-epoch` naming no known epoch now refuses with `unknown-run-epoch` and a short next-action hint, instead of the catch-all `invalid-request`. This applies to `gate drive start`, `gate drive prepare-scope`, and `agent.enter`. Other epoch-registry faults surface their own kind.
+- **Regression tests, mutation-checked:** epochless-resume arm shape, the human-line positional invariant, the repeat resume refused as active, the unknown-epoch token, and an end-to-end repro of the 0382 sequence.
 
 ## Out of scope
 
 - **Unarmed first dispatches.** The fact that the first 0382 run was dispatched unarmed was a coordinator mistake against an existing rule, not a docket defect. Enforcing arm-before-dispatch for slash-command or agent launches is change 0345's territory.
 - **Epochs for completed runs.** Retroactively minting epochs for already-completed runs, or repairing gate records from earlier runs.
+- **Retiring the positional line.** Moving parents to `run gate-before --json` in place of the positional `gate-armed` line: unnecessary once the line is always three tokens.
+- **Credential detection.** Detecting a dispatch-context or credential hash presented as `--run-epoch`: the parse ambiguity that caused it is removed instead.
+- **A per-change resume lock.** Two concurrent epochless resumes of one change can each mint an epoch. The result fails safe (later resumes refuse as `resume-epoch-unreadable`), so no new lock is added.
 - **Other catch-all refusals.** Redesigning the gate-drive refusal vocabulary beyond the epoch-related cases above.
-- **Agent spelling bug in the same run.** The resumed run's first `gate drive start` also omitted `--change-id`/`--phase`/`--gate-context`. That is the child's call-site spelling, not the refusal cause; the identical call without `--run-epoch` was applied.
+- **Agent spelling bug in the same run.** The resumed run's first `gate drive start` also omitted `--change-id`/`--phase`/`--gate-context`. That is the child's call-site spelling, not the refusal cause.
