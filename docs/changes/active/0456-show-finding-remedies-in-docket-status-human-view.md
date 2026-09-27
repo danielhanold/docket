@@ -22,7 +22,7 @@ branch: 'chore/show-finding-remedies-in-docket-status-human-view'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T08:31:51Z'
+claimed_at: '2026-09-27T08:33:04Z'
 ---
 
 ## Artifacts
