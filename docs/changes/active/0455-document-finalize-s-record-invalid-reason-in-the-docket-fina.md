@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/document-finalize-s-record-invalid-reason-in-the-docket-fina'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-27T09:58:58Z'
+reconciled: true
+claimed_at: '2026-09-27T09:59:28Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,9 @@ Detailed design is in the linked spec.
 ## Out of scope
 
 Changing either operation's behavior or the precedence between `record-invalid` and `already-merged`. A real-gate end-to-end finalize test with a broken record (0449 accepted this as a known limit). A guard pinning skill-prose reason tokens.
+
+## Reconcile log
+
+### 2026-09-27
+
+2026-09-27 — Reconciled against main 4d782afba. Scope unchanged: record-invalid is still undocumented in both skills (grep finds no hit under skills/), ReasonMergeRecordInvalid / ReasonPRRecordInvalid still exist as specified, and gofmt -l still flags internal/githubcli/comment_integration_test.go. No new constraints from recent archived changes.
