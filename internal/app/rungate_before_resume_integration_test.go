@@ -966,9 +966,14 @@ func TestRunCancelResumeAuthorityFailsClosed(t *testing.T) {
 }
 
 // TestConcurrentEpochlessResumeEpochsFailSafe (change 0463 decision 4, a documenting
-// test): epoch locks are per gate key, so two epochless resumes that race past
-// FindEpochByChange can each mint an active epoch for one change. The next resume
-// must then fail closed as resume-epoch-unreadable and must never arm a third run.
+// test): epoch locks are per gate key, so the pre-mint checks (FindEpochByChange and
+// the worktree-owner check) do not serialize against another arm's mint. Two
+// epochless resumes that race through that residual window can each mint an active
+// epoch for one change and worktree. The next resume must then fail closed as
+// resume-epoch-unreadable and must never arm a third run. Recovery is an explicit
+// 'docket run cancel' of either epoch by its own key and epoch, which runCancel's
+// resume-verified authority accepts (TestEpochlessResumeEpochJoinsCancelCycle drives
+// that cancel path); the surviving epoch is then the worktree's sole live owner.
 func TestConcurrentEpochlessResumeEpochsFailSafe(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	seedPriorEpoch(t, repoDir, EpochActive)
@@ -986,6 +991,101 @@ func TestConcurrentEpochlessResumeEpochsFailSafe(t *testing.T) {
 	if res.Key != "" || sp.calls != 0 {
 		t.Fatalf("a fail-closed refusal mints nothing: key=%q calls=%d", res.Key, sp.calls)
 	}
+}
+
+// TestEpochlessResumeRefusesLiveWorktreeOwner (change 0463 decision 4, review fix):
+// an epochless resume binds its fresh epoch to the verified worktree, so it must not
+// mint over a live epoch that already owns that worktree under no change or another
+// change. FindEpochByChange cannot see such an owner. Minting anyway would leave two
+// active epochs on one worktree, and findEpochByWorktree would then refuse every
+// fenced mutation there as ErrEpochOwnerAmbiguous. The resume refuses
+// resume-active-run with the owner's locator instead and mints nothing. A fenced
+// (cancelled) epoch on the worktree is not a live owner and does not block.
+func TestEpochlessResumeRefusesLiveWorktreeOwner(t *testing.T) {
+	// seedWorktreeOwner mints an epoch bound to worktree (and to changeID, when set)
+	// in the given state, returning its gate key and epoch id.
+	seedWorktreeOwner := func(t *testing.T, repoDir, changeID, worktree string, state epochState) (string, string) {
+		t.Helper()
+		key := mintTestGateKey(t, repoDir)
+		ep, err := MintEpochRecord(repoDir, key, changeID)
+		if err != nil {
+			t.Fatalf("MintEpochRecord: %v", err)
+		}
+		if err := epochCAS(repoDir, key, func(r *EpochRecord) error {
+			r.Worktree = worktree
+			r.State = state
+			return nil
+		}); err != nil {
+			t.Fatalf("epochCAS bind: %v", err)
+		}
+		return key, ep.EpochID
+	}
+	assertRefused := func(t *testing.T, res RunGateBeforeResult, sp *fakeScopePrep, ownerKey, ownerEpoch string) {
+		t.Helper()
+		if res.Armed {
+			t.Fatalf("resume armed over a live worktree owner: %q", res.HumanText())
+		}
+		if res.Reason != ReasonGateResumeActiveRun {
+			t.Fatalf("Reason = %q, want %q", res.Reason, ReasonGateResumeActiveRun)
+		}
+		if !strings.Contains(res.Message, ownerEpoch) || !strings.Contains(res.Message, ownerKey) || !strings.Contains(res.Message, "run cancel") {
+			t.Fatalf("Message must name the owner's locator (epoch %q, key %q) and the cancel remedy, got %q", ownerEpoch, ownerKey, res.Message)
+		}
+		if res.Key != "" || sp.calls != 0 {
+			t.Fatalf("the refusal must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
+		}
+	}
+
+	for _, tc := range []struct {
+		name, changeID string
+		state          epochState
+	}{
+		{"active owner naming no change", "", EpochActive},
+		{"active owner naming another change", "7", EpochActive},
+		{"completing owner naming another change", "7", EpochCompleting},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir := newWorkingRepo(t, nil).invocation
+			ownerKey, ownerEpoch := seedWorktreeOwner(t, repoDir, tc.changeID, "/tmp/wt/epsilon", tc.state)
+			deps, wdeps := resumeEpochDeps(t)
+			sp := &fakeScopePrep{grant: sampleScopeGrant()}
+			res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+			assertRefused(t, res, sp, ownerKey, ownerEpoch)
+			if st := loadEpochState(t, repoDir, ownerKey); st != tc.state {
+				t.Fatalf("the incumbent must be untouched: state = %q, want %q", st, tc.state)
+			}
+		})
+	}
+
+	t.Run("owner bound under a different spelling of the worktree", func(t *testing.T) {
+		repoDir := newWorkingRepo(t, nil).invocation
+		raw := filepath.Join(t.TempDir(), "wt")
+		if err := os.MkdirAll(raw, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		link := filepath.Join(t.TempDir(), "wt-link")
+		if err := os.Symlink(raw, link); err != nil {
+			t.Fatalf("symlink: %v", err)
+		}
+		ownerKey, ownerEpoch := seedWorktreeOwner(t, repoDir, "", raw, EpochActive)
+		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(5, "epsilon", "v5", "")}}
+		deps := workspaceDepsFor(t, reader)
+		wdeps := WorkspaceDeps{Service: resumeInspectService(link)}
+		sp := &fakeScopePrep{grant: sampleScopeGrant()}
+		res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+		assertRefused(t, res, sp, ownerKey, ownerEpoch)
+	})
+
+	t.Run("cancelled epoch on the worktree does not block", func(t *testing.T) {
+		repoDir := newWorkingRepo(t, nil).invocation
+		seedWorktreeOwner(t, repoDir, "7", "/tmp/wt/epsilon", EpochCancelled)
+		deps, wdeps := resumeEpochDeps(t)
+		sp := &fakeScopePrep{grant: sampleScopeGrant()}
+		res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+		if !res.Armed || res.Epoch == "" {
+			t.Fatalf("a fenced epoch on the worktree is not a live owner; the resume must arm: %q", res.HumanText())
+		}
+	})
 }
 
 // TestArmedGateResultRequiresEpoch (change 0463): the armed constructor refuses to

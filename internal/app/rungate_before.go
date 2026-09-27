@@ -259,6 +259,54 @@ func resumeActiveLocator(gateKey string, ep EpochRecord) string {
 		"or continue the live run via 'docket run gate-verdict'"
 }
 
+// resumeWorktreeOwnerRefusal checks whether a live run epoch already owns the
+// verified worktree an epochless resume is about to bind (change 0463 decision 4).
+// It resolves the owner the same way the mutation fence does (findEpochByWorktree
+// over the canonical path; an uncanonicalizable path is matched by its own
+// spelling). An active, completing, or unrecognized owner refuses resume-active-run
+// with that owner's locator. A fenced owner (cancelling, cancelled, superseded) is
+// no live owner: a fresh active epoch outranks it, so it does not block. An
+// ambiguous or unreadable owner set refuses resume-epoch-unreadable, fail-closed.
+// It returns refused=false when the resume may mint.
+func resumeWorktreeOwnerRefusal(repoDir, worktree string) (RunGateBeforeResult, bool) {
+	canon := worktree
+	if c, err := canonicalWorktree(worktree); err == nil {
+		canon = c
+	}
+	ownerKey, found, err := findEpochByWorktree(repoDir, canon)
+	if err != nil {
+		return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
+			"the run epoch owning worktree "+worktree+" could not be resolved: "+err.Error()), true
+	}
+	if !found {
+		return RunGateBeforeResult{}, false
+	}
+	owner, _, lerr := LoadEpochRecord(repoDir, ownerKey)
+	if lerr != nil {
+		return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
+			"the run epoch owning worktree "+worktree+" (gate key "+ownerKey+") could not be read"), true
+	}
+	switch owner.State {
+	case EpochCancelling, EpochCancelled, EpochSuperseded:
+		return RunGateBeforeResult{}, false
+	}
+	return gateUnarmedMsg(ReasonGateResumeActiveRun, resumeWorktreeOwnerLocator(worktree, ownerKey, owner)), true
+}
+
+// resumeWorktreeOwnerLocator renders the safe locator and the cancel/continue remedy
+// for a live epoch that owns the resume's worktree without naming the resumed
+// change. Like resumeActiveLocator it names only public locators.
+func resumeWorktreeOwnerLocator(worktree, gateKey string, ep EpochRecord) string {
+	owner := "a live run with no bound change"
+	if ep.ChangeID != "" {
+		owner = "a live run of change " + ep.ChangeID
+	}
+	return "worktree " + worktree + " is already owned by " + owner + " (state " + string(ep.State) +
+		", epoch " + ep.EpochID + ", gate key " + gateKey + "); cancel it with 'docket run cancel --key " +
+		gateKey + " --epoch " + ep.EpochID + " --reason <why>' and resume after confirmed cancellation, " +
+		"or continue the live run via 'docket run gate-verdict'"
+}
+
 // resumeReplacementParams carries the immutable arm facts armResumeReplacement mints
 // the replacement gate record from — captured before the epoch branch so the winner
 // and a repeat arm mint an identical-shaped record.
@@ -555,6 +603,16 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 					"change "+scopeChangeID+" has an unrecognized run epoch state")
 			}
 		}
+
+		// (4b) No epoch names the change, so step 6a will mint one and bind it to the
+		// verified worktree. FindEpochByChange cannot see a live epoch that owns this
+		// worktree under no change or another change. Minting over one would leave two
+		// live owners of one worktree, and findEpochByWorktree would then refuse every
+		// fenced mutation there (PR publish, workspace publish) as
+		// ErrEpochOwnerAmbiguous. Refuse with the incumbent's locator instead.
+		if refusal, refused := resumeWorktreeOwnerRefusal(repoDir, worktree); refused {
+			return refusal
+		}
 	}
 
 	// (5) Prepare the OUTER recovery scope. The grant's ChildCapability becomes the
@@ -619,6 +677,19 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 	// like a fresh arm's), never an orphan that names the change. A mint or bind
 	// failure unarms fail-closed; the orphan gate record left behind is inert, because
 	// no key is returned and nothing dispatches against it.
+	//
+	// Residual race (change 0463 decision 4): step 4 checks for a prior epoch by
+	// change (FindEpochByChange) and by worktree (resumeWorktreeOwnerRefusal, step 4b)
+	// before this mint, but epoch locks are per gate key, so nothing serializes the
+	// check against another arm's mint. Two epochless resumes of one change that race
+	// through that window can each mint and bind an active epoch to the same change
+	// and worktree. That failure is safe, not silent. The next resume of the change
+	// refuses resume-epoch-unreadable (FindEpochByChange: ErrEpochAmbiguous), and
+	// findEpochByWorktree refuses every fenced mutation in the worktree as
+	// ErrEpochOwnerAmbiguous, so neither run can publish. Recovery is explicit:
+	// 'docket run cancel' accepts each resume-minted epoch by its own key and epoch
+	// (runCancel's resume-verified authority), and cancelling one leaves the other as
+	// the worktree's sole live owner, so its fenced mutations admit again.
 	epochRec, eerr := MintEpochRecord(repoDir, key, "")
 	if eerr != nil {
 		return gateUnarmed(ReasonGateMintFailed)
