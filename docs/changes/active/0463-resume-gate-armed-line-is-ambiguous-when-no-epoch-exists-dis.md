@@ -13,7 +13,7 @@ related: [345, 375, 359, 441, 435]
 discovered_from: [382]
 adrs: [111, 118]
 spec: 'docs/superpowers/specs/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-27T20:53:33Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md) |
+| Plan | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md](https://github.com/danielhanold/docket/blob/fix/resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis/docs/superpowers/plans/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) |
 | ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
 <!-- docket:artifacts:end -->
 
