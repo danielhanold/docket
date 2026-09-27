@@ -2,7 +2,7 @@
 id: 462
 slug: 'close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c'
 title: 'Close the temp-dir fixture guard''s remaining gaps (internal/cli gateTempDir, scan-root removal)'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-27'
@@ -22,7 +22,7 @@ branch: 'chore/close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c'
 pr: 'https://github.com/danielhanold/docket/pull/343'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T20:19:30Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-27T20:19:30Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md) |
-| Plan | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md](https://github.com/danielhanold/docket/blob/chore/close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c/docs/superpowers/plans/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) |
-| Results | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-results.md](https://github.com/danielhanold/docket/blob/chore/close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c/docs/results/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-results.md) |
+| Plan | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) |
+| Results | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

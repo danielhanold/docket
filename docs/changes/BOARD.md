@@ -1,18 +1,12 @@
 # Backlog
 
-**463 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 315 done · 🗑️ 119 killed
+**463 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 316 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0463](active/0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) | Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch | `high` | `fix` | [spec](../superpowers/specs/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md) | `fix/resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0462](active/0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) | Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal) | `medium` | `chore` | [#343](https://github.com/danielhanold/docket/pull/343) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
@@ -91,7 +85,6 @@ graph TD
   0443
   0457
   0461
-  0462
   0463
   0192:::done
   0251:::done
@@ -101,10 +94,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (434)</summary>
+<details><summary>✅🗑️ Archive — done + killed (435)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0462](archive/2026-09-27-0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) | Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal) | 2026-09-27 |
 | [0456](archive/2026-09-27-0456-show-finding-remedies-in-docket-status-human-view.md) | Show finding remedies in docket status human view | 2026-09-27 |
 | [0455](archive/2026-09-27-0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | 2026-09-27 |
 | [0447](archive/2026-09-27-0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | 2026-09-27 |
@@ -119,7 +113,6 @@ graph TD
 | [0445](archive/2026-09-25-0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | 2026-09-25 |
 | [0452](archive/2026-09-24-0452-same-scope-first-start-loser-must-not-rotate-the-winner-s-ex.md) | Same-scope first-start loser must not rotate the winner's executing worktree slot | 2026-09-24 |
 | [0451](archive/2026-09-24-0451-workspace-publish-refuses-a-feature-head-that-moved-after-th.md) | Workspace publish refuses a feature head that moved after the app-level check | 2026-09-24 |
-| [0449](archive/2026-09-24-0449-unrelated-invalid-change-records-must-not-block-a-named-chan.md) | Unrelated invalid change records must not block a named change's metadata writes or board | 2026-09-24 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -244,7 +237,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 64 done |
+| [2026-09](archive/) | 65 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
