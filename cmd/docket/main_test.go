@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 var binPath string
@@ -138,7 +139,7 @@ func TestDiagnosticRuntimeReflectsHost(t *testing.T) {
 }
 
 func TestInjectedBuildIdentity(t *testing.T) {
-	injected := filepath.Join(t.TempDir(), "docket-injected")
+	injected := filepath.Join(testsupport.TempDir(t), "docket-injected")
 	ldflags := "-X github.com/danielhanold/docket/internal/buildinfo.Version=1.2.3" +
 		" -X github.com/danielhanold/docket/internal/buildinfo.Commit=abc1234" +
 		" -X github.com/danielhanold/docket/internal/buildinfo.BuildDate=2026-08-13"
@@ -250,7 +251,7 @@ func TestCrossCompileApprovedTargets(t *testing.T) {
 	// Buildability gate only: the four tuples must compile with CGO off.
 	// Foreign binaries are never executed (change 0317 owns on-target runs).
 	tuples := [][2]string{{"darwin", "amd64"}, {"darwin", "arm64"}, {"linux", "amd64"}, {"linux", "arm64"}}
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	for _, tp := range tuples {
 		out := filepath.Join(dir, "docket-"+tp[0]+"-"+tp[1])
 		cmd := exec.Command("go", "build", "-o", out, ".")
@@ -289,7 +290,7 @@ func runIn(t *testing.T, home string, args ...string) (stdout, stderr string, co
 // installation-required reason. Field order is protocol too, so this is a byte
 // comparison rather than a field-by-field one.
 func TestInstallCheckJSONGolden(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	catalog, err := assets.EmbeddedCatalog()
 	if err != nil {
 		t.Fatalf("embedded catalog: %v", err)
@@ -337,7 +338,7 @@ func TestInstallCheckJSONGolden(t *testing.T) {
 // TestInstallCommandsRegistered proves the three operations reached the built
 // binary's command tree.
 func TestInstallCommandsRegistered(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	out, errS, code := runIn(t, home, "--help")
 	if code != 0 || errS != "" {
 		t.Fatalf("err=%q code=%d", errS, code)

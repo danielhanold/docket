@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/release"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 var binPath string
@@ -102,7 +103,7 @@ func TestBadEpochIsUsageError(t *testing.T) {
 // line, and the six bundle files. Deep artifact assertions live in Task 5's
 // internal/release integration test; this is the command-surface check.
 func TestHappyRunPackagesBundle(t *testing.T) {
-	outDir := t.TempDir()
+	outDir := testsupport.TempDir(t)
 	const version = "v0.0.1-cmdintegration"
 	stdout, errS, code := runCmd(t,
 		"--source", repoRoot(t),

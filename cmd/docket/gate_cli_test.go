@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // gateTempDir is a temp dir whose cleanup tolerates the external supervisor's
@@ -54,7 +56,7 @@ func gateDriveConfiguredRepo(t *testing.T, configBody string) string {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found on PATH")
 	}
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
 
 	root := gateTempDir(t)
 	origin := filepath.Join(root, "origin.git")

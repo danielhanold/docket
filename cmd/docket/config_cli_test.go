@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // These tests drive the BUILT binary, so they are the only place the whole
@@ -23,7 +25,7 @@ import (
 // mutates this process's environment, so parallel tests cannot interfere.
 func hermeticEnv(t *testing.T) (xdgDir string, env []string) {
 	t.Helper()
-	base := t.TempDir()
+	base := testsupport.TempDir(t)
 	xdgDir = filepath.Join(base, "xdg")
 	homeDir := filepath.Join(base, "home")
 	for _, d := range []string{xdgDir, homeDir} {
@@ -58,7 +60,7 @@ func runEnv(t *testing.T, env []string, args ...string) (stdout, stderr string, 
 // sparseRepo is a repository directory with no configuration files at all.
 func sparseRepo(t *testing.T) string {
 	t.Helper()
-	dir := filepath.Join(t.TempDir(), "repo")
+	dir := filepath.Join(testsupport.TempDir(t), "repo")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("creating %s: %v", dir, err)
 	}
@@ -84,7 +86,7 @@ func copyFixtureRepo(t *testing.T, fixture string) string {
 	if _, err := os.Stat(src); err != nil {
 		t.Fatalf("fixture %s: %v", fixture, err)
 	}
-	dst := filepath.Join(t.TempDir(), "repo")
+	dst := filepath.Join(testsupport.TempDir(t), "repo")
 	err := filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -274,7 +276,7 @@ func TestConfigMissingRepoDirFlag(t *testing.T) {
 // repository that is not there.
 func TestConfigNonexistentRepoDir(t *testing.T) {
 	_, env := hermeticEnv(t)
-	missing := filepath.Join(t.TempDir(), "no-such-repo")
+	missing := filepath.Join(testsupport.TempDir(t), "no-such-repo")
 	out, errS, code := runEnv(t, env, "diagnostic", "config", "--repo-dir", missing,
 		"--default-branch", "main", "--for-mutation")
 	if code != 2 || out != "" {
