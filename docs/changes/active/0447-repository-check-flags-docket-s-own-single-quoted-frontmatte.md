@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-23'
-updated: '2026-09-23'
+updated: '2026-09-27'
 depends_on: []
 stacked_on:
 related: [352, 191, 266]
 discovered_from: [446]
 adrs: [71]
-spec:
+spec: 'docs/superpowers/specs/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-repository-check-flags-docket-s-own-single-quoted-frontmatte-design.md) |
 | ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
@@ -45,10 +46,10 @@ So any correctly quoted string field reports as needing manual review. A newly c
 
 ## What changes
 
-- Treat an already-quoted scalar (single- or double-quoted) that decodes cleanly to a string as safe. It's a well-formed string, not an ambiguous unsafe plain scalar.
-- Keep reporting the real cases: plain (unquoted) tokens whose decoded value isn't the literal string, such as a bare `yes`/`no` or an unquoted `: `.
-- Add a regression test showing that a record written by `change.create` produces zero `frontmatter-manual-review` findings. Mutation-check it by reverting the fix and confirming the test goes red.
-- Confirm the corpus-wide count drops to only real manual-review cases, if there are any.
+- Treat a token that parses as exactly one single- or double-quoted YAML scalar as a well-formed string: no finding. Decide on the parsed node's style, never on the first byte.
+- Keep reporting the real cases unchanged: plain (unquoted) tokens whose decoded value isn't the literal string (bare `yes`/`true`, unquoted `: `), plus malformed quoting (unterminated or trailing content).
+- Guard it with an end-to-end `change.create` → zero-findings test, a writer/checker parity table over adversarial strings, and still-flagged negative cases, each mutation-checked.
+- Verify on the live corpus that `frontmatter-manual-review` drops from ~909 to 0 with other finding families unchanged. The `repository migrate` preview's `[manual]` noise disappears with it.
 
 ## Out of scope
 
