@@ -1059,11 +1059,11 @@ func TestEpochlessResumeRefusesLiveWorktreeOwner(t *testing.T) {
 
 	t.Run("owner bound under a different spelling of the worktree", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
-		raw := filepath.Join(t.TempDir(), "wt")
+		raw := filepath.Join(testsupport.TempDir(t), "wt")
 		if err := os.MkdirAll(raw, 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
-		link := filepath.Join(t.TempDir(), "wt-link")
+		link := filepath.Join(testsupport.TempDir(t), "wt-link")
 		if err := os.Symlink(raw, link); err != nil {
 			t.Fatalf("symlink: %v", err)
 		}

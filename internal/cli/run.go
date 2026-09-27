@@ -66,11 +66,11 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = verify.MarkFlagRequired("id")
 
 	// gate-before arms the implement-next run gate: it re-syncs, records the
-	// before-set + dispatch epoch in a durable record, and prints `gate-armed
-	// <key> <epoch> <dispatch-context>` (or `gate-unarmed <reason>`). The sole positional argument is the
-	// gate target; only `implement-next` is accepted, and any other value is an
-	// invalid-input result (non-zero exit) the app layer owns. It reuses the same
-	// read-only planning seams as verify.
+	// before-set + dispatch epoch in a durable record, and prints `gate-armed <key>
+	// <epoch> <dispatch-context>` (or `gate-unarmed <reason>`). The sole positional
+	// argument is the gate target; only `implement-next` is accepted, and any other
+	// value is an invalid-input result (non-zero exit) the app layer owns. It
+	// reuses the same read-only planning seams as verify.
 	gateBefore := &cobra.Command{
 		Use:   "gate-before <target>",
 		Short: "Arm the run gate for a dispatched workflow and print gate-armed <key> <epoch> <dispatch-context>",

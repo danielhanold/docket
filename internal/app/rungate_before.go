@@ -22,8 +22,9 @@ import (
 // AFTER that read, and mints a durable gate record under the git common dir
 // (rungate_store.go). Its whole contract is the printed report line:
 // `gate-armed <key> <epoch> <dispatch-context>` on success, `gate-unarmed
-// <reason-token>` on any failure — both exit 0 (learning exit-code-encodes-a-non-failure). Only `implement-next`
-// is an accepted target; anything else is a usage error that exits non-zero.
+// <reason-token>` on any failure — both exit 0 (learning
+// exit-code-encodes-a-non-failure). Only `implement-next` is an accepted
+// target; anything else is a usage error that exits non-zero.
 //
 // It writes NO metadata: the fresh-origin re-sync and the change-file parse are
 // the SAME plumbing the claim path uses (PinContext advances the remote-tracking
@@ -172,11 +173,12 @@ type RunGateBeforeResult struct {
 
 // HumanText renders the one report line. An armed gate prints `gate-armed <key>
 // <epoch> <dispatch-context>`. That is always three tokens, because every armed
-// result carries an epoch (armedGateResult, change 0463), so a positional parser
-// can never read the dispatch context as the epoch. A gate-unarmed report prints `gate-unarmed
-// <reason-token>`; a usage error (a non-applied result) names its reason instead
-// of a report line. The parent capability never appears here — only the child
-// dispatch context, which is meant for the child.
+// result carries an epoch (armedGateResult, change 0463), so a positional
+// parser can never read the dispatch context as the epoch. A gate-unarmed
+// report prints `gate-unarmed <reason-token>`; a usage error (a non-applied
+// result) names its reason instead of a report line. The parent capability
+// never appears here — only the child dispatch context, which is meant for the
+// child.
 func (r RunGateBeforeResult) HumanText() string {
 	if r.Result == ResultApplied {
 		if r.Armed {
