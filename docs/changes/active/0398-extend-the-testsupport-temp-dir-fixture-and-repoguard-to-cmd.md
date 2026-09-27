@@ -22,7 +22,7 @@ branch: 'chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T11:19:04Z'
+claimed_at: '2026-09-27T11:23:06Z'
 ---
 
 ## Artifacts
