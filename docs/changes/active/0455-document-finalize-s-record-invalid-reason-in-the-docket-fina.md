@@ -13,7 +13,7 @@ related: [449]
 discovered_from: [449]
 adrs: [127]
 spec: 'docs/superpowers/specs/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-27T10:00:41Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md) |
+| Plan | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina.md](https://github.com/danielhanold/docket/blob/docs/document-finalize-s-record-invalid-reason-in-the-docket-fina/docs/superpowers/plans/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) |
 | ADRs | [ADR-0127](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0127-scoped-metadata-validation-for-named-operations.md) |
 <!-- docket:artifacts:end -->
 
