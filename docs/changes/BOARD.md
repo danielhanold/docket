@@ -1,6 +1,6 @@
 # Backlog
 
-**462 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 314 done · 🗑️ 119 killed
+**463 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 314 done · 🗑️ 119 killed
 
 ## 🔵 Built (1)
 
@@ -22,10 +22,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (12)
+## 🟡 Proposed (13)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0463](active/0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) | Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch | `high` | `fix` | needs-brainstorm |
 | [0462](active/0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) | Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal) | `medium` | `chore` | needs-brainstorm |
 | [0461](active/0461-allow-editing-an-existing-change-s-title.md) | Allow editing an existing change's title | `medium` | `feat` | needs-brainstorm |
 | [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-brainstorm |
@@ -88,6 +89,7 @@ graph TD
   0457
   0461
   0462
+  0463
   0192:::done
   0251:::done
   0370:::done
