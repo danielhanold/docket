@@ -67,3 +67,16 @@ Detailed design: the linked spec.
 ### 2026-09-27
 
 2026-09-27 — Reconciled against origin/main e244dfd26. Spec was authored today; traced current code: ChangeCreateRequest still lacks auto_groomable/branch_prefix, no NormalizeBranchPrefix exists, change.groom outcomes are still spec|trivial|revise (0445 recently landed revise refinements, including dropping spec_path — compatible with this design). No scope change.
+
+## Run halted
+
+### 2026-09-27
+
+Build halted at plan Task 8 of 8 (docket-build halting condition: worker returned BLOCKED).
+
+- Tasks 1-7 are committed on `feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars` (tip `b4437643923e203863a818f73de9dae4139c04c7`), each with a PASSED focused task gate.
+- Task 8 (auto-groom abstain / convention / groom-next re-arm / guide prose, prose-contract rows, budget re-baselines, embedded bundle regen) is written but **uncommitted** in the feature worktree (10 modified paths).
+- Cause: the worker's mutation check rewrote tracked skill files in place during a fingerprinted gate drive; the drive HALTED on `identity-mismatch`, and the scope then refused further starts (`predecessor-not-reusable`). No PASSED drive exists for Task 8; its last focused run failed only on `TestSkillSizeBudgets` (groom-next ceiling), which the worker says it has since re-baselined (1889 -> 1996 words, a raise needing human sign-off).
+- No full-suite build gate has run; no review, PR, or results yet.
+
+Suggested remedy: inspect the uncommitted Task 8 diff, run `go test ./internal/repoguard/ ./internal/assets/ -count=1` in the worktree, commit those paths if green, then resume via `change.resume-halted` and re-dispatch implement-next with id 382 (build gate onward).
