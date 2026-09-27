@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"strings"
 	"testing"
@@ -414,4 +416,53 @@ func mustMarshal(t *testing.T, v any) []byte {
 		t.Fatalf("marshal: %v", err)
 	}
 	return b
+}
+
+// TestChangeCreateRecordHasNoRepairFindings is change 0447's end-to-end guard:
+// a record written by change.create — with an adversarial title carrying a
+// leading "-", ": ", an apostrophe, " #", and the word "yes" — is reported
+// clean by the repair planner that feeds `docket repository check` and the
+// `repository migrate` preview. Before the fix every writer-quoted string
+// field (slug, title, type, …) produced a frontmatter-manual-review finding.
+func TestChangeCreateRecordHasNoRepairFindings(t *testing.T) {
+	const title = "-lead: it's a #tag, yes"
+	files := map[string]string{
+		"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+	}
+	op := baseOp([]string{})
+	op.req.Title = title
+	plan, opRes := planFor(t, files, op)
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	var recPath string
+	var rec []byte
+	for _, f := range plan.Files {
+		if strings.HasSuffix(string(f.Path), "0002-add-a-widget.md") {
+			recPath, rec = string(f.Path), f.Bytes
+		}
+	}
+	if rec == nil {
+		t.Fatal("new record not planned")
+	}
+
+	// The adversarial title really landed (the guard is not vacuous).
+	doc, err := document.Parse(rec)
+	if err != nil {
+		t.Fatalf("written record does not parse: %v\n%s", err, rec)
+	}
+	var fm struct {
+		Title string `yaml:"title"`
+	}
+	if err := doc.DecodeFrontmatter(&fm); err != nil || fm.Title != title {
+		t.Fatalf("title = %q (err %v), want %q", fm.Title, err, title)
+	}
+
+	fs, err := reposetup.PlanRepairs(recPath, rec, false)
+	if err != nil {
+		t.Fatalf("PlanRepairs: %v", err)
+	}
+	if len(fs) != 0 {
+		t.Fatalf("change.create output must have zero repair findings, got %+v\n%s", fs, rec)
+	}
 }
