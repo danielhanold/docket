@@ -178,6 +178,8 @@ func writeFinding(b *strings.Builder, f StatusFinding) {
 	for i, line := range strings.Split(remedy, "\n") {
 		if i == 0 {
 			fmt.Fprintf(b, "    remedy: %s\n", line)
+		} else if line == "" {
+			b.WriteString("\n")
 		} else {
 			fmt.Fprintf(b, "    %s\n", line)
 		}
