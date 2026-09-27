@@ -73,6 +73,20 @@ func runEpochLocator(gitCommonDir string) func(string) error {
 	}
 }
 
+// CheckRunEpochExists verifies, before agent.enter spawns anything, that a lone
+// --run-epoch (presented without --run-gate-key) resolves to exactly one run epoch in
+// repoDir's repository (change 0463). It is the same resolvability check prepare-scope
+// runs (runEpochLocator / findEpochDirByID): it never checks liveness, and it returns
+// the locator's typed *EpochError (not-found, ambiguous, IO) unchanged. A repository
+// whose git common dir cannot be resolved yields ErrEpochIO.
+func CheckRunEpochExists(repoDir, epochID string) error {
+	common, err := gateGitCommonDir(repoDir)
+	if err != nil {
+		return epochErr(ErrEpochIO, "check-exists", err)
+	}
+	return runEpochLocator(common)(epochID)
+}
+
 // CheckRunEpochLinkage verifies, before agent.enter spawns anything, that the
 // presented (--run-gate-key, --run-epoch) pair names a real run epoch (change 0463).
 // It returns nil when the gate key's epoch record carries exactly epochID, and
