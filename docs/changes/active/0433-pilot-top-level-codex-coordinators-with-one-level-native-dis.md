@@ -2,11 +2,11 @@
 id: 433
 slug: 'pilot-top-level-codex-coordinators-with-one-level-native-dis'
 title: 'Pilot top-level Codex coordinators with one-level native dispatch'
-status: 'proposed'
+status: 'deferred'
 priority: 'high'
 type: 'refactor'
 created: '2026-09-18'
-updated: '2026-09-18'
+updated: '2026-09-27'
 depends_on: []
 stacked_on:
 related: [360, 412, 422, 423, 424, 425, 426, 430, 431, 432]
@@ -145,3 +145,7 @@ Authoritative root model/effort discovery and unknown policy; exact root lifecyc
 The human authorized summarizing and killing the abandoned approach, not implementing 433, creating its worktree, resuming 424, or merging anything. Preserve predecessor branches, commits, dirty work, captures and cancelled records as historical evidence; no deletion or wholesale import is part of this retirement.
 
 No global model-pin or stable-install changes, no workaround through another harness or a shell-hosted replacement coordinator, no fabricated identities/receipts/cancellation proof, no budget resets, no widening timing limits, and no bypass of scope or exact-head validation. No blanket removal of run gates, worktree safeguards, independent review, or cross-harness protections. Changes to Claude Code/Cursor/OpenCode behavior, the full supervisor envisioned by 412, unrelated timing cleanup, and wholesale shared-orchestration rewriting are outside this bounded pilot.
+
+## Why deferred
+
+Codex development is paused until the Codex CLI supports git worktree handling and better child-agent support (today subagents only go one level down without errors). Revisit when both land upstream.
