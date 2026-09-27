@@ -97,6 +97,8 @@ Index: [concepts/README.md](concepts/README.md)
 
 Index: [reference/README.md](reference/README.md)
 
+- [`glossary.md`](reference/glossary.md) — every docket term grouped by layer: what it is, what it is
+  for, and the CLI command that reaches it.
 - [`cli.md`](reference/cli.md) — the `docket` commands by noun, each pointing at its `--help` and the
   capability catalog for the current verbs and flags.
 - [`fields.md`](reference/fields.md) — the change-manifest and ADR fields, owned by the
