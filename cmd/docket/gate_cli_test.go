@@ -10,29 +10,6 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// gateTempDir is a temp dir whose cleanup tolerates the external supervisor's
-// brief exit window. Observe reports "passed" the instant the terminal record
-// lands, which can precede the supervisor's final same-directory atomic write
-// and lock release, so a single-shot RemoveAll (as t.TempDir does) races it and
-// fails "directory not empty". The retry loop lets the supervisor finish.
-func gateTempDir(t *testing.T) string {
-	t.Helper()
-	dir, err := os.MkdirTemp("", "docket-gate-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		for i := 0; i < 40; i++ {
-			if err := os.RemoveAll(dir); err == nil {
-				return
-			}
-			time.Sleep(50 * time.Millisecond)
-		}
-		_ = os.RemoveAll(dir)
-	})
-	return dir
-}
-
 // gateSh runs one git subcommand in dir through the real git binary, failing on
 // any error. It is the built-binary package's local git helper (there is no
 // shared statusGit here).
@@ -58,7 +35,7 @@ func gateDriveConfiguredRepo(t *testing.T, configBody string) string {
 	}
 	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
 
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	origin := filepath.Join(root, "origin.git")
 	writer := filepath.Join(root, "writer")
 	invocation := filepath.Join(root, "invocation")
@@ -106,7 +83,7 @@ func gateDriveConfiguredRepo(t *testing.T, configBody string) string {
 // returning the shared protocol document with a drive id and the PASSED outcome.
 func TestGateDriveEndToEndThroughBuiltBinary(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo hi\n")
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	out, errS, code := run(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if code != 0 || errS != "" {
 		t.Fatalf("start: out=%q err=%q code=%d", out, errS, code)
@@ -133,8 +110,8 @@ func TestGateDriveEndToEndThroughBuiltBinary(t *testing.T) {
 // supervisor. It proves the whole cli -> app -> process path plus the one
 // os.Exit site, not the test-binary seam the package tests use.
 func TestGateEndToEndThroughBuiltBinary(t *testing.T) {
-	root := gateTempDir(t)
-	cwd := gateTempDir(t)
+	root := testsupport.TempDir(t)
+	cwd := testsupport.TempDir(t)
 
 	out, errS, code := run(t, "--json", "gate", "launch", "--root", root, "--cwd", cwd, "--", "/bin/echo", "hi")
 	if code != 0 || errS != "" {
