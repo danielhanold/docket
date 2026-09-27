@@ -1372,3 +1372,39 @@ func TestChangeGroomAbstainThenRearmRealGit(t *testing.T) {
 		t.Errorf("committed board still shows the abstain after re-arm:\n%s", board)
 	}
 }
+
+// followedSection is a non-final section placed after ## Auto-groom blocked so
+// abstain-append and rearm-removal are proven not to consume what follows.
+const followedSection = "## Reconcile log\n\nKept entry.\n"
+
+func TestChangeGroomPlanAbstainAppendsBeforeFollowingSection(t *testing.T) {
+	files := map[string]string{groomPath(2, "add-a-widget"): abstainedChange(2, "add-a-widget") + "\n" + followedSection}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, abstainRequest()))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	first := strings.Index(rec, "Recorded 2026-08-01 (UTC).\n\nFirst note.")
+	second := strings.Index(rec, "Recorded 2026-08-16 (UTC).\n\nThe storage decision needs a human.")
+	if first < 0 || second < 0 || first > second {
+		t.Errorf("entries missing or out of order (first=%d second=%d):\n%s", first, second, rec)
+	}
+	if strings.Count(rec, followedSection) != 1 || !strings.HasSuffix(rec, followedSection) {
+		t.Errorf("following section not preserved byte-identically:\n%s", rec)
+	}
+}
+
+func TestChangeGroomPlanRearmRemovesSectionBeforeFollowingSection(t *testing.T) {
+	files := map[string]string{groomPath(2, "add-a-widget"): abstainedChange(2, "add-a-widget") + "\n" + followedSection}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, rearmRequest()))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if strings.Contains(rec, "## Auto-groom blocked") || strings.Contains(rec, "First note.") {
+		t.Errorf("re-arm left the blocked section behind:\n%s", rec)
+	}
+	if strings.Count(rec, followedSection) != 1 || !strings.HasSuffix(rec, followedSection) {
+		t.Errorf("following section not preserved byte-identically:\n%s", rec)
+	}
+}
