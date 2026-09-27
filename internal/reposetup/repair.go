@@ -31,7 +31,9 @@ package reposetup
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -136,6 +138,12 @@ func planQuote(path string, src []byte, doc document.Document, f document.Field)
 		return RepairFinding{}, false
 	}
 	token := string(src[f.Value.Start:f.Value.End])
+	if wellFormedQuotedString(token) {
+		// Already a well-formed quoted string — the canonical writer's own
+		// output (ADR-0071) or a hand-written quoted scalar. Its first byte is
+		// an indicator, but its value is unambiguous: nothing to repair or review.
+		return RepairFinding{}, false
+	}
 	if !unsafeScalarShape(token) {
 		return RepairFinding{}, false // already safe: nothing to repair
 	}
@@ -292,6 +300,34 @@ func decodesToStringLiteral(token string) bool {
 	}
 	s, ok := v.(string)
 	return ok && s == token
+}
+
+// wellFormedQuotedString reports whether token, decoded on its own, is exactly
+// one single- or double-quoted YAML string scalar and nothing else — a
+// well-formed string whose value is unambiguous even though its first byte
+// (' or ") is a YAML indicator. The decision is keyed on the PARSED node's
+// kind, tag, anchor, and style, never on the raw first byte (learning
+// byte-pattern-guard-matches-a-spelling). The second Decode must hit io.EOF:
+// a lone yaml.Unmarshal stops after the first node and silently accepts
+// trailing content such as "'a' b", or a second document.
+func wellFormedQuotedString(token string) bool {
+	dec := yaml.NewDecoder(strings.NewReader(token))
+	var doc yaml.Node
+	if err := dec.Decode(&doc); err != nil {
+		return false
+	}
+	var rest yaml.Node
+	if err := dec.Decode(&rest); !errors.Is(err, io.EOF) {
+		return false
+	}
+	if doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 {
+		return false
+	}
+	n := doc.Content[0]
+	if n.Kind != yaml.ScalarNode || n.Tag != "!!str" || n.Anchor != "" {
+		return false
+	}
+	return n.Style == yaml.SingleQuotedStyle || n.Style == yaml.DoubleQuotedStyle
 }
 
 // scalarAsIntSeq parses token as if it were the interior of a flow sequence and
