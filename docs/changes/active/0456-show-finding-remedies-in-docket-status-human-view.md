@@ -2,7 +2,7 @@
 id: 456
 slug: 'show-finding-remedies-in-docket-status-human-view'
 title: 'Show finding remedies in docket status human view'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-25'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/show-finding-remedies-in-docket-status-human-view'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/338'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-27T08:41:55Z'

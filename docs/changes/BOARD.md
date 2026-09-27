@@ -1,12 +1,12 @@
 # Backlog
 
-**460 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 310 done · 🗑️ 119 killed
+**460 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 15 proposed · ⚪ 11 deferred · ✅ 310 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0456](active/0456-show-finding-remedies-in-docket-status-human-view.md) | Show finding remedies in docket status human view | `medium` | `chore` | [spec](../superpowers/specs/2026-09-27-show-finding-remedies-in-docket-status-human-view-design.md) | `chore/show-finding-remedies-in-docket-status-human-view` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0456](active/0456-show-finding-remedies-in-docket-status-human-view.md) | Show finding remedies in docket status human view | `medium` | `chore` | [#338](https://github.com/danielhanold/docket/pull/338) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
