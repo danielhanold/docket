@@ -1078,3 +1078,34 @@ func TestGateDriveStartUnknownRunEpochIsNamed(t *testing.T) {
 		t.Fatalf("the presented --run-epoch value leaked into the output: %s", out)
 	}
 }
+
+// TestGateDrivePrepareScopeUnknownRunEpochIsNamed (change 0463): through the real
+// wiring, prepare-scope with an unknown --run-epoch refuses unknown-run-epoch and
+// mints no scope. In human mode it renders reason + remedy without the value. The
+// cancelled-epoch prepare in TestGateDrivePrepareScopeRunEpochGatesTakeover must
+// stay applied, because the pre-check is resolvability only, never liveness.
+func TestGateDrivePrepareScopeUnknownRunEpochIsNamed(t *testing.T) {
+	wt := gateDriveRepo(t)
+	const bogus = "0790b760e26444866ef2e156ba383326"
+	args := []string{"gate", "drive", "prepare-scope", "--repo-dir", wt, "--change-id", "463",
+		"--task-id", "task-4", "--phase", "build", "--branch", "fix/x", "--worktree", wt, "--run-epoch", bogus}
+
+	out, _, _ := runCLI(t, append([]string{"--json"}, args...)...)
+	doc := decodeOneJSON(t, out)
+	if doc["result"] != "invalid-input" || doc["reason"] != "unknown-run-epoch" {
+		t.Fatalf("got %v, want invalid-input/unknown-run-epoch", doc)
+	}
+	if id, _ := doc["scope_id"].(string); id != "" {
+		t.Fatalf("a refused prepare-scope minted scope %q", id)
+	}
+	if strings.Contains(out, bogus) {
+		t.Fatalf("JSON output leaked the presented value: %s", out)
+	}
+
+	// A non-applied result may render on either stream; check both together.
+	hOut, hErr, _ := runCLI(t, args...)
+	human := hOut + hErr
+	if !strings.Contains(human, "unknown-run-epoch") || !strings.Contains(human, "--gate-context") || strings.Contains(human, bogus) {
+		t.Fatalf("human output must name reason + remedy and never the value, got %q", human)
+	}
+}

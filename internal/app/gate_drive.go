@@ -68,6 +68,10 @@ type GateScopeResult struct {
 	ChildCapability  string `json:"child_capability,omitempty"`
 	ParentCapability string `json:"parent_capability,omitempty"`
 	Reason           string `json:"reason,omitempty"`
+	// Message is the one-line next action on a command failure (change 0463), e.g.
+	// the unknown-run-epoch remedy. It never carries a capability or the presented
+	// run-epoch value.
+	Message string `json:"message,omitempty"`
 }
 
 // HumanText renders GateScopeResult naming ONLY the scope id (and a bounded
@@ -80,6 +84,9 @@ func (r GateScopeResult) HumanText() string {
 	}
 	if r.Reason != "" {
 		lines = append(lines, "reason: "+r.Reason)
+	}
+	if r.Message != "" {
+		lines = append(lines, "message: "+r.Message)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -142,6 +149,11 @@ type GateDriveService struct {
 	// finalize service also stores a non-nil budgetStore.
 	budgetStore *gatedrive.Store
 	maxAttempts int
+	// epochLocate resolves a presented run-epoch id against the repository's run-epoch
+	// registry before PrepareScope mints a scope (change 0463). A non-nil error is a
+	// typed EpochError. Nil on the fake-engine test seam and on services that never
+	// serve prepare-scope.
+	epochLocate func(epochID string) error
 }
 
 // GateDriveStartRequest is the caller-supplied identity and launch context for a
@@ -298,7 +310,11 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	// settled through exact-token retirement rather than refused stale-run-epoch
 	// (change 0446): wire the settlement read over the same registry.
 	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
-	return newGateDriveService(engine, 0, "", ""), "", ""
+	svc := newGateDriveService(engine, 0, "", "")
+	// prepare-scope is served by this commandless service: resolve a presented
+	// --run-epoch against the same registry before minting a scope (change 0463).
+	svc.epochLocate = runEpochLocator(gitCommonDir)
+	return svc, "", ""
 }
 
 // NewTaskGateDriveService composes the gate-drive seam for TASK-INTENT
@@ -597,6 +613,19 @@ func (s *GateDriveService) Claim(id, handoffID string) GateDriveResult {
 // safe reason and no grant. The two capabilities travel ONLY in the JSON
 // document — never in the human text (GateScopeResult.HumanText).
 func (s *GateDriveService) PrepareScope(req gatedrive.ScopeRequest) GateScopeResult {
+	// A presented --run-epoch must resolve before it is baked into the scope (change
+	// 0463): an unresolvable one refuses now with its named token, instead of
+	// surfacing later at start as a refusal the caller cannot attribute.
+	if req.RunEpochID != "" && s.epochLocate != nil {
+		if lerr := s.epochLocate(req.RunEpochID); lerr != nil {
+			res, reason := mapDriveFailure(lerr)
+			return GateScopeResult{
+				Envelope: NewEnvelope(OperationGateDrivePrepareScope, res),
+				Reason:   reason,
+				Message:  RunEpochNextAction(reason),
+			}
+		}
+	}
 	grant, err := s.engine.PrepareScope(req)
 	if err != nil {
 		res, reason := mapDriveFailure(err)

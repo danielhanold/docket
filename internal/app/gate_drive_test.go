@@ -1675,3 +1675,41 @@ func TestMapDriveFailureEpochErrors(t *testing.T) {
 		t.Fatalf("the presented value leaked: message=%q human=%q", got.Message, got.HumanText())
 	}
 }
+
+// TestPrepareScopeRefusesUnknownRunEpoch (change 0463): a presented --run-epoch that
+// the registry cannot resolve is refused before any scope is minted, with the named
+// token and the next action and without echoing the value. A scope with no
+// --run-epoch never consults the locator (standalone scopes are unchanged).
+func TestPrepareScopeRefusesUnknownRunEpoch(t *testing.T) {
+	eng := &fakeDriveEngine{grant: gatedrive.ScopeGrant{ScopeID: "scope-1", ChildCapability: "c", ParentCapability: "p"}}
+	svc := newGateDriveService(eng, 0, "", "")
+	var asked string
+	svc.epochLocate = func(id string) error {
+		asked = id
+		return epochErr(ErrEpochNotFound, "find-dir-by-id", nil)
+	}
+	got := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463", RunEpochID: "bogus-epoch-value"})
+	if got.Result != ResultInvalidInput || got.Reason != ReasonUnknownRunEpoch {
+		t.Fatalf("got (%s, %q), want (invalid-input, unknown-run-epoch)", got.Result, got.Reason)
+	}
+	if got.ScopeID != "" || got.ChildCapability != "" || got.ParentCapability != "" {
+		t.Fatalf("a refused prepare-scope must carry no grant: %+v", got)
+	}
+	if eng.lastScopeReq.ChangeID != "" {
+		t.Fatalf("an unresolvable epoch must mint no scope, engine saw %+v", eng.lastScopeReq)
+	}
+	if asked != "bogus-epoch-value" {
+		t.Fatalf("locator asked %q, want the presented id", asked)
+	}
+	if !strings.Contains(got.Message, "--gate-context") || !strings.Contains(got.HumanText(), "unknown-run-epoch") {
+		t.Fatalf("refusal must carry reason and next action: message=%q human=%q", got.Message, got.HumanText())
+	}
+	if strings.Contains(got.Message, "bogus-epoch-value") || strings.Contains(got.HumanText(), "bogus-epoch-value") {
+		t.Fatalf("the presented value leaked: %q / %q", got.Message, got.HumanText())
+	}
+
+	asked = ""
+	if ok := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463"}); ok.Result != ResultApplied || asked != "" {
+		t.Fatalf("a scope without --run-epoch must skip the locator and apply: result=%s asked=%q", ok.Result, asked)
+	}
+}
