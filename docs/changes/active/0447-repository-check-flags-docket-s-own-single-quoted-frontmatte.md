@@ -22,7 +22,7 @@ branch: 'fix/repository-check-flags-docket-s-own-single-quoted-frontmatte'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T11:08:16Z'
+claimed_at: '2026-09-27T11:09:32Z'
 ---
 
 ## Artifacts
