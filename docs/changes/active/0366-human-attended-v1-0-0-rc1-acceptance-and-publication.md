@@ -6,10 +6,10 @@ status: 'proposed'
 priority: 'critical'
 type: 'chore'
 created: '2026-08-29'
-updated: '2026-09-04'
+updated: '2026-09-27'
 depends_on: [370]
 stacked_on:
-related: [317, 318, 322, 326, 352, 361, 363, 369, 370, 371, 372, 374, 377, 384, 392, 393, 394, 399, 401]
+related: [317, 318, 322, 326, 352, 361, 363, 369, 370, 371, 372, 374, 377, 384, 392, 393, 394, 399, 401, 433]
 discovered_from: [318]
 adrs: [95, 96, 99, 100, 102, 103, 104]
 spec: 'docs/superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md'
@@ -59,13 +59,22 @@ re-anchored on the current tip of `main` and on `v1.0.0-beta1`.
 - Take the workflow's four native tuple smokes as tuple evidence, plus an operator-machine run.
 - In a fresh host, install the accepted bytes and drive one complete retained mutating lifecycle —
   create, groom, implement with a restart/resume interruption, finalize, archive — through fresh
-  Claude, Codex, Cursor, and OpenCode processes, each against its own disposable private remote.
+  Claude, Cursor, and OpenCode processes, each against its own disposable private remote. Codex is
+  not part of this release (see *Codex excluded* below).
 - Probe upgrades from `v0.9.2` and `v0.9.3` Bash installs; rehearse an isolated `v0.9.2` rollback
   and a read-only cross-compatibility check, without any runtime fallback.
 - At an explicit human boundary, create the annotated tag, the draft pre-release, the six verified
   assets, publish, and verify a clean public installation from the release URL.
 - Collate the evidence bundle under `docs/release/v1.0.0-beta1/` and close out through the
   normal PR, finalize, and sweep path.
+
+**Codex excluded (human decision, 2026-09-27).** Codex development is paused until the Codex CLI
+supports git worktree handling and better child-agent support (today subagents only go one level
+down without errors); change 0433 is deferred on that basis. This release candidate installs,
+proves, and claims support for three harnesses only — Claude Code, Cursor, and OpenCode. 0393
+(Codex coordinator root entry) is no longer a pre-cut prerequisite and is held. The linked spec
+carries the same exclusion; the older protocol sections below that still name Codex are
+superseded by it.
 
 Design decisions (detail in the spec): the candidate is cut from the current tip of `main`, not
 from 0370's merge commit, because the repository's own configuration and the skills' Step-0 verbs
@@ -154,5 +163,7 @@ rebuilding or substituting bytes mid-protocol; a Bash fallback or compatibility 
 `v1.0.0` promotion; a tag-triggered publishing workflow; public-install documentation in the README
 or `docs/guide/` (a separate docs change); widening ADR-0096's frozen corpus to `v0.9.3`;
 Homebrew, Windows, signing/notarization, SBOM or provenance signing; uninstall or version-tree
-collection (0323); and any redesign of storage, the JSON protocol, harness topology, or the
-Git/GitHub adapters.
+collection (0323); Codex support of any kind — install, fresh-host proof, or a supported-harness
+claim (paused; 0433 deferred until the Codex CLI handles git worktrees and multi-level child
+agents); and any redesign of storage, the JSON protocol, harness topology, or the Git/GitHub
+adapters.

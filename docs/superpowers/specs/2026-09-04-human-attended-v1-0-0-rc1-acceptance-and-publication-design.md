@@ -16,7 +16,8 @@ installed Go product.
 
 The approved [Go migration program map](2026-08-12-go-migration-program-map.md) and
 [architecture](2026-08-12-go-migration-architecture-design.md) are governing constraints and are
-not reopened here: supported targets (Darwin/Linux × amd64/arm64), the four direct host harnesses,
+not reopened here: supported targets (Darwin/Linux × amd64/arm64), the direct host harnesses
+(narrowed to three for this release — see *Codex excluded* below),
 the hard cutover with no Bash fallback, the deferred/dropped capability lists, and `v0.9.2` as the
 frozen Bash baseline and documented rollback artifact all stand.
 
@@ -54,6 +55,13 @@ release window would bracket 0370's merge. Reality on 2026-09-03:
 - Native host dispatch is the only dispatch (ADR-0100). Codex coordinator entry through app-server
   root threads is decided (ADR-0103) but the implementing change 0393 is `implemented` with PR
   #265 open, not merged.
+- **Codex excluded (human decision, 2026-09-27).** Codex development is paused until the Codex
+  CLI supports git worktree handling and better child-agent support (today subagents only go one
+  level down without errors); change 0433 is deferred on that basis. Codex is **not part of this
+  release**: it gets no install, no fresh-host lifecycle row, and no supported-harness claim in the
+  notes. The release is accepted on three harnesses — Claude Code, Cursor, and OpenCode. Whatever
+  Codex adapter code remains in the candidate ships unsupported; removing it would be a source
+  change and is out of scope here.
 - The stub's "no maintenance sweep during the window" rule has already been overtaken: fourteen
   finalizes ran after 0370, and every implement-next start runs an implementation-scope sweep. The
   rule is re-specified below as a quiescence window bracketing the candidate commit.
@@ -124,7 +132,7 @@ the window. Recommendations, not verdicts:
 
 | Item | State | Recommendation |
 |---|---|---|
-| 0393 Codex coordinator root entry | `implemented`, PR #265 open | Verify what PR #265 proves (its record still carries a `## Disposition: HALTED` narrative from an earlier attempt). Merge, finalize, and live-certify before the cut: without it the Codex lifecycle row in Phase 5 cannot reach `docket-plan-writer`. If it cannot land, beta1 ships with Codex composition documented as unproven in the notes' known gaps, and the Codex row records the failure mode rather than a pass. |
+| 0393 Codex coordinator root entry | `implemented`, PR #265 open | Not a release prerequisite: Codex is excluded from this release (see *Codex excluded*). Hold PR #265 until after Phase 10 and record it as held. |
 | 0401 source-available license | build-ready | Land before the tag. This is the first public distribution of binaries; the `LICENSE` lives in the repository at the tagged commit and is linked from the notes. |
 | 0392 installer-tolerant config read | build-ready | Land before the cut. Without it the first post-beta1 schema-extending release deadlocks `docket install` on every beta1 machine (the recorded 0374 bricking). |
 | 0402 docs restructure, 0403 config diagnostics | build-ready | Optional. 0402 carries 0385's fix to `docs/cursor/permissions.md`, which still allowlists the deleted `scripts/docket.sh`; if 0402 is held, the notes carry a known-gaps line instead. |
@@ -252,20 +260,20 @@ v1.0.0-beta1` from a checkout at the candidate SHA on the operator machine (darw
 independent execution of the downloaded copy; its row joins the table. Per-target rebuilding is
 never evidence.
 
-### Phase 5 — Fresh-host self-host scenarios (four harnesses)
+### Phase 5 — Fresh-host self-host scenarios (three harnesses)
 
 **Host.** A **fresh macOS user account** on the operator machine (darwin/arm64). It gives every
 harness — including the Cursor IDE — a genuinely fresh `HOME`, and it cannot see the operator's
-development install. If a fresh account is impossible, the CLI harnesses (Claude, Codex, OpenCode)
-may run under an isolated `HOME`/`XDG_*`/`CODEX_HOME` root and Cursor under its real profile with
+development install. If a fresh account is impossible, the CLI harnesses (Claude, OpenCode)
+may run under an isolated `HOME`/`XDG_*` root and Cursor under its real profile with
 the Docket assets freshly installed from the candidate; the row records which host mode was used.
 A Linux lifecycle run is not required: the harness boundary is not an OS boundary, and Linux bytes
 are covered by the tuple smokes.
 
 **Install.** In the fresh account: `sh <immutable copy>/install.sh --harness claude --harness
-codex --harness cursor --harness opencode --bin-dir <dir on PATH>`; then `docket version --json`
+cursor --harness opencode --bin-dir <dir on PATH>`; then `docket version --json`
 (version `v1.0.0-beta1`, commit == candidate), `docket install check --json` (clean, `mode:
-release`, four harnesses, the candidate asset set), `docket diagnostic runtime --json`
+release`, three harnesses, the candidate asset set), `docket diagnostic runtime --json`
 (`supported_target: true`). Log in to each harness and to `gh` inside the fresh account; copy no
 other operator state.
 
@@ -274,7 +282,7 @@ other operator state.
 fresh account. After the row is recorded, archive or delete the repository; the row keeps the PR
 URL and the final `docket status --json`.
 
-**Fixture** (identical for all four): `README.md`, an executable `test.sh` (`#!/bin/sh` / `exit
+**Fixture** (identical for all three): `README.md`, an executable `test.sh` (`#!/bin/sh` / `exit
 0`), pushed to the disposable remote; `docket repository init` in the clone, then confirm the
 generated policy is `build.test_command: sh ./test.sh`, `finalize.test_command: sh ./test.sh`,
 both gates `local` (use `docket repository configure-tests` if init left the policy pending);
@@ -309,11 +317,10 @@ metadata branch on the remote holds the archived record and the re-rendered boar
 interactive / IDE), host mode (fresh account or isolated root), candidate commit and archive
 SHA-256, proof a fresh process started (process start time versus install time), proof the named
 children ran (the harness's own record of `docket-plan-writer`, a `docket-build-*` profile, and a
-`docket-review-*` rung — for Codex, adjudicated from the thread store or app-server activity,
-never the `codex exec` item stream), kill and resume timestamps and the resume verdict line, the
+`docket-review-*` rung), kill and resume timestamps and the resume verdict line, the
 terminal predicate results, and the sanitized transcript location.
 
-Gate: all four rows pass the same predicate. A failing row is a STOP. A Docket defect returns to a
+Gate: all three rows pass the same predicate. A failing row is a STOP. A Docket defect returns to a
 source change and a new candidate. A vendor defect is diagnosed against the recorded version and
 mode; the human may let beta1 ship with that harness listed under known gaps in the notes and the
 row recording the exact failure — a latitude beta semantics allow and stable `v1.0.0` does not.
@@ -398,7 +405,7 @@ In a fresh account or isolated root with no Docket present, over the real networ
 `https://github.com/danielhanold/docket/releases/download/v1.0.0-beta1/install.sh` and
 `checksums.txt`; verify the script's SHA-256 against its manifest line **before** executing it
 (never pipe a downloaded script into `sh`); run `sh install.sh --harness claude` (any subset of
-the four); verify `docket version --json` (version, commit, build date), `docket install check
+the three supported harnesses); verify `docket version --json` (version, commit, build date), `docket install check
 --json` clean, `docket diagnostic runtime --json`; run the read-only CLI baseline from
 `docs/release/four-harness-acceptance.md` against a fixture and record the protocol fields.
 Record every URL, digest, and output in `public-install.md`. A public URL test verifies exposure of
@@ -469,7 +476,8 @@ Title: `v1.0.0-beta1 — Docket is a Go binary`. Sections, in order:
    Bash implementation with no Bash fallback; a beta seeking feedback from existing users. Stable
    `v1.0.0` follows after the known gaps close.
 2. **Install.** The downloader command with `--harness` flags, the four supported targets
-   (darwin/linux × amd64/arm64), the four harnesses (Claude Code, Codex, Cursor, OpenCode), the
+   (darwin/linux × amd64/arm64), the three supported harnesses (Claude Code, Cursor, OpenCode; Codex support is paused and
+   not part of this release), the
    `checksums.txt` verification step, and the runtime dependency set (`sh`, `curl`, `tar`, one
    SHA-256 provider; no Bash, Python, or Perl).
 3. **Upgrading from v0.9.x.** What the Go installer adopts from a Bash install (ADR-0096) and the
@@ -487,8 +495,7 @@ Title: `v1.0.0-beta1 — Docket is a Go binary`. Sections, in order:
    `failure` envelope field); configuration (`build.gate`/`build.test_command` and the removal of
    the `auto` sentinel, `board.section_order`/`board.sorting`, `branch_prefix:`, `metadata_branch`
    tombstone); harness dispatch (native-only dispatch, compact dispatch block with recursion guard,
-   catalog-resolved skills, model-pinned plan-writer, Cursor unquoted names, Codex direct dispatch
-   and coordinator entry with its 0393 status); build gate (`docket development test`, gate driver
+   catalog-resolved skills, model-pinned plan-writer, Cursor unquoted names); build gate (`docket development test`, gate driver
    continuation and takeover, integration-tag partitions, runner concurrency cap); finalize (policy-
    aware merge method, exact-PR identity, WAITING re-entry, closeout notes, scoped sweeps); metadata
    and board (GitHub blob links, six-group board, one topology); docs (goal-first README).
@@ -514,8 +521,8 @@ Title: `v1.0.0-beta1 — Docket is a Go binary`. Sections, in order:
 - **A tag-triggered publishing workflow.** Rejected for beta1: it is a source change carrying a
   write token, and the protocol's value is a human at the irreversible boundary. Reported as a
   follow-up for a later release.
-- **Reuse 0317's read-only status scenario as the four-harness gate.** Rejected: the program's
-  success criterion is the complete retained lifecycle from all four hosts, and 0317's live rows
+- **Reuse 0317's read-only status scenario as the harness gate.** Rejected: the program's
+  success criterion is the complete retained lifecycle from every supported host, and 0317's live rows
   were never recorded (it has no results file).
 - **Isolated `HOME` only, no fresh account.** Kept as the fallback; a fresh macOS account is the
   only way to give the Cursor IDE a genuinely fresh profile and to exclude the operator's
@@ -532,7 +539,7 @@ Title: `v1.0.0-beta1 — Docket is a Go binary`. Sections, in order:
 Source changes of any kind (a defect returns to a reviewed change); changing accepted bytes after
 packaging; rebuilding or substituting bytes mid-protocol; a Bash fallback or compatibility launcher
 in the candidate; stable `v1.0.0` promotion; Homebrew, Windows, signing/notarization, SBOM or
-provenance signing; uninstall or version-tree collection (0323); public-install documentation in
+provenance signing; Codex support of any kind (paused — 0433 deferred); uninstall or version-tree collection (0323); public-install documentation in
 the README or `docs/guide/` (a separate docs change — the notes are self-contained until it lands);
 a publishing workflow; widening ADR-0096's frozen corpus to `v0.9.3`; any redesign of storage, the
 JSON protocol, harness topology, or the Git/GitHub adapters.
