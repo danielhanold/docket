@@ -853,28 +853,45 @@ func TestRepeatEpochlessResumeRefusedActive(t *testing.T) {
 }
 
 // TestEpochlessResumeEpochJoinsCancelCycle (change 0463, Review Focus 2): the epoch
-// an epochless resume mints goes through the ordinary lifecycle. Once confirmed
-// cancelled, the next resume supersedes it and reserves exactly one replacement,
-// which carries its own fresh epoch.
+// an epochless resume mints goes through the ordinary lifecycle, driven by the REAL
+// cancel path. The resume-active-run refusal names `run cancel` as its remedy, so
+// that remedy must work with the arm's own key and epoch: a resume arm has no claim
+// binding (change.claim requires a proposed change), and runCancel must accept its
+// resume-verified attribution instead of refusing claim-unconfirmed forever. Once
+// cancelled, the next resume supersedes the epoch and reserves exactly one
+// replacement with a fresh epoch, and that replacement is cancellable the same way.
 func TestEpochlessResumeEpochJoinsCancelCycle(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
+	common, err := gateGitCommonDir(repoDir)
+	if err != nil {
+		t.Fatalf("gateGitCommonDir: %v", err)
+	}
+	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
+	mkSeams := func(string) cancelSeams { return seams }
+
 	deps, wdeps := resumeEpochDeps(t)
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
-	first := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	d := sp.deps()
+	d.CancelSeams = mkSeams
+	first := RunGateBefore(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
 	if !first.Armed {
 		t.Fatalf("first epochless resume must arm: %q", first.HumanText())
 	}
-	// A confirmed run.cancel leaves the epoch cancelled.
-	if err := epochCAS(repoDir, first.Key, func(r *EpochRecord) error {
-		r.State = EpochCancelled
-		return nil
-	}); err != nil {
-		t.Fatalf("epochCAS cancel: %v", err)
+
+	// The documented remedy: cancel with the arm's own key and epoch.
+	cancel := runCancel(seams, repoDir, first.Key, first.Epoch, "human stop")
+	if cancel.Disposition != CancelDispositionCancelled {
+		t.Fatalf("cancelling the epochless resume's epoch: disposition = %q, want cancelled (findings=%v)", cancel.Disposition, cancel.Findings)
+	}
+	if st := loadEpochState(t, repoDir, first.Key); st != EpochCancelled {
+		t.Fatalf("epoch state after cancel = %q, want cancelled", st)
 	}
 
 	deps2, wdeps2 := resumeEpochDeps(t)
 	sp2 := &fakeScopePrep{grant: sampleScopeGrant()}
-	repl := RunGateBefore(context.Background(), deps2, wdeps2, sp2.deps(), repoDir, "implement-next", 5)
+	d2 := sp2.deps()
+	d2.CancelSeams = mkSeams
+	repl := RunGateBefore(context.Background(), deps2, wdeps2, d2, repoDir, "implement-next", 5)
 	if !repl.Armed || repl.Epoch == "" || repl.Epoch == first.Epoch {
 		t.Fatalf("the resume after cancel must arm one replacement with a fresh epoch: %q (first epoch %q)", repl.HumanText(), first.Epoch)
 	}
@@ -885,6 +902,67 @@ func TestEpochlessResumeEpochJoinsCancelCycle(t *testing.T) {
 	if prior.State != EpochSuperseded || prior.ReplacementReserved != repl.Key {
 		t.Fatalf("prior epoch = (%q, reserved %q), want superseded reserving %q", prior.State, prior.ReplacementReserved, repl.Key)
 	}
+
+	// The replacement's epoch is armed by resume too, so it is cancellable the same way.
+	replCancel := runCancel(seams, repoDir, repl.Key, repl.Epoch, "human stop")
+	if replCancel.Disposition != CancelDispositionCancelled {
+		t.Fatalf("cancelling the replacement epoch: disposition = %q, want cancelled (findings=%v)", replCancel.Disposition, replCancel.Findings)
+	}
+}
+
+// TestRunCancelResumeAuthorityFailsClosed (change 0463): the resume-verified
+// authority runCancel accepts is narrow. A resume-shaped record whose epoch names a
+// DIFFERENT change refuses claim-mismatch, and a record carrying an unconfirmed claim
+// reservation refuses claim-unconfirmed even though its AttributedID is set. Neither
+// refusal fences the epoch.
+func TestRunCancelResumeAuthorityFailsClosed(t *testing.T) {
+	t.Run("epoch names another change", func(t *testing.T) {
+		repo := newGateRepo(t)
+		common, _ := gateGitCommonDir(repo)
+		key, err := MintGateRecord(repo, GateRecord{
+			Target: gateBeforeStoredTarget, AttemptLimit: 2, Retry: RetryUnused,
+			Disposition: "gate-armed", ParentCap: "parent-cap-raw", AttributedID: 5,
+		})
+		if err != nil {
+			t.Fatalf("MintGateRecord: %v", err)
+		}
+		ep, err := MintEpochRecord(repo, key, "6")
+		if err != nil {
+			t.Fatalf("MintEpochRecord: %v", err)
+		}
+		res := runCancel(cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, repo, key, ep.EpochID, "human stop")
+		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "claim-mismatch") {
+			t.Fatalf("got (%q, %v), want refused claim-mismatch", res.Disposition, res.Findings)
+		}
+		if st := loadEpochState(t, repo, key); st != EpochActive {
+			t.Fatalf("a refused cancel must not fence: epoch state = %q", st)
+		}
+	})
+	t.Run("unconfirmed reservation present", func(t *testing.T) {
+		repo := newGateRepo(t)
+		common, _ := gateGitCommonDir(repo)
+		key, err := MintGateRecord(repo, GateRecord{
+			Target: gateBeforeStoredTarget, AttemptLimit: 2, Retry: RetryUnused,
+			Disposition: "gate-armed", ParentCap: "parent-cap-raw", AttributedID: 5,
+		})
+		if err != nil {
+			t.Fatalf("MintGateRecord: %v", err)
+		}
+		ep, err := MintEpochRecord(repo, key, "5")
+		if err != nil {
+			t.Fatalf("MintEpochRecord: %v", err)
+		}
+		if err := ReserveGateClaim(repo, key, 5, "req-1"); err != nil {
+			t.Fatalf("ReserveGateClaim: %v", err)
+		}
+		res := runCancel(cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, repo, key, ep.EpochID, "human stop")
+		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "claim-unconfirmed") {
+			t.Fatalf("got (%q, %v), want refused claim-unconfirmed", res.Disposition, res.Findings)
+		}
+		if st := loadEpochState(t, repo, key); st != EpochActive {
+			t.Fatalf("a refused cancel must not fence: epoch state = %q", st)
+		}
+	})
 }
 
 // TestConcurrentEpochlessResumeEpochsFailSafe (change 0463 decision 4, a documenting

@@ -12,7 +12,9 @@
 // pins: the record's repository must be the current repository (LoadGateRecord fails
 // closed on wrong-repo), the presented epoch id must equal the record's public
 // EpochID, the record must carry a parent-held authority (a non-empty ParentCap),
-// and a CONFIRMED claim binding for the epoch's change must exist (LoadGateClaimBinding).
+// and a CONFIRMED claim binding for the epoch's change must exist (LoadGateClaimBinding)
+// — or, for a record armed by `gate-before --resume`, the resume-verified attribution
+// (AttributedID set, no claim binding at all), the shape resolveGateOwnership accepts.
 // Any missing/mismatched conjunct is a `refused` disposition with a bounded finding —
 // never a fence, never a stop.
 //
@@ -317,10 +319,24 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 	if berr != nil {
 		return cancelRefused("claim-unreadable")
 	}
-	if !ok || !binding.Confirmed {
+	ownerID := 0
+	switch {
+	case ok && binding.Confirmed:
+		ownerID = binding.ChangeID
+	case !ok && rec.AttributedID != 0 && rec.BoundRequestID == "":
+		// Resume-verified authority (change 0463): `gate-before --resume` pre-binds
+		// AttributedID through WorkspaceInspect identity and never gets a claim binding
+		// (change.claim requires a proposed change). It is the same shape
+		// resolveGateOwnership accepts as ownership. Without it, the epoch a resume arm
+		// mints could never be cancelled, and the next resume would refuse
+		// resume-active-run with a remedy that always refuses. Only a record with NO
+		// binding file qualifies: a reservation that exists but is unconfirmed still
+		// refuses below.
+		ownerID = rec.AttributedID
+	default:
 		return cancelRefused("claim-unconfirmed")
 	}
-	if ep.ChangeID != "" && strconv.Itoa(binding.ChangeID) != ep.ChangeID {
+	if ep.ChangeID != "" && strconv.Itoa(ownerID) != ep.ChangeID {
 		return cancelRefused("claim-mismatch")
 	}
 
