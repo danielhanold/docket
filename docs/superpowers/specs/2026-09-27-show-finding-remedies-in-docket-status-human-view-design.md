@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0456 — Show finding remedies in docket status human view](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0456-show-finding-remedies-in-docket-status-human-view.md)**
+> ↩ **[Change 0456 — Show finding remedies in docket status human view](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-27-0456-show-finding-remedies-in-docket-status-human-view.md)**
 <!-- docket:backlink:end -->
 
 # Status human view: all severities, grouped, with remedies — design
