@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-27T19:54:55Z'
+reconciled: true
+claimed_at: '2026-09-27T19:55:42Z'
 ---
 
 ## Artifacts
@@ -53,3 +53,9 @@ Change 0398 extended the testsupport temp-dir fixture and the TestRealProcessPac
 - Any change to the testsupport.TempDir fixture's own behavior, including new lifetime modes for the exempt sites.
 - Re-opening 0398's already-converted cmd/ sites.
 - os.CreateTemp (temp files) and calls through interface values or shadowing helpers.
+
+## Reconcile log
+
+### 2026-09-27
+
+2026-09-27 — Re-read against current main (86f14149). Both gaps are still present: internal/cli/gate_test.go still defines gateTempDir on os.MkdirTemp, and internal/repoguard/tempdir_fixture_test.go still walks a hand-listed scanRoots {internal, cmd}. No related or archived change has addressed either. Scope unchanged; the build re-derives the MkdirTemp exempt-site list by grep rather than trusting the spec's enumeration.
