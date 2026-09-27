@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0462 — Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal)](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md)**
+> ↩ **[Change 0462 — Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal)](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-27-0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md)**
 <!-- docket:backlink:end -->
 # Close the temp-dir fixture guard's remaining gaps — Implementation Plan
 
