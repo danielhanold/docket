@@ -13,7 +13,7 @@ related: [377]
 discovered_from: [377]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-09-27T11:42:40Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md) |
+| Plan | [2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md](https://github.com/danielhanold/docket/blob/feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars/docs/superpowers/plans/2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
