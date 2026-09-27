@@ -29,29 +29,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// gateTempDir is a temp dir whose cleanup tolerates the external supervisor's
-// brief exit window. Observe reports "passed" the instant the terminal record
-// lands, which can precede the supervisor's final same-directory atomic write
-// and lock release, so a single-shot RemoveAll (as t.TempDir does) races it and
-// fails "directory not empty". The retry loop lets the supervisor finish.
-func gateTempDir(t *testing.T) string {
-	t.Helper()
-	dir, err := os.MkdirTemp("", "docket-gate-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		for i := 0; i < 40; i++ {
-			if err := os.RemoveAll(dir); err == nil {
-				return
-			}
-			time.Sleep(50 * time.Millisecond)
-		}
-		_ = os.RemoveAll(dir)
-	})
-	return dir
-}
-
 // decodeOneJSON proves stdout is exactly one newline-terminated JSON document
 // and returns it decoded, mirroring the cmd/docket harness.
 func decodeOneJSON(t *testing.T, stdout string) map[string]any {
@@ -96,7 +73,7 @@ func TestGateGroupMissingCommand(t *testing.T) {
 // TestGateLaunchRequiresDashBoundary: the `--` argv boundary is mandatory, and
 // no positional words may precede it.
 func TestGateLaunchRequiresDashBoundary(t *testing.T) {
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	// No `--` at all: invalid input naming the requirement.
 	out, errS, code := runCLI(t, "gate", "launch", "--root", root, "--cwd", root)
 	if code != 2 || out != "" {
@@ -147,8 +124,8 @@ func pollObserveJSON(t *testing.T, runDir string) map[string]any {
 // TestGateLaunchJSONOneDocument drives a real supervised /bin/echo through the
 // CLI and proves the launch + observe protocol documents.
 func TestGateLaunchJSONOneDocument(t *testing.T) {
-	root := gateTempDir(t)
-	cwd := gateTempDir(t)
+	root := testsupport.TempDir(t)
+	cwd := testsupport.TempDir(t)
 	out, errS, code := runCLI(t, "--json", "gate", "launch", "--root", root, "--cwd", cwd, "--", "/bin/echo", "hi")
 	if code != 0 || errS != "" {
 		t.Fatalf("launch: out=%q err=%q code=%d", out, errS, code)
@@ -176,8 +153,8 @@ func TestGateLaunchJSONOneDocument(t *testing.T) {
 // TestGateStopAndRecoverWiring proves stop and recover reach the app layer and
 // carry their protocol documents.
 func TestGateStopAndRecoverWiring(t *testing.T) {
-	root := gateTempDir(t)
-	cwd := gateTempDir(t)
+	root := testsupport.TempDir(t)
+	cwd := testsupport.TempDir(t)
 	out, errS, code := runCLI(t, "--json", "gate", "launch", "--root", root, "--cwd", cwd, "--", "/bin/echo", "hi")
 	if code != 0 || errS != "" {
 		t.Fatalf("launch: out=%q err=%q code=%d", out, errS, code)
@@ -222,7 +199,7 @@ func TestGateStopAndRecoverWiring(t *testing.T) {
 
 	// recover --root <empty>: the nil-collection convention marshals an empty
 	// scan as "recovery":[], never an absent field.
-	out, errS, code = runCLI(t, "--json", "gate", "recover", "--root", gateTempDir(t))
+	out, errS, code = runCLI(t, "--json", "gate", "recover", "--root", testsupport.TempDir(t))
 	if code != 0 || errS != "" {
 		t.Fatalf("recover empty: out=%q err=%q code=%d", out, errS, code)
 	}
@@ -251,7 +228,7 @@ func gitCmd(t *testing.T, dir string, args ...string) {
 // non-bare repository with a resolvable HEAD.
 func gateDriveRepo(t *testing.T) string {
 	t.Helper()
-	dir := gateTempDir(t)
+	dir := testsupport.TempDir(t)
 	gitCmd(t, dir, "init", "-q", "-b", "main")
 	gitCmd(t, dir, "config", "user.email", "t@t")
 	gitCmd(t, dir, "config", "user.name", "t")
@@ -290,7 +267,7 @@ func gateDriveConfiguredRepo(t *testing.T, configBody string) string {
 	}
 	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
 
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	origin := filepath.Join(root, "origin.git")
 	writer := filepath.Join(root, "writer")
 	invocation := filepath.Join(root, "invocation")
@@ -329,7 +306,7 @@ func gateDriveConfiguredRepo(t *testing.T, configBody string) string {
 // exit 0.
 func TestGateDriveStartRunsToPassed(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo hi\n")
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if code != 0 || errS != "" {
 		t.Fatalf("start: out=%q err=%q code=%d", out, errS, code)
@@ -361,7 +338,7 @@ func TestGateDriveStartOwnerRoutesToOwnCommand(t *testing.T) {
 		"build:\n  gate: local\n  test_command: touch " + buildMarker + "\n" +
 		"finalize:\n  test_command: touch " + finalizeMarker + "\n"
 	wt := gateDriveConfiguredRepo(t, cfg)
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 
 	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if errS != "" {
@@ -385,7 +362,7 @@ func TestGateDriveStartOwnerRoutesToOwnCommand(t *testing.T) {
 // success (exit 0). The process exit MUST derive from the typed outcome instead.
 func TestGateDriveStartFailedIsNonZeroExit(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /usr/bin/false\n")
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if errS != "" {
 		t.Fatalf("start: err=%q", errS)
@@ -411,7 +388,7 @@ func TestGateDriveStartFailedIsNonZeroExit(t *testing.T) {
 // handoff, and claim are commandless — they never resolve config.
 func TestGateDriveAdvanceHandoffClaim(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo hi\n")
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	out, _, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if code != 0 {
 		t.Fatalf("start failed: %q", out)
@@ -466,7 +443,7 @@ func TestGateDriveAdvanceHandoffClaim(t *testing.T) {
 // gone: no drive start ever accepts an operator command.
 func TestGateDriveStartRequiresOwner(t *testing.T) {
 	wt := gateDriveRepo(t)
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	// Omitting --owner: cobra's required-flag check fails before RunE, exit 2.
 	_, _, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root)
 	if code != 2 {
@@ -493,7 +470,7 @@ func TestGateDriveStartRequiresOwner(t *testing.T) {
 func TestGateDriveStartNoCommandLeak(t *testing.T) {
 	const secret = "SENTINEL_no_leak_TOKEN_98217"
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo "+secret+"\n")
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	out, _, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if code != 0 {
 		t.Fatalf("start failed: %q", out)
@@ -567,7 +544,7 @@ func TestGateDrivePrepareScopeGrantAndRedaction(t *testing.T) {
 // fail-closed check.
 func TestGateDriveScopeBoundStartRoundTrips(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 
 	// Prepare a task recovery scope for this worktree.
 	out, errS, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
@@ -834,7 +811,7 @@ func TestGateDriveAcknowledgeRequiresFlags(t *testing.T) {
 // malformed successor start never consumes the predecessor.
 func TestGateDriveStartPredecessorPairBothOrNeither(t *testing.T) {
 	wt := gateDriveRepo(t)
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	_, errS, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt,
 		"--run-root", root, "--owner", "task", "--predecessor-drive-id", "prev", "--", "/bin/echo", "hi")
 	if code != 2 {
@@ -864,7 +841,7 @@ func TestGateDriveStartPredecessorPairBothOrNeither(t *testing.T) {
 // running under load (the Task-12 defect).
 func TestGateDriveStartOwnerTaskRunsArgv(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	out, errS, code := runCLI(t, "--json", "gate", "drive", "start",
 		"--repo-dir", wt, "--run-root", root, "--owner", "task", "--", "/bin/echo", "hi")
 	if code != 0 || errS != "" {
@@ -884,7 +861,7 @@ func TestGateDriveStartOwnerTaskRunsArgv(t *testing.T) {
 // contract, and never launches a drive.
 func TestGateDriveStartOwnerTaskRequiresArgv(t *testing.T) {
 	wt := gateDriveRepo(t)
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	_, errS, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "task")
 	if code != 2 {
 		t.Fatalf("task without argv: code=%d, want 2", code)
@@ -899,7 +876,7 @@ func TestGateDriveStartOwnerTaskRequiresArgv(t *testing.T) {
 // operator argv. Exit 2, no drive launched.
 func TestGateDriveStartBuildRejectsArgv(t *testing.T) {
 	wt := gateDriveRepo(t)
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	_, _, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build", "--", "/bin/echo")
 	if code != 2 {
 		t.Fatalf("build with argv: code=%d, want 2", code)
@@ -915,7 +892,7 @@ func TestGateDriveStartBuildRejectsArgv(t *testing.T) {
 // a bare `--`.
 func TestGateDriveStartRejectsPositionalBeforeDash(t *testing.T) {
 	wt := gateDriveRepo(t)
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	_, _, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "task", "/bin/echo")
 	if code != 2 {
 		t.Fatalf("positional without dash: code=%d, want 2", code)
@@ -1038,7 +1015,7 @@ func TestCLIDoesNotImportProcess(t *testing.T) {
 func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
 
-	out1, err1, code1 := runCLI(t, "--json", "gate", "launch", "--root", gateTempDir(t), "--cwd", wt, "--", "/bin/sleep", "60")
+	out1, err1, code1 := runCLI(t, "--json", "gate", "launch", "--root", testsupport.TempDir(t), "--cwd", wt, "--", "/bin/sleep", "60")
 	if code1 != 0 || err1 != "" {
 		t.Fatalf("first launch: out=%q err=%q code=%d", out1, err1, code1)
 	}
@@ -1051,7 +1028,7 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 	// would silently leave the live first run (and its supervisor) running.
 	t.Cleanup(func() { runCLI(t, "gate", "stop", runDir, "--reason", "test cleanup") })
 
-	out2, err2, code2 := runCLI(t, "--json", "gate", "launch", "--root", gateTempDir(t), "--cwd", wt, "--", "/bin/echo", "hi")
+	out2, err2, code2 := runCLI(t, "--json", "gate", "launch", "--root", testsupport.TempDir(t), "--cwd", wt, "--", "/bin/echo", "hi")
 	if err2 != "" {
 		t.Fatalf("second launch stderr=%q", err2)
 	}
