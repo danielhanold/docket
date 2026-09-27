@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // witness is the name-independent core prohibition harness.RecursionGuard
@@ -34,7 +36,7 @@ const witness = "Do not dispatch another"
 // on this first invocation.
 func TestDevelopmentInstallFreshRenderHandoff(t *testing.T) {
 	source := moduleRoot(t)
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 
 	// The "old installed binary": a stub whose renderer omits the witness. It is
 	// the absence control that makes the witness a real discriminator — a
@@ -91,7 +93,7 @@ func moduleRoot(t *testing.T) string {
 // line and exits 0, returning its path.
 func buildWitnesslessStub(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	src := filepath.Join(dir, "main.go")
 	const prog = "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(\"old installed binary: nothing to see here\") }\n"
 	if err := os.WriteFile(src, []byte(prog), 0o644); err != nil {
