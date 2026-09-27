@@ -32,4 +32,5 @@ Useful if you want to see the layout on docket's own repository, which currently
 
 - Focused tests: the 11 `TestStatusHumanText*` tests pass. Four existing golden tests were rewritten to the new layout, and six new tests were added (notices only, interleaved severities, single- and multi-line remedies, an empty severity emitting no heading, and singular versus plural counts).
 - Mutation probes: each of the five mutations named in the design turned at least one test red. The five were removing the notices group, swapping the group order, dropping the remedy line, counting notices against `ok`, and dropping the multi-line indent. The file was restored byte-identical afterwards.
+- Whole-branch review found one minor issue: a remedy with a blank line in the middle printed a line of four trailing spaces. It was fixed in-branch (commit a84e038f), and a regression test was added. No other findings.
 - `go test ./internal/app/` passed. The full configured suite runs at the build gate; its evidence is recorded in the PR.
