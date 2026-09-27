@@ -14,7 +14,7 @@ discovered_from: [398]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md'
 plan: 'docs/superpowers/plans/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md'
-results:
+results: 'docs/results/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-27T20:19:30Z'
 |---|---|
 | Spec | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-design.md) |
 | Plan | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md](https://github.com/danielhanold/docket/blob/chore/close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c/docs/superpowers/plans/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) |
+| Results | [2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-results.md](https://github.com/danielhanold/docket/blob/chore/close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c/docs/results/2026-09-27-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
