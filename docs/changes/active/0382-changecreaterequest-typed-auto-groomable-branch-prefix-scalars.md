@@ -2,7 +2,7 @@
 id: 382
 slug: 'changecreaterequest-typed-auto-groomable-branch-prefix-scalars'
 title: 'ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: feat
 created: '2026-08-31'
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-27T11:39:57Z'
 ---
 
 ## Artifacts
