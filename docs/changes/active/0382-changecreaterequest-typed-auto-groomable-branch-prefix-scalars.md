@@ -14,7 +14,7 @@ discovered_from: [377]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md'
 plan: 'docs/superpowers/plans/2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md'
-results:
+results: 'docs/results/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-results.md'
 trivial: false
 auto_groomable:
 branch: 'feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars'
@@ -31,6 +31,7 @@ claimed_at: '2026-09-27T17:49:58Z'
 |---|---|
 | Spec | [2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md) |
 | Plan | [2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md](https://github.com/danielhanold/docket/blob/feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars/docs/superpowers/plans/2026-09-27-0382-typed-auto-groomable-branch-prefix-and-abstain-rearm.md) |
+| Results | [2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-results.md](https://github.com/danielhanold/docket/blob/feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars/docs/results/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
