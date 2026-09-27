@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0455 — Document finalize's record-invalid reason in the docket-finalize-change skill](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md)**
+> ↩ **[Change 0455 — Document finalize's record-invalid reason in the docket-finalize-change skill](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-27-0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md)**
 <!-- docket:backlink:end -->
 # Document the `record-invalid` refusal — Implementation Plan
 
