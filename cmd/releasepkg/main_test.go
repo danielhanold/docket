@@ -17,6 +17,7 @@ import (
 var binPath string
 
 func TestMain(m *testing.M) {
+	// tempdir-exempt: TestMain builds the releasepkg binary once for the whole package; there is no t to own a fixture dir.
 	dir, err := os.MkdirTemp("", "releasepkg-bin-*")
 	if err != nil {
 		panic(err)

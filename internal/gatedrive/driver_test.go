@@ -145,6 +145,7 @@ var (
 
 func sampleWorktree() string {
 	sampleWorktreeOnce.Do(func() {
+		// tempdir-exempt: sample worktree built once under sampleWorktreeOnce and shared across tests for the process lifetime.
 		dir, err := os.MkdirTemp("", "gatedrive-sample-worktree-")
 		if err != nil {
 			panic("gatedrive test: mkdir sample worktree: " + err.Error())

@@ -19,6 +19,7 @@ import (
 var binPath string
 
 func TestMain(m *testing.M) {
+	// tempdir-exempt: TestMain builds the docket binary once for the whole package; there is no t to own a fixture dir.
 	dir, err := os.MkdirTemp("", "docket-bin-*")
 	if err != nil {
 		panic(err)
