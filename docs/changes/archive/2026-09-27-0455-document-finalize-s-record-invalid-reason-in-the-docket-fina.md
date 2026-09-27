@@ -2,7 +2,7 @@
 id: 455
 slug: 'document-finalize-s-record-invalid-reason-in-the-docket-fina'
 title: 'Document finalize''s record-invalid reason in the docket-finalize-change skill'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-24'
@@ -22,7 +22,7 @@ branch: 'docs/document-finalize-s-record-invalid-reason-in-the-docket-fina'
 pr: 'https://github.com/danielhanold/docket/pull/339'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T10:04:32Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-27T10:04:32Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-design.md) |
-| Plan | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina.md](https://github.com/danielhanold/docket/blob/docs/document-finalize-s-record-invalid-reason-in-the-docket-fina/docs/superpowers/plans/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) |
-| Results | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-results.md](https://github.com/danielhanold/docket/blob/docs/document-finalize-s-record-invalid-reason-in-the-docket-fina/docs/results/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-results.md) |
+| Plan | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) |
+| Results | [2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-27-document-finalize-s-record-invalid-reason-in-the-docket-fina-results.md) |
 | ADRs | [ADR-0127](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0127-scoped-metadata-validation-for-named-operations.md) |
 <!-- docket:artifacts:end -->
 
