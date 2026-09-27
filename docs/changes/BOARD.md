@@ -26,8 +26,8 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0455](active/0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | `medium` | `docs` | build-ready (trivial) |
 | [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-brainstorm |
-| [0455](active/0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | `medium` | `docs` | needs-brainstorm |
 | [0447](active/0447-repository-check-flags-docket-s-own-single-quoted-frontmatte.md) | repository check flags docket's own single-quoted frontmatter as needing manual review | `medium` | `fix` | needs-brainstorm |
 | [0443](active/0443-clarify-gate-operation-ids-versus-executable-argv.md) | Clarify gate operation IDs versus executable argv | `low` | `docs` | needs-brainstorm |
 | [0433](active/0433-pilot-top-level-codex-coordinators-with-one-level-native-dis.md) | Pilot top-level Codex coordinators with one-level native dispatch | `high` | `refactor` | needs-brainstorm |
