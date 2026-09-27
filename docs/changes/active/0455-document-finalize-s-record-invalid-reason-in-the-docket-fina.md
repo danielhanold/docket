@@ -22,7 +22,7 @@ branch: 'docs/document-finalize-s-record-invalid-reason-in-the-docket-fina'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-27T10:00:41Z'
+claimed_at: '2026-09-27T10:04:32Z'
 ---
 
 ## Artifacts
