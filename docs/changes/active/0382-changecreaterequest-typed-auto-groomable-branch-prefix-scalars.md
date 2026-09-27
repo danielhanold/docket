@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/changecreaterequest-typed-auto-groomable-branch-prefix-scalars'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-27T11:39:57Z'
+reconciled: true
+claimed_at: '2026-09-27T11:40:35Z'
 ---
 
 ## Artifacts
@@ -62,3 +62,7 @@ Detailed design: the linked spec.
 - Other frontmatter fields `change.create` does not accept today.
 
 ## Reconcile log
+
+### 2026-09-27
+
+2026-09-27 — Reconciled against origin/main e244dfd26. Spec was authored today; traced current code: ChangeCreateRequest still lacks auto_groomable/branch_prefix, no NormalizeBranchPrefix exists, change.groom outcomes are still spec|trivial|revise (0445 recently landed revise refinements, including dropping spec_path — compatible with this design). No scope change.
