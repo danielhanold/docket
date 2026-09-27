@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0382 — ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md)**
+> ↩ **[Change 0382 — ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-27-0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md)**
 <!-- docket:backlink:end -->
 # ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars — Results
 
