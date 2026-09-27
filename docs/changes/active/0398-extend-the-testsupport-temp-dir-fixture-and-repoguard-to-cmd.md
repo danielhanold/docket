@@ -14,7 +14,7 @@ discovered_from: [373]
 adrs: [108]
 spec: 'docs/superpowers/specs/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md'
 plan: 'docs/superpowers/plans/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md'
-results:
+results: 'docs/results/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-27T11:23:06Z'
 |---|---|
 | Spec | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-design.md) |
 | Plan | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md](https://github.com/danielhanold/docket/blob/chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd/docs/superpowers/plans/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) |
+| Results | [2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-results.md](https://github.com/danielhanold/docket/blob/chore/extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd/docs/results/2026-09-27-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
