@@ -17,10 +17,11 @@ var _ OperationResult = StatusResult{}
 // report), in fixed section order: (1) repository mode and short authoritative
 // revisions; (2) complete and displayed counts; (3) the ordered ready queue;
 // (4) one line per displayed active change; (5) health totals followed by the
-// ordered error and warning findings. Every empty state — an empty ready queue,
-// an empty displayed projection, and a healthy repository — is an explicit line
-// rather than a missing section. Only branch names and revisions carry the
-// repository's identity; no host-absolute path is printed. Matches
+// errors, warnings, and notices, each under its own heading, with each
+// finding's remedy on an indented continuation line. Every empty state — an
+// empty ready queue, an empty displayed projection, and a healthy repository —
+// is an explicit line rather than a missing section. Only branch names and
+// revisions carry the repository's identity; no host-absolute path is printed. Matches
 // ConfigInspectionResult.HumanText's strings.Builder / TrimRight register.
 func (r StatusResult) HumanText() string {
 	var b strings.Builder
@@ -70,26 +71,39 @@ func (r StatusResult) HumanText() string {
 		}
 	}
 
-	// 5. health totals, then error findings then warning findings, each group in
-	// landed report order. Counts come from the findings themselves so the header
-	// can never disagree with the rows beneath it (the ConfigInspectionResult
-	// blockerCount pattern). A repository with neither is an explicit ok line.
-	errs, warns := countFindings(r.Findings)
+	// 5. health totals, then one block per non-empty severity — errors,
+	// warnings, notices, in that fixed order — each preceded by a blank line and
+	// its heading, rows in landed report order. Counts come from the rendered
+	// findings themselves so the header can never disagree with the rows beneath
+	// it (the ConfigInspectionResult blockerCount pattern). Notices never make a
+	// repository unhealthy: ok still means zero errors and zero warnings.
+	errs, warns, notices := countFindings(r.Findings)
 	if errs == 0 && warns == 0 {
-		b.WriteString("\nhealth: ok (0 errors, 0 warnings)\n")
-	} else {
-		fmt.Fprintf(&b, "\nhealth: %d %s, %d %s\n",
+		fmt.Fprintf(&b, "\nhealth: ok (%d %s, %d %s, %d %s)\n",
 			errs, pluralize(errs, "error", "errors"),
-			warns, pluralize(warns, "warning", "warnings"))
+			warns, pluralize(warns, "warning", "warnings"),
+			notices, pluralize(notices, "notice", "notices"))
+	} else {
+		fmt.Fprintf(&b, "\nhealth: %d %s, %d %s, %d %s\n",
+			errs, pluralize(errs, "error", "errors"),
+			warns, pluralize(warns, "warning", "warnings"),
+			notices, pluralize(notices, "notice", "notices"))
+	}
+	for _, group := range []struct{ severity, heading string }{
+		{"error", "errors"},
+		{"warning", "warnings"},
+		{"notice", "notices"},
+	} {
+		wroteHeading := false
 		for _, f := range r.Findings {
-			if f.Severity == "error" {
-				writeFinding(&b, f)
+			if f.Severity != group.severity {
+				continue
 			}
-		}
-		for _, f := range r.Findings {
-			if f.Severity == "warning" {
-				writeFinding(&b, f)
+			if !wroteHeading {
+				fmt.Fprintf(&b, "\n%s:\n", group.heading)
+				wroteHeading = true
 			}
+			writeFinding(&b, f)
 		}
 	}
 
@@ -127,29 +141,47 @@ func effectiveBase(base string) string {
 	return base
 }
 
-// countFindings tallies the error and warning severities the human report
-// surfaces; other severities (e.g. notice) are not part of the health totals.
-func countFindings(findings []StatusFinding) (errs, warns int) {
+// countFindings tallies every severity the human report surfaces — the status
+// DTO's closed set of error, warning, and notice. Any other severity string is
+// counted nowhere; the renderer deliberately has no catch-all group.
+func countFindings(findings []StatusFinding) (errs, warns, notices int) {
 	for _, f := range findings {
 		switch f.Severity {
 		case "error":
 			errs++
 		case "warning":
 			warns++
+		case "notice":
+			notices++
 		}
 	}
-	return errs, warns
+	return errs, warns, notices
 }
 
-// writeFinding renders one finding row: the padded severity, its code, a
-// locator when the finding names an entity or a path, and the explanatory
-// message — mirroring ConfigInspectionResult's diagnostics rows.
+// writeFinding renders one finding row — its code, a locator when the finding
+// names an entity or a path, and the explanatory message — followed, when the
+// finding carries a remedy, by a four-space-indented "remedy:" continuation
+// block. The severity column is gone: the group heading above the row carries
+// it. A multi-line remedy keeps every subsequent line at the same four-space
+// column so the block cannot collapse into the next row; trailing newlines are
+// trimmed, and an empty remedy emits nothing.
 func writeFinding(b *strings.Builder, f StatusFinding) {
-	fmt.Fprintf(b, "  %-7s %s", f.Severity, f.Code)
+	fmt.Fprintf(b, "  %s", f.Code)
 	if loc := findingLocator(f); loc != "" {
 		fmt.Fprintf(b, " %s", loc)
 	}
 	fmt.Fprintf(b, " — %s\n", f.Message)
+	remedy := strings.TrimRight(f.Remedy, "\n")
+	if remedy == "" {
+		return
+	}
+	for i, line := range strings.Split(remedy, "\n") {
+		if i == 0 {
+			fmt.Fprintf(b, "    remedy: %s\n", line)
+		} else {
+			fmt.Fprintf(b, "    %s\n", line)
+		}
+	}
 }
 
 // findingLocator names what a finding is about: an entity plus its identity and
