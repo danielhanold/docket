@@ -6,6 +6,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -1147,5 +1148,197 @@ func TestChangeGroomResultHumanTextAbstain(t *testing.T) {
 	r := newChangeGroomResult(ResultApplied, ChangeGroomResult{ID: 7, Outcome: string(GroomAbstain), Revision: "cafe"})
 	if got, want := r.HumanText(), "change 0007 auto-groom abstained — cafe"; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
+	}
+}
+
+// rearmRequest is a well-formed rearm request against the fixture at id 2.
+func rearmRequest() ChangeGroomRequest {
+	return ChangeGroomRequest{
+		ChangeID: 2,
+		Path:     groomPath(2, "add-a-widget"),
+		Version:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Outcome:  GroomRearm,
+	}
+}
+
+func TestChangeGroomRearmShapeValidation(t *testing.T) {
+	cases := []struct {
+		name string
+		mut  func(*ChangeGroomRequest)
+		code string
+	}{
+		{"bare rearm passes", func(r *ChangeGroomRequest) {}, ""},
+		{"rearm with owned-section edits passes", func(r *ChangeGroomRequest) {
+			r.Sections = []SectionEditRequest{{Heading: "## Open questions", Intent: "replace", Markdown: "Resolved.\n"}}
+		}, ""},
+		{"rearm with blocked_note", func(r *ChangeGroomRequest) { r.BlockedNote = "x\n" }, "invalid-blocked_note"},
+		{"rearm with spec_markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "# Design\n" }, "invalid-spec_markdown"},
+		{"rearm with spec_version", func(r *ChangeGroomRequest) { r.SpecVersion = "a" }, "invalid-spec_version"},
+		// Review Focus 5: the op removes this section itself.
+		{"rearm editing ## Auto-groom blocked", func(r *ChangeGroomRequest) {
+			r.Sections = []SectionEditRequest{{Heading: "## Auto-groom blocked", Intent: "replace", Markdown: "x\n"}}
+		}, "invalid-section-heading"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := rearmRequest()
+			c.mut(&req)
+			findings := validateChangeGroomShape(req)
+			if c.code == "" {
+				if len(findings) != 0 {
+					t.Fatalf("want no findings, got %v", findings)
+				}
+				return
+			}
+			if !hasFindingCode(findings, c.code) {
+				t.Errorf("missing finding %q; got %v", c.code, findings)
+			}
+		})
+	}
+}
+
+func TestChangeGroomPlanRearmClearsSectionSetsFlagAndBoard(t *testing.T) {
+	files := map[string]string{
+		groomPath(2, "add-a-widget"): abstainedChange(2, "add-a-widget"),
+		"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
+	}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, rearmRequest()))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if strings.Contains(rec, "## Auto-groom blocked") || strings.Contains(rec, "First note.") {
+		t.Errorf("re-arm left the presence-encoded section behind:\n%s", rec)
+	}
+	if !strings.Contains(rec, "\nauto_groomable: true\n") || strings.Contains(rec, "auto_groomable: false") {
+		t.Errorf("re-arm did not set auto_groomable: true:\n%s", rec)
+	}
+	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
+	if strings.Contains(board, "auto-groom blocked — needs you") || !strings.Contains(board, "needs-brainstorm") {
+		t.Errorf("board row did not return to needs-brainstorm in the same plan:\n%s", board)
+	}
+	var receipt changeGroomReceipt
+	if err := json.Unmarshal(plan.Receipt, &receipt); err != nil || receipt.Outcome != "rearm" {
+		t.Errorf("receipt = %s (%v), want outcome rearm", plan.Receipt, err)
+	}
+}
+
+func TestChangeGroomPlanRearmAppliesSectionEditsInOneRecord(t *testing.T) {
+	req := rearmRequest()
+	req.Sections = []SectionEditRequest{{Heading: "## Open questions", Intent: "replace", Markdown: "Resolved: use SQLite.\n"}}
+	files := map[string]string{groomPath(2, "add-a-widget"): abstainedChange(2, "add-a-widget")}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{groomPath(2, "add-a-widget"): transaction.MutationReplace})
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if !strings.Contains(rec, "Resolved: use SQLite.") || strings.Contains(rec, "An open question.") || strings.Contains(rec, "## Auto-groom blocked") {
+		t.Errorf("section edit and section removal did not both land:\n%s", rec)
+	}
+}
+
+func TestChangeGroomPlanRearmArmsWithoutABlockedSection(t *testing.T) {
+	cases := []struct {
+		name string
+		rec  string
+	}{
+		// Review Focus 4: the key is inserted when absent (inherit ⇒ explicit true).
+		{"field absent", groomableChange(2, "add-a-widget")},
+		{"opted out", strings.Replace(groomableChange(2, "add-a-widget"), "trivial: false\n", "trivial: false\nauto_groomable: false\n", 1)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			plan, opRes := groomPlanFor(t, map[string]string{groomPath(2, "add-a-widget"): c.rec}, baseGroomOp([]string{}, rearmRequest()))
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			if rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget"))); !strings.Contains(rec, "\nauto_groomable: true\n") {
+				t.Errorf("auto_groomable: true not written:\n%s", rec)
+			}
+		})
+	}
+}
+
+func TestChangeGroomPlanRearmRefusals(t *testing.T) {
+	armed := strings.Replace(groomableChange(2, "add-a-widget"), "trivial: false\n", "trivial: false\nauto_groomable: true\n", 1)
+	cases := []struct {
+		name  string
+		files map[string]string
+		code  string
+	}{
+		{"nothing to re-arm", map[string]string{groomPath(2, "add-a-widget"): armed}, "nothing-to-rearm"},
+		{"trivial", map[string]string{groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget")}, "not-groomable"},
+		{"spec'd", reviseFixtureFiles(), "not-groomable"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			plan, opRes := groomPlanFor(t, c.files, baseGroomOp([]string{}, rearmRequest()))
+			if !opRes.Refused || len(plan.Files) != 0 {
+				t.Fatalf("want a refusal writing nothing, got refused=%v files=%v", opRes.Refused, planPaths(plan))
+			}
+			found := false
+			for _, f := range opRes.Findings {
+				found = found || f.Code == c.code
+			}
+			if !found {
+				t.Errorf("missing %q; got %v", c.code, opRes.Findings)
+			}
+		})
+	}
+}
+
+func TestChangeGroomResultHumanTextRearm(t *testing.T) {
+	r := newChangeGroomResult(ResultApplied, ChangeGroomResult{ID: 7, Outcome: string(GroomRearm), Revision: "cafe"})
+	if got, want := r.HumanText(), "change 0007 re-armed for auto-groom — cafe"; got != want {
+		t.Errorf("HumanText = %q, want %q", got, want)
+	}
+}
+
+// TestChangeGroomAbstainThenRearmRealGit drives both outcomes through the real
+// engine and a bare origin: the abstain lands the record and BOARD.md in ONE
+// commit; a re-arm pinned to the pre-abstain version contends and writes
+// nothing; a re-arm at the current version restores needs-brainstorm.
+func TestChangeGroomAbstainThenRearmRealGit(t *testing.T) {
+	requireRealGit(t)
+	recPath := groomPath(2, "add-a-widget")
+	repo := newWorkingRepo(t, map[string]string{recPath: groomableChange(2, "add-a-widget")})
+	node := planningDepsFor(t, repo.invocation)
+
+	ab := abstainRequest()
+	ab.Version = blobVersionAt(t, repo.origin, "docket", recPath)
+	if res := ChangeGroom(context.Background(), node.deps, node.dir, ab); res.Result != ResultApplied {
+		t.Fatalf("abstain = %q (findings %v), want applied", res.Result, res.Findings)
+	}
+	tip := originTip(t, repo.origin, "docket")
+	paths := originCommitPaths(t, repo.origin, tip)
+	if !slices.Contains(paths, recPath) || !slices.Contains(paths, "docs/changes/BOARD.md") {
+		t.Fatalf("abstain commit paths = %v, want the record and BOARD.md in one commit", paths)
+	}
+	if board, _ := originFile(t, repo.origin, "docket", "docs/changes/BOARD.md"); !strings.Contains(board, "auto-groom blocked — needs you") {
+		t.Errorf("committed board does not show the abstain:\n%s", board)
+	}
+
+	stale := rearmRequest()
+	stale.Version = ab.Version // pre-abstain pin
+	if res := ChangeGroom(context.Background(), node.deps, node.dir, stale); res.Result != ResultContended {
+		t.Fatalf("stale re-arm = %q (findings %v), want contended", res.Result, res.Findings)
+	}
+	if got := originTip(t, repo.origin, "docket"); got != tip {
+		t.Fatalf("a contended re-arm moved the metadata branch %s -> %s", tip, got)
+	}
+
+	fresh := rearmRequest()
+	fresh.Version = blobVersionAt(t, repo.origin, "docket", recPath)
+	if res := ChangeGroom(context.Background(), node.deps, node.dir, fresh); res.Result != ResultApplied {
+		t.Fatalf("re-arm = %q (findings %v), want applied", res.Result, res.Findings)
+	}
+	rec, _ := originFile(t, repo.origin, "docket", recPath)
+	board, _ := originFile(t, repo.origin, "docket", "docs/changes/BOARD.md")
+	if strings.Contains(rec, "## Auto-groom blocked") || !strings.Contains(rec, "\nauto_groomable: true\n") {
+		t.Errorf("re-armed record:\n%s", rec)
+	}
+	if strings.Contains(board, "auto-groom blocked — needs you") {
+		t.Errorf("committed board still shows the abstain after re-arm:\n%s", board)
 	}
 }
