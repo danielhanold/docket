@@ -498,3 +498,48 @@ func writeRawGateRecord(t *testing.T, root, key, tmpl string) {
 		t.Fatalf("write raw record: %v", err)
 	}
 }
+
+// TestGateArmedLineIsAlwaysThreeTokens (change 0463): every armed result a real arm
+// produces (fresh, epochless resume, cancelled-replacement resume) prints a first
+// line of exactly four space-separated fields. Field 3 is the epoch and field 4 is
+// the dispatch context, so a positional parser can never read the dispatch context
+// as the epoch.
+func TestGateArmedLineIsAlwaysThreeTokens(t *testing.T) {
+	check := func(t *testing.T, res RunGateBeforeResult) {
+		t.Helper()
+		if !res.Armed {
+			t.Fatalf("did not arm: %q", res.HumanText())
+		}
+		first := strings.SplitN(res.HumanText(), "\n", 2)[0]
+		fields := strings.Fields(first)
+		if len(fields) != 4 || fields[0] != "gate-armed" {
+			t.Fatalf("armed line %q: want exactly `gate-armed <key> <epoch> <dispatch-context>`", first)
+		}
+		if fields[1] != res.Key || fields[2] != res.Epoch || fields[3] != res.DispatchContext {
+			t.Fatalf("armed line %q: fields (%q,%q,%q), want (key %q, epoch %q, dispatch context %q)",
+				first, fields[1], fields[2], fields[3], res.Key, res.Epoch, res.DispatchContext)
+		}
+		if res.Epoch == "" || res.Epoch == res.DispatchContext {
+			t.Fatalf("epoch %q must be a distinct non-empty token from the dispatch context %q", res.Epoch, res.DispatchContext)
+		}
+	}
+	t.Run("fresh arm", func(t *testing.T) {
+		repo := newGateRepo(t)
+		deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+		sp := &fakeScopePrep{grant: sampleScopeGrant()}
+		check(t, RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0))
+	})
+	t.Run("epochless resume", func(t *testing.T) {
+		repoDir := newWorkingRepo(t, nil).invocation
+		deps, wdeps := resumeEpochDeps(t)
+		sp := &fakeScopePrep{grant: sampleScopeGrant()}
+		check(t, RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5))
+	})
+	t.Run("cancelled-replacement resume", func(t *testing.T) {
+		repoDir := newWorkingRepo(t, nil).invocation
+		seedPriorEpoch(t, repoDir, EpochCancelled)
+		deps, wdeps := resumeEpochDeps(t)
+		sp := &fakeScopePrep{grant: sampleScopeGrant()}
+		check(t, RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5))
+	})
+}
