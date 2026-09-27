@@ -6,13 +6,13 @@ status: proposed
 priority: medium
 type: feat
 created: '2026-08-31'
-updated: '2026-08-31'
+updated: '2026-09-27'
 depends_on: []
 stacked_on:
 related: [377]
 discovered_from: [377]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md'
 plan:
 results:
 trivial: false
@@ -26,6 +26,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -40,22 +43,21 @@ routed change creation through the native op.
 
 ## What changes
 
-Extend `ChangeCreateRequest` (and the `docket change create` CLI verb) to accept optional typed
-`auto_groomable` (tri-state) and `branch_prefix` (single unqualified path component) inputs, apply
-the same write-boundary validation/quoting the op already gives other scalars, and retire the
-post-mint frontmatter-edit bridge in `docket-new-change` so both fields flow through the one typed
-create path.
+Every write of a change's `auto_groomable` and `branch_prefix` scalars moves onto a typed, validated, board-refreshing operation, and the plain-git frontmatter edits in the skills are retired:
+
+- **Create.** `change.create` accepts optional `auto_groomable` (tri-state) and `branch_prefix`. `docket-new-change` passes them in the create request instead of hand-editing the record afterwards.
+- **Branch-prefix normalization moves into Go.** A new `domain.NormalizeBranchPrefix` trims whitespace and strips one trailing slash, then applies the existing `ValidBranchComponent` rules. A bad prefix is refused at create time (`invalid-branch_prefix`) instead of failing later at claim inside an autonomous run. The skill no longer carries its own normalization rules.
+- **Auto-groom abstain and re-arm become typed.** `change.groom` gains `outcome: abstain` (sets `auto_groomable: false` and appends a dated `## Auto-groom blocked` entry) and `outcome: rearm` (sets `auto_groomable: true`, removes the section, and optionally applies owned-section edits). Both run under the pinned-version CAS and re-render the board in the same commit. This fixes today's stale-board defect: a plain-git abstain or re-arm flips the board's "auto-groom blocked — needs you" cell without re-rendering `BOARD.md`.
+- **Skills and docs updated.** `docket-auto-groom`, the convention's *Autonomous grooming* section, and `docket-groom-next` are updated to match, including removing the false claim that an abstain "changes no board-visible cell".
+
+Detailed design: the linked spec.
 
 ## Out of scope
 
-- Any change to the *meaning* of `auto_groomable` or `branch_prefix` (the tri-state inheritance and
-  the branch-prefix normalization/refusal rules are unchanged) — this is a plumbing fix only.
-- Other frontmatter fields not currently accepted by the create op.
-
-## Open questions
-
-- Whether `branch_prefix` validation (strip one trailing slash; refuse slash-embedded / `refs/`
-  values) belongs in the op or stays in the calling skill.
-- Whether any other current caller relies on the post-mint edit bridge.
+- Any change to the *meaning* of `auto_groomable` or `branch_prefix` (tri-state inheritance, how claim consumes the prefix).
+- Moving auto-groom selection or eligibility into Go.
+- Case-normalizing `branch_prefix`, or rewriting `refs/heads/<x>` to `<x>`.
+- Normalizing prefixes on existing records, or loosening claim-time validation.
+- Other frontmatter fields `change.create` does not accept today.
 
 ## Reconcile log

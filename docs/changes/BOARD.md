@@ -1,6 +1,6 @@
 # Backlog
 
-**461 changes** — 🟢 2 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 312 done · 🗑️ 119 killed
+**461 changes** — 🟢 2 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 312 done · 🗑️ 119 killed
 
 ## 🟢 In progress (2)
 
@@ -15,15 +15,16 @@
 |---|-------|----------|------|----|--------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
 
-## 🟣 Groomed (3)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | [spec](../superpowers/specs/2026-09-27-changecreaterequest-typed-auto-groomable-branch-prefix-scalars-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (12)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -33,7 +34,6 @@
 | [0412](active/0412-forked-implement-next-build-agent-still-backgrounds-the-gate.md) | Forked implement-next/build agent still backgrounds the gate driver and yields (recurring suite-gate yield-wedge) | `critical` | `fix` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
 | [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-brainstorm |
-| [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | needs-brainstorm |
 | [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
