@@ -674,6 +674,8 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 			}
 		} else if fe, ok := AsMutationFenceError(err); ok {
 			result.Message = fenceNextAction(fe.Reason)
+		} else if _, reason, ok := ClassifyRunEpochError(err); ok {
+			result.Message = RunEpochNextAction(reason)
 		}
 		return result
 	}
@@ -704,6 +706,13 @@ func mapDriveFailure(err error) (Result, string) {
 	// record content, argv, env, or a credential.
 	if fe, ok := AsMutationFenceError(err); ok {
 		return ResultInvalidInput, fe.Reason
+	}
+	// A run-epoch registry failure (the epoch launch gate could not resolve the
+	// presented --run-epoch) surfaces its named token rather than collapsing to the
+	// generic invalid-request (change 0463): unknown-run-epoch for a not-found epoch,
+	// the kind for any other registry fault.
+	if res, reason, ok := ClassifyRunEpochError(err); ok {
+		return res, reason
 	}
 	if se, ok := gatedrive.AsStoreError(err); ok {
 		switch se.Kind {
