@@ -359,3 +359,25 @@ func TestReclaimPreservesBranchPrefix(t *testing.T) {
 		t.Errorf("branch_prefix = %+v, want preserved {Present hotfix}", bp)
 	}
 }
+
+func TestReclaimPreservesAutoGroomable(t *testing.T) {
+	// The change builder seeds every durable input, auto_groomable included: a
+	// domain transition must never drop the human's override.
+	want := OptionalBool{State: FieldPresent, Value: true, Raw: "true"}
+	c := NewChange(ChangeSpec{
+		ID:            7,
+		Slug:          "lease-slug",
+		Type:          "fix",
+		Status:        StatusInProgress,
+		RawStatus:     string(StatusInProgress),
+		ClaimedAt:     leaseStamp(-10 * time.Hour),
+		AutoGroomable: want,
+	})
+	got, fail := Reclaim(c, leaseNow, leaseTTL, leaseBranches())
+	if fail != nil {
+		t.Fatalf("Reclaim failed: %v", fail)
+	}
+	if ag := got.Change.AutoGroomable(); ag != want {
+		t.Errorf("auto_groomable = %+v, want preserved %+v", ag, want)
+	}
+}

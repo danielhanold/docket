@@ -35,6 +35,16 @@ type OptionalInt struct {
 	Raw   string
 }
 
+// OptionalBool is an optional tri-state boolean field: absent or valueless
+// (inherit a default) stays distinguishable from an explicit false. Raw carries
+// the stored text whenever State != FieldAbsent, so a malformed value stays
+// reportable; Value is meaningful only when State is FieldPresent.
+type OptionalBool struct {
+	State FieldState
+	Value bool
+	Raw   string
+}
+
 // OptionalTime is an optional date or timestamp field. Raw carries the stored
 // text whenever State != FieldAbsent; Value is meaningful only when the state
 // is FieldPresent.
@@ -80,6 +90,7 @@ type ChangeSpec struct {
 	Plan           OptionalString
 	Results        OptionalString
 	Trivial        bool
+	AutoGroomable  OptionalBool   // per-change auto-groom override; unset ⇒ inherit auto_groom
 	BranchPrefix   OptionalString // per-change mint-prefix override; durable input
 	Branch         OptionalString
 	ClaimedAt      OptionalTime // second-precision UTC; Raw kept
@@ -169,6 +180,10 @@ func (c Change) Results() OptionalString { return c.spec.Results }
 
 // Trivial reports whether the change is marked trivial.
 func (c Change) Trivial() bool { return c.spec.Trivial }
+
+// AutoGroomable returns the optional per-change auto-groom override. Unset
+// (absent or valueless) means the repository's auto_groom knob applies.
+func (c Change) AutoGroomable() OptionalBool { return c.spec.AutoGroomable }
 
 // BranchPrefix returns the optional per-change mint-prefix override. It is
 // durable human input consumed only at claim time; once branch: is populated

@@ -120,6 +120,7 @@ type changeWire struct {
 	Plan           scalar     `yaml:"plan"`
 	Results        scalar     `yaml:"results"`
 	Trivial        scalar     `yaml:"trivial"`
+	AutoGroomable  scalar     `yaml:"auto_groomable"`
 	BranchPrefix   scalar     `yaml:"branch_prefix"`
 	Branch         scalar     `yaml:"branch"`
 	ClaimedAt      scalar     `yaml:"claimed_at"`
@@ -281,6 +282,29 @@ func (d *decoder) boolean(name string, s scalar) bool {
 	}
 	d.malformed(name, s.raw)
 	return false
+}
+
+// optionalBool converts a scalar into a tri-state boolean: absent and valueless
+// stay distinguishable from an explicit false, and a value that is not a YAML
+// boolean is a finding, never a silent true or false.
+func (d *decoder) optionalBool(name string, s scalar) domain.OptionalBool {
+	switch d.state(name, s) {
+	case domain.FieldAbsent:
+		return domain.OptionalBool{}
+	case domain.FieldEmpty:
+		return domain.OptionalBool{State: domain.FieldEmpty}
+	case domain.FieldMalformed:
+		d.malformed(name, s.raw)
+		return domain.OptionalBool{State: domain.FieldMalformed, Raw: s.raw}
+	}
+	switch s.raw {
+	case "true":
+		return domain.OptionalBool{State: domain.FieldPresent, Value: true, Raw: s.raw}
+	case "false":
+		return domain.OptionalBool{State: domain.FieldPresent, Value: false, Raw: s.raw}
+	}
+	d.malformed(name, s.raw)
+	return domain.OptionalBool{State: domain.FieldMalformed, Raw: s.raw}
 }
 
 // integer converts a required numeric identity field, reporting an unusable
@@ -495,6 +519,7 @@ func decodeChange(in InputDocument) (domain.Change, []domain.Finding) {
 	spec.Plan = d.optionalString("plan", wire.Plan)
 	spec.Results = d.optionalString("results", wire.Results)
 	spec.Trivial = d.boolean("trivial", wire.Trivial)
+	spec.AutoGroomable = d.optionalBool("auto_groomable", wire.AutoGroomable)
 	spec.BranchPrefix = d.optionalString("branch_prefix", wire.BranchPrefix)
 	spec.Branch = d.optionalString("branch", wire.Branch)
 	spec.ClaimedAt = d.optionalTime("claimed_at", wire.ClaimedAt, stampLayout)
