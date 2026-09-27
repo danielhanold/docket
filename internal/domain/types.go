@@ -276,6 +276,26 @@ func ValidBranchComponent(s string) bool {
 	return true
 }
 
+// NormalizeBranchPrefix canonicalizes an authored branch_prefix before it is
+// stored: it trims surrounding whitespace, strips exactly one trailing "/"
+// (a presentation-only spelling), and lowercases the result — branch prefixes
+// are lowercase-only, like the change-type token grammar. An empty result means
+// unset ("", true). Anything else must satisfy ValidBranchComponent, the same
+// rule domain.Claim applies at mint time, so a stored prefix can never fail at
+// claim. A slash-embedded or refs/-qualified value is refused, never rewritten.
+func NormalizeBranchPrefix(raw string) (string, bool) {
+	s := strings.TrimSpace(raw)
+	s = strings.TrimSuffix(s, "/")
+	s = strings.ToLower(s)
+	if s == "" {
+		return "", true
+	}
+	if !ValidBranchComponent(s) {
+		return "", false
+	}
+	return s, true
+}
+
 // MintBranch constructs the full feature-branch name a claim records:
 // (branch_prefix when present and non-empty, otherwise the change type) +
 // "/" + slug. This is the ONLY branch-name constructor; every post-claim
