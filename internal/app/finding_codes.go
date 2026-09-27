@@ -102,6 +102,7 @@ const (
 	// can produce, so the vocabulary is closed over every value that can appear.
 	FCInvalidRequestID          FindingCode = "invalid-request_id"
 	FCInvalidStackedOn          FindingCode = "invalid-stacked_on"
+	FCInvalidBranchPrefix       FindingCode = "invalid-branch_prefix"
 	FCEmptyTitle                FindingCode = "empty-title"
 	FCEmptyWhy                  FindingCode = "empty-why"
 	FCEmptyWhatChanges          FindingCode = "empty-what_changes"
@@ -228,6 +229,7 @@ var AllFindingCodes = []FindingCode{
 	FindingCode(ReasonStatusInterrupted),
 	FCInvalidADRs,
 	FCInvalidAttempt,
+	FCInvalidBranchPrefix,
 	FCInvalidChangeDotID,
 	FCInvalidChangeID,
 	FCInvalidChanges,

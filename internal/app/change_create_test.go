@@ -466,3 +466,171 @@ func TestChangeCreateRecordHasNoRepairFindings(t *testing.T) {
 		t.Fatalf("change.create output must have zero repair findings, got %+v\n%s", fs, rec)
 	}
 }
+
+func TestChangeCreateRejectsInvalidBranchPrefixWithoutEngineCall(t *testing.T) {
+	for _, raw := range []string{"team/hotfix", "refs/heads/x", "hotfix//", "-x", "x.lock", "hot fix"} {
+		t.Run(raw, func(t *testing.T) {
+			req := validChangeCreateRequest()
+			req.BranchPrefix = raw
+			engine := &recordingEngine{}
+			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+			res := ChangeCreate(context.Background(), deps, "", req)
+
+			if res.Result != ResultInvalidInput {
+				t.Fatalf("result = %q, want invalid-input", res.Result)
+			}
+			if len(engine.calls) != 0 {
+				t.Errorf("engine called %d times on an invalid prefix, want 0", len(engine.calls))
+			}
+			var msg string
+			for _, f := range res.Findings {
+				if f.Code == "invalid-branch_prefix" {
+					msg = f.Message
+				}
+			}
+			if msg == "" {
+				t.Fatalf("missing invalid-branch_prefix; got %v", res.Findings)
+			}
+			if !strings.Contains(msg, fmt.Sprintf("%q", raw)) {
+				t.Errorf("message %q does not name the rejected value %q", msg, raw)
+			}
+		})
+	}
+}
+
+func TestChangeCreatePlanWritesDraftScalars(t *testing.T) {
+	yes, no := true, false
+	recPath := "docs/changes/active/0002-add-a-widget.md"
+	cases := []struct {
+		name       string
+		auto       *bool
+		prefix     string
+		wantAuto   string
+		wantPrefix string
+		wantAG     domain.OptionalBool
+		wantBranch string
+	}{
+		{"absent", nil, "", "\nauto_groomable:\n", "\nbranch_prefix:\n",
+			domain.OptionalBool{State: domain.FieldEmpty}, "feat/add-a-widget"},
+		{"true with messy prefix", &yes, " Hotfix/ ", "\nauto_groomable: true\n", "\nbranch_prefix: 'hotfix'\n",
+			domain.OptionalBool{State: domain.FieldPresent, Value: true, Raw: "true"}, "hotfix/add-a-widget"},
+		{"explicit false", &no, "", "\nauto_groomable: false\n", "\nbranch_prefix:\n",
+			domain.OptionalBool{State: domain.FieldPresent, Value: false, Raw: "false"}, "feat/add-a-widget"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			op := baseOp([]string{})
+			op.req.AutoGroomable = c.auto
+			op.req.BranchPrefix = c.prefix
+			plan, opRes := planFor(t, map[string]string{
+				"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+			}, op)
+			if opRes.Refused {
+				t.Fatalf("unexpected refusal: %v", opRes.Findings)
+			}
+			rec := groomedRecordBytes(t, plan, recPath)
+			if s := string(rec); !strings.Contains(s, c.wantAuto) || !strings.Contains(s, c.wantPrefix) {
+				t.Errorf("record missing %q / %q:\n%s", c.wantAuto, c.wantPrefix, s)
+			}
+			// Round trip through the real decoder, then mint exactly as claim does.
+			snap, err := buildCandidateSnapshot(op.eff, nil, rec, recPath)
+			if err != nil {
+				t.Fatalf("buildCandidateSnapshot: %v", err)
+			}
+			ch, out := snap.Change(2)
+			if out != domain.LookupFound {
+				t.Fatalf("created record not decodable as change 2")
+			}
+			if got := ch.AutoGroomable(); got != c.wantAG {
+				t.Errorf("decoded AutoGroomable = %+v, want %+v", got, c.wantAG)
+			}
+			if got := domain.MintBranch(ch.Type(), ch.BranchPrefix(), ch.Slug()); got != c.wantBranch {
+				t.Errorf("minted branch = %q, want %q", got, c.wantBranch)
+			}
+		})
+	}
+}
+
+func TestChangeCreateDigestBindsNormalizedDraftScalars(t *testing.T) {
+	digest := func(mut func(*ChangeCreateRequest)) transaction.RequestDigest {
+		t.Helper()
+		req := validChangeCreateRequest()
+		mut(&req)
+		d, err := canonicalDigest(OperationChangeCreate, changeCreateSemanticPayload(req))
+		if err != nil {
+			t.Fatalf("canonicalDigest: %v", err)
+		}
+		return d
+	}
+	yes, no := true, false
+	none := digest(func(*ChangeCreateRequest) {})
+	if digest(func(r *ChangeCreateRequest) { r.BranchPrefix = "Hotfix/" }) != digest(func(r *ChangeCreateRequest) { r.BranchPrefix = "hotfix" }) {
+		t.Error("Hotfix/ and hotfix must digest identically (the normalized prefix is bound), so a retry replays")
+	}
+	if digest(func(r *ChangeCreateRequest) { r.BranchPrefix = "hotfix" }) == none {
+		t.Error("a set prefix must change the digest")
+	}
+	if digest(func(r *ChangeCreateRequest) { r.AutoGroomable = &yes }) == digest(func(r *ChangeCreateRequest) { r.AutoGroomable = &no }) {
+		t.Error("differing auto_groomable under one request_id must conflict, not replay")
+	}
+	if digest(func(r *ChangeCreateRequest) { r.AutoGroomable = &no }) == none {
+		t.Error("an explicit false must differ from unset (inherit)")
+	}
+}
+
+// TestChangeCreatePayloadOmitsUnsetDraftScalars — Review Focus 1: a request
+// carrying neither new field must digest exactly as it did before change 0382,
+// so re-running a pre-0382 request under its request_id still replays.
+func TestChangeCreatePayloadOmitsUnsetDraftScalars(t *testing.T) {
+	b, err := json.Marshal(changeCreateSemanticPayload(validChangeCreateRequest()))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, k := range []string{`"auto_groomable"`, `"branch_prefix"`} {
+		if strings.Contains(string(b), k) {
+			t.Errorf("unset %s appears in the digest payload %s; it would change every pre-0382 digest", k, b)
+		}
+	}
+}
+
+// TestChangeCreateNormalizedPrefixReplaysRealGit drives the real engine: a
+// create with a messy prefix stores the normalized value, the same request_id
+// retyped as the normalized spelling replays, and a differing auto_groomable
+// under that id does not apply.
+func TestChangeCreateNormalizedPrefixReplaysRealGit(t *testing.T) {
+	requireRealGit(t)
+	repo := newWorkingRepo(t, map[string]string{
+		"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
+	})
+	node := planningDepsFor(t, repo.invocation)
+	yes, no := true, false
+
+	req := validChangeCreateRequest()
+	req.BranchPrefix, req.AutoGroomable = "Hotfix/", &yes
+	first := ChangeCreate(context.Background(), node.deps, node.dir, req)
+	if first.Result != ResultApplied || first.Replayed {
+		t.Fatalf("first create = %q replayed=%v (findings %v), want a fresh apply", first.Result, first.Replayed, first.Findings)
+	}
+	body, ok := originFile(t, repo.origin, "docket", first.Path)
+	if !ok || !strings.Contains(body, "\nbranch_prefix: 'hotfix'\n") || !strings.Contains(body, "\nauto_groomable: true\n") {
+		t.Fatalf("created record lacks the normalized scalars:\n%s", body)
+	}
+	tip := originTip(t, repo.origin, "docket")
+
+	req.BranchPrefix = "hotfix"
+	second := ChangeCreate(context.Background(), node.deps, node.dir, req)
+	if second.Result != ResultApplied || !second.Replayed || second.ID != first.ID {
+		t.Fatalf("retyped create = %q replayed=%v id=%d (findings %v), want a replay of %d", second.Result, second.Replayed, second.ID, second.Findings, first.ID)
+	}
+
+	req.AutoGroomable = &no
+	third := ChangeCreate(context.Background(), node.deps, node.dir, req)
+	if third.Result == ResultApplied {
+		t.Fatalf("a differing auto_groomable under the same request_id applied (replayed=%v)", third.Replayed)
+	}
+	if got := originTip(t, repo.origin, "docket"); got != tip {
+		t.Errorf("replay/conflict moved the metadata branch %s -> %s", tip, got)
+	}
+}
