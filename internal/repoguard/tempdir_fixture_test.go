@@ -41,23 +41,23 @@ package repoguard
 // tempdirExemptRe). The marker is lexed from the RAW source, so marker text
 // inside a string literal or a block comment never exempts.
 //
-// SCOPE (explicit — see scanRoots and realProcFloors below): this guard
-// enforces the fixture rule for the real-process test packages under the
-// module's two Go test roots, `internal/` (change 0373) and `cmd/` (change
-// 0398). The walk roots are a visible property of the test via the named
-// scanRoots list, not an accident of a buried literal, so any later change
-// of coverage is a deliberate edit to that list. Each root carries a
-// population floor in realProcFloors, kept as a SEPARATE list so that
-// dropping a root from the walk reddens its floor instead of silently
-// taking the floor with it.
+// SCOPE (see realProcFloors below): since change 0462 the scan population is
+// derived from the WHOLE repository through the shared MaintainedFiles
+// walker, filtered to _test.go files — there is no guard-local list of roots
+// left to shrink. Narrowing coverage now means editing the categorical
+// exclusions in repoguard.go that every repoguard guard depends on.
+// realProcFloors keeps a population floor in each known test root
+// (internal/ from change 0373, cmd/ from change 0398), so a rotted
+// exec.Command shape or an exclusion that swallows a root fails loudly
+// instead of passing vacuously.
 
 import (
 	"bytes"
 	"fmt"
 	"go/scanner"
 	"go/token"
-	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -66,17 +66,11 @@ import (
 	"testing"
 )
 
-// scanRoots names the guard's deliberate coverage boundary: the module
-// subtrees walked for real-process test packages (see the SCOPE note in the
-// file header). Widening or narrowing coverage is an explicit edit to this
-// list, never an accident of a buried walk-root literal.
-var scanRoots = []string{"internal", "cmd"}
-
 // realProcFloors are module-relative (slash-separated) packages the
-// derivation must always find — one per scan root. An empty or rotted
-// derivation, or a root silently dropped from scanRoots, then fails loudly
+// whole-repo derivation must always find. An empty or rotted derivation, or
+// a shared exclusion that swallows internal/ or cmd/, then fails loudly
 // instead of passing vacuously (marker-scoped guards need a population
-// floor). Deliberately separate from scanRoots: see the SCOPE note.
+// floor).
 var realProcFloors = []string{"internal/process", "cmd/docket"}
 
 var execCallRe = regexp.MustCompile(`\bexec\.Command`)
@@ -166,56 +160,54 @@ func TestRealProcessPackagesUseFixtureTempDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	files, err := MaintainedFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Module-relative slash dir -> its module-relative slash _test.go files.
 	pkgs := map[string][]string{}
-	for _, sr := range scanRoots {
-		err = filepath.WalkDir(filepath.Join(root, sr), func(p string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !strings.HasSuffix(p, "_test.go") {
-				return err
-			}
-			dir := filepath.Dir(p)
-			pkgs[dir] = append(pkgs[dir], p)
-			return nil
-		})
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			dir := path.Dir(f)
+			pkgs[dir] = append(pkgs[dir], f)
+		}
+	}
+	const fixtureDir = "internal/testsupport"
+	read := func(rel string) []byte {
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
 		if err != nil {
 			t.Fatal(err)
 		}
+		return b
 	}
-	fixtureDir := filepath.Join(root, "internal", "testsupport")
 	var realProc []string
-	for dir, files := range pkgs {
+	for dir, pkgFiles := range pkgs {
 		if dir == fixtureDir {
 			continue // the fixture itself is exempt by construction
 		}
-		for _, f := range files {
-			b, err := os.ReadFile(f)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if execCallRe.Match(b) {
+		for _, f := range pkgFiles {
+			if execCallRe.Match(read(f)) {
 				realProc = append(realProc, dir)
 				break
 			}
 		}
 	}
 	sort.Strings(realProc)
-	// Population floors (marker-scoped guards need one): the derivation must
-	// find each floor package — internal/process, whose supervisor tests
-	// motivated the fixture, and cmd/docket, whose built-binary gate tests
-	// spawn the real supervisor. A missing floor means the grep shape rotted
-	// or a root was dropped from scanRoots, and the guard would otherwise pass
-	// vacuously over that root.
+	// Population floors (marker-scoped guards need one): the whole-repo
+	// derivation must find each floor package — internal/process, whose
+	// supervisor tests motivated the fixture, and cmd/docket, whose built-binary
+	// gate tests spawn the real supervisor. A missing floor means the
+	// exec.Command shape rotted or a shared MaintainedFiles exclusion swallowed
+	// a test root, and the guard would otherwise pass vacuously over it.
 	for _, floor := range realProcFloors {
-		if !slices.Contains(realProc, filepath.Join(root, filepath.FromSlash(floor))) {
+		if !slices.Contains(realProc, floor) {
 			t.Fatalf("derivation lost %s — real-process set: %v", floor, realProc)
 		}
 	}
 	var violations []string
 	for _, dir := range realProc {
 		for _, f := range pkgs[dir] {
-			b, err := os.ReadFile(f)
-			if err != nil {
-				t.Fatal(err)
-			}
+			b := read(f)
 			// Comments masked, string literals kept: import paths survive so an
 			// aliased testsupport import is still visible.
 			aliasView := maskProse(b, false)
