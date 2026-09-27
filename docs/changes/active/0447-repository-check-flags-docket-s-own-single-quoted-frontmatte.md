@@ -2,7 +2,7 @@
 id: 447
 slug: 'repository-check-flags-docket-s-own-single-quoted-frontmatte'
 title: 'repository check flags docket''s own single-quoted frontmatter as needing manual review'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-23'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/repository-check-flags-docket-s-own-single-quoted-frontmatte'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/340'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-27T11:36:14Z'
