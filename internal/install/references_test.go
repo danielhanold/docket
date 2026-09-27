@@ -159,6 +159,7 @@ func TestDeriveVersionReferencesCanonicalizesTmpAliases(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("/tmp and /private/tmp are aliases on macOS")
 	}
+	// tempdir-exempt: must live under the literal /tmp to exercise the macOS /tmp -> /private/tmp alias.
 	base, err := os.MkdirTemp("/tmp", "docket-reference-")
 	if err != nil {
 		t.Fatalf("MkdirTemp: %v", err)

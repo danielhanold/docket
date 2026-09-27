@@ -74,6 +74,7 @@ var (
 // drain-then-retry removal.
 func backgroundOffGitEnv() string {
 	bgOffGitOnce.Do(func() {
+		// tempdir-exempt: background-off gitconfig written once under bgOffGitOnce and shared for the process lifetime.
 		dir, err := os.MkdirTemp("", "docket-bgoff-git-*")
 		if err != nil {
 			bgOffGitErr = err

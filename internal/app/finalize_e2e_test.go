@@ -89,6 +89,7 @@ var (
 func e2eNode(t *testing.T, dir string) realNode {
 	t.Helper()
 	e2eXDGOnce.Do(func() {
+		// tempdir-exempt: shared XDG config dir created once under e2eXDGOnce and reused by every e2e test in the process.
 		d, err := os.MkdirTemp("", "docket-e2e-xdg-*")
 		if err != nil {
 			t.Fatalf("isolate global config: %v", err)
@@ -210,6 +211,7 @@ var (
 func sharedBinaries(t *testing.T) (docketBin, ghBin string) {
 	t.Helper()
 	sharedBinOnce.Do(func() {
+		// tempdir-exempt: docket and gh binaries built once under sharedBinOnce and shared for the process lifetime.
 		dir, err := os.MkdirTemp("", "docket-e2e-bin-*")
 		if err != nil {
 			sharedBinErr = err

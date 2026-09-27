@@ -339,11 +339,7 @@ func TestOwnerConstructorUnresolvedCommandNamesRemedy(t *testing.T) {
 // run root, so a test can assert whether mapDriveOutcome removed it.
 func runRootFixture(t *testing.T) string {
 	t.Helper()
-	d, err := os.MkdirTemp(testsupport.TempDir(t), "runroot-*")
-	if err != nil {
-		t.Fatalf("mktemp: %v", err)
-	}
-	return d
+	return testsupport.TempDir(t)
 }
 
 func dirExists(t *testing.T, p string) bool {

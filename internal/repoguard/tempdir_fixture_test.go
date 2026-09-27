@@ -25,10 +25,21 @@ package repoguard
 // never hide a violation).
 //
 // LIMITATION (asserted, per the byte-pattern-guard learning): the ban
-// matches the receiver-call shape `<ident>.TempDir(`. It cannot see a call
-// through an interface value or a helper that shadows the name; the
-// aliased-import check below closes the one cheap evasion (import
-// testsupport under another name and the receiver test goes vacuous).
+// matches the receiver-call shapes `<ident>.TempDir(` and, since change
+// 0462, `<ident>.MkdirTemp(`. It cannot see a call through an interface
+// value, a function value, or a helper that shadows the name, and
+// os.CreateTemp (temp files) is out of scope. The aliased-import check below
+// closes the one cheap evasion (import testsupport under another name and
+// the receiver test goes vacuous).
+//
+// MkdirTemp EXEMPTIONS: a few real-process sites need a lifetime the
+// per-test fixture deliberately does not provide — a binary built in
+// TestMain (no t), a process-lifetime dir created under sync.Once, failure
+// evidence that must survive, a mandated /tmp parent. Such a call is exempt
+// only when a line comment on its own line or the line immediately above
+// carries the tempdir-exempt marker with a non-empty reason (see
+// tempdirExemptRe). The marker is lexed from the RAW source, so marker text
+// inside a string literal or a block comment never exempts.
 //
 // SCOPE (explicit — see scanRoots and realProcFloors below): this guard
 // enforces the fixture rule for the real-process test packages under the
@@ -41,6 +52,7 @@ package repoguard
 // taking the floor with it.
 
 import (
+	"bytes"
 	"fmt"
 	"go/scanner"
 	"go/token"
@@ -70,6 +82,11 @@ var realProcFloors = []string{"internal/process", "cmd/docket"}
 var execCallRe = regexp.MustCompile(`\bexec\.Command`)
 var tempDirCallRe = regexp.MustCompile(`\b([A-Za-z_][A-Za-z0-9_]*)\.TempDir\(`)
 var testsupportAliasRe = regexp.MustCompile(`(?m)^\s*(?:([A-Za-z_][A-Za-z0-9_]*)\s+)?"[^"]*internal/testsupport"`)
+var mkdirTempCallRe = regexp.MustCompile(`\b([A-Za-z_][A-Za-z0-9_]*)\.MkdirTemp\(`)
+
+// tempdirExemptRe matches the text of a justified exemption marker: a line
+// comment reading "tempdir-exempt:" followed by a non-blank reason.
+var tempdirExemptRe = regexp.MustCompile(`^//[ \t]*tempdir-exempt:[ \t]*\S`)
 
 // maskProse returns src with every comment token blanked to spaces (newlines
 // preserved so line-anchored regexes keep their line structure), and, when
@@ -100,6 +117,48 @@ func maskProse(src []byte, maskStrings bool) []byte {
 		}
 	}
 	return out
+}
+
+// exemptMarkerLines returns the 1-based lines that carry a justified
+// tempdir-exempt marker. It lexes the RAW source with go/scanner (the masked
+// view blanks comments), so only a real // comment token counts: marker text
+// inside a string literal or a /* */ block never exempts.
+func exemptMarkerLines(src []byte) map[int]bool {
+	lines := map[int]bool{}
+	fset := token.NewFileSet()
+	f := fset.AddFile("", fset.Base(), len(src))
+	var s scanner.Scanner
+	s.Init(f, src, nil, scanner.ScanComments)
+	for {
+		pos, tok, lit := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+		if tok == token.COMMENT && tempdirExemptRe.MatchString(lit) {
+			lines[f.Line(pos)] = true
+		}
+	}
+	return lines
+}
+
+// mkdirTempViolations finds every executable <ident>.MkdirTemp( call in src
+// (comments and string/char literals masked) and splits them by line into
+// violations and exempt calls. A call is exempt only when its own line or the
+// line immediately above carries a justified marker (exemptMarkerLines).
+func mkdirTempViolations(src []byte) (violations, exempt []int) {
+	markers := exemptMarkerLines(src)
+	callView := maskProse(src, true)
+	for _, loc := range mkdirTempCallRe.FindAllIndex(callView, -1) {
+		// maskProse blanks in place and preserves newlines, so offsets in the
+		// masked view map to the same line numbers as the raw source.
+		line := 1 + bytes.Count(callView[:loc[0]], []byte("\n"))
+		if markers[line] || markers[line-1] {
+			exempt = append(exempt, line)
+		} else {
+			violations = append(violations, line)
+		}
+	}
+	return violations, exempt
 }
 
 func TestRealProcessPackagesUseFixtureTempDir(t *testing.T) {
@@ -173,9 +232,48 @@ func TestRealProcessPackagesUseFixtureTempDir(t *testing.T) {
 					violations = append(violations, fmt.Sprintf("%s: bare %s.TempDir() — use testsupport.TempDir(t)", f, m[1]))
 				}
 			}
+			// Change 0462: an executable MkdirTemp call is a hand-rolled temp dir
+			// that skips the fixture's drain-then-retry cleanup, unless the site
+			// needs a lifetime the per-test fixture cannot provide and says so.
+			bad, ok := mkdirTempViolations(b)
+			for _, line := range bad {
+				violations = append(violations, fmt.Sprintf("%s:%d: MkdirTemp call without a justified tempdir-exempt marker — use testsupport.TempDir(t); only a dir the per-test fixture cannot serve (no t in TestMain, process lifetime under sync.Once, failure evidence that must survive, a mandated parent) may carry an adjacent \"// tempdir-exempt: <reason>\"", f, line))
+			}
+			for _, line := range ok {
+				t.Logf("exempt MkdirTemp: %s:%d", f, line)
+			}
 		}
 	}
 	if len(violations) > 0 {
 		t.Fatalf("real-process packages must use the testsupport fixture:\n%s", strings.Join(violations, "\n"))
+	}
+}
+
+func TestMkdirTempViolations(t *testing.T) {
+	cases := []struct {
+		name          string
+		src           string
+		wantViolation []int
+		wantExempt    []int
+	}{
+		{"bare call", "package p\nfunc f() {\n\td, _ := os.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{3}, nil},
+		{"marker above", "package p\nfunc f() {\n\t// tempdir-exempt: built once in TestMain, no t\n\td, _ := os.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", nil, []int{4}},
+		{"same-line marker", "package p\nfunc f() {\n\td, _ := os.MkdirTemp(\"\", \"x\") // tempdir-exempt: process-lifetime dir\n\t_ = d\n}\n", nil, []int{3}},
+		{"marker two lines above", "package p\nfunc f() {\n\t// tempdir-exempt: too far away\n\n\td, _ := os.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{5}, nil},
+		{"empty reason", "package p\nfunc f() {\n\t// tempdir-exempt:\n\td, _ := os.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{4}, nil},
+		{"whitespace reason", "package p\nfunc f() {\n\t// tempdir-exempt:   \t\n\td, _ := os.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{4}, nil},
+		{"spelling in comment and string", "package p\n// os.MkdirTemp(\"\", \"x\")\nvar s = \"os.MkdirTemp(\"\n", nil, nil},
+		{"marker in string", "package p\nfunc f() {\n\t_ = \"// tempdir-exempt: not a comment\"\n\td, _ := os.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{4}, nil},
+		{"block comment marker", "package p\nfunc f() {\n\t/* tempdir-exempt: block comments do not count */\n\td, _ := os.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{4}, nil},
+		{"consecutive calls", "package p\nfunc f() {\n\t// tempdir-exempt: first only\n\ta, _ := os.MkdirTemp(\"\", \"a\")\n\tb, _ := os.MkdirTemp(\"\", \"b\")\n\t_, _ = a, b\n}\n", []int{5}, []int{4}},
+		{"non-os receiver", "package p\nfunc f() {\n\td, _ := afs.MkdirTemp(\"\", \"x\")\n\t_ = d\n}\n", []int{3}, nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			gotV, gotE := mkdirTempViolations([]byte(c.src))
+			if !slices.Equal(gotV, c.wantViolation) || !slices.Equal(gotE, c.wantExempt) {
+				t.Fatalf("violations=%v exempt=%v, want violations=%v exempt=%v", gotV, gotE, c.wantViolation, c.wantExempt)
+			}
+		})
 	}
 }

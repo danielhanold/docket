@@ -229,6 +229,7 @@ func TestIntegrationReleasePackageDeterministic(t *testing.T) {
 		// bundles to a directory the test framework does not remove, and name
 		// it in the failure output. Failure-only work — the passing path does
 		// nothing extra.
+		// tempdir-exempt: failure evidence — the mismatched bundles must survive the test so the failure output can name them.
 		keep, kerr := os.MkdirTemp("", "docket-0406-determinism-mismatch-*")
 		if kerr == nil {
 			for _, cp := range []struct{ src, dst string }{
