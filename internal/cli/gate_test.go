@@ -1050,3 +1050,31 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 		t.Fatalf("refused launch produced a run_dir %q", rd)
 	}
 }
+
+// TestGateDriveStartUnknownRunEpochIsNamed (change 0463): the 0382 misuse, where a
+// well-formed but unknown --run-epoch (a dispatch-context-shaped 32-hex token) goes
+// through the REAL epoch launch gate, is refused invalid-input with the named
+// unknown-run-epoch, never the catch-all invalid-request. The presented value is
+// never echoed.
+func TestGateDriveStartUnknownRunEpochIsNamed(t *testing.T) {
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
+	root := gateTempDir(t)
+	const bogus = "0790b760e26444866ef2e156ba383326"
+	out, _, _ := runCLI(t, "--json", "gate", "drive", "start",
+		"--repo-dir", wt, "--run-root", root, "--owner", "task",
+		"--change-id", "463", "--task-id", "task-3", "--phase", "build", "--branch", "fix/x",
+		"--run-epoch", bogus, "--", "/bin/echo", "hi")
+	doc := decodeOneJSON(t, out)
+	if doc["result"] != "invalid-input" || doc["reason"] != "unknown-run-epoch" {
+		t.Fatalf("unknown --run-epoch must refuse invalid-input/unknown-run-epoch, got %v", doc)
+	}
+	if _, ok := doc["drive"]; ok {
+		t.Fatalf("a refused start must carry no drive document: %v", doc)
+	}
+	if msg, _ := doc["message"].(string); !strings.Contains(msg, "--gate-context") {
+		t.Fatalf("refusal must carry the next action, got %q", msg)
+	}
+	if strings.Contains(out, bogus) {
+		t.Fatalf("the presented --run-epoch value leaked into the output: %s", out)
+	}
+}

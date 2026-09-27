@@ -1648,3 +1648,30 @@ func TestQuoteOperand(t *testing.T) {
 		t.Fatalf("quoteOperand = %q", got)
 	}
 }
+
+// TestMapDriveFailureEpochErrors (change 0463): an EpochError chained through the
+// gate-drive seam (the epoch launch gate refusing an unknown --run-epoch) surfaces
+// its named token, never the catch-all invalid-request. The service attaches the
+// next-action message, and neither the reason nor the message echoes the value.
+func TestMapDriveFailureEpochErrors(t *testing.T) {
+	const presented = "0790b760e26444866ef2e156ba383326"
+	wrapped := fmt.Errorf("refused %s: %w", presented, epochErr(ErrEpochNotFound, "find-dir-by-id", nil))
+	res, reason := mapDriveFailure(wrapped)
+	if res != ResultInvalidInput || reason != ReasonUnknownRunEpoch {
+		t.Fatalf("mapDriveFailure = (%s, %q), want (invalid-input, unknown-run-epoch)", res, reason)
+	}
+	if res, reason := mapDriveFailure(epochErr(ErrEpochIO, "find-by-id", nil)); res != ResultInternalError || reason != "epoch-io" {
+		t.Fatalf("an unreadable registry must be an internal error, got (%s, %q)", res, reason)
+	}
+	eng := &fakeDriveEngine{err: wrapped}
+	got := newGateDriveService(eng, 0, "", "").Advance("d1", "owner")
+	if got.Reason != ReasonUnknownRunEpoch {
+		t.Fatalf("service reason = %q, want unknown-run-epoch", got.Reason)
+	}
+	if !strings.Contains(got.Message, "--gate-context") {
+		t.Fatalf("service must attach the unknown-run-epoch next action, got %q", got.Message)
+	}
+	if strings.Contains(got.Message, presented) || strings.Contains(got.HumanText(), presented) {
+		t.Fatalf("the presented value leaked: message=%q human=%q", got.Message, got.HumanText())
+	}
+}
