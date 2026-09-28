@@ -940,7 +940,10 @@ docket workspace publish --id 412 --head <sha>
 
 **Arming** (`run.gate-before`) mints three values before a dispatch: the **gate key** (ties a finish
 to this launch), the **run epoch** (the id of this run, threaded into cancel and drive flags), and
-the **dispatch context** (a token copied into the dispatch prompt). It prints
+the **dispatch context** (a token). The dispatch context and the run epoch are both copied into the
+implement-next dispatch prompt; a scope prepared with `--run-epoch` hands that epoch to every scoped
+start under it, so build-task workers never receive it (except the repair worker, for its
+build-owned post-fix re-run). It prints
 `gate-armed <key> <epoch> <dispatch-context>`; `gate-unarmed` still allows a keyless dispatch that
 can never authorise a re-dispatch.
 
