@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0463 — Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md)**
+> ↩ **[Change 0463 — Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-28-0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md)**
 <!-- docket:backlink:end -->
 # Resume Arm Always Binds a Run Epoch — Implementation Plan
 
