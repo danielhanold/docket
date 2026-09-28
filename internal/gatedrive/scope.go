@@ -126,9 +126,10 @@ type scopeRecord struct {
 
 	// RunEpochID links every drive this scope admits to the workflow run epoch
 	// (change 0375 Task 9). It is a locator, not a credential — the child capability
-	// carries authority — and travels onto each scoped start's worktree execution
-	// slot so an omitted or stale epoch cannot detach the worktree. Empty for a v2
-	// legacy scope and for a scope prepared without an epoch. (schema v3)
+	// carries authority — and is inherited by each scoped start (the driver's
+	// scopedRunEpoch) and travels onto its worktree execution slot so an omitted or
+	// stale epoch cannot detach the worktree. Empty for a v2 legacy scope and for a
+	// scope prepared without an epoch. (schema v3)
 	RunEpochID string `json:"run_epoch_id,omitempty"`
 
 	// The single-slot lifecycle (schema v2). At most one current drive occupies
