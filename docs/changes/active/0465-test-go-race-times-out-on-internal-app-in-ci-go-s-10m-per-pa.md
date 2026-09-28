@@ -13,7 +13,7 @@ related: [308, 332, 333, 362, 373]
 discovered_from: []
 adrs: [108]
 spec: 'docs/superpowers/specs/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-28T06:49:47Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md) |
+| Plan | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md](https://github.com/danielhanold/docket/blob/fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa/docs/superpowers/plans/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
