@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/document-run-epoch-in-the-docket-build-task-gate-drive-start'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-28T21:46:59Z'
+reconciled: true
+claimed_at: '2026-09-28T21:48:47Z'
 ---
 
 ## Artifacts
@@ -47,3 +47,9 @@ During change 0461's implement-next run, a build-task worker's `gate.drive.start
 ## Out of scope
 
 Changing the run-epoch fence, `stale-run-epoch` semantics, epoch settlement, or scope-less start behaviour. Deriving the epoch from the dispatch-context token (deferred; see spec). The foreign-incumbent epoch named in 0461's refusal is the expected consequence of an empty presented epoch, not a separate defect.
+
+## Reconcile log
+
+### 2026-09-28
+
+2026-09-28 — Re-read against origin/main 5403015 (post-0461/0463). Driver gap still present: Driver.admitScopedWorktree builds its admission record from req.RunEpochID, ignoring the scope pinned epoch; docket-build, docket-build-task and docket-implement-next still carry no --run-epoch on prepare-scope or build-owner starts, and cursor-rules/run-gate.md still copies only the dispatch context into the prompt. Scope unchanged.
