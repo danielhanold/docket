@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -139,11 +141,11 @@ func mxAssertDisposition(t *testing.T, res RunGateVerdictResult, disp string) {
 	}
 }
 
-// TestTwoGatesEachVerifyOnlyTheirOwn — spec acceptance item 1, all four orderings:
+// TestIntegrationGateFenceTwoGatesEachVerifyOnlyTheirOwn — spec acceptance item 1, all four orderings:
 // (complete A, verdict A, verdict B), (verdict B, complete A, verdict A), (both
 // in-progress), (both complete). Gate A must always report on A's id and gate B on
 // B's id; neither line may carry the sibling id.
-func TestTwoGatesEachVerifyOnlyTheirOwn(t *testing.T) {
+func TestIntegrationGateFenceTwoGatesEachVerifyOnlyTheirOwn(t *testing.T) {
 	const (
 		idA   = 3
 		slugA = "widget"
@@ -205,13 +207,13 @@ func TestTwoGatesEachVerifyOnlyTheirOwn(t *testing.T) {
 	}
 }
 
-// TestUnrelatedChurnDoesNotMoveOwnership — spec acceptance item 2 / item 6 first
+// TestIntegrationGateFenceUnrelatedChurnDoesNotMoveOwnership — spec acceptance item 2 / item 6 first
 // half: after binding A→3, mutating the corpus (sibling in-progress claims, a
 // refreshed claimed_at on 3, a priority edit) and adding sibling proofs under other
 // context hashes leaves the verdict unchanged — same id, same run-complete outcome.
 // Ownership rests on the confirmed binding + the exact committed proof, never on the
 // current claim set.
-func TestUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
+func TestIntegrationGateFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
 	mxBind(t, f.repo.invocation, key, 3, "claim-3-v", "rA")
@@ -260,13 +262,13 @@ func TestUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	mxAssertOwnIDOnly(t, res2, key, 3, 10)
 }
 
-// TestReplacementClaimBlocksOldGate — spec acceptance item 6 second half: after A
+// TestIntegrationGateFenceReplacementClaimBlocksOldGate — spec acceptance item 6 second half: after A
 // is confirmed-bound to change 3 at claim-3-v1, a NEWER committed proof for change 3
 // under a different request id means the change was reclaimed and re-claimed by
 // another run. A's verdict stops gate-unavailable claim-replaced, never spends the
 // retry, and a subsequent verdict still refuses — the old gate never takes over the
 // replacement run.
-func TestReplacementClaimBlocksOldGate(t *testing.T) {
+func TestIntegrationGateFenceReplacementClaimBlocksOldGate(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintArmed(t, repo, nil, 1, "ha")
 	mxBind(t, repo, key, 3, "claim-3-v1", "r1")
@@ -301,11 +303,11 @@ func TestReplacementClaimBlocksOldGate(t *testing.T) {
 	}
 }
 
-// TestLaterVerdictCannotOverwriteBinding — spec acceptance item 7: after A's verdict
+// TestIntegrationGateFenceLaterVerdictCannotOverwriteBinding — spec acceptance item 7: after A's verdict
 // bound and reported change 3 at revision r1, a later confirm carrying a DIFFERENT
 // revision is refused binding-conflict, and re-running the verdict resolves the same
 // bound id with the binding intact.
-func TestLaterVerdictCannotOverwriteBinding(t *testing.T) {
+func TestIntegrationGateFenceLaterVerdictCannotOverwriteBinding(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
 	mxBind(t, f.repo.invocation, key, 3, "claim-3-v", "r1")
