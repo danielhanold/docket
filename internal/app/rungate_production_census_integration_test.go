@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -191,10 +193,10 @@ func requireProcessSupervisorHere(t *testing.T) {
 	}
 }
 
-// TestProductionCensusCompleteThenFinalize (AC6): the successful closeout runs the
+// TestIntegrationGateCompletionProductionCensusCompleteThenFinalize (AC6): the successful closeout runs the
 // production observation census with unrelated damaged history present, the run's
 // scratch is gone, and finalize then enters through its real gate-drive Start.
-func TestProductionCensusCompleteThenFinalize(t *testing.T) {
+func TestIntegrationGateCompletionProductionCensusCompleteThenFinalize(t *testing.T) {
 	fx := prepareQuiescentRun(t)
 	must(t, RegisterEpochParticipant(fx.repo, fx.key, fx.epochID,
 		EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
@@ -219,11 +221,11 @@ func TestProductionCensusCompleteThenFinalize(t *testing.T) {
 	startFinalizeGate(t, fx)
 }
 
-// TestProductionCensusCancelThenFinalize (AC5/AC6): an otherwise quiescent epoch
+// TestIntegrationGateCompletionProductionCensusCancelThenFinalize (AC5/AC6): an otherwise quiescent epoch
 // cancels through the production reconciliation census with unrelated damaged
 // history present — repeated cancellation converges — and finalize then enters
 // through its real gate-drive Start.
-func TestProductionCensusCancelThenFinalize(t *testing.T) {
+func TestIntegrationGateCompletionProductionCensusCancelThenFinalize(t *testing.T) {
 	fx := prepareQuiescentRun(t)
 	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.epochID, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
@@ -235,11 +237,11 @@ func TestProductionCensusCancelThenFinalize(t *testing.T) {
 	startFinalizeGate(t, fx)
 }
 
-// TestProductionCensusCancelResumeStartsReplacementGate (AC5): after a production
+// TestIntegrationGateCompletionProductionCensusCancelResumeStartsReplacementGate (AC5): after a production
 // cancellation, NEW unrelated history lands, then resume re-proves quiescence through
 // the production census, reserves exactly one replacement, and the replacement's
 // build gate — carrying its run epoch — starts through the real service and passes.
-func TestProductionCensusCancelResumeStartsReplacementGate(t *testing.T) {
+func TestIntegrationGateCompletionProductionCensusCancelResumeStartsReplacementGate(t *testing.T) {
 	fx := prepareQuiescentRun(t)
 	if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.epochID, "human stop"); res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("production cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
