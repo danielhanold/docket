@@ -1543,6 +1543,50 @@ func TestChangeGroomPlanTitleOnlyReviseOfTrivialChange(t *testing.T) {
 	})
 }
 
+// revivedReviseFiles is the revise fixture for a change deferred out of
+// in-progress and revived to proposed: it is still an already-groomed proposed
+// change, but it keeps its feature-branch artifacts (branch:, plan:), whose
+// backlinks embed the title and are identity-checked downstream.
+func revivedReviseFiles() map[string]string {
+	const planPath = "docs/superpowers/plans/2026-08-10-add-a-widget.md"
+	files := reviseFixtureFiles()
+	src := groomPath(2, "add-a-widget")
+	rec := strings.Replace(files[src], "status: proposed\n", "status: proposed\nbranch: 'feat/add-a-widget'\n", 1)
+	files[src] = strings.Replace(rec, "plan:\n", "plan: '"+planPath+"'\n", 1)
+	files[planPath] = "# Plan\n"
+	return files
+}
+
+// TestChangeGroomPlanRetitleRefusedWithFeatureArtifacts pins that a retitle of a
+// proposed change still carrying branch:/plan:/results: refuses not-retitleable
+// and writes nothing: those artifacts' backlinks embed the title and are
+// identity-checked by attach (backlink-mismatch) and mark-implemented
+// (results-identity-broken), so a retitle would silently break them. A request
+// repeating the current title changes nothing and is not refused.
+func TestChangeGroomPlanRetitleRefusedWithFeatureArtifacts(t *testing.T) {
+	plan, opRes := groomPlanFor(t, revivedReviseFiles(), baseGroomOp([]string{}, titleOnlyReviseRequest("Renamed widget")))
+	if !opRes.Refused {
+		t.Fatalf("retitle of a change with feature-branch artifacts planned: %v", planPaths(plan))
+	}
+	found := false
+	for _, f := range opRes.Findings {
+		found = found || f.Code == string(FCNotRetitleable)
+	}
+	if !found {
+		t.Errorf("missing not-retitleable; got %v", opRes.Findings)
+	}
+	if len(plan.Files) != 0 {
+		t.Errorf("refused plan still carries files: %v", planPaths(plan))
+	}
+
+	req := validReviseRequest()
+	req.Title = "A change" // the fixture's current title: no retitle
+	_, opRes = groomPlanFor(t, revivedReviseFiles(), baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Errorf("unchanged title on a record with feature-branch artifacts refused: %v", opRes.Findings)
+	}
+}
+
 func TestChangeGroomPlanTitleRestampRefusals(t *testing.T) {
 	rec := revisableChange(2, "add-a-widget", reviseSpecPath)
 	cases := []struct {

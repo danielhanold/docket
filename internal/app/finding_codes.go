@@ -43,6 +43,11 @@ const (
 	FCPathMismatch         FindingCode = "path-mismatch"
 	FCSectionEditFailed    FindingCode = "section-edit-failed"
 
+	// FCNotRetitleable refuses a change-groom title that would rename a record
+	// still carrying feature-branch artifacts (branch:, plan:, results:), whose
+	// title-bearing backlinks are identity-checked downstream (change 0461).
+	FCNotRetitleable FindingCode = "not-retitleable"
+
 	// change create request-shape findings.
 	FCInvalidSlug             FindingCode = "invalid-slug"
 	FCUnknownType             FindingCode = "unknown-type"
@@ -277,6 +282,7 @@ var AllFindingCodes = []FindingCode{
 	FindingCode("missing-claim-stamp"),
 	FCMissingRationale,
 	FCNotFound,
+	FCNotRetitleable,
 	FCNothingToRearm,
 	FCParseFailed,
 	FCPathMismatch,
