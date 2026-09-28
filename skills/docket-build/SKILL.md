@@ -75,8 +75,9 @@ Emit one concise routing line per task naming both the profile and its reason.
 <!-- docket:feature-dispatch:start targets=docket-build-economy,docket-build-max,docket-build-premium,docket-build-standard -->
 **Before each worker dispatch, prepare its recovery scope:** run the `gate.drive.prepare-scope`
 operation with `--change-id <id> --task-id <task-N> --phase build --branch <branch> --worktree
-<worktree> --gate-context <dispatch-context> --json` (the dispatch context arrived in *your* prompt from
-the gated parent — pass its value through). Capture the scope id and **both** capabilities from the
+<worktree> --gate-context <dispatch-context> --run-epoch <epoch> --json` (the dispatch context and
+the run epoch arrived in *your* prompt from the gated parent — pass each value through, omitting a
+flag only when your prompt carried no such value). Capture the scope id and **both** capabilities from the
 `--json` response before dispatching (the shared JSON-capture requirement); the parent capability
 stays in your notes. Then dispatch the selected profile agent **by name** — one of
 `docket-build-economy`, `docket-build-standard`, `docket-build-premium`, or `docket-build-max` —
@@ -87,7 +88,8 @@ It also gives the worker the plan task text, applicable repository instructions,
 profile and routing reason, the completion schema, and one **complete start-ready scope bundle**:
 the change id, task id, phase (`build`), branch, scope id, child capability, and the dispatch
 context when your prompt carried one — each value exactly as `prepare-scope` pinned it, for the
-worker to pass through to `gate.drive.start` unchanged. One scope now carries the worker's whole
+worker to pass through to `gate.drive.start` unchanged. The bundle carries no run epoch: the scope
+pinned it, and every scoped start inherits it. One scope now carries the worker's whole
 *sequence* of task-owned drives — baseline, RED, GREEN, verification — one at a time, and the worker
 closes it with a terminal `gate.drive.acknowledge` on normal completion; your WAITING-handoff and
 takeover handling below is unchanged. Of the two capabilities the worker
@@ -145,7 +147,8 @@ transcript. The continuation — a same-agent resume or a fresh dispatch alike �
 the claimed drive's id, its terminal verdict, and an explicit statement that the original scope is closed
 by your claim and must never be acknowledged or reused. When the continued task may still need test
 drives, run `gate.drive.prepare-scope` again
-for the same change, task, phase, branch, and worktree (and dispatch context) and include the new
+for the same change, task, phase, branch, and worktree (and dispatch context and
+`--run-epoch <epoch>`, as for the first scope) and include the new
 start-ready scope bundle — child capability only; the parent capability stays in your notes, as for
 any dispatch. Reading the continuation's return is unchanged: a `COMPLETE` is settled against git
 state exactly as *Reading a worker's return* requires. Waiting consumes neither the task's repair
@@ -246,7 +249,8 @@ authoritative config the build role reads, never a command it invents:
    **skipped** evidence via the `evidence.record` operation (no run dir) — `result: skipped` /
    `reason: build-gate-off` at the current head — and proceed to review. Nothing to run or repair.
 2. **`build_gate: local`, non-empty `build_test_command`** — drive it through the native gate
-   **driver**: the `gate.drive.start` operation with `--owner build --json` — capture that first response into `gate_reply` (its exit
+   **driver**: the `gate.drive.start` operation with `--owner build --run-epoch <epoch> --json`
+   (`--run-epoch` only when your prompt carried a run epoch) — capture that first response into `gate_reply` (its exit
    code, if needed, into `gate_rc`; never a zsh read-only special parameter such as
    `status`) and read the drive id and owner generation from it — then `gate.drive.advance` operation slices,
    exactly as *Gate execution posture* describes. `--owner build` resolves the build-owned command
