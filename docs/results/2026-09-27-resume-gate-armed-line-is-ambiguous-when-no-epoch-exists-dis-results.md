@@ -23,7 +23,7 @@ What changed:
 
 ADR-0111 made a confirmed claim binding the authority for cancelling a run. This change adds a second accepted shape: a gate record attributed to change N with no binding file, cancelling an epoch whose change id is N. Without it, resumed runs cannot be cancelled at all. It is still a policy change on a fail-closed boundary, and no separate ADR records it. If you skip this review, the risk is that the widening covers a record shape you did not intend.
 
-1. Read the authority step of `runCancel` in `internal/app/rungate_cancel.go`, and `TestRunCancelResumeAuthorityFailsClosed` in `internal/app/rungate_before_resume_test.go`.
+1. Read the authority step of `runCancel` in `internal/app/rungate_cancel.go`, and `TestIntegrationGateCancelRunCancelResumeAuthorityFailsClosed` in `internal/app/rungate_before_resume_integration_test.go`.
    Expected: the resume shape is accepted only when no binding file exists and the attributed id equals the epoch's change id. Every other case refuses as before.
 2. Decide whether this needs an ADR update note. If it does, record one with `docket adr` after merging.
 

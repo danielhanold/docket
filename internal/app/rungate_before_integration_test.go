@@ -499,12 +499,12 @@ func writeRawGateRecord(t *testing.T, root, key, tmpl string) {
 	}
 }
 
-// TestGateArmedLineIsAlwaysThreeTokens (change 0463): every armed result a real arm
+// TestIntegrationGateArmArmedLineIsAlwaysThreeTokens (change 0463): every armed result a real arm
 // produces (fresh, epochless resume, cancelled-replacement resume) prints a first
 // line of exactly four space-separated fields. Field 3 is the epoch and field 4 is
 // the dispatch context, so a positional parser can never read the dispatch context
 // as the epoch.
-func TestGateArmedLineIsAlwaysThreeTokens(t *testing.T) {
+func TestIntegrationGateArmArmedLineIsAlwaysThreeTokens(t *testing.T) {
 	check := func(t *testing.T, res RunGateBeforeResult) {
 		t.Helper()
 		if !res.Armed {

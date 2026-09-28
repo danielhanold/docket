@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -10,7 +12,7 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// TestEpochlessResumeEndToEnd0382 reproduces change 0382's resumed run (change 0463).
+// TestIntegrationGateArmEpochlessResumeEndToEnd0382 reproduces change 0382's resumed run (change 0463).
 // The change was claimed by an UNARMED first dispatch, so no run epoch exists. The
 // resume arm must print `gate-armed <key> <epoch> <dispatch-context>`. Parsed
 // positionally (as AGENTS.md tells a parent), the <epoch> is admitted by the real
@@ -18,7 +20,7 @@ import (
 // The misrouted 0382 call (the dispatch context presented as the epoch) is refused
 // with the named unknown-run-epoch. The resume inspect path uses the raw temp
 // spelling and the start uses the symlink-resolved one (Review Focus 1).
-func TestEpochlessResumeEndToEnd0382(t *testing.T) {
+func TestIntegrationGateArmEpochlessResumeEndToEnd0382(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	worktree, err := filepath.EvalSymlinks(repoDir)
 	if err != nil {
