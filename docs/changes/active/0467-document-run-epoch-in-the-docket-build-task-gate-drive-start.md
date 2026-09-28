@@ -14,7 +14,7 @@ discovered_from: [461]
 adrs: [111]
 spec: 'docs/superpowers/specs/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md'
 plan: 'docs/superpowers/plans/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start.md'
-results:
+results: 'docs/results/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-28T22:28:10Z'
 |---|---|
 | Spec | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md) |
 | Plan | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start.md](https://github.com/danielhanold/docket/blob/fix/document-run-epoch-in-the-docket-build-task-gate-drive-start/docs/superpowers/plans/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) |
+| Results | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-results.md](https://github.com/danielhanold/docket/blob/fix/document-run-epoch-in-the-docket-build-task-gate-drive-start/docs/results/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-results.md) |
 | ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) |
 <!-- docket:artifacts:end -->
 
