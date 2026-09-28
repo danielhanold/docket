@@ -2,7 +2,7 @@
 id: 465
 slug: 'test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa'
 title: 'test_go_race times out on internal/app in CI (Go''s 10m per-package limit)'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-09-28'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-28T06:47:50Z'
 ---
 
 ## Artifacts
