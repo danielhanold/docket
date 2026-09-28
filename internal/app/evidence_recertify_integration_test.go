@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -16,11 +18,11 @@ import (
 // prove only the BUILD command runs).
 const buildVsFinalizeYAML = "build:\n  gate: local\n  test_command: go test ./build-only\nfinalize:\n  test_command: make finalize-only\n"
 
-// TestBuildLocalGateResolvesBuildCommandOnly: the BUILD-owned production gate
+// TestIntegrationEvidenceBuildLocalGateResolvesBuildCommandOnly: the BUILD-owned production gate
 // resolves build.test_command; the finalize twin resolves finalize.test_command
 // from the same pin. Deleting the owner branch in buildDriveService reddens one
 // of the two arms.
-func TestBuildLocalGateResolvesBuildCommandOnly(t *testing.T) {
+func TestIntegrationEvidenceBuildLocalGateResolvesBuildCommandOnly(t *testing.T) {
 	deps, wdeps, repoDir := evidenceDepsWithConfig(t, readyWorkspace(), buildVsFinalizeYAML)
 	ctx := context.Background()
 
@@ -44,11 +46,11 @@ func commandOf(svc *GateDriveService) string {
 	return svc.command
 }
 
-// TestBuildLocalGateFailsClosedWithoutBuildCommand: a config with ONLY
+// TestIntegrationEvidenceBuildLocalGateFailsClosedWithoutBuildCommand: a config with ONLY
 // finalize.test_command set fails the build-owned gate closed (ok=false → the
 // caller halts, never a fabricated red) while the finalize twin still resolves.
 // This pins the guard's keying on the owner's OWN config key.
-func TestBuildLocalGateFailsClosedWithoutBuildCommand(t *testing.T) {
+func TestIntegrationEvidenceBuildLocalGateFailsClosedWithoutBuildCommand(t *testing.T) {
 	yaml := "finalize:\n  test_command: make finalize-only\n"
 	deps, wdeps, repoDir := evidenceDepsWithConfig(t, readyWorkspace(), yaml)
 	ctx := context.Background()
@@ -88,9 +90,9 @@ func recertifyFixture(t *testing.T, gate FinalizeGate) (*rebaseFixture, *fakePub
 	return f, gh, deps, WorkspaceDeps{Service: f.svc}
 }
 
-// TestEvidenceRecertifyRefusesNotImplemented: any non-implemented status is
+// TestIntegrationEvidenceEvidenceRecertifyRefusesNotImplemented: any non-implemented status is
 // blocked before any probe of the gate or PR edit (acceptance 3).
-func TestEvidenceRecertifyRefusesNotImplemented(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyRefusesNotImplemented(t *testing.T) {
 	f := setupRebaseFixtureStatus(t, planRepoModes()[0], "in-progress")
 	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
 	res := EvidenceRecertify(context.Background(), f.finalizeDeps(gh, &fakeGate{}), WorkspaceDeps{Service: f.svc},
@@ -103,9 +105,9 @@ func TestEvidenceRecertifyRefusesNotImplemented(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyRefusesDirtyWorkspace: uncommitted work blocks (never
+// TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyWorkspace: uncommitted work blocks (never
 // gated over, never published) — acceptance 3.
-func TestEvidenceRecertifyRefusesDirtyWorkspace(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyWorkspace(t *testing.T) {
 	f, gh, deps, wdeps := recertifyFixture(t, &fakeGate{})
 	writeRepoFile(t, f.wp, "dirty.txt", "uncommitted\n")
 	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: f.id})
@@ -117,11 +119,11 @@ func TestEvidenceRecertifyRefusesDirtyWorkspace(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyRefusesUnpublishedFollowUp: a local follow-up commit
+// TestIntegrationEvidenceEvidenceRecertifyRefusesUnpublishedFollowUp: a local follow-up commit
 // that was never pushed disagrees with the remote feature head; the operation
 // refuses (publish first through the existing workflow) rather than certify a
 // head the PR does not hold.
-func TestEvidenceRecertifyRefusesUnpublishedFollowUp(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyRefusesUnpublishedFollowUp(t *testing.T) {
 	f, gh, deps, wdeps := recertifyFixture(t, &fakeGate{})
 	writeRepoFile(t, f.wp, "followup.txt", "review fix\n")
 	runGit(t, f.wp, "add", "-A")
@@ -135,10 +137,10 @@ func TestEvidenceRecertifyRefusesUnpublishedFollowUp(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyRefusesClosedOrMismatchedPR: no open PR for the feature
+// TestIntegrationEvidenceEvidenceRecertifyRefusesClosedOrMismatchedPR: no open PR for the feature
 // head refuses (pr-not-open); an open PR naming a different head refuses
 // (head-disagreement). Neither runs the gate — acceptance 3.
-func TestEvidenceRecertifyRefusesClosedOrMismatchedPR(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyRefusesClosedOrMismatchedPR(t *testing.T) {
 	// Closed: the fake returns no open PR when State is not open.
 	f, gh, deps, wdeps := recertifyFixture(t, &fakeGate{})
 	gh.pr.State = githubcli.StateClosed
@@ -161,9 +163,9 @@ func TestEvidenceRecertifyRefusesClosedOrMismatchedPR(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyShape: a non-positive id is an invalid-input shape
+// TestIntegrationEvidenceEvidenceRecertifyShape: a non-positive id is an invalid-input shape
 // refusal before any probe.
-func TestEvidenceRecertifyShape(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyShape(t *testing.T) {
 	f, _, deps, wdeps := recertifyFixture(t, &fakeGate{})
 	res := EvidenceRecertify(context.Background(), deps, wdeps, f.repo.invocation, EvidenceRecertifyRequest{ID: 0})
 	if res.Result != ResultInvalidInput {
@@ -171,10 +173,10 @@ func TestEvidenceRecertifyShape(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyHappyPath: stale evidence at an older head becomes
+// TestIntegrationEvidenceEvidenceRecertifyHappyPath: stale evidence at an older head becomes
 // verified evidence for the exact current head on the SAME open PR; authored
 // body bytes survive; the result is applied/green (acceptance 1).
-func TestEvidenceRecertifyHappyPath(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyHappyPath(t *testing.T) {
 	gate := &fakeGate{}
 	f, gh, deps, wdeps := recertifyFixture(t, gate)
 	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.head), RunDir: "/run/x"}
@@ -201,11 +203,11 @@ func TestEvidenceRecertifyHappyPath(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyAdvancesOneDriveAcrossWaiting: WAITING is nonterminal —
+// TestIntegrationEvidenceEvidenceRecertifyAdvancesOneDriveAcrossWaiting: WAITING is nonterminal —
 // the operation re-enters the SAME drive (continuation threaded) until a
 // terminal, and only then publishes. Deleting the loop's continuation
 // threading reddens the continuation asserts.
-func TestEvidenceRecertifyAdvancesOneDriveAcrossWaiting(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyAdvancesOneDriveAcrossWaiting(t *testing.T) {
 	f0 := setupRebaseFixture(t, planRepoModes()[0])
 	gate := &seqGate{results: []LocalGateResult{
 		{Outcome: FinalizeGateWaiting, Continuation: GateContinuation{DriveID: "d1", Generation: "g1"}},
@@ -223,10 +225,10 @@ func TestEvidenceRecertifyAdvancesOneDriveAcrossWaiting(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyGateFailureAndHalt: a red suite is gate-failed (repair
+// TestIntegrationEvidenceEvidenceRecertifyGateFailureAndHalt: a red suite is gate-failed (repair
 // work) and a halt is blocked — neither touches the PR (acceptance 3), and a
 // WAITING with no continuation fails closed instead of spinning.
-func TestEvidenceRecertifyGateFailureAndHalt(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyGateFailureAndHalt(t *testing.T) {
 	cases := []struct {
 		name   string
 		result LocalGateResult
@@ -254,11 +256,11 @@ func TestEvidenceRecertifyGateFailureAndHalt(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyGateOffRecordsSkipped: build.gate off mints truthful
+// TestIntegrationEvidenceEvidenceRecertifyGateOffRecordsSkipped: build.gate off mints truthful
 // skipped evidence and completes as skipped WITHOUT editing the PR block —
 // evidence.Upsert is green-only by design and this change preserves evidence
 // rendering (acceptance 2).
-func TestEvidenceRecertifyGateOffRecordsSkipped(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyGateOffRecordsSkipped(t *testing.T) {
 	gate := &fakeGate{}
 	f, gh, deps, wdeps := recertifyFixture(t, gate)
 	// Config resolves from the pinned default-branch tip (origin/main), never the
@@ -280,9 +282,9 @@ func TestEvidenceRecertifyGateOffRecordsSkipped(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyRefusesUnconfiguredGate: a local build gate with no
+// TestIntegrationEvidenceEvidenceRecertifyRefusesUnconfiguredGate: a local build gate with no
 // build.test_command refuses; no suite, no PR edit (acceptance 2).
-func TestEvidenceRecertifyRefusesUnconfiguredGate(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyRefusesUnconfiguredGate(t *testing.T) {
 	gate := &fakeGate{}
 	f, gh, deps, wdeps := recertifyFixture(t, gate)
 	// Config resolves from the pinned default-branch tip (origin/main), never the
@@ -315,10 +317,10 @@ func (g *movingGate) RunLocalGate(context.Context, LocalGateRequest) (LocalGateR
 	return LocalGateResult{Outcome: FinalizeGatePassed, Evidence: g.ev, RunDir: "/run/x"}, nil
 }
 
-// TestEvidenceRecertifyRefusesHeadMovedUnderGate: a HEAD that moved between
+// TestIntegrationEvidenceEvidenceRecertifyRefusesHeadMovedUnderGate: a HEAD that moved between
 // the gate and the publish can never publish (acceptance 3). The recheck's
 // local-vs-remote leg catches it (the late commit is unpublished).
-func TestEvidenceRecertifyRefusesHeadMovedUnderGate(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyRefusesHeadMovedUnderGate(t *testing.T) {
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
 	gate := &movingGate{f: f, ev: greenBlockFor(t, f.head)}
@@ -335,10 +337,10 @@ func TestEvidenceRecertifyRefusesHeadMovedUnderGate(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyRefusesForeignCommandEvidence: evidence recording a
+// TestIntegrationEvidenceEvidenceRecertifyRefusesForeignCommandEvidence: evidence recording a
 // command other than the currently resolved build.test_command cannot publish —
 // the changed-configuration face of acceptance 3.
-func TestEvidenceRecertifyRefusesForeignCommandEvidence(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyRefusesForeignCommandEvidence(t *testing.T) {
 	gate := &fakeGate{}
 	f, gh, deps, wdeps := recertifyFixture(t, gate)
 	foreign, err := evidence.NewRecord("make other-suite", f.head, time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC))
@@ -355,9 +357,9 @@ func TestEvidenceRecertifyRefusesForeignCommandEvidence(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyRefusesWrongHeadEvidence: gate evidence naming another
+// TestIntegrationEvidenceEvidenceRecertifyRefusesWrongHeadEvidence: gate evidence naming another
 // head is stale at verification and never published.
-func TestEvidenceRecertifyRefusesWrongHeadEvidence(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyRefusesWrongHeadEvidence(t *testing.T) {
 	gate := &fakeGate{}
 	f, gh, deps, wdeps := recertifyFixture(t, gate)
 	gate.result = LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenBlockFor(t, f.baseTip), RunDir: "/run/x"}
@@ -399,12 +401,12 @@ func (f *dispositionEnsureGitHub) EnsurePullRequest(_ context.Context, req githu
 	return githubcli.EnsureResult{Disposition: f.disp}, nil
 }
 
-// TestEvidenceRecertifyEditContended: a PASSED gate whose PR edit comes back
+// TestIntegrationEvidenceEvidenceRecertifyEditContended: a PASSED gate whose PR edit comes back
 // EnsureContended (the PR diverged under the update) is refused as
 // contended/pr-edit-contended and reports NO completion — the contended arm of
 // publishRecertifiedEvidence's disposition mapping. Swapping the mapped result
 // to applied/green reddens the assert.
-func TestEvidenceRecertifyEditContended(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyEditContended(t *testing.T) {
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	inner := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
 	gh := &dispositionEnsureGitHub{fakePublishGitHub: inner, disp: githubcli.EnsureContended}
@@ -422,12 +424,12 @@ func TestEvidenceRecertifyEditContended(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyEditUnrecognizedDisposition: a PASSED gate whose PR edit
+// TestIntegrationEvidenceEvidenceRecertifyEditUnrecognizedDisposition: a PASSED gate whose PR edit
 // returns an unrecognized (zero-value) disposition falls to the mapping's
 // default arm — internal-error/status-internal-error — and reports NO
 // completion. Deleting the default arm (so it fell through to applied) reddens
 // the assert.
-func TestEvidenceRecertifyEditUnrecognizedDisposition(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyEditUnrecognizedDisposition(t *testing.T) {
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	inner := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
 	gh := &dispositionEnsureGitHub{fakePublishGitHub: inner, disp: githubcli.EnsureDisposition("")}
@@ -455,12 +457,12 @@ func (g *dirtyingGate) RunLocalGate(context.Context, LocalGateRequest) (LocalGat
 	return LocalGateResult{Outcome: FinalizeGatePassed, Evidence: g.ev, RunDir: "/run/x"}, nil
 }
 
-// TestEvidenceRecertifyRefusesDirtyAfterGate: an untracked, non-ignored file the
+// TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyAfterGate: an untracked, non-ignored file the
 // build command leaves in the worktree during a PASSED gate flips the
 // pre-publish cleanliness recheck to workspace-dirty and refuses to publish; the
 // PR is never edited. Pins the whole-predicate recheck's clean-worktree leg
 // (documented as the clean-worktree caveat in the guide).
-func TestEvidenceRecertifyRefusesDirtyAfterGate(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyRefusesDirtyAfterGate(t *testing.T) {
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
 	gate := &dirtyingGate{f: f, ev: greenBlockFor(t, f.head)}
@@ -474,10 +476,10 @@ func TestEvidenceRecertifyRefusesDirtyAfterGate(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecertifyEditFailureThenRetry: an uncertain PR edit is NOT
+// TestIntegrationEvidenceEvidenceRecertifyEditFailureThenRetry: an uncertain PR edit is NOT
 // completion; a later invocation converges the SAME PR and preserves authored
 // content (acceptance 4).
-func TestEvidenceRecertifyEditFailureThenRetry(t *testing.T) {
+func TestIntegrationEvidenceEvidenceRecertifyEditFailureThenRetry(t *testing.T) {
 	f := setupRebaseFixture(t, planRepoModes()[0])
 	inner := &fakePublishGitHub{repo: retargetRepo(), pr: f.prForHead(f.head, greenEvidenceFor(t, f.baseTip))}
 	gh := &flakyEnsureGitHub{fakePublishGitHub: inner, unknowns: 1}
