@@ -1,17 +1,12 @@
 # Backlog
 
-**469 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 319 done · 🗑️ 119 killed
+**469 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 319 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0467](active/0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) | Scoped gate starts inherit the run epoch; thread it through the build chain | `medium` | `fix` | [spec](../superpowers/specs/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md) | `fix/document-run-epoch-in-the-docket-build-task-gate-drive-start` |  |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0467](active/0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) | Scoped gate starts inherit the run epoch; thread it through the build chain | `medium` | `fix` | [#349](https://github.com/danielhanold/docket/pull/349) | awaiting merge |
 | [0466](active/0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) | Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive) | `medium` | `chore` | [#348](https://github.com/danielhanold/docket/pull/348) | awaiting merge |
 
 ## 🔴 Blocked (1)
