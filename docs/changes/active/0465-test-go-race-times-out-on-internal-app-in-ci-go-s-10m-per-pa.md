@@ -22,7 +22,7 @@ branch: 'fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-28T06:49:47Z'
+claimed_at: '2026-09-28T07:12:29Z'
 ---
 
 ## Artifacts
