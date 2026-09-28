@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [108]
 spec: 'docs/superpowers/specs/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md'
 plan: 'docs/superpowers/plans/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md'
-results:
+results: 'docs/results/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-28T07:12:29Z'
 |---|---|
 | Spec | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md) |
 | Plan | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md](https://github.com/danielhanold/docket/blob/fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa/docs/superpowers/plans/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) |
+| Results | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-results.md](https://github.com/danielhanold/docket/blob/fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa/docs/results/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
