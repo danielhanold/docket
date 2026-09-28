@@ -23,8 +23,8 @@ func TestValidateTitle(t *testing.T) {
 		{"nul", "a\x00b", FCInvalidTitle},
 		{"bell", "a\x07b", FCInvalidTitle},
 		{"next line (C1)", "a\u0085b", FCInvalidTitle},
-		{"line separator", "a b", FCInvalidTitle},
-		{"paragraph separator", "a b", FCInvalidTitle},
+		{"line separator", "a\u2028b", FCInvalidTitle},
+		{"paragraph separator", "a\u2029b", FCInvalidTitle},
 		{"invalid utf-8", "a\xffb", FCInvalidTitle},
 	}
 	for _, c := range cases {

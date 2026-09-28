@@ -903,7 +903,7 @@ func restampSpecBacklink(ctx context.Context, tree transaction.Tree, specPath st
 	}
 	if _, ok := doc.Block(backlinkBlockName); !ok {
 		return nil, false, "spec-backlink-missing",
-			fmt.Sprintf("spec %q has no docket:backlink block to re-stamp with the new title; restore it with `artifact backlink` first", specPath), nil
+			fmt.Sprintf("spec %q has no docket:backlink block to re-stamp with the new title; revise the spec body (send spec_markdown with the current body plus spec_version and title together) to rebuild the backlink block in one transaction", specPath), nil
 	}
 	block, err := render.BacklinkContent(gc, link)
 	if err != nil {
