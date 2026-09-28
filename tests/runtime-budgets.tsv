@@ -49,6 +49,7 @@ tests/test_go_integration_app_gatecancel.sh	20	parallel
 tests/test_go_integration_app_gateverdict.sh	25	parallel
 tests/test_go_integration_app_gatefence.sh	25	parallel
 tests/test_go_integration_app_gatecompletion.sh	20	parallel
+tests/test_go_integration_app_gateepoch.sh	15	parallel
 tests/test_go_integration_contract.sh	15	parallel
 tests/test_go_integration_cli_agent.sh	15	parallel
 tests/test_go_integration_gitcli_concurrency.sh	10	parallel

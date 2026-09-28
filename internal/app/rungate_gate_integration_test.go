@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -71,9 +73,9 @@ func epochLockHeld(t *testing.T, rungateRoot, key string) bool {
 	return false
 }
 
-// TestEpochLaunchGateAdmitsActiveBoundEpoch proves the gate runs reserve exactly
+// TestIntegrationGateEpochEpochLaunchGateAdmitsActiveBoundEpoch proves the gate runs reserve exactly
 // once, with a nil error, for an active epoch bound to the worktree the start names.
-func TestEpochLaunchGateAdmitsActiveBoundEpoch(t *testing.T) {
+func TestIntegrationGateEpochEpochLaunchGateAdmitsActiveBoundEpoch(t *testing.T) {
 	_, common, _, epochID, worktree := epochGateFixture(t)
 	gate := epochLaunchGate(common)
 
@@ -90,10 +92,10 @@ func TestEpochLaunchGateAdmitsActiveBoundEpoch(t *testing.T) {
 	}
 }
 
-// TestEpochLaunchGateRefusalMatrix proves every fail-closed refusal: reserve is
+// TestIntegrationGateEpochEpochLaunchGateRefusalMatrix proves every fail-closed refusal: reserve is
 // NEVER called and the error carries the mapped fence token (or the typed
 // EpochError for a location fault).
-func TestEpochLaunchGateRefusalMatrix(t *testing.T) {
+func TestIntegrationGateEpochEpochLaunchGateRefusalMatrix(t *testing.T) {
 	type wantKind int
 	const (
 		wantCancelled wantKind = iota
@@ -230,11 +232,11 @@ func TestEpochLaunchGateRefusalMatrix(t *testing.T) {
 	}
 }
 
-// TestEpochLaunchGateRefusesCompletingAndCompleted: the launch gate refuses a start
+// TestIntegrationGateEpochEpochLaunchGateRefusesCompletingAndCompleted: the launch gate refuses a start
 // (or a delayed-ticket relaunch) on a completing or completed epoch (change 0441) with
 // the distinct ErrRunCompleted token — its refusal is what later settles a pre-fence
 // never-launched ticket terminal — and never runs reserve.
-func TestEpochLaunchGateRefusesCompletingAndCompleted(t *testing.T) {
+func TestIntegrationGateEpochEpochLaunchGateRefusesCompletingAndCompleted(t *testing.T) {
 	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
 		t.Run(string(s), func(t *testing.T) {
 			repo, common, key, epochID, worktree := epochGateFixture(t)
@@ -256,11 +258,11 @@ func TestEpochLaunchGateRefusesCompletingAndCompleted(t *testing.T) {
 	}
 }
 
-// TestEpochRevokedResolverRevokesCompletingAndCompleted: the takeover revocation
+// TestIntegrationGateEpochEpochRevokedResolverRevokesCompletingAndCompleted: the takeover revocation
 // resolver reports revoked for a completing or completed epoch (change 0441), mirroring
 // the cancelled/superseded cases — a takeover of a completing/completed run refuses,
 // and explicit references to a completed epoch remain revoked.
-func TestEpochRevokedResolverRevokesCompletingAndCompleted(t *testing.T) {
+func TestIntegrationGateEpochEpochRevokedResolverRevokesCompletingAndCompleted(t *testing.T) {
 	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
 		t.Run(string(s), func(t *testing.T) {
 			repo, common, key, epochID, _ := epochGateFixture(t)
@@ -288,10 +290,10 @@ func fenceEpoch(t *testing.T, repo, key string, state epochState) {
 	}
 }
 
-// TestEpochLaunchGatePerformsNoWrite proves the gate never mutates the epoch record:
+// TestIntegrationGateEpochEpochLaunchGatePerformsNoWrite proves the gate never mutates the epoch record:
 // its bytes and physical generation are byte-identical before and after both an
 // admitted call and a refused call (spec AC6).
-func TestEpochLaunchGatePerformsNoWrite(t *testing.T) {
+func TestIntegrationGateEpochEpochLaunchGatePerformsNoWrite(t *testing.T) {
 	repo, common, key, epochID, worktree := epochGateFixture(t)
 	gate := epochLaunchGate(common)
 	path := filepath.Join(rungateRootOf(common), key, epochRecordFileName)
@@ -330,11 +332,12 @@ func TestEpochLaunchGatePerformsNoWrite(t *testing.T) {
 	}
 }
 
-// TestEpochLaunchGateSerializesWithFence proves the gate holds the epoch lock across
+// TestRaceIntegrationAppConcurrencyEpochLaunchGateSerializesWithFence proves the gate holds the epoch lock across
 // reserve so a concurrent active→cancelling fence serializes against it, and that a
 // fence that lands FIRST makes the gate refuse. Ordering is proven by channels and a
 // direct non-blocking lock probe — never a timing sleep.
-func TestEpochLaunchGateSerializesWithFence(t *testing.T) {
+// Race shard (change 0465): a launch-gate reserve and an epoch fence CAS run in two goroutines against one epoch lock.
+func TestRaceIntegrationAppConcurrencyEpochLaunchGateSerializesWithFence(t *testing.T) {
 	repo, common, key, epochID, worktree := epochGateFixture(t)
 	rungateRoot := rungateRootOf(common)
 	gate := epochLaunchGate(common)
@@ -394,10 +397,10 @@ func TestEpochLaunchGateSerializesWithFence(t *testing.T) {
 	}
 }
 
-// TestFindEpochDirByID proves the unique-match locator: a unique match returns the
+// TestIntegrationGateEpochFindEpochDirByID proves the unique-match locator: a unique match returns the
 // directory and record, zero matches is ErrEpochNotFound, and two matching dirs are
 // ErrEpochAmbiguous.
-func TestFindEpochDirByID(t *testing.T) {
+func TestIntegrationGateEpochFindEpochDirByID(t *testing.T) {
 	repo, common, key, epochID, worktree := epochGateFixture(t)
 	rungateRoot := rungateRootOf(common)
 
