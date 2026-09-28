@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 	if process.SupervisorRequested() {
 		os.Exit(process.RunSupervisorFromEnv())
 	}
-	// Route the death-guardian re-exec role: an agent_guardian_test.go real-process
+	// Route the death-guardian re-exec role: an agent_guardian_integration_test.go real-process
 	// test re-execs THIS binary as a detached guardian, which must run the guardian
 	// lifetime rather than re-running the suite (change 0375 Task 13).
 	if GuardianRequested() {

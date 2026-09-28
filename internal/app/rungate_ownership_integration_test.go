@@ -17,7 +17,7 @@ import (
 
 // This is the deterministic two-gate ownership interleaving matrix (change 0407,
 // spec acceptance items 1, 2, 6, 7). It exercises the acceptance criteria the unit
-// tests in rungate_verdict_test.go prove one branch at a time as WHOLE
+// tests in rungate_verdict_integration_test.go prove one branch at a time as WHOLE
 // interleavings: two gates A and B, each armed before either claim, each bound to
 // its own change through the store binding + committed-proof seams Task 3 produces,
 // verify only their own change and never each other's — under every ordering of
