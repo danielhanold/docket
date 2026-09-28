@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -53,10 +55,10 @@ func commitClaimTrailers(t *testing.T, dir, subject string, trailers ...string) 
 	return runGit(t, dir, "rev-parse", "HEAD")
 }
 
-// TestScanClaimProofsReadsCommittedReceipt: a metadata-branch commit carrying
+// TestIntegrationRecordOpsScanClaimProofsReadsCommittedReceipt: a metadata-branch commit carrying
 // the engine's trailer block for a change.claim applied receipt is returned as
 // one ClaimProof, newest-first, decoding gate_context_hash from the receipt.
-func TestScanClaimProofsReadsCommittedReceipt(t *testing.T) {
+func TestIntegrationRecordOpsScanClaimProofsReadsCommittedReceipt(t *testing.T) {
 	repo := newGateRepo(t)
 
 	// Older claim commit: change id 3, ungated (gate_context_hash "").

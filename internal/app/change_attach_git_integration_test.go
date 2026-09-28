@@ -1,8 +1,9 @@
+//go:build integration
+
 package app
 
 import (
 	"context"
-	"fmt"
 	"github.com/danielhanold/docket/internal/workspace"
 	"os"
 	"path/filepath"
@@ -32,28 +33,6 @@ func symlinkRepoFile(t *testing.T, root, rel, target string) {
 // fixture with exactly one property corrupted, and each asserts its own stable
 // reason string — proof the guard reddens for the reason it names, not merely
 // that something failed (learning assert-pins-outcome-not-mechanism).
-
-// attachBacklinkBlock renders the docket:backlink block the operation expects at
-// the head of an artifact, targeting change id/title at recPath. It mirrors
-// render.BacklinkContent's repo-relative shape exactly (no RepoWebURL is
-// configured in these fixtures), so a happy plan round-trips through verification.
-func attachBacklinkBlock(id int, title, recPath string) string {
-	return "<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
-		fmt.Sprintf("> ↩ **Change %04d — %s** — `%s`\n", id, title, recPath) +
-		"<!-- docket:backlink:end -->\n"
-}
-
-// attachHappyPlan renders a well-formed plan artifact: the correct backlink plus
-// an authored body whose sections merely MENTION planning tokens (change 0414
-// acceptance — a plan that instructs about a token, and the human-approved
-// ambiguous decision sentence, both attach; only a whole-slot bare-token filler
-// refuses). Every slot here holds substantive content.
-func attachHappyPlan(id int, title, recPath string) string {
-	return attachBacklinkBlock(id, title, recPath) +
-		"\n# Implementation Plan\n\n## Task 1\n\nRemove the " + tok("todo") +
-		" in retry.go and replace it with bounded retry logic.\n\n" +
-		"## Error handling\n" + tok("todo") + ": decide whether failed requests should retry or stop.\n"
-}
 
 // attachSetup builds a main-mode repo with one in-progress change, prepares its
 // feature workspace against the resolved base, and returns everything a
@@ -159,7 +138,7 @@ func advanceDocketOrigin(t *testing.T, repo *gitRepo, files map[string]string) {
 	runGit(t, repo.writer, "push", "-q", "origin", "docket")
 }
 
-func TestChangeAttachUnrelatedInvalidRecordProgress(t *testing.T) {
+func TestIntegrationRecordOpsChangeAttachUnrelatedInvalidRecordProgress(t *testing.T) {
 	f := attachSetupWith(t, map[string]string{unrelatedBrokenPath: unrelatedBrokenBytes})
 	head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
 
@@ -177,7 +156,7 @@ func TestChangeAttachUnrelatedInvalidRecordProgress(t *testing.T) {
 	assertUnrelatedBrokenIntact(t, f.repo)
 }
 
-func TestChangeAttachUnrelatedInvalidRecordRefusals(t *testing.T) {
+func TestIntegrationRecordOpsChangeAttachUnrelatedInvalidRecordRefusals(t *testing.T) {
 	requireRealGit(t)
 	src := lifecycleChange(3, "widget", "in-progress")
 	cases := unrelatedRefusalCases(t, 3, groomPath(3, "widget"), src, lifecycleChange(3, "dupe", "in-progress"))
