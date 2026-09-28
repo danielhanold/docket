@@ -1058,7 +1058,7 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 // never echoed.
 func TestGateDriveStartUnknownRunEpochIsNamed(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
-	root := gateTempDir(t)
+	root := testsupport.TempDir(t)
 	const bogus = "0790b760e26444866ef2e156ba383326"
 	out, _, _ := runCLI(t, "--json", "gate", "drive", "start",
 		"--repo-dir", wt, "--run-root", root, "--owner", "task",
