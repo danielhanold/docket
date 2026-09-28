@@ -1,7 +1,7 @@
 package app
 
 // Change 0465: the finalize publish fixtures and fakes stay in the default build —
-// untagged files (evidence_recertify_test.go, finalize_git_test.go) still use them —
+// the untagged finalize_git_test.go still uses them —
 // while the real-git finalize publish tests moved behind the integration tag
 // (finalize_publish_integration_test.go).
 

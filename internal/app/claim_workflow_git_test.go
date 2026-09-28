@@ -15,7 +15,7 @@ import (
 // blobVersionAt/originFeatureBranches), and the invocation-clone node builder are
 // reused from status_git_test.go / planning_git_test.go — this file invents no
 // third harness. The attach fixtures (attachHappyPlan/attachBacklinkBlock) are
-// reused from change_attach_git_test.go.
+// reused from change_attach_git_helpers_test.go.
 //
 // The concurrency properties these tests pin cannot be faked: an independent
 // writer must ACTUALLY diverge the contended path on the origin between the

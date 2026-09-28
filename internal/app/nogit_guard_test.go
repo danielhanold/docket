@@ -10,9 +10,12 @@ package app
 //
 // Mechanism (keyed on the exec itself, never on spellings): installNoGitGuard, called
 // from TestMain before m.Run, puts a directory holding a refusing `git` shim at the
-// FRONT of PATH. Every route to git (gitcli.NewClient's exec.LookPath, a bare
-// exec.Command("git", …), a fixture helper, a child process inheriting PATH) resolves
-// the shim. The shim exits nogitGuardExit with the nogitGuardDiagnostic on stderr AND
+// FRONT of PATH. Every PATH-resolved route to git (gitcli.NewClient's exec.LookPath,
+// a bare exec.Command("git", …), a fixture helper, a child process inheriting PATH)
+// resolves the shim. Known limits, none used by default tests today: a client built
+// with gitcli.WithExecutable(<absolute path>), a test that replaces PATH wholesale
+// rather than prepending to it, and a detached child that runs git after m.Run
+// returns (once the shim dir is removed) all bypass the shim. The shim exits nogitGuardExit with the nogitGuardDiagnostic on stderr AND
 // appends "<cwd>\t<argv>" to a violation log, so a test that tolerates the failure
 // still turns the package red when nogitVerdict reads the log after m.Run.
 //
