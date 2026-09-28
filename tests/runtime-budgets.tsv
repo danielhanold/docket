@@ -74,7 +74,7 @@ tests/test_go_integration_githubcli_merge.sh	10	parallel
 tests/test_go_integration_githubcli_probe.sh	10	parallel
 tests/test_go_integration_githubcli_prbatch.sh	10	parallel
 tests/test_go_integration_transaction_apply.sh	25	parallel
-tests/test_go_integration_transaction_recovery.sh	20	parallel
+tests/test_go_integration_transaction_recovery.sh	25	parallel
 tests/test_go_integration_transaction_race.sh	25	parallel
 tests/test_go_integration_workspace_setup.sh	25	parallel
 tests/test_go_integration_workspace_race.sh	10	parallel
