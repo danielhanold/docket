@@ -22,7 +22,7 @@ branch: 'chore/bring-test-go-race-back-under-its-60s-budget-row-transaction'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-28T20:23:24Z'
+claimed_at: '2026-09-28T20:24:40Z'
 ---
 
 ## Artifacts
