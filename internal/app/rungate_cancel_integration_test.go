@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -7,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gatedrive"
@@ -18,161 +19,6 @@ import (
 // registered tasks/processes, reconciles admitted mutations, and reports cancelled
 // only on full accounting. The tests drive the flow over faked stop/native seams and
 // a real gatedrive admission store rooted at a real temp git repo.
-
-// fakeCancelStopper is an injectable cancelStopper: it records every run dir it was
-// asked to stop, answers proven/unproven from a per-dir map, and (via onStop) lets a
-// test inject a race between the fence and the stop.
-type fakeCancelStopper struct {
-	proven map[string]bool
-	calls  []string
-	onStop func(runDir string)
-}
-
-func (f *fakeCancelStopper) stopProcess(runDir string) (bool, error) {
-	f.calls = append(f.calls, runDir)
-	if f.onStop != nil {
-		f.onStop(runDir)
-	}
-	return f.proven[runDir], nil
-}
-
-// fakeNativeCanceller records the native handles it was asked to cancel and returns
-// a canned error.
-type fakeNativeCanceller struct {
-	calls []string
-	err   error
-}
-
-func (f *fakeNativeCanceller) cancelNativeTask(handle string) error {
-	f.calls = append(f.calls, handle)
-	return f.err
-}
-
-// fakeLaunchReconciler is an injectable epochLaunchReconciler: it records each
-// (worktree,epoch) pair it was asked to reconcile and returns a canned report/error.
-type fakeLaunchReconciler struct {
-	report gatedrive.EpochLaunchReport
-	err    error
-	calls  []string
-}
-
-func (f *fakeLaunchReconciler) reconcile(worktree, epochID string) (gatedrive.EpochLaunchReport, error) {
-	f.calls = append(f.calls, worktree+"|"+epochID)
-	return f.report, f.err
-}
-
-// okLaunchReconciler is a permissive fake reconciler: every epoch's launch
-// obligations are already accounted with no findings, so a cancel test that does not
-// exercise the launch-reconciliation path behaves exactly as before the seam existed.
-func okLaunchReconciler() *fakeLaunchReconciler {
-	return &fakeLaunchReconciler{report: gatedrive.EpochLaunchReport{Accounted: true}}
-}
-
-// cancelFixture is one prepared cancelable run: a gate record with a parent-held
-// authority, an active epoch bound to change 42 with a confirmed claim, a canonical
-// feature worktree, and a confirmed worktree execution slot whose process is runDir.
-type cancelFixture struct {
-	repo     string
-	key      string
-	epochID  string
-	worktree string
-	runDir   string
-	store    *gatedrive.Store
-	common   string
-}
-
-// newCancelFixture builds a fully authorized cancelable run. slot controls whether a
-// worktree execution slot is reserved+confirmed; a run with no slot exercises the
-// keyless/standalone path.
-func newCancelFixture(t *testing.T, slot bool) cancelFixture {
-	t.Helper()
-	repo := newGateRepo(t)
-	common, err := gateGitCommonDir(repo)
-	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
-	}
-	key, err := MintGateRecord(repo, GateRecord{
-		Target:       gateBeforeStoredTarget,
-		AttemptLimit: 2,
-		Retry:        RetryUnused,
-		Disposition:  "gate-armed",
-		ParentCap:    "parent-cap-raw",
-		ScopeID:      "scope-1",
-	})
-	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
-	}
-	ep, err := MintEpochRecord(repo, key, "42")
-	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
-	}
-	if err := ReserveGateClaim(repo, key, 42, "req-1"); err != nil {
-		t.Fatalf("ReserveGateClaim: %v", err)
-	}
-	if err := ConfirmGateClaim(repo, key, 42, "req-1", "rev-1", ""); err != nil {
-		t.Fatalf("ConfirmGateClaim: %v", err)
-	}
-
-	worktree := filepath.Join(repo, "feature-wt")
-	if err := os.MkdirAll(worktree, 0o755); err != nil {
-		t.Fatalf("mkdir worktree: %v", err)
-	}
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
-		r.Worktree = worktree
-		return nil
-	}); err != nil {
-		t.Fatalf("epochCAS set worktree: %v", err)
-	}
-
-	fx := cancelFixture{repo: repo, key: key, epochID: ep.EpochID, worktree: worktree, common: common}
-	fx.store = gatedrive.OpenStore(common)
-	if slot {
-		// The slot records a real owning RunEpochID so the ownership-checked
-		// teardown treats it as slotOwned (change 0435) — the same teardown behavior
-		// the raw (epoch-less) reservation used to get, now anchored on true epoch
-		// ownership rather than the worktree location alone.
-		runDir := filepath.Join(worktree, "run-1")
-		token, terr := fx.store.ReserveWorktreeExecutionForEpoch(common, worktree, ep.EpochID, nil)
-		if terr != nil {
-			t.Fatalf("ReserveWorktreeExecutionForEpoch: %v", terr)
-		}
-		if cerr := fx.store.ConfirmWorktreeExecution(worktree, token, "run-1", runDir); cerr != nil {
-			t.Fatalf("ConfirmWorktreeExecution: %v", cerr)
-		}
-		fx.runDir = runDir
-	}
-	return fx
-}
-
-// loadEpochState reads the epoch's current state.
-func loadEpochState(t *testing.T, repo, key string) epochState {
-	t.Helper()
-	ep, _, err := LoadEpochRecord(repo, key)
-	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
-	}
-	return ep.State
-}
-
-// loadSlotState reads the worktree slot's current state as a string.
-func loadSlotState(t *testing.T, store *gatedrive.Store, worktree string) string {
-	t.Helper()
-	slot, _, err := store.LoadWorktreeExecution(worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	return string(slot.State)
-}
-
-// loadSlotEpoch reads the worktree slot's current RunEpochID.
-func loadSlotEpoch(t *testing.T, store *gatedrive.Store, worktree string) string {
-	t.Helper()
-	slot, _, err := store.LoadWorktreeExecution(worktree)
-	if err != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", err)
-	}
-	return slot.RunEpochID
-}
 
 // removeAdmissionRecord deletes the worktree slot's record file so the next slot
 // write fails typed (ErrNotFound) — a deterministic durable-write failure. The
@@ -197,18 +43,9 @@ func removeAdmissionRecord(t *testing.T, common, worktree string) {
 	}
 }
 
-func hasFinding(findings []string, prefix string) bool {
-	for _, f := range findings {
-		if strings.HasPrefix(f, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
-// TestRunCancelHappyPath: an active epoch with a proven slot teardown cancels
+// TestIntegrationGateCancelRunCancelHappyPath: an active epoch with a proven slot teardown cancels
 // cleanly — disposition cancelled, epoch cancelled, slot released.
-func TestRunCancelHappyPath(t *testing.T) {
+func TestIntegrationGateCancelRunCancelHappyPath(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
@@ -233,9 +70,9 @@ func TestRunCancelHappyPath(t *testing.T) {
 	}
 }
 
-// TestRunCancelPendingOnUnprovenStop: an unproven slot teardown fences the epoch but
+// TestIntegrationGateCancelRunCancelPendingOnUnprovenStop: an unproven slot teardown fences the epoch but
 // leaves it cancelling — disposition cancellation-pending, slot stopping.
-func TestRunCancelPendingOnUnprovenStop(t *testing.T) {
+func TestIntegrationGateCancelRunCancelPendingOnUnprovenStop(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: false}}
 	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
@@ -254,9 +91,9 @@ func TestRunCancelPendingOnUnprovenStop(t *testing.T) {
 	}
 }
 
-// TestRunCancelAlreadyCancelled: a repeat against a cancelled epoch is idempotent
+// TestIntegrationGateCancelRunCancelAlreadyCancelled: a repeat against a cancelled epoch is idempotent
 // already-cancelled, touching nothing.
-func TestRunCancelAlreadyCancelled(t *testing.T) {
+func TestIntegrationGateCancelRunCancelAlreadyCancelled(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
 		r.State = EpochCancelled
@@ -281,8 +118,8 @@ func TestRunCancelAlreadyCancelled(t *testing.T) {
 	}
 }
 
-// TestRunCancelRefusedWrongEpoch: a stale epoch locator is refused with no fence.
-func TestRunCancelRefusedWrongEpoch(t *testing.T) {
+// TestIntegrationGateCancelRunCancelRefusedWrongEpoch: a stale epoch locator is refused with no fence.
+func TestIntegrationGateCancelRunCancelRefusedWrongEpoch(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}}, fx.repo, fx.key, "not-the-epoch", "human stop")
 	if res.Disposition != CancelDispositionRefused {
@@ -296,9 +133,9 @@ func TestRunCancelRefusedWrongEpoch(t *testing.T) {
 	}
 }
 
-// TestRunCancelRefusedWrongClaim: an unconfirmed (here, absent) claim binding is
+// TestIntegrationGateCancelRunCancelRefusedWrongClaim: an unconfirmed (here, absent) claim binding is
 // refused — the run is not a genuinely claimed run.
-func TestRunCancelRefusedWrongClaim(t *testing.T) {
+func TestIntegrationGateCancelRunCancelRefusedWrongClaim(t *testing.T) {
 	// Build a fixture WITHOUT confirming a claim.
 	repo := newGateRepo(t)
 	common, _ := gateGitCommonDir(repo)
@@ -325,9 +162,9 @@ func TestRunCancelRefusedWrongClaim(t *testing.T) {
 	}
 }
 
-// TestRunCancelRefusedWrongRepo: a key that does not locate a record in this
+// TestIntegrationGateCancelRunCancelRefusedWrongRepo: a key that does not locate a record in this
 // repository is refused (the repository/locator authority fails closed).
-func TestRunCancelRefusedWrongRepo(t *testing.T) {
+func TestIntegrationGateCancelRunCancelRefusedWrongRepo(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	other := newGateRepo(t)
 	otherCommon, _ := gateGitCommonDir(other)
@@ -341,10 +178,10 @@ func TestRunCancelRefusedWrongRepo(t *testing.T) {
 	}
 }
 
-// TestCancelFencesBeforeStopping: a participant that registers between the fence and
+// TestIntegrationGateCancelCancelFencesBeforeStopping: a participant that registers between the fence and
 // the stop (a launch admitted before the fence won) is caught by the post-stop
 // re-enumeration, keeping the cancellation pending.
-func TestCancelFencesBeforeStopping(t *testing.T) {
+func TestIntegrationGateCancelCancelFencesBeforeStopping(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	// A raw-run participant present at entry; stopping it proves teardown.
 	if err := RegisterEpochParticipant(fx.repo, fx.key, fx.epochID, EpochParticipant{Kind: "raw-run", NativeHandle: "R1"}); err != nil {
@@ -376,10 +213,10 @@ func TestCancelFencesBeforeStopping(t *testing.T) {
 	}
 }
 
-// TestCancelRepeatResumesCleanup: a first cancel fences and leaves the run pending
+// TestIntegrationGateCancelCancelRepeatResumesCleanup: a first cancel fences and leaves the run pending
 // on an unproven stop; a repeat against the cancelling epoch resumes cleanup (no
 // re-fence, no authority restore) and completes to cancelled when the stop proves.
-func TestCancelRepeatResumesCleanup(t *testing.T) {
+func TestIntegrationGateCancelCancelRepeatResumesCleanup(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: false}}
 
@@ -408,10 +245,10 @@ func TestCancelRepeatResumesCleanup(t *testing.T) {
 	}
 }
 
-// TestCancelPendingOnUncompletedMutation: an admitted-not-completed mutation keeps
+// TestIntegrationGateCancelCancelPendingOnUncompletedMutation: an admitted-not-completed mutation keeps
 // the cancellation pending even when every process teardown proves — no premature
 // cancelled.
-func TestCancelPendingOnUncompletedMutation(t *testing.T) {
+func TestIntegrationGateCancelCancelPendingOnUncompletedMutation(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{{OpKey: "pr.publish", Status: "admitted"}}
@@ -433,12 +270,12 @@ func TestCancelPendingOnUncompletedMutation(t *testing.T) {
 	}
 }
 
-// TestCancelSettlesUncertainPublicationWithIdenticalRetry (change 0444 acceptance
+// TestIntegrationGateCancelCancelSettlesUncertainPublicationWithIdenticalRetry (change 0444 acceptance
 // 1): an uncertain PR publication plus a later completed identical retry — with
 // every process teardown proven — lets cancellation durably complete the original
 // entry and report cancelled; the terminal epoch is then quiescent for resume and
 // SupersedeCancelledEpoch admits exactly one replacement.
-func TestCancelSettlesUncertainPublicationWithIdenticalRetry(t *testing.T) {
+func TestIntegrationGateCancelCancelSettlesUncertainPublicationWithIdenticalRetry(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	desc := MutationPublication{
 		RepoHost: "github.com", RepoOwner: "o", RepoName: "r",
@@ -481,12 +318,12 @@ func TestCancelSettlesUncertainPublicationWithIdenticalRetry(t *testing.T) {
 	}
 }
 
-// TestCancelStaysPendingWithoutCompletedIdenticalRetry (change 0444 acceptance 2):
+// TestIntegrationGateCancelCancelStaysPendingWithoutCompletedIdenticalRetry (change 0444 acceptance 2):
 // a workspace publication settles analogously, and an uncertain entry with NO
 // completed identical retry keeps cancellation-pending — then a subsequent
 // identical completed retry lets the SAME pending cancellation finish (acceptance
 // 4 tail).
-func TestCancelStaysPendingWithoutCompletedIdenticalRetry(t *testing.T) {
+func TestIntegrationGateCancelCancelStaysPendingWithoutCompletedIdenticalRetry(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
@@ -531,10 +368,10 @@ func TestCancelStaysPendingWithoutCompletedIdenticalRetry(t *testing.T) {
 	}
 }
 
-// TestCancelNativeAdapterAbsentIsFindingNotSilence: with no native adapter wired, a
+// TestIntegrationGateCancelCancelNativeAdapterAbsentIsFindingNotSilence: with no native adapter wired, a
 // native participant yields an explicit finding while the process teardown still
 // accounts the run to cancelled.
-func TestCancelNativeAdapterAbsentIsFindingNotSilence(t *testing.T) {
+func TestIntegrationGateCancelCancelNativeAdapterAbsentIsFindingNotSilence(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	if err := RegisterEpochParticipant(fx.repo, fx.key, fx.epochID, EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}); err != nil {
 		t.Fatalf("RegisterEpochParticipant: %v", err)
@@ -550,9 +387,9 @@ func TestCancelNativeAdapterAbsentIsFindingNotSilence(t *testing.T) {
 	}
 }
 
-// TestCancelNeverChargesOrResets: cancellation touches neither the change-owned
+// TestIntegrationGateCancelCancelNeverChargesOrResets: cancellation touches neither the change-owned
 // suite budget nor the gate retry markers, and resets no gate-record retry state.
-func TestCancelNeverChargesOrResets(t *testing.T) {
+func TestIntegrationGateCancelCancelNeverChargesOrResets(t *testing.T) {
 	fx := newCancelFixture(t, true)
 
 	// Seed a consumed retry marker and a reserved suite attempt.
@@ -604,11 +441,11 @@ func TestCancelNeverChargesOrResets(t *testing.T) {
 	}
 }
 
-// TestCancelPendingWhileLaunchObligationUnresolved: even with every process teardown
+// TestIntegrationGateCancelCancelPendingWhileLaunchObligationUnresolved: even with every process teardown
 // proven, an epoch-linked launch obligation the reconciler reports unsettled keeps
 // the cancellation pending (a completed replacement must never first appear after a
 // completed cancellation), surfacing the reconciler's findings.
-func TestCancelPendingWhileLaunchObligationUnresolved(t *testing.T) {
+func TestIntegrationGateCancelCancelPendingWhileLaunchObligationUnresolved(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	recon := &fakeLaunchReconciler{report: gatedrive.EpochLaunchReport{
@@ -631,10 +468,10 @@ func TestCancelPendingWhileLaunchObligationUnresolved(t *testing.T) {
 	}
 }
 
-// TestCancelCompletesWhenLaunchObligationsSettle: with the reconciler reporting every
+// TestIntegrationGateCancelCancelCompletesWhenLaunchObligationsSettle: with the reconciler reporting every
 // launch obligation accounted and the rest of the accounting green, cancellation
 // completes to cancelled.
-func TestCancelCompletesWhenLaunchObligationsSettle(t *testing.T) {
+func TestIntegrationGateCancelCancelCompletesWhenLaunchObligationsSettle(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	recon := okLaunchReconciler()
@@ -651,9 +488,9 @@ func TestCancelCompletesWhenLaunchObligationsSettle(t *testing.T) {
 	}
 }
 
-// TestCancelReconcilerUnavailableFailsClosed: a nil launch reconciler is not silence
+// TestIntegrationGateCancelCancelReconcilerUnavailableFailsClosed: a nil launch reconciler is not silence
 // — it is a finding and a fail-closed pending, mirroring the nil-stopper rule.
-func TestCancelReconcilerUnavailableFailsClosed(t *testing.T) {
+func TestIntegrationGateCancelCancelReconcilerUnavailableFailsClosed(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: nil}, fx.repo, fx.key, fx.epochID, "human stop")
@@ -669,10 +506,10 @@ func TestCancelReconcilerUnavailableFailsClosed(t *testing.T) {
 	}
 }
 
-// TestRunCancelPublicEntry: the public RunCancel composes production seams and, over
+// TestIntegrationGateCancelRunCancelPublicEntry: the public RunCancel composes production seams and, over
 // a run with no worktree slot and no native adapter, refuses cleanly when authority
 // is wrong (here a wrong epoch) — proving the public signature is wired.
-func TestRunCancelPublicEntry(t *testing.T) {
+func TestIntegrationGateCancelRunCancelPublicEntry(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	res := RunCancel(context.Background(), PlanningDeps{}, WorkspaceDeps{}, fx.repo, fx.key, "wrong-epoch", "human stop")
 	if res.Disposition != CancelDispositionRefused {
@@ -683,10 +520,10 @@ func TestRunCancelPublicEntry(t *testing.T) {
 	}
 }
 
-// TestCancelNeverTouchesForeignSlot (AC4): a slot the worktree carries for a
+// TestIntegrationGateCancelCancelNeverTouchesForeignSlot (AC4): a slot the worktree carries for a
 // DIFFERENT epoch is never marked, stopped, or released by this epoch's cancel — a
 // different nonempty RunEpochID is a foreign owner, surfaced informationally.
-func TestCancelNeverTouchesForeignSlot(t *testing.T) {
+func TestIntegrationGateCancelCancelNeverTouchesForeignSlot(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	// Occupy the worktree with a FOREIGN epoch's executing slot.
 	ftoken, err := fx.store.ReserveWorktreeExecutionForEpoch(fx.common, fx.worktree, "foreign-epoch", nil)
@@ -715,10 +552,10 @@ func TestCancelNeverTouchesForeignSlot(t *testing.T) {
 	}
 }
 
-// TestCancelLeavesUnlinkedEpochlessSlot (AC4): an epoch-less slot whose execution is
+// TestIntegrationGateCancelCancelLeavesUnlinkedEpochlessSlot (AC4): an epoch-less slot whose execution is
 // NOT independently linked to this epoch's registered participants is left
 // untouched, with an unresolved-ownership finding; cancellation still completes.
-func TestCancelLeavesUnlinkedEpochlessSlot(t *testing.T) {
+func TestIntegrationGateCancelCancelLeavesUnlinkedEpochlessSlot(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	rtoken, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
 	if err != nil {
@@ -743,10 +580,10 @@ func TestCancelLeavesUnlinkedEpochlessSlot(t *testing.T) {
 	}
 }
 
-// TestCancelStopsLinkedEpochlessSlot (AC4): an epoch-less slot IS torn down when its
+// TestIntegrationGateCancelCancelStopsLinkedEpochlessSlot (AC4): an epoch-less slot IS torn down when its
 // exact execution (RawRunDir) is independently linked to a registered execution
 // participant of this epoch.
-func TestCancelStopsLinkedEpochlessSlot(t *testing.T) {
+func TestIntegrationGateCancelCancelStopsLinkedEpochlessSlot(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	runDir := filepath.Join(fx.worktree, "run-L")
 	rtoken, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
@@ -769,11 +606,11 @@ func TestCancelStopsLinkedEpochlessSlot(t *testing.T) {
 	}
 }
 
-// TestCancelReleaseWriteFailureFailsClosed (AC5): a release whose durable write
+// TestIntegrationGateCancelCancelReleaseWriteFailureFailsClosed (AC5): a release whose durable write
 // fails (the record vanishes between the proven stop and the release) keeps the
 // cancellation pending — a successful process stop never proves the release was
 // recorded.
-func TestCancelReleaseWriteFailureFailsClosed(t *testing.T) {
+func TestIntegrationGateCancelCancelReleaseWriteFailureFailsClosed(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	stopper.onStop = func(runDir string) {
@@ -792,9 +629,9 @@ func TestCancelReleaseWriteFailureFailsClosed(t *testing.T) {
 	}
 }
 
-// TestCancelRetiresOwnedReleasedSlot (AC1/AC2 app half): completed cancellation
+// TestIntegrationGateCancelCancelRetiresOwnedReleasedSlot (AC1/AC2 app half): completed cancellation
 // releases AND detaches the slot — RunEpochID cleared, historical fields preserved.
-func TestCancelRetiresOwnedReleasedSlot(t *testing.T) {
+func TestIntegrationGateCancelCancelRetiresOwnedReleasedSlot(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	before, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
@@ -822,9 +659,9 @@ func TestCancelRetiresOwnedReleasedSlot(t *testing.T) {
 	}
 }
 
-// TestCancelPendingWhenRetirementFails (AC5): a retirement write failure keeps the
+// TestIntegrationGateCancelCancelPendingWhenRetirementFails (AC5): a retirement write failure keeps the
 // epoch cancelling and the disposition pending — never a false cancelled.
-func TestCancelPendingWhenRetirementFails(t *testing.T) {
+func TestIntegrationGateCancelCancelPendingWhenRetirementFails(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler(),
@@ -844,11 +681,11 @@ func TestCancelPendingWhenRetirementFails(t *testing.T) {
 	}
 }
 
-// TestCancelInterruptedBetweenRetireAndFinalizeConverges (AC5): retirement landed
+// TestIntegrationGateCancelCancelInterruptedBetweenRetireAndFinalizeConverges (AC5): retirement landed
 // but cancelled was never persisted (simulated crash between the two writes); the
 // retry revalidates, accepts the already-detached slot, and finishes the epoch
 // transition — without touching a successor.
-func TestCancelInterruptedBetweenRetireAndFinalizeConverges(t *testing.T) {
+func TestIntegrationGateCancelCancelInterruptedBetweenRetireAndFinalizeConverges(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	// Reconstruct the crash state directly: the epoch record CAS has no seam, so
@@ -881,12 +718,12 @@ func TestCancelInterruptedBetweenRetireAndFinalizeConverges(t *testing.T) {
 	}
 }
 
-// TestCancelRetireRaceWithSuccessorLeavesSuccessor (AC4): the slot is replaced by a
+// TestIntegrationGateCancelCancelRetireRaceWithSuccessorLeavesSuccessor (AC4): the slot is replaced by a
 // successor between the cancel's load and its retire CAS — the retire refuses on
 // the changed reservation, the re-read classifies the successor as foreign, and
 // cancellation completes WITHOUT touching it (never retried with the successor's
 // token).
-func TestCancelRetireRaceWithSuccessorLeavesSuccessor(t *testing.T) {
+func TestIntegrationGateCancelCancelRetireRaceWithSuccessorLeavesSuccessor(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	var raced bool
@@ -917,10 +754,10 @@ func TestCancelRetireRaceWithSuccessorLeavesSuccessor(t *testing.T) {
 	}
 }
 
-// TestCancelConcurrentReplayIsIdempotent (AC4): two sequential replays of a
+// TestIntegrationGateCancelCancelConcurrentReplayIsIdempotent (AC4): two sequential replays of a
 // completed cancellation are no-ops (already-cancelled) leaving slot and epoch
 // byte-stable.
-func TestCancelConcurrentReplayIsIdempotent(t *testing.T) {
+func TestIntegrationGateCancelCancelConcurrentReplayIsIdempotent(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
@@ -938,12 +775,12 @@ func TestCancelConcurrentReplayIsIdempotent(t *testing.T) {
 	}
 }
 
-// TestTerminalRepairRetiresHistoricalStaleSlot (AC6): a durably CANCELLED epoch
+// TestIntegrationGateCancelTerminalRepairRetiresHistoricalStaleSlot (AC6): a durably CANCELLED epoch
 // whose released slot still carries its RunEpochID (the recorded incident shape:
 // a pre-0435 cancel released but never retired) is repaired by an authorized repeat
 // cancel — disposition cancelled/applied, slot detached, epoch state
 // untouched-terminal — and a second repair is an idempotent no-op.
-func TestTerminalRepairRetiresHistoricalStaleSlot(t *testing.T) {
+func TestIntegrationGateCancelTerminalRepairRetiresHistoricalStaleSlot(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	// Manufacture the historical defect: release WITHOUT retirement, then force the
 	// epoch terminal (what the pre-0435 cancel produced).
@@ -977,9 +814,9 @@ func TestTerminalRepairRetiresHistoricalStaleSlot(t *testing.T) {
 	}
 }
 
-// TestTerminalRepairSupersededSlot (AC6): the same repair works for a SUPERSEDED
+// TestIntegrationGateCancelTerminalRepairSupersededSlot (AC6): the same repair works for a SUPERSEDED
 // epoch's stale released slot, and never regresses the superseded state.
-func TestTerminalRepairSupersededSlot(t *testing.T) {
+func TestIntegrationGateCancelTerminalRepairSupersededSlot(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
@@ -1003,10 +840,10 @@ func TestTerminalRepairSupersededSlot(t *testing.T) {
 	}
 }
 
-// TestTerminalRepairRefusesUnsafeHistories (AC6): each unsafe terminal history is
+// TestIntegrationGateCancelTerminalRepairRefusesUnsafeHistories (AC6): each unsafe terminal history is
 // refused with a specific finding, with NO slot or epoch mutation, and never
 // cancellation-pending over durable terminal state.
-func TestTerminalRepairRefusesUnsafeHistories(t *testing.T) {
+func TestIntegrationGateCancelTerminalRepairRefusesUnsafeHistories(t *testing.T) {
 	cases := []struct {
 		name    string
 		arrange func(t *testing.T, fx cancelFixture) cancelSeams
@@ -1068,14 +905,14 @@ func TestTerminalRepairRefusesUnsafeHistories(t *testing.T) {
 	}
 }
 
-// TestGuardianReapsButNeverRetires: the death guardian's fence+reap releases the
+// TestIntegrationGateCancelGuardianReapsButNeverRetires: the death guardian's fence+reap releases the
 // proven-stopped slot but RETAINS RunEpochID and leaves the epoch CANCELLING —
 // only authorized run.cancel completion retires (spec "The death guardian may
 // perform teardown but never retires epoch ownership"). The contract is proven
 // against the shared reconcileEpochTeardown, which the guardian composes and which
 // performs no retirement; retirement stays exclusively in runCancel's post-accounted
 // completion block and repairTerminalEpoch, neither of which the guardian reaches.
-func TestGuardianReapsButNeverRetires(t *testing.T) {
+func TestIntegrationGateCancelGuardianReapsButNeverRetires(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	// guardianFenceAndReap composes productionCancelSeams, whose stopper/reconciler
 	// reach the real process service — unavailable here. Drive its exact sequence
@@ -1121,12 +958,12 @@ func TestGuardianReapsButNeverRetires(t *testing.T) {
 	}
 }
 
-// TestFinalizeGateAdmitsAfterRetirement (AC1): before retirement the epoch-owned
+// TestIntegrationGateCancelFinalizeGateAdmitsAfterRetirement (AC1): before retirement the epoch-owned
 // released slot blocks an epoch-less raw/finalize launch (rawStaleEpochRefusal's
 // stale-run-epoch) and a different-epoch reservation (reserveWorktreeExecution's
 // between-drives fence); after authorized cancellation retires the ownership, both
 // admit again — the released slot is genuinely reusable.
-func TestFinalizeGateAdmitsAfterRetirement(t *testing.T) {
+func TestIntegrationGateCancelFinalizeGateAdmitsAfterRetirement(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
@@ -1160,11 +997,11 @@ func TestFinalizeGateAdmitsAfterRetirement(t *testing.T) {
 	}
 }
 
-// TestRetirementDoesNotUnfenceOldEpochLaunches (AC8): after retirement the OLD
+// TestIntegrationGateCancelRetirementDoesNotUnfenceOldEpochLaunches (AC8): after retirement the OLD
 // epoch's fresh start is still refused by the 437 launch gate (epochLaunchGate) —
 // clearing slot ownership never revives the cancelled epoch's launch authority, and
 // the refused gate never runs the reservation body.
-func TestRetirementDoesNotUnfenceOldEpochLaunches(t *testing.T) {
+func TestIntegrationGateCancelRetirementDoesNotUnfenceOldEpochLaunches(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	if res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop"); res.Disposition != CancelDispositionCancelled {
@@ -1181,13 +1018,13 @@ func TestRetirementDoesNotUnfenceOldEpochLaunches(t *testing.T) {
 	}
 }
 
-// TestRepairChargesNothing (AC8): terminal repair — like cancellation — touches
+// TestIntegrationGateCancelRepairChargesNothing (AC8): terminal repair — like cancellation — touches
 // neither the suite budget nor the gate retry markers. This mirrors
-// TestCancelNeverChargesOrResets (same seeding and asserts) with the historical
-// stale-slot repair arrangement of TestTerminalRepairRetiresHistoricalStaleSlot
+// TestIntegrationGateCancelCancelNeverChargesOrResets (same seeding and asserts) with the historical
+// stale-slot repair arrangement of TestIntegrationGateCancelTerminalRepairRetiresHistoricalStaleSlot
 // (release WITHOUT retirement + epoch forced cancelled) placed between the seeding
 // and the accounting-neutrality asserts.
-func TestRepairChargesNothing(t *testing.T) {
+func TestIntegrationGateCancelRepairChargesNothing(t *testing.T) {
 	fx := newCancelFixture(t, true)
 
 	// Seed a consumed retry marker and a reserved suite attempt.
@@ -1251,12 +1088,12 @@ func TestRepairChargesNothing(t *testing.T) {
 	}
 }
 
-// TestRunCancelWinsFromCompletingEpoch: an explicit human cancellation WINS from a
+// TestIntegrationGateCancelRunCancelWinsFromCompletingEpoch: an explicit human cancellation WINS from a
 // completing (successful, mid-closeout) epoch — the fence flips completing→cancelling
 // and the ordinary teardown/accounting runs to a proven cancellation, never a
 // completing/completed relabelling. Completion then loses (change 0441): its
 // completing→completed CAS refuses once this fence lands.
-func TestRunCancelWinsFromCompletingEpoch(t *testing.T) {
+func TestIntegrationGateCancelRunCancelWinsFromCompletingEpoch(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	forceEpochState(t, fx.repo, fx.key, EpochCompleting)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
@@ -1271,11 +1108,11 @@ func TestRunCancelWinsFromCompletingEpoch(t *testing.T) {
 	}
 }
 
-// TestRunCancelRefusesCompletedEpoch: a completed (successfully closed-out) run
+// TestIntegrationGateCancelRunCancelRefusesCompletedEpoch: a completed (successfully closed-out) run
 // cannot be cancelled — a no-op refusal carrying the completed-run explanation, never
 // a state regression and never cancellation-pending over durable terminal state
 // (change 0441).
-func TestRunCancelRefusesCompletedEpoch(t *testing.T) {
+func TestIntegrationGateCancelRunCancelRefusesCompletedEpoch(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	forceEpochState(t, fx.repo, fx.key, EpochCompleted)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
@@ -1301,7 +1138,7 @@ func isGateOwnership(err error, kind gatedrive.OwnershipErrorKind) bool {
 	return ok && oe.Kind == kind
 }
 
-// TestRawLaunchSettlesSettledEpochReleasedSlot (change 0446 spec §§2, 5): a
+// TestIntegrationGateCancelRawLaunchSettlesSettledEpochReleasedSlot (change 0446 spec §§2, 5): a
 // released slot whose leftover RunEpochID names a COMPLETED or confirmed-CANCELLED
 // epoch no longer blocks an epoch-less raw/finalize launch — the raw pre-check
 // defers the released slot to the reserve, which settles the epoch through the
@@ -1309,7 +1146,7 @@ func isGateOwnership(err error, kind gatedrive.OwnershipErrorKind) bool {
 // completed run is never asked to be cancelled. An active, cancelling, or
 // completing epoch still owns its worktree: the reserve refuses stale-run-epoch and
 // the slot is left untouched.
-func TestRawLaunchSettlesSettledEpochReleasedSlot(t *testing.T) {
+func TestIntegrationGateCancelRawLaunchSettlesSettledEpochReleasedSlot(t *testing.T) {
 	cases := []struct {
 		state   epochState
 		settled bool
@@ -1361,9 +1198,9 @@ func TestRawLaunchSettlesSettledEpochReleasedSlot(t *testing.T) {
 	}
 }
 
-// TestRawStaleEpochRefusalStillFencesBusySlot: the raw pre-check keeps refusing a
+// TestIntegrationGateCancelRawStaleEpochRefusalStillFencesBusySlot: the raw pre-check keeps refusing a
 // BUSY slot another epoch owns — only a released slot defers to the reserve.
-func TestRawStaleEpochRefusalStillFencesBusySlot(t *testing.T) {
+func TestIntegrationGateCancelRawStaleEpochRefusalStillFencesBusySlot(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	fx.store.SetEpochSettledResolver(epochSettledResolver(fx.common))
 	if _, refused := rawStaleEpochRefusal(fx.store, fx.worktree); !refused {
@@ -1371,10 +1208,10 @@ func TestRawStaleEpochRefusalStillFencesBusySlot(t *testing.T) {
 	}
 }
 
-// TestRawAdmissionStoreWiresEpochSettledResolver: the raw launch path's admission
+// TestIntegrationGateCancelRawAdmissionStoreWiresEpochSettledResolver: the raw launch path's admission
 // store carries the production settlement read (change 0446) — without it a raw
 // reserve over a completed run's released slot would refuse stale-run-epoch.
-func TestRawAdmissionStoreWiresEpochSettledResolver(t *testing.T) {
+func TestIntegrationGateCancelRawAdmissionStoreWiresEpochSettledResolver(t *testing.T) {
 	repo := newGateRepo(t)
 	_, _, store, ok := resolveWorktreeAdmission(repo)
 	if !ok {
@@ -1383,19 +1220,6 @@ func TestRawAdmissionStoreWiresEpochSettledResolver(t *testing.T) {
 	if !store.EpochSettledResolverWired() {
 		t.Fatal("raw admission store: epoch settlement resolver not wired")
 	}
-}
-
-// admissionRecordFile returns the worktree slot's record path at the documented
-// storage layout (see removeAdmissionRecord): the byte-identity probe the
-// retirement-convergence tests use to prove a successor's slot is untouched.
-func admissionRecordFile(t *testing.T, common, worktree string) string {
-	t.Helper()
-	canon, err := filepath.EvalSymlinks(worktree)
-	if err != nil {
-		t.Fatalf("EvalSymlinks: %v", err)
-	}
-	sum := sha256.Sum256([]byte(canon))
-	return filepath.Join(common, "docket", "gate-admission", "v1", hex.EncodeToString(sum[:]), "record.json")
 }
 
 // readAdmissionRecord reads the slot's raw record bytes.
@@ -1439,14 +1263,14 @@ func installSuccessor(t *testing.T, fx cancelFixture, token string) {
 	}
 }
 
-// TestRetirementSitesConverge (change 0446 spec §4, AC5): the three slot-retirement
+// TestIntegrationGateCancelRetirementSitesConverge (change 0446 spec §4, AC5): the three slot-retirement
 // sites — runCancel's completion, repairTerminalEpoch, and validateResumeQuiescence —
 // share ONE retirement implementation, so a successor holding the slot (whether it
 // already held it or won the retirement CAS race) yields one defined outcome at
 // every site: the slot-replaced-by-successor finding, the operation still accounted
 // (cancelled / already-cancelled / quiescent), the successor's slot byte-identical,
 // and the epoch never regressed.
-func TestRetirementSitesConverge(t *testing.T) {
+func TestIntegrationGateCancelRetirementSitesConverge(t *testing.T) {
 	type site struct {
 		name       string
 		epochState epochState // the state the epoch is in when the site runs
@@ -1530,11 +1354,11 @@ func TestRetirementSitesConverge(t *testing.T) {
 	}
 }
 
-// TestRepairTerminalEpochRemovedWorktree (change 0446 spec §5, AC2): a terminal
+// TestIntegrationGateCancelRepairTerminalEpochRemovedWorktree (change 0446 spec §5, AC2): a terminal
 // epoch whose feature worktree directory was REMOVED still has its stale released
 // slot retired by terminal repair — the slot is reached through its stored identity,
 // never reported slot-unreadable — and a repeat repair is the idempotent no-op.
-func TestRepairTerminalEpochRemovedWorktree(t *testing.T) {
+func TestIntegrationGateCancelRepairTerminalEpochRemovedWorktree(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	releaseFixtureSlot(t, fx)
 	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error { r.State = EpochCancelled; return nil }); err != nil {
@@ -1593,12 +1417,12 @@ func supersedeFixtureEpoch(t *testing.T, fx cancelFixture, replacementWorktree s
 	return replKey
 }
 
-// TestTerminalRepairSupersededThreadsReplacementWorktree (change 0446 spec §4, AC5):
+// TestIntegrationGateCancelTerminalRepairSupersededThreadsReplacementWorktree (change 0446 spec §4, AC5):
 // a SUPERSEDED epoch has an empty Worktree, which is not proof of quiescence. Terminal
 // repair resolves the replacement epoch's worktree through ReplacementReserved, runs
 // the launch census with the predecessor's epoch id against THAT worktree, and — when
 // the replacement's slot still carries the predecessor's RunEpochID — retires it.
-func TestTerminalRepairSupersededThreadsReplacementWorktree(t *testing.T) {
+func TestIntegrationGateCancelTerminalRepairSupersededThreadsReplacementWorktree(t *testing.T) {
 	t.Run("stale-released-slot-retired", func(t *testing.T) {
 		fx := newCancelFixture(t, true)
 		releaseFixtureSlot(t, fx)
@@ -1678,7 +1502,7 @@ func tornResumeFixture(t *testing.T, fx cancelFixture, neverMinted bool) string 
 	return replKey
 }
 
-// TestTerminalRepairTornResumeConverges (change 0446 spec "Repeated cancellation,
+// TestIntegrationGateCancelTerminalRepairTornResumeConverges (change 0446 spec "Repeated cancellation,
 // completion, and admission after safe reconciliation converge using existing
 // operations"): a torn resume — the predecessor superseded, the replacement epoch never
 // minted or never bound — is not a permanent dead end. A repeat run.cancel against the
@@ -1686,7 +1510,7 @@ func tornResumeFixture(t *testing.T, fx cancelFixture, neverMinted bool) string 
 // armResumeReplacement prepared), runs the census with the predecessor's epoch id
 // there, retires a stale released slot, and a further repeat is the idempotent no-op.
 // A genuinely corrupt or cyclic replacement chain still fails closed.
-func TestTerminalRepairTornResumeConverges(t *testing.T) {
+func TestIntegrationGateCancelTerminalRepairTornResumeConverges(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		neverMinted bool
@@ -1755,14 +1579,14 @@ func TestTerminalRepairTornResumeConverges(t *testing.T) {
 	})
 }
 
-// TestCancelRemovedWorktreeEpochReachesSlotByStoredIdentity (change 0446 spec AC2,
+// TestIntegrationGateCancelCancelRemovedWorktreeEpochReachesSlotByStoredIdentity (change 0446 spec AC2,
 // Task 10): cancelling an ACTIVE epoch whose feature worktree directory was removed
 // — with its slot still executing (the stop proves teardown) or already released
 // between drives — reaches the slot through its stored identity rather than
 // re-canonicalizing the missing path: the cancel completes, the slot is released
 // and detached from the epoch, a repeat is the idempotent no-op, and once the path
 // is recreated a replacement epoch's reservation admits over the same slot.
-func TestCancelRemovedWorktreeEpochReachesSlotByStoredIdentity(t *testing.T) {
+func TestIntegrationGateCancelCancelRemovedWorktreeEpochReachesSlotByStoredIdentity(t *testing.T) {
 	for _, releasedFirst := range []bool{false, true} {
 		t.Run(map[bool]string{false: "executing-slot", true: "released-slot"}[releasedFirst], func(t *testing.T) {
 			fx := newCancelFixture(t, true)
