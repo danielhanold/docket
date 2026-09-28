@@ -55,13 +55,13 @@ Default-corpus `-race` time per package, from the `GOMAXPROCS=2 -p 2` ranking:
 
 The slowest package in the race gate is now `internal/cli` (24.0s), and the `test_go_race.sh` header names it.
 
-New shard rows. Each was sized from a timed solo run after a warm-up run, rounded up to the next 5s, plus 5s:
+New shard rows. Each was sized from a timed solo run after a warm-up run, rounded up to the next 5s, plus 5s. The transaction race shard was re-measured three more times after review, because its first reading sat just under a rounding boundary. The worst reading came while another suite was running on the machine, and it set the row:
 
 | Shard runner | Measured | Row | Margin |
 |---|---|---|---|
 | `test_go_integration_transaction_apply.sh` | 18.02s | 25 | 6.98s |
 | `test_go_integration_transaction_recovery.sh` | 16.21s | 25 | 8.79s |
-| `test_go_integration_transaction_race.sh` | 19.85s | 25 | 5.15s |
+| `test_go_integration_transaction_race.sh` | 22.21s (worst of 19.85, 22.21, 19.88, 19.22) | 30 | 7.79s |
 | `test_go_integration_workspace_setup.sh` | 17.68s | 25 | 7.32s |
 | `test_go_integration_workspace_lifecycle.sh` | 22.01s | 30 | 7.99s |
 | `test_go_integration_workspace_race.sh` | 2.30s | 10 | 7.70s |
@@ -77,13 +77,21 @@ Other checks:
 
 - `tests/test_go_integration_contract.sh` passes.
 - `go vet` is clean in both the default and the `integration` build for every touched package.
-- The whole suite runs at the build gate. Its evidence goes in the PR body.
+- The whole suite passed at the build gate (74 of 74 files). Its evidence is in the PR body. The budget report printed no `SERIAL CONFIRMED OVER BUDGET` line. It did print `PARALLEL-SENSITIVE` for `test_go_race.sh` (195s under -j11), but that compares against a stale 69s solo record from before this change. The serial solo runs above measured 37–41s.
+- A whole-branch review found no blockers and no important issues. It raised three minor findings, and all three were fixed on the branch:
+  - The backstop paragraph in `test_go_race.sh` attributed its projection to the wrong change and package (fixed in 175498a9c).
+  - The comments said gatedrive was left unguarded because its tests are "process-bound, not git-bound". About 12 of its moved tests actually use real git, so the comments now say it was left unguarded by the spec's decision (fixed in 175498a9c).
+  - The transaction race row was sized from a single reading (fixed in f7267b3df, row 25 → 30).
 
 ## Known issues and follow-ups
 
 ### `internal/gatedrive` is still the third-slowest package in the race gate
 
 Its default corpus went from about 42s to about 21s under `-race`. It still has 265 fast unit tests, and it has no no-real-git guard (by design: its slow tests start processes, not git). This is confirmed, but it is not a problem today: the race gate has an 18.7s margin. If the race gate creeps toward 60s again, `internal/cli` (24.0s) and `internal/gatedrive` are the next candidates. No change exists for this yet.
+
+### `internal/gatedrive` has no no-real-git guard
+
+The spec decided to leave gatedrive unguarded. Its moved corpus is mixed, though: about 12 of its 25 moved tests use real git. So if someone adds a real-git test back to gatedrive's default corpus, only its wall-clock budget row will notice. This is confirmed. The suggested next action is to consider installing `testsupport.InstallNoGitGuard` in gatedrive, which takes one `TestMain` and three proving tests. No change exists for this yet.
 
 ### Plan's stale-reference grep always has one hit
 
