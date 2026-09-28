@@ -9,10 +9,10 @@ created: '2026-09-28'
 updated: '2026-09-28'
 depends_on: []
 stacked_on:
-related: [308, 332, 333, 373]
+related: [308, 332, 333, 362, 373]
 discovered_from: []
-adrs: []
-spec:
+adrs: [108]
+spec: 'docs/superpowers/specs/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md) |
+| ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,8 +39,22 @@ The release-candidate workflow's source-gate job (macos-15 runner) intermittentl
 
 ## What changes
 
-Hypothesis to validate while grooming (trace first; prefer existing machinery): make test_go_race reliably pass in CI without weakening the race gate. Candidate directions: (1) find what grew the default internal/app corpus under -race (profile per-test time with `go test -race -json`; look for tests that belong behind the `integration` tag per 0333's partition, or sleep/poll-heavy tests that dominate under the detector) and move/trim them; (2) set an explicit `-timeout` on the race run sized to the measured worst case, if the growth is legitimate; (3) revisit test_go_race's lane/budget row now that it is nowhere near 60s (0332's serial-lane reasoning), and why the budget report did not surface an authoritative breach. Acceptance: several consecutive CI source-gate runs green on test_go_race with clear headroom under the package timeout, and the runtime-budgets row reflects reality.
+Make `test_go_race` reliably pass in CI, without weakening the race gate, by making change 0333's partition an enforced invariant: **the default-tag `internal/app` test corpus never starts a real `git` process.**
+
+Grooming measured the cause. Under `-race` at 3 CPUs, the 337 default tests that run real git account for 225s of `internal/app`'s 237s, and the other 574 tests take 11s. The default corpus grew from 256 to about 920 tests after 0333 because new real-git tests landed outside the `integration` tag.
+
+- **Re-partition:** move the real-git, subprocess and process-lifecycle default tests behind `//go:build integration`, into plain (non-race) `internal/app` shard runners with measured budget rows. Genuinely concurrent scenarios go to a race shard.
+- **Runtime guard:** a default-build-only test hook makes any real `git` exec fail loudly, whatever code path reaches it, and is proven by a mutation test.
+- **Backstop timeout:** an explicit `-timeout` in `tests/test_go_race.sh`, so an overrun fails with a readable message instead of Go's 10m panic.
+- **Honest budget:** re-measure and correct the `tests/runtime-budgets.tsv` rows.
+- **Budget-state key fix:** key the suite runner's budget state on the repo-relative target path, so overruns accumulate across worktrees and a serial confirmation can actually fire. Today every `.worktrees/<slug>` starts its own streak, which is why nobody was alerted.
+
+Acceptance: several consecutive CI source-gate runs green on `test_go_race` with clear headroom, the guard proven by mutation, the integration contract green, and the budget rows reflecting reality.
 
 ## Out of scope
 
-PR #345 (change 0463)'s red run 36353406865 is a separate, branch-local failure: `internal/cli/gate_test.go:1061: undefined: gateTempDir` — change 0462 (PR #343) deleted `gateTempDir` in favor of `testsupport.TempDir`, and #345's new test still calls it. That branch needs a rebase onto main and the call switched to `testsupport.TempDir`; it is not part of this change. Also out of scope: weakening the race gate (dropping -race, narrowing ./..., or skipping internal/app).
+- PR #345 (change 0463)'s red run 36353406865 is a separate, branch-local failure: `internal/cli/gate_test.go:1061: undefined: gateTempDir`. Change 0462 (PR #343) deleted `gateTempDir` in favor of `testsupport.TempDir`, and #345's new test still calls it. That branch needs a rebase onto main with the call switched to `testsupport.TempDir`.
+- Weakening the race gate: dropping `-race`, narrowing `./...`, or skipping `internal/app`.
+- Guards or re-partitioning for `internal/gitcli`, `internal/githubcli`, or other packages.
+- Persisting budget state across CI runs, or changing how CI classifies screening findings.
+- Broad `t.Parallel()` adoption in `internal/app`.
