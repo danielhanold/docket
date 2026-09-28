@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-28T06:47:50Z'
+reconciled: true
+claimed_at: '2026-09-28T06:48:33Z'
 ---
 
 ## Artifacts
@@ -59,3 +59,9 @@ Acceptance: several consecutive CI source-gate runs green on `test_go_race` with
 - Guards or re-partitioning for `internal/gitcli`, `internal/githubcli`, or other packages.
 - Persisting budget state across CI runs, or changing how CI classifies screening findings.
 - Broad `t.Parallel()` adoption in `internal/app`.
+
+## Reconcile log
+
+### 2026-09-28
+
+2026-09-28 — Reconciled against current main (3f9813fbc). Premise holds: tests/test_go_race.sh still runs a single `go test -race -count=1 ./...` with no -timeout and a 60s parallel row; internal/app TestMain (gate_test.go) still routes only supervisor/guardian re-exec; suiterunner run.go still passes the absolute o.Target.Path to ContextKey; 27 internal/app integration shard runners exist to extend. No related or recent change already addresses this; scope unchanged.
