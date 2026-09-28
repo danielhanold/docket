@@ -1297,3 +1297,26 @@ func TestBoardCountsExcludeUnrenderable(t *testing.T) {
 		t.Errorf("unrenderable record leaked into the mermaid graph:\n%s", out)
 	}
 }
+
+// TestBoardTitleCellsEscapePipesAndFlattenBreaks pins change 0461's board fix: a
+// title is one table cell in every section and in the archive footer, so a
+// literal "|" is escaped and a legacy line break (a record predating the title
+// validator) is flattened — neither can split or end the row.
+func TestBoardTitleCellsEscapePipesAndFlattenBreaks(t *testing.T) {
+	active := domain.NewChange(proposedChange(1, "pipe", "Keep a | b apart"))
+	legacy := domain.NewChange(proposedChange(2, "multi", "first\nsecond"))
+	arch := archivedDone(3, "2026-08-31", "arch", "Old | title")
+
+	out := string(boardFrom(t, active, legacy, arch))
+
+	for _, want := range []string{"| Keep a \\| b apart |", "| first second |", "| Old \\| title |"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("board missing escaped cell %q:\n%s", want, out)
+		}
+	}
+	for _, bad := range []string{"Keep a | b", "Old | title", "first\nsecond"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("board carries unescaped title %q:\n%s", bad, out)
+		}
+	}
+}
