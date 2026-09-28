@@ -1,18 +1,12 @@
 # Backlog
 
-**467 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 318 done · 🗑️ 119 killed
+**467 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 319 done · 🗑️ 119 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0466](active/0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) | Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive) | `medium` | `chore` | [spec](../superpowers/specs/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md) | `chore/bring-test-go-race-back-under-its-60s-budget-row-transaction` |  |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0461](active/0461-allow-editing-an-existing-change-s-title.md) | Allow editing an existing change's title | `medium` | `feat` | [#347](https://github.com/danielhanold/docket/pull/347) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
@@ -91,7 +85,6 @@ graph TD
   0433
   0443
   0457
-  0461
   0464
   0466
   0467
@@ -103,12 +96,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (437)</summary>
+<details><summary>✅🗑️ Archive — done + killed (438)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0465](archive/2026-09-28-0465-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) | test_go_race times out on internal/app in CI (Go's 10m per-package limit) | 2026-09-28 |
 | [0463](archive/2026-09-28-0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) | Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch | 2026-09-28 |
+| [0461](archive/2026-09-28-0461-allow-editing-an-existing-change-s-title.md) | Allow editing an existing change's title | 2026-09-28 |
 | [0462](archive/2026-09-27-0462-close-the-temp-dir-fixture-guard-s-remaining-gaps-internal-c.md) | Close the temp-dir fixture guard's remaining gaps (internal/cli gateTempDir, scan-root removal) | 2026-09-27 |
 | [0456](archive/2026-09-27-0456-show-finding-remedies-in-docket-status-human-view.md) | Show finding remedies in docket status human view | 2026-09-27 |
 | [0455](archive/2026-09-27-0455-document-finalize-s-record-invalid-reason-in-the-docket-fina.md) | Document finalize's record-invalid reason in the docket-finalize-change skill | 2026-09-27 |
@@ -121,7 +115,6 @@ graph TD
 | [0454](archive/2026-09-25-0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md) | Whole-repository status must not fail on an unrelated change's invalid branch name | 2026-09-25 |
 | [0453](archive/2026-09-25-0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md) | Two successors sharing one stale predecessor receipt can still free a live worktree slot | 2026-09-25 |
 | [0450](archive/2026-09-25-0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | 2026-09-25 |
-| [0445](archive/2026-09-25-0445-revise-a-groomed-change-s-spec-and-owned-sections-through-a.md) | Revise a groomed change's spec and owned sections through a typed operation | 2026-09-25 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -246,7 +239,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 67 done |
+| [2026-09](archive/) | 68 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

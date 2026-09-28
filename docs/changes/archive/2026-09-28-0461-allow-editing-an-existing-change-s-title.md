@@ -2,7 +2,7 @@
 id: 461
 slug: 'allow-editing-an-existing-change-s-title'
 title: 'Allow editing an existing change''s title'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-27'
@@ -22,7 +22,7 @@ branch: 'feat/allow-editing-an-existing-change-s-title'
 pr: 'https://github.com/danielhanold/docket/pull/347'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-28T20:53:10Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-28T20:53:10Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-28-allow-editing-an-existing-change-s-title-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-allow-editing-an-existing-change-s-title-design.md) |
-| Plan | [2026-09-28-0461-allow-editing-an-existing-change-s-title.md](https://github.com/danielhanold/docket/blob/feat/allow-editing-an-existing-change-s-title/docs/superpowers/plans/2026-09-28-0461-allow-editing-an-existing-change-s-title.md) |
-| Results | [2026-09-28-allow-editing-an-existing-change-s-title-results.md](https://github.com/danielhanold/docket/blob/feat/allow-editing-an-existing-change-s-title/docs/results/2026-09-28-allow-editing-an-existing-change-s-title-results.md) |
+| Plan | [2026-09-28-0461-allow-editing-an-existing-change-s-title.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-28-0461-allow-editing-an-existing-change-s-title.md) |
+| Results | [2026-09-28-allow-editing-an-existing-change-s-title-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-28-allow-editing-an-existing-change-s-title-results.md) |
 | ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
