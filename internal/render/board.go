@@ -521,7 +521,7 @@ func Board(in BoardInput) ([]byte, error) {
 			if len(base) >= 10 {
 				date = base[:10]
 			}
-			rows = append(rows, arcRow{date: date, base: base, title: c.Title(), id: int(c.ID()), status: c.Status()})
+			rows = append(rows, arcRow{date: date, base: base, title: boardTitleCell(c.Title()), id: int(c.ID()), status: c.Status()})
 		}
 		// date descending, then id descending (sort -k1,1r -k2,2nr).
 		sort.SliceStable(rows, func(i, j int) bool {
@@ -610,11 +610,23 @@ func writeRepairNotice(b *strings.Builder, preamble string, entries []BoardUnren
 	}
 }
 
+// boardCellReplacer flattens line breaks to spaces and escapes a literal pipe,
+// so an authored string can never split or end a Markdown table row. Both the
+// repair notice and every title cell use it.
+var boardCellReplacer = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "|", "\\|")
+
 // boardRepairCell flattens a reason into one Markdown table cell: line breaks
 // become spaces and a literal pipe is escaped so it cannot split the row.
 func boardRepairCell(reason string) string {
-	r := strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "|", "\\|")
-	return strings.TrimSpace(r.Replace(reason))
+	return strings.TrimSpace(boardCellReplacer.Replace(reason))
+}
+
+// boardTitleCell renders a change title as one Markdown table cell (change
+// 0461): a "|" is escaped and a line break flattened. Titles written by
+// change.create or change.groom are already single-line; the flattening
+// defends legacy records. No trimming, so a clean title is byte-identical.
+func boardTitleCell(title string) string {
+	return boardCellReplacer.Replace(title)
 }
 
 // boardSectionRow renders one active change's table row for its rendered
@@ -624,7 +636,7 @@ func boardRepairCell(reason string) string {
 func boardSectionRow(in BoardInput, s BoardSection, c domain.Change) (string, error) {
 	id := int(c.ID())
 	base := path.Base(c.Path())
-	title := c.Title()
+	title := boardTitleCell(c.Title())
 	priority := c.RawPriority()
 	ctype := boardTypeCell(c)
 
