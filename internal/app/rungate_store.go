@@ -181,6 +181,17 @@ type GateRecord struct {
 	BoundRevision  string `json:"bound_revision,omitempty"`
 }
 
+// resumeAttributed reports whether rec has the resume-verified shape: `gate-before
+// --resume` pre-bound AttributedID through WorkspaceInspect identity, and no claim
+// ever confirmed under it (BoundRequestID is still empty). A fresh arm gains
+// AttributedID only at confirm time, together with BoundRequestID, so it never
+// matches. resolveGateOwnership accepts this shape as ownership, runCancel accepts
+// it as cancel authority, and ChangeClaim refuses to reserve a claim under it
+// (change 0463).
+func (rec GateRecord) resumeAttributed() bool {
+	return rec.AttributedID != 0 && rec.BoundRequestID == ""
+}
+
 // gateBoundPairOK reports whether rec's claim-binding mirror pair is well formed:
 // BoundRequestID and BoundRevision must be ALL-EMPTY or ALL-SET (0396's pair rule
 // applied to the change-0407 mirror). A partial pair is a corrupt record — the

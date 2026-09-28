@@ -323,7 +323,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 	switch {
 	case ok && binding.Confirmed:
 		ownerID = binding.ChangeID
-	case !ok && rec.AttributedID != 0 && rec.BoundRequestID == "":
+	case !ok && rec.resumeAttributed():
 		// Resume-verified authority (change 0463): `gate-before --resume` pre-binds
 		// AttributedID through WorkspaceInspect identity and never gets a claim binding
 		// (change.claim requires a proposed change). It is the same shape

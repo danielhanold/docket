@@ -593,7 +593,7 @@ func resolveGateOwnership(ctx context.Context, deps PlanningDeps, wdeps Workspac
 	// Resume-verified shape: an AttributedID with no claim binding was pre-bound by
 	// `gate-before --resume` through WorkspaceInspect identity. Continuity for it is
 	// RunVerify's job, exactly as today — the proof continuity check never runs.
-	if rec.AttributedID != 0 && rec.BoundRequestID == "" {
+	if rec.resumeAttributed() {
 		return nil
 	}
 
