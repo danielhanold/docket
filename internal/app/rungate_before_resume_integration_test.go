@@ -775,11 +775,11 @@ func TestIntegrationGateArmResumeSupersededChecksReplacementSlot(t *testing.T) {
 	}
 }
 
-// TestEpochlessResumeMintsBoundEpoch (change 0463): resuming an in-progress change
+// TestIntegrationGateArmEpochlessResumeMintsBoundEpoch (change 0463): resuming an in-progress change
 // that has NO prior run epoch (its first dispatch was never armed) mints one. The
 // epoch is bound to the change and to the verified feature worktree, and the result
 // carries its id, so the armed line is always `gate-armed <key> <epoch> <dispatch-context>`.
-func TestEpochlessResumeMintsBoundEpoch(t *testing.T) {
+func TestIntegrationGateArmEpochlessResumeMintsBoundEpoch(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeEpochDeps(t)
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -822,11 +822,11 @@ func TestEpochlessResumeMintsBoundEpoch(t *testing.T) {
 	}
 }
 
-// TestRepeatEpochlessResumeRefusedActive (change 0463): after an epochless resume
+// TestIntegrationGateArmRepeatEpochlessResumeRefusedActive (change 0463): after an epochless resume
 // mints its epoch, a SECOND resume of the same change finds that epoch active and
 // refuses resume-active-run with the safe locator, the same single-live-run
 // protection every other epoch gets. It mints nothing and prepares no scope.
-func TestRepeatEpochlessResumeRefusedActive(t *testing.T) {
+func TestIntegrationGateArmRepeatEpochlessResumeRefusedActive(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeEpochDeps(t)
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -852,7 +852,7 @@ func TestRepeatEpochlessResumeRefusedActive(t *testing.T) {
 	}
 }
 
-// TestEpochlessResumeEpochJoinsCancelCycle (change 0463, Review Focus 2): the epoch
+// TestIntegrationGateArmEpochlessResumeEpochJoinsCancelCycle (change 0463, Review Focus 2): the epoch
 // an epochless resume mints goes through the ordinary lifecycle, driven by the REAL
 // cancel path. The resume-active-run refusal names `run cancel` as its remedy, so
 // that remedy must work with the arm's own key and epoch: a resume arm has no claim
@@ -860,7 +860,7 @@ func TestRepeatEpochlessResumeRefusedActive(t *testing.T) {
 // resume-verified attribution instead of refusing claim-unconfirmed forever. Once
 // cancelled, the next resume supersedes the epoch and reserves exactly one
 // replacement with a fresh epoch, and that replacement is cancellable the same way.
-func TestEpochlessResumeEpochJoinsCancelCycle(t *testing.T) {
+func TestIntegrationGateArmEpochlessResumeEpochJoinsCancelCycle(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	common, err := gateGitCommonDir(repoDir)
 	if err != nil {
@@ -910,12 +910,12 @@ func TestEpochlessResumeEpochJoinsCancelCycle(t *testing.T) {
 	}
 }
 
-// TestRunCancelResumeAuthorityFailsClosed (change 0463): the resume-verified
+// TestIntegrationGateCancelRunCancelResumeAuthorityFailsClosed (change 0463): the resume-verified
 // authority runCancel accepts is narrow. A resume-shaped record whose epoch names a
 // DIFFERENT change refuses claim-mismatch, and a record carrying an unconfirmed claim
 // reservation refuses claim-unconfirmed even though its AttributedID is set. Neither
 // refusal fences the epoch.
-func TestRunCancelResumeAuthorityFailsClosed(t *testing.T) {
+func TestIntegrationGateCancelRunCancelResumeAuthorityFailsClosed(t *testing.T) {
 	t.Run("epoch names another change", func(t *testing.T) {
 		repo := newGateRepo(t)
 		common, _ := gateGitCommonDir(repo)
@@ -965,15 +965,15 @@ func TestRunCancelResumeAuthorityFailsClosed(t *testing.T) {
 	})
 }
 
-// TestConcurrentEpochlessResumeEpochsFailSafe (change 0463 decision 4): the
+// TestIntegrationGateArmConcurrentEpochlessResumeEpochsFailSafe (change 0463 decision 4): the
 // per-change resume lock keeps concurrent arms from minting two live epochs for one
-// change (TestConcurrentEpochlessResumesArmOnce), but such a pair can still exist,
+// change (TestRaceIntegrationAppConcurrencyEpochlessResumesArmOnce), but such a pair can still exist,
 // for example left by a binary that predates the lock. A resume over it must fail
 // closed as resume-epoch-unreadable and must never arm a third run. Recovery is an
 // explicit 'docket run cancel' of either epoch by its own key and epoch, which
-// runCancel's resume-verified authority accepts (TestEpochlessResumeEpochJoinsCancelCycle
+// runCancel's resume-verified authority accepts (TestIntegrationGateArmEpochlessResumeEpochJoinsCancelCycle
 // drives that cancel path); the surviving epoch is then the worktree's sole live owner.
-func TestConcurrentEpochlessResumeEpochsFailSafe(t *testing.T) {
+func TestIntegrationGateArmConcurrentEpochlessResumeEpochsFailSafe(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	seedPriorEpoch(t, repoDir, EpochActive)
 	seedPriorEpoch(t, repoDir, EpochActive)
@@ -992,12 +992,12 @@ func TestConcurrentEpochlessResumeEpochsFailSafe(t *testing.T) {
 	}
 }
 
-// TestConcurrentEpochlessResumesArmOnce (change 0463, post-review): epochless resume
+// TestRaceIntegrationAppConcurrencyEpochlessResumesArmOnce (change 0463, post-review): epochless resume
 // arms of one change race from the "no prior epoch" check to the mint and bind. The
 // per-change resume lock serializes that window, so exactly one arm wins; every other
 // arm then sees the winner's live epoch and refuses resume-active-run. Exactly one
 // live epoch may end up bound to the change.
-func TestConcurrentEpochlessResumesArmOnce(t *testing.T) {
+func TestRaceIntegrationAppConcurrencyEpochlessResumesArmOnce(t *testing.T) {
 	const arms = 12
 	repoDir := newWorkingRepo(t, nil).invocation
 	results := make([]RunGateBeforeResult, arms)
@@ -1033,13 +1033,13 @@ func TestConcurrentEpochlessResumesArmOnce(t *testing.T) {
 	}
 }
 
-// TestResumeRefusalNamesAbandonedArmRemedy (change 0463, post-review): an epochless
+// TestIntegrationGateArmResumeRefusalNamesAbandonedArmRemedy (change 0463, post-review): an epochless
 // resume arm binds its epoch at arm time, so an arm that was never dispatched blocks
 // the next resume until it is cancelled. Nothing records whether an agent is using
 // the epoch, so the refusal cannot say which case applies; it names both remedies,
 // including the abandoned-arm case, for either kind of incumbent (found by change or
 // by worktree).
-func TestResumeRefusalNamesAbandonedArmRemedy(t *testing.T) {
+func TestIntegrationGateArmResumeRefusalNamesAbandonedArmRemedy(t *testing.T) {
 	for _, msg := range []string{
 		resumeActiveLocator("k", EpochRecord{ChangeID: "5", EpochID: "e"}),
 		resumeWorktreeOwnerLocator("/tmp/wt/epsilon", "k", EpochRecord{EpochID: "e"}),
@@ -1052,7 +1052,7 @@ func TestResumeRefusalNamesAbandonedArmRemedy(t *testing.T) {
 	}
 }
 
-// TestEpochlessResumeRefusesLiveWorktreeOwner (change 0463 decision 4, review fix):
+// TestIntegrationGateArmEpochlessResumeRefusesLiveWorktreeOwner (change 0463 decision 4, review fix):
 // an epochless resume binds its fresh epoch to the verified worktree, so it must not
 // mint over a live epoch that already owns that worktree under no change or another
 // change. FindEpochByChange cannot see such an owner. Minting anyway would leave two
@@ -1060,7 +1060,7 @@ func TestResumeRefusalNamesAbandonedArmRemedy(t *testing.T) {
 // fenced mutation there as ErrEpochOwnerAmbiguous. The resume refuses
 // resume-active-run with the owner's locator instead and mints nothing. A fenced
 // (cancelled) epoch on the worktree is not a live owner and does not block.
-func TestEpochlessResumeRefusesLiveWorktreeOwner(t *testing.T) {
+func TestIntegrationGateArmEpochlessResumeRefusesLiveWorktreeOwner(t *testing.T) {
 	// seedWorktreeOwner mints an epoch bound to worktree (and to changeID, when set)
 	// in the given state, returning its gate key and epoch id.
 	seedWorktreeOwner := func(t *testing.T, repoDir, changeID, worktree string, state epochState) (string, string) {
@@ -1147,10 +1147,10 @@ func TestEpochlessResumeRefusesLiveWorktreeOwner(t *testing.T) {
 	})
 }
 
-// TestArmedGateResultRequiresEpoch (change 0463): the armed constructor refuses to
+// TestIntegrationGateArmArmedGateResultRequiresEpoch (change 0463): the armed constructor refuses to
 // arm without an epoch. That guarantee is what makes the positional three-token
 // line unambiguous.
-func TestArmedGateResultRequiresEpoch(t *testing.T) {
+func TestIntegrationGateArmArmedGateResultRequiresEpoch(t *testing.T) {
 	if got := armedGateResult("k", "", "ctx"); got.Armed || got.Reason != ReasonGateMintFailed || got.Key != "" || got.DispatchContext != "" {
 		t.Fatalf("an epochless armed result must fail closed as gate-unarmed mint-failed, got %+v", got)
 	}

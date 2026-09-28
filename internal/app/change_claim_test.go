@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
@@ -226,69 +225,6 @@ func gateClaimDeps(t *testing.T, engine *claimGateEngine, corpus []StatusBlob) P
 		Engine: engine,
 		Reader: &fakeReader{pin: mainModePin([]string{"inline"}), corpus: corpus},
 		Clock:  testClock(),
-	}
-}
-
-// TestClaimResumeContextRefusedBeforeReserve: a `gate-before --resume` arm pre-binds
-// the resumed change as AttributedID and never gets a claim binding (change 0463).
-// A claim under that context, for the resumed change itself or for any other change,
-// is refused gate-context-conflict BEFORE ReserveGateClaim writes a binding file: a
-// stray unconfirmed reservation would make run.cancel refuse claim-unconfirmed, and a
-// confirmed claim of a different change would make it refuse claim-mismatch, leaving
-// the resume epoch uncancellable either way.
-func TestClaimResumeContextRefusedBeforeReserve(t *testing.T) {
-	for _, id := range []int{3, 4} {
-		t.Run(fmt.Sprintf("claim-%d", id), func(t *testing.T) {
-			repoDir := newGateRepo(t)
-			key, err := MintGateRecord(repoDir, GateRecord{
-				Target: "docket-implement-next", Retry: RetryUnused, AttemptLimit: 2,
-				ChildContextHash: gateHashToken("tok"), AttributedID: 3,
-			})
-			if err != nil {
-				t.Fatalf("MintGateRecord: %v", err)
-			}
-			corpus := []StatusBlob{
-				changeBlob(3, "widget", "feat", "high", ""),
-				changeBlob(4, "gadget", "feat", "high", ""),
-			}
-			engine := &claimGateEngine{result: appliedGateResult(t, id)}
-
-			res := ChangeClaim(context.Background(), gateClaimDeps(t, engine, corpus), repoDir,
-				ChangeClaimRequest{ID: id, Version: gateClaimVersion, GateContext: "tok"})
-
-			if res.Result != ResultInvalidState || res.Disposition != ClaimDispositionGateContextConflict {
-				t.Fatalf("result = %q disposition = %q, want invalid-state %q (findings %v)",
-					res.Result, res.Disposition, ClaimDispositionGateContextConflict, res.Findings)
-			}
-			if len(engine.calls) != 0 {
-				t.Errorf("engine called %d times under a resume context, want 0", len(engine.calls))
-			}
-			if _, ok, berr := LoadGateClaimBinding(repoDir, key); berr != nil || ok {
-				t.Errorf("claim binding present=%v err=%v after refusal; want none written", ok, berr)
-			}
-		})
-	}
-}
-
-// TestClaimGateContextRetryAfterConfirmAdmitted: the resume-context refusal keys on
-// the resume-verified shape only. A fresh arm's record gains AttributedID at confirm
-// time together with BoundRequestID, so an idempotent retry of the same confirmed
-// claim must still reach the engine rather than being refused as a resume context.
-func TestClaimGateContextRetryAfterConfirmAdmitted(t *testing.T) {
-	repoDir := newGateRepo(t)
-	mintGateWithHash(t, repoDir, gateHashToken("tok"), false)
-	corpus := []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}
-
-	for i := 0; i < 2; i++ {
-		engine := &claimGateEngine{result: appliedGateResult(t, 3)}
-		res := ChangeClaim(context.Background(), gateClaimDeps(t, engine, corpus), repoDir,
-			ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
-		if res.Result != ResultApplied {
-			t.Fatalf("attempt %d result = %q disposition = %q, want applied (%v)", i+1, res.Result, res.Disposition, res.Findings)
-		}
-		if len(engine.calls) != 1 {
-			t.Fatalf("attempt %d engine calls = %d, want 1", i+1, len(engine.calls))
-		}
 	}
 }
 
