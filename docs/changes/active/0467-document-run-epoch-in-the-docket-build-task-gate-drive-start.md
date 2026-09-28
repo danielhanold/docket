@@ -54,3 +54,16 @@ Changing the run-epoch fence, `stale-run-epoch` semantics, epoch settlement, or 
 ### 2026-09-28
 
 2026-09-28 — Re-read against origin/main 5403015 (post-0461/0463). Driver gap still present: Driver.admitScopedWorktree builds its admission record from req.RunEpochID, ignoring the scope pinned epoch; docket-build, docket-build-task and docket-implement-next still carry no --run-epoch on prepare-scope or build-owner starts, and cursor-rules/run-gate.md still copies only the dispatch context into the prompt. Scope unchanged.
+
+## Run halted
+
+### 2026-09-28
+
+Build halted at plan Task 3 of 3: the task worker returned `BLOCKED`, which is a docket-build halting condition ("continuation is unsafe").
+
+- Tasks 1 and 2 are committed on `fix/document-run-epoch-in-the-docket-build-task-gate-drive-start` (c20f064a5 driver epoch inheritance; 0c48a5b0d skill prose + repoguard guard + embedded copies).
+- Task 3 cause: plan Step 5 regenerates the tracked `AGENTS.md` through a throwaway `go test` (`TestZZRegenAgentsDispatch0467`). The worker ran it through `gate.drive.start`, so the driver halted drive f442f970eec86bb8d5558b077bcfa5e2 with `identity-mismatch` (the run rewrote a tracked file). Scope 8b7c61c2ab47d0761f2f9ad076631470 can no longer start drives (`predecessor-not-reusable` / `stale-predecessor`) and was not acknowledged.
+- Uncommitted Task 3 work is left in the feature worktree for inspection: `cursor-rules/run-gate.md` step 1, its embedded copy + `manifest.json`, the regenerated `AGENTS.md` dispatch block, and the new `TestRunGateCopiesEpochIntoDispatchPrompt` in `internal/repoguard/gatedrive_run_epoch_thread_test.go` (RED confirmed).
+- Remaining Task 3 steps: raise `dispatchBudget` (plan expects about 1140, cap 1156), GREEN runs, mutation probe, repoguard + install suites, single commit. Then the full build gate, review, results, PR.
+
+Remedy: a human (or a resumed run) runs the AGENTS.md regeneration outside the gate driver, finishes Task 3, and resumes via `change.resume-halted --acknowledge-quiescent`.
