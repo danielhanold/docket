@@ -17,23 +17,31 @@
 # corpus only. Change 0465 made that an enforced invariant for internal/app, the
 # package whose default corpus had regrown to ~920 tests (337 of them real-git,
 # 225s of its 237s under -race): the default-tag internal/app test corpus never
-# starts a real `git` process. installNoGitGuard (internal/app/nogit_guard_test.go)
-# shadows git on PATH in the default build and fails the package on any attempt,
-# so a new real-git test cannot land here unnoticed. With that tail gone, `go test
-# -race`'s GOMAXPROCS-wide race workers do not oversubscribe the cores the other
-# parallel jobs need (change 0332's reason for the serial lane, and change 0329's
+# starts a real `git` process. testsupport.InstallNoGitGuard (internal/testsupport,
+# installed from the package's TestMain) shadows git on PATH in the default build
+# and fails the package on any attempt, so a new real-git test cannot land here
+# unnoticed. Change 0466 extended the partition and the guard to
+# internal/repository/transaction and internal/workspace, and moved
+# internal/gatedrive's real-supervisor and real-git tests behind the tag too.
+# gatedrive is process-bound rather than git-bound, so it has no git guard; this
+# file's budget row is its growth detector. With that tail gone, `go test -race`'s
+# GOMAXPROCS-wide race workers do not oversubscribe the cores the other parallel
+# jobs need (change 0332's reason for the serial lane, and change 0329's
 # load-dependent build-gate halt), so this gate rides the PARALLEL lane under an
 # ordinary row in tests/runtime-budgets.tsv like every other file.
 #
 # BACKSTOP TIMEOUT (change 0465). `go test` is given an explicit -timeout
 # (RACE_TIMEOUT below) of 8m, sized from CI-projected data rather than an idle
 # local run. The measured post-partition worst package is
-# internal/repository/transaction at 48.7s (local, idle, -p 2). The change's own
-# CI data puts the macos-15 runner at ~2.4-3.8x slower than local (this gate:
-# 238s local vs 581-908s on passing CI runs), projecting that package to ~120-186s
-# in CI (up to ~230s with load noise). 8m is at least twice that worst projection,
-# so a loaded runner does not trip the backstop, and still below Go's 10m
-# per-package default. TestRaceGatePassesTimeoutBackstopBelowGoDefault
+# internal/repository/transaction at 48.7s (local, idle, -p 2). Change 0466 then
+# partitioned that package; the measured worst default-corpus package is now
+# internal/cli at 24.0s (same shape). The backstop and its floor in
+# internal/repoguard keep 0465's larger 48.7s input, so the margin only grew.
+# The change's own CI data puts the macos-15 runner at ~2.4-3.8x slower than
+# local (this gate: 238s local vs 581-908s on passing CI runs), projecting that
+# package to ~120-186s in CI (up to ~230s with load noise). 8m is at least twice
+# that worst projection, so a loaded runner does not trip the backstop, and still
+# below Go's 10m per-package default. TestRaceGatePassesTimeoutBackstopBelowGoDefault
 # (internal/repoguard) pins both bounds. It is NOT a growth allowance — the
 # guard and the budget row are the growth detectors. It exists so an overrun fails with the named
 # "no package ran past the … -timeout backstop" assert and the offending FAIL line,
