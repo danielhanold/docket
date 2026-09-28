@@ -79,6 +79,13 @@ func illegalTextRune(r rune) bool {
 	return unicode.IsControl(r) || r == 0x2028 || r == 0x2029 || r == 0xfffe || r == 0xffff
 }
 
+// IllegalTextRune is the exported view of illegalTextRune: it reports whether r
+// may never appear in a field string the writer serializes, apart from the tab
+// exemption the writer grants itself. Request validators consult it so they
+// refuse exactly the set the writer refuses, never a hand-enumerated copy that
+// drifts from it (learning validator-must-match-the-reader-it-feeds).
+func IllegalTextRune(r rune) bool { return illegalTextRune(r) }
+
 // validate reports whether v is representable in the closed model. The whole
 // value — every element of a sequence included — is checked before any caller
 // serializes a byte, so a defective tail item cannot yield a partial document.

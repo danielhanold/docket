@@ -225,6 +225,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	var emitted []StatusFinding
 	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{StackedOn: &zero})...)
 	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{BranchPrefix: "a/b"})...)
+	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{Title: "a\nb"})...)
 	emitted = append(emitted, validateADRRecordShape(adrContent)...)
 	emitted = append(emitted, validateADRReplaceShape(ADRReplaceRequest{Target: ADRTarget{ID: 0}, Successor: adrContent})...)
 	emitted = append(emitted, validateLearningRecordShape(LearningRecordRequest{Topics: []string{""}})...)
@@ -255,7 +256,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	// reach. A miss means the mint path drifted from the registered constant.
 	floor := []FindingCode{
 		FCInvalidRequestID, FCInvalidStackedOn, FCInvalidBranchPrefix,
-		FCEmptyTitle, FCEmptyWhy, FCEmptyWhatChanges, FCEmptyOutOfScope,
+		FCEmptyTitle, FCInvalidTitle, FCEmptyWhy, FCEmptyWhatChanges, FCEmptyOutOfScope,
 		FCEmptyContext, FCEmptyDecision, FCEmptyConsequences, FCEmptyAlternatives,
 		FCInvalidChangeDotID, FCEmptyChangePath, FCEmptyChangeVersion,
 		FCInvalidTargetID, FCEmptyTargetPath, FCEmptyTargetVersion,
