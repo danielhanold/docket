@@ -112,6 +112,12 @@ type ChangeGroomRequest struct {
 	// note must not carry a column-zero "## " heading or an unterminated fence.
 	BlockedNote string `json:"blocked_note,omitempty"`
 
+	// Title, when non-empty, retitles the change (change 0461). The spec,
+	// trivial, revise, and rearm outcomes accept it; abstain refuses it, since an
+	// abstain cannot rewrite the proposal. Empty leaves the title unchanged. A
+	// retitle renames nothing: the slug, record path, spec path, and branch stay put.
+	Title string `json:"title,omitempty"`
+
 	DependsOn      []int `json:"depends_on"`
 	Related        []int `json:"related"`
 	DiscoveredFrom []int `json:"discovered_from"`
@@ -322,8 +328,8 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 			if msg := specMarkdownShapeProblem(req.SpecMarkdown); msg != "" {
 				addShape(FCInvalidSpecMarkdown, msg)
 			}
-		} else if !hasEffectiveSectionEdit(req.Sections) {
-			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown or at least one replace/remove section edit")
+		} else if !hasEffectiveSectionEdit(req.Sections) && req.Title == "" {
+			addShape(FCEmptyRevise, "the revise outcome requires a non-empty spec_markdown, at least one replace/remove section edit, or a title")
 		}
 	case GroomAbstain:
 		if strings.TrimSpace(req.BlockedNote) == "" {
@@ -336,6 +342,9 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		}
 		if len(req.Sections) > 0 {
 			addShape(FCInvalidSections, "sections are not accepted by the abstain outcome; an abstain cannot rewrite the proposal")
+		}
+		if req.Title != "" {
+			addShape(FCInvalidTitle, "title is not accepted by the abstain outcome; an abstain cannot rewrite the proposal")
 		}
 		for _, rel := range []struct {
 			name string
@@ -363,6 +372,15 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		}
 	default:
 		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial, revise, abstain, rearm", req.Outcome))
+	}
+
+	// A title retitles the change on every other outcome (change 0461); an empty
+	// one means "unchanged". Any non-empty title must pass the shared rule, so a
+	// whitespace-only one is empty-title, never a silent no-op.
+	if req.Title != "" && req.Outcome != GroomAbstain {
+		if code, msg := validateTitle(req.Title); code != "" {
+			addShape(code, msg)
+		}
 	}
 
 	// blocked_note is the abstain entry's body; nothing else reads it, so it is

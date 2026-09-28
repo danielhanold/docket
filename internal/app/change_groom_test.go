@@ -1306,3 +1306,103 @@ func TestChangeGroomPlanRearmRemovesSectionBeforeFollowingSection(t *testing.T) 
 		t.Errorf("following section not preserved byte-identically:\n%s", rec)
 	}
 }
+
+// titleOnlyReviseRequest is a revise carrying nothing but a title — no spec
+// body, no spec_version, no section edits (change 0461).
+func titleOnlyReviseRequest(title string) ChangeGroomRequest {
+	r := validReviseRequest()
+	r.SpecMarkdown, r.SpecVersion, r.Sections = "", "", nil
+	r.Title = title
+	return r
+}
+
+// titledTrivialRequest is a well-formed trivial groom of the groomable fixture
+// at id 2 that also retitles it.
+func titledTrivialRequest(title string) ChangeGroomRequest {
+	return ChangeGroomRequest{
+		ChangeID: 2,
+		Path:     groomPath(2, "add-a-widget"),
+		Version:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Outcome:  GroomTrivial,
+		Title:    title,
+		Sections: []SectionEditRequest{
+			{Heading: "## Why", Intent: "replace", Markdown: "Trivial: a rename only.\n"},
+		},
+	}
+}
+
+func TestChangeGroomTitleShapeValidation(t *testing.T) {
+	withTitle := func(r ChangeGroomRequest, title string) ChangeGroomRequest {
+		r.Title = title
+		return r
+	}
+	cases := []struct {
+		name string
+		req  ChangeGroomRequest
+		code string // "" means the request must pass shape validation
+	}{
+		{"spec accepts title", withTitle(validGroomSpecRequest(), "Renamed widget"), ""},
+		{"trivial accepts title", titledTrivialRequest("Renamed widget"), ""},
+		{"rearm accepts title", withTitle(rearmRequest(), "Renamed widget"), ""},
+		{"revise accepts a title alone", titleOnlyReviseRequest("Renamed widget"), ""},
+		{"revise accepts title with sections", withTitle(validReviseRequest(), "Renamed widget"), ""},
+		{"abstain refuses title", withTitle(abstainRequest(), "Renamed widget"), "invalid-title"},
+		{"whitespace-only title", titleOnlyReviseRequest("   "), "empty-title"},
+		{"multi-line title", titleOnlyReviseRequest("Renamed\nwidget"), "invalid-title"},
+		{"control-character title", titleOnlyReviseRequest("Renamed\x00widget"), "invalid-title"},
+		{"multi-line title on spec outcome", withTitle(validGroomSpecRequest(), "a\r\nb"), "invalid-title"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			findings := validateChangeGroomShape(c.req)
+			if c.code == "" {
+				if len(findings) != 0 {
+					t.Fatalf("unexpected shape findings: %v", findings)
+				}
+				return
+			}
+			if !hasFindingCode(findings, c.code) {
+				t.Errorf("missing finding %q; got %v", c.code, findings)
+			}
+		})
+	}
+}
+
+// TestChangeGroomEmptyReviseNamesTitle pins the widened empty-revise rule: with
+// no spec_markdown, no effective section edit, and no title the revise is still
+// refused, and the diagnostic names all three inputs.
+func TestChangeGroomEmptyReviseNamesTitle(t *testing.T) {
+	findings := validateChangeGroomShape(titleOnlyReviseRequest(""))
+	var msg string
+	for _, f := range findings {
+		if f.Code == string(FCEmptyRevise) {
+			msg = f.Message
+		}
+	}
+	if msg == "" {
+		t.Fatalf("empty revise not refused; findings %v", findings)
+	}
+	for _, want := range []string{"spec_markdown", "section edit", "title"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("empty-revise message %q does not name %q", msg, want)
+		}
+	}
+}
+
+func TestChangeGroomBadTitleRefusedWithoutEngineCall(t *testing.T) {
+	engine := &recordingEngine{}
+	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
+	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
+
+	res := ChangeGroom(context.Background(), deps, "", titleOnlyReviseRequest("two\nlines"))
+
+	if res.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want invalid-input", res.Result)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("engine called %d times on a shape failure, want 0", len(engine.calls))
+	}
+	if !hasFindingCode(res.Findings, "invalid-title") {
+		t.Errorf("missing invalid-title; got %v", res.Findings)
+	}
+}
