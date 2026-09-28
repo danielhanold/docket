@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/allow-editing-an-existing-change-s-title'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-28T20:20:13Z'
+reconciled: true
+claimed_at: '2026-09-28T20:21:02Z'
 ---
 
 ## Artifacts
@@ -69,3 +69,9 @@ its spec accepts it deliberately.
 - Changing a slug or renaming a change file, spec, or branch.
 - Retitling terminal (archived) records.
 - Editing other scalars such as priority or type.
+
+## Reconcile log
+
+### 2026-09-28
+
+2026-09-28 — Reconciled against origin/main ef4a341d2. change_groom.go still refuses a revise lacking spec_markdown/section edits (FCEmptyRevise); no title field exists; board.go still writes titles unescaped with boardRepairCell as the only cell replacer. No intervening change touched retitling. Scope and spec unchanged.
