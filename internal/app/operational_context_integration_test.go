@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -34,11 +36,11 @@ func originRefs(t *testing.T, origin string) string {
 	return runGit(t, origin, "for-each-ref")
 }
 
-// TestOperationalGateRefusesLegacy proves a legacy fixture makes an ordinary
+// TestIntegrationContextProbeOperationalGateRefusesLegacy proves a legacy fixture makes an ordinary
 // command's PinContext return the shared typed refusal, rendered by the status
 // operation as the spec's one protocol document, and that a MUTATING ordinary
 // operation refused by the same gate moves no ref on the origin.
-func TestOperationalGateRefusesLegacy(t *testing.T) {
+func TestIntegrationContextProbeOperationalGateRefusesLegacy(t *testing.T) {
 	repo := newLegacyRepo(t, legacyChangeRecord())
 	client := newGitClient(t)
 	reader := NewGitStatusReader(client)
@@ -86,10 +88,10 @@ func TestOperationalGateRefusesLegacy(t *testing.T) {
 	}
 }
 
-// TestOperationalGateFindingIsTheClassifierValue proves the refusal finding is
+// TestIntegrationContextProbeOperationalGateFindingIsTheClassifierValue proves the refusal finding is
 // the exact typed value `repository check` reports for the same fixture — the
 // classifier is the single source, not a command-specific copy.
-func TestOperationalGateFindingIsTheClassifierValue(t *testing.T) {
+func TestIntegrationContextProbeOperationalGateFindingIsTheClassifierValue(t *testing.T) {
 	repo := newLegacyRepo(t, legacyChangeRecord())
 	client := newGitClient(t)
 
@@ -121,10 +123,10 @@ func TestOperationalGateFindingIsTheClassifierValue(t *testing.T) {
 	}
 }
 
-// TestOperationalGatePassesHealthy proves a docket-topology fixture pins
+// TestIntegrationContextProbeOperationalGatePassesHealthy proves a docket-topology fixture pins
 // normally: integration resolved from configuration, the metadata revision
 // pinned from the remote docket branch, and no refusal.
-func TestOperationalGatePassesHealthy(t *testing.T) {
+func TestIntegrationContextProbeOperationalGatePassesHealthy(t *testing.T) {
 	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0002-beta.md": changeRecord(2, "beta", "Beta"),
 	})
@@ -153,12 +155,12 @@ func TestOperationalGatePassesHealthy(t *testing.T) {
 	}
 }
 
-// TestFailClosedOrdering proves (a) an invalid configuration fails as invalid
+// TestIntegrationContextProbeFailClosedOrdering proves (a) an invalid configuration fails as invalid
 // input BEFORE any topology classification — never the legacy remedy — and (b)
 // the refusal predicate fires for exactly the legacy state, so unknown or
 // conflicting classifications keep change 0352's own disposition and never
 // collapse into legacy-repository.
-func TestFailClosedOrdering(t *testing.T) {
+func TestIntegrationContextProbeFailClosedOrdering(t *testing.T) {
 	t.Run("invalid config precedes classification", func(t *testing.T) {
 		repo := newLegacyRepo(t, legacyChangeRecord())
 		// Corrupt the committed repository-layer configuration on the origin.
@@ -198,11 +200,11 @@ func TestFailClosedOrdering(t *testing.T) {
 	})
 }
 
-// TestStatusInvalidConfigDiagnostics: an invalid committed .docket.yml still
+// TestIntegrationContextProbeStatusInvalidConfigDiagnostics: an invalid committed .docket.yml still
 // refuses with reason invalid-input and today's message, and now carries the
 // resolver's findings — code, .docket.yml:<line> in the path slot — with the
 // refs in the human text (change 0403).
-func TestStatusInvalidConfigDiagnostics(t *testing.T) {
+func TestIntegrationContextProbeStatusInvalidConfigDiagnostics(t *testing.T) {
 	requireRealGit(t)
 	root := testsupport.TempDir(t)
 	origin := filepath.Join(root, "origin.git")

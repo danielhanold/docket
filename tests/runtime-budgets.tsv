@@ -56,6 +56,7 @@ tests/test_go_integration_app_finalizeops.sh	30	parallel
 tests/test_go_integration_app_finalizerebaseops.sh	40	parallel
 tests/test_go_integration_app_evidence.sh	40	parallel
 tests/test_go_integration_app_recordops.sh	55	parallel
+tests/test_go_integration_app_contextprobe.sh	20	parallel
 tests/test_go_integration_contract.sh	15	parallel
 tests/test_go_integration_cli_agent.sh	15	parallel
 tests/test_go_integration_gitcli_concurrency.sh	10	parallel

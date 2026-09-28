@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -52,7 +54,7 @@ func targetPaths(phase *install.RepoPhase) []string {
 	return out
 }
 
-func TestResolveRepoPhaseDiscoversFromRootAndNestedDir(t *testing.T) {
+func TestIntegrationContextProbeResolveRepoPhaseDiscoversFromRootAndNestedDir(t *testing.T) {
 	root, _ := initGitRepo(t, "agent_harnesses: [claude]\n")
 	nested := filepath.Join(root, "docs", "changes")
 	if err := os.MkdirAll(nested, 0o755); err != nil {
@@ -77,7 +79,7 @@ func TestResolveRepoPhaseDiscoversFromRootAndNestedDir(t *testing.T) {
 	}
 }
 
-func TestResolveRepoPhaseInvalidExplicitRepoDir(t *testing.T) {
+func TestIntegrationContextProbeResolveRepoPhaseInvalidExplicitRepoDir(t *testing.T) {
 	git := newGitClient(t)
 	notARepo := testsupport.TempDir(t)
 	_, _, _, err := ResolveRepoPhase(context.Background(), git, notARepo, nil, nil, nil, config.ResolveContext{DefaultBranch: "main"})
@@ -90,7 +92,7 @@ func TestResolveRepoPhaseInvalidExplicitRepoDir(t *testing.T) {
 	}
 }
 
-func TestResolveRepoPhaseOutsideGitIsMachineOnly(t *testing.T) {
+func TestIntegrationContextProbeResolveRepoPhaseOutsideGitIsMachineOnly(t *testing.T) {
 	git := newGitClient(t)
 	outside := testsupport.TempDir(t)
 	t.Chdir(outside)
@@ -105,7 +107,7 @@ func TestResolveRepoPhaseOutsideGitIsMachineOnly(t *testing.T) {
 	}
 }
 
-func TestResolveRepoPhaseAbsentKeyNotAuthorized(t *testing.T) {
+func TestIntegrationContextProbeResolveRepoPhaseAbsentKeyNotAuthorized(t *testing.T) {
 	root, gitDir := initGitRepo(t, "metadata_branch: main\n")
 	git := newGitClient(t)
 	phase, gotRoot, _, err := ResolveRepoPhase(context.Background(), git, root, nil, nil, nil, config.ResolveContext{DefaultBranch: "main"})
@@ -126,14 +128,14 @@ func TestResolveRepoPhaseAbsentKeyNotAuthorized(t *testing.T) {
 	}
 }
 
-// TestResolveRepoPhaseGlobalLayerNotAuthorized pins the provenance guard: an
+// TestIntegrationContextProbeResolveRepoPhaseGlobalLayerNotAuthorized pins the provenance guard: an
 // agent_harnesses declaration that resolves from the GLOBAL layer is never write
 // authority for repository surfaces.
 //
 // MUTATION TEST: flip the guard in ResolveRepoPhase from
 // `ah.Explicit && isRepositoryLayer(...)` to `ah.Explicit` alone and this test
 // reddens — a global declaration would then authorize a repository write.
-func TestResolveRepoPhaseGlobalLayerNotAuthorized(t *testing.T) {
+func TestIntegrationContextProbeResolveRepoPhaseGlobalLayerNotAuthorized(t *testing.T) {
 	root, _ := initGitRepo(t, "metadata_branch: main\n")
 	// The declaration lives in the GLOBAL layer only.
 	xdg := testsupport.TempDir(t)
@@ -159,7 +161,7 @@ func TestResolveRepoPhaseGlobalLayerNotAuthorized(t *testing.T) {
 	}
 }
 
-func TestResolveRepoPhaseAgentsTableAloneNotAuthorized(t *testing.T) {
+func TestIntegrationContextProbeResolveRepoPhaseAgentsTableAloneNotAuthorized(t *testing.T) {
 	root, _ := initGitRepo(t, "agents:\n  claude:\n    build-standard:\n      model: opus\n")
 	git := newGitClient(t)
 	phase, _, _, err := ResolveRepoPhase(context.Background(), git, root, nil, nil, nil, config.ResolveContext{DefaultBranch: "main"})
@@ -171,11 +173,11 @@ func TestResolveRepoPhaseAgentsTableAloneNotAuthorized(t *testing.T) {
 	}
 }
 
-// TestResolveRepoPhaseScopedHarnessCarriesUnrelatedRecord is the scoped-run row:
+// TestIntegrationContextProbeResolveRepoPhaseScopedHarnessCarriesUnrelatedRecord is the scoped-run row:
 // opt-ins [claude codex], a prior record owning both surfaces, and a
 // --harness codex scope. Only codex's surface is reconciled; claude's ownership
 // record is carried forward unchanged.
-func TestResolveRepoPhaseScopedHarnessCarriesUnrelatedRecord(t *testing.T) {
+func TestIntegrationContextProbeResolveRepoPhaseScopedHarnessCarriesUnrelatedRecord(t *testing.T) {
 	root, gitDir := initGitRepo(t, "agent_harnesses: [claude, codex]\n")
 	git := newGitClient(t)
 
@@ -235,7 +237,7 @@ func TestResolveRepoPhaseScopedHarnessCarriesUnrelatedRecord(t *testing.T) {
 	}
 }
 
-// TestResolveRepoPhaseRetiresDroppedClaudeLink is the symlink-retirement row: a
+// TestIntegrationContextProbeResolveRepoPhaseRetiresDroppedClaudeLink is the symlink-retirement row: a
 // repo that once opted into [claude codex] now opts into [codex] alone, with a
 // prior record owning CLAUDE.md as a claude symlink to the shared AGENTS.md. The
 // dropped claude link must be a provable removal — the install no longer
@@ -245,7 +247,7 @@ func TestResolveRepoPhaseScopedHarnessCarriesUnrelatedRecord(t *testing.T) {
 // MUTATION TEST: drop the LinkTarget threading in computeRemovals (the symlink
 // arm that joins s.LinkTarget under root) and the LinkTarget assertion below
 // reddens — the removal would name no destination.
-func TestResolveRepoPhaseRetiresDroppedClaudeLink(t *testing.T) {
+func TestIntegrationContextProbeResolveRepoPhaseRetiresDroppedClaudeLink(t *testing.T) {
 	root, gitDir := initGitRepo(t, "agent_harnesses: [codex]\n")
 	git := newGitClient(t)
 
@@ -300,13 +302,13 @@ func TestResolveRepoPhaseRetiresDroppedClaudeLink(t *testing.T) {
 	}
 }
 
-// TestResolveRepoPhaseToleratesUnknownKeys (change 0392): with a tolerant
+// TestIntegrationContextProbeResolveRepoPhaseToleratesUnknownKeys (change 0392): with a tolerant
 // context, a .docket.yml carrying an unknown key plus an explicit
 // agent_harnesses still yields an authorized phase, and the unknown-key
 // warning comes back for the install result to surface. The strict control —
 // today's ReasonInvalidConfig refusal — pins that the CLI's context, not this
 // assembler, owns the decision.
-func TestResolveRepoPhaseToleratesUnknownKeys(t *testing.T) {
+func TestIntegrationContextProbeResolveRepoPhaseToleratesUnknownKeys(t *testing.T) {
 	root, _ := initGitRepo(t, "agent_harnesses: [claude]\nsome_future_block: true\n")
 	git := newGitClient(t)
 
