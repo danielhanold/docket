@@ -143,3 +143,39 @@ func TestGateDriveRunEpochThreaded(t *testing.T) {
 		}
 	})
 }
+
+// runGateEpochCopyRe binds the copy instruction to the epoch AND to its
+// destination with one bounded, sentence-local gap: a rewrite that keeps the
+// word <epoch> elsewhere but drops "copy it into the dispatch prompt" reddens.
+var runGateEpochCopyRe = regexp.MustCompile("copy the [^.]{0,60}`<epoch>` into the dispatch prompt")
+
+// TestRunGateCopiesEpochIntoDispatchPrompt: the managed run-gate source, its
+// embedded mirror, and the committed AGENTS.md rendering all tell the parent to
+// copy the arm's <epoch> into the implement-next dispatch prompt (change 0467) —
+// otherwise the epoch never reaches the build chain.
+func TestRunGateCopiesEpochIntoDispatchPrompt(t *testing.T) {
+	root := guardRoot(t)
+	for _, rel := range []string{
+		"cursor-rules/run-gate.md",
+		"internal/assets/embedded/tree/cursor-rules/run-gate.md",
+		"AGENTS.md",
+	} {
+		if !runGateEpochCopyRe.MatchString(collapseWS(readMaintained(t, root, rel))) {
+			t.Errorf("%s: run-gate step 1 does not copy the `<epoch>` into the dispatch prompt", rel)
+		}
+	}
+
+	t.Run("non_vacuity", func(t *testing.T) {
+		good := "keep all three and copy the `<dispatch-context>` and the `<epoch>`\n   into the dispatch prompt."
+		if !runGateEpochCopyRe.MatchString(collapseWS(good)) {
+			t.Fatalf("the intended (wrapped) wording did not match")
+		}
+		old := "copy the `<dispatch-context>` into the dispatch prompt. The `<epoch>` is the run epoch id"
+		if runGateEpochCopyRe.MatchString(collapseWS(old)) {
+			t.Errorf("the pre-0467 wording (epoch not copied) matched")
+		}
+		if runGateEpochCopyRe.MatchString("copy the `<dispatch-context>`. Later, `<epoch>` into the dispatch prompt") {
+			t.Errorf("bounded gap failed: the binding must not span sentences")
+		}
+	})
+}
