@@ -692,7 +692,8 @@ The `change.groom` outcome that adjusts a change that is already groomed (`propo
 
 **Used for:** fixing a just-landed design. Reach it by naming the id to `docket-groom-next`. A spec
 replace also needs `spec_version` (the spec's blob id), so a concurrent spec edit contends instead of
-being overwritten.
+being overwritten. A `title` alone is also a valid revise: it rewrites `title:`, the board row, and
+the spec's backlink line, and renames nothing — the slug and every path stay put.
 
 ```sh
 # groom.json: {"change_id": 412, "path": "…", "version": "<v>", "outcome": "revise", "spec_markdown": "…", "spec_version": "<blob>"}
