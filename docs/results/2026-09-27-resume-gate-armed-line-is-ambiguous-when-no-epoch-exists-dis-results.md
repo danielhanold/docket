@@ -33,9 +33,19 @@ ADR-0111 made a confirmed claim binding the authority for cancelling a run. This
 - Every task and review fix ran a focused RED/GREEN cycle through the gate driver. Each new guard was mutation-checked: stripping the fix turned its test red.
 - Review used the deep rung and returned 1 blocker, 3 important and 1 minor finding. All were fixed in the branch (see the PR's disposition table). There was no second review round after the fixes.
 
+## Post-review changes (2026-09-28)
+
+A human review of the widened `run cancel` authority found three problems. The branch was then rebased onto `main` (one test moved to `testsupport.TempDir` after change 0462 removed `gateTempDir`), and two were fixed:
+
+- **A stray claim no longer brings back the cancel wedge.** A claim made under a resume arm's dispatch context used to write its reservation before refusing, or could claim a different change. Either left the resume epoch uncancellable (`claim-unconfirmed` or `claim-mismatch`). `change claim` now refuses a resume context as `gate-context-conflict` before it writes anything. The resume-verified shape is one predicate, `GateRecord.resumeAttributed`, shared by claim, cancel, and the verdict.
+- **Concurrent resume arms are serialized.** The race below was not small: 12 of 12 simultaneous arms each minted a live epoch in test. A per-change resume lock (under `<git-common-dir>/docket/rungate-resume/<id>`) now covers the arm from the prior-epoch check through the bind, so exactly one arms and the rest refuse `resume-active-run`.
+- **Kept on purpose: an undispatched resume arm blocks the next resume until cancelled.** The resume epoch is bound when armed so that a second agent cannot enter the worktree before the first reaches its first gate step. Binding later would reopen that window, and the dispatch context is never stored, so a repeat arm cannot reprint it. The earlier resume-after-cancel path already behaves this way. Nothing records whether an agent is using an epoch, so the `resume-active-run` refusal now names both remedies: cancel if it was never dispatched or its agent exited, `run gate-verdict` if it is still running.
+
 ## Known issues and follow-ups
 
 ### A small race window remains between concurrent epochless resumes
+
+**Fixed after review** (see *Post-review changes*): a per-change resume lock now serializes resume arms. The original finding follows.
 
 Two `--resume` arms of the same unarmed change started at the same instant can both pass the new worktree-owner check and each mint an epoch. Epoch locks are per gate key, not per change. If that happens, later resumes refuse as `resume-epoch-unreadable`, and fenced mutations in that worktree refuse until one epoch is cancelled with `docket run cancel`. After that cancel, the change's own later resumes still see both epochs and keep refusing. This is suspected, not observed, and needs a true simultaneous double arm. Suggested next step: a follow-up change adding a check-after-bind re-scan, in which a racer that sees two owners unbinds its own epoch.
 
