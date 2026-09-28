@@ -538,8 +538,9 @@ func (o changeGroomOp) Key() transaction.OperationKey { return OperationChangeGr
 // Plan gates the groom against the attempt's snapshot, splices the owned
 // proposal sections, patches the typed fields, re-renders the artifact block,
 // and assembles the closed plan: the groomed change record, the new spec file
-// (spec outcome) or the replaced existing spec file (a spec-body revise), and
-// the re-rendered board when inline is enabled.
+// (spec outcome), the replaced existing spec file (a spec-body revise), or the
+// linked spec's re-stamped backlink (a retitle), and the re-rendered board when
+// inline is enabled.
 func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
 	snap := st.State.Snapshot
 
@@ -669,6 +670,14 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	// ADR ops, which upsert the same field, rather than internal-erroring with a
 	// KindMissingPatchTarget.
 	upsertField(&ps, doc1, "updated", document.String(o.clock.Now().UTC().Format("2006-01-02")))
+	if o.req.Title != "" {
+		// Retitle (change 0461). The writer quotes the scalar, so ADR-0071 holds by
+		// construction. upsertField tolerates a record lacking the key rather than
+		// internal-erroring. The slug, record path, and spec path are never
+		// touched: the candidate snapshot below carries the new title into the
+		// artifact block and the board with no further code.
+		upsertField(&ps, doc1, "title", document.String(o.req.Title))
+	}
 	if o.req.DependsOn != nil {
 		ps.SetField("depends_on", intSeqValue(o.req.DependsOn))
 	}
@@ -757,6 +766,25 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		}
 	}
 
+	// Title re-stamp (change 0461). The spec outcome and a spec-body revise
+	// already render the backlink from gc, so this runs only when the title
+	// actually changed, the change links a spec, and nothing else writes that
+	// spec in this plan — declaring the spec path at most once.
+	if gc.Title() != c.Title() && c.Spec().Value != "" && o.req.Outcome != GroomSpec && !reviseSpec {
+		updated, changed, code, msg, err := restampSpecBacklink(ctx, st.Tree, c.Spec().Value, gc, o.link)
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, err
+		}
+		if code != "" {
+			return refuseGroom(code, msg)
+		}
+		if changed {
+			files = append(files, transaction.FileMutation{
+				Path: gitcli.RepoPath(c.Spec().Value), Kind: transaction.MutationReplace, Bytes: updated,
+			})
+		}
+	}
+
 	if o.inline {
 		boardPath := path.Join(o.changesDir, "BOARD.md")
 		if err := includeBoard(ctx, st.Tree, boardPath, candidate, boardUnrenderable(st.State, o.changesDir), boardPresentation(o.eff), &files); err != nil {
@@ -835,6 +863,47 @@ func assembleSpecFile(backlink, markdown string) []byte {
 	b.WriteString(strings.TrimRight(markdown, "\n"))
 	b.WriteString("\n")
 	return []byte(b.String())
+}
+
+// restampSpecBacklink rewrites only the docket:backlink block of the spec at
+// specPath so it names gc's (new) title, over the spec's CURRENT bytes on the
+// attempt's base tree (change 0461). It takes no spec_version: nothing
+// caller-authored is written, and a concurrent spec edit moves the base and
+// contends the push instead of being clobbered. A missing file refuses
+// spec-file-missing; a spec that does not parse (malformed markers) refuses
+// spec-backlink-malformed; a spec without the block refuses
+// spec-backlink-missing — a block is never silently inserted. changed reports
+// whether the bytes differ, so an unchanged spec is never declared.
+func restampSpecBacklink(ctx context.Context, tree transaction.Tree, specPath string, gc domain.Change, link render.LinkContext) (updated []byte, changed bool, refuseCode, refuseMsg string, err error) {
+	blob, _, exists, err := treeBlob(ctx, tree, specPath)
+	if err != nil {
+		return nil, false, "", "", err
+	}
+	if !exists {
+		return nil, false, "spec-file-missing",
+			fmt.Sprintf("change %04d links spec %q but no such file exists on the tree", int(gc.ID()), specPath), nil
+	}
+	doc, perr := document.Parse(blob)
+	if perr != nil {
+		return nil, false, "spec-backlink-malformed",
+			fmt.Sprintf("spec %q does not parse, so its docket:backlink block cannot be re-stamped: %v", specPath, perr), nil
+	}
+	if _, ok := doc.Block(backlinkBlockName); !ok {
+		return nil, false, "spec-backlink-missing",
+			fmt.Sprintf("spec %q has no docket:backlink block to re-stamp with the new title; restore it with `artifact backlink` first", specPath), nil
+	}
+	block, err := render.BacklinkContent(gc, link)
+	if err != nil {
+		return nil, false, "", "", fmt.Errorf("change groom: rendering spec backlink: %w", err)
+	}
+	var ps document.PatchSet
+	ps.ReplaceBlock(backlinkBlockName, backlinkInterior(block))
+	out, aerr := doc.Apply(ps)
+	if aerr != nil {
+		return nil, false, "spec-backlink-malformed",
+			fmt.Sprintf("rewriting the docket:backlink block in %q: %v", specPath, aerr), nil
+	}
+	return out, !bytes.Equal(out, blob), "", "", nil
 }
 
 // buildGroomCandidate rebuilds the complete snapshot the attempt would see after

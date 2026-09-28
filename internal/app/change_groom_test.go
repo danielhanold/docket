@@ -1406,3 +1406,220 @@ func TestChangeGroomBadTitleRefusedWithoutEngineCall(t *testing.T) {
 		t.Errorf("missing invalid-title; got %v", res.Findings)
 	}
 }
+
+// reviseSpecBody is the fixture spec's bytes after its backlink block — the part
+// a title re-stamp must leave byte-identical.
+const reviseSpecBody = "<!-- docket:backlink:end -->\n\n# Design\n\nThe original design body.\n"
+
+func TestChangeGroomPlanTitleOnlyReviseRestampsSpecBacklink(t *testing.T) {
+	files := reviseFixtureFiles()
+	files["docs/changes/BOARD.md"] = "# Backlog\n\nold\n"
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, titleOnlyReviseRequest("Renamed widget")))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	// One commit: the record, the spec (backlink re-stamp only), and the board.
+	// The record path itself is unchanged — a retitle renames nothing.
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+		reviseSpecPath:               transaction.MutationReplace,
+		"docs/changes/BOARD.md":      transaction.MutationReplace,
+	})
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	for _, want := range []string{"title: 'Renamed widget'", "updated: '2026-08-16'", "slug: add-a-widget", "spec: '" + reviseSpecPath + "'"} {
+		if !strings.Contains(rec, want) {
+			t.Errorf("record missing %q:\n%s", want, rec)
+		}
+	}
+	spec := string(groomedRecordBytes(t, plan, reviseSpecPath))
+	if !strings.Contains(spec, "Change 0002 — Renamed widget") {
+		t.Errorf("spec backlink not re-stamped with the new title:\n%s", spec)
+	}
+	if strings.Contains(spec, "old backlink") {
+		t.Errorf("old backlink line survived:\n%s", spec)
+	}
+	if !strings.HasSuffix(spec, reviseSpecBody) {
+		t.Errorf("spec bytes outside the backlink block changed:\n%s", spec)
+	}
+	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
+	if !strings.Contains(board, "| Renamed widget |") || strings.Contains(board, "A change") {
+		t.Errorf("board row not retitled:\n%s", board)
+	}
+	// A title-only revise replaced no spec body, so the receipt names none.
+	assertGroomReceiptSpecPath(t, plan, "")
+}
+
+// TestChangeGroomPlanTitleRoundTripsThroughWriter pins ADR-0071 for the new
+// field: YAML-hostile punctuation lands writer-quoted and reads back as the
+// exact string (the re-stamped backlink is rendered from the reparsed record).
+func TestChangeGroomPlanTitleRoundTripsThroughWriter(t *testing.T) {
+	title := "Fix: the '#1' bug"
+	plan, opRes := groomPlanFor(t, reviseFixtureFiles(), baseGroomOp([]string{}, titleOnlyReviseRequest(title)))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if !strings.Contains(rec, "title: 'Fix: the ''#1'' bug'\n") {
+		t.Errorf("title not writer-quoted:\n%s", rec)
+	}
+	if spec := string(groomedRecordBytes(t, plan, reviseSpecPath)); !strings.Contains(spec, "Change 0002 — "+title) {
+		t.Errorf("title did not round-trip into the backlink:\n%s", spec)
+	}
+}
+
+func TestChangeGroomPlanTitleOnSpecOutcome(t *testing.T) {
+	files := map[string]string{groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget")}
+	req := validGroomSpecRequest()
+	req.Title = "Renamed widget"
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	// The new spec path is still minted from the unchanged slug.
+	newSpec := "docs/superpowers/specs/2026-08-16-add-a-widget-design.md"
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+		newSpec:                      transaction.MutationCreate,
+	})
+	if spec := string(groomedRecordBytes(t, plan, newSpec)); !strings.Contains(spec, "Change 0002 — Renamed widget") {
+		t.Errorf("new spec's backlink lacks the new title:\n%s", spec)
+	}
+	if rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget"))); !strings.Contains(rec, "title: 'Renamed widget'") {
+		t.Errorf("record not retitled:\n%s", rec)
+	}
+}
+
+func TestChangeGroomPlanTitleOnTrivialOutcome(t *testing.T) {
+	files := map[string]string{groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget")}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, titledTrivialRequest("Renamed widget")))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	// No spec file is touched.
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+	})
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if !strings.Contains(rec, "title: 'Renamed widget'") || !strings.Contains(rec, "trivial: true") {
+		t.Errorf("record not retitled/trivialled:\n%s", rec)
+	}
+}
+
+// TestChangeGroomPlanTitleWithSpecBodyRevise pins Review Focus 4: the
+// whole-body replace already renders the backlink from the groomed record, so
+// the spec path is declared exactly once, carrying both the new body and title.
+func TestChangeGroomPlanTitleWithSpecBodyRevise(t *testing.T) {
+	req := validReviseRequest()
+	req.Title = "Renamed widget"
+	plan, opRes := groomPlanFor(t, reviseFixtureFiles(), baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	n := 0
+	for _, p := range planPaths(plan) {
+		if p == reviseSpecPath {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("spec path declared %d times, want 1: %v", n, planPaths(plan))
+	}
+	spec := string(groomedRecordBytes(t, plan, reviseSpecPath))
+	if !strings.Contains(spec, "Change 0002 — Renamed widget") || !strings.Contains(spec, "The revised design body.") {
+		t.Errorf("spec lacks the new title or the new body:\n%s", spec)
+	}
+}
+
+// TestChangeGroomPlanTitleOnlyReviseOfTrivialChange pins Review Focus 5: a
+// trivial-verdicted change links no spec, so a retitle writes only the record.
+func TestChangeGroomPlanTitleOnlyReviseOfTrivialChange(t *testing.T) {
+	files := map[string]string{groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget")}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, titleOnlyReviseRequest("Renamed widget")))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+	})
+}
+
+func TestChangeGroomPlanTitleRestampRefusals(t *testing.T) {
+	rec := revisableChange(2, "add-a-widget", reviseSpecPath)
+	cases := []struct {
+		name  string
+		files map[string]string
+		code  string
+	}{
+		// The re-stamp never silently inserts a block.
+		{"spec lacks a backlink block", map[string]string{
+			groomPath(2, "add-a-widget"): rec,
+			reviseSpecPath:               "# Design\n\nNo backlink here.\n",
+		}, "spec-backlink-missing"},
+		// A dangling start marker fails the document parse.
+		{"spec backlink markers malformed", map[string]string{
+			groomPath(2, "add-a-widget"): rec,
+			reviseSpecPath:               "<!-- docket:backlink:start (generated — do not hand-edit) -->\n> dangling\n\n# Design\n",
+		}, "spec-backlink-malformed"},
+		// A dangling spec link reuses the existing refusal.
+		{"spec file missing", map[string]string{
+			groomPath(2, "add-a-widget"): rec,
+		}, "spec-file-missing"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			plan, opRes := groomPlanFor(t, c.files, baseGroomOp([]string{}, titleOnlyReviseRequest("Renamed widget")))
+			if !opRes.Refused {
+				t.Fatalf("expected a refusal, got plan files %v", planPaths(plan))
+			}
+			found := false
+			for _, f := range opRes.Findings {
+				if f.Code == c.code {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("missing refusal code %q; got %v", c.code, opRes.Findings)
+			}
+			if len(plan.Files) != 0 {
+				t.Errorf("refused plan still carries files: %v", planPaths(plan))
+			}
+		})
+	}
+}
+
+// TestChangeGroomPlanUnchangedTitleSkipsRestamp pins Review Focus 1: the
+// re-stamp is keyed on the title CHANGING, so resending the current title with
+// a section edit never probes the spec and never refuses a block-less spec.
+func TestChangeGroomPlanUnchangedTitleSkipsRestamp(t *testing.T) {
+	files := reviseFixtureFiles()
+	files[reviseSpecPath] = "# Design\n\nNo backlink here.\n"
+	req := titleOnlyReviseRequest("A change") // the fixture's current title
+	req.Sections = []SectionEditRequest{{Heading: "## What changes", Intent: "replace", Markdown: "Narrowed what.\n"}}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
+	if opRes.Refused {
+		t.Fatalf("unchanged title refused: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		groomPath(2, "add-a-widget"): transaction.MutationReplace,
+	})
+}
+
+// TestChangeGroomPlanSameTitleIsNoOp pins that a title-only revise resending the
+// current title over a settled tree declares nothing — the engine's clean no-op.
+func TestChangeGroomPlanSameTitleIsNoOp(t *testing.T) {
+	files := reviseSettledFiles(t)
+	files["docs/changes/BOARD.md"] = "# Backlog\n\nold\n"
+	boardPlan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, validReviseRequest()))
+	if opRes.Refused {
+		t.Fatalf("board-settling revise refused: %v", opRes.Findings)
+	}
+	files["docs/changes/BOARD.md"] = string(groomedRecordBytes(t, boardPlan, "docs/changes/BOARD.md"))
+
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, titleOnlyReviseRequest("A change")))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	if len(plan.Files) != 0 {
+		t.Errorf("same-title revise declared files %v, want an empty (no-op) plan", planPaths(plan))
+	}
+}
