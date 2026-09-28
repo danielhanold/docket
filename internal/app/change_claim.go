@@ -204,12 +204,23 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	var gateKey, gateHash string
 	if req.GateContext != "" {
 		gateHash = gateHashToken(req.GateContext)
-		key, _, ferr := FindGateRecordByContextHash(repoDir, gateHash)
+		key, gateRec, ferr := FindGateRecordByContextHash(repoDir, gateHash)
 		if ferr != nil {
 			return newChangeClaimResult(OperationChangeClaim, ResultInvalidState, ChangeClaimResult{
 				Disposition: ClaimDispositionGateContextInvalid,
 				Findings: []StatusFinding{lifecycleFinding(FindingCode(ClaimDispositionGateContextInvalid),
 					"supplied gate context matches no live armed gate in this repository; refusing — an invalid context is never an ungated claim: "+ferr.Error())},
+			})
+		}
+		// A resume arm's context is already bound to the resumed change and never
+		// claims (change 0463). Refuse BEFORE reserving: a leftover unconfirmed
+		// reservation, or a confirmed claim of another change, would make run.cancel
+		// refuse the resume epoch forever.
+		if gateRec.resumeAttributed() {
+			return newChangeClaimResult(OperationChangeClaim, ResultInvalidState, ChangeClaimResult{
+				Disposition: ClaimDispositionGateContextConflict,
+				Findings: []StatusFinding{lifecycleFinding(FindingCode(ClaimDispositionGateContextConflict),
+					fmt.Sprintf("this dispatch context was armed to resume change %04d and cannot claim a change; a resumed run continues its existing claim", gateRec.AttributedID))},
 			})
 		}
 		gateKey = key
