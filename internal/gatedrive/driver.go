@@ -792,6 +792,28 @@ func scopedRunEpoch(scope scopeRecord, presented string) string {
 	return presented
 }
 
+// AdvisoryRunEpoch resolves, without writing anything, the run epoch Admit would
+// admit req under, for the application layer's advisory pre-admission check
+// (change 0467). A scoped start that presents its scope's child capability takes
+// scopedRunEpoch — the scope's pinned epoch, or the presented one for an
+// epoch-less scope. A start presenting a foreign epoch keeps it (Admit refuses
+// that start scope-identity-mismatch, so the advisory check must stay fenced), as
+// does a scopeless start, an unreadable scope, or a rejected capability: those are
+// Admit's to refuse, never the advisory check's to widen.
+func (d *Driver) AdvisoryRunEpoch(req StartRequest) string {
+	if req.ScopeID == "" {
+		return req.RunEpochID
+	}
+	scope, err := d.store.LoadScope(req.ScopeID)
+	if err != nil || req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
+		return req.RunEpochID
+	}
+	if scope.RunEpochID != "" && req.RunEpochID != "" && req.RunEpochID != scope.RunEpochID {
+		return req.RunEpochID
+	}
+	return scopedRunEpoch(scope, req.RunEpochID)
+}
+
 // admitScopeless runs the pre-launch admission half for a gate without a recovery
 // scope (for example, finalize's local gate):
 //

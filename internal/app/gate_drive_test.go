@@ -50,6 +50,9 @@ type fakeDriveEngine struct {
 	// test can prove a busy advisory refusal reached reconciliation first.
 	reconcile      func(worktree, runEpochID string) (bool, string, error)
 	reconcileCount int
+	// scopeEpoch, when set, is the run epoch a scoped start's scope pinned
+	// (AdvisoryRunEpoch, change 0467).
+	scopeEpoch string
 }
 
 func (f *fakeDriveEngine) ReconcileFinishedIncumbent(worktree, runEpochID string) (bool, string, error) {
@@ -58,6 +61,16 @@ func (f *fakeDriveEngine) ReconcileFinishedIncumbent(worktree, runEpochID string
 		return false, "", nil
 	}
 	return f.reconcile(worktree, runEpochID)
+}
+
+// AdvisoryRunEpoch models the driver's resolution: a scoped start inherits
+// scopeEpoch when it presents none (or the same one); anything else keeps the
+// presented epoch.
+func (f *fakeDriveEngine) AdvisoryRunEpoch(r gatedrive.StartRequest) string {
+	if r.ScopeID != "" && f.scopeEpoch != "" && (r.RunEpochID == "" || r.RunEpochID == f.scopeEpoch) {
+		return f.scopeEpoch
+	}
+	return r.RunEpochID
 }
 
 func (f *fakeDriveEngine) recordStart(r gatedrive.StartRequest) {
@@ -1082,6 +1095,89 @@ func TestBudgetedBuildReconcilesBeforeRefusal(t *testing.T) {
 			t.Fatalf("reconcile=%d admit=%d, want reconciliation consulted and no admission", eng.reconcileCount, eng.startCount)
 		}
 		if used, limit := suiteUsage(t, dir, "0446"); used != 0 || limit != 0 {
+			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
+		}
+	})
+}
+
+// TestBudgetedBuildAdvisoryReconcilesWithScopeEpoch (change 0467): a scoped
+// build-owned start presenting NO run epoch, under a scope pinned to epoch E, over
+// a proven-finished incumbent slot E owns, is admitted — the advisory precheck
+// reconciles with the scope's epoch, exactly as Admit would, instead of the empty
+// presented one (which the slot's epoch fence would refuse worktree-busy). A start
+// presenting a foreign epoch stays fenced and is refused before admission.
+func TestBudgetedBuildAdvisoryReconcilesWithScopeEpoch(t *testing.T) {
+	const (
+		runID = "0467eeeeeeeeeeeeeeeeeeeeeeeeee01"
+		epoch = "epoch-e1"
+	)
+	var reconciledEpochs []string
+	setup := func(t *testing.T) (*GateDriveService, *fakeDriveEngine, string, GateDriveStartRequest, *gatedrive.Store) {
+		t.Helper()
+		reconciledEpochs = nil
+		svc, eng, dir := newBudgetTestBuildService(t, 4)
+		worktree := testsupport.TempDir(t)
+		store := gatedrive.OpenStore(dir)
+		tok, err := store.ReserveWorktreeExecutionForEpoch("/repo", worktree, epoch, nil)
+		if err != nil {
+			t.Fatalf("occupy worktree slot for %s: %v", epoch, err)
+		}
+		if err := store.ConfirmWorktreeExecution(worktree, tok, runID, "/runs/"+runID); err != nil {
+			t.Fatalf("confirm incumbent: %v", err)
+		}
+		eng.scopeEpoch = epoch
+		// The E-owned slot is a scopeless-kind incumbent, which the real store proves
+		// finished only through a drive record this package cannot mint, so the seam
+		// is scripted: it applies the store's epoch fence (a slot another epoch owns
+		// is never settled) and otherwise reports the finished incumbent settled.
+		eng.reconcile = func(w, e string) (bool, string, error) {
+			reconciledEpochs = append(reconciledEpochs, e)
+			if e != epoch {
+				return false, "incumbent-epoch-fenced", nil
+			}
+			return true, "incumbent-settled", nil
+		}
+		req := GateDriveStartRequest{
+			RepoDir: "/repo", Worktree: worktree, ChangeID: "0467", TaskID: "task-1",
+			Phase: "build", ScopeID: "scope-1", ChildCapability: "child-cap",
+		}
+		return svc, eng, dir, req, store
+	}
+
+	t.Run("no presented epoch inherits the scope's and admits", func(t *testing.T) {
+		svc, eng, dir, req, _ := setup(t)
+		got := svc.Start(req)
+		if got.Result != ResultApplied {
+			t.Fatalf("a scoped start presenting no epoch must be admitted over its own epoch's finished incumbent: result=%s reason=%q msg=%q", got.Result, got.Reason, got.Message)
+		}
+		if eng.reconcileCount != 1 || eng.startCount != 1 || eng.startAdmittedCount != 1 {
+			t.Fatalf("reconcile=%d admit=%d launch=%d, want 1/1/1", eng.reconcileCount, eng.startCount, eng.startAdmittedCount)
+		}
+		if len(reconciledEpochs) != 1 || reconciledEpochs[0] != epoch {
+			t.Fatalf("the advisory check must reconcile under the scope's epoch, got %v", reconciledEpochs)
+		}
+		if used, _ := suiteUsage(t, dir, "0467"); used != 1 {
+			t.Fatalf("usage = %d, want exactly one charged attempt", used)
+		}
+	})
+
+	t.Run("foreign presented epoch stays fenced", func(t *testing.T) {
+		svc, eng, dir, req, _ := setup(t)
+		req.RunEpochID = "epoch-foreign"
+		got := svc.Start(req)
+		if got.Result == ResultApplied || got.Reason != string(gatedrive.ErrWorktreeBusy) {
+			t.Fatalf("a foreign presented epoch must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
+		}
+		if !strings.Contains(got.Message, "incumbent-epoch-fenced") {
+			t.Fatalf("refusal must name the epoch fence, got %q", got.Message)
+		}
+		if eng.startCount != 0 {
+			t.Fatalf("a fenced start must not reach admission, got %d", eng.startCount)
+		}
+		if len(reconciledEpochs) != 1 || reconciledEpochs[0] != "epoch-foreign" {
+			t.Fatalf("a foreign epoch must be reconciled as presented, got %v", reconciledEpochs)
+		}
+		if used, limit := suiteUsage(t, dir, "0467"); used != 0 || limit != 0 {
 			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
 		}
 	})

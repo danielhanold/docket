@@ -114,6 +114,11 @@ type driveEngine interface {
 	// execution slot with the engine's own process seam (change 0446 spec §3), so an
 	// advisory busy refusal is final only after reconciliation had its chance.
 	ReconcileFinishedIncumbent(worktree, runEpochID string) (settled bool, finding string, err error)
+	// AdvisoryRunEpoch resolves, read-only, the run epoch Admit would admit a start
+	// under (change 0467): a credentialed scoped start inherits its scope's pinned
+	// epoch, anything else keeps the presented one. The advisory precheck
+	// reconciles with it so it never refuses a start Admit would admit.
+	AdvisoryRunEpoch(gatedrive.StartRequest) string
 }
 
 // GateDriveService is the in-process seam over the native gate driver. It owns
@@ -460,7 +465,12 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 // change fixes (a worktree-busy refusal must reserve no attempt).
 func (s *GateDriveService) startBudgetedBuild(req GateDriveStartRequest, startReq gatedrive.StartRequest) GateDriveResult {
 	if err := s.budgetStore.WorktreeAdmissionRefusal(req.Worktree); err != nil {
-		settled, finding, _ := s.engine.ReconcileFinishedIncumbent(req.Worktree, req.RunEpochID)
+		// Reconcile under the epoch Admit would admit this start under — a scoped
+		// start inherits its scope's pinned epoch (change 0467) — never the raw
+		// presented one, or an epoch-less scoped start is fenced here though Admit
+		// would admit it.
+		epoch := s.engine.AdvisoryRunEpoch(startReq)
+		settled, finding, _ := s.engine.ReconcileFinishedIncumbent(req.Worktree, epoch)
 		if !settled {
 			if oe, ok := gatedrive.AsOwnershipError(err); ok {
 				oe.Reconciliation = finding
