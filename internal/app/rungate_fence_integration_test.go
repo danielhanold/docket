@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -81,11 +83,11 @@ func (fenceStubLoader) ValidateEvolution(_, _ transaction.LoadedState) []domain.
 	return nil
 }
 
-// TestFenceBlocksEngineMutationAfterCancel: a change.mark-implemented-shaped engine
+// TestIntegrationGateFenceFenceBlocksEngineMutationAfterCancel: a change.mark-implemented-shaped engine
 // mutation, driven through an engine wired with the production AdmissionHook against a
 // cancelled epoch that owns the worktree, is refused at StageAdmission — before any
 // fetch, allocation, plan, or push — so nothing is mutated.
-func TestFenceBlocksEngineMutationAfterCancel(t *testing.T) {
+func TestIntegrationGateFenceFenceBlocksEngineMutationAfterCancel(t *testing.T) {
 	repoDir := newGateRepo(t)
 	mintFenceEpoch(t, repoDir, repoDir, EpochCancelling)
 
@@ -121,10 +123,10 @@ func TestFenceBlocksEngineMutationAfterCancel(t *testing.T) {
 	}
 }
 
-// TestFenceBlocksPRPublishAfterCancel: with every PRPublish pre-check satisfied, a
+// TestIntegrationGateFenceFenceBlocksPRPublishAfterCancel: with every PRPublish pre-check satisfied, a
 // cancelled epoch owning the worktree blocks publication with the run-cancelled
 // reason and gh (EnsurePullRequest) is never invoked.
-func TestFenceBlocksPRPublishAfterCancel(t *testing.T) {
+func TestIntegrationGateFenceFenceBlocksPRPublishAfterCancel(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	mintFenceEpoch(t, repoDir, repoDir, EpochCancelling)
 
@@ -146,10 +148,10 @@ func TestFenceBlocksPRPublishAfterCancel(t *testing.T) {
 	}
 }
 
-// TestFenceBlocksWorkspacePublishAfterCancel: with the workspace head matching, a
+// TestIntegrationGateFenceFenceBlocksWorkspacePublishAfterCancel: with the workspace head matching, a
 // cancelled epoch blocks the publish with the run-cancelled reason and PublishHead is
 // never invoked.
-func TestFenceBlocksWorkspacePublishAfterCancel(t *testing.T) {
+func TestIntegrationGateFenceFenceBlocksWorkspacePublishAfterCancel(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	mintFenceEpoch(t, repoDir, repoDir, EpochCancelling)
 
@@ -174,12 +176,12 @@ func TestFenceBlocksWorkspacePublishAfterCancel(t *testing.T) {
 	}
 }
 
-// TestInFlightMutationReconcilesBeforeCancelled: an admitted-not-completed mutation
+// TestIntegrationGateFenceInFlightMutationReconcilesBeforeCancelled: an admitted-not-completed mutation
 // keeps a cancellation PENDING; once it is journaled completed, a repeated cancel
 // reconciles it and reports cancelled. This is the "already-admitted external actions
 // are reconciled, and cancelled is not reported while an unresolved effect remains"
 // property.
-func TestInFlightMutationReconcilesBeforeCancelled(t *testing.T) {
+func TestIntegrationGateFenceInFlightMutationReconcilesBeforeCancelled(t *testing.T) {
 	fx := newCancelFixture(t, false) // active epoch + authority, no slot to reconcile
 
 	// A workflow mutation is admitted (in flight) but not yet completed.
@@ -214,10 +216,10 @@ func TestInFlightMutationReconcilesBeforeCancelled(t *testing.T) {
 	}
 }
 
-// TestStandaloneMutationUnfenced: a worktree no epoch owns admits every mutation
+// TestIntegrationGateFenceStandaloneMutationUnfenced: a worktree no epoch owns admits every mutation
 // unfenced (the completion callback is a no-op), and an epoch owning a DIFFERENT
 // worktree never fences this one.
-func TestStandaloneMutationUnfenced(t *testing.T) {
+func TestIntegrationGateFenceStandaloneMutationUnfenced(t *testing.T) {
 	repoDir := newGateRepo(t)
 
 	// (a) No epoch at all.
@@ -242,9 +244,9 @@ func TestStandaloneMutationUnfenced(t *testing.T) {
 	done2(mutationStatusCompleted, false)
 }
 
-// TestFenceRefusesSupersededEpochAsStale: a superseded epoch (a resume replaced it)
+// TestIntegrationGateFenceFenceRefusesSupersededEpochAsStale: a superseded epoch (a resume replaced it)
 // refuses the mutation with the stale-run-epoch reason, distinct from run-cancelled.
-func TestFenceRefusesSupersededEpochAsStale(t *testing.T) {
+func TestIntegrationGateFenceFenceRefusesSupersededEpochAsStale(t *testing.T) {
 	repoDir := newGateRepo(t)
 	mintFenceEpoch(t, repoDir, repoDir, EpochSuperseded)
 
@@ -258,11 +260,11 @@ func TestFenceRefusesSupersededEpochAsStale(t *testing.T) {
 	}
 }
 
-// TestFenceMatchesWorktreeAcrossSymlinkAlias: the fence canonicalizes both the
+// TestIntegrationGateFenceFenceMatchesWorktreeAcrossSymlinkAlias: the fence canonicalizes both the
 // caller's worktree and the epoch's stored Worktree, so a `/tmp`→`/private/tmp`-style
 // alias cannot dodge it. Here the epoch stores a symlink spelling of the worktree and
 // the mutation runs with the canonical spelling; the fence still matches.
-func TestFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T) {
+func TestIntegrationGateFenceFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T) {
 	repoDir := newGateRepo(t)
 	canonRepo, err := canonicalWorktree(repoDir)
 	if err != nil {
@@ -284,11 +286,11 @@ func TestFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T) {
 	}
 }
 
-// TestAdmitWorkflowMutationRefusesCompletingEpoch: a completing epoch (a verified
+// TestIntegrationGateFenceAdmitWorkflowMutationRefusesCompletingEpoch: a completing epoch (a verified
 // successful closeout is mid-flight, change 0441) still owns its worktree and refuses
 // a new mutation with the distinct run-completed reason — never relabelled as a
 // cancellation.
-func TestAdmitWorkflowMutationRefusesCompletingEpoch(t *testing.T) {
+func TestIntegrationGateFenceAdmitWorkflowMutationRefusesCompletingEpoch(t *testing.T) {
 	repoDir := newGateRepo(t)
 	mintFenceEpoch(t, repoDir, repoDir, EpochCompleting)
 
@@ -299,11 +301,11 @@ func TestAdmitWorkflowMutationRefusesCompletingEpoch(t *testing.T) {
 	}
 }
 
-// TestCompletedEpochExcludedFromAmbientOwnerLookup: a fully completed epoch (change
+// TestIntegrationGateFenceCompletedEpochExcludedFromAmbientOwnerLookup: a fully completed epoch (change
 // 0441) no longer owns the worktree for ambient lookup, so a standalone mutation on
 // that worktree is admitted UNFENCED and findEpochByWorktree no longer names it. A
 // COMPLETING epoch, in contrast, is still the owner (its closeout has not finished).
-func TestCompletedEpochExcludedFromAmbientOwnerLookup(t *testing.T) {
+func TestIntegrationGateFenceCompletedEpochExcludedFromAmbientOwnerLookup(t *testing.T) {
 	repoDir := newGateRepo(t)
 	key := mintFenceEpoch(t, repoDir, repoDir, EpochCompleted)
 
@@ -328,7 +330,7 @@ func TestCompletedEpochExcludedFromAmbientOwnerLookup(t *testing.T) {
 	}
 }
 
-// TestFreshRunClaimBindsEpochWorktreeSoFenceActs is the BLOCKER regression (change
+// TestIntegrationGateFenceFreshRunClaimBindsEpochWorktreeSoFenceActs is the BLOCKER regression (change
 // 0375): a FRESH (non-resume) run's claim confirmation must bind the epoch's Worktree
 // so the mutation fence locates the epoch. It drives the REAL arm→reserve→confirm
 // production path (RunGateBefore mints the fresh epoch with Worktree == ""; the claim
@@ -338,7 +340,7 @@ func TestCompletedEpochExcludedFromAmbientOwnerLookup(t *testing.T) {
 // the fresh epoch kept Worktree == "", findEpochByWorktree skipped it, and the mutation
 // was admitted UNFENCED even after the epoch was cancelling — the fence and run.cancel
 // teardown were both inert for the common first-dispatch case.
-func TestFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testing.T) {
+func TestIntegrationGateFenceFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -383,44 +385,7 @@ func TestFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	}
 }
 
-// seedPendingEpochMutation journals one admitted-not-completed workflow mutation on
-// the epoch at key: a genuinely owned in-flight effect, which keeps the successful-run
-// closeout (change 0441) fail-closed with mutation-pending. The two verdict recovery
-// tests below use it to hold their epoch at completing so a later explicit
-// cancellation is meaningful. They formerly relied on the ABSENT feature directory
-// making the slot unreadable; change 0446 (spec §2) addresses a slot through its
-// stored identity, so a never-reserved slot now reads as truly absent (safely
-// detached) and the closeout would legitimately complete — an absent directory is not
-// an obligation, an owned pending mutation is.
-func seedPendingEpochMutation(t *testing.T, repo, key string) {
-	t.Helper()
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
-		r.AdmittedMutations = append(r.AdmittedMutations, AdmittedMutation{
-			OpKey:  OperationPRPublish,
-			Status: mutationStatusAdmitted,
-		})
-		return nil
-	}); err != nil {
-		t.Fatalf("journal a pending mutation: %v", err)
-	}
-}
-
-// reconcilePendingEpochMutations marks every journaled mutation on the epoch at key
-// completed — the in-flight effect resolved — so an explicit cancellation can account
-// it and reach cancelled.
-func reconcilePendingEpochMutations(t *testing.T, repo, key string) {
-	t.Helper()
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
-		for i := range r.AdmittedMutations {
-			r.AdmittedMutations[i].Status = mutationStatusCompleted
-		}
-		return nil
-	}); err != nil {
-		t.Fatalf("reconcile pending mutations: %v", err)
-	}
-}
-
-// TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs is the change-0427
+// TestIntegrationGateFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs is the change-0427
 // regression for the unconfirmed-reservation recovery leg: a fresh epoch whose
 // Worktree is empty (as gate-before mints it — neither claim confirmation nor
 // fixture setup pre-binds it), a reservation whose confirm was interrupted, and
@@ -430,7 +395,7 @@ func reconcilePendingEpochMutations(t *testing.T, repo, key string) {
 // that worktree is refused specifically run-cancelled. Restoring the empty
 // worktree argument at the unconfirmed-reservation ConfirmGateClaim call reddens
 // both halves.
-func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
+func TestIntegrationGateFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -523,7 +488,7 @@ func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	}
 }
 
-// TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs is the change-0427
+// TestIntegrationGateFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs is the change-0427
 // regression for the absent-binding recovery leg: a fresh epoch with an empty
 // Worktree and NO binding file, with exactly one committed proof carrying the
 // record's context hash. Adoption must reserve + confirm WITH the change's
@@ -531,7 +496,7 @@ func TestVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
 // RunCancel a workflow mutation from that worktree is refused run-cancelled.
 // Restoring the empty worktree argument at the sole-proof ConfirmGateClaim call
 // reddens both halves.
-func TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
+func TestIntegrationGateFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -613,13 +578,13 @@ func TestVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
 	}
 }
 
-// TestVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm: when either recovery
+// TestIntegrationGateFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm: when either recovery
 // leg cannot resolve repository/change identity (here: empty PlanningDeps — no
 // reader, no client), the verdict refuses gate-stop gate-unavailable
 // proof-unavailable BEFORE any confirm — it never substitutes an empty worktree.
 // The unconfirmed reservation stays intact-unconfirmed; the sole-proof leg
 // writes NO reservation at all (resolution precedes ReserveGateClaim).
-func TestVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(t *testing.T) {
+func TestIntegrationGateFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(t *testing.T) {
 	t.Run("unconfirmed reservation leg", func(t *testing.T) {
 		repo := newGateRepo(t)
 		key := gateMintArmed(t, repo, nil, 1, "ha")
@@ -676,42 +641,6 @@ func TestVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(t *testing.T) {
 // --- change 0446 Task 7: deterministic worktree owner selection and the
 // slot-named-epoch rule (spec §§1, 5; AC3, AC6). ---
 
-// seedNamedEpoch writes an epoch record for state bound to worktree under a gate-key
-// directory whose NAME the test chooses, so the directory order os.ReadDir yields is
-// controlled (a first-match selector would pick the lexically first key). It writes
-// the record through the store's own atomic writer and needs no gate record.
-func seedNamedEpoch(t *testing.T, repo, key, worktree string, state epochState) EpochRecord {
-	t.Helper()
-	common, err := gateGitCommonDir(repo)
-	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
-	}
-	dir := filepath.Join(common, "docket", "rungate", key)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("mkdir gate-key dir: %v", err)
-	}
-	id, err := epochToken()
-	if err != nil {
-		t.Fatalf("epochToken: %v", err)
-	}
-	gen, err := epochToken()
-	if err != nil {
-		t.Fatalf("epochToken: %v", err)
-	}
-	rec := EpochRecord{
-		SchemaVersion: epochSchemaVersion,
-		GateKey:       key,
-		ChangeID:      "7",
-		State:         state,
-		EpochID:       id,
-		Worktree:      worktree,
-	}
-	if err := writeEpochAtomic(dir, storedEpoch{Generation: gen, Record: rec}); err != nil {
-		t.Fatalf("writeEpochAtomic: %v", err)
-	}
-	return rec
-}
-
 // epochRecordPath is the epoch.json path for key under repo's rungate root.
 func epochRecordPath(t *testing.T, repo, key string) string {
 	t.Helper()
@@ -731,13 +660,13 @@ func mustCanon(t *testing.T, path string) string {
 	return c
 }
 
-// TestOwnerSelectionActiveBeatsCancelledRegardlessOfOrder: a cancelled (and a
+// TestIntegrationGateFenceOwnerSelectionActiveBeatsCancelledRegardlessOfOrder: a cancelled (and a
 // cancelling) never-superseded epoch bound to the same path as a fresh ACTIVE run is
 // not the ambient owner, whichever sorts first. The fence admits the active run's
 // mutation and journals it on the ACTIVE epoch. Before the fix, first-match selection
 // returned the cancelled record in the "fenced-first" ordering and refused the live
 // run with run-cancelled.
-func TestOwnerSelectionActiveBeatsCancelledRegardlessOfOrder(t *testing.T) {
+func TestIntegrationGateFenceOwnerSelectionActiveBeatsCancelledRegardlessOfOrder(t *testing.T) {
 	for _, tc := range []struct {
 		name                  string
 		cancelled, cancelling string
@@ -772,12 +701,12 @@ func TestOwnerSelectionActiveBeatsCancelledRegardlessOfOrder(t *testing.T) {
 	}
 }
 
-// TestOwnerSelectionSoleCancelledStillFences: with no active owner, a cancelled or
+// TestIntegrationGateFenceOwnerSelectionSoleCancelledStillFences: with no active owner, a cancelled or
 // cancelling non-superseded epoch bound to the path is still returned, so the fence
 // keeps refusing run-cancelled (dropping every terminal epoch from the lookup is not
 // a substitute). Several fenced records resolve deterministically to the lexically
 // first key.
-func TestOwnerSelectionSoleCancelledStillFences(t *testing.T) {
+func TestIntegrationGateFenceOwnerSelectionSoleCancelledStillFences(t *testing.T) {
 	for _, state := range []epochState{EpochCancelled, EpochCancelling} {
 		t.Run(string(state), func(t *testing.T) {
 			repo := newGateRepo(t)
@@ -804,11 +733,11 @@ func TestOwnerSelectionSoleCancelledStillFences(t *testing.T) {
 	})
 }
 
-// TestOwnerSelectionTwoActiveOwnersAmbiguous: two active (or active + completing)
+// TestIntegrationGateFenceOwnerSelectionTwoActiveOwnersAmbiguous: two active (or active + completing)
 // epochs bound to one canonical path are a contradiction — a typed
 // ErrEpochOwnerAmbiguous naming the worktree, and the mutation is refused, never
 // silently admitted against one of them.
-func TestOwnerSelectionTwoActiveOwnersAmbiguous(t *testing.T) {
+func TestIntegrationGateFenceOwnerSelectionTwoActiveOwnersAmbiguous(t *testing.T) {
 	for _, second := range []epochState{EpochActive, EpochCompleting} {
 		t.Run(string(second), func(t *testing.T) {
 			repo := newGateRepo(t)
@@ -840,10 +769,10 @@ func TestOwnerSelectionTwoActiveOwnersAmbiguous(t *testing.T) {
 	}
 }
 
-// TestOwnerSelectionCompletedNeverOwns: a completed epoch is never the ambient
+// TestIntegrationGateFenceOwnerSelectionCompletedNeverOwns: a completed epoch is never the ambient
 // owner — alone it leaves the path unfenced, and beside a cancelled epoch the
 // cancelled one (not the completed one) is returned.
-func TestOwnerSelectionCompletedNeverOwns(t *testing.T) {
+func TestIntegrationGateFenceOwnerSelectionCompletedNeverOwns(t *testing.T) {
 	repo := newGateRepo(t)
 	canon := mustCanon(t, repo)
 	seedNamedEpoch(t, repo, "aaaa-completed", repo, EpochCompleted)
@@ -859,12 +788,12 @@ func TestOwnerSelectionCompletedNeverOwns(t *testing.T) {
 	}
 }
 
-// TestSlotNamedEpochUnreadableRefusesLocally (AC3): the worktree's execution slot
+// TestIntegrationGateFenceSlotNamedEpochUnreadableRefusesLocally (AC3): the worktree's execution slot
 // names run epoch E. When no readable epoch record carries E — the record is corrupt,
 // I/O-unreadable, or gone — the path fence refuses locally with E and the worktree in
 // the error instead of admitting unfenced. The same damage to an epoch record NO slot
 // names stays diagnostic, and a companion unrelated worktree keeps admitting.
-func TestSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
+func TestIntegrationGateFenceSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
 	damage := map[string]func(t *testing.T, path string){
 		"corrupt": func(t *testing.T, path string) {
 			if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
@@ -943,12 +872,12 @@ func TestSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
 	}
 }
 
-// TestUnreadableSlotRefusesLocally (review fix): with no readable ambient owner, a
+// TestIntegrationGateFenceUnreadableSlotRefusesLocally (review fix): with no readable ambient owner, a
 // worktree whose execution slot the store cannot READ (corrupt or I/O-unreadable)
 // is not evidence that the slot names no epoch — the path fence refuses with
 // ErrEpochOwnerUnresolved naming the worktree instead of admitting unfenced. An
 // ABSENT slot still admits unfenced (the standalone contract).
-func TestUnreadableSlotRefusesLocally(t *testing.T) {
+func TestIntegrationGateFenceUnreadableSlotRefusesLocally(t *testing.T) {
 	damage := map[string]func(t *testing.T, path string){
 		"corrupt": func(t *testing.T, path string) {
 			if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
@@ -999,12 +928,12 @@ func TestUnreadableSlotRefusesLocally(t *testing.T) {
 	})
 }
 
-// TestEpochCarryingFencesUnchangedByOwnerSelection (AC6, separate proof): owner
+// TestIntegrationGateFenceEpochCarryingFencesUnchangedByOwnerSelection (AC6, separate proof): owner
 // selection answers only "who owns this path now". After a NEW active owner binds the
 // path, the stale epoch's own epoch-carrying fences still refuse it — the launch gate
 // (by id) and the takeover revocation resolver — for a cancelled, superseded, and
 // completed stale epoch alike, while ambient lookup names the new owner.
-func TestEpochCarryingFencesUnchangedByOwnerSelection(t *testing.T) {
+func TestIntegrationGateFenceEpochCarryingFencesUnchangedByOwnerSelection(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		stale func(t *testing.T, repo, key string)
@@ -1046,11 +975,11 @@ func TestEpochCarryingFencesUnchangedByOwnerSelection(t *testing.T) {
 	}
 }
 
-// TestPRPublishJournalsPublicationIdentity: a fenced (active-epoch) PR publish
+// TestIntegrationGateFencePRPublishJournalsPublicationIdentity: a fenced (active-epoch) PR publish
 // journals a VALID descriptor carrying the resolved repo identity, exact head
 // branch + full commit, base branch, and title/body digests — and the journal
 // bytes never contain the raw title or body (digests only). (change 0444)
-func TestPRPublishJournalsPublicationIdentity(t *testing.T) {
+func TestIntegrationGateFencePRPublishJournalsPublicationIdentity(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	key := mintFenceEpoch(t, repoDir, repoDir, EpochActive)
 
@@ -1122,10 +1051,10 @@ func TestPRPublishJournalsPublicationIdentity(t *testing.T) {
 	}
 }
 
-// TestWorkspacePublishJournalsPublicationIdentity: an active-epoch workspace
+// TestIntegrationGateFenceWorkspacePublishJournalsPublicationIdentity: an active-epoch workspace
 // publish journals a VALID workspace descriptor: canonical repo identity, remote
 // name, exact feature ref, and the full intended commit. (change 0444)
-func TestWorkspacePublishJournalsPublicationIdentity(t *testing.T) {
+func TestIntegrationGateFenceWorkspacePublishJournalsPublicationIdentity(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	key := mintFenceEpoch(t, repoDir, repoDir, EpochActive)
 
@@ -1180,14 +1109,14 @@ func TestWorkspacePublishJournalsPublicationIdentity(t *testing.T) {
 	}
 }
 
-// TestWorkspacePublishMovedHeadUnderLockIsHeadMismatch (change 0451 review
+// TestIntegrationGateFenceWorkspacePublishMovedHeadUnderLockIsHeadMismatch (change 0451 review
 // finding): a head that moves AFTER WorkspacePublish's own Inspect is refused by
 // PublishHead under its lock (an invalid-state Failure carrying the moved local
 // head). That refusal must surface the same head-mismatch shape as the pre-lock
 // check — never the generic invalid-state reason a dirty or non-ready workspace
 // carries — and its journal entry still resolves completed and unverified. An
 // invalid-state refusal that names no moved head keeps the generic mapping.
-func TestWorkspacePublishMovedHeadUnderLockIsHeadMismatch(t *testing.T) {
+func TestIntegrationGateFenceWorkspacePublishMovedHeadUnderLockIsHeadMismatch(t *testing.T) {
 	const head = "abcdef0000000000000000000000000000000000"
 	const movedHead = "fedcba0000000000000000000000000000000000"
 	ready := workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(head)}
@@ -1233,14 +1162,14 @@ func TestWorkspacePublishMovedHeadUnderLockIsHeadMismatch(t *testing.T) {
 	}
 }
 
-// TestProductionUncertainThenIdenticalRetryThenCancel (change 0444 acceptance 7
+// TestIntegrationGateFenceProductionUncertainThenIdenticalRetryThenCancel (change 0444 acceptance 7
 // and 8): descriptors journaled by the REAL PRPublish boundary — an uncertain first
 // attempt (an external/transport adapter failure), then an identical successful
 // retry, both in one run epoch — are matched by the REAL cancel path, which reaches
 // cancelled while issuing NO GitHub call (the capture adapters' counters do not
 // move during cancellation) and leaking no title/body bytes into the durable
 // journal or the cancel findings.
-func TestProductionUncertainThenIdenticalRetryThenCancel(t *testing.T) {
+func TestIntegrationGateFenceProductionUncertainThenIdenticalRetryThenCancel(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	// The fixture epoch owns fx.worktree (a real directory inside the fixture's git
 	// repository), so PRPublish invoked at that worktree resolves the admission
@@ -1367,12 +1296,12 @@ func assertUnverifiedRetryLeavesOriginalPending(t *testing.T, fx cancelFixture, 
 	}
 }
 
-// TestProductionUnverifiedPRRetryNeverSettles (change 0444 review blocker): an
+// TestIntegrationGateFenceProductionUnverifiedPRRetryNeverSettles (change 0444 review blocker): an
 // identical pr.publish retry admitted after an uncertain first attempt, which then
 // resolves contended, refused (invalid-state / invalid-input), or with an internal
 // error, verified no postcondition — so it never settles the original. The applied
-// positive control lives in TestProductionUncertainThenIdenticalRetryThenCancel.
-func TestProductionUnverifiedPRRetryNeverSettles(t *testing.T) {
+// positive control lives in TestIntegrationGateFenceProductionUncertainThenIdenticalRetryThenCancel.
+func TestIntegrationGateFenceProductionUnverifiedPRRetryNeverSettles(t *testing.T) {
 	cases := []struct {
 		name  string
 		retry *fakeGitHub
@@ -1407,13 +1336,13 @@ func TestProductionUnverifiedPRRetryNeverSettles(t *testing.T) {
 	}
 }
 
-// TestProductionUnverifiedWorkspaceRetryNeverSettles (change 0444 review
+// TestIntegrationGateFenceProductionUnverifiedWorkspaceRetryNeverSettles (change 0444 review
 // blocker): the workspace.publish analog. An identical retry that PublishHead
 // resolves contended, refuses locally (invalid-state "workspace is not in a ready
 // phase" from its reinspection), fails with an internal error, or reports a head
 // other than the journaled one never settles the uncertain original; an applied retry (the positive control) does, proving the
 // fixture journals through the real fence.
-func TestProductionUnverifiedWorkspaceRetryNeverSettles(t *testing.T) {
+func TestIntegrationGateFenceProductionUnverifiedWorkspaceRetryNeverSettles(t *testing.T) {
 	const head = "abcdef0000000000000000000000000000000000"
 	const movedHead = "fedcba0000000000000000000000000000000000"
 	ready := workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(head)}
