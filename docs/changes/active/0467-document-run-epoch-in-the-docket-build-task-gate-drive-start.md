@@ -2,7 +2,7 @@
 id: 467
 slug: 'document-run-epoch-in-the-docket-build-task-gate-drive-start'
 title: 'Scoped gate starts inherit the run epoch; thread it through the build chain'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-28'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/document-run-epoch-in-the-docket-build-task-gate-drive-start'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-28T21:46:59Z'
 ---
 
 ## Artifacts
