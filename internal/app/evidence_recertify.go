@@ -250,7 +250,7 @@ func EvidenceRecertify(ctx context.Context, deps FinalizeDeps, wdeps WorkspaceDe
 	if facts.build.Gate.Value == "off" {
 		// Truthful skipped evidence at the verified current head; no run, and no
 		// PR edit — evidence.Upsert is green-only by design (see
-		// TestPRPublishAcceptsSkippedEvidenceAtExactHead's note), and this
+		// TestIntegrationFinalizeOpsPRPublishAcceptsSkippedEvidenceAtExactHead's note), and this
 		// operation preserves evidence rendering.
 		evd := EvidenceRecord(ctx, deps.Planning, wdeps, repoDir, EvidenceRecordRequest{ID: facts.id, Head: facts.head})
 		if evd.Result != ResultApplied || evd.Block == "" {

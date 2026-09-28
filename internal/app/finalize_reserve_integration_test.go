@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -47,16 +49,6 @@ func seedReserveReceipt(t *testing.T, f *rebaseFixture, mutate func(*workspace.R
 	return reloadReceipt(t, f)
 }
 
-// liveStoppedCommit is the full object id the live conflicted rebase is stopped on.
-func liveStoppedCommit(t *testing.T, f *rebaseFixture) string {
-	t.Helper()
-	oid, err := f.deps.Client.StoppedRebaseCommit(context.Background(), f.wp)
-	if err != nil {
-		t.Fatalf("probe live stopped commit: %v", err)
-	}
-	return string(oid)
-}
-
 var errReserveProbe = errors.New("reserve probe boom")
 var errReserveWrite = errors.New("reserve write boom")
 
@@ -101,11 +93,11 @@ func (w *writeFailWorkspace) WriteRebaseReceipt(ctx context.Context, dir string,
 
 // --- reserved -------------------------------------------------------------
 
-// TestFinalizeResolverReserveReserved proves a first reservation over a budgeted
+// TestIntegrationFinalizeOpsFinalizeResolverReserveReserved proves a first reservation over a budgeted
 // receipt with capacity durably increments used, records the reservation token and
 // the live stopped commit, and returns `reserved` with the post-increment counts —
 // only after the receipt lands.
-func TestFinalizeResolverReserveReserved(t *testing.T) {
+func TestIntegrationFinalizeOpsFinalizeResolverReserveReserved(t *testing.T) {
 	f, begin, deps := beginConflictedWithLimit(t, 2)
 	ctx := context.Background()
 	wantStopped := liveStoppedCommit(t, f)
@@ -154,10 +146,10 @@ func TestFinalizeResolverReserveReserved(t *testing.T) {
 
 // --- pending --------------------------------------------------------------
 
-// TestFinalizeResolverReservePending proves that when a reservation is already
+// TestIntegrationFinalizeOpsFinalizeResolverReservePending proves that when a reservation is already
 // outstanding, reserve echoes the same token as `pending` and admits nothing new
 // (no double admission): the used count is unchanged.
-func TestFinalizeResolverReservePending(t *testing.T) {
+func TestIntegrationFinalizeOpsFinalizeResolverReservePending(t *testing.T) {
 	f, begin, deps := beginConflictedWithLimit(t, 3)
 	ctx := context.Background()
 	stopped := liveStoppedCommit(t, f)
@@ -188,10 +180,10 @@ func TestFinalizeResolverReservePending(t *testing.T) {
 
 // --- exhausted ------------------------------------------------------------
 
-// TestFinalizeResolverReserveExhausted proves that used == limit (no outstanding
+// TestIntegrationFinalizeOpsFinalizeResolverReserveExhausted proves that used == limit (no outstanding
 // token) returns `exhausted` with reason resolver-budget-exhausted, the counts,
 // and no Git or receipt change.
-func TestFinalizeResolverReserveExhausted(t *testing.T) {
+func TestIntegrationFinalizeOpsFinalizeResolverReserveExhausted(t *testing.T) {
 	f, begin, deps := beginConflictedWithLimit(t, 2)
 	ctx := context.Background()
 	before := seedReserveReceipt(t, f, func(r *workspace.RebaseReceipt) {
@@ -216,9 +208,9 @@ func TestFinalizeResolverReserveExhausted(t *testing.T) {
 
 // --- legacy ---------------------------------------------------------------
 
-// TestFinalizeResolverReserveLegacy proves a legacy receipt (no budget group) is
+// TestIntegrationFinalizeOpsFinalizeResolverReserveLegacy proves a legacy receipt (no budget group) is
 // refused with blocked/resolver-budget-unavailable and left unchanged.
-func TestFinalizeResolverReserveLegacy(t *testing.T) {
+func TestIntegrationFinalizeOpsFinalizeResolverReserveLegacy(t *testing.T) {
 	f, begin, deps := beginConflictedWithLimit(t, 2)
 	ctx := context.Background()
 	before := seedReserveReceipt(t, f, func(r *workspace.RebaseReceipt) {
@@ -242,10 +234,10 @@ func TestFinalizeResolverReserveLegacy(t *testing.T) {
 
 // --- foreign attempt ------------------------------------------------------
 
-// TestFinalizeResolverReserveForeignAttempt proves a wrong attempt token is
+// TestIntegrationFinalizeOpsFinalizeResolverReserveForeignAttempt proves a wrong attempt token is
 // refused by the shared owned-attempt gate (blocked/attempt-token-mismatch) and
 // nothing is incremented.
-func TestFinalizeResolverReserveForeignAttempt(t *testing.T) {
+func TestIntegrationFinalizeOpsFinalizeResolverReserveForeignAttempt(t *testing.T) {
 	f, _, deps := beginConflictedWithLimit(t, 2)
 	ctx := context.Background()
 
@@ -261,10 +253,10 @@ func TestFinalizeResolverReserveForeignAttempt(t *testing.T) {
 
 // --- non-conflicted -------------------------------------------------------
 
-// TestFinalizeResolverReserveNonConflicted proves a budgeted receipt with no live
+// TestIntegrationFinalizeOpsFinalizeResolverReserveNonConflicted proves a budgeted receipt with no live
 // conflict (the rebase already completed) is refused (blocked/no-conflict) and
 // left unchanged — there is nothing to reserve against.
-func TestFinalizeResolverReserveNonConflicted(t *testing.T) {
+func TestIntegrationFinalizeOpsFinalizeResolverReserveNonConflicted(t *testing.T) {
 	f, gh, real := completedBudgetedReceipt(t, func(r *workspace.RebaseReceipt) {
 		// A budgeted receipt with capacity and NO outstanding reservation.
 		r.ResolverUsed = "0"
@@ -286,10 +278,10 @@ func TestFinalizeResolverReserveNonConflicted(t *testing.T) {
 
 // --- stopped-commit probe error -------------------------------------------
 
-// TestFinalizeResolverReserveStoppedProbeError proves that if the stopped-commit
+// TestIntegrationFinalizeOpsFinalizeResolverReserveStoppedProbeError proves that if the stopped-commit
 // probe errors (never a clean "not stopped"), reserve refuses (blocked) without
 // incrementing the budget.
-func TestFinalizeResolverReserveStoppedProbeError(t *testing.T) {
+func TestIntegrationFinalizeOpsFinalizeResolverReserveStoppedProbeError(t *testing.T) {
 	f, begin, deps := beginConflictedWithLimit(t, 2)
 	ctx := context.Background()
 	deps.ReserveGit = &faultyReserveGit{FinalizeReserveGit: f.deps.Client, failStopped: true}
@@ -310,10 +302,10 @@ func TestFinalizeResolverReserveStoppedProbeError(t *testing.T) {
 
 // --- write-failure injection ----------------------------------------------
 
-// TestFinalizeResolverReserveWriteFailureNoAdmission proves the no-permission-
+// TestIntegrationFinalizeOpsFinalizeResolverReserveWriteFailureNoAdmission proves the no-permission-
 // before-durability rule: when the receipt write fails, no `reserved` disposition
 // is returned and the on-disk used count is unchanged.
-func TestFinalizeResolverReserveWriteFailureNoAdmission(t *testing.T) {
+func TestIntegrationFinalizeOpsFinalizeResolverReserveWriteFailureNoAdmission(t *testing.T) {
 	f, begin, deps := beginConflictedWithLimit(t, 2)
 	ctx := context.Background()
 	before := reloadReceipt(t, f)
@@ -334,11 +326,12 @@ func TestFinalizeResolverReserveWriteFailureNoAdmission(t *testing.T) {
 
 // --- concurrency ----------------------------------------------------------
 
-// TestFinalizeResolverReserveConcurrent proves the per-workspace operation lock
+// TestRaceIntegrationAppConcurrencyFinalizeResolverReserveConcurrent proves the per-workspace operation lock
 // serializes two concurrent reservations: exactly one is `reserved`, the other is
 // `pending` (or contended), and the final used count is exactly 1 — no double
 // admission.
-func TestFinalizeResolverReserveConcurrent(t *testing.T) {
+// Race shard (change 0465): two goroutines race FinalizeResolverReserve against one workspace flock.
+func TestRaceIntegrationAppConcurrencyFinalizeResolverReserveConcurrent(t *testing.T) {
 	f, begin, _ := beginConflictedWithLimit(t, 3)
 
 	// Each racing reservation gets its OWN process-like deps (own reader, service,
