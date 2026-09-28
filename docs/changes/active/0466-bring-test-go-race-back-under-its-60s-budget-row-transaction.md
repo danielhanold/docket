@@ -2,7 +2,7 @@
 id: 466
 slug: 'bring-test-go-race-back-under-its-60s-budget-row-transaction'
 title: 'Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive)'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-28'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/bring-test-go-race-back-under-its-60s-budget-row-transaction'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/348'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-28T22:21:53Z'
