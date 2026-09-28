@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -48,10 +50,10 @@ func spawnTestGuardian(t *testing.T) (*GuardianHandle, EpochRecord, string, stri
 	return handle, ep, key, repo
 }
 
-// TestGuardianEOFFencesEpoch proves an abrupt owner death — the pipe closes with no
+// TestIntegrationGateLifecycleGuardianEOFFencesEpoch proves an abrupt owner death — the pipe closes with no
 // completion marker — makes the guardian fence the run epoch to cancelling, the
 // durable exclusion that admits no replacement.
-func TestGuardianEOFFencesEpoch(t *testing.T) {
+func TestIntegrationGateLifecycleGuardianEOFFencesEpoch(t *testing.T) {
 	handle, _, key, repo := spawnTestGuardian(t)
 
 	// Simulate the owner dying: drop the pipe write end WITHOUT writing the marker.
@@ -72,11 +74,11 @@ func TestGuardianEOFFencesEpoch(t *testing.T) {
 	}
 }
 
-// TestGuardianCompletionMarkerPreventsCancel proves a clean end — the owner writes
+// TestIntegrationGateLifecycleGuardianCompletionMarkerPreventsCancel proves a clean end — the owner writes
 // the durable marker before closing the pipe — makes the guardian exit WITHOUT
 // fencing, so a normal return or a handoff is never mistaken for a Stop. This is the
 // mutation-evidence target: suppress the marker write in Complete and this reddens.
-func TestGuardianCompletionMarkerPreventsCancel(t *testing.T) {
+func TestIntegrationGateLifecycleGuardianCompletionMarkerPreventsCancel(t *testing.T) {
 	handle, _, key, repo := spawnTestGuardian(t)
 
 	// Complete writes the marker, closes the pipe, and reaps the guardian.
@@ -91,7 +93,7 @@ func TestGuardianCompletionMarkerPreventsCancel(t *testing.T) {
 	}
 }
 
-// TestGuardianStaleMarkerDoesNotSuppressFence proves SpawnAgentGuardian clears any
+// TestIntegrationGateLifecycleGuardianStaleMarkerDoesNotSuppressFence proves SpawnAgentGuardian clears any
 // pre-existing completion marker before it starts the guardian, so only a marker
 // this owner writes during THIS lifetime can suppress the fence. A stale marker
 // left in a reused gate-key directory (from a prior clean completion) must NOT
@@ -99,7 +101,7 @@ func TestGuardianCompletionMarkerPreventsCancel(t *testing.T) {
 // marker and fences the epoch — the exact abrupt-death case the guardian exists to
 // catch. Defense in depth: gate keys are unique today, but the guardian must not
 // depend on that for its safety property.
-func TestGuardianStaleMarkerDoesNotSuppressFence(t *testing.T) {
+func TestIntegrationGateLifecycleGuardianStaleMarkerDoesNotSuppressFence(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintTestGateKey(t, repo)
 	ep, err := MintEpochRecord(repo, key, "375")
@@ -139,12 +141,12 @@ func TestGuardianStaleMarkerDoesNotSuppressFence(t *testing.T) {
 	}
 }
 
-// TestGuardianCannotMutate proves the guardian holds cancel/observe authority only:
+// TestIntegrationGateLifecycleGuardianCannotMutate proves the guardian holds cancel/observe authority only:
 // a registered guardian participant confers nothing (a workflow mutation is still
 // admitted while the epoch is active), and the ONLY effect a guardian can have on
 // mutation admission is to FENCE the epoch on death — after which no workflow
 // mutation is admitted. The guardian can block, never enable.
-func TestGuardianCannotMutate(t *testing.T) {
+func TestIntegrationGateLifecycleGuardianCannotMutate(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintTestGateKey(t, repo)
 	ep, err := MintEpochRecord(repo, key, "375")
@@ -202,7 +204,7 @@ func TestGuardianCannotMutate(t *testing.T) {
 	}
 }
 
-// TestGuardianLeavesCompletingEpochForReplay pins the death guardian's completing
+// TestIntegrationGateLifecycleGuardianLeavesCompletingEpochForReplay pins the death guardian's completing
 // behavior (change 0441): the guardian fences ONLY an active epoch (guardianFenceAndReap
 // flips active→cancelling and reaps only when the fence lands), so an abrupt owner
 // death over a COMPLETING epoch — a keyed verdict verified run-complete and durably
@@ -210,7 +212,7 @@ func TestGuardianCannotMutate(t *testing.T) {
 // unreaped, so a keyed-verdict replay resumes the closeout. Success is never encoded
 // as cancellation. This is the mutation-evidence target: make the guardian CAS also
 // flip completing→cancelling and this reddens.
-func TestGuardianLeavesCompletingEpochForReplay(t *testing.T) {
+func TestIntegrationGateLifecycleGuardianLeavesCompletingEpochForReplay(t *testing.T) {
 	handle, _, key, repo := spawnTestGuardian(t)
 
 	// The keyed verdict fenced the epoch to completing (successful closeout in

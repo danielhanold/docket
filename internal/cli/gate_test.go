@@ -1010,8 +1010,8 @@ func TestCLIDoesNotImportProcess(t *testing.T) {
 // The first run is genuinely LIVE (a long sleep): since change 0446 the admission
 // boundary settles a proven-finished raw incumbent, so a first run that had already
 // completed would rightly be admitted over and could not prove the busy refusal.
-// The finished-incumbent side is pinned by the app layer's
-// TestGateLaunchSettlesFinishedRawIncumbent.
+// The finished-incumbent side is pinned by the app layer's integration-tagged
+// TestIntegrationGateLifecycleGateLaunchSettlesFinishedRawIncumbent.
 func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
 
