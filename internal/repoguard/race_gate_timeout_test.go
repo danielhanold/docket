@@ -24,7 +24,7 @@ import (
 
 const fakeRaceGoScript = `printf 'argv:[%s]\n' "$*" >>"$GO_FAKE_LOG"
 if [ "$1" = test ] && [ -n "${FAKE_GO_TIMEOUT:-}" ]; then
-  printf 'panic: test timed out after 4m0s\n\ngoroutine 1 [running]:\nFAIL\tfixture/slow\t240.012s\nFAIL\n'
+  printf 'panic: test timed out after 8m0s\n\ngoroutine 1 [running]:\nFAIL\tfixture/slow\t480.012s\nFAIL\n'
   exit 1
 fi
 exit 0
@@ -96,6 +96,22 @@ func (f *raceGateFixture) run(t *testing.T) (string, int) {
 	}
 }
 
+// raceBackstopFloor is the smallest -timeout backstop the race gate may carry: twice
+// the worst post-partition package's projected CI time. The inputs are change 0465's
+// measurements, the same ones the BACKSTOP TIMEOUT note in tests/test_go_race.sh
+// cites: internal/repository/transaction at 48.7s (the measured local worst package,
+// idle, -p 2), scaled by the worst observed local-to-CI slowdown (the whole gate took
+// 238s locally and up to 908s on the macos-15 runner). 48.7s x 908/238 x 2 is ~372s.
+func raceBackstopFloor() time.Duration {
+	const (
+		localWorstPackage = 48700 * time.Millisecond
+		localGate         = 238.0
+		worstCIGate       = 908.0
+	)
+	slowdown := worstCIGate / localGate
+	return time.Duration(2 * float64(localWorstPackage) * slowdown)
+}
+
 // raceTestArgv returns the argv of the fake `go test` invocation.
 func raceTestArgv(t *testing.T, log string) []string {
 	t.Helper()
@@ -138,6 +154,9 @@ func TestRaceGatePassesTimeoutBackstopBelowGoDefault(t *testing.T) {
 	}
 	if timeout <= 0 || timeout >= 10*time.Minute {
 		t.Fatalf("the backstop %s must be positive and below Go's 10m default", timeout)
+	}
+	if floor := raceBackstopFloor(); timeout < floor {
+		t.Fatalf("the backstop %s is below %s, twice the worst package's projected CI time: it would trip on a loaded CI runner, the failure class change 0465 removes (see BACKSTOP TIMEOUT in tests/test_go_race.sh)", timeout, floor.Round(time.Second))
 	}
 	for _, want := range []string{"-race", "-count=1", "./..."} {
 		if !slices.Contains(argv, want) {

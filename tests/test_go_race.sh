@@ -26,10 +26,16 @@
 # ordinary row in tests/runtime-budgets.tsv like every other file.
 #
 # BACKSTOP TIMEOUT (change 0465). `go test` is given an explicit -timeout
-# (RACE_TIMEOUT below): several times the measured post-partition worst package
-# under CI's derived cap (-p 2, GOMAXPROCS=2), and below Go's 10m per-package
-# default. It is NOT a growth allowance — the guard and the budget row are the
-# growth detectors. It exists so an overrun fails with the named
+# (RACE_TIMEOUT below) of 8m, sized from CI-projected data rather than an idle
+# local run. The measured post-partition worst package is
+# internal/repository/transaction at 48.7s (local, idle, -p 2). The change's own
+# CI data puts the macos-15 runner at ~2.4-3.8x slower than local (this gate:
+# 238s local vs 581-908s on passing CI runs), projecting that package to ~120-186s
+# in CI (up to ~230s with load noise). 8m is at least twice that worst projection,
+# so a loaded runner does not trip the backstop, and still below Go's 10m
+# per-package default. TestRaceGatePassesTimeoutBackstopBelowGoDefault
+# (internal/repoguard) pins both bounds. It is NOT a growth allowance — the
+# guard and the budget row are the growth detectors. It exists so an overrun fails with the named
 # "no package ran past the … -timeout backstop" assert and the offending FAIL line,
 # instead of a 10m goroutine-dump panic. Never raise it to make a slow package fit;
 # move the slow tests behind the integration tag instead.
@@ -121,7 +127,7 @@ fi
 # summarized — the WARNING block names the two conflicting stacks and is the
 # whole diagnostic.
 # The backstop — see BACKSTOP TIMEOUT in this header (change 0465).
-RACE_TIMEOUT="4m"
+RACE_TIMEOUT="8m"
 race_out="$(go test -race $go_conc_args -timeout "$RACE_TIMEOUT" -count=1 ./... 2>&1)"
 race_rc=$?
 assert "go test -race -count=1 ./... (the whole module) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
