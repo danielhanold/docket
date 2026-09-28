@@ -14,7 +14,7 @@ discovered_from: [366]
 adrs: [71]
 spec: 'docs/superpowers/specs/2026-09-28-allow-editing-an-existing-change-s-title-design.md'
 plan: 'docs/superpowers/plans/2026-09-28-0461-allow-editing-an-existing-change-s-title.md'
-results:
+results: 'docs/results/2026-09-28-allow-editing-an-existing-change-s-title-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-28T20:53:10Z'
 |---|---|
 | Spec | [2026-09-28-allow-editing-an-existing-change-s-title-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-allow-editing-an-existing-change-s-title-design.md) |
 | Plan | [2026-09-28-0461-allow-editing-an-existing-change-s-title.md](https://github.com/danielhanold/docket/blob/feat/allow-editing-an-existing-change-s-title/docs/superpowers/plans/2026-09-28-0461-allow-editing-an-existing-change-s-title.md) |
+| Results | [2026-09-28-allow-editing-an-existing-change-s-title-results.md](https://github.com/danielhanold/docket/blob/feat/allow-editing-an-existing-change-s-title/docs/results/2026-09-28-allow-editing-an-existing-change-s-title-results.md) |
 | ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
