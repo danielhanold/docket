@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -256,9 +258,34 @@ func armedGateResult(key, epochID, dispatchContext string) RunGateBeforeResult {
 // a capability or reservation token.
 func resumeActiveLocator(gateKey string, ep EpochRecord) string {
 	return "change " + ep.ChangeID + " has an active run (epoch " + ep.EpochID +
-		", gate key " + gateKey + "); cancel it with 'docket run cancel --key " + gateKey +
-		" --epoch " + ep.EpochID + " --reason <why>' and resume after confirmed cancellation, " +
-		"or continue the live run via 'docket run gate-verdict'"
+		", gate key " + gateKey + "); " + resumeIncumbentRemedy(gateKey, ep.EpochID)
+}
+
+// resumeIncumbentRemedy renders the two remedies for a resume refused over a live
+// incumbent epoch. An epochless resume arm binds its epoch when armed (change 0463),
+// so the incumbent may be an arm that was never dispatched. Nothing records whether an
+// agent is using the epoch, so the remedy names both cases rather than guessing.
+func resumeIncumbentRemedy(gateKey, epochID string) string {
+	return "if it was never dispatched or its agent has exited, cancel it with 'docket run cancel --key " +
+		gateKey + " --epoch " + epochID + " --reason <why>' and resume after confirmed cancellation; " +
+		"if its agent is still running, continue the live run via 'docket run gate-verdict'"
+}
+
+// acquireResumeLock takes the exclusive per-change resume lock that serializes
+// `gate-before --resume` arms of one change (change 0463). It lives outside the
+// rungate root, under <git-common-dir>/docket/rungate-resume/<change-id>, so the
+// scanners that walk gate-key directories never see it. Closing the returned file
+// releases the lock.
+func acquireResumeLock(repoDir, changeID string) (*os.File, error) {
+	common, err := gateGitCommonDir(repoDir)
+	if err != nil {
+		return nil, err
+	}
+	dir := filepath.Join(common, "docket", "rungate-resume", changeID)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, epochErr(ErrEpochIO, "resume-lock-dir", err)
+	}
+	return acquireEpochLock(dir)
 }
 
 // resumeWorktreeOwnerRefusal checks whether a live run epoch already owns the
@@ -304,9 +331,7 @@ func resumeWorktreeOwnerLocator(worktree, gateKey string, ep EpochRecord) string
 		owner = "a live run of change " + ep.ChangeID
 	}
 	return "worktree " + worktree + " is already owned by " + owner + " (state " + string(ep.State) +
-		", epoch " + ep.EpochID + ", gate key " + gateKey + "); cancel it with 'docket run cancel --key " +
-		gateKey + " --epoch " + ep.EpochID + " --reason <why>' and resume after confirmed cancellation, " +
-		"or continue the live run via 'docket run gate-verdict'"
+		", epoch " + ep.EpochID + ", gate key " + gateKey + "); " + resumeIncumbentRemedy(gateKey, ep.EpochID)
 }
 
 // resumeReplacementParams carries the immutable arm facts armResumeReplacement mints
@@ -507,6 +532,18 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		branch = insp.FeatureRef
 		worktree = insp.Path
 
+		// Serialize every resume arm of this change from here to the end of the arm
+		// (change 0463). The checks below decide from the epochs that exist now, and
+		// the arm then mints and binds one, so two arms must never interleave between
+		// check and bind. The lock is keyed by change id; a resume's worktree is the
+		// change's own feature worktree, so it also covers step 4b's worktree check.
+		lock, lerr := acquireResumeLock(repoDir, scopeChangeID)
+		if lerr != nil {
+			return gateUnarmedMsg(ReasonGateResumeEpochUnreadable,
+				"the resume lock for change "+scopeChangeID+" could not be taken: "+lerr.Error())
+		}
+		defer lock.Close()
+
 		// (4a) Resume SHARES the run epoch's admission (change 0375 Task 12, spec
 		// "run.gate-before --resume and direct implement-next resume must share the same
 		// admission path"). Locate the change's prior epoch; its state decides whether a
@@ -680,18 +717,10 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 	// failure unarms fail-closed; the orphan gate record left behind is inert, because
 	// no key is returned and nothing dispatches against it.
 	//
-	// Residual race (change 0463 decision 4): step 4 checks for a prior epoch by
-	// change (FindEpochByChange) and by worktree (resumeWorktreeOwnerRefusal, step 4b)
-	// before this mint, but epoch locks are per gate key, so nothing serializes the
-	// check against another arm's mint. Two epochless resumes of one change that race
-	// through that window can each mint and bind an active epoch to the same change
-	// and worktree. That failure is safe, not silent. The next resume of the change
-	// refuses resume-epoch-unreadable (FindEpochByChange: ErrEpochAmbiguous), and
-	// findEpochByWorktree refuses every fenced mutation in the worktree as
-	// ErrEpochOwnerAmbiguous, so neither run can publish. Recovery is explicit:
-	// 'docket run cancel' accepts each resume-minted epoch by its own key and epoch
-	// (runCancel's resume-verified authority), and cancelling one leaves the other as
-	// the worktree's sole live owner, so its fenced mutations admit again.
+	// A resume reaches this mint and bind still holding the per-change resume lock it
+	// took at step 4 (acquireResumeLock). Epoch locks are per gate key, so without it
+	// concurrent epochless resumes of one change would each pass step 4's checks and
+	// each mint and bind a live epoch here.
 	epochRec, eerr := MintEpochRecord(repoDir, key, "")
 	if eerr != nil {
 		return gateUnarmed(ReasonGateMintFailed)

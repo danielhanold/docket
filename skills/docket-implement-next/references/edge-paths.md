@@ -57,11 +57,11 @@ this resume path with its marker gone.
 worktree carries at most one live run. When the caller arms the resume (`run.gate-before … --resume
 <id>`), the arm refuses to open a second run over one that has not verifiably stopped:
 
-- Prior epoch still **active** → refused `resume-active-run`, with a locator naming the change,
-  epoch, and gate key and the remedy: cancel the prior run via the `run.cancel` operation (`--key
-  <key> --epoch <id> --reason <why>`) and resume after confirmed cancellation, or continue the live
-  run via `run.gate-verdict`. **Never** force a fresh claim over a possibly-live run — that is the
-  claim-theft the gate exists to prevent.
+- Prior epoch still **active** (an undispatched earlier resume arm counts) → refused
+  `resume-active-run`, naming the change, epoch, and gate key, with the remedy: cancel the prior run
+  via the `run.cancel` operation (`--key <key> --epoch <id> --reason <why>`) and resume after
+  confirmed cancellation, or continue the live run via `run.gate-verdict`. **Never** force a fresh
+  claim over a possibly-live run — that is claim theft.
 - Cancellation still finishing → refused `cancellation-pending`; the resume observes that cleanup
   only. Finish the cancel first, then resume.
 - Prior epoch confirmed-cancelled and superseded → the arm reserves **exactly one** replacement

@@ -965,15 +965,14 @@ func TestRunCancelResumeAuthorityFailsClosed(t *testing.T) {
 	})
 }
 
-// TestConcurrentEpochlessResumeEpochsFailSafe (change 0463 decision 4, a documenting
-// test): epoch locks are per gate key, so the pre-mint checks (FindEpochByChange and
-// the worktree-owner check) do not serialize against another arm's mint. Two
-// epochless resumes that race through that residual window can each mint an active
-// epoch for one change and worktree. The next resume must then fail closed as
-// resume-epoch-unreadable and must never arm a third run. Recovery is an explicit
-// 'docket run cancel' of either epoch by its own key and epoch, which runCancel's
-// resume-verified authority accepts (TestEpochlessResumeEpochJoinsCancelCycle drives
-// that cancel path); the surviving epoch is then the worktree's sole live owner.
+// TestConcurrentEpochlessResumeEpochsFailSafe (change 0463 decision 4): the
+// per-change resume lock keeps concurrent arms from minting two live epochs for one
+// change (TestConcurrentEpochlessResumesArmOnce), but such a pair can still exist,
+// for example left by a binary that predates the lock. A resume over it must fail
+// closed as resume-epoch-unreadable and must never arm a third run. Recovery is an
+// explicit 'docket run cancel' of either epoch by its own key and epoch, which
+// runCancel's resume-verified authority accepts (TestEpochlessResumeEpochJoinsCancelCycle
+// drives that cancel path); the surviving epoch is then the worktree's sole live owner.
 func TestConcurrentEpochlessResumeEpochsFailSafe(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	seedPriorEpoch(t, repoDir, EpochActive)
@@ -990,6 +989,66 @@ func TestConcurrentEpochlessResumeEpochsFailSafe(t *testing.T) {
 	}
 	if res.Key != "" || sp.calls != 0 {
 		t.Fatalf("a fail-closed refusal mints nothing: key=%q calls=%d", res.Key, sp.calls)
+	}
+}
+
+// TestConcurrentEpochlessResumesArmOnce (change 0463, post-review): epochless resume
+// arms of one change race from the "no prior epoch" check to the mint and bind. The
+// per-change resume lock serializes that window, so exactly one arm wins; every other
+// arm then sees the winner's live epoch and refuses resume-active-run. Exactly one
+// live epoch may end up bound to the change.
+func TestConcurrentEpochlessResumesArmOnce(t *testing.T) {
+	const arms = 12
+	repoDir := newWorkingRepo(t, nil).invocation
+	results := make([]RunGateBeforeResult, arms)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < arms; i++ {
+		deps, wdeps := resumeEpochDeps(t)
+		sp := &fakeScopePrep{grant: sampleScopeGrant()}
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			results[i] = RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	armed := 0
+	for _, r := range results {
+		switch {
+		case r.Armed:
+			armed++
+		case r.Reason != ReasonGateResumeActiveRun:
+			t.Errorf("a losing arm must refuse %q, got %q (%s)", ReasonGateResumeActiveRun, r.Reason, r.Message)
+		}
+	}
+	if armed != 1 {
+		t.Fatalf("armed = %d of %d concurrent epochless resumes, want exactly 1", armed, arms)
+	}
+	if _, _, found, err := FindEpochByChange(repoDir, "5"); err != nil || !found {
+		t.Fatalf("FindEpochByChange after the race: found=%v err=%v, want the single winner's epoch", found, err)
+	}
+}
+
+// TestResumeRefusalNamesAbandonedArmRemedy (change 0463, post-review): an epochless
+// resume arm binds its epoch at arm time, so an arm that was never dispatched blocks
+// the next resume until it is cancelled. Nothing records whether an agent is using
+// the epoch, so the refusal cannot say which case applies; it names both remedies,
+// including the abandoned-arm case, for either kind of incumbent (found by change or
+// by worktree).
+func TestResumeRefusalNamesAbandonedArmRemedy(t *testing.T) {
+	for _, msg := range []string{
+		resumeActiveLocator("k", EpochRecord{ChangeID: "5", EpochID: "e"}),
+		resumeWorktreeOwnerLocator("/tmp/wt/epsilon", "k", EpochRecord{EpochID: "e"}),
+	} {
+		for _, want := range []string{"never dispatched", "run cancel --key k --epoch e", "still running", "run gate-verdict"} {
+			if !strings.Contains(msg, want) {
+				t.Errorf("refusal must contain %q, got %q", want, msg)
+			}
+		}
 	}
 }
 
