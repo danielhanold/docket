@@ -2,7 +2,7 @@
 id: 461
 slug: 'allow-editing-an-existing-change-s-title'
 title: 'Allow editing an existing change''s title'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-27'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/allow-editing-an-existing-change-s-title'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-28T20:20:13Z'
 ---
 
 ## Artifacts
