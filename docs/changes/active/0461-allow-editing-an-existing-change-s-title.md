@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-27'
-updated: '2026-09-27'
+updated: '2026-09-28'
 depends_on: []
 stacked_on:
 related: [366, 447]
 discovered_from: [366]
 adrs: [71]
-spec:
+spec: 'docs/superpowers/specs/2026-09-28-allow-editing-an-existing-change-s-title-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-28-allow-editing-an-existing-change-s-title-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-allow-editing-an-existing-change-s-title-design.md) |
 | ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
@@ -55,12 +56,15 @@ its spec accepts it deliberately.
 
 ## What changes
 
-- Add an optional title field to an existing edit path. Extending `change.groom` revise is the likely candidate, but the groom should confirm this. A `title` change would then rewrite `title:` and `updated:` through the writer, re-render the change's `## Artifacts` block and the board, and re-stamp the reciprocal `docket:backlink` blocks, which quote the title, in one metadata transaction.
-- The slug, filename, and any minted `branch:` stay unchanged. The slug is an identifier and a title edit never renames anything.
-- Validate the title the same way `change.create` does, and keep the existing version-pin/contended semantics.
+- Extend `change.groom` with an optional `title` field, accepted on the `spec`, `trivial`, `revise`, and `rearm` outcomes and refused on `abstain`. A title alone is a valid revise. The existing gates keep every retitle on `proposed` changes.
+- In one metadata transaction, a title edit rewrites `title:` and `updated:` through the writer (ADR-0071 quoting), re-renders the change's `## Artifacts` block and the board, and re-stamps the linked spec's `docket:backlink` block over the spec's current bytes.
+- The slug, filename, spec path, and any `branch:` never change. A title edit renames nothing.
+- One shared title validator (non-empty, single line, no control characters) runs in both `change.create` and `change.groom`. Board title cells escape `|`, which closes an existing table-corruption gap for titles from either entry point.
+- `docket-groom-next` gets a one-line pointer telling it to pass `title` when a groom renames the change.
 
 ## Out of scope
 
-- Changing a slug or renaming a change file or branch.
+- Retitling non-`proposed` changes. That would need the feature-branch plan/results backlinks and the PR title updated.
+- Changing a slug or renaming a change file, spec, or branch.
 - Retitling terminal (archived) records.
-- Editing other scalars such as priority or type. Those can be follow-ups if wanted.
+- Editing other scalars such as priority or type.
