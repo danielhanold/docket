@@ -385,3 +385,44 @@ func TestEpochlessScopeKeepsPresentedEpoch(t *testing.T) {
 		t.Fatalf("presenting the owning epoch under an epoch-less scope must admit: doc=%+v err=%v", doc, err)
 	}
 }
+
+// TestAdvisoryRunEpochMatchesAdmit pins the read-only resolution the application
+// layer's advisory pre-admission check reconciles with (change 0467): a
+// credentialed scoped start presenting no epoch (or the scope's) resolves to the
+// scope's pinned epoch; a foreign presented epoch, a rejected capability, an
+// unknown scope, a scopeless start, and an epoch-less scope all keep the
+// presented value.
+func TestAdvisoryRunEpochMatchesAdmit(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	store := OpenStore(testsupport.TempDir(t))
+	d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
+	pinned := prepareEpochScopedStart(t, store, "epoch-e1")
+
+	cases := []struct {
+		name string
+		mut  func(r StartRequest) StartRequest
+		want string
+	}{
+		{"none presented inherits", func(r StartRequest) StartRequest { return r }, "epoch-e1"},
+		{"same presented", func(r StartRequest) StartRequest { r.RunEpochID = "epoch-e1"; return r }, "epoch-e1"},
+		{"foreign presented kept", func(r StartRequest) StartRequest { r.RunEpochID = "epoch-x"; return r }, "epoch-x"},
+		{"bad capability", func(r StartRequest) StartRequest { r.ChildCapability = "nope"; return r }, ""},
+		{"unknown scope", func(r StartRequest) StartRequest { r.ScopeID = "00000000000000000000000000000000"; return r }, ""},
+		{"scopeless", func(r StartRequest) StartRequest { r.ScopeID = ""; r.RunEpochID = "epoch-s"; return r }, "epoch-s"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := d.AdvisoryRunEpoch(tc.mut(pinned)); got != tc.want {
+				t.Fatalf("AdvisoryRunEpoch = %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	store2 := OpenStore(testsupport.TempDir(t))
+	d2 := scopedTestDriver(store2, clk, &fakeProc{}, stableGit())
+	epochless := prepareEpochScopedStart(t, store2, "")
+	epochless.RunEpochID = "epoch-p"
+	if got := d2.AdvisoryRunEpoch(epochless); got != "epoch-p" {
+		t.Fatalf("an epoch-less scope must keep the presented epoch, got %q", got)
+	}
+}
