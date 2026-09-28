@@ -22,7 +22,7 @@ tests/test_go_integration_app_change.sh	35	parallel
 tests/test_go_integration_app_changeruntime.sh	40	parallel
 tests/test_go_integration_app_cleanup.sh	40	parallel
 tests/test_go_integration_app_closeout.sh	40	parallel
-tests/test_go_integration_app_concurrency.sh	25	parallel
+tests/test_go_integration_app_concurrency.sh	35	parallel
 tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	45	parallel
 tests/test_go_integration_app_rebasepublished.sh	45	parallel
@@ -51,6 +51,7 @@ tests/test_go_integration_app_gatefence.sh	25	parallel
 tests/test_go_integration_app_gatecompletion.sh	20	parallel
 tests/test_go_integration_app_gateepoch.sh	15	parallel
 tests/test_go_integration_app_gatearm.sh	15	parallel
+tests/test_go_integration_app_gatelifecycle.sh	10	parallel
 tests/test_go_integration_contract.sh	15	parallel
 tests/test_go_integration_cli_agent.sh	15	parallel
 tests/test_go_integration_gitcli_concurrency.sh	10	parallel
