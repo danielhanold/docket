@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -16,6 +18,8 @@ import (
 // gate key locates both. A fresh gate-before arm mints an active epoch; claim
 // confirmation binds its change; participant registration is gated on the active
 // state and fails closed on an unknown schema.
+// The fixtures untagged test files share (mintTestGateKey, forceEpochState,
+// must) live in rungate_epoch_helpers_test.go (change 0465).
 
 // isEpochKind reports whether err carries an *EpochError of the given kind.
 func isEpochKind(err error, kind EpochErrorKind) bool {
@@ -23,30 +27,12 @@ func isEpochKind(err error, kind EpochErrorKind) bool {
 	return ok && ee.Kind == kind
 }
 
-// mintTestGateKey mints a minimal valid gate record and returns its key, so an
-// epoch test has a real key directory (the epoch store requires one) without
-// arming the whole gate. AttemptLimit is floored at 1 so the v4 write guard
-// accepts it.
-func mintTestGateKey(t *testing.T, repo string) string {
-	t.Helper()
-	key, err := MintGateRecord(repo, GateRecord{
-		Target:       gateBeforeStoredTarget,
-		AttemptLimit: 1,
-		Retry:        RetryUnused,
-		Disposition:  "gate-armed",
-	})
-	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
-	}
-	return key
-}
-
-// TestEpochRecordCRUD proves mint → load → register round-trips: mint yields an
+// TestIntegrationGateEpochEpochRecordCRUD proves mint → load → register round-trips: mint yields an
 // active record with a non-empty public EpochID keyed by the gate key, load
 // returns a generation, a second mint is refused bind-once, a participant is
 // appended with a stamped RegisteredAt under a rotated generation, and a stale
 // expected-epoch locator confers no registration authority.
-func TestEpochRecordCRUD(t *testing.T) {
+func TestIntegrationGateEpochEpochRecordCRUD(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintTestGateKey(t, repo)
 
@@ -107,10 +93,10 @@ func TestEpochRecordCRUD(t *testing.T) {
 	}
 }
 
-// TestRegisterParticipantRejectsNonActive proves a fenced (non-active) epoch admits
+// TestIntegrationGateEpochRegisterParticipantRejectsNonActive proves a fenced (non-active) epoch admits
 // no new participant: after the epoch flips active→cancelling, registration fails
 // closed ErrEpochNotActive.
-func TestRegisterParticipantRejectsNonActive(t *testing.T) {
+func TestIntegrationGateEpochRegisterParticipantRejectsNonActive(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintTestGateKey(t, repo)
 	rec, err := MintEpochRecord(repo, key, "")
@@ -139,9 +125,9 @@ func TestRegisterParticipantRejectsNonActive(t *testing.T) {
 	}
 }
 
-// TestLoadEpochNotFound proves a load before any mint fails closed ErrEpochNotFound
+// TestIntegrationGateEpochLoadEpochNotFound proves a load before any mint fails closed ErrEpochNotFound
 // rather than fabricating a live epoch.
-func TestLoadEpochNotFound(t *testing.T) {
+func TestIntegrationGateEpochLoadEpochNotFound(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintTestGateKey(t, repo)
 	if _, _, err := LoadEpochRecord(repo, key); !isEpochKind(err, ErrEpochNotFound) {
@@ -149,10 +135,10 @@ func TestLoadEpochNotFound(t *testing.T) {
 	}
 }
 
-// TestEpochUnknownSchemaFailsClosed proves a record carrying an unknown schema
+// TestIntegrationGateEpochEpochUnknownSchemaFailsClosed proves a record carrying an unknown schema
 // version fails closed ErrEpochCorrupt on load — a record the store cannot read is
 // never a live epoch (premium: fail-closed schema versioning).
-func TestEpochUnknownSchemaFailsClosed(t *testing.T) {
+func TestIntegrationGateEpochEpochUnknownSchemaFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintTestGateKey(t, repo)
 	if _, err := MintEpochRecord(repo, key, "375"); err != nil {
@@ -172,10 +158,10 @@ func TestEpochUnknownSchemaFailsClosed(t *testing.T) {
 	}
 }
 
-// TestGateBeforeMintsEpoch proves a fresh (non-resume) arm binds a new run epoch
+// TestIntegrationGateEpochGateBeforeMintsEpoch proves a fresh (non-resume) arm binds a new run epoch
 // beside the gate record, keyed by the gate key: active, with a public EpochID and
 // no change bound yet.
-func TestGateBeforeMintsEpoch(t *testing.T) {
+func TestIntegrationGateEpochGateBeforeMintsEpoch(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -203,14 +189,14 @@ func TestGateBeforeMintsEpoch(t *testing.T) {
 	}
 }
 
-// TestConfirmGateClaimBindsEpochChange proves the claim confirmation binds the
+// TestIntegrationGateEpochConfirmGateClaimBindsEpochChange proves the claim confirmation binds the
 // epoch to the confirmed change instance — the readable locator a later
 // resume/cancel resolves the run by.
-// TestNoAdapterReportsLifecycleUnavailable proves an armed gate reports the honest
+// TestIntegrationGateEpochNoAdapterReportsLifecycleUnavailable proves an armed gate reports the honest
 // owner-lifecycle limitation (change 0375 Task 13): the default dispatch route has
 // no automatic Stop/owner-death cancellation, so a Stop is the explicit run.cancel
 // operation. The field is a standing caveat, never a refusal — the gate still arms.
-func TestNoAdapterReportsLifecycleUnavailable(t *testing.T) {
+func TestIntegrationGateEpochNoAdapterReportsLifecycleUnavailable(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -227,7 +213,7 @@ func TestNoAdapterReportsLifecycleUnavailable(t *testing.T) {
 	}
 }
 
-func TestConfirmGateClaimBindsEpochChange(t *testing.T) {
+func TestIntegrationGateEpochConfirmGateClaimBindsEpochChange(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -250,10 +236,10 @@ func TestConfirmGateClaimBindsEpochChange(t *testing.T) {
 	}
 }
 
-// TestConfirmGateClaimNoEpochIsNoop proves a claim over a dispatch with NO epoch
+// TestIntegrationGateEpochConfirmGateClaimNoEpochIsNoop proves a claim over a dispatch with NO epoch
 // (a standalone gate record) is unaffected: the confirm succeeds and no epoch is
 // fabricated. This guards the existing claim path against the epoch bind.
-func TestConfirmGateClaimNoEpochIsNoop(t *testing.T) {
+func TestIntegrationGateEpochConfirmGateClaimNoEpochIsNoop(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintTestGateKey(t, repo) // a gate record with no epoch minted beside it
 	if err := ReserveGateClaim(repo, key, 7, "req-x"); err != nil {
@@ -280,29 +266,7 @@ func mintEpochFixture(t *testing.T) (repo, key string) {
 	return repo, key
 }
 
-// forceEpochState drives the epoch record to state s through the CAS, standing in
-// for the durable transitions other tasks own so a lifecycle guard can be exercised
-// against an arbitrary state.
-func forceEpochState(t *testing.T, repo, key string, s epochState) {
-	t.Helper()
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
-		r.State = s
-		return nil
-	}); err != nil {
-		t.Fatalf("forceEpochState %q: %v", s, err)
-	}
-}
-
-// must fails the test immediately when err is non-nil, so a fixture setup step
-// whose failure is not the assertion under test reads as one line.
-func must(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestFenceEpochCompletingFromActive(t *testing.T) {
+func TestIntegrationGateEpochFenceEpochCompletingFromActive(t *testing.T) {
 	repo, key := mintEpochFixture(t) // reuse/extract the file's existing mint helper; changeID "441"
 	st, err := FenceEpochCompleting(repo, key, "")
 	if err != nil || st != EpochCompleting {
@@ -318,7 +282,7 @@ func TestFenceEpochCompletingFromActive(t *testing.T) {
 	}
 }
 
-func TestFenceEpochCompletingNeverRelabelsTerminalStates(t *testing.T) {
+func TestIntegrationGateEpochFenceEpochCompletingNeverRelabelsTerminalStates(t *testing.T) {
 	for _, s := range []epochState{EpochCancelling, EpochCancelled, EpochSuperseded, epochState("garbage")} {
 		repo, key := mintEpochFixture(t)
 		forceEpochState(t, repo, key, s) // helper: epochCAS setting rec.State = s
@@ -334,7 +298,7 @@ func TestFenceEpochCompletingNeverRelabelsTerminalStates(t *testing.T) {
 	}
 }
 
-func TestFenceEpochCompletingRejectsStaleLocator(t *testing.T) {
+func TestIntegrationGateEpochFenceEpochCompletingRejectsStaleLocator(t *testing.T) {
 	repo, key := mintEpochFixture(t)
 	_, err := FenceEpochCompleting(repo, key, "not-the-epoch-id")
 	if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochMismatch {
@@ -342,7 +306,7 @@ func TestFenceEpochCompletingRejectsStaleLocator(t *testing.T) {
 	}
 }
 
-func TestCompleteEpochOnlyFromCompleting(t *testing.T) {
+func TestIntegrationGateEpochCompleteEpochOnlyFromCompleting(t *testing.T) {
 	repo, key := mintEpochFixture(t)
 	if err := CompleteEpoch(repo, key); err == nil {
 		t.Fatal("completed from active") // never a shortcut past the fence
@@ -363,7 +327,7 @@ func TestCompleteEpochOnlyFromCompleting(t *testing.T) {
 	}
 }
 
-func TestRegisterEpochParticipantRejectedOnCompletingAndCompleted(t *testing.T) {
+func TestIntegrationGateEpochRegisterEpochParticipantRejectedOnCompletingAndCompleted(t *testing.T) {
 	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
 		repo, key := mintEpochFixture(t)
 		forceEpochState(t, repo, key, s)
@@ -374,7 +338,7 @@ func TestRegisterEpochParticipantRejectedOnCompletingAndCompleted(t *testing.T) 
 	}
 }
 
-func TestSupersedeRefusesCompletingAndCompleted(t *testing.T) {
+func TestIntegrationGateEpochSupersedeRefusesCompletingAndCompleted(t *testing.T) {
 	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
 		repo, key := mintEpochFixture(t)
 		forceEpochState(t, repo, key, s)
@@ -385,7 +349,7 @@ func TestSupersedeRefusesCompletingAndCompleted(t *testing.T) {
 	}
 }
 
-func TestRecordEpochParticipantTerminal(t *testing.T) {
+func TestIntegrationGateEpochRecordEpochParticipantTerminal(t *testing.T) {
 	repo, key := mintEpochFixture(t)
 	must(t, RegisterEpochParticipant(repo, key, "", EpochParticipant{Kind: "coordinator", NativeHandle: "thread-1"}))
 	must(t, RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalCompleted))
@@ -404,7 +368,7 @@ func TestRecordEpochParticipantTerminal(t *testing.T) {
 	}
 }
 
-func TestRecordEpochParticipantTerminalUnknownHandleAndBadInput(t *testing.T) {
+func TestIntegrationGateEpochRecordEpochParticipantTerminalUnknownHandleAndBadInput(t *testing.T) {
 	repo, key := mintEpochFixture(t)
 	err := RecordEpochParticipantTerminal(repo, key, "", "ghost", "t", ParticipantTerminalCompleted)
 	if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochParticipantUnknown {
@@ -417,7 +381,7 @@ func TestRecordEpochParticipantTerminalUnknownHandleAndBadInput(t *testing.T) {
 	}
 }
 
-func TestRecordEpochParticipantTerminalAllowedAfterFence(t *testing.T) {
+func TestIntegrationGateEpochRecordEpochParticipantTerminalAllowedAfterFence(t *testing.T) {
 	// "Completion of an existing participant is allowed after the completing
 	// fence; registering or reopening work is not."
 	for _, s := range []epochState{EpochCompleting, EpochCancelling} {
@@ -428,12 +392,12 @@ func TestRecordEpochParticipantTerminalAllowedAfterFence(t *testing.T) {
 	}
 }
 
-// TestEpochSettledResolverStates (change 0446): the admission settlement read
+// TestIntegrationGateEpochEpochSettledResolverStates (change 0446): the admission settlement read
 // reports settled only for an epoch whose record is terminal with its accounting
 // done — completed, cancelled, superseded. Active, cancelling, and completing
 // epochs still own their worktree, and an unknown epoch id is an unresolved owner,
 // never settlement.
-func TestEpochSettledResolverStates(t *testing.T) {
+func TestIntegrationGateEpochEpochSettledResolverStates(t *testing.T) {
 	cases := []struct {
 		state   epochState
 		settled bool

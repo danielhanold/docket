@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -5,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // These are the durable gate-record store tests (change 0334, Task 1). Each
@@ -15,39 +15,8 @@ import (
 // common-dir rooting, cross-repo refusal, and linked-worktree resolution are
 // exercised against real git, not a mock. The store is the generalization of
 // scripts/lib/docket-dispatch-dir.sh's durable-dir conventions.
-
-// newGateRepo initializes a temp git repo with a deterministic identity and one
-// seed commit (a commit is required before `git worktree add` can attach a
-// linked worktree). It returns the repo's working-tree path.
-func newGateRepo(t *testing.T) string {
-	t.Helper()
-	requireRealGit(t)
-	dir := testsupport.TempDir(t)
-	runGit(t, dir, "init")
-	gitIdentity(t, dir)
-	writeRepoFile(t, dir, "seed.txt", "seed\n")
-	runGit(t, dir, "add", "seed.txt")
-	runGit(t, dir, "commit", "-m", "seed")
-	return dir
-}
-
-// sampleGateRecord is a fully-populated non-authoritative record (Schema and
-// Repo are stamped by the store, so they are left zero here). AttemptLimit is
-// stamped to 2 — the historical single-retry default — so fixtures minted from
-// this record preserve their pre-0421 one-retry semantics (change 0421).
-func sampleGateRecord() GateRecord {
-	return GateRecord{
-		Target:        "docket-implement-next",
-		CreatedAt:     1700000000,
-		DispatchEpoch: 1700000005,
-		BeforeIDs:     []int{12, 34, 56},
-		AttributedID:  0,
-		Retry:         RetryUnused,
-		Disposition:   "gate-armed",
-		Terminal:      false,
-		AttemptLimit:  2,
-	}
-}
+// The fixtures untagged test files share (newGateRepo, sampleGateRecord,
+// mintGateWithHash) live in rungate_store_helpers_test.go (change 0465).
 
 // repeat returns s repeated n times (a tiny local helper so the malformed-key
 // case can build an over-long key without importing strings just for this).
@@ -71,20 +40,10 @@ func mintPlainGate(t *testing.T, repoDir string) string {
 	return key
 }
 
-// mintGateWithHash mints a record carrying ChildContextHash, optionally terminal.
-func mintGateWithHash(t *testing.T, repoDir, hash string, terminal bool) string {
-	t.Helper()
-	key, err := MintGateRecord(repoDir, GateRecord{Target: "docket-implement-next", Retry: RetryUnused, ChildContextHash: hash, Terminal: terminal, AttemptLimit: 2})
-	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
-	}
-	return key
-}
-
-// TestGateSchemaV2RecordFailsClosed: a hand-written schema-2 record (the pre-0407
+// TestIntegrationGateEpochGateSchemaV2RecordFailsClosed: a hand-written schema-2 record (the pre-0407
 // shape whose AttributedID may be an inferred guess) must fail closed on load as
 // corrupt-record — never a silent migration that blesses an old guessed id.
-func TestGateSchemaV2RecordFailsClosed(t *testing.T) {
+func TestIntegrationGateEpochGateSchemaV2RecordFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	key, err := MintGateRecord(repo, GateRecord{Target: "docket-implement-next", Retry: RetryUnused, AttemptLimit: 2})
 	if err != nil {
@@ -107,10 +66,10 @@ func TestGateSchemaV2RecordFailsClosed(t *testing.T) {
 	}
 }
 
-// TestReserveGateClaimIsBindOnce: the first reservation wins; a different
+// TestIntegrationGateEpochReserveGateClaimIsBindOnce: the first reservation wins; a different
 // (change, request) under the same key is refused binding-conflict; an
 // identical replay is a no-op.
-func TestReserveGateClaimIsBindOnce(t *testing.T) {
+func TestIntegrationGateEpochReserveGateClaimIsBindOnce(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-aaa"); err != nil {
@@ -126,10 +85,10 @@ func TestReserveGateClaimIsBindOnce(t *testing.T) {
 	}
 }
 
-// TestConfirmGateClaimMirrorsRecord: confirm finalizes the binding and mirrors
+// TestIntegrationGateEpochConfirmGateClaimMirrorsRecord: confirm finalizes the binding and mirrors
 // AttributedID/BoundRequestID/BoundRevision onto the record; a mismatched
 // confirm is binding-conflict; a re-confirm is idempotent.
-func TestConfirmGateClaimMirrorsRecord(t *testing.T) {
+func TestIntegrationGateEpochConfirmGateClaimMirrorsRecord(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-aaa"); err != nil {
@@ -157,10 +116,10 @@ func TestConfirmGateClaimMirrorsRecord(t *testing.T) {
 	}
 }
 
-// TestConfirmWithoutReservationFails: a failed or absent reservation can never
+// TestIntegrationGateEpochConfirmWithoutReservationFails: a failed or absent reservation can never
 // become a confirmed binding (spec: "Failed claims never become confirmed
 // bindings").
-func TestConfirmWithoutReservationFails(t *testing.T) {
+func TestIntegrationGateEpochConfirmWithoutReservationFails(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err == nil {
@@ -168,9 +127,9 @@ func TestConfirmWithoutReservationFails(t *testing.T) {
 	}
 }
 
-// TestLoadGateClaimBindingCorruptFailsClosed: unparseable binding bytes are a
+// TestIntegrationGateEpochLoadGateClaimBindingCorruptFailsClosed: unparseable binding bytes are a
 // typed corrupt-record error, never (ok=false, nil).
-func TestLoadGateClaimBindingCorruptFailsClosed(t *testing.T) {
+func TestIntegrationGateEpochLoadGateClaimBindingCorruptFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	common, _ := gateGitCommonDir(repo)
@@ -184,10 +143,10 @@ func TestLoadGateClaimBindingCorruptFailsClosed(t *testing.T) {
 	}
 }
 
-// TestFindGateRecordByContextHash: exactly-one non-terminal match resolves;
+// TestIntegrationGateEpochFindGateRecordByContextHash: exactly-one non-terminal match resolves;
 // zero is not-found; two armed gates sharing a hash is context-ambiguous;
 // a terminal record does not match.
-func TestFindGateRecordByContextHash(t *testing.T) {
+func TestIntegrationGateEpochFindGateRecordByContextHash(t *testing.T) {
 	repo := newGateRepo(t)
 	keyA := mintGateWithHash(t, repo, "ha", false)
 	_ = mintGateWithHash(t, repo, "hb", false)
@@ -212,10 +171,10 @@ func TestFindGateRecordByContextHash(t *testing.T) {
 
 // --- counted per-attempt retry budget and schema v4 (change 0421) ---
 
-// TestConsumeGateRetryPerAttemptCAS: with limit 3, distinct attempts each grant
+// TestIntegrationGateEpochConsumeGateRetryPerAttemptCAS: with limit 3, distinct attempts each grant
 // their own marker exactly once, a repeat of a spent attempt refuses, and an
 // attempt at or above the limit refuses WITHOUT creating a marker.
-func TestConsumeGateRetryPerAttemptCAS(t *testing.T) {
+func TestIntegrationGateEpochConsumeGateRetryPerAttemptCAS(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 
@@ -244,9 +203,9 @@ func TestConsumeGateRetryPerAttemptCAS(t *testing.T) {
 	}
 }
 
-// TestConsumeGateRetryLimitOne: a limit of 1 disables retries — attempt 1 is
+// TestIntegrationGateEpochConsumeGateRetryLimitOne: a limit of 1 disables retries — attempt 1 is
 // already at the limit, so nothing is granted and no marker is created.
-func TestConsumeGateRetryLimitOne(t *testing.T) {
+func TestIntegrationGateEpochConsumeGateRetryLimitOne(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	if ok, err := ConsumeGateRetry(repo, key, 1, 1); err != nil || ok {
@@ -257,11 +216,11 @@ func TestConsumeGateRetryLimitOne(t *testing.T) {
 	}
 }
 
-// TestGateRetryUsageCountsLegacyMarker: a bare legacy `retry-consumed` marker
+// TestIntegrationGateEpochGateRetryUsageCountsLegacyMarker: a bare legacy `retry-consumed` marker
 // (schema v3's single-permit name) counts as one consumed marker and is read as
 // the attempt-1 marker, so an already-consumed legacy permit can never be
 // re-granted — an older consumed marker must never read as unused budget.
-func TestGateRetryUsageCountsLegacyMarker(t *testing.T) {
+func TestIntegrationGateEpochGateRetryUsageCountsLegacyMarker(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	common, _ := gateGitCommonDir(repo)
@@ -277,10 +236,10 @@ func TestGateRetryUsageCountsLegacyMarker(t *testing.T) {
 	}
 }
 
-// TestLoadGateRecordRefusesV3: a v3-shaped record fails closed on load with the
+// TestIntegrationGateEpochLoadGateRecordRefusesV3: a v3-shaped record fails closed on load with the
 // schema-mismatch diagnostic — the v4 store never silently migrates an older
 // record whose consumed state could be reinterpreted as unused budget.
-func TestLoadGateRecordRefusesV3(t *testing.T) {
+func TestIntegrationGateEpochLoadGateRecordRefusesV3(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	rec, err := LoadGateRecord(repo, key)
@@ -300,10 +259,10 @@ func TestLoadGateRecordRefusesV3(t *testing.T) {
 	}
 }
 
-// TestSaveGateRecordRefusesUnstampedLimit: a v4 record whose AttemptLimit is
+// TestIntegrationGateEpochSaveGateRecordRefusesUnstampedLimit: a v4 record whose AttemptLimit is
 // below the floor is a corrupt/unstamped record and must fail closed on the write
 // boundary, exactly like a partial continuation triple or claim-binding pair.
-func TestSaveGateRecordRefusesUnstampedLimit(t *testing.T) {
+func TestIntegrationGateEpochSaveGateRecordRefusesUnstampedLimit(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	rec, err := LoadGateRecord(repo, key)
