@@ -1,3 +1,5 @@
+//go:build integration
+
 // Process-integration tests: the gate driver driven against the REAL native
 // process supervisor (internal/process.Service), not a scripted double.
 //
@@ -56,6 +58,11 @@ import (
 // TestMain routes the three re-exec roles of the gatedrive test binary. go test
 // itself sets neither the supervisor env nor the child argv marker, so an
 // ordinary run falls through to m.Run.
+//
+// Change 0466 moved this file (formerly integration_test.go) behind the integration
+// tag. The default gatedrive build has no TestMain: none of its tests re-execs the
+// test binary as a supervisor or child (only this tagged corpus drives the real
+// process.Service), so Go's default m.Run is exactly right there.
 func TestMain(m *testing.M) {
 	if process.SupervisorRequested() {
 		os.Exit(process.RunSupervisorFromEnv())
@@ -464,12 +471,12 @@ func advanceUntilTerminal(t *testing.T, d *Driver, id, gen string) (DriveDoc, in
 // Tests.
 // ---------------------------------------------------------------------------
 
-// TestIntegrationDriverSlicesAcrossLiveChildThenPasses drives a real child that
+// TestIntegrationGatedriveDriverSlicesAcrossLiveChildThenPasses drives a real child that
 // outlives several short slices. It proves the slice bound holds on every
 // invocation, the supervised identity is stable across invocations, the child is
 // never duplicated, and the eventual pass exposes a usable raw run directory with
 // durable logs and the exact terminal receipt.
-func TestIntegrationDriverSlicesAcrossLiveChildThenPasses(t *testing.T) {
+func TestIntegrationGatedriveDriverSlicesAcrossLiveChildThenPasses(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
 	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
@@ -533,14 +540,14 @@ func TestIntegrationDriverSlicesAcrossLiveChildThenPasses(t *testing.T) {
 	}
 }
 
-// TestIntegrationFreshProcessResumesAndChildSurvives runs the drive-start in a
+// TestIntegrationGatedriveFreshProcessResumesAndChildSurvives runs the drive-start in a
 // SEPARATE CLI-shaped process that exits the moment it has launched the child.
 // It proves that ending that invocation neither kills nor duplicates the detached
 // child, and that a fresh driver process resumes the drive purely from the
 // durable record and consumes the exact terminal status the child produced while
 // no driver was watching — with the supervised identity stable across the process
 // boundary.
-func TestIntegrationFreshProcessResumesAndChildSurvives(t *testing.T) {
+func TestIntegrationGatedriveFreshProcessResumesAndChildSurvives(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
 	gitCommon := testsupport.TempDir(t)
@@ -591,12 +598,12 @@ func TestIntegrationFreshProcessResumesAndChildSurvives(t *testing.T) {
 	}
 }
 
-// TestIntegrationDeadlineExpiryStopsOwnedTree proves that when the fixed deadline
+// TestIntegrationGatedriveDeadlineExpiryStopsOwnedTree proves that when the fixed deadline
 // has already passed at the first observation (a zero budget), the driver takes
 // exactly one observation of the live tree, stops the whole owned tree, and
 // returns HALTED — never a fabricated verdict — leaving the child's process group
 // dead.
-func TestIntegrationDeadlineExpiryStopsOwnedTree(t *testing.T) {
+func TestIntegrationGatedriveDeadlineExpiryStopsOwnedTree(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
 	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
@@ -633,13 +640,13 @@ func TestIntegrationDeadlineExpiryStopsOwnedTree(t *testing.T) {
 	}
 }
 
-// TestIntegrationProcessDeathPermitsAtMostOneRelaunch drives a child that dies by
+// TestIntegrationGatedriveProcessDeathPermitsAtMostOneRelaunch drives a child that dies by
 // a signal with no stop intent (a genuine tree death). The single-relaunch policy
 // admits exactly one non-overlapping second raw run under the original deadline;
 // when that one also dies, the driver HALTs with relaunch-exhausted rather than
 // launching a third. Both raw runs' groups are dead, and the two runs are
 // distinct — the first proven gone before the second launched.
-func TestIntegrationProcessDeathPermitsAtMostOneRelaunch(t *testing.T) {
+func TestIntegrationGatedriveProcessDeathPermitsAtMostOneRelaunch(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
 	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
