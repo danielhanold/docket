@@ -1332,9 +1332,9 @@ func TestIntegrationChangeAuthoringGateRetryConsumeOnceThenFalse(t *testing.T) {
 // AttemptLimit-1 gate-retry-once lines — each on a distinct attempt transition —
 // before the terminal gate-stop. The report-line TOKENS are asserted byte-for-byte
 // so the counted budget never changes a parsed line, and GateRetryUsage confirms the
-// on-disk marker count matches the grants. Unlike the unit-level
-// TestVerdictIncompleteRespectsAttemptLimit, the limit here flows from config through
-// the real arm, not a hand-stamped record.
+// on-disk marker count matches the grants. Unlike the direct RunGateVerdict call in
+// TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit, the limit here
+// flows from config through the real arm, not a hand-stamped record.
 func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 	cases := []struct {
 		limit       int

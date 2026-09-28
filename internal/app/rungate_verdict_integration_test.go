@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -10,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -28,8 +29,6 @@ import (
 // RunVerify delegation is driven by the run_verify_test.go fixtures (rvFixture,
 // rvRecord, rvInProgressRecord, rvPR, rvAgreeingReceipt).
 
-const gateDefaultClaimedAt = "2026-08-02T00:00:00Z"
-
 // gateClaimEpoch is the Unix epoch of gateDefaultClaimedAt — the claim instant
 // lifecycleChange stamps on an in-progress record. Attribution filter (c)
 // compares a candidate's claimed_at against the record's DispatchEpoch, so tests
@@ -43,67 +42,12 @@ func gateClaimEpoch(t *testing.T) int64 {
 	return tm.Unix()
 }
 
-// gateInProgressBlob builds an in-progress change blob whose claimed_at is the
-// default stamp ("keep"), removed (""), or replaced with the given raw value.
-func gateInProgressBlob(id int, slug, claimedAt string) StatusBlob {
-	src := lifecycleChange(id, slug, "in-progress")
-	const def = "claimed_at: " + gateDefaultClaimedAt
-	switch claimedAt {
-	case "keep":
-		// leave the default stamp in place
-	case "":
-		src = strings.Replace(src, def+"\n", "", 1)
-	default:
-		src = strings.Replace(src, def, "claimed_at: "+claimedAt, 1)
-	}
-	return StatusBlob{
-		Kind:     repository.KindChange,
-		Location: repository.LocationActive,
-		Path:     groomPath(id, slug),
-		Version:  miVersion,
-		Data:     []byte(src),
-	}
-}
-
-// gateIncompleteRecord renders an in-progress change 3 carrying a valid pr: and
-// linkage, so the ONLY unmet postcondition RunVerify reports is not-implemented
-// (the run is claimed but not yet marked implemented). It lets the retry-mapping
-// tests assert an exact single-conjunct report line.
-func gateIncompleteRecord() []byte {
-	src := string(rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug))
-	src = strings.Replace(src, "blocked_by:\n", "pr: '"+rvRecordedPR()+"'\nblocked_by:\n", 1)
-	return []byte(src)
-}
-
 // gateLightDeps wires a planning-only deps set over the given corpus (no git
 // client, no workspace/github seams) for attribution paths that never reach
 // RunVerify.
 func gateLightDeps(t *testing.T, corpus []StatusBlob) PlanningDeps {
 	t.Helper()
 	return PlanningDeps{Reader: &fakeReader{pin: mainPin(t), corpus: corpus}, Clock: testClock()}
-}
-
-// gateMintArmed mints an armed record (Retry unused, no attribution yet) with the
-// given before-set, dispatch epoch, and child-context hash, as gate-before would.
-// Since change 0407 the before-set and dispatch epoch are diagnostics only (they
-// no longer create attribution); hash is the record's ChildContextHash, the seam
-// the verdict path's proof filter keys on.
-func gateMintArmed(t *testing.T, repoDir string, beforeIDs []int, dispatchEpoch int64, hash string) string {
-	t.Helper()
-	key, err := MintGateRecord(repoDir, GateRecord{
-		Target:           "docket-implement-next",
-		CreatedAt:        1,
-		DispatchEpoch:    dispatchEpoch,
-		BeforeIDs:        beforeIDs,
-		ChildContextHash: hash,
-		Retry:            RetryUnused,
-		Disposition:      "gate-armed",
-		AttemptLimit:     2,
-	})
-	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
-	}
-	return key
 }
 
 // gateMintAttributed mints a record already attributed to id — the state a second
@@ -321,13 +265,13 @@ func gateMintAttributedScopedLimit(t *testing.T, repoDir, scopeID, parentCap, ch
 	return key
 }
 
-// TestVerdictIncompleteRespectsAttemptLimit is the counted-budget heart (change
+// TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit is the counted-budget heart (change
 // 0421): a quiescent run-incomplete grants at most AttemptLimit-1 gate-retry-once,
 // each on a distinct attempt transition, then a terminal gate-stop. limit 1 grants
 // none; limit 2 grants one; limit 4 grants exactly three. The report TOKENS are
 // unchanged (gate-retry-once / gate-stop … run-incomplete <id> <unmet>); the
 // used/limit surface is the additive AttemptsUsed/AttemptLimit result fields.
-func TestVerdictIncompleteRespectsAttemptLimit(t *testing.T) {
+func TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.T) {
 	cases := []struct {
 		limit       int
 		wantRetries int
@@ -377,11 +321,11 @@ func TestVerdictIncompleteRespectsAttemptLimit(t *testing.T) {
 	}
 }
 
-// TestVerdictIncompleteRepeatObservationDoesNotDoubleGrant: after a gate-retry-once
+// TestIntegrationGateVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGrant: after a gate-retry-once
 // for attempt 1 (default limit 2), a second verdict call WITHOUT a new attempt
 // completing is the terminal gate-stop — the budget is spent — and GateRetryUsage
 // stays 1 (no second marker).
-func TestVerdictIncompleteRepeatObservationDoesNotDoubleGrant(t *testing.T) {
+func TestIntegrationGateVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGrant(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		gateIncompleteRecord(),
@@ -402,14 +346,14 @@ func TestVerdictIncompleteRepeatObservationDoesNotDoubleGrant(t *testing.T) {
 	}
 }
 
-// TestVerdictIncompleteNoGrantLeavesRetryMirrorUnused: an immediate-exhaustion
+// TestIntegrationGateVerdictVerdictIncompleteNoGrantLeavesRetryMirrorUnused: an immediate-exhaustion
 // (limit 1) run-incomplete stops terminally with no retry granted and no marker
 // created, so the persisted GateRecord's readable Retry mirror must stay
 // RetryUnused — nothing was consumed. LoadGateRecord only upgrades the mirror from
 // markers and never downgrades, so a mirror set to RetryConsumed on a no-grant stop
 // would permanently misreport "consumed" though GateRetryUsage == 0. This reddens
 // if the mirror is set before branching on `granted`.
-func TestVerdictIncompleteNoGrantLeavesRetryMirrorUnused(t *testing.T) {
+func TestIntegrationGateVerdictVerdictIncompleteNoGrantLeavesRetryMirrorUnused(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		gateIncompleteRecord(),
@@ -433,11 +377,11 @@ func TestVerdictIncompleteNoGrantLeavesRetryMirrorUnused(t *testing.T) {
 	}
 }
 
-// TestVerdictHaltPrecedenceOverBudget: a run-halted verdict against a fresh,
+// TestIntegrationGateVerdictVerdictHaltPrecedenceOverBudget: a run-halted verdict against a fresh,
 // unspent limit-4 record stops terminally (gate-stop run-halted) and spends NO
 // attempt — run-halted keeps absolute precedence ahead of any counting, and the
 // attempts surface stays absent on the halt path.
-func TestVerdictHaltPrecedenceOverBudget(t *testing.T) {
+func TestIntegrationGateVerdictVerdictHaltPrecedenceOverBudget(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := gateLightDeps(t, []StatusBlob{gateHaltedInProgressBlob(3, rvSlug)})
 	key := gateMintAttributedLimit(t, repo, 3, 4)
@@ -457,11 +401,11 @@ func TestVerdictHaltPrecedenceOverBudget(t *testing.T) {
 	}
 }
 
-// TestVerdictContinuationConsumesNoAttempt: a scope-bound run-incomplete taken over
+// TestIntegrationGateVerdictVerdictContinuationConsumesNoAttempt: a scope-bound run-incomplete taken over
 // as a live continuation reaches gate-continue WITHOUT touching the retry CAS —
 // GateRetryUsage stays 0 even with a fresh limit-4 budget. This reddens if the CAS
 // is ever moved above the outer-takeover check.
-func TestVerdictContinuationConsumesNoAttempt(t *testing.T) {
+func TestIntegrationGateVerdictVerdictContinuationConsumesNoAttempt(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	tookOver := false
 	reader := gatedWaitingReader{receipt: rvAgreeingReceipt(f.head), ready: &tookOver}
@@ -482,38 +426,10 @@ func TestVerdictContinuationConsumesNoAttempt(t *testing.T) {
 	}
 }
 
-// fakeProofScanner is the injected ClaimProofScanner for the verdict path's
-// ownership resolution (change 0407): it returns canned proofs newest-first, or an
-// error. A nil scanner (not this fake) is the fail-closed proof-unavailable case.
-type fakeProofScanner struct {
-	proofs []ClaimProof
-	err    error
-}
-
-func (f *fakeProofScanner) ScanClaimProofs(context.Context, string) ([]ClaimProof, error) {
-	return f.proofs, f.err
-}
-
-// gateRetryMarkerExists reports whether the O_EXCL retry marker for key exists on
-// disk. It reads the FILESYSTEM (never a mock), so a continuation that must never
-// reach the retry CAS is a real, provable property.
-func gateRetryMarkerExists(t *testing.T, repoDir, key string) bool {
-	t.Helper()
-	common, err := gateGitCommonDir(repoDir)
-	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
-	}
-	_, serr := os.Stat(filepath.Join(common, "docket", "rungate", key, gateRetryMarkerName))
-	if serr != nil && !os.IsNotExist(serr) {
-		t.Fatalf("stat retry marker: %v", serr)
-	}
-	return serr == nil
-}
-
-// TestVerdictWaitingIsNonterminalContinue: a RunVerify run-waiting (a worker
+// TestIntegrationGateVerdictVerdictWaitingIsNonterminalContinue: a RunVerify run-waiting (a worker
 // cooperatively handed off) maps to a NONTERMINAL gate-continue that keeps the key
 // and spends no retry, minting a continuation id and persisting the triple.
-func TestVerdictWaitingIsNonterminalContinue(t *testing.T) {
+func TestIntegrationGateVerdictVerdictWaitingIsNonterminalContinue(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
 	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
@@ -551,13 +467,13 @@ func TestVerdictWaitingIsNonterminalContinue(t *testing.T) {
 	}
 }
 
-// TestVerdictIncompleteWithTrackedDriveContinuesWithoutRetry: a run-incomplete
+// TestIntegrationGateVerdictVerdictIncompleteWithTrackedDriveContinuesWithoutRetry: a run-incomplete
 // whose recovery scope still binds a tracked drive is TAKEN OVER and continued,
 // and the O_EXCL retry marker is NEVER created — asserted on the filesystem, so
 // the "cannot reach the retry CAS" ordering property is real. This is the mutation
 // target for Task 6 Step 3 (moving ConsumeGateRetry above the tracked-drive check
 // creates the marker and reddens this test).
-func TestVerdictIncompleteWithTrackedDriveContinuesWithoutRetry(t *testing.T) {
+func TestIntegrationGateVerdictVerdictIncompleteWithTrackedDriveContinuesWithoutRetry(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	tookOver := false
 	reader := gatedWaitingReader{receipt: rvAgreeingReceipt(f.head), ready: &tookOver}
@@ -592,10 +508,10 @@ func TestVerdictIncompleteWithTrackedDriveContinuesWithoutRetry(t *testing.T) {
 	}
 }
 
-// TestVerdictIncompleteQuiescentStillRetriesOnce: a run-incomplete with a scope
+// TestIntegrationGateVerdictVerdictIncompleteQuiescentStillRetriesOnce: a run-incomplete with a scope
 // but ZERO tracked-drive candidates is genuinely quiescent — it falls through to
 // the unchanged retry path (gate-retry-once, then terminal gate-stop).
-func TestVerdictIncompleteQuiescentStillRetriesOnce(t *testing.T) {
+func TestIntegrationGateVerdictVerdictIncompleteQuiescentStillRetriesOnce(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		gateIncompleteRecord(),
@@ -621,10 +537,10 @@ func TestVerdictIncompleteQuiescentStillRetriesOnce(t *testing.T) {
 	}
 }
 
-// TestVerdictAmbiguousDrivesStops: more than one candidate tracked drive is
+// TestIntegrationGateVerdictVerdictAmbiguousDrivesStops: more than one candidate tracked drive is
 // unsafe ownership — it earns neither retry nor continuation, stopping terminally
 // with gate-unavailable takeover-ambiguous and never touching the retry marker.
-func TestVerdictAmbiguousDrivesStops(t *testing.T) {
+func TestIntegrationGateVerdictVerdictAmbiguousDrivesStops(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		gateIncompleteRecord(),
@@ -648,9 +564,9 @@ func TestVerdictAmbiguousDrivesStops(t *testing.T) {
 	}
 }
 
-// TestVerdictTakeoverHaltStops: a takeover that HALTs (unsafe ownership) stops
+// TestIntegrationGateVerdictVerdictTakeoverHaltStops: a takeover that HALTs (unsafe ownership) stops
 // terminally with the driver's cause and never spends the retry.
-func TestVerdictTakeoverHaltStops(t *testing.T) {
+func TestIntegrationGateVerdictVerdictTakeoverHaltStops(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		gateIncompleteRecord(),
@@ -678,9 +594,9 @@ func TestVerdictTakeoverHaltStops(t *testing.T) {
 	}
 }
 
-// TestVerdictContinueNeverAuthorizesNewClaim: the continuation path leaves
+// TestIntegrationGateVerdictVerdictContinueNeverAuthorizesNewClaim: the continuation path leaves
 // attribution untouched — an already-attributed record's AttributedID is unchanged.
-func TestVerdictContinueNeverAuthorizesNewClaim(t *testing.T) {
+func TestIntegrationGateVerdictVerdictContinueNeverAuthorizesNewClaim(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
 	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
@@ -702,13 +618,13 @@ func TestVerdictContinueNeverAuthorizesNewClaim(t *testing.T) {
 	}
 }
 
-// TestVerdictFreshRunBindsScopeChange: on a FRESH run (no pre-attributed id), when
+// TestIntegrationGateVerdictVerdictFreshRunBindsScopeChange: on a FRESH run (no pre-attributed id), when
 // ownership resolution adopts the sole matching claim proof the verdict path binds
 // that change id into the outer recovery scope (spec §3 defense-in-depth) so a later
 // outer takeover's scopeIdentityMatch pins the change rather than skipping it on an
 // empty scope field. Mutation target: dropping the BindScopeChange call at the
 // adoption point reddens the bindCalls assertion below.
-func TestVerdictFreshRunBindsScopeChange(t *testing.T) {
+func TestIntegrationGateVerdictVerdictFreshRunBindsScopeChange(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
@@ -739,11 +655,11 @@ func TestVerdictFreshRunBindsScopeChange(t *testing.T) {
 	}
 }
 
-// TestVerdictContinuationDoesNotRebindScope: a continuation (an already-attributed
+// TestIntegrationGateVerdictVerdictContinuationDoesNotRebindScope: a continuation (an already-attributed
 // record — the state a second gate-verdict call reads) skips attribution entirely,
 // so it MUST NOT re-bind the outer scope's change id. This is the bind-once guard's
 // other half: the fresh run binds, a continuation never touches it.
-func TestVerdictContinuationDoesNotRebindScope(t *testing.T) {
+func TestIntegrationGateVerdictVerdictContinuationDoesNotRebindScope(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
 	seam := &fakeContinuationSeam{handoffToken: "h0token"}
@@ -768,10 +684,10 @@ func TestVerdictContinuationDoesNotRebindScope(t *testing.T) {
 	}
 }
 
-// TestVerdictObservePathStillCannotContinue: the observe (unattributed) render
+// TestIntegrationGateVerdictVerdictObservePathStillCannotContinue: the observe (unattributed) render
 // path is structurally unable to emit a retry OR a continuation — extending the
 // existing observe-cannot-retry guarantee to gate-continue.
-func TestVerdictObservePathStillCannotContinue(t *testing.T) {
+func TestIntegrationGateVerdictVerdictObservePathStillCannotContinue(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		gateIncompleteRecord(),
@@ -799,11 +715,11 @@ func TestVerdictObservePathStillCannotContinue(t *testing.T) {
 // conflicting / unprovable case fails CLOSED to a non-authorizing report. The
 // before-set and dispatch epoch are diagnostics only and can never grant a retry.
 
-// TestVerdictConfirmedBindingResolvesBoundChange: a confirmed binding whose newest
+// TestIntegrationGateVerdictVerdictConfirmedBindingResolvesBoundChange: a confirmed binding whose newest
 // proof for the id matches the bound request id resolves the bound change and
 // delegates unchanged to RunVerify — a completed run reports run-complete even
 // though the claim left the change in-progress.
-func TestVerdictConfirmedBindingResolvesBoundChange(t *testing.T) {
+func TestIntegrationGateVerdictVerdictConfirmedBindingResolvesBoundChange(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -829,11 +745,11 @@ func TestVerdictConfirmedBindingResolvesBoundChange(t *testing.T) {
 	}
 }
 
-// TestVerdictNoBindingNoProofIsNoAttributableClaim: a dispatch that claims nothing
+// TestIntegrationGateVerdictVerdictNoBindingNoProofIsNoAttributableClaim: a dispatch that claims nothing
 // resolves to no-attributable-claim and never acquires a sibling's claim — a proof
 // under a DIFFERENT context hash is filtered out, the retry is never spent, and the
 // sibling id never appears in the report.
-func TestVerdictNoBindingNoProofIsNoAttributableClaim(t *testing.T) {
+func TestIntegrationGateVerdictVerdictNoBindingNoProofIsNoAttributableClaim(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintArmed(t, repo, nil, 1, "ha")
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
@@ -858,10 +774,10 @@ func TestVerdictNoBindingNoProofIsNoAttributableClaim(t *testing.T) {
 	}
 }
 
-// TestVerdictUnconfirmedReservationRecoversFromExactReceipt: a reservation whose
+// TestIntegrationGateVerdictVerdictUnconfirmedReservationRecoversFromExactReceipt: a reservation whose
 // confirm was interrupted recovers from the exact committed receipt (same request
 // id, same context hash), confirms the binding, and delegates to the bound id.
-func TestVerdictUnconfirmedReservationRecoversFromExactReceipt(t *testing.T) {
+func TestIntegrationGateVerdictVerdictUnconfirmedReservationRecoversFromExactReceipt(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -885,11 +801,11 @@ func TestVerdictUnconfirmedReservationRecoversFromExactReceipt(t *testing.T) {
 	}
 }
 
-// TestVerdictUnconfirmedReservationWithoutReceiptStops: an unconfirmed reservation
+// TestIntegrationGateVerdictVerdictUnconfirmedReservationWithoutReceiptStops: an unconfirmed reservation
 // with no matching committed receipt never became a real claim — the verdict is
 // no-attributable-claim and the reservation is left refused (never released so a
 // different claim can take it, never confirmed).
-func TestVerdictUnconfirmedReservationWithoutReceiptStops(t *testing.T) {
+func TestIntegrationGateVerdictVerdictUnconfirmedReservationWithoutReceiptStops(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintArmed(t, repo, nil, 1, "ha")
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
@@ -907,7 +823,7 @@ func TestVerdictUnconfirmedReservationWithoutReceiptStops(t *testing.T) {
 	}
 }
 
-// TestVerdictUnconfirmedReservationSiblingContextHashIsNoAttributableClaim: an
+// TestIntegrationGateVerdictVerdictUnconfirmedReservationSiblingContextHashIsNoAttributableClaim: an
 // unconfirmed reservation whose only committed proof shares the request id but
 // carries a DIFFERENT context hash is a sibling collision, not this dispatch's
 // receipt. gateProofForClaim's `&& p.GateContextHash == contextHash` clause must
@@ -915,7 +831,7 @@ func TestVerdictUnconfirmedReservationWithoutReceiptStops(t *testing.T) {
 // Dropping that clause reddens this test (mutation-load-bearing) — neither
 // RecoversFromExactReceipt (matching hash) nor WithoutReceiptStops (no proofs)
 // exercises the same-request-id sibling.
-func TestVerdictUnconfirmedReservationSiblingContextHashIsNoAttributableClaim(t *testing.T) {
+func TestIntegrationGateVerdictVerdictUnconfirmedReservationSiblingContextHashIsNoAttributableClaim(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintArmed(t, repo, nil, 1, "ha")
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
@@ -934,11 +850,11 @@ func TestVerdictUnconfirmedReservationSiblingContextHashIsNoAttributableClaim(t 
 	}
 }
 
-// TestVerdictAbsentBindingAdoptsSoleProof: with no binding file at all, a single
+// TestIntegrationGateVerdictVerdictAbsentBindingAdoptsSoleProof: with no binding file at all, a single
 // committed proof matching the record's context hash is adopted (reserved,
 // confirmed, mirrored) and delegation proceeds; two matching proofs are unsafe
 // ownership and fail closed to binding-conflict.
-func TestVerdictAbsentBindingAdoptsSoleProof(t *testing.T) {
+func TestIntegrationGateVerdictVerdictAbsentBindingAdoptsSoleProof(t *testing.T) {
 	t.Run("sole proof adopted", func(t *testing.T) {
 		f := newRunVerifyFixture(t, true)
 		deps, wdeps, gdeps := f.deps(
@@ -978,11 +894,11 @@ func TestVerdictAbsentBindingAdoptsSoleProof(t *testing.T) {
 	})
 }
 
-// TestVerdictClaimReplacedStops: a confirmed binding whose bound change carries a
+// TestIntegrationGateVerdictVerdictClaimReplacedStops: a confirmed binding whose bound change carries a
 // NEWER proof under a different request id means the change was reclaimed and
 // re-claimed by another run — the old gate must neither retry nor take over the
 // replacement. The binding is left unchanged and the retry is never spent.
-func TestVerdictClaimReplacedStops(t *testing.T) {
+func TestIntegrationGateVerdictVerdictClaimReplacedStops(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintArmed(t, repo, nil, 1, "ha")
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-v1"); err != nil {
@@ -1012,10 +928,10 @@ func TestVerdictClaimReplacedStops(t *testing.T) {
 	}
 }
 
-// TestVerdictNilProofScannerFailsClosed: a claim-bound gate with no proof access
+// TestIntegrationGateVerdictVerdictNilProofScannerFailsClosed: a claim-bound gate with no proof access
 // cannot verify continuity — unlike the continuation seam, ownership can never
 // proceed without proofs, so it fails closed to proof-unavailable.
-func TestVerdictNilProofScannerFailsClosed(t *testing.T) {
+func TestIntegrationGateVerdictVerdictNilProofScannerFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintArmed(t, repo, nil, 1, "ha")
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
@@ -1033,9 +949,9 @@ func TestVerdictNilProofScannerFailsClosed(t *testing.T) {
 	}
 }
 
-// TestVerdictProofScanErrorFailsClosed: a proof-scan error fails closed to
+// TestIntegrationGateVerdictVerdictProofScanErrorFailsClosed: a proof-scan error fails closed to
 // proof-unavailable and never consumes a retry.
-func TestVerdictProofScanErrorFailsClosed(t *testing.T) {
+func TestIntegrationGateVerdictVerdictProofScanErrorFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintArmed(t, repo, nil, 1, "ha")
 	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
@@ -1054,9 +970,9 @@ func TestVerdictProofScanErrorFailsClosed(t *testing.T) {
 	}
 }
 
-// TestVerdictCorruptBindingFailsClosed: an unparseable binding file is a typed
+// TestIntegrationGateVerdictVerdictCorruptBindingFailsClosed: an unparseable binding file is a typed
 // binding-unreadable stop — never a silent (ok=false) fall-through to attribution.
-func TestVerdictCorruptBindingFailsClosed(t *testing.T) {
+func TestIntegrationGateVerdictVerdictCorruptBindingFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintArmed(t, repo, nil, 1, "ha")
 	common, err := gateGitCommonDir(repo)
@@ -1072,11 +988,11 @@ func TestVerdictCorruptBindingFailsClosed(t *testing.T) {
 	}
 }
 
-// TestVerdictResumeBindingSkipsContinuity: a gate-before --resume record
+// TestIntegrationGateVerdictVerdictResumeBindingSkipsContinuity: a gate-before --resume record
 // (AttributedID set, BoundRequestID empty) is pre-bound by verified identity — the
 // continuity check never runs, so a scanner that WOULD report a replacement still
 // delegates to RunVerify (preserved verified-resume behavior).
-func TestVerdictResumeBindingSkipsContinuity(t *testing.T) {
+func TestIntegrationGateVerdictVerdictResumeBindingSkipsContinuity(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -1096,12 +1012,12 @@ func TestVerdictResumeBindingSkipsContinuity(t *testing.T) {
 	}
 }
 
-// TestVerdictOwnershipIgnoresBeforeSetAndEpoch pins the 0407 defect: a sibling
+// TestIntegrationGateVerdictVerdictOwnershipIgnoresBeforeSetAndEpoch pins the 0407 defect: a sibling
 // in-progress claim the OLD before-set/epoch filters would have attributed sits in
 // the corpus, but ownership reads only committed proofs. With no proof carrying the
 // record's context hash, the verdict is no-attributable-claim — never the sibling.
 // Mutation partner: re-introducing epoch/before-set inference reddens exactly this.
-func TestVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testing.T) {
+func TestIntegrationGateVerdictVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := gateLightDeps(t, []StatusBlob{gateInProgressBlob(9, "sibling", "keep")})
 	key := gateMintArmed(t, repo, nil, 1, "ha")
@@ -1133,101 +1049,10 @@ func TestVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testing.T) {
 // keyless/standalone/legacy shape (no epoch beside the record) keeps EXACTLY the prior
 // behavior, and unattributed observe mode never touches ownership.
 
-// verdictCompletionFixture is one prepared run whose keyed verdict verifies
-// run-complete AND whose epoch ownership is ready to close out.
-type verdictCompletionFixture struct {
-	repo, key, epochID, worktree string
-	store                        *gatedrive.Store
-	deps                         PlanningDeps
-	wdeps                        WorkspaceDeps
-	gdeps                        GitHubDeps
-	observer                     *fakeProcessObserver
-	launchObserver               *fakeLaunchObserver
-}
-
-// seams returns the injected completion seam bundle for a direct completeSuccessfulRun
-// call (used to pre-drive the closeout before a persistence-fault replay test).
-func (fx verdictCompletionFixture) seams() cancelSeams {
-	return cancelSeams{store: fx.store, observer: fx.observer, launchObserver: fx.launchObserver}
-}
-
-func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
-	t.Helper()
-	f := newRunVerifyFixture(t, true)
-	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
-	)
-	repo := f.repo.invocation
-	common, err := gateGitCommonDir(repo)
-	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
-	}
-	key := gateMintArmed(t, repo, nil, 1, "ha")
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
-		t.Fatalf("reserve: %v", err)
-	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1", ""); err != nil {
-		t.Fatalf("confirm: %v", err)
-	}
-	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
-	}}
-
-	ep, err := MintEpochRecord(repo, key, "3")
-	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
-	}
-	worktree := filepath.Join(repo, "feature-wt")
-	if err := os.MkdirAll(worktree, 0o755); err != nil {
-		t.Fatalf("mkdir worktree: %v", err)
-	}
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
-		r.Worktree = worktree
-		return nil
-	}); err != nil {
-		t.Fatalf("epochCAS set worktree: %v", err)
-	}
-	store := gatedrive.OpenStore(common)
-	// A released epoch-owned slot (the run's drives are done) is exactly what the
-	// closeout retires — reserve+confirm+release, mirroring the cancel/completion
-	// fixtures. Release retains RunEpochID (between-drive ownership), so the slot is
-	// slotOwned+released until the closeout detaches it.
-	runDir := filepath.Join(worktree, "run-1")
-	token, terr := store.ReserveWorktreeExecutionForEpoch(common, worktree, ep.EpochID, nil)
-	if terr != nil {
-		t.Fatalf("ReserveWorktreeExecutionForEpoch: %v", terr)
-	}
-	if cerr := store.ConfirmWorktreeExecution(worktree, token, "run-1", runDir); cerr != nil {
-		t.Fatalf("ConfirmWorktreeExecution: %v", cerr)
-	}
-	slot, _, lerr := store.LoadWorktreeExecution(worktree)
-	if lerr != nil {
-		t.Fatalf("LoadWorktreeExecution: %v", lerr)
-	}
-	if rerr := store.ReleaseWorktreeExecution(worktree, slot.ReservationToken); rerr != nil {
-		t.Fatalf("ReleaseWorktreeExecution: %v", rerr)
-	}
-	must(t, RegisterEpochParticipant(repo, key, ep.EpochID,
-		EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-	must(t, RecordEpochParticipantTerminal(repo, key, ep.EpochID,
-		"turn-1", "t1", ParticipantTerminalCompleted))
-
-	observer := &fakeProcessObserver{defaultProven: true}
-	launchObserver := &fakeLaunchObserver{report: gatedrive.EpochLaunchReport{Accounted: true}}
-	wdeps.CancelSeams = func(string) cancelSeams {
-		return cancelSeams{store: store, observer: observer, launchObserver: launchObserver}
-	}
-	return verdictCompletionFixture{
-		repo: repo, key: key, epochID: ep.EpochID, worktree: worktree, store: store,
-		deps: deps, wdeps: wdeps, gdeps: gdeps, observer: observer, launchObserver: launchObserver,
-	}
-}
-
-// TestVerdictRunCompleteClosesOutEpochOwnership: a keyed run-complete drives the
+// TestIntegrationGateVerdictVerdictRunCompleteClosesOutEpochOwnership: a keyed run-complete drives the
 // closeout — gate-done run-complete, the epoch is completed, and the slot's RunEpochID
 // is cleared so a standalone finalize gate can admit.
-func TestVerdictRunCompleteClosesOutEpochOwnership(t *testing.T) {
+func TestIntegrationGateVerdictVerdictRunCompleteClosesOutEpochOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
 	if got, want := res.HumanText(), "gate-done "+fx.key+" run-complete 3"; got != want {
@@ -1245,10 +1070,10 @@ func TestVerdictRunCompleteClosesOutEpochOwnership(t *testing.T) {
 	}
 }
 
-// TestVerdictRunCompleteWithoutEpochUnchanged: with no epoch beside the record the
+// TestIntegrationGateVerdictVerdictRunCompleteWithoutEpochUnchanged: with no epoch beside the record the
 // verdict keeps EXACTLY the prior behavior — gate-done run-complete, no epoch
 // fabricated, no completion findings.
-func TestVerdictRunCompleteWithoutEpochUnchanged(t *testing.T) {
+func TestIntegrationGateVerdictVerdictRunCompleteWithoutEpochUnchanged(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -1277,14 +1102,14 @@ func TestVerdictRunCompleteWithoutEpochUnchanged(t *testing.T) {
 	}
 }
 
-// TestVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess: one unproven obligation
+// TestIntegrationGateVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess: one unproven obligation
 // (a registered execution participant whose run is observed live) blocks the
 // closeout — gate-stop gate-unavailable completion-unaccounted with diagnostic
 // findings, the epoch stays completing (the fence holds), and no retry is spent (AC2
 // budget preservation). The released owned slot itself is NOT that obligation: its
 // release is the durable proof of its run (change 0446 spec §5), so it is never
 // re-observed.
-func TestVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess(t *testing.T) {
+func TestIntegrationGateVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	must(t, RegisterEpochParticipant(fx.repo, fx.key, fx.epochID,
 		EpochParticipant{Kind: "raw-run", NativeHandle: "exec-live"}))
@@ -1310,10 +1135,10 @@ func TestVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess(t *testing.T) {
 	}
 }
 
-// TestVerdictRunCompleteCancelledEpochNeverReportsSuccess: an explicit cancellation
+// TestIntegrationGateVerdictVerdictRunCompleteCancelledEpochNeverReportsSuccess: an explicit cancellation
 // that already won is never relabelled successful — gate-stop gate-unavailable
 // run-cancelled, never gate-done, and the epoch state is untouched.
-func TestVerdictRunCompleteCancelledEpochNeverReportsSuccess(t *testing.T) {
+func TestIntegrationGateVerdictVerdictRunCompleteCancelledEpochNeverReportsSuccess(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	forceEpochState(t, fx.repo, fx.key, EpochCancelled)
 	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
@@ -1328,12 +1153,12 @@ func TestVerdictRunCompleteCancelledEpochNeverReportsSuccess(t *testing.T) {
 	}
 }
 
-// TestVerdictRunCompleteReportPersistFailureIsReported: the closeout finishes (epoch
+// TestIntegrationGateVerdictVerdictRunCompleteReportPersistFailureIsReported: the closeout finishes (epoch
 // durably completed) but the terminal gate-report save fails — gate-stop
 // gate-unavailable report-unpersisted (the failure is reported, not hidden). A SECOND
 // verdict with the fault cleared replays the completed epoch to gate-done run-complete
 // (AC6 gate-report write failure + replay).
-func TestVerdictRunCompleteReportPersistFailureIsReported(t *testing.T) {
+func TestIntegrationGateVerdictVerdictRunCompleteReportPersistFailureIsReported(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	// Pre-drive the closeout so the epoch is durably completed: a replay does NO epoch
 	// writes (the fence observes completed), isolating the checked report SAVE as the
@@ -1363,10 +1188,10 @@ func TestVerdictRunCompleteReportPersistFailureIsReported(t *testing.T) {
 	}
 }
 
-// TestVerdictObserveModeNeverTouchesOwnership: the unattributed observe path over the
+// TestIntegrationGateVerdictVerdictObserveModeNeverTouchesOwnership: the unattributed observe path over the
 // same epoch-backed complete fixture leaves the epoch and slot byte-identical (AC5) —
 // it holds no key, drives no closeout, and renders the plain observe run-complete line.
-func TestVerdictObserveModeNeverTouchesOwnership(t *testing.T) {
+func TestIntegrationGateVerdictVerdictObserveModeNeverTouchesOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	_, genBefore, err := LoadEpochRecord(fx.repo, fx.key)
 	if err != nil {

@@ -333,7 +333,7 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 		// on. Only a genuinely quiescent incomplete — no scope, or zero candidate
 		// drives — falls through to the retry CAS below. [ORDERING MUTATION: moving
 		// the ConsumeGateRetry call above this check spends the retry on a continuable
-		// run — see TestVerdictIncompleteWithTrackedDriveContinuesWithoutRetry.]
+		// run — see TestIntegrationGateVerdictVerdictIncompleteWithTrackedDriveContinuesWithoutRetry.]
 		if rec.ScopeID != "" {
 			if res, handled := gateOuterContinuation(ctx, deps, wdeps, gdeps, repoDir, key, rec, id); handled {
 				return res
@@ -768,7 +768,7 @@ func gateRecoveredWorktree(ctx context.Context, deps PlanningDeps, repoDir strin
 // save and the bind are best-effort — the committed claim receipt is authority, and
 // production is already protected by the resolved change id + context-hash filter
 // and the verified parent capability. [MUTATION: dropping the BindScopeChange call
-// leaves the fresh-run scope unbound — see TestVerdictFreshRunBindsScopeChange.]
+// leaves the fresh-run scope unbound — see TestIntegrationGateVerdictVerdictFreshRunBindsScopeChange.]
 func gateAdoptOwnership(wdeps WorkspaceDeps, repoDir, key string, rec *GateRecord, changeID int, requestID, revision string) {
 	if rec.AttributedID != 0 {
 		return
