@@ -50,7 +50,7 @@ func requireGit(t *testing.T) {
 // detached git housekeeping child spawned by a fixture commit can outlive the
 // test and keep writing into a testsupport.TempDir, racing RemoveAll teardown to
 // "directory not empty" under parallel load (change 0373, sighting 4:
-// TestKeyedCommitCarriesFiveTrailers/keyed). Git spawned through the product
+// TestIntegrationTxnRecoveryKeyedCommitCarriesFiveTrailers/keyed). Git spawned through the product
 // gitcli client scrubs GIT_CONFIG, so its housekeeping children are instead
 // absorbed by the fixture's drain-then-retry removal. Set process-wide via
 // t.Setenv because the low-level helpers take no *testing.T; safe because this
