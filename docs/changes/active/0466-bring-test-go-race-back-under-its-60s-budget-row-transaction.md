@@ -14,7 +14,7 @@ discovered_from: [465]
 adrs: [108]
 spec: 'docs/superpowers/specs/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md'
 plan: 'docs/superpowers/plans/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction.md'
-results:
+results: 'docs/results/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-28T20:52:09Z'
 |---|---|
 | Spec | [2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md) |
 | Plan | [2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction.md](https://github.com/danielhanold/docket/blob/chore/bring-test-go-race-back-under-its-60s-budget-row-transaction/docs/superpowers/plans/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) |
+| Results | [2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-results.md](https://github.com/danielhanold/docket/blob/chore/bring-test-go-race-back-under-its-60s-budget-row-transaction/docs/results/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
