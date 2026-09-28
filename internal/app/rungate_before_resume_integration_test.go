@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -52,11 +54,11 @@ func seedPriorEpoch(t *testing.T, repoDir string, state epochState) (gateKey, ep
 	return key, ep.EpochID
 }
 
-// TestResumeRefusesActiveEpochWithLocator: a resume of a change whose prior epoch is
+// TestIntegrationGateArmResumeRefusesActiveEpochWithLocator: a resume of a change whose prior epoch is
 // still ACTIVE is refused with the safe locator (public epoch id + gate key) and the
 // explicit cancel/continue remedy — no record minted, no scope prepared, incumbent
 // untouched.
-func TestResumeRefusesActiveEpochWithLocator(t *testing.T) {
+func TestIntegrationGateArmResumeRefusesActiveEpochWithLocator(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeEpochDeps(t)
 	priorKey, epochID := seedPriorEpoch(t, repoDir, EpochActive)
@@ -88,12 +90,12 @@ func TestResumeRefusesActiveEpochWithLocator(t *testing.T) {
 	}
 }
 
-// TestResumeRefusesCompletingEpochWithoutSuperseding: a resume of a change whose prior
+// TestIntegrationGateArmResumeRefusesCompletingEpochWithoutSuperseding: a resume of a change whose prior
 // epoch is COMPLETING (a verified successful run mid-closeout, change 0441) is refused
 // gate-unarmed with the run-completing reason — it names the keyed gate-verdict/cancel
 // remedy, never turns the closeout into a cancelled predecessor, and reserves no
 // replacement.
-func TestResumeRefusesCompletingEpochWithoutSuperseding(t *testing.T) {
+func TestIntegrationGateArmResumeRefusesCompletingEpochWithoutSuperseding(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeEpochDeps(t)
 	priorKey, epochID := seedPriorEpoch(t, repoDir, EpochCompleting)
@@ -124,11 +126,11 @@ func TestResumeRefusesCompletingEpochWithoutSuperseding(t *testing.T) {
 	}
 }
 
-// TestResumeRefusesCompletedEpochWithoutSuperseding: a resume of a change whose prior
+// TestIntegrationGateArmResumeRefusesCompletedEpochWithoutSuperseding: a resume of a change whose prior
 // epoch is COMPLETED (successful closeout finished, change 0441) is refused gate-unarmed
 // with the run-completed reason — there is nothing to resume; the state and any
 // reservation stay untouched (never quiescence-checked into a supersede).
-func TestResumeRefusesCompletedEpochWithoutSuperseding(t *testing.T) {
+func TestIntegrationGateArmResumeRefusesCompletedEpochWithoutSuperseding(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeEpochDeps(t)
 	priorKey, epochID := seedPriorEpoch(t, repoDir, EpochCompleted)
@@ -159,9 +161,9 @@ func TestResumeRefusesCompletedEpochWithoutSuperseding(t *testing.T) {
 	}
 }
 
-// TestResumeCancellingIsPending: a resume of a change whose prior epoch is CANCELLING
+// TestIntegrationGateArmResumeCancellingIsPending: a resume of a change whose prior epoch is CANCELLING
 // is refused cancellation-pending — cleanup is still in flight, no replacement.
-func TestResumeCancellingIsPending(t *testing.T) {
+func TestIntegrationGateArmResumeCancellingIsPending(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeEpochDeps(t)
 	seedPriorEpoch(t, repoDir, EpochCancelling)
@@ -179,11 +181,12 @@ func TestResumeCancellingIsPending(t *testing.T) {
 	}
 }
 
-// TestResumeAfterCancelledSupersedesOnce: two concurrent resumes of a
+// TestRaceIntegrationAppConcurrencyResumeAfterCancelledSupersedesOnce: two concurrent resumes of a
 // confirmed-cancelled run produce EXACTLY ONE winner; the loser observes the
 // winner's reservation. The prior epoch ends superseded with the winner's key, and
 // exactly one fresh replacement epoch is minted (bound to the feature worktree).
-func TestResumeAfterCancelledSupersedesOnce(t *testing.T) {
+// Race shard (change 0465): two RunGateBefore resume arms released by one barrier race to supersede the same cancelled epoch.
+func TestRaceIntegrationAppConcurrencyResumeAfterCancelledSupersedesOnce(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	priorKey, _ := seedPriorEpoch(t, repoDir, EpochCancelled)
 
@@ -266,10 +269,10 @@ func classifyResumePair(t *testing.T, a, b RunGateBeforeResult) (armed, observed
 	}
 }
 
-// TestRepeatArmObservesReservation: after a confirmed-cancelled resume reserves a
+// TestIntegrationGateArmRepeatArmObservesReservation: after a confirmed-cancelled resume reserves a
 // replacement, a SECOND resume of the same change returns that reserved key and
 // mints NO new epoch.
-func TestRepeatArmObservesReservation(t *testing.T) {
+func TestIntegrationGateArmRepeatArmObservesReservation(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	seedPriorEpoch(t, repoDir, EpochCancelled)
 
@@ -354,11 +357,11 @@ func seedResumeSlot(t *testing.T, repoDir, priorKey, ownerEpoch string) (common 
 	return common, store, worktree
 }
 
-// TestResumeDeniedWhileOldEpochNotQuiescent (AC6/AC7): a durably cancelled epoch
+// TestIntegrationGateArmResumeDeniedWhileOldEpochNotQuiescent (AC6/AC7): a durably cancelled epoch
 // whose launch evidence is still unsettled cannot authorize a replacement — the arm
 // refuses on the existing gate-unarmed channel (ReasonGateResumeCancellationPending),
 // mints no record, reserves no replacement, and leaves the old epoch cancelled.
-func TestResumeDeniedWhileOldEpochNotQuiescent(t *testing.T) {
+func TestIntegrationGateArmResumeDeniedWhileOldEpochNotQuiescent(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	priorKey, _ := seedPriorEpoch(t, repoDir, EpochCancelled)
 
@@ -394,10 +397,10 @@ func TestResumeDeniedWhileOldEpochNotQuiescent(t *testing.T) {
 	}
 }
 
-// TestResumeRetiresStaleSlotThenReservesOnce (AC1/AC7): a cancelled epoch whose
+// TestIntegrationGateArmResumeRetiresStaleSlotThenReservesOnce (AC1/AC7): a cancelled epoch whose
 // released slot still carries its RunEpochID is retired by the resume validation,
 // then EXACTLY ONE replacement is reserved; a repeat arm observes the same key.
-func TestResumeRetiresStaleSlotThenReservesOnce(t *testing.T) {
+func TestIntegrationGateArmResumeRetiresStaleSlotThenReservesOnce(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	priorKey, epochID := seedPriorEpoch(t, repoDir, EpochCancelled)
 	_, store, worktree := seedResumeSlot(t, repoDir, priorKey, epochID)
@@ -440,10 +443,10 @@ func TestResumeRetiresStaleSlotThenReservesOnce(t *testing.T) {
 	}
 }
 
-// TestResumeSupersededValidatesBeforeObserve (AC6): re-authorizing a previously
+// TestIntegrationGateArmResumeSupersededValidatesBeforeObserve (AC6): re-authorizing a previously
 // reserved replacement from a SUPERSEDED epoch also requires quiescence; unsettled
 // evidence refuses without touching the reservation.
-func TestResumeSupersededValidatesBeforeObserve(t *testing.T) {
+func TestIntegrationGateArmResumeSupersededValidatesBeforeObserve(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	priorKey, _ := seedPriorEpoch(t, repoDir, EpochCancelled)
 
@@ -488,10 +491,10 @@ func TestResumeSupersededValidatesBeforeObserve(t *testing.T) {
 	}
 }
 
-// TestResumeForeignSlotIsNeutral (AC7): a slot owned by a DIFFERENT epoch neither
+// TestIntegrationGateArmResumeForeignSlotIsNeutral (AC7): a slot owned by a DIFFERENT epoch neither
 // blocks nor is touched by resume — quiescent old-epoch evidence still admits the
 // replacement, and the foreign slot is byte-identical after.
-func TestResumeForeignSlotIsNeutral(t *testing.T) {
+func TestIntegrationGateArmResumeForeignSlotIsNeutral(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	priorKey, _ := seedPriorEpoch(t, repoDir, EpochCancelled)
 	_, store, worktree := seedResumeSlot(t, repoDir, priorKey, "someone-else")
@@ -523,10 +526,10 @@ func TestResumeForeignSlotIsNeutral(t *testing.T) {
 	}
 }
 
-// TestResumeDoesNotResetSuiteBudget: a confirmed-cancelled resume that arms a
+// TestIntegrationGateArmResumeDoesNotResetSuiteBudget: a confirmed-cancelled resume that arms a
 // replacement never touches the change-owned full-suite attempt budget (spec: an
 // explicit human resume "never resets the change-owned full-suite repair budget").
-func TestResumeDoesNotResetSuiteBudget(t *testing.T) {
+func TestIntegrationGateArmResumeDoesNotResetSuiteBudget(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	seedPriorEpoch(t, repoDir, EpochCancelled)
 
@@ -588,13 +591,13 @@ func armSupersededPrior(t *testing.T, repoDir string) (priorKey, priorEpoch, wor
 	return priorKey, priorEpoch, worktree
 }
 
-// TestResumeSupersededBranchAccountsScopeLinkedDrives (change 0446 AC5): on the
+// TestIntegrationGateArmResumeSupersededBranchAccountsScopeLinkedDrives (change 0446 AC5): on the
 // superseded branch the old epoch's Worktree is empty, which is not proof of
 // quiescence. The launch census runs with the PREDECESSOR's epoch id against the
 // REPLACEMENT's worktree (threaded through ReplacementReserved), and an unaccounted
 // scope-linked launch it reports refuses the re-authorization instead of reporting
 // "accounted".
-func TestResumeSupersededBranchAccountsScopeLinkedDrives(t *testing.T) {
+func TestIntegrationGateArmResumeSupersededBranchAccountsScopeLinkedDrives(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	priorKey, priorEpoch, worktree := armSupersededPrior(t, repoDir)
 	reservedBefore := func() string {
@@ -652,14 +655,14 @@ func tornResumePrior(t *testing.T, repoDir string, neverMinted bool) (priorKey, 
 	return priorKey, priorEpoch, replKey
 }
 
-// TestResumeTornReplacementConverges (change 0446 spec "Repeated cancellation,
+// TestIntegrationGateArmResumeTornReplacementConverges (change 0446 spec "Repeated cancellation,
 // completion, and admission after safe reconciliation converge using existing
 // operations"): after a torn resume a repeat `run.gate-before --resume` is not a
 // permanent dead end. The superseded branch addresses the request's own feature
 // worktree (what armResumeReplacement binds), runs the census with the predecessor's
 // epoch id there, and observes the single reserved key — repeatedly, minting nothing.
 // A corrupt replacement epoch still refuses, naming the unreadable record.
-func TestResumeTornReplacementConverges(t *testing.T) {
+func TestIntegrationGateArmResumeTornReplacementConverges(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		neverMinted bool
@@ -711,12 +714,12 @@ func TestResumeTornReplacementConverges(t *testing.T) {
 	})
 }
 
-// TestResumeSupersededChecksReplacementSlot (change 0446 spec §4): the superseded
+// TestIntegrationGateArmResumeSupersededChecksReplacementSlot (change 0446 spec §4): the superseded
 // branch's slot check uses the replacement's worktree slot to confirm the
 // predecessor's epoch no longer holds it — an unreleased predecessor-owned slot
 // refuses, a released one is retired through the shared retirement and then
 // observed, and a slot the replacement itself holds is the successor outcome.
-func TestResumeSupersededChecksReplacementSlot(t *testing.T) {
+func TestIntegrationGateArmResumeSupersededChecksReplacementSlot(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		owner     func(priorEpoch string) string
