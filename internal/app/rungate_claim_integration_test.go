@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -50,11 +52,11 @@ func gateMintWithContinuation(t *testing.T, repoDir, cid, drive, handoff string)
 	return key
 }
 
-// TestGateClaimSuccessRedeemsAndClearsTriple: a matching continuation id claims
+// TestIntegrationGateArmGateClaimSuccessRedeemsAndClearsTriple: a matching continuation id claims
 // the recovered drive, clears the triple (single-use at the record layer), and
 // returns the fresh owner generation in JSON. The seam is called with the exact
 // drive id + handoff token from the triple.
-func TestGateClaimSuccessRedeemsAndClearsTriple(t *testing.T) {
+func TestIntegrationGateArmGateClaimSuccessRedeemsAndClearsTriple(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{out: GateClaimOutcome{Generation: "freshgen", Phase: "build", Outcome: "WAITING"}}
@@ -84,9 +86,9 @@ func TestGateClaimSuccessRedeemsAndClearsTriple(t *testing.T) {
 	}
 }
 
-// TestGateClaimRedactsGeneration: the generation travels only in the JSON
+// TestIntegrationGateArmGateClaimRedactsGeneration: the generation travels only in the JSON
 // document — HumanText names the drive id and outcome, never the generation.
-func TestGateClaimRedactsGeneration(t *testing.T) {
+func TestIntegrationGateArmGateClaimRedactsGeneration(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{out: GateClaimOutcome{Generation: "secretgen", Phase: "build", Outcome: "WAITING"}}
@@ -102,9 +104,9 @@ func TestGateClaimRedactsGeneration(t *testing.T) {
 	}
 }
 
-// TestGateClaimSingleUse: a second claim after a successful redemption finds no
+// TestIntegrationGateArmGateClaimSingleUse: a second claim after a successful redemption finds no
 // continuation (the triple was cleared) and fails closed to no-continuation.
-func TestGateClaimSingleUse(t *testing.T) {
+func TestIntegrationGateArmGateClaimSingleUse(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{out: GateClaimOutcome{Generation: "freshgen", Phase: "build", Outcome: "WAITING"}}
@@ -121,9 +123,9 @@ func TestGateClaimSingleUse(t *testing.T) {
 	}
 }
 
-// TestGateClaimNoContinuation: a record with no continuation triple fails closed
+// TestIntegrationGateArmGateClaimNoContinuation: a record with no continuation triple fails closed
 // to no-continuation and never touches the drive layer.
-func TestGateClaimNoContinuation(t *testing.T) {
+func TestIntegrationGateArmGateClaimNoContinuation(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintArmed(t, repo, nil, 1, "") // armed, no triple
 	seam := &fakeClaimSeam{}
@@ -137,9 +139,9 @@ func TestGateClaimNoContinuation(t *testing.T) {
 	}
 }
 
-// TestGateClaimMismatch: a wrong continuation id fails closed to
+// TestIntegrationGateArmGateClaimMismatch: a wrong continuation id fails closed to
 // continuation-mismatch and leaves the triple intact for a legitimate retry.
-func TestGateClaimMismatch(t *testing.T) {
+func TestIntegrationGateArmGateClaimMismatch(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintWithContinuation(t, repo, "cid-right", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{}
@@ -160,9 +162,9 @@ func TestGateClaimMismatch(t *testing.T) {
 	}
 }
 
-// TestGateClaimMismatchDifferentLength: a length-differing id also fails closed
+// TestIntegrationGateArmGateClaimMismatchDifferentLength: a length-differing id also fails closed
 // (crypto/subtle returns 0 on unequal lengths) rather than panicking or matching.
-func TestGateClaimMismatchDifferentLength(t *testing.T) {
+func TestIntegrationGateArmGateClaimMismatchDifferentLength(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	res := RunGateClaim(repo, key, "cid-abc-longer", &fakeClaimSeam{})
@@ -171,10 +173,10 @@ func TestGateClaimMismatchDifferentLength(t *testing.T) {
 	}
 }
 
-// TestGateClaimHaltedCarriesCause: a HALTED drive-layer claim (unsafe ownership)
+// TestIntegrationGateArmGateClaimHaltedCarriesCause: a HALTED drive-layer claim (unsafe ownership)
 // fails closed to halted-claim carrying the driver's cause, and leaves the triple
 // intact.
-func TestGateClaimHaltedCarriesCause(t *testing.T) {
+func TestIntegrationGateArmGateClaimHaltedCarriesCause(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{out: GateClaimOutcome{Halted: true, Cause: "fingerprint-mismatch", Outcome: "HALTED"}}
@@ -192,9 +194,9 @@ func TestGateClaimHaltedCarriesCause(t *testing.T) {
 	}
 }
 
-// TestGateClaimCommandError: a command fault from the drive layer fails closed to
+// TestIntegrationGateArmGateClaimCommandError: a command fault from the drive layer fails closed to
 // claim-error and leaves the triple intact.
-func TestGateClaimCommandError(t *testing.T) {
+func TestIntegrationGateArmGateClaimCommandError(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{err: errFake}
@@ -209,9 +211,9 @@ func TestGateClaimCommandError(t *testing.T) {
 	}
 }
 
-// TestGateClaimNilSeam: an unwired seam fails closed to claim-unavailable without
+// TestIntegrationGateArmGateClaimNilSeam: an unwired seam fails closed to claim-unavailable without
 // clearing the triple.
-func TestGateClaimNilSeam(t *testing.T) {
+func TestIntegrationGateArmGateClaimNilSeam(t *testing.T) {
 	repo := newGateRepo(t)
 	key := gateMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 
@@ -225,9 +227,9 @@ func TestGateClaimNilSeam(t *testing.T) {
 	}
 }
 
-// TestGateClaimLoadErrorFailsClosed: a malformed key never touches the filesystem
+// TestIntegrationGateArmGateClaimLoadErrorFailsClosed: a malformed key never touches the filesystem
 // and fails closed to a gate-stop carrying the store's typed reason token.
-func TestGateClaimLoadErrorFailsClosed(t *testing.T) {
+func TestIntegrationGateArmGateClaimLoadErrorFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	res := RunGateClaim(repo, "Bad/Key", "cid-abc", &fakeClaimSeam{})
 	if res.Decision != GateDecisionStop {

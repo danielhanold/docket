@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -122,11 +124,11 @@ func resumeInspectService(worktree string) *fakeWorkspaceService {
 	}
 }
 
-// TestGateBeforePreparesOuterScope: a non-resume arm prepares the outer scope,
+// TestIntegrationGateArmGateBeforePreparesOuterScope: a non-resume arm prepares the outer scope,
 // carries the scope binding in the record, prints the dispatch context on the
 // armed line, and NEVER leaks the parent capability into the result JSON or the
 // human text (it lives only in the 0600 record).
-func TestGateBeforePreparesOuterScope(t *testing.T) {
+func TestIntegrationGateArmGateBeforePreparesOuterScope(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -185,13 +187,13 @@ func TestGateBeforePreparesOuterScope(t *testing.T) {
 	}
 }
 
-// TestGateBeforeFreshArmSurfacesRunEpoch: a fresh (non-resume) arm surfaces the
+// TestIntegrationGateArmGateBeforeFreshArmSurfacesRunEpoch: a fresh (non-resume) arm surfaces the
 // minted run epoch's public id in the result (Epoch) and in the human report line
 // — the documented `run.cancel --epoch <id>` / `--run-epoch` value the operator and
 // the dispatcher thread through. Without it the primary human-Stop path names an
 // epoch the arm never gave (change 0375). The surfaced id must equal the id the
 // bound epoch record actually carries — the same value run.cancel cross-checks.
-func TestGateBeforeFreshArmSurfacesRunEpoch(t *testing.T) {
+func TestIntegrationGateArmGateBeforeFreshArmSurfacesRunEpoch(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -221,11 +223,11 @@ func TestGateBeforeFreshArmSurfacesRunEpoch(t *testing.T) {
 	}
 }
 
-// TestGateBeforeResumeBindsOnlyVerifiedInProgress: a --resume id pre-binds
+// TestIntegrationGateArmGateBeforeResumeBindsOnlyVerifiedInProgress: a --resume id pre-binds
 // attribution ONLY when the id is genuinely in-progress AND WorkspaceInspect
 // applies; a proposed id or a failed inspect is resume-unverified and mints no
 // record (and never prepares a scope).
-func TestGateBeforeResumeBindsOnlyVerifiedInProgress(t *testing.T) {
+func TestIntegrationGateArmGateBeforeResumeBindsOnlyVerifiedInProgress(t *testing.T) {
 	t.Run("in-progress with valid inspect binds", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
 		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(5, "epsilon", "v5", "")}}
@@ -304,11 +306,11 @@ func TestGateBeforeResumeBindsOnlyVerifiedInProgress(t *testing.T) {
 	})
 }
 
-// TestGateBeforeNoTimestampGames: the resume path never plays a timestamp game.
+// TestIntegrationGateArmGateBeforeNoTimestampGames: the resume path never plays a timestamp game.
 // The resumed change stays in the fresh BeforeIDs and DispatchEpoch stays
 // post-read — attribution is bound by verified identity, not by excluding the id
 // from the before-set.
-func TestGateBeforeNoTimestampGames(t *testing.T) {
+func TestIntegrationGateArmGateBeforeNoTimestampGames(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(5, "epsilon", "v5", "")}}
 	deps := workspaceDepsFor(t, reader)
@@ -360,12 +362,12 @@ func gatePinWithRunMaxAttempts(t *testing.T, n int) StatusPin {
 	return p
 }
 
-// TestMintSnapshotsRunMaxAttempts: gate-before snapshots the authoritative
+// TestIntegrationGateArmMintSnapshotsRunMaxAttempts: gate-before snapshots the authoritative
 // run.max_attempts into the record's AttemptLimit at mint (change 0421). A repo
 // configured run.max_attempts: 3 yields AttemptLimit == 3; the default yields 2;
 // and a later config change never rewrites an already-minted record's limit (the
 // snapshot rule — the load never re-reads config).
-func TestMintSnapshotsRunMaxAttempts(t *testing.T) {
+func TestIntegrationGateArmMintSnapshotsRunMaxAttempts(t *testing.T) {
 	t.Run("configured value is snapshotted", func(t *testing.T) {
 		repo := newGateRepo(t)
 		reader := &fakeReader{pin: gatePinWithRunMaxAttempts(t, 3), corpus: gateBeforeCorpus()}
@@ -413,9 +415,9 @@ func TestMintSnapshotsRunMaxAttempts(t *testing.T) {
 	})
 }
 
-// TestGateRecordContinuationTripleRule: the store rejects a partial continuation
+// TestIntegrationGateArmGateRecordContinuationTripleRule: the store rejects a partial continuation
 // triple on BOTH the write and the read boundary as a corrupt record.
-func TestGateRecordContinuationTripleRule(t *testing.T) {
+func TestIntegrationGateArmGateRecordContinuationTripleRule(t *testing.T) {
 	repo := newGateRepo(t)
 
 	// Write boundary: minting/saving a partial triple fails closed.
@@ -452,9 +454,9 @@ func TestGateRecordContinuationTripleRule(t *testing.T) {
 	}
 }
 
-// TestGateRecordSchema1FailsClosed: a schema-1 record fails closed as a corrupt
+// TestIntegrationGateArmGateRecordSchema1FailsClosed: a schema-1 record fails closed as a corrupt
 // record — the v2 store never migrates a pre-upgrade record.
-func TestGateRecordSchema1FailsClosed(t *testing.T) {
+func TestIntegrationGateArmGateRecordSchema1FailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	key, err := MintGateRecord(repo, sampleGateRecord())
 	if err != nil {
