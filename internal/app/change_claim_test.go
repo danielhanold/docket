@@ -7,7 +7,6 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
-	"path"
 	"slices"
 	"strings"
 	"testing"
@@ -229,146 +228,6 @@ func gateClaimDeps(t *testing.T, engine *claimGateEngine, corpus []StatusBlob) P
 	}
 }
 
-// TestClaimGateContextInvalidRefusesBeforeTransaction: a supplied context that
-// matches no armed gate record is a typed refusal that writes nothing and never
-// degrades to an ungated claim (spec: "Never treat a supplied but invalid
-// context as an ungated claim").
-func TestClaimGateContextInvalidRefusesBeforeTransaction(t *testing.T) {
-	repoDir := newGateRepo(t) // no gate record armed
-	engine := &claimGateEngine{}
-	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
-
-	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
-
-	if res.Result != ResultInvalidState {
-		t.Fatalf("result = %q, want invalid-state (findings %v)", res.Result, res.Findings)
-	}
-	if res.Disposition != ClaimDispositionGateContextInvalid {
-		t.Errorf("disposition = %q, want %q", res.Disposition, ClaimDispositionGateContextInvalid)
-	}
-	if len(engine.calls) != 0 {
-		t.Errorf("engine called %d times on an invalid gate context, want 0", len(engine.calls))
-	}
-	for _, f := range res.Findings {
-		if strings.Contains(f.Message, "tok") {
-			t.Errorf("finding leaked the raw dispatch token: %q", f.Message)
-		}
-	}
-}
-
-// TestClaimGateContextReservesAndConfirms: a valid context reserves before the
-// transaction and confirms after the applied outcome; the digest payload and
-// receipt carry the context hash, never the raw token.
-func TestClaimGateContextReservesAndConfirms(t *testing.T) {
-	repoDir := newGateRepo(t)
-	hash := gateHashToken("tok")
-	key := mintGateWithHash(t, repoDir, hash, false)
-
-	var midOK, midConfirmed bool
-	var midChangeID int
-	engine := &claimGateEngine{
-		result: appliedGateResult(t, 3),
-		onExecute: func(_ transaction.Request) {
-			// The reservation must exist, unconfirmed, at Execute time.
-			b, ok, err := LoadGateClaimBinding(repoDir, key)
-			if err != nil {
-				t.Errorf("mid-transaction LoadGateClaimBinding: %v", err)
-				return
-			}
-			midOK, midConfirmed, midChangeID = ok, b.Confirmed, b.ChangeID
-		},
-	}
-	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
-
-	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied (findings %v)", res.Result, res.Findings)
-	}
-
-	if !midOK || midConfirmed || midChangeID != 3 {
-		t.Errorf("mid-transaction binding ok=%v confirmed=%v change=%d; want reserved-unconfirmed for change 3",
-			midOK, midConfirmed, midChangeID)
-	}
-
-	b, ok, err := LoadGateClaimBinding(repoDir, key)
-	if err != nil || !ok || !b.Confirmed || b.ChangeID != 3 || b.Revision != gateClaimCommit {
-		t.Fatalf("post-claim binding = %+v ok=%v err=%v; want confirmed change 3 @ %s", b, ok, err, gateClaimCommit)
-	}
-
-	if len(engine.calls) != 1 {
-		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
-	}
-	gotDigest := engine.calls[0].Idempotency.Digest
-	withHash, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, GateContextHash: hash})
-	if err != nil {
-		t.Fatalf("canonicalDigest (hash): %v", err)
-	}
-	ungated, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, GateContextHash: ""})
-	if err != nil {
-		t.Fatalf("canonicalDigest (ungated): %v", err)
-	}
-	if gotDigest != withHash {
-		t.Errorf("digest = %q, want the hash-bearing digest %q", gotDigest, withHash)
-	}
-	if gotDigest == ungated {
-		t.Errorf("digest equals the ungated digest %q; the context hash was not folded in", ungated)
-	}
-
-	op, okOp := engine.calls[0].Operation.(changeClaimOp)
-	if !okOp {
-		t.Fatalf("operation is %T, want changeClaimOp", engine.calls[0].Operation)
-	}
-	if op.gateContextHash != hash {
-		t.Errorf("op.gateContextHash = %q, want %q", op.gateContextHash, hash)
-	}
-	// The receipt bytes the operation hands the engine carry the hash, never the token.
-	plan, opRes := claimPlanFor(t, map[string]string{groomPath(3, "widget"): claimableChange(3, "widget")}, op)
-	if opRes.Refused {
-		t.Fatalf("unexpected refusal building the receipt: %v", opRes.Findings)
-	}
-	if !strings.Contains(string(plan.Receipt), `"gate_context_hash":"`+hash+`"`) {
-		t.Errorf("receipt missing gate_context_hash %q:\n%s", hash, plan.Receipt)
-	}
-	if strings.Contains(string(plan.Receipt), "tok") {
-		t.Errorf("receipt leaked the raw dispatch token:\n%s", plan.Receipt)
-	}
-}
-
-// TestClaimGateContextConflictRefused: a second claim for a DIFFERENT change id
-// under the same context is refused gate-context-conflict before its
-// transaction (criterion 3: one context cannot claim two changes).
-func TestClaimGateContextConflictRefused(t *testing.T) {
-	repoDir := newGateRepo(t)
-	mintGateWithHash(t, repoDir, gateHashToken("tok"), false)
-	corpus := []StatusBlob{
-		changeBlob(3, "widget", "feat", "high", ""),
-		changeBlob(4, "gadget", "feat", "high", ""),
-	}
-
-	engine1 := &claimGateEngine{result: appliedGateResult(t, 3)}
-	first := ChangeClaim(context.Background(), gateClaimDeps(t, engine1, corpus), repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
-	if first.Result != ResultApplied {
-		t.Fatalf("first claim result = %q, want applied (%v)", first.Result, first.Findings)
-	}
-
-	engine2 := &claimGateEngine{result: appliedGateResult(t, 4)}
-	second := ChangeClaim(context.Background(), gateClaimDeps(t, engine2, corpus), repoDir,
-		ChangeClaimRequest{ID: 4, Version: gateClaimVersion, GateContext: "tok"})
-
-	if second.Result != ResultInvalidState {
-		t.Errorf("second result = %q, want invalid-state", second.Result)
-	}
-	if second.Disposition != ClaimDispositionGateContextConflict {
-		t.Errorf("second disposition = %q, want %q", second.Disposition, ClaimDispositionGateContextConflict)
-	}
-	if len(engine2.calls) != 0 {
-		t.Errorf("second claim reached the engine %d times, want 0", len(engine2.calls))
-	}
-}
-
 // TestClaimSameIDDifferentContextDigestDiffers: two dispatches submitting the
 // SAME (id, version) under different contexts must not share the idempotency
 // path — their digests differ while their request ids match, so the engine's
@@ -392,59 +251,6 @@ func TestClaimSameIDDifferentContextDigestDiffers(t *testing.T) {
 	reqB := claimRequestID(ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tokB"})
 	if reqA != reqB {
 		t.Errorf("request ids differ (%q vs %q); they must match so the engine's replay scan sees id-reuse", reqA, reqB)
-	}
-}
-
-// TestClaimUngatedUnchanged: no GateContext → no gate lookup, no reservation,
-// digest equals the empty-hash payload, receipt carries gate_context_hash "".
-func TestClaimUngatedUnchanged(t *testing.T) {
-	repoDir := newGateRepo(t)
-	engine := &claimGateEngine{result: appliedGateResult(t, 3)}
-	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
-
-	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion}) // no GateContext
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied (%v)", res.Result, res.Findings)
-	}
-	if len(engine.calls) != 1 {
-		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
-	}
-	want, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, GateContextHash: ""})
-	if err != nil {
-		t.Fatalf("canonicalDigest: %v", err)
-	}
-	if engine.calls[0].Idempotency.Digest != want {
-		t.Errorf("ungated digest = %q, want %q", engine.calls[0].Idempotency.Digest, want)
-	}
-	op := engine.calls[0].Operation.(changeClaimOp)
-	if op.gateContextHash != "" {
-		t.Errorf("ungated op.gateContextHash = %q, want empty", op.gateContextHash)
-	}
-	plan, opRes := claimPlanFor(t, map[string]string{groomPath(3, "widget"): claimableChange(3, "widget")}, op)
-	if opRes.Refused {
-		t.Fatalf("unexpected refusal: %v", opRes.Findings)
-	}
-	if !strings.Contains(string(plan.Receipt), `"gate_context_hash":""`) {
-		t.Errorf("ungated receipt missing empty gate_context_hash:\n%s", plan.Receipt)
-	}
-}
-
-// TestClaimTerminalGateRefused: a context whose only record is Terminal is
-// gate-context-invalid (the dispatch it named is already decided).
-func TestClaimTerminalGateRefused(t *testing.T) {
-	repoDir := newGateRepo(t)
-	mintGateWithHash(t, repoDir, gateHashToken("tok"), true) // terminal
-	engine := &claimGateEngine{}
-	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
-
-	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
-	if res.Disposition != ClaimDispositionGateContextInvalid {
-		t.Errorf("disposition = %q, want %q", res.Disposition, ClaimDispositionGateContextInvalid)
-	}
-	if len(engine.calls) != 0 {
-		t.Errorf("engine called on a terminal gate context, want 0")
 	}
 }
 
@@ -528,8 +334,8 @@ func TestClaimResultRealEngineMalformedVersion(t *testing.T) {
 //
 // Mutation check (run manually; noted in the commit): delete the `Scope:` field
 // from ChangeClaim's transaction.Request and
-// `go test ./internal/app/ -run 'TestChangeClaim.*Unrelated' -count=1` reddens on
-// the progress row with the before-gate refusal the bug produced.
+// `go test -tags integration ./internal/app/ -run 'TestIntegrationRecordOpsChangeClaim.*Unrelated' -count=1`
+// reddens on the progress row with the before-gate refusal the bug produced.
 
 // unrelatedBrokenPath is the unrelated change record A every 0449 row seeds; its
 // bytes open a frontmatter block and never close it, so document.Parse rejects
@@ -605,52 +411,6 @@ func assertRefusalBeyondUnrelated(t *testing.T, reason string, findings []Status
 	t.Errorf("refusal carries only the unrelated record's findings %+v; want a finding naming B's own defect", findings)
 }
 
-func TestChangeClaimUnrelatedInvalidRecordProgress(t *testing.T) {
-	requireRealGit(t)
-	const id = 3
-	recPath := groomPath(id, "widget")
-	repo := newWorkingRepo(t, map[string]string{
-		recPath:             claimableChange(id, "widget"),
-		unrelatedBrokenPath: unrelatedBrokenBytes,
-	})
-	node := planningDepsFor(t, repo.invocation)
-	later := planningDepsForClock(t, repo.invocation, fixedClock{t: time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)})
-	ctx := context.Background()
-
-	claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
-	if claim.Result != ResultApplied {
-		t.Fatalf("claim beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
-			claim.Result, claim.Disposition, claim.Findings)
-	}
-	assertAppliedSurfacesUnrelated(t, claim)
-	rec, _ := originFile(t, repo.origin, "docket", recPath)
-	if !strings.Contains(rec, "status: 'in-progress'") {
-		t.Errorf("claimed record on origin is not in-progress:\n%s", rec)
-	}
-	assertUnrelatedBrokenIntact(t, repo)
-	// The board landed in the same applied commit (change 0449 Task 8): B's
-	// row in its new section AND the repair notice naming the unparseable A,
-	// which the snapshot cannot see and the board used to drop silently.
-	board, ok := originFile(t, repo.origin, "docket", "docs/changes/BOARD.md")
-	if !ok {
-		t.Fatal("claim beside an unrelated unparseable record published no board")
-	}
-	if !strings.Contains(board, "## 🟢 In progress (1)") || !strings.Contains(board, "(active/"+path.Base(recPath)+")") {
-		t.Errorf("board lacks B's in-progress row:\n%s", board)
-	}
-	if !strings.Contains(board, "| `"+unrelatedBrokenPath+"` | unclosed-frontmatter |") {
-		t.Errorf("board lacks the repair notice naming the unrelated record:\n%s", board)
-	}
-
-	refresh := ChangeRefreshClaim(ctx, later.deps, later.dir, ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
-	if refresh.Result != ResultApplied {
-		t.Fatalf("refresh-claim beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
-			refresh.Result, refresh.Disposition, refresh.Findings)
-	}
-	assertAppliedSurfacesUnrelated(t, refresh)
-	assertUnrelatedBrokenIntact(t, repo)
-}
-
 // assertAppliedSurfacesUnrelated proves an applied claim beside the unrelated
 // broken record keeps its applied disposition AND lists A's grandfathered
 // error finding (spec §1 step 5): the scoped gate accepted a corpus error, so
@@ -672,51 +432,6 @@ func assertAppliedSurfacesUnrelated(t *testing.T, r ChangeClaimResult) {
 		}
 	}
 	t.Errorf("applied claim findings %+v omit the unrelated record's error finding on %s", r.Findings, unrelatedBrokenPath)
-}
-
-// TestChangeClaimUnrelatedDependentsOfBrokenProgress is the canonical real-world
-// shape of the 0449 bug one step removed: the unparseable A (id 99) has
-// unrelated dependents — C depends on 99 and E is stacked on 99 — so the corpus
-// also carries error-severity dangling references whose target id no parsed
-// record carries. Those ids name no record, so they cannot name B's subjects;
-// B's claim applies and C and E are left byte-identical. The refusal rows keep
-// the converse: B itself depending on the unparseable A still refuses.
-//
-// Mutation check (run manually; noted in the commit): make
-// transaction.resolveRef treat an absent lookup as unresolvable again and this
-// test reddens with the claim refused on C's and E's dangling references.
-func TestChangeClaimUnrelatedDependentsOfBrokenProgress(t *testing.T) {
-	requireRealGit(t)
-	const id = 3
-	recPath := groomPath(id, "widget")
-	consumerPath, stackedPath := groomPath(4, "consumer"), groomPath(5, "stacked")
-	consumer := strings.Replace(claimableChange(4, "consumer"), "depends_on: []\n", "depends_on: [99]\n", 1)
-	stacked := stackedOn(claimableChange(5, "stacked"), 99)
-	if !strings.Contains(consumer, "depends_on: [99]") || !strings.Contains(stacked, "stacked_on: 99") {
-		t.Fatal("dependent fixtures did not rewrite their records; the fixture shape changed")
-	}
-	repo := newWorkingRepo(t, map[string]string{
-		recPath:             claimableChange(id, "widget"),
-		consumerPath:        consumer,
-		stackedPath:         stacked,
-		unrelatedBrokenPath: unrelatedBrokenBytes,
-	})
-	node := planningDepsFor(t, repo.invocation)
-
-	claim := ChangeClaim(context.Background(), node.deps, node.dir, ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
-	if claim.Result != ResultApplied {
-		t.Fatalf("claim beside unrelated dependents of an unparseable record = %q (disposition %q findings %v), want applied",
-			claim.Result, claim.Disposition, claim.Findings)
-	}
-	if rec, _ := originFile(t, repo.origin, "docket", recPath); !strings.Contains(rec, "status: 'in-progress'") {
-		t.Errorf("claimed record on origin is not in-progress:\n%s", rec)
-	}
-	for p, want := range map[string]string{consumerPath: consumer, stackedPath: stacked} {
-		if got, ok := originFile(t, repo.origin, "docket", p); !ok || got != want {
-			t.Errorf("unrelated dependent %s on origin changed (present %v):\n%s", p, ok, got)
-		}
-	}
-	assertUnrelatedBrokenIntact(t, repo)
 }
 
 // unrelatedProgressShape is one spec acceptance-1 unrelated-damage shape seeded
@@ -781,79 +496,4 @@ func assertUnrelatedShapeIntact(t *testing.T, repo *gitRepo, branch string, shap
 		}
 	}
 	t.Errorf("%s: status no longer reports a finding on the unrelated records; findings %+v", shape.name, st.Findings)
-}
-
-// TestChangeClaimUnrelatedShapesProgress drives B's claim through the
-// production loader and engine beside each unrelated-damage shape: B applies,
-// the damaged records are byte-identical, and the finding is still reported.
-func TestChangeClaimUnrelatedShapesProgress(t *testing.T) {
-	requireRealGit(t)
-	const id = 3
-	recPath := groomPath(id, "widget")
-	for _, shape := range unrelatedProgressShapes(t) {
-		t.Run(shape.name, func(t *testing.T) {
-			files := map[string]string{recPath: claimableChange(id, "widget")}
-			for p, b := range shape.files {
-				files[p] = b
-			}
-			repo := newWorkingRepo(t, files)
-			node := planningDepsFor(t, repo.invocation)
-			res := ChangeClaim(context.Background(), node.deps, node.dir,
-				ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
-			if res.Result != ResultApplied {
-				t.Fatalf("claim beside %s = %q (disposition %q findings %v), want applied", shape.name, res.Result, res.Disposition, res.Findings)
-			}
-			if rec, _ := originFile(t, repo.origin, "docket", recPath); !strings.Contains(rec, "status: 'in-progress'") {
-				t.Errorf("claimed record on origin is not in-progress:\n%s", rec)
-			}
-			assertUnrelatedShapeIntact(t, repo, "docket", shape)
-		})
-	}
-}
-
-func TestChangeClaimUnrelatedInvalidRecordRefusals(t *testing.T) {
-	requireRealGit(t)
-	const id = 3
-	recPath := groomPath(id, "widget")
-	for _, c := range unrelatedRefusalCases(t, id, recPath, claimableChange(id, "widget"), claimableChange(id, "dupe")) {
-		t.Run(c.name, func(t *testing.T) {
-			repo := newWorkingRepo(t, c.files)
-			node := planningDepsFor(t, repo.invocation)
-			tip := originTip(t, repo.origin, "docket")
-
-			res := ChangeClaim(context.Background(), node.deps, node.dir,
-				ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
-			if res.Result == ResultApplied {
-				t.Fatalf("claim applied despite %s; want a refusal", c.name)
-			}
-			assertRefusalBeyondUnrelated(t, res.Disposition, res.Findings)
-			if got := originTip(t, repo.origin, "docket"); got != tip {
-				t.Errorf("a refused claim moved the metadata branch %s -> %s", tip, got)
-			}
-		})
-	}
-}
-
-func TestChangeRefreshClaimUnrelatedInvalidRecordRefusals(t *testing.T) {
-	requireRealGit(t)
-	const id = 3
-	recPath := groomPath(id, "widget")
-	src := lifecycleChange(id, "widget", "in-progress")
-	for _, c := range unrelatedRefusalCases(t, id, recPath, src, lifecycleChange(id, "dupe", "in-progress")) {
-		t.Run(c.name, func(t *testing.T) {
-			repo := newWorkingRepo(t, c.files)
-			node := planningDepsFor(t, repo.invocation)
-			tip := originTip(t, repo.origin, "docket")
-
-			res := ChangeRefreshClaim(context.Background(), node.deps, node.dir,
-				ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
-			if res.Result == ResultApplied {
-				t.Fatalf("refresh-claim applied despite %s; want a refusal", c.name)
-			}
-			assertRefusalBeyondUnrelated(t, res.Disposition, res.Findings)
-			if got := originTip(t, repo.origin, "docket"); got != tip {
-				t.Errorf("a refused refresh-claim moved the metadata branch %s -> %s", tip, got)
-			}
-		})
-	}
 }
