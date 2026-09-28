@@ -17,6 +17,7 @@ import (
 // GateLaunch re-executes this binary with the private supervisor env var set,
 // and it must become the supervisor rather than re-running the test suite.
 // Ordinary `go test` runs set neither and fall through to m.Run.
+// Ordinary runs then install the default-build no-real-git guard (change 0465) around m.Run.
 func TestMain(m *testing.M) {
 	if process.SupervisorRequested() {
 		os.Exit(process.RunSupervisorFromEnv())
@@ -27,7 +28,11 @@ func TestMain(m *testing.M) {
 	if GuardianRequested() {
 		os.Exit(RunAgentGuardianFromEnv())
 	}
-	os.Exit(m.Run())
+	// Change 0465: the default build installs the no-real-git guard (nogit_guard_test.go)
+	// AFTER the re-exec routing above, so the supervisor and guardian roles behave
+	// exactly as before; tagged builds get the no-op twin (nogit_guard_off_test.go).
+	finish := installNoGitGuard()
+	os.Exit(finish(m.Run()))
 }
 
 func TestMapObservationTable(t *testing.T) {
