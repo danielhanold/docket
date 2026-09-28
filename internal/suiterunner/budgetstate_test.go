@@ -364,3 +364,49 @@ func TestStorePathIsNotTheBashRunners(t *testing.T) {
 		t.Fatalf("default store path %q must never be the Bash runner's store", p)
 	}
 }
+
+// Change 0465: the budget-state key leads with the REPO-RELATIVE target path, so every
+// worktree of one repository accumulates one record per target.
+func TestBudgetKeyPathIsRepoRelative(t *testing.T) {
+	cases := []struct{ name, root, path, want string }{
+		{"under the primary checkout", "/w/docket", "/w/docket/tests/test_x.sh", "tests/test_x.sh"},
+		{"under a linked worktree", "/w/docket/.worktrees/fix-y", "/w/docket/.worktrees/fix-y/tests/test_x.sh", "tests/test_x.sh"},
+		{"already relative", "/w/docket", "tests/test_x.sh", "tests/test_x.sh"},
+		{"no repo root", "", "/w/docket/tests/test_x.sh", "/w/docket/tests/test_x.sh"},
+		{"outside the root keeps its absolute key", "/w/docket", "/elsewhere/tests/test_x.sh", "/elsewhere/tests/test_x.sh"},
+		{"a sibling sharing a name prefix is not under the root", "/w/a", "/w/ab/tests/test_x.sh", "/w/ab/tests/test_x.sh"},
+	}
+	for _, tc := range cases {
+		if got := budgetKeyPath(tc.root, tc.path); got != tc.want {
+			t.Errorf("%s: budgetKeyPath(%q, %q) = %q, want %q", tc.name, tc.root, tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestContextKeySameAcrossCheckouts(t *testing.T) {
+	a := ContextKey(budgetKeyPath("/Users/x/docket", "/Users/x/docket/tests/test_go_race.sh"), 8, 8, "Darwin", "arm64", 60, ModeParallel)
+	b := ContextKey(budgetKeyPath("/Users/x/docket/.worktrees/fix-y", "/Users/x/docket/.worktrees/fix-y/tests/test_go_race.sh"), 8, 8, "Darwin", "arm64", 60, ModeParallel)
+	want := "tests/test_go_race.sh|j8|c8|Darwin|arm64|b60|mparallel|s1"
+	if a != want || b != want {
+		t.Fatalf("keys must converge on %q, got primary=%q worktree=%q", want, a, b)
+	}
+}
+
+// A symlink-spelled root (macOS /var vs /private/var) must still converge.
+func TestBudgetKeyPathResolvesSymlinkedRoot(t *testing.T) {
+	real := testsupport.TempDir(t)
+	if err := os.MkdirAll(filepath.Join(real, "tests"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(real, "tests", "test_x.sh")
+	if err := os.WriteFile(target, []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(testsupport.TempDir(t), "checkout-link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	if got := budgetKeyPath(link, target); got != "tests/test_x.sh" {
+		t.Fatalf("budgetKeyPath(%q, %q) = %q, want tests/test_x.sh", link, target, got)
+	}
+}
