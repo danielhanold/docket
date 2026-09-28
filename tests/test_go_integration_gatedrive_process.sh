@@ -6,8 +6,9 @@
 # death handling, real-git sequences, and the worktree fingerprint/handoff proofs over real
 # repositories) — moved out of the default internal/gatedrive corpus behind the `integration`
 # build tag, prefix ^TestIntegrationGatedrive. internal/gatedrive has no no-real-git guard (its
-# slow tests are process-bound, not git-bound): the budget row of tests/test_go_race.sh is its
-# growth detector. Declarations only — execution and inspection live in
+# moved corpus is mixed real-process and real-git; the spec omitted the guard): the budget
+# row of tests/test_go_race.sh is its growth detector. Declarations only — execution and
+# inspection live in
 # tests/lib/go-integration-shard.sh; the completeness contract is
 # tests/test_go_integration_contract.sh.
 set -uo pipefail
