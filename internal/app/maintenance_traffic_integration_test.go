@@ -22,7 +22,7 @@ import (
 // This file is Task 10: traffic accounting for `maintenance sweep` driven through
 // the PRODUCTION entry point app.MaintenanceSweep over REAL git and gh processes,
 // counted at the executable boundary. Unlike maintenance_test.go (which proves the
-// orchestration over recording seams) and sweep_session_test.go (which proves the
+// orchestration over recording seams) and sweep_session_integration_test.go (which proves the
 // one-metadata-fetch-per-attempt / bound-reader contract at the session seam),
 // these tests build the whole FinalizeDeps the CLI wires — a transaction engine,
 // status reader, workspace service, PR prober, batched PR reader, gate, and
@@ -43,8 +43,8 @@ import (
 //
 // Realism note (Task 10 realism clause): the "exactly one metadata fetch per
 // dispatched operation, shared by helper+operation+nested readers" property is
-// proved cleanly at the session seam by sweep_session_test.go
-// (TestPrepareIsOneMetadataFetchZeroSetupProbes, TestBoundReaderNeverFetches) with
+// proved cleanly at the session seam by sweep_session_integration_test.go
+// (TestIntegrationContextProbePrepareIsOneMetadataFetchZeroSetupProbes, TestIntegrationContextProbeBoundReaderNeverFetches) with
 // the same real-process counting. It is NOT re-asserted as a bare fetch count
 // around a live mutation here, because a dispatched reclaim's transaction engine
 // legitimately re-fetches the metadata branch for its own fresh-origin CAS commit
@@ -59,8 +59,9 @@ import (
 //     not re-built here. The dispatched-operation traffic proof here uses reclaim,
 //     which needs no gh.
 //   - Mid-sweep source movement between prepare points (Step 4's two-phase hook) is
-//     proved at the session seam by sweep_session_test.go's TestPrepareObservesFresh
-//     MetadataTip; the movement asserted end-to-end here is the metadata-fetch
+//     proved at the session seam by sweep_session_integration_test.go's
+//     TestIntegrationContextProbePrepareObservesFreshMetadataTip; the movement
+//     asserted end-to-end here is the metadata-fetch
 //     failure/deletion path (no stale fallback).
 
 // --- harness --------------------------------------------------------------
@@ -554,7 +555,7 @@ func TestIntegrationSweepImplementationScopeInspectsNoDeferredResources(t *testi
 // the workspace inspection and the transaction's own fresh-origin CAS re-read — so
 // this also witnesses that a dispatched operation adds no setup re-probe. The
 // bytes-level "one preparation fetch shared by nested readers" property is proved
-// at the session seam (sweep_session_test.go); see this file's header note.
+// at the session seam (sweep_session_integration_test.go); see this file's header note.
 func TestIntegrationSweepDispatchedReclaimKeepsSetupOnce(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{

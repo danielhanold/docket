@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -99,7 +101,7 @@ func sessionUnderTest(t *testing.T, client *gitcli.Client, invocation string) (*
 	return newSweepSession(client, repo, base), reader
 }
 
-func TestPrepareIsOneMetadataFetchZeroSetupProbes(t *testing.T) {
+func TestIntegrationContextProbePrepareIsOneMetadataFetchZeroSetupProbes(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
@@ -133,7 +135,7 @@ func TestPrepareIsOneMetadataFetchZeroSetupProbes(t *testing.T) {
 	}
 }
 
-func TestPrepareObservesFreshMetadataTip(t *testing.T) {
+func TestIntegrationContextProbePrepareObservesFreshMetadataTip(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
@@ -171,7 +173,7 @@ func TestPrepareObservesFreshMetadataTip(t *testing.T) {
 	}
 }
 
-func TestPrepareFailedFetchIsErrorNeverStaleFallback(t *testing.T) {
+func TestIntegrationContextProbePrepareFailedFetchIsErrorNeverStaleFallback(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
@@ -192,7 +194,7 @@ func TestPrepareFailedFetchIsErrorNeverStaleFallback(t *testing.T) {
 	}
 }
 
-func TestBoundReaderNeverFetches(t *testing.T) {
+func TestIntegrationContextProbeBoundReaderNeverFetches(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
@@ -248,7 +250,7 @@ func TestBoundReaderNeverFetches(t *testing.T) {
 	}
 }
 
-func TestSessionRefusesDifferentRepository(t *testing.T) {
+func TestIntegrationContextProbeSessionRefusesDifferentRepository(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
