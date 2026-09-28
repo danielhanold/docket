@@ -124,3 +124,37 @@ func TestRunUsageErrors(t *testing.T) {
 		}
 	})
 }
+
+// Change 0465: two checkouts of one repository (a primary and a .worktrees/<slug>)
+// sharing one budget-state store accumulate ONE streak for the same target. Before
+// the fix each absolute path minted its own record and the second run read 1/5.
+func TestRunBudgetStateConvergesAcrossCheckouts(t *testing.T) {
+	state := filepath.Join(testsupport.TempDir(t), "state.tsv")
+	durations := writeDurations(t, [][3]string{{"test_slow.sh", "1000", "1"}})
+	run := func(root string) string {
+		t.Helper()
+		tests := filepath.Join(root, "tests")
+		if err := os.MkdirAll(tests, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeScript(t, tests, "slow", "# docket-suite: go\necho 'ok - slow'\n")
+		var out, errBuf bytes.Buffer
+		cfg := runCfg(t, tests, &out, &errBuf)
+		cfg.RepoRoot = root
+		cfg.StatePath = state
+		cfg.DurationsPath = durations
+		if code := Run(context.Background(), cfg); code != 0 {
+			t.Fatalf("run in %s exit = %d\nstdout:\n%s\nstderr:\n%s", root, code, out.String(), errBuf.String())
+		}
+		return out.String()
+	}
+	primary := filepath.Join(testsupport.TempDir(t), "docket")
+	first := run(primary)
+	second := run(filepath.Join(primary, ".worktrees", "fix-slow"))
+	if !strings.Contains(first, "consecutive parallel-overrun streak 1/5") {
+		t.Fatalf("first checkout must open the streak at 1/5:\n%s", first)
+	}
+	if !strings.Contains(second, "consecutive parallel-overrun streak 2/5") {
+		t.Fatalf("second checkout must CONTINUE the same record (2/5), not start its own:\n%s", second)
+	}
+}

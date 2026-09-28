@@ -184,7 +184,8 @@ func Run(ctx context.Context, cfg Config) int {
 		} else {
 			over := o.Result.RC == 0 && ScreenOver(secs, ceil)
 			o.Screened = over
-			key := ContextKey(o.Target.Path, cfg.Jobs, cpus, osName, arch, ceil, o.Target.Mode)
+			// Change 0465: key on the repo-relative path so worktrees share one record.
+			key := ContextKey(budgetKeyPath(cfg.RepoRoot, o.Target.Path), cfg.Jobs, cpus, osName, arch, ceil, o.Target.Mode)
 			screenObs = append(screenObs, ScreenObs{Key: key, Path: o.Target.Path, Ceiling: ceil, Secs: secs, Over: over})
 		}
 	}

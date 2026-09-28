@@ -116,6 +116,42 @@ func ContextKey(path string, jobs, cpus int, osName, arch string, ceiling int, m
 	return fmt.Sprintf("%s|j%d|c%d|%s|%s|b%d|m%s|s%d", path, jobs, cpus, osName, arch, ceiling, string(mode), bsSchema)
 }
 
+// budgetKeyPath renders a target path for the budget-state context key relative to
+// the checkout root (change 0465), so every worktree of one repository accumulates
+// one record per target and the screen-then-confirm streak can actually reach its
+// serial confirmation. An already-relative path, an empty root, or a path outside
+// the root (a DOCKET_RUNTESTS_TESTS_DIR override) is returned unchanged; a
+// symlink-spelled root is compared after resolving both sides.
+func budgetKeyPath(repoRoot, path string) string {
+	if repoRoot == "" || !filepath.IsAbs(path) {
+		return path
+	}
+	if rel, ok := relUnderRoot(repoRoot, path); ok {
+		return rel
+	}
+	rr, err := filepath.EvalSymlinks(repoRoot)
+	if err != nil {
+		return path
+	}
+	rp, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return path
+	}
+	if rel, ok := relUnderRoot(rr, rp); ok {
+		return rel
+	}
+	return path
+}
+
+// relUnderRoot reports path relative to root when it lies strictly inside root.
+func relUnderRoot(root, path string) (string, bool) {
+	rel, err := filepath.Rel(root, path)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", false
+	}
+	return filepath.ToSlash(rel), true
+}
+
 // DefaultStatePath resolves the Go runner's OWN advisory budget-state store:
 // <git-common-dir>/docket/development-test-budget-state.tsv. It is deliberately
 // NOT the Bash oracle's <git-dir>/docket/run-tests-budget-state.tsv — see the
