@@ -233,7 +233,7 @@ var proseContracts = []proseContract{
 	// change 0461 — change.groom carries an optional title; a retitle renames
 	// nothing (slug, record path, spec path, and branch stay put).
 	{sentinel: "change_0461_retitle", file: "skills/docket-groom-next/SKILL.md",
-		present: []string{"also carry `title`", "a `title` alone is a valid revise", "a retitle renames nothing"}},
+		present: []string{"also carry `title`", "a `title` alone is a valid revise", "a retitle renames nothing", "`not-retitleable`"}},
 	// change 0389 — implementation-scope sweep + the two completion barriers.
 	// docket-status owns the COMMAND barrier: a backgrounded sweep is observed
 	// to its terminal envelope, never declared done by proxy signals; and an
