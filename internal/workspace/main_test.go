@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -20,6 +21,11 @@ const (
 // m.Run in the default build; the integration build gets testsupport's identity
 // finisher, so the tagged shards run real git as before.
 func TestMain(m *testing.M) {
-	finish := testsupport.InstallNoGitGuard(nogitPkg, nogitShardGlob)
+	finish, err := testsupport.InstallNoGitGuard(nogitPkg, nogitShardGlob)
+	if err != nil {
+		// The library returns the setup failure; this TestMain ends the process.
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	os.Exit(finish(m.Run()))
 }

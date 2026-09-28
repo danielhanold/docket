@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/process"
 	"github.com/danielhanold/docket/internal/testsupport"
@@ -38,7 +39,12 @@ func TestMain(m *testing.M) {
 	// guard (testsupport.InstallNoGitGuard) AFTER the re-exec routing above, so the
 	// supervisor and guardian roles behave exactly as before; tagged builds get
 	// testsupport's no-op twin. Its proving tests are in nogit_guard_test.go.
-	finish := testsupport.InstallNoGitGuard(nogitPkg, nogitShardGlob)
+	finish, err := testsupport.InstallNoGitGuard(nogitPkg, nogitShardGlob)
+	if err != nil {
+		// The library returns the setup failure; this TestMain ends the process.
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	os.Exit(finish(m.Run()))
 }
 
