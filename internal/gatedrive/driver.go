@@ -132,7 +132,9 @@ type StartRequest struct {
 	// does not carry this epoch is refused ErrStaleRunEpoch, so an omitted or stale
 	// epoch cannot detach a workflow-owned worktree from its epoch. Empty for a
 	// standalone gate that owns no implementation epoch (finalize's local gate, an
-	// ad-hoc task drive). (change 0375 Task 9)
+	// ad-hoc task drive). (change 0375 Task 9) A scoped start inherits the epoch its
+	// scope pinned when it presents none, and presenting a different one is refused
+	// ErrScopeIdentityMismatch (change 0467).
 	RunEpochID string
 
 	// Recovery-scope successor receipt (change 0405 Task 4): the previous drive's
@@ -389,9 +391,17 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	// AUTHORITY that re-check every condition and arbitrate races, so a state
 	// observed here but changed by a concurrent transition is caught there.
 	if req.ScopeID != "" {
-		if err := d.precheckScopedStart(req); err != nil {
+		epoch, err := d.precheckScopedStart(req)
+		if err != nil {
 			return nil, err
 		}
+		// A scoped start takes its run epoch from the scope it was prepared under
+		// (change 0467): the scope's RunEpochID is written once by PrepareScope and
+		// never mutated, so this unlocked read is authoritative. req is Admit's own
+		// copy, so every later use — the epoch gate, the scoped worktree admission
+		// record, finished-incumbent reconciliation, and the admission ticket — sees
+		// the effective epoch rather than the caller-presented one.
+		req.RunEpochID = epoch
 	}
 
 	fp, err := ComputeFingerprint(req.Worktree, d.git)
@@ -672,30 +682,31 @@ func (d *Driver) AbandonAdmission(t *AdmissionTicket) error {
 // scope's complete pinned identity, name a scope whose slot holds a launched current
 // drive, and name a predecessor with a durable PASSED/FAILED result still owned by
 // the presented generation and carrying no outstanding handoff. A half-filled
-// receipt is a fail-closed ErrStalePredecessor.
-func (d *Driver) precheckScopedStart(req StartRequest) error {
+// receipt is a fail-closed ErrStalePredecessor. On success it returns the start's
+// effective run epoch (scopedRunEpoch).
+func (d *Driver) precheckScopedStart(req StartRequest) (string, error) {
 	scope, err := d.store.LoadScope(req.ScopeID)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// The child capability is checked before the closed state, matching Acknowledge
 	// and scopeReserveRefusal, so a rejected credential never learns whether the
 	// scope was transferred or finished.
 	if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
-		return ownershipErr(ErrScopeCapabilityMismatch, "start")
+		return "", ownershipErr(ErrScopeCapabilityMismatch, "start")
 	}
 	if scope.Closed {
 		if !scope.FinalAcked {
 			// Closed by a claim or takeover: scope authority transferred to the
 			// parent, not finished by its own terminal acknowledgement (change 0459).
-			return ownershipErr(ErrScopeTransferred, "start")
+			return "", ownershipErr(ErrScopeTransferred, "start")
 		}
-		return ownershipErr(ErrScopeClosed, "start")
+		return "", ownershipErr(ErrScopeClosed, "start")
 	}
 
 	receipt := predecessorReceipt{DriveID: req.PredecessorDriveID, OwnerGen: req.PredecessorOwnerGen}
 	if receipt.halfFilled() {
-		return ownershipErr(ErrStalePredecessor, "start")
+		return "", ownershipErr(ErrStalePredecessor, "start")
 	}
 
 	if receipt.empty() {
@@ -704,30 +715,30 @@ func (d *Driver) precheckScopedStart(req StartRequest) error {
 		// against an empty slot (a first start still fixes the scope's identity).
 		if scope.CurrentDriveID != "" {
 			if scope.CurrentDriveState == scopeStateReserved {
-				return ownershipErr(ErrScopeBusy, "start")
+				return "", ownershipErr(ErrScopeBusy, "start")
 			}
-			return ownershipErr(ErrScopeSecondDrive, "start")
+			return "", ownershipErr(ErrScopeSecondDrive, "start")
 		}
 		if !scopedIdentityMatch(scope, req) {
-			return ownershipErr(ErrScopeIdentityMismatch, "start")
+			return "", ownershipErr(ErrScopeIdentityMismatch, "start")
 		}
-		return nil
+		return scopedRunEpoch(scope, req.RunEpochID), nil
 	}
 
 	// Successor start: the complete pinned identity, a launched current slot, and a
 	// durable reusable predecessor the receipt names.
 	if !scopedIdentityMatch(scope, req) {
-		return ownershipErr(ErrScopeIdentityMismatch, "start")
+		return "", ownershipErr(ErrScopeIdentityMismatch, "start")
 	}
 	if scope.CurrentDriveID == "" {
 		// A successor acknowledges a predecessor result, but the scope holds none.
-		return ownershipErr(ErrStalePredecessor, "start")
+		return "", ownershipErr(ErrStalePredecessor, "start")
 	}
 	if scope.CurrentDriveState == scopeStateReserved {
-		return ownershipErr(ErrScopeBusy, "start")
+		return "", ownershipErr(ErrScopeBusy, "start")
 	}
 	if scope.PendingAckDriveID != "" {
-		return ownershipErr(ErrUnresolvedLaunchTransition, "start")
+		return "", ownershipErr(ErrUnresolvedLaunchTransition, "start")
 	}
 	// Validate the CLAIMED predecessor record (cheap, consumes nothing). Whether it is
 	// the scope's CURRENT drive is reserveScopeDrive's authority — a wrong id there is
@@ -737,18 +748,22 @@ func (d *Driver) precheckScopedStart(req StartRequest) error {
 	prec, lerr := d.store.Load(receipt.DriveID)
 	if lerr != nil {
 		if _, ok := AsStoreError(lerr); ok {
-			return ownershipErr(ErrStalePredecessor, "start")
+			return "", ownershipErr(ErrStalePredecessor, "start")
 		}
-		return lerr
+		return "", lerr
 	}
-	return predecessorReusableError(&prec, receipt.OwnerGen)
+	if err := predecessorReusableError(&prec, receipt.OwnerGen); err != nil {
+		return "", err
+	}
+	return scopedRunEpoch(scope, req.RunEpochID), nil
 }
 
 // scopedIdentityMatch reports whether a scoped Start request carries the scope's
 // complete pinned identity: the repo/branch/worktree/change/task/phase bundle
 // scopeIdentityMatch checks, plus the gate-context token when the scope pinned one
 // (Invariant 6 — omission or alteration must not detach a drive from outer
-// recovery). A scope that pinned no gate context accepts any (the pre-0359 default).
+// recovery), and the run epoch when both the scope and the request carry one. A
+// scope that pinned no gate context accepts any (the pre-0359 default).
 func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 	if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
 		return false
@@ -756,7 +771,25 @@ func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 	if scope.GateContextHash != "" && capHash(req.GateContext) != scope.GateContextHash {
 		return false
 	}
+	// A scope that pinned a run epoch accepts a start presenting none (it inherits
+	// the scope's — scopedRunEpoch) or the same one; a different presented epoch is
+	// an altered identity (change 0467).
+	if scope.RunEpochID != "" && req.RunEpochID != "" && req.RunEpochID != scope.RunEpochID {
+		return false
+	}
 	return true
+}
+
+// scopedRunEpoch resolves the effective run epoch of a scoped start (change 0467):
+// a scope that pinned an epoch supplies it — scopedIdentityMatch has already
+// refused a start presenting a different one — and a scope with no epoch (a legacy
+// v2 scope, or one prepared without) leaves the presented value governing,
+// unchanged from before.
+func scopedRunEpoch(scope scopeRecord, presented string) string {
+	if scope.RunEpochID != "" {
+		return scope.RunEpochID
+	}
+	return presented
 }
 
 // admitScopeless runs the pre-launch admission half for a gate without a recovery
