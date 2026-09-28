@@ -79,6 +79,8 @@ tests/test_go_integration_transaction_race.sh	25	parallel
 tests/test_go_integration_workspace_setup.sh	25	parallel
 tests/test_go_integration_workspace_race.sh	10	parallel
 tests/test_go_integration_workspace_lifecycle.sh	30	parallel
+tests/test_go_integration_gatedrive_process.sh	15	parallel
+tests/test_go_integration_gatedrive_race.sh	15	parallel
 tests/test_go_integration_release.sh	45	parallel
 tests/test_go_finalize_e2e.sh	30	parallel
 tests/test_go_race.sh	60	parallel
