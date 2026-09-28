@@ -6,12 +6,12 @@ status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-27'
-updated: '2026-09-27'
+updated: '2026-09-28'
 depends_on: []
 stacked_on:
 related: [345, 375, 359, 441, 435]
 discovered_from: [382]
-adrs: [111, 118]
+adrs: [111, 118, 128]
 spec: 'docs/superpowers/specs/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md'
 plan: 'docs/superpowers/plans/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md'
 results: 'docs/results/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-results.md'
@@ -33,7 +33,7 @@ claimed_at: '2026-09-27T21:29:12Z'
 | Spec | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-design.md) |
 | Plan | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md](https://github.com/danielhanold/docket/blob/fix/resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis/docs/superpowers/plans/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) |
 | Results | [2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-results.md](https://github.com/danielhanold/docket/blob/fix/resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis/docs/results/2026-09-27-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis-results.md) |
-| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) |
+| ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md), [ADR-0118](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md), [ADR-0128](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -113,6 +113,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0125](0125-historical-gate-discovery-has-no-global-veto-relevance-to-th.md) — Historical gate discovery has no global veto — relevance to the requested worktree or run decides whether uncertainty blocks (Accepted) · relates to ADR-0087, ADR-0095, ADR-0118, ADR-0120, ADR-0124
 - [ADR-0126](0126-named-implement-next-skips-unrelated-maintenance-preflight.md) — Named implement-next skips unrelated maintenance preflight (Accepted) ← change #448 · relates to ADR-0101, ADR-0106
 - [ADR-0127](0127-scoped-metadata-validation-for-named-operations.md) — Scoped metadata validation for named operations (Accepted) ← change #449 · relates to ADR-0093
+- [ADR-0128](0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md) — Resume arms mint an arm-time epoch that run.cancel can cancel without a claim binding (Accepted) ← change #463 · relates to ADR-0111, ADR-0118
 
 ## Superseded / Reversed
 
