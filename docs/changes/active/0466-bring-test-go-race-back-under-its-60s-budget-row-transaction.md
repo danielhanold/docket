@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/bring-test-go-race-back-under-its-60s-budget-row-transaction'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-28T20:21:37Z'
+reconciled: true
+claimed_at: '2026-09-28T20:23:24Z'
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ Full design, test-move rules, and acceptance criteria are in the linked spec.
 ## Out of scope
 
 Raising any budget row or the 8m race backstop. Converting tests to `t.Parallel()` (considered and rejected at groom). Changing `internal/app` beyond the mechanical guard hoist. The three `internal/app` integration shards that measured over their rows under load in 0465's re-measure (`closeout` 64s/40, `rebaserecovery` 60s/40, `changeruntime` 40s/40): suspected, not confirmed, serial-confirm them separately. Closing the guard's documented bypass routes (`gitcli.WithExecutable` with an absolute path, wholesale PATH replacement). The pre-existing `TestIntegrationRepo` shard-prefix overlap.
+
+## Reconcile log
+
+### 2026-09-28
+
+2026-09-28 — Reconciled against origin/main ef4a341d2. Design still holds: internal/gatedrive still carries four untagged integration*_test.go files, the no-real-git guard still lives only in internal/app (nogit_guard_test.go / nogit_guard_off_test.go), transaction and workspace have no integration-tagged files yet, and no change since 0462 touched the three packages. No scope adjustment.
