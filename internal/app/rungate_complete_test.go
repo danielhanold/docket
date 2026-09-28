@@ -18,7 +18,7 @@ import (
 // and CASes completing→completed — failing closed on any unsettled obligation and
 // never relabelling a cancelled/superseded run successful. The tests drive the flow
 // over faked observation seams and a real gatedrive admission store, reusing
-// rungate_cancel_test.go's fixtures.
+// the run-cancel fixtures in rungate_cancel_helpers_test.go.
 
 // fakeProcessObserver is an injectable processObserver: it answers proven/unproven
 // per run dir (falling back to defaultProven), can return a canned error, records
