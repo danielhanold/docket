@@ -564,6 +564,19 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 				o.req.ChangeID, c.Status(), c.Spec().Value, c.Trivial()))
 	}
 
+	// Retitle gate (change 0461). A proposed change revived from a deferred
+	// in-progress claim keeps its feature-branch artifacts; their backlinks embed
+	// the title and are identity-checked (attach's backlink-mismatch,
+	// mark-implemented's results-identity-broken), so renaming it here would
+	// silently break the later build. A title equal to the current one is no
+	// retitle and passes.
+	if o.req.Title != "" && o.req.Title != c.Title() &&
+		(c.Branch().Value != "" || c.Plan().Value != "" || c.Results().Value != "") {
+		return refuseGroom(string(FCNotRetitleable),
+			fmt.Sprintf("change %04d carries feature-branch artifacts (branch %q, plan %q, results %q) whose backlinks embed the title; it cannot be retitled",
+				o.req.ChangeID, c.Branch().Value, c.Plan().Value, c.Results().Value))
+	}
+
 	// Revise spec-body decision, resolved before any mutation is assembled: a
 	// non-empty SpecMarkdown replaces the change's EXISTING linked spec — never
 	// a new path — and requires both the link and the file to exist.
