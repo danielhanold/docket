@@ -14,12 +14,25 @@
 # internal/gitcli behind the `integration` build tag — dedicated shard runners
 # (tests/test_go_integration_*.sh) own it, and tests/test_go_integration_contract.sh
 # proves that partition is total. This gate therefore covers the FAST default
-# corpus only: the ~190s internal/app real-git tail that dominated it no longer
-# runs here. With that tail gone, `go test -race`'s GOMAXPROCS-wide race workers
-# no longer oversubscribe the cores the other parallel jobs need (change 0332's
-# reason for the serial lane, and change 0329's load-dependent build-gate halt),
-# so this gate rides the PARALLEL lane under an ordinary sub-60s row in
-# tests/runtime-budgets.tsv like every other file.
+# corpus only. Change 0465 made that an enforced invariant for internal/app, the
+# package whose default corpus had regrown to ~920 tests (337 of them real-git,
+# 225s of its 237s under -race): the default-tag internal/app test corpus never
+# starts a real `git` process. installNoGitGuard (internal/app/nogit_guard_test.go)
+# shadows git on PATH in the default build and fails the package on any attempt,
+# so a new real-git test cannot land here unnoticed. With that tail gone, `go test
+# -race`'s GOMAXPROCS-wide race workers do not oversubscribe the cores the other
+# parallel jobs need (change 0332's reason for the serial lane, and change 0329's
+# load-dependent build-gate halt), so this gate rides the PARALLEL lane under an
+# ordinary row in tests/runtime-budgets.tsv like every other file.
+#
+# BACKSTOP TIMEOUT (change 0465). `go test` is given an explicit -timeout
+# (RACE_TIMEOUT below): several times the measured post-partition worst package
+# under CI's derived cap (-p 2, GOMAXPROCS=2), and below Go's 10m per-package
+# default. It is NOT a growth allowance — the guard and the budget row are the
+# growth detectors. It exists so an overrun fails with the named
+# "no package ran past the … -timeout backstop" assert and the offending FAIL line,
+# instead of a 10m goroutine-dump panic. Never raise it to make a slow package fit;
+# move the slow tests behind the integration tag instead.
 #
 # WHY -count=1. The detector's verdict must never be served from Go's test-result
 # cache: a cached "ok" certifies a previous tree, not this one. -count=1 forces a
@@ -107,8 +120,11 @@ fi
 # non-zero, so the captured output is replayed on failure rather than
 # summarized — the WARNING block names the two conflicting stacks and is the
 # whole diagnostic.
-race_out="$(go test -race $go_conc_args -count=1 ./... 2>&1)"
+# The backstop — see BACKSTOP TIMEOUT in this header (change 0465).
+RACE_TIMEOUT="4m"
+race_out="$(go test -race $go_conc_args -timeout "$RACE_TIMEOUT" -count=1 ./... 2>&1)"
 race_rc=$?
 assert "go test -race -count=1 ./... (the whole module) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
+assert "no package ran past the ${RACE_TIMEOUT} -timeout backstop" '! grep -q -E -e "^panic: test timed out after" <<<"$race_out" || { grep -E -e "^(FAIL[[:space:]]|panic: test timed out)" <<<"$race_out" >&2; printf "%s\n" "tests/test_go_race.sh: a package ran past the ${RACE_TIMEOUT} backstop — the fast default corpus has outgrown this gate; move real-git, subprocess, and process-lifecycle tests behind //go:build integration (see PARTITION AND LANE in this file)" >&2; false; }'
 
 exit "$fail"
