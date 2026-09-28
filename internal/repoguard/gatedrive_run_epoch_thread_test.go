@@ -31,6 +31,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/harness"
 )
 
 const implementNextSkillRel = "skills/docket-implement-next/SKILL.md"
@@ -211,6 +213,39 @@ func TestRunGateCopiesEpochIntoDispatchPrompt(t *testing.T) {
 		}
 		if runGateEpochCopyRe.MatchString("copy the `<dispatch-context>`. Later, `<epoch>` into the dispatch prompt") {
 			t.Errorf("bounded gap failed: the binding must not span sentences")
+		}
+	})
+}
+
+// codexRequestEpochRe binds the Codex agent.enter request-file sentence to the
+// run epoch and its --run-epoch destination, sentence-local (a dot inside a token like change.claim is not a sentence end): agent.enter's own
+// --run-epoch is lifecycle registration only and is never forwarded, so the
+// request file is the epoch's only path to implement-next on that route (0467
+// review fix-3).
+var codexRequestEpochRe = regexp.MustCompile("Write a request file (?:[^.]|\\.\\S){0,400}run epoch(?:[^.]|\\.\\S){0,80}`--run-epoch`")
+
+// TestCodexRequestFileCarriesRunEpoch: the generator source and the committed
+// AGENTS.md rendering both tell the Codex agent.enter route to carry the run
+// epoch in the request file.
+func TestCodexRequestFileCarriesRunEpoch(t *testing.T) {
+	root := guardRoot(t)
+	for name, text := range map[string]string{
+		"harness.CodexRootEntryClause": harness.CodexRootEntryClause,
+		"AGENTS.md":                    readMaintained(t, root, "AGENTS.md"),
+	} {
+		if !codexRequestEpochRe.MatchString(collapseWS(text)) {
+			t.Errorf("%s: the Codex agent.enter request file does not carry the run epoch for `--run-epoch`", name)
+		}
+	}
+
+	t.Run("non_vacuity", func(t *testing.T) {
+		good := "Write a request file containing the request unchanged; for implement-next include the unchanged gate dispatch-context token, labeled for `change.claim --gate-context` and gate-drive operations, and the unchanged run epoch, labeled for `--run-epoch`."
+		if !codexRequestEpochRe.MatchString(good) {
+			t.Fatalf("the intended wording did not match")
+		}
+		old := "Write a request file containing the request unchanged; for implement-next include the unchanged gate dispatch-context token, labeled for `change.claim --gate-context` and gate-drive operations. Preserve ids. Pass the run epoch to `--run-epoch`."
+		if codexRequestEpochRe.MatchString(old) {
+			t.Errorf("the pre-fix wording (epoch outside the request-file sentence) matched")
 		}
 	})
 }
