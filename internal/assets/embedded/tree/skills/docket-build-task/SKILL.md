@@ -67,7 +67,7 @@ worktree, and use the task-intent owner: the `gate.drive.start` operation with `
 prompt — pass the bundle through unchanged, omitting `--gate-context` only when no dispatch
 context was handed to you; the prepared scope pinned exactly this identity, and the driver
 rejects a start that omits or alters any of it. The run epoch is not in the bundle: it rides on the
-prepared scope, so you neither receive nor pass one — a start that invents a different epoch is
+prepared scope, so a task-owned start passes none — a start that invents a different epoch is
 refused `scope-identity-mismatch`. The run root is a scratch dir you pick and read from.
 Capture the drive id and owner generation from that `--json` response before any advance or handoff
 (the shared JSON-capture requirement in `docket-build`'s `references/gate-caller-loop.md`; human
@@ -88,6 +88,11 @@ with the typed cause; `WAITING` → **immediately** perform the `gate.drive.hand
 `--drive-id <id> --owner-gen <gen> --json`, capture the single-use handoff token from its response,
 and return `WAITING` naming the drive id and that token. After a first `WAITING` never `advance` or restart — the controller owns the drive. `WAITING`
 consumes neither repair nor escalation budget.
+
+**The one epoch exception:** an integration-repair task's post-fix re-run of the full suite is
+build-owned — run the `gate.drive.start` operation with `--owner build --run-epoch <epoch> --json`,
+passing the run epoch your repair dispatch payload carried (omitted when it carried none). Only that
+start takes an epoch; every scoped task-owned start still passes none.
 
 **A `worktree-busy` refusal is a blocking diagnostic, never a retry trigger.** One canonical
 worktree carries at most one running gate at a time. If `gate.drive.start` comes back refused with

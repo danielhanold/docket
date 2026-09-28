@@ -300,7 +300,10 @@ admits another attempt, each red full-suite result becomes exactly one synthetic
 task, run through the same worker contract on the ladder `premium -> max -> halt`. The repair worker
 diagnoses the cross-task failure, adds regression coverage where appropriate, fixes it, and re-runs
 the full suite; that post-fix re-run **is** the next budgeted attempt — started build-owned through
-the same driver so the facade charges it, no bypass. That ladder starts one rung above the default
+the same driver so the facade charges it, no bypass. Its dispatch payload therefore also carries the
+run epoch from your prompt, outside the scope bundle, for that one start: the `gate.drive.start`
+operation with `--owner build --run-epoch <epoch> --json` (flag omitted when your prompt carried none).
+That ladder starts one rung above the default
 deliberately: repair is cross-task diagnosis, never routine work. **Green at any point ends the phase
 immediately; review is never invoked while red.** A refused start (`suite-attempts-exhausted`) or a
 red final permitted run halts per *Halting conditions* with the exhaustion reason naming

@@ -1,15 +1,20 @@
 package repoguard
 
 // Change 0467: the run epoch the gated parent's arm prints must reach every call
-// that mints a recovery scope or starts a build-owned drive, while build-task
-// workers never handle it — the driver hands a scoped start the epoch its scope
-// pinned. Prongs over maintained workflow markdown (isWorkflowMD, so the
+// that mints a recovery scope or starts a build-owned drive, while a build-task
+// worker's scoped starts never carry it — the driver hands a scoped start the
+// epoch its scope pinned. The one worker exception is the integration-repair
+// worker's build-owned post-fix full-suite re-run: docket-build hands it the
+// epoch in the repair dispatch payload (0467 review fix-1). Prongs over maintained workflow markdown (isWorkflowMD, so the
 // embedded mirrors are scanned too):
 //   (A) every paragraph referencing gate.drive.prepare-scope carries --run-epoch;
 //   (B) every build-owned gate.drive.start paragraph (--owner build) carries
 //       --run-epoch;
 //   (C) no scoped task-owned start paragraph (--owner task) carries --run-epoch —
-//       the worker passes none; the scope supplies it.
+//       the worker passes none; the scope supplies it;
+//   (D) the repair worker's post-fix re-run is a build-owned start site in both
+//       docket-build and docket-build-task (floor), so prong B binds it to
+//       --run-epoch — the exception is pinned, and prong C stays unweakened.
 // TestRunGateCopiesEpochIntoDispatchPrompt (below) binds the managed run-gate
 // source to copying the epoch into the dispatch prompt.
 // Site discovery is keyed on syntactic shape, never a per-file allowlist; the
@@ -33,6 +38,7 @@ const implementNextSkillRel = "skills/docket-implement-next/SKILL.md"
 var (
 	prepareScopeOpRe = regexp.MustCompile(`gate\.drive\.prepare-scope`)
 	ownerBuildRe     = regexp.MustCompile(`--owner build(?:[^a-z-]|$)`)
+	repairRerunRe    = regexp.MustCompile(`(?i)post-fix re-run`)
 	runEpochFlagRe   = regexp.MustCompile(`--run-epoch(?:[^a-z-]|$)`)
 )
 
@@ -46,6 +52,12 @@ func isBuildOwnerStartSite(p string) bool {
 	return startOpRe.MatchString(p) && ownerBuildRe.MatchString(p)
 }
 
+// isRepairRerunSite: a build-owned start paragraph that is about the
+// integration-repair worker's post-fix re-run.
+func isRepairRerunSite(p string) bool {
+	return isBuildOwnerStartSite(p) && repairRerunRe.MatchString(p)
+}
+
 // carriesRunEpoch: the paragraph carries the --run-epoch flag token.
 func carriesRunEpoch(p string) bool { return runEpochFlagRe.MatchString(p) }
 
@@ -55,6 +67,7 @@ func TestGateDriveRunEpochThreaded(t *testing.T) {
 	prepSites := map[string]int{}
 	buildSites := map[string]int{}
 	taskSites := map[string]int{}
+	repairSites := map[string]int{}
 	for _, rel := range maintainedPop(t, root) {
 		if !isWorkflowMD(rel) || strings.HasSuffix(rel, sharedContractRel) {
 			continue
@@ -69,6 +82,9 @@ func TestGateDriveRunEpochThreaded(t *testing.T) {
 			}
 			if isBuildOwnerStartSite(p) {
 				buildSites[rel]++
+				if isRepairRerunSite(p) {
+					repairSites[rel]++
+				}
 				if !carriesRunEpoch(p) {
 					violations = append(violations, fmt.Sprintf(
 						"%s: build-owned gate.drive.start instruction lacks --run-epoch: %.160s", rel, p))
@@ -98,6 +114,12 @@ func TestGateDriveRunEpochThreaded(t *testing.T) {
 		// The per-dispatch scope AND the WAITING-continuation re-prepare.
 		if prepSites[rel] < 2 {
 			t.Errorf("coverage floor: %s must carry both the per-dispatch and the continuation prepare-scope sites, found %d", rel, prepSites[rel])
+		}
+	}
+	for _, rel := range append(mirror(buildSkillRel), mirror(buildTaskSkillRel)...) {
+		// (D) The repair worker's build-owned re-run is handed the epoch.
+		if repairSites[rel] == 0 {
+			t.Errorf("coverage floor: %s carries no build-owned repair re-run start with --run-epoch site (the repair worker has no epoch source)", rel)
 		}
 	}
 	for _, rel := range mirror(buildTaskSkillRel) {
@@ -132,6 +154,19 @@ func TestGateDriveRunEpochThreaded(t *testing.T) {
 		}
 		if carriesRunEpoch("pass `--run-epoch-id <x>`") {
 			t.Errorf("--run-epoch token boundary failed: '--run-epoch-id' matched")
+		}
+		repair := "the repair worker's post-fix re-run is the `gate.drive.start` operation with `--owner build --run-epoch <epoch> --json`"
+		if !isRepairRerunSite(repair) || !carriesRunEpoch(repair) {
+			t.Fatalf("a complete repair re-run start was misclassified")
+		}
+		if carriesRunEpoch(strings.Replace(repair, "--run-epoch <epoch> ", "", 1)) {
+			t.Errorf("stripping --run-epoch from the repair re-run start was not detected")
+		}
+		if isRepairRerunSite("the final suite gate is the `gate.drive.start` operation with `--owner build --json`, no failure to repair") {
+			t.Errorf("a non-repair build-owned start that merely mentions repair was classified as the repair re-run")
+		}
+		if isRepairRerunSite("the post-fix re-run: the `gate.drive.start` operation with `--owner task --json`") {
+			t.Errorf("a task-owned start was classified as the build-owned repair re-run")
 		}
 		task := "the `gate.drive.start` operation with `--owner task --scope-id <s> --child-cap <c> --run-epoch <e> --json`"
 		if !isScopedTaskStartSite(task) || !carriesRunEpoch(task) {
