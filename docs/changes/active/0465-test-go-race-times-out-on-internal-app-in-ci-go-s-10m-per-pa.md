@@ -2,7 +2,7 @@
 id: 465
 slug: 'test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa'
 title: 'test_go_race times out on internal/app in CI (Go''s 10m per-package limit)'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-09-28'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/346'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-28T07:12:29Z'

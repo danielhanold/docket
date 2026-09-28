@@ -1,17 +1,12 @@
 # Backlog
 
-**465 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 316 done · 🗑️ 119 killed
+**465 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 316 done · 🗑️ 119 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0465](active/0465-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) | test_go_race times out on internal/app in CI (Go's 10m per-package limit) | `high` | `fix` | [spec](../superpowers/specs/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md) | `fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa` |  |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0465](active/0465-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) | test_go_race times out on internal/app in CI (Go's 10m per-package limit) | `high` | `fix` | [#346](https://github.com/danielhanold/docket/pull/346) | awaiting merge |
 | [0463](active/0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) | Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch | `high` | `fix` | [#345](https://github.com/danielhanold/docket/pull/345) | awaiting merge |
 
 ## 🔴 Blocked (1)
