@@ -105,6 +105,7 @@ const (
 	FCInvalidStackedOn          FindingCode = "invalid-stacked_on"
 	FCInvalidBranchPrefix       FindingCode = "invalid-branch_prefix"
 	FCEmptyTitle                FindingCode = "empty-title"
+	FCInvalidTitle              FindingCode = "invalid-title"
 	FCEmptyWhy                  FindingCode = "empty-why"
 	FCEmptyWhatChanges          FindingCode = "empty-what_changes"
 	FCEmptyOutOfScope           FindingCode = "empty-out_of_scope"
@@ -263,6 +264,7 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidStackedOn,
 	FindingCode("invalid-successor-id"),
 	FCInvalidTargetID,
+	FCInvalidTitle,
 	FCInvalidTopics,
 	FindingCode("lease-not-expired"),
 	FCLocalMetadataAhead,

@@ -301,6 +301,14 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 			addShape(f.code, f.name+" must be non-empty")
 		}
 	}
+	// The shared title rule (change 0461). A blank title is already reported as
+	// empty-title by the loop above, so validateTitle runs only on a non-blank
+	// one and never duplicates that finding.
+	if strings.TrimSpace(req.Title) != "" {
+		if code, msg := validateTitle(req.Title); code != "" {
+			addShape(code, msg)
+		}
+	}
 	for _, coll := range []struct {
 		name      string
 		ids       []int

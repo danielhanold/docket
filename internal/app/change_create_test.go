@@ -96,6 +96,9 @@ func TestChangeCreateRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}{
 		{"short request id", func(r *ChangeCreateRequest) { r.RequestID = "short" }, "invalid-request_id"},
 		{"empty title", func(r *ChangeCreateRequest) { r.Title = "" }, "empty-title"},
+		{"multi-line title", func(r *ChangeCreateRequest) { r.Title = "Add\na widget" }, "invalid-title"},
+		{"control-character title", func(r *ChangeCreateRequest) { r.Title = "Add\x07a widget" }, "invalid-title"},
+		{"line-separator title", func(r *ChangeCreateRequest) { r.Title = "Add\u2028a widget" }, "invalid-title"},
 		{"blank why", func(r *ChangeCreateRequest) { r.Why = "   " }, "empty-why"},
 		{"empty what", func(r *ChangeCreateRequest) { r.WhatChanges = "" }, "empty-what_changes"},
 		{"empty out of scope", func(r *ChangeCreateRequest) { r.OutOfScope = "" }, "empty-out_of_scope"},
@@ -592,5 +595,25 @@ func TestChangeCreatePayloadOmitsUnsetDraftScalars(t *testing.T) {
 		if strings.Contains(string(b), k) {
 			t.Errorf("unset %s appears in the digest payload %s; it would change every pre-0382 digest", k, b)
 		}
+	}
+}
+
+// TestChangeCreateWhitespaceTitleReportsEmptyTitleOnce pins Review Focus 2: the
+// shared validateTitle runs only on a non-blank title, so a blank one yields the
+// existing empty-title finding exactly once, never a duplicate.
+func TestChangeCreateWhitespaceTitleReportsEmptyTitleOnce(t *testing.T) {
+	req := validChangeCreateRequest()
+	req.Title = "   "
+	n := 0
+	for _, f := range validateChangeCreateShape(req) {
+		if f.Code == string(FCEmptyTitle) {
+			n++
+		}
+		if f.Code == string(FCInvalidTitle) {
+			t.Errorf("blank title also reported %q: %v", FCInvalidTitle, f)
+		}
+	}
+	if n != 1 {
+		t.Errorf("empty-title reported %d times, want exactly 1", n)
 	}
 }
