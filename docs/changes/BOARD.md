@@ -1,17 +1,12 @@
 # Backlog
 
-**466 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 317 done · 🗑️ 119 killed
+**466 changes** — 🔴 2 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 317 done · 🗑️ 119 killed
 
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0463](active/0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) | Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch | `high` | `fix` | [#345](https://github.com/danielhanold/docket/pull/345) | awaiting merge |
-
-## 🔴 Blocked (1)
+## 🔴 Blocked (2)
 
 | # | Title | Priority | Type | PR | Reason |
 |---|-------|----------|------|----|--------|
+| [0463](active/0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) | Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch | `high` | `fix` | [#345](https://github.com/danielhanold/docket/pull/345) | finalize blocked — needs you |
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
 
 ## 🟣 Groomed (3)

@@ -79,15 +79,3 @@ When a resume has no prior run epoch, make the arm always mint one, so the `gate
 
 2026-09-27 — Reconciled against origin/main 86f14149. Traced internal/app/rungate_before.go: the epochless resume branch is still present (step 6a mints only when resumeID == 0; HumanText still omits an empty epoch). Recent 0446/0459 commits touched resume replacement and scope-transfer paths but not the epochless branch or mapDriveFailure EpochError handling. Scope and spec unchanged.
 
-## Finalize blocked
-
-### 2026-09-28 — attempt 20260928T113943Z-baa0fb595782
-
-<!-- attempt:20260928T113943Z-baa0fb595782 -->
-
-- Reason: repair-needs-signoff
-- Head: ad256103a57327e1842a324a9e68303835038dad
-- PR: #345
-- Comment: https://github.com/danielhanold/docket/pull/345#issuecomment-5869548038
-
-Remedy: Review commit ad256103a on PR #345 (git diff -M 5c3f8e23a..ad256103a). If it looks right, run docket finalize clear-block --id 463 --version <current> --head ad256103a57327e1842a324a9e68303835038dad --pr-number 345, then re-run docket-finalize-change 463.
