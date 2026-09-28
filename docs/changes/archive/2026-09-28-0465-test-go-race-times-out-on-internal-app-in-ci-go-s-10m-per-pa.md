@@ -2,7 +2,7 @@
 id: 465
 slug: 'test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa'
 title: 'test_go_race times out on internal/app in CI (Go''s 10m per-package limit)'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-09-28'
@@ -22,7 +22,7 @@ branch: 'fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa'
 pr: 'https://github.com/danielhanold/docket/pull/346'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-28T07:12:29Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-28T07:12:29Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-design.md) |
-| Plan | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md](https://github.com/danielhanold/docket/blob/fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa/docs/superpowers/plans/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) |
-| Results | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-results.md](https://github.com/danielhanold/docket/blob/fix/test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa/docs/results/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-results.md) |
+| Plan | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) |
+| Results | [2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-28-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 

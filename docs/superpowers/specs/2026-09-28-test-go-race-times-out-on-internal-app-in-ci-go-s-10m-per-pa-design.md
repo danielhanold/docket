@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0465 — test_go_race times out on internal/app in CI (Go's 10m per-package limit)](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0465-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md)**
+> ↩ **[Change 0465 — test_go_race times out on internal/app in CI (Go's 10m per-package limit)](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-28-0465-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md)**
 <!-- docket:backlink:end -->
 
 # Default internal/app corpus never runs real git — design
