@@ -2,7 +2,7 @@
 id: 466
 slug: 'bring-test-go-race-back-under-its-60s-budget-row-transaction'
 title: 'Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive)'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-28'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/bring-test-go-race-back-under-its-60s-budget-row-transaction'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-28T20:21:37Z'
 ---
 
 ## Artifacts
