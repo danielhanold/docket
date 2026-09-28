@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -19,53 +21,6 @@ import (
 // never relabelling a cancelled/superseded run successful. The tests drive the flow
 // over faked observation seams and a real gatedrive admission store, reusing
 // the run-cancel fixtures in rungate_cancel_helpers_test.go.
-
-// fakeProcessObserver is an injectable processObserver: it answers proven/unproven
-// per run dir (falling back to defaultProven), can return a canned error, records
-// every handle it observed, and — like the cancel tests' onStop barrier — can inject a
-// race via onObserve. It stops nothing.
-type fakeProcessObserver struct {
-	proven        map[string]bool
-	defaultProven bool
-	err           error
-	calls         []string
-	onObserve     func(handle string)
-}
-
-func (f *fakeProcessObserver) observeProcessTerminal(runDir string) (bool, error) {
-	f.calls = append(f.calls, runDir)
-	if f.onObserve != nil {
-		f.onObserve(runDir)
-	}
-	if f.err != nil {
-		return false, f.err
-	}
-	if f.proven != nil {
-		if v, ok := f.proven[runDir]; ok {
-			return v, nil
-		}
-	}
-	return f.defaultProven, nil
-}
-
-// fakeLaunchObserver is an injectable epochLaunchObserver: it records each
-// (worktree,epoch) pair, returns a canned report/error, and can inject a race via
-// onObserve (a late participant registered after the accounting snapshot but before
-// re-enumeration). It settles nothing.
-type fakeLaunchObserver struct {
-	report    gatedrive.EpochLaunchReport
-	err       error
-	calls     []string
-	onObserve func()
-}
-
-func (f *fakeLaunchObserver) observe(worktree, epochID string) (gatedrive.EpochLaunchReport, error) {
-	f.calls = append(f.calls, worktree+"|"+epochID)
-	if f.onObserve != nil {
-		f.onObserve()
-	}
-	return f.report, f.err
-}
 
 // completionFixture is one prepared successfully-finished run: a fully authorized
 // active epoch bound to a worktree whose epoch-owned slot is RELEASED (its drives are
@@ -117,10 +72,10 @@ func slotReservationToken(t *testing.T, store *gatedrive.Store, worktree string)
 	return slot.ReservationToken
 }
 
-// TestCompleteSuccessfulRunHappyPath: a fully settled run closes out — ok, epoch
+// TestIntegrationGateCompletionCompleteSuccessfulRunHappyPath: a fully settled run closes out — ok, epoch
 // EpochCompleted, the owned released slot detached (RunEpochID cleared) with its state
 // still released and every history field intact (AC2 history preservation).
-func TestCompleteSuccessfulRunHappyPath(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunHappyPath(t *testing.T) {
 	fx := newCompletionFixture(t)
 	before, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
@@ -150,9 +105,9 @@ func TestCompleteSuccessfulRunHappyPath(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunIdempotentReplay: a second closeout of a completed epoch is
+// TestIntegrationGateCompletionCompleteSuccessfulRunIdempotentReplay: a second closeout of a completed epoch is
 // a no-op success — the stored epoch generation is byte-stable across the replay.
-func TestCompleteSuccessfulRunIdempotentReplay(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunIdempotentReplay(t *testing.T) {
 	fx := newCompletionFixture(t)
 	if ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key); !ok {
 		t.Fatalf("first closeout ok=false reason=%q findings=%v", reason, findings)
@@ -173,10 +128,10 @@ func TestCompleteSuccessfulRunIdempotentReplay(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunNeverRelabelsCancellation: a cancelling/cancelled run is
+// TestIntegrationGateCompletionCompleteSuccessfulRunNeverRelabelsCancellation: a cancelling/cancelled run is
 // run-cancelled, a superseded run is stale-run-epoch, and the epoch state is never
 // rewritten to a successful one.
-func TestCompleteSuccessfulRunNeverRelabelsCancellation(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunNeverRelabelsCancellation(t *testing.T) {
 	cases := []struct {
 		state  epochState
 		reason string
@@ -203,10 +158,10 @@ func TestCompleteSuccessfulRunNeverRelabelsCancellation(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunBlocksOnEveryUnsettledObligation (AC3): each unsettled
+// TestIntegrationGateCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObligation (AC3): each unsettled
 // obligation fails closed — ok false, reason completion-unaccounted, the named
 // finding present, the epoch left durably completing, and the slot untouched.
-func TestCompleteSuccessfulRunBlocksOnEveryUnsettledObligation(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObligation(t *testing.T) {
 	// each build returns the seams and the located run; the epoch begins active so the
 	// closeout drives the real completing fence before it blocks.
 	type row struct {
@@ -308,13 +263,13 @@ func TestCompleteSuccessfulRunBlocksOnEveryUnsettledObligation(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunSkipsObservingNonReleasedOwnedSlot isolates step (3)'s
+// TestIntegrationGateCompletionCompleteSuccessfulRunSkipsObservingNonReleasedOwnedSlot isolates step (3)'s
 // slot-released guard from retirement's own slot-not-released check (defense in
 // depth): a non-released owned slot is refused BEFORE its process is observed, so a
 // live slot is never probed as if it were settled. Retirement independently refuses a
 // non-released owned slot with the same finding, so this observation-order assertion
 // is what pins the EARLY guard as load-bearing rather than decoration.
-func TestCompleteSuccessfulRunSkipsObservingNonReleasedOwnedSlot(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunSkipsObservingNonReleasedOwnedSlot(t *testing.T) {
 	base := newCancelFixture(t, true) // epoch-owned slot left EXECUTING (not released)
 	must(t, RegisterEpochParticipant(base.repo, base.key, base.epochID,
 		EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
@@ -337,10 +292,10 @@ func TestCompleteSuccessfulRunSkipsObservingNonReleasedOwnedSlot(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunSendsNoStops (AC3): closeout observes only — it never calls
+// TestIntegrationGateCompletionCompleteSuccessfulRunSendsNoStops (AC3): closeout observes only — it never calls
 // the stop-capable stopper, native-canceller, or reconcile (stop) seam, on either the
 // happy path or a blocked path.
-func TestCompleteSuccessfulRunSendsNoStops(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunSendsNoStops(t *testing.T) {
 	assertNoStops := func(t *testing.T, stopper *fakeCancelStopper, native *fakeNativeCanceller, recon *fakeLaunchReconciler) {
 		t.Helper()
 		if len(stopper.calls) != 0 {
@@ -379,10 +334,10 @@ func TestCompleteSuccessfulRunSendsNoStops(t *testing.T) {
 	assertNoStops(t, stopper2, native2, recon2)
 }
 
-// TestCompleteSuccessfulRunLateParticipantBlocks (AC3 "late participant"): a
+// TestIntegrationGateCompletionCompleteSuccessfulRunLateParticipantBlocks (AC3 "late participant"): a
 // participant appended after the accounting snapshot but before retirement is caught
 // by re-enumeration, blocking the closeout.
-func TestCompleteSuccessfulRunLateParticipantBlocks(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunLateParticipantBlocks(t *testing.T) {
 	fx := newCompletionFixture(t)
 	// The observer proves the slot's own run terminal but nothing else.
 	fx.observer.defaultProven = false
@@ -411,11 +366,11 @@ func TestCompleteSuccessfulRunLateParticipantBlocks(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunReplayAfterRetireBeforeComplete (AC6 "interruption
+// TestIntegrationGateCompletionCompleteSuccessfulRunReplayAfterRetireBeforeComplete (AC6 "interruption
 // before/after slot retirement"): a crash between the slot retirement and the
 // completing→completed CAS leaves the slot already detached and the epoch still
 // completing; a replay accepts the safe prior detachment and finishes to completed.
-func TestCompleteSuccessfulRunReplayAfterRetireBeforeComplete(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunReplayAfterRetireBeforeComplete(t *testing.T) {
 	fx := newCompletionFixture(t)
 	token := slotReservationToken(t, fx.store, fx.worktree)
 	if err := fx.store.RetireWorktreeExecutionEpoch(fx.worktree, fx.epochID, token); err != nil {
@@ -434,10 +389,10 @@ func TestCompleteSuccessfulRunReplayAfterRetireBeforeComplete(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunForeignSuccessorUntouched (AC5/AC6 successor protection): a
+// TestIntegrationGateCompletionCompleteSuccessfulRunForeignSuccessorUntouched (AC5/AC6 successor protection): a
 // slot carrying a DIFFERENT nonempty RunEpochID (a successor that reserved after safe
 // detachment) is left untouched, and the closeout still completes.
-func TestCompleteSuccessfulRunForeignSuccessorUntouched(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunForeignSuccessorUntouched(t *testing.T) {
 	base := newCancelFixture(t, false) // no epoch-owned slot; worktree bound
 	if _, err := base.store.ReserveWorktreeExecutionForEpoch(base.common, base.worktree, "successor-epoch", nil); err != nil {
 		t.Fatalf("successor reserve: %v", err)
@@ -462,7 +417,7 @@ func TestCompleteSuccessfulRunForeignSuccessorUntouched(t *testing.T) {
 	}
 }
 
-// TestStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout is AC1/AC2's
+// TestIntegrationGateCompletionStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout is AC1/AC2's
 // end-to-end integration pin: a standalone finalize gate's worktree admission is
 // REFUSED before the successful closeout and ADMITTED after it, at the exact
 // admission shape the finalize path composes (GateLaunch reserves via the store's
@@ -474,7 +429,7 @@ func TestCompleteSuccessfulRunForeignSuccessorUntouched(t *testing.T) {
 // a following admitWorkflowMutation on the worktree is unfenced (a usable done
 // callback) — proving later workflow mutations on that worktree are not trapped by
 // the retired epoch.
-func TestStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout(t *testing.T) {
+func TestIntegrationGateCompletionStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout(t *testing.T) {
 	fx := newCompletionFixture(t)
 
 	// BEFORE closeout: the standalone finalize gate's admission shape presents an
@@ -514,13 +469,13 @@ func TestStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout(t *testing
 	done(mutationStatusCompleted, false)
 }
 
-// TestOrdinaryReleaseStillRetainsEpochBetweenDrives is AC8's ordinary-release fence
+// TestIntegrationGateCompletionOrdinaryReleaseStillRetainsEpochBetweenDrives is AC8's ordinary-release fence
 // probe: ReleaseWorktreeExecution on an epoch-owned slot leaves RunEpochID intact, so
 // a foreign/epoch-less reserve BETWEEN drives is still refused ErrStaleRunEpoch. Only
 // the attributed successful closeout (or an explicit cancellation) detaches the epoch;
 // a plain between-drives release never does. This pins the fence the change must NOT
 // weaken.
-func TestOrdinaryReleaseStillRetainsEpochBetweenDrives(t *testing.T) {
+func TestIntegrationGateCompletionOrdinaryReleaseStillRetainsEpochBetweenDrives(t *testing.T) {
 	fx := newCancelFixture(t, true) // confirmed epoch-owned slot
 	token := slotReservationToken(t, fx.store, fx.worktree)
 	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, token); err != nil {
@@ -552,12 +507,12 @@ func countFinding(findings []string, token string) int {
 	return n
 }
 
-// TestCompleteSuccessfulRunDoesNotDuplicateFindings pins the diagnostic-noise fix
+// TestIntegrationGateCompletionCompleteSuccessfulRunDoesNotDuplicateFindings pins the diagnostic-noise fix
 // (change 0441 review finding): a participant or mutation that stays unsettled across
 // step (3)'s fenced-record accounting and step (4)'s reload re-enumeration must appear
 // exactly ONCE in the operator-facing CompletionFindings, not twice — while the
 // closeout still fails closed (ok=false, completion-unaccounted).
-func TestCompleteSuccessfulRunDoesNotDuplicateFindings(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunDoesNotDuplicateFindings(t *testing.T) {
 	t.Run("participant", func(t *testing.T) {
 		fx := newCompletionFixture(t)
 		// A registered native participant with no terminal evidence: unsettled on both reads.
@@ -639,13 +594,13 @@ func seedDriveRecord(t *testing.T, common, id, worktree, runDir string, outcome 
 	}
 }
 
-// TestCompletionSlotReleasedOwnedNoReobservation: a RELEASED slot this epoch owns is
+// TestIntegrationGateCompletionCompletionSlotReleasedOwnedNoReobservation: a RELEASED slot this epoch owns is
 // itself the durable proof of that slot's execution. Its run directory has been
 // deleted (scratch cleanup), so re-observing the process could only fail — and the
 // closeout must not reopen it: the slot leg is accounted and the observer is never
 // asked about the slot's run. Before the fix the re-observation turned the deleted
 // scratch into a process-unobserved blocker.
-func TestCompletionSlotReleasedOwnedNoReobservation(t *testing.T) {
+func TestIntegrationGateCompletionCompletionSlotReleasedOwnedNoReobservation(t *testing.T) {
 	fx := newCompletionFixture(t)
 	if _, err := os.Stat(fx.runDir); !os.IsNotExist(err) {
 		t.Fatalf("precondition: the slot's run dir %q must be absent (err=%v)", fx.runDir, err)
@@ -671,10 +626,10 @@ func TestCompletionSlotReleasedOwnedNoReobservation(t *testing.T) {
 	}
 }
 
-// TestCompletionUnreleasedOwnedSlotStillBlocks: an owned slot still EXECUTING is a
+// TestIntegrationGateCompletionCompletionUnreleasedOwnedSlotStillBlocks: an owned slot still EXECUTING is a
 // live obligation — no durable release exists, so the slot leg blocks
 // slot-not-released exactly as before (unchanged safety).
-func TestCompletionUnreleasedOwnedSlotStillBlocks(t *testing.T) {
+func TestIntegrationGateCompletionCompletionUnreleasedOwnedSlotStillBlocks(t *testing.T) {
 	base := newCancelFixture(t, true) // epoch-owned slot left executing
 	seams := cancelSeams{store: base.store, observer: &scratchObserver{},
 		launchObserver: &fakeLaunchObserver{report: gatedrive.EpochLaunchReport{Accounted: true}}}
@@ -684,13 +639,13 @@ func TestCompletionUnreleasedOwnedSlotStillBlocks(t *testing.T) {
 	}
 }
 
-// TestCompletionParticipantDurableProof: an execution participant whose direct
+// TestIntegrationGateCompletionCompletionParticipantDurableProof: an execution participant whose direct
 // observation fails because its scratch is gone is accounted by an EXACT matching
 // durable record — the released slot recording that run, or the one persisted
 // PASSED/FAILED drive naming it. HALTED, a missing record, an ambiguous record, a
 // released slot recording a different run, an unreleased slot, and a live
 // observation all keep it blocking.
-func TestCompletionParticipantDurableProof(t *testing.T) {
+func TestIntegrationGateCompletionCompletionParticipantDurableProof(t *testing.T) {
 	const (
 		idA = "0446cccccccccccccccccccccccccc01"
 		idB = "0446cccccccccccccccccccccccccc02"
@@ -776,14 +731,14 @@ func TestCompletionParticipantDurableProof(t *testing.T) {
 	})
 }
 
-// TestCompleteThenScratchCleanupThenFinalizeAdmits (AC6): a successful run whose
+// TestIntegrationGateCompletionCompleteThenScratchCleanupThenFinalizeAdmits (AC6): a successful run whose
 // first closeout was held by an in-flight mutation has its optional scratch removed
 // before the closeout is repeated; the repeat still completes on the durable release
 // facts. Then — with a cancelled, never-superseded predecessor epoch bound to the
 // same path in a directory that sorts first, and unrelated damaged drive and epoch
 // history present — the finalize gate's admission on that worktree, composed exactly
 // as GateLaunch composes it, admits.
-func TestCompleteThenScratchCleanupThenFinalizeAdmits(t *testing.T) {
+func TestIntegrationGateCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t *testing.T) {
 	fx := newCompletionFixture(t)
 	if err := os.MkdirAll(fx.runDir, 0o755); err != nil {
 		t.Fatalf("create the run's scratch: %v", err)
@@ -844,13 +799,13 @@ func TestCompleteThenScratchCleanupThenFinalizeAdmits(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunSettlesUncertainPublication (change 0444 acceptance 3): the
+// TestIntegrationGateCompletionCompleteSuccessfulRunSettlesUncertainPublication (change 0444 acceptance 3): the
 // REAL attributed closeout path settles an uncertain publication proven by a later
 // completed identical retry, then completes the epoch — surfacing the settlement token
 // in the returned findings, and sending no stop, cancelling no native task, and never
 // driving the stop-capable launch seam (the same no-stop proof as
-// TestCompleteSuccessfulRunSendsNoStops).
-func TestCompleteSuccessfulRunSettlesUncertainPublication(t *testing.T) {
+// TestIntegrationGateCompletionCompleteSuccessfulRunSendsNoStops).
+func TestIntegrationGateCompletionCompleteSuccessfulRunSettlesUncertainPublication(t *testing.T) {
 	fx := newCompletionFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
@@ -895,11 +850,11 @@ func TestCompleteSuccessfulRunSettlesUncertainPublication(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunStillBlocksWithoutRetry (change 0444): an uncertain
+// TestIntegrationGateCompletionCompleteSuccessfulRunStillBlocksWithoutRetry (change 0444): an uncertain
 // publication with no completed identical retry keeps the closeout blocked
 // (completion-unaccounted) and the entry uncertain — change 0441's fail-closed
 // accounting is not weakened by settlement.
-func TestCompleteSuccessfulRunStillBlocksWithoutRetry(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunStillBlocksWithoutRetry(t *testing.T) {
 	fx := newCompletionFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
@@ -930,11 +885,11 @@ func TestCompleteSuccessfulRunStillBlocksWithoutRetry(t *testing.T) {
 	}
 }
 
-// TestCompleteSuccessfulRunBlocksOnUnverifiedRetry (change 0444 review blocker):
+// TestIntegrationGateCompletionCompleteSuccessfulRunBlocksOnUnverifiedRetry (change 0444 review blocker):
 // an identical retry that completed WITHOUT verifying its postcondition (contended,
 // refused, internally failed — journaled completed, verified false) is no evidence,
 // so the attributed closeout stays blocked and the original stays uncertain.
-func TestCompleteSuccessfulRunBlocksOnUnverifiedRetry(t *testing.T) {
+func TestIntegrationGateCompletionCompleteSuccessfulRunBlocksOnUnverifiedRetry(t *testing.T) {
 	fx := newCompletionFixture(t)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
@@ -963,12 +918,12 @@ func TestCompleteSuccessfulRunBlocksOnUnverifiedRetry(t *testing.T) {
 	}
 }
 
-// TestReadOnlyPathsNeverSettle (change 0444): the read-only verification predicates
+// TestIntegrationGateCompletionReadOnlyPathsNeverSettle (change 0444): the read-only verification predicates
 // report the pending truth of a settleable pair but write NOTHING — the durable
 // record is byte-identical after they run (RunVerify and unattributed verdicts consume
 // these same predicates). Settlement is a write, and only cancellation and the
 // attributed keyed closeout may write.
-func TestReadOnlyPathsNeverSettle(t *testing.T) {
+func TestIntegrationGateCompletionReadOnlyPathsNeverSettle(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
