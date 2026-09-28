@@ -1,13 +1,18 @@
 # Backlog
 
-**466 changes** — 🟢 2 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 318 done · 🗑️ 119 killed
+**466 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 11 proposed · ⚪ 12 deferred · ✅ 318 done · 🗑️ 119 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
 | [0466](active/0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) | Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive) | `medium` | `chore` | [spec](../superpowers/specs/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md) | `chore/bring-test-go-race-back-under-its-60s-budget-row-transaction` |  |
-| [0461](active/0461-allow-editing-an-existing-change-s-title.md) | Allow editing an existing change's title | `medium` | `feat` | [spec](../superpowers/specs/2026-09-28-allow-editing-an-existing-change-s-title-design.md) | `feat/allow-editing-an-existing-change-s-title` |  |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0461](active/0461-allow-editing-an-existing-change-s-title.md) | Allow editing an existing change's title | `medium` | `feat` | [#347](https://github.com/danielhanold/docket/pull/347) | awaiting merge |
 
 ## 🔴 Blocked (1)
 

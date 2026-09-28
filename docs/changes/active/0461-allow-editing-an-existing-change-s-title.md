@@ -2,7 +2,7 @@
 id: 461
 slug: 'allow-editing-an-existing-change-s-title'
 title: 'Allow editing an existing change''s title'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-27'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/allow-editing-an-existing-change-s-title'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/347'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-28T20:53:10Z'
