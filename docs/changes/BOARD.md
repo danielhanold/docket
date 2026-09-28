@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0467](active/0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) | Scoped gate starts inherit the run epoch; thread it through the build chain | `medium` | `fix` | [spec](../superpowers/specs/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md) | `fix/document-run-epoch-in-the-docket-build-task-gate-drive-start` | run halted — needs you |
+| [0467](active/0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) | Scoped gate starts inherit the run epoch; thread it through the build chain | `medium` | `fix` | [spec](../superpowers/specs/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md) | `fix/document-run-epoch-in-the-docket-build-task-gate-drive-start` |  |
 | [0466](active/0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) | Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive) | `medium` | `chore` | [spec](../superpowers/specs/2026-09-28-bring-test-go-race-back-under-its-60s-budget-row-transaction-design.md) | `chore/bring-test-go-race-back-under-its-60s-budget-row-transaction` |  |
 
 ## 🔴 Blocked (1)
