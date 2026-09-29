@@ -47,7 +47,7 @@ func classifyAs(disposition string) func(string, bool) (process.RecoveryEntry, e
 // plumbing newTestDriver uses.
 func newIncumbentDriver(t *testing.T, seam ProcessSeam) (*Driver, *Store) {
 	t.Helper()
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	d := NewDriver(store, clk, seam, stableGit())
 	d.slice = 4 * pollTick
@@ -332,12 +332,12 @@ func TestReconcileSafeRefusalRows(t *testing.T) {
 	type seeded struct {
 		token string
 		state admissionState
-		// reconcileEpoch, when set, reconciles directly with this requesting epoch
+		// reconcileRun, when set, reconciles directly with this requesting epoch
 		// instead of going through Admit (the epoch fence is only reachable when the
 		// slot is foreign to the caller, which the reserve fences before any
 		// incumbent refusal exists).
-		direct         bool
-		reconcileEpoch string
+		direct       bool
+		reconcileRun string
 	}
 	cases := []struct {
 		name    string
@@ -420,12 +420,12 @@ func TestReconcileSafeRefusalRows(t *testing.T) {
 			seam:    &incumbentSeam{},
 			finding: "incumbent-run-fenced",
 			seed: func(t *testing.T, d *Driver, store *Store, seam *incumbentSeam, req StartRequest) seeded {
-				req.RunEpochID = "E-owner"
+				req.RunID = "E-owner"
 				token := finishedDriveIncumbent(t, d, store, seam, req)
-				if got := mustSlot(t, store, req.Worktree).RunEpochID; got != "E-owner" {
+				if got := mustSlot(t, store, req.Worktree).RunID; got != "E-owner" {
 					t.Fatalf("seed slot epoch = %q, want E-owner", got)
 				}
-				return seeded{token: token, state: admissionExecuting, direct: true, reconcileEpoch: "E-other"}
+				return seeded{token: token, state: admissionExecuting, direct: true, reconcileRun: "E-other"}
 			},
 		},
 		{
@@ -455,7 +455,7 @@ func TestReconcileSafeRefusalRows(t *testing.T) {
 			stops := seam.stopN
 
 			if sd.direct {
-				settled, finding, err := store.reconcileFinishedIncumbent(req.Worktree, sd.reconcileEpoch, seam)
+				settled, finding, err := store.reconcileFinishedIncumbent(req.Worktree, sd.reconcileRun, seam)
 				if settled || err != nil {
 					t.Fatalf("reconcile settled=%v err=%v, want a clean refusal", settled, err)
 				}

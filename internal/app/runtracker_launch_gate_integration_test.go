@@ -13,51 +13,51 @@ import (
 )
 
 // These are the app-side epoch launch gate tests (change 0437 Task 5). The gate is
-// the production gatedrive.EpochLaunchGate the driver's reservation/launch paths run
+// the production gatedrive.RunLaunchGate the driver's reservation/launch paths run
 // their durable reservation body under: it locates the epoch by its public id
 // (unique match), holds that key's run.lock across a read-only liveness read, and
 // runs reserve only when the epoch is active AND bound to the worktree the start
 // names. It never writes the epoch record. Every refusal fails closed.
 
-// epochGateFixture mints a real gate-key directory with an ACTIVE epoch bound to a
+// runLaunchGateFixture mints a real gate-key directory with an ACTIVE epoch bound to a
 // canonicalizable worktree, and returns the pieces a gate test drives: repo (for
-// epochCAS / bindEpochWorktree), gitCommonDir (for epochLaunchGate + the rungate
+// runRecordCAS / bindRunWorktree), gitCommonDir (for runLaunchGate + the rungate
 // root), the gate key, the public epoch id, and the bound worktree path.
-func epochGateFixture(t *testing.T) (repo, common, key, epochID, worktree string) {
+func runLaunchGateFixture(t *testing.T) (repo, common, key, runID, worktree string) {
 	t.Helper()
-	repo = newGateRepo(t)
-	c, err := gateGitCommonDir(repo)
+	repo = newRunTrackerRepo(t)
+	c, err := runTrackerGitCommonDir(repo)
 	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
 	common = c
-	key = mintTestGateKey(t, repo)
-	rec, err := MintEpochRecord(repo, key, "437")
+	key = mintTestRunKey(t, repo)
+	rec, err := MintRunRecord(repo, key, "437")
 	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+		t.Fatalf("MintRunRecord: %v", err)
 	}
-	epochID = rec.EpochID
+	runID = rec.RunID
 	worktree = testsupport.TempDir(t)
-	if err := bindEpochWorktree(repo, key, worktree); err != nil {
-		t.Fatalf("bindEpochWorktree: %v", err)
+	if err := bindRunWorktree(repo, key, worktree); err != nil {
+		t.Fatalf("bindRunWorktree: %v", err)
 	}
-	return repo, common, key, epochID, worktree
+	return repo, common, key, runID, worktree
 }
 
-// rungateRootOf builds the run-epoch registry root the gate scans, the same shape
-// epochLaunchGate derives internally.
-func rungateRootOf(common string) string {
+// runTrackerRootOf builds the run-epoch registry root the gate scans, the same shape
+// runLaunchGate derives internally.
+func runTrackerRootOf(common string) string {
 	return filepath.Join(common, "docket", runTrackerDirName)
 }
 
-// epochLockHeld reports whether SOMEONE holds the per-key run.lock, by attempting
+// runLockHeld reports whether SOMEONE holds the per-key run.lock, by attempting
 // a non-blocking exclusive flock on a fresh open file description: EWOULDBLOCK means
 // the lock is held elsewhere (flock serializes across open descriptions, even within
 // one process). It is the deterministic oracle for "the gate holds the epoch lock
 // across reserve" — no timing sleep.
-func epochLockHeld(t *testing.T, rungateRoot, key string) bool {
+func runLockHeld(t *testing.T, runTrackerRoot, key string) bool {
 	t.Helper()
-	f, err := os.OpenFile(filepath.Join(rungateRoot, key, epochLockFileName), os.O_CREATE|os.O_RDWR, 0o600)
+	f, err := os.OpenFile(filepath.Join(runTrackerRoot, key, runLockFileName), os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		t.Fatalf("open epoch lock: %v", err)
 	}
@@ -73,14 +73,14 @@ func epochLockHeld(t *testing.T, rungateRoot, key string) bool {
 	return false
 }
 
-// TestIntegrationRunRecordEpochLaunchGateAdmitsActiveBoundEpoch proves the gate runs reserve exactly
+// TestIntegrationRunRecordRunLaunchGateAdmitsActiveBoundRun proves the gate runs reserve exactly
 // once, with a nil error, for an active epoch bound to the worktree the start names.
-func TestIntegrationRunRecordEpochLaunchGateAdmitsActiveBoundEpoch(t *testing.T) {
-	_, common, _, epochID, worktree := epochGateFixture(t)
-	gate := epochLaunchGate(common)
+func TestIntegrationRunRecordRunLaunchGateAdmitsActiveBoundRun(t *testing.T) {
+	_, common, _, runID, worktree := runLaunchGateFixture(t)
+	gate := runLaunchGate(common)
 
 	calls := 0
-	err := gate(epochID, worktree, func() error {
+	err := gate(runID, worktree, func() error {
 		calls++
 		return nil
 	})
@@ -92,106 +92,106 @@ func TestIntegrationRunRecordEpochLaunchGateAdmitsActiveBoundEpoch(t *testing.T)
 	}
 }
 
-// TestIntegrationRunRecordEpochLaunchGateRefusalMatrix proves every fail-closed refusal: reserve is
+// TestIntegrationRunRecordRunLaunchGateRefusalMatrix proves every fail-closed refusal: reserve is
 // NEVER called and the error carries the mapped fence token (or the typed
-// EpochError for a location fault).
-func TestIntegrationRunRecordEpochLaunchGateRefusalMatrix(t *testing.T) {
+// RunError for a location fault).
+func TestIntegrationRunRecordRunLaunchGateRefusalMatrix(t *testing.T) {
 	type wantKind int
 	const (
 		wantCancelled wantKind = iota
 		wantStale
-		wantEpochError
+		wantRunError
 	)
 
 	cases := []struct {
 		name string
-		// setup mutates a fresh active-bound fixture and returns the (epochID,
+		// setup mutates a fresh active-bound fixture and returns the (runID,
 		// worktree) the gate is called with.
-		setup func(t *testing.T, repo, common, key, epochID, worktree string) (callEpochID, callWorktree string)
+		setup func(t *testing.T, repo, common, key, runID, worktree string) (callRunID, callWorktree string)
 		want  wantKind
 	}{
 		{
 			name: "missing id",
-			setup: func(t *testing.T, repo, common, key, epochID, worktree string) (string, string) {
+			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
 				return "deadbeefdeadbeefdeadbeefdeadbeef", worktree
 			},
-			want: wantEpochError,
+			want: wantRunError,
 		},
 		{
 			name: "ambiguous id",
-			setup: func(t *testing.T, repo, common, key, epochID, worktree string) (string, string) {
+			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
 				// A second gate key whose epoch record carries the SAME public id.
-				key2 := mintTestGateKey(t, repo)
-				if _, err := MintEpochRecord(repo, key2, "437"); err != nil {
+				key2 := mintTestRunKey(t, repo)
+				if _, err := MintRunRecord(repo, key2, "437"); err != nil {
 					t.Fatalf("mint second epoch: %v", err)
 				}
-				if err := epochCAS(repo, key2, func(r *EpochRecord) error {
-					r.EpochID = epochID
+				if err := runRecordCAS(repo, key2, func(r *RunRecord) error {
+					r.RunID = runID
 					r.Worktree = worktree
-					r.State = EpochActive
+					r.State = RunActive
 					return nil
 				}); err != nil {
 					t.Fatalf("collide epoch id: %v", err)
 				}
-				return epochID, worktree
+				return runID, worktree
 			},
-			want: wantEpochError,
+			want: wantRunError,
 		},
 		{
 			name: "corrupt record",
-			setup: func(t *testing.T, repo, common, key, epochID, worktree string) (string, string) {
-				path := filepath.Join(rungateRootOf(common), key, epochRecordFileName)
-				bad := `{"generation":"g","record":{"schema_version":99,"state":"active","run_id":"` + epochID + `"}}`
+			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
+				path := filepath.Join(runTrackerRootOf(common), key, runRecordFileName)
+				bad := `{"generation":"g","record":{"schema_version":99,"state":"active","run_id":"` + runID + `"}}`
 				if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
 					t.Fatalf("corrupt record: %v", err)
 				}
-				return epochID, worktree
+				return runID, worktree
 			},
-			want: wantEpochError,
+			want: wantRunError,
 		},
 		{
 			name: "cancelling",
-			setup: func(t *testing.T, repo, common, key, epochID, worktree string) (string, string) {
-				fenceEpoch(t, repo, key, EpochCancelling)
-				return epochID, worktree
+			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
+				fenceRun(t, repo, key, RunCancelling)
+				return runID, worktree
 			},
 			want: wantCancelled,
 		},
 		{
 			name: "cancelled",
-			setup: func(t *testing.T, repo, common, key, epochID, worktree string) (string, string) {
-				fenceEpoch(t, repo, key, EpochCancelled)
-				return epochID, worktree
+			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
+				fenceRun(t, repo, key, RunCancelled)
+				return runID, worktree
 			},
 			want: wantCancelled,
 		},
 		{
 			name: "superseded",
-			setup: func(t *testing.T, repo, common, key, epochID, worktree string) (string, string) {
-				fenceEpoch(t, repo, key, EpochSuperseded)
-				return epochID, worktree
+			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
+				fenceRun(t, repo, key, RunSuperseded)
+				return runID, worktree
 			},
 			want: wantStale,
 		},
 		{
 			name: "bound to a different worktree",
-			setup: func(t *testing.T, repo, common, key, epochID, worktree string) (string, string) {
+			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
 				other := testsupport.TempDir(t)
-				return epochID, other
+				return runID, other
 			},
 			want: wantStale,
 		},
 		{
 			name: "unbound worktree",
-			setup: func(t *testing.T, repo, common, key, epochID, worktree string) (string, string) {
+			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
 				// Clear the epoch's bound Worktree: an unbound epoch owns no worktree.
-				if err := epochCAS(repo, key, func(r *EpochRecord) error {
+				if err := runRecordCAS(repo, key, func(r *RunRecord) error {
 					r.Worktree = ""
 					return nil
 				}); err != nil {
 					t.Fatalf("clear worktree binding: %v", err)
 				}
-				return epochID, worktree
+				return runID, worktree
 			},
 			want: wantStale,
 		},
@@ -199,12 +199,12 @@ func TestIntegrationRunRecordEpochLaunchGateRefusalMatrix(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			repo, common, key, epochID, worktree := epochGateFixture(t)
-			callEpochID, callWorktree := tc.setup(t, repo, common, key, epochID, worktree)
-			gate := epochLaunchGate(common)
+			repo, common, key, runID, worktree := runLaunchGateFixture(t)
+			callRunID, callWorktree := tc.setup(t, repo, common, key, runID, worktree)
+			gate := runLaunchGate(common)
 
 			called := false
-			err := gate(callEpochID, callWorktree, func() error {
+			err := gate(callRunID, callWorktree, func() error {
 				called = true
 				return nil
 			})
@@ -220,31 +220,31 @@ func TestIntegrationRunRecordEpochLaunchGateRefusalMatrix(t *testing.T) {
 					t.Fatalf("want ErrRunCancelled, got %v", err)
 				}
 			case wantStale:
-				if !errors.Is(err, ErrStaleRunEpoch) {
-					t.Fatalf("want ErrStaleRunEpoch, got %v", err)
+				if !errors.Is(err, ErrStaleRunID) {
+					t.Fatalf("want ErrStaleRunID, got %v", err)
 				}
-			case wantEpochError:
-				if _, ok := AsEpochError(err); !ok {
-					t.Fatalf("want a typed EpochError, got %v", err)
+			case wantRunError:
+				if _, ok := AsRunError(err); !ok {
+					t.Fatalf("want a typed RunError, got %v", err)
 				}
 			}
 		})
 	}
 }
 
-// TestIntegrationRunRecordEpochLaunchGateRefusesCompletingAndCompleted: the launch gate refuses a start
+// TestIntegrationRunRecordRunLaunchGateRefusesCompletingAndCompleted: the launch gate refuses a start
 // (or a delayed-ticket relaunch) on a completing or completed epoch (change 0441) with
 // the distinct ErrRunCompleted token — its refusal is what later settles a pre-fence
 // never-launched ticket terminal — and never runs reserve.
-func TestIntegrationRunRecordEpochLaunchGateRefusesCompletingAndCompleted(t *testing.T) {
-	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
+func TestIntegrationRunRecordRunLaunchGateRefusesCompletingAndCompleted(t *testing.T) {
+	for _, s := range []runState{RunCompleting, RunCompleted} {
 		t.Run(string(s), func(t *testing.T) {
-			repo, common, key, epochID, worktree := epochGateFixture(t)
-			fenceEpoch(t, repo, key, s)
-			gate := epochLaunchGate(common)
+			repo, common, key, runID, worktree := runLaunchGateFixture(t)
+			fenceRun(t, repo, key, s)
+			gate := runLaunchGate(common)
 
 			called := false
-			err := gate(epochID, worktree, func() error {
+			err := gate(runID, worktree, func() error {
 				called = true
 				return nil
 			})
@@ -258,16 +258,16 @@ func TestIntegrationRunRecordEpochLaunchGateRefusesCompletingAndCompleted(t *tes
 	}
 }
 
-// TestIntegrationRunRecordEpochRevokedResolverRevokesCompletingAndCompleted: the takeover revocation
+// TestIntegrationRunRecordRunRevokedResolverRevokesCompletingAndCompleted: the takeover revocation
 // resolver reports revoked for a completing or completed epoch (change 0441), mirroring
 // the cancelled/superseded cases — a takeover of a completing/completed run refuses,
 // and explicit references to a completed epoch remain revoked.
-func TestIntegrationRunRecordEpochRevokedResolverRevokesCompletingAndCompleted(t *testing.T) {
-	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
+func TestIntegrationRunRecordRunRevokedResolverRevokesCompletingAndCompleted(t *testing.T) {
+	for _, s := range []runState{RunCompleting, RunCompleted} {
 		t.Run(string(s), func(t *testing.T) {
-			repo, common, key, epochID, _ := epochGateFixture(t)
-			fenceEpoch(t, repo, key, s)
-			revoked, err := epochRevokedResolver(common)(epochID)
+			repo, common, key, runID, _ := runLaunchGateFixture(t)
+			fenceRun(t, repo, key, s)
+			revoked, err := runRevokedResolver(common)(runID)
 			if err != nil {
 				t.Fatalf("resolver err: %v", err)
 			}
@@ -278,11 +278,11 @@ func TestIntegrationRunRecordEpochRevokedResolverRevokesCompletingAndCompleted(t
 	}
 }
 
-// fenceEpoch flips an epoch to the given fenced/terminal state through the CAS, the
+// fenceRun flips an epoch to the given fenced/terminal state through the CAS, the
 // same durable transition run.cancel/resume drive it into.
-func fenceEpoch(t *testing.T, repo, key string, state epochState) {
+func fenceRun(t *testing.T, repo, key string, state runState) {
 	t.Helper()
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
+	if err := runRecordCAS(repo, key, func(r *RunRecord) error {
 		r.State = state
 		return nil
 	}); err != nil {
@@ -290,29 +290,29 @@ func fenceEpoch(t *testing.T, repo, key string, state epochState) {
 	}
 }
 
-// TestIntegrationRunRecordEpochLaunchGatePerformsNoWrite proves the gate never mutates the epoch record:
+// TestIntegrationRunRecordRunLaunchGatePerformsNoWrite proves the gate never mutates the epoch record:
 // its bytes and physical generation are byte-identical before and after both an
 // admitted call and a refused call (spec AC6).
-func TestIntegrationRunRecordEpochLaunchGatePerformsNoWrite(t *testing.T) {
-	repo, common, key, epochID, worktree := epochGateFixture(t)
-	gate := epochLaunchGate(common)
-	path := filepath.Join(rungateRootOf(common), key, epochRecordFileName)
+func TestIntegrationRunRecordRunLaunchGatePerformsNoWrite(t *testing.T) {
+	repo, common, key, runID, worktree := runLaunchGateFixture(t)
+	gate := runLaunchGate(common)
+	path := filepath.Join(runTrackerRootOf(common), key, runRecordFileName)
 
 	snapshot := func() ([]byte, string) {
 		buf, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read epoch record: %v", err)
 		}
-		_, gen, err := readStoredEpoch(filepath.Dir(path), "snapshot")
+		_, gen, err := readStoredRun(filepath.Dir(path), "snapshot")
 		if err != nil {
-			t.Fatalf("readStoredEpoch: %v", err)
+			t.Fatalf("readStoredRun: %v", err)
 		}
 		return buf, gen
 	}
 
 	// Admitted call.
 	before, genBefore := snapshot()
-	if err := gate(epochID, worktree, func() error { return nil }); err != nil {
+	if err := gate(runID, worktree, func() error { return nil }); err != nil {
 		t.Fatalf("admitted gate: %v", err)
 	}
 	after, genAfter := snapshot()
@@ -321,9 +321,9 @@ func TestIntegrationRunRecordEpochLaunchGatePerformsNoWrite(t *testing.T) {
 	}
 
 	// Refused call (fence first).
-	fenceEpoch(t, repo, key, EpochCancelling)
+	fenceRun(t, repo, key, RunCancelling)
 	before, genBefore = snapshot()
-	if err := gate(epochID, worktree, func() error { return nil }); !errors.Is(err, ErrRunCancelled) {
+	if err := gate(runID, worktree, func() error { return nil }); !errors.Is(err, ErrRunCancelled) {
 		t.Fatalf("refused gate must be ErrRunCancelled, got %v", err)
 	}
 	after, genAfter = snapshot()
@@ -332,25 +332,25 @@ func TestIntegrationRunRecordEpochLaunchGatePerformsNoWrite(t *testing.T) {
 	}
 }
 
-// TestRaceIntegrationAppConcurrencyEpochLaunchGateSerializesWithFence proves the gate holds the epoch lock across
+// TestRaceIntegrationAppConcurrencyRunLaunchGateSerializesWithFence proves the gate holds the epoch lock across
 // reserve so a concurrent active→cancelling fence serializes against it, and that a
 // fence that lands FIRST makes the gate refuse. Ordering is proven by channels and a
 // direct non-blocking lock probe — never a timing sleep.
 // Race shard (change 0465): a launch-gate reserve and an epoch fence CAS run in two goroutines against one epoch lock.
-func TestRaceIntegrationAppConcurrencyEpochLaunchGateSerializesWithFence(t *testing.T) {
-	repo, common, key, epochID, worktree := epochGateFixture(t)
-	rungateRoot := rungateRootOf(common)
-	gate := epochLaunchGate(common)
+func TestRaceIntegrationAppConcurrencyRunLaunchGateSerializesWithFence(t *testing.T) {
+	repo, common, key, runID, worktree := runLaunchGateFixture(t)
+	runTrackerRoot := runTrackerRootOf(common)
+	gate := runLaunchGate(common)
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
-	gateErr := make(chan error, 1)
+	runTrackerErr := make(chan error, 1)
 	lockHeld := make(chan bool, 1)
 
 	go func() {
-		gateErr <- gate(epochID, worktree, func() error {
+		runTrackerErr <- gate(runID, worktree, func() error {
 			// The gate must hold the epoch lock while reserve runs.
-			lockHeld <- epochLockHeld(t, rungateRoot, key)
+			lockHeld <- runLockHeld(t, runTrackerRoot, key)
 			close(entered)
 			<-release
 			return nil
@@ -368,8 +368,8 @@ func TestRaceIntegrationAppConcurrencyEpochLaunchGateSerializesWithFence(t *test
 	casStarted := make(chan struct{})
 	go func() {
 		close(casStarted)
-		casErr <- epochCAS(repo, key, func(r *EpochRecord) error {
-			r.State = EpochCancelling
+		casErr <- runRecordCAS(repo, key, func(r *RunRecord) error {
+			r.State = RunCancelling
 			return nil
 		})
 	}()
@@ -381,7 +381,7 @@ func TestRaceIntegrationAppConcurrencyEpochLaunchGateSerializesWithFence(t *test
 	}
 
 	close(release)
-	if err := <-gateErr; err != nil {
+	if err := <-runTrackerErr; err != nil {
 		t.Fatalf("the gate over an active bound epoch must admit: %v", err)
 	}
 	if err := <-casErr; err != nil {
@@ -389,7 +389,7 @@ func TestRaceIntegrationAppConcurrencyEpochLaunchGateSerializesWithFence(t *test
 	}
 
 	// Reverse ordering: the fence has now landed, so a fresh gate call refuses.
-	if err := gate(epochID, worktree, func() error {
+	if err := gate(runID, worktree, func() error {
 		t.Fatalf("reserve must not run after the fence landed")
 		return nil
 	}); !errors.Is(err, ErrRunCancelled) {
@@ -397,40 +397,40 @@ func TestRaceIntegrationAppConcurrencyEpochLaunchGateSerializesWithFence(t *test
 	}
 }
 
-// TestIntegrationRunRecordFindEpochDirByID proves the unique-match locator: a unique match returns the
-// directory and record, zero matches is ErrEpochNotFound, and two matching dirs are
-// ErrEpochAmbiguous.
-func TestIntegrationRunRecordFindEpochDirByID(t *testing.T) {
-	repo, common, key, epochID, worktree := epochGateFixture(t)
-	rungateRoot := rungateRootOf(common)
+// TestIntegrationRunRecordFindRunDirByID proves the unique-match locator: a unique match returns the
+// directory and record, zero matches is ErrRunNotFound, and two matching dirs are
+// ErrRunAmbiguous.
+func TestIntegrationRunRecordFindRunDirByID(t *testing.T) {
+	repo, common, key, runID, worktree := runLaunchGateFixture(t)
+	runTrackerRoot := runTrackerRootOf(common)
 
-	dir, rec, err := findEpochDirByID(rungateRoot, epochID)
+	dir, rec, err := findRunDirByID(runTrackerRoot, runID)
 	if err != nil {
 		t.Fatalf("unique match: %v", err)
 	}
-	if dir != filepath.Join(rungateRoot, key) {
-		t.Fatalf("dir = %q, want %q", dir, filepath.Join(rungateRoot, key))
+	if dir != filepath.Join(runTrackerRoot, key) {
+		t.Fatalf("dir = %q, want %q", dir, filepath.Join(runTrackerRoot, key))
 	}
-	if rec.EpochID != epochID {
-		t.Fatalf("record epoch id = %q, want %q", rec.EpochID, epochID)
-	}
-
-	if _, _, err := findEpochDirByID(rungateRoot, "nomatchnomatchnomatchnomatch1234"); !isEpochKind(err, ErrEpochNotFound) {
-		t.Fatalf("zero matches must be ErrEpochNotFound, got %v", err)
+	if rec.RunID != runID {
+		t.Fatalf("record epoch id = %q, want %q", rec.RunID, runID)
 	}
 
-	key2 := mintTestGateKey(t, repo)
-	if _, err := MintEpochRecord(repo, key2, "437"); err != nil {
+	if _, _, err := findRunDirByID(runTrackerRoot, "nomatchnomatchnomatchnomatch1234"); !isRunKind(err, ErrRunNotFound) {
+		t.Fatalf("zero matches must be ErrRunNotFound, got %v", err)
+	}
+
+	key2 := mintTestRunKey(t, repo)
+	if _, err := MintRunRecord(repo, key2, "437"); err != nil {
 		t.Fatalf("mint second epoch: %v", err)
 	}
-	if err := epochCAS(repo, key2, func(r *EpochRecord) error {
-		r.EpochID = epochID
+	if err := runRecordCAS(repo, key2, func(r *RunRecord) error {
+		r.RunID = runID
 		r.Worktree = worktree
 		return nil
 	}); err != nil {
 		t.Fatalf("collide epoch id: %v", err)
 	}
-	if _, _, err := findEpochDirByID(rungateRoot, epochID); !isEpochKind(err, ErrEpochAmbiguous) {
-		t.Fatalf("two matches must be ErrEpochAmbiguous, got %v", err)
+	if _, _, err := findRunDirByID(runTrackerRoot, runID); !isRunKind(err, ErrRunAmbiguous) {
+		t.Fatalf("two matches must be ErrRunAmbiguous, got %v", err)
 	}
 }

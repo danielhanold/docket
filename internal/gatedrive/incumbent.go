@@ -78,7 +78,7 @@ const (
 	findingIncumbentSettled    = "incumbent-settled"
 	findingIncumbentAdmissible = "incumbent-admissible"
 	findingSlotUnreadable      = "incumbent-slot-unreadable"
-	findingEpochFenced         = "incumbent-run-fenced"
+	findingRunFenced           = "incumbent-run-fenced"
 	findingKindUnknown         = "incumbent-kind-unknown"
 	findingReservationPending  = "incumbent-reservation-pending"
 	findingRunUnproven         = "incumbent-run-unproven"
@@ -96,26 +96,26 @@ const (
 // ReconcileFinishedIncumbent is the exported entry for callers outside this package
 // that hold a store and a process service but no Driver — the app layer's raw
 // launch path. See reconcileFinishedIncumbent.
-func (s *Store) ReconcileFinishedIncumbent(worktreeRoot, runEpochID string, proc incumbentProofSeam) (bool, string, error) {
-	return s.reconcileFinishedIncumbent(worktreeRoot, runEpochID, proc)
+func (s *Store) ReconcileFinishedIncumbent(worktreeRoot, runID string, proc incumbentProofSeam) (bool, string, error) {
+	return s.reconcileFinishedIncumbent(worktreeRoot, runID, proc)
 }
 
 // ReconcileFinishedIncumbent settles a proven-finished incumbent on worktreeRoot's
 // slot with this driver's own process seam (reconcileFinishedIncumbent). It is the
 // seam the application layer's advisory pre-admission check consults before a busy
 // refusal becomes final.
-func (d *Driver) ReconcileFinishedIncumbent(worktreeRoot, runEpochID string) (bool, string, error) {
-	return d.reconcileFinishedIncumbent(worktreeRoot, runEpochID)
+func (d *Driver) ReconcileFinishedIncumbent(worktreeRoot, runID string) (bool, string, error) {
+	return d.reconcileFinishedIncumbent(worktreeRoot, runID)
 }
 
 // reconcileFinishedIncumbent is the driver's form of the store reconciliation,
 // supplying the driver's ProcessSeam as the proof seam.
-func (d *Driver) reconcileFinishedIncumbent(worktreeRoot, runEpochID string) (bool, string, error) {
+func (d *Driver) reconcileFinishedIncumbent(worktreeRoot, runID string) (bool, string, error) {
 	var proc incumbentProofSeam
 	if d.proc != nil {
 		proc = d.proc
 	}
-	return d.store.reconcileFinishedIncumbent(worktreeRoot, runEpochID, proc)
+	return d.store.reconcileFinishedIncumbent(worktreeRoot, runID, proc)
 }
 
 // reconcileFinishedIncumbent inspects worktreeRoot's exact incumbent and, only on
@@ -123,11 +123,11 @@ func (d *Driver) reconcileFinishedIncumbent(worktreeRoot, runEpochID string) (bo
 // settled is true when the release write succeeded or the slot became admissible
 // concurrently — the caller then retries its reservation ONCE (the reserve remains
 // the admission authority). finding is a bounded token naming the outcome. err is
-// non-nil only for a failed release write (settled is then false). runEpochID is the
+// non-nil only for a failed release write (settled is then false). runID is the
 // requesting admission's epoch: a slot another epoch owns is never touched, because
 // the reserve's run-epoch fence refuses that admission regardless of the
 // incumbent's state.
-func (s *Store) reconcileFinishedIncumbent(worktreeRoot, runEpochID string, proc incumbentProofSeam) (settled bool, finding string, err error) {
+func (s *Store) reconcileFinishedIncumbent(worktreeRoot, runID string, proc incumbentProofSeam) (settled bool, finding string, err error) {
 	for pass := 0; pass < maxIncumbentEvaluations; pass++ {
 		slot, _, lerr := s.LoadWorktreeExecution(worktreeRoot)
 		if lerr != nil {
@@ -139,8 +139,8 @@ func (s *Store) reconcileFinishedIncumbent(worktreeRoot, runEpochID string, proc
 		if slot.State == admissionReleased {
 			return true, findingIncumbentAdmissible, nil
 		}
-		if slot.RunEpochID != "" && slot.RunEpochID != runEpochID {
-			return false, findingEpochFenced, nil
+		if slot.RunID != "" && slot.RunID != runID {
+			return false, findingRunFenced, nil
 		}
 		proven, pfinding, release := s.proveIncumbentFinished(slot, proc)
 		if !proven {
@@ -369,7 +369,7 @@ const opReleaseProvenIncumbent = "release-proven-incumbent"
 // against. Unlike ReleaseWorktreeExecution (whose owner holds the token and needs
 // no state check), this caller is not the owner: a state change under the same
 // token means the incumbent moved, so its proof is stale. The released record keeps
-// every other field, RunEpochID included — settling a finished execution never
+// every other field, RunID included — settling a finished execution never
 // detaches a run epoch's between-drive ownership.
 func (s *Store) releaseProvenIncumbent(worktreeRoot, expectToken string, expectState admissionState) error {
 	return s.admissionCAS(worktreeRoot, func(rec *admissionRecord) error {

@@ -137,10 +137,10 @@ type Store struct {
 	suiteBudgetRoot string
 	admissionRoot   string
 
-	// epochSettled is the optional app-injected run-epoch settlement read the
+	// runSettled is the optional app-injected run-epoch settlement read the
 	// admission fence consults for a RELEASED slot still naming another epoch
-	// (SetEpochSettledResolver, change 0446). Set once at composition.
-	epochSettled EpochSettledFunc
+	// (SetRunSettledResolver, change 0446). Set once at composition.
+	runSettled RunSettledFunc
 }
 
 // OpenStore returns a Store rooted at <gitCommonDir>/docket/gate-drives/v2 with

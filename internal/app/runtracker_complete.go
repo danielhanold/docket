@@ -2,7 +2,7 @@
 // is the counterpart to run.cancel's runCancel: where cancellation is the
 // coordinator's authoritative Stop, this is the authoritative "the run finished
 // successfully — release its epoch ownership so a standalone finalize gate can admit
-// on the same worktree". It is driven ONLY from the attributed, keyed RunGateVerdict
+// on the same worktree". It is driven ONLY from the attributed, keyed RunVerdict
 // path on a verified run-complete (Task 8 wires the caller); RunVerify stays
 // read-only and unattributed observe verdicts never reach it.
 //
@@ -12,7 +12,7 @@
 // 0444) — an uncertain→completed flip of publication entries a later verified
 // identical retry proves, derived from the durable journal alone with no Git or
 // GitHub call. It reuses cancellation's accounting SHAPES
-// through the two observation seams (processObserver / epochLaunchObserver) and the
+// through the two observation seams (processObserver / runLaunchObserver) and the
 // shared classifySlotOwnership / retireWorktreeSlotOwnership helpers, but every
 // per-participant, per-process, per-slot, and per-launch decision is a pure
 // observation. The stop-capable cancellation seams (stopper / native / launches) are
@@ -28,11 +28,11 @@
 // NEVER RELABEL. completing/completed are new states; a cancelling/cancelled/
 // superseded/mismatched run is never relabelled successful (run-cancelled /
 // stale-run-id), and an explicit human cancellation may win from completing —
-// completion then loses without reporting success (CompleteEpoch's completing→
+// completion then loses without reporting success (CompleteRun's completing→
 // completed CAS refuses once a cancel fence lands).
 //
-// LOCK ORDERING. The epoch writes (FenceEpochCompleting, settleUncertainPublications,
-// CompleteEpoch) each run under their own epochCAS; ALL proof — participant
+// LOCK ORDERING. The epoch writes (FenceRunCompleting, settleUncertainPublications,
+// CompleteRun) each run under their own runRecordCAS; ALL proof — participant
 // observation, process observation, the worktree slot load, and the launch walk —
 // runs OUTSIDE any epoch or admission lock, never holding a lock across a process
 // observation or a per-drive claim probe.
@@ -46,31 +46,31 @@ import (
 
 // processObserver observes whether one execution's OS process is provably TERMINAL,
 // by its run directory — the observation-only counterpart of cancelStopper (which
-// stops). Production appGateObserver observes through the app gate seam
+// stops). Production appRunTrackerObserver observes through the app gate seam
 // (process.Observe) and reuses the same proven-terminal rule the stop path uses
 // (rawTeardownProven); a nil observer proves nothing (fail closed).
 type processObserver interface {
 	observeProcessTerminal(runDir string) (bool, error)
 }
 
-// epochLaunchObserver accounts, for a completing epoch, the pending and replacement
+// runLaunchObserver accounts, for a completing epoch, the pending and replacement
 // LAUNCH obligations the durable drive records name — the observation-only
-// counterpart of epochLaunchReconciler (which stops identified runs and settles
+// counterpart of runLaunchReconciler (which stops identified runs and settles
 // never-launched reservations terminal). Production appLaunchObserver wraps
-// gatedrive.Driver.ObserveEpochLaunches; a nil observer proves nothing (fail closed).
-type epochLaunchObserver interface {
-	observe(worktree, epochID string) (gatedrive.EpochLaunchReport, error)
+// gatedrive.Driver.ObserveRunLaunches; a nil observer proves nothing (fail closed).
+type runLaunchObserver interface {
+	observe(worktree, runID string) (gatedrive.RunLaunchReport, error)
 }
 
-// appGateObserver is the production processObserver: it observes a run through the
+// appRunTrackerObserver is the production processObserver: it observes a run through the
 // app gate seam (process.Observe) and reports PROVEN teardown using rawTeardownProven
-// — the exact rule appGateStopper uses to prove a stop settled — without ever
+// — the exact rule appRunTrackerStopper uses to prove a stop settled — without ever
 // stopping the process. It resolves the process service per call, exactly as
-// appGateStopper does. An unresolvable service or an observation error proves nothing
+// appRunTrackerStopper does. An unresolvable service or an observation error proves nothing
 // (fail closed): the caller turns it into a bounded finding and blocks.
-type appGateObserver struct{}
+type appRunTrackerObserver struct{}
 
-func (appGateObserver) observeProcessTerminal(runDir string) (bool, error) {
+func (appRunTrackerObserver) observeProcessTerminal(runDir string) (bool, error) {
 	svc, _, reason := gateService()
 	if svc == nil {
 		return false, fmt.Errorf("gate service unavailable: %s", reason)
@@ -82,9 +82,9 @@ func (appGateObserver) observeProcessTerminal(runDir string) (bool, error) {
 	return rawTeardownProven(obs.State), nil
 }
 
-// appLaunchObserver is the production epochLaunchObserver: it composes a gatedrive
+// appLaunchObserver is the production runLaunchObserver: it composes a gatedrive
 // driver over the completion store and the app gate seam's process service, then
-// observes one epoch's launch obligations through ObserveEpochLaunches (observation
+// observes one epoch's launch obligations through ObserveRunLaunches (observation
 // only — it stops nothing and settles nothing). It resolves the process service per
 // call, exactly as appLaunchReconciler.reconcile does. A nil store or an unresolvable
 // process service proves nothing (fail closed).
@@ -92,15 +92,15 @@ type appLaunchObserver struct {
 	store *gatedrive.Store
 }
 
-func (o appLaunchObserver) observe(worktree, epochID string) (gatedrive.EpochLaunchReport, error) {
+func (o appLaunchObserver) observe(worktree, runID string) (gatedrive.RunLaunchReport, error) {
 	if o.store == nil {
-		return gatedrive.EpochLaunchReport{}, fmt.Errorf("gate store unavailable")
+		return gatedrive.RunLaunchReport{}, fmt.Errorf("gate store unavailable")
 	}
 	svc, _, reason := gateService()
 	if svc == nil {
-		return gatedrive.EpochLaunchReport{}, fmt.Errorf("gate service unavailable: %s", reason)
+		return gatedrive.RunLaunchReport{}, fmt.Errorf("gate service unavailable: %s", reason)
 	}
-	return gatedrive.NewSystemDriver(o.store, svc).ObserveEpochLaunches(worktree, epochID)
+	return gatedrive.NewSystemDriver(o.store, svc).ObserveRunLaunches(worktree, runID)
 }
 
 // completeSuccessfulRun drives the whole successful-run ownership closeout over the
@@ -113,19 +113,19 @@ func (o appLaunchObserver) observe(worktree, epochID string) (gatedrive.EpochLau
 // has already resolved the confirmed claim binding and the run-complete verdict; this
 // function owns only the ownership retirement. See the file header for the
 // observation-only, fail-closed, never-relabel, and lock-ordering contracts.
-func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool, reason string, findings []string) {
+func completeSuccessfulRun(seams cancelSeams, repoDir, runKey string) (ok bool, reason string, findings []string) {
 	// (1) Durable success fence: CAS active→completing. The observed state under the
 	// lock decides a rejection's bounded reason — a cancelling/cancelled run is never
 	// relabelled successful, a superseded run is a stale epoch, and a store fault is
 	// unreadable. An already-completed epoch is an idempotent completed-receipt replay
 	// (safe after scratch cleanup): success with no further work.
-	observed, ferr := FenceEpochCompleting(repoDir, gateKey, "")
+	observed, ferr := FenceRunCompleting(repoDir, runKey, "")
 	if ferr != nil {
-		if ee, ok := AsEpochError(ferr); ok && ee.Kind == ErrEpochNotActive {
+		if ee, ok := AsRunError(ferr); ok && ee.Kind == ErrRunNotActive {
 			switch observed {
-			case EpochCancelling, EpochCancelled:
+			case RunCancelling, RunCancelled:
 				return false, "run-cancelled", nil
-			case EpochSuperseded:
+			case RunSuperseded:
 				return false, "stale-run-id", nil
 			default:
 				return false, "run-record-unreadable", nil // an unknown/garbage state: fail closed
@@ -133,7 +133,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 		}
 		return false, "run-record-unreadable", nil // IO/corrupt/not-found/mismatch: fail closed
 	}
-	if observed == EpochCompleted {
+	if observed == RunCompleted {
 		return true, "", nil // idempotent completed-receipt replay
 	}
 
@@ -147,11 +147,11 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 	// read and the step (4) re-enumeration read see the settled journal. A failed
 	// settlement is a bounded finding; the entry stays uncertain and the
 	// accounting below blocks fail-closed as before.
-	settledTokens, sfindings := settleUncertainPublications(repoDir, gateKey)
+	settledTokens, sfindings := settleUncertainPublications(repoDir, runKey)
 	findings = appendFindings(settledTokens, sfindings)
 
 	// (2) Reload the fenced record. All remaining proof runs OUTSIDE the epoch lock.
-	ep, _, lerr := LoadEpochRecord(repoDir, gateKey)
+	ep, _, lerr := LoadRunRecord(repoDir, runKey)
 	if lerr != nil {
 		return false, "run-record-unreadable", findings
 	}
@@ -168,14 +168,14 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 	// appended a participant or a mutation between the fence and step (3)'s read (the
 	// completing fence rejects only NEW registration). The reload also catches a
 	// cancellation that won meanwhile — a state no longer completing loses to it.
-	reEp, _, rlerr := LoadEpochRecord(repoDir, gateKey)
+	reEp, _, rlerr := LoadRunRecord(repoDir, runKey)
 	if rlerr != nil {
 		return false, "run-record-unreadable", findings
 	}
 	switch reEp.State {
-	case EpochCompleting:
+	case RunCompleting:
 		// still ours to close out
-	case EpochCompleted:
+	case RunCompleted:
 		return true, "", findings // a concurrent replay finished the closeout
 	default:
 		return false, "run-cancelled", findings // a cancellation won from completing
@@ -217,10 +217,10 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 	// (7) Persist the terminal transition: CAS completing→completed. A failure because
 	// a cancellation won is run-cancelled (completion loses without reporting success);
 	// any other persistence failure is completion-unpersisted (fail closed, reportable).
-	if cerr := CompleteEpoch(repoDir, gateKey); cerr != nil {
-		if cur, _, e := LoadEpochRecord(repoDir, gateKey); e == nil {
+	if cerr := CompleteRun(repoDir, runKey); cerr != nil {
+		if cur, _, e := LoadRunRecord(repoDir, runKey); e == nil {
 			switch cur.State {
-			case EpochCancelling, EpochCancelled, EpochSuperseded:
+			case RunCancelling, RunCancelled, RunSuperseded:
 				return false, "run-cancelled", findings
 			}
 		}
@@ -234,7 +234,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 // the launch obligations, and the mutation journal. It returns whether the run is
 // blocked (any obligation unproven) and the accumulated bounded findings. It reads
 // the epoch snapshot in memory and probes every process/slot/launch OUTSIDE any lock.
-func accountCompletionObligations(seams cancelSeams, ep EpochRecord) (bool, []string) {
+func accountCompletionObligations(seams cancelSeams, ep RunRecord) (bool, []string) {
 	blocked := false
 	var findings []string
 
@@ -258,7 +258,7 @@ func accountCompletionObligations(seams cancelSeams, ep EpochRecord) (bool, []st
 // observation fails, carry an exact durable execution proof
 // (executionParticipantProof). Absent evidence is UNPROVEN and blocks
 // (participant-unobserved / process-*).
-func accountCompletionParticipants(seams cancelSeams, ep EpochRecord) (bool, []string) {
+func accountCompletionParticipants(seams cancelSeams, ep RunRecord) (bool, []string) {
 	blocked := false
 	var findings []string
 	for _, p := range ep.Participants {
@@ -289,7 +289,7 @@ func accountCompletionParticipants(seams cancelSeams, ep EpochRecord) (bool, []s
 // (durableExecutionProof). Nothing is synthesized from the missing files: with no
 // such record the participant stays process-unobserved and blocks. A nil observer is
 // not missing evidence and still blocks (process-observer-unavailable).
-func executionParticipantProof(seams cancelSeams, ep EpochRecord, handle string) (bool, string) {
+func executionParticipantProof(seams cancelSeams, ep RunRecord, handle string) (bool, string) {
 	if seams.observer == nil {
 		return false, "process-observer-unavailable"
 	}
@@ -316,14 +316,14 @@ func executionParticipantProof(seams cancelSeams, ep EpochRecord, handle string)
 //     FAILED outcome — the supervisor-committed completion evidence. HALTED is never
 //     accepted (spec §4: it is a fail-closed label, not proof of teardown), nor is a
 //     nonterminal, missing, unreadable, or ambiguous drive.
-func durableExecutionProof(seams cancelSeams, ep EpochRecord, handle string) bool {
+func durableExecutionProof(seams cancelSeams, ep RunRecord, handle string) bool {
 	if handle == "" || seams.store == nil {
 		return false
 	}
 	if ep.Worktree != "" {
 		if slot, _, err := seams.store.LoadWorktreeExecution(ep.Worktree); err == nil &&
 			string(slot.State) == "released" && slot.RawRunDir == handle {
-			switch classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) {
+			switch classifySlotOwnership(slot.RunID, slot.RawRunDir, ep) {
 			case slotOwned, slotLinkedLegacy:
 				return true
 			}
@@ -335,7 +335,7 @@ func durableExecutionProof(seams cancelSeams, ep EpochRecord, handle string) boo
 
 // accountCompletionMutations blocks on any admitted-not-completed mutation
 // (mutation-pending:<op>), mirroring cancellation's mutation reconciliation.
-func accountCompletionMutations(ep EpochRecord) (bool, []string) {
+func accountCompletionMutations(ep RunRecord) (bool, []string) {
 	blocked := false
 	var findings []string
 	for _, m := range ep.AdmittedMutations {
@@ -352,11 +352,11 @@ func accountCompletionMutations(ep EpochRecord) (bool, []string) {
 // launch-observer-unavailable); an observation error blocks (launch-observe-failed);
 // an unaccounted report blocks and surfaces its findings. An accounted report's
 // informational findings are surfaced without blocking.
-func accountCompletionLaunches(seams cancelSeams, ep EpochRecord) (bool, []string) {
+func accountCompletionLaunches(seams cancelSeams, ep RunRecord) (bool, []string) {
 	if seams.launchObserver == nil {
 		return true, []string{"launch-observer-unavailable"}
 	}
-	report, err := seams.launchObserver.observe(ep.Worktree, ep.EpochID)
+	report, err := seams.launchObserver.observe(ep.Worktree, ep.RunID)
 	if err != nil {
 		return true, []string{"launch-observe-failed"}
 	}
@@ -384,7 +384,7 @@ func accountCompletionLaunches(seams cancelSeams, ep EpochRecord) (bool, []strin
 //     (change 0446 spec §5): re-observation proved nothing about unaccounted
 //     participants or launches (their own passes cover those) and only turned a
 //     finished run's later scratch cleanup into a false blocker.
-func accountCompletionSlot(seams cancelSeams, ep EpochRecord) (bool, []string) {
+func accountCompletionSlot(seams cancelSeams, ep RunRecord) (bool, []string) {
 	if seams.store == nil || ep.Worktree == "" {
 		return false, nil
 	}
@@ -395,7 +395,7 @@ func accountCompletionSlot(seams cancelSeams, ep EpochRecord) (bool, []string) {
 		}
 		return true, []string{"slot-unreadable"}
 	}
-	switch classifySlotOwnership(slot.RunEpochID, slot.RawRunDir, ep) {
+	switch classifySlotOwnership(slot.RunID, slot.RawRunDir, ep) {
 	case slotForeign:
 		return false, []string{"slot-replaced-by-successor"} // successor, informational
 	case slotLinkedLegacy:

@@ -15,8 +15,8 @@ import (
 // common-dir rooting, cross-repo refusal, and linked-worktree resolution are
 // exercised against real git, not a mock. The store is the generalization of
 // scripts/lib/docket-dispatch-dir.sh's durable-dir conventions.
-// The fixtures untagged test files share (newGateRepo, sampleGateRecord,
-// mintGateWithHash) live in runtracker_store_helpers_test.go (change 0465).
+// The fixtures untagged test files share (newRunTrackerRepo, sampleRunTrackerRecord,
+// mintRunTrackerWithHash) live in runtracker_store_helpers_test.go (change 0465).
 
 // repeat returns s repeated n times (a tiny local helper so the malformed-key
 // case can build an over-long key without importing strings just for this).
@@ -30,12 +30,12 @@ func repeat(s string, n int) string {
 
 // --- claim-binding primitives and schema v3 (change 0407) ---
 
-// mintPlainGate mints a minimal armed record for store-primitive tests.
-func mintPlainGate(t *testing.T, repoDir string) string {
+// mintPlainRunTracker mints a minimal armed record for store-primitive tests.
+func mintPlainRunTracker(t *testing.T, repoDir string) string {
 	t.Helper()
-	key, err := MintGateRecord(repoDir, GateRecord{Target: "docket-implement-next", Retry: RetryUnused, Disposition: "run-started", AttemptLimit: 2})
+	key, err := MintRunTrackerRecord(repoDir, RunTrackerRecord{Target: "docket-implement-next", Retry: RetryUnused, Disposition: "run-started", AttemptLimit: 2})
 	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
+		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
 	return key
 }
@@ -44,24 +44,24 @@ func mintPlainGate(t *testing.T, repoDir string) string {
 // shape whose AttributedID may be an inferred guess) must fail closed on load as
 // corrupt-record — never a silent migration that blesses an old guessed id.
 func TestIntegrationRunRecordGateSchemaV2RecordFailsClosed(t *testing.T) {
-	repo := newGateRepo(t)
-	key, err := MintGateRecord(repo, GateRecord{Target: "docket-implement-next", Retry: RetryUnused, AttemptLimit: 2})
+	repo := newRunTrackerRepo(t)
+	key, err := MintRunTrackerRecord(repo, RunTrackerRecord{Target: "docket-implement-next", Retry: RetryUnused, AttemptLimit: 2})
 	if err != nil {
 		t.Fatalf("mint: %v", err)
 	}
-	rec, err := LoadGateRecord(repo, key)
+	rec, err := LoadRunTrackerRecord(repo, key)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	rec.Schema = 2 // bypass SaveGateRecord's authoritative stamp: write the file directly
-	common, _ := gateGitCommonDir(repo)
+	rec.Schema = 2 // bypass SaveRunTrackerRecord's authoritative stamp: write the file directly
+	common, _ := runTrackerGitCommonDir(repo)
 	buf, _ := json.Marshal(rec)
-	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, gateRecordFileName), buf, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, runTrackerRecordFileName), buf, 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	_, lerr := LoadGateRecord(repo, key)
-	gse, ok := AsGateStoreError(lerr)
-	if !ok || gse.Kind != ErrGateCorruptRecord {
+	_, lerr := LoadRunTrackerRecord(repo, key)
+	gse, ok := AsRunTrackerStoreError(lerr)
+	if !ok || gse.Kind != ErrRunTrackerCorruptRecord {
 		t.Fatalf("want corrupt-record for schema 2, got %v", lerr)
 	}
 }
@@ -70,17 +70,17 @@ func TestIntegrationRunRecordGateSchemaV2RecordFailsClosed(t *testing.T) {
 // (change, request) under the same key is refused binding-conflict; an
 // identical replay is a no-op.
 func TestIntegrationRunRecordReserveGateClaimIsBindOnce(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-aaa"); err != nil {
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
+	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-aaa"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-aaa"); err != nil {
+	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-aaa"); err != nil {
 		t.Fatalf("replay reserve: %v", err)
 	}
-	err := ReserveGateClaim(repo, key, 4, "claim-4-bbb")
-	gse, ok := AsGateStoreError(err)
-	if !ok || gse.Kind != ErrGateBindingConflict {
+	err := ReserveRunTrackerClaim(repo, key, 4, "claim-4-bbb")
+	gse, ok := AsRunTrackerStoreError(err)
+	if !ok || gse.Kind != ErrRunTrackerBindingConflict {
 		t.Fatalf("want binding-conflict, got %v", err)
 	}
 }
@@ -89,25 +89,25 @@ func TestIntegrationRunRecordReserveGateClaimIsBindOnce(t *testing.T) {
 // AttributedID/BoundRequestID/BoundRevision onto the record; a mismatched
 // confirm is binding-conflict; a re-confirm is idempotent.
 func TestIntegrationRunRecordConfirmGateClaimMirrorsRecord(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-aaa"); err != nil {
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
+	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-aaa"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err != nil {
+	if err := ConfirmRunTrackerClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err != nil {
+	if err := ConfirmRunTrackerClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err != nil {
 		t.Fatalf("re-confirm: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 4, "claim-4-bbb", "cafe", ""); err == nil {
+	if err := ConfirmRunTrackerClaim(repo, key, 4, "claim-4-bbb", "cafe", ""); err == nil {
 		t.Fatalf("mismatched confirm must fail")
 	}
-	b, ok, err := LoadGateClaimBinding(repo, key)
+	b, ok, err := LoadRunTrackerClaimBinding(repo, key)
 	if err != nil || !ok || !b.Confirmed || b.ChangeID != 3 || b.Revision != "deadbeef" {
 		t.Fatalf("binding = %+v ok=%v err=%v", b, ok, err)
 	}
-	rec, err := LoadGateRecord(repo, key)
+	rec, err := LoadRunTrackerRecord(repo, key)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -120,9 +120,9 @@ func TestIntegrationRunRecordConfirmGateClaimMirrorsRecord(t *testing.T) {
 // become a confirmed binding (spec: "Failed claims never become confirmed
 // bindings").
 func TestIntegrationRunRecordConfirmWithoutReservationFails(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err == nil {
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
+	if err := ConfirmRunTrackerClaim(repo, key, 3, "claim-3-aaa", "deadbeef", ""); err == nil {
 		t.Fatalf("confirm without reservation must fail")
 	}
 }
@@ -130,15 +130,15 @@ func TestIntegrationRunRecordConfirmWithoutReservationFails(t *testing.T) {
 // TestIntegrationRunRecordLoadGateClaimBindingCorruptFailsClosed: unparseable binding bytes are a
 // typed corrupt-record error, never (ok=false, nil).
 func TestIntegrationRunRecordLoadGateClaimBindingCorruptFailsClosed(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
-	common, _ := gateGitCommonDir(repo)
-	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, gateClaimBindingName), []byte("{not json"), 0o644); err != nil {
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
+	common, _ := runTrackerGitCommonDir(repo)
+	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, runTrackerClaimBindingName), []byte("{not json"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	_, _, err := LoadGateClaimBinding(repo, key)
-	gse, ok := AsGateStoreError(err)
-	if !ok || gse.Kind != ErrGateCorruptRecord {
+	_, _, err := LoadRunTrackerClaimBinding(repo, key)
+	gse, ok := AsRunTrackerStoreError(err)
+	if !ok || gse.Kind != ErrRunTrackerCorruptRecord {
 		t.Fatalf("want corrupt-record, got %v", err)
 	}
 }
@@ -147,24 +147,24 @@ func TestIntegrationRunRecordLoadGateClaimBindingCorruptFailsClosed(t *testing.T
 // zero is not-found; two armed gates sharing a hash is context-ambiguous;
 // a terminal record does not match.
 func TestIntegrationRunRecordFindGateRecordByContextHash(t *testing.T) {
-	repo := newGateRepo(t)
-	keyA := mintGateWithHash(t, repo, "ha", false)
-	_ = mintGateWithHash(t, repo, "hb", false)
-	_ = mintGateWithHash(t, repo, "ht", true) // terminal
-	k, rec, err := FindGateRecordByContextHash(repo, "ha")
+	repo := newRunTrackerRepo(t)
+	keyA := mintRunTrackerWithHash(t, repo, "ha", false)
+	_ = mintRunTrackerWithHash(t, repo, "hb", false)
+	_ = mintRunTrackerWithHash(t, repo, "ht", true) // terminal
+	k, rec, err := FindRunTrackerRecordByContextHash(repo, "ha")
 	if err != nil || k != keyA || rec.ChildContextHash != "ha" {
 		t.Fatalf("k=%q rec=%+v err=%v", k, rec, err)
 	}
-	if _, _, err := FindGateRecordByContextHash(repo, "ht"); err == nil {
+	if _, _, err := FindRunTrackerRecordByContextHash(repo, "ht"); err == nil {
 		t.Fatalf("terminal record must not match")
 	}
-	if _, _, err := FindGateRecordByContextHash(repo, "nope"); err == nil {
+	if _, _, err := FindRunTrackerRecordByContextHash(repo, "nope"); err == nil {
 		t.Fatalf("zero matches must error")
 	}
-	_ = mintGateWithHash(t, repo, "hb", false)
-	_, _, err = FindGateRecordByContextHash(repo, "hb")
-	gse, ok := AsGateStoreError(err)
-	if !ok || gse.Kind != ErrGateContextAmbiguous {
+	_ = mintRunTrackerWithHash(t, repo, "hb", false)
+	_, _, err = FindRunTrackerRecordByContextHash(repo, "hb")
+	gse, ok := AsRunTrackerStoreError(err)
+	if !ok || gse.Kind != ErrRunContextAmbiguous {
 		t.Fatalf("want context-ambiguous, got %v", err)
 	}
 }
@@ -175,44 +175,44 @@ func TestIntegrationRunRecordFindGateRecordByContextHash(t *testing.T) {
 // their own marker exactly once, a repeat of a spent attempt refuses, and an
 // attempt at or above the limit refuses WITHOUT creating a marker.
 func TestIntegrationRunRecordConsumeGateRetryPerAttemptCAS(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
 
 	// attempt 1 grants; a second call for attempt 1 refuses (marker exists).
-	if ok, err := ConsumeGateRetry(repo, key, 1, 3); err != nil || !ok {
-		t.Fatalf("ConsumeGateRetry(1,3) = %v,%v; want true,nil", ok, err)
+	if ok, err := ConsumeRunTrackerRetry(repo, key, 1, 3); err != nil || !ok {
+		t.Fatalf("ConsumeRunTrackerRetry(1,3) = %v,%v; want true,nil", ok, err)
 	}
-	if ok, err := ConsumeGateRetry(repo, key, 1, 3); err != nil || ok {
+	if ok, err := ConsumeRunTrackerRetry(repo, key, 1, 3); err != nil || ok {
 		t.Fatalf("re-consume attempt 1 = %v,%v; want false,nil (marker exists)", ok, err)
 	}
 	// attempt 2 grants a distinct marker.
-	if ok, err := ConsumeGateRetry(repo, key, 2, 3); err != nil || !ok {
-		t.Fatalf("ConsumeGateRetry(2,3) = %v,%v; want true,nil", ok, err)
+	if ok, err := ConsumeRunTrackerRetry(repo, key, 2, 3); err != nil || !ok {
+		t.Fatalf("ConsumeRunTrackerRetry(2,3) = %v,%v; want true,nil", ok, err)
 	}
 	// attempt 3 == limit: refuse, and create NO marker.
-	if ok, err := ConsumeGateRetry(repo, key, 3, 3); err != nil || ok {
-		t.Fatalf("ConsumeGateRetry(3,3) = %v,%v; want false,nil (attempt >= limit)", ok, err)
+	if ok, err := ConsumeRunTrackerRetry(repo, key, 3, 3); err != nil || ok {
+		t.Fatalf("ConsumeRunTrackerRetry(3,3) = %v,%v; want false,nil (attempt >= limit)", ok, err)
 	}
-	common, _ := gateGitCommonDir(repo)
+	common, _ := runTrackerGitCommonDir(repo)
 	dir := filepath.Join(common, "docket", runTrackerDirName, key)
-	if _, serr := os.Stat(filepath.Join(dir, gateRetryMarkerFor(3))); !os.IsNotExist(serr) {
+	if _, serr := os.Stat(filepath.Join(dir, runTrackerRetryMarkerFor(3))); !os.IsNotExist(serr) {
 		t.Fatalf("marker for the refused over-limit attempt must not exist (stat err=%v)", serr)
 	}
-	if used, err := GateRetryUsage(repo, key); err != nil || used != 2 {
-		t.Fatalf("GateRetryUsage = %d,%v; want 2,nil", used, err)
+	if used, err := RunTrackerRetryUsage(repo, key); err != nil || used != 2 {
+		t.Fatalf("RunTrackerRetryUsage = %d,%v; want 2,nil", used, err)
 	}
 }
 
 // TestIntegrationRunRecordConsumeGateRetryLimitOne: a limit of 1 disables retries — attempt 1 is
 // already at the limit, so nothing is granted and no marker is created.
 func TestIntegrationRunRecordConsumeGateRetryLimitOne(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
-	if ok, err := ConsumeGateRetry(repo, key, 1, 1); err != nil || ok {
-		t.Fatalf("ConsumeGateRetry(1,1) = %v,%v; want false,nil (limit 1 disables retries)", ok, err)
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
+	if ok, err := ConsumeRunTrackerRetry(repo, key, 1, 1); err != nil || ok {
+		t.Fatalf("ConsumeRunTrackerRetry(1,1) = %v,%v; want false,nil (limit 1 disables retries)", ok, err)
 	}
-	if used, err := GateRetryUsage(repo, key); err != nil || used != 0 {
-		t.Fatalf("GateRetryUsage = %d,%v; want 0,nil (no marker created)", used, err)
+	if used, err := RunTrackerRetryUsage(repo, key); err != nil || used != 0 {
+		t.Fatalf("RunTrackerRetryUsage = %d,%v; want 0,nil (no marker created)", used, err)
 	}
 }
 
@@ -221,18 +221,18 @@ func TestIntegrationRunRecordConsumeGateRetryLimitOne(t *testing.T) {
 // the attempt-1 marker, so an already-consumed legacy permit can never be
 // re-granted — an older consumed marker must never read as unused budget.
 func TestIntegrationRunRecordGateRetryUsageCountsLegacyMarker(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
-	common, _ := gateGitCommonDir(repo)
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
+	common, _ := runTrackerGitCommonDir(repo)
 	dir := filepath.Join(common, "docket", runTrackerDirName, key)
-	if err := os.WriteFile(filepath.Join(dir, gateRetryMarkerName), nil, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, runTrackerRetryMarkerName), nil, 0o644); err != nil {
 		t.Fatalf("plant legacy marker: %v", err)
 	}
-	if used, err := GateRetryUsage(repo, key); err != nil || used != 1 {
-		t.Fatalf("GateRetryUsage = %d,%v; want 1,nil (legacy marker counts)", used, err)
+	if used, err := RunTrackerRetryUsage(repo, key); err != nil || used != 1 {
+		t.Fatalf("RunTrackerRetryUsage = %d,%v; want 1,nil (legacy marker counts)", used, err)
 	}
-	if ok, err := ConsumeGateRetry(repo, key, 1, 2); err != nil || ok {
-		t.Fatalf("ConsumeGateRetry(1,2) over a legacy marker = %v,%v; want false,nil (attempt 1 already spent)", ok, err)
+	if ok, err := ConsumeRunTrackerRetry(repo, key, 1, 2); err != nil || ok {
+		t.Fatalf("ConsumeRunTrackerRetry(1,2) over a legacy marker = %v,%v; want false,nil (attempt 1 already spent)", ok, err)
 	}
 }
 
@@ -240,21 +240,21 @@ func TestIntegrationRunRecordGateRetryUsageCountsLegacyMarker(t *testing.T) {
 // schema-mismatch diagnostic — the v4 store never silently migrates an older
 // record whose consumed state could be reinterpreted as unused budget.
 func TestIntegrationRunRecordLoadGateRecordRefusesV3(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
-	rec, err := LoadGateRecord(repo, key)
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
+	rec, err := LoadRunTrackerRecord(repo, key)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
 	rec.Schema = 3 // write a v3-shaped record directly, bypassing the authoritative stamp
-	common, _ := gateGitCommonDir(repo)
+	common, _ := runTrackerGitCommonDir(repo)
 	buf, _ := json.Marshal(rec)
-	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, gateRecordFileName), buf, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, runTrackerRecordFileName), buf, 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	_, lerr := LoadGateRecord(repo, key)
-	gse, ok := AsGateStoreError(lerr)
-	if !ok || gse.Kind != ErrGateCorruptRecord {
+	_, lerr := LoadRunTrackerRecord(repo, key)
+	gse, ok := AsRunTrackerStoreError(lerr)
+	if !ok || gse.Kind != ErrRunTrackerCorruptRecord {
 		t.Fatalf("want corrupt-record for schema 3, got %v", lerr)
 	}
 }
@@ -263,16 +263,16 @@ func TestIntegrationRunRecordLoadGateRecordRefusesV3(t *testing.T) {
 // below the floor is a corrupt/unstamped record and must fail closed on the write
 // boundary, exactly like a partial continuation triple or claim-binding pair.
 func TestIntegrationRunRecordSaveGateRecordRefusesUnstampedLimit(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
-	rec, err := LoadGateRecord(repo, key)
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
+	rec, err := LoadRunTrackerRecord(repo, key)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
 	rec.AttemptLimit = 0 // corrupt / unstamped
-	serr := SaveGateRecord(repo, key, rec)
-	gse, ok := AsGateStoreError(serr)
-	if !ok || gse.Kind != ErrGateCorruptRecord {
-		t.Fatalf("SaveGateRecord with AttemptLimit 0 = %v, want corrupt-record", serr)
+	serr := SaveRunTrackerRecord(repo, key, rec)
+	gse, ok := AsRunTrackerStoreError(serr)
+	if !ok || gse.Kind != ErrRunTrackerCorruptRecord {
+		t.Fatalf("SaveRunTrackerRecord with AttemptLimit 0 = %v, want corrupt-record", serr)
 	}
 }

@@ -158,7 +158,7 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 		"reclaim.auto":                   eff.Reclaim.Auto.Value,
 		"review.min_fix_severity":        eff.Review.MinFixSeverity.Value,
 		"review.max_fix_tasks":           eff.Review.MaxFixTasks.Value,
-		"gate_observation_budget":        eff.GateObservation.Value,
+		"gate_observation_budget":        eff.RunObservation.Value,
 		"board_surfaces":                 eff.BoardSurfaces.Value,
 		"change_types":                   eff.ChangeTypes.Value,
 	}

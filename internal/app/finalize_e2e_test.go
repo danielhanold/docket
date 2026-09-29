@@ -414,8 +414,8 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 		t.Fatalf("attach results id %d = %q (reason %q findings %v)", id, attachR.Result, attachR.Reason, attachR.Findings)
 	}
 
-	gateRoot := testsupport.TempDir(t)
-	launch := GateLaunch(gateRoot, wp, []string{passingGateScript(t)})
+	runTrackerRoot := testsupport.TempDir(t)
+	launch := GateLaunch(runTrackerRoot, wp, []string{passingGateScript(t)})
 	if launch.Result != ResultApplied || launch.RunDir == "" {
 		t.Fatalf("gate launch id %d = %q (reason %q)", id, launch.Result, launch.Reason)
 	}
@@ -764,8 +764,8 @@ func TestE2EConflictAndRepair(t *testing.T) {
 	runGit(t, s.wp, "commit", "-q", "-m", "repair: make the suite green")
 	repairHead := runGit(t, s.wp, "rev-parse", "HEAD")
 
-	gateRoot := testsupport.TempDir(t)
-	launch := GateLaunch(gateRoot, s.wp, []string{"/bin/sh", "-c", "test -f .repaired"})
+	runTrackerRoot := testsupport.TempDir(t)
+	launch := GateLaunch(runTrackerRoot, s.wp, []string{"/bin/sh", "-c", "test -f .repaired"})
 	if launch.Result != ResultApplied || launch.RunDir == "" {
 		t.Fatalf("repair gate launch = %q (reason %q)", launch.Result, launch.Reason)
 	}

@@ -32,10 +32,10 @@ const (
 // claim"). Proofs are returned newest-first (git log order), so the FIRST proof
 // naming a change id is that id's newest claim.
 type ClaimProof struct {
-	RequestID       string // Docket-Request-ID trailer
-	ChangeID        int    // receipt id
-	GateContextHash string // receipt gate_context_hash ("" = ungated claim)
-	Revision        string // commit hash carrying the receipt
+	RequestID      string // Docket-Request-ID trailer
+	ChangeID       int    // receipt id
+	RunContextHash string // receipt gate_context_hash ("" = ungated claim)
+	Revision       string // commit hash carrying the receipt
 }
 
 // ClaimProofScanner is the verdict path's read-only seam onto committed claim
@@ -64,7 +64,7 @@ func NewClaimProofScanner(deps PlanningDeps) ClaimProofScanner {
 // claim), so the decode is forward- and backward-compatible.
 type claimProofReceipt struct {
 	changeClaimReceipt
-	GateContextHash string `json:"gate_context_hash"`
+	RunContextHash string `json:"gate_context_hash"`
 }
 
 // ScanClaimProofs re-pins the authoritative metadata revision, then walks that
@@ -115,10 +115,10 @@ func (s gitClaimProofScanner) ScanClaimProofs(ctx context.Context, repoDir strin
 			continue
 		}
 		proofs = append(proofs, ClaimProof{
-			RequestID:       requestID,
-			ChangeID:        rec.ID,
-			GateContextHash: rec.GateContextHash,
-			Revision:        string(ct.Commit),
+			RequestID:      requestID,
+			ChangeID:       rec.ID,
+			RunContextHash: rec.RunContextHash,
+			Revision:       string(ct.Commit),
 		})
 	}
 	return proofs, nil

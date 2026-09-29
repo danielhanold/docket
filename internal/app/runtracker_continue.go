@@ -30,42 +30,42 @@ import (
 	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
-// OperationRunGateClaim is the operation key `run continue` records in its
+// OperationRunContinue is the operation key `run continue` records in its
 // envelope.
-const OperationRunGateClaim = "run.continue"
+const OperationRunContinue = "run.continue"
 
-// GateClaimDecisionClaimed is the leading token of a successful claim report line.
+// RunContinueDecisionContinued is the leading token of a successful claim report line.
 // It joins run-done / run-retry-once / run-stop / run-continue / run-observe
-// as a decision word; a fail-closed refusal reuses GateDecisionStop.
-const GateClaimDecisionClaimed = "run-continued"
+// as a decision word; a fail-closed refusal reuses RunDecisionStop.
+const RunContinueDecisionContinued = "run-continued"
 
 // Fail-closed reason tokens for the claim path. A HALTED claim carries the
-// driver's own cause alongside ReasonGateHaltedClaim.
+// driver's own cause alongside ReasonRunHaltedClaim.
 const (
-	// ReasonGateNoContinuation: the record carries no continuation triple — either
+	// ReasonRunNoContinuation: the record carries no continuation triple — either
 	// none was ever recorded, or a prior successful claim already cleared it
 	// (single-use).
-	ReasonGateNoContinuation = "no-continuation"
-	// ReasonGateContinuationMismatch: the presented continuation id does not equal
+	ReasonRunNoContinuation = "no-continuation"
+	// ReasonRunContinuationMismatch: the presented continuation id does not equal
 	// the stored one (constant-time compare).
-	ReasonGateContinuationMismatch = "continuation-mismatch"
-	// ReasonGateHaltedClaim: the drive-layer claim returned a HALTED document
+	ReasonRunContinuationMismatch = "continuation-mismatch"
+	// ReasonRunHaltedClaim: the drive-layer claim returned a HALTED document
 	// (unsafe ownership — a raced owner or a drifted fingerprint). The driver's own
 	// cause travels alongside.
-	ReasonGateHaltedClaim = "halted-claim"
-	// ReasonGateClaimUnavailable: the claim seam could not be composed (no drive
+	ReasonRunHaltedClaim = "halted-claim"
+	// ReasonRunClaimUnavailable: the claim seam could not be composed (no drive
 	// store / supervisor), so no continuation can be redeemed. Fail closed.
-	ReasonGateClaimUnavailable = "claim-unavailable"
-	// ReasonGateClaimError: the drive-layer claim returned a command fault (an
+	ReasonRunClaimUnavailable = "claim-unavailable"
+	// ReasonRunClaimError: the drive-layer claim returned a command fault (an
 	// unparseable request or an unknown drive) distinct from a HALTED refusal.
-	ReasonGateClaimError = "claim-error"
+	ReasonRunClaimError = "claim-error"
 )
 
-// GateClaimOutcome is the drive-layer result RunGateClaim needs back from the
+// RunContinueOutcome is the drive-layer result RunContinue needs back from the
 // claim seam: the fresh owner generation (JSON only), the drive's phase and
 // recorded outcome, and — on an unsafe claim — the HALTED flag with the driver's
 // cause.
-type GateClaimOutcome struct {
+type RunContinueOutcome struct {
 	Generation string
 	Phase      string
 	Outcome    string
@@ -73,7 +73,7 @@ type GateClaimOutcome struct {
 	Cause      string
 }
 
-// ClaimSeam is the drive-layer surface RunGateClaim needs: it consumes the
+// ClaimSeam is the drive-layer surface RunContinue needs: it consumes the
 // single-use handoff of a recovered drive and reports the fresh owner generation,
 // the drive's phase, and the recorded outcome. The production impl
 // (gatedriveClaimSeam) composes the commandless gate-drive service for the claim
@@ -82,7 +82,7 @@ type ClaimSeam interface {
 	// Claim consumes handoffToken for driveID. A produced document — including a
 	// HALTED refusal (Halted true, Cause set) — returns a nil error; a command
 	// fault (unknown/malformed drive) returns a non-nil error.
-	Claim(driveID, handoffToken string) (GateClaimOutcome, error)
+	Claim(driveID, handoffToken string) (RunContinueOutcome, error)
 }
 
 // gatedriveClaimSeam is the production ClaimSeam. It reads the drive's phase from
@@ -97,7 +97,7 @@ type gatedriveClaimSeam struct {
 // NewClaimSeam composes the production ClaimSeam over the durable drive store at
 // the repository's Git common directory and the native supervisor at exePath. A
 // service-construction failure is returned so the caller can leave the claim path
-// unwired (a nil seam) and RunGateClaim fails closed to claim-unavailable rather
+// unwired (a nil seam) and RunContinue fails closed to claim-unavailable rather
 // than panicking.
 func NewClaimSeam(gitCommonDir, exePath string) (ClaimSeam, error) {
 	svc, res, reason := NewCommandlessGateDriveService(gitCommonDir, exePath)
@@ -112,7 +112,7 @@ func NewClaimSeam(gitCommonDir, exePath string) (ClaimSeam, error) {
 // is a command fault (surfaced as an error); a HALTED document is unsafe
 // ownership (Halted true, Cause set); otherwise the fresh owner generation and
 // recorded outcome are returned.
-func (s *gatedriveClaimSeam) Claim(driveID, handoffToken string) (GateClaimOutcome, error) {
+func (s *gatedriveClaimSeam) Claim(driveID, handoffToken string) (RunContinueOutcome, error) {
 	phase := ""
 	if rec, err := s.store.Load(driveID); err == nil {
 		phase = rec.Phase
@@ -120,20 +120,20 @@ func (s *gatedriveClaimSeam) Claim(driveID, handoffToken string) (GateClaimOutco
 	res := s.svc.Claim(driveID, handoffToken)
 	if res.Drive == nil {
 		// A command fault (no drive document): surface the bounded reason as an error
-		// so RunGateClaim maps it to claim-error, never a fabricated success.
-		return GateClaimOutcome{}, fmt.Errorf("gate drive claim failed: %s", res.Reason)
+		// so RunContinue maps it to claim-error, never a fabricated success.
+		return RunContinueOutcome{}, fmt.Errorf("gate drive claim failed: %s", res.Reason)
 	}
 	if res.Drive.Outcome == gatedrive.HALTED {
-		return GateClaimOutcome{Phase: phase, Outcome: string(res.Drive.Outcome), Halted: true, Cause: res.Drive.Cause}, nil
+		return RunContinueOutcome{Phase: phase, Outcome: string(res.Drive.Outcome), Halted: true, Cause: res.Drive.Cause}, nil
 	}
-	return GateClaimOutcome{Generation: res.Drive.Generation, Phase: phase, Outcome: string(res.Drive.Outcome)}, nil
+	return RunContinueOutcome{Generation: res.Drive.Generation, Phase: phase, Outcome: string(res.Drive.Outcome)}, nil
 }
 
-// RunGateClaimResult is the protocol-v1 document `run continue` returns. It
+// RunContinueResult is the protocol-v1 document `run continue` returns. It
 // renders one report line and always exits 0 (a produced report line is not a
 // process failure). Generation travels ONLY in the JSON document — HumanText never
 // emits it (spec: ownership generations never appear in human text).
-type RunGateClaimResult struct {
+type RunContinueResult struct {
 	Envelope
 	Key      string `json:"key,omitempty"`
 	Decision string `json:"decision,omitempty"` // run-continued | run-stop
@@ -152,56 +152,56 @@ type RunGateClaimResult struct {
 // the drive's recorded outcome ONLY — never the generation, which is authority and
 // travels solely in the JSON document. A refusal renders a run-stop line carrying
 // the reason token (and the driver's cause on a halted claim).
-func (r RunGateClaimResult) HumanText() string {
-	if r.Decision == GateClaimDecisionClaimed {
+func (r RunContinueResult) HumanText() string {
+	if r.Decision == RunContinueDecisionContinued {
 		return strings.Join([]string{r.Decision, r.Key, r.Outcome, r.DriveID}, " ")
 	}
-	fields := []string{GateDecisionStop, r.Key, r.Reason}
+	fields := []string{RunDecisionStop, r.Key, r.Reason}
 	if r.Cause != "" {
 		fields = append(fields, r.Cause)
 	}
 	return strings.Join(fields, " ")
 }
 
-// RunGateClaim redeems a single-use continuation for the resumed implement-next
+// RunContinue redeems a single-use continuation for the resumed implement-next
 // controller. See the file header for the constant-time comparison, single-use,
 // and fail-closed contracts. seam may be nil (an unwired drive layer) — the claim
 // then fails closed to claim-unavailable without clearing the triple.
-func RunGateClaim(repoDir, key, continuationID string, seam ClaimSeam) RunGateClaimResult {
-	rec, err := LoadGateRecord(repoDir, key)
+func RunContinue(repoDir, key, continuationID string, seam ClaimSeam) RunContinueResult {
+	rec, err := LoadRunTrackerRecord(repoDir, key)
 	if err != nil {
 		// No record to persist to: fail closed to a run-stop carrying the store's
 		// typed reason token.
-		return newGateClaimStop(key, gateStoreReason(err), "")
+		return newRunContinueStop(key, runTrackerStoreReason(err), "")
 	}
 
 	// No stored continuation — nothing to redeem. This is also the single-use
 	// post-state a replayed claim reads after a prior success cleared the triple.
 	if rec.ContinuationID == "" {
-		return persistGateClaimStop(repoDir, key, rec, ReasonGateNoContinuation, "")
+		return persistRunContinueStop(repoDir, key, rec, ReasonRunNoContinuation, "")
 	}
 
 	// Constant-time comparison of the presented id against the stored id: a
 	// mismatch (including a length difference) leaks no timing signal about the
 	// stored secret.
 	if subtle.ConstantTimeCompare([]byte(continuationID), []byte(rec.ContinuationID)) != 1 {
-		return persistGateClaimStop(repoDir, key, rec, ReasonGateContinuationMismatch, "")
+		return persistRunContinueStop(repoDir, key, rec, ReasonRunContinuationMismatch, "")
 	}
 
 	// An unwired seam cannot redeem the continuation: fail closed WITHOUT clearing
 	// the triple (a later invocation over a wired seam may still succeed).
 	if seam == nil {
-		return persistGateClaimStop(repoDir, key, rec, ReasonGateClaimUnavailable, "")
+		return persistRunContinueStop(repoDir, key, rec, ReasonRunClaimUnavailable, "")
 	}
 
 	out, cerr := seam.Claim(rec.ContinuationDrive, rec.ContinuationHandoff)
 	if cerr != nil {
-		return persistGateClaimStop(repoDir, key, rec, ReasonGateClaimError, "")
+		return persistRunContinueStop(repoDir, key, rec, ReasonRunClaimError, "")
 	}
 	if out.Halted {
 		// Unsafe ownership: the triple is NOT cleared (only a success clears it), so
 		// the driver's fail-closed HALT is surfaced with its own cause.
-		return persistGateClaimStop(repoDir, key, rec, ReasonGateHaltedClaim, out.Cause)
+		return persistRunContinueStop(repoDir, key, rec, ReasonRunHaltedClaim, out.Cause)
 	}
 
 	// Success: clear the continuation triple (single-use at the record layer) and
@@ -211,47 +211,47 @@ func RunGateClaim(repoDir, key, continuationID string, seam ClaimSeam) RunGateCl
 	rec.ContinuationDrive = ""
 	rec.ContinuationHandoff = ""
 
-	res := RunGateClaimResult{
+	res := RunContinueResult{
 		Key:        key,
-		Decision:   GateClaimDecisionClaimed,
+		Decision:   RunContinueDecisionContinued,
 		Outcome:    out.Outcome,
 		DriveID:    driveID,
 		Generation: out.Generation,
 		Phase:      out.Phase,
 		Terminal:   false,
 	}
-	res.Envelope = NewEnvelope(OperationRunGateClaim, ResultApplied)
+	res.Envelope = NewEnvelope(OperationRunContinue, ResultApplied)
 
 	// Persist the cleared triple best-effort: the claim's drive-layer CAS already
 	// made the redemption durable, so a save fault does not un-redeem it.
 	rec.Disposition = res.HumanText()
 	rec.Terminal = res.Terminal
-	_ = SaveGateRecord(repoDir, key, rec)
+	_ = SaveRunTrackerRecord(repoDir, key, rec)
 	return res
 }
 
-// newGateClaimStop builds a terminal run-stop claim refusal (no record to
+// newRunContinueStop builds a terminal run-stop claim refusal (no record to
 // persist — the load itself failed).
-func newGateClaimStop(key, reason, cause string) RunGateClaimResult {
-	r := RunGateClaimResult{Key: key, Decision: GateDecisionStop, Reason: reason, Cause: cause, Terminal: true}
-	r.Envelope = NewEnvelope(OperationRunGateClaim, ResultApplied)
+func newRunContinueStop(key, reason, cause string) RunContinueResult {
+	r := RunContinueResult{Key: key, Decision: RunDecisionStop, Reason: reason, Cause: cause, Terminal: true}
+	r.Envelope = NewEnvelope(OperationRunContinue, ResultApplied)
 	return r
 }
 
-// persistGateClaimStop builds a terminal run-stop claim refusal and records its
+// persistRunContinueStop builds a terminal run-stop claim refusal and records its
 // disposition onto the (already-loaded) record. It never clears the continuation
 // triple — a refusal leaves the record exactly as it found it so a legitimate
 // retry with the correct id can still succeed.
-func persistGateClaimStop(repoDir, key string, rec GateRecord, reason, cause string) RunGateClaimResult {
-	res := newGateClaimStop(key, reason, cause)
+func persistRunContinueStop(repoDir, key string, rec RunTrackerRecord, reason, cause string) RunContinueResult {
+	res := newRunContinueStop(key, reason, cause)
 	rec.Disposition = res.HumanText()
 	rec.Terminal = res.Terminal
-	_ = SaveGateRecord(repoDir, key, rec)
+	_ = SaveRunTrackerRecord(repoDir, key, rec)
 	return res
 }
 
 // Compile-time seam assertions.
 var (
 	_ ClaimSeam       = (*gatedriveClaimSeam)(nil)
-	_ OperationResult = RunGateClaimResult{}
+	_ OperationResult = RunContinueResult{}
 )

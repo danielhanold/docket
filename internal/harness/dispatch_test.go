@@ -8,42 +8,42 @@ import (
 	"github.com/danielhanold/docket/internal/assets"
 )
 
-func TestRunGateFromEmbedded(t *testing.T) {
+func TestRunTrackerFromEmbedded(t *testing.T) {
 	c := embeddedCatalog(t)
-	got, err := RunGate(c)
+	got, err := RunTracker(c)
 	if err != nil {
-		t.Fatalf("RunGate: %v", err)
+		t.Fatalf("RunTracker: %v", err)
 	}
 	want, err := c.Bytes("cursor-rules/run-gate.md")
 	if err != nil {
 		t.Fatalf("Bytes: %v", err)
 	}
 	if string(got) != string(want) {
-		t.Fatalf("RunGate returned something other than the authored payload")
+		t.Fatalf("RunTracker returned something other than the authored payload")
 	}
 }
 
-func TestRunGateMissing(t *testing.T) {
+func TestRunTrackerMissing(t *testing.T) {
 	c := syntheticCatalog(map[string]string{
 		"cursor-rules/dispatch.head.md": "head\n",
 	}, assets.RoleDispatch)
-	if _, err := RunGate(c); err == nil {
-		t.Fatalf("RunGate accepted a bundle with no run-gate payload")
-	} else if !strings.Contains(err.Error(), RunGateAsset) {
-		t.Fatalf("error %q does not name %q", err, RunGateAsset)
+	if _, err := RunTracker(c); err == nil {
+		t.Fatalf("RunTracker accepted a bundle with no run-gate payload")
+	} else if !strings.Contains(err.Error(), RunTrackerAsset) {
+		t.Fatalf("error %q does not name %q", err, RunTrackerAsset)
 	}
 }
 
 // A dispatch payload the catalog lists but cannot serve is an error, not an
 // empty gate: the interior would otherwise ship without the section it exists
 // to carry.
-func TestRunGateUnreadable(t *testing.T) {
+func TestRunTrackerUnreadable(t *testing.T) {
 	c := syntheticCatalog(map[string]string{"cursor-rules/run-gate.md": "gate\n"}, assets.RoleDispatch)
 	broken := assets.NewCatalog(c.Manifest, func(string) ([]byte, error) {
 		return nil, errUnreadable
 	})
-	if _, err := RunGate(broken); err == nil {
-		t.Fatalf("RunGate accepted an unreadable payload")
+	if _, err := RunTracker(broken); err == nil {
+		t.Fatalf("RunTracker accepted an unreadable payload")
 	}
 }
 

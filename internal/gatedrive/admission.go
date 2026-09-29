@@ -46,8 +46,8 @@
 // the successor's slot. A released record is overwritten in place by the next
 // reserve; releasing preserves the historical DriveID/RawRunID, so a released
 // record remains historical evidence until the next reservation replaces it.
-// Completed cancellation may additionally retire a released slot's RunEpochID
-// through RetireWorktreeExecutionEpoch (change 0435), leaving the historical
+// Completed cancellation may additionally retire a released slot's RunID
+// through RetireWorktreeExecutionRun (change 0435), leaving the historical
 // evidence intact while detaching the cancelled epoch's ownership.
 package gatedrive
 
@@ -111,9 +111,9 @@ type admissionRecord struct {
 
 	ReservationToken string `json:"reservation_token"` // random token; also handed to process.Launch (Task 2)
 
-	DriveID    string `json:"drive_id"` // "" for raw launches
-	ScopeID    string `json:"scope_id"` // "" when scopeless/raw
-	RunEpochID string `json:"run_id"`   // "" for standalone gates (Task 9 links workflow gates)
+	DriveID string `json:"drive_id"` // "" for raw launches
+	ScopeID string `json:"scope_id"` // "" when scopeless/raw
+	RunID   string `json:"run_id"`   // "" for standalone gates (Task 9 links workflow gates)
 
 	RawRunID  string `json:"raw_run_id"`  // attached at confirm
 	RawRunDir string `json:"raw_run_dir"` // attached at confirm
@@ -178,7 +178,7 @@ func (s *Store) admissionKeyFor(worktreeRoot, op string) (canonical, key string,
 // admissionKeyStored returns the admission key for a worktree identity that was
 // already RECORDED — a slot's WorktreeRoot or an epoch's bound Worktree — for the
 // read/CAS entry points (LoadWorktreeExecution, admissionCAS, and so release,
-// mark-stopping, and RetireWorktreeExecutionEpoch) that must still address the slot
+// mark-stopping, and RetireWorktreeExecutionRun) that must still address the slot
 // after the worktree directory was removed (change 0446 spec §2). Admitting a NEW
 // execution keeps the strict admissionKeyFor: only an existing, resolvable
 // worktree is ever reserved.
@@ -193,7 +193,7 @@ func (s *Store) admissionKeyFor(worktreeRoot, op string) (canonical, key string,
 //   - EvalSymlinks fails fs.ErrNotExist → the nearest surviving ancestor is
 //     canonicalized and the missing tail is re-appended. For a canonical stored
 //     identity this is exactly filepath.Clean(stored); for an epoch's LOGICAL bound
-//     spelling (bindEpochWorktree does not canonicalize) it recovers the same key
+//     spelling (bindRunWorktree does not canonicalize) it recovers the same key
 //     the slot was created under as long as the removed components were not
 //     themselves symlinks. A path recreated at the same location resolves to the
 //     same key either way.
@@ -298,7 +298,7 @@ func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, p
 	if !ok {
 		return token, err
 	}
-	settled, finding, _ := s.reconcileFinishedIncumbent(worktreeRoot, rec.RunEpochID, proc)
+	settled, finding, _ := s.reconcileFinishedIncumbent(worktreeRoot, rec.RunID, proc)
 	if !settled {
 		oe.Reconciliation = finding
 		return "", err
@@ -307,26 +307,26 @@ func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, p
 	return token, err
 }
 
-// ReserveWorktreeExecutionForEpoch reserves the worktree execution slot for a
+// ReserveWorktreeExecutionForRun reserves the worktree execution slot for a
 // top-level execution a workflow RUN EPOCH owns (change 0435). It is the exported
 // epoch-carrying sibling of ReserveRawWorktreeExecution for callers outside this
 // package, where the unexported admissionRecord literal is unreachable — today the
 // app layer's cancellation fixtures, which must exercise the owning-epoch
-// retirement case (see RetireWorktreeExecutionEpoch) against a slot that genuinely
-// records its epoch. It composes a Kind "scopeless" record carrying runEpochID (no
+// retirement case (see RetireWorktreeExecutionRun) against a slot that genuinely
+// records its epoch. It composes a Kind "scopeless" record carrying runID (no
 // drive id, no scope id) and delegates to the same reserveWorktreeExecution every
 // scoped, scopeless, and raw start admits through — one authority, one lock/CAS
-// discipline. An empty runEpochID is refused ErrInvalidID: the raw (epoch-less)
+// discipline. An empty runID is refused ErrInvalidID: the raw (epoch-less)
 // entry is ReserveRawWorktreeExecution, and the two must not blur.
-func (s *Store) ReserveWorktreeExecutionForEpoch(repoIdentity, worktreeRoot, runEpochID string, proc recoverySeam) (token string, err error) {
-	if runEpochID == "" {
+func (s *Store) ReserveWorktreeExecutionForRun(repoIdentity, worktreeRoot, runID string, proc recoverySeam) (token string, err error) {
+	if runID == "" {
 		return "", storeErr(ErrInvalidID, "reserve-worktree-execution-run", nil)
 	}
 	token, _, err = s.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: repoIdentity,
 		WorktreeRoot: worktreeRoot,
 		Kind:         "scopeless",
-		RunEpochID:   runEpochID,
+		RunID:        runID,
 	}, proc)
 	return token, err
 }
@@ -340,12 +340,12 @@ func (s *Store) ReserveWorktreeExecutionForEpoch(repoIdentity, worktreeRoot, run
 // the returned OwnershipError.Legacy.
 //
 // Stale released-slot settlement (change 0446 spec §§2, 5). A RELEASED slot whose
-// surviving RunEpochID names another epoch is not refused outright: when the
-// app-injected EpochSettledFunc proves that epoch completed or confirmed-cancelled,
-// the leftover ownership is retired through RetireWorktreeExecutionEpoch with the
+// surviving RunID names another epoch is not refused outright: when the
+// app-injected RunSettledFunc proves that epoch completed or confirmed-cancelled,
+// the leftover ownership is retired through RetireWorktreeExecutionRun with the
 // exact epoch and token read under the slot lock, and the reservation is retried
-// ONCE (settleStaleReleasedEpoch). The seam is consulted outside the slot lock. No
-// seam, a seam error, or an unsettled epoch keeps today's ErrStaleRunEpoch, so a
+// ONCE (settleStaleReleasedRun). The seam is consulted outside the slot lock. No
+// seam, a seam error, or an unsettled epoch keeps today's ErrStaleRunID, so a
 // live epoch's between-drive ownership is preserved. A busy (non-released) slot
 // never consults the seam: its epoch fence is unchanged.
 func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam) (token string, legacy *LegacyHistorySummary, err error) {
@@ -353,7 +353,7 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 	if stale == nil {
 		return token, legacy, err
 	}
-	retry, unresolved, serr := s.settleStaleReleasedEpoch(*stale)
+	retry, unresolved, serr := s.settleStaleReleasedRun(*stale)
 	if serr != nil {
 		return "", nil, serr
 	}
@@ -361,7 +361,7 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 		// The original stale-run-id refusal. When no readable record carries the
 		// slot's epoch, the snapshot says so: run.cancel cannot resolve it.
 		if oe, ok := AsOwnershipError(err); ok && unresolved && oe.Incumbent != nil {
-			oe.Incumbent.EpochUnresolved = true
+			oe.Incumbent.RunUnresolved = true
 		}
 		return token, legacy, err
 	}
@@ -371,9 +371,9 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 
 // reserveWorktreeExecutionOnce is one locked reservation attempt. Besides the
 // reservation outcome it returns stale, non-nil only when the attempt refused
-// ErrStaleRunEpoch over a RELEASED slot and a settlement seam is wired — the exact
+// ErrStaleRunID over a RELEASED slot and a settlement seam is wired — the exact
 // identity reserveWorktreeExecution may settle before its single retry.
-func (s *Store) reserveWorktreeExecutionOnce(rec admissionRecord, proc recoverySeam) (token string, legacy *LegacyHistorySummary, stale *staleReleasedEpoch, err error) {
+func (s *Store) reserveWorktreeExecutionOnce(rec admissionRecord, proc recoverySeam) (token string, legacy *LegacyHistorySummary, stale *staleReleasedRun, err error) {
 	const op = "reserve-worktree-execution"
 	canonical, key, err := s.admissionKeyFor(rec.WorktreeRoot, op)
 	if err != nil {
@@ -408,13 +408,13 @@ func (s *Store) reserveWorktreeExecutionOnce(rec admissionRecord, proc recoveryS
 		// the attempt still refuses here, but hands the exact epoch and token back so
 		// reserveWorktreeExecution can ask the settlement seam OUTSIDE this lock. A
 		// busy slot never becomes a candidate.
-		if stored.Record.RunEpochID != "" && stored.Record.RunEpochID != rec.RunEpochID {
-			oe := ownershipErr(ErrStaleRunEpoch, op)
+		if stored.Record.RunID != "" && stored.Record.RunID != rec.RunID {
+			oe := ownershipErr(ErrStaleRunID, op)
 			oe.Incumbent = incumbentSnapshot(stored.Record)
-			if stored.Record.State == admissionReleased && s.epochSettled != nil {
-				stale = &staleReleasedEpoch{
+			if stored.Record.State == admissionReleased && s.runSettled != nil {
+				stale = &staleReleasedRun{
 					worktree: canonical,
-					epochID:  stored.Record.RunEpochID,
+					runID:    stored.Record.RunID,
 					token:    stored.Record.ReservationToken,
 				}
 			}
@@ -485,12 +485,12 @@ func (s *Store) reserveWorktreeExecutionOnce(rec admissionRecord, proc recoveryS
 // generations, and the epoch id itself are deliberately excluded.
 func incumbentSnapshot(rec admissionRecord) *IncumbentSnapshot {
 	return &IncumbentSnapshot{
-		Kind:       rec.Kind,
-		State:      string(rec.State),
-		DriveID:    rec.DriveID,
-		RawRunID:   rec.RawRunID,
-		RawRunDir:  rec.RawRunDir,
-		EpochOwned: rec.RunEpochID != "",
+		Kind:      rec.Kind,
+		State:     string(rec.State),
+		DriveID:   rec.DriveID,
+		RawRunID:  rec.RawRunID,
+		RawRunDir: rec.RawRunDir,
+		RunOwned:  rec.RunID != "",
 	}
 }
 
@@ -642,7 +642,7 @@ func (s *Store) ReleaseWorktreeExecution(worktreeRoot, token string) error {
 // verifies oldToken, requires state executing, bumps ExecutionGen, mints a new
 // ReservationToken, clears RawRunID/RawRunDir (the predecessor's raw-run identity
 // never rides the successor's reservation), preserves RepoIdentity/WorktreeRoot/
-// ScopeID/RunEpochID/Kind, and lands in "reserved". Any other state, a token
+// ScopeID/RunID/Kind, and lands in "reserved". Any other state, a token
 // mismatch, or an unreadable record refuses typed and writes nothing. After
 // rotation the predecessor's oldToken has NO authority: its late release/unresolve/
 // stopping calls fail ErrNotOwner (verifyAdmissionToken), so a stale predecessor

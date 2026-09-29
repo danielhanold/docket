@@ -18,7 +18,7 @@
 // through the same writeAtomicJSON helper, and every mutating transition runs
 // under a per-scope blocking flock and a persisted physical-generation
 // compare-and-swap (scopeCAS), mirroring Store.CAS/ownerCAS so physical
-// contention never surfaces as a logical failure. Capabilities and GateContext
+// contention never surfaces as a logical failure. Capabilities and RunContext
 // are persisted only as sha256 hashes (capHash) — never the raw tokens — so a
 // leaked record file discloses no authority. Unknown schema versions and corrupt
 // records fail closed with a typed StoreError, exactly as the drive store does.
@@ -62,11 +62,11 @@ import (
 // and the pending-ack journal). A v1 record read by a v2 store fails closed as
 // ErrUnknownSchema: an in-flight one-drive record is never silently reinterpreted
 // as a reusable sequential scope (spec "Version changed persistent formats").
-// Bumped to 3 by change 0375 Task 9, which adds RunEpochID (the workflow run
+// Bumped to 3 by change 0375 Task 9, which adds RunID (the workflow run
 // epoch the scope's drives carry). Unlike the drive/gate stores, a v2 scope record
 // is TOLERATED, not failed closed: a v2 record read by the new binary is only ever
 // a legacy IN-FLIGHT scope (no epoch existed when it was minted), so its missing
-// RunEpochID reads as empty and the worktree admission fence governs — there is no
+// RunID reads as empty and the worktree admission fence governs — there is no
 // spent-retry equivalent a re-read could re-grant, so reinterpreting it detaches
 // nothing. The next write stamps it forward to v3; v1 and every other version
 // still fail closed as ErrUnknownSchema.
@@ -74,7 +74,7 @@ const scopeSchemaVersion = 3
 
 // scopeSchemaVersionLegacy is the immediately-prior scope schema generation a v3
 // store still READS (never writes as-is): a v2 record carries every field a v3
-// reader needs except RunEpochID, which defaults empty. Only the immediately-prior
+// reader needs except RunID, which defaults empty. Only the immediately-prior
 // generation is tolerated; v1 and any other version fail closed as
 // ErrUnknownSchema (change 0375 Task 9).
 const scopeSchemaVersionLegacy = 2
@@ -113,24 +113,24 @@ func (r predecessorReceipt) halfFilled() bool {
 // takeover path re-verifies. Every field carries an explicit snake_case json tag
 // so the store round-trips it canonically.
 type scopeRecord struct {
-	SchemaVersion   int    `json:"schema_version"`
-	RepoIdentity    string `json:"repo_identity"`
-	ChangeID        string `json:"change_id"`
-	TaskID          string `json:"task_id"`
-	Phase           string `json:"phase"`
-	Branch          string `json:"branch"`
-	Worktree        string `json:"worktree"`
-	GateContextHash string `json:"run_context_hash,omitempty"`
-	ChildCapHash    string `json:"child_cap_hash"`
-	ParentCapHash   string `json:"parent_cap_hash"`
+	SchemaVersion  int    `json:"schema_version"`
+	RepoIdentity   string `json:"repo_identity"`
+	ChangeID       string `json:"change_id"`
+	TaskID         string `json:"task_id"`
+	Phase          string `json:"phase"`
+	Branch         string `json:"branch"`
+	Worktree       string `json:"worktree"`
+	RunContextHash string `json:"run_context_hash,omitempty"`
+	ChildCapHash   string `json:"child_cap_hash"`
+	ParentCapHash  string `json:"parent_cap_hash"`
 
-	// RunEpochID links every drive this scope admits to the workflow run epoch
+	// RunID links every drive this scope admits to the workflow run epoch
 	// (change 0375 Task 9). It is a locator, not a credential — the child capability
 	// carries authority — and is inherited by each scoped start (the driver's
-	// scopedRunEpoch) and travels onto its worktree execution slot so an omitted or
+	// scopedRunID) and travels onto its worktree execution slot so an omitted or
 	// stale epoch cannot detach the worktree. Empty for a v2 legacy scope and for a
 	// scope prepared without an epoch. (schema v3)
-	RunEpochID string `json:"run_id,omitempty"`
+	RunID string `json:"run_id,omitempty"`
 
 	// The single-slot lifecycle (schema v2). At most one current drive occupies
 	// the slot at a time; a sequence of drives passes through it, each successor
@@ -164,7 +164,7 @@ type storedScope struct {
 	Record     scopeRecord `json:"record"`
 }
 
-// ScopeRequest identifies one parent/child dispatch boundary. GateContext is the
+// ScopeRequest identifies one parent/child dispatch boundary. RunContext is the
 // RAW outer child-context token linking nested drives to the outer gate (may be
 // empty for the outer scope itself); it is stored only as a sha256 hash.
 type ScopeRequest struct {
@@ -174,11 +174,11 @@ type ScopeRequest struct {
 	Phase        string
 	Branch       string
 	Worktree     string
-	GateContext  string
-	// RunEpochID is the workflow run epoch every drive under this scope carries onto
+	RunContext   string
+	// RunID is the workflow run epoch every drive under this scope carries onto
 	// its worktree execution slot; empty prepares a scope with no epoch (change 0375
 	// Task 9).
-	RunEpochID string
+	RunID string
 }
 
 // ScopeGrant returns the scope locator and the two SEPARATE opaque capabilities.
@@ -199,7 +199,7 @@ func capHash(capability string) string {
 }
 
 // PrepareScope mints an opaque scope id and two separate opaque capabilities,
-// persists the record carrying only their hashes (and the hash of GateContext
+// persists the record carrying only their hashes (and the hash of RunContext
 // when non-empty), and returns the grant. It creates a fresh owner-only
 // directory and atomically writes the record — the same discipline as NewDrive.
 func (s *Store) PrepareScope(req ScopeRequest) (ScopeGrant, error) {
@@ -230,10 +230,10 @@ func (s *Store) PrepareScope(req ScopeRequest) (ScopeGrant, error) {
 		Worktree:      req.Worktree,
 		ChildCapHash:  capHash(childCap),
 		ParentCapHash: capHash(parentCap),
-		RunEpochID:    req.RunEpochID,
+		RunID:         req.RunID,
 	}
-	if req.GateContext != "" {
-		rec.GateContextHash = capHash(req.GateContext)
+	if req.RunContext != "" {
+		rec.RunContextHash = capHash(req.RunContext)
 	}
 
 	dir := filepath.Join(s.scopeRoot, id) // id is our own hex token: no validation needed
@@ -477,7 +477,7 @@ func (s *Store) readStoredScope(dir string) (storedScope, error) {
 	if err := json.Unmarshal(buf, &stored); err != nil {
 		return storedScope{}, storeErr(ErrCorruptRecord, "read-scope", err)
 	}
-	// v3 is current; the immediately-prior v2 is TOLERATED (its RunEpochID reads as
+	// v3 is current; the immediately-prior v2 is TOLERATED (its RunID reads as
 	// empty and the worktree admission fence governs). Every other version — v1's
 	// retired bound_drive_id shape included — fails closed, never migrated.
 	if stored.Record.SchemaVersion != scopeSchemaVersion && stored.Record.SchemaVersion != scopeSchemaVersionLegacy {

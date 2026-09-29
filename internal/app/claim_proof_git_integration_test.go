@@ -23,13 +23,13 @@ import (
 // gate_context_hash explicitly so the test can commit a gated receipt without
 // depending on changeClaimReceipt having grown that field yet.
 type wireClaimReceipt struct {
-	Branch          string `json:"branch"`
-	ClaimedAt       string `json:"claimed_at"`
-	GateContextHash string `json:"gate_context_hash"`
-	ID              int    `json:"id"`
-	Lease           string `json:"lease"`
-	Op              string `json:"op"`
-	Status          string `json:"status"`
+	Branch         string `json:"branch"`
+	ClaimedAt      string `json:"claimed_at"`
+	RunContextHash string `json:"gate_context_hash"`
+	ID             int    `json:"id"`
+	Lease          string `json:"lease"`
+	Op             string `json:"op"`
+	Status         string `json:"status"`
 }
 
 // encodeClaimReceipt base64url-encodes a receipt exactly as the engine's
@@ -59,7 +59,7 @@ func commitClaimTrailers(t *testing.T, dir, subject string, trailers ...string) 
 // the engine's trailer block for a change.claim applied receipt is returned as
 // one ClaimProof, newest-first, decoding gate_context_hash from the receipt.
 func TestIntegrationRecordOpsScanClaimProofsReadsCommittedReceipt(t *testing.T) {
-	repo := newGateRepo(t)
+	repo := newRunTrackerRepo(t)
 
 	// Older claim commit: change id 3, ungated (gate_context_hash "").
 	older := commitClaimTrailers(t, repo, "claim 3",
@@ -68,7 +68,7 @@ func TestIntegrationRecordOpsScanClaimProofsReadsCommittedReceipt(t *testing.T) 
 		"Docket-Request-ID: claim-3-v1",
 		"Docket-Request-Digest: sha256:aaaa",
 		"Docket-Result: "+encodeClaimReceipt(t, wireClaimReceipt{
-			Branch: "fix/x", ClaimedAt: "2026-09-07T00:00:00Z", GateContextHash: "",
+			Branch: "fix/x", ClaimedAt: "2026-09-07T00:00:00Z", RunContextHash: "",
 			ID: 3, Lease: "live", Op: OperationChangeClaim, Status: "in-progress",
 		}))
 
@@ -89,7 +89,7 @@ func TestIntegrationRecordOpsScanClaimProofsReadsCommittedReceipt(t *testing.T) 
 		"Docket-Request-ID: claim-4-v2",
 		"Docket-Request-Digest: sha256:cccc",
 		"Docket-Result: "+encodeClaimReceipt(t, wireClaimReceipt{
-			Branch: "fix/y", ClaimedAt: "2026-09-07T01:00:00Z", GateContextHash: "abc123",
+			Branch: "fix/y", ClaimedAt: "2026-09-07T01:00:00Z", RunContextHash: "abc123",
 			ID: 4, Lease: "live", Op: OperationChangeClaim, Status: "in-progress",
 		}))
 
@@ -106,8 +106,8 @@ func TestIntegrationRecordOpsScanClaimProofsReadsCommittedReceipt(t *testing.T) 
 	}
 
 	want := []ClaimProof{
-		{RequestID: "claim-4-v2", ChangeID: 4, GateContextHash: "abc123", Revision: tip},
-		{RequestID: "claim-3-v1", ChangeID: 3, GateContextHash: "", Revision: older},
+		{RequestID: "claim-4-v2", ChangeID: 4, RunContextHash: "abc123", Revision: tip},
+		{RequestID: "claim-3-v1", ChangeID: 3, RunContextHash: "", Revision: older},
 	}
 	if len(proofs) != len(want) {
 		t.Fatalf("got %d proofs, want %d:\n%+v", len(proofs), len(want), proofs)

@@ -130,7 +130,7 @@ const (
 	// admission until recovery resolves it, never a blind re-reservation (spec
 	// "Ambiguous launch or persistence failures fail closed").
 	ErrUnresolvedExecution OwnershipErrorKind = "unresolved-execution"
-	// ErrStaleRunEpoch: a worktree execution slot is owned by a run epoch (an
+	// ErrStaleRunID: a worktree execution slot is owned by a run epoch (an
 	// in-flight workflow implementation whose id the slot records) that the incoming
 	// reservation does not carry — an omitted epoch, or a different one. Omission
 	// cannot detach a workflow-owned worktree: the slot admits only that epoch's own
@@ -139,7 +139,7 @@ const (
 	// owns (change 0375 Task 9, spec "omission cannot detach"). A slot with no epoch
 	// (a standalone gate) fences nothing. It confers no admission and never stops the
 	// incumbent.
-	ErrStaleRunEpoch OwnershipErrorKind = "stale-run-id"
+	ErrStaleRunID OwnershipErrorKind = "stale-run-id"
 )
 
 // IncumbentSnapshot is a bounded, credential-free projection of the execution
@@ -149,16 +149,16 @@ const (
 // cause. It carries identity and route facts only — never a reservation token,
 // owner generation, capability, argv, or environment.
 type IncumbentSnapshot struct {
-	Kind       string // "scoped" | "scopeless" | "raw" | "" (unknown)
-	State      string // admission state at refusal: "reserved"|"executing"|"stopping"|"unresolved"
-	DriveID    string // "" for raw launches
-	RawRunID   string // "" until a raw launch was confirmed
-	RawRunDir  string // "" until a raw launch was confirmed
-	EpochOwned bool   // a run epoch owns the slot (the epoch id itself is not projected)
-	// EpochUnresolved: the settlement seam reported that no readable run-epoch
-	// record carries the slot's epoch (ErrEpochUnresolved), so the owning run
+	Kind      string // "scoped" | "scopeless" | "raw" | "" (unknown)
+	State     string // admission state at refusal: "reserved"|"executing"|"stopping"|"unresolved"
+	DriveID   string // "" for raw launches
+	RawRunID  string // "" until a raw launch was confirmed
+	RawRunDir string // "" until a raw launch was confirmed
+	RunOwned  bool   // a run epoch owns the slot (the epoch id itself is not projected)
+	// RunUnresolved: the settlement seam reported that no readable run-epoch
+	// record carries the slot's epoch (ErrRunRecordUnresolved), so the owning run
 	// cannot be cancelled by key and epoch — the remedy must not suggest it.
-	EpochUnresolved bool
+	RunUnresolved bool
 }
 
 // OwnershipError is the ownership layer's typed failure. Like StoreError it

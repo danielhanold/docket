@@ -303,8 +303,8 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			envHash, _ := c.Flags().GetString("env-hash")
 			scopeID, _ := c.Flags().GetString("scope-id")
 			childCap, _ := c.Flags().GetString("child-cap")
-			gateContext, _ := c.Flags().GetString("gate-context")
-			runEpoch, _ := c.Flags().GetString("run-id")
+			runContext, _ := c.Flags().GetString("gate-context")
+			runID, _ := c.Flags().GetString("run-id")
 			setResult(gateDrivePresenter{inner: svc.Start(app.GateDriveStartRequest{
 				RepoDir:             commonDir,
 				Worktree:            repoDir,
@@ -319,8 +319,8 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 				IdempotentSuiteGate: idempotent,
 				ScopeID:             scopeID,
 				ChildCapability:     childCap,
-				GateContext:         gateContext,
-				RunEpochID:          runEpoch,
+				RunContext:          runContext,
+				RunID:               runID,
 				PredecessorDriveID:  predDriveID,
 				PredecessorOwnerGen: predOwnerGen,
 			})})
@@ -494,8 +494,8 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			phase, _ := c.Flags().GetString("phase")
 			branch, _ := c.Flags().GetString("branch")
 			worktree, _ := c.Flags().GetString("worktree")
-			gateContext, _ := c.Flags().GetString("gate-context")
-			runEpoch, _ := c.Flags().GetString("run-id")
+			runContext, _ := c.Flags().GetString("gate-context")
+			runID, _ := c.Flags().GetString("run-id")
 			setResult(svc.PrepareScope(gatedrive.ScopeRequest{
 				RepoIdentity: commonDir,
 				ChangeID:     changeID,
@@ -503,8 +503,8 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 				Phase:        phase,
 				Branch:       branch,
 				Worktree:     worktree,
-				GateContext:  gateContext,
-				RunEpochID:   runEpoch,
+				RunContext:   runContext,
+				RunID:        runID,
 			}))
 			return nil
 		},

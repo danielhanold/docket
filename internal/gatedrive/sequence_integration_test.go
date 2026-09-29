@@ -244,7 +244,7 @@ func TestIntegrationGatedriveSequenceRealGitBaselineRedGreen(t *testing.T) {
 	}
 	base.ScopeID = grant.ScopeID
 	base.ChildCapability = grant.ChildCapability
-	base.GateContext = gateCtx
+	base.RunContext = gateCtx
 
 	baseDoc := driveSeqToTerminal(t, d, base)
 	if baseDoc.Outcome != PASSED {
@@ -349,7 +349,7 @@ func makeAckedHistory(t *testing.T, d *Driver, store *Store, wt, branch, runRoot
 	}
 	base.ScopeID = grant.ScopeID
 	base.ChildCapability = grant.ChildCapability
-	base.GateContext = gateCtx
+	base.RunContext = gateCtx
 
 	baseDoc := driveSeqToTerminal(t, d, base)
 	if baseDoc.Outcome != PASSED {
@@ -419,7 +419,7 @@ func TestIntegrationGatedriveSequenceCredentialTheftRejected(t *testing.T) {
 	}
 	reqA.ScopeID = grantA.ScopeID
 	reqA.ChildCapability = grantA.ChildCapability
-	reqA.GateContext = "gate-A"
+	reqA.RunContext = "gate-A"
 	aDoc := driveSeqToTerminal(t, dA, reqA)
 	if aDoc.Outcome != PASSED {
 		t.Fatalf("scope A drive must PASS, got %s (%s)", aDoc.Outcome, aDoc.Cause)
@@ -433,7 +433,7 @@ func TestIntegrationGatedriveSequenceCredentialTheftRejected(t *testing.T) {
 	}
 	reqB.ScopeID = grantB.ScopeID
 	reqB.ChildCapability = grantB.ChildCapability
-	reqB.GateContext = "gate-B"
+	reqB.RunContext = "gate-B"
 
 	// Theft 1: scope A's child capability presented on scope B's start. It is refused
 	// ErrScopeCapabilityMismatch before any reservation or launch — scope B admits no
@@ -490,21 +490,21 @@ func TestIntegrationGatedriveSequenceCredentialTheftRejected(t *testing.T) {
 // sequence_race_integration_test.go (race shard, change 0466).
 // ---------------------------------------------------------------------------
 
-// genSettled is a thread-safe scripted EpochSettledFunc: an epoch is settled once
+// genSettled is a thread-safe scripted RunSettledFunc: an epoch is settled once
 // the test marks it (its run completed, or its cancellation was confirmed).
 type genSettled struct {
 	mu      sync.Mutex
 	settled map[string]bool
 }
 
-func (g *genSettled) settle(epochID string) {
+func (g *genSettled) settle(runID string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.settled[epochID] = true
+	g.settled[runID] = true
 }
 
-func (g *genSettled) resolve(epochID string) (bool, error) {
+func (g *genSettled) resolve(runID string) (bool, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.settled[epochID], nil
+	return g.settled[runID], nil
 }

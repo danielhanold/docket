@@ -25,7 +25,7 @@
 // so it is fenced out of mutation admission exactly like any non-writer (the
 // run-epoch mutation fence keys on the epoch state the guardian drives, never on the
 // guardian's identity). It reaps the run's registered participants and worktree slot
-// through the SAME accounting run.cancel uses (reconcileEpochTeardown), but WITHOUT
+// through the SAME accounting run.cancel uses (reconcileRunTeardown), but WITHOUT
 // the authority conjunction — the guardian is a trusted re-exec the already-authorized
 // owner spawned, located to exactly one epoch, which it verifies before fencing.
 package app
@@ -43,18 +43,18 @@ import (
 // GuardianRequested is false for every user-facing command.
 const (
 	guardianRepoDirEnv = "DOCKET_AGENT_GUARDIAN_REPO_DIR"
-	guardianGateKeyEnv = "DOCKET_AGENT_GUARDIAN_GATE_KEY"
-	guardianEpochEnv   = "DOCKET_AGENT_GUARDIAN_RUN_ID"
+	guardianRunKeyEnv  = "DOCKET_AGENT_GUARDIAN_GATE_KEY"
+	guardianRunIDEnv   = "DOCKET_AGENT_GUARDIAN_RUN_ID"
 	guardianMarkerEnv  = "DOCKET_AGENT_GUARDIAN_MARKER"
 	// guardianPipeFD is the inherited pipe read end (the first and only ExtraFiles
 	// slot), mirroring the supervisor's inherited-descriptor contract.
 	guardianPipeFD = 3
 )
 
-// errGuardianEpochMismatch aborts the fence CAS without a write when the located
+// errGuardianRunIDMismatch aborts the fence CAS without a write when the located
 // epoch's public id does not match the id the guardian was spawned for — a stale
 // re-exec can never fence an unrelated successor epoch. It is internal to the fence.
-var errGuardianEpochMismatch = errors.New("guardian epoch id does not match the located epoch")
+var errGuardianRunIDMismatch = errors.New("guardian epoch id does not match the located epoch")
 
 // GuardianRequested reports whether this process was re-executed as an agent death
 // guardian. It is the whole predicate cli.Run's pre-Cobra hook keys on: true iff
@@ -78,8 +78,8 @@ func MaybeRunAgentGuardian() (int, bool) {
 // single exit site.
 func RunAgentGuardianFromEnv() int {
 	repoDir := os.Getenv(guardianRepoDirEnv)
-	gateKey := os.Getenv(guardianGateKeyEnv)
-	epochID := os.Getenv(guardianEpochEnv)
+	runKey := os.Getenv(guardianRunKeyEnv)
+	runID := os.Getenv(guardianRunIDEnv)
 	marker := os.Getenv(guardianMarkerEnv)
 
 	// Adopt the inherited pipe read end and mark it close-on-exec: it must never
@@ -112,7 +112,7 @@ func RunAgentGuardianFromEnv() int {
 	}
 
 	// Abrupt owner death, no marker: fence the epoch and reap the run.
-	guardianFenceAndReap(repoDir, gateKey, epochID)
+	guardianFenceAndReap(repoDir, runKey, runID)
 	return 0
 }
 
@@ -130,13 +130,13 @@ func RunAgentGuardianFromEnv() int {
 // exclusion that blocks any replacement until a human `run.cancel` re-runs the
 // accounting under authority and confirms cancellation. That is the authority split:
 // the guardian (no authority) fences on death; the human (authority) confirms.
-func guardianFenceAndReap(repoDir, gateKey, epochID string) {
-	ferr := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
-		if epochID != "" && rec.EpochID != epochID {
-			return errGuardianEpochMismatch // abort with no write
+func guardianFenceAndReap(repoDir, runKey, runID string) {
+	ferr := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
+		if runID != "" && rec.RunID != runID {
+			return errGuardianRunIDMismatch // abort with no write
 		}
-		if rec.State == EpochActive {
-			rec.State = EpochCancelling
+		if rec.State == RunActive {
+			rec.State = RunCancelling
 		}
 		// A non-active epoch is left exactly as found: cancelling/cancelled/superseded,
 		// or a completing/completed successful closeout the keyed verdict resumes by
@@ -146,8 +146,8 @@ func guardianFenceAndReap(repoDir, gateKey, epochID string) {
 	if ferr != nil {
 		return
 	}
-	ep, _, err := LoadEpochRecord(repoDir, gateKey)
-	if err != nil || ep.State != EpochCancelling {
+	ep, _, err := LoadRunRecord(repoDir, runKey)
+	if err != nil || ep.State != RunCancelling {
 		// Nothing to reap: the epoch is missing, unreadable, or already terminal /
 		// not the one we fenced.
 		return
@@ -159,7 +159,7 @@ func guardianFenceAndReap(repoDir, gateKey, epochID string) {
 	// (change 0437 Task 6), so an abruptly-abandoned run's pending or replacement
 	// launches are reaped on the guardian's fence too. Its verdict is discarded
 	// because the guardian never finalizes the epoch.
-	_, _, _ = reconcileEpochTeardown(productionCancelSeams(repoDir), repoDir, gateKey, ep)
+	_, _, _ = reconcileRunTeardown(productionCancelSeams(repoDir), repoDir, runKey, ep)
 }
 
 // GuardianHandle is the owner-side handle to a spawned death guardian: the pipe
@@ -172,14 +172,14 @@ type GuardianHandle struct {
 }
 
 // SpawnAgentGuardian re-execs executable as a detached death guardian for the run
-// epoch located by (gateKey, epochID) under repoDir, watching the returned handle's
+// epoch located by (runKey, runID) under repoDir, watching the returned handle's
 // pipe. markerPath names the durable completion marker the owner writes (via
 // Complete) on a clean end so the guardian never mistakes it for a Stop. The
 // guardian is a new session leader (Setsid), so it survives the owner's terminal or
 // session ending; it inherits ONLY the pipe read end (fd 3) and none of the owner's
 // standard streams (all routed to /dev/null), carrying no capability. On any error
 // before Start it closes every descriptor it opened.
-func SpawnAgentGuardian(executable, repoDir, gateKey, epochID, markerPath string) (*GuardianHandle, error) {
+func SpawnAgentGuardian(executable, repoDir, runKey, runID, markerPath string) (*GuardianHandle, error) {
 	// Clear any pre-existing completion marker BEFORE Start, so only a marker THIS
 	// owner writes during THIS lifetime (via Complete) can suppress the guardian's
 	// fence. A stale marker left in a reused gate-key directory would otherwise
@@ -207,8 +207,8 @@ func SpawnAgentGuardian(executable, repoDir, gateKey, epochID, markerPath string
 	cmd := exec.Command(executable)
 	cmd.Env = append(os.Environ(),
 		guardianRepoDirEnv+"="+repoDir,
-		guardianGateKeyEnv+"="+gateKey,
-		guardianEpochEnv+"="+epochID,
+		guardianRunKeyEnv+"="+runKey,
+		guardianRunIDEnv+"="+runID,
 		guardianMarkerEnv+"="+markerPath)
 	// Setsid detaches the guardian into its own session so a SIGHUP to the owner's
 	// session, or the owner's death, does not take the guardian with it.
@@ -257,18 +257,18 @@ func (h *GuardianHandle) Complete() {
 
 // markerPathFor returns the durable completion-marker path for a run, beside the
 // run's gate-key directory so it shares that record's lifetime and 0700 privacy.
-func markerPathFor(gitCommonDir, gateKey string) string {
-	return filepath.Join(gitCommonDir, "docket", runTrackerDirName, gateKey, "owner-complete.marker")
+func markerPathFor(gitCommonDir, runKey string) string {
+	return filepath.Join(gitCommonDir, "docket", runTrackerDirName, runKey, "owner-complete.marker")
 }
 
 // AgentGuardianMarkerPath resolves the completion-marker path a guardian for
-// (repoDir, gateKey) watches, beside the run's gate-key directory. The CLI passes
+// (repoDir, runKey) watches, beside the run's gate-key directory. The CLI passes
 // it to SpawnAgentGuardian so the owner and the guardian agree on the one file
 // whose presence distinguishes a clean end from an abrupt death.
-func AgentGuardianMarkerPath(repoDir, gateKey string) (string, error) {
-	common, err := gateGitCommonDir(repoDir)
+func AgentGuardianMarkerPath(repoDir, runKey string) (string, error) {
+	common, err := runTrackerGitCommonDir(repoDir)
 	if err != nil {
 		return "", err
 	}
-	return markerPathFor(common, gateKey), nil
+	return markerPathFor(common, runKey), nil
 }

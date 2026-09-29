@@ -9,34 +9,34 @@ import (
 // runtracker_run_record_integration_test.go (change 0465); these fixtures stay untagged
 // because other untagged test files still reference them.
 
-// mintTestGateKey mints a minimal valid gate record and returns its key, so an
+// mintTestRunKey mints a minimal valid gate record and returns its key, so an
 // epoch test has a real key directory (the epoch store requires one) without
 // arming the whole gate. AttemptLimit is floored at 1 so the v4 write guard
 // accepts it.
-func mintTestGateKey(t *testing.T, repo string) string {
+func mintTestRunKey(t *testing.T, repo string) string {
 	t.Helper()
-	key, err := MintGateRecord(repo, GateRecord{
-		Target:       gateBeforeStoredTarget,
+	key, err := MintRunTrackerRecord(repo, RunTrackerRecord{
+		Target:       runStartStoredTarget,
 		AttemptLimit: 1,
 		Retry:        RetryUnused,
 		Disposition:  "run-started",
 	})
 	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
+		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
 	return key
 }
 
-// forceEpochState drives the epoch record to state s through the CAS, standing in
+// forceRunState drives the epoch record to state s through the CAS, standing in
 // for the durable transitions other tasks own so a lifecycle guard can be exercised
 // against an arbitrary state.
-func forceEpochState(t *testing.T, repo, key string, s epochState) {
+func forceRunState(t *testing.T, repo, key string, s runState) {
 	t.Helper()
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
+	if err := runRecordCAS(repo, key, func(r *RunRecord) error {
 		r.State = s
 		return nil
 	}); err != nil {
-		t.Fatalf("forceEpochState %q: %v", s, err)
+		t.Fatalf("forceRunState %q: %v", s, err)
 	}
 }
 

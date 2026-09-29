@@ -109,11 +109,11 @@ var excludedRequestTypes = map[string]string{
 }
 
 var excludedResultTypes = map[string]string{
-	"CLIErrorResult":              "pre-dispatch cli parse/usage failure result (CLIError); not tied to a catalog operation id",
-	"LocalGateResult":             "internal finalize gate seam return (RunLocalGate); carries no Envelope, is not an op document",
-	"SweepPRSetResult":            "internal batched-PR-read seam return (ProbePRSet); carries no Envelope, is not an op document",
-	"RunGateVerdictObserveResult": "run.verdict's observe-mode (--unattributed) result variant; the op binds its attributed result RunGateVerdictResult",
-	"SchemaResult":                "the schema document's own container; self-referential (FieldDescriptor nests []FieldDescriptor) and carries map[string]Vocabulary, so it is unreflectable and deliberately unbound — the wired `schema` op is the cli-side selfReferentialSchemaOps exception",
+	"CLIErrorResult":          "pre-dispatch cli parse/usage failure result (CLIError); not tied to a catalog operation id",
+	"LocalGateResult":         "internal finalize gate seam return (RunLocalGate); carries no Envelope, is not an op document",
+	"SweepPRSetResult":        "internal batched-PR-read seam return (ProbePRSet); carries no Envelope, is not an op document",
+	"RunVerdictObserveResult": "run.verdict's observe-mode (--unattributed) result variant; the op binds its attributed result RunVerdictResult",
+	"SchemaResult":            "the schema document's own container; self-referential (FieldDescriptor nests []FieldDescriptor) and carries map[string]Vocabulary, so it is unreflectable and deliberately unbound — the wired `schema` op is the cli-side selfReferentialSchemaOps exception",
 }
 
 // TestEveryRequestAndResultStructIsBound is the two-direction registry-accounting

@@ -794,7 +794,7 @@ func TestCleanupHistory(t *testing.T) {
 // fixture is nonblocking without ever consulting the seam, so the default fakeProc
 // suffices to prove the wiring.
 func TestDriverCleanupHistoryDelegates(t *testing.T) {
-	d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 	id := copyLegacyFixture(t, store, "passed")
 	out, err := d.CleanupHistory(HistoryCleanupRequest{})
 	if err != nil {

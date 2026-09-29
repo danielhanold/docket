@@ -9,31 +9,31 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// EpochLaunchGate seam: Admit fences its durable reservation behind the
+// RunLaunchGate seam: Admit fences its durable reservation behind the
 // app-injected epoch liveness read (change 0437 Task 1). The gate is faked as a
 // closure recording its calls; the reservation body (reserve) runs only when the
 // gate lets it, so a refusal reserves nothing.
 // ---------------------------------------------------------------------------
 
-// recordingGate is a fake EpochLaunchGate: it records each call's epoch id and
+// recordingGate is a fake RunLaunchGate: it records each call's epoch id and
 // worktree, then defers to an injected behavior. A nil behavior runs reserve
 // directly (a permissive gate).
 type recordingGate struct {
 	calls     int
-	epochIDs  []string
+	runIDs    []string
 	worktrees []string
-	behave    func(epochID, worktree string, reserve func() error) error
+	behave    func(runID, worktree string, reserve func() error) error
 }
 
-func (g *recordingGate) gate() EpochLaunchGate {
-	return func(epochID, worktree string, reserve func() error) error {
+func (g *recordingGate) gate() RunLaunchGate {
+	return func(runID, worktree string, reserve func() error) error {
 		g.calls++
-		g.epochIDs = append(g.epochIDs, epochID)
+		g.runIDs = append(g.runIDs, runID)
 		g.worktrees = append(g.worktrees, worktree)
 		if g.behave == nil {
 			return reserve()
 		}
-		return g.behave(epochID, worktree, reserve)
+		return g.behave(runID, worktree, reserve)
 	}
 }
 
@@ -52,19 +52,19 @@ func driveRecordCount(t *testing.T, store *Store) int {
 	return len(entries)
 }
 
-// TestAdmitConsultsEpochGateWithIDAndWorktree proves a scoped and a scopeless
-// Admit carrying RunEpochID each consult the gate exactly once with the epoch id
+// TestAdmitConsultsRunLaunchGateWithIDAndWorktree proves a scoped and a scopeless
+// Admit carrying RunID each consult the gate exactly once with the epoch id
 // and the request's worktree, and admission succeeds under a permissive gate.
-func TestAdmitConsultsEpochGateWithIDAndWorktree(t *testing.T) {
+func TestAdmitConsultsRunLaunchGateWithIDAndWorktree(t *testing.T) {
 	t.Run("scopeless", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, _ := newTestDriver(t, clk, proc, stableGit())
 		rg := &recordingGate{}
-		d.SetEpochLaunchGate(rg.gate())
+		d.SetRunLaunchGate(rg.gate())
 
 		req := sampleStart()
-		req.RunEpochID = "e1"
+		req.RunID = "e1"
 		ticket, err := d.Admit(req)
 		if err != nil {
 			t.Fatalf("Admit: %v", err)
@@ -75,20 +75,20 @@ func TestAdmitConsultsEpochGateWithIDAndWorktree(t *testing.T) {
 		if rg.calls != 1 {
 			t.Fatalf("gate consulted %d times, want exactly 1", rg.calls)
 		}
-		if rg.epochIDs[0] != "e1" || rg.worktrees[0] != req.Worktree {
-			t.Fatalf("gate called with (%q,%q), want (%q,%q)", rg.epochIDs[0], rg.worktrees[0], "e1", req.Worktree)
+		if rg.runIDs[0] != "e1" || rg.worktrees[0] != req.Worktree {
+			t.Fatalf("gate called with (%q,%q), want (%q,%q)", rg.runIDs[0], rg.worktrees[0], "e1", req.Worktree)
 		}
 	})
 
 	t.Run("scoped", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		store := OpenStore(testsupport.TempDir(t))
 		grant, req := prepareScopedStart(t, store)
-		req.RunEpochID = "e1"
+		req.RunID = "e1"
 		d := scopedTestDriver(store, clk, proc, stableGit())
 		rg := &recordingGate{}
-		d.SetEpochLaunchGate(rg.gate())
+		d.SetRunLaunchGate(rg.gate())
 
 		ticket, err := d.Admit(req)
 		if err != nil {
@@ -100,8 +100,8 @@ func TestAdmitConsultsEpochGateWithIDAndWorktree(t *testing.T) {
 		if rg.calls != 1 {
 			t.Fatalf("gate consulted %d times, want exactly 1", rg.calls)
 		}
-		if rg.epochIDs[0] != "e1" || rg.worktrees[0] != req.Worktree {
-			t.Fatalf("gate called with (%q,%q), want (%q,%q)", rg.epochIDs[0], rg.worktrees[0], "e1", req.Worktree)
+		if rg.runIDs[0] != "e1" || rg.worktrees[0] != req.Worktree {
+			t.Fatalf("gate called with (%q,%q), want (%q,%q)", rg.runIDs[0], rg.worktrees[0], "e1", req.Worktree)
 		}
 		// The scope slot was durably reserved inside the gate.
 		if _, err := store.LoadScope(grant.ScopeID); err != nil {
@@ -110,24 +110,24 @@ func TestAdmitConsultsEpochGateWithIDAndWorktree(t *testing.T) {
 	})
 }
 
-// TestAdmitEpochGateRefusalReservesNothing proves a gate refusal reserves
+// TestAdmitRunLaunchGateRefusalReservesNothing proves a gate refusal reserves
 // nothing: reserve is never called, Admit returns the gate's exact error, no
 // worktree slot exists, no reserved drive record was minted, and (scoped) the
 // scope slot is untouched.
-func TestAdmitEpochGateRefusalReservesNothing(t *testing.T) {
+func TestAdmitRunLaunchGateRefusalReservesNothing(t *testing.T) {
 	sentinel := errors.New("gatedrive-test: epoch fence refusal")
 
 	t.Run("scopeless", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
 		rg := &recordingGate{behave: func(_, _ string, _ func() error) error {
 			return sentinel // reserve is never invoked
 		}}
-		d.SetEpochLaunchGate(rg.gate())
+		d.SetRunLaunchGate(rg.gate())
 
 		req := sampleStart()
-		req.RunEpochID = "e1"
+		req.RunID = "e1"
 		ticket, err := d.Admit(req)
 		if !errors.Is(err, sentinel) {
 			t.Fatalf("Admit error = %v, want the gate's sentinel", err)
@@ -144,16 +144,16 @@ func TestAdmitEpochGateRefusalReservesNothing(t *testing.T) {
 	})
 
 	t.Run("scoped", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		store := OpenStore(testsupport.TempDir(t))
 		grant, req := prepareScopedStart(t, store)
-		req.RunEpochID = "e1"
+		req.RunID = "e1"
 		d := scopedTestDriver(store, clk, proc, stableGit())
 		rg := &recordingGate{behave: func(_, _ string, _ func() error) error {
 			return sentinel // reserve is never invoked
 		}}
-		d.SetEpochLaunchGate(rg.gate())
+		d.SetRunLaunchGate(rg.gate())
 
 		ticket, err := d.Admit(req)
 		if !errors.Is(err, sentinel) {
@@ -183,7 +183,7 @@ func TestAdmitEpochGateRefusalReservesNothing(t *testing.T) {
 // the gate is held: the fake gate observes the worktree slot absent before
 // reserve and reserved after.
 func TestAdmitReservationRunsInsideGate(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 
@@ -208,10 +208,10 @@ func TestAdmitReservationRunsInsideGate(t *testing.T) {
 		}
 		return nil
 	}}
-	d.SetEpochLaunchGate(rg.gate())
+	d.SetRunLaunchGate(rg.gate())
 
 	req := sampleStart()
-	req.RunEpochID = "e1"
+	req.RunID = "e1"
 	if _, err := d.Admit(req); err != nil {
 		t.Fatalf("Admit: %v", err)
 	}
@@ -223,18 +223,18 @@ func TestAdmitReservationRunsInsideGate(t *testing.T) {
 	}
 }
 
-// TestAdmitNilGateOrEmptyEpochUnchanged proves the epoch-less standalone path is
+// TestAdmitNilGateOrEmptyRunUnchanged proves the epoch-less standalone path is
 // preserved: a nil gate with an epoch id, and a set gate with an empty
-// RunEpochID, both admit as today. The empty-epoch case never consults the gate.
-func TestAdmitNilGateOrEmptyEpochUnchanged(t *testing.T) {
+// RunID, both admit as today. The empty-epoch case never consults the gate.
+func TestAdmitNilGateOrEmptyRunUnchanged(t *testing.T) {
 	t.Run("nil-gate-with-epoch-id", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		// No SetEpochLaunchGate: the gate is nil.
+		// No SetRunLaunchGate: the gate is nil.
 
 		req := sampleStart()
-		req.RunEpochID = "e1"
+		req.RunID = "e1"
 		ticket, err := d.Admit(req)
 		if err != nil {
 			t.Fatalf("Admit with a nil gate must admit as today: %v", err)
@@ -248,13 +248,13 @@ func TestAdmitNilGateOrEmptyEpochUnchanged(t *testing.T) {
 	})
 
 	t.Run("empty-epoch-does-not-consult-gate", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
 		rg := &recordingGate{}
-		d.SetEpochLaunchGate(rg.gate())
+		d.SetRunLaunchGate(rg.gate())
 
-		req := sampleStart() // RunEpochID == ""
+		req := sampleStart() // RunID == ""
 		ticket, err := d.Admit(req)
 		if err != nil {
 			t.Fatalf("Admit with an empty epoch must admit as today: %v", err)

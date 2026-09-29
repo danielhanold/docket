@@ -127,7 +127,7 @@ func newTestDriver(t *testing.T, clk *fakeClock, proc *fakeProc, git GitSeam) (*
 	return d, store
 }
 
-func startEpoch() time.Time { return time.Unix(1_000_000, 0).UTC() }
+func startRun() time.Time { return time.Unix(1_000_000, 0).UTC() }
 
 // sampleWorktreeOnce/sampleWorktreeDir back sampleWorktree: a single real,
 // canonical, existing directory used as the sample scoped-start worktree. Change
@@ -187,7 +187,7 @@ func seedRecord(t *testing.T) driveRecord {
 	if err != nil {
 		t.Fatalf("ComputeFingerprint: %v", err)
 	}
-	start := startEpoch()
+	start := startRun()
 	return driveRecord{
 		RepoIdentity:        "/repo",
 		WorktreePath:        "/repo",
@@ -237,7 +237,7 @@ func seedDrive(t *testing.T, store *Store, rec driveRecord) (id, ownerGen string
 // owner generation, attempt 1, and the fixed deadline — and no raw run dir
 // (only PASSED exposes it).
 func TestStartLaunchesAndFirstSliceWaits(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{} // default: launch running, observe running
 	d, store := newTestDriver(t, clk, proc, stableGit())
 
@@ -254,7 +254,7 @@ func TestStartLaunchesAndFirstSliceWaits(t *testing.T) {
 	if doc.Attempt != 1 {
 		t.Fatalf("first attempt must be 1, got %d", doc.Attempt)
 	}
-	if !doc.Deadline.Equal(startEpoch().Add(30 * time.Minute)) {
+	if !doc.Deadline.Equal(startRun().Add(30 * time.Minute)) {
 		t.Fatalf("deadline must be start+budget, got %v", doc.Deadline)
 	}
 	if doc.RawRunDir != "" {
@@ -275,7 +275,7 @@ func TestStartLaunchesAndFirstSliceWaits(t *testing.T) {
 // summary is a diagnostic surface on the START document only.
 func TestStartCarriesLegacyHistorySummary(t *testing.T) {
 	t.Run("legacy-history-present", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{} // default: launch running, observe running
 		d, store := newTestDriver(t, clk, proc, stableGit())
 		// A completed v2 drive bound to a since-removed worktree: assessed and
@@ -295,7 +295,7 @@ func TestStartCarriesLegacyHistorySummary(t *testing.T) {
 	})
 
 	t.Run("no-legacy-records-nil", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, _ := newTestDriver(t, clk, proc, stableGit())
 
@@ -313,7 +313,7 @@ func TestStartCarriesLegacyHistorySummary(t *testing.T) {
 // one drive, run, attempt, and fixed deadline: only the same owner advancing the
 // same live run.
 func TestSeveralWaitingSlicesRetainDriveIdentity(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{} // stays running
 	d, store := newTestDriver(t, clk, proc, stableGit())
 
@@ -354,7 +354,7 @@ func TestSeveralWaitingSlicesRetainDriveIdentity(t *testing.T) {
 // TestTerminalPassBetweenSlices proves a pass arriving on a later slice is
 // accepted only after the fingerprint revalidates, and exposes the raw run dir.
 func TestTerminalPassBetweenSlices(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	running := true
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
@@ -403,7 +403,7 @@ func TestTerminalPassBetweenSlices(t *testing.T) {
 // TestTerminalFailBetweenSlices proves a red suite is FAILED, distinct from a
 // halt.
 func TestTerminalFailBetweenSlices(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			return obs(process.StateFailed, runDir), nil
@@ -425,7 +425,7 @@ func TestTerminalFailBetweenSlices(t *testing.T) {
 // TestPassFingerprintMismatchHalts proves a green terminal whose worktree drifted
 // since drive start is HALTED (stop-if-owned), never converted to red.
 func TestPassFingerprintMismatchHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	git := stableGit()
 	running := true
 	proc := &fakeProc{
@@ -473,7 +473,7 @@ func TestPassFingerprintMismatchHalts(t *testing.T) {
 // TestZeroBudgetTakesOneObservationThenStopsAndHalts proves a zero budget takes
 // exactly one observation of a live run, then stops it and HALTs.
 func TestZeroBudgetTakesOneObservationThenStopsAndHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{} // stays running
 	d, _ := newTestDriver(t, clk, proc, stableGit())
 
@@ -497,7 +497,7 @@ func TestZeroBudgetTakesOneObservationThenStopsAndHalts(t *testing.T) {
 // TestDeadlineExpiryWithLiveRunStopsAndHalts proves an expired deadline over a
 // live run stops the tree and HALTs, and earns no relaunch.
 func TestDeadlineExpiryWithLiveRunStopsAndHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{} // stays running
 	d, _ := newTestDriver(t, clk, proc, stableGit())
 
@@ -532,7 +532,7 @@ func TestDeadlineExpiryWithLiveRunStopsAndHalts(t *testing.T) {
 // accepted clock — which could lengthen the effective budget — HALTs rather than
 // trusting the reading.
 func TestBackwardClockJumpHaltsDriver(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{} // stays running
 	d, _ := newTestDriver(t, clk, proc, stableGit())
 
@@ -541,7 +541,7 @@ func TestBackwardClockJumpHaltsDriver(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 	// Rewind the wall clock behind the last accepted slice clock.
-	clk.now = startEpoch().Add(-time.Hour)
+	clk.now = startRun().Add(-time.Hour)
 	doc, err = d.Advance(doc.DriveID, doc.Generation)
 	if err != nil {
 		t.Fatalf("Advance: %v", err)
@@ -561,7 +561,7 @@ func TestBackwardClockJumpHaltsDriver(t *testing.T) {
 // TestMalformedObservationFailsClosed proves an unreadable observation HALTs;
 // only an exact running state is retryable.
 func TestMalformedObservationFailsClosed(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		observe: func(string) (*process.Observation, error) {
 			return nil, fmt.Errorf("gatedrive-test: unreadable observation")
@@ -580,7 +580,7 @@ func TestMalformedObservationFailsClosed(t *testing.T) {
 // TestUnknownObservationStateHalts proves an unrecognized native state fails
 // closed rather than being coerced into a workflow outcome.
 func TestUnknownObservationStateHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			return obs(process.State("gremlin"), runDir), nil
@@ -599,7 +599,7 @@ func TestUnknownObservationStateHalts(t *testing.T) {
 // TestStoppedNotInitiatedHalts proves a native stopped state the drive did not
 // initiate is HALTED, never red.
 func TestStoppedNotInitiatedHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			return obs(process.StateStopped, runDir), nil
@@ -627,7 +627,7 @@ func TestStoppedNotInitiatedHalts(t *testing.T) {
 // drive, deadline, and identity, with attempt and relaunch count advanced. The
 // first run's stop no-op is consumed by a re-observe before the relaunch.
 func TestSignaledDeathRelaunchAdmittedOnce(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
 			// launchN was already incremented by the wrapper.
@@ -674,7 +674,7 @@ func TestSignaledDeathRelaunchAdmittedOnce(t *testing.T) {
 	if rec.PriorRawRunDir != "/runs/run1" {
 		t.Fatalf("the dead first attempt must be preserved, got %q", rec.PriorRawRunDir)
 	}
-	if !rec.Deadline.Equal(startEpoch().Add(30 * time.Minute)) {
+	if !rec.Deadline.Equal(startRun().Add(30 * time.Minute)) {
 		t.Fatalf("the relaunch must keep the original deadline, got %v", rec.Deadline)
 	}
 }
@@ -705,7 +705,7 @@ func TestDeathRelaunchRefusals(t *testing.T) {
 		{
 			name:      "deadline exhausted",
 			state:     process.StateSignaled,
-			mutate:    func(rec *driveRecord) { rec.Deadline = startEpoch().Add(-time.Minute) },
+			mutate:    func(rec *driveRecord) { rec.Deadline = startRun().Add(-time.Minute) },
 			wantCause: "deadline-expired",
 		},
 		{
@@ -723,7 +723,7 @@ func TestDeathRelaunchRefusals(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			clk := &fakeClock{now: startEpoch().Add(time.Second)}
+			clk := &fakeClock{now: startRun().Add(time.Second)}
 			git := stableGit()
 			proc := &fakeProc{
 				observe: func(runDir string) (*process.Observation, error) {
@@ -779,7 +779,7 @@ func TestDeathRelaunchRefusals(t *testing.T) {
 // the tree is gone: the death path consumes it without issuing a stop (there is
 // no live tree to stop). With relaunch refused it HALTs.
 func TestVanishedProvenGoneWithoutStop(t *testing.T) {
-	clk := &fakeClock{now: startEpoch().Add(time.Second)}
+	clk := &fakeClock{now: startRun().Add(time.Second)}
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			return obs(process.StateVanished, runDir), nil
@@ -806,7 +806,7 @@ func TestVanishedProvenGoneWithoutStop(t *testing.T) {
 // death path proves no tree survives via a stop no-op followed by a re-observe
 // before deciding.
 func TestSignaledDeathConsumesTerminalViaStopNoOpAndReObserve(t *testing.T) {
-	clk := &fakeClock{now: startEpoch().Add(time.Second)}
+	clk := &fakeClock{now: startRun().Add(time.Second)}
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			return obs(process.StateSignaled, runDir), nil
@@ -844,7 +844,7 @@ func TestSignaledDeathConsumesTerminalViaStopNoOpAndReObserve(t *testing.T) {
 // TestAdvanceWrongOwnerHalts proves an advance presenting a stale/wrong owner
 // generation is HALTED (identity disagreement), never a silent continuation.
 func TestAdvanceWrongOwnerHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, _ := newTestDriver(t, clk, proc, stableGit())
 	doc, err := d.Start(sampleStart())
@@ -863,7 +863,7 @@ func TestAdvanceWrongOwnerHalts(t *testing.T) {
 // TestAdvanceUnknownDriveIsCommandFailure proves advancing a drive that cannot
 // be read is a command failure (an error), not a workflow HALT document.
 func TestAdvanceUnknownDriveIsCommandFailure(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	d, _ := newTestDriver(t, clk, &fakeProc{}, stableGit())
 	// A well-formed but nonexistent id.
 	_, err := d.Advance("00000000000000000000000000000000", "gen")
@@ -875,7 +875,7 @@ func TestAdvanceUnknownDriveIsCommandFailure(t *testing.T) {
 // TestSchemaMismatchHalts proves a persisted record with an unknown schema
 // version fails closed to HALTED rather than being migrated or advanced.
 func TestSchemaMismatchHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	doc, err := d.Start(sampleStart())
@@ -904,7 +904,7 @@ func TestSchemaMismatchHalts(t *testing.T) {
 // drive and consumes the terminal. This is the interruption-between-invocations
 // property; each transition is a single atomic record write.
 func TestFreshDriverResumesFromDisk(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	running := true
 	// The two drivers share one process seam so both observe the same run.
 	proc := &fakeProc{
@@ -1037,7 +1037,7 @@ func TestRelaunchCrashBetweenReserveAndLaunchRecovers(t *testing.T) {
 					return obs(process.StateRunning, runDir), nil
 				},
 			}
-			clk := &fakeClock{now: startEpoch().Add(time.Second)}
+			clk := &fakeClock{now: startRun().Add(time.Second)}
 			d := NewDriver(reopenStore(store), clk, proc, stableGit())
 			d.slice = pollTick
 			d.pollInterval = pollTick
@@ -1093,7 +1093,7 @@ func TestRelaunchReservationNotRefundedOnUncertainty(t *testing.T) {
 			return obs(process.StateVanished, runDir), nil
 		},
 	}
-	d := NewDriver(reopenStore(store), &fakeClock{now: startEpoch().Add(time.Second)}, proc, stableGit())
+	d := NewDriver(reopenStore(store), &fakeClock{now: startRun().Add(time.Second)}, proc, stableGit())
 
 	first, err := d.Advance(id, ownerGen)
 	if err != nil {
@@ -1186,7 +1186,7 @@ func scopedTestDriver(store *Store, clk *fakeClock, proc ProcessSeam, git GitSea
 // returns the slot is scopeStateLaunched and the drive record carries the launch
 // handle.
 func TestScopedStartReservesBeforeLaunch(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	grant, req := prepareScopedStart(t, store)
 
@@ -1249,7 +1249,7 @@ func TestScopedStartReservesBeforeLaunch(t *testing.T) {
 // terminal-unconsumed record outer recovery can see), and a subsequent Start on
 // the scope is refused ErrScopeBusy.
 func TestScopedStartLaunchFailureFailsClosed(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	grant, req := prepareScopedStart(t, store)
 
@@ -1306,7 +1306,7 @@ func TestScopedStartLaunchFailureFailsClosed(t *testing.T) {
 // already minted the record) and the start must leave ZERO discoverable drive
 // records, having launched nothing.
 func TestScopedStartReservationFailureCleansOrphanedReservedDrive(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := passObserveProc()
 	d := scopedTestDriver(store, clk, proc, stableGit())
@@ -1362,7 +1362,7 @@ func TestScopedStartReservationFailureCleansOrphanedReservedDrive(t *testing.T) 
 // control) and the scope slot is NOT treated as empty — a subsequent start is
 // refused rather than launching a duplicate.
 func TestScopedStartAttachLaunchFailureStopsOrphan(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	grant, req := prepareScopedStart(t, store)
 
@@ -1441,7 +1441,7 @@ func TestScopedStartAttachLaunchFailureStopsOrphan(t *testing.T) {
 // locator a later cancellation or recovery resolves the worktree by. (A PASSED/FAILED
 // terminal RELEASES the slot; that lifecycle is proven by TestScopedStartReleasesSlotOnTerminal.)
 func TestScopedStartReservesWorktreeSlot(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := &fakeProc{} // runs stay live so the drive WAITs and holds the slot
 	d := scopedTestDriver(store, clk, proc, stableGit())
@@ -1489,7 +1489,7 @@ func TestScopedStartReservesWorktreeSlot(t *testing.T) {
 // ErrWorktreeBusy, launches nothing, and its refusal leaks neither a capability token
 // nor the incumbent's owner generation.
 func TestTwoScopesOneWorktreeSecondRefused(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := &fakeProc{} // runs stay live so the first scope WAITs and holds the slot
 	d := scopedTestDriver(store, clk, proc, stableGit())
@@ -1528,7 +1528,7 @@ func TestTwoScopesOneWorktreeSecondRefused(t *testing.T) {
 // worktree forever — the exact regression that would break sequential real-worktree
 // scopes.
 func TestScopedStartReleasesSlotOnTerminal(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := passObserveProc() // every run PASSES on first observation
 	d := scopedTestDriver(store, clk, proc, stableGit())
@@ -1568,7 +1568,7 @@ func TestScopedStartReleasesSlotOnTerminal(t *testing.T) {
 // process backend to launch. Its private RunRoot is only the supervisor's
 // allocation directory; worktree admission is keyed by Worktree.
 func TestScopelessStartReservesBeforeLaunch(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	req := sampleStart()
 
@@ -1623,7 +1623,7 @@ func TestScopelessPersistFailureReleasesOnProvenStop(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			clk := &fakeClock{now: startEpoch()}
+			clk := &fakeClock{now: startRun()}
 			store := OpenStore(testsupport.TempDir(t))
 			req := sampleStart()
 			var recordDir string
@@ -1695,7 +1695,7 @@ func passObserveProc() *fakeProc {
 // owner generation while the predecessor record survives as history with its owner
 // generation cleared.
 func TestScopedSequentialStarts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := passObserveProc()
 	d := scopedTestDriver(store, clk, proc, stableGit())
@@ -1766,7 +1766,7 @@ func TestScopedSequentialStarts(t *testing.T) {
 // fake git seam's fingerprint input). Each command executes exactly once, each
 // drive keeps its own fingerprint and result, and the slot chains correctly.
 func TestScopedSequenceBaselineRedGreen(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	git := stableGit()
 	proc := &fakeProc{
@@ -1857,7 +1857,7 @@ func TestScopedSequenceBaselineRedGreen(t *testing.T) {
 func scopedSuccessorFixture(t *testing.T) (*Driver, *Store, ScopeGrant, StartRequest, *fakeProc) {
 	t.Helper()
 	const gateCtx = "task-4-dispatch-context"
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := passObserveProc()
 	d := scopedTestDriver(store, clk, proc, stableGit())
@@ -1869,7 +1869,7 @@ func scopedSuccessorFixture(t *testing.T) (*Driver, *Store, ScopeGrant, StartReq
 	}
 	req.ScopeID = grant.ScopeID
 	req.ChildCapability = grant.ChildCapability
-	req.GateContext = gateCtx
+	req.RunContext = gateCtx
 
 	first, err := d.Start(req)
 	if err != nil {
@@ -1901,8 +1901,8 @@ func TestScopedSuccessorRejectionMatrix(t *testing.T) {
 		{"wrong change", func(r *StartRequest) { r.ChangeID = "9999" }, ErrScopeIdentityMismatch},
 		{"wrong task", func(r *StartRequest) { r.TaskID = "task-99" }, ErrScopeIdentityMismatch},
 		{"wrong phase", func(r *StartRequest) { r.Phase = "finalize" }, ErrScopeIdentityMismatch},
-		{"wrong gate context", func(r *StartRequest) { r.GateContext = "not-the-context" }, ErrScopeIdentityMismatch},
-		{"missing gate context", func(r *StartRequest) { r.GateContext = "" }, ErrScopeIdentityMismatch},
+		{"wrong gate context", func(r *StartRequest) { r.RunContext = "not-the-context" }, ErrScopeIdentityMismatch},
+		{"missing gate context", func(r *StartRequest) { r.RunContext = "" }, ErrScopeIdentityMismatch},
 		{"wrong capability", func(r *StartRequest) { r.ChildCapability = "wrong-capability" }, ErrScopeCapabilityMismatch},
 		{"missing predecessor id", func(r *StartRequest) { r.PredecessorDriveID = "" }, ErrStalePredecessor},
 		{"missing predecessor generation", func(r *StartRequest) { r.PredecessorOwnerGen = "" }, ErrStalePredecessor},
@@ -1949,7 +1949,7 @@ func TestScopedSuccessorRejectionMatrix(t *testing.T) {
 // acknowledged. Each rejection launches nothing.
 func TestScopedSuccessorPredecessorStateRejections(t *testing.T) {
 	t.Run("waiting predecessor not reusable", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		store := OpenStore(testsupport.TempDir(t))
 		proc := &fakeProc{}
 		d := scopedTestDriver(store, clk, proc, stableGit())
@@ -1974,7 +1974,7 @@ func TestScopedSuccessorPredecessorStateRejections(t *testing.T) {
 	})
 
 	t.Run("halted predecessor not reusable", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		store := OpenStore(testsupport.TempDir(t))
 		proc := &fakeProc{}
 		d := scopedTestDriver(store, clk, proc, stableGit())
@@ -2003,7 +2003,7 @@ func TestScopedSuccessorPredecessorStateRejections(t *testing.T) {
 	})
 
 	t.Run("outstanding handoff", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		store := OpenStore(testsupport.TempDir(t))
 		proc := &fakeProc{}
 		d := scopedTestDriver(store, clk, proc, stableGit())
@@ -2028,7 +2028,7 @@ func TestScopedSuccessorPredecessorStateRejections(t *testing.T) {
 	})
 
 	t.Run("transferred scope", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		store := OpenStore(testsupport.TempDir(t))
 		proc := passObserveProc()
 		d := scopedTestDriver(store, clk, proc, stableGit())
@@ -2053,7 +2053,7 @@ func TestScopedSuccessorPredecessorStateRejections(t *testing.T) {
 	})
 
 	t.Run("superseded owner", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		store := OpenStore(testsupport.TempDir(t))
 		proc := passObserveProc()
 		d := scopedTestDriver(store, clk, proc, stableGit())
@@ -2081,7 +2081,7 @@ func TestScopedSuccessorPredecessorStateRejections(t *testing.T) {
 	})
 
 	t.Run("acknowledged earlier drive", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		store := OpenStore(testsupport.TempDir(t))
 		proc := passObserveProc()
 		d := scopedTestDriver(store, clk, proc, stableGit())

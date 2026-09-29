@@ -26,12 +26,12 @@ import (
 // reservation token.
 func driveSuccessorRotation(t *testing.T) (store *Store, req StartRequest, oldToken string) {
 	t.Helper()
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store = OpenStore(testsupport.TempDir(t))
 	proc := &fakeProc{} // launch + observe running: first start WAITs, slot executing
 	d := scopedTestDriver(store, clk, proc, stableGit())
 	_, req = prepareScopedStart(t, store)
-	req.RunEpochID = "E-rot"
+	req.RunID = "E-rot"
 
 	first, err := d.Start(req)
 	if err != nil {
@@ -79,7 +79,7 @@ func driveSuccessorRotation(t *testing.T) (store *Store, req StartRequest, oldTo
 // and cleared raw-run identity, the scope/epoch survive, and after launch-confirm
 // the slot carries the SUCCESSOR's run identity.
 func TestSuccessorRotatesExecutingSlot(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	var launchSnaps []admissionRecord
 	worktree := sampleWorktree()
@@ -94,7 +94,7 @@ func TestSuccessorRotatesExecutingSlot(t *testing.T) {
 	}
 	d := scopedTestDriver(store, clk, proc, stableGit())
 	_, req := prepareScopedStart(t, store)
-	req.RunEpochID = "E-rot"
+	req.RunID = "E-rot"
 
 	first, err := d.Start(req)
 	if err != nil {
@@ -144,8 +144,8 @@ func TestSuccessorRotatesExecutingSlot(t *testing.T) {
 	if succSnap.RawRunID != "" || succSnap.RawRunDir != "" {
 		t.Fatalf("rotation must clear the raw-run identity before launch, got (%q,%q)", succSnap.RawRunID, succSnap.RawRunDir)
 	}
-	if succSnap.RunEpochID != "E-rot" {
-		t.Fatalf("rotation must preserve the run epoch, got %q", succSnap.RunEpochID)
+	if succSnap.RunID != "E-rot" {
+		t.Fatalf("rotation must preserve the run epoch, got %q", succSnap.RunID)
 	}
 	if succSnap.ScopeID != req.ScopeID {
 		t.Fatalf("rotation must preserve the scope, got %q want %q", succSnap.ScopeID, req.ScopeID)
@@ -164,8 +164,8 @@ func TestSuccessorRotatesExecutingSlot(t *testing.T) {
 	if final.RawRunID != "run2" {
 		t.Fatalf("after launch-confirm the slot must carry the successor's run identity, got %q", final.RawRunID)
 	}
-	if final.RunEpochID != "E-rot" || final.ScopeID != req.ScopeID {
-		t.Fatalf("the scope/epoch fields must survive rotation, got epoch=%q scope=%q", final.RunEpochID, final.ScopeID)
+	if final.RunID != "E-rot" || final.ScopeID != req.ScopeID {
+		t.Fatalf("the scope/epoch fields must survive rotation, got epoch=%q scope=%q", final.RunID, final.ScopeID)
 	}
 }
 
@@ -225,12 +225,12 @@ func TestLatePredecessorReleaseCannotFreeSuccessor(t *testing.T) {
 // when the guard reads it is refused before the rotation —
 // TestSameScopeSuccessorGuardAppliesWholeReservePredicate.)
 func TestSuccessorAdmissionFailureLegsReleaseRotatedSlot(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := &fakeProc{} // WAIT: executing slot
 	d := scopedTestDriver(store, clk, proc, stableGit())
 	_, req := prepareScopedStart(t, store)
-	req.RunEpochID = "E-fail"
+	req.RunID = "E-fail"
 
 	cur, err := d.Start(req)
 	if err != nil {
@@ -324,7 +324,7 @@ func TestSuccessorAdmissionFailureLegsReleaseRotatedSlot(t *testing.T) {
 // token (reservedFresh=false, ownsSlot=true, rotated=false) rather than rotating.
 // The peer-sharing + isSameScopeRaceLoss adoption rule stays exactly as today.
 func TestFirstStartPeerSharingUnchanged(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
 	_, req := prepareScopedStart(t, store)
@@ -335,7 +335,7 @@ func TestFirstStartPeerSharingUnchanged(t *testing.T) {
 		RepoIdentity: req.RepoDir,
 		WorktreeRoot: req.Worktree,
 		ScopeID:      req.ScopeID,
-		RunEpochID:   req.RunEpochID,
+		RunID:        req.RunID,
 		Kind:         "scoped",
 	})
 	if err != nil {
@@ -378,14 +378,14 @@ func TestFirstStartPeerSharingUnchanged(t *testing.T) {
 	}
 }
 
-// TestOrdinaryReleasePreservesRunEpoch pins that an ordinary release of a slot's
-// own token preserves RunEpochID on the released record (the between-drives fence
+// TestOrdinaryReleasePreservesRunID pins that an ordinary release of a slot's
+// own token preserves RunID on the released record (the between-drives fence
 // depends on it; change 0437 must not weaken it).
-func TestOrdinaryReleasePreservesRunEpoch(t *testing.T) {
+func TestOrdinaryReleasePreservesRunID(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	wt := mkWorktree(t)
 	rec := sampleAdmission(wt)
-	rec.RunEpochID = "E-keep"
+	rec.RunID = "E-keep"
 	token, err := s.ReserveWorktreeExecution(rec)
 	if err != nil {
 		t.Fatalf("reserve: %v", err)
@@ -403,8 +403,8 @@ func TestOrdinaryReleasePreservesRunEpoch(t *testing.T) {
 	if got.State != admissionReleased {
 		t.Fatalf("state after release = %q, want %q", got.State, admissionReleased)
 	}
-	if got.RunEpochID != "E-keep" {
-		t.Fatalf("ordinary release must preserve RunEpochID, got %q", got.RunEpochID)
+	if got.RunID != "E-keep" {
+		t.Fatalf("ordinary release must preserve RunID, got %q", got.RunID)
 	}
 }
 
@@ -413,12 +413,12 @@ func TestOrdinaryReleasePreservesRunEpoch(t *testing.T) {
 // ErrUnresolvedLaunchTransition BEFORE any rotation runs: the executing slot keeps
 // the predecessor's token and executing state, unrotated.
 func TestPendingPredecessorTransitionRefusesSuccessor(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := &fakeProc{} // WAIT: executing slot
 	d := scopedTestDriver(store, clk, proc, stableGit())
 	_, req := prepareScopedStart(t, store)
-	req.RunEpochID = "E-pend"
+	req.RunID = "E-pend"
 
 	first, err := d.Start(req)
 	if err != nil {
@@ -475,7 +475,7 @@ func TestSuccessorRotationStoreContract(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	wt := mkWorktree(t)
 	rec := sampleAdmission(wt)
-	rec.RunEpochID = "E7"
+	rec.RunID = "E7"
 	rec.ScopeID = "scope-succ"
 	rec.Kind = "scoped"
 	oldToken, err := s.ReserveWorktreeExecution(rec)
@@ -536,7 +536,7 @@ func TestSuccessorRotationStoreContract(t *testing.T) {
 	if after.RawRunID != "" || after.RawRunDir != "" {
 		t.Fatalf("rotation must clear the raw-run identity, got (%q,%q)", after.RawRunID, after.RawRunDir)
 	}
-	if after.RunEpochID != "E7" || after.ScopeID != "scope-succ" || after.Kind != before.Kind ||
+	if after.RunID != "E7" || after.ScopeID != "scope-succ" || after.Kind != before.Kind ||
 		after.RepoIdentity != before.RepoIdentity || after.WorktreeRoot != before.WorktreeRoot {
 		t.Fatalf("rotation must preserve the identity fields")
 	}

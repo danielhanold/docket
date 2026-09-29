@@ -13,8 +13,8 @@ import (
 )
 
 // sampleScopeReq builds a ScopeRequest with a value in every field and a
-// non-empty GateContext, so a persisted-record inspection proves the raw
-// GateContext is never stored (only its hash). ChangeID is empty so the
+// non-empty RunContext, so a persisted-record inspection proves the raw
+// RunContext is never stored (only its hash). ChangeID is empty so the
 // bind-once change path has an unbound field to bind.
 func sampleScopeReq() ScopeRequest {
 	return ScopeRequest{
@@ -24,7 +24,7 @@ func sampleScopeReq() ScopeRequest {
 		Phase:        "build",
 		Branch:       "feat/x",
 		Worktree:     "/wt/x",
-		GateContext:  "outer-child-context-token",
+		RunContext:   "outer-child-context-token",
 	}
 }
 
@@ -58,7 +58,7 @@ func isStoreKind(err error, kind StoreErrorKind) bool {
 // TestPrepareScopeMintsSeparatedCapabilities proves PrepareScope returns a
 // scope id and two SEPARATE opaque capabilities — non-empty, pairwise distinct,
 // 32 lowercase hex — and that the persisted record stores only sha256 hashes of
-// the two capabilities and of GateContext, never their raw values.
+// the two capabilities and of RunContext, never their raw values.
 func TestPrepareScopeMintsSeparatedCapabilities(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	req := sampleScopeReq()
@@ -90,7 +90,7 @@ func TestPrepareScopeMintsSeparatedCapabilities(t *testing.T) {
 	for name, secret := range map[string]string{
 		"ChildCapability":  grant.ChildCapability,
 		"ParentCapability": grant.ParentCapability,
-		"GateContext":      req.GateContext,
+		"RunContext":       req.RunContext,
 	} {
 		if strings.Contains(body, secret) {
 			t.Fatalf("record leaked raw %s %q", name, secret)
@@ -99,16 +99,16 @@ func TestPrepareScopeMintsSeparatedCapabilities(t *testing.T) {
 	for name, want := range map[string]string{
 		"child cap hash":    capHash(grant.ChildCapability),
 		"parent cap hash":   capHash(grant.ParentCapability),
-		"gate context hash": capHash(req.GateContext),
+		"gate context hash": capHash(req.RunContext),
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("record must persist the %s %q", name, want)
 		}
 	}
 
-	// A scope prepared with an empty GateContext persists no gate-context hash.
+	// A scope prepared with an empty RunContext persists no gate-context hash.
 	noCtx := req
-	noCtx.GateContext = ""
+	noCtx.RunContext = ""
 	g2, err := s.PrepareScope(noCtx)
 	if err != nil {
 		t.Fatalf("PrepareScope no-ctx: %v", err)
@@ -117,8 +117,8 @@ func TestPrepareScopeMintsSeparatedCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadScope: %v", err)
 	}
-	if rec.GateContextHash != "" {
-		t.Fatalf("empty GateContext must persist no hash, got %q", rec.GateContextHash)
+	if rec.RunContextHash != "" {
+		t.Fatalf("empty RunContext must persist no hash, got %q", rec.RunContextHash)
 	}
 	if rec.ChildCapHash != capHash(g2.ChildCapability) || rec.ParentCapHash != capHash(g2.ParentCapability) {
 		t.Fatalf("record cap hashes do not match the grant")

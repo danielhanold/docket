@@ -45,16 +45,16 @@ func (f *fakeNativeCanceller) cancelNativeTask(handle string) error {
 	return f.err
 }
 
-// fakeLaunchReconciler is an injectable epochLaunchReconciler: it records each
+// fakeLaunchReconciler is an injectable runLaunchReconciler: it records each
 // (worktree,epoch) pair it was asked to reconcile and returns a canned report/error.
 type fakeLaunchReconciler struct {
-	report gatedrive.EpochLaunchReport
+	report gatedrive.RunLaunchReport
 	err    error
 	calls  []string
 }
 
-func (f *fakeLaunchReconciler) reconcile(worktree, epochID string) (gatedrive.EpochLaunchReport, error) {
-	f.calls = append(f.calls, worktree+"|"+epochID)
+func (f *fakeLaunchReconciler) reconcile(worktree, runID string) (gatedrive.RunLaunchReport, error) {
+	f.calls = append(f.calls, worktree+"|"+runID)
 	return f.report, f.err
 }
 
@@ -62,7 +62,7 @@ func (f *fakeLaunchReconciler) reconcile(worktree, epochID string) (gatedrive.Ep
 // obligations are already accounted with no findings, so a cancel test that does not
 // exercise the launch-reconciliation path behaves exactly as before the seam existed.
 func okLaunchReconciler() *fakeLaunchReconciler {
-	return &fakeLaunchReconciler{report: gatedrive.EpochLaunchReport{Accounted: true}}
+	return &fakeLaunchReconciler{report: gatedrive.RunLaunchReport{Accounted: true}}
 }
 
 // cancelFixture is one prepared cancelable run: a gate record with a parent-held
@@ -71,7 +71,7 @@ func okLaunchReconciler() *fakeLaunchReconciler {
 type cancelFixture struct {
 	repo     string
 	key      string
-	epochID  string
+	runID    string
 	worktree string
 	runDir   string
 	store    *gatedrive.Store
@@ -83,13 +83,13 @@ type cancelFixture struct {
 // keyless/standalone path.
 func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 	t.Helper()
-	repo := newGateRepo(t)
-	common, err := gateGitCommonDir(repo)
+	repo := newRunTrackerRepo(t)
+	common, err := runTrackerGitCommonDir(repo)
 	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
-	key, err := MintGateRecord(repo, GateRecord{
-		Target:       gateBeforeStoredTarget,
+	key, err := MintRunTrackerRecord(repo, RunTrackerRecord{
+		Target:       runStartStoredTarget,
 		AttemptLimit: 2,
 		Retry:        RetryUnused,
 		Disposition:  "run-started",
@@ -97,41 +97,41 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 		ScopeID:      "scope-1",
 	})
 	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
+		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
-	ep, err := MintEpochRecord(repo, key, "42")
+	ep, err := MintRunRecord(repo, key, "42")
 	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+		t.Fatalf("MintRunRecord: %v", err)
 	}
-	if err := ReserveGateClaim(repo, key, 42, "req-1"); err != nil {
-		t.Fatalf("ReserveGateClaim: %v", err)
+	if err := ReserveRunTrackerClaim(repo, key, 42, "req-1"); err != nil {
+		t.Fatalf("ReserveRunTrackerClaim: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 42, "req-1", "rev-1", ""); err != nil {
-		t.Fatalf("ConfirmGateClaim: %v", err)
+	if err := ConfirmRunTrackerClaim(repo, key, 42, "req-1", "rev-1", ""); err != nil {
+		t.Fatalf("ConfirmRunTrackerClaim: %v", err)
 	}
 
 	worktree := filepath.Join(repo, "feature-wt")
 	if err := os.MkdirAll(worktree, 0o755); err != nil {
 		t.Fatalf("mkdir worktree: %v", err)
 	}
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
+	if err := runRecordCAS(repo, key, func(r *RunRecord) error {
 		r.Worktree = worktree
 		return nil
 	}); err != nil {
-		t.Fatalf("epochCAS set worktree: %v", err)
+		t.Fatalf("runRecordCAS set worktree: %v", err)
 	}
 
-	fx := cancelFixture{repo: repo, key: key, epochID: ep.EpochID, worktree: worktree, common: common}
+	fx := cancelFixture{repo: repo, key: key, runID: ep.RunID, worktree: worktree, common: common}
 	fx.store = gatedrive.OpenStore(common)
 	if slot {
-		// The slot records a real owning RunEpochID so the ownership-checked
+		// The slot records a real owning RunID so the ownership-checked
 		// teardown treats it as slotOwned (change 0435) — the same teardown behavior
 		// the raw (epoch-less) reservation used to get, now anchored on true epoch
 		// ownership rather than the worktree location alone.
 		runDir := filepath.Join(worktree, "run-1")
-		token, terr := fx.store.ReserveWorktreeExecutionForEpoch(common, worktree, ep.EpochID, nil)
+		token, terr := fx.store.ReserveWorktreeExecutionForRun(common, worktree, ep.RunID, nil)
 		if terr != nil {
-			t.Fatalf("ReserveWorktreeExecutionForEpoch: %v", terr)
+			t.Fatalf("ReserveWorktreeExecutionForRun: %v", terr)
 		}
 		if cerr := fx.store.ConfirmWorktreeExecution(worktree, token, "run-1", runDir); cerr != nil {
 			t.Fatalf("ConfirmWorktreeExecution: %v", cerr)
@@ -141,12 +141,12 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 	return fx
 }
 
-// loadEpochState reads the epoch's current state.
-func loadEpochState(t *testing.T, repo, key string) epochState {
+// loadRunState reads the epoch's current state.
+func loadRunState(t *testing.T, repo, key string) runState {
 	t.Helper()
-	ep, _, err := LoadEpochRecord(repo, key)
+	ep, _, err := LoadRunRecord(repo, key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	return ep.State
 }
@@ -161,14 +161,14 @@ func loadSlotState(t *testing.T, store *gatedrive.Store, worktree string) string
 	return string(slot.State)
 }
 
-// loadSlotEpoch reads the worktree slot's current RunEpochID.
-func loadSlotEpoch(t *testing.T, store *gatedrive.Store, worktree string) string {
+// loadSlotRun reads the worktree slot's current RunID.
+func loadSlotRun(t *testing.T, store *gatedrive.Store, worktree string) string {
 	t.Helper()
 	slot, _, err := store.LoadWorktreeExecution(worktree)
 	if err != nil {
 		t.Fatalf("LoadWorktreeExecution: %v", err)
 	}
-	return slot.RunEpochID
+	return slot.RunID
 }
 
 func hasFinding(findings []string, prefix string) bool {

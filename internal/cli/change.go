@@ -128,7 +128,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	claim := changeIDVersionSubcommand("claim",
 		"Claim a build-ready change at an exact version, moving it to in-progress",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
-			req.GateContext, _ = c.Flags().GetString("run-context")
+			req.RunContext, _ = c.Flags().GetString("run-context")
 			setResult(app.ChangeClaim(c.Context(), deps, repoDir, req))
 		}, EffectMetadataWrite)
 	claim.Flags().String("run-context", "", "run-context `token` from run start, binding this claim to its started run (optional; omitted for an untracked claim)")

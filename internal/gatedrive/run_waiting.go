@@ -139,8 +139,8 @@ func receiptOf(id string, rec driveRecord) DriveReceipt {
 	}
 }
 
-// FindScopeDriveIDs lists the drive ids for changeID whose GateContextHash equals
-// gateContextHash and whose LastOutcome is nonterminal OR terminal-unconsumed
+// FindScopeDriveIDs lists the drive ids for changeID whose RunContextHash equals
+// runContextHash and whose LastOutcome is nonterminal OR terminal-unconsumed
 // (terminal with a still-set OwnerGeneration — a child that wrote a verdict then
 // died before the parent consumed it). A terminal-AND-consumed drive (owner
 // cleared) is excluded: there is nothing left to recover. This is precisely the
@@ -155,7 +155,7 @@ func receiptOf(id string, rec driveRecord) DriveReceipt {
 // filesystem fault reading the root is returned as an error. It is the outer
 // gate's candidate resolver: exactly one match authorizes an outer takeover
 // (takeover.go); zero or many fail closed upstream.
-func (s *Store) FindScopeDriveIDs(changeID, gateContextHash string) ([]string, error) {
+func (s *Store) FindScopeDriveIDs(changeID, runContextHash string) ([]string, error) {
 	entries, err := os.ReadDir(s.root)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -177,7 +177,7 @@ func (s *Store) FindScopeDriveIDs(changeID, gateContextHash string) ([]string, e
 		if !changeIDsEqual(rec.ChangeID, changeID) {
 			continue
 		}
-		if rec.GateContextHash != gateContextHash {
+		if rec.RunContextHash != runContextHash {
 			continue
 		}
 		// Include a nonterminal (still live) drive, and a terminal drive whose owner

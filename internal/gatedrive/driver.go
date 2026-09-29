@@ -117,25 +117,25 @@ type StartRequest struct {
 	// Start verifies the capability and scope identity BEFORE launching, reserves
 	// the scope's single slot durably, and only then launches. ChildCapability is
 	// the RAW capability, verified against the scope's stored hash and persisted
-	// nowhere. GateContext is the RAW outer child-context token linking a nested
+	// nowhere. RunContext is the RAW outer child-context token linking a nested
 	// drive to the outer gate; it is stored only as its sha256 hash
-	// (GateContextHash). (change 0359)
+	// (RunContextHash). (change 0359)
 	ScopeID         string
 	ChildCapability string
-	GateContext     string
+	RunContext      string
 
-	// RunEpochID links this drive's top-level execution to the workflow run epoch
+	// RunID links this drive's top-level execution to the workflow run epoch
 	// (runtracker_run_record.go) the arming gate minted, and is recorded on the worktree
 	// execution slot the start reserves (admission.go). It is a LOCATOR, never a
 	// credential: it authorizes nothing (the scope's child capability carries
 	// authority), but it fences the worktree — a later gate in the same worktree that
-	// does not carry this epoch is refused ErrStaleRunEpoch, so an omitted or stale
+	// does not carry this epoch is refused ErrStaleRunID, so an omitted or stale
 	// epoch cannot detach a workflow-owned worktree from its epoch. Empty for a
 	// standalone gate that owns no implementation epoch (finalize's local gate, an
 	// ad-hoc task drive). (change 0375 Task 9) A scoped start inherits the epoch its
 	// scope pinned when it presents none, and presenting a different one is refused
 	// ErrScopeIdentityMismatch (change 0467).
-	RunEpochID string
+	RunID string
 
 	// Recovery-scope successor receipt (change 0405 Task 4): the previous drive's
 	// id and its current owner generation, captured from that drive's response. BOTH
@@ -165,73 +165,73 @@ type Driver struct {
 	pollInterval time.Duration
 	sleep        func(time.Duration)
 
-	// epochRevoked, when set, answers whether a scope's run epoch is cancelled or
+	// runRevoked, when set, answers whether a scope's run epoch is cancelled or
 	// superseded — the state a Takeover must refuse (change 0375 Task 12: "parent
 	// takeover cannot revive a cancelled epoch"). It is an OPTIONAL seam injected by
-	// the application layer (SetEpochRevokedResolver): the gatedrive layer owns no
+	// the application layer (SetRunRevokedResolver): the gatedrive layer owns no
 	// epoch store, so the resolver reads the app-owned run-epoch registry. When nil,
-	// or when a scope carries no RunEpochID, the epoch gate is skipped and Takeover's
+	// or when a scope carries no RunID, the epoch gate is skipped and Takeover's
 	// existing ADR-0107 authorization is unchanged. A resolver error fails closed
 	// (the takeover HALTs rather than reviving a run whose epoch cannot be read).
-	epochRevoked EpochRevokedFunc
+	runRevoked RunRevokedFunc
 
-	// epochLaunch, when set, is the app-owned authoritative epoch liveness read the
+	// runLaunch, when set, is the app-owned authoritative epoch liveness read the
 	// launch/reservation paths run their durable reservation body under (change
 	// 0437). Every epoch-backed reservation/launch authorization in this package
-	// flows through the epochGated helper, which consults this seam only when both
+	// flows through the runLaunchGated helper, which consults this seam only when both
 	// it and a run epoch id are present. It is injected once at composition
-	// (SetEpochLaunchGate), before any concurrent start, so it needs no lock.
-	epochLaunch EpochLaunchGate
+	// (SetRunLaunchGate), before any concurrent start, so it needs no lock.
+	runLaunch RunLaunchGate
 }
 
-// EpochLaunchGate is the app-injected authority that validates a run epoch is
+// RunLaunchGate is the app-injected authority that validates a run epoch is
 // LIVE (active, uniquely resolved in this repository's registry, and bound to
 // worktree) and, while the registry's per-key epoch lock is held, runs reserve —
 // the driver's durable admission/reservation body — so a concurrent cancellation
 // fence either lands before the liveness read (reserve never runs) or observes
 // the durable reservation reserve produced. A validation failure returns a typed
 // error and reserve is NEVER called. The gate performs no epoch write. A nil gate
-// or an empty epochID runs reserve directly (a genuinely epoch-less standalone
+// or an empty runID runs reserve directly (a genuinely epoch-less standalone
 // gate keeps its existing behavior).
-type EpochLaunchGate func(epochID, worktree string, reserve func() error) error
+type RunLaunchGate func(runID, worktree string, reserve func() error) error
 
-// SetEpochLaunchGate injects the gate at composition, before any concurrent
-// start, so it needs no lock (mirrors SetEpochRevokedResolver). Passing nil
+// SetRunLaunchGate injects the gate at composition, before any concurrent
+// start, so it needs no lock (mirrors SetRunRevokedResolver). Passing nil
 // clears it (the launch gate is then skipped and the epoch-less standalone
 // behavior governs).
-func (d *Driver) SetEpochLaunchGate(g EpochLaunchGate) { d.epochLaunch = g }
+func (d *Driver) SetRunLaunchGate(g RunLaunchGate) { d.runLaunch = g }
 
-// EpochLaunchGateWired reports whether an EpochLaunchGate has been injected. It is a
+// RunLaunchGateWired reports whether an RunLaunchGate has been injected. It is a
 // read-only composition probe the app-layer wiring test keys on (change 0437 Task 5:
 // the wiring is where the takeover-only defect lived) — never part of the drive
 // protocol and never consulted by a drive operation.
-func (d *Driver) EpochLaunchGateWired() bool { return d.epochLaunch != nil }
+func (d *Driver) RunLaunchGateWired() bool { return d.runLaunch != nil }
 
-// epochGated runs reserve under the injected gate when both the gate and the
+// runLaunchGated runs reserve under the injected gate when both the gate and the
 // epoch id are present, else directly. Every epoch-backed reservation/launch
 // authorization in this package flows through this ONE helper (the launch-site
 // guard in change 0437 Task 8 keys on it).
-func (d *Driver) epochGated(epochID, worktree string, reserve func() error) error {
-	if d.epochLaunch == nil || epochID == "" {
+func (d *Driver) runLaunchGated(runID, worktree string, reserve func() error) error {
+	if d.runLaunch == nil || runID == "" {
 		return reserve()
 	}
-	return d.epochLaunch(epochID, worktree, reserve)
+	return d.runLaunch(runID, worktree, reserve)
 }
 
-// EpochRevokedFunc reports whether the run epoch named by epochID is cancelled or
+// RunRevokedFunc reports whether the run epoch named by runID is cancelled or
 // superseded. A clean "no such epoch" is (false, nil) — a locator that resolves to
 // nothing cannot prove a run was cancelled, and the takeover's other guards
 // (capability, fingerprint, deadline) still protect it; an IO/corruption fault is a
 // non-nil error the takeover treats as fail-closed. It never returns a credential.
-type EpochRevokedFunc func(epochID string) (revoked bool, err error)
+type RunRevokedFunc func(runID string) (revoked bool, err error)
 
-// SetEpochRevokedResolver injects the optional run-epoch revocation seam the
+// SetRunRevokedResolver injects the optional run-epoch revocation seam the
 // Takeover path consults (change 0375 Task 12). The application layer wires the
 // production resolver over its run-epoch registry after composing the driver;
 // gatedrive tests inject a fake. Passing nil clears it (the epoch gate is then
 // skipped). It is set once at composition, before any concurrent Takeover, so it
 // needs no lock.
-func (d *Driver) SetEpochRevokedResolver(fn EpochRevokedFunc) { d.epochRevoked = fn }
+func (d *Driver) SetRunRevokedResolver(fn RunRevokedFunc) { d.runRevoked = fn }
 
 // NewDriver builds a Driver over the composed seams with production slice bounds
 // and a real sleep. Tests set the unexported slice/pollInterval/sleep fields to
@@ -326,11 +326,11 @@ type AdmissionTicket struct {
 	// start reused an incumbent same-scope slot rather than freshly reserving). The
 	// launch half carries it onto the returned START document.
 	legacy *LegacyHistorySummary
-	// runEpochID retains, in memory only, the run epoch this admission was gated
+	// runID retains, in memory only, the run epoch this admission was gated
 	// under so the launch half can revalidate the SAME epoch before launching
 	// (change 0437). It is NEVER persisted — the durable linkage stays the
 	// slot/scope records; an empty value is a genuinely epoch-less standalone gate.
-	runEpochID string
+	runID string
 }
 
 // releasable reports whether THIS scoped start holds sole authority over the
@@ -391,17 +391,17 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	// AUTHORITY that re-check every condition and arbitrate races, so a state
 	// observed here but changed by a concurrent transition is caught there.
 	if req.ScopeID != "" {
-		epoch, err := d.precheckScopedStart(req)
+		runID, err := d.precheckScopedStart(req)
 		if err != nil {
 			return nil, err
 		}
 		// A scoped start takes its run epoch from the scope it was prepared under
-		// (change 0467): the scope's RunEpochID is written once by PrepareScope and
+		// (change 0467): the scope's RunID is written once by PrepareScope and
 		// never mutated, so this unlocked read is authoritative. req is Admit's own
 		// copy, so every later use — the epoch gate, the scoped worktree admission
 		// record, finished-incumbent reconciliation, and the admission ticket — sees
 		// the effective epoch rather than the caller-presented one.
-		req.RunEpochID = epoch
+		req.RunID = runID
 	}
 
 	fp, err := ComputeFingerprint(req.Worktree, d.git)
@@ -442,12 +442,12 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	}
 	// Stamp the recovery-scope linkage onto the record (both empty for a scopeless
 	// drive). ScopeID links the drive to the scope its owner was dispatched under;
-	// GateContextHash links a nested drive to the outer gate.
+	// RunContextHash links a nested drive to the outer gate.
 	if req.ScopeID != "" {
 		rec.ScopeID = req.ScopeID
 	}
-	if req.GateContext != "" {
-		rec.GateContextHash = capHash(req.GateContext)
+	if req.RunContext != "" {
+		rec.RunContextHash = capHash(req.RunContext)
 	}
 
 	// Fence the durable reservation behind the app-owned epoch liveness read: the
@@ -458,10 +458,10 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	// order inside reserve is unchanged (admission → scope → drive).
 	var ticket *AdmissionTicket
 	admit := func() error {
-		return d.epochGated(req.RunEpochID, req.Worktree, func() error {
+		return d.runLaunchGated(req.RunID, req.Worktree, func() error {
 			var aerr error
 			if req.ScopeID == "" {
-				ticket, aerr = d.admitScopeless(rec, ownerGen, req.RunEpochID)
+				ticket, aerr = d.admitScopeless(rec, ownerGen, req.RunID)
 			} else {
 				ticket, aerr = d.admitScoped(req, rec, ownerGen)
 			}
@@ -480,7 +480,7 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	// or the requesting scope's own slot and never depend on the incumbent, so none
 	// of them can refuse a finished incumbent before this point.
 	if oe, ok := isIncumbentRefusal(err); ok {
-		settled, finding, _ := d.reconcileFinishedIncumbent(req.Worktree, req.RunEpochID)
+		settled, finding, _ := d.reconcileFinishedIncumbent(req.Worktree, req.RunID)
 		if settled {
 			err = admit()
 		} else {
@@ -490,7 +490,7 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	if err != nil {
 		return nil, err
 	}
-	ticket.runEpochID = req.RunEpochID
+	ticket.runID = req.RunID
 	return ticket, nil
 }
 
@@ -544,7 +544,7 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, error) {
 	var claim *relaunchClaim
 	reserveEntered := false
-	err := d.epochGated(t.runEpochID, t.rec.WorktreePath, func() error {
+	err := d.runLaunchGated(t.runID, t.rec.WorktreePath, func() error {
 		reserveEntered = true
 		// (a) The drive's claimant flock, nonblocking. A busy claim is a launch
 		// still in flight (or a cancellation probing it), never a free slot.
@@ -587,7 +587,7 @@ func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, e
 		if !reserveEntered {
 			// Epoch refusal: the gate refused before running reserve, so nothing was
 			// claimed. Fail-close the delayed ticket and surface the gate's error.
-			d.settleAdmittedAfterEpochRefusal(t)
+			d.settleAdmittedAfterRunRefusal(t)
 		}
 		return nil, err
 	}
@@ -619,7 +619,7 @@ func (d *Driver) verifyAdmittedSlot(t *AdmissionTicket) error {
 	return nil
 }
 
-// settleAdmittedAfterEpochRefusal fail-closes a delayed ticket whose epoch was
+// settleAdmittedAfterRunRefusal fail-closes a delayed ticket whose epoch was
 // revoked between Admit and StartAdmitted. It settles the reserved drive record
 // HALTED "run-cancelled" (mirroring the launch-failed CAS blocks in the launch
 // legs) and, for a ticket that minted its own worktree slot (a scopeless start,
@@ -628,7 +628,7 @@ func (d *Driver) verifyAdmittedSlot(t *AdmissionTicket) error {
 // is left untouched: it belongs to the sequence, not this ticket. A slot the ticket
 // ROTATED (a successor) is its own fresh reservation, so it is released like a
 // freshly reserved one (releasable()).
-func (d *Driver) settleAdmittedAfterEpochRefusal(t *AdmissionTicket) {
+func (d *Driver) settleAdmittedAfterRunRefusal(t *AdmissionTicket) {
 	_ = d.store.ownerCAS(t.id, func(r *driveRecord) error {
 		if err := verifyOwner(r, t.ownerGen); err != nil {
 			return err
@@ -683,7 +683,7 @@ func (d *Driver) AbandonAdmission(t *AdmissionTicket) error {
 // drive, and name a predecessor with a durable PASSED/FAILED result still owned by
 // the presented generation and carrying no outstanding handoff. A half-filled
 // receipt is a fail-closed ErrStalePredecessor. On success it returns the start's
-// effective run epoch (scopedRunEpoch).
+// effective run epoch (scopedRunID).
 func (d *Driver) precheckScopedStart(req StartRequest) (string, error) {
 	scope, err := d.store.LoadScope(req.ScopeID)
 	if err != nil {
@@ -722,7 +722,7 @@ func (d *Driver) precheckScopedStart(req StartRequest) (string, error) {
 		if !scopedIdentityMatch(scope, req) {
 			return "", ownershipErr(ErrScopeIdentityMismatch, "start")
 		}
-		return scopedRunEpoch(scope, req.RunEpochID), nil
+		return scopedRunID(scope, req.RunID), nil
 	}
 
 	// Successor start: the complete pinned identity, a launched current slot, and a
@@ -755,7 +755,7 @@ func (d *Driver) precheckScopedStart(req StartRequest) (string, error) {
 	if err := predecessorReusableError(&prec, receipt.OwnerGen); err != nil {
 		return "", err
 	}
-	return scopedRunEpoch(scope, req.RunEpochID), nil
+	return scopedRunID(scope, req.RunID), nil
 }
 
 // scopedIdentityMatch reports whether a scoped Start request carries the scope's
@@ -768,50 +768,50 @@ func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 	if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
 		return false
 	}
-	if scope.GateContextHash != "" && capHash(req.GateContext) != scope.GateContextHash {
+	if scope.RunContextHash != "" && capHash(req.RunContext) != scope.RunContextHash {
 		return false
 	}
 	// A scope that pinned a run epoch accepts a start presenting none (it inherits
-	// the scope's — scopedRunEpoch) or the same one; a different presented epoch is
+	// the scope's — scopedRunID) or the same one; a different presented epoch is
 	// an altered identity (change 0467).
-	if scope.RunEpochID != "" && req.RunEpochID != "" && req.RunEpochID != scope.RunEpochID {
+	if scope.RunID != "" && req.RunID != "" && req.RunID != scope.RunID {
 		return false
 	}
 	return true
 }
 
-// scopedRunEpoch resolves the effective run epoch of a scoped start (change 0467):
+// scopedRunID resolves the effective run epoch of a scoped start (change 0467):
 // a scope that pinned an epoch supplies it — scopedIdentityMatch has already
 // refused a start presenting a different one — and a scope with no epoch (a legacy
 // v2 scope, or one prepared without) leaves the presented value governing,
 // unchanged from before.
-func scopedRunEpoch(scope scopeRecord, presented string) string {
-	if scope.RunEpochID != "" {
-		return scope.RunEpochID
+func scopedRunID(scope scopeRecord, presented string) string {
+	if scope.RunID != "" {
+		return scope.RunID
 	}
 	return presented
 }
 
-// AdvisoryRunEpoch resolves, without writing anything, the run epoch Admit would
+// AdvisoryRunID resolves, without writing anything, the run epoch Admit would
 // admit req under, for the application layer's advisory pre-admission check
 // (change 0467). A scoped start that presents its scope's child capability takes
-// scopedRunEpoch — the scope's pinned epoch, or the presented one for an
+// scopedRunID — the scope's pinned epoch, or the presented one for an
 // epoch-less scope. A start presenting a foreign epoch keeps it (Admit refuses
 // that start scope-identity-mismatch, so the advisory check must stay fenced), as
 // does a scopeless start, an unreadable scope, or a rejected capability: those are
 // Admit's to refuse, never the advisory check's to widen.
-func (d *Driver) AdvisoryRunEpoch(req StartRequest) string {
+func (d *Driver) AdvisoryRunID(req StartRequest) string {
 	if req.ScopeID == "" {
-		return req.RunEpochID
+		return req.RunID
 	}
 	scope, err := d.store.LoadScope(req.ScopeID)
 	if err != nil || req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
-		return req.RunEpochID
+		return req.RunID
 	}
-	if scope.RunEpochID != "" && req.RunEpochID != "" && req.RunEpochID != scope.RunEpochID {
-		return req.RunEpochID
+	if scope.RunID != "" && req.RunID != "" && req.RunID != scope.RunID {
+		return req.RunID
 	}
-	return scopedRunEpoch(scope, req.RunEpochID)
+	return scopedRunID(scope, req.RunID)
 }
 
 // admitScopeless runs the pre-launch admission half for a gate without a recovery
@@ -824,11 +824,11 @@ func (d *Driver) AdvisoryRunEpoch(req StartRequest) string {
 // private run roots to launch concurrently against one worktree. It launches no
 // process; launchScopeless does. A NewReservedDrive failure releases the freshly
 // reserved slot before returning, so a refused admission leaks nothing.
-func (d *Driver) admitScopeless(rec driveRecord, ownerGen, runEpochID string) (*AdmissionTicket, error) {
+func (d *Driver) admitScopeless(rec driveRecord, ownerGen, runID string) (*AdmissionTicket, error) {
 	token, legacy, err := d.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: rec.RepoIdentity,
 		WorktreeRoot: rec.WorktreePath,
-		RunEpochID:   runEpochID,
+		RunID:        runID,
 		Kind:         "scopeless",
 	})
 	if err != nil {
@@ -1163,7 +1163,7 @@ func (d *Driver) admitScopedWorktree(req StartRequest) (token string, reservedFr
 		RepoIdentity: req.RepoDir,
 		WorktreeRoot: req.Worktree,
 		ScopeID:      req.ScopeID,
-		RunEpochID:   req.RunEpochID,
+		RunID:        req.RunID,
 		Kind:         "scoped",
 	}
 	token, legacy, rerr := d.reserveWorktreeExecution(rec)
@@ -1381,7 +1381,7 @@ func (d *Driver) Advance(id, ownerGen string) (DriveDoc, error) {
 		// crash-window reservation, though an already-identified replacement is still
 		// reconciled (attach/report — reconciliation, not authorization). The epoch
 		// lock is thus acquired without holding the claim (change 0437 Task 3).
-		revoked := d.recoveryEpochRevoked(rec)
+		revoked := d.recoveryRunRevoked(rec)
 		var resolved *DriveDoc
 		rec, claim, resolved, err = d.recoverReservedRelaunch(id, ownerGen, rec, revoked)
 		if err != nil {
@@ -1688,23 +1688,23 @@ var errAlreadyTerminal = errors.New("gatedrive: drive already terminal")
 // authoritative drive state and never issues a second backend launch.
 var errRelaunchRaceLost = errors.New("gatedrive: relaunch already consumed by a concurrent advance")
 
-// resolveDriveEpoch resolves the run epoch a durable drive is linked to, from
-// existing records only. A scoped drive answers from its scope's RunEpochID; a
+// resolveDriveRun resolves the run epoch a durable drive is linked to, from
+// existing records only. A scoped drive answers from its scope's RunID; a
 // scopeless drive with an AdmissionToken answers from the worktree slot ONLY when
 // the slot's ReservationToken still equals that token (an exact-reservation
 // match). ok=false with cause set means the linkage is LOST or inconsistent — the
 // drive can no longer prove whether it is epoch-backed, so new execution is
 // refused (never demoted to standalone). ("", true, "") is a genuinely epoch-less
 // drive (a legacy empty token, or a slot recording no epoch). (change 0437 Task 3)
-func (d *Driver) resolveDriveEpoch(rec driveRecord) (epochID string, ok bool, cause string) {
+func (d *Driver) resolveDriveRun(rec driveRecord) (runID string, ok bool, cause string) {
 	if rec.ScopeID != "" {
 		scope, err := d.store.LoadScope(rec.ScopeID)
 		if err != nil {
 			// The scope's epoch cannot be read: the drive can no longer prove its
-			// linkage, so refuse rather than treat it as standalone (CauseEpochUnreadable).
-			return "", false, CauseEpochUnreadable
+			// linkage, so refuse rather than treat it as standalone (CauseRunRecordUnreadable).
+			return "", false, CauseRunRecordUnreadable
 		}
-		return scope.RunEpochID, true, ""
+		return scope.RunID, true, ""
 	}
 	if rec.AdmissionToken == "" {
 		return "", true, ""
@@ -1716,7 +1716,7 @@ func (d *Driver) resolveDriveEpoch(rec driveRecord) (epochID string, ok bool, ca
 	if slot.ReservationToken != rec.AdmissionToken {
 		return "", false, "unresolved-execution"
 	}
-	return slot.RunEpochID, true, ""
+	return slot.RunID, true, ""
 }
 
 // authorizeRelaunch validates, under the epoch gate, that the drive's epoch (if
@@ -1730,13 +1730,13 @@ func (d *Driver) resolveDriveEpoch(rec driveRecord) (epochID string, ok bool, ca
 // reserveRelaunch takes the per-drive claim INSIDE it, so the epoch lock is never
 // acquired while the claim is already held (spec "Serialize with existing locks").
 func (d *Driver) authorizeRelaunch(id, ownerGen string, rec driveRecord) (*relaunchClaim, string, error) {
-	epochID, ok, cause := d.resolveDriveEpoch(rec)
+	runID, ok, cause := d.resolveDriveRun(rec)
 	if !ok {
 		return nil, cause, nil
 	}
 	var claim *relaunchClaim
 	reserveEntered := false
-	err := d.epochGated(epochID, rec.WorktreePath, func() error {
+	err := d.runLaunchGated(runID, rec.WorktreePath, func() error {
 		reserveEntered = true
 		c, rerr := d.store.reserveRelaunch(id, ownerGen)
 		if rerr != nil {
@@ -1760,21 +1760,21 @@ func (d *Driver) authorizeRelaunch(id, ownerGen string, rec driveRecord) (*relau
 	return claim, "", nil
 }
 
-// recoveryEpochRevoked reports whether a reserved-relaunch drive's linked epoch is
+// recoveryRunRevoked reports whether a reserved-relaunch drive's linked epoch is
 // no longer live, via a read-only pass through the epoch gate (a no-op reserve
 // body). It runs BEFORE recoverReservedRelaunch takes the per-drive claim, so the
 // epoch lock is never acquired while the claim is held. A lost or unreadable
 // linkage is treated as revoked (fail closed: recovery may still attach or report,
 // but must never authorize a NEW launch for a drive that cannot prove it is still
-// epoch-backed). A genuinely epoch-less drive (epochID "") runs the no-op directly
+// epoch-backed). A genuinely epoch-less drive (runID "") runs the no-op directly
 // and is never revoked, so the standalone recovery path is unchanged. (change 0437
 // Task 3)
-func (d *Driver) recoveryEpochRevoked(rec driveRecord) bool {
-	epochID, ok, _ := d.resolveDriveEpoch(rec)
+func (d *Driver) recoveryRunRevoked(rec driveRecord) bool {
+	runID, ok, _ := d.resolveDriveRun(rec)
 	if !ok {
 		return true
 	}
-	return d.epochGated(epochID, rec.WorktreePath, func() error { return nil }) != nil
+	return d.runLaunchGated(runID, rec.WorktreePath, func() error { return nil }) != nil
 }
 
 // reserveRelaunch acquires the short-lived claimant fence before durably

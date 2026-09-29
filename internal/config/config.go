@@ -128,7 +128,7 @@ type Effective struct {
 	Learnings         Learnings       `json:"learnings"`
 	Reclaim           Reclaim         `json:"reclaim"`
 	Review            Review          `json:"review"`
-	GateObservation   Value[int]      `json:"gate_observation_budget"` // minutes
+	RunObservation    Value[int]      `json:"gate_observation_budget"` // minutes
 	BoardSurfaces     Value[[]string] `json:"board_surfaces"`
 	Board             Board           `json:"board"`
 	ChangeTypes       Value[[]string] `json:"change_types"`
@@ -172,7 +172,7 @@ type Build struct {
 type Run struct {
 	// MaxAttempts caps total attributed implementation attempts per gate
 	// arming, counting the original dispatch. Positive; snapshotted into the
-	// GateRecord at mint.
+	// RunTrackerRecord at mint.
 	MaxAttempts Value[int] `json:"max_attempts"`
 }
 

@@ -44,7 +44,7 @@ func (e *RepoResolutionError) Unwrap() error { return e.Err }
 // ResolveRepoPhase turns a repository selection into the RepoPhase the installer
 // applies. repoDir is the explicit --repo-dir value ("" means discover the Git
 // working tree containing the current directory); harnessScope is the explicit
-// --harness selection (nil means the full opt-in set); runGate is the run-gate
+// --harness selection (nil means the full opt-in set); runTracker is the run-gate
 // payload the surfaces carry; legacy is the frozen reproducer that proof-gates a
 // removal against a byte-exact legacy artifact. The second return is the selected
 // working-tree root, for reporting.
@@ -59,7 +59,7 @@ func (e *RepoResolutionError) Unwrap() error { return e.Err }
 // install-specific knowledge of why. The third return is the warning-severity
 // diagnostics from the repository resolve, for the install result to surface;
 // it is nil on the machine-only and error paths.
-func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, harnessScope []string, runGate []byte, legacy install.LegacyReproducer, rctx config.ResolveContext) (*install.RepoPhase, string, []config.Diagnostic, error) {
+func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, harnessScope []string, runTracker []byte, legacy install.LegacyReproducer, rctx config.ResolveContext) (*install.RepoPhase, string, []config.Diagnostic, error) {
 	explicit := strings.TrimSpace(repoDir) != ""
 	invocation := repoDir
 	if !explicit {
@@ -114,7 +114,7 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 	targets, owners, err := reposeed.Plan(reposeed.PlanInput{
 		WorktreeRoot:  root,
 		Harnesses:     effective,
-		RunGate:       runGate,
+		RunTracker:    runTracker,
 		ClaudeMDState: classifyClaudeMD(root),
 	})
 	if err != nil {

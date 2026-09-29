@@ -1,12 +1,12 @@
 // The production epoch launch gate (change 0437 Task 5). It is the app-owned
 // authoritative liveness read the native gate driver runs its durable
-// admission/reservation body under (gatedrive.EpochLaunchGate): a run epoch that a
+// admission/reservation body under (gatedrive.RunLaunchGate): a run epoch that a
 // cancellation has fenced, a resume has superseded, or that does not own the
 // worktree a start names must NOT be allowed to launch or reserve a new gate
 // execution.
 //
 // SERIALIZATION. The gate holds the SAME per-key run.lock the mutation fence and
-// the cancellation transition serialize on (runtracker_run_record.go's epochCAS), across
+// the cancellation transition serialize on (runtracker_run_record.go's runRecordCAS), across
 // both the liveness read AND reserve, so a concurrent active→cancelling fence has
 // exactly two outcomes: it lands BEFORE the gate's locked read (the gate refuses and
 // reserve never runs) or AFTER reserve committed the driver's durable reservation
@@ -14,18 +14,18 @@
 // The gate never holds the lock across a process launch — reserve is only the
 // bounded reservation body; the driver launches OUTSIDE the gate (change 0437 Task 2).
 //
-// NO EPOCH WRITE. The gate is a READ under the lock. It NEVER calls epochCAS and
+// NO EPOCH WRITE. The gate is a READ under the lock. It NEVER calls runRecordCAS and
 // never rewrites the record: a trailing rewrite could fail after reserve already
 // succeeded, so the liveness path stays strictly read-only (spec "No epoch write
 // from the liveness path"). It reuses the existing lock/read primitives
-// (acquireEpochLock, readStoredEpoch) and the existing worktree-ownership predicate
-// (epochOwnsWorktree), never a second copy.
+// (acquireRunLock, readStoredRun) and the existing worktree-ownership predicate
+// (runOwnsWorktree), never a second copy.
 //
 // FAIL CLOSED. Every location or liveness failure refuses through the EXISTING fence
-// vocabulary — cancelling/cancelled → ErrRunCancelled, superseded → ErrStaleRunEpoch,
+// vocabulary — cancelling/cancelled → ErrRunCancelled, superseded → ErrStaleRunID,
 // completing/completed (a successful closeout, change 0441) → ErrRunCompleted,
-// a missing/wrong/omitted worktree binding → ErrStaleRunEpoch, and a
-// missing/ambiguous/corrupt/unreadable epoch → the typed EpochError. A record the
+// a missing/wrong/omitted worktree binding → ErrStaleRunID, and a
+// missing/ambiguous/corrupt/unreadable epoch → the typed RunError. A record the
 // store cannot resolve to a single live, worktree-bound epoch is never a free pass.
 package app
 
@@ -35,54 +35,54 @@ import (
 	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
-// epochLaunchGate builds the production gatedrive.EpochLaunchGate over this
+// runLaunchGate builds the production gatedrive.RunLaunchGate over this
 // repository's run-epoch registry (rooted at gitCommonDir, the same root
-// epochRevokedResolver derives). The returned gate locates the epoch by its public
+// runRevokedResolver derives). The returned gate locates the epoch by its public
 // id (unique match), acquires that key's run.lock, RE-READS the record under the
 // lock (the unlocked scan only located the directory), validates that the epoch is
 // active AND owns the worktree the start names, and only then runs reserve while
 // still holding the lock. It NEVER writes the epoch record. It fires only for a
-// non-empty epoch id (the driver's epochGated helper calls it only then), so a
+// non-empty epoch id (the driver's runLaunchGated helper calls it only then), so a
 // standalone gate that carries no run epoch keeps its existing behavior.
-func epochLaunchGate(gitCommonDir string) gatedrive.EpochLaunchGate {
-	rungateRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
-	return func(epochID, worktree string, reserve func() error) error {
+func runLaunchGate(gitCommonDir string) gatedrive.RunLaunchGate {
+	runTrackerRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
+	return func(runID, worktree string, reserve func() error) error {
 		// Canonicalize the worktree the start names ONCE, outside the lock (fingerprint
 		// and path resolution stay out of the epoch critical section). A worktree the
 		// gate cannot canonicalize cannot be proven owned by the epoch — fail closed.
 		canon, cerr := canonicalWorktree(worktree)
 		if cerr != nil {
-			return ErrStaleRunEpoch
+			return ErrStaleRunID
 		}
 		// Locate the unique gate-key directory holding this epoch. A missing,
-		// ambiguous, corrupt, or unreadable registry is a typed EpochError refusal —
+		// ambiguous, corrupt, or unreadable registry is a typed RunError refusal —
 		// never a free pass for a run whose liveness cannot be established.
-		dir, _, ferr := findEpochDirByID(rungateRoot, epochID)
+		dir, _, ferr := findRunDirByID(runTrackerRoot, runID)
 		if ferr != nil {
 			return ferr
 		}
 		// Hold the per-key epoch lock across the liveness read AND reserve, so a
 		// concurrent cancellation fence serializes against this gate rather than
 		// interleaving with the durable reservation.
-		lock, lerr := acquireEpochLock(dir)
+		lock, lerr := acquireRunLock(dir)
 		if lerr != nil {
 			return lerr
 		}
 		defer lock.Close()
 		// Re-read under the lock: the unlocked scan only located the directory, and a
 		// fence may have landed since. A record that has become unreadable fails closed.
-		rec, _, rerr := readStoredEpoch(dir, "run-launch-gate")
+		rec, _, rerr := readStoredRun(dir, "run-launch-gate")
 		if rerr != nil {
 			return rerr
 		}
 		switch rec.State {
-		case EpochActive:
+		case RunActive:
 			// Live: fall through to the worktree-ownership check.
-		case EpochCancelling, EpochCancelled:
+		case RunCancelling, RunCancelled:
 			return ErrRunCancelled
-		case EpochSuperseded:
-			return ErrStaleRunEpoch
-		case EpochCompleting, EpochCompleted:
+		case RunSuperseded:
+			return ErrStaleRunID
+		case RunCompleting, RunCompleted:
 			// A successful closeout (fenced or finished) admits no launch, delayed
 			// ticket, or relaunch (change 0441). This refusal is what later settles a
 			// pre-fence never-launched ticket terminal, and it is distinguishable from
@@ -96,8 +96,8 @@ func epochLaunchGate(gitCommonDir string) gatedrive.EpochLaunchGate {
 		// The epoch must OWN the worktree the start names. An empty binding (an epoch
 		// that never claimed a worktree) or a different worktree is the same
 		// fail-closed refusal — omission and substitution are one refusal.
-		if rec.Worktree == "" || !epochOwnsWorktree(rec.Worktree, canon) {
-			return ErrStaleRunEpoch
+		if rec.Worktree == "" || !runOwnsWorktree(rec.Worktree, canon) {
+			return ErrStaleRunID
 		}
 		return reserve()
 	}

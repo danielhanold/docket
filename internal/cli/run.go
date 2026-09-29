@@ -71,7 +71,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	// argument is the gate target; only `implement-next` is accepted, and any other
 	// value is an invalid-input result (non-zero exit) the app layer owns. It
 	// reuses the same read-only planning seams as verify.
-	gateBefore := &cobra.Command{
+	runStart := &cobra.Command{
 		Use:   "start <target>",
 		Short: "Start a tracked run for a dispatched workflow and print run-started <key> <run-id> <run-context>",
 		Args:  cobra.ExactArgs(1),
@@ -91,9 +91,9 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			// Compose the production outer-scope preparation seam: mint the scope in
 			// the durable drive store rooted at the repository's Git common dir. The
 			// closure fills RepoIdentity from the resolved common dir; Branch/Worktree
-			// arrive already filled by RunGateBefore (from the resumed change's
+			// arrive already filled by RunStart (from the resumed change's
 			// inspect when resuming, empty otherwise).
-			sdeps := app.GateScopeDeps{Prepare: func(req gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
+			sdeps := app.RunTrackerScopeDeps{Prepare: func(req gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
 				commonDir, _, cerr := gateDriveRepoContext(c.Context(), repoDir)
 				if cerr != nil {
 					return gatedrive.ScopeGrant{}, cerr
@@ -101,12 +101,12 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 				req.RepoIdentity = commonDir
 				return gatedrive.OpenStore(commonDir).PrepareScope(req)
 			}}
-			setResult(app.RunGateBefore(c.Context(), deps, wdeps, sdeps, repoDir, args[0], resumeID))
+			setResult(app.RunStart(c.Context(), deps, wdeps, sdeps, repoDir, args[0], resumeID))
 			return nil
 		},
 	}
-	gateBefore.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
-	gateBefore.Flags().Int("resume", 0, "resume an already-in-progress change by `id` (pre-binds attribution)")
+	runStart.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	runStart.Flags().Int("resume", 0, "resume an already-in-progress change by `id` (pre-binds attribution)")
 
 	// run verdict reports the run-gate verdict in one of two modes. In ATTRIBUTED
 	// mode (`run verdict <key>`) it loads the durable record armed by run start,
@@ -115,14 +115,14 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	// run-retry-once / run-stop …). In UNATTRIBUTED mode (`run verdict
 	// --unattributed [<id>...]`) it holds no key, writes nothing, and prints one
 	// observe-only line per verified id (run-observe …) — a separate app entry
-	// (RunGateVerdictObserve) with no path to a retry grant. Both modes wire the
+	// (RunVerdictObserve) with no path to a retry grant. Both modes wire the
 	// SAME read-only planning + workspace + GitHub seams as verify, including the
 	// best-effort local run-waiting receipt reader, because the run predicate is
 	// verify's. Every outcome is a report line that exits 0; a mode/argument
 	// mismatch (a key alongside --unattributed, or a missing key without it) is a
 	// usage error. Positionals are the key (attributed) or the hint ids
 	// (unattributed), so argument arity is validated per mode inside RunE.
-	gateVerdict := &cobra.Command{
+	runVerdict := &cobra.Command{
 		Use:   "verdict <key> | --unattributed [<id>...]",
 		Short: "Report the run tracker's verdict for a dispatched workflow (attributed or observe-only)",
 		Args:  cobra.ArbitraryArgs,
@@ -155,19 +155,19 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 				// Observe-only mode: the positionals are change-id hints (zero or
 				// more); the app entry owns hint parsing and the usage error for a
 				// non-integer positional (a key is not a hint).
-				setResult(app.RunGateVerdictObserve(c.Context(), deps, wdeps, gdeps, repoDir, args))
+				setResult(app.RunVerdictObserve(c.Context(), deps, wdeps, gdeps, repoDir, args))
 				return nil
 			}
 			// Attributed mode requires exactly one positional: the durable key.
 			if len(args) != 1 {
 				return fmt.Errorf("run verdict requires exactly one <key>, or --unattributed [<id>...]")
 			}
-			setResult(app.RunGateVerdict(c.Context(), deps, wdeps, gdeps, repoDir, args[0]))
+			setResult(app.RunVerdict(c.Context(), deps, wdeps, gdeps, repoDir, args[0]))
 			return nil
 		},
 	}
-	gateVerdict.Flags().Bool("unattributed", false, "observe-only mode: verify hint ids (or every in-progress id) and print run-observe lines, holding no key and writing nothing")
-	gateVerdict.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	runVerdict.Flags().Bool("unattributed", false, "observe-only mode: verify hint ids (or every in-progress id) and print run-observe lines, holding no key and writing nothing")
+	runVerdict.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
 	// run continue redeems the single-use continuation a run-continue verdict
 	// recorded (change 0359): the resumed implement-next controller presents the
@@ -189,7 +189,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			setResult(app.RunGateClaim(repoDir, args[0], args[1], newClaimSeam(c.Context(), repoDir)))
+			setResult(app.RunContinue(repoDir, args[0], args[1], newClaimSeam(c.Context(), repoDir)))
 			return nil
 		},
 	}
@@ -221,9 +221,9 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			key, _ := c.Flags().GetString("key")
-			epoch, _ := c.Flags().GetString("run-id")
+			runID, _ := c.Flags().GetString("run-id")
 			reason, _ := c.Flags().GetString("reason")
-			setResult(app.RunCancel(c.Context(), deps, wdeps, repoDir, key, epoch, reason))
+			setResult(app.RunCancel(c.Context(), deps, wdeps, repoDir, key, runID, reason))
 			return nil
 		},
 	}
@@ -235,7 +235,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = cancel.MarkFlagRequired("run-id")
 	_ = cancel.MarkFlagRequired("reason")
 
-	runCmd.AddCommand(verify, gateBefore, gateVerdict, gateClaim, cancel)
+	runCmd.AddCommand(verify, runStart, runVerdict, gateClaim, cancel)
 	return runCmd
 }
 

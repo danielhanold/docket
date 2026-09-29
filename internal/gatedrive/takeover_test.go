@@ -21,9 +21,9 @@ import (
 )
 
 // scopeReqFor builds a ScopeRequest whose identity matches a StartRequest, so a
-// drive Started under the grant binds cleanly. gateContext is the raw outer
+// drive Started under the grant binds cleanly. runContext is the raw outer
 // child-context token (empty for a plain task scope in these tests).
-func scopeReqFor(req StartRequest, gateContext string) ScopeRequest {
+func scopeReqFor(req StartRequest, runContext string) ScopeRequest {
 	return ScopeRequest{
 		RepoIdentity: req.RepoDir,
 		ChangeID:     req.ChangeID,
@@ -31,7 +31,7 @@ func scopeReqFor(req StartRequest, gateContext string) ScopeRequest {
 		Phase:        req.Phase,
 		Branch:       req.Branch,
 		Worktree:     req.Worktree,
-		GateContext:  gateContext,
+		RunContext:   runContext,
 	}
 }
 
@@ -84,7 +84,7 @@ func mustReadBytes(t *testing.T, path string) []byte {
 // child owner can no longer advance, the new owner advances normally, the scope
 // is closed, and the takeover itself neither launched nor stopped any process.
 func TestTakeoverInvalidatesChildAndMintsParentOwner(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{} // stays running across slices
 	d, store := newTestDriver(t, clk, proc, stableGit())
 
@@ -142,7 +142,7 @@ func TestTakeoverInvalidatesChildAndMintsParentOwner(t *testing.T) {
 // succeeds, and the fresh owner's Advance returns the recorded PASSED with the
 // same attempt and no relaunch.
 func TestTakeoverTerminalUnconsumed(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	running := true
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
@@ -295,7 +295,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
 				grant, started := bindWaiting(t, d, store)
 				rec, _ := store.Load(started.DriveID)
-				rec.Deadline = startEpoch().Add(-time.Minute) // past, drive still WAITING
+				rec.Deadline = startRun().Add(-time.Minute) // past, drive still WAITING
 				overwriteDriveRecord(t, store, started.DriveID, rec)
 				return grant.ScopeID, grant.ParentCapability, started.DriveID
 			},
@@ -358,7 +358,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			clk := &fakeClock{now: startEpoch()}
+			clk := &fakeClock{now: startRun()}
 			proc := &fakeProc{}
 			git := stableGit()
 			d, store := newTestDriver(t, clk, proc, git)
@@ -417,12 +417,12 @@ func prepareOuterScope(t *testing.T, store *Store) ScopeGrant {
 	return grant
 }
 
-// startNested Starts a nested (non-scope-bound) drive whose GateContext is the
-// outer scope's child capability, so its GateContextHash matches the outer scope.
-func startNested(t *testing.T, d *Driver, gateContext string) DriveDoc {
+// startNested Starts a nested (non-scope-bound) drive whose RunContext is the
+// outer scope's child capability, so its RunContextHash matches the outer scope.
+func startNested(t *testing.T, d *Driver, runContext string) DriveDoc {
 	t.Helper()
 	req := sampleStart()
-	req.GateContext = gateContext
+	req.RunContext = runContext
 	doc, err := d.Start(req)
 	if err != nil {
 		t.Fatalf("Start nested: %v", err)
@@ -434,7 +434,7 @@ func startNested(t *testing.T, d *Driver, gateContext string) DriveDoc {
 // capability yield exactly one fresh owner; the loser HALTs and the old child
 // owner is invalid either way. Run under -race.
 func TestTakeoverRace(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	grant, started := bindWaiting(t, d, store)
@@ -478,14 +478,14 @@ func TestTakeoverRace(t *testing.T) {
 }
 
 // TestStartBindsScope proves Start with ScopeID+ChildCapability binds the drive
-// into the scope and stamps ScopeID + GateContextHash; a wrong capability fails
+// into the scope and stamps ScopeID + RunContextHash; a wrong capability fails
 // BEFORE launch; a second Start on the same scope while the first drive is live
 // fails.
 func TestStartBindsScope(t *testing.T) {
 	const gateCtx = "outer-dispatch-context-token"
 
 	// Happy path: binds + stamps.
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	req := sampleStart()
@@ -495,7 +495,7 @@ func TestStartBindsScope(t *testing.T) {
 	}
 	req.ScopeID = grant.ScopeID
 	req.ChildCapability = grant.ChildCapability
-	req.GateContext = gateCtx
+	req.RunContext = gateCtx
 	started, err := d.Start(req)
 	if err != nil {
 		t.Fatalf("Start: %v", err)
@@ -514,8 +514,8 @@ func TestStartBindsScope(t *testing.T) {
 	if rec.ScopeID != grant.ScopeID {
 		t.Fatalf("Start must stamp ScopeID, got %q", rec.ScopeID)
 	}
-	if rec.GateContextHash != capHash(gateCtx) {
-		t.Fatalf("Start must stamp the gate-context hash, got %q", rec.GateContextHash)
+	if rec.RunContextHash != capHash(gateCtx) {
+		t.Fatalf("Start must stamp the gate-context hash, got %q", rec.RunContextHash)
 	}
 
 	// A second Start on the same (already-bound) scope fails while the first is live.
@@ -531,7 +531,7 @@ func TestStartBindsScope(t *testing.T) {
 	}
 
 	// A wrong capability fails BEFORE launch on a fresh scope.
-	clk2 := &fakeClock{now: startEpoch()}
+	clk2 := &fakeClock{now: startRun()}
 	proc2 := &fakeProc{}
 	d2, store2 := newTestDriver(t, clk2, proc2, stableGit())
 	req2 := sampleStart()
@@ -564,7 +564,7 @@ func TestFindScopeDriveIDs(t *testing.T) {
 		t.Helper()
 		rec := seedRecord(t)
 		rec.ChangeID = change
-		rec.GateContextHash = gateHash
+		rec.RunContextHash = gateHash
 		rec.LastOutcome = outcome
 		rec.OwnerGeneration = owner
 		id, _, err := store.NewDrive(rec)
@@ -604,7 +604,7 @@ func TestFindScopeDriveIDs(t *testing.T) {
 // TestContinuationHandle proves it returns the current unclaimed handoff token and
 // fails typed when the drive carries no unclaimed handoff.
 func TestContinuationHandle(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 
@@ -676,7 +676,7 @@ func scopedSequenceProc(later process.State) *fakeProc {
 // second drive.
 func scopedPredecessorThenSuccessor(t *testing.T, proc *fakeProc) (*Driver, *Store, ScopeGrant, StartRequest, DriveDoc, DriveDoc) {
 	t.Helper()
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	d := scopedTestDriver(store, clk, proc, stableGit())
 	grant, req := prepareScopedStart(t, store)
@@ -839,7 +839,7 @@ func TestTakeoverReservedOrPendingSlotHalts(t *testing.T) {
 	}
 
 	t.Run("reserved slot via launch failure", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		store := OpenStore(testsupport.TempDir(t))
 		grant, req := prepareScopedStart(t, store)
 		d := scopedTestDriver(store, clk, launchFail(), stableGit())
@@ -863,7 +863,7 @@ func TestTakeoverReservedOrPendingSlotHalts(t *testing.T) {
 	})
 
 	t.Run("pending-ack journal on a launched slot", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		store := OpenStore(testsupport.TempDir(t))
 		grant, req := prepareScopedStart(t, store)
 		d := scopedTestDriver(store, clk, launchFail(), stableGit())
@@ -961,7 +961,7 @@ func TestTakeoverRaceVsSuccessorStart(t *testing.T) {
 	req.ChildCapability = grant.ChildCapability
 
 	// Setup: a first drive durably PASSED (current, launched, owner set).
-	setupClk := &fakeClock{now: startEpoch()}
+	setupClk := &fakeClock{now: startRun()}
 	setupProc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			return obs(process.StatePassed, runDir), nil
@@ -988,7 +988,7 @@ func TestTakeoverRaceVsSuccessorStart(t *testing.T) {
 	barrier.Add(2)
 	git := &barrierGit{wg: &barrier, head: "HEAD1"}
 	mkDriver := func() *Driver {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		d := NewDriver(store, clk, proc, git)
 		d.slice = 4 * pollTick
 		d.pollInterval = pollTick
@@ -1141,7 +1141,7 @@ func TestTakeoverRaceVsFinalAcknowledge(t *testing.T) {
 		req.ScopeID = grant.ScopeID
 		req.ChildCapability = grant.ChildCapability
 
-		setupDriver := scopedTestDriver(store, &fakeClock{now: startEpoch()}, passObserveProc(), stableGit())
+		setupDriver := scopedTestDriver(store, &fakeClock{now: startRun()}, passObserveProc(), stableGit())
 		started, err := setupDriver.Start(req)
 		if err != nil {
 			t.Fatalf("setup Start: %v", err)
@@ -1151,7 +1151,7 @@ func TestTakeoverRaceVsFinalAcknowledge(t *testing.T) {
 		}
 
 		gate := &gateGit{ready: make(chan struct{}), release: make(chan struct{}), head: "HEAD1"}
-		takeClk := &fakeClock{now: startEpoch()}
+		takeClk := &fakeClock{now: startRun()}
 		takeDriver := NewDriver(store, takeClk, &fakeProc{}, gate)
 		takeDriver.slice = 4 * pollTick
 		takeDriver.pollInterval = pollTick
@@ -1167,7 +1167,7 @@ func TestTakeoverRaceVsFinalAcknowledge(t *testing.T) {
 
 		<-gate.ready // the takeover is parked past its scope/drive reads, before its close
 
-		ackDriver := scopedTestDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+		ackDriver := scopedTestDriver(store, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 		ackDoc, aerr := ackDriver.Acknowledge(grant.ScopeID, grant.ChildCapability, started.DriveID, started.Generation)
 		if aerr != nil {
 			t.Fatalf("Acknowledge: %v", aerr)
@@ -1205,7 +1205,7 @@ func TestFindScopeDriveIDsExcludesAcknowledgedHistory(t *testing.T) {
 		t.Helper()
 		rec := seedRecord(t)
 		rec.ChangeID = "0342"
-		rec.GateContextHash = capHash("seq-ctx")
+		rec.RunContextHash = capHash("seq-ctx")
 		rec.LastOutcome = outcome
 		rec.OwnerGeneration = owner
 		id, _, err := store.NewDrive(rec)

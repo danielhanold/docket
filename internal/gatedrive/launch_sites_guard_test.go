@@ -27,7 +27,7 @@ import (
 //      of "proc" — a byte-pattern guard matches a spelling, learning
 //      byte-pattern-guard-matches-a-spelling).
 //   2. Boundary set — the functions whose body calls the single epoch-authorization
-//      helper epochGated (the ONE helper every epoch-backed reservation/launch
+//      helper runLaunchGated (the ONE helper every epoch-backed reservation/launch
 //      authorization flows through, by design of Task 1). Computed from the AST,
 //      not enumerated.
 //   3. Reachability — the package-internal receiver call graph. Every function
@@ -49,7 +49,7 @@ import (
 type launchGuardResult struct {
 	procField     string   // ProcessSeam field name, derived from the struct decl (AST)
 	launchSites   int      // total <recv>.<procField>.Launch(…) call expressions
-	boundaryFuncs []string // functions whose body calls epochGated (sorted)
+	boundaryFuncs []string // functions whose body calls runLaunchGated (sorted)
 	launchFuncs   []string // functions whose body contains a launch site (sorted)
 	violations    []string
 	visitedFiles  int
@@ -57,15 +57,15 @@ type launchGuardResult struct {
 
 // funcInfo is the per-function-name AST-derived facts the call graph needs.
 type funcInfo struct {
-	callsEpochGated bool
-	launchCount     int
-	callees         map[string]bool // receiver-method calls d.<name>(…)
+	callsRunLaunchGated bool
+	launchCount         int
+	callees             map[string]bool // receiver-method calls d.<name>(…)
 }
 
 // analyzeGatedriveLaunchSites parses every non-test .go file under root and
 // computes the launch-site guard accounting. Facts are merged by function name
 // (conservative: a name is a boundary member if ANY declaration of that name
-// calls epochGated; a launch func if ANY launches; callees are unioned) so a
+// calls runLaunchGated; a launch func if ANY launches; callees are unioned) so a
 // name collision never silently drops a call edge.
 func analyzeGatedriveLaunchSites(root string) (launchGuardResult, error) {
 	var res launchGuardResult
@@ -140,11 +140,11 @@ func analyzeGatedriveLaunchSites(root string) (launchGuardResult, error) {
 						}
 					}
 					// A receiver-method call: d.<name>(…) where the receiver is a bare
-					// identifier. Records both the epochGated boundary call and every
+					// identifier. Records both the runLaunchGated boundary call and every
 					// intra-package call edge.
 					if _, ok := sel.X.(*ast.Ident); ok {
-						if sel.Sel.Name == "epochGated" {
-							fi.callsEpochGated = true
+						if sel.Sel.Name == "runLaunchGated" {
+							fi.callsRunLaunchGated = true
 						}
 						fi.callees[sel.Sel.Name] = true
 					}
@@ -157,7 +157,7 @@ func analyzeGatedriveLaunchSites(root string) (launchGuardResult, error) {
 	// 3. Boundary set and reachability.
 	boundary := map[string]bool{}
 	for name, fi := range infos {
-		if fi.callsEpochGated {
+		if fi.callsRunLaunchGated {
 			boundary[name] = true
 			res.boundaryFuncs = append(res.boundaryFuncs, name)
 		}
@@ -220,10 +220,10 @@ func analyzeGatedriveLaunchSites(root string) (launchGuardResult, error) {
 	return res, nil
 }
 
-// TestLaunchSitesBoundToEpochGate is the run-level guard: every launch site in
+// TestLaunchSitesBoundToRunLaunchGate is the run-level guard: every launch site in
 // the finished package is bound, syntactically, to the epoch-authorization
 // boundary, and the computed population is non-empty.
-func TestLaunchSitesBoundToEpochGate(t *testing.T) {
+func TestLaunchSitesBoundToRunLaunchGate(t *testing.T) {
 	res, err := analyzeGatedriveLaunchSites(".")
 	if err != nil {
 		t.Fatalf("analyze gatedrive package: %v", err)
@@ -235,7 +235,7 @@ func TestLaunchSitesBoundToEpochGate(t *testing.T) {
 		t.Fatalf("could not derive the ProcessSeam field name from the package — guard cannot bind launches")
 	}
 	if len(res.boundaryFuncs) == 0 {
-		t.Fatalf("no epoch-boundary functions found (none call epochGated) — guard is vacuous")
+		t.Fatalf("no epoch-boundary functions found (none call runLaunchGated) — guard is vacuous")
 	}
 	// Population floor (computed and reported): a guard that finds no launch sites
 	// is broken, not green.
@@ -251,7 +251,7 @@ func TestLaunchSitesBoundToEpochGate(t *testing.T) {
 
 // TestLaunchSiteGuardIsFalsifiable mutation-tests the guard both ways against
 // synthetic source trees that reproduce the package's launch/boundary shape:
-// (a) a bare unguarded launch helper is detected, (b) stripping epochGated from
+// (a) a bare unguarded launch helper is detected, (b) stripping runLaunchGated from
 // the boundary a launch depends on is detected, plus a clean control and the
 // population/visited floors. A guard that cannot redden is decoration (AGENTS.md).
 func TestLaunchSiteGuardIsFalsifiable(t *testing.T) {
@@ -264,10 +264,10 @@ func TestLaunchSiteGuardIsFalsifiable(t *testing.T) {
 		"package p\n" +
 		"type ProcessSeam interface{ Launch(x int) (int, error) }\n" +
 		"type Driver struct{ proc ProcessSeam }\n" +
-		"func (d *Driver) epochGated(f func() error) error { return f() }\n" +
-		"func (d *Driver) authorizeRelaunch() error { return d.epochGated(func() error { return nil }) }\n" +
-		"func (d *Driver) revalidate() error { return d.epochGated(func() error { return nil }) }\n" +
-		"func (d *Driver) recovery() error { return d.epochGated(func() error { return nil }) }\n" +
+		"func (d *Driver) runLaunchGated(f func() error) error { return f() }\n" +
+		"func (d *Driver) authorizeRelaunch() error { return d.runLaunchGated(func() error { return nil }) }\n" +
+		"func (d *Driver) revalidate() error { return d.runLaunchGated(func() error { return nil }) }\n" +
+		"func (d *Driver) recovery() error { return d.runLaunchGated(func() error { return nil }) }\n" +
 		"func (d *Driver) driveSlice() { _ = d.authorizeRelaunch(); d.proc.Launch(1) }\n" +
 		"func (d *Driver) driveAndPersistClaim() { d.driveSlice() }\n" +
 		"func (d *Driver) launchScopeless() { d.proc.Launch(2) }\n" +
@@ -301,12 +301,12 @@ func TestLaunchSiteGuardIsFalsifiable(t *testing.T) {
 		t.Errorf("mutation (a): guard did not detect a bare unguarded launch helper")
 	}
 
-	// Mutation (b): stripping epochGated from authorizeRelaunch (the boundary the
+	// Mutation (b): stripping runLaunchGated from authorizeRelaunch (the boundary the
 	// driveSlice launch depends on) is detected — the launch is now reachable only
 	// via driveAndPersistClaim, which does not cross the boundary.
 	dirB := testsupport.TempDir(t)
 	mutB := strings.Replace(baseline,
-		"func (d *Driver) authorizeRelaunch() error { return d.epochGated(func() error { return nil }) }",
+		"func (d *Driver) authorizeRelaunch() error { return d.runLaunchGated(func() error { return nil }) }",
 		"func (d *Driver) authorizeRelaunch() error { return nil }",
 		1)
 	if mutB == baseline {
@@ -316,7 +316,7 @@ func TestLaunchSiteGuardIsFalsifiable(t *testing.T) {
 	if res, err := analyzeGatedriveLaunchSites(dirB); err != nil {
 		t.Fatalf("analyze mutation (b): %v", err)
 	} else if len(res.violations) == 0 {
-		t.Errorf("mutation (b): guard did not detect the stripped epochGated boundary")
+		t.Errorf("mutation (b): guard did not detect the stripped runLaunchGated boundary")
 	}
 
 	// Floor: an empty tree computes zero launch sites and visits zero files — the

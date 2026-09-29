@@ -13,13 +13,13 @@ import (
 // race shard (change 0333, generalized for change 0421): 16 goroutines contend on
 // the on-disk gate record, all racing the SAME attempt transition (attempt 1 at
 // limit 2); -race guards the per-attempt O_EXCL single-grant CAS in
-// ConsumeGateRetry — a counted budget must not let concurrency spend several
+// ConsumeRunTrackerRetry — a counted budget must not let concurrency spend several
 // future attempts, so exactly one of the racers grants attempt 1's marker.
 func TestRaceIntegrationAppConcurrencyGateRetryConcurrentExactlyOne(t *testing.T) {
-	repo := newGateRepo(t)
-	key, err := MintGateRecord(repo, sampleGateRecord())
+	repo := newRunTrackerRepo(t)
+	key, err := MintRunTrackerRecord(repo, sampleRunTrackerRecord())
 	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
+		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
 
 	const n = 16
@@ -31,9 +31,9 @@ func TestRaceIntegrationAppConcurrencyGateRetryConcurrentExactlyOne(t *testing.T
 		go func() {
 			defer wg.Done()
 			<-start
-			ok, cerr := ConsumeGateRetry(repo, key, 1, 2)
+			ok, cerr := ConsumeRunTrackerRetry(repo, key, 1, 2)
 			if cerr != nil {
-				t.Errorf("ConsumeGateRetry: %v", cerr)
+				t.Errorf("ConsumeRunTrackerRetry: %v", cerr)
 			}
 			results <- ok
 		}()
@@ -49,23 +49,23 @@ func TestRaceIntegrationAppConcurrencyGateRetryConcurrentExactlyOne(t *testing.T
 		}
 	}
 	if trues != 1 {
-		t.Fatalf("concurrent ConsumeGateRetry granted %d permits, want exactly 1", trues)
+		t.Fatalf("concurrent ConsumeRunTrackerRetry granted %d permits, want exactly 1", trues)
 	}
-	if used, uerr := GateRetryUsage(repo, key); uerr != nil || used != 1 {
-		t.Fatalf("GateRetryUsage after race = %d,%v; want 1,nil", used, uerr)
+	if used, uerr := RunTrackerRetryUsage(repo, key); uerr != nil || used != 1 {
+		t.Fatalf("RunTrackerRetryUsage after race = %d,%v; want 1,nil", used, uerr)
 	}
 }
 
-// race shard (change 0407): N goroutines call ReserveGateClaim with DISTINCT
+// race shard (change 0407): N goroutines call ReserveRunTrackerClaim with DISTINCT
 // (changeID, requestID) under ONE key; -race guards the os.Link hard-link create
 // that serializes competing binding attempts (the bind-once compare-and-swap).
 // Exactly one caller must create the binding (return nil) and every other must
-// lose the CAS and return ErrGateBindingConflict. Defeating the CAS — e.g. a
+// lose the CAS and return ErrRunTrackerBindingConflict. Defeating the CAS — e.g. a
 // short-circuiting pre-read that answers match-or-conflict on its own, or a
 // non-exclusive create — lets two distinct claims both bind and reddens here.
 func TestRaceIntegrationAppConcurrencyReserveGateClaimBindsExactlyOnce(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintPlainGate(t, repo)
+	repo := newRunTrackerRepo(t)
+	key := mintPlainRunTracker(t, repo)
 
 	const n = 16
 	var wg sync.WaitGroup
@@ -79,7 +79,7 @@ func TestRaceIntegrationAppConcurrencyReserveGateClaimBindsExactlyOnce(t *testin
 			<-start
 			// DISTINCT (changeID, requestID) per goroutine: no two attempts are an
 			// idempotent replay, so exactly one may bind and the rest must conflict.
-			results <- ReserveGateClaim(repo, key, i+1, fmt.Sprintf("claim-%08d", i+1))
+			results <- ReserveRunTrackerClaim(repo, key, i+1, fmt.Sprintf("claim-%08d", i+1))
 		}()
 	}
 	close(start)
@@ -92,8 +92,8 @@ func TestRaceIntegrationAppConcurrencyReserveGateClaimBindsExactlyOnce(t *testin
 		case err == nil:
 			won++
 		default:
-			gse, ok := AsGateStoreError(err)
-			if !ok || gse.Kind != ErrGateBindingConflict {
+			gse, ok := AsRunTrackerStoreError(err)
+			if !ok || gse.Kind != ErrRunTrackerBindingConflict {
 				t.Errorf("unexpected reserve error: %v", err)
 				continue
 			}
@@ -101,7 +101,7 @@ func TestRaceIntegrationAppConcurrencyReserveGateClaimBindsExactlyOnce(t *testin
 		}
 	}
 	if won != 1 || conflicts != n-1 {
-		t.Fatalf("concurrent ReserveGateClaim: bound=%d conflicts=%d, want exactly 1 and %d", won, conflicts, n-1)
+		t.Fatalf("concurrent ReserveRunTrackerClaim: bound=%d conflicts=%d, want exactly 1 and %d", won, conflicts, n-1)
 	}
 }
 
@@ -352,7 +352,7 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneCont
 	}
 }
 
-// race shard (change 0333, generalized for change 0421): N concurrent RunGateVerdict
+// race shard (change 0333, generalized for change 0421): N concurrent RunVerdict
 // calls contend on the on-disk gate record; -race guards the single-grant CAS.
 // TestRunGateVerdictConcurrentRetryGrantsOnce is the mutation target: N concurrent
 // verdict calls observing the SAME completed attempt (attempt 1, a fresh record) at
@@ -362,7 +362,7 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneCont
 // marker and the O_EXCL CAS admits exactly one; the rest stop. Reversing the
 // consume-then-emit order — deciding from the record's stale Retry mirror and
 // consuming afterward — double-grants and reddens here.
-func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t *testing.T) {
+func TestRaceIntegrationAppConcurrencyRunVerdictConcurrentRetryGrantsOnce(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	ev := string(prEvidenceBytes(t, f.head))
 	// Resume-verified shape (AttributedID set, no claim binding): ownership resolves
@@ -371,7 +371,7 @@ func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t 
 	// gives room for TWO retries across DISTINCT attempts, so a naive per-call
 	// increment would let two concurrent same-attempt observers grant twice; the
 	// budget must still yield exactly one on the single completed attempt.
-	key := gateMintAttributedLimit(t, f.repo.invocation, 3, 3)
+	key := runTrackerMintAttributedLimit(t, f.repo.invocation, 3, 3)
 
 	// Each goroutine gets its OWN deps triple: in production the concurrent verdict
 	// calls are separate processes, each with its own reader/workspace/GitHub
@@ -379,10 +379,10 @@ func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t 
 	// triple would race under -race on that bookkeeping — a test-double artifact, not
 	// the behavior under test. The only resource the calls genuinely contend on is
 	// the on-disk gate record under f.repo.invocation, whose single-grant guarantee
-	// is the O_EXCL CAS in ConsumeGateRetry — that contention is preserved.
+	// is the O_EXCL CAS in ConsumeRunTrackerRetry — that contention is preserved.
 	const n = 8
 	var wg sync.WaitGroup
-	results := make([]RunGateVerdictResult, n)
+	results := make([]RunVerdictResult, n)
 	start := make(chan struct{})
 	for i := 0; i < n; i++ {
 		wg.Add(1)
@@ -393,7 +393,7 @@ func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t 
 		go func(idx int, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps) {
 			defer wg.Done()
 			<-start
-			results[idx] = RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+			results[idx] = RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 		}(i, deps, wdeps, gdeps)
 	}
 	close(start)
@@ -402,9 +402,9 @@ func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t 
 	retryOnce, stop := 0, 0
 	for _, r := range results {
 		switch r.Decision {
-		case GateDecisionRetryOnce:
+		case RunDecisionRetryOnce:
 			retryOnce++
-		case GateDecisionStop:
+		case RunDecisionStop:
 			stop++
 		default:
 			t.Fatalf("unexpected decision %q (%q)", r.Decision, r.HumanText())
@@ -413,7 +413,7 @@ func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t 
 	if retryOnce != 1 || stop != n-1 {
 		t.Fatalf("run-retry-once=%d run-stop=%d, want exactly 1 and %d (counted budget grants once per completed attempt)", retryOnce, stop, n-1)
 	}
-	if used, uerr := GateRetryUsage(f.repo.invocation, key); uerr != nil || used != 1 {
-		t.Fatalf("GateRetryUsage after race = %d,%v; want 1,nil (no future attempt spent by concurrency)", used, uerr)
+	if used, uerr := RunTrackerRetryUsage(f.repo.invocation, key); uerr != nil || used != 1 {
+		t.Fatalf("RunTrackerRetryUsage after race = %d,%v; want 1,nil (no future attempt spent by concurrency)", used, uerr)
 	}
 }
