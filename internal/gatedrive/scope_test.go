@@ -97,16 +97,16 @@ func TestPrepareScopeMintsSeparatedCapabilities(t *testing.T) {
 		}
 	}
 	for name, want := range map[string]string{
-		"child cap hash":    capHash(grant.ChildCapability),
-		"parent cap hash":   capHash(grant.ParentCapability),
-		"gate context hash": capHash(req.RunContext),
+		"child cap hash":   capHash(grant.ChildCapability),
+		"parent cap hash":  capHash(grant.ParentCapability),
+		"run context hash": capHash(req.RunContext),
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("record must persist the %s %q", name, want)
 		}
 	}
 
-	// A scope prepared with an empty RunContext persists no gate-context hash.
+	// A scope prepared with an empty RunContext persists no run-context hash.
 	noCtx := req
 	noCtx.RunContext = ""
 	g2, err := s.PrepareScope(noCtx)

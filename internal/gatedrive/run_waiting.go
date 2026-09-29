@@ -205,7 +205,7 @@ func changeIDsEqual(a, b string) bool {
 }
 
 // ContinuationHandle returns the CURRENT unclaimed handoff token of driveID, for
-// in-process facade use only (the outer gate synthesizes a normal handoff and
+// in-process facade use only (the run tracker synthesizes a normal handoff and
 // then reads it back to hand to the resumed controller). The token is NEVER
 // emitted in a document or human text. It fails with a typed ErrNoHandoffOffered
 // when the drive carries no unclaimed handoff (owner still set, or handoff

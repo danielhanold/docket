@@ -260,7 +260,7 @@ type driveRecord struct {
 	HandoffGeneration string `json:"handoff_generation,omitempty"`
 
 	// ScopeID links the drive to the recovery scope its owner was dispatched
-	// under; RunContextHash links every nested drive to the outer gate
+	// under; RunContextHash links every nested drive to the dispatched run
 	// (sha256 of the outer child-context token). Both empty for scopeless
 	// drives (e.g. finalize's local gate). (schema v2, change 0359)
 	ScopeID        string `json:"scope_id,omitempty"`

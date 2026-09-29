@@ -31,7 +31,7 @@ package gatedrive
 
 // Takeover performs the event-authorized exceptional transfer of a scope-bound
 // drive to a fresh owner the parent mints. driveID may be "" — then the scope's
-// CurrentDriveID (a task scope's current slot occupant) or the unique gate-context
+// CurrentDriveID (a task scope's current slot occupant) or the unique run-context
 // match (an outer scope resolved by FindScopeDriveIDs) resolves it. On success the returned
 // document carries, in Generation, the fresh owner generation the parent advances
 // with, and the scope is closed. Any capability failure, ambiguity, identity
@@ -216,7 +216,7 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 // a fail-closed stale-predecessor (spec "An explicitly supplied old drive id cannot
 // bypass the current-scope association"). Otherwise a task scope resolves to its
 // CurrentDriveID, and an outer scope (no current drive) resolves to the UNIQUE
-// gate-context match: its nested drives carry RunContextHash == the outer scope's
+// run-context match: its nested drives carry RunContextHash == the outer scope's
 // child capability hash (the run context is the outer scope's child
 // capability). Zero matches or more than one fail closed with a distinct cause; a
 // real scan fault is a command error.
@@ -273,7 +273,7 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // advanced the slot to a new drive between the takeover's read and this close makes
 // the resolved id stale, so the close is refused ErrScopeBusy rather than closing
 // the scope around a drive the successor already superseded. An outer scope (no
-// current drive) resolves nested drives by gate context, so its CurrentDriveID is
+// current drive) resolves nested drives by run context, so its CurrentDriveID is
 // empty and the revalidation is skipped.
 //
 // Single-use is per-scope, and a scope is minted once per run START, so the
