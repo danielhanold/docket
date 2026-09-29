@@ -86,7 +86,7 @@ Index: [concepts/README.md](concepts/README.md)
   code is written.
 - [Build profiles and the suite gate](concepts/build-profiles-and-gate.md) — routing each task to a
   worker sized for its risk, then proving the whole suite green once.
-- [The run gate and attribution](concepts/run-gate.md) — the bookkeeping that decides whether a
+- [The run tracker and attribution](concepts/run-tracker.md) — the bookkeeping that decides whether a
   launched build really finished and may be retried.
 - [Finalize as a sequencer](concepts/finalize-sequencer.md) — close-out as an ordered chain of gated
   steps: rebase, retest, merge, archive.

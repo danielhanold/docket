@@ -8,7 +8,7 @@ concept pages use on first mention, so a word means the same thing on every page
 The flags a verb accepts are owned by `docket <noun> <verb> --help`, and the machine-readable list
 of every operation is owned by `docket capabilities --json` (see [`cli.md`](cli.md)). A
 `--request <file>` body is built from `docket schema --operation <id>`, never guessed. Snippets
-that belong to autonomous workflows (the run gate, gate drives, finalize steps) are shown so you
+that belong to autonomous workflows (the run tracker, gate drives, finalize steps) are shown so you
 can recognise them in a run log; the skills normally invoke them for you.
 
 Terms are grouped by the layer of docket they belong to. Jump to a group:
@@ -18,7 +18,7 @@ Terms are grouped by the layer of docket they belong to. Jump to a group:
 3. [Change lifecycle and statuses](#change-lifecycle-and-statuses)
 4. [Grooming](#grooming)
 5. [Building a change](#building-a-change)
-6. [The run gate](#the-run-gate)
+6. [The run tracker](#the-run-tracker)
 7. [Supervised gate runs](#supervised-gate-runs)
 8. [Review](#review)
 9. [Finalize and close-out](#finalize-and-close-out)
@@ -773,7 +773,7 @@ stops it for repair, or halts it for a human. It never guesses a pass from a wor
 - [Focused tests / task gate](#focused-tests--task-gate) — one build task's own tests.
 - [Build gate](#build-gate) — the one whole-suite run after the last task.
 - [Finalize gate](#finalize-gate) — re-runs the whole suite on the rebased branch before merging.
-- [Run gate](#run-gate) — bookkeeping that decides whether a dispatched run may be retried.
+- [Run tracker](#run-tracker) — bookkeeping that decides whether a dispatched run may be retried.
 - [Policy gate](#policy-gate-require_pr_approval) — `require_pr_approval`, which asks whether a merge was authorised.
 - Adversarial gate — the [critic](#critic) that must pass an auto-groom draft.
 - [Admission slot](#admission-slot) — one gate execution per worktree at a time.
@@ -798,7 +798,7 @@ id you name), claims it, reconciles, plans, builds, reviews, and stops at an ope
 merges.
 
 **Used for:** draining the backlog unattended. Always dispatch it as its named agent, bracketed by
-the run gate. Pass an explicit id to resume an `in-progress` change — a bare run skips it.
+the run tracker. Pass an explicit id to resume an `in-progress` change — a bare run skips it.
 
 ```sh
 # inside an agent session
@@ -935,17 +935,17 @@ docket workspace publish --id 412 --head <sha>
 
 ---
 
-## The run gate
+## The run tracker
 
-### Arm / gate key / run epoch / dispatch context
+### Start / run key / run id / run context
 
-**Arming** (`run.start`) mints three values before a dispatch: the **gate key** (ties a finish
-to this launch), the **run epoch** (the id of this run, threaded into cancel and drive flags), and
-the **dispatch context** (a token). The dispatch context and the run epoch are both copied into the
-implement-next dispatch prompt; a scope prepared with `--run-id` hands that epoch to every scoped
+**Starting** a run (`run.start`) mints three values before a dispatch: the **run key** (ties a finish
+to this launch), the **run id** (the id of this run, threaded into cancel and drive flags), and
+the **run context** (a token). The run context and the run id are both copied into the
+implement-next dispatch prompt; a scope prepared with `--run-id` hands that run id to every scoped
 start under it, so build-task workers never receive it (except the repair worker, for its
 build-owned post-fix re-run). It prints
-`run-started <key> <epoch> <dispatch-context>`; `run-untracked` still allows a keyless dispatch that
+`run-started <key> <run-id> <run-context>`; `run-untracked` still allows a keyless dispatch that
 can never authorise a re-dispatch.
 
 ```sh
@@ -955,21 +955,21 @@ docket run start implement-next --resume 412   # resuming an in-progress change
 
 ### Attribution / unattributed read
 
-**Attribution** is tying a finish to the exact launch that produced it, by the gate key — never by
+**Attribution** is tying a finish to the exact launch that produced it, by the run key — never by
 timing or names. With no key, an **unattributed** read reports on a named change id but cannot
-authorise a re-dispatch. Attribution is conservative: when unsure, the gate declines to credit.
+authorise a re-dispatch. Attribution is conservative: when unsure, the run tracker declines to credit.
 
 ### Cancel
 
 The explicit stop for a dispatched run — there is no automatic Stop button. It fences the run
-epoch so nothing new attaches, tears down its tasks and processes, and reports `cancelled`,
+so nothing new attaches, tears down its tasks and processes, and reports `cancelled`,
 `cancellation-pending` (re-run to finish), `already-cancelled`, or `refused`. It never counts as a
-failure and never earns a retry. Arming states the **owner-lifecycle caveat**: closing a tab,
-interrupting the coordinator, or killing a process does not tell the gate the run is over — only
+failure and never earns a retry. Starting a run states the **owner-lifecycle caveat**: closing a tab,
+interrupting the coordinator, or killing a process does not tell the run tracker the run is over — only
 cancel does.
 
 ```sh
-docket run cancel --key <key> --run-id <epoch> --reason "superseded by 413"
+docket run cancel --key <key> --run-id <run-id> --reason "superseded by 413"
 ```
 
 ### Continuation
@@ -981,15 +981,15 @@ attempt carries on.
 docket run continue <key> <continuation-id>
 ```
 
-### Epoch fence
+### Run fence
 
-The mark `run.cancel` puts on a [run epoch](#arm--gate-key--run-epoch--dispatch-context) so nothing new can attach to
-that run. A fenced epoch is never restored, and a scope prepared with `--run-id` lets the fence also revoke a later
+The mark `run.cancel` puts on a [run id](#start--run-key--run-id--run-context) so nothing new can attach to
+that run. A fenced run is never restored, and a scope prepared with `--run-id` lets the fence also revoke a later
 takeover.
 
 **Used for:** making a cancel stick while teardown finishes.
 
-### Gate verdict
+### Run verdict
 
 The single report line `run.verdict` prints after a run returns. Obey the line, never the exit
 code or the child's prose.
@@ -1008,34 +1008,34 @@ docket run verdict <key>
 docket run verdict --unattributed 412   # no key: observe-only, can never authorise a retry
 ```
 
-### Gate-context refusal (`run-context-invalid` / `run-context-conflict`)
+### Run-context refusal (`run-context-invalid` / `run-context-conflict`)
 
-The two `change.claim` outcomes when the dispatch context token passed as `--run-context` fails validation against
-the armed gate: the token is invalid, or it conflicts with a claim already bound to the gate. Either refusal writes
+The two `change.claim` outcomes when the run context token passed as `--run-context` fails validation against
+the started run: the token is invalid, or it conflicts with a claim already bound to the run. Either refusal writes
 nothing.
 
 **Used for:** binding a gated dispatch to exactly one claim. Never retry a refused gated claim as an ungated one. Leave
-out `--run-context` only when no dispatch context was given.
+out `--run-context` only when no run context was given.
 
 ```sh
-docket change claim --id 412 --version <v> --run-context <dispatch-context>
+docket change claim --id 412 --version <v> --run-context <run-context>
 docket schema --json | jq '.vocabularies.claim_dispositions'
 ```
 
 ### Resume dispositions
 
-What arming with `--resume` reports when a prior run exists: `resume-active-run` (the prior epoch
+What starting with `--resume` reports when a prior run exists: `resume-active-run` (the prior run
 may still be live — cancel it or continue it), `cancellation-pending` (finish the cancel first), or
 `resume-replacement-reserved` (exactly one replacement dispatch is reserved; dispatch that one).
 
-### Run gate
+### Run tracker
 
 The bookkeeping around a launched build run: who launched it, whether it finished, whether it may
 be retried. It keeps that state durably, outside the worker's prose.
 
 **Used for:** deciding whether to dispatch again. A completion notification is the child's claim,
 never the parent's verdict. The `run.*` operations (`run start`, `run verdict`, `run continue`,
-`cancel`) are the **gate facade**: it owns attribution, durable state, and retry accounting, which
+`cancel`) are the **run tracker**: it owns attribution, durable state, and retry accounting, which
 are never reimplemented by hand. If the `docket` binary is missing, the install is broken.
 
 ---
@@ -1077,11 +1077,11 @@ dispatch boundary; `takeover` lets the parent reclaim a drive whose child return
 off; `acknowledge` consumes the final PASSED/FAILED result and closes the scope (idempotent).
 
 ```sh
-docket gate drive start   --repo-dir . --owner build --run-root <dir> --run-id <epoch> -- <suite argv>
+docket gate drive start   --repo-dir . --owner build --run-root <dir> --run-id <run-id> -- <suite argv>
 docket gate drive advance --drive-id <id> --owner-gen <gen>
 docket gate drive handoff --drive-id <id> --owner-gen <gen>
 docket gate drive claim   --drive-id <id> --handoff-id <token>
-docket gate drive prepare-scope --change-id 412 --task-id <id> --phase <name> --branch <name> --worktree <dir> --run-id <epoch>
+docket gate drive prepare-scope --change-id 412 --task-id <id> --phase <name> --branch <name> --worktree <dir> --run-id <run-id>
 docket gate drive takeover      --scope-id <id> --parent-cap <token>
 docket gate drive acknowledge   --scope-id <id> --child-cap <token> --drive-id <id> --owner-gen <gen>
 ```
@@ -1177,7 +1177,7 @@ A suite gate's result has three values, not two. **Green** is a finished run tha
 failing run. **Halt** is a non-zero exit that the runner defines as a non-failure. "Still running" and "result
 unavailable" are not verdicts; they end as budget halts.
 
-**Used for:** never reading a halt as a pass or a fail. The run gate reports a halt with its own exit code. That code
+**Used for:** never reading a halt as a pass or a fail. The run tracker reports a halt with its own exit code. That code
 comes from the run's recorded state, not from how the gate found out the run stopped.
 
 ### `worktree-busy` / `unresolved-execution`
@@ -1524,7 +1524,7 @@ Other harnesses dispatch named agents natively instead.
 
 ```sh
 docket agent enter --role <role> --request req.md --cwd "$PWD" \
-  --approval-policy <policy> --sandbox <mode> --run-id <epoch> --run-key <key>
+  --approval-policy <policy> --sandbox <mode> --run-id <run-id> --run-key <key>
 ```
 
 ### Cursor dispatch rule (`docket-dispatch.mdc`)
@@ -1740,7 +1740,7 @@ keyboard.
 
 A marker-bounded block (`<!-- docket:dispatch:start … -->` … `end`) that docket writes into a repo's
 parent-facing instructions file, such as `CLAUDE.md` or `AGENTS.md`. It tells the parent to dispatch
-the same-name `docket-*` agent and to bracket implement-next runs with the run gate.
+the same-name `docket-*` agent and to bracket implement-next runs with the run tracker.
 
 **Used for:** routing a plain request to the pinned agent. It is committed and machine-neutral:
 agent names and prose only, never a model ID. The install writes or retires it according to
@@ -2282,7 +2282,6 @@ and `true` blocks every repository mutation until you remove it.
 - [agent_harnesses](#agent_harnesses)
 - [Archive](#archive)
 - [Archived record](#archived-record)
-- [Arm / gate key / run epoch / dispatch context](#arm--gate-key--run-epoch--dispatch-context)
 - [Attempt budgets (run.max_attempts / build.max_attempts / finalize repair)](#attempt-budgets-runmax_attempts--buildmax_attempts--finalize-repair)
 - [Attribution / unattributed read](#attribution--unattributed-read)
 - [Auto-capture / discovered work](#auto-capture--discovered-work)
@@ -2342,7 +2341,6 @@ and `true` blocks every repository mutation until you remove it.
 - [Effective auto-groomable](#auto-groom--auto-groomable) — see Auto-groom / auto-groomable
 - [Effects](#effects)
 - [Entity version](#entity-version)
-- [Epoch fence](#epoch-fence)
 - [Escalation (NEEDS_ESCALATION)](#build-profile--escalation) — see Build profile / escalation
 - [Feature branch](#feature-branch)
 - [Final status](#change-lifecycle-and-statuses)
@@ -2363,10 +2361,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Gate](#gate)
 - [Gate drive / slice / owner generation / handoff / takeover](#gate-drive--slice--owner-generation--handoff--takeover)
 - [Gate driver](#gate-drive--slice--owner-generation--handoff--takeover) — see Gate drive / slice / owner generation / handoff / takeover
-- [Gate facade](#run-gate) — see Run gate
 - [Gate run / run dir](#gate-run--run-dir)
-- [Gate verdict](#gate-verdict)
-- [Gate-context refusal (run-context-invalid / run-context-conflict)](#gate-context-refusal-gate-context-invalid--gate-context-conflict)
 - [Git hooks in docket worktrees (pre-commit, husky, lefthook)](#git-hooks-in-docket-worktrees-pre-commit-husky-lefthook)
 - [GitHub board mirror / github_project](#github-board-mirror--github_project)
 - [Groom](#groom)
@@ -2438,7 +2433,10 @@ and `true` blocks every repository mutation until you remove it.
 - [Retarget children](#retarget-children)
 - [Review rung](#review-rung)
 - [review.min_fix_severity](#reviewmin_fix_severity)
-- [Run gate](#run-gate)
+- [Run-context refusal (run-context-invalid / run-context-conflict)](#run-context-refusal-run-context-invalid--run-context-conflict)
+- [Run fence](#run-fence)
+- [Run tracker](#run-tracker)
+- [Run verdict](#run-verdict)
 - [Run verify](#run-verify)
 - [Runner delegation](#runner-delegation)
 - [Runner shim / runners block](#runner-shim--runners-block)
@@ -2450,6 +2448,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Skill](#skill)
 - [Spec](#spec)
 - [Stacked change / effective base](#stacked-change--effective-base)
+- [Start / run key / run id / run context](#start--run-key--run-id--run-context)
 - [Status](#status)
 - [Status vs the merged-PR sweep](#status-vs-the-merged-pr-sweep)
 - [Step-0 preamble](#step-0-preamble)
