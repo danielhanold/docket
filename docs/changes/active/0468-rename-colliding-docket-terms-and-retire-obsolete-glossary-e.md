@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/rename-colliding-docket-terms-and-retire-obsolete-glossary-e'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-29T08:52:30Z'
+reconciled: true
+claimed_at: '2026-09-29T08:53:50Z'
 ---
 
 ## Artifacts
@@ -53,3 +53,9 @@ Many of these names are wire tokens with hundreds of code sites (e.g. `run-epoch
 - Any alias, deprecation-window, or dual-spelling machinery.
 - A human-readable old→new mapping in the glossary; the mapping lives in the ADR and, once a family lands, in a code-level retired-vocabulary table.
 - Editing point-in-time records (archived changes, results, specs, plans, Accepted ADRs).
+
+## Reconcile log
+
+### 2026-09-29
+
+2026-09-29 — Reconciled against main 4b318461c. Spec still accurate: glossary still carries the row 60–66 phrases (coordination-key fence, human merge gate, rebase-retest/merge gate aliases, autonomous-eligible) and the retired features; family stubs 0471–0474 exist. No scope change.
