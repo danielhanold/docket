@@ -656,7 +656,7 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 
 	// (5) Prepare the OUTER recovery scope. The grant's ChildCapability becomes the
 	// run context the parent hands the child; its hash links every nested
-	// drive to this outer gate. The ParentCapability is retained in the 0600
+	// drive to this run. The ParentCapability is retained in the 0600
 	// record and never printed. When resuming, the scope's ChangeID is pre-bound to
 	// the verified id, and its Branch/Worktree carry the resumed change's identity.
 	grant, serr := sdeps.Prepare(gatedrive.ScopeRequest{

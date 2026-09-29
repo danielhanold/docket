@@ -108,7 +108,7 @@ func (r predecessorReceipt) halfFilled() bool {
 }
 
 // scopeRecord is the durable, owner-private schema of one recovery scope. It
-// stores only hashes of the two capabilities and of the outer gate-context
+// stores only hashes of the two capabilities and of the run-context
 // token — never their raw values — plus the immutable dispatch identity the
 // takeover path re-verifies. Every field carries an explicit snake_case json tag
 // so the store round-trips it canonically.
@@ -165,7 +165,7 @@ type storedScope struct {
 }
 
 // ScopeRequest identifies one parent/child dispatch boundary. RunContext is the
-// RAW outer child-context token linking nested drives to the outer gate (may be
+// RAW outer child-context token linking nested drives to the dispatched run (may be
 // empty for the outer scope itself); it is stored only as a sha256 hash.
 type ScopeRequest struct {
 	RepoIdentity string

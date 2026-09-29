@@ -179,7 +179,7 @@ type GateDriveStartRequest struct {
 	IdempotentSuiteGate bool
 	// Scope binding (change 0359): ScopeID + ChildCapability bind the new drive
 	// into a recovery scope the parent prepared, and RunContext is the raw outer
-	// child-context token linking a nested drive to the outer gate. All optional;
+	// child-context token linking a nested drive to the dispatched run. All optional;
 	// empty means a scopeless drive (pre-0359 behavior). ChildCapability and
 	// RunContext are raw tokens the driver verifies/hashes and persists nowhere in
 	// the clear.
@@ -512,7 +512,7 @@ func (s *GateDriveService) startBudgetedBuild(req GateDriveStartRequest, startRe
 //
 // The budget key carries no outer-attempt or run dimension, so it is scoped to the
 // change's lifetime (repo + change + "build") and is intentionally NOT refreshed or
-// reset by an outer-gate run-retry-once re-dispatch of the same change: an outer
+// reset by a run-tracker run-retry-once re-dispatch of the same change: such a
 // retry inherits the remaining build budget by design, and can never acquire more
 // build repairs. This errs safe.
 func (s *GateDriveService) reserveBuildSuiteAttempt(req GateDriveStartRequest) (GateDriveResult, bool) {

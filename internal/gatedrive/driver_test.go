@@ -1849,7 +1849,7 @@ func TestScopedSequenceBaselineRedGreen(t *testing.T) {
 	}
 }
 
-// scopedSuccessorFixture prepares a fresh scope (pinning a gate context) over a new
+// scopedSuccessorFixture prepares a fresh scope (pinning a run context) over a new
 // store, drives its first drive to a durable PASSED, and returns the driver, store,
 // grant, and the base successor request carrying the complete identity bundle plus
 // the valid predecessor receipt, together with the process seam. Every run PASSES
@@ -1901,8 +1901,8 @@ func TestScopedSuccessorRejectionMatrix(t *testing.T) {
 		{"wrong change", func(r *StartRequest) { r.ChangeID = "9999" }, ErrScopeIdentityMismatch},
 		{"wrong task", func(r *StartRequest) { r.TaskID = "task-99" }, ErrScopeIdentityMismatch},
 		{"wrong phase", func(r *StartRequest) { r.Phase = "finalize" }, ErrScopeIdentityMismatch},
-		{"wrong gate context", func(r *StartRequest) { r.RunContext = "not-the-context" }, ErrScopeIdentityMismatch},
-		{"missing gate context", func(r *StartRequest) { r.RunContext = "" }, ErrScopeIdentityMismatch},
+		{"wrong run context", func(r *StartRequest) { r.RunContext = "not-the-context" }, ErrScopeIdentityMismatch},
+		{"missing run context", func(r *StartRequest) { r.RunContext = "" }, ErrScopeIdentityMismatch},
 		{"wrong capability", func(r *StartRequest) { r.ChildCapability = "wrong-capability" }, ErrScopeCapabilityMismatch},
 		{"missing predecessor id", func(r *StartRequest) { r.PredecessorDriveID = "" }, ErrStalePredecessor},
 		{"missing predecessor generation", func(r *StartRequest) { r.PredecessorOwnerGen = "" }, ErrStalePredecessor},

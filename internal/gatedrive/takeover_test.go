@@ -331,7 +331,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 				if _, _, err := store.NewDrive(rec); err != nil {
 					t.Fatalf("seed second nested recovery candidate: %v", err)
 				}
-				return grant.ScopeID, grant.ParentCapability, "" // resolve via gate context
+				return grant.ScopeID, grant.ParentCapability, "" // resolve via run context
 			},
 			want: CauseTakeoverAmbiguous,
 		},
@@ -402,7 +402,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 }
 
 // prepareOuterScope prepares an outer recovery scope (no bound drive) whose change
-// and child capability are the gate-context discriminators nested drives carry.
+// and child capability are the run-context discriminators nested drives carry.
 func prepareOuterScope(t *testing.T, store *Store) ScopeGrant {
 	t.Helper()
 	grant, err := store.PrepareScope(ScopeRequest{
@@ -515,7 +515,7 @@ func TestStartBindsScope(t *testing.T) {
 		t.Fatalf("Start must stamp ScopeID, got %q", rec.ScopeID)
 	}
 	if rec.RunContextHash != capHash(gateCtx) {
-		t.Fatalf("Start must stamp the gate-context hash, got %q", rec.RunContextHash)
+		t.Fatalf("Start must stamp the run-context hash, got %q", rec.RunContextHash)
 	}
 
 	// A second Start on the same (already-bound) scope fails while the first is live.
@@ -549,8 +549,8 @@ func TestStartBindsScope(t *testing.T) {
 	}
 }
 
-// TestFindScopeDriveIDs proves the outer-gate candidate resolver: it lists drives
-// matching change + gate-context hash that are nonterminal OR terminal-unconsumed,
+// TestFindScopeDriveIDs proves the outer-scope candidate resolver: it lists drives
+// matching change + run-context hash that are nonterminal OR terminal-unconsumed,
 // excludes a terminal-consumed drive, and skips unreadable records.
 func TestFindScopeDriveIDs(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
@@ -579,7 +579,7 @@ func TestFindScopeDriveIDs(t *testing.T) {
 	waiting := seed("0342", h, WAITING, "own-w")
 	termUnconsumed := seed("0342", h, PASSED, "own-t") // terminal, owner still set
 	seed("0342", h, PASSED, "")                        // terminal AND consumed → excluded
-	seed("0342", other, WAITING, "own-o")              // wrong gate context → excluded
+	seed("0342", other, WAITING, "own-o")              // wrong run context → excluded
 	seed("0400", h, WAITING, "own-c")                  // wrong change → excluded
 
 	// A corrupt record must be skipped, never fail the scan.

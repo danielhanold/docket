@@ -118,7 +118,7 @@ type StartRequest struct {
 	// the scope's single slot durably, and only then launches. ChildCapability is
 	// the RAW capability, verified against the scope's stored hash and persisted
 	// nowhere. RunContext is the RAW outer child-context token linking a nested
-	// drive to the outer gate; it is stored only as its sha256 hash
+	// drive to the dispatched run; it is stored only as its sha256 hash
 	// (RunContextHash). (change 0359)
 	ScopeID         string
 	ChildCapability string
@@ -442,7 +442,7 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	}
 	// Stamp the recovery-scope linkage onto the record (both empty for a scopeless
 	// drive). ScopeID links the drive to the scope its owner was dispatched under;
-	// RunContextHash links a nested drive to the outer gate.
+	// RunContextHash links a nested drive to the dispatched run.
 	if req.ScopeID != "" {
 		rec.ScopeID = req.ScopeID
 	}
@@ -760,10 +760,10 @@ func (d *Driver) precheckScopedStart(req StartRequest) (string, error) {
 
 // scopedIdentityMatch reports whether a scoped Start request carries the scope's
 // complete pinned identity: the repo/branch/worktree/change/task/phase bundle
-// scopeIdentityMatch checks, plus the gate-context token when the scope pinned one
+// scopeIdentityMatch checks, plus the run-context token when the scope pinned one
 // (Invariant 6 — omission or alteration must not detach a drive from outer
 // recovery), and the run when both the scope and the request carry one. A
-// scope that pinned no gate context accepts any (the pre-0359 default).
+// scope that pinned no run context accepts any (the pre-0359 default).
 func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 	if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
 		return false

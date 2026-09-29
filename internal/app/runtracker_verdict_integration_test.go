@@ -114,7 +114,7 @@ func runTrackerProposedBlob(id int, slug string) StatusBlob {
 
 // --- run-continue: nonterminal continuation + outer takeover (change 0359) ---
 //
-// VerdictRunWaiting no longer maps to a terminal run-stop: the outer gate emits
+// VerdictRunWaiting no longer maps to a terminal run-stop: the run tracker emits
 // a nonterminal run-continue that keeps the SAME key and spends NO retry, and a
 // run-incomplete that still owns a tracked drive under this dispatch's recovery
 // scope is taken over (event-authorized) and continued BEFORE the retry permit is
