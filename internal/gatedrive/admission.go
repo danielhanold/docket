@@ -15,7 +15,7 @@
 // lives below the repository's Git common directory, outside every worktree yet
 // reachable from any linked worktree of the same repository:
 //
-//	<git-common-dir>/docket/gate-admission/v1/<admission-key>/record.json
+//	<git-common-dir>/docket/gate-admission/v2/<admission-key>/record.json
 //
 // Unlike a drive or scope id — a freshly minted opaque token — an admission key
 // is DETERMINISTIC: the sha256 of the canonical (every-symlink-hop-resolved)
@@ -96,46 +96,47 @@ const (
 )
 
 // admissionRecord is the durable, owner-private schema of one worktree execution
-// slot. Unlike driveRecord/scopeRecord it carries NO json tags: the store
-// round-trips it through Go's default field-name marshalling, so the persisted
-// keys are the exported field names verbatim. It carries no launch argv,
-// environment values, or worktree content — only bounded identity and the
-// reservation token, which is the slot's own authority (never a child
-// capability).
+// slot. Like driveRecord/scopeRecord, every field names its JSON key explicitly
+// (change 0471): the record once carried no tags, so a Go field rename silently
+// changed its on-disk key (TestAdmissionRecordFieldsCarryExplicitJSONTags). It
+// carries no launch argv, environment values, or worktree content — only
+// bounded identity and the reservation token, which is the slot's own authority
+// (never a child capability).
 type admissionRecord struct {
-	SchemaVersion int
-	RepoIdentity  string // canonical git common dir
-	WorktreeRoot  string // canonical worktree root (or "" for a raw non-worktree root — Task 7 never stores those)
-	State         admissionState
-	ExecutionGen  int // logical execution counter, monotonic per worktree
+	SchemaVersion int            `json:"schema_version"`
+	RepoIdentity  string         `json:"repo_identity"` // canonical git common dir
+	WorktreeRoot  string         `json:"worktree_root"` // canonical worktree root (or "" for a raw non-worktree root — Task 7 never stores those)
+	State         admissionState `json:"state"`
+	ExecutionGen  int            `json:"execution_gen"` // logical execution counter, monotonic per worktree
 
-	ReservationToken string // random token; also handed to process.Launch (Task 2)
+	ReservationToken string `json:"reservation_token"` // random token; also handed to process.Launch (Task 2)
 
-	DriveID    string // "" for raw launches
-	ScopeID    string // "" when scopeless/raw
-	RunEpochID string // "" for standalone gates (Task 9 links workflow gates)
+	DriveID    string `json:"drive_id"` // "" for raw launches
+	ScopeID    string `json:"scope_id"` // "" when scopeless/raw
+	RunEpochID string `json:"run_id"`   // "" for standalone gates (Task 9 links workflow gates)
 
-	RawRunID  string // attached at confirm
-	RawRunDir string // attached at confirm
+	RawRunID  string `json:"raw_run_id"`  // attached at confirm
+	RawRunDir string `json:"raw_run_dir"` // attached at confirm
 
-	Kind string // "scoped"|"scopeless"|"raw"
+	Kind string `json:"kind"` // "scoped"|"scopeless"|"raw"
 
 	// LegacyInventoried records that the pre-admission drive registry was
 	// examined before this first slot reservation. No legacy credential or owner
 	// fact is copied into this record.
-	LegacyInventoried bool
-	LegacyInventoryAt time.Time
+	LegacyInventoried bool      `json:"legacy_inventoried"`
+	LegacyInventoryAt time.Time `json:"legacy_inventory_at"`
 
-	ReservedAt time.Time
-	UpdatedAt  time.Time
+	ReservedAt time.Time `json:"reserved_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // storedAdmission is the on-disk envelope: the store-owned physical generation
 // token beside the admissionRecord it guards, mirroring storedRecord for drives
-// and storedScope for scopes. Like admissionRecord it carries no json tags.
+// and storedScope for scopes. Like admissionRecord it names every JSON key
+// explicitly (change 0471).
 type storedAdmission struct {
-	Generation string
-	Record     admissionRecord
+	Generation string          `json:"generation"`
+	Record     admissionRecord `json:"record"`
 }
 
 // admissionKey returns the deterministic slot key for a worktree root: the

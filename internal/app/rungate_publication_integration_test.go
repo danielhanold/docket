@@ -233,7 +233,7 @@ func TestIntegrationGateCompletionSettleUncertainPublicationsDurable(t *testing.
 func TestIntegrationGateCompletionSettleUncertainPublicationsFailureIsBoundedFinding(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	// Corrupt the record so the CAS read fails closed.
-	dir := filepath.Join(fx.common, "docket", "rungate", fx.key)
+	dir := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key)
 	if err := os.WriteFile(filepath.Join(dir, epochRecordFileName), []byte("{not json"), 0o600); err != nil {
 		t.Fatalf("corrupt record: %v", err)
 	}
@@ -269,7 +269,7 @@ func TestIntegrationGateCompletionSettleUncertainPublicationsWriteFailureReports
 	// The lock file already exists (the seed CAS created it); a read-only key dir
 	// still lets the CAS lock and read, but the same-directory temp file cannot be
 	// created, so the write fails AFTER the match closure ran.
-	dir := filepath.Join(fx.common, "docket", "rungate", fx.key)
+	dir := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key)
 	if err := os.Chmod(dir, 0o500); err != nil {
 		t.Fatalf("chmod key dir: %v", err)
 	}
@@ -521,7 +521,7 @@ func TestIntegrationGateCompletionSettlementInterruptionConverges(t *testing.T) 
 	}
 	// A read-only key dir still lets the CAS lock and read, but the same-directory
 	// temp file cannot be created, so every epoch write fails.
-	dir := filepath.Join(fx.common, "docket", "rungate", fx.key)
+	dir := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key)
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
 	originalStatus := func(when string) string {
 		t.Helper()

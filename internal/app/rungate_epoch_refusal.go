@@ -66,7 +66,7 @@ func RunEpochNextAction(reason string) string {
 // cancelled epoch (the takeover revocation gate reads it later), and the launch gate
 // still enforces liveness and worktree ownership at start.
 func runEpochLocator(gitCommonDir string) func(string) error {
-	rungateRoot := filepath.Join(gitCommonDir, "docket", "rungate")
+	rungateRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
 	return func(epochID string) error {
 		_, _, err := findEpochDirByID(rungateRoot, epochID)
 		return err

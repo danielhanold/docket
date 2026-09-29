@@ -315,7 +315,7 @@ func canonicalWorktree(path string) (string, error) {
 
 // findEpochByWorktree resolves the CURRENT ambient owner of the canonical worktree
 // canon by scanning the repository's rungate root (each gate-key directory may hold
-// one epoch.json beside its gate record) and returns the owning epoch's gate key. It
+// one run.json beside its gate record) and returns the owning epoch's gate key. It
 // collects EVERY matching epoch first and then selects deterministically (change
 // 0446 spec §5, following FindEpochByChange's established shape) — never the first
 // directory-order match:
@@ -338,7 +338,7 @@ func canonicalWorktree(path string) (string, error) {
 //
 // A missing rungate root or no match is (found=false, err=nil). A directory-
 // enumeration IO error is returned so the caller fails closed. A gate directory with
-// no epoch.json, an epoch with no bound Worktree (a standalone or not-yet-claimed
+// no run.json, an epoch with no bound Worktree (a standalone or not-yet-claimed
 // run, and every superseded epoch — SupersedeCancelledEpoch clears it), a fully
 // COMPLETED epoch (a successful closeout no longer owns its worktree — change 0441; a
 // completing epoch still does), or an UNREADABLE/corrupt record is skipped. Skipping
@@ -366,7 +366,7 @@ func findEpochByWorktree(repoDir, canon string) (gateKey string, found bool, err
 		key := e.Name()
 		r, _, rerr := readStoredEpoch(filepath.Join(root, key), "find-epoch")
 		if rerr != nil {
-			continue // no epoch.json here, or a corrupt/unreadable record: cannot match
+			continue // no run.json here, or a corrupt/unreadable record: cannot match
 		}
 		if r.Worktree == "" {
 			continue // a standalone or not-yet-claimed run owns no worktree
@@ -427,7 +427,7 @@ func slotNamedEpochUnresolved(repoDir, canon string) error {
 	if err != nil {
 		return err
 	}
-	rungateRoot := filepath.Join(common, "docket", "rungate")
+	rungateRoot := filepath.Join(common, "docket", runTrackerDirName)
 	slot, _, lerr := gatedrive.OpenStore(common).LoadWorktreeExecution(canon)
 	if lerr != nil {
 		if se, ok := gatedrive.AsStoreError(lerr); ok && se.Kind == gatedrive.ErrNotFound {

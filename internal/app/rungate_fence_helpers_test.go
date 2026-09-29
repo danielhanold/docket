@@ -58,7 +58,7 @@ func seedNamedEpoch(t *testing.T, repo, key, worktree string, state epochState) 
 	if err != nil {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
-	dir := filepath.Join(common, "docket", "rungate", key)
+	dir := filepath.Join(common, "docket", runTrackerDirName, key)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir gate-key dir: %v", err)
 	}

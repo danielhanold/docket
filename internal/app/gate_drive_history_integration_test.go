@@ -67,7 +67,7 @@ func seedLegacyV2Passed(t *testing.T, gitDir, id string) {
 	if err != nil {
 		t.Fatalf("read frozen v2 PASSED fixture: %v", err)
 	}
-	dir := filepath.Join(gitDir, "docket", "gate-drives", "v1", id) // gatedrive.OpenStore layout
+	dir := filepath.Join(gitDir, "docket", "gate-drives", "v2", id) // gatedrive.OpenStore layout
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatalf("seed dir: %v", err)
 	}

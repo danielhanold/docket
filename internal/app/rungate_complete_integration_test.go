@@ -571,7 +571,7 @@ func (o *scratchObserver) observeProcessTerminal(runDir string) (bool, error) {
 // already committed terminal; only the fields the durable-proof read keys on are set.
 func seedDriveRecord(t *testing.T, common, id, worktree, runDir string, outcome gatedrive.Outcome) {
 	t.Helper()
-	dir := filepath.Join(common, "docket", "gate-drives", "v1", id)
+	dir := filepath.Join(common, "docket", "gate-drives", "v2", id)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatalf("mkdir drive dir: %v", err)
 	}
@@ -769,14 +769,14 @@ func TestIntegrationGateCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t
 	// A cancelled never-superseded predecessor bound to the same path sorts first.
 	seedNamedEpoch(t, fx.repo, "0000-cancelled-predecessor", fx.worktree, EpochCancelled)
 	// Unrelated damaged history: a corrupt drive record and a corrupt epoch record.
-	badDrive := filepath.Join(fx.common, "docket", "gate-drives", "v1", "0446dddddddddddddddddddddddddd01")
+	badDrive := filepath.Join(fx.common, "docket", "gate-drives", "v2", "0446dddddddddddddddddddddddddd01")
 	if err := os.MkdirAll(badDrive, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(badDrive, "record.json"), []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	badEpoch := filepath.Join(fx.common, "docket", "rungate", "ffff-damaged-unrelated")
+	badEpoch := filepath.Join(fx.common, "docket", runTrackerDirName, "ffff-damaged-unrelated")
 	if err := os.MkdirAll(badEpoch, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -937,7 +937,7 @@ func TestIntegrationGateCompletionReadOnlyPathsNeverSettle(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seed journal: %v", err)
 	}
-	recPath := filepath.Join(fx.common, "docket", "rungate", fx.key, epochRecordFileName)
+	recPath := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key, epochRecordFileName)
 	before, err := os.ReadFile(recPath)
 	if err != nil {
 		t.Fatalf("read record: %v", err)

@@ -264,7 +264,7 @@ type driveRecord struct {
 	// (sha256 of the outer child-context token). Both empty for scopeless
 	// drives (e.g. finalize's local gate). (schema v2, change 0359)
 	ScopeID         string `json:"scope_id,omitempty"`
-	GateContextHash string `json:"gate_context_hash,omitempty"`
+	GateContextHash string `json:"run_context_hash,omitempty"`
 
 	// AdmissionToken is the worktree execution slot's reservation token this
 	// drive launched under (admission.go). It is threaded into the raw launch as

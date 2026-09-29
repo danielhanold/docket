@@ -94,7 +94,7 @@ func gateRetryMarkerExists(t *testing.T, repoDir, key string) bool {
 	if err != nil {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
-	_, serr := os.Stat(filepath.Join(common, "docket", "rungate", key, gateRetryMarkerName))
+	_, serr := os.Stat(filepath.Join(common, "docket", runTrackerDirName, key, gateRetryMarkerName))
 	if serr != nil && !os.IsNotExist(serr) {
 		t.Fatalf("stat retry marker: %v", serr)
 	}

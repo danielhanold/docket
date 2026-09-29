@@ -38,7 +38,7 @@ func epochRecordBytes(t *testing.T, repo, key string) []byte {
 	if err != nil {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
-	b, err := os.ReadFile(filepath.Join(common, "docket", "rungate", key, epochRecordFileName))
+	b, err := os.ReadFile(filepath.Join(common, "docket", runTrackerDirName, key, epochRecordFileName))
 	if err != nil {
 		t.Fatalf("read epoch record: %v", err)
 	}

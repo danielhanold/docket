@@ -4,7 +4,7 @@
 // directory, keyed by the gate key, so the gate key that already locates a
 // dispatch's attribution/retry state also locates its epoch.
 //
-// WHERE: <git-common-dir>/docket/rungate/<gate-key>/epoch.json — the epoch record
+// WHERE: <git-common-dir>/docket/run-tracker/<gate-key>/run.json — the epoch record
 // sits next to the gate record.json the arming gate minted. Rooting under the git
 // COMMON dir (via gateKeyDir, the shared preamble the claim-binding primitives
 // use) keeps it outside every worktree yet reachable from any linked worktree, is
@@ -26,7 +26,7 @@
 //
 // DURABILITY + CAS: writes go through the same atomic temp-file + rename discipline
 // as writeGateRecordAtomic (0600), and every read-modify-write serializes on a
-// per-key epoch.lock flock plus a persisted physical generation the loader returns,
+// per-key run.lock flock plus a persisted physical generation the loader returns,
 // so a concurrent participant registration never loses an update and physical
 // contention never surfaces as a logical failure. Unknown schema versions and
 // corrupt records fail closed with a typed EpochError — a record the store cannot
@@ -56,8 +56,8 @@ const epochSchemaVersion = 1
 // epochRecordFileName is the atomic record within a gate-key directory;
 // epochLockFileName is the per-key flock the compare-and-swap serializes on.
 const (
-	epochRecordFileName = "epoch.json"
-	epochLockFileName   = "epoch.lock"
+	epochRecordFileName = "run.json"
+	epochLockFileName   = "run.lock"
 )
 
 // epochState is the lifecycle state of one run epoch. Only an active epoch admits
@@ -154,11 +154,11 @@ type AdmittedMutation struct {
 // accounting a cancellation reconciles.
 type EpochRecord struct {
 	SchemaVersion     int                `json:"schema_version"`
-	GateKey           string             `json:"gate_key"`
+	GateKey           string             `json:"run_key"`
 	ChangeID          string             `json:"change_id,omitempty"`
 	Worktree          string             `json:"worktree,omitempty"`
 	State             epochState         `json:"state"`
-	EpochID           string             `json:"epoch_id"`
+	EpochID           string             `json:"run_id"`
 	Participants      []EpochParticipant `json:"participants,omitempty"`
 	AdmittedMutations []AdmittedMutation `json:"admitted_mutations,omitempty"`
 	// ReplacementReserved carries the resume winner's replacement reservation (the
@@ -464,7 +464,7 @@ func bindEpochWorktree(repoDir, gateKey, worktree string) error {
 }
 
 // epochCAS runs a logical epoch transition under a flock-serialized physical
-// compare-and-swap: it acquires the per-key epoch.lock, reads the current record,
+// compare-and-swap: it acquires the per-key run.lock, reads the current record,
 // applies mutate to a copy, and atomically writes it back under a freshly rotated
 // generation. Any error mutate returns is a deliberate logical rejection (or a
 // real IO fault) and aborts with NO write, so a rejected transition leaves the
@@ -497,7 +497,7 @@ func epochCAS(repoDir, gateKey string, mutate func(*EpochRecord) error) error {
 	return writeEpochAtomic(dir, storedEpoch{Generation: gen, Record: rec})
 }
 
-// writeEpochAtomic marshals stored and writes it at dir/epoch.json through a
+// writeEpochAtomic marshals stored and writes it at dir/run.json through a
 // same-directory temp file followed by os.Rename — the atomic-adjacent replacement
 // rule, matching writeGateRecordAtomic. The temp file is created 0600 so the
 // private record's mode survives the rename.
@@ -529,7 +529,7 @@ func writeEpochAtomic(dir string, stored storedEpoch) error {
 	return nil
 }
 
-// acquireEpochLock opens (creating if needed) the per-key epoch.lock and takes an
+// acquireEpochLock opens (creating if needed) the per-key run.lock and takes an
 // exclusive flock, mirroring gatedrive's acquireExclusiveLock: the flock is the
 // critical-section primitive for one read-modify-write, never the lifetime
 // guarantee (the persisted state is the authority).
@@ -643,7 +643,7 @@ func SupersedeCancelledEpoch(repoDir, gateKey, replacementKey string) error {
 }
 
 // FindEpochByChange resolves the run epoch a resume of changeID targets by scanning
-// the repository's rungate root (each gate-key directory may hold one epoch.json).
+// the repository's rungate root (each gate-key directory may hold one run.json).
 // It returns the matching epoch's gate key and record, found=false when no epoch
 // names the change, and a typed error for an enumeration fault or an unresolvable
 // ambiguity.
@@ -683,7 +683,7 @@ func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecor
 		key := e.Name()
 		r, _, lerr := readStoredEpoch(filepath.Join(root, key), "find-by-change")
 		if lerr != nil {
-			continue // no epoch.json here, or a corrupt/unreadable sibling: cannot match
+			continue // no run.json here, or a corrupt/unreadable sibling: cannot match
 		}
 		if r.ChangeID == changeID {
 			matches = append(matches, matchEntry{key: key, rec: r})
@@ -726,7 +726,7 @@ func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecor
 	return "", EpochRecord{}, false, epochErr(ErrEpochAmbiguous, "find-by-change", nil)
 }
 
-// epochDirMatch is one gate-key directory whose epoch.json records the sought
+// epochDirMatch is one gate-key directory whose run.json records the sought
 // EpochID: the shared shape scanEpochsByID yields to both findEpochByID (first
 // match) and findEpochDirByID (unique match).
 type epochDirMatch struct {
@@ -736,7 +736,7 @@ type epochDirMatch struct {
 
 // scanEpochsByID is the single walker under findEpochByID and findEpochDirByID (one
 // walker, two shapes): it enumerates rungateRoot and returns every gate-key
-// directory whose epoch.json records EpochID == epochID. An empty id or a missing
+// directory whose run.json records EpochID == epochID. An empty id or a missing
 // root is (nil, nil); an enumeration fault is a typed ErrEpochIO; a corrupt or
 // unreadable sibling is SKIPPED for matching (it cannot prove it holds the sought
 // id), mirroring findEpochByWorktree's conservative skip.
@@ -769,7 +769,7 @@ func scanEpochsByID(rungateRoot, epochID string) ([]epochDirMatch, error) {
 }
 
 // findEpochByID locates the epoch whose public EpochID equals epochID by scanning
-// rungateRoot (each gate-key directory may hold one epoch.json). It returns the
+// rungateRoot (each gate-key directory may hold one run.json). It returns the
 // record and found=true on a match, (found=false, nil) for a clean absence, and a
 // typed error only for an enumeration fault. A corrupt/unreadable sibling is
 // skipped. It underlies the Takeover revocation resolver, which keys on a scope's
@@ -817,7 +817,7 @@ func findEpochDirByID(rungateRoot, epochID string) (dir string, rec EpochRecord,
 // and the takeover's other guards still protect it. An enumeration/IO fault is
 // returned so the takeover fails closed (HALT epoch-unreadable).
 func epochRevokedResolver(gitCommonDir string) func(string) (bool, error) {
-	rungateRoot := filepath.Join(gitCommonDir, "docket", "rungate")
+	rungateRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
 	return func(epochID string) (bool, error) {
 		rec, ok, err := findEpochByID(rungateRoot, epochID)
 		if err != nil {
@@ -844,7 +844,7 @@ func epochRevokedResolver(gitCommonDir string) func(string) (bool, error) {
 // readable record is an unresolved owner, never settlement — and an ambiguous id or
 // an enumeration/IO fault is returned as an error; the fence fails closed on all.
 func epochSettledResolver(gitCommonDir string) func(string) (bool, error) {
-	rungateRoot := filepath.Join(gitCommonDir, "docket", "rungate")
+	rungateRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
 	return func(epochID string) (bool, error) {
 		_, rec, err := findEpochDirByID(rungateRoot, epochID)
 		if err != nil {

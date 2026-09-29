@@ -79,7 +79,7 @@ func namedIsolationRuntime(t *testing.T, commonDir string) map[string][]byte {
 		"worktree_path": filepath.Join(gone, "removed-worktree"), "raw_run_dir": filepath.Join(gone, "halted-run"),
 		"last_outcome": string(gatedrive.HALTED), "last_cause": "stopped-not-initiated",
 	})
-	epochDir := filepath.Join(commonDir, "docket", "rungate", "old-damaged-unrelated-epoch")
+	epochDir := filepath.Join(commonDir, "docket", runTrackerDirName, "old-damaged-unrelated-epoch")
 	if err := os.MkdirAll(epochDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -88,9 +88,9 @@ func namedIsolationRuntime(t *testing.T, commonDir string) map[string][]byte {
 	}
 	out := map[string][]byte{}
 	for _, p := range []string{
-		filepath.Join(commonDir, "docket", "gate-drives", "v1", pfx+"01", "record.json"),
-		filepath.Join(commonDir, "docket", "gate-drives", "v1", pfx+"02", "record.json"),
-		filepath.Join(commonDir, "docket", "gate-drives", "v1", pfx+"03", "record.json"),
+		filepath.Join(commonDir, "docket", "gate-drives", "v2", pfx+"01", "record.json"),
+		filepath.Join(commonDir, "docket", "gate-drives", "v2", pfx+"02", "record.json"),
+		filepath.Join(commonDir, "docket", "gate-drives", "v2", pfx+"03", "record.json"),
 		filepath.Join(epochDir, epochRecordFileName),
 	} {
 		b, err := os.ReadFile(p)

@@ -127,7 +127,7 @@ func TestAdmissionUnknownSchemaFailsClosed(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	wt := mkWorktree(t)
 	path := admissionRecordPath(t, s, wt)
-	if err := os.WriteFile(path, []byte(`{"Generation":"x","Record":{"SchemaVersion":99}}`), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"generation":"x","record":{"schema_version":99}}`), 0o600); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 

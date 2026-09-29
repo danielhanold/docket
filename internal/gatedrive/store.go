@@ -4,7 +4,7 @@
 // outside every worktree yet stays reachable from any linked worktree of the
 // same repository (spec "Durable drive record → Location and privacy"):
 //
-//	<git-common-dir>/docket/gate-drives/v1/<opaque-drive-id>/record.json
+//	<git-common-dir>/docket/gate-drives/v2/<opaque-drive-id>/record.json
 //
 // The directory is owner-only (0700) and its files are private (0600). Writes go
 // through a sibling temp file, fsync, atomic rename, and a directory fsync, so a
@@ -143,20 +143,20 @@ type Store struct {
 	epochSettled EpochSettledFunc
 }
 
-// OpenStore returns a Store rooted at <gitCommonDir>/docket/gate-drives/v1 with
-// a sibling recovery-scope root at <gitCommonDir>/docket/gate-scopes/v1, a
+// OpenStore returns a Store rooted at <gitCommonDir>/docket/gate-drives/v2 with
+// a sibling recovery-scope root at <gitCommonDir>/docket/gate-scopes/v2, a
 // sibling suite-attempt-budget root at
 // <gitCommonDir>/docket/gate-suite-budgets/v1, and a sibling worktree
-// execution-slot root at <gitCommonDir>/docket/gate-admission/v1. It creates
+// execution-slot root at <gitCommonDir>/docket/gate-admission/v2. It creates
 // nothing; directories are minted lazily by
 // NewDrive/PrepareScope/ReserveSuiteAttempt/ReserveWorktreeExecution so an
 // unused store leaves no trace.
 func OpenStore(gitCommonDir string) *Store {
 	return &Store{
-		root:            filepath.Join(gitCommonDir, "docket", "gate-drives", "v1"),
-		scopeRoot:       filepath.Join(gitCommonDir, "docket", "gate-scopes", "v1"),
+		root:            filepath.Join(gitCommonDir, "docket", "gate-drives", "v2"),
+		scopeRoot:       filepath.Join(gitCommonDir, "docket", "gate-scopes", "v2"),
 		suiteBudgetRoot: filepath.Join(gitCommonDir, "docket", "gate-suite-budgets", "v1"),
-		admissionRoot:   filepath.Join(gitCommonDir, "docket", "gate-admission", "v1"),
+		admissionRoot:   filepath.Join(gitCommonDir, "docket", "gate-admission", "v2"),
 	}
 }
 

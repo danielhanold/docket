@@ -1683,7 +1683,7 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 		{"epoch unresolved", ownershipErrWith(gatedrive.ErrStaleRunEpoch,
 			&gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "released", EpochOwned: true, EpochUnresolved: true}),
 			"worktree-admission", "",
-			[]string{"docket/rungate", "human"}, []string{"run.cancel", "gate stop", "epoch-"}},
+			[]string{"docket/run-tracker", "human"}, []string{"run.cancel", "gate stop", "epoch-"}},
 		{"unknown identity", ownershipErrWith(gatedrive.ErrWorktreeBusy, blankInc),
 			"worktree-admission", "",
 			[]string{"occupies"}, []string{"gate stop", "gate observe"}},

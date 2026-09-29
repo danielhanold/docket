@@ -136,7 +136,7 @@ func TestScopeSchemaV2LegacyTolerated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
 	}
-	// Hand-write a v2 envelope: the slot-lifecycle shape with NO run_epoch_id.
+	// Hand-write a v2 envelope: the slot-lifecycle shape with NO run_id.
 	v2 := `{"generation":"x","record":{"schema_version":2,"repo_identity":"repo-x","child_cap_hash":"` +
 		capHash(g.ChildCapability) + `","parent_cap_hash":"` + capHash(g.ParentCapability) +
 		`","current_drive_state":"","drive_count":0,"closed":false}}`

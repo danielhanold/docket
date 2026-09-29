@@ -258,7 +258,7 @@ func (h *GuardianHandle) Complete() {
 // markerPathFor returns the durable completion-marker path for a run, beside the
 // run's gate-key directory so it shares that record's lifetime and 0700 privacy.
 func markerPathFor(gitCommonDir, gateKey string) string {
-	return filepath.Join(gitCommonDir, "docket", "rungate", gateKey, "owner-complete.marker")
+	return filepath.Join(gitCommonDir, "docket", runTrackerDirName, gateKey, "owner-complete.marker")
 }
 
 // AgentGuardianMarkerPath resolves the completion-marker path a guardian for

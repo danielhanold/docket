@@ -223,7 +223,7 @@ func TestIntegrationGateLifecycleGateLaunchLegacyInventoryRefusalNamesMatchedDri
 	requireRealGit(t)
 	worktree, gitDir := initGitRepo(t, "")
 	const id = "0446bbbbbbbbbbbbbbbbbbbbbbbbbb01"
-	dir := filepath.Join(gitDir, "docket", "gate-drives", "v1", id)
+	dir := filepath.Join(gitDir, "docket", "gate-drives", "v2", id)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
