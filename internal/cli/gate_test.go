@@ -20,10 +20,10 @@ import (
 // gate launch re-executes this binary with the private supervisor env var set,
 // and it must become the durable supervisor rather than re-running the test
 // suite. Ordinary `go test` runs set neither var and fall through to m.Run.
-// This uses app.MaybeRunTrackerSupervisor so the test never imports
+// This uses app.MaybeRunGateSupervisor so the test never imports
 // internal/process — the boundary this task guards.
 func TestMain(m *testing.M) {
-	if code, ok := app.MaybeRunTrackerSupervisor(); ok {
+	if code, ok := app.MaybeRunGateSupervisor(); ok {
 		os.Exit(code)
 	}
 	os.Exit(m.Run())

@@ -185,7 +185,7 @@ func TestFixtureSparseDefaults(t *testing.T) {
 		{"reclaim.auto", eff.Reclaim.Auto.Explicit, eff.Reclaim.Auto.Provenance.Layer},
 		{"review.min_fix_severity", eff.Review.MinFixSeverity.Explicit, eff.Review.MinFixSeverity.Provenance.Layer},
 		{"review.max_fix_tasks", eff.Review.MaxFixTasks.Explicit, eff.Review.MaxFixTasks.Provenance.Layer},
-		{"gate_observation_budget", eff.RunObservation.Explicit, eff.RunObservation.Provenance.Layer},
+		{"gate_observation_budget", eff.GateObservation.Explicit, eff.GateObservation.Provenance.Layer},
 		{"board_surfaces", eff.BoardSurfaces.Explicit, eff.BoardSurfaces.Provenance.Layer},
 		{"change_types", eff.ChangeTypes.Explicit, eff.ChangeTypes.Provenance.Layer},
 	} {
@@ -249,7 +249,7 @@ func TestFixtureExampleActivated(t *testing.T) {
 	check("reclaim.auto", eff.Reclaim.Auto.Explicit, eff.Reclaim.Auto.Provenance)
 	check("review.min_fix_severity", eff.Review.MinFixSeverity.Explicit, eff.Review.MinFixSeverity.Provenance)
 	check("review.max_fix_tasks", eff.Review.MaxFixTasks.Explicit, eff.Review.MaxFixTasks.Provenance)
-	check("gate_observation_budget", eff.RunObservation.Explicit, eff.RunObservation.Provenance)
+	check("gate_observation_budget", eff.GateObservation.Explicit, eff.GateObservation.Provenance)
 	check("board_surfaces", eff.BoardSurfaces.Explicit, eff.BoardSurfaces.Provenance)
 	check("change_types", eff.ChangeTypes.Explicit, eff.ChangeTypes.Provenance)
 
@@ -273,8 +273,8 @@ func TestFixtureExampleActivated(t *testing.T) {
 	if eff.Review.MinFixSeverity.Value != def.Review.MinFixSeverity.Value || eff.Review.MaxFixTasks.Value != def.Review.MaxFixTasks.Value {
 		t.Errorf("review drifted from the built-ins: %+v", eff.Review)
 	}
-	if eff.RunObservation.Value != def.RunObservation.Value {
-		t.Errorf("gate_observation_budget = %d, want the built-in %d", eff.RunObservation.Value, def.RunObservation.Value)
+	if eff.GateObservation.Value != def.GateObservation.Value {
+		t.Errorf("gate_observation_budget = %d, want the built-in %d", eff.GateObservation.Value, def.GateObservation.Value)
 	}
 	assertSameStrings(t, "board_surfaces", eff.BoardSurfaces.Value, def.BoardSurfaces.Value)
 	assertSameStrings(t, "change_types", eff.ChangeTypes.Value, def.ChangeTypes.Value)
@@ -331,9 +331,9 @@ func TestFixtureFourLayerCollision(t *testing.T) {
 	}
 
 	// A leaf only the machine-local layer declares.
-	if eff.RunObservation.Value != 45 || eff.RunObservation.Provenance.Layer != LayerRepositoryLocal {
+	if eff.GateObservation.Value != 45 || eff.GateObservation.Provenance.Layer != LayerRepositoryLocal {
 		t.Errorf("gate_observation_budget = %d from %q, want 45 from %q",
-			eff.RunObservation.Value, eff.RunObservation.Provenance.Layer, LayerRepositoryLocal)
+			eff.GateObservation.Value, eff.GateObservation.Provenance.Layer, LayerRepositoryLocal)
 	}
 
 	// Agent collision: the global layer's `agents.default` pin falls back into

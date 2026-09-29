@@ -272,7 +272,7 @@ func TestServiceStartUnresolvedCommandIsCommandFailure(t *testing.T) {
 // dir without shelling out.
 func TestFinalizeConstructorResolvesConfig(t *testing.T) {
 	eff := config.Effective{
-		RunObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}},
+		GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}},
 	}
 	eff.Finalize.TestCommand = config.Value[string]{Value: "go test ./...", Provenance: config.Provenance{Layer: config.LayerRepository}}
 
@@ -298,7 +298,7 @@ func TestFinalizeConstructorResolvesConfig(t *testing.T) {
 // provenance.
 func TestOwnerConstructorsReadOnlyTheirOwnCommand(t *testing.T) {
 	eff := config.Effective{}
-	eff.RunObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.GateObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Build.TestCommand = config.Value[string]{Value: "go test ./build-only",
 		Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Finalize.TestCommand = config.Value[string]{Value: "make finalize-only",
@@ -327,7 +327,7 @@ func TestOwnerConstructorsReadOnlyTheirOwnCommand(t *testing.T) {
 // setup remedy — never a fabricated verdict, and never reaching the engine.
 func TestOwnerConstructorUnresolvedCommandNamesRemedy(t *testing.T) {
 	eff := config.Effective{}
-	eff.RunObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.GateObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	// Build command left unconfigured; finalize is set to prove the build owner
 	// does not fall back to it.
 	eff.Finalize.TestCommand = config.Value[string]{Value: "make finalize-only",
@@ -563,7 +563,7 @@ func TestPrepareScopeHumanTextRedactsCapabilities(t *testing.T) {
 // provenance.
 func TestTaskServiceForcesNonIdempotent(t *testing.T) {
 	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
-	eff := config.Effective{RunObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
+	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
 	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, argv)
 	if svc == nil {
 		t.Fatalf("task constructor must build a service: %s %s", res, reason)
@@ -594,7 +594,7 @@ func TestTaskServiceForcesNonIdempotent(t *testing.T) {
 // with ResultInvalidInput and the stable missing-argv reason — never a service
 // that could Start an empty command.
 func TestTaskServiceRequiresArgv(t *testing.T) {
-	eff := config.Effective{RunObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
+	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
 	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, nil)
 	if svc != nil {
 		t.Fatalf("empty argv must not build a service")
@@ -618,7 +618,7 @@ func TestTaskServiceRequiresArgv(t *testing.T) {
 // that resolved budget into the engine request.
 func TestTaskServiceResolvesObservationBudget(t *testing.T) {
 	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
-	eff := config.Effective{RunObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
+	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
 	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, argv)
 	if svc == nil {
 		t.Fatalf("task constructor must build a service: %s %s", res, reason)
@@ -780,7 +780,7 @@ func TestTakeoverMapsDoc(t *testing.T) {
 // build.max_attempts snapshot the reservation enforces.
 func buildEffWithMaxAttempts(command string, maxAttempts int) config.Effective {
 	eff := config.Effective{}
-	eff.RunObservation = config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.GateObservation = config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Build.TestCommand = config.Value[string]{Value: command, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Build.MaxAttempts = config.Value[int]{Value: maxAttempts, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	return eff

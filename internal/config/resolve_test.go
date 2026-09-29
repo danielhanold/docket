@@ -93,7 +93,7 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 	case "review.max_fix_tasks":
 		return eff.Review.MaxFixTasks.Value, eff.Review.MaxFixTasks.Provenance, eff.Review.MaxFixTasks.Explicit
 	case "gate_observation_budget":
-		return eff.RunObservation.Value, eff.RunObservation.Provenance, eff.RunObservation.Explicit
+		return eff.GateObservation.Value, eff.GateObservation.Provenance, eff.GateObservation.Explicit
 	case "board_surfaces":
 		return eff.BoardSurfaces.Value, eff.BoardSurfaces.Provenance, eff.BoardSurfaces.Explicit
 	case "change_types":

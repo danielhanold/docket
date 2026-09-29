@@ -1,4 +1,4 @@
-// Package process owns Docket's native per-run tracker supervision: run
+// Package process owns Docket's native per-run gate supervision: run
 // identities, private durable run state, the re-exec'd supervisor, exact
 // wait-status terminal records, ownership-gated signalling, and
 // abandoned-run recovery. It is repository-independent and imports only

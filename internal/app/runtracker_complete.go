@@ -46,7 +46,7 @@ import (
 
 // processObserver observes whether one execution's OS process is provably TERMINAL,
 // by its run directory — the observation-only counterpart of cancelStopper (which
-// stops). Production appRunTrackerObserver observes through the app gate seam
+// stops). Production appGateObserver observes through the app gate seam
 // (process.Observe) and reuses the same proven-terminal rule the stop path uses
 // (rawTeardownProven); a nil observer proves nothing (fail closed).
 type processObserver interface {
@@ -62,15 +62,15 @@ type runLaunchObserver interface {
 	observe(worktree, runID string) (gatedrive.RunLaunchReport, error)
 }
 
-// appRunTrackerObserver is the production processObserver: it observes a run through the
+// appGateObserver is the production processObserver: it observes a run through the
 // app gate seam (process.Observe) and reports PROVEN teardown using rawTeardownProven
-// — the exact rule appRunTrackerStopper uses to prove a stop settled — without ever
+// — the exact rule appGateStopper uses to prove a stop settled — without ever
 // stopping the process. It resolves the process service per call, exactly as
-// appRunTrackerStopper does. An unresolvable service or an observation error proves nothing
+// appGateStopper does. An unresolvable service or an observation error proves nothing
 // (fail closed): the caller turns it into a bounded finding and blocks.
-type appRunTrackerObserver struct{}
+type appGateObserver struct{}
 
-func (appRunTrackerObserver) observeProcessTerminal(runDir string) (bool, error) {
+func (appGateObserver) observeProcessTerminal(runDir string) (bool, error) {
 	svc, _, reason := gateService()
 	if svc == nil {
 		return false, fmt.Errorf("gate service unavailable: %s", reason)

@@ -24,7 +24,7 @@ import (
 //   - cancellation, success closeout, and resume quiescence run through
 //     productionCancelSeams: the real admission store, appLaunchReconciler /
 //     appLaunchObserver (Driver.ReconcileRunLaunches / ObserveRunLaunches over the
-//     real process service), appRunTrackerObserver, and appRunTrackerStopper;
+//     real process service), appGateObserver, and appGateStopper;
 //   - unrelated corrupt, unsupported-schema, obsolete (lost-linkage, rotated-token),
 //     other-worktree, and HALTED drive records plus a corrupt unrelated run record are
 //     seeded BEFORE cancel/closeout, so the census walks them;
@@ -103,7 +103,7 @@ func seedUnrelatedDamagedHistory(t *testing.T, fx cancelFixture, prefix string) 
 // clears the unresolved-command guard.
 func finalizeEffFor(command string) config.Effective {
 	eff := config.Effective{}
-	eff.RunObservation = config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.GateObservation = config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Finalize.TestCommand = config.Value[string]{Value: command, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	return eff
 }
