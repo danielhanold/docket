@@ -294,9 +294,9 @@ type RunTrackerStoreError struct {
 
 func (e *RunTrackerStoreError) Error() string {
 	if e.err != nil {
-		return fmt.Sprintf("rungate store %s: %s: %v", e.Op, e.Kind, e.err)
+		return fmt.Sprintf("run-tracker store %s: %s: %v", e.Op, e.Kind, e.err)
 	}
-	return fmt.Sprintf("rungate store %s: %s", e.Op, e.Kind)
+	return fmt.Sprintf("run-tracker store %s: %s", e.Op, e.Kind)
 }
 
 func (e *RunTrackerStoreError) Unwrap() error { return e.err }

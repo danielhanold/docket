@@ -709,8 +709,8 @@ func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 		d := sp.deps()
 		d.CancelSeams = func(string) cancelSeams { return cancelSeams{launches: okLaunchReconciler()} }
 		res := RunStart(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
-		if res.Started || res.Reason != ReasonRunResumeCancellationPending || !strings.Contains(res.Message, "replacement-epoch-unreadable:"+replKey) {
-			t.Fatalf("result = started %v reason %q message %q, want cancellation-pending naming replacement-epoch-unreadable:%s", res.Started, res.Reason, res.Message, replKey)
+		if res.Started || res.Reason != ReasonRunResumeCancellationPending || !strings.Contains(res.Message, "replacement-run-record-unreadable:"+replKey) {
+			t.Fatalf("result = started %v reason %q message %q, want cancellation-pending naming replacement-run-record-unreadable:%s", res.Started, res.Reason, res.Message, replKey)
 		}
 	})
 }

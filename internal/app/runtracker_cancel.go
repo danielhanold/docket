@@ -530,7 +530,7 @@ func retireSlotOwnership(seams cancelSeams, ep RunRecord) slotRetirement {
 //
 // A genuinely bad chain still fails closed with its exact locator, never inferred
 // safe: a replacement run that cannot be read (corrupt, I/O) is
-// replacement-epoch-unreadable:<run key>, a superseded link that records no
+// replacement-run-record-unreadable:<run key>, a superseded link that records no
 // replacement is replacement-worktree-unresolved, and a loop is
 // replacement-chain-cycle:<run key>.
 func resolveTerminalRunSlot(seams cancelSeams, repoDir string, ep RunRecord, requestWorktree string) (RunRecord, string) {
@@ -575,7 +575,7 @@ func resolveTerminalRunSlot(seams cancelSeams, repoDir string, ep RunRecord, req
 			if ee, ok := AsRunError(err); ok && ee.Kind == ErrRunNotFound {
 				return torn(key) // the replacement run was never minted
 			}
-			return ep, "replacement-epoch-unreadable:" + key
+			return ep, "replacement-run-record-unreadable:" + key
 		}
 		if rec.Worktree != "" {
 			return bind(rec.Worktree)
