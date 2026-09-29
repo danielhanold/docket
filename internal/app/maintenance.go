@@ -49,7 +49,7 @@ const (
 // full is the whole worklist — today's behavior, the default when the flag is
 // omitted. implementation is the implementation-startup preflight: current
 // merged-work closeouts (with their safe cleanup suffixes) and reclaim gating,
-// with independent cleanup retries for records that were ALREADY terminal at the
+// with independent cleanup retries for records that were ALREADY final at the
 // pinned inventory deferred to explicit full maintenance. The CLI resolves the
 // scope once; the app layer never re-derives it from anything else.
 type SweepScope string
@@ -607,7 +607,7 @@ func sweepWorklist(snap domain.Snapshot, queue []domain.FinalizeCandidate, eff c
 		}
 		switch {
 		case c.Status() == domain.StatusDone || c.Status() == domain.StatusStackedMerged:
-			// Implementation scope defers records that were already terminal at
+			// Implementation scope defers records that were already final at
 			// the pinned inventory: they are counted, never enqueued, so the
 			// worklist stays independent of the historical population. A record
 			// a closeout archives DURING this invocation is untouched by this

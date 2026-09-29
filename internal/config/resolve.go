@@ -9,7 +9,7 @@ import (
 // This file is resolution: it stacks the layers a caller supplied on top of
 // the built-in defaults and answers, for every leaf, what the value is and
 // which layer supplied it. It is the only stage that knows how the layers
-// relate, so it owns the coordination fences, per-leaf precedence, the two
+// relate, so it owns the shared-setting guards, per-leaf precedence, the two
 // `auto` sentinels, and the one cross-leaf rule that cannot run before
 // precedence. It never classifies: what a resolved declaration MEANS for Go
 // v1 is the classifier's question, and the `resolution` struct is what it
@@ -164,7 +164,7 @@ const ToleratedUnknownKeyRemedy = "the key may belong to a newer docket than the
 // the shared remedy (change 0392). It keys on severity so the two deliberate
 // warn-and-ignore surfaces — already warnings, with their own messages — pass
 // through untouched, and it never touches any other code, so the invalid
-// classes and the coordination fence keep their posture.
+// classes and the shared-setting guard keep their posture.
 func tolerateUnknownKeys(diags []Diagnostic) {
 	for i := range diags {
 		if diags[i].Code == CodeUnknownKey && diags[i].Severity == SeverityError {
@@ -230,8 +230,8 @@ func (r *resolution) applyFence(decl leafDecl) (leafDecl, bool) {
 	return decl, true
 }
 
-// keepUnfencedSurfaces drops the coordination-fenced `github` token from a
-// machine layer's board_surfaces and returns the surviving tokens: the fence
+// keepUnfencedSurfaces drops the shared-setting-guarded `github` token from a
+// machine layer's board_surfaces and returns the surviving tokens: the guard
 // is on the token, so the rest of the list still competes for the leaf.
 func (r *resolution) keepUnfencedSurfaces(decl leafDecl) []string {
 	tokens, ok := decl.value.([]string)
@@ -333,7 +333,7 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 // integration_branch to the resolution context's default branch.
 const autoSentinel = "auto"
 
-// boardSurfaceGitHub is the one board token carrying a coordination fence.
+// boardSurfaceGitHub is the one board token carrying a shared-setting guard.
 const boardSurfaceGitHub = "github"
 
 // assign lays one honored declaration over a built-in default. A declaration

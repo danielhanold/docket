@@ -2,7 +2,7 @@ package render
 
 import "strings"
 
-// CloseoutNotesHeading is the terminal change-body section `finalize closeout`
+// CloseoutNotesHeading is the final change-body section `finalize closeout`
 // owns. It is the final authored body section of an archived record; the
 // convention documents it and closeout is its only writer.
 const CloseoutNotesHeading = "## Closeout notes"

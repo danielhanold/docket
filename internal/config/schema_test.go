@@ -73,7 +73,7 @@ func TestRegistryEveryRowHasValidator(t *testing.T) {
 }
 
 // TestRegistryFencedSet pins both fence directions exactly: the eight
-// coordination-fenced (repo-owned) paths and the single machine-only path.
+// shared-setting-guarded (repo-owned) paths and the single machine-only path.
 // Both compares are whole-set, so a row silently gaining or losing a fence
 // reddens this test.
 func TestRegistryFencedSet(t *testing.T) {

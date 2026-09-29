@@ -554,7 +554,7 @@ func TestListReplacesWhole(t *testing.T) {
 	}
 }
 
-// fenceCase declares one coordination-fenced path: what the committed layer
+// fenceCase declares one shared-setting-guarded path: what the committed layer
 // says (which must win) and what a machine layer says (which must be warned
 // about and dropped).
 type fenceCase struct {
