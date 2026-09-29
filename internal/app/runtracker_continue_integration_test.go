@@ -32,7 +32,7 @@ func (s *fakeClaimSeam) Claim(driveID, handoffToken string) (RunContinueOutcome,
 	return s.out, s.err
 }
 
-// runTrackerMintWithContinuation mints an armed record carrying a full continuation
+// runTrackerMintWithContinuation mints a started record carrying a full continuation
 // triple (all three fields set — a partial triple is a corrupt record), the state
 // a run-continue verdict leaves for the resumed controller to redeem.
 func runTrackerMintWithContinuation(t *testing.T, repoDir, cid, drive, handoff string) string {
@@ -127,7 +127,7 @@ func TestIntegrationRunStartGateClaimSingleUse(t *testing.T) {
 // to no-continuation and never touches the drive layer.
 func TestIntegrationRunStartGateClaimNoContinuation(t *testing.T) {
 	repo := newRunTrackerRepo(t)
-	key := runTrackerMintStarted(t, repo, nil, 1, "") // armed, no triple
+	key := runTrackerMintStarted(t, repo, nil, 1, "") // started, no triple
 	seam := &fakeClaimSeam{}
 
 	res := RunContinue(repo, key, "cid-abc", seam)

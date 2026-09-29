@@ -44,7 +44,7 @@ func (e *RepoResolutionError) Unwrap() error { return e.Err }
 // ResolveRepoPhase turns a repository selection into the RepoPhase the installer
 // applies. repoDir is the explicit --repo-dir value ("" means discover the Git
 // working tree containing the current directory); harnessScope is the explicit
-// --harness selection (nil means the full opt-in set); runTracker is the run-gate
+// --harness selection (nil means the full opt-in set); runTracker is the run-tracker
 // payload the surfaces carry; legacy is the frozen reproducer that proof-gates a
 // removal against a byte-exact legacy artifact. The second return is the selected
 // working-tree root, for reporting.

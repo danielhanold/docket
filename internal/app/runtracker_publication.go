@@ -1,13 +1,13 @@
-// Publication-identity reconciliation for the run-epoch mutation journal
+// Publication-identity reconciliation for the run mutation journal
 // (change 0444). A publication whose remote outcome could not be observed leaves
 // an `uncertain` admitted-mutation entry; when a LATER admission in the SAME
-// epoch with an IDENTICAL publication identity completed VERIFIED (applied or
+// run with an IDENTICAL publication identity completed VERIFIED (applied or
 // no-op — the retry's adapter observed the exact postcondition: githubcli
 // EnsurePullRequest's post-mutation verification; workspace PublishHead's
 // reprobeAfterPush), the original obligation is settled by a LOCAL journal
 // comparison — no Git or GitHub call is ever made here. A retry that completed
 // without verifying (contended, a local refusal, an internal error) is no
-// evidence. Everything in this file is a pure function of the durable epoch
+// evidence. Everything in this file is a pure function of the durable run
 // record, except settleUncertainPublications, which persists the settlement
 // through the ordinary runRecordCAS (a settled original becomes completed but stays
 // unverified: its own attempt observed nothing).
@@ -116,7 +116,7 @@ func publicationRetryMatch(rec RunRecord, i int) bool {
 
 // settleablePublicationIndexes returns, ascending, every journal index
 // publicationRetryMatch settles. The settlement writer re-derives this under
-// the epoch lock; accounting callers never act on a stale copy.
+// the run lock; accounting callers never act on a stale copy.
 func settleablePublicationIndexes(rec RunRecord) []int {
 	var idxs []int
 	for i := range rec.AdmittedMutations {
@@ -134,7 +134,7 @@ func settleablePublicationIndexes(rec RunRecord) []int {
 // entry can never be cleared by an older snapshot, a raced completion
 // callback or concurrent cancel serializes, and completed is never
 // downgraded (the only transition is uncertain→completed on a matched
-// original; identity, siblings, participants, and epoch state are untouched).
+// original; identity, siblings, participants, and run state are untouched).
 // It is invoked ONLY from authorized write paths (cancellation teardown and
 // the attributed keyed successful closeout); read-only verification paths
 // never call it. A persistence/read failure is a bounded finding

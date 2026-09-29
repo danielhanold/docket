@@ -18,7 +18,7 @@ import (
 // These are the `docket run verdict <key>` (attributed mode) tests (change
 // 0334, Task 3). run verdict loads the durable gate record, attributes exactly
 // one new in-progress claim through the three filters (id not in the before-set;
-// claimed_at parses; claimed_at >= dispatch epoch), then delegates the run
+// claimed_at parses; claimed_at >= dispatch time), then delegates the run
 // predicate to RunVerify and maps its verdict onto the attributed vocabulary —
 // consuming the single retry permit BEFORE emitting so a lost retry is the safe
 // failure, and failing closed to run-tracker-unavailable on any load error or
@@ -189,7 +189,7 @@ func (r gatedWaitingReader) Read(_ context.Context, _ string, _ int) (WaitingRec
 	return r.receipt, true, nil
 }
 
-// runTrackerMintStartedScoped mints an armed record carrying the outer recovery-scope
+// runTrackerMintStartedScoped mints a started record carrying the outer recovery-scope
 // binding (ScopeID/ParentCap/ChildContextHash) run start stamps for a dispatched
 // implement-next run, so the verdict path's outer-takeover branch is reachable.
 func runTrackerMintStartedScoped(t *testing.T, repoDir, scopeID, parentCap, childContextHash string) string {
@@ -713,7 +713,7 @@ func TestIntegrationRunVerdictVerdictObservePathStillCannotContinue(t *testing.T
 // against committed proofs, an unconfirmed reservation recovers only from its exact
 // receipt, an absent binding adopts the sole matching proof, and every missing /
 // conflicting / unprovable case fails CLOSED to a non-authorizing report. The
-// before-set and dispatch epoch are diagnostics only and can never grant a retry.
+// before-set and dispatch time are diagnostics only and can never grant a retry.
 
 // TestIntegrationRunVerdictVerdictConfirmedBindingResolvesBoundChange: a confirmed binding whose newest
 // proof for the id matches the bound request id resolves the bound change and
@@ -1013,10 +1013,10 @@ func TestIntegrationRunVerdictVerdictResumeBindingSkipsContinuity(t *testing.T) 
 }
 
 // TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndRun pins the 0407 defect: a sibling
-// in-progress claim the OLD before-set/epoch filters would have attributed sits in
+// in-progress claim the OLD before-set/run filters would have attributed sits in
 // the corpus, but ownership reads only committed proofs. With no proof carrying the
 // record's context hash, the verdict is no-attributable-claim — never the sibling.
-// Mutation partner: re-introducing epoch/before-set inference reddens exactly this.
+// Mutation partner: re-introducing run/before-set inference reddens exactly this.
 func TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndRun(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := runTrackerLightDeps(t, []StatusBlob{runTrackerInProgressBlob(9, "sibling", "keep")})
@@ -1039,18 +1039,18 @@ func TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndRun(t *testing.
 
 // --- successful-run ownership closeout on a keyed run-complete (change 0441) ------
 //
-// A verified keyed run-complete now additionally drives the epoch-ownership closeout
+// A verified keyed run-complete now additionally drives the run-ownership closeout
 // (runTrackerCompleteRun → completeSuccessfulRun) so a standalone finalize gate can admit on
 // the same worktree. These tests wire Task 7's completion shape UNDER the key the
 // verdict loads: the run-verify fixture drives RunVerify to run-complete for change 3,
-// a confirmed binding + matching proof resolve ownership, and an active epoch bound to
-// a released epoch-owned slot (with a terminal-recorded coordinator participant and
+// a confirmed binding + matching proof resolve ownership, and an active run bound to
+// a released run-owned slot (with a terminal-recorded coordinator participant and
 // permissive observation seams) is the ownership the closeout retires. The
-// keyless/standalone/legacy shape (no epoch beside the record) keeps EXACTLY the prior
+// keyless/standalone/legacy shape (no run beside the record) keeps EXACTLY the prior
 // behavior, and unattributed observe mode never touches ownership.
 
 // TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership: a keyed run-complete drives the
-// closeout — run-done run-complete, the epoch is completed, and the slot's RunID
+// closeout — run-done run-complete, the run is completed, and the slot's RunID
 // is cleared so a standalone finalize gate can admit.
 func TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
@@ -1059,7 +1059,7 @@ func TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership(t *testing
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
-		t.Fatalf("epoch state = %q, want completed", st)
+		t.Fatalf("run state = %q, want completed", st)
 	}
 	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
@@ -1070,8 +1070,8 @@ func TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership(t *testing
 	}
 }
 
-// TestIntegrationRunVerdictVerdictRunCompleteWithoutRunUnchanged: with no epoch beside the record the
-// verdict keeps EXACTLY the prior behavior — run-done run-complete, no epoch
+// TestIntegrationRunVerdictVerdictRunCompleteWithoutRunUnchanged: with no run beside the record the
+// verdict keeps EXACTLY the prior behavior — run-done run-complete, no run
 // fabricated, no completion findings.
 func TestIntegrationRunVerdictVerdictRunCompleteWithoutRunUnchanged(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -1095,17 +1095,17 @@ func TestIntegrationRunVerdictVerdictRunCompleteWithoutRunUnchanged(t *testing.T
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if len(res.CompletionFindings) != 0 {
-		t.Errorf("no-epoch path carried completion findings: %v", res.CompletionFindings)
+		t.Errorf("no-run path carried completion findings: %v", res.CompletionFindings)
 	}
 	if _, _, err := LoadRunRecord(f.repo.invocation, key); !isRunKind(err, ErrRunNotFound) {
-		t.Fatalf("no epoch must be fabricated by the closeout: %v", err)
+		t.Fatalf("no run must be fabricated by the closeout: %v", err)
 	}
 }
 
 // TestIntegrationRunVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess: one unproven obligation
 // (a registered execution participant whose run is observed live) blocks the
 // closeout — run-stop run-tracker-unavailable completion-unaccounted with diagnostic
-// findings, the epoch stays completing (the fence holds), and no retry is spent (AC2
+// findings, the run stays completing (the fence holds), and no retry is spent (AC2
 // budget preservation). The released owned slot itself is NOT that obligation: its
 // release is the durable proof of its run (change 0446 spec §5), so it is never
 // re-observed.
@@ -1128,7 +1128,7 @@ func TestIntegrationRunVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSucce
 		t.Error("a blocked closeout stop is terminal")
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleting {
-		t.Fatalf("epoch state = %q, want completing (the success fence holds)", st)
+		t.Fatalf("run state = %q, want completing (the success fence holds)", st)
 	}
 	if runTrackerRetryMarkerExists(t, fx.repo, fx.key) {
 		t.Error("a blocked closeout must never spend the retry")
@@ -1137,7 +1137,7 @@ func TestIntegrationRunVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSucce
 
 // TestIntegrationRunVerdictVerdictRunCompleteCancelledRunNeverReportsSuccess: an explicit cancellation
 // that already won is never relabelled successful — run-stop run-tracker-unavailable
-// run-cancelled, never run-done, and the epoch state is untouched.
+// run-cancelled, never run-done, and the run state is untouched.
 func TestIntegrationRunVerdictVerdictRunCompleteCancelledRunNeverReportsSuccess(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	forceRunState(t, fx.repo, fx.key, RunCancelled)
@@ -1149,18 +1149,18 @@ func TestIntegrationRunVerdictVerdictRunCompleteCancelledRunNeverReportsSuccess(
 		t.Fatalf("reason = %q, want %q (never run-done)", res.Reason, ReasonRunCancelled)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
-		t.Fatalf("epoch state = %q, want cancelled (never relabelled)", st)
+		t.Fatalf("run state = %q, want cancelled (never relabelled)", st)
 	}
 }
 
-// TestIntegrationRunVerdictVerdictRunCompleteReportPersistFailureIsReported: the closeout finishes (epoch
+// TestIntegrationRunVerdictVerdictRunCompleteReportPersistFailureIsReported: the closeout finishes (run
 // durably completed) but the terminal gate-report save fails — run-stop
 // run-tracker-unavailable report-unpersisted (the failure is reported, not hidden). A SECOND
-// verdict with the fault cleared replays the completed epoch to run-done run-complete
+// verdict with the fault cleared replays the completed run to run-done run-complete
 // (AC6 gate-report write failure + replay).
 func TestIntegrationRunVerdictVerdictRunCompleteReportPersistFailureIsReported(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
-	// Pre-drive the closeout so the epoch is durably completed: a replay does NO epoch
+	// Pre-drive the closeout so the run is durably completed: a replay does NO run
 	// writes (the fence observes completed), isolating the checked report SAVE as the
 	// only write the read-only key dir can fail.
 	if ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key); !ok {
@@ -1181,7 +1181,7 @@ func TestIntegrationRunVerdictVerdictRunCompleteReportPersistFailureIsReported(t
 		t.Fatalf("decision/reason = %q/%q, want run-stop/report-unpersisted", res.Decision, res.Reason)
 	}
 
-	// Fault cleared: the completed epoch replays to run-done run-complete.
+	// Fault cleared: the completed run replays to run-done run-complete.
 	res2 := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
 	if got, want := res2.HumanText(), "run-done "+fx.key+" run-complete 3"; got != want {
 		t.Fatalf("replay HumanText = %q, want %q", got, want)
@@ -1189,13 +1189,13 @@ func TestIntegrationRunVerdictVerdictRunCompleteReportPersistFailureIsReported(t
 }
 
 // TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership: the unattributed observe path over the
-// same epoch-backed complete fixture leaves the epoch and slot byte-identical (AC5) —
+// same run-backed complete fixture leaves the run and slot byte-identical (AC5) —
 // it holds no key, drives no closeout, and renders the plain observe run-complete line.
 func TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	_, genBefore, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("load epoch before: %v", err)
+		t.Fatalf("load run before: %v", err)
 	}
 	slotBefore, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
@@ -1209,10 +1209,10 @@ func TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership(t *testing
 
 	_, genAfter, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("load epoch after: %v", err)
+		t.Fatalf("load run after: %v", err)
 	}
 	if genAfter != genBefore {
-		t.Fatalf("observe mode wrote the epoch: generation %q -> %q", genBefore, genAfter)
+		t.Fatalf("observe mode wrote the run: generation %q -> %q", genBefore, genAfter)
 	}
 	slotAfter, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {

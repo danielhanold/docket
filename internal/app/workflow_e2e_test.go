@@ -181,7 +181,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		// (10b) Tear the observed gate down the way a real run's gate lifecycle does:
 		// GateLaunch reserved a raw worktree execution slot, and GateStop's proven
 		// teardown vacates it. The fixture otherwise only polls with GateObserve, which
-		// never releases a raw slot, so the epoch's worktree would stay held by a
+		// never releases a raw slot, so the run's worktree would stay held by a
 		// done-but-unreleased gate — a live obligation the successful-run ownership
 		// closeout (change 0441) correctly refuses (slot-ownership-unresolved). Releasing
 		// it here leaves the worktree quiescent, exactly as a real run does.

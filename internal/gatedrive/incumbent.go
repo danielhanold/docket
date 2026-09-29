@@ -32,7 +32,7 @@
 //     delayed ticket (a reserved slot whose drive never launched is indistinguishable
 //     from an admitter between Admit and StartAdmitted, so it is never settled here),
 //     a busy claim, an unconfirmed raw reservation, an unprovable process, an
-//     unfindable or ambiguous current-token drive, and a slot another run epoch owns.
+//     unfindable or ambiguous current-token drive, and a slot another run owns.
 //
 // Proof is gathered OUTSIDE the slot lock; the release is then applied under the
 // slot's CAS with the EXACT expected reservation token and state
@@ -124,8 +124,8 @@ func (d *Driver) reconcileFinishedIncumbent(worktreeRoot, runID string) (bool, s
 // concurrently — the caller then retries its reservation ONCE (the reserve remains
 // the admission authority). finding is a bounded token naming the outcome. err is
 // non-nil only for a failed release write (settled is then false). runID is the
-// requesting admission's epoch: a slot another epoch owns is never touched, because
-// the reserve's run-epoch fence refuses that admission regardless of the
+// requesting admission's run: a slot another run owns is never touched, because
+// the reserve's run-run fence refuses that admission regardless of the
 // incumbent's state.
 func (s *Store) reconcileFinishedIncumbent(worktreeRoot, runID string, proc incumbentProofSeam) (settled bool, finding string, err error) {
 	for pass := 0; pass < maxIncumbentEvaluations; pass++ {
@@ -370,7 +370,7 @@ const opReleaseProvenIncumbent = "release-proven-incumbent"
 // no state check), this caller is not the owner: a state change under the same
 // token means the incumbent moved, so its proof is stale. The released record keeps
 // every other field, RunID included — settling a finished execution never
-// detaches a run epoch's between-drive ownership.
+// detaches a run's between-drive ownership.
 func (s *Store) releaseProvenIncumbent(worktreeRoot, expectToken string, expectState admissionState) error {
 	return s.admissionCAS(worktreeRoot, func(rec *admissionRecord) error {
 		if err := verifyAdmissionToken(rec, expectToken, opReleaseProvenIncumbent); err != nil {

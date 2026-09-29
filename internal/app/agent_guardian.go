@@ -17,17 +17,17 @@
 //     never mistaken for a Stop.
 //   - The owner dies abruptly: the kernel closes every descriptor it held,
 //     including the pipe write end, and NO marker was written. The guardian sees
-//     EOF, finds no marker, and fences the run epoch (active→cancelling) then reaps
+//     EOF, finds no marker, and fences the run (active→cancelling) then reaps
 //     the run — so an abandoned run stops blocking a replacement automatically.
 //
 // AUTHORITY. The guardian holds CANCEL/OBSERVE authority only. It carries the gate
-// key and the public epoch id (locators, not credentials) and NO child capability,
+// key and the public run id (locators, not credentials) and NO child capability,
 // so it is fenced out of mutation admission exactly like any non-writer (the
-// run-epoch mutation fence keys on the epoch state the guardian drives, never on the
+// run mutation fence keys on the run state the guardian drives, never on the
 // guardian's identity). It reaps the run's registered participants and worktree slot
 // through the SAME accounting run.cancel uses (reconcileRunTeardown), but WITHOUT
 // the authority conjunction — the guardian is a trusted re-exec the already-authorized
-// owner spawned, located to exactly one epoch, which it verifies before fencing.
+// owner spawned, located to exactly one run, which it verifies before fencing.
 package app
 
 import (
@@ -52,9 +52,9 @@ const (
 )
 
 // errGuardianRunIDMismatch aborts the fence CAS without a write when the located
-// epoch's public id does not match the id the guardian was spawned for — a stale
-// re-exec can never fence an unrelated successor epoch. It is internal to the fence.
-var errGuardianRunIDMismatch = errors.New("guardian epoch id does not match the located epoch")
+// run's public id does not match the id the guardian was spawned for — a stale
+// re-exec can never fence an unrelated successor run. It is internal to the fence.
+var errGuardianRunIDMismatch = errors.New("guardian run id does not match the located run")
 
 // GuardianRequested reports whether this process was re-executed as an agent death
 // guardian. It is the whole predicate cli.Run's pre-Cobra hook keys on: true iff
@@ -73,7 +73,7 @@ func MaybeRunAgentGuardian() (int, bool) {
 
 // RunAgentGuardianFromEnv runs the whole guardian lifetime and returns the process
 // exit code (always 0 for the guardian path — a guardian that cannot act fails
-// SAFE: the un-fenced epoch's durable exclusion still blocks a replacement until an
+// SAFE: the un-fenced run's durable exclusion still blocks a replacement until an
 // explicit human recovery). It never calls os.Exit; cmd/docket/main.go owns the
 // single exit site.
 func RunAgentGuardianFromEnv() int {
@@ -111,22 +111,22 @@ func RunAgentGuardianFromEnv() int {
 		}
 	}
 
-	// Abrupt owner death, no marker: fence the epoch and reap the run.
+	// Abrupt owner death, no marker: fence the run and reap the run.
 	guardianFenceAndReap(repoDir, runKey, runID)
 	return 0
 }
 
-// guardianFenceAndReap flips the located epoch active→cancelling (idempotent; a
+// guardianFenceAndReap flips the located run active→cancelling (idempotent; a
 // concurrent or prior run.cancel that already fenced it leaves it cancelling) and,
 // only when the fence holds, reaps the run's participants and worktree slot. It
-// verifies the epoch id before writing so a stale guardian cannot fence a successor
-// epoch, and it never revives a non-active epoch — cancelled/superseded, or a
+// verifies the run id before writing so a stale guardian cannot fence a successor
+// run, and it never revives a non-active run — cancelled/superseded, or a
 // successful completing/completed closeout (change 0441).
 //
 // The guardian FENCES and reaps best-effort but deliberately does NOT finalize the
-// epoch to cancelled: reporting a run fully cancelled requires the authority
+// run to cancelled: reporting a run fully cancelled requires the authority
 // conjunction and the full accounting run.cancel owns. The guardian holds
-// cancel/observe authority only, so it leaves the epoch CANCELLING — a durable
+// cancel/observe authority only, so it leaves the run CANCELLING — a durable
 // exclusion that blocks any replacement until a human `run.cancel` re-runs the
 // accounting under authority and confirms cancellation. That is the authority split:
 // the guardian (no authority) fences on death; the human (authority) confirms.
@@ -138,7 +138,7 @@ func guardianFenceAndReap(repoDir, runKey, runID string) {
 		if rec.State == RunActive {
 			rec.State = RunCancelling
 		}
-		// A non-active epoch is left exactly as found: cancelling/cancelled/superseded,
+		// A non-active run is left exactly as found: cancelling/cancelled/superseded,
 		// or a completing/completed successful closeout the keyed verdict resumes by
 		// replay (change 0441).
 		return nil
@@ -148,17 +148,17 @@ func guardianFenceAndReap(repoDir, runKey, runID string) {
 	}
 	ep, _, err := LoadRunRecord(repoDir, runKey)
 	if err != nil || ep.State != RunCancelling {
-		// Nothing to reap: the epoch is missing, unreadable, or already terminal /
+		// Nothing to reap: the run is missing, unreadable, or already terminal /
 		// not the one we fenced.
 		return
 	}
 	// The guardian has no native adapter (a dead owner has no live app-server thread
 	// to interrupt) — native participants surface as findings, discarded here — and
 	// no capability. The teardown accounting is identical to run.cancel's, composed
-	// through the SAME productionCancelSeams — including the epoch launch reconciler
+	// through the SAME productionCancelSeams — including the run launch reconciler
 	// (change 0437 Task 6), so an abruptly-abandoned run's pending or replacement
 	// launches are reaped on the guardian's fence too. Its verdict is discarded
-	// because the guardian never finalizes the epoch.
+	// because the guardian never finalizes the run.
 	_, _, _ = reconcileRunTeardown(productionCancelSeams(repoDir), repoDir, runKey, ep)
 }
 
@@ -172,7 +172,7 @@ type GuardianHandle struct {
 }
 
 // SpawnAgentGuardian re-execs executable as a detached death guardian for the run
-// epoch located by (runKey, runID) under repoDir, watching the returned handle's
+// run located by (runKey, runID) under repoDir, watching the returned handle's
 // pipe. markerPath names the durable completion marker the owner writes (via
 // Complete) on a clean end so the guardian never mistakes it for a Stop. The
 // guardian is a new session leader (Setsid), so it survives the owner's terminal or
@@ -182,7 +182,7 @@ type GuardianHandle struct {
 func SpawnAgentGuardian(executable, repoDir, runKey, runID, markerPath string) (*GuardianHandle, error) {
 	// Clear any pre-existing completion marker BEFORE Start, so only a marker THIS
 	// owner writes during THIS lifetime (via Complete) can suppress the guardian's
-	// fence. A stale marker left in a reused gate-key directory would otherwise
+	// fence. A stale marker left in a reused run-key directory would otherwise
 	// pre-suppress the fence — an abrupt owner death would Stat it and exit without
 	// fencing, the exact failure the guardian exists to prevent. Fail SAFE: a remove
 	// error that is not "not exist" aborts the spawn rather than proceeding into a
@@ -256,13 +256,13 @@ func (h *GuardianHandle) Complete() {
 }
 
 // markerPathFor returns the durable completion-marker path for a run, beside the
-// run's gate-key directory so it shares that record's lifetime and 0700 privacy.
+// run's run-key directory so it shares that record's lifetime and 0700 privacy.
 func markerPathFor(gitCommonDir, runKey string) string {
 	return filepath.Join(gitCommonDir, "docket", runTrackerDirName, runKey, "owner-complete.marker")
 }
 
 // AgentGuardianMarkerPath resolves the completion-marker path a guardian for
-// (repoDir, runKey) watches, beside the run's gate-key directory. The CLI passes
+// (repoDir, runKey) watches, beside the run's run-key directory. The CLI passes
 // it to SpawnAgentGuardian so the owner and the guardian agree on the one file
 // whose presence distinguishes a clean end from an abrupt death.
 func AgentGuardianMarkerPath(repoDir, runKey string) (string, error) {

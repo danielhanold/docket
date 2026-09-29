@@ -32,9 +32,9 @@ func TestIntegrationWorkflowLifecycleRootEntryGateAttribution(t *testing.T) {
 			runClaimToImplemented(t, planRepoModes()[0], gh, func(node realNode, wdeps WorkspaceDeps, complete func(string) GitHubDeps) {
 				ctx := context.Background()
 				scope := &fakeScopePrep{grant: sampleScopeGrant()}
-				armed := RunStart(ctx, node.deps, wdeps, scope.deps(), node.dir, "implement-next", 0)
-				if !armed.Started || armed.RunContext == "" {
-					t.Fatalf("arm: %+v", armed)
+				started := RunStart(ctx, node.deps, wdeps, scope.deps(), node.dir, "implement-next", 0)
+				if !started.Started || started.RunContext == "" {
+					t.Fatalf("start: %+v", started)
 				}
 				catalog, err := assets.EmbeddedCatalog()
 				if err != nil {
@@ -49,21 +49,21 @@ func TestIntegrationWorkflowLifecycleRootEntryGateAttribution(t *testing.T) {
 				tr := &workflowRootTransport{dropContext: drop, complete: func(request string) {
 					var token string
 					for _, line := range strings.Split(request, "\n") {
-						if value, ok := strings.CutPrefix(line, "Dispatch context: "); ok {
+						if value, ok := strings.CutPrefix(line, "Run context: "); ok {
 							token = value
 						}
 					}
 					gdeps = complete(token)
 					completed = true
 				}}
-				// Wire the run-epoch lifecycle registration a real root-coordinator
+				// Wire the run lifecycle registration a real root-coordinator
 				// entry carries (internal/cli/agent.go's runParticipantRegistrar /
 				// runTerminalRecorder): the coordinator thread registers as a native
 				// participant before the turn and records its exact-turn terminal
 				// observation after it settles. Without this the successful-run closeout
 				// (change 0441) would observe an absent coordinator rather than the
 				// terminal-observed one a production run establishes.
-				lifecycle := runLifecycleFixture{repo: node.dir, key: armed.Key, runID: armed.RunID}
+				lifecycle := runLifecycleFixture{repo: node.dir, key: started.Key, runID: started.RunID}
 				client := codexentry.Client{
 					Start:     func(context.Context, string) (codexentry.Transport, error) { return tr, nil },
 					Registrar: lifecycle,
@@ -71,16 +71,16 @@ func TestIntegrationWorkflowLifecycleRootEntryGateAttribution(t *testing.T) {
 				}
 				_, err = client.Enter(ctx, codexentry.Request{
 					Contract: contract, CWD: node.dir, ApprovalPolicy: "never", Sandbox: "workspace-write",
-					UserRequest: "Please implement change 3.\nDispatch context: " + armed.RunContext + "\n",
+					UserRequest: "Please implement change 3.\nRun context: " + started.RunContext + "\n",
 				})
 				if err != nil || !completed || !tr.closed {
 					t.Fatalf("foreground root: err=%v completed=%v closed=%v", err, completed, tr.closed)
 				}
 				wdeps.ClaimProofs = NewClaimProofScanner(node.deps)
-				verdict := RunVerdict(ctx, node.deps, wdeps, gdeps, node.dir, armed.Key)
-				want := "run-done " + armed.Key + " run-complete 3"
+				verdict := RunVerdict(ctx, node.deps, wdeps, gdeps, node.dir, started.Key)
+				want := "run-done " + started.Key + " run-complete 3"
 				if drop {
-					want = "run-done " + armed.Key + " no-attributable-claim"
+					want = "run-done " + started.Key + " no-attributable-claim"
 				}
 				if got := verdict.HumanText(); got != want {
 					t.Fatalf("claim-binding bridge: got %q, want %q", got, want)
@@ -153,7 +153,7 @@ func (tr *workflowRootTransport) Close() error { tr.closed = true; return nil }
 
 // runLifecycleFixture mirrors the production root-coordinator lifecycle seams
 // (internal/cli/agent.go): as a codexentry.ParticipantRegistrar it registers the
-// coordinator thread as a native run-epoch participant before the turn, and as a
+// coordinator thread as a native run participant before the turn, and as a
 // codexentry.TerminalRecorder it stamps the exact-turn terminal observation after
 // the turn settles. It lets the end-to-end fixture establish the same terminal
 // evidence a real run does, so the successful-run closeout (change 0441) observes a

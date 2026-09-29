@@ -458,8 +458,8 @@ func (p *claimWindowProc) counts() (launches, resolutions int) {
 
 func TestRelaunchReservationHolderCannotBeStolenBeforeLaunch(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
-	// A live worktree slot backs the admission token (an epoch-less slot, as a
-	// real scopeless drive holds one), so the epoch-linkage resolution admits the
+	// A live worktree slot backs the admission token (a no-run-record slot, as a
+	// real scopeless drive holds one), so the run-linkage resolution admits the
 	// relaunch through the standalone path (change 0437 Task 3).
 	wt := mkWorktree(t)
 	token, terr := store.ReserveWorktreeExecution(sampleAdmission(wt))
@@ -1019,28 +1019,28 @@ func TestDriverConcurrencySuccessorStartRace(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Deterministic cancel/launch race barriers (change 0437 Task 7, AC2+AC6). A
 // fake RunLaunchGate backed by a mutable, mutex-guarded registry stands in for
-// the app gate: it reads the epoch's liveness under the registry mutex and, while
+// the app gate: it reads the run's liveness under the registry mutex and, while
 // STILL holding it, runs the driver's durable reserve body — exactly as the
-// production gate runs reserve under the held epoch lock. A concurrent fence
+// production gate runs reserve under the held run lock. A concurrent fence
 // ("cancel") takes the SAME mutex, so it either lands before the liveness read
 // (reserve never runs) or after the gate released the lock (it observes the
 // durable reservation reserve produced). "cancel" = flip the fake to fenced, then
-// run ReconcileRunLaunches (which consults NO gate; the epoch is already fenced,
-// so cancellation may never hold the epoch while probing a per-drive claim). Every
+// run ReconcileRunLaunches (which consults NO gate; the run is already fenced,
+// so cancellation may never hold the run while probing a per-drive claim). Every
 // ordering assertion below is a channel/done-ordering fact — no timing sleep is an
 // oracle anywhere.
 // ---------------------------------------------------------------------------
 
 // errRunFenced is the sentinel a fenced fakeRunRegistry gate refuses with,
 // standing in for the app's ErrRunCancelled/ErrStaleRunID fence tokens.
-var errRunFenced = errors.New("gatedrive-test: run epoch fenced (cancelled)")
+var errRunFenced = errors.New("gatedrive-test: run fenced (cancelled)")
 
-// fakeRunRegistry is a mutable, mutex-guarded stand-in for the app's run-epoch
+// fakeRunRegistry is a mutable, mutex-guarded stand-in for the app's run
 // registry. The RunLaunchGate it produces holds the registry mutex across the
-// liveness read AND the reserve body — modelling the production epoch lock held
+// liveness read AND the reserve body — modelling the production run lock held
 // across reserve — so a concurrent fence serializes against it: the fence lands
 // strictly before the read (reserve never runs) or strictly after reserve's
-// durable decision. A fenced epoch's gate refuses errRunFenced WITHOUT running
+// durable decision. A fenced run's gate refuses errRunFenced WITHOUT running
 // reserve (the RunLaunchGate contract: a validation failure never calls reserve).
 type fakeRunRegistry struct {
 	mu     sync.Mutex
@@ -1123,7 +1123,7 @@ func TestBarrierCancelBetweenAdmitAndStartAdmitted(t *testing.T) {
 
 	req := sampleStart()
 	req.RunID = "e1"
-	ticket, err := d.Admit(req) // epoch live: the reservation is durable
+	ticket, err := d.Admit(req) // run live: the reservation is durable
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
 	}
@@ -1202,7 +1202,7 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 	d := scopedTestDriver(store, clk, proc, stableGit())
 	d.SetRunLaunchGate(reg.gate())
 
-	// A scope-bound first start over live epoch e1 WAITs (run1 running, slot executing).
+	// A scope-bound first start over live run e1 WAITs (run1 running, slot executing).
 	req, started := startScopedWaitingWithRun(t, d, store, "e1")
 
 	// The run dies; its single automatic relaunch is authorized under the live gate,
@@ -1287,7 +1287,7 @@ func TestBarrierCancelBetweenAuthorizationAndLaunch(t *testing.T) {
 // StartAdmitted's launch-to-attach window (the process exists, the claim held
 // across launch+attach) reports claim-busy pending, then a replay accounts once
 // the run is attached and stopped — and, crucially, that once a replay reports
-// accounted, a subsequent start on the fenced epoch refuses and launches nothing.
+// accounted, a subsequent start on the fenced run refuses and launches nothing.
 func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 	reg := &fakeRunRegistry{}
 	clk := &fakeClock{now: startRun()}
@@ -1377,13 +1377,13 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 		t.Fatalf("the replay must stop the identified run /runs/run1, stopped %v", stopped)
 	}
 
-	// No launch after an accounted reconcile: a subsequent start on the fenced epoch
+	// No launch after an accounted reconcile: a subsequent start on the fenced run
 	// refuses and proc.Launch's call count is final.
 	launchesBefore := proc.launchN
 	next := sampleStart()
 	next.RunID = "e1"
 	if _, nerr := d.Start(next); !errors.Is(nerr, errRunFenced) {
-		t.Fatalf("a start on the fenced epoch must refuse, got %v", nerr)
+		t.Fatalf("a start on the fenced run must refuse, got %v", nerr)
 	}
 	if proc.launchN != launchesBefore {
 		t.Fatalf("no launch may occur after an accounted reconcile, launches %d->%d", launchesBefore, proc.launchN)
@@ -1391,7 +1391,7 @@ func TestBarrierCancelBetweenLaunchAndAttach(t *testing.T) {
 }
 
 // TestBarrierSameScopeFirstStartContention proves the initial-start peer race is
-// unaffected by the epoch gate: two same-scope, same-epoch first starts rendezvous
+// unaffected by the run launch gate: two same-scope, same-run first starts rendezvous
 // past their fingerprint pre-check, then contend; exactly one wins and launches,
 // the loser is refused typed and launches nothing, and the loser releases nothing
 // the winner adopted. Run under -race.
@@ -1438,7 +1438,7 @@ func TestBarrierSameScopeFirstStartContention(t *testing.T) {
 	wg.Wait()
 
 	if got := proc.launches(); got != 1 {
-		t.Fatalf("two same-scope same-epoch first starts must launch EXACTLY once, got %d", got)
+		t.Fatalf("two same-scope same-run first starts must launch EXACTLY once, got %d", got)
 	}
 	winners, winIdx := 0, -1
 	for i, e := range errs {
@@ -1848,7 +1848,7 @@ func (g *hookGit) HeadOID(dir string) (string, error) {
 	return g.fakeGit.HeadOID(dir)
 }
 
-// siblingFixture is an epoch-less scope whose first drive P has launched and
+// siblingFixture is a no-run-record scope whose first drive P has launched and
 // settled PASSED, so successors may present P's receipt.
 type siblingFixture struct {
 	d     *Driver
@@ -1868,7 +1868,7 @@ func newSiblingFixture(t *testing.T) *siblingFixture {
 	d := scopedTestDriver(store, clk, proc, git)
 	_, req := prepareScopedStart(t, store)
 	if req.RunID != "" {
-		t.Fatalf("precondition: the scope must be epoch-less (admissions unserialized), got epoch %q", req.RunID)
+		t.Fatalf("precondition: the scope must be no-run-record (admissions unserialized), got run %q", req.RunID)
 	}
 	f := &siblingFixture{d: d, store: store, proc: proc, git: git, req: req}
 	f.pred = f.startWaiting(t, req, "predecessor P")
@@ -1949,7 +1949,7 @@ func setScopedAdmissionHook(t *testing.T, fn func(StartRequest)) {
 
 // TestStaleSuccessorLeavesSiblingAdoptedReservation pins change 0453's
 // admitScoped failure leg: two successors present the same predecessor receipt on
-// an epoch-less scope (admissions unserialized). S2 takes the worktree first —
+// a no-run-record scope (admissions unserialized). S2 takes the worktree first —
 // rotating P's executing slot, or freshly reserving a released one — to token T,
 // then pauses before reserveScopeDrive (scopedAdmissionHook). A same-scope sibling
 // adopts T, wins the scope slot, launches, and confirms T executing. S2's

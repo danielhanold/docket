@@ -274,7 +274,7 @@ func installOptions(ctx context.Context, harnesses []string, repoDir string, res
 }
 
 // resolveRepoPhase discovers and assembles the repository half of an install. The
-// run-gate payload rides from the same embedded bundle the machine plan renders
+// run-tracker payload rides from the same embedded bundle the machine plan renders
 // from, and the legacy reproducer is the same frozen one the machine transaction
 // inspects against, so machine and repository agree on what "unchanged" means.
 func resolveRepoPhase(ctx context.Context, opts install.Options, harnesses []string, repoDir string) (*install.RepoPhase, []config.Diagnostic, *InstallRefusal) {

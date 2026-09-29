@@ -11,7 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/repository"
 )
 
-// Run-gate verdict test helpers shared with default-build (untagged) test files.
+// Run-tracker verdict test helpers shared with default-build (untagged) test files.
 // The verdict tests themselves live behind the integration tag in
 // runtracker_verdict_integration_test.go (change 0465); these fixtures, fakes and
 // probes stay untagged because other untagged test files still reference them.
@@ -50,9 +50,9 @@ func runTrackerIncompleteRecord() []byte {
 	return []byte(src)
 }
 
-// runTrackerMintStarted mints an armed record (Retry unused, no attribution yet) with the
-// given before-set, dispatch epoch, and child-context hash, as run start would.
-// Since change 0407 the before-set and dispatch epoch are diagnostics only (they
+// runTrackerMintStarted mints a started record (Retry unused, no attribution yet) with the
+// given before-set, dispatch time, and child-context hash, as run start would.
+// Since change 0407 the before-set and dispatch time are diagnostics only (they
 // no longer create attribution); hash is the record's ChildContextHash, the seam
 // the verdict path's proof filter keys on.
 func runTrackerMintStarted(t *testing.T, repoDir string, beforeIDs []int, dispatchedAt int64, hash string) string {
@@ -102,7 +102,7 @@ func runTrackerRetryMarkerExists(t *testing.T, repoDir, key string) bool {
 }
 
 // verdictCompletionFixture is one prepared run whose keyed verdict verifies
-// run-complete AND whose epoch ownership is ready to close out.
+// run-complete AND whose run ownership is ready to close out.
 type verdictCompletionFixture struct {
 	repo, key, runID, worktree string
 	store                      *gatedrive.Store
@@ -157,7 +157,7 @@ func newVerdictCompletionFixture(t *testing.T) verdictCompletionFixture {
 		t.Fatalf("runRecordCAS set worktree: %v", err)
 	}
 	store := gatedrive.OpenStore(common)
-	// A released epoch-owned slot (the run's drives are done) is exactly what the
+	// A released run-owned slot (the run's drives are done) is exactly what the
 	// closeout retires — reserve+confirm+release, mirroring the cancel/completion
 	// fixtures. Release retains RunID (between-drive ownership), so the slot is
 	// slotOwned+released until the closeout detaches it.

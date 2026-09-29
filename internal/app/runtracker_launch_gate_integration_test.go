@@ -12,17 +12,17 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// These are the app-side epoch launch gate tests (change 0437 Task 5). The gate is
+// These are the app-side run launch gate tests (change 0437 Task 5). The gate is
 // the production gatedrive.RunLaunchGate the driver's reservation/launch paths run
-// their durable reservation body under: it locates the epoch by its public id
+// their durable reservation body under: it locates the run by its public id
 // (unique match), holds that key's run.lock across a read-only liveness read, and
-// runs reserve only when the epoch is active AND bound to the worktree the start
-// names. It never writes the epoch record. Every refusal fails closed.
+// runs reserve only when the run is active AND bound to the worktree the start
+// names. It never writes the run record. Every refusal fails closed.
 
-// runLaunchGateFixture mints a real gate-key directory with an ACTIVE epoch bound to a
+// runLaunchGateFixture mints a real run-key directory with an ACTIVE run bound to a
 // canonicalizable worktree, and returns the pieces a gate test drives: repo (for
 // runRecordCAS / bindRunWorktree), gitCommonDir (for runLaunchGate + the rungate
-// root), the gate key, the public epoch id, and the bound worktree path.
+// root), the run key, the public run id, and the bound worktree path.
 func runLaunchGateFixture(t *testing.T) (repo, common, key, runID, worktree string) {
 	t.Helper()
 	repo = newRunTrackerRepo(t)
@@ -44,7 +44,7 @@ func runLaunchGateFixture(t *testing.T) (repo, common, key, runID, worktree stri
 	return repo, common, key, runID, worktree
 }
 
-// runTrackerRootOf builds the run-epoch registry root the gate scans, the same shape
+// runTrackerRootOf builds the run registry root the gate scans, the same shape
 // runLaunchGate derives internally.
 func runTrackerRootOf(common string) string {
 	return filepath.Join(common, "docket", runTrackerDirName)
@@ -53,13 +53,13 @@ func runTrackerRootOf(common string) string {
 // runLockHeld reports whether SOMEONE holds the per-key run.lock, by attempting
 // a non-blocking exclusive flock on a fresh open file description: EWOULDBLOCK means
 // the lock is held elsewhere (flock serializes across open descriptions, even within
-// one process). It is the deterministic oracle for "the gate holds the epoch lock
+// one process). It is the deterministic oracle for "the gate holds the run lock
 // across reserve" — no timing sleep.
 func runLockHeld(t *testing.T, runTrackerRoot, key string) bool {
 	t.Helper()
 	f, err := os.OpenFile(filepath.Join(runTrackerRoot, key, runLockFileName), os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
-		t.Fatalf("open epoch lock: %v", err)
+		t.Fatalf("open run lock: %v", err)
 	}
 	defer f.Close()
 	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
@@ -74,7 +74,7 @@ func runLockHeld(t *testing.T, runTrackerRoot, key string) bool {
 }
 
 // TestIntegrationRunRecordRunLaunchGateAdmitsActiveBoundRun proves the gate runs reserve exactly
-// once, with a nil error, for an active epoch bound to the worktree the start names.
+// once, with a nil error, for an active run bound to the worktree the start names.
 func TestIntegrationRunRecordRunLaunchGateAdmitsActiveBoundRun(t *testing.T) {
 	_, common, _, runID, worktree := runLaunchGateFixture(t)
 	gate := runLaunchGate(common)
@@ -85,7 +85,7 @@ func TestIntegrationRunRecordRunLaunchGateAdmitsActiveBoundRun(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		t.Fatalf("an active bound epoch must admit, got %v", err)
+		t.Fatalf("an active bound run must admit, got %v", err)
 	}
 	if calls != 1 {
 		t.Fatalf("reserve must run exactly once, got %d", calls)
@@ -120,10 +120,10 @@ func TestIntegrationRunRecordRunLaunchGateRefusalMatrix(t *testing.T) {
 		{
 			name: "ambiguous id",
 			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
-				// A second gate key whose epoch record carries the SAME public id.
+				// A second run key whose run record carries the SAME public id.
 				key2 := mintTestRunKey(t, repo)
 				if _, err := MintRunRecord(repo, key2, "437"); err != nil {
-					t.Fatalf("mint second epoch: %v", err)
+					t.Fatalf("mint second run: %v", err)
 				}
 				if err := runRecordCAS(repo, key2, func(r *RunRecord) error {
 					r.RunID = runID
@@ -131,7 +131,7 @@ func TestIntegrationRunRecordRunLaunchGateRefusalMatrix(t *testing.T) {
 					r.State = RunActive
 					return nil
 				}); err != nil {
-					t.Fatalf("collide epoch id: %v", err)
+					t.Fatalf("collide run id: %v", err)
 				}
 				return runID, worktree
 			},
@@ -184,7 +184,7 @@ func TestIntegrationRunRecordRunLaunchGateRefusalMatrix(t *testing.T) {
 		{
 			name: "unbound worktree",
 			setup: func(t *testing.T, repo, common, key, runID, worktree string) (string, string) {
-				// Clear the epoch's bound Worktree: an unbound epoch owns no worktree.
+				// Clear the run's bound Worktree: an unbound run owns no worktree.
 				if err := runRecordCAS(repo, key, func(r *RunRecord) error {
 					r.Worktree = ""
 					return nil
@@ -233,7 +233,7 @@ func TestIntegrationRunRecordRunLaunchGateRefusalMatrix(t *testing.T) {
 }
 
 // TestIntegrationRunRecordRunLaunchGateRefusesCompletingAndCompleted: the launch gate refuses a start
-// (or a delayed-ticket relaunch) on a completing or completed epoch (change 0441) with
+// (or a delayed-ticket relaunch) on a completing or completed run (change 0441) with
 // the distinct ErrRunCompleted token — its refusal is what later settles a pre-fence
 // never-launched ticket terminal — and never runs reserve.
 func TestIntegrationRunRecordRunLaunchGateRefusesCompletingAndCompleted(t *testing.T) {
@@ -259,9 +259,9 @@ func TestIntegrationRunRecordRunLaunchGateRefusesCompletingAndCompleted(t *testi
 }
 
 // TestIntegrationRunRecordRunRevokedResolverRevokesCompletingAndCompleted: the takeover revocation
-// resolver reports revoked for a completing or completed epoch (change 0441), mirroring
+// resolver reports revoked for a completing or completed run (change 0441), mirroring
 // the cancelled/superseded cases — a takeover of a completing/completed run refuses,
-// and explicit references to a completed epoch remain revoked.
+// and explicit references to a completed run remain revoked.
 func TestIntegrationRunRecordRunRevokedResolverRevokesCompletingAndCompleted(t *testing.T) {
 	for _, s := range []runState{RunCompleting, RunCompleted} {
 		t.Run(string(s), func(t *testing.T) {
@@ -278,7 +278,7 @@ func TestIntegrationRunRecordRunRevokedResolverRevokesCompletingAndCompleted(t *
 	}
 }
 
-// fenceRun flips an epoch to the given fenced/terminal state through the CAS, the
+// fenceRun flips a run to the given fenced/terminal state through the CAS, the
 // same durable transition run.cancel/resume drive it into.
 func fenceRun(t *testing.T, repo, key string, state runState) {
 	t.Helper()
@@ -286,11 +286,11 @@ func fenceRun(t *testing.T, repo, key string, state runState) {
 		r.State = state
 		return nil
 	}); err != nil {
-		t.Fatalf("fence epoch to %s: %v", state, err)
+		t.Fatalf("fence run to %s: %v", state, err)
 	}
 }
 
-// TestIntegrationRunRecordRunLaunchGatePerformsNoWrite proves the gate never mutates the epoch record:
+// TestIntegrationRunRecordRunLaunchGatePerformsNoWrite proves the gate never mutates the run record:
 // its bytes and physical generation are byte-identical before and after both an
 // admitted call and a refused call (spec AC6).
 func TestIntegrationRunRecordRunLaunchGatePerformsNoWrite(t *testing.T) {
@@ -301,7 +301,7 @@ func TestIntegrationRunRecordRunLaunchGatePerformsNoWrite(t *testing.T) {
 	snapshot := func() ([]byte, string) {
 		buf, err := os.ReadFile(path)
 		if err != nil {
-			t.Fatalf("read epoch record: %v", err)
+			t.Fatalf("read run record: %v", err)
 		}
 		_, gen, err := readStoredRun(filepath.Dir(path), "snapshot")
 		if err != nil {
@@ -317,7 +317,7 @@ func TestIntegrationRunRecordRunLaunchGatePerformsNoWrite(t *testing.T) {
 	}
 	after, genAfter := snapshot()
 	if string(before) != string(after) || genBefore != genAfter {
-		t.Fatalf("an admitted gate call must not write the epoch record")
+		t.Fatalf("an admitted gate call must not write the run record")
 	}
 
 	// Refused call (fence first).
@@ -328,15 +328,15 @@ func TestIntegrationRunRecordRunLaunchGatePerformsNoWrite(t *testing.T) {
 	}
 	after, genAfter = snapshot()
 	if string(before) != string(after) || genBefore != genAfter {
-		t.Fatalf("a refused gate call must not write the epoch record")
+		t.Fatalf("a refused gate call must not write the run record")
 	}
 }
 
-// TestRaceIntegrationAppConcurrencyRunLaunchGateSerializesWithFence proves the gate holds the epoch lock across
+// TestRaceIntegrationAppConcurrencyRunLaunchGateSerializesWithFence proves the gate holds the run lock across
 // reserve so a concurrent active→cancelling fence serializes against it, and that a
 // fence that lands FIRST makes the gate refuse. Ordering is proven by channels and a
 // direct non-blocking lock probe — never a timing sleep.
-// Race shard (change 0465): a launch-gate reserve and an epoch fence CAS run in two goroutines against one epoch lock.
+// Race shard (change 0465): a launch-gate reserve and a run fence CAS run in two goroutines against one run lock.
 func TestRaceIntegrationAppConcurrencyRunLaunchGateSerializesWithFence(t *testing.T) {
 	repo, common, key, runID, worktree := runLaunchGateFixture(t)
 	runTrackerRoot := runTrackerRootOf(common)
@@ -349,7 +349,7 @@ func TestRaceIntegrationAppConcurrencyRunLaunchGateSerializesWithFence(t *testin
 
 	go func() {
 		runTrackerErr <- gate(runID, worktree, func() error {
-			// The gate must hold the epoch lock while reserve runs.
+			// The gate must hold the run lock while reserve runs.
 			lockHeld <- runLockHeld(t, runTrackerRoot, key)
 			close(entered)
 			<-release
@@ -359,10 +359,10 @@ func TestRaceIntegrationAppConcurrencyRunLaunchGateSerializesWithFence(t *testin
 
 	<-entered
 	if !<-lockHeld {
-		t.Fatalf("the gate must hold the epoch lock across reserve")
+		t.Fatalf("the gate must hold the run lock across reserve")
 	}
 
-	// A concurrent fence CAS must block on the held epoch lock: it cannot complete
+	// A concurrent fence CAS must block on the held run lock: it cannot complete
 	// until reserve returns and the gate releases the lock.
 	casErr := make(chan error, 1)
 	casStarted := make(chan struct{})
@@ -376,13 +376,13 @@ func TestRaceIntegrationAppConcurrencyRunLaunchGateSerializesWithFence(t *testin
 	<-casStarted
 	select {
 	case err := <-casErr:
-		t.Fatalf("the fence CAS completed while the gate held the epoch lock: %v", err)
+		t.Fatalf("the fence CAS completed while the gate held the run lock: %v", err)
 	default:
 	}
 
 	close(release)
 	if err := <-runTrackerErr; err != nil {
-		t.Fatalf("the gate over an active bound epoch must admit: %v", err)
+		t.Fatalf("the gate over an active bound run must admit: %v", err)
 	}
 	if err := <-casErr; err != nil {
 		t.Fatalf("the fence CAS after release: %v", err)
@@ -412,7 +412,7 @@ func TestIntegrationRunRecordFindRunDirByID(t *testing.T) {
 		t.Fatalf("dir = %q, want %q", dir, filepath.Join(runTrackerRoot, key))
 	}
 	if rec.RunID != runID {
-		t.Fatalf("record epoch id = %q, want %q", rec.RunID, runID)
+		t.Fatalf("record run id = %q, want %q", rec.RunID, runID)
 	}
 
 	if _, _, err := findRunDirByID(runTrackerRoot, "nomatchnomatchnomatchnomatch1234"); !isRunKind(err, ErrRunNotFound) {
@@ -421,14 +421,14 @@ func TestIntegrationRunRecordFindRunDirByID(t *testing.T) {
 
 	key2 := mintTestRunKey(t, repo)
 	if _, err := MintRunRecord(repo, key2, "437"); err != nil {
-		t.Fatalf("mint second epoch: %v", err)
+		t.Fatalf("mint second run: %v", err)
 	}
 	if err := runRecordCAS(repo, key2, func(r *RunRecord) error {
 		r.RunID = runID
 		r.Worktree = worktree
 		return nil
 	}); err != nil {
-		t.Fatalf("collide epoch id: %v", err)
+		t.Fatalf("collide run id: %v", err)
 	}
 	if _, _, err := findRunDirByID(runTrackerRoot, runID); !isRunKind(err, ErrRunAmbiguous) {
 		t.Fatalf("two matches must be ErrRunAmbiguous, got %v", err)

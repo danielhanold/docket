@@ -997,8 +997,8 @@ func TestRelaunchCrashBetweenReserveAndLaunchRecovers(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := OpenStore(testsupport.TempDir(t))
-			// A live epoch-less worktree slot backs the admission token, as a real
-			// scopeless drive holds one, so the epoch-linkage resolution admits the
+			// A live no-run-record worktree slot backs the admission token, as a real
+			// scopeless drive holds one, so the run-linkage resolution admits the
 			// crash-window recovery through the standalone path (change 0437 Task 3).
 			wt := mkWorktree(t)
 			token, terr := store.ReserveWorktreeExecution(sampleAdmission(wt))
@@ -1856,7 +1856,7 @@ func TestScopedSequenceBaselineRedGreen(t *testing.T) {
 // immediately, so a valid successor also PASSES.
 func scopedSuccessorFixture(t *testing.T) (*Driver, *Store, ScopeGrant, StartRequest, *fakeProc) {
 	t.Helper()
-	const gateCtx = "task-4-dispatch-context"
+	const gateCtx = "task-4-run-context"
 	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := passObserveProc()

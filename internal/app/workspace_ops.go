@@ -391,11 +391,11 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 		})
 	}
 
-	// Run-epoch mutation fence (change 0375 Task 11): before the feature-head push —
-	// an external effect on origin — admit through the owning run epoch. A cancelled
-	// or superseded epoch refuses, and NOTHING is published; an active epoch journals
+	// Run mutation fence (change 0375 Task 11): before the feature-head push —
+	// an external effect on origin — admit through the owning run. A cancelled
+	// or superseded run refuses, and NOTHING is published; an active run journals
 	// the admission, then this reconciles it once the push resolves (uncertain when
-	// the remote outcome could not be observed). A standalone/no-epoch run admits
+	// the remote outcome could not be observed). A standalone/no-run-record run admits
 	// unfenced (the journal callback is a no-op). The admission journals the
 	// immutable publication identity (change 0444): canonical repository identity,
 	// remote name, exact feature ref, and the full intended commit — the same head
@@ -452,7 +452,7 @@ func WorkspacePublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 	return out
 }
 
-// workspaceFenceRefusal builds a workspace refusal for a run-epoch mutation fence:
+// workspaceFenceRefusal builds a workspace refusal for a run mutation fence:
 // the run that owns this worktree is cancelled, superseded, or completing a
 // successful closeout, so the publish is blocked with the stable fence reason and an
 // accurate reason-aware message (via fenceRefusalReasonMessage), and no push. It

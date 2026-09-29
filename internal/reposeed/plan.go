@@ -68,7 +68,7 @@ const (
 
 // PlanInput is the pure input to Plan. WorktreeRoot is a canonical absolute
 // path; Harnesses are the repository's explicit, already-validated opt-in
-// tokens; RunTracker is the run-gate payload the interiors carry verbatim.
+// tokens; RunTracker is the run-tracker payload the interiors carry verbatim.
 type PlanInput struct {
 	WorktreeRoot  string
 	Harnesses     []string

@@ -193,18 +193,18 @@ func TestRaceIntegrationGatedriveSequenceConcurrentScopesResolveOwnWork(t *testi
 // supervisor, proving old records for that path never block the next permitted
 // drive once release or replacement is proven:
 //
-//   - drive → release → re-admit across several successive run epochs: a live
-//     epoch still owns the worktree between drives (a different epoch is fenced),
-//     and once it settles the next epoch admits over its released slot;
+//   - drive → release → re-admit across several successive runs: a live
+//     run still owns the worktree between drives (a different run is fenced),
+//     and once it settles the next run admits over its released slot;
 //   - a symlink alias of the worktree reaches the SAME slot and admits;
 //   - the live-incumbent counter-case: a genuinely executing run on the canonical
 //     path refuses a start through the alias, and admits it once the run finishes;
 //   - the worktree is removed while its released slot still names the completed
-//     epoch: retirement reaches the slot through its stored identity (never
+//     run: retirement reaches the slot through its stored identity (never
 //     re-canonicalization of the missing path), and a recreated worktree at the
-//     same path admits a new epoch;
-//   - a second remove/recreate leaves the settled epoch on the inherited slot, and
-//     the next (epoch-less) start settles it at admission instead of refusing.
+//     same path admits a new run;
+//   - a second remove/recreate leaves the settled run on the inherited slot, and
+//     the next (no-run-record) start settles it at admission instead of refusing.
 //
 // Race shard (change 0466): a live incumbent run holds the worktree slot while a start through its alias contends for it.
 func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
@@ -239,9 +239,9 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 		return doc
 	}
 
-	// 1. Several successive epochs on one path.
+	// 1. Several successive runs on one path.
 	lastGen := 0
-	for i, runID := range []string{"epoch-g1", "epoch-g2", "epoch-g3"} {
+	for i, runID := range []string{"run-g1", "run-g2", "run-g3"} {
 		passAt(wt, "feat/gen", runID, fmt.Sprintf("gen-%d", i+1))
 		slot := slotOf(wt)
 		if slot.State != admissionReleased || slot.RunID != runID {
@@ -252,25 +252,25 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 		}
 		lastGen = slot.ExecutionGen
 		if i == 0 {
-			// Unsettled: the live epoch owns its worktree between drives.
+			// Unsettled: the live run owns its worktree between drives.
 			foreign := realSeqStart(wt, "feat/gen", runRoot, "0446", "foreign", seqPassCmd("foreign"))
-			foreign.RunID = "epoch-foreign"
+			foreign.RunID = "run-foreign"
 			if _, err := d.Start(foreign); !isOwnershipKind(err, ErrStaleRunID) {
-				t.Fatalf("an unsettled epoch must fence a different epoch, got %v", err)
+				t.Fatalf("an unsettled run must fence a different run, got %v", err)
 			}
 		}
 		runIDs.settle(runID)
 	}
 
-	// 2. A symlink alias reaches the same slot and admits (epoch-less start over the
-	// settled epoch-g3's released slot).
+	// 2. A symlink alias reaches the same slot and admits (no-run-record start over the
+	// settled run-g3's released slot).
 	alias := filepath.Join(testsupport.TempDir(t), "wt-alias")
 	if err := os.Symlink(wt, alias); err != nil {
 		t.Fatalf("symlink alias: %v", err)
 	}
 	passAt(alias, "feat/gen", "", "gen-alias")
 	if slot := slotOf(wt); slot.ExecutionGen != lastGen+1 || slot.RunID != "" {
-		t.Fatalf("the alias must reuse the canonical slot: gen %d (want %d) epoch %q", slot.ExecutionGen, lastGen+1, slot.RunID)
+		t.Fatalf("the alias must reuse the canonical slot: gen %d (want %d) run %q", slot.ExecutionGen, lastGen+1, slot.RunID)
 	}
 
 	// 3. Live-incumbent counter-case at the same canonical path.
@@ -294,31 +294,31 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 	}
 	passAt(alias, "feat/gen", "", "gen-after-live")
 
-	// 4. Remove the worktree while its released slot names a completed epoch; retire
-	// through the stored identity; recreate the path; a new epoch admits.
-	passAt(wt, "feat/gen", "epoch-g4", "gen-4")
+	// 4. Remove the worktree while its released slot names a completed run; retire
+	// through the stored identity; recreate the path; a new run admits.
+	passAt(wt, "feat/gen", "run-g4", "gen-4")
 	g4 := slotOf(wt)
 	git(t, repo, "worktree", "remove", "--force", wt)
 	if _, err := os.Stat(wt); !os.IsNotExist(err) {
 		t.Fatalf("worktree must be removed, stat err = %v", err)
 	}
 	removedSlot := slotOf(wt) // stored-identity addressing, not re-canonicalization
-	if removedSlot.RunID != "epoch-g4" || removedSlot.ReservationToken != g4.ReservationToken {
-		t.Fatalf("the removed worktree's slot must resolve to its stored record, got epoch %q", removedSlot.RunID)
+	if removedSlot.RunID != "run-g4" || removedSlot.ReservationToken != g4.ReservationToken {
+		t.Fatalf("the removed worktree's slot must resolve to its stored record, got run %q", removedSlot.RunID)
 	}
-	if err := store.RetireWorktreeExecutionRun(wt, "epoch-g4", g4.ReservationToken); err != nil {
-		t.Fatalf("retire a removed worktree's epoch through its stored identity: %v", err)
+	if err := store.RetireWorktreeExecutionRun(wt, "run-g4", g4.ReservationToken); err != nil {
+		t.Fatalf("retire a removed worktree's run through its stored identity: %v", err)
 	}
 	git(t, repo, "worktree", "add", wt, "-b", "feat/gen-r1")
-	passAt(wt, "feat/gen-r1", "epoch-g5", "gen-5")
+	passAt(wt, "feat/gen-r1", "run-g5", "gen-5")
 
-	// 5. Remove and recreate again WITHOUT retiring: the settled epoch-g5 left on the
+	// 5. Remove and recreate again WITHOUT retiring: the settled run-g5 left on the
 	// inherited released slot is settled at admission, never refused.
-	runIDs.settle("epoch-g5")
+	runIDs.settle("run-g5")
 	git(t, repo, "worktree", "remove", "--force", wt)
 	git(t, repo, "worktree", "add", wt, "-b", "feat/gen-r2")
 	passAt(wt, "feat/gen-r2", "", "gen-6")
 	if slot := slotOf(wt); slot.RunID != "" || slot.State != admissionReleased {
-		t.Fatalf("final slot = %s/%q, want released and epoch-free", slot.State, slot.RunID)
+		t.Fatalf("final slot = %s/%q, want released and run-free", slot.State, slot.RunID)
 	}
 }

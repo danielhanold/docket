@@ -6,8 +6,8 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// Run-gate store test helpers shared with default-build (untagged) test files.
-// The gate-record store tests themselves live behind the integration tag in
+// Run-tracker store test helpers shared with default-build (untagged) test files.
+// The run-tracker record store tests themselves live behind the integration tag in
 // runtracker_store_integration_test.go (change 0465); these fixtures stay untagged
 // because other untagged test files still reference them.
 

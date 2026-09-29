@@ -108,9 +108,9 @@ const (
 	// scope with no bound drive — there is no live or unconsumed work to recover,
 	// so it fails closed rather than transferring nothing. (change 0359)
 	CauseTakeoverNoCandidate = "takeover-no-candidate"
-	// CauseRunRecordUnreadable: a takeover could not read the scope's run-epoch state
+	// CauseRunRecordUnreadable: a takeover could not read the scope's run state
 	// through the injected revocation resolver (an IO/corruption fault). It fails
-	// closed — a run whose epoch cannot be read is never revived. (change 0375 Task 12)
+	// closed — a run whose run cannot be read is never revived. (change 0375 Task 12)
 	CauseRunRecordUnreadable = "run-record-unreadable"
 )
 

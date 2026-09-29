@@ -10,12 +10,12 @@ import (
 
 // ---------------------------------------------------------------------------
 // RunLaunchGate seam: Admit fences its durable reservation behind the
-// app-injected epoch liveness read (change 0437 Task 1). The gate is faked as a
+// app-injected run liveness read (change 0437 Task 1). The gate is faked as a
 // closure recording its calls; the reservation body (reserve) runs only when the
 // gate lets it, so a refusal reserves nothing.
 // ---------------------------------------------------------------------------
 
-// recordingGate is a fake RunLaunchGate: it records each call's epoch id and
+// recordingGate is a fake RunLaunchGate: it records each call's run id and
 // worktree, then defers to an injected behavior. A nil behavior runs reserve
 // directly (a permissive gate).
 type recordingGate struct {
@@ -53,7 +53,7 @@ func driveRecordCount(t *testing.T, store *Store) int {
 }
 
 // TestAdmitConsultsRunLaunchGateWithIDAndWorktree proves a scoped and a scopeless
-// Admit carrying RunID each consult the gate exactly once with the epoch id
+// Admit carrying RunID each consult the gate exactly once with the run id
 // and the request's worktree, and admission succeeds under a permissive gate.
 func TestAdmitConsultsRunLaunchGateWithIDAndWorktree(t *testing.T) {
 	t.Run("scopeless", func(t *testing.T) {
@@ -115,7 +115,7 @@ func TestAdmitConsultsRunLaunchGateWithIDAndWorktree(t *testing.T) {
 // worktree slot exists, no reserved drive record was minted, and (scoped) the
 // scope slot is untouched.
 func TestAdmitRunLaunchGateRefusalReservesNothing(t *testing.T) {
-	sentinel := errors.New("gatedrive-test: epoch fence refusal")
+	sentinel := errors.New("gatedrive-test: run fence refusal")
 
 	t.Run("scopeless", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
@@ -223,11 +223,11 @@ func TestAdmitReservationRunsInsideGate(t *testing.T) {
 	}
 }
 
-// TestAdmitNilGateOrEmptyRunUnchanged proves the epoch-less standalone path is
-// preserved: a nil gate with an epoch id, and a set gate with an empty
-// RunID, both admit as today. The empty-epoch case never consults the gate.
+// TestAdmitNilGateOrEmptyRunUnchanged proves the no-run-record standalone path is
+// preserved: a nil gate with a run id, and a set gate with an empty
+// RunID, both admit as today. The empty-run case never consults the gate.
 func TestAdmitNilGateOrEmptyRunUnchanged(t *testing.T) {
-	t.Run("nil-gate-with-epoch-id", func(t *testing.T) {
+	t.Run("nil-gate-with-run-id", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
@@ -247,7 +247,7 @@ func TestAdmitNilGateOrEmptyRunUnchanged(t *testing.T) {
 		}
 	})
 
-	t.Run("empty-epoch-does-not-consult-gate", func(t *testing.T) {
+	t.Run("empty-run-does-not-consult-gate", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
@@ -257,16 +257,16 @@ func TestAdmitNilGateOrEmptyRunUnchanged(t *testing.T) {
 		req := sampleStart() // RunID == ""
 		ticket, err := d.Admit(req)
 		if err != nil {
-			t.Fatalf("Admit with an empty epoch must admit as today: %v", err)
+			t.Fatalf("Admit with an empty run must admit as today: %v", err)
 		}
 		if ticket == nil {
 			t.Fatal("Admit must return a ticket")
 		}
 		if rg.calls != 0 {
-			t.Fatalf("an empty-epoch admission must NOT consult the gate, called %d times", rg.calls)
+			t.Fatalf("an empty-run admission must NOT consult the gate, called %d times", rg.calls)
 		}
 		if slot, _, lerr := store.LoadWorktreeExecution(req.Worktree); lerr != nil || slot.State != admissionReserved {
-			t.Fatalf("an empty-epoch admission must reserve the slot as today, state=%q err=%v", slot.State, lerr)
+			t.Fatalf("an empty-run admission must reserve the slot as today, state=%q err=%v", slot.State, lerr)
 		}
 	})
 }

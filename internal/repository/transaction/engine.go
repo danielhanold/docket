@@ -56,9 +56,9 @@ const maxAttempts = 4
 // so a single Engine is safe for concurrent Execute calls: every per-attempt
 // datum lives on the stack of the call that created it.
 //
-// AdmissionHook, when set, is the run-epoch mutation fence (change 0375 Task 11):
+// AdmissionHook, when set, is the run mutation fence (change 0375 Task 11):
 // runAttempt invokes it once per attempt before any Git work, so a cancelled or
-// superseded run epoch that owns the change's worktree refuses the mutation before
+// superseded run that owns the change's worktree refuses the mutation before
 // anything is fetched, allocated, planned, or pushed. It is OPTIONAL — a nil hook
 // is the standalone contract, unchanged. It must be set once at construction/wiring
 // time (before the first Execute) and treated as read-only thereafter, so the
@@ -70,7 +70,7 @@ type Engine struct {
 	client *gitcli.Client
 	clock  Clock
 
-	// AdmissionHook is the optional run-epoch mutation-admission fence. See the type
+	// AdmissionHook is the optional run mutation-admission fence. See the type
 	// doc. Set it after NewEngine and before any Execute; the engine never mutates it.
 	AdmissionHook func(OperationKey) error
 }
@@ -164,16 +164,16 @@ func (e *Engine) runAttempt(ctx context.Context, repo gitcli.Repository, remote 
 	ref gitcli.RefName, op OperationKey, expectations []EntityExpectation, req Request,
 	acc Result, lastRemote *gitcli.ObjectID) (attemptOutcome, bool) {
 
-	// 0. Run-epoch mutation fence (change 0375 Task 11), before any Git work so a
-	// refusal mutates nothing. A cancelled/superseded epoch owning the change's
-	// worktree refuses here; the injected hook carries the epoch check and the
+	// 0. Run mutation fence (change 0375 Task 11), before any Git work so a
+	// refusal mutates nothing. A cancelled/superseded run owning the change's
+	// worktree refuses here; the injected hook carries the run check and the
 	// admitted-mutation journal. A nil hook is the standalone contract. The refusal
 	// is an interrupted outcome (the run was cancelled), carrying the hook error as a
 	// typed *Failure so a caller keys on StageAdmission/KindCancelled, never prose.
 	if e.AdmissionHook != nil {
 		if herr := e.AdmissionHook(op); herr != nil {
 			acc.Disposition = DispositionInterrupted
-			return attemptOutcome{result: acc, err: &Failure{Stage: StageAdmission, Kind: KindCancelled, Detail: "run-epoch mutation admission refused", Err: herr}}, true
+			return attemptOutcome{result: acc, err: &Failure{Stage: StageAdmission, Kind: KindCancelled, Detail: "run mutation admission refused", Err: herr}}, true
 		}
 	}
 

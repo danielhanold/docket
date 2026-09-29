@@ -124,15 +124,15 @@ type StartRequest struct {
 	ChildCapability string
 	RunContext      string
 
-	// RunID links this drive's top-level execution to the workflow run epoch
-	// (runtracker_run_record.go) the arming gate minted, and is recorded on the worktree
+	// RunID links this drive's top-level execution to the workflow run
+	// (runtracker_run_record.go) the starting run tracker minted, and is recorded on the worktree
 	// execution slot the start reserves (admission.go). It is a LOCATOR, never a
 	// credential: it authorizes nothing (the scope's child capability carries
 	// authority), but it fences the worktree — a later gate in the same worktree that
-	// does not carry this epoch is refused ErrStaleRunID, so an omitted or stale
-	// epoch cannot detach a workflow-owned worktree from its epoch. Empty for a
-	// standalone gate that owns no implementation epoch (finalize's local gate, an
-	// ad-hoc task drive). (change 0375 Task 9) A scoped start inherits the epoch its
+	// does not carry this run is refused ErrStaleRunID, so an omitted or stale
+	// run cannot detach a workflow-owned worktree from its run. Empty for a
+	// standalone gate that owns no implementation run (finalize's local gate, an
+	// ad-hoc task drive). (change 0375 Task 9) A scoped start inherits the run its
 	// scope pinned when it presents none, and presenting a different one is refused
 	// ErrScopeIdentityMismatch (change 0467).
 	RunID string
@@ -165,39 +165,39 @@ type Driver struct {
 	pollInterval time.Duration
 	sleep        func(time.Duration)
 
-	// runRevoked, when set, answers whether a scope's run epoch is cancelled or
+	// runRevoked, when set, answers whether a scope's run is cancelled or
 	// superseded — the state a Takeover must refuse (change 0375 Task 12: "parent
-	// takeover cannot revive a cancelled epoch"). It is an OPTIONAL seam injected by
+	// takeover cannot revive a cancelled run"). It is an OPTIONAL seam injected by
 	// the application layer (SetRunRevokedResolver): the gatedrive layer owns no
-	// epoch store, so the resolver reads the app-owned run-epoch registry. When nil,
-	// or when a scope carries no RunID, the epoch gate is skipped and Takeover's
+	// run store, so the resolver reads the app-owned run registry. When nil,
+	// or when a scope carries no RunID, the run launch gate is skipped and Takeover's
 	// existing ADR-0107 authorization is unchanged. A resolver error fails closed
-	// (the takeover HALTs rather than reviving a run whose epoch cannot be read).
+	// (the takeover HALTs rather than reviving a run whose run cannot be read).
 	runRevoked RunRevokedFunc
 
-	// runLaunch, when set, is the app-owned authoritative epoch liveness read the
+	// runLaunch, when set, is the app-owned authoritative run liveness read the
 	// launch/reservation paths run their durable reservation body under (change
-	// 0437). Every epoch-backed reservation/launch authorization in this package
+	// 0437). Every run-backed reservation/launch authorization in this package
 	// flows through the runLaunchGated helper, which consults this seam only when both
-	// it and a run epoch id are present. It is injected once at composition
+	// it and a run id are present. It is injected once at composition
 	// (SetRunLaunchGate), before any concurrent start, so it needs no lock.
 	runLaunch RunLaunchGate
 }
 
-// RunLaunchGate is the app-injected authority that validates a run epoch is
+// RunLaunchGate is the app-injected authority that validates a run is
 // LIVE (active, uniquely resolved in this repository's registry, and bound to
-// worktree) and, while the registry's per-key epoch lock is held, runs reserve —
+// worktree) and, while the registry's per-key run lock is held, runs reserve —
 // the driver's durable admission/reservation body — so a concurrent cancellation
 // fence either lands before the liveness read (reserve never runs) or observes
 // the durable reservation reserve produced. A validation failure returns a typed
-// error and reserve is NEVER called. The gate performs no epoch write. A nil gate
-// or an empty runID runs reserve directly (a genuinely epoch-less standalone
+// error and reserve is NEVER called. The gate performs no run write. A nil gate
+// or an empty runID runs reserve directly (a genuinely no-run-record standalone
 // gate keeps its existing behavior).
 type RunLaunchGate func(runID, worktree string, reserve func() error) error
 
 // SetRunLaunchGate injects the gate at composition, before any concurrent
 // start, so it needs no lock (mirrors SetRunRevokedResolver). Passing nil
-// clears it (the launch gate is then skipped and the epoch-less standalone
+// clears it (the launch gate is then skipped and the no-run-record standalone
 // behavior governs).
 func (d *Driver) SetRunLaunchGate(g RunLaunchGate) { d.runLaunch = g }
 
@@ -208,7 +208,7 @@ func (d *Driver) SetRunLaunchGate(g RunLaunchGate) { d.runLaunch = g }
 func (d *Driver) RunLaunchGateWired() bool { return d.runLaunch != nil }
 
 // runLaunchGated runs reserve under the injected gate when both the gate and the
-// epoch id are present, else directly. Every epoch-backed reservation/launch
+// run id are present, else directly. Every run-backed reservation/launch
 // authorization in this package flows through this ONE helper (the launch-site
 // guard in change 0437 Task 8 keys on it).
 func (d *Driver) runLaunchGated(runID, worktree string, reserve func() error) error {
@@ -218,17 +218,17 @@ func (d *Driver) runLaunchGated(runID, worktree string, reserve func() error) er
 	return d.runLaunch(runID, worktree, reserve)
 }
 
-// RunRevokedFunc reports whether the run epoch named by runID is cancelled or
-// superseded. A clean "no such epoch" is (false, nil) — a locator that resolves to
+// RunRevokedFunc reports whether the run named by runID is cancelled or
+// superseded. A clean "no such run" is (false, nil) — a locator that resolves to
 // nothing cannot prove a run was cancelled, and the takeover's other guards
 // (capability, fingerprint, deadline) still protect it; an IO/corruption fault is a
 // non-nil error the takeover treats as fail-closed. It never returns a credential.
 type RunRevokedFunc func(runID string) (revoked bool, err error)
 
-// SetRunRevokedResolver injects the optional run-epoch revocation seam the
+// SetRunRevokedResolver injects the optional run revocation seam the
 // Takeover path consults (change 0375 Task 12). The application layer wires the
-// production resolver over its run-epoch registry after composing the driver;
-// gatedrive tests inject a fake. Passing nil clears it (the epoch gate is then
+// production resolver over its run registry after composing the driver;
+// gatedrive tests inject a fake. Passing nil clears it (the run launch gate is then
 // skipped). It is set once at composition, before any concurrent Takeover, so it
 // needs no lock.
 func (d *Driver) SetRunRevokedResolver(fn RunRevokedFunc) { d.runRevoked = fn }
@@ -326,10 +326,10 @@ type AdmissionTicket struct {
 	// start reused an incumbent same-scope slot rather than freshly reserving). The
 	// launch half carries it onto the returned START document.
 	legacy *LegacyHistorySummary
-	// runID retains, in memory only, the run epoch this admission was gated
-	// under so the launch half can revalidate the SAME epoch before launching
+	// runID retains, in memory only, the run this admission was gated
+	// under so the launch half can revalidate the SAME run before launching
 	// (change 0437). It is NEVER persisted — the durable linkage stays the
-	// slot/scope records; an empty value is a genuinely epoch-less standalone gate.
+	// slot/scope records; an empty value is a genuinely no-run-record standalone gate.
 	runID string
 }
 
@@ -395,12 +395,12 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 		if err != nil {
 			return nil, err
 		}
-		// A scoped start takes its run epoch from the scope it was prepared under
+		// A scoped start takes its run from the scope it was prepared under
 		// (change 0467): the scope's RunID is written once by PrepareScope and
 		// never mutated, so this unlocked read is authoritative. req is Admit's own
-		// copy, so every later use — the epoch gate, the scoped worktree admission
+		// copy, so every later use — the run launch gate, the scoped worktree admission
 		// record, finished-incumbent reconciliation, and the admission ticket — sees
-		// the effective epoch rather than the caller-presented one.
+		// the effective run rather than the caller-presented one.
 		req.RunID = runID
 	}
 
@@ -450,8 +450,8 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 		rec.RunContextHash = capHash(req.RunContext)
 	}
 
-	// Fence the durable reservation behind the app-owned epoch liveness read: the
-	// reservation body runs while the epoch registry lock is held, so a concurrent
+	// Fence the durable reservation behind the app-owned run liveness read: the
+	// reservation body runs while the run registry lock is held, so a concurrent
 	// cancellation fence either lands before the read (reserve never runs, nothing
 	// is reserved) or observes the durable reservation reserve produced. The
 	// fingerprint (above) and precheckScopedStart stay OUTSIDE the gate; the lock
@@ -473,9 +473,9 @@ func (d *Driver) Admit(req StartRequest) (*AdmissionTicket, error) {
 	// unresolved-execution refusal decided on an occupying incumbent is final only
 	// after the exact incumbent was inspected: a proven-finished one is settled and
 	// this SAME admission retries its reservation once. Reconciliation probes
-	// processes, so it runs OUTSIDE the epoch gate (probe outside outer locks) and
+	// processes, so it runs OUTSIDE the run launch gate (probe outside outer locks) and
 	// applies its release under the slot CAS with the expected token; the retry then
-	// re-enters the gate, which revalidates the epoch. The pre-reserve checks above
+	// re-enters the gate, which revalidates the run. The pre-reserve checks above
 	// (command/budget, precheckScopedStart, ComputeFingerprint) validate the request
 	// or the requesting scope's own slot and never depend on the incumbent, so none
 	// of them can refuse a finished incumbent before this point.
@@ -506,7 +506,7 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 	if t == nil {
 		return DriveDoc{}, fmt.Errorf("gatedrive: StartAdmitted requires an admission ticket")
 	}
-	// Revalidate the epoch and the EXACT durable reservation this ticket minted,
+	// Revalidate the run and the EXACT durable reservation this ticket minted,
 	// and acquire the drive's claimant flock, before any launch (change 0437 Task
 	// 2). A fence that landed between Admit and here — or a rotated/foreign
 	// reservation, a busy claim, or a settled record — refuses with a typed error
@@ -523,20 +523,20 @@ func (d *Driver) StartAdmitted(t *AdmissionTicket) (DriveDoc, error) {
 	return d.launchScopeless(t, claim)
 }
 
-// revalidateAdmittedLaunch re-reads, under the epoch gate, the EXACT durable
+// revalidateAdmittedLaunch re-reads, under the run launch gate, the EXACT durable
 // reservation this ticket minted — the worktree slot must still carry the
 // ticket's ReservationToken in the state the ticket expects (reserved when the
 // ticket owns the slot, executing when it reuses a peer's), and the RESERVED
 // drive record must still exist under the ticket's owner generation and stay
 // nonterminal — and acquires the drive's claimant flock NONBLOCKING. Any
-// mismatch, a busy claim, or a revoked epoch refuses with a typed error and
+// mismatch, a busy claim, or a revoked run refuses with a typed error and
 // launches nothing.
 //
 // The claim is taken as the nonblocking per-drive launch claimant (the SAME lock
 // file tryRelaunchClaim/reserveRelaunch use), so a concurrent cancellation that
 // probes the claim reports busy — pending work, never proof of a crashed caller.
-// The epoch lock is held only inside the gate; the returned claim is retained by
-// the caller across the out-of-gate launch. An epoch refusal (the gate refused
+// The run lock is held only inside the gate; the returned claim is retained by
+// the caller across the out-of-gate launch. A run refusal (the gate refused
 // before running reserve) fail-closes the delayed ticket: it settles the drive
 // HALTED "run-cancelled" and, for a ticket that minted its own slot, releases the
 // slot — nothing launched, provably idle — then returns the gate's error
@@ -585,7 +585,7 @@ func (d *Driver) revalidateAdmittedLaunch(t *AdmissionTicket) (*relaunchClaim, e
 			claim = nil
 		}
 		if !reserveEntered {
-			// Epoch refusal: the gate refused before running reserve, so nothing was
+			// Run refusal: the gate refused before running reserve, so nothing was
 			// claimed. Fail-close the delayed ticket and surface the gate's error.
 			d.settleAdmittedAfterRunRefusal(t)
 		}
@@ -619,7 +619,7 @@ func (d *Driver) verifyAdmittedSlot(t *AdmissionTicket) error {
 	return nil
 }
 
-// settleAdmittedAfterRunRefusal fail-closes a delayed ticket whose epoch was
+// settleAdmittedAfterRunRefusal fail-closes a delayed ticket whose run was
 // revoked between Admit and StartAdmitted. It settles the reserved drive record
 // HALTED "run-cancelled" (mirroring the launch-failed CAS blocks in the launch
 // legs) and, for a ticket that minted its own worktree slot (a scopeless start,
@@ -683,7 +683,7 @@ func (d *Driver) AbandonAdmission(t *AdmissionTicket) error {
 // drive, and name a predecessor with a durable PASSED/FAILED result still owned by
 // the presented generation and carrying no outstanding handoff. A half-filled
 // receipt is a fail-closed ErrStalePredecessor. On success it returns the start's
-// effective run epoch (scopedRunID).
+// effective run (scopedRunID).
 func (d *Driver) precheckScopedStart(req StartRequest) (string, error) {
 	scope, err := d.store.LoadScope(req.ScopeID)
 	if err != nil {
@@ -762,7 +762,7 @@ func (d *Driver) precheckScopedStart(req StartRequest) (string, error) {
 // complete pinned identity: the repo/branch/worktree/change/task/phase bundle
 // scopeIdentityMatch checks, plus the gate-context token when the scope pinned one
 // (Invariant 6 — omission or alteration must not detach a drive from outer
-// recovery), and the run epoch when both the scope and the request carry one. A
+// recovery), and the run when both the scope and the request carry one. A
 // scope that pinned no gate context accepts any (the pre-0359 default).
 func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 	if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
@@ -771,8 +771,8 @@ func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 	if scope.RunContextHash != "" && capHash(req.RunContext) != scope.RunContextHash {
 		return false
 	}
-	// A scope that pinned a run epoch accepts a start presenting none (it inherits
-	// the scope's — scopedRunID) or the same one; a different presented epoch is
+	// A scope that pinned a run accepts a start presenting none (it inherits
+	// the scope's — scopedRunID) or the same one; a different presented run is
 	// an altered identity (change 0467).
 	if scope.RunID != "" && req.RunID != "" && req.RunID != scope.RunID {
 		return false
@@ -780,9 +780,9 @@ func scopedIdentityMatch(scope scopeRecord, req StartRequest) bool {
 	return true
 }
 
-// scopedRunID resolves the effective run epoch of a scoped start (change 0467):
-// a scope that pinned an epoch supplies it — scopedIdentityMatch has already
-// refused a start presenting a different one — and a scope with no epoch (a legacy
+// scopedRunID resolves the effective run of a scoped start (change 0467):
+// a scope that pinned a run supplies it — scopedIdentityMatch has already
+// refused a start presenting a different one — and a scope with no run (a legacy
 // v2 scope, or one prepared without) leaves the presented value governing,
 // unchanged from before.
 func scopedRunID(scope scopeRecord, presented string) string {
@@ -792,11 +792,11 @@ func scopedRunID(scope scopeRecord, presented string) string {
 	return presented
 }
 
-// AdvisoryRunID resolves, without writing anything, the run epoch Admit would
+// AdvisoryRunID resolves, without writing anything, the run Admit would
 // admit req under, for the application layer's advisory pre-admission check
 // (change 0467). A scoped start that presents its scope's child capability takes
-// scopedRunID — the scope's pinned epoch, or the presented one for an
-// epoch-less scope. A start presenting a foreign epoch keeps it (Admit refuses
+// scopedRunID — the scope's pinned run, or the presented one for an
+// no-run-record scope. A start presenting a foreign run keeps it (Admit refuses
 // that start scope-identity-mismatch, so the advisory check must stay fenced), as
 // does a scopeless start, an unreadable scope, or a rejected capability: those are
 // Admit's to refuse, never the advisory check's to widen.
@@ -1290,7 +1290,7 @@ func isSameScopeRaceLoss(err error) bool {
 // isSameScopeRaceLoss.
 //
 // Two successors can present the same predecessor receipt P. Admissions are not
-// serialized across them (an epoch-less scope runs the admission body directly), so
+// serialized across them (a no-run-record scope runs the admission body directly), so
 // the pre-rotation staleness guard in admitScopedWorktree does not exclude this
 // interleaving: S2 passes the guard while P is current and rotates (or freshly
 // reserves) the slot to T; S1 finds a same-scope RESERVED slot and adopts T; S1 wins
@@ -1376,10 +1376,10 @@ func (d *Driver) Advance(id, ownerGen string) (DriveDoc, error) {
 	}
 	var claim *relaunchClaim
 	if rec.RelaunchReserved {
-		// Validate the drive's epoch (read-only) BEFORE recoverReservedRelaunch takes
-		// the per-drive claim: a revoked epoch must not authorize a NEW launch for a
+		// Validate the drive's run (read-only) BEFORE recoverReservedRelaunch takes
+		// the per-drive claim: a revoked run must not authorize a NEW launch for a
 		// crash-window reservation, though an already-identified replacement is still
-		// reconciled (attach/report — reconciliation, not authorization). The epoch
+		// reconciled (attach/report — reconciliation, not authorization). The run
 		// lock is thus acquired without holding the claim (change 0437 Task 3).
 		revoked := d.recoveryRunRevoked(rec)
 		var resolved *DriveDoc
@@ -1688,19 +1688,19 @@ var errAlreadyTerminal = errors.New("gatedrive: drive already terminal")
 // authoritative drive state and never issues a second backend launch.
 var errRelaunchRaceLost = errors.New("gatedrive: relaunch already consumed by a concurrent advance")
 
-// resolveDriveRun resolves the run epoch a durable drive is linked to, from
+// resolveDriveRun resolves the run a durable drive is linked to, from
 // existing records only. A scoped drive answers from its scope's RunID; a
 // scopeless drive with an AdmissionToken answers from the worktree slot ONLY when
 // the slot's ReservationToken still equals that token (an exact-reservation
 // match). ok=false with cause set means the linkage is LOST or inconsistent — the
-// drive can no longer prove whether it is epoch-backed, so new execution is
-// refused (never demoted to standalone). ("", true, "") is a genuinely epoch-less
-// drive (a legacy empty token, or a slot recording no epoch). (change 0437 Task 3)
+// drive can no longer prove whether it is run-backed, so new execution is
+// refused (never demoted to standalone). ("", true, "") is a genuinely no-run-record
+// drive (a legacy empty token, or a slot recording no run). (change 0437 Task 3)
 func (d *Driver) resolveDriveRun(rec driveRecord) (runID string, ok bool, cause string) {
 	if rec.ScopeID != "" {
 		scope, err := d.store.LoadScope(rec.ScopeID)
 		if err != nil {
-			// The scope's epoch cannot be read: the drive can no longer prove its
+			// The scope's run cannot be read: the drive can no longer prove its
 			// linkage, so refuse rather than treat it as standalone (CauseRunRecordUnreadable).
 			return "", false, CauseRunRecordUnreadable
 		}
@@ -1719,15 +1719,15 @@ func (d *Driver) resolveDriveRun(rec driveRecord) (runID string, ok bool, cause 
 	return slot.RunID, true, ""
 }
 
-// authorizeRelaunch validates, under the epoch gate, that the drive's epoch (if
+// authorizeRelaunch validates, under the run launch gate, that the drive's run (if
 // any) is live and reserves the single automatic replacement while the gate is
 // held. It returns the held claim; the caller launches OUTSIDE the gate. A LOST
 // linkage returns a non-empty halt cause and reserves nothing (never demoted to
-// standalone). A gate refusal (the epoch is revoked) maps to halt cause
+// standalone). A gate refusal (the run is revoked) maps to halt cause
 // "run-cancelled" — a bounded token matching the fence vocabulary; reserveRelaunch's
 // own race-lost/terminal/IO error is returned unchanged so the caller's existing
-// sentinel handling applies. Lock order: the epoch gate is acquired FIRST and
-// reserveRelaunch takes the per-drive claim INSIDE it, so the epoch lock is never
+// sentinel handling applies. Lock order: the run launch gate is acquired FIRST and
+// reserveRelaunch takes the per-drive claim INSIDE it, so the run lock is never
 // acquired while the claim is already held (spec "Serialize with existing locks").
 func (d *Driver) authorizeRelaunch(id, ownerGen string, rec driveRecord) (*relaunchClaim, string, error) {
 	runID, ok, cause := d.resolveDriveRun(rec)
@@ -1751,7 +1751,7 @@ func (d *Driver) authorizeRelaunch(id, ownerGen string, rec driveRecord) (*relau
 			claim = nil
 		}
 		if !reserveEntered {
-			// The gate refused before running reserve: the epoch is revoked.
+			// The gate refused before running reserve: the run is revoked.
 			return nil, "run-cancelled", nil
 		}
 		// reserveRelaunch's own error: hand it back for the existing sentinel handling.
@@ -1760,13 +1760,13 @@ func (d *Driver) authorizeRelaunch(id, ownerGen string, rec driveRecord) (*relau
 	return claim, "", nil
 }
 
-// recoveryRunRevoked reports whether a reserved-relaunch drive's linked epoch is
-// no longer live, via a read-only pass through the epoch gate (a no-op reserve
+// recoveryRunRevoked reports whether a reserved-relaunch drive's linked run is
+// no longer live, via a read-only pass through the run launch gate (a no-op reserve
 // body). It runs BEFORE recoverReservedRelaunch takes the per-drive claim, so the
-// epoch lock is never acquired while the claim is held. A lost or unreadable
+// run lock is never acquired while the claim is held. A lost or unreadable
 // linkage is treated as revoked (fail closed: recovery may still attach or report,
 // but must never authorize a NEW launch for a drive that cannot prove it is still
-// epoch-backed). A genuinely epoch-less drive (runID "") runs the no-op directly
+// run-backed). A genuinely no-run-record drive (runID "") runs the no-op directly
 // and is never revoked, so the standalone recovery path is unchanged. (change 0437
 // Task 3)
 func (d *Driver) recoveryRunRevoked(rec driveRecord) bool {
@@ -1825,7 +1825,7 @@ func (s *Store) reserveRelaunch(id, ownerGen string) (*relaunchClaim, error) {
 // or launching. After a crash, the new claimant resolves the replacement's own
 // token, never the admission token used by the original run.
 //
-// When revoked is true (the caller's read-only epoch pass found the drive's epoch
+// When revoked is true (the caller's read-only run pass found the drive's run
 // no longer live), the ONLY behavioral change is the proven-never-launched arm: it
 // settles the drive HALTED "run-cancelled" instead of returning a live claim for a
 // new launch. The identified, busy, and ambiguous arms are unchanged — reconciling
@@ -1867,9 +1867,9 @@ func (d *Driver) recoverReservedRelaunch(id, ownerGen string, rec driveRecord, r
 	switch resolution.Disposition {
 	case "never-launched":
 		if revoked {
-			// The epoch was revoked before this crash-window reservation ever
+			// The run was revoked before this crash-window reservation ever
 			// launched: it is provably idle, so settle it closed rather than
-			// authorizing a new launch under a dead epoch.
+			// authorizing a new launch under a dead run.
 			claim.close()
 			return d.haltReservedRelaunchCause(id, ownerGen, cur, "run-cancelled")
 		}
@@ -1911,7 +1911,7 @@ func (d *Driver) haltReservedRelaunch(id, ownerGen string, rec driveRecord) (dri
 // the given cause, preserving the consumed reservation (the CAS never clears
 // RelaunchReserved, so the sole relaunch is never refunded). "unresolved-execution"
 // is the crash-window uncertainty default; "run-cancelled" is used when the drive's
-// epoch was revoked before the replacement launched (change 0437 Task 3).
+// run was revoked before the replacement launched (change 0437 Task 3).
 func (d *Driver) haltReservedRelaunchCause(id, ownerGen string, rec driveRecord, cause string) (driveRecord, *relaunchClaim, *DriveDoc, error) {
 	err := d.store.ownerCAS(id, func(r *driveRecord) error {
 		if err := verifyOwner(r, ownerGen); err != nil {
@@ -2075,10 +2075,10 @@ func (d *Driver) driveSlice(id, ownerGen string, rec driveRecord, claim *relaunc
 				return halt(&res, refusal)
 			}
 			if claim == nil {
-				// Fence the single automatic relaunch behind the epoch gate: the
-				// reservation commits while the epoch registry lock is held, so a
+				// Fence the single automatic relaunch behind the run launch gate: the
+				// reservation commits while the run registry lock is held, so a
 				// concurrent cancellation either lands first (nothing is reserved) or
-				// observes the held claim. A lost linkage or a revoked epoch refuses
+				// observes the held claim. A lost linkage or a revoked run refuses
 				// with a HALT cause and launches nothing (change 0437 Task 3).
 				var haltCause string
 				var err error

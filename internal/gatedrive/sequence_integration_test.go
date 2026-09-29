@@ -490,7 +490,7 @@ func TestIntegrationGatedriveSequenceCredentialTheftRejected(t *testing.T) {
 // sequence_race_integration_test.go (race shard, change 0466).
 // ---------------------------------------------------------------------------
 
-// genSettled is a thread-safe scripted RunSettledFunc: an epoch is settled once
+// genSettled is a thread-safe scripted RunSettledFunc: a run is settled once
 // the test marks it (its run completed, or its cancellation was confirmed).
 type genSettled struct {
 	mu      sync.Mutex

@@ -50,7 +50,7 @@ type fakeDriveEngine struct {
 	// test can prove a busy advisory refusal reached reconciliation first.
 	reconcile      func(worktree, runID string) (bool, string, error)
 	reconcileCount int
-	// scopeRun, when set, is the run epoch a scoped start's scope pinned
+	// scopeRun, when set, is the run a scoped start's scope pinned
 	// (AdvisoryRunID, change 0467).
 	scopeRun string
 }
@@ -65,7 +65,7 @@ func (f *fakeDriveEngine) ReconcileFinishedIncumbent(worktree, runID string) (bo
 
 // AdvisoryRunID models the driver's resolution: a scoped start inherits
 // scopeRun when it presents none (or the same one); anything else keeps the
-// presented epoch.
+// presented run.
 func (f *fakeDriveEngine) AdvisoryRunID(r gatedrive.StartRequest) string {
 	if r.ScopeID != "" && f.scopeRun != "" && (r.RunID == "" || r.RunID == f.scopeRun) {
 		return f.scopeRun
@@ -1101,15 +1101,15 @@ func TestBudgetedBuildReconcilesBeforeRefusal(t *testing.T) {
 }
 
 // TestBudgetedBuildAdvisoryReconcilesWithScopeRun (change 0467): a scoped
-// build-owned start presenting NO run epoch, under a scope pinned to epoch E, over
+// build-owned start presenting NO run, under a scope pinned to run E, over
 // a proven-finished incumbent slot E owns, is admitted — the advisory precheck
-// reconciles with the scope's epoch, exactly as Admit would, instead of the empty
-// presented one (which the slot's epoch fence would refuse worktree-busy). A start
-// presenting a foreign epoch stays fenced and is refused before admission.
+// reconciles with the scope's run, exactly as Admit would, instead of the empty
+// presented one (which the slot's run fence would refuse worktree-busy). A start
+// presenting a foreign run stays fenced and is refused before admission.
 func TestBudgetedBuildAdvisoryReconcilesWithScopeRun(t *testing.T) {
 	const (
 		runID      = "0467eeeeeeeeeeeeeeeeeeeeeeeeee01"
-		ownerRunID = "epoch-e1"
+		ownerRunID = "run-e1"
 	)
 	var reconciledRuns []string
 	setup := func(t *testing.T) (*GateDriveService, *fakeDriveEngine, string, GateDriveStartRequest, *gatedrive.Store) {
@@ -1128,7 +1128,7 @@ func TestBudgetedBuildAdvisoryReconcilesWithScopeRun(t *testing.T) {
 		eng.scopeRun = ownerRunID
 		// The E-owned slot is a scopeless-kind incumbent, which the real store proves
 		// finished only through a drive record this package cannot mint, so the seam
-		// is scripted: it applies the store's epoch fence (a slot another epoch owns
+		// is scripted: it applies the store's run fence (a slot another run owns
 		// is never settled) and otherwise reports the finished incumbent settled.
 		eng.reconcile = func(w, e string) (bool, string, error) {
 			reconciledRuns = append(reconciledRuns, e)
@@ -1144,38 +1144,38 @@ func TestBudgetedBuildAdvisoryReconcilesWithScopeRun(t *testing.T) {
 		return svc, eng, dir, req, store
 	}
 
-	t.Run("no presented epoch inherits the scope's and admits", func(t *testing.T) {
+	t.Run("no presented run inherits the scope's and admits", func(t *testing.T) {
 		svc, eng, dir, req, _ := setup(t)
 		got := svc.Start(req)
 		if got.Result != ResultApplied {
-			t.Fatalf("a scoped start presenting no epoch must be admitted over its own epoch's finished incumbent: result=%s reason=%q msg=%q", got.Result, got.Reason, got.Message)
+			t.Fatalf("a scoped start presenting no run must be admitted over its own run's finished incumbent: result=%s reason=%q msg=%q", got.Result, got.Reason, got.Message)
 		}
 		if eng.reconcileCount != 1 || eng.startCount != 1 || eng.startAdmittedCount != 1 {
 			t.Fatalf("reconcile=%d admit=%d launch=%d, want 1/1/1", eng.reconcileCount, eng.startCount, eng.startAdmittedCount)
 		}
 		if len(reconciledRuns) != 1 || reconciledRuns[0] != ownerRunID {
-			t.Fatalf("the advisory check must reconcile under the scope's epoch, got %v", reconciledRuns)
+			t.Fatalf("the advisory check must reconcile under the scope's run, got %v", reconciledRuns)
 		}
 		if used, _ := suiteUsage(t, dir, "0467"); used != 1 {
 			t.Fatalf("usage = %d, want exactly one charged attempt", used)
 		}
 	})
 
-	t.Run("foreign presented epoch stays fenced", func(t *testing.T) {
+	t.Run("foreign presented run stays fenced", func(t *testing.T) {
 		svc, eng, dir, req, _ := setup(t)
-		req.RunID = "epoch-foreign"
+		req.RunID = "run-foreign"
 		got := svc.Start(req)
 		if got.Result == ResultApplied || got.Reason != string(gatedrive.ErrWorktreeBusy) {
-			t.Fatalf("a foreign presented epoch must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
+			t.Fatalf("a foreign presented run must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
 		}
 		if !strings.Contains(got.Message, "incumbent-run-fenced") {
-			t.Fatalf("refusal must name the epoch fence, got %q", got.Message)
+			t.Fatalf("refusal must name the run fence, got %q", got.Message)
 		}
 		if eng.startCount != 0 {
 			t.Fatalf("a fenced start must not reach admission, got %d", eng.startCount)
 		}
-		if len(reconciledRuns) != 1 || reconciledRuns[0] != "epoch-foreign" {
-			t.Fatalf("a foreign epoch must be reconciled as presented, got %v", reconciledRuns)
+		if len(reconciledRuns) != 1 || reconciledRuns[0] != "run-foreign" {
+			t.Fatalf("a foreign run must be reconciled as presented, got %v", reconciledRuns)
 		}
 		if used, limit := suiteUsage(t, dir, "0467"); used != 0 || limit != 0 {
 			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
@@ -1358,11 +1358,11 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 	}
 }
 
-// TestMapDriveFailureFenceReasons proves the run-epoch mutation-fence refusal
+// TestMapDriveFailureFenceReasons proves the run mutation-fence refusal
 // (MutationFenceError) is classified through the SAME shared mapDriveFailure
 // classifier into its bounded, stable token (run-cancelled / stale-run-id) with
 // a distinct valid-next-action message, and that a wrapped credential leaks into
-// neither the reason nor the message. It is the fail-safe path for a fenced-epoch
+// neither the reason nor the message. It is the fail-safe path for a fenced-run
 // error that ever chains through the gate-drive seam.
 func TestMapDriveFailureFenceReasons(t *testing.T) {
 	const secret = "SECRET-TOKEN-cafebabecafebabe"
@@ -1518,10 +1518,10 @@ func TestGateDriveHumanTextRendersLegacyLines(t *testing.T) {
 }
 
 // TestProductionConstructorsWireRunLaunchGate proves every production gate-drive
-// constructor injects the app-side epoch launch gate into the driver it composes —
+// constructor injects the app-side run launch gate into the driver it composes —
 // the wiring is where the takeover-only defect lived, so deleting any ONE
 // SetRunLaunchGate line must redden this test (change 0437 Task 5). It equally
-// proves each wires the released-slot epoch settlement read (change 0446): deleting
+// proves each wires the released-slot run settlement read (change 0446): deleting
 // any ONE SetRunSettledResolver line reddens it too.
 func TestProductionConstructorsWireRunLaunchGate(t *testing.T) {
 	dir := testsupport.TempDir(t)
@@ -1533,10 +1533,10 @@ func TestProductionConstructorsWireRunLaunchGate(t *testing.T) {
 			t.Fatalf("%s: nil driver", name)
 		}
 		if !d.RunLaunchGateWired() {
-			t.Fatalf("%s: epoch launch gate not wired", name)
+			t.Fatalf("%s: run launch gate not wired", name)
 		}
 		if !d.RunSettledResolverWired() {
-			t.Fatalf("%s: epoch settlement resolver not wired", name)
+			t.Fatalf("%s: run settlement resolver not wired", name)
 		}
 	}
 	driverOf := func(name string, svc *GateDriveService, res Result, reason string) *gatedrive.Driver {
@@ -1574,7 +1574,7 @@ func TestProductionConstructorsWireRunLaunchGate(t *testing.T) {
 	check("continuation", gs.driver)
 }
 
-// TestBuildStartRunRefusalChargesNoAttempt proves an epoch-fenced admission
+// TestBuildStartRunRefusalChargesNoAttempt proves a run-fenced admission
 // charges no suite attempt: Admit returns ErrRunCancelled (a cancellation landed
 // before admission), so the start refuses with reason "run-cancelled", never
 // launches, and the budget is untouched — admission precedes charging (change 0437
@@ -1585,7 +1585,7 @@ func TestBuildStartRunRefusalChargesNoAttempt(t *testing.T) {
 
 	got := svc.Start(buildStartReq("0437"))
 	if got.Result == ResultApplied || got.Drive != nil {
-		t.Fatalf("an epoch-cancelled admission must refuse the start, got result=%s", got.Result)
+		t.Fatalf("a run-cancelled admission must refuse the start, got result=%s", got.Result)
 	}
 	if got.Reason != "run-cancelled" {
 		t.Fatalf("refusal reason = %q, want run-cancelled", got.Reason)
@@ -1594,7 +1594,7 @@ func TestBuildStartRunRefusalChargesNoAttempt(t *testing.T) {
 		t.Fatalf("a refused admission must never launch, got %d StartAdmitted calls", eng.startAdmittedCount)
 	}
 	if used, limit := suiteUsage(t, dir, "0437"); used != 0 || limit != 0 {
-		t.Fatalf("an epoch refusal must charge no suite attempt, got usage (%d,%d)", used, limit)
+		t.Fatalf("a run refusal must charge no suite attempt, got usage (%d,%d)", used, limit)
 	}
 }
 
@@ -1675,15 +1675,15 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 		{"driven busy", ownershipErrWith(gatedrive.ErrWorktreeBusy, drivenInc),
 			"worktree-admission", "incumbent-drive:" + drivenInc.DriveID,
 			[]string{"occupies"}, []string{"gate stop", "driven gate occupies"}},
-		{"epoch owned", ownershipErrWith(gatedrive.ErrStaleRunID, runInc),
+		{"run owned", ownershipErrWith(gatedrive.ErrStaleRunID, runInc),
 			"worktree-admission", "",
-			[]string{"run.cancel", "resolves"}, []string{"gate stop", "epoch-"}},
-		// A slot-named epoch no readable record carries: run.cancel cannot target
+			[]string{"run.cancel", "resolves"}, []string{"gate stop", "incumbent-run:"}},
+		// A slot-named run no readable record carries: run.cancel cannot target
 		// it, so the remedy must not suggest it and names the store + human repair.
-		{"epoch unresolved", ownershipErrWith(gatedrive.ErrStaleRunID,
+		{"run unresolved", ownershipErrWith(gatedrive.ErrStaleRunID,
 			&gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "released", RunOwned: true, RunUnresolved: true}),
 			"worktree-admission", "",
-			[]string{"docket/run-tracker", "human"}, []string{"run.cancel", "gate stop", "epoch-"}},
+			[]string{"docket/run-tracker", "human"}, []string{"run.cancel", "gate stop", "incumbent-run:"}},
 		{"unknown identity", ownershipErrWith(gatedrive.ErrWorktreeBusy, blankInc),
 			"worktree-admission", "",
 			[]string{"occupies"}, []string{"gate stop", "gate observe"}},
@@ -1746,7 +1746,7 @@ func TestQuoteOperand(t *testing.T) {
 }
 
 // TestMapDriveFailureRunErrors (change 0463): an RunError chained through the
-// gate-drive seam (the epoch launch gate refusing an unknown --run-id) surfaces
+// gate-drive seam (the run launch gate refusing an unknown --run-id) surfaces
 // its named token, never the catch-all invalid-request. The service attaches the
 // next-action message, and neither the reason nor the message echoes the value.
 func TestMapDriveFailureRunErrors(t *testing.T) {
@@ -1784,7 +1784,7 @@ func TestPrepareScopeRefusesUnknownRunID(t *testing.T) {
 		asked = id
 		return runErr(ErrRunNotFound, "find-dir-by-id", nil)
 	}
-	got := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463", RunID: "bogus-epoch-value"})
+	got := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463", RunID: "bogus-run-value"})
 	if got.Result != ResultInvalidInput || got.Reason != ReasonUnknownRunID {
 		t.Fatalf("got (%s, %q), want (invalid-input, unknown-run-id)", got.Result, got.Reason)
 	}
@@ -1792,15 +1792,15 @@ func TestPrepareScopeRefusesUnknownRunID(t *testing.T) {
 		t.Fatalf("a refused prepare-scope must carry no grant: %+v", got)
 	}
 	if eng.lastScopeReq.ChangeID != "" {
-		t.Fatalf("an unresolvable epoch must mint no scope, engine saw %+v", eng.lastScopeReq)
+		t.Fatalf("an unresolvable run must mint no scope, engine saw %+v", eng.lastScopeReq)
 	}
-	if asked != "bogus-epoch-value" {
+	if asked != "bogus-run-value" {
 		t.Fatalf("locator asked %q, want the presented id", asked)
 	}
 	if !strings.Contains(got.Message, "--gate-context") || !strings.Contains(got.HumanText(), "unknown-run-id") {
 		t.Fatalf("refusal must carry reason and next action: message=%q human=%q", got.Message, got.HumanText())
 	}
-	if strings.Contains(got.Message, "bogus-epoch-value") || strings.Contains(got.HumanText(), "bogus-epoch-value") {
+	if strings.Contains(got.Message, "bogus-run-value") || strings.Contains(got.HumanText(), "bogus-run-value") {
 		t.Fatalf("the presented value leaked: %q / %q", got.Message, got.HumanText())
 	}
 

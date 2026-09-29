@@ -15,7 +15,7 @@ import (
 )
 
 // These are the `run cancel` operation tests (change 0375 Task 10). run.cancel is
-// the coordinator's explicit Stop: it durably fences the run epoch, tears down
+// the coordinator's explicit Stop: it durably fences the run, tears down
 // registered tasks/processes, reconciles admitted mutations, and reports cancelled
 // only on full accounting. The tests drive the flow over faked stop/native seams and
 // a real gatedrive admission store rooted at a real temp git repo.
@@ -43,8 +43,8 @@ func removeAdmissionRecord(t *testing.T, common, worktree string) {
 	}
 }
 
-// TestIntegrationRunCancelRunCancelHappyPath: an active epoch with a proven slot teardown cancels
-// cleanly — disposition cancelled, epoch cancelled, slot released.
+// TestIntegrationRunCancelRunCancelHappyPath: an active run with a proven slot teardown cancels
+// cleanly — disposition cancelled, run cancelled, slot released.
 func TestIntegrationRunCancelRunCancelHappyPath(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
@@ -57,20 +57,20 @@ func TestIntegrationRunCancelRunCancelHappyPath(t *testing.T) {
 		t.Fatalf("result = %q, want applied", res.Result)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
-		t.Fatalf("epoch state = %q, want cancelled", st)
+		t.Fatalf("run state = %q, want cancelled", st)
 	}
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
 		t.Fatalf("slot state = %q, want released", st)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot epoch = %q, want cleared (completed cancellation retires the owned released slot)", epo)
+		t.Fatalf("slot run = %q, want cleared (completed cancellation retires the owned released slot)", epo)
 	}
 	if len(stopper.calls) != 1 || stopper.calls[0] != fx.runDir {
 		t.Fatalf("stopper calls = %v, want [%s]", stopper.calls, fx.runDir)
 	}
 }
 
-// TestIntegrationRunCancelRunCancelPendingOnUnprovenStop: an unproven slot teardown fences the epoch but
+// TestIntegrationRunCancelRunCancelPendingOnUnprovenStop: an unproven slot teardown fences the run but
 // leaves it cancelling — disposition cancellation-pending, slot stopping.
 func TestIntegrationRunCancelRunCancelPendingOnUnprovenStop(t *testing.T) {
 	fx := newCancelFixture(t, true)
@@ -81,7 +81,7 @@ func TestIntegrationRunCancelRunCancelPendingOnUnprovenStop(t *testing.T) {
 		t.Fatalf("disposition = %q, want cancellation-pending", res.Disposition)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
-		t.Fatalf("epoch state = %q, want cancelling (durable fence held)", st)
+		t.Fatalf("run state = %q, want cancelling (durable fence held)", st)
 	}
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "stopping" {
 		t.Fatalf("slot state = %q, want stopping (not released)", st)
@@ -91,7 +91,7 @@ func TestIntegrationRunCancelRunCancelPendingOnUnprovenStop(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelRunCancelAlreadyCancelled: a repeat against a cancelled epoch is idempotent
+// TestIntegrationRunCancelRunCancelAlreadyCancelled: a repeat against a cancelled run is idempotent
 // already-cancelled, touching nothing.
 func TestIntegrationRunCancelRunCancelAlreadyCancelled(t *testing.T) {
 	fx := newCancelFixture(t, false)
@@ -118,10 +118,10 @@ func TestIntegrationRunCancelRunCancelAlreadyCancelled(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelRunCancelRefusedWrongRun: a stale epoch locator is refused with no fence.
+// TestIntegrationRunCancelRunCancelRefusedWrongRun: a stale run locator is refused with no fence.
 func TestIntegrationRunCancelRunCancelRefusedWrongRun(t *testing.T) {
 	fx := newCancelFixture(t, true)
-	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}}, fx.repo, fx.key, "not-the-epoch", "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}}, fx.repo, fx.key, "not-the-run", "human stop")
 	if res.Disposition != CancelDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", res.Disposition)
 	}
@@ -129,7 +129,7 @@ func TestIntegrationRunCancelRunCancelRefusedWrongRun(t *testing.T) {
 		t.Fatalf("findings = %v, want run-id-mismatch", res.Findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunActive {
-		t.Fatalf("a refused cancel must not fence: epoch state = %q, want active", st)
+		t.Fatalf("a refused cancel must not fence: run state = %q, want active", st)
 	}
 }
 
@@ -158,7 +158,7 @@ func TestIntegrationRunCancelRunCancelRefusedWrongClaim(t *testing.T) {
 		t.Fatalf("findings = %v, want claim-unconfirmed", res.Findings)
 	}
 	if st := loadRunState(t, repo, key); st != RunActive {
-		t.Fatalf("a refused cancel must not fence: epoch state = %q, want active", st)
+		t.Fatalf("a refused cancel must not fence: run state = %q, want active", st)
 	}
 }
 
@@ -172,9 +172,9 @@ func TestIntegrationRunCancelRunCancelRefusedWrongRepo(t *testing.T) {
 	if res.Disposition != CancelDispositionRefused {
 		t.Fatalf("disposition = %q, want refused (findings=%v)", res.Disposition, res.Findings)
 	}
-	// The original epoch in the real repo is untouched.
+	// The original run in the real repo is untouched.
 	if st := loadRunState(t, fx.repo, fx.key); st != RunActive {
-		t.Fatalf("a foreign-repo cancel must not touch the real epoch: state = %q", st)
+		t.Fatalf("a foreign-repo cancel must not touch the real run: state = %q", st)
 	}
 }
 
@@ -189,7 +189,7 @@ func TestIntegrationRunCancelCancelFencesBeforeStopping(t *testing.T) {
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{"R1": true, fx.runDir: true}}
 	// The barrier: when P1 is stopped (after the fence), a racing launch registers
-	// P2 directly (the epoch is cancelling, so the normal registration path would be
+	// P2 directly (the run is cancelling, so the normal registration path would be
 	// refused — this stands in for a launch that reserved its slot before the fence).
 	stopper.onStop = func(runDir string) {
 		if runDir != "R1" {
@@ -209,12 +209,12 @@ func TestIntegrationRunCancelCancelFencesBeforeStopping(t *testing.T) {
 		t.Fatalf("findings = %v, want unaccounted-participant:R2", res.Findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
-		t.Fatalf("epoch state = %q, want cancelling", st)
+		t.Fatalf("run state = %q, want cancelling", st)
 	}
 }
 
 // TestIntegrationRunCancelCancelRepeatResumesCleanup: a first cancel fences and leaves the run pending
-// on an unproven stop; a repeat against the cancelling epoch resumes cleanup (no
+// on an unproven stop; a repeat against the cancelling run resumes cleanup (no
 // re-fence, no authority restore) and completes to cancelled when the stop proves.
 func TestIntegrationRunCancelCancelRepeatResumesCleanup(t *testing.T) {
 	fx := newCancelFixture(t, true)
@@ -225,23 +225,23 @@ func TestIntegrationRunCancelCancelRepeatResumesCleanup(t *testing.T) {
 		t.Fatalf("first disposition = %q, want cancellation-pending", first.Disposition)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
-		t.Fatalf("after first cancel epoch state = %q, want cancelling", st)
+		t.Fatalf("after first cancel run state = %q, want cancelling", st)
 	}
 
-	// The teardown now proves; a repeat resumes cleanup on the cancelling epoch.
+	// The teardown now proves; a repeat resumes cleanup on the cancelling run.
 	stopper.proven[fx.runDir] = true
 	second := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
 	if second.Disposition != CancelDispositionCancelled {
 		t.Fatalf("second disposition = %q, want cancelled (findings=%v)", second.Disposition, second.Findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
-		t.Fatalf("after repeat epoch state = %q, want cancelled", st)
+		t.Fatalf("after repeat run state = %q, want cancelled", st)
 	}
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
 		t.Fatalf("slot state = %q, want released", st)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot epoch = %q, want cleared (completed cancellation retires the owned released slot)", epo)
+		t.Fatalf("slot run = %q, want cleared (completed cancellation retires the owned released slot)", epo)
 	}
 }
 
@@ -266,14 +266,14 @@ func TestIntegrationRunCancelCancelPendingOnUncompletedMutation(t *testing.T) {
 		t.Fatalf("findings = %v, want mutation-pending:pr.publish", res.Findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
-		t.Fatalf("epoch state = %q, want cancelling", st)
+		t.Fatalf("run state = %q, want cancelling", st)
 	}
 }
 
 // TestIntegrationRunCancelCancelSettlesUncertainPublicationWithIdenticalRetry (change 0444 acceptance
 // 1): an uncertain PR publication plus a later completed identical retry — with
 // every process teardown proven — lets cancellation durably complete the original
-// entry and report cancelled; the terminal epoch is then quiescent for resume and
+// entry and report cancelled; the terminal run is then quiescent for resume and
 // SupersedeCancelledRun admits exactly one replacement.
 func TestIntegrationRunCancelCancelSettlesUncertainPublicationWithIdenticalRetry(t *testing.T) {
 	fx := newCancelFixture(t, true)
@@ -309,7 +309,7 @@ func TestIntegrationRunCancelCancelSettlesUncertainPublicationWithIdenticalRetry
 	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
 		t.Fatal("the ORIGINAL record must be durably completed, not merely the result string")
 	}
-	// Resume path: the terminal epoch is quiescent and admits its one replacement.
+	// Resume path: the terminal run is quiescent and admits its one replacement.
 	if ok, detail := validateResumeQuiescence(cancelSeams{store: fx.store, launches: okLaunchReconciler()}, fx.repo, ep, fx.worktree); !ok {
 		t.Fatalf("resume quiescence = %q, want quiescent after settlement", detail)
 	}
@@ -388,7 +388,7 @@ func TestIntegrationRunCancelCancelNativeAdapterAbsentIsFindingNotSilence(t *tes
 }
 
 // TestIntegrationRunCancelCancelNeverChargesOrResets: cancellation touches neither the change-owned
-// suite budget nor the gate retry markers, and resets no gate-record retry state.
+// suite budget nor the run-tracker retry markers, and resets no run-tracker-record retry state.
 func TestIntegrationRunCancelCancelNeverChargesOrResets(t *testing.T) {
 	fx := newCancelFixture(t, true)
 
@@ -442,7 +442,7 @@ func TestIntegrationRunCancelCancelNeverChargesOrResets(t *testing.T) {
 }
 
 // TestIntegrationRunCancelCancelPendingWhileLaunchObligationUnresolved: even with every process teardown
-// proven, an epoch-linked launch obligation the reconciler reports unsettled keeps
+// proven, a run-linked launch obligation the reconciler reports unsettled keeps
 // the cancellation pending (a completed replacement must never first appear after a
 // completed cancellation), surfacing the reconciler's findings.
 func TestIntegrationRunCancelCancelPendingWhileLaunchObligationUnresolved(t *testing.T) {
@@ -464,7 +464,7 @@ func TestIntegrationRunCancelCancelPendingWhileLaunchObligationUnresolved(t *tes
 		t.Fatalf("reconciler calls = %v, want [%s]", recon.calls, fx.worktree+"|"+fx.runID)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
-		t.Fatalf("epoch state = %q, want cancelling (durable fence held)", st)
+		t.Fatalf("run state = %q, want cancelling (durable fence held)", st)
 	}
 }
 
@@ -484,7 +484,7 @@ func TestIntegrationRunCancelCancelCompletesWhenLaunchObligationsSettle(t *testi
 		t.Fatalf("reconciler calls = %v, want [%s]", recon.calls, fx.worktree+"|"+fx.runID)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
-		t.Fatalf("epoch state = %q, want cancelled", st)
+		t.Fatalf("run state = %q, want cancelled", st)
 	}
 }
 
@@ -502,16 +502,16 @@ func TestIntegrationRunCancelCancelReconcilerUnavailableFailsClosed(t *testing.T
 		t.Fatalf("findings = %v, want launch-reconciler-unavailable", res.Findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
-		t.Fatalf("epoch state = %q, want cancelling", st)
+		t.Fatalf("run state = %q, want cancelling", st)
 	}
 }
 
 // TestIntegrationRunCancelRunCancelPublicEntry: the public RunCancel composes production seams and, over
 // a run with no worktree slot and no native adapter, refuses cleanly when authority
-// is wrong (here a wrong epoch) — proving the public signature is wired.
+// is wrong (here a wrong run) — proving the public signature is wired.
 func TestIntegrationRunCancelRunCancelPublicEntry(t *testing.T) {
 	fx := newCancelFixture(t, false)
-	res := RunCancel(context.Background(), PlanningDeps{}, WorkspaceDeps{}, fx.repo, fx.key, "wrong-epoch", "human stop")
+	res := RunCancel(context.Background(), PlanningDeps{}, WorkspaceDeps{}, fx.repo, fx.key, "wrong-run", "human stop")
 	if res.Disposition != CancelDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", res.Disposition)
 	}
@@ -521,12 +521,12 @@ func TestIntegrationRunCancelRunCancelPublicEntry(t *testing.T) {
 }
 
 // TestIntegrationRunCancelCancelNeverTouchesForeignSlot (AC4): a slot the worktree carries for a
-// DIFFERENT epoch is never marked, stopped, or released by this epoch's cancel — a
+// DIFFERENT run is never marked, stopped, or released by this run's cancel — a
 // different nonempty RunID is a foreign owner, surfaced informationally.
 func TestIntegrationRunCancelCancelNeverTouchesForeignSlot(t *testing.T) {
 	fx := newCancelFixture(t, false)
-	// Occupy the worktree with a FOREIGN epoch's executing slot.
-	ftoken, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "foreign-epoch", nil)
+	// Occupy the worktree with a FOREIGN run's executing slot.
+	ftoken, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "foreign-run", nil)
 	if err != nil {
 		t.Fatalf("reserve foreign: %v", err)
 	}
@@ -536,7 +536,7 @@ func TestIntegrationRunCancelCancelNeverTouchesForeignSlot(t *testing.T) {
 	stopper := &fakeCancelStopper{proven: map[string]bool{}}
 	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
-		t.Fatalf("disposition = %q, want cancelled (a foreign slot is not this epoch's obligation; findings=%v)", res.Disposition, res.Findings)
+		t.Fatalf("disposition = %q, want cancelled (a foreign slot is not this run's obligation; findings=%v)", res.Disposition, res.Findings)
 	}
 	if len(stopper.calls) != 0 {
 		t.Fatalf("a foreign slot's process must never be stopped: calls=%v", stopper.calls)
@@ -544,16 +544,16 @@ func TestIntegrationRunCancelCancelNeverTouchesForeignSlot(t *testing.T) {
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "executing" {
 		t.Fatalf("foreign slot state = %q, want executing (untouched)", st)
 	}
-	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "foreign-epoch" {
-		t.Fatalf("foreign slot epoch = %q, want foreign-epoch (untouched)", epo)
+	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "foreign-run" {
+		t.Fatalf("foreign slot run = %q, want foreign-run (untouched)", epo)
 	}
 	if !hasFinding(res.Findings, "slot-foreign-owner") {
 		t.Fatalf("findings = %v, want the informational slot-foreign-owner", res.Findings)
 	}
 }
 
-// TestIntegrationRunCancelCancelLeavesUnlinkedNoRunRecordSlot (AC4): an epoch-less slot whose execution is
-// NOT independently linked to this epoch's registered participants is left
+// TestIntegrationRunCancelCancelLeavesUnlinkedNoRunRecordSlot (AC4): a no-run-record slot whose execution is
+// NOT independently linked to this run's registered participants is left
 // untouched, with an unresolved-ownership finding; cancellation still completes.
 func TestIntegrationRunCancelCancelLeavesUnlinkedNoRunRecordSlot(t *testing.T) {
 	fx := newCancelFixture(t, false)
@@ -570,19 +570,19 @@ func TestIntegrationRunCancelCancelLeavesUnlinkedNoRunRecordSlot(t *testing.T) {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
 	if len(stopper.calls) != 0 {
-		t.Fatalf("an unlinked epoch-less slot must not be stopped: calls=%v", stopper.calls)
+		t.Fatalf("an unlinked no-run-record slot must not be stopped: calls=%v", stopper.calls)
 	}
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "executing" {
-		t.Fatalf("epoch-less slot state = %q, want executing (untouched)", st)
+		t.Fatalf("no-run-record slot state = %q, want executing (untouched)", st)
 	}
 	if !hasFinding(res.Findings, "slot-ownership-unresolved") {
 		t.Fatalf("findings = %v, want slot-ownership-unresolved", res.Findings)
 	}
 }
 
-// TestIntegrationRunCancelCancelStopsLinkedNoRunRecordSlot (AC4): an epoch-less slot IS torn down when its
+// TestIntegrationRunCancelCancelStopsLinkedNoRunRecordSlot (AC4): a no-run-record slot IS torn down when its
 // exact execution (RawRunDir) is independently linked to a registered execution
-// participant of this epoch.
+// participant of this run.
 func TestIntegrationRunCancelCancelStopsLinkedNoRunRecordSlot(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	runDir := filepath.Join(fx.worktree, "run-L")
@@ -602,7 +602,7 @@ func TestIntegrationRunCancelCancelStopsLinkedNoRunRecordSlot(t *testing.T) {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
-		t.Fatalf("linked epoch-less slot state = %q, want released", st)
+		t.Fatalf("linked no-run-record slot state = %q, want released", st)
 	}
 }
 
@@ -660,7 +660,7 @@ func TestIntegrationRunCancelCancelRetiresOwnedReleasedSlot(t *testing.T) {
 }
 
 // TestIntegrationRunCancelCancelPendingWhenRetirementFails (AC5): a retirement write failure keeps the
-// epoch cancelling and the disposition pending — never a false cancelled.
+// run cancelling and the disposition pending — never a false cancelled.
 func TestIntegrationRunCancelCancelPendingWhenRetirementFails(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
@@ -674,22 +674,22 @@ func TestIntegrationRunCancelCancelPendingWhenRetirementFails(t *testing.T) {
 		t.Fatalf("findings = %v, want slot-retire-failed", res.Findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
-		t.Fatalf("epoch state = %q, want cancelling (fence held, ownership intact)", st)
+		t.Fatalf("run state = %q, want cancelling (fence held, ownership intact)", st)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != fx.runID {
-		t.Fatalf("slot epoch = %q, want retained %q", epo, fx.runID)
+		t.Fatalf("slot run = %q, want retained %q", epo, fx.runID)
 	}
 }
 
 // TestIntegrationRunCancelCancelInterruptedBetweenRetireAndFinalizeConverges (AC5): retirement landed
 // but cancelled was never persisted (simulated crash between the two writes); the
-// retry revalidates, accepts the already-detached slot, and finishes the epoch
+// retry revalidates, accepts the already-detached slot, and finishes the run
 // transition — without touching a successor.
 func TestIntegrationRunCancelCancelInterruptedBetweenRetireAndFinalizeConverges(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	// Reconstruct the crash state directly: the epoch record CAS has no seam, so
-	// fence + full teardown + real retirement are driven here, leaving the epoch
+	// Reconstruct the crash state directly: the run record CAS has no seam, so
+	// fence + full teardown + real retirement are driven here, leaving the run
 	// cancelling with the slot already detached (exactly the interrupted state).
 	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error { r.State = RunCancelling; return nil }); err != nil {
 		t.Fatalf("fence: %v", err)
@@ -705,16 +705,16 @@ func TestIntegrationRunCancelCancelInterruptedBetweenRetireAndFinalizeConverges(
 	if ok, f := retireWorktreeSlotOwnership(seams, ep); !ok {
 		t.Fatalf("retire = (false,%q), want retired", f)
 	}
-	// Crash happened here: slot detached, epoch still cancelling. The retry:
+	// Crash happened here: slot detached, run still cancelling. The retry:
 	res := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("retry disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
-		t.Fatalf("epoch state = %q, want cancelled", st)
+		t.Fatalf("run state = %q, want cancelled", st)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot epoch = %q, want still cleared", epo)
+		t.Fatalf("slot run = %q, want still cleared", epo)
 	}
 }
 
@@ -731,12 +731,12 @@ func TestIntegrationRunCancelCancelRetireRaceWithSuccessorLeavesSuccessor(t *tes
 	seams.retire = func(worktree, runID, token string) error {
 		if !raced {
 			raced = true
-			// The successor replaces the slot NOW: retire the old epoch out-of-band and
-			// admit a new epoch's reservation (what a real winner would have produced).
+			// The successor replaces the slot NOW: retire the old run out-of-band and
+			// admit a new run's reservation (what a real winner would have produced).
 			if err := fx.store.RetireWorktreeExecutionRun(worktree, runID, token); err != nil {
 				t.Fatalf("out-of-band retire: %v", err)
 			}
-			if _, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, worktree, "successor-epoch", nil); err != nil {
+			if _, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, worktree, "successor-run", nil); err != nil {
 				t.Fatalf("successor reserve: %v", err)
 			}
 		}
@@ -746,8 +746,8 @@ func TestIntegrationRunCancelCancelRetireRaceWithSuccessorLeavesSuccessor(t *tes
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q, want cancelled (successor is not our obligation; findings=%v)", res.Disposition, res.Findings)
 	}
-	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "successor-epoch" {
-		t.Fatalf("slot epoch = %q, want the untouched successor-epoch", epo)
+	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "successor-run" {
+		t.Fatalf("slot run = %q, want the untouched successor-run", epo)
 	}
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "reserved" {
 		t.Fatalf("successor slot state = %q, want reserved (untouched)", st)
@@ -755,7 +755,7 @@ func TestIntegrationRunCancelCancelRetireRaceWithSuccessorLeavesSuccessor(t *tes
 }
 
 // TestIntegrationRunCancelCancelConcurrentReplayIsIdempotent (AC4): two sequential replays of a
-// completed cancellation are no-ops (already-cancelled) leaving slot and epoch
+// completed cancellation are no-ops (already-cancelled) leaving slot and run
 // byte-stable.
 func TestIntegrationRunCancelCancelConcurrentReplayIsIdempotent(t *testing.T) {
 	fx := newCancelFixture(t, true)
@@ -771,19 +771,19 @@ func TestIntegrationRunCancelCancelConcurrentReplayIsIdempotent(t *testing.T) {
 		}
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot epoch = %q, want cleared and stable", epo)
+		t.Fatalf("slot run = %q, want cleared and stable", epo)
 	}
 }
 
-// TestIntegrationRunCancelTerminalRepairRetiresHistoricalStaleSlot (AC6): a durably CANCELLED epoch
+// TestIntegrationRunCancelTerminalRepairRetiresHistoricalStaleSlot (AC6): a durably CANCELLED run
 // whose released slot still carries its RunID (the recorded incident shape:
 // a pre-0435 cancel released but never retired) is repaired by an authorized repeat
-// cancel — disposition cancelled/applied, slot detached, epoch state
+// cancel — disposition cancelled/applied, slot detached, run state
 // untouched-terminal — and a second repair is an idempotent no-op.
 func TestIntegrationRunCancelTerminalRepairRetiresHistoricalStaleSlot(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	// Manufacture the historical defect: release WITHOUT retirement, then force the
-	// epoch terminal (what the pre-0435 cancel produced).
+	// run terminal (what the pre-0435 cancel produced).
 	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -802,10 +802,10 @@ func TestIntegrationRunCancelTerminalRepairRetiresHistoricalStaleSlot(t *testing
 		t.Fatalf("result = %q, want applied", res.Result)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot epoch = %q, want cleared", epo)
+		t.Fatalf("slot run = %q, want cleared", epo)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
-		t.Fatalf("epoch state = %q, want cancelled (never regressed)", st)
+		t.Fatalf("run state = %q, want cancelled (never regressed)", st)
 	}
 	// Repeated repair is a no-op.
 	res2 := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human repair")
@@ -815,7 +815,7 @@ func TestIntegrationRunCancelTerminalRepairRetiresHistoricalStaleSlot(t *testing
 }
 
 // TestIntegrationRunCancelTerminalRepairSupersededSlot (AC6): the same repair works for a SUPERSEDED
-// epoch's stale released slot, and never regresses the superseded state.
+// run's stale released slot, and never regresses the superseded state.
 func TestIntegrationRunCancelTerminalRepairSupersededSlot(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
@@ -833,15 +833,15 @@ func TestIntegrationRunCancelTerminalRepairSupersededSlot(t *testing.T) {
 		t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot epoch = %q, want cleared", epo)
+		t.Fatalf("slot run = %q, want cleared", epo)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunSuperseded {
-		t.Fatalf("epoch state = %q, want superseded (never regressed)", st)
+		t.Fatalf("run state = %q, want superseded (never regressed)", st)
 	}
 }
 
 // TestIntegrationRunCancelTerminalRepairRefusesUnsafeHistories (AC6): each unsafe terminal history is
-// refused with a specific finding, with NO slot or epoch mutation, and never
+// refused with a specific finding, with NO slot or run mutation, and never
 // cancellation-pending over durable terminal state.
 func TestIntegrationRunCancelTerminalRepairRefusesUnsafeHistories(t *testing.T) {
 	cases := []struct {
@@ -896,19 +896,19 @@ func TestIntegrationRunCancelTerminalRepairRefusesUnsafeHistories(t *testing.T) 
 				t.Fatalf("findings = %v, want %q", res.Findings, tc.finding)
 			}
 			if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
-				t.Fatalf("epoch state = %q, want cancelled (no regression, no revival)", st)
+				t.Fatalf("run state = %q, want cancelled (no regression, no revival)", st)
 			}
 			if epo := loadSlotRun(t, fx.store, fx.worktree); epo != runBefore {
-				t.Fatalf("slot epoch changed %q->%q under a refused repair", runBefore, epo)
+				t.Fatalf("slot run changed %q->%q under a refused repair", runBefore, epo)
 			}
 		})
 	}
 }
 
 // TestIntegrationRunCancelGuardianReapsButNeverRetires: the death guardian's fence+reap releases the
-// proven-stopped slot but RETAINS RunID and leaves the epoch CANCELLING —
+// proven-stopped slot but RETAINS RunID and leaves the run CANCELLING —
 // only authorized run.cancel completion retires (spec "The death guardian may
-// perform teardown but never retires epoch ownership"). The contract is proven
+// perform teardown but never retires run ownership"). The contract is proven
 // against the shared reconcileRunTeardown, which the guardian composes and which
 // performs no retirement; retirement stays exclusively in runCancel's post-accounted
 // completion block and repairTerminalRun, neither of which the guardian reaches.
@@ -938,13 +938,13 @@ func TestIntegrationRunCancelGuardianReapsButNeverRetires(t *testing.T) {
 	}
 	guardianFenceAndReapWithSeams()
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
-		t.Fatalf("epoch state = %q, want cancelling (guardian never finalizes)", st)
+		t.Fatalf("run state = %q, want cancelling (guardian never finalizes)", st)
 	}
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
 		t.Fatalf("slot state = %q, want released (guardian reaps)", st)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != fx.runID {
-		t.Fatalf("slot epoch = %q, want retained %q (guardian never retires ownership)", epo, fx.runID)
+		t.Fatalf("slot run = %q, want retained %q (guardian never retires ownership)", epo, fx.runID)
 	}
 	// The authorized completion then retires and finalizes.
 	res := runCancel(cancelSeams{store: fx.store,
@@ -954,13 +954,13 @@ func TestIntegrationRunCancelGuardianReapsButNeverRetires(t *testing.T) {
 		t.Fatalf("authorized completion = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot epoch = %q, want cleared by the authorized path", epo)
+		t.Fatalf("slot run = %q, want cleared by the authorized path", epo)
 	}
 }
 
-// TestIntegrationRunCancelFinalizeGateAdmitsAfterRetirement (AC1): before retirement the epoch-owned
-// released slot blocks an epoch-less raw/finalize launch (rawStaleRunRefusal's
-// stale-run-id) and a different-epoch reservation (reserveWorktreeExecution's
+// TestIntegrationRunCancelFinalizeGateAdmitsAfterRetirement (AC1): before retirement the run-owned
+// released slot blocks a no-run-record raw/finalize launch (rawStaleRunRefusal's
+// stale-run-id) and a different-run reservation (reserveWorktreeExecution's
 // between-drives fence); after authorized cancellation retires the ownership, both
 // admit again — the released slot is genuinely reusable.
 func TestIntegrationRunCancelFinalizeGateAdmitsAfterRetirement(t *testing.T) {
@@ -974,32 +974,32 @@ func TestIntegrationRunCancelFinalizeGateAdmitsAfterRetirement(t *testing.T) {
 	}
 	// BEFORE: the released slot still owns the worktree. The raw pre-check defers a
 	// RELEASED slot to the reserve (change 0446), which is the authority that refuses
-	// while the owning epoch is live — even with the production settlement read wired.
+	// while the owning run is live — even with the production settlement read wired.
 	fx.store.SetRunSettledResolver(runSettledResolver(fx.common))
 	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); !isRunTrackerOwnership(err, gatedrive.ErrStaleRunID) {
-		t.Fatalf("pre-retirement: an epoch-less raw reserve must be refused stale-run-id, got %v", err)
+		t.Fatalf("pre-retirement: a no-run-record raw reserve must be refused stale-run-id, got %v", err)
 	}
-	if _, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "replacement-epoch", nil); err == nil {
-		t.Fatal("pre-retirement: a different epoch's reservation must be refused")
+	if _, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "replacement-run", nil); err == nil {
+		t.Fatal("pre-retirement: a different run's reservation must be refused")
 	}
 	// Authorized cancellation retires (slot already released; teardown is vacuous).
 	res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
-	// AFTER: the epoch-less finalize gate no longer refuses…
+	// AFTER: the no-run-record finalize gate no longer refuses…
 	if _, refused := rawStaleRunRefusal(fx.store, fx.worktree); refused {
-		t.Fatal("post-retirement: rawStaleRunRefusal must not refuse an epoch-less launch")
+		t.Fatal("post-retirement: rawStaleRunRefusal must not refuse a no-run-record launch")
 	}
-	// …and a replacement epoch's build-gate reservation admits.
-	if _, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "replacement-epoch", nil); err != nil {
+	// …and a replacement run's build-gate reservation admits.
+	if _, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "replacement-run", nil); err != nil {
 		t.Fatalf("post-retirement replacement reserve: %v", err)
 	}
 }
 
 // TestIntegrationRunCancelRetirementDoesNotUnfenceOldRunLaunches (AC8): after retirement the OLD
-// epoch's fresh start is still refused by the 437 launch gate (runLaunchGate) —
-// clearing slot ownership never revives the cancelled epoch's launch authority, and
+// run's fresh start is still refused by the 437 launch gate (runLaunchGate) —
+// clearing slot ownership never revives the cancelled run's launch authority, and
 // the refused gate never runs the reservation body.
 func TestIntegrationRunCancelRetirementDoesNotUnfenceOldRunLaunches(t *testing.T) {
 	fx := newCancelFixture(t, true)
@@ -1011,7 +1011,7 @@ func TestIntegrationRunCancelRetirementDoesNotUnfenceOldRunLaunches(t *testing.T
 	reserveRan := false
 	err := gate(fx.runID, fx.worktree, func() error { reserveRan = true; return nil })
 	if err == nil {
-		t.Fatal("the cancelled epoch's launch authorization must be refused after retirement")
+		t.Fatal("the cancelled run's launch authorization must be refused after retirement")
 	}
 	if reserveRan {
 		t.Fatal("the refused gate must never run the reservation body")
@@ -1019,10 +1019,10 @@ func TestIntegrationRunCancelRetirementDoesNotUnfenceOldRunLaunches(t *testing.T
 }
 
 // TestIntegrationRunCancelRepairChargesNothing (AC8): terminal repair — like cancellation — touches
-// neither the suite budget nor the gate retry markers. This mirrors
+// neither the suite budget nor the run-tracker retry markers. This mirrors
 // TestIntegrationRunCancelCancelNeverChargesOrResets (same seeding and asserts) with the historical
 // stale-slot repair arrangement of TestIntegrationRunCancelTerminalRepairRetiresHistoricalStaleSlot
-// (release WITHOUT retirement + epoch forced cancelled) placed between the seeding
+// (release WITHOUT retirement + run forced cancelled) placed between the seeding
 // and the accounting-neutrality asserts.
 func TestIntegrationRunCancelRepairChargesNothing(t *testing.T) {
 	fx := newCancelFixture(t, true)
@@ -1045,7 +1045,7 @@ func TestIntegrationRunCancelRepairChargesNothing(t *testing.T) {
 	}
 
 	// Manufacture the historical defect the repair path addresses: release WITHOUT
-	// retirement, then force the epoch terminal (what the pre-0435 cancel produced).
+	// retirement, then force the run terminal (what the pre-0435 cancel produced).
 	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -1089,7 +1089,7 @@ func TestIntegrationRunCancelRepairChargesNothing(t *testing.T) {
 }
 
 // TestIntegrationRunCancelRunCancelWinsFromCompletingRun: an explicit human cancellation WINS from a
-// completing (successful, mid-closeout) epoch — the fence flips completing→cancelling
+// completing (successful, mid-closeout) run — the fence flips completing→cancelling
 // and the ordinary teardown/accounting runs to a proven cancellation, never a
 // completing/completed relabelling. Completion then loses (change 0441): its
 // completing→completed CAS refuses once this fence lands.
@@ -1104,7 +1104,7 @@ func TestIntegrationRunCancelRunCancelWinsFromCompletingRun(t *testing.T) {
 	}
 	st := loadRunState(t, fx.repo, fx.key)
 	if st != RunCancelled && st != RunCancelling {
-		t.Fatalf("epoch state = %q, want cancelling or cancelled — never completing/completed", st)
+		t.Fatalf("run state = %q, want cancelling or cancelled — never completing/completed", st)
 	}
 }
 
@@ -1125,7 +1125,7 @@ func TestIntegrationRunCancelRunCancelRefusesCompletedRun(t *testing.T) {
 		t.Fatalf("findings = %v, want a run-completed finding", res.Findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
-		t.Fatalf("epoch state = %q, want completed unchanged (no regression)", st)
+		t.Fatalf("run state = %q, want completed unchanged (no regression)", st)
 	}
 	if len(stopper.calls) != 0 {
 		t.Fatalf("a refused cancel of a completed run must stop nothing, got %v", stopper.calls)
@@ -1140,11 +1140,11 @@ func isRunTrackerOwnership(err error, kind gatedrive.OwnershipErrorKind) bool {
 
 // TestIntegrationRunCancelRawLaunchSettlesSettledRunReleasedSlot (change 0446 spec §§2, 5): a
 // released slot whose leftover RunID names a COMPLETED or confirmed-CANCELLED
-// epoch no longer blocks an epoch-less raw/finalize launch — the raw pre-check
-// defers the released slot to the reserve, which settles the epoch through the
+// run no longer blocks a no-run-record raw/finalize launch — the raw pre-check
+// defers the released slot to the reserve, which settles the run through the
 // production settlement read and exact-token retirement, so a successfully
 // completed run is never asked to be cancelled. An active, cancelling, or
-// completing epoch still owns its worktree: the reserve refuses stale-run-id and
+// completing run still owns its worktree: the reserve refuses stale-run-id and
 // the slot is left untouched.
 func TestIntegrationRunCancelRawLaunchSettlesSettledRunReleasedSlot(t *testing.T) {
 	cases := []struct {
@@ -1171,7 +1171,7 @@ func TestIntegrationRunCancelRawLaunchSettlesSettledRunReleasedSlot(t *testing.T
 				r.State = tc.state
 				return nil
 			}); err != nil {
-				t.Fatalf("set epoch state: %v", err)
+				t.Fatalf("set run state: %v", err)
 			}
 			fx.store.SetRunSettledResolver(runSettledResolver(fx.common))
 
@@ -1181,30 +1181,30 @@ func TestIntegrationRunCancelRawLaunchSettlesSettledRunReleasedSlot(t *testing.T
 			_, err = fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
 			if tc.settled {
 				if err != nil {
-					t.Fatalf("raw reserve over a %s epoch's released slot: %v", tc.state, err)
+					t.Fatalf("raw reserve over a %s run's released slot: %v", tc.state, err)
 				}
 				if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-					t.Fatalf("slot epoch = %q, want retired", epo)
+					t.Fatalf("slot run = %q, want retired", epo)
 				}
 				return
 			}
 			if !isRunTrackerOwnership(err, gatedrive.ErrStaleRunID) {
-				t.Fatalf("raw reserve over a %s epoch's released slot = %v, want stale-run-id", tc.state, err)
+				t.Fatalf("raw reserve over a %s run's released slot = %v, want stale-run-id", tc.state, err)
 			}
 			if st, epo := loadSlotState(t, fx.store, fx.worktree), loadSlotRun(t, fx.store, fx.worktree); st != "released" || epo != fx.runID {
-				t.Fatalf("refused slot changed: state %q epoch %q", st, epo)
+				t.Fatalf("refused slot changed: state %q run %q", st, epo)
 			}
 		})
 	}
 }
 
 // TestIntegrationRunCancelRawStaleRunRefusalStillFencesBusySlot: the raw pre-check keeps refusing a
-// BUSY slot another epoch owns — only a released slot defers to the reserve.
+// BUSY slot another run owns — only a released slot defers to the reserve.
 func TestIntegrationRunCancelRawStaleRunRefusalStillFencesBusySlot(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	fx.store.SetRunSettledResolver(runSettledResolver(fx.common))
 	if _, refused := rawStaleRunRefusal(fx.store, fx.worktree); !refused {
-		t.Fatal("an executing epoch-owned slot must be refused stale-run-id by the raw pre-check")
+		t.Fatal("an executing run-owned slot must be refused stale-run-id by the raw pre-check")
 	}
 }
 
@@ -1218,7 +1218,7 @@ func TestIntegrationRunCancelRawAdmissionStoreWiresRunSettledResolver(t *testing
 		t.Fatal("resolveWorktreeAdmission: repo not resolved as a worktree")
 	}
 	if !store.RunSettledResolverWired() {
-		t.Fatal("raw admission store: epoch settlement resolver not wired")
+		t.Fatal("raw admission store: run settlement resolver not wired")
 	}
 }
 
@@ -1232,7 +1232,7 @@ func readAdmissionRecord(t *testing.T, common, worktree string) []byte {
 	return buf
 }
 
-// releaseFixtureSlot releases the fixture's epoch-owned slot (RunID retained,
+// releaseFixtureSlot releases the fixture's run-owned slot (RunID retained,
 // exactly as an ordinary between-drives release leaves it) and returns its token.
 func releaseFixtureSlot(t *testing.T, fx cancelFixture) string {
 	t.Helper()
@@ -1246,15 +1246,15 @@ func releaseFixtureSlot(t *testing.T, fx cancelFixture) string {
 	return slot.ReservationToken
 }
 
-// installSuccessor detaches the fixture epoch from its released slot out-of-band and
-// lets a SUCCESSOR epoch reserve and release it — a released slot whose RunID
+// installSuccessor detaches the fixture run from its released slot out-of-band and
+// lets a SUCCESSOR run reserve and release it — a released slot whose RunID
 // the successor now holds.
 func installSuccessor(t *testing.T, fx cancelFixture, token string) {
 	t.Helper()
 	if err := fx.store.RetireWorktreeExecutionRun(fx.worktree, fx.runID, token); err != nil {
 		t.Fatalf("out-of-band retire: %v", err)
 	}
-	stok, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "successor-epoch", nil)
+	stok, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "successor-run", nil)
 	if err != nil {
 		t.Fatalf("successor reserve: %v", err)
 	}
@@ -1269,12 +1269,12 @@ func installSuccessor(t *testing.T, fx cancelFixture, token string) {
 // already held it or won the retirement CAS race) yields one defined outcome at
 // every site: the slot-replaced-by-successor finding, the operation still accounted
 // (cancelled / already-cancelled / quiescent), the successor's slot byte-identical,
-// and the epoch never regressed.
+// and the run never regressed.
 func TestIntegrationRunCancelRetirementSitesConverge(t *testing.T) {
 	type site struct {
 		name      string
-		runState  runState // the state the epoch is in when the site runs
-		wantState runState // the epoch state after the site ran
+		runState  runState // the state the run is in when the site runs
+		wantState runState // the run state after the site ran
 		run       func(t *testing.T, fx cancelFixture, seams cancelSeams) []string
 	}
 	sites := []site{
@@ -1331,7 +1331,7 @@ func TestIntegrationRunCancelRetirementSitesConverge(t *testing.T) {
 				}
 				if s.runState != RunActive {
 					if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error { r.State = s.runState; return nil }); err != nil {
-						t.Fatalf("set epoch state: %v", err)
+						t.Fatalf("set run state: %v", err)
 					}
 				}
 
@@ -1347,7 +1347,7 @@ func TestIntegrationRunCancelRetirementSitesConverge(t *testing.T) {
 					t.Fatalf("the successor's slot changed:\nbefore %s\nafter  %s", successorBytes, got)
 				}
 				if st := loadRunState(t, fx.repo, fx.key); st != s.wantState {
-					t.Fatalf("epoch state = %q, want %q (never regressed)", st, s.wantState)
+					t.Fatalf("run state = %q, want %q (never regressed)", st, s.wantState)
 				}
 			})
 		}
@@ -1355,7 +1355,7 @@ func TestIntegrationRunCancelRetirementSitesConverge(t *testing.T) {
 }
 
 // TestIntegrationRunCancelRepairTerminalRunRemovedWorktree (change 0446 spec §5, AC2): a terminal
-// epoch whose feature worktree directory was REMOVED still has its stale released
+// run whose feature worktree directory was REMOVED still has its stale released
 // slot retired by terminal repair — the slot is reached through its stored identity,
 // never reported slot-unreadable — and a repeat repair is the idempotent no-op.
 func TestIntegrationRunCancelRepairTerminalRunRemovedWorktree(t *testing.T) {
@@ -1376,18 +1376,18 @@ func TestIntegrationRunCancelRepairTerminalRunRemovedWorktree(t *testing.T) {
 		t.Fatalf("findings = %v: a removed worktree's slot is addressable by stored identity", res.Findings)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot epoch = %q, want retired", epo)
+		t.Fatalf("slot run = %q, want retired", epo)
 	}
 	if res2 := runCancel(seams, fx.repo, fx.key, fx.runID, "human repair"); res2.Disposition != CancelDispositionAlreadyCancelled {
 		t.Fatalf("repeat = %q, want already-cancelled (findings=%v)", res2.Disposition, res2.Findings)
 	}
 }
 
-// supersedeFixtureRun confirms the fixture epoch cancelled and supersedes it with a
-// freshly minted replacement gate key whose epoch binds replacementWorktree ("" leaves
-// the replacement epoch unbound), mirroring armResumeReplacement's order. The
-// superseded epoch's own Worktree is cleared by SupersedeCancelledRun. It returns
-// the replacement's gate key.
+// supersedeFixtureRun confirms the fixture run cancelled and supersedes it with a
+// freshly minted replacement run key whose run binds replacementWorktree ("" leaves
+// the replacement run unbound), mirroring armResumeReplacement's order. The
+// superseded run's own Worktree is cleared by SupersedeCancelledRun. It returns
+// the replacement's run key.
 func supersedeFixtureRun(t *testing.T, fx cancelFixture, replacementWorktree string, mintReplacementRun bool) string {
 	t.Helper()
 	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error { r.State = RunCancelled; return nil }); err != nil {
@@ -1418,9 +1418,9 @@ func supersedeFixtureRun(t *testing.T, fx cancelFixture, replacementWorktree str
 }
 
 // TestIntegrationRunCancelTerminalRepairSupersededThreadsReplacementWorktree (change 0446 spec §4, AC5):
-// a SUPERSEDED epoch has an empty Worktree, which is not proof of quiescence. Terminal
-// repair resolves the replacement epoch's worktree through ReplacementReserved, runs
-// the launch census with the predecessor's epoch id against THAT worktree, and — when
+// a SUPERSEDED run has an empty Worktree, which is not proof of quiescence. Terminal
+// repair resolves the replacement run's worktree through ReplacementReserved, runs
+// the launch census with the predecessor's run id against THAT worktree, and — when
 // the replacement's slot still carries the predecessor's RunID — retires it.
 func TestIntegrationRunCancelTerminalRepairSupersededThreadsReplacementWorktree(t *testing.T) {
 	t.Run("stale-released-slot-retired", func(t *testing.T) {
@@ -1433,13 +1433,13 @@ func TestIntegrationRunCancelTerminalRepairSupersededThreadsReplacementWorktree(
 			t.Fatalf("disposition = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 		}
 		if len(launches.calls) != 1 || launches.calls[0] != fx.worktree+"|"+fx.runID {
-			t.Fatalf("census calls = %v, want exactly [%s|%s] (the replacement's worktree, the predecessor's epoch)", launches.calls, fx.worktree, fx.runID)
+			t.Fatalf("census calls = %v, want exactly [%s|%s] (the replacement's worktree, the predecessor's run)", launches.calls, fx.worktree, fx.runID)
 		}
 		if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-			t.Fatalf("slot epoch = %q, want the predecessor's stale ownership retired", epo)
+			t.Fatalf("slot run = %q, want the predecessor's stale ownership retired", epo)
 		}
 		if st := loadRunState(t, fx.repo, fx.key); st != RunSuperseded {
-			t.Fatalf("epoch state = %q, want superseded (never regressed)", st)
+			t.Fatalf("run state = %q, want superseded (never regressed)", st)
 		}
 	})
 	t.Run("unreleased-predecessor-slot-refused", func(t *testing.T) {
@@ -1450,7 +1450,7 @@ func TestIntegrationRunCancelTerminalRepairSupersededThreadsReplacementWorktree(
 			t.Fatalf("result = %q %v, want refused slot-not-released", res.Disposition, res.Findings)
 		}
 		if epo := loadSlotRun(t, fx.store, fx.worktree); epo != fx.runID {
-			t.Fatalf("slot epoch = %q, want the refused slot untouched", epo)
+			t.Fatalf("slot run = %q, want the refused slot untouched", epo)
 		}
 	})
 	t.Run("no-stored-identity-refused", func(t *testing.T) {
@@ -1458,7 +1458,7 @@ func TestIntegrationRunCancelTerminalRepairSupersededThreadsReplacementWorktree(
 		// no stored identity to address: refused with the exact locator, never inferred
 		// safe.
 		fx := newCancelFixture(t, false)
-		replKey := supersedeFixtureRun(t, fx, "", false) // replacement epoch never minted
+		replKey := supersedeFixtureRun(t, fx, "", false) // replacement run never minted
 		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human repair")
 		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "replacement-worktree-unresolved:"+replKey) {
 			t.Fatalf("result = %q %v, want refused replacement-worktree-unresolved:%s", res.Disposition, res.Findings, replKey)
@@ -1469,8 +1469,8 @@ func TestIntegrationRunCancelTerminalRepairSupersededThreadsReplacementWorktree(
 // tornResumeFixture reproduces a TORN resume the way armResumeReplacement leaves it:
 // the replacement's outer scope is prepared (binding the feature worktree) and its
 // gate record minted, the confirmed-cancelled predecessor is superseded reserving that
-// key, and then the arm fails before (neverMinted) or after (unbound) MintRunRecord
-// — so no replacement epoch binds a worktree. It returns the replacement gate key.
+// key, and then the start fails before (neverMinted) or after (unbound) MintRunRecord
+// — so no replacement run binds a worktree. It returns the replacement run key.
 func tornResumeFixture(t *testing.T, fx cancelFixture, neverMinted bool) string {
 	t.Helper()
 	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error { r.State = RunCancelled; return nil }); err != nil {
@@ -1504,10 +1504,10 @@ func tornResumeFixture(t *testing.T, fx cancelFixture, neverMinted bool) string 
 
 // TestIntegrationRunCancelTerminalRepairTornResumeConverges (change 0446 spec "Repeated cancellation,
 // completion, and admission after safe reconciliation converge using existing
-// operations"): a torn resume — the predecessor superseded, the replacement epoch never
+// operations"): a torn resume — the predecessor superseded, the replacement run never
 // minted or never bound — is not a permanent dead end. A repeat run.cancel against the
 // predecessor addresses the replacement's STORED worktree identity (the scope
-// armResumeReplacement prepared), runs the census with the predecessor's epoch id
+// armResumeReplacement prepared), runs the census with the predecessor's run id
 // there, retires a stale released slot, and a further repeat is the idempotent no-op.
 // A genuinely corrupt or cyclic replacement chain still fails closed.
 func TestIntegrationRunCancelTerminalRepairTornResumeConverges(t *testing.T) {
@@ -1529,13 +1529,13 @@ func TestIntegrationRunCancelTerminalRepairTornResumeConverges(t *testing.T) {
 				t.Fatalf("census calls = %v, want exactly [%s|%s]", launches.calls, fx.worktree, fx.runID)
 			}
 			if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-				t.Fatalf("slot epoch = %q, want the predecessor's stale ownership retired", epo)
+				t.Fatalf("slot run = %q, want the predecessor's stale ownership retired", epo)
 			}
 			if again := runCancel(seams, fx.repo, fx.key, fx.runID, "human repair"); again.Disposition != CancelDispositionAlreadyCancelled {
 				t.Fatalf("repeat = %q, want already-cancelled (findings=%v)", again.Disposition, again.Findings)
 			}
 			if st := loadRunState(t, fx.repo, fx.key); st != RunSuperseded {
-				t.Fatalf("epoch state = %q, want superseded (never regressed)", st)
+				t.Fatalf("run state = %q, want superseded (never regressed)", st)
 			}
 		})
 	}
@@ -1548,14 +1548,14 @@ func TestIntegrationRunCancelTerminalRepairTornResumeConverges(t *testing.T) {
 			t.Fatalf("runKeyDir: %v", err)
 		}
 		if err := os.WriteFile(filepath.Join(dir, runRecordFileName), []byte("{not json"), 0o600); err != nil {
-			t.Fatalf("corrupt replacement epoch: %v", err)
+			t.Fatalf("corrupt replacement run: %v", err)
 		}
 		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human repair")
 		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "replacement-epoch-unreadable:"+replKey) {
 			t.Fatalf("result = %q %v, want refused replacement-epoch-unreadable:%s", res.Disposition, res.Findings, replKey)
 		}
 		if epo := loadSlotRun(t, fx.store, fx.worktree); epo != fx.runID {
-			t.Fatalf("slot epoch = %q, want the refused slot untouched", epo)
+			t.Fatalf("slot run = %q, want the refused slot untouched", epo)
 		}
 	})
 	t.Run("cyclic-chain-refused", func(t *testing.T) {
@@ -1574,18 +1574,18 @@ func TestIntegrationRunCancelTerminalRepairTornResumeConverges(t *testing.T) {
 			t.Fatalf("result = %q %v, want refused replacement-chain-cycle:%s", res.Disposition, res.Findings, fx.key)
 		}
 		if epo := loadSlotRun(t, fx.store, fx.worktree); epo != fx.runID {
-			t.Fatalf("slot epoch = %q, want the refused slot untouched", epo)
+			t.Fatalf("slot run = %q, want the refused slot untouched", epo)
 		}
 	})
 }
 
 // TestIntegrationRunCancelCancelRemovedWorktreeRunReachesSlotByStoredIdentity (change 0446 spec AC2,
-// Task 10): cancelling an ACTIVE epoch whose feature worktree directory was removed
+// Task 10): cancelling an ACTIVE run whose feature worktree directory was removed
 // — with its slot still executing (the stop proves teardown) or already released
 // between drives — reaches the slot through its stored identity rather than
 // re-canonicalizing the missing path: the cancel completes, the slot is released
-// and detached from the epoch, a repeat is the idempotent no-op, and once the path
-// is recreated a replacement epoch's reservation admits over the same slot.
+// and detached from the run, a repeat is the idempotent no-op, and once the path
+// is recreated a replacement run's reservation admits over the same slot.
 func TestIntegrationRunCancelCancelRemovedWorktreeRunReachesSlotByStoredIdentity(t *testing.T) {
 	for _, releasedFirst := range []bool{false, true} {
 		t.Run(map[bool]string{false: "executing-slot", true: "released-slot"}[releasedFirst], func(t *testing.T) {
@@ -1612,7 +1612,7 @@ func TestIntegrationRunCancelCancelRemovedWorktreeRunReachesSlotByStoredIdentity
 				t.Fatalf("slot state = %q, want released", st)
 			}
 			if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-				t.Fatalf("slot epoch = %q, want retired", epo)
+				t.Fatalf("slot run = %q, want retired", epo)
 			}
 			if again := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop"); again.Disposition != CancelDispositionAlreadyCancelled {
 				t.Fatalf("repeat = %q, want already-cancelled (findings=%v)", again.Disposition, again.Findings)
@@ -1620,8 +1620,8 @@ func TestIntegrationRunCancelCancelRemovedWorktreeRunReachesSlotByStoredIdentity
 			if err := os.MkdirAll(fx.worktree, 0o755); err != nil {
 				t.Fatalf("recreate worktree: %v", err)
 			}
-			if _, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "replacement-epoch", nil); err != nil {
-				t.Fatalf("a replacement epoch must admit on the recreated path: %v", err)
+			if _, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "replacement-run", nil); err != nil {
+				t.Fatalf("a replacement run must admit on the recreated path: %v", err)
 			}
 		})
 	}

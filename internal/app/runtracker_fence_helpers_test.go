@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-// Run-gate fence test helpers shared with default-build (untagged) test files.
+// Run-tracker fence test helpers shared with default-build (untagged) test files.
 // The fence tests themselves live behind the integration tag in
-// runtracker_fence_integration_test.go (change 0465); these epoch seeders stay
+// runtracker_fence_integration_test.go (change 0465); these run seeders stay
 // untagged because other untagged test files still reference them.
 
 // seedPendingRunMutation journals one admitted-not-completed workflow mutation on
-// the epoch at key: a genuinely owned in-flight effect, which keeps the successful-run
+// the run at key: a genuinely owned in-flight effect, which keeps the successful-run
 // closeout (change 0441) fail-closed with mutation-pending. The two verdict recovery
-// tests in runtracker_fence_integration_test.go use it to hold their epoch at
+// tests in runtracker_fence_integration_test.go use it to hold their run at
 // completing so a later explicit cancellation is meaningful. They formerly relied on the ABSENT feature directory
 // making the slot unreadable; change 0446 (spec §2) addresses a slot through its
 // stored identity, so a never-reserved slot now reads as truly absent (safely
@@ -33,7 +33,7 @@ func seedPendingRunMutation(t *testing.T, repo, key string) {
 	}
 }
 
-// reconcilePendingRunMutations marks every journaled mutation on the epoch at key
+// reconcilePendingRunMutations marks every journaled mutation on the run at key
 // completed — the in-flight effect resolved — so an explicit cancellation can account
 // it and reach cancelled.
 func reconcilePendingRunMutations(t *testing.T, repo, key string) {
@@ -48,7 +48,7 @@ func reconcilePendingRunMutations(t *testing.T, repo, key string) {
 	}
 }
 
-// seedNamedRun writes an epoch record for state bound to worktree under a gate-key
+// seedNamedRun writes a run record for state bound to worktree under a run-key
 // directory whose NAME the test chooses, so the directory order os.ReadDir yields is
 // controlled (a first-match selector would pick the lexically first key). It writes
 // the record through the store's own atomic writer and needs no gate record.
@@ -60,7 +60,7 @@ func seedNamedRun(t *testing.T, repo, key, worktree string, state runState) RunR
 	}
 	dir := filepath.Join(common, "docket", runTrackerDirName, key)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("mkdir gate-key dir: %v", err)
+		t.Fatalf("mkdir run-key dir: %v", err)
 	}
 	id, err := runToken()
 	if err != nil {

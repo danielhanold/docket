@@ -137,8 +137,8 @@ type Store struct {
 	suiteBudgetRoot string
 	admissionRoot   string
 
-	// runSettled is the optional app-injected run-epoch settlement read the
-	// admission fence consults for a RELEASED slot still naming another epoch
+	// runSettled is the optional app-injected run settlement read the
+	// admission fence consults for a RELEASED slot still naming another run
 	// (SetRunSettledResolver, change 0446). Set once at composition.
 	runSettled RunSettledFunc
 }

@@ -168,10 +168,10 @@ type Build struct {
 	MaxAttempts Value[int] `json:"max_attempts"`
 }
 
-// Run is the outer implement-next run gate's own attempt policy (change 0421).
+// Run is the outer implement-next run tracker's own attempt policy (change 0421).
 type Run struct {
-	// MaxAttempts caps total attributed implementation attempts per gate
-	// arming, counting the original dispatch. Positive; snapshotted into the
+	// MaxAttempts caps total attributed implementation attempts per run
+	// start, counting the original dispatch. Positive; snapshotted into the
 	// RunTrackerRecord at mint.
 	MaxAttempts Value[int] `json:"max_attempts"`
 }

@@ -21,7 +21,7 @@ import (
 // descriptor persists it verbatim in the journal entry (schema v1, additive field);
 // an existing entry WITHOUT the field still decodes (legacy compatibility).
 func TestIntegrationRunCompletionAdmissionJournalsPublicationDescriptorAndLegacyDecodes(t *testing.T) {
-	fx := newCancelFixture(t, false) // active epoch bound to the fixture worktree
+	fx := newCancelFixture(t, false) // active run bound to the fixture worktree
 	pub := &MutationPublication{
 		RepoHost: "github.com", RepoOwner: "o", RepoName: "r",
 		HeadRef: "fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -150,15 +150,15 @@ func TestIntegrationRunCompletionJournaledRetryOutcomeGatesSettlement(t *testing
 }
 
 // TestIntegrationRunCompletionSettleUncertainPublicationsDurable: settlement re-derives matches under the
-// epoch lock, flips ONLY matched originals uncertain→completed, is idempotent, and
-// never touches unmatched entries, participants, or epoch state.
+// run lock, flips ONLY matched originals uncertain→completed, is idempotent, and
+// never touches unmatched entries, participants, or run state.
 func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	participant := RunParticipant{Kind: "task", NativeHandle: "handle-1", RegisteredAt: "2026-09-23T00:00:00Z"}
 	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
-		r.State = RunCancelling // settlement is observation of fact; it works on a fenced epoch
+		r.State = RunCancelling // settlement is observation of fact; it works on a fenced run
 		r.Participants = []RunParticipant{participant}
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
@@ -204,10 +204,10 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T
 		t.Fatal("the settling retry entry must be untouched")
 	}
 	if ep.State != RunCancelling {
-		t.Fatalf("epoch state = %q; settlement must never transition the epoch", ep.State)
+		t.Fatalf("run state = %q; settlement must never transition the run", ep.State)
 	}
 	if ep.RunID != before.RunID || ep.ChangeID != before.ChangeID || ep.Worktree != before.Worktree {
-		t.Fatal("settlement must never touch epoch identity fields")
+		t.Fatal("settlement must never touch run identity fields")
 	}
 	if len(ep.Participants) != 1 || ep.Participants[0] != participant {
 		t.Fatalf("participants = %+v; settlement must never touch participants", ep.Participants)
@@ -228,7 +228,7 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T
 	}
 }
 
-// TestIntegrationRunCompletionSettleUncertainPublicationsFailureIsBoundedFinding: an unreadable epoch is a
+// TestIntegrationRunCompletionSettleUncertainPublicationsFailureIsBoundedFinding: an unreadable run is a
 // bounded finding, never a panic and never a fabricated settlement.
 func TestIntegrationRunCompletionSettleUncertainPublicationsFailureIsBoundedFinding(t *testing.T) {
 	fx := newCancelFixture(t, false)
@@ -295,7 +295,7 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsWriteFailureReportsN
 }
 
 // TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallback (change 0444 acceptance 6): a
-// completion callback racing the settlement (both under the epoch CAS) can never
+// completion callback racing the settlement (both under the run CAS) can never
 // regress completed→uncertain or lose its own completed write, and an unrelated
 // entry appended between match and write is never cleared — the settlement
 // re-derives its matches from the fresh record under the lock.
@@ -520,7 +520,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	// A read-only key dir still lets the CAS lock and read, but the same-directory
-	// temp file cannot be created, so every epoch write fails.
+	// temp file cannot be created, so every run write fails.
 	dir := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key)
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
 	originalStatus := func(when string) string {
@@ -533,7 +533,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	}
 
 	// (a) Unwritable before the cancel: the fence itself cannot land, so the
-	// cancel refuses — never cancelled — and the entry and epoch are untouched.
+	// cancel refuses — never cancelled — and the entry and run are untouched.
 	if err := os.Chmod(dir, 0o500); err != nil {
 		t.Fatalf("chmod: %v", err)
 	}
@@ -541,13 +541,13 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
 	pre := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
 	if pre.Disposition == CancelDispositionCancelled {
-		t.Fatalf("disposition = cancelled with an unwritable epoch; findings=%v", pre.Findings)
+		t.Fatalf("disposition = cancelled with an unwritable run; findings=%v", pre.Findings)
 	}
 	if s := originalStatus("unwritable fence"); s != mutationStatusUncertain {
 		t.Fatalf("original = %q after a failed fence, want uncertain", s)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunActive {
-		t.Fatalf("epoch state = %q after a failed fence, want active (nothing landed)", st)
+		t.Fatalf("run state = %q after a failed fence, want active (nothing landed)", st)
 	}
 	if err := os.Chmod(dir, 0o700); err != nil {
 		t.Fatalf("chmod back: %v", err)
@@ -582,7 +582,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 		t.Fatalf("original = %q after a failed settlement write, want uncertain", s)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
-		t.Fatalf("epoch state = %q, want cancelling (the fence is durably held)", st)
+		t.Fatalf("run state = %q, want cancelling (the fence is durably held)", st)
 	}
 
 	// (c) Writable again: the SAME repeat cancel converges.

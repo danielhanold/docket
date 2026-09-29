@@ -19,9 +19,9 @@ import (
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
-// These are the `docket run start` (arm the gate) tests (change 0334,
+// These are the `docket run start` (start the run tracker) tests (change 0334,
 // Task 2). run start re-syncs the metadata worktree to fresh origin, reads the
-// in-progress claim set, captures a dispatch epoch AFTER that read, and mints a
+// in-progress claim set, captures a dispatch time AFTER that read, and mints a
 // durable gate record — printing `run-started <key>` on success and
 // `run-untracked <reason-token>` on any failure, exiting 0 either way (the report
 // line is the contract). Only `implement-next` is an accepted target; anything
@@ -64,7 +64,7 @@ func runStartReader(t *testing.T, corpus []StatusBlob, pinErr, corpusErr error) 
 
 // scopeParentCap / scopeChildCap / scopeID are the fake grant's distinct tokens:
 // distinct so a redaction assert cannot pass by confusing one for another, and
-// child != parent so the printed dispatch context is provably the child alone.
+// child != parent so the printed run context is provably the child alone.
 const (
 	scopeGrantID     = "scope-abc123"
 	scopeGrantChild  = "childctx-1111"
@@ -102,7 +102,7 @@ func (f *fakeScopePrep) deps() RunTrackerScopeDeps {
 			return f.grant, nil
 		},
 		// A permissive cancellation seam so every resume test that reaches the
-		// RunCancelled/RunSuperseded branches sees a quiescent old epoch (change
+		// RunCancelled/RunSuperseded branches sees a quiescent old run (change
 		// 0435): accounted launches, no worktree slot. Slot-bearing tests override
 		// CancelSeams with a real store. A nil store makes validateResumeQuiescence's
 		// slot leg vacuous, which is correct for fixtures that bind no worktree slot.
@@ -124,9 +124,9 @@ func resumeInspectService(worktree string) *fakeWorkspaceService {
 	}
 }
 
-// TestIntegrationRunStartRunStartPreparesOuterScope: a non-resume arm prepares the outer scope,
-// carries the scope binding in the record, prints the dispatch context on the
-// armed line, and NEVER leaks the parent capability into the result JSON or the
+// TestIntegrationRunStartRunStartPreparesOuterScope: a non-resume start prepares the outer scope,
+// carries the scope binding in the record, prints the run context on the
+// started line, and NEVER leaks the parent capability into the result JSON or the
 // human text (it lives only in the 0600 record).
 func TestIntegrationRunStartRunStartPreparesOuterScope(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -135,7 +135,7 @@ func TestIntegrationRunStartRunStartPreparesOuterScope(t *testing.T) {
 
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Started || res.Key == "" {
-		t.Fatalf("Armed=%v Key=%q, want armed", res.Started, res.Key)
+		t.Fatalf("Started=%v Key=%q, want started", res.Started, res.Key)
 	}
 	if sp.calls != 1 {
 		t.Fatalf("PrepareScope called %d times, want 1", sp.calls)
@@ -145,9 +145,9 @@ func TestIntegrationRunStartRunStartPreparesOuterScope(t *testing.T) {
 	if sp.req.ChangeID != "" || sp.req.Branch != "" || sp.req.Worktree != "" {
 		t.Errorf("fresh scope request carried identity: %+v", sp.req)
 	}
-	// Armed line: run-started <key> <epoch> <dispatch-context>, followed by the
-	// honest owner-lifecycle caveat (change 0375 Task 13). The epoch id is minted
-	// beside the gate record and surfaced so the Stop path is followable.
+	// Started line: run-started <key> <run-id> <run-context>, followed by the
+	// honest owner-lifecycle caveat (change 0375 Task 13). The run id is minted
+	// beside the run-tracker record and surfaced so the Stop path is followable.
 	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)
@@ -170,7 +170,7 @@ func TestIntegrationRunStartRunStartPreparesOuterScope(t *testing.T) {
 		t.Errorf("ParentCap = %q, want the raw parent cap persisted in the 0600 record", rec.ParentCap)
 	}
 	if want := runTrackerHashToken(scopeGrantChild); rec.ChildContextHash != want {
-		t.Errorf("ChildContextHash = %q, want sha256 of the dispatch context %q", rec.ChildContextHash, want)
+		t.Errorf("ChildContextHash = %q, want sha256 of the run context %q", rec.ChildContextHash, want)
 	}
 
 	// Redaction: the parent capability must never appear in the marshalled result
@@ -187,12 +187,12 @@ func TestIntegrationRunStartRunStartPreparesOuterScope(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartRunStartFreshArmSurfacesRunID: a fresh (non-resume) arm surfaces the
-// minted run epoch's public id in the result (Epoch) and in the human report line
+// TestIntegrationRunStartRunStartFreshArmSurfacesRunID: a fresh (non-resume) start surfaces the
+// minted run's public id in the result (Run) and in the human report line
 // — the documented `run.cancel --run-id <id>` / `--run-id` value the operator and
 // the dispatcher thread through. Without it the primary human-Stop path names an
-// epoch the arm never gave (change 0375). The surfaced id must equal the id the
-// bound epoch record actually carries — the same value run.cancel cross-checks.
+// run the start never gave (change 0375). The surfaced id must equal the id the
+// bound run record actually carries — the same value run.cancel cross-checks.
 func TestIntegrationRunStartRunStartFreshArmSurfacesRunID(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
@@ -200,23 +200,23 @@ func TestIntegrationRunStartRunStartFreshArmSurfacesRunID(t *testing.T) {
 
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Started || res.Key == "" {
-		t.Fatalf("Armed=%v Key=%q, want armed", res.Started, res.Key)
+		t.Fatalf("Started=%v Key=%q, want started", res.Started, res.Key)
 	}
 
-	// The arm minted an epoch beside the gate record; its id is what run.cancel and
-	// every --run-id flag consume, so the arm must hand it back.
+	// The start minted a run beside the run-tracker record; its id is what run.cancel and
+	// every --run-id flag consume, so the start must hand it back.
 	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.RunID == "" {
-		t.Fatalf("minted epoch has no id")
+		t.Fatalf("minted run has no id")
 	}
 	if res.RunID != ep.RunID {
-		t.Errorf("result Epoch = %q, want the minted epoch id %q", res.RunID, ep.RunID)
+		t.Errorf("result Run = %q, want the minted run id %q", res.RunID, ep.RunID)
 	}
 
-	// Human report line: run-started <key> <epoch> <dispatch-context>, then the
+	// Human report line: run-started <key> <run-id> <run-context>, then the
 	// owner-lifecycle caveat.
 	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.RunID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
@@ -237,7 +237,7 @@ func TestIntegrationRunStartRunStartResumeBindsOnlyVerifiedInProgress(t *testing
 
 		res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
 		if !res.Started {
-			t.Fatalf("resume did not arm: %q", res.HumanText())
+			t.Fatalf("resume did not start: %q", res.HumanText())
 		}
 		if sp.calls != 1 {
 			t.Fatalf("PrepareScope called %d times, want 1", sp.calls)
@@ -271,7 +271,7 @@ func TestIntegrationRunStartRunStartResumeBindsOnlyVerifiedInProgress(t *testing
 
 		res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
 		if res.Started {
-			t.Fatalf("armed for a non-in-progress resume id")
+			t.Fatalf("started for a non-in-progress resume id")
 		}
 		if res.Reason != ReasonRunResumeUnverified {
 			t.Errorf("Reason = %q, want %q", res.Reason, ReasonRunResumeUnverified)
@@ -295,7 +295,7 @@ func TestIntegrationRunStartRunStartResumeBindsOnlyVerifiedInProgress(t *testing
 
 		res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
 		if res.Started {
-			t.Fatalf("armed despite a failed inspect")
+			t.Fatalf("started despite a failed inspect")
 		}
 		if res.Reason != ReasonRunResumeUnverified {
 			t.Errorf("Reason = %q, want %q", res.Reason, ReasonRunResumeUnverified)
@@ -319,7 +319,7 @@ func TestIntegrationRunStartRunStartNoTimestampGames(t *testing.T) {
 
 	res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
 	if !res.Started {
-		t.Fatalf("resume did not arm: %q", res.HumanText())
+		t.Fatalf("resume did not start: %q", res.HumanText())
 	}
 	rec, err := LoadRunTrackerRecord(repoDir, res.Key)
 	if err != nil {
@@ -337,7 +337,7 @@ func TestIntegrationRunStartRunStartNoTimestampGames(t *testing.T) {
 	}
 	// DispatchedAt is still captured post-read (>= CreatedAt), unchanged by resume.
 	if rec.DispatchedAt < rec.CreatedAt {
-		t.Errorf("DispatchedAt %d < CreatedAt %d — resume must not rewind the epoch", rec.DispatchedAt, rec.CreatedAt)
+		t.Errorf("DispatchedAt %d < CreatedAt %d — resume must not rewind the run", rec.DispatchedAt, rec.CreatedAt)
 	}
 	if rec.AttributedID != 5 {
 		t.Errorf("AttributedID = %d, want 5", rec.AttributedID)
@@ -345,7 +345,7 @@ func TestIntegrationRunStartRunStartNoTimestampGames(t *testing.T) {
 }
 
 // runTrackerPinWithRunMaxAttempts builds a StatusPin whose resolved config carries an
-// explicit repository-layer run.max_attempts, so a run start arm through it
+// explicit repository-layer run.max_attempts, so a run start through it
 // snapshots that value into the record's AttemptLimit.
 func runTrackerPinWithRunMaxAttempts(t *testing.T, n int) StatusPin {
 	t.Helper()
@@ -376,7 +376,7 @@ func TestIntegrationRunStartMintSnapshotsRunMaxAttempts(t *testing.T) {
 
 		res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 		if !res.Started {
-			t.Fatalf("did not arm: %q", res.HumanText())
+			t.Fatalf("did not start: %q", res.HumanText())
 		}
 		rec, err := LoadRunTrackerRecord(repo, res.Key)
 		if err != nil {
@@ -403,7 +403,7 @@ func TestIntegrationRunStartMintSnapshotsRunMaxAttempts(t *testing.T) {
 
 		res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 		if !res.Started {
-			t.Fatalf("did not arm: %q", res.HumanText())
+			t.Fatalf("did not start: %q", res.HumanText())
 		}
 		rec, err := LoadRunTrackerRecord(repo, res.Key)
 		if err != nil {
@@ -499,37 +499,37 @@ func writeRawRunTrackerRecord(t *testing.T, root, key, tmpl string) {
 	}
 }
 
-// TestIntegrationRunStartArmedLineIsAlwaysThreeTokens (change 0463): every armed result a real arm
-// produces (fresh, epochless resume, cancelled-replacement resume) prints a first
-// line of exactly four space-separated fields. Field 3 is the epoch and field 4 is
-// the dispatch context, so a positional parser can never read the dispatch context
-// as the epoch.
+// TestIntegrationRunStartArmedLineIsAlwaysThreeTokens (change 0463): every started result a real start
+// produces (fresh, no-run-record resume, cancelled-replacement resume) prints a first
+// line of exactly four space-separated fields. Field 3 is the run and field 4 is
+// the run context, so a positional parser can never read the run context
+// as the run.
 func TestIntegrationRunStartArmedLineIsAlwaysThreeTokens(t *testing.T) {
 	check := func(t *testing.T, res RunStartResult) {
 		t.Helper()
 		if !res.Started {
-			t.Fatalf("did not arm: %q", res.HumanText())
+			t.Fatalf("did not start: %q", res.HumanText())
 		}
 		first := strings.SplitN(res.HumanText(), "\n", 2)[0]
 		fields := strings.Fields(first)
 		if len(fields) != 4 || fields[0] != "run-started" {
-			t.Fatalf("armed line %q: want exactly `run-started <key> <epoch> <dispatch-context>`", first)
+			t.Fatalf("started line %q: want exactly `run-started <key> <run-id> <run-context>`", first)
 		}
 		if fields[1] != res.Key || fields[2] != res.RunID || fields[3] != res.RunContext {
-			t.Fatalf("armed line %q: fields (%q,%q,%q), want (key %q, epoch %q, dispatch context %q)",
+			t.Fatalf("started line %q: fields (%q,%q,%q), want (key %q, run %q, run context %q)",
 				first, fields[1], fields[2], fields[3], res.Key, res.RunID, res.RunContext)
 		}
 		if res.RunID == "" || res.RunID == res.RunContext {
-			t.Fatalf("epoch %q must be a distinct non-empty token from the dispatch context %q", res.RunID, res.RunContext)
+			t.Fatalf("run %q must be a distinct non-empty token from the run context %q", res.RunID, res.RunContext)
 		}
 	}
-	t.Run("fresh arm", func(t *testing.T) {
+	t.Run("fresh start", func(t *testing.T) {
 		repo := newRunTrackerRepo(t)
 		deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
 		check(t, RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0))
 	})
-	t.Run("epochless resume", func(t *testing.T) {
+	t.Run("no-run-record resume", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
 		deps, wdeps := resumeRunDeps(t)
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}

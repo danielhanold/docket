@@ -15,7 +15,7 @@ import (
 
 // These are the successful-run ownership closeout tests (change 0441 Task 7).
 // completeSuccessfulRun is the observation-only counterpart of runCancel: on a
-// verified keyed run-complete it fences the epoch completing, proves every registered
+// verified keyed run-complete it fences the run completing, proves every registered
 // obligation terminal WITHOUT stopping anything, retires the released worktree slot,
 // and CASes completing→completed — failing closed on any unsettled obligation and
 // never relabelling a cancelled/superseded run successful. The tests drive the flow
@@ -23,7 +23,7 @@ import (
 // the run-cancel fixtures in runtracker_cancel_helpers_test.go.
 
 // completionFixture is one prepared successfully-finished run: a fully authorized
-// active epoch bound to a worktree whose epoch-owned slot is RELEASED (its drives are
+// active run bound to a worktree whose run-owned slot is RELEASED (its drives are
 // done), a registered coordinator native task carrying recorded terminal evidence,
 // every mutation completed, and permissive observation seams (every process proven
 // terminal, every launch accounted).
@@ -72,7 +72,7 @@ func slotReservationToken(t *testing.T, store *gatedrive.Store, worktree string)
 	return slot.ReservationToken
 }
 
-// TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath: a fully settled run closes out — ok, epoch
+// TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath: a fully settled run closes out — ok, run
 // RunCompleted, the owned released slot detached (RunID cleared) with its state
 // still released and every history field intact (AC2 history preservation).
 func TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath(t *testing.T) {
@@ -86,7 +86,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath(t *testing.T) {
 		t.Fatalf("ok=false reason=%q findings=%v", reason, findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
-		t.Fatalf("epoch state = %q, want completed", st)
+		t.Fatalf("run state = %q, want completed", st)
 	}
 	after, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
@@ -105,8 +105,8 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunHappyPath(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCompletionCompleteSuccessfulRunIdempotentReplay: a second closeout of a completed epoch is
-// a no-op success — the stored epoch generation is byte-stable across the replay.
+// TestIntegrationRunCompletionCompleteSuccessfulRunIdempotentReplay: a second closeout of a completed run is
+// a no-op success — the stored run generation is byte-stable across the replay.
 func TestIntegrationRunCompletionCompleteSuccessfulRunIdempotentReplay(t *testing.T) {
 	fx := newCompletionFixture(t)
 	if ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key); !ok {
@@ -129,7 +129,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunIdempotentReplay(t *testin
 }
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunNeverRelabelsCancellation: a cancelling/cancelled run is
-// run-cancelled, a superseded run is stale-run-id, and the epoch state is never
+// run-cancelled, a superseded run is stale-run-id, and the run state is never
 // rewritten to a successful one.
 func TestIntegrationRunCompletionCompleteSuccessfulRunNeverRelabelsCancellation(t *testing.T) {
 	cases := []struct {
@@ -160,9 +160,9 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunNeverRelabelsCancellation(
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObligation (AC3): each unsettled
 // obligation fails closed — ok false, reason completion-unaccounted, the named
-// finding present, the epoch left durably completing, and the slot untouched.
+// finding present, the run left durably completing, and the slot untouched.
 func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObligation(t *testing.T) {
-	// each build returns the seams and the located run; the epoch begins active so the
+	// each build returns the seams and the located run; the run begins active so the
 	// closeout drives the real completing fence before it blocks.
 	type row struct {
 		name    string
@@ -226,8 +226,8 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 			return permissiveSeams(base.store), base.repo, base.key, base.runID, base.worktree
 		}},
 		{"unowned-slot", "slot-ownership-unresolved", func(t *testing.T) (cancelSeams, string, string, string, string) {
-			base := newCancelFixture(t, false) // no epoch-owned slot; worktree bound
-			// An epoch-less EXECUTING slot not linked to any registered participant.
+			base := newCancelFixture(t, false) // no run-owned slot; worktree bound
+			// A no-run-record EXECUTING slot not linked to any registered participant.
 			tok, err := base.store.ReserveRawWorktreeExecution(base.common, base.worktree, nil)
 			if err != nil {
 				t.Fatalf("reserve raw: %v", err)
@@ -254,7 +254,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 				t.Fatalf("findings = %v, want %q", findings, r.finding)
 			}
 			if st := loadRunState(t, repo, key); st != RunCompleting {
-				t.Fatalf("epoch state = %q, want completing (success fence held)", st)
+				t.Fatalf("run state = %q, want completing (success fence held)", st)
 			}
 			if epo := loadSlotRun(t, seams.store, worktree); epo != slotRunBefore {
 				t.Fatalf("blocked closeout touched the slot: RunID %q -> %q", slotRunBefore, epo)
@@ -270,7 +270,7 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunBlocksOnEveryUnsettledObli
 // non-released owned slot with the same finding, so this observation-order assertion
 // is what pins the EARLY guard as load-bearing rather than decoration.
 func TestIntegrationRunCompletionCompleteSuccessfulRunSkipsObservingNonReleasedOwnedSlot(t *testing.T) {
-	base := newCancelFixture(t, true) // epoch-owned slot left EXECUTING (not released)
+	base := newCancelFixture(t, true) // run-owned slot left EXECUTING (not released)
 	must(t, RegisterRunParticipant(base.repo, base.key, base.runID,
 		RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
 	must(t, RecordRunParticipantTerminal(base.repo, base.key, base.runID,
@@ -362,13 +362,13 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunLateParticipantBlocks(t *t
 		t.Fatalf("findings = %v, want process-live:LATE", findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleting {
-		t.Fatalf("epoch state = %q, want completing (blocked, fence held)", st)
+		t.Fatalf("run state = %q, want completing (blocked, fence held)", st)
 	}
 }
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunReplayAfterRetireBeforeComplete (AC6 "interruption
 // before/after slot retirement"): a crash between the slot retirement and the
-// completing→completed CAS leaves the slot already detached and the epoch still
+// completing→completed CAS leaves the slot already detached and the run still
 // completing; a replay accepts the safe prior detachment and finishes to completed.
 func TestIntegrationRunCompletionCompleteSuccessfulRunReplayAfterRetireBeforeComplete(t *testing.T) {
 	fx := newCompletionFixture(t)
@@ -382,10 +382,10 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunReplayAfterRetireBeforeCom
 		t.Fatalf("replay ok=false reason=%q findings=%v", reason, findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
-		t.Fatalf("epoch state = %q, want completed", st)
+		t.Fatalf("run state = %q, want completed", st)
 	}
 	if epo := loadSlotRun(t, fx.store, fx.worktree); epo != "" {
-		t.Fatalf("slot epoch = %q, want still cleared", epo)
+		t.Fatalf("slot run = %q, want still cleared", epo)
 	}
 }
 
@@ -393,8 +393,8 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunReplayAfterRetireBeforeCom
 // slot carrying a DIFFERENT nonempty RunID (a successor that reserved after safe
 // detachment) is left untouched, and the closeout still completes.
 func TestIntegrationRunCompletionCompleteSuccessfulRunForeignSuccessorUntouched(t *testing.T) {
-	base := newCancelFixture(t, false) // no epoch-owned slot; worktree bound
-	if _, err := base.store.ReserveWorktreeExecutionForRun(base.common, base.worktree, "successor-epoch", nil); err != nil {
+	base := newCancelFixture(t, false) // no run-owned slot; worktree bound
+	if _, err := base.store.ReserveWorktreeExecutionForRun(base.common, base.worktree, "successor-run", nil); err != nil {
 		t.Fatalf("successor reserve: %v", err)
 	}
 	must(t, RegisterRunParticipant(base.repo, base.key, base.runID, RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
@@ -407,10 +407,10 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunForeignSuccessorUntouched(
 		t.Fatalf("ok=false reason=%q findings=%v", reason, findings)
 	}
 	if st := loadRunState(t, base.repo, base.key); st != RunCompleted {
-		t.Fatalf("epoch state = %q, want completed", st)
+		t.Fatalf("run state = %q, want completed", st)
 	}
-	if epo := loadSlotRun(t, base.store, base.worktree); epo != "successor-epoch" {
-		t.Fatalf("successor slot epoch = %q, want untouched successor-epoch", epo)
+	if epo := loadSlotRun(t, base.store, base.worktree); epo != "successor-run" {
+		t.Fatalf("successor slot run = %q, want untouched successor-run", epo)
 	}
 	if st := loadSlotState(t, base.store, base.worktree); st != "reserved" {
 		t.Fatalf("successor slot state = %q, want reserved (untouched)", st)
@@ -422,18 +422,18 @@ func TestIntegrationRunCompletionCompleteSuccessfulRunForeignSuccessorUntouched(
 // REFUSED before the successful closeout and ADMITTED after it, at the exact
 // admission shape the finalize path composes (GateLaunch reserves via the store's
 // standalone entrypoint ReserveRawWorktreeExecution). Before closeout the released
-// but still epoch-owned slot presents the finalize gate's empty epoch to the
+// but still run-owned slot presents the finalize gate's empty run to the
 // reserveWorktreeExecution "RunID != rec.RunID" fence and is refused
 // ErrStaleRunID (omission cannot detach a workflow-owned worktree). After
-// completeSuccessfulRun retires the slot the same epoch-less reservation admits, and
+// completeSuccessfulRun retires the slot the same no-run-record reservation admits, and
 // a following admitWorkflowMutation on the worktree is unfenced (a usable done
 // callback) — proving later workflow mutations on that worktree are not trapped by
-// the retired epoch.
+// the retired run.
 func TestIntegrationRunCompletionStandaloneFinalizeAdmissionBlockedThenAdmittedAroundCloseout(t *testing.T) {
 	fx := newCompletionFixture(t)
 
 	// BEFORE closeout: the standalone finalize gate's admission shape presents an
-	// empty epoch to a slot the run epoch still owns (released, between drives) and is
+	// empty run to a slot the run still owns (released, between drives) and is
 	// refused stale-run-id.
 	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); func() bool {
 		oe, ok := gatedrive.AsOwnershipError(err)
@@ -447,11 +447,11 @@ func TestIntegrationRunCompletionStandaloneFinalizeAdmissionBlockedThenAdmittedA
 		t.Fatalf("closeout ok=false reason=%q findings=%v", reason, findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
-		t.Fatalf("epoch state = %q, want completed", st)
+		t.Fatalf("run state = %q, want completed", st)
 	}
 
-	// AFTER closeout: the same epoch-less reservation now admits (the slot was
-	// detached from its retired epoch); release it back so the worktree is idle.
+	// AFTER closeout: the same no-run-record reservation now admits (the slot was
+	// detached from its retired run); release it back so the worktree is idle.
 	token, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
 	if err != nil {
 		t.Fatalf("after closeout: raw reserve must admit, got %v", err)
@@ -460,7 +460,7 @@ func TestIntegrationRunCompletionStandaloneFinalizeAdmissionBlockedThenAdmittedA
 		t.Fatalf("release standalone reservation: %v", err)
 	}
 
-	// A subsequent workflow mutation on the worktree is unfenced: the retired epoch no
+	// A subsequent workflow mutation on the worktree is unfenced: the retired run no
 	// longer owns it, so admitWorkflowMutation returns a usable done callback.
 	done, err := admitWorkflowMutation(fx.worktree, "pr.publish", nil)
 	if err != nil || done == nil {
@@ -470,13 +470,13 @@ func TestIntegrationRunCompletionStandaloneFinalizeAdmissionBlockedThenAdmittedA
 }
 
 // TestIntegrationRunCompletionOrdinaryReleaseStillRetainsRunBetweenDrives is AC8's ordinary-release fence
-// probe: ReleaseWorktreeExecution on an epoch-owned slot leaves RunID intact, so
-// a foreign/epoch-less reserve BETWEEN drives is still refused ErrStaleRunID. Only
-// the attributed successful closeout (or an explicit cancellation) detaches the epoch;
+// probe: ReleaseWorktreeExecution on a run-owned slot leaves RunID intact, so
+// a foreign/no-run-record reserve BETWEEN drives is still refused ErrStaleRunID. Only
+// the attributed successful closeout (or an explicit cancellation) detaches the run;
 // a plain between-drives release never does. This pins the fence the change must NOT
 // weaken.
 func TestIntegrationRunCompletionOrdinaryReleaseStillRetainsRunBetweenDrives(t *testing.T) {
-	fx := newCancelFixture(t, true) // confirmed epoch-owned slot
+	fx := newCancelFixture(t, true) // confirmed run-owned slot
 	token := slotReservationToken(t, fx.store, fx.worktree)
 	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, token); err != nil {
 		t.Fatalf("release: %v", err)
@@ -487,7 +487,7 @@ func TestIntegrationRunCompletionOrdinaryReleaseStillRetainsRunBetweenDrives(t *
 	if st := loadSlotState(t, fx.store, fx.worktree); st != "released" {
 		t.Fatalf("slot state = %q, want released", st)
 	}
-	// A between-drives foreign (epoch-less) reserve is still fenced.
+	// A between-drives foreign (no-run-record) reserve is still fenced.
 	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); func() bool {
 		oe, ok := gatedrive.AsOwnershipError(err)
 		return !ok || oe.Kind != gatedrive.ErrStaleRunID
@@ -594,7 +594,7 @@ func seedDriveRecord(t *testing.T, common, id, worktree, runDir string, outcome 
 	}
 }
 
-// TestIntegrationRunCompletionCompletionSlotReleasedOwnedNoReobservation: a RELEASED slot this epoch owns is
+// TestIntegrationRunCompletionCompletionSlotReleasedOwnedNoReobservation: a RELEASED slot this run owns is
 // itself the durable proof of that slot's execution. Its run directory has been
 // deleted (scratch cleanup), so re-observing the process could only fail — and the
 // closeout must not reopen it: the slot leg is accounted and the observer is never
@@ -630,7 +630,7 @@ func TestIntegrationRunCompletionCompletionSlotReleasedOwnedNoReobservation(t *t
 // live obligation — no durable release exists, so the slot leg blocks
 // slot-not-released exactly as before (unchanged safety).
 func TestIntegrationRunCompletionCompletionUnreleasedOwnedSlotStillBlocks(t *testing.T) {
-	base := newCancelFixture(t, true) // epoch-owned slot left executing
+	base := newCancelFixture(t, true) // run-owned slot left executing
 	seams := cancelSeams{store: base.store, observer: &scratchObserver{},
 		launchObserver: &fakeLaunchObserver{report: gatedrive.RunLaunchReport{Accounted: true}}}
 	blocked, findings := accountCompletionSlot(seams, RunRecord{RunID: base.runID, Worktree: base.worktree})
@@ -734,8 +734,8 @@ func TestIntegrationRunCompletionCompletionParticipantDurableProof(t *testing.T)
 // TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits (AC6): a successful run whose
 // first closeout was held by an in-flight mutation has its optional scratch removed
 // before the closeout is repeated; the repeat still completes on the durable release
-// facts. Then — with a cancelled, never-superseded predecessor epoch bound to the
-// same path in a directory that sorts first, and unrelated damaged drive and epoch
+// facts. Then — with a cancelled, never-superseded predecessor run bound to the
+// same path in a directory that sorts first, and unrelated damaged drive and run
 // history present — the finalize gate's admission on that worktree, composed exactly
 // as GateLaunch composes it, admits.
 func TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t *testing.T) {
@@ -763,12 +763,12 @@ func TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t 
 		t.Fatalf("closeout after scratch cleanup ok=false reason=%q findings=%v", reason, findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
-		t.Fatalf("epoch state = %q, want completed", st)
+		t.Fatalf("run state = %q, want completed", st)
 	}
 
 	// A cancelled never-superseded predecessor bound to the same path sorts first.
 	seedNamedRun(t, fx.repo, "0000-cancelled-predecessor", fx.worktree, RunCancelled)
-	// Unrelated damaged history: a corrupt drive record and a corrupt epoch record.
+	// Unrelated damaged history: a corrupt drive record and a corrupt run record.
 	badDrive := filepath.Join(fx.common, "docket", "gate-drives", "v2", "0446dddddddddddddddddddddddddd01")
 	if err := os.MkdirAll(badDrive, 0o700); err != nil {
 		t.Fatal(err)
@@ -788,7 +788,7 @@ func TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t 
 	store := gatedrive.OpenStore(fx.common)
 	store.SetRunSettledResolver(runSettledResolver(fx.common))
 	if refusal, refused := rawStaleRunRefusal(store, fx.worktree); refused {
-		t.Fatalf("finalize admission refused at the epoch fence: %+v", refusal)
+		t.Fatalf("finalize admission refused at the run fence: %+v", refusal)
 	}
 	token, err := store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
 	if err != nil {
@@ -801,7 +801,7 @@ func TestIntegrationRunCompletionCompleteThenScratchCleanupThenFinalizeAdmits(t 
 
 // TestIntegrationRunCompletionCompleteSuccessfulRunSettlesUncertainPublication (change 0444 acceptance 3): the
 // REAL attributed closeout path settles an uncertain publication proven by a later
-// completed identical retry, then completes the epoch — surfacing the settlement token
+// completed identical retry, then completes the run — surfacing the settlement token
 // in the returned findings, and sending no stop, cancelling no native task, and never
 // driving the stop-capable launch seam (the same no-stop proof as
 // TestIntegrationRunCompletionCompleteSuccessfulRunSendsNoStops).
@@ -959,6 +959,6 @@ func TestIntegrationRunCompletionReadOnlyPathsNeverSettle(t *testing.T) {
 		t.Fatalf("re-read record: %v", err)
 	}
 	if !bytes.Equal(before, after) {
-		t.Fatal("read-only verification paths must not write the epoch record")
+		t.Fatal("read-only verification paths must not write the run record")
 	}
 }

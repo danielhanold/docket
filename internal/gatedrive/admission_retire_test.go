@@ -8,8 +8,8 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// retireFixtureSlot reserves, confirms, and releases a slot owned by run epoch
-// "ep-1", returning the slot's reservation token. It builds the owning-epoch
+// retireFixtureSlot reserves, confirms, and releases a slot owned by run
+// "ep-1", returning the slot's reservation token. It builds the owning-run
 // released slot every retirement test starts from, reusing admission_test.go's
 // OpenStore/mkWorktree fixture pattern rather than inventing a second style.
 func retireFixtureSlot(t *testing.T, s *Store, worktree string) (token string) {
@@ -29,7 +29,7 @@ func retireFixtureSlot(t *testing.T, s *Store, worktree string) (token string) {
 	return token
 }
 
-// TestRetireClearsOnlyRunID: retiring the owning epoch on a released slot
+// TestRetireClearsOnlyRunID: retiring the owning run on a released slot
 // clears RunID, keeps the state released, and preserves every historical
 // field.
 func TestRetireClearsOnlyRunID(t *testing.T) {
@@ -131,7 +131,7 @@ func TestRetireRefusesForeignRun(t *testing.T) {
 	}
 }
 
-// TestRetireRefusesTokenMismatch: the right epoch with a stale/changed token is
+// TestRetireRefusesTokenMismatch: the right run with a stale/changed token is
 // ErrNotOwner — a raced replacement's reservation must never be cleared blindly.
 func TestRetireRefusesTokenMismatch(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
@@ -191,7 +191,7 @@ func TestRetireRefusesNonReleasedState(t *testing.T) {
 }
 
 // TestRetireEmptyExpectRunRefused: expectRunID "" is ErrInvalidID — an empty
-// epoch is never ownership proof.
+// run is never ownership proof.
 func TestRetireEmptyExpectRunRefused(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	wt := mkWorktree(t)
@@ -202,7 +202,7 @@ func TestRetireEmptyExpectRunRefused(t *testing.T) {
 	if !ok || se.Kind != ErrInvalidID {
 		t.Fatalf("want ErrInvalidID, got %v", err)
 	}
-	// The empty-epoch guard fails before any store touch: the slot still owns ep-1.
+	// The empty-run guard fails before any store touch: the slot still owns ep-1.
 	after, _, err := s.LoadWorktreeExecution(wt)
 	if err != nil {
 		t.Fatalf("load after: %v", err)
@@ -226,8 +226,8 @@ func TestRetireAbsentSlotIsNotFound(t *testing.T) {
 }
 
 // TestOrdinaryReleaseStillRetainsRun (AC2 regression): ordinary
-// ReleaseWorktreeExecution keeps RunID "ep-1", and both a different-epoch
-// and an epoch-less reserve over that retained slot are fenced ErrStaleRunID —
+// ReleaseWorktreeExecution keeps RunID "ep-1", and both a different-run
+// and a no-run-record reserve over that retained slot are fenced ErrStaleRunID —
 // the between-drives fence is untouched by this change.
 func TestOrdinaryReleaseStillRetainsRun(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
@@ -248,23 +248,23 @@ func TestOrdinaryReleaseStillRetainsRun(t *testing.T) {
 	if _, _, err := s.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: "repo-1", WorktreeRoot: wt, Kind: "scopeless", RunID: "ep-2",
 	}, nil); !isOwnership(err, ErrStaleRunID) {
-		t.Fatalf("different-epoch reserve over retained slot: want ErrStaleRunID, got %v", err)
+		t.Fatalf("different-run reserve over retained slot: want ErrStaleRunID, got %v", err)
 	}
 	if _, _, err := s.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: "repo-1", WorktreeRoot: wt, Kind: "scopeless", RunID: "",
 	}, nil); !isOwnership(err, ErrStaleRunID) {
-		t.Fatalf("epoch-less reserve over retained slot: want ErrStaleRunID, got %v", err)
+		t.Fatalf("no-run-record reserve over retained slot: want ErrStaleRunID, got %v", err)
 	}
 }
 
 // TestAdmissionAfterRetirement (AC1, store half): after retirement a released
-// slot is genuinely reusable — (a) a reserve carrying a NEW epoch admits, and (b)
-// on a second retired fixture an epoch-less reserve admits — with ExecutionGen
+// slot is genuinely reusable — (a) a reserve carrying a NEW run admits, and (b)
+// on a second retired fixture a no-run-record reserve admits — with ExecutionGen
 // continuing monotonically.
 func TestAdmissionAfterRetirement(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 
-	// (a) new-epoch reserve after retirement.
+	// (a) new-run reserve after retirement.
 	wt := mkWorktree(t)
 	token := retireFixtureSlot(t, s, wt)
 	before, _, err := s.LoadWorktreeExecution(wt)
@@ -278,10 +278,10 @@ func TestAdmissionAfterRetirement(t *testing.T) {
 		RepoIdentity: "repo-1", WorktreeRoot: wt, Kind: "scopeless", RunID: "ep-2",
 	}, nil)
 	if err != nil {
-		t.Fatalf("new-epoch reserve after retirement: %v", err)
+		t.Fatalf("new-run reserve after retirement: %v", err)
 	}
 	if newTok == "" {
-		t.Fatalf("new-epoch reserve returned an empty token")
+		t.Fatalf("new-run reserve returned an empty token")
 	}
 	after, _, err := s.LoadWorktreeExecution(wt)
 	if err != nil {
@@ -294,7 +294,7 @@ func TestAdmissionAfterRetirement(t *testing.T) {
 		t.Fatalf("ExecutionGen must continue monotonically: before=%d after=%d", before.ExecutionGen, after.ExecutionGen)
 	}
 
-	// (b) epoch-less reserve after retirement, on a distinct fixture.
+	// (b) no-run-record reserve after retirement, on a distinct fixture.
 	wt2 := mkWorktree(t)
 	token2 := retireFixtureSlot(t, s, wt2)
 	if err := s.RetireWorktreeExecutionRun(wt2, "ep-1", token2); err != nil {
@@ -303,14 +303,14 @@ func TestAdmissionAfterRetirement(t *testing.T) {
 	if _, _, err := s.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: "repo-1", WorktreeRoot: wt2, Kind: "scopeless", RunID: "",
 	}, nil); err != nil {
-		t.Fatalf("epoch-less reserve after retirement: %v", err)
+		t.Fatalf("no-run-record reserve after retirement: %v", err)
 	}
 }
 
-// TestReserveWorktreeExecutionForRunRecordsOwnership: the exported epoch-carrying
+// TestReserveWorktreeExecutionForRunRecordsOwnership: the exported run-carrying
 // reserve records the owning RunID (so the app boundary can create an
-// epoch-owned slot without the unexported admissionRecord literal), and refuses an
-// empty epoch with a typed ErrInvalidID.
+// run-owned slot without the unexported admissionRecord literal), and refuses an
+// empty run with a typed ErrInvalidID.
 func TestReserveWorktreeExecutionForRunRecordsOwnership(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 
@@ -340,16 +340,16 @@ func TestReserveWorktreeExecutionForRunRecordsOwnership(t *testing.T) {
 	_, err = s.ReserveWorktreeExecutionForRun("repo-1", wt2, "", nil)
 	se, ok := AsStoreError(err)
 	if !ok || se.Kind != ErrInvalidID {
-		t.Fatalf("empty epoch: want ErrInvalidID, got %v", err)
+		t.Fatalf("empty run: want ErrInvalidID, got %v", err)
 	}
 	if _, _, lerr := s.LoadWorktreeExecution(wt2); lerr == nil {
-		t.Fatalf("empty-epoch reserve must not create a slot")
+		t.Fatalf("empty-run reserve must not create a slot")
 	}
 }
 
 // removedWorktreeSlot builds the removed-worktree fixture every stored-identity
 // addressing test (change 0446 Task 2) starts from: it reserves a slot for a real
-// worktree through the exported epoch entry point, releases it with its token,
+// worktree through the exported run entry point, releases it with its token,
 // reads the slot's STORED canonical identity (WorktreeRoot — EvalSymlinks output
 // by construction), then removes the worktree directory. It returns the logical
 // spelling the caller created, the stored identity, and the reservation token.
@@ -377,7 +377,7 @@ func removedWorktreeSlot(t *testing.T, s *Store) (logical, stored, token string)
 	return logical, stored, token
 }
 
-// TestRetireRunAfterWorktreeRemoved: cancellation completion of an epoch whose
+// TestRetireRunAfterWorktreeRemoved: cancellation completion of a run whose
 // worktree was removed addresses the slot through the canonical identity already
 // stored on it rather than re-canonicalizing a path that no longer exists (spec
 // §2) — retirement finds the slot and clears RunID, preserving the rest.
@@ -396,13 +396,13 @@ func TestRetireRunAfterWorktreeRemoved(t *testing.T) {
 		t.Fatalf("RunID = %q, want cleared", after.RunID)
 	}
 	if after.State != admissionReleased || after.ReservationToken != token {
-		t.Fatalf("retire must only detach the epoch: got %+v", after)
+		t.Fatalf("retire must only detach the run: got %+v", after)
 	}
 }
 
 // TestLoadWorktreeExecutionAfterRemovalFindsSlot: after the worktree directory is
 // removed, LoadWorktreeExecution(storedRoot) returns the slot record, not
-// ErrInvalidID. The logical spelling the epoch may have bound (bindRunWorktree
+// ErrInvalidID. The logical spelling the run may have bound (bindRunWorktree
 // stores the LOGICAL path, e.g. under /var/folders → /private/var on macOS) keys to
 // the same slot: its surviving ancestors still resolve, so the missing tail is
 // appended to their canonical form.
