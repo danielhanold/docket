@@ -53,7 +53,14 @@ Departures from the plan:
 - **Task 1 (store reset):** mutation probes showed that the explicit JSON tags, the kept `gate_context_hash` receipt key, and the new root names are each guarded by a test.
 - **Task 4 (shard renames):** each integration shard has the same test count before and after the rename, and the integration contract script passes.
 - **Task 9 (the seal):** eight mutation probes each turned the seal red, and each went green again after restoring the file.
-- **Full suite:** the build's gate result is recorded in the PR's build-evidence block.
+- **Whole-branch review:** a deep review returned 3 important and 3 minor findings, and 5 of them were fixed in the branch:
+  - `e9df8b755`: identifiers where "gate" means a checkpoint, which the rename had changed, were restored.
+  - `0ec6dfaa5`: two remedy messages that the rename had garbled were rewritten, and a test now asserts each one.
+  - `0314ddd75`: the row-12 seal now treats every `--gate-context` as retired unless it is bound to a gate-drive command. It is mutation-tested against the old skill wording.
+  - `da95bac8c`: leftover prose misfires were fixed ("run run", wrong articles, "dispatch context", "keyed gate"), and the bundle-sentence pin was tightened.
+  - The sixth finding, an ADR note for a token outside the table, is deferred (see below).
+  - There was no second review round after the fixes.
+- **Full suite:** the certifying gate result for the final head is recorded in the PR's build-evidence block.
 
 ## Known issues and follow-ups
 
@@ -66,6 +73,16 @@ Departures from the plan:
 **Status:** confirmed, and left alone on purpose, because ADR-0129 row 12 covers only `change claim`.
 
 **Next step:** a human can decide whether to capture a follow-up change for it.
+
+### ADR-0129 does not yet record the extra token rename
+
+**What it is:** the cancel finding token `replacement-epoch-unreadable:` is not one of ADR-0129's rows, but this change renamed it to `replacement-run-record-unreadable:`, following the pattern of row 28. ADR-0129's deviations clause asks for a dated `## Update` note when a family change departs from the table.
+
+**Impact:** the ADR, which is the authority for naming, does not list this rename.
+
+**Status:** confirmed. It was left for a human because changing an Accepted ADR is a deliberate metadata write.
+
+**Next step:** add a dated `## Update` note to ADR-0129, or record why none is needed.
 
 ### `DOCKET_AGENT_GUARDIAN_GATE_KEY` is not renamed
 
