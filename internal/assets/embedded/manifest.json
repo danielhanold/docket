@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:71cbc5fe5bcf6707b2228181d7ac8e387a2682ccde639d0fe65e35f73ec567af",
+  "asset_set_id": "sha256:caf91c360bcd54926197135f15adbf3e78ddee150aaa388547151b5822a8330e",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -301,8 +301,8 @@
       "path": "skills/docket-build-task/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 14525,
-      "sha256": "1a2d7faacc37e8921a751cc0109b1a689080959f2aff1aaf170efe98c4244bb0"
+      "size": 14530,
+      "sha256": "c4cebafcbc9b7ccef8271e32f847374461fd2ce3da8b4bcff892a2ccec67429b"
     },
     {
       "path": "skills/docket-build/SKILL.md",
@@ -315,8 +315,8 @@
       "path": "skills/docket-build/references/gate-caller-loop.md",
       "role": "skill",
       "mode": 420,
-      "size": 12639,
-      "sha256": "769d1eb9785d3d298c13af1e3c051c7817cf9f033e9690c88ad1167a9a06bf21"
+      "size": 12664,
+      "sha256": "c7e8a48d3f5d3a30861eb604fffd9a4a7d39569242c12aae001c8ed4c455c212"
     },
     {
       "path": "skills/docket-build/references/gate-execution-evidence.md",
