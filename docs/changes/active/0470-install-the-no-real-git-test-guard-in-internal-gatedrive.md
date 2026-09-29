@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'chore/install-the-no-real-git-test-guard-in-internal-gatedrive'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-29T05:57:39Z'
+reconciled: true
+claimed_at: '2026-09-29T05:58:27Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,9 @@ Change 0466 moved gatedrive's real-git and real-process tests (about 12 of them)
 ## Open questions
 
 None. Trivial: this reapplies 0466's established pattern (`TestMain` + `testsupport.InstallNoGitGuard` + a per-package mutation test) to one more package, with no design choices. The only unknown is whether the guard catches a default-corpus git straggler in gatedrive, and the fix for that is 0466's existing move behind the `integration` tag.
+
+## Reconcile log
+
+### 2026-09-29
+
+2026-09-29 — Reconciled against main at 5174ea25 (0466 merged). Scope holds: internal/gatedrive has no default-build TestMain; its only TestMain lives in the integration-tagged supervisor_integration_test.go, so the new main_test.go must carry `//go:build !integration && !e2e` (unlike workspace/transaction, whose integration corpus has no TestMain) to avoid a duplicate TestMain under the integration tag. Shard glob: tests/test_go_integration_gatedrive_*.sh (process + race shards exist). Grep of default-build gatedrive tests shows no git/exec.Command use.
