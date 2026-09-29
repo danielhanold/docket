@@ -36,7 +36,7 @@ const (
 	// CodeRecordPathDuplicate marks a repository path supplied more than once.
 	CodeRecordPathDuplicate = "record-path-duplicate"
 	// CodeChangePlacementInvalid marks a record whose directory contradicts its
-	// status: a terminal change left in active/, or a live one in archive/.
+	// status: a final-status change left in active/, or a live one in archive/.
 	CodeChangePlacementInvalid = "change-placement-invalid"
 	// CodeChangeArchiveDateInvalid marks an archived record whose filename
 	// carries no usable YYYY-MM-DD prefix.

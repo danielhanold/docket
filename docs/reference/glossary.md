@@ -2307,6 +2307,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Change version (--version)](#change-version---version)
 - [Claim / claim lease / reclaim](#claim--claim-lease--reclaim)
 - [Closed vocabulary (operation dispositions)](#closed-vocabulary-operation-dispositions)
+- [Close-out](#closeout--closeout-notes) — see Closeout / closeout notes
 - [Closeout / closeout notes](#closeout--closeout-notes)
 - [Compare-and-swap (CAS) / push-retry](#compare-and-swap-cas--push-retry)
 - [Config layers](#config-layers)
@@ -2344,6 +2345,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Epoch fence](#epoch-fence)
 - [Escalation (NEEDS_ESCALATION)](#build-profile--escalation) — see Build profile / escalation
 - [Feature branch](#feature-branch)
+- [Final status](#change-lifecycle-and-statuses)
 - [Finalize](#finalize)
 - [Finalize blocked / reason token / clear-block](#finalize-blocked--reason-token--clear-block)
 - [Finalize drain / run outcome (/loop docket-finalize-change)](#finalize-drain--run-outcome-loop-docket-finalize-change)

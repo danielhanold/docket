@@ -41,8 +41,8 @@ const (
 	mergeListReplace
 )
 
-// layerScope is the coordination fence: which layers may declare a setting at
-// all. A declaration outside the fence is warned about and excluded from
+// layerScope is the shared-setting guard: which layers may declare a setting at
+// all. A declaration outside the guard is warned about and excluded from
 // resolution, never silently honored.
 type layerScope int
 
@@ -198,7 +198,7 @@ func buildRegistry() []pathSpec {
 		{path: "metadata_branch", kind: kindString, merge: mergeScalar,
 			disp: dispObsolete, validate: stringLeaf(false, false, false)},
 
-		// 3-6: repository identity — coordination-fenced, so a machine layer
+		// 3-6: repository identity — shared-setting-guarded, so a machine layer
 		// cannot silently relocate one clone's planning surfaces.
 		{path: "integration_branch", kind: kindString, def: "auto",
 			merge: mergeScalar, scope: scopeRepoFenced, disp: dispSupported,

@@ -50,7 +50,7 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 }
 
 // newFinalizeCleanupSubcommand builds `finalize cleanup`: the ownership-safe
-// destructive suffix over one terminal change. It reloads the archived/stacked
+// destructive suffix over one final change. It reloads the archived/stacked
 // state and the verified merge destination, repairs the terminal backlinks,
 // removes the feature checkout, and deletes the local and remote feature refs
 // under exact proof — retaining any resource whose proof it cannot answer. Only
@@ -59,7 +59,7 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cleanup",
-		Short: "Clean a terminal change's workspace and feature refs under exact ownership proof",
+		Short: "Clean a final change's workspace and feature refs under exact ownership proof",
 		Args:  cobra.NoArgs,
 		// local-write (delete local ref + remove worktree), external-write
 		// (delete the remote feature ref under lease), metadata-write (the
@@ -79,7 +79,7 @@ func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Co
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "terminal change `id` to clean up (required)")
+	cmd.Flags().Int("id", 0, "final change `id` to clean up (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	return cmd

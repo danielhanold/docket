@@ -20,7 +20,7 @@ import (
 // and only cleanly-absent certifies an already-completed destructive leg
 // (learning probe-error-is-not-clean-absence).
 //
-// `finalize cleanup` runs an ordered suffix over one terminal change: it reloads
+// `finalize cleanup` runs an ordered suffix over one final change: it reloads
 // the archived/stacked state and the verified merge destination; repairs the
 // terminal backlinks first when needed; removes the feature checkout through the
 // landed manifest-fact-driven workspace.Cleanup (never a base recomputed from the
@@ -73,7 +73,7 @@ const (
 	// CleanupDispChildrenRetargetRequired: the parent archived truthfully but an
 	// open child PR still targets its branch; the remote branch is retained.
 	CleanupDispChildrenRetargetRequired = "children-retarget-required"
-	// CleanupDispRebaseScratchCleared: the one pre-terminal exception — an
+	// CleanupDispRebaseScratchCleared: the one pre-final exception — an
 	// explicitly-aborted owned rebase that restored its original head; the owned
 	// scratch refs and receipt were cleared.
 	CleanupDispRebaseScratchCleared = "rebase-scratch-cleared"
@@ -175,7 +175,7 @@ func cleanupGit(deps FinalizeDeps) FinalizeCleanupGit {
 }
 
 // FinalizeCleanup runs the ordered ownership-safe destructive suffix over one
-// terminal change (or clears the owned scratch of an explicitly-aborted owned
+// final change (or clears the owned scratch of an explicitly-aborted owned
 // rebase). Every leg fails closed: a probe error, a moved ref, unproven
 // ancestry, a blocked workspace, an open child, or a lease rejection returns
 // cleanup pending and preserves the resource.
@@ -202,7 +202,7 @@ func FinalizeCleanup(ctx context.Context, deps FinalizeDeps, repoDir string, id 
 			Message: "change is stacked-merged; its workspace and branches are retained until its root closes",
 		})
 	default:
-		// The one pre-terminal exception: an explicitly-aborted owned rebase that
+		// The one pre-final exception: an explicitly-aborted owned rebase that
 		// restored its own original head, whose owned scratch may still linger.
 		if res, handled := finalizeCleanupAbortedRebase(ctx, deps, cc); handled {
 			return res
@@ -315,7 +315,7 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 	if localDone && remoteDone && len(findings) == 0 {
 		return newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{
 			ID: id, Disposition: CleanupDispCleaned, RemovedRefs: removed, Findings: findings,
-			Message: "the terminal change was cleaned: workspace removed and feature refs deleted",
+			Message: "the final change was cleaned: workspace removed and feature refs deleted",
 		})
 	}
 	return finalizeCleanupResult(id, CleanupDispPending, removed, findings,
@@ -611,7 +611,7 @@ func finalizeCleanupRemoteRef(ctx context.Context, deps FinalizeDeps, git Finali
 // finalizeCleanupAbortedRebase clears the owned scratch (the two anchor refs and
 // the receipt) of an explicitly-aborted owned rebase whose head was restored to
 // the receipt's recorded original head. It returns (result, true) when this
-// pre-close-out exception applies, and (_, false) when there is no such
+// pre-final exception applies, and (_, false) when there is no such
 // aborted-restored scratch (the caller then refuses the non-final change).
 func finalizeCleanupAbortedRebase(ctx context.Context, deps FinalizeDeps, cc *closeoutContext) (CleanupOpResult, bool) {
 	id := int(cc.change.ID())
