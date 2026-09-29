@@ -23,3 +23,10 @@ Four maintained-source comments that described gatedrive as deliberately unguard
 - Straggler probe: a temporary default-build test that ran `git rev-parse HEAD` and swallowed the error still failed the package with the gatedrive guard diagnostic. The probe was then removed.
 - No existing default-corpus gatedrive test was caught running git, so no test needed to move behind the `integration` tag.
 - The full suite runs at the build gate on the head that contains this file. That evidence is recorded in the PR body, not here.
+- Whole-branch review (standard rung) found one minor issue: a comment in `tests/test_go_integration_gatedrive_process.sh` wrapped unevenly. It was rewrapped in-branch with no change to the wording or code.
+
+## Known issues and follow-ups
+
+### `test_go_integration_app_closeout.sh` is over its solo time budget
+
+The build-gate full suite passed, but its budget report showed `SERIAL CONFIRMED OVER BUDGET` for `tests/test_go_integration_app_closeout.sh`: 69s when run alone, against a 60s solo threshold (148s under parallel load). This does not fail the suite. It means that shard is slower than its budget row allows, which can make the suite noisier and slower over time. The finding is confirmed by the runner's serial re-measurement. It is unrelated to this change, which touches only `internal/gatedrive` tests, one `internal/testsupport` comment, and two shell-script headers. Suggested next action: a human decides whether to capture a change to re-measure or split that shard, or to adjust its budget row.
