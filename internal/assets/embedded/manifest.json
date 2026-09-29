@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:44808f18d6677716477491a74bc55aeab1e2e920b525bf328e1cb702f80bdcae",
+  "asset_set_id": "sha256:ea07493290b8456fbcef0e2beea6090e49014c775b2a5bf5e2f07540523dffe2",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -28,8 +28,8 @@
       "path": "agents/docket-auto-groom.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 913,
-      "sha256": "016e01866f4d0abc7caf72025de73dc24aff205e82c3fd81460d32a526c1f363"
+      "size": 908,
+      "sha256": "0df1e177e6fc393456340546cf9595785ecf5c5380d9e5c7ef352fa72d02fa7a"
     },
     {
       "path": "agents/docket-brainstorm-consultant.md",
@@ -287,8 +287,8 @@
       "path": "skills/docket-auto-groom/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 11285,
-      "sha256": "1e29726ae744d85735ecb021e60ea1bd000048e39d50dd51160bdfd78114c063"
+      "size": 11242,
+      "sha256": "14d35e90feb9dc4dfb6a217df66c09478bc1f0e1f5b42a896d1b94db8f6270a8"
     },
     {
       "path": "skills/docket-brainstorm/SKILL.md",
@@ -343,8 +343,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 57399,
-      "sha256": "f3eea3b38f6c158acc5d1c39a7669497249506b95fea211bbc8ad9f30cb4a2ea"
+      "size": 57414,
+      "sha256": "d4e4ad81db8601a03e283ec002638e60d310ef531a578e4d1f20327a73ee2aa7"
     },
     {
       "path": "skills/docket-convention/references/agent-layer.md",

@@ -1,6 +1,6 @@
 ---
 name: docket-auto-groom
-description: Use when a repo (or individual stubs) opted into autonomous grooming and you want the auto-groomable needs-brainstorm queue drained with no human — selecting each autonomous-eligible stub deterministically and designing it via a default-biased self-brainstorm gated by an adversarial critic, exiting each stub with a linked spec, a trivial verdict, or an abstain back to the human queue. Kill and defer are never autonomous. Writes markdown only — never branches, worktrees, or code.
+description: Use when a repo (or individual stubs) opted into autonomous grooming and you want the auto-groomable needs-brainstorm queue drained with no human — selecting each auto-groomable stub deterministically and designing it via a default-biased self-brainstorm gated by an adversarial critic, exiting each stub with a linked spec, a trivial verdict, or an abstain back to the human queue. Kill and defer are never autonomous. Writes markdown only — never branches, worktrees, or code.
 context: fork
 agent: docket-auto-groom
 ---
@@ -9,7 +9,7 @@ agent: docket-auto-groom
 
 ## Overview
 
-`docket-auto-groom` is `docket-groom-next`'s autonomous sibling. Same queue vocabulary, same exits where safe — but no human, and **drain semantics**: nobody is waiting between stubs, so one invocation loops until no autonomous-eligible stub remains, then reports. It keeps superpowers' brainstorming *reasoning* — enumerate the decision points, weigh approaches, commit to the conservative default — and replaces the *waiting-for-a-human protocol* with an audit trail (the spec's `## Assumptions` block) plus an adversarial critic that gates every build-ready exit. It writes markdown only: change files, specs, `BOARD.md` — never branches, worktrees, or code.
+`docket-auto-groom` is `docket-groom-next`'s autonomous sibling. Same queue vocabulary, same exits where safe — but no human, and **drain semantics**: nobody is waiting between stubs, so one invocation loops until no auto-groomable stub remains, then reports. It keeps superpowers' brainstorming *reasoning* — enumerate the decision points, weigh approaches, commit to the conservative default — and replaces the *waiting-for-a-human protocol* with an audit trail (the spec's `## Assumptions` block) plus an adversarial critic that gates every build-ready exit. It writes markdown only: change files, specs, `BOARD.md` — never branches, worktrees, or code.
 
 ## When to use
 
@@ -20,15 +20,15 @@ agent: docket-auto-groom
 
 ## Convention (load first — blocking)
 
-Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context values forward as literals; act on the disposition). Everything below uses its vocabulary (needs-brainstorm, effective auto-groomable, autonomous-eligible, the abstain rule, …) without redefinition. All reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context values forward as literals; act on the disposition). Everything below uses its vocabulary (needs-brainstorm, effective auto-groomable, the abstain rule, …) without redefinition. All reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
 
 ## Procedure — the drain loop
 
-Repeat steps 1–5 until no autonomous-eligible stub remains; then step 6.
+Repeat steps 1–5 until no auto-groomable stub remains; then step 6.
 
 ### Step 1 — Select
 
-Sync the metadata working tree (the Step-0 `repository.prepare` operation). Rank every **autonomous-eligible** stub (per the convention: needs-brainstorm AND effective auto-groomable; unsatisfied `depends_on` does NOT exclude — design ahead, note the dependency state in the assumptions) by the deterministic selection order. Pick the top. None left → step 6. Read the selected stub's exact record `path` + `version` (blob object id) from the `status` operation (with `--json`) — the Step-4 groom transaction pins the record with those.
+Sync the metadata working tree (the Step-0 `repository.prepare` operation). Rank every **auto-groomable** stub (per the convention: needs-brainstorm AND effective `auto_groomable: true`; unsatisfied `depends_on` does NOT exclude — design ahead, note the dependency state in the assumptions) by the deterministic selection order. Pick the top. None left → step 6. Read the selected stub's exact record `path` + `version` (blob object id) from the `status` operation (with `--json`) — the Step-4 groom transaction pins the record with those.
 
 ### Step 2 — Designer pass
 
@@ -41,7 +41,7 @@ Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, at t
 
 **Receiving the verdict.** The verdict is read from the critic's **return** — its final report, which the groom is actively blocking on; the groom never backgrounds the critic. The groom never waits for a message, a notification, or any other out-of-band delivery: nothing is registered to deliver one, so that wait never ends.
 
-**No-verdict posture (bounded — two steps, then out).** If the dispatch returns no legible verdict — a malformed return, pre-yield prose, or a backgrounded child's bare completion — make **one collect attempt** (read the child's completed final report where the harness surfaces it), and failing that **one fresh foreground re-dispatch** of the critic over the same draft, issued through whatever mechanism makes the parent block on the return — if none does, that leg would only repeat the first, so skip it straight to Tier B. Still no verdict ⇒ treat it as a failed dispatch attempt under the convention's *Dispatch-capability resolution*: **Tier B**, so the groom **abstains** for this stub (→ Step 4's **Abstain** exit in full, the `auto_groomable: false` flip included — left armed, the stub stays autonomous-eligible and the drain re-selects it, forfeiting *Termination & concurrency*), recording the return-channel diagnostic in the `blocked_note`, the human's re-arm cue. Never a third dispatch; never an indefinite wait. Re-dispatching a critic is safe where a build worker is not — it is read-only over prose, holds no worktree, and writes no git state, so `yielded-worker-return-closes-every-door`'s closed-doors analysis does not bind here.
+**No-verdict posture (bounded — two steps, then out).** If the dispatch returns no legible verdict — a malformed return, pre-yield prose, or a backgrounded child's bare completion — make **one collect attempt** (read the child's completed final report where the harness surfaces it), and failing that **one fresh foreground re-dispatch** of the critic over the same draft, issued through whatever mechanism makes the parent block on the return — if none does, that leg would only repeat the first, so skip it straight to Tier B. Still no verdict ⇒ treat it as a failed dispatch attempt under the convention's *Dispatch-capability resolution*: **Tier B**, so the groom **abstains** for this stub (→ Step 4's **Abstain** exit in full, the `auto_groomable: false` flip included — left armed, the stub stays auto-groomable and the drain re-selects it, forfeiting *Termination & concurrency*), recording the return-channel diagnostic in the `blocked_note`, the human's re-arm cue. Never a third dispatch; never an indefinite wait. Re-dispatching a critic is safe where a build worker is not — it is read-only over prose, holds no worktree, and writes no git state, so `yielded-worker-return-closes-every-door`'s closed-doors analysis does not bind here.
 
 ### Step 4 — Exit (one of three)
 
@@ -53,7 +53,7 @@ Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, at t
 
 ### Step 5 — The outcome lands (no separate board pass)
 
-Every exit's Step-4 `change.groom` operation is the whole write — it re-checks the pinned `version` and commits the record, any spec, the `## Artifacts` block, and the inline board in one metadata commit pushed under an exact-lease push, so there is **no separate Board pass** and no hand-staged commit. On a `contended` refusal it writes nothing: re-sync (re-run the `repository.prepare` operation), re-read the stub's `path` + `version` from the `status` operation, and if it is no longer autonomous-eligible (groomed, killed, claimed, or opted out) DISCARD this iteration's draft (delete any just-drafted spec markdown) and loop; otherwise re-author and retry. Loop to step 1.
+Every exit's Step-4 `change.groom` operation is the whole write — it re-checks the pinned `version` and commits the record, any spec, the `## Artifacts` block, and the inline board in one metadata commit pushed under an exact-lease push, so there is **no separate Board pass** and no hand-staged commit. On a `contended` refusal it writes nothing: re-sync (re-run the `repository.prepare` operation), re-read the stub's `path` + `version` from the `status` operation, and if it is no longer auto-groomable (groomed, killed, claimed, or opted out) DISCARD this iteration's draft (delete any just-drafted spec markdown) and loop; otherwise re-author and retry. Loop to step 1.
 
 ### Step 6 — Report
 
