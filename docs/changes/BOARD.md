@@ -1,12 +1,12 @@
 # Backlog
 
-**470 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 321 done · 🗑️ 120 killed
+**470 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 12 proposed · ⚪ 12 deferred · ✅ 321 done · 🗑️ 120 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0470](active/0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) | Install the no-real-git test guard in internal/gatedrive | `medium` | `chore` | [spec](../) | `chore/install-the-no-real-git-test-guard-in-internal-gatedrive` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0470](active/0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) | Install the no-real-git test guard in internal/gatedrive | `medium` | `chore` | [#350](https://github.com/danielhanold/docket/pull/350) | awaiting merge |
 
 ## 🔴 Blocked (1)
 

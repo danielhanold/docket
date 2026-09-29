@@ -2,7 +2,7 @@
 id: 470
 slug: 'install-the-no-real-git-test-guard-in-internal-gatedrive'
 title: 'Install the no-real-git test guard in internal/gatedrive'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-29'
@@ -19,7 +19,7 @@ trivial: true
 auto_groomable:
 branch_prefix:
 branch: 'chore/install-the-no-real-git-test-guard-in-internal-gatedrive'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/350'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-29T06:24:03Z'
