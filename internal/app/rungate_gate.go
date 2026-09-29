@@ -71,7 +71,7 @@ func epochLaunchGate(gitCommonDir string) gatedrive.EpochLaunchGate {
 		defer lock.Close()
 		// Re-read under the lock: the unlocked scan only located the directory, and a
 		// fence may have landed since. A record that has become unreadable fails closed.
-		rec, _, rerr := readStoredEpoch(dir, "epoch-launch-gate")
+		rec, _, rerr := readStoredEpoch(dir, "run-launch-gate")
 		if rerr != nil {
 			return rerr
 		}

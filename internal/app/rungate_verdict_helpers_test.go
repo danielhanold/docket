@@ -64,7 +64,7 @@ func gateMintArmed(t *testing.T, repoDir string, beforeIDs []int, dispatchEpoch 
 		BeforeIDs:        beforeIDs,
 		ChildContextHash: hash,
 		Retry:            RetryUnused,
-		Disposition:      "gate-armed",
+		Disposition:      "run-started",
 		AttemptLimit:     2,
 	})
 	if err != nil {

@@ -8,7 +8,7 @@ import (
 )
 
 // These are the `docket run continue <key> <continuation-id>` (change 0359)
-// tests. run continue redeems the single-use continuation a gate-continue verdict
+// tests. run continue redeems the single-use continuation a run-continue verdict
 // recorded: it loads the durable record, constant-time-compares the presented id
 // against the stored one, and consumes the recovered drive's handoff through a
 // (faked here) claim seam. It fails closed on no-continuation / mismatch /
@@ -34,7 +34,7 @@ func (s *fakeClaimSeam) Claim(driveID, handoffToken string) (GateClaimOutcome, e
 
 // gateMintWithContinuation mints an armed record carrying a full continuation
 // triple (all three fields set — a partial triple is a corrupt record), the state
-// a gate-continue verdict leaves for the resumed controller to redeem.
+// a run-continue verdict leaves for the resumed controller to redeem.
 func gateMintWithContinuation(t *testing.T, repoDir, cid, drive, handoff string) string {
 	t.Helper()
 	key := gateMintArmed(t, repoDir, nil, 1, "")
@@ -98,7 +98,7 @@ func TestIntegrationGateArmGateClaimRedactsGeneration(t *testing.T) {
 	if strings.Contains(human, "secretgen") {
 		t.Fatalf("HumanText leaked the generation: %q", human)
 	}
-	want := "gate-claimed " + key + " WAITING d0opaque"
+	want := "run-continued " + key + " WAITING d0opaque"
 	if human != want {
 		t.Fatalf("HumanText = %q, want %q", human, want)
 	}
@@ -116,7 +116,7 @@ func TestIntegrationGateArmGateClaimSingleUse(t *testing.T) {
 	}
 	second := RunGateClaim(repo, key, "cid-abc", seam)
 	if second.Decision != GateDecisionStop || second.Reason != ReasonGateNoContinuation {
-		t.Fatalf("second claim = {%q,%q}, want {gate-stop,no-continuation}", second.Decision, second.Reason)
+		t.Fatalf("second claim = {%q,%q}, want {run-stop,no-continuation}", second.Decision, second.Reason)
 	}
 	if seam.calls != 1 {
 		t.Errorf("seam.Claim called %d times, want 1 (the second claim never reaches the drive layer)", seam.calls)
@@ -132,7 +132,7 @@ func TestIntegrationGateArmGateClaimNoContinuation(t *testing.T) {
 
 	res := RunGateClaim(repo, key, "cid-abc", seam)
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateNoContinuation {
-		t.Fatalf("result = {%q,%q}, want {gate-stop,no-continuation}", res.Decision, res.Reason)
+		t.Fatalf("result = {%q,%q}, want {run-stop,no-continuation}", res.Decision, res.Reason)
 	}
 	if seam.calls != 0 {
 		t.Errorf("seam.Claim called %d times, want 0", seam.calls)
@@ -148,7 +148,7 @@ func TestIntegrationGateArmGateClaimMismatch(t *testing.T) {
 
 	res := RunGateClaim(repo, key, "cid-wrong", seam)
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateContinuationMismatch {
-		t.Fatalf("result = {%q,%q}, want {gate-stop,continuation-mismatch}", res.Decision, res.Reason)
+		t.Fatalf("result = {%q,%q}, want {run-stop,continuation-mismatch}", res.Decision, res.Reason)
 	}
 	if seam.calls != 0 {
 		t.Errorf("seam.Claim called %d times, want 0 (a mismatch never reaches the drive layer)", seam.calls)
@@ -169,7 +169,7 @@ func TestIntegrationGateArmGateClaimMismatchDifferentLength(t *testing.T) {
 	key := gateMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	res := RunGateClaim(repo, key, "cid-abc-longer", &fakeClaimSeam{})
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateContinuationMismatch {
-		t.Fatalf("result = {%q,%q}, want {gate-stop,continuation-mismatch}", res.Decision, res.Reason)
+		t.Fatalf("result = {%q,%q}, want {run-stop,continuation-mismatch}", res.Decision, res.Reason)
 	}
 }
 
@@ -183,9 +183,9 @@ func TestIntegrationGateArmGateClaimHaltedCarriesCause(t *testing.T) {
 
 	res := RunGateClaim(repo, key, "cid-abc", seam)
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateHaltedClaim || res.Cause != "fingerprint-mismatch" {
-		t.Fatalf("result = {%q,%q,cause=%q}, want {gate-stop,halted-claim,fingerprint-mismatch}", res.Decision, res.Reason, res.Cause)
+		t.Fatalf("result = {%q,%q,cause=%q}, want {run-stop,halted-claim,fingerprint-mismatch}", res.Decision, res.Reason, res.Cause)
 	}
-	if got := res.HumanText(); got != "gate-stop "+key+" halted-claim fingerprint-mismatch" {
+	if got := res.HumanText(); got != "run-stop "+key+" halted-claim fingerprint-mismatch" {
 		t.Errorf("HumanText = %q", got)
 	}
 	rec, _ := LoadGateRecord(repo, key)
@@ -203,7 +203,7 @@ func TestIntegrationGateArmGateClaimCommandError(t *testing.T) {
 
 	res := RunGateClaim(repo, key, "cid-abc", seam)
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateClaimError {
-		t.Fatalf("result = {%q,%q}, want {gate-stop,claim-error}", res.Decision, res.Reason)
+		t.Fatalf("result = {%q,%q}, want {run-stop,claim-error}", res.Decision, res.Reason)
 	}
 	rec, _ := LoadGateRecord(repo, key)
 	if rec.ContinuationID == "" {
@@ -219,7 +219,7 @@ func TestIntegrationGateArmGateClaimNilSeam(t *testing.T) {
 
 	res := RunGateClaim(repo, key, "cid-abc", nil)
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateClaimUnavailable {
-		t.Fatalf("result = {%q,%q}, want {gate-stop,claim-unavailable}", res.Decision, res.Reason)
+		t.Fatalf("result = {%q,%q}, want {run-stop,claim-unavailable}", res.Decision, res.Reason)
 	}
 	rec, _ := LoadGateRecord(repo, key)
 	if rec.ContinuationID == "" {
@@ -228,12 +228,12 @@ func TestIntegrationGateArmGateClaimNilSeam(t *testing.T) {
 }
 
 // TestIntegrationGateArmGateClaimLoadErrorFailsClosed: a malformed key never touches the filesystem
-// and fails closed to a gate-stop carrying the store's typed reason token.
+// and fails closed to a run-stop carrying the store's typed reason token.
 func TestIntegrationGateArmGateClaimLoadErrorFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
 	res := RunGateClaim(repo, "Bad/Key", "cid-abc", &fakeClaimSeam{})
 	if res.Decision != GateDecisionStop {
-		t.Fatalf("Decision = %q, want gate-stop", res.Decision)
+		t.Fatalf("Decision = %q, want run-stop", res.Decision)
 	}
 	if res.Reason != string(ErrGateMalformedKey) {
 		t.Fatalf("Reason = %q, want %q", res.Reason, ErrGateMalformedKey)

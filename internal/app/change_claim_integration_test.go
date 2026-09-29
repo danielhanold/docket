@@ -124,7 +124,7 @@ func TestIntegrationRecordOpsClaimGateContextReservesAndConfirms(t *testing.T) {
 }
 
 // TestIntegrationRecordOpsClaimGateContextConflictRefused: a second claim for a DIFFERENT change id
-// under the same context is refused gate-context-conflict before its
+// under the same context is refused run-context-conflict before its
 // transaction (criterion 3: one context cannot claim two changes).
 func TestIntegrationRecordOpsClaimGateContextConflictRefused(t *testing.T) {
 	repoDir := newGateRepo(t)
@@ -192,7 +192,7 @@ func TestIntegrationRecordOpsClaimUngatedUnchanged(t *testing.T) {
 }
 
 // TestIntegrationRecordOpsClaimTerminalGateRefused: a context whose only record is Terminal is
-// gate-context-invalid (the dispatch it named is already decided).
+// run-context-invalid (the dispatch it named is already decided).
 func TestIntegrationRecordOpsClaimTerminalGateRefused(t *testing.T) {
 	repoDir := newGateRepo(t)
 	mintGateWithHash(t, repoDir, gateHashToken("tok"), true) // terminal
@@ -378,7 +378,7 @@ func TestIntegrationRecordOpsChangeRefreshClaimUnrelatedInvalidRecordRefusals(t 
 // TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve: a `run start --resume` arm pre-binds
 // the resumed change as AttributedID and never gets a claim binding (change 0463).
 // A claim under that context, for the resumed change itself or for any other change,
-// is refused gate-context-conflict BEFORE ReserveGateClaim writes a binding file: a
+// is refused run-context-conflict BEFORE ReserveGateClaim writes a binding file: a
 // stray unconfirmed reservation would make run.cancel refuse claim-unconfirmed, and a
 // confirmed claim of a different change would make it refuse claim-mismatch, leaving
 // the resume epoch uncancellable either way.

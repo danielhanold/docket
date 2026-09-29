@@ -1235,7 +1235,7 @@ func TestIntegrationChangeAuthoringGateRecordSaveDurableReload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadGateRecord: %v", err)
 	}
-	loaded.Disposition = "gate-done run-complete"
+	loaded.Disposition = "run-done run-complete"
 	loaded.Terminal = true
 	loaded.AttributedID = 42
 	if err := SaveGateRecord(repo, key, loaded); err != nil {
@@ -1248,7 +1248,7 @@ func TestIntegrationChangeAuthoringGateRecordSaveDurableReload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadGateRecord (reload): %v", err)
 	}
-	if again.Disposition != "gate-done run-complete" || !again.Terminal || again.AttributedID != 42 {
+	if again.Disposition != "run-done run-complete" || !again.Terminal || again.AttributedID != 42 {
 		t.Errorf("reloaded record = %+v; save did not persist durably", again)
 	}
 }
@@ -1329,8 +1329,8 @@ func TestIntegrationChangeAuthoringGateRetryConsumeOnceThenFalse(t *testing.T) {
 // several configured run.max_attempts values (change 0421, Task 8). run start
 // snapshots the AUTHORITATIVE run.max_attempts into the record's AttemptLimit at
 // mint, and successive quiescent run-incomplete verdicts then grant exactly
-// AttemptLimit-1 gate-retry-once lines — each on a distinct attempt transition —
-// before the terminal gate-stop. The report-line TOKENS are asserted byte-for-byte
+// AttemptLimit-1 run-retry-once lines — each on a distinct attempt transition —
+// before the terminal run-stop. The report-line TOKENS are asserted byte-for-byte
 // so the counted budget never changes a parsed line, and GateRetryUsage confirms the
 // on-disk marker count matches the grants. Unlike the direct RunGateVerdict call in
 // TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit, the limit here
@@ -1381,24 +1381,24 @@ func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 
 			for i := 1; i <= tc.wantRetries; i++ {
 				res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-				if got, want := res.HumanText(), "gate-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
+				if got, want := res.HumanText(), "run-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
 					t.Fatalf("retry %d: HumanText = %q, want %q", i, got, want)
 				}
 				if res.Terminal {
-					t.Errorf("retry %d: gate-retry-once must be nonterminal", i)
+					t.Errorf("retry %d: run-retry-once must be nonterminal", i)
 				}
 				if res.AttemptsUsed != i || res.AttemptLimit != tc.limit {
 					t.Errorf("retry %d: attempts %d/%d, want %d/%d", i, res.AttemptsUsed, res.AttemptLimit, i, tc.limit)
 				}
 			}
 
-			// The next eligible incomplete is the terminal gate-stop: budget spent.
+			// The next eligible incomplete is the terminal run-stop: budget spent.
 			stop := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-			if got, want := stop.HumanText(), "gate-stop "+key+" run-incomplete 3 not-implemented"; got != want {
+			if got, want := stop.HumanText(), "run-stop "+key+" run-incomplete 3 not-implemented"; got != want {
 				t.Fatalf("terminal HumanText = %q, want %q", got, want)
 			}
 			if !stop.Terminal {
-				t.Errorf("exhausted gate-stop must be terminal")
+				t.Errorf("exhausted run-stop must be terminal")
 			}
 			if stop.AttemptsUsed != tc.limit || stop.AttemptLimit != tc.limit {
 				t.Errorf("terminal attempts %d/%d, want %d/%d (exhausted)", stop.AttemptsUsed, stop.AttemptLimit, tc.limit, tc.limit)
@@ -1413,7 +1413,7 @@ func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 // TestIntegrationChangeAuthoringContinuationSurvivesInterruption proves a run-waiting
 // continuation spends no outer-retry budget even across a simulated interruption
 // (change 0421, Task 8): the verdict is re-driven — each call reopens the durable
-// record from disk — both calls map to the nonterminal gate-continue, GateRetryUsage
+// record from disk — both calls map to the nonterminal run-continue, GateRetryUsage
 // stays 0, and the O_EXCL retry marker is never created. A continuation is not a
 // second attempt, so an interruption in the middle of one cannot leak a charge.
 func TestIntegrationChangeAuthoringContinuationSurvivesInterruption(t *testing.T) {
@@ -1424,7 +1424,7 @@ func TestIntegrationChangeAuthoringContinuationSurvivesInterruption(t *testing.T
 
 	first := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if first.Decision != GateDecisionContinue {
-		t.Fatalf("first verdict Decision = %q, want gate-continue", first.Decision)
+		t.Fatalf("first verdict Decision = %q, want run-continue", first.Decision)
 	}
 	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
 		t.Fatalf("after first continue GateRetryUsage = %d,%v; want 0,nil", used, err)
@@ -1442,7 +1442,7 @@ func TestIntegrationChangeAuthoringContinuationSurvivesInterruption(t *testing.T
 
 	second := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if second.Decision != GateDecisionContinue {
-		t.Fatalf("re-verdict Decision = %q, want gate-continue", second.Decision)
+		t.Fatalf("re-verdict Decision = %q, want run-continue", second.Decision)
 	}
 	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
 		t.Errorf("after re-verdict GateRetryUsage = %d,%v; want still 0 (no charge across interruption)", used, err)
@@ -3518,7 +3518,7 @@ func TestIntegrationChangeRuntimeHaltCorruptedRecordStillRefused(t *testing.T) {
 	}
 }
 
-// TestRunGateBeforeArmsWithLoadableKey: a successful arm prints `gate-armed
+// TestRunGateBeforeArmsWithLoadableKey: a successful arm prints `run-started
 // <key>`, the record loads, and its BeforeIDs are exactly the fixture's
 // in-progress ids with the store-owned target and an unused retry permit.
 func TestIntegrationChangeRuntimeRunGateBeforeArmsWithLoadableKey(t *testing.T) {
@@ -3531,7 +3531,7 @@ func TestIntegrationChangeRuntimeRunGateBeforeArmsWithLoadableKey(t *testing.T) 
 		t.Fatalf("result = %q, want %q (report lines exit 0)", res.Result, ResultApplied)
 	}
 	if code := ExitCode(res.Env().Result); code != 0 {
-		t.Errorf("gate-armed exit code = %d, want 0", code)
+		t.Errorf("run-started exit code = %d, want 0", code)
 	}
 	if !res.Armed || res.Key == "" {
 		t.Fatalf("Armed=%v Key=%q, want armed with a non-empty key", res.Armed, res.Key)
@@ -3540,7 +3540,7 @@ func TestIntegrationChangeRuntimeRunGateBeforeArmsWithLoadableKey(t *testing.T) 
 	if err != nil {
 		t.Fatalf("LoadEpochRecord(%q): %v", res.Key, err)
 	}
-	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 
@@ -3610,7 +3610,7 @@ func TestIntegrationChangeRuntimeRunGateBeforeEmptyBacklogArms(t *testing.T) {
 }
 
 // TestRunGateBeforeInvalidTarget: any target other than `implement-next` is a
-// usage error — a non-zero exit with no gate-armed / gate-unarmed report line.
+// usage error — a non-zero exit with no run-started / run-untracked report line.
 func TestIntegrationChangeRuntimeRunGateBeforeInvalidTarget(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
@@ -3629,7 +3629,7 @@ func TestIntegrationChangeRuntimeRunGateBeforeInvalidTarget(t *testing.T) {
 }
 
 // TestRunGateBeforeSyncFailure: a fresh-origin re-sync failure (PinContext) is
-// reported as gate-unarmed with the sync reason token, exit 0.
+// reported as run-untracked with the sync reason token, exit 0.
 func TestIntegrationChangeRuntimeRunGateBeforeSyncFailure(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, nil, errors.New("fetch failed"), nil), Clock: testClock()}
@@ -3637,18 +3637,18 @@ func TestIntegrationChangeRuntimeRunGateBeforeSyncFailure(t *testing.T) {
 
 	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if res.Armed {
-		t.Fatalf("armed despite a sync failure, want gate-unarmed")
+		t.Fatalf("armed despite a sync failure, want run-untracked")
 	}
 	if res.Reason != ReasonGateSyncFailed {
 		t.Errorf("Reason = %q, want %q", res.Reason, ReasonGateSyncFailed)
 	}
 	if code := ExitCode(res.Env().Result); code != 0 {
-		t.Errorf("gate-unarmed exit code = %d, want 0", code)
+		t.Errorf("run-untracked exit code = %d, want 0", code)
 	}
 }
 
 // TestRunGateBeforeUnreadableChangesDir: an unreadable corpus prints
-// `gate-unarmed <reason>` with a stable token and still exits 0 (the report line
+// `run-untracked <reason>` with a stable token and still exits 0 (the report line
 // is the contract), and mints no record.
 func TestIntegrationChangeRuntimeRunGateBeforeUnreadableChangesDir(t *testing.T) {
 	repo := newGateRepo(t)
@@ -3657,34 +3657,34 @@ func TestIntegrationChangeRuntimeRunGateBeforeUnreadableChangesDir(t *testing.T)
 
 	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want %q (gate-unarmed is a report line)", res.Result, ResultApplied)
+		t.Fatalf("result = %q, want %q (run-untracked is a report line)", res.Result, ResultApplied)
 	}
 	if code := ExitCode(res.Env().Result); code != 0 {
-		t.Errorf("gate-unarmed exit code = %d, want 0", code)
+		t.Errorf("run-untracked exit code = %d, want 0", code)
 	}
 	if res.Armed {
-		t.Fatalf("armed on an unreadable corpus, want gate-unarmed")
+		t.Fatalf("armed on an unreadable corpus, want run-untracked")
 	}
 	if res.Reason != ReasonGateChangesUnreadable {
 		t.Errorf("Reason = %q, want %q", res.Reason, ReasonGateChangesUnreadable)
 	}
-	if got, want := res.HumanText(), "gate-unarmed "+ReasonGateChangesUnreadable; got != want {
+	if got, want := res.HumanText(), "run-untracked "+ReasonGateChangesUnreadable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }
 
 // TestRunGateVerdictLoadErrorsFailClosed: every store load fault maps to a
-// terminal gate-stop gate-unavailable carrying the store's typed reason token —
+// terminal run-stop run-tracker-unavailable carrying the store's typed reason token —
 // never a retry.
 func TestIntegrationChangeRuntimeRunGateVerdictLoadErrorsFailClosed(t *testing.T) {
 	t.Run("malformed key", func(t *testing.T) {
 		repo := newGateRepo(t)
 		res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{}, GitHubDeps{}, repo, "../escape")
-		if got, want := res.HumanText(), "gate-stop ../escape gate-unavailable malformed-key"; got != want {
+		if got, want := res.HumanText(), "run-stop ../escape run-tracker-unavailable malformed-key"; got != want {
 			t.Fatalf("HumanText = %q, want %q", got, want)
 		}
 		if !res.Terminal {
-			t.Errorf("gate-unavailable is terminal")
+			t.Errorf("run-tracker-unavailable is terminal")
 		}
 	})
 
@@ -3692,7 +3692,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictLoadErrorsFailClosed(t *testing.T
 		repo := newGateRepo(t)
 		key := "implement-next-nope"
 		res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{}, GitHubDeps{}, repo, key)
-		if got, want := res.HumanText(), "gate-stop "+key+" gate-unavailable not-found"; got != want {
+		if got, want := res.HumanText(), "run-stop "+key+" run-tracker-unavailable not-found"; got != want {
 			t.Fatalf("HumanText = %q, want %q", got, want)
 		}
 	})
@@ -3708,7 +3708,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictLoadErrorsFailClosed(t *testing.T
 			t.Fatal(err)
 		}
 		res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{}, GitHubDeps{}, repo, key)
-		if got, want := res.HumanText(), "gate-stop "+key+" gate-unavailable corrupt-record"; got != want {
+		if got, want := res.HumanText(), "run-stop "+key+" run-tracker-unavailable corrupt-record"; got != want {
 			t.Fatalf("HumanText = %q, want %q", got, want)
 		}
 	})
@@ -3730,20 +3730,20 @@ func TestIntegrationChangeRuntimeRunGateVerdictLoadErrorsFailClosed(t *testing.T
 			t.Fatal(err)
 		}
 		res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{}, GitHubDeps{}, repoB, key)
-		if got, want := res.HumanText(), "gate-stop "+key+" gate-unavailable wrong-repo"; got != want {
+		if got, want := res.HumanText(), "run-stop "+key+" run-tracker-unavailable wrong-repo"; got != want {
 			t.Fatalf("HumanText = %q, want %q", got, want)
 		}
 	})
 }
 
 // TestRunGateVerdictObserveEmptyBacklogNoCurrentRun: no in-progress ids and no
-// hints → a single terminal-shaped `gate-observe no-current-run` line.
+// hints → a single terminal-shaped `run-observe no-current-run` line.
 func TestIntegrationChangeRuntimeRunGateVerdictObserveEmptyBacklogNoCurrentRun(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := gateLightDeps(t, []StatusBlob{gateProposedBlob(9, "charlie")})
 
 	res := RunGateVerdictObserve(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, nil)
-	if got, want := res.HumanText(), "gate-observe no-current-run"; got != want {
+	if got, want := res.HumanText(), "run-observe no-current-run"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if code := ExitCode(res.Env().Result); code != 0 {
@@ -3752,7 +3752,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictObserveEmptyBacklogNoCurrentRun(t
 }
 
 // TestRunGateVerdictObserveHintsMixedVerdicts: supplied hint ids are each verified
-// and rendered as one `gate-observe <verdict> <id>` line, in the INPUT order given
+// and rendered as one `run-observe <verdict> <id>` line, in the INPUT order given
 // (never re-sorted), using RunVerify's verdict verbatim.
 func TestIntegrationChangeRuntimeRunGateVerdictObserveHintsMixedVerdicts(t *testing.T) {
 	repo := newGateRepo(t)
@@ -3762,7 +3762,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictObserveHintsMixedVerdicts(t *test
 	})
 
 	res := RunGateVerdictObserve(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, []string{"7", "3"})
-	if got, want := res.HumanText(), "gate-observe run-halted 7\ngate-observe run-unclaimed 3"; got != want {
+	if got, want := res.HumanText(), "run-observe run-halted 7\nrun-observe run-unclaimed 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q (one line per hint, input order)", got, want)
 	}
 	if code := ExitCode(res.Env().Result); code != 0 {
@@ -3771,7 +3771,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictObserveHintsMixedVerdicts(t *test
 }
 
 // TestRunGateVerdictObserveIncompleteWritesNothing: an incomplete run observed
-// unattributed emits `gate-observe run-incomplete <id> <unmet...>` and writes NO
+// unattributed emits `run-observe run-incomplete <id> <unmet...>` and writes NO
 // record and consumes NOTHING — the rungate root is never created (no mint, no
 // save, no retry consumption on the observe path).
 func TestIntegrationChangeRuntimeRunGateVerdictObserveIncompleteWritesNothing(t *testing.T) {
@@ -3782,7 +3782,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictObserveIncompleteWritesNothing(t 
 	)
 
 	res := RunGateVerdictObserve(context.Background(), deps, wdeps, gdeps, f.repo.invocation, []string{"3"})
-	if got, want := res.HumanText(), "gate-observe run-incomplete 3 not-implemented"; got != want {
+	if got, want := res.HumanText(), "run-observe run-incomplete 3 not-implemented"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if strings.HasPrefix(res.HumanText(), GateDecisionRetryOnce) {
@@ -3826,19 +3826,19 @@ func TestIntegrationChangeRuntimeRunGateVerdictObserveNoHintsAllInProgress(t *te
 	})
 
 	res := RunGateVerdictObserve(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, nil)
-	if got, want := res.HumanText(), "gate-observe run-halted 3\ngate-observe run-halted 7"; got != want {
+	if got, want := res.HumanText(), "run-observe run-halted 3\nrun-observe run-halted 7"; got != want {
 		t.Fatalf("HumanText = %q, want %q (all in-progress ids, sorted)", got, want)
 	}
 }
 
 // TestRunGateVerdictObserveSyncFailureUnavailable: a re-sync/read fault fails
-// closed to a single `gate-observe gate-unavailable <reason>` line.
+// closed to a single `run-observe run-tracker-unavailable <reason>` line.
 func TestIntegrationChangeRuntimeRunGateVerdictObserveSyncFailureUnavailable(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: &fakeReader{pinErr: errors.New("boom")}, Clock: testClock()}
 
 	res := RunGateVerdictObserve(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, nil)
-	if got, want := res.HumanText(), "gate-observe gate-unavailable "+ReasonGateSyncFailed; got != want {
+	if got, want := res.HumanText(), "run-observe run-tracker-unavailable "+ReasonGateSyncFailed; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 }
@@ -3866,13 +3866,13 @@ func TestIntegrationChangeRuntimeRunGateVerdictRestartDurability(t *testing.T) {
 		t.Fatalf("AttributedID = %d, want 3 (attributed from the durable record alone)", res.AttributedID)
 	}
 	if res.Decision != GateDecisionRetryOnce {
-		t.Fatalf("Decision = %q, want gate-retry-once", res.Decision)
+		t.Fatalf("Decision = %q, want run-retry-once", res.Decision)
 	}
 }
 
 // TestRunGateVerdictRunComplete: the attributed-id short-circuit verifies the
 // stored id directly. An implemented change 3 (which fresh attribution could
-// never pick, being no longer in-progress) yields gate-done run-complete —
+// never pick, being no longer in-progress) yields run-done run-complete —
 // proving the short-circuit bypassed attribution.
 func TestIntegrationChangeRuntimeRunGateVerdictRunComplete(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -3883,7 +3883,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictRunComplete(t *testing.T) {
 	key := gateMintAttributed(t, f.repo.invocation, 3)
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if !res.Terminal {
@@ -3895,7 +3895,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictRunComplete(t *testing.T) {
 }
 
 // TestRunGateVerdictRunHalted: a halted in-progress change is attributed, then
-// RunVerify's run-halted maps to a terminal gate-stop (a human is needed).
+// RunVerify's run-halted maps to a terminal run-stop (a human is needed).
 func TestIntegrationChangeRuntimeRunGateVerdictRunHalted(t *testing.T) {
 	repo := newGateRepo(t)
 	src := strings.TrimRight(lifecycleChange(3, "widget", "in-progress"), "\n") +
@@ -3911,7 +3911,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictRunHalted(t *testing.T) {
 	key := gateMintAttributed(t, repo, 3)
 
 	res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
-	if got, want := res.HumanText(), "gate-stop "+key+" run-halted 3"; got != want {
+	if got, want := res.HumanText(), "run-stop "+key+" run-halted 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if !res.Terminal {
@@ -3920,8 +3920,8 @@ func TestIntegrationChangeRuntimeRunGateVerdictRunHalted(t *testing.T) {
 }
 
 // TestRunGateVerdictRunIncompleteRetryThenStop drives the one-retry accounting:
-// a not-implemented run yields gate-retry-once on the first call (retry permit
-// consumed, non-terminal), and gate-stop run-incomplete on the second (permit
+// a not-implemented run yields run-retry-once on the first call (retry permit
+// consumed, non-terminal), and run-stop run-incomplete on the second (permit
 // spent, terminal). The post-pass durable state — not merely the emitted line —
 // records the consumed marker and the attributed id.
 func TestIntegrationChangeRuntimeRunGateVerdictRunIncompleteRetryThenStop(t *testing.T) {
@@ -3933,11 +3933,11 @@ func TestIntegrationChangeRuntimeRunGateVerdictRunIncompleteRetryThenStop(t *tes
 	key := gateMintAttributed(t, f.repo.invocation, 3)
 
 	res1 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res1.HumanText(), "gate-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
+	if got, want := res1.HumanText(), "run-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
 		t.Fatalf("first call HumanText = %q, want %q", got, want)
 	}
 	if res1.Terminal {
-		t.Errorf("gate-retry-once must be non-terminal")
+		t.Errorf("run-retry-once must be non-terminal")
 	}
 
 	// POST-PASS DURABLE STATE: reload the record and prove the retry marker is
@@ -3954,24 +3954,24 @@ func TestIntegrationChangeRuntimeRunGateVerdictRunIncompleteRetryThenStop(t *tes
 	}
 
 	res2 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res2.HumanText(), "gate-stop "+key+" run-incomplete 3 not-implemented"; got != want {
+	if got, want := res2.HumanText(), "run-stop "+key+" run-incomplete 3 not-implemented"; got != want {
 		t.Fatalf("second call HumanText = %q, want %q", got, want)
 	}
 	if !res2.Terminal {
-		t.Errorf("second gate-stop run-incomplete must be terminal")
+		t.Errorf("second run-stop run-incomplete must be terminal")
 	}
 }
 
 // TestRunGateVerdictRunUnclaimed: the attributed-id short-circuit over a change
 // that is now proposed (never-claimed) maps RunVerify's run-unclaimed to a
-// terminal gate-done.
+// terminal run-done.
 func TestIntegrationChangeRuntimeRunGateVerdictRunUnclaimed(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := rvProposedDeps(t) // corpus: change 3 proposed
 	key := gateMintAttributed(t, repo, 3)
 
 	res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
-	if got, want := res.HumanText(), "gate-done "+key+" run-unclaimed 3"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" run-unclaimed 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if !res.Terminal {
@@ -3980,7 +3980,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictRunUnclaimed(t *testing.T) {
 }
 
 // TestRunGateVerdictRunWaiting: a fully-agreeing local waiting receipt over an
-// in-progress change yields a NONTERMINAL gate-continue (change 0359) that keeps
+// in-progress change yields a NONTERMINAL run-continue (change 0359) that keeps
 // the key, spends no retry, and carries the minted continuation id and phase.
 func TestIntegrationChangeRuntimeRunGateVerdictRunWaiting(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -3992,7 +3992,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictRunWaiting(t *testing.T) {
 	if res.ContinuationID == "" {
 		t.Fatalf("continuation id must be minted")
 	}
-	if got, want := res.HumanText(), "gate-continue "+key+" run-waiting 3 "+res.ContinuationID+" build"; got != want {
+	if got, want := res.HumanText(), "run-continue "+key+" run-waiting 3 "+res.ContinuationID+" build"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if res.Phase != "build" {
@@ -4017,16 +4017,16 @@ func TestIntegrationChangeRuntimeRunGateVerdictTwoKeysIsolated(t *testing.T) {
 	resA := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, keyA)
 	resB := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, keyB)
 	if resA.Decision != GateDecisionRetryOnce {
-		t.Errorf("key A decision = %q, want gate-retry-once", resA.Decision)
+		t.Errorf("key A decision = %q, want run-retry-once", resA.Decision)
 	}
 	if resB.Decision != GateDecisionRetryOnce {
-		t.Errorf("key B decision = %q, want gate-retry-once (independent permit)", resB.Decision)
+		t.Errorf("key B decision = %q, want run-retry-once (independent permit)", resB.Decision)
 	}
 }
 
 // TestRunGateVerdictUnknownVerdictFailsClosed: a RunVerify outcome with no
 // recognized verdict (here an operational unknown-change error over an
-// attributed id absent from the corpus) fails closed to gate-unavailable
+// attributed id absent from the corpus) fails closed to run-tracker-unavailable
 // unknown-verdict — never a retry, never a silent pass.
 func TestIntegrationChangeRuntimeRunGateVerdictUnknownVerdictFailsClosed(t *testing.T) {
 	repo := newGateRepo(t)
@@ -4034,11 +4034,11 @@ func TestIntegrationChangeRuntimeRunGateVerdictUnknownVerdictFailsClosed(t *test
 	key := gateMintAttributed(t, repo, 999)
 
 	res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
-	if got, want := res.HumanText(), "gate-stop "+key+" gate-unavailable unknown-verdict"; got != want {
+	if got, want := res.HumanText(), "run-stop "+key+" run-tracker-unavailable unknown-verdict"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if !res.Terminal {
-		t.Errorf("gate-unavailable is terminal")
+		t.Errorf("run-tracker-unavailable is terminal")
 	}
 }
 

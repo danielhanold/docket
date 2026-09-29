@@ -129,7 +129,7 @@ var errEpochAlreadyDetached = errors.New("worktree slot epoch already detached")
 // expectEpoch must be non-empty: an empty epoch is not ownership proof
 // (ErrInvalidID). On success only RunEpochID and UpdatedAt change.
 func (s *Store) RetireWorktreeExecutionEpoch(worktreeRoot, expectEpoch, expectToken string) error {
-	const op = "retire-worktree-execution-epoch"
+	const op = "retire-worktree-execution-run"
 	if expectEpoch == "" {
 		return storeErr(ErrInvalidID, op, nil)
 	}

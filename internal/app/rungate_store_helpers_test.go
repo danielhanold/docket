@@ -38,7 +38,7 @@ func sampleGateRecord() GateRecord {
 		BeforeIDs:     []int{12, 34, 56},
 		AttributedID:  0,
 		Retry:         RetryUnused,
-		Disposition:   "gate-armed",
+		Disposition:   "run-started",
 		Terminal:      false,
 		AttemptLimit:  2,
 	}

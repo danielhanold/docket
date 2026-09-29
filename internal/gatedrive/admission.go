@@ -320,7 +320,7 @@ func (s *Store) ReserveRawWorktreeExecution(repoIdentity, worktreeRoot string, p
 // entry is ReserveRawWorktreeExecution, and the two must not blur.
 func (s *Store) ReserveWorktreeExecutionForEpoch(repoIdentity, worktreeRoot, runEpochID string, proc recoverySeam) (token string, err error) {
 	if runEpochID == "" {
-		return "", storeErr(ErrInvalidID, "reserve-worktree-execution-epoch", nil)
+		return "", storeErr(ErrInvalidID, "reserve-worktree-execution-run", nil)
 	}
 	token, _, err = s.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: repoIdentity,
@@ -358,7 +358,7 @@ func (s *Store) reserveWorktreeExecution(rec admissionRecord, proc recoverySeam)
 		return "", nil, serr
 	}
 	if !retry {
-		// The original stale-run-epoch refusal. When no readable record carries the
+		// The original stale-run-id refusal. When no readable record carries the
 		// slot's epoch, the snapshot says so: run.cancel cannot resolve it.
 		if oe, ok := AsOwnershipError(err); ok && unresolved && oe.Incumbent != nil {
 			oe.Incumbent.EpochUnresolved = true

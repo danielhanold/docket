@@ -73,7 +73,7 @@ const (
 
 // MutationFenceError is the typed refusal a fenced run epoch raises at a mutation
 // boundary. Reason is one of the stable tokens the fence vocabulary defines —
-// "run-cancelled" (the owning epoch is cancelling/cancelled), "stale-run-epoch"
+// "run-cancelled" (the owning epoch is cancelling/cancelled), "stale-run-id"
 // (the owning epoch was superseded by a resume), or "run-completed" (the owning
 // epoch is completing/completed a successful closeout, change 0441). It carries no
 // credential, argv, environment, or child output — only the bounded reason token.
@@ -87,7 +87,7 @@ func (e *MutationFenceError) Error() string {
 
 // The two fence refusals, as reusable sentinels (compared by identity through the
 // errors chain, or by Reason). run-cancelled fences a cancelling/cancelled epoch;
-// stale-run-epoch fences a superseded one.
+// stale-run-id fences a superseded one.
 var (
 	// ErrRunCancelled: the owning run epoch is cancelling or cancelled — no new
 	// mutation from that epoch is admitted (spec "After cancellation is recorded, no
@@ -95,7 +95,7 @@ var (
 	ErrRunCancelled = &MutationFenceError{Reason: "run-cancelled"}
 	// ErrStaleRunEpoch: the owning run epoch was superseded by a confirmed resume —
 	// this caller carries a stale run identity and is refused.
-	ErrStaleRunEpoch = &MutationFenceError{Reason: "stale-run-epoch"}
+	ErrStaleRunEpoch = &MutationFenceError{Reason: "stale-run-id"}
 	// ErrRunCompleted: the owning run epoch finished (or is finishing) a SUCCESSFUL
 	// closeout (change 0441) — completing/completed. No new mutation, launch, or
 	// registration from that epoch admits, and the refusal is distinguishable from
@@ -118,7 +118,7 @@ func AsMutationFenceError(err error) (*MutationFenceError, bool) {
 // subject ("change" / "workspace"). Only the reason token is machine-readable —
 // gate logic keys on it and it rides through unchanged. The message is explanatory
 // and reason-aware: a run-completed fence (change 0441) is a SUCCESSFUL closeout, so
-// its message never falsely claims cancellation; run-cancelled/stale-run-epoch keep
+// its message never falsely claims cancellation; run-cancelled/stale-run-id keep
 // the cancelled-or-superseded wording. An unrecognized reason falls back to the
 // reason-neutral "no longer accepting mutations" phrasing. An owner-resolution
 // refusal (ErrEpochOwnerAmbiguous / ErrEpochOwnerUnresolved, change 0446) reports its
@@ -135,7 +135,7 @@ func fenceRefusalReasonMessage(ferr error, subject string) (reason, message stri
 			ferr.Error() + "); publish nothing"
 	}
 	switch reason {
-	case "run-cancelled", "stale-run-epoch":
+	case "run-cancelled", "stale-run-id":
 		message = "the run that owns this " + subject + " was cancelled or superseded; publish nothing"
 	case "run-completed":
 		message = "the run that owns this " + subject + " finished successfully and is no longer accepting mutations; publish nothing"
@@ -364,7 +364,7 @@ func findEpochByWorktree(repoDir, canon string) (gateKey string, found bool, err
 			continue
 		}
 		key := e.Name()
-		r, _, rerr := readStoredEpoch(filepath.Join(root, key), "find-epoch")
+		r, _, rerr := readStoredEpoch(filepath.Join(root, key), "find-run")
 		if rerr != nil {
 			continue // no run.json here, or a corrupt/unreadable record: cannot match
 		}

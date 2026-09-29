@@ -65,11 +65,11 @@ const (
 	// context matches no live armed gate record in this repository (change 0407):
 	// an invalid context is never silently treated as an ungated claim. Doubles as
 	// the finding code.
-	ClaimDispositionGateContextInvalid = "gate-context-invalid"
+	ClaimDispositionGateContextInvalid = "run-context-invalid"
 	// ClaimDispositionGateContextConflict refuses a claim whose dispatch context
 	// is already bound to a different claim — one context cannot claim two changes
 	// (change 0407). Doubles as the finding code.
-	ClaimDispositionGateContextConflict = "gate-context-conflict"
+	ClaimDispositionGateContextConflict = "run-context-conflict"
 )
 
 // ChangeClaimRequest is the closed, caller-supplied request for one claim or

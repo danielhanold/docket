@@ -21,7 +21,7 @@ import (
 // claimed_at parses; claimed_at >= dispatch epoch), then delegates the run
 // predicate to RunVerify and maps its verdict onto the attributed vocabulary —
 // consuming the single retry permit BEFORE emitting so a lost retry is the safe
-// failure, and failing closed to gate-unavailable on any load error or
+// failure, and failing closed to run-tracker-unavailable on any load error or
 // unrecognized verdict. Every outcome is a report line that exits 0.
 //
 // The store is rooted at a real temp git repo (newGateRepo / the run-verify
@@ -79,10 +79,10 @@ func gateMintAttributed(t *testing.T, repoDir string, id int) string {
 // RunGateVerdictObserve is the `--unattributed` mode (change 0334, Task 4): NO
 // key, NO record, NO writes. It re-syncs, verifies each supplied hint id (a hint
 // is an id to verify, never attribution evidence) — or every current in-progress
-// id when none are supplied — and renders one `gate-observe <verdict> <id>` line
+// id when none are supplied — and renders one `run-observe <verdict> <id>` line
 // per id using RunVerify's verdict verbatim, through a SEPARATE render function
-// that only knows the `gate-observe` prefix and is structurally unable to emit
-// gate-retry-once.
+// that only knows the `run-observe` prefix and is structurally unable to emit
+// run-retry-once.
 
 // gateHaltedInProgressBlob builds an in-progress change carrying a durable
 // "## Run halted" body section — status stays in-progress (so observeInProgress
@@ -112,10 +112,10 @@ func gateProposedBlob(id int, slug string) StatusBlob {
 	}
 }
 
-// --- gate-continue: nonterminal continuation + outer takeover (change 0359) ---
+// --- run-continue: nonterminal continuation + outer takeover (change 0359) ---
 //
-// VerdictRunWaiting no longer maps to a terminal gate-stop: the outer gate emits
-// a nonterminal gate-continue that keeps the SAME key and spends NO retry, and a
+// VerdictRunWaiting no longer maps to a terminal run-stop: the outer gate emits
+// a nonterminal run-continue that keeps the SAME key and spends NO retry, and a
 // run-incomplete that still owns a tracked drive under this dispatch's recovery
 // scope is taken over (event-authorized) and continued BEFORE the retry permit is
 // ever reached. The tests below fake the ContinuationSeam (the drive-layer surface
@@ -266,10 +266,10 @@ func gateMintAttributedScopedLimit(t *testing.T, repoDir, scopeID, parentCap, ch
 }
 
 // TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit is the counted-budget heart (change
-// 0421): a quiescent run-incomplete grants at most AttemptLimit-1 gate-retry-once,
-// each on a distinct attempt transition, then a terminal gate-stop. limit 1 grants
+// 0421): a quiescent run-incomplete grants at most AttemptLimit-1 run-retry-once,
+// each on a distinct attempt transition, then a terminal run-stop. limit 1 grants
 // none; limit 2 grants one; limit 4 grants exactly three. The report TOKENS are
-// unchanged (gate-retry-once / gate-stop … run-incomplete <id> <unmet>); the
+// unchanged (run-retry-once / run-stop … run-incomplete <id> <unmet>); the
 // used/limit surface is the additive AttemptsUsed/AttemptLimit result fields.
 func TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.T) {
 	cases := []struct {
@@ -293,9 +293,9 @@ func TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.
 			for i := 1; i <= tc.wantRetries; i++ {
 				res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 				if res.Decision != GateDecisionRetryOnce || res.Terminal {
-					t.Fatalf("call %d: Decision=%q Terminal=%v, want gate-retry-once/false", i, res.Decision, res.Terminal)
+					t.Fatalf("call %d: Decision=%q Terminal=%v, want run-retry-once/false", i, res.Decision, res.Terminal)
 				}
-				if got, want := res.HumanText(), "gate-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
+				if got, want := res.HumanText(), "run-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
 					t.Fatalf("call %d: HumanText = %q, want %q", i, got, want)
 				}
 				if res.AttemptsUsed != i || res.AttemptLimit != tc.limit {
@@ -303,12 +303,12 @@ func TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.
 				}
 			}
 
-			// The next eligible incomplete is the terminal gate-stop: budget exhausted.
+			// The next eligible incomplete is the terminal run-stop: budget exhausted.
 			res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 			if res.Decision != GateDecisionStop || !res.Terminal {
-				t.Fatalf("terminal: Decision=%q Terminal=%v, want gate-stop/true", res.Decision, res.Terminal)
+				t.Fatalf("terminal: Decision=%q Terminal=%v, want run-stop/true", res.Decision, res.Terminal)
 			}
-			if got, want := res.HumanText(), "gate-stop "+key+" run-incomplete 3 not-implemented"; got != want {
+			if got, want := res.HumanText(), "run-stop "+key+" run-incomplete 3 not-implemented"; got != want {
 				t.Fatalf("terminal HumanText = %q, want %q", got, want)
 			}
 			if res.AttemptsUsed != tc.limit || res.AttemptLimit != tc.limit {
@@ -321,9 +321,9 @@ func TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.
 	}
 }
 
-// TestIntegrationGateVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGrant: after a gate-retry-once
+// TestIntegrationGateVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGrant: after a run-retry-once
 // for attempt 1 (default limit 2), a second verdict call WITHOUT a new attempt
-// completing is the terminal gate-stop — the budget is spent — and GateRetryUsage
+// completing is the terminal run-stop — the budget is spent — and GateRetryUsage
 // stays 1 (no second marker).
 func TestIntegrationGateVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGrant(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -335,11 +335,11 @@ func TestIntegrationGateVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGr
 
 	res1 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res1.Decision != GateDecisionRetryOnce {
-		t.Fatalf("first: Decision = %q, want gate-retry-once", res1.Decision)
+		t.Fatalf("first: Decision = %q, want run-retry-once", res1.Decision)
 	}
 	res2 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res2.Decision != GateDecisionStop || !res2.Terminal {
-		t.Fatalf("repeat: Decision=%q Terminal=%v, want gate-stop/true", res2.Decision, res2.Terminal)
+		t.Fatalf("repeat: Decision=%q Terminal=%v, want run-stop/true", res2.Decision, res2.Terminal)
 	}
 	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 1 {
 		t.Errorf("GateRetryUsage = %d,%v; want 1,nil (no double grant)", used, err)
@@ -363,7 +363,7 @@ func TestIntegrationGateVerdictVerdictIncompleteNoGrantLeavesRetryMirrorUnused(t
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res.Decision != GateDecisionStop || !res.Terminal {
-		t.Fatalf("Decision=%q Terminal=%v, want gate-stop/true (limit 1 grants no retry)", res.Decision, res.Terminal)
+		t.Fatalf("Decision=%q Terminal=%v, want run-stop/true (limit 1 grants no retry)", res.Decision, res.Terminal)
 	}
 	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
 		t.Fatalf("GateRetryUsage = %d,%v; want 0,nil (no marker on a no-grant stop)", used, err)
@@ -378,7 +378,7 @@ func TestIntegrationGateVerdictVerdictIncompleteNoGrantLeavesRetryMirrorUnused(t
 }
 
 // TestIntegrationGateVerdictVerdictHaltPrecedenceOverBudget: a run-halted verdict against a fresh,
-// unspent limit-4 record stops terminally (gate-stop run-halted) and spends NO
+// unspent limit-4 record stops terminally (run-stop run-halted) and spends NO
 // attempt — run-halted keeps absolute precedence ahead of any counting, and the
 // attempts surface stays absent on the halt path.
 func TestIntegrationGateVerdictVerdictHaltPrecedenceOverBudget(t *testing.T) {
@@ -388,7 +388,7 @@ func TestIntegrationGateVerdictVerdictHaltPrecedenceOverBudget(t *testing.T) {
 
 	res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
 	if res.Decision != GateDecisionStop || res.Outcome != VerdictRunHalted {
-		t.Fatalf("Decision/Outcome = %q/%q, want gate-stop/run-halted", res.Decision, res.Outcome)
+		t.Fatalf("Decision/Outcome = %q/%q, want run-stop/run-halted", res.Decision, res.Outcome)
 	}
 	if !res.Terminal {
 		t.Errorf("run-halted stop must be terminal")
@@ -402,7 +402,7 @@ func TestIntegrationGateVerdictVerdictHaltPrecedenceOverBudget(t *testing.T) {
 }
 
 // TestIntegrationGateVerdictVerdictContinuationConsumesNoAttempt: a scope-bound run-incomplete taken over
-// as a live continuation reaches gate-continue WITHOUT touching the retry CAS —
+// as a live continuation reaches run-continue WITHOUT touching the retry CAS —
 // GateRetryUsage stays 0 even with a fresh limit-4 budget. This reddens if the CAS
 // is ever moved above the outer-takeover check.
 func TestIntegrationGateVerdictVerdictContinuationConsumesNoAttempt(t *testing.T) {
@@ -427,7 +427,7 @@ func TestIntegrationGateVerdictVerdictContinuationConsumesNoAttempt(t *testing.T
 }
 
 // TestIntegrationGateVerdictVerdictWaitingIsNonterminalContinue: a RunVerify run-waiting (a worker
-// cooperatively handed off) maps to a NONTERMINAL gate-continue that keeps the key
+// cooperatively handed off) maps to a NONTERMINAL run-continue that keeps the key
 // and spends no retry, minting a continuation id and persisting the triple.
 func TestIntegrationGateVerdictVerdictWaitingIsNonterminalContinue(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -442,12 +442,12 @@ func TestIntegrationGateVerdictVerdictWaitingIsNonterminalContinue(t *testing.T)
 		t.Fatalf("Decision = %q, want %q", res.Decision, GateDecisionContinue)
 	}
 	if res.Terminal {
-		t.Errorf("gate-continue must be nonterminal")
+		t.Errorf("run-continue must be nonterminal")
 	}
 	if res.ContinuationID == "" {
 		t.Fatalf("continuation id must be minted")
 	}
-	want := "gate-continue " + key + " run-waiting 3 " + res.ContinuationID + " build"
+	want := "run-continue " + key + " run-waiting 3 " + res.ContinuationID + " build"
 	if got := res.HumanText(); got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
@@ -490,7 +490,7 @@ func TestIntegrationGateVerdictVerdictIncompleteWithTrackedDriveContinuesWithout
 		t.Fatalf("Decision = %q, want %q", res.Decision, GateDecisionContinue)
 	}
 	if res.Terminal {
-		t.Errorf("gate-continue must be nonterminal")
+		t.Errorf("run-continue must be nonterminal")
 	}
 	if gateRetryMarkerExists(t, f.repo.invocation, key) {
 		t.Fatalf("retry marker present — a takeover-continue must not reach the retry CAS")
@@ -510,7 +510,7 @@ func TestIntegrationGateVerdictVerdictIncompleteWithTrackedDriveContinuesWithout
 
 // TestIntegrationGateVerdictVerdictIncompleteQuiescentStillRetriesOnce: a run-incomplete with a scope
 // but ZERO tracked-drive candidates is genuinely quiescent — it falls through to
-// the unchanged retry path (gate-retry-once, then terminal gate-stop).
+// the unchanged retry path (run-retry-once, then terminal run-stop).
 func TestIntegrationGateVerdictVerdictIncompleteQuiescentStillRetriesOnce(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
@@ -521,25 +521,25 @@ func TestIntegrationGateVerdictVerdictIncompleteQuiescentStillRetriesOnce(t *tes
 	key := gateMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
 	res1 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res1.HumanText(), "gate-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
+	if got, want := res1.HumanText(), "run-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
 		t.Fatalf("first call HumanText = %q, want %q", got, want)
 	}
 	if res1.Terminal {
-		t.Errorf("gate-retry-once must be nonterminal")
+		t.Errorf("run-retry-once must be nonterminal")
 	}
 
 	res2 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res2.HumanText(), "gate-stop "+key+" run-incomplete 3 not-implemented"; got != want {
+	if got, want := res2.HumanText(), "run-stop "+key+" run-incomplete 3 not-implemented"; got != want {
 		t.Fatalf("second call HumanText = %q, want %q", got, want)
 	}
 	if !res2.Terminal {
-		t.Errorf("exhausted gate-stop must be terminal")
+		t.Errorf("exhausted run-stop must be terminal")
 	}
 }
 
 // TestIntegrationGateVerdictVerdictAmbiguousDrivesStops: more than one candidate tracked drive is
 // unsafe ownership — it earns neither retry nor continuation, stopping terminally
-// with gate-unavailable takeover-ambiguous and never touching the retry marker.
+// with run-tracker-unavailable takeover-ambiguous and never touching the retry marker.
 func TestIntegrationGateVerdictVerdictAmbiguousDrivesStops(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
@@ -551,7 +551,7 @@ func TestIntegrationGateVerdictVerdictAmbiguousDrivesStops(t *testing.T) {
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
-		t.Fatalf("decision/outcome = %q/%q, want gate-stop/gate-unavailable", res.Decision, res.Outcome)
+		t.Fatalf("decision/outcome = %q/%q, want run-stop/run-tracker-unavailable", res.Decision, res.Outcome)
 	}
 	if res.Reason != "takeover-ambiguous" {
 		t.Errorf("reason = %q, want takeover-ambiguous", res.Reason)
@@ -581,7 +581,7 @@ func TestIntegrationGateVerdictVerdictTakeoverHaltStops(t *testing.T) {
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
-		t.Fatalf("decision/outcome = %q/%q, want gate-stop/gate-unavailable", res.Decision, res.Outcome)
+		t.Fatalf("decision/outcome = %q/%q, want run-stop/run-tracker-unavailable", res.Decision, res.Outcome)
 	}
 	if res.Reason != "identity-mismatch" {
 		t.Errorf("reason = %q, want identity-mismatch (driver cause passed through)", res.Reason)
@@ -686,7 +686,7 @@ func TestIntegrationGateVerdictVerdictContinuationDoesNotRebindScope(t *testing.
 
 // TestIntegrationGateVerdictVerdictObservePathStillCannotContinue: the observe (unattributed) render
 // path is structurally unable to emit a retry OR a continuation — extending the
-// existing observe-cannot-retry guarantee to gate-continue.
+// existing observe-cannot-retry guarantee to run-continue.
 func TestIntegrationGateVerdictVerdictObservePathStillCannotContinue(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
@@ -737,7 +737,7 @@ func TestIntegrationGateVerdictVerdictConfirmedBindingResolvesBoundChange(t *tes
 	}}
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if res.AttributedID != 3 {
@@ -757,7 +757,7 @@ func TestIntegrationGateVerdictVerdictNoBindingNoProofIsNoAttributableClaim(t *t
 	}}}
 
 	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
-	if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" no-attributable-claim"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if !res.Terminal {
@@ -792,7 +792,7 @@ func TestIntegrationGateVerdictVerdictUnconfirmedReservationRecoversFromExactRec
 	}}
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q (recovered from the exact receipt)", got, want)
 	}
 	b, ok, err := LoadGateClaimBinding(f.repo.invocation, key)
@@ -814,7 +814,7 @@ func TestIntegrationGateVerdictVerdictUnconfirmedReservationWithoutReceiptStops(
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: nil}}
 
 	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
-	if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" no-attributable-claim"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	b, ok, err := LoadGateClaimBinding(repo, key)
@@ -842,7 +842,7 @@ func TestIntegrationGateVerdictVerdictUnconfirmedReservationSiblingContextHashIs
 	}}}
 
 	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
-	if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" no-attributable-claim"; got != want {
 		t.Fatalf("HumanText = %q, want %q (sibling context hash must not recover)", got, want)
 	}
 	if res.AttributedID != 0 {
@@ -867,7 +867,7 @@ func TestIntegrationGateVerdictVerdictAbsentBindingAdoptsSoleProof(t *testing.T)
 		}}
 
 		res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-		if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+		if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 			t.Fatalf("HumanText = %q, want %q", got, want)
 		}
 		b, ok, err := LoadGateClaimBinding(f.repo.invocation, key)
@@ -886,7 +886,7 @@ func TestIntegrationGateVerdictVerdictAbsentBindingAdoptsSoleProof(t *testing.T)
 
 		res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
 		if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateBindingConflict {
-			t.Fatalf("got %q/%q/%q, want gate-stop/gate-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateBindingConflict)
+			t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateBindingConflict)
 		}
 		if !res.Terminal {
 			t.Errorf("binding-conflict is terminal")
@@ -914,7 +914,7 @@ func TestIntegrationGateVerdictVerdictClaimReplacedStops(t *testing.T) {
 
 	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
 	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateClaimReplaced {
-		t.Fatalf("got %q/%q/%q, want gate-stop/gate-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateClaimReplaced)
+		t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateClaimReplaced)
 	}
 	if gateRetryMarkerExists(t, repo, key) {
 		t.Errorf("a replaced claim must never spend the retry")
@@ -942,7 +942,7 @@ func TestIntegrationGateVerdictVerdictNilProofScannerFailsClosed(t *testing.T) {
 	}
 	res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: nil}, GitHubDeps{}, repo, key)
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateProofUnavailable {
-		t.Fatalf("got %q/%q, want gate-stop/%s", res.Decision, res.Reason, ReasonGateProofUnavailable)
+		t.Fatalf("got %q/%q, want run-stop/%s", res.Decision, res.Reason, ReasonGateProofUnavailable)
 	}
 	if gateRetryMarkerExists(t, repo, key) {
 		t.Errorf("proof-unavailable must never spend the retry")
@@ -963,7 +963,7 @@ func TestIntegrationGateVerdictVerdictProofScanErrorFailsClosed(t *testing.T) {
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{err: errors.New("boom")}}
 	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateProofUnavailable {
-		t.Fatalf("got %q/%q, want gate-stop/%s", res.Decision, res.Reason, ReasonGateProofUnavailable)
+		t.Fatalf("got %q/%q, want run-stop/%s", res.Decision, res.Reason, ReasonGateProofUnavailable)
 	}
 	if gateRetryMarkerExists(t, repo, key) {
 		t.Errorf("a scan error must never spend the retry")
@@ -984,7 +984,7 @@ func TestIntegrationGateVerdictVerdictCorruptBindingFailsClosed(t *testing.T) {
 	}
 	res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: &fakeProofScanner{}}, GitHubDeps{}, repo, key)
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateBindingUnreadable {
-		t.Fatalf("got %q/%q, want gate-stop/%s", res.Decision, res.Reason, ReasonGateBindingUnreadable)
+		t.Fatalf("got %q/%q, want run-stop/%s", res.Decision, res.Reason, ReasonGateBindingUnreadable)
 	}
 }
 
@@ -1004,7 +1004,7 @@ func TestIntegrationGateVerdictVerdictResumeBindingSkipsContinuity(t *testing.T)
 	}}
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q (resume-bound id delegates, never claim-replaced)", got, want)
 	}
 	if res.Reason == ReasonGateClaimReplaced {
@@ -1026,7 +1026,7 @@ func TestIntegrationGateVerdictVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testi
 	}}}
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, GitHubDeps{}, repo, key)
-	if got, want := res.HumanText(), "gate-done "+key+" no-attributable-claim"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" no-attributable-claim"; got != want {
 		t.Fatalf("HumanText = %q, want %q (never the sibling)", got, want)
 	}
 	if res.AttributedID != 0 {
@@ -1050,12 +1050,12 @@ func TestIntegrationGateVerdictVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testi
 // behavior, and unattributed observe mode never touches ownership.
 
 // TestIntegrationGateVerdictVerdictRunCompleteClosesOutEpochOwnership: a keyed run-complete drives the
-// closeout — gate-done run-complete, the epoch is completed, and the slot's RunEpochID
+// closeout — run-done run-complete, the epoch is completed, and the slot's RunEpochID
 // is cleared so a standalone finalize gate can admit.
 func TestIntegrationGateVerdictVerdictRunCompleteClosesOutEpochOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
-	if got, want := res.HumanText(), "gate-done "+fx.key+" run-complete 3"; got != want {
+	if got, want := res.HumanText(), "run-done "+fx.key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCompleted {
@@ -1071,7 +1071,7 @@ func TestIntegrationGateVerdictVerdictRunCompleteClosesOutEpochOwnership(t *test
 }
 
 // TestIntegrationGateVerdictVerdictRunCompleteWithoutEpochUnchanged: with no epoch beside the record the
-// verdict keeps EXACTLY the prior behavior — gate-done run-complete, no epoch
+// verdict keeps EXACTLY the prior behavior — run-done run-complete, no epoch
 // fabricated, no completion findings.
 func TestIntegrationGateVerdictVerdictRunCompleteWithoutEpochUnchanged(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -1091,7 +1091,7 @@ func TestIntegrationGateVerdictVerdictRunCompleteWithoutEpochUnchanged(t *testin
 	}}
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if len(res.CompletionFindings) != 0 {
@@ -1104,7 +1104,7 @@ func TestIntegrationGateVerdictVerdictRunCompleteWithoutEpochUnchanged(t *testin
 
 // TestIntegrationGateVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess: one unproven obligation
 // (a registered execution participant whose run is observed live) blocks the
-// closeout — gate-stop gate-unavailable completion-unaccounted with diagnostic
+// closeout — run-stop run-tracker-unavailable completion-unaccounted with diagnostic
 // findings, the epoch stays completing (the fence holds), and no retry is spent (AC2
 // budget preservation). The released owned slot itself is NOT that obligation: its
 // release is the durable proof of its run (change 0446 spec §5), so it is never
@@ -1116,7 +1116,7 @@ func TestIntegrationGateVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSucc
 	fx.observer.defaultProven = false // the participant's run is not provably terminal
 	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
 	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
-		t.Fatalf("decision/outcome = %q/%q, want gate-stop/gate-unavailable", res.Decision, res.Outcome)
+		t.Fatalf("decision/outcome = %q/%q, want run-stop/run-tracker-unavailable", res.Decision, res.Outcome)
 	}
 	if res.Reason != ReasonGateCompletionUnaccounted {
 		t.Fatalf("reason = %q, want %q", res.Reason, ReasonGateCompletionUnaccounted)
@@ -1136,17 +1136,17 @@ func TestIntegrationGateVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSucc
 }
 
 // TestIntegrationGateVerdictVerdictRunCompleteCancelledEpochNeverReportsSuccess: an explicit cancellation
-// that already won is never relabelled successful — gate-stop gate-unavailable
-// run-cancelled, never gate-done, and the epoch state is untouched.
+// that already won is never relabelled successful — run-stop run-tracker-unavailable
+// run-cancelled, never run-done, and the epoch state is untouched.
 func TestIntegrationGateVerdictVerdictRunCompleteCancelledEpochNeverReportsSuccess(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	forceEpochState(t, fx.repo, fx.key, EpochCancelled)
 	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
 	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
-		t.Fatalf("decision/outcome = %q/%q, want gate-stop/gate-unavailable", res.Decision, res.Outcome)
+		t.Fatalf("decision/outcome = %q/%q, want run-stop/run-tracker-unavailable", res.Decision, res.Outcome)
 	}
 	if res.Reason != ReasonGateRunCancelled {
-		t.Fatalf("reason = %q, want %q (never gate-done)", res.Reason, ReasonGateRunCancelled)
+		t.Fatalf("reason = %q, want %q (never run-done)", res.Reason, ReasonGateRunCancelled)
 	}
 	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelled {
 		t.Fatalf("epoch state = %q, want cancelled (never relabelled)", st)
@@ -1154,9 +1154,9 @@ func TestIntegrationGateVerdictVerdictRunCompleteCancelledEpochNeverReportsSucce
 }
 
 // TestIntegrationGateVerdictVerdictRunCompleteReportPersistFailureIsReported: the closeout finishes (epoch
-// durably completed) but the terminal gate-report save fails — gate-stop
-// gate-unavailable report-unpersisted (the failure is reported, not hidden). A SECOND
-// verdict with the fault cleared replays the completed epoch to gate-done run-complete
+// durably completed) but the terminal gate-report save fails — run-stop
+// run-tracker-unavailable report-unpersisted (the failure is reported, not hidden). A SECOND
+// verdict with the fault cleared replays the completed epoch to run-done run-complete
 // (AC6 gate-report write failure + replay).
 func TestIntegrationGateVerdictVerdictRunCompleteReportPersistFailureIsReported(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
@@ -1178,12 +1178,12 @@ func TestIntegrationGateVerdictVerdictRunCompleteReportPersistFailureIsReported(
 		t.Fatalf("restore key dir: %v", err)
 	}
 	if res.Decision != GateDecisionStop || res.Reason != ReasonGateReportUnpersisted {
-		t.Fatalf("decision/reason = %q/%q, want gate-stop/report-unpersisted", res.Decision, res.Reason)
+		t.Fatalf("decision/reason = %q/%q, want run-stop/report-unpersisted", res.Decision, res.Reason)
 	}
 
-	// Fault cleared: the completed epoch replays to gate-done run-complete.
+	// Fault cleared: the completed epoch replays to run-done run-complete.
 	res2 := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
-	if got, want := res2.HumanText(), "gate-done "+fx.key+" run-complete 3"; got != want {
+	if got, want := res2.HumanText(), "run-done "+fx.key+" run-complete 3"; got != want {
 		t.Fatalf("replay HumanText = %q, want %q", got, want)
 	}
 }
@@ -1203,7 +1203,7 @@ func TestIntegrationGateVerdictVerdictObserveModeNeverTouchesOwnership(t *testin
 	}
 
 	res := RunGateVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
-	if got, want := res.HumanText(), "gate-observe run-complete 3"; got != want {
+	if got, want := res.HumanText(), "run-observe run-complete 3"; got != want {
 		t.Fatalf("observe HumanText = %q, want %q", got, want)
 	}
 

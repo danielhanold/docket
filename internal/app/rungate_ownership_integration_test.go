@@ -130,7 +130,7 @@ func mxAssertDisposition(t *testing.T, res RunGateVerdictResult, disp string) {
 	switch disp {
 	case "complete":
 		if res.Decision != GateDecisionDone || res.Outcome != VerdictRunComplete {
-			t.Fatalf("disposition = %q/%q, want gate-done/run-complete", res.Decision, res.Outcome)
+			t.Fatalf("disposition = %q/%q, want run-done/run-complete", res.Decision, res.Outcome)
 		}
 	case "incomplete":
 		if res.Outcome != VerdictRunIncomplete {
@@ -233,7 +233,7 @@ func TestIntegrationGateFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	baseCorpus := []StatusBlob{mxBlob(3, "widget", mxImplementedRecord(3, "widget"))}
 
 	res1 := verdict([]ClaimProof{baseProof}, baseCorpus)
-	if got, want := res1.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+	if got, want := res1.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("baseline verdict = %q, want %q", got, want)
 	}
 
@@ -255,7 +255,7 @@ func TestIntegrationGateFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	}
 
 	res2 := verdict(churnedProofs, churnedCorpus)
-	if got, want := res2.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+	if got, want := res2.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("post-churn verdict = %q, want %q (ownership must survive corpus churn)", got, want)
 	}
 	mxAssertOwnIDOnly(t, res2, key, 3, 9)
@@ -265,7 +265,7 @@ func TestIntegrationGateFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 // TestIntegrationGateFenceReplacementClaimBlocksOldGate — spec acceptance item 6 second half: after A
 // is confirmed-bound to change 3 at claim-3-v1, a NEWER committed proof for change 3
 // under a different request id means the change was reclaimed and re-claimed by
-// another run. A's verdict stops gate-unavailable claim-replaced, never spends the
+// another run. A's verdict stops run-tracker-unavailable claim-replaced, never spends the
 // retry, and a subsequent verdict still refuses — the old gate never takes over the
 // replacement run.
 func TestIntegrationGateFenceReplacementClaimBlocksOldGate(t *testing.T) {
@@ -284,7 +284,7 @@ func TestIntegrationGateFenceReplacementClaimBlocksOldGate(t *testing.T) {
 
 	res := verdict()
 	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateClaimReplaced {
-		t.Fatalf("got %q/%q/%q, want gate-stop/gate-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateClaimReplaced)
+		t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateClaimReplaced)
 	}
 	if !res.Terminal {
 		t.Errorf("claim-replaced stop must be terminal")
@@ -320,7 +320,7 @@ func TestIntegrationGateFenceLaterVerdictCannotOverwriteBinding(t *testing.T) {
 	}
 
 	res1 := verdict()
-	if got, want := res1.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+	if got, want := res1.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("first verdict = %q, want %q", got, want)
 	}
 
@@ -333,7 +333,7 @@ func TestIntegrationGateFenceLaterVerdictCannotOverwriteBinding(t *testing.T) {
 	}
 
 	res2 := verdict()
-	if got, want := res2.HumanText(), "gate-done "+key+" run-complete 3"; got != want {
+	if got, want := res2.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("re-run verdict = %q, want %q (same bound id, binding intact)", got, want)
 	}
 	b, present, berr := LoadGateClaimBinding(f.repo.invocation, key)

@@ -69,7 +69,7 @@ type GateScopeResult struct {
 	ParentCapability string `json:"parent_capability,omitempty"`
 	Reason           string `json:"reason,omitempty"`
 	// Message is the one-line next action on a command failure (change 0463), e.g.
-	// the unknown-run-epoch remedy. It never carries a capability or the presented
+	// the unknown-run-id remedy. It never carries a capability or the presented
 	// run-epoch value.
 	Message string `json:"message,omitempty"`
 }
@@ -269,7 +269,7 @@ func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective
 	// for a start carrying a RunEpochID, so standalone gates are unaffected.
 	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
 	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
-	// settled through exact-token retirement rather than refused stale-run-epoch
+	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
 	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
 	budget := time.Duration(eff.GateObservation.Value) * time.Minute
@@ -312,7 +312,7 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	// for a start carrying a RunEpochID, so standalone gates are unaffected.
 	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
 	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
-	// settled through exact-token retirement rather than refused stale-run-epoch
+	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
 	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
 	svc := newGateDriveService(engine, 0, "", "")
@@ -361,7 +361,7 @@ func NewTaskGateDriveService(gitCommonDir, exePath string, eff config.Effective,
 	// for a start carrying a RunEpochID, so standalone gates are unaffected.
 	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
 	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
-	// settled through exact-token retirement rather than refused stale-run-epoch
+	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
 	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
 	budget := time.Duration(eff.GateObservation.Value) * time.Minute
@@ -512,7 +512,7 @@ func (s *GateDriveService) startBudgetedBuild(req GateDriveStartRequest, startRe
 //
 // The budget key carries no outer-attempt or epoch dimension, so it is scoped to the
 // change's lifetime (repo + change + "build") and is intentionally NOT refreshed or
-// reset by an outer-gate gate-retry-once re-dispatch of the same change: an outer
+// reset by an outer-gate run-retry-once re-dispatch of the same change: an outer
 // retry inherits the remaining build budget by design, and can never acquire more
 // build repairs. This errs safe.
 func (s *GateDriveService) reserveBuildSuiteAttempt(req GateDriveStartRequest) (GateDriveResult, bool) {
@@ -736,7 +736,7 @@ func mapDriveFailure(err error) (Result, string) {
 	}
 	// A run-epoch mutation fence (rungate_fence.go) is a distinct refusal type
 	// carrying its OWN stable token — "run-cancelled" (the owning epoch is
-	// cancelling/cancelled), "stale-run-epoch" (superseded by a resume), or
+	// cancelling/cancelled), "stale-run-id" (superseded by a resume), or
 	// "run-completed" (a successful completing/completed closeout, change 0441). It
 	// never reaches the standalone gate-drive path today, but classifying it here is
 	// fail-safe: if a fenced-epoch error ever chains through this seam it surfaces its
@@ -748,7 +748,7 @@ func mapDriveFailure(err error) (Result, string) {
 	}
 	// A run-epoch registry failure (the epoch launch gate could not resolve the
 	// presented --run-id) surfaces its named token rather than collapsing to the
-	// generic invalid-request (change 0463): unknown-run-epoch for a not-found epoch,
+	// generic invalid-request (change 0463): unknown-run-id for a not-found epoch,
 	// the kind for any other registry fault.
 	if res, reason, ok := ClassifyRunEpochError(err); ok {
 		return res, reason
@@ -920,7 +920,7 @@ func fenceNextAction(reason string) string {
 	switch reason {
 	case "run-cancelled":
 		return "the run epoch was cancelled; do not retry — a resume after confirmed cancellation admits exactly one replacement"
-	case "stale-run-epoch":
+	case "stale-run-id":
 		return "the run epoch was superseded by a resume; use the current run's identity, not this stale one"
 	default:
 		return ""

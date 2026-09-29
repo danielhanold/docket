@@ -383,7 +383,7 @@ set to the absolute canonical feature-worktree root and carry the unchanged stru
   and carry the emitted dispatch context unchanged into the request file. Require a real
   `docket-plan-writer` child and a verified plan attachment, then complete the change. After the
   foreground root returns, require the parent's exact keyed report
-  `gate-done <key> run-complete <change-id>`. `no-attributable-claim` fails this completion check.
+  `run-done <key> run-complete <change-id>`. `no-attributable-claim` fails this completion check.
   Record whether GitHub is real or a local stateful fixture; neither coordinator prose nor a fake
   model substitutes for the live routing/composition proof. Use supported configuration defaults
   in this fixture: explicit `skills.*` bindings are deferred by the current Go mutation surface.

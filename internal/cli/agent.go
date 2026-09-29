@@ -97,7 +97,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 				// A lone --run-id (the shape AGENTS.md documents) carries no gate key to
 				// register against, but it is still preflighted for existence so a misrouted
 				// token (0382: the dispatch context passed as the epoch) refuses with
-				// unknown-run-epoch instead of proceeding silently unlinked (change 0463).
+				// unknown-run-id instead of proceeding silently unlinked (change 0463).
 				if lerr := app.CheckRunEpochExists(effectiveCWD, runEpoch); lerr != nil {
 					res, reason, _ := app.ClassifyRunEpochError(lerr)
 					setResult(runEpochRefusal(role, res, reason))

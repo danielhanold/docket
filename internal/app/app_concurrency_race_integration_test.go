@@ -356,7 +356,7 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneCont
 // calls contend on the on-disk gate record; -race guards the single-grant CAS.
 // TestRunGateVerdictConcurrentRetryGrantsOnce is the mutation target: N concurrent
 // verdict calls observing the SAME completed attempt (attempt 1, a fresh record) at
-// limit 3 must grant EXACTLY ONE gate-retry-once — a counted budget must NOT let
+// limit 3 must grant EXACTLY ONE run-retry-once — a counted budget must NOT let
 // concurrency spend several future attempts. The attempt derives from the marker
 // count captured BEFORE RunVerify, so every racer targets the SAME per-attempt
 // marker and the O_EXCL CAS admits exactly one; the rest stop. Reversing the
@@ -411,7 +411,7 @@ func TestRaceIntegrationAppConcurrencyRunGateVerdictConcurrentRetryGrantsOnce(t 
 		}
 	}
 	if retryOnce != 1 || stop != n-1 {
-		t.Fatalf("gate-retry-once=%d gate-stop=%d, want exactly 1 and %d (counted budget grants once per completed attempt)", retryOnce, stop, n-1)
+		t.Fatalf("run-retry-once=%d run-stop=%d, want exactly 1 and %d (counted budget grants once per completed attempt)", retryOnce, stop, n-1)
 	}
 	if used, uerr := GateRetryUsage(f.repo.invocation, key); uerr != nil || used != 1 {
 		t.Fatalf("GateRetryUsage after race = %d,%v; want 1,nil (no future attempt spent by concurrency)", used, uerr)

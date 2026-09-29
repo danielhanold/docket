@@ -92,7 +92,7 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 		Target:       gateBeforeStoredTarget,
 		AttemptLimit: 2,
 		Retry:        RetryUnused,
-		Disposition:  "gate-armed",
+		Disposition:  "run-started",
 		ParentCap:    "parent-cap-raw",
 		ScopeID:      "scope-1",
 	})

@@ -146,7 +146,7 @@ type GateRecord struct {
 	BeforeIDs     []int  `json:"before_ids"`    // fresh-origin in-progress set
 	AttributedID  int    `json:"attributed_id"` // 0 = not yet attributed
 	Retry         string `json:"retry"`         // RetryUnused | RetryConsumed
-	Disposition   string `json:"disposition"`   // latest gate-* report line
+	Disposition   string `json:"disposition"`   // latest run-* report line
 	Terminal      bool   `json:"terminal"`
 
 	// AttemptLimit is the snapshotted run.max_attempts value (change 0421, schema
@@ -251,7 +251,7 @@ func gateContinuationTripleOK(rec GateRecord) bool {
 }
 
 // GateStoreErrorKind is the typed category of a GateStoreError. The caller (the
-// run verdict verb) maps it to a gate-unavailable reason token: ErrGateWrongRepo
+// run verdict verb) maps it to a run-tracker-unavailable reason token: ErrGateWrongRepo
 // -> wrong-repo, ErrGateMalformedKey -> malformed-key, ErrGateCorruptRecord ->
 // corrupt-record; the remaining kinds are ordinary not-found / IO faults.
 type GateStoreErrorKind string
@@ -270,7 +270,7 @@ const (
 	ErrGateNotFound GateStoreErrorKind = "not-found"
 	// ErrGateUnavailable: the git common dir could not be resolved (an empty
 	// answer, or git itself failed).
-	ErrGateUnavailable GateStoreErrorKind = "gate-unavailable"
+	ErrGateUnavailable GateStoreErrorKind = "run-tracker-unavailable"
 	// ErrGateIO: an underlying filesystem or randomness operation failed.
 	ErrGateIO GateStoreErrorKind = "io"
 	// ErrGateBindingConflict: a competing binding attempt for a different claim

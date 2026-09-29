@@ -111,7 +111,7 @@ const (
 	// CauseEpochUnreadable: a takeover could not read the scope's run-epoch state
 	// through the injected revocation resolver (an IO/corruption fault). It fails
 	// closed — a run whose epoch cannot be read is never revived. (change 0375 Task 12)
-	CauseEpochUnreadable = "epoch-unreadable"
+	CauseEpochUnreadable = "run-record-unreadable"
 )
 
 // DriveDoc is the protocol-v1 outcome document emitted by every driver

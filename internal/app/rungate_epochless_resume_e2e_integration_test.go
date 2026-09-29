@@ -14,11 +14,11 @@ import (
 
 // TestIntegrationGateArmEpochlessResumeEndToEnd0382 reproduces change 0382's resumed run (change 0463).
 // The change was claimed by an UNARMED first dispatch, so no run epoch exists. The
-// resume arm must print `gate-armed <key> <epoch> <dispatch-context>`. Parsed
+// resume arm must print `run-started <key> <epoch> <dispatch-context>`. Parsed
 // positionally (as AGENTS.md tells a parent), the <epoch> is admitted by the real
 // epoch launch gate for the resumed worktree and recorded on its execution slot.
 // The misrouted 0382 call (the dispatch context presented as the epoch) is refused
-// with the named unknown-run-epoch. The resume inspect path uses the raw temp
+// with the named unknown-run-id. The resume inspect path uses the raw temp
 // spelling and the start uses the symlink-resolved one (Review Focus 1).
 func TestIntegrationGateArmEpochlessResumeEndToEnd0382(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
@@ -45,8 +45,8 @@ func TestIntegrationGateArmEpochlessResumeEndToEnd0382(t *testing.T) {
 	}
 
 	fields := strings.Fields(strings.SplitN(arm.HumanText(), "\n", 2)[0])
-	if len(fields) != 4 || fields[0] != "gate-armed" {
-		t.Fatalf("armed line %q must be `gate-armed <key> <epoch> <dispatch-context>`", arm.HumanText())
+	if len(fields) != 4 || fields[0] != "run-started" {
+		t.Fatalf("armed line %q must be `run-started <key> <epoch> <dispatch-context>`", arm.HumanText())
 	}
 	key, epoch, dispatchCtx := fields[1], fields[2], fields[3]
 	if key != arm.Key || epoch != arm.Epoch || dispatchCtx != arm.DispatchContext {
@@ -68,7 +68,7 @@ func TestIntegrationGateArmEpochlessResumeEndToEnd0382(t *testing.T) {
 	if _, berr := svc.engine.Admit(svc.startRequest(bad)); berr == nil {
 		t.Fatalf("the dispatch context must never admit as a run epoch")
 	} else if r, why := mapDriveFailure(berr); r != ResultInvalidInput || why != ReasonUnknownRunEpoch {
-		t.Fatalf("misrouted epoch refused as (%s, %q), want (invalid-input, unknown-run-epoch)", r, why)
+		t.Fatalf("misrouted epoch refused as (%s, %q), want (invalid-input, unknown-run-id)", r, why)
 	}
 
 	// The correctly parsed epoch is admitted by the real launch gate.

@@ -24,7 +24,7 @@ package repoguard
 // without its `gate.drive.` prefix (a bare `prepare-scope`), or a build-owned
 // start without the --owner build token in the same paragraph, is not a site;
 // at run time the driver still fences such an epoch-less start against an
-// epoch-owned worktree (stale-run-epoch).
+// epoch-owned worktree (stale-run-id).
 
 import (
 	"fmt"

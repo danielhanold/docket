@@ -125,8 +125,8 @@ func TestIntegrationGateCancelRunCancelRefusedWrongEpoch(t *testing.T) {
 	if res.Disposition != CancelDispositionRefused {
 		t.Fatalf("disposition = %q, want refused", res.Disposition)
 	}
-	if !hasFinding(res.Findings, "epoch-mismatch") {
-		t.Fatalf("findings = %v, want epoch-mismatch", res.Findings)
+	if !hasFinding(res.Findings, "run-id-mismatch") {
+		t.Fatalf("findings = %v, want run-id-mismatch", res.Findings)
 	}
 	if st := loadEpochState(t, fx.repo, fx.key); st != EpochActive {
 		t.Fatalf("a refused cancel must not fence: epoch state = %q, want active", st)
@@ -141,7 +141,7 @@ func TestIntegrationGateCancelRunCancelRefusedWrongClaim(t *testing.T) {
 	common, _ := gateGitCommonDir(repo)
 	key, err := MintGateRecord(repo, GateRecord{
 		Target: gateBeforeStoredTarget, AttemptLimit: 2, Retry: RetryUnused,
-		Disposition: "gate-armed", ParentCap: "parent-cap-raw",
+		Disposition: "run-started", ParentCap: "parent-cap-raw",
 	})
 	if err != nil {
 		t.Fatalf("MintGateRecord: %v", err)
@@ -960,7 +960,7 @@ func TestIntegrationGateCancelGuardianReapsButNeverRetires(t *testing.T) {
 
 // TestIntegrationGateCancelFinalizeGateAdmitsAfterRetirement (AC1): before retirement the epoch-owned
 // released slot blocks an epoch-less raw/finalize launch (rawStaleEpochRefusal's
-// stale-run-epoch) and a different-epoch reservation (reserveWorktreeExecution's
+// stale-run-id) and a different-epoch reservation (reserveWorktreeExecution's
 // between-drives fence); after authorized cancellation retires the ownership, both
 // admit again — the released slot is genuinely reusable.
 func TestIntegrationGateCancelFinalizeGateAdmitsAfterRetirement(t *testing.T) {
@@ -977,7 +977,7 @@ func TestIntegrationGateCancelFinalizeGateAdmitsAfterRetirement(t *testing.T) {
 	// while the owning epoch is live — even with the production settlement read wired.
 	fx.store.SetEpochSettledResolver(epochSettledResolver(fx.common))
 	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); !isGateOwnership(err, gatedrive.ErrStaleRunEpoch) {
-		t.Fatalf("pre-retirement: an epoch-less raw reserve must be refused stale-run-epoch, got %v", err)
+		t.Fatalf("pre-retirement: an epoch-less raw reserve must be refused stale-run-id, got %v", err)
 	}
 	if _, err := fx.store.ReserveWorktreeExecutionForEpoch(fx.common, fx.worktree, "replacement-epoch", nil); err == nil {
 		t.Fatal("pre-retirement: a different epoch's reservation must be refused")
@@ -1144,7 +1144,7 @@ func isGateOwnership(err error, kind gatedrive.OwnershipErrorKind) bool {
 // defers the released slot to the reserve, which settles the epoch through the
 // production settlement read and exact-token retirement, so a successfully
 // completed run is never asked to be cancelled. An active, cancelling, or
-// completing epoch still owns its worktree: the reserve refuses stale-run-epoch and
+// completing epoch still owns its worktree: the reserve refuses stale-run-id and
 // the slot is left untouched.
 func TestIntegrationGateCancelRawLaunchSettlesSettledEpochReleasedSlot(t *testing.T) {
 	cases := []struct {
@@ -1189,7 +1189,7 @@ func TestIntegrationGateCancelRawLaunchSettlesSettledEpochReleasedSlot(t *testin
 				return
 			}
 			if !isGateOwnership(err, gatedrive.ErrStaleRunEpoch) {
-				t.Fatalf("raw reserve over a %s epoch's released slot = %v, want stale-run-epoch", tc.state, err)
+				t.Fatalf("raw reserve over a %s epoch's released slot = %v, want stale-run-id", tc.state, err)
 			}
 			if st, epo := loadSlotState(t, fx.store, fx.worktree), loadSlotEpoch(t, fx.store, fx.worktree); st != "released" || epo != fx.epochID {
 				t.Fatalf("refused slot changed: state %q epoch %q", st, epo)
@@ -1204,13 +1204,13 @@ func TestIntegrationGateCancelRawStaleEpochRefusalStillFencesBusySlot(t *testing
 	fx := newCancelFixture(t, true)
 	fx.store.SetEpochSettledResolver(epochSettledResolver(fx.common))
 	if _, refused := rawStaleEpochRefusal(fx.store, fx.worktree); !refused {
-		t.Fatal("an executing epoch-owned slot must be refused stale-run-epoch by the raw pre-check")
+		t.Fatal("an executing epoch-owned slot must be refused stale-run-id by the raw pre-check")
 	}
 }
 
 // TestIntegrationGateCancelRawAdmissionStoreWiresEpochSettledResolver: the raw launch path's admission
 // store carries the production settlement read (change 0446) — without it a raw
-// reserve over a completed run's released slot would refuse stale-run-epoch.
+// reserve over a completed run's released slot would refuse stale-run-id.
 func TestIntegrationGateCancelRawAdmissionStoreWiresEpochSettledResolver(t *testing.T) {
 	repo := newGateRepo(t)
 	_, _, store, ok := resolveWorktreeAdmission(repo)
@@ -1484,7 +1484,7 @@ func tornResumeFixture(t *testing.T, fx cancelFixture, neverMinted bool) string 
 		Target:       gateBeforeStoredTarget,
 		AttemptLimit: 1,
 		Retry:        RetryUnused,
-		Disposition:  "gate-armed",
+		Disposition:  "run-started",
 		ScopeID:      grant.ScopeID,
 		ParentCap:    grant.ParentCapability,
 	})

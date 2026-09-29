@@ -38,7 +38,7 @@ func mintFenceEpoch(t *testing.T, repoDir, worktree string, state epochState) st
 		Target:       gateBeforeStoredTarget,
 		AttemptLimit: 2,
 		Retry:        RetryUnused,
-		Disposition:  "gate-armed",
+		Disposition:  "run-started",
 		ParentCap:    "parent-cap-raw",
 		ScopeID:      "scope-1",
 	})
@@ -245,7 +245,7 @@ func TestIntegrationGateFenceStandaloneMutationUnfenced(t *testing.T) {
 }
 
 // TestIntegrationGateFenceFenceRefusesSupersededEpochAsStale: a superseded epoch (a resume replaced it)
-// refuses the mutation with the stale-run-epoch reason, distinct from run-cancelled.
+// refuses the mutation with the stale-run-id reason, distinct from run-cancelled.
 func TestIntegrationGateFenceFenceRefusesSupersededEpochAsStale(t *testing.T) {
 	repoDir := newGateRepo(t)
 	mintFenceEpoch(t, repoDir, repoDir, EpochSuperseded)
@@ -255,8 +255,8 @@ func TestIntegrationGateFenceFenceRefusesSupersededEpochAsStale(t *testing.T) {
 	if !ok {
 		t.Fatalf("err = %v, want a MutationFenceError", err)
 	}
-	if fe.Reason != "stale-run-epoch" {
-		t.Fatalf("reason = %q, want stale-run-epoch", fe.Reason)
+	if fe.Reason != "stale-run-id" {
+		t.Fatalf("reason = %q, want stale-run-id", fe.Reason)
 	}
 }
 
@@ -450,7 +450,7 @@ func TestIntegrationGateFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFence
 	// in-flight mutation seeded above (mutation-pending) — the epoch is left durably
 	// completing while the WORKTREE BINDING this test guards is already persisted. The
 	// recovery (ownership resolution + worktree binding) still succeeded.
-	if got, wantLine := res.HumanText(), "gate-stop "+key+" gate-unavailable completion-unaccounted"; got != wantLine {
+	if got, wantLine := res.HumanText(), "run-stop "+key+" run-tracker-unavailable completion-unaccounted"; got != wantLine {
 		t.Fatalf("HumanText = %q, want %q (recovery binding must still land)", got, wantLine)
 	}
 
@@ -541,7 +541,7 @@ func TestIntegrationGateFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceAc
 	// fails CLOSED on the owned in-flight mutation seeded above (mutation-pending), and
 	// the epoch is left completing while the ADOPTION binding this test guards is
 	// already persisted.
-	if got, wantLine := res.HumanText(), "gate-stop "+key+" gate-unavailable completion-unaccounted"; got != wantLine {
+	if got, wantLine := res.HumanText(), "run-stop "+key+" run-tracker-unavailable completion-unaccounted"; got != wantLine {
 		t.Fatalf("HumanText = %q, want %q (adoption binding must still land)", got, wantLine)
 	}
 	b, ok, berr := LoadGateClaimBinding(repo, key)
@@ -580,7 +580,7 @@ func TestIntegrationGateFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceAc
 
 // TestIntegrationGateFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm: when either recovery
 // leg cannot resolve repository/change identity (here: empty PlanningDeps — no
-// reader, no client), the verdict refuses gate-stop gate-unavailable
+// reader, no client), the verdict refuses run-stop run-tracker-unavailable
 // proof-unavailable BEFORE any confirm — it never substitutes an empty worktree.
 // The unconfirmed reservation stays intact-unconfirmed; the sole-proof leg
 // writes NO reservation at all (resolution precedes ReserveGateClaim).
@@ -600,7 +600,7 @@ func TestIntegrationGateFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm
 
 		res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
 		if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateProofUnavailable {
-			t.Fatalf("got %q/%q/%q, want gate-stop/gate-unavailable/%s (refuse before confirming)", res.Decision, res.Outcome, res.Reason, ReasonGateProofUnavailable)
+			t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s (refuse before confirming)", res.Decision, res.Outcome, res.Reason, ReasonGateProofUnavailable)
 		}
 		b, ok, err := LoadGateClaimBinding(repo, key)
 		if err != nil || !ok || b.Confirmed {
@@ -627,7 +627,7 @@ func TestIntegrationGateFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm
 
 		res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
 		if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateProofUnavailable {
-			t.Fatalf("got %q/%q/%q, want gate-stop/gate-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateProofUnavailable)
+			t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateProofUnavailable)
 		}
 		if res.AttributedID != 0 {
 			t.Errorf("AttributedID = %d, want 0 (nothing adopted on a refusal)", res.AttributedID)

@@ -13,12 +13,12 @@ import "path/filepath"
 
 // ReasonUnknownRunEpoch is the stable refusal token for a --run-id that names no
 // run epoch in this repository.
-const ReasonUnknownRunEpoch = "unknown-run-epoch"
+const ReasonUnknownRunEpoch = "unknown-run-id"
 
 // ClassifyRunEpochError maps a run-epoch registry failure (an *EpochError anywhere
 // in err's chain) to a protocol result and a bounded reason token:
-//   - not-found: unknown-run-epoch.
-//   - mismatch: the existing stale-linkage token, stale-run-epoch.
+//   - not-found: unknown-run-id.
+//   - mismatch: the existing stale-linkage token, stale-run-id.
 //   - corrupt or unreadable: internal-error carrying the kind.
 //   - any other readable-but-unusable registry state: invalid-input carrying the kind.
 //
@@ -49,10 +49,10 @@ func RunEpochNextAction(reason string) string {
 	switch reason {
 	case ReasonUnknownRunEpoch:
 		return "the --run-id value names no run epoch in this repository; pass the <epoch> field of the arm's " +
-			"`gate-armed <key> <epoch> <dispatch-context>` line (the <dispatch-context> goes to --gate-context) — " +
+			"`run-started <key> <epoch> <dispatch-context>` line (the <dispatch-context> goes to --gate-context) — " +
 			"never drop --run-id and retry"
 	case ErrStaleRunEpoch.Reason:
-		return "the --run-id value is not the run epoch this gate key carries; pass the <epoch> printed on the same gate-armed line as the key"
+		return "the --run-id value is not the run epoch this gate key carries; pass the <epoch> printed on the same run-started line as the key"
 	default:
 		return ""
 	}

@@ -24,18 +24,18 @@ import (
 // authority for run-complete / run-unclaimed / run-incomplete / run-halted /
 // run-waiting, and this mapper only translates that verdict plus the record's
 // retry accounting into a gate decision. It fails CLOSED: any load fault, any
-// unrecognized verdict, maps to `gate-stop <key> gate-unavailable <reason>` and
+// unrecognized verdict, maps to `run-stop <key> run-tracker-unavailable <reason>` and
 // never authorizes a retry.
 //
 // COMPLETION (spec §successful-completion-flow, change 0441). The verdict remains
 // the sole authority MAPPER — it never re-derives RunVerify's run-complete. On a
 // keyed run-complete it additionally drives the successful-run ownership closeout
 // (gateCompleteRun → completeSuccessfulRun) so a standalone finalize gate can admit
-// on the same worktree without a stale-run-epoch refusal or a human cancellation. A
-// BLOCKED or lost closeout maps to `gate-stop <key> gate-unavailable <reason>` on the
-// existing gate-unavailable channel with the new bounded reason tokens (run-cancelled
-// / stale-run-epoch / completion-unaccounted / completion-unpersisted /
-// report-unpersisted / epoch-unreadable) and never reports success — RunVerify's own
+// on the same worktree without a stale-run-id refusal or a human cancellation. A
+// BLOCKED or lost closeout maps to `run-stop <key> run-tracker-unavailable <reason>` on the
+// existing run-tracker-unavailable channel with the new bounded reason tokens (run-cancelled
+// / stale-run-id / completion-unaccounted / completion-unpersisted /
+// report-unpersisted / run-record-unreadable) and never reports success — RunVerify's own
 // verdict is reported as fact through those tokens, never re-derived. The closeout is
 // observation-only, fails closed on missing evidence, and consumes no retry. A
 // keyless/standalone/legacy dispatch (no epoch beside the record) keeps EXACTLY the
@@ -50,7 +50,7 @@ import (
 // committed claim proofs, an unconfirmed reservation recovers only from its exact
 // committed receipt, an absent binding adopts the SOLE proof matching the record's
 // context hash, and every missing / conflicting / corrupt / unprovable case fails
-// CLOSED to gate-stop gate-unavailable (or gate-done no-attributable-claim for a
+// CLOSED to run-stop run-tracker-unavailable (or run-done no-attributable-claim for a
 // provably absent claim). The record's BeforeIDs and DispatchEpoch are retained as
 // diagnostics only and can never create retry authority. A record that already
 // names an AttributedID with no claim binding is the `run start --resume` shape:
@@ -65,17 +65,17 @@ import (
 // most AttemptLimit-1 markers (the snapshotted run.max_attempts, default 2 => one
 // retry) via a per-attempt O_EXCL create. Of any number of concurrent observers of
 // the same completed attempt exactly one creates that attempt's marker, so racing
-// verdicts yield exactly one gate-retry-once and a counted budget never spends
+// verdicts yield exactly one run-retry-once and a counted budget never spends
 // several future attempts at once. The report TOKENS are unchanged; the used/limit
 // surface is the additive AttemptsUsed/AttemptLimit result fields.
 //
 // CONTINUATION (change 0359). A tracked gate drive left live (or terminal but
 // unconsumed) is a CONTINUATION of the same attempt, not a stop: a RunVerify
-// run-waiting maps to a nonterminal gate-continue directly (gateContinueFromWaiting),
+// run-waiting maps to a nonterminal run-continue directly (gateContinueFromWaiting),
 // and a run-incomplete whose recovery scope still binds a tracked drive is taken
 // over (gateOuterContinuation) BEFORE the retry CAS is reached — so healthy work
 // never spends the retry. A continuation keeps the same key, records the
-// single-use continuation triple, and reports `gate-continue <key> run-waiting
+// single-use continuation triple, and reports `run-continue <key> run-waiting
 // <id> <continuation-id> <phase>` with Terminal false. Unsafe ownership
 // (ambiguous or halted takeover) earns neither retry nor continuation.
 
@@ -85,9 +85,9 @@ const OperationRunGateVerdict = "run.verdict"
 
 // The gate decision tokens — the leading word of every attributed report line.
 const (
-	GateDecisionDone      = "gate-done"
-	GateDecisionRetryOnce = "gate-retry-once"
-	GateDecisionStop      = "gate-stop"
+	GateDecisionDone      = "run-done"
+	GateDecisionRetryOnce = "run-retry-once"
+	GateDecisionStop      = "run-stop"
 )
 
 // The gate outcome tokens that are not themselves RunVerify verdicts. The run-*
@@ -96,7 +96,7 @@ const (
 const (
 	GateOutcomeNoAttributableClaim = "no-attributable-claim"
 	GateOutcomeAmbiguousClaims     = "ambiguous-claims"
-	GateOutcomeUnavailable         = "gate-unavailable"
+	GateOutcomeUnavailable         = "run-tracker-unavailable"
 )
 
 // GateReasonUnknownVerdict is the fail-closed reason for a RunVerify outcome this
@@ -131,7 +131,7 @@ const (
 )
 
 // The successful-run closeout reason tokens (change 0441). Each rides the existing
-// `gate-stop <key> gate-unavailable <reason>` channel when the keyed run-complete
+// `run-stop <key> run-tracker-unavailable <reason>` channel when the keyed run-complete
 // verdict cannot report success: the report-line vocabulary is unchanged; only these
 // bounded reason spellings are new. The first four are RE-USED verbatim from Task 7's
 // completeSuccessfulRun return values (which flow straight through as r.Reason), so a
@@ -142,7 +142,7 @@ const (
 	// (an explicit human cancellation won, from active or from completing).
 	ReasonGateRunCancelled = "run-cancelled"
 	// ReasonGateStaleRunEpoch: a superseded epoch — the run this key named is stale.
-	ReasonGateStaleRunEpoch = "stale-run-epoch"
+	ReasonGateStaleRunEpoch = "stale-run-id"
 	// ReasonGateCompletionUnaccounted: a live/busy/pending/uncertain obligation blocks
 	// completion (fail closed). The epoch stays durably completing; the remedy — named
 	// in the result's CompletionFindings — is to settle the evidence and repeat the same
@@ -155,13 +155,13 @@ const (
 	// completed, but the terminal gate REPORT mirror could not be saved. The failure is
 	// REPORTED, not hidden by the best-effort save (spec: "completion-path persistence
 	// failures must be reported"); the epoch is already completed, so a repeat of the
-	// same keyed verdict replays to gate-done run-complete once the fault clears.
+	// same keyed verdict replays to run-done run-complete once the fault clears.
 	ReasonGateReportUnpersisted = "report-unpersisted"
 	// ReasonGateEpochUnreadable: the run epoch record beside the key could not be read
 	// (a store fault, corruption, or schema mismatch — anything but a clean absence,
 	// which is the keyless/standalone/legacy shape). A record the store cannot read is
 	// never a free closeout; fail closed.
-	ReasonGateEpochUnreadable = "epoch-unreadable"
+	ReasonGateEpochUnreadable = "run-record-unreadable"
 )
 
 // RunGateVerdictResult is the protocol-v1 document `run verdict` returns. It
@@ -170,13 +170,13 @@ const (
 type RunGateVerdictResult struct {
 	Envelope
 	Key          string   `json:"key,omitempty"`
-	Decision     string   `json:"decision,omitempty"` // gate-done | gate-retry-once | gate-stop | gate-continue
-	Outcome      string   `json:"outcome,omitempty"`  // run-* | no-attributable-claim | ambiguous-claims | gate-unavailable
+	Decision     string   `json:"decision,omitempty"` // run-done | run-retry-once | run-stop | run-continue
+	Outcome      string   `json:"outcome,omitempty"`  // run-* | no-attributable-claim | ambiguous-claims | run-tracker-unavailable
 	AttributedID int      `json:"attributed_id,omitempty"`
 	Unmet        []string `json:"unmet,omitempty"`
 	HandoffID    string   `json:"handoff_id,omitempty"`
 	Phase        string   `json:"phase,omitempty"`
-	// ContinuationID is the single-use redemption token minted on a gate-continue
+	// ContinuationID is the single-use redemption token minted on a run-continue
 	// decision (change 0359); it is the middle field of the continue line and the
 	// token a resumed controller presents to `run continue`.
 	ContinuationID string `json:"continuation_id,omitempty"`
@@ -188,7 +188,7 @@ type RunGateVerdictResult struct {
 	// verdict observed (initial dispatch plus retries granted so far, up to and
 	// including this one), and AttemptLimit is the snapshotted run.max_attempts. They
 	// are ADDITIVE diagnostics — omitempty keeps them off every other path — and never
-	// change the gate-retry-once / gate-stop report TOKENS, so existing report-line
+	// change the run-retry-once / run-stop report TOKENS, so existing report-line
 	// parsing is untouched.
 	AttemptsUsed int `json:"attempts_used,omitempty"`
 	AttemptLimit int `json:"attempt_limit,omitempty"`
@@ -205,10 +205,10 @@ type RunGateVerdictResult struct {
 // `<decision> <key> <outcome>` is chosen by the outcome token.
 func (r RunGateVerdictResult) HumanText() string {
 	fields := []string{r.Decision, r.Key, r.Outcome}
-	// A gate-continue reuses the run-waiting outcome word but a DISTINCT field
+	// A run-continue reuses the run-waiting outcome word but a DISTINCT field
 	// layout — [id, continuation-id, phase] — so it is keyed on the DECISION, not
 	// the outcome, and never falls into the outcome switch below (which would print
-	// the gate-stop run-waiting shape). The continuation id, not the opaque drive
+	// the run-stop run-waiting shape). The continuation id, not the opaque drive
 	// id, is what the parent redeems.
 	if r.Decision == GateDecisionContinue {
 		fields = append(fields, strconv.Itoa(r.AttributedID), r.ContinuationID, r.Phase)
@@ -256,7 +256,7 @@ func persistGateVerdict(repoDir, key string, rec GateRecord, res RunGateVerdictR
 	return res
 }
 
-// gateStoreReason projects a store error onto its stable gate-unavailable reason
+// gateStoreReason projects a store error onto its stable run-tracker-unavailable reason
 // token. Every real load fault is a *GateStoreError whose Kind IS the token.
 func gateStoreReason(err error) string {
 	if gse, ok := AsGateStoreError(err); ok {
@@ -269,7 +269,7 @@ func gateStoreReason(err error) string {
 // implement-next run. See the file header for the attribution, retry-ordering,
 // and fail-closed contracts.
 func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps, repoDir, key string) RunGateVerdictResult {
-	// Load the durable record. Any load fault fails closed to gate-unavailable
+	// Load the durable record. Any load fault fails closed to run-tracker-unavailable
 	// with the store's typed reason token — there is no record to persist to.
 	rec, err := LoadGateRecord(repoDir, key)
 	if err != nil {
@@ -322,7 +322,7 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 			gateVerdictLine(key, GateDecisionStop, VerdictRunHalted, id, true, nil))
 	case VerdictRunWaiting:
 		// A cooperatively handed-off drive is a live continuation, not a stop: emit
-		// a NONTERMINAL gate-continue that keeps the key and spends no retry (change
+		// a NONTERMINAL run-continue that keeps the key and spends no retry (change
 		// 0359). v.HandoffID is the opaque drive locator; its unclaimed handoff token
 		// is read through the continuation seam and persisted into the triple.
 		return gateContinueFromWaiting(wdeps.Continuation, repoDir, key, rec, id, v.HandoffID, v.Phase)
@@ -413,10 +413,10 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 //
 //  1. Locate the run epoch beside the gate record. A clean ABSENCE (ErrEpochNotFound)
 //     is the keyless/standalone/legacy shape: EXACTLY the prior behavior — best-effort
-//     report mirror + gate-done run-complete. Any OTHER load fault fails closed
-//     (epoch-unreadable): a record the store cannot read is never a free closeout.
-//  2. Drive completeSuccessfulRun. A blocked/lost closeout maps to gate-stop
-//     gate-unavailable with the engine's bounded reason token and the diagnostic
+//     report mirror + run-done run-complete. Any OTHER load fault fails closed
+//     (run-record-unreadable): a record the store cannot read is never a free closeout.
+//  2. Drive completeSuccessfulRun. A blocked/lost closeout maps to run-stop
+//     run-tracker-unavailable with the engine's bounded reason token and the diagnostic
 //     findings; completion loses without reporting success, and no retry is consumed
 //     (gateStopUnavailable leaves the permit untouched).
 //  3. On success the epoch is durably completed. The terminal report mirror is saved
@@ -438,8 +438,8 @@ func gateCompleteRun(repoDir, key string, rec GateRecord, id int, seams cancelSe
 	}
 
 	// (2) Drive the ownership closeout. completeSuccessfulRun's reason is a bounded
-	// gate-unavailable token (run-cancelled / stale-run-epoch / completion-unaccounted /
-	// completion-unpersisted / epoch-unreadable), passed through verbatim; the findings
+	// run-tracker-unavailable token (run-cancelled / stale-run-id / completion-unaccounted /
+	// completion-unpersisted / run-record-unreadable), passed through verbatim; the findings
 	// name what to settle. A blocked closeout never reports success and spends no retry.
 	ok, reason, findings := completeSuccessfulRun(seams, repoDir, key)
 	if !ok {
@@ -453,7 +453,7 @@ func gateCompleteRun(repoDir, key string, rec GateRecord, id int, seams cancelSe
 	// (3) Closeout succeeded; the epoch is durably completed. Save the terminal report
 	// mirror as a CHECKED write — a completion-path persistence failure is reported, not
 	// hidden. On failure the epoch stays completed, so the same keyed verdict replays to
-	// gate-done run-complete once the fault clears.
+	// run-done run-complete once the fault clears.
 	res := gateVerdictLine(key, GateDecisionDone, VerdictRunComplete, id, true, func(r *RunGateVerdictResult) {
 		r.CompletionFindings = findings
 	})
@@ -469,11 +469,11 @@ func gateCompleteRun(repoDir, key string, rec GateRecord, id int, seams cancelSe
 	return res
 }
 
-// gateContinueFromWaiting emits the nonterminal gate-continue for a RunVerify
+// gateContinueFromWaiting emits the nonterminal run-continue for a RunVerify
 // run-waiting (a worker cooperatively handed off): it reads the drive's unclaimed
 // handoff token through the continuation seam and records the continuation triple.
-// A nil seam or an unreadable handoff fails CLOSED to a terminal gate-stop
-// gate-unavailable rather than emitting a continuation no controller can redeem —
+// A nil seam or an unreadable handoff fails CLOSED to a terminal run-stop
+// run-tracker-unavailable rather than emitting a continuation no controller can redeem —
 // the pre-0359 terminal shape is never resurrected (migration is atomic).
 func gateContinueFromWaiting(seam ContinuationSeam, repoDir, key string, rec GateRecord, id int, driveID, phase string) RunGateVerdictResult {
 	if seam == nil {
@@ -516,7 +516,7 @@ func gateOuterContinuation(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			return gateStopUnavailable(repoDir, key, rec, id, ReasonGateTakeoverError), true
 		}
 		if halted {
-			// A halted takeover is fail-closed: gate-stop gate-unavailable, no retry
+			// A halted takeover is fail-closed: run-stop run-tracker-unavailable, no retry
 			// spent (a human is needed). One halt cause is intentional and bounded:
 			// the outer recovery scope is single-use per gate ARMING (it is minted
 			// once by run start), so the FIRST accepted outer takeover closes it and
@@ -545,9 +545,9 @@ func gateOuterContinuation(ctx context.Context, deps PlanningDeps, wdeps Workspa
 }
 
 // emitContinue records the continuation triple onto rec and returns the
-// nonterminal gate-continue report line `gate-continue <key> run-waiting <id>
+// nonterminal run-continue report line `run-continue <key> run-waiting <id>
 // <continuation-id> <phase>`. It spends no retry — the retry mirror is untouched.
-// A continuation-id minting fault fails closed to a terminal gate-stop.
+// A continuation-id minting fault fails closed to a terminal run-stop.
 func emitContinue(repoDir, key string, rec GateRecord, id int, driveID, handoff, phase string) RunGateVerdictResult {
 	cid, err := newContinuationID()
 	if err != nil {
@@ -564,7 +564,7 @@ func emitContinue(repoDir, key string, rec GateRecord, id int, driveID, handoff,
 		}))
 }
 
-// gateStopUnavailable builds a terminal gate-stop gate-unavailable report carrying
+// gateStopUnavailable builds a terminal run-stop run-tracker-unavailable report carrying
 // reason, and persists it. It never consumes the retry permit — a fail-closed stop
 // on the continuation path leaves the permit exactly as it found it.
 func gateStopUnavailable(repoDir, key string, rec GateRecord, id int, reason string) RunGateVerdictResult {
@@ -782,7 +782,7 @@ func gateAdoptOwnership(wdeps WorkspaceDeps, repoDir, key string, rec *GateRecor
 	}
 }
 
-// gateOwnershipStop builds the terminal gate-stop gate-unavailable report for a
+// gateOwnershipStop builds the terminal run-stop run-tracker-unavailable report for a
 // fail-closed ownership case, persists it, and returns it. It never consumes the
 // retry permit.
 func gateOwnershipStop(repoDir, key string, rec GateRecord, reason string) *RunGateVerdictResult {
@@ -790,7 +790,7 @@ func gateOwnershipStop(repoDir, key string, rec GateRecord, reason string) *RunG
 	return &res
 }
 
-// gateOwnershipDone builds the terminal gate-done no-attributable-claim report for a
+// gateOwnershipDone builds the terminal run-done no-attributable-claim report for a
 // dispatch that provably claimed nothing, persists it, and returns it.
 func gateOwnershipDone(repoDir, key string, rec GateRecord) *RunGateVerdictResult {
 	res := persistGateVerdict(repoDir, key, rec,
@@ -819,20 +819,20 @@ func gateUnmetTokens(v RunVerifyResult) []string {
 // supplied hint ids (each a hint to verify, NEVER attribution evidence) or, when
 // none are supplied, every current in-progress id, and renders one line per id
 // using RunVerify's verdict verbatim. An empty backlog with no hints reports
-// `gate-observe no-current-run`; a re-sync/read fault fails closed to a single
-// `gate-observe gate-unavailable <reason>` line.
+// `run-observe no-current-run`; a re-sync/read fault fails closed to a single
+// `run-observe run-tracker-unavailable <reason>` line.
 //
 // STRUCTURAL SEPARATION (spec, CRITICAL): observe rendering is a SEPARATE render
-// path (gateObserveLine) that only knows the `gate-observe` prefix and the
+// path (gateObserveLine) that only knows the `run-observe` prefix and the
 // observe outcome set. It has no access to GateDecisionRetryOnce and no branch
 // that could emit it — there is, by construction, NO code path from
-// --unattributed to gate-retry-once. The attributed retry accounting above is
+// --unattributed to run-retry-once. The attributed retry accounting above is
 // unreachable from here.
 
 // GateDecisionObserve is the leading word of every unattributed report line. It
 // is the ONLY decision token the observe renderer knows; the retry/done/stop
 // tokens are structurally out of reach on this path.
-const GateDecisionObserve = "gate-observe"
+const GateDecisionObserve = "run-observe"
 
 // GateOutcomeNoCurrentRun is the observe outcome when there is no run to observe:
 // no in-progress ids and no hints supplied.
@@ -844,7 +844,7 @@ const GateOutcomeNoCurrentRun = "no-current-run"
 const ReasonGateUnattributedKey = "unattributed-key"
 
 // GateObservation is one observed id's outcome: a RunVerify verdict (verbatim),
-// or a whole-report outcome (no-current-run / gate-unavailable) that carries no
+// or a whole-report outcome (no-current-run / run-tracker-unavailable) that carries no
 // id. It is rendered by gateObserveLine, which is structurally unable to emit a
 // retry.
 type GateObservation struct {
@@ -867,7 +867,7 @@ type RunGateVerdictObserveResult struct {
 	Message      string            `json:"message,omitempty"`
 }
 
-// HumanText renders the observe report: one `gate-observe …` line per
+// HumanText renders the observe report: one `run-observe …` line per
 // observation. A usage error (non-applied result) names its reason instead.
 func (r RunGateVerdictObserveResult) HumanText() string {
 	if r.Result != ResultApplied {
@@ -885,11 +885,11 @@ func (r RunGateVerdictObserveResult) HumanText() string {
 
 // gateObserveLine renders ONE observe report line. Its leading token is always
 // the GateDecisionObserve literal, and the outcome word is one of the observe
-// outcome set (a RunVerify verdict, no-current-run, or gate-unavailable). It has
+// outcome set (a RunVerify verdict, no-current-run, or run-tracker-unavailable). It has
 // no knowledge of and no branch to GateDecisionRetryOnce OR GateDecisionContinue
 // — the structural guarantee that --unattributed can authorize neither a retry
 // (change 0334) nor a nonterminal continuation (change 0359). A run-waiting id
-// observed here renders the plain observe run-waiting line, never a gate-continue.
+// observed here renders the plain observe run-waiting line, never a run-continue.
 func gateObserveLine(o GateObservation) string {
 	fields := []string{GateDecisionObserve, o.Outcome}
 	switch o.Outcome {
@@ -938,7 +938,7 @@ func RunGateVerdictObserve(ctx context.Context, deps PlanningDeps, wdeps Workspa
 	}
 
 	// Re-sync + read the current in-progress set. A sync/read fault fails closed
-	// to a single gate-unavailable line. This is the ONLY read; it writes nothing.
+	// to a single run-tracker-unavailable line. This is the ONLY read; it writes nothing.
 	inProgress, reason := observeInProgressIDs(ctx, deps, repoDir)
 	if reason != "" {
 		return newGateObserveReport(GateObservation{Outcome: GateOutcomeUnavailable, Reason: reason})
@@ -963,7 +963,7 @@ func RunGateVerdictObserve(ctx context.Context, deps PlanningDeps, wdeps Workspa
 }
 
 // observeInProgressIDs re-syncs to fresh origin and returns the current
-// in-progress change ids (sorted), or a non-empty gate-unavailable reason token
+// in-progress change ids (sorted), or a non-empty run-tracker-unavailable reason token
 // on a re-sync / corpus-read fault (fail closed). It writes nothing — the same
 // read-only plumbing run start and attribution use.
 func observeInProgressIDs(ctx context.Context, deps PlanningDeps, repoDir string) (ids []int, reason string) {
@@ -991,7 +991,7 @@ func observeInProgressIDs(ctx context.Context, deps PlanningDeps, repoDir string
 
 // observeFromVerdict maps ONE RunVerify result onto an observation, using its
 // verdict verbatim. An operational error (no verdict) or an unrecognized verdict
-// becomes a gate-unavailable observation carrying RunVerify's own reason (or
+// becomes a run-tracker-unavailable observation carrying RunVerify's own reason (or
 // unknown-verdict) — never a retry: this path has no retry to grant.
 func observeFromVerdict(id int, v RunVerifyResult) GateObservation {
 	switch v.Verdict {
