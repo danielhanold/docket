@@ -23,7 +23,7 @@ const (
 	// decision is closed: the successor carries the new thinking.
 	CodeADRUpdateAfterTerminal = "adr-update-after-terminal"
 	// CodeADRStatusFlipIllegal marks a status value that changed in a way the
-	// lifecycle does not allow — a terminal status reopened or re-aimed, an
+	// lifecycle does not allow — a final status reopened or re-aimed, an
 	// Accepted status merely respelled, or a flip to an unparseable value.
 	CodeADRStatusFlipIllegal = "adr-status-flip-illegal"
 	// CodeIdentityMutated marks an existing record whose immutable identity
@@ -113,7 +113,7 @@ func compareFrozenADR(before, after domain.ADR, beforeBytes, afterBytes []byte) 
 
 // statusFlipFindings judges a difference the mask confined to the status value
 // span. Only an Accepted ADR may flip, and only to a parseable terminal
-// status: a terminal status is closed, and an Accepted status respelled to
+// status: a final status is closed, and an Accepted status respelled to
 // itself is a rewrite of a frozen field wearing a flip's clothes.
 func statusFlipFindings(before, after domain.ADR) []domain.Finding {
 	beforeStatus, beforeParsed := domain.ParseADRStatus(before.RawStatus())

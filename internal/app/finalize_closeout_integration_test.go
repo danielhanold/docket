@@ -333,7 +333,7 @@ func TestIntegrationFinalizeCloseoutNotesReplayAndFrozen(t *testing.T) {
 	}
 	archived, _ := originFile(t, f.repo.origin, f.branch, first.ArchivePath)
 	if !strings.HasSuffix(archived, closeoutWantNotesSection) {
-		t.Errorf("terminal record's notes changed after the refused retry:\n%s", archived)
+		t.Errorf("archived record's notes changed after the refused retry:\n%s", archived)
 	}
 }
 
@@ -412,7 +412,7 @@ func TestIntegrationFinalizeCloseoutNotesRootCarryNoPropagation(t *testing.T) {
 }
 
 // TestCloseoutNotesStackedInPlace proves the stacked-merged in-place path also
-// carries notes into the terminal record, with the same replay/frozen semantics.
+// carries notes into the archived record, with the same replay/frozen semantics.
 func TestIntegrationFinalizeCloseoutNotesStackedInPlace(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]

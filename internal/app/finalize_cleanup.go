@@ -24,7 +24,7 @@ import (
 // the archived/stacked state and the verified merge destination; repairs the
 // terminal backlinks first when needed; removes the feature checkout through the
 // landed manifest-fact-driven workspace.Cleanup (never a base recomputed from the
-// now-terminal record); deletes the LOCAL feature ref only when the exact
+// now-archived record); deletes the LOCAL feature ref only when the exact
 // recorded tip is detached from every worktree AND contained in the verified
 // merge chain; deletes the REMOTE feature ref only under an exact old-value lease
 // AND only after a fresh probe proves no open child PR still targets it; and

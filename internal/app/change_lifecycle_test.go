@@ -17,7 +17,7 @@ const blobV = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 // docket:artifacts managed block, and a single ## Why authored section. Every
 // post-claim status (in-progress, blocked, implemented, done, stacked-merged)
 // additionally carries the branch/reconciled fields a claimed record holds — a
-// claim records the branch once and it persists through the terminal statuses;
+// claim records the branch once and it persists through the final statuses;
 // a blocked record also carries blocked_by.
 func lifecycleChange(id int, slug, status string) string {
 	var b strings.Builder

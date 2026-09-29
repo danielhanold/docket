@@ -583,7 +583,7 @@ func reviseFixtureFiles() map[string]string {
 }
 
 // reviseFixtureAtStatus is reviseFixtureFiles with the record moved off
-// proposed to status at recPath (a terminal status lives under archive/), extra
+// proposed to status at recPath (a final status lives under archive/), extra
 // carrying whatever frontmatter that status requires to load coherently —
 // spec acceptance item 7's non-proposed refusal rows.
 func reviseFixtureAtStatus(recPath, status, extra string) map[string]string {

@@ -184,7 +184,7 @@ func Block(c Change, reason string) (ActionResult, *PolicyFailure) {
 
 // blockedResult is the shared block transition: blocked status plus the
 // recorded reason. KillStackParent reuses it for descendants of any
-// non-terminal status, which is why it is separate from Block's own guard.
+// non-final status, which is why it is separate from Block's own guard.
 func blockedResult(c Change, reason string) ActionResult {
 	b := newChangeBuilder(c)
 	b.setStatus(StatusBlocked)
@@ -293,7 +293,7 @@ func MarkStackedMerged(c Change, parentBranch string, f MergeFacts) (ActionResul
 
 // MarkDone terminates an implemented or stacked-merged change once
 // reachability from the integration branch is supplied as a verified fact. The
-// claim stamp is cleared: a terminal record holds no lease.
+// claim stamp is cleared: an archived record holds no lease.
 func MarkDone(c Change, f DoneFacts) (ActionResult, *PolicyFailure) {
 	if fail := requireStatus(c, "mark-done", StatusImplemented, StatusStackedMerged); fail != nil {
 		return ActionResult{}, fail
@@ -326,7 +326,7 @@ type StackKillResult struct {
 // KillStackParent kills a change and blocks every non-terminal descendant with
 // the retained re-scope, re-parent, or kill reason. It is a distinct graph
 // action rather than a widening of Block: a descendant is blocked from any
-// non-terminal status, an already-blocked one is a semantic no-op, and a
+// non-final status, an already-blocked one is a semantic no-op, and a
 // terminal (done or killed) descendant is not touched and not reported.
 func KillStackParent(s Snapshot, id ChangeID) (StackKillResult, *PolicyFailure) {
 	parent, out := s.Change(id)

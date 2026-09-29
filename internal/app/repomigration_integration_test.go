@@ -48,7 +48,7 @@ func cleanLegacyFiles() map[string]string {
 		"docs/changes/active/0001-first-change.md":  migChangeRecord(1, "first-change", "proposed", "depends_on: [3]"),
 		"docs/changes/active/0002-second-change.md": migChangeRecord(2, "second-change", "proposed", ""),
 		"docs/changes/active/stray-note.txt":        "an unknown stray file that must be loss-preserved into the seed\n",
-		// Archive (a terminal record; the archive is retained on integration).
+		// Archive (an archived record; the archive is retained on integration).
 		"docs/changes/archive/2026-01-02-0003-archived-change.md": migArchivedRecord(3, "archived-change", "done", ""),
 		// Learnings dir present as a stray (an authored learning would add its own
 		// filename grammar; the whole prefix is copied either way).

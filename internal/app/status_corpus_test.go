@@ -102,7 +102,7 @@ func corpusConfig(t *testing.T, docketYML []byte) (config.Snapshot, []config.Dia
 // frozen records — the corpus is the oracle, never the code.
 //
 // The corpus is the v0.9.3 tag's tree (docket's `main`-branch content), which
-// carries only TERMINAL records: 9 archived changes and 5 Accepted ADRs, no
+// carries only ARCHIVED records: 9 archived changes and 5 Accepted ADRs, no
 // active changes and no learnings. It therefore exercises the complete-corpus
 // inventory and the health/validation path with an empty active projection;
 // readiness and ready-queue semantics over active changes are covered by the
