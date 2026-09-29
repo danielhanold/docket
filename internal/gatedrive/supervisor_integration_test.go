@@ -60,9 +60,11 @@ import (
 // ordinary run falls through to m.Run.
 //
 // Change 0466 moved this file (formerly integration_test.go) behind the integration
-// tag. The default gatedrive build has no TestMain: none of its tests re-execs the
-// test binary as a supervisor or child (only this tagged corpus drives the real
-// process.Service), so Go's default m.Run is exactly right there.
+// tag. The default gatedrive build has its own TestMain in main_test.go (change
+// 0470), which installs the no-real-git guard and routes no re-exec roles: none of
+// the default tests re-execs the test binary as a supervisor or child (only this
+// tagged corpus drives the real process.Service). The two TestMains carry mutually
+// exclusive build constraints, so at most one compiles for any tag set.
 func TestMain(m *testing.M) {
 	if process.SupervisorRequested() {
 		os.Exit(process.RunSupervisorFromEnv())

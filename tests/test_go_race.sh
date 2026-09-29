@@ -22,9 +22,8 @@
 # and fails the package on any attempt, so a new real-git test cannot land here
 # unnoticed. Change 0466 extended the partition and the guard to
 # internal/repository/transaction and internal/workspace, and moved
-# internal/gatedrive's real-supervisor and real-git tests behind the tag too.
-# gatedrive's moved corpus is mixed real-process and real-git; the spec left it
-# without a git guard, and this file's budget row is its growth detector. With
+# internal/gatedrive's real-supervisor and real-git tests behind the tag too;
+# change 0470 installed the guard in internal/gatedrive as well. With
 # that tail gone, `go test -race`'s GOMAXPROCS-wide race workers do not
 # oversubscribe the cores the other parallel jobs need (change 0332's reason
 # for the serial lane, and change 0329's load-dependent build-gate halt), so
