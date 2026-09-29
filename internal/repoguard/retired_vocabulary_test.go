@@ -39,6 +39,13 @@ import (
 // tests/fixtures/ and internal/install/legacydata/ are excluded by
 // MaintainedFiles itself (point-in-time records and frozen corpora).
 //
+// Every row retires its spelling everywhere in the scanned surface. Change 0471
+// carried a kept-namesake exception for row 12 (the gate drive's own
+// --gate-context); change 0477 renamed that flag to --run-context (ADR-0129 row
+// 38e) and deleted the exception, since a mechanism with no users cannot be
+// mutation-tested (Decision 10). A later family that needs one brings it back
+// with its own mutation tests.
+//
 // LIMITATION: the match is a bounded spelling, not the property. A retired
 // token re-assembled at runtime from fragments (e.g. "gate-" + "armed") escapes
 // it; that is accepted, as for every repoguard spelling seal.
@@ -71,160 +78,12 @@ type retiredToken struct {
 	Kind retiredKind // which sites match
 	Old  string      // the retired spelling
 	New  string      // its replacement, named in every failure
-	// Kept, when non-nil, INVERTS the row onto a kept namesake: every
-	// occurrence is retired unless Kept reports it syntactically bound to the
-	// namesake. text is the scanned block (a markdown paragraph, one shell or
-	// config line, or one Go literal's content) and text[lo:hi] the occurrence.
-	// Row 12 retires `change claim --gate-context`; the gate drive's own
-	// --gate-context is not an ADR-0129 row and stays, so the row is keyed on
-	// what binds a flag to the gate drive, never on how prose names the claim
-	// (review finding 3 of change 0471: "the Step-2 claim's --gate-context"
-	// named no `change claim` and evaded a claim-keyed scope).
-	Kept func(rel, text string, lo, hi int) bool
-}
-
-var (
-	// gateDriveHeadRe: a command segment led by a gate-drive command and at most
-	// one subcommand word — "docket gate drive start", "gate.drive.prepare-scope".
-	gateDriveHeadRe = regexp.MustCompile(`^(?:\$\s+)?(?:docket\s+)?gate[ .-]drive(?:[ .][a-z][a-z-]*)?(?:\s|$)`)
-	// gateDriveQualifierRe: the text before a flag (or before its flag-only code
-	// span) ends in a gate-drive qualifier — "gate-drive `--gate-context`", "the
-	// gate drive's --gate-context".
-	gateDriveQualifierRe = regexp.MustCompile(`gate[ .-]drive(?:'s|’s)?\s*$`)
-	// gateDriveOpSpanRe: the house argv idiom "the `gate.drive.start` operation
-	// with `--flags …`" — a gate-drive command span, then nothing but the words
-	// "operation"/"command" and "with", then the flag-only span.
-	gateDriveOpSpanRe = regexp.MustCompile("`(?:docket\\s+)?gate[ .-]drive[^`]*`\\s*(?:(?:operation|command)\\s*)?(?:with\\s*)?$")
-)
-
-// gateDriveBound is row 12's Kept: a --gate-context occurrence is the gate
-// drive's kept flag only when it is syntactically bound to a gate-drive
-// command —
-//   - inside a code span whose command segment (after the last shell
-//     separator) is a gate-drive command followed only by argv;
-//   - inside a flag-only code span introduced by a gate-drive qualifier or by
-//     a gate-drive command span plus "operation with";
-//   - outside any code span, right after a gate-drive qualifier, or in a line
-//     segment that is a gate-drive command followed only by argv.
-//
-// Everything else is the retired change-claim flag, however the prose names
-// its owner.
-func gateDriveBound(_, text string, lo, _ int) bool {
-	if s, ok := enclosingCodeSpan(text, lo); ok {
-		seg := afterShellSeparator(text[s:lo])
-		if bound, decided := gateDriveCommand(seg); decided {
-			return bound
-		}
-		pre := text[:s-1] // before the span's opening backtick
-		return argvShaped(seg) && (gateDriveQualifierRe.MatchString(pre) || gateDriveOpSpanRe.MatchString(pre))
-	}
-	if gateDriveQualifierRe.MatchString(text[:lo]) {
-		return true
-	}
-	line := text[strings.LastIndex(text[:lo], "\n")+1 : lo]
-	bound, _ := gateDriveCommand(afterShellSeparator(line))
-	return bound
-}
-
-// gateDriveFlagFile is row 12's Kept for the Go flag-name literal: the gate
-// drive's --gate-context is registered and read only in its command file, so
-// the bare name "gate-context" anywhere else is the retired change-claim flag.
-func gateDriveFlagFile(rel, _ string, _, _ int) bool {
-	return rel == "internal/cli/gate.go"
-}
-
-// gateDriveCommand classifies a command segment ending at a flag: decided is
-// false when the segment is flag-only argv (its binding lies before it), and
-// bound is true when it is a gate-drive command followed only by argv.
-func gateDriveCommand(seg string) (bound, decided bool) {
-	t := strings.TrimLeft(seg, " \t\n[")
-	if m := gateDriveHeadRe.FindStringIndex(t); m != nil {
-		return argvShaped(t[m[1]:]), true
-	}
-	if t == "" || strings.HasPrefix(t, "-") {
-		return false, false
-	}
-	return false, true
-}
-
-// argvShaped reports whether s is only flags, each followed by at most one
-// value word — never prose. Brackets of optional flags and a trailing
-// line-continuation backslash are ignored.
-func argvShaped(s string) bool {
-	afterFlag := false
-	for _, f := range strings.Fields(s) {
-		f = strings.Trim(f, "[]")
-		switch {
-		case f == "" || f == "\\":
-		case strings.HasPrefix(f, "-"):
-			afterFlag = true
-		case afterFlag:
-			afterFlag = false
-		default:
-			return false
-		}
-	}
-	return true
-}
-
-// afterShellSeparator returns the part of s after its last command separator
-// (&&, ||, ;, | or an opening parenthesis), or s when it has none.
-func afterShellSeparator(s string) string {
-	cut := 0
-	for _, sep := range []string{"&&", "||", ";", "|", "("} {
-		if i := strings.LastIndex(s, sep); i >= 0 && i+len(sep) > cut {
-			cut = i + len(sep)
-		}
-	}
-	return s[cut:]
-}
-
-// enclosingCodeSpan returns the start of the content of the backtick code span
-// holding text[lo] (backticks paired in order; an unpaired last one opens
-// nothing).
-func enclosingCodeSpan(text string, lo int) (int, bool) {
-	open := -1
-	for i := 0; i < len(text); i++ {
-		if text[i] != '`' {
-			continue
-		}
-		if open < 0 {
-			open = i
-			continue
-		}
-		if open < lo && lo < i {
-			return open + 1, true
-		}
-		open = -1
-	}
-	return 0, false
-}
-
-// tokenSpans returns every bounded occurrence of old in text, with the same
-// boundaries as tokenRe.
-func tokenSpans(text, old string) [][2]int {
-	var out [][2]int
-	for i := 0; i < len(text); {
-		j := strings.Index(text[i:], old)
-		if j < 0 {
-			break
-		}
-		lo, hi := i+j, i+j+len(old)
-		if (lo == 0 || !isIdentByte(text[lo-1])) && (hi == len(text) || !(isIdentByte(text[hi]) || text[hi] == '-')) {
-			out = append(out, [2]int{lo, hi})
-		}
-		i = lo + 1
-	}
-	return out
-}
-
-func isIdentByte(b byte) bool {
-	return b == '_' || '0' <= b && b <= '9' || 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
 }
 
 // retiredVocabulary is the table. Append-only across ADR-0129 families.
 var retiredVocabulary = []retiredToken{
-	// Family (a) — run tracker (change 0471): rows 7-37, 38 (storage names), 38a-38d.
+	// Family (a) — run tracker (change 0471): rows 7-37, 38 (storage names), 38a-38d;
+	// change 0477 finished rows 38e-38h.
 	{Row: "7", Kind: kindToken, Old: "gate-before", New: "run.start / docket run start"},
 	{Row: "8", Kind: kindToken, Old: "gate-verdict", New: "run.verdict / docket run verdict"},
 	{Row: "9", Kind: kindToken, Old: "gate-claim", New: "run.continue / docket run continue"},
@@ -232,8 +91,8 @@ var retiredVocabulary = []retiredToken{
 	{Row: "10", Kind: kindGoFlag, Old: "run-epoch", New: "run-id"},
 	{Row: "11", Kind: kindToken, Old: "--epoch", New: "run cancel --run-id"},
 	{Row: "11", Kind: kindGoFlag, Old: "epoch", New: "run-id"},
-	{Row: "12", Kind: kindToken, Old: "--gate-context", New: "change claim --run-context", Kept: gateDriveBound},
-	{Row: "12", Kind: kindGoFlag, Old: "gate-context", New: "run-context", Kept: gateDriveFlagFile},
+	{Row: "12, 38e", Kind: kindToken, Old: "--gate-context", New: "--run-context"},
+	{Row: "12, 38e", Kind: kindGoFlag, Old: "gate-context", New: "run-context"},
 	{Row: "13", Kind: kindToken, Old: "gate-armed", New: "run-started"},
 	{Row: "13", Kind: kindToken, Old: "gate-unarmed", New: "run-untracked"},
 	{Row: "13", Kind: kindJSONKey, Old: "armed", New: "started"},
@@ -285,6 +144,12 @@ var retiredVocabulary = []retiredToken{
 	{Row: "38b", Kind: kindJSONKey, Old: "epoch", New: "run_id"},
 	{Row: "38c", Kind: kindToken, Old: "gate_context", New: "run_context"},
 	{Row: "38d", Kind: kindToken, Old: "DOCKET_AGENT_GUARDIAN_EPOCH", New: "DOCKET_AGENT_GUARDIAN_RUN_ID"},
+	// Change 0477 — rows 38e-38h: 38e shares row 12's entries above (the gate
+	// drive's flag now takes the same --run-context as change claim, so no kept
+	// namesake remains); 38h (the `rungate store` error-text prefix) is already
+	// sealed by row 38's rungate token and needs no row of its own.
+	{Row: "38f", Kind: kindToken, Old: "DOCKET_AGENT_GUARDIAN_GATE_KEY", New: "DOCKET_AGENT_GUARDIAN_RUN_KEY"},
+	{Row: "38g", Kind: kindJSONKey, Old: "dispatch_context", New: "run_context"},
 }
 
 // retiredHit is one seal violation.
@@ -312,12 +177,11 @@ func tokenRe(old string) *regexp.Regexp {
 }
 
 // scanTextLine checks one markdown/shell/generated line against every
-// unscoped kindToken row. A row with Kept is scanned per block instead
-// (scanKeptRows), because its binding can span lines.
+// kindToken row.
 func scanTextLine(rel string, lineNo int, line string) []retiredHit {
 	var hits []retiredHit
 	for _, r := range retiredVocabulary {
-		if r.Kind != kindToken || r.Kept != nil {
+		if r.Kind != kindToken {
 			continue
 		}
 		if tokenRe(r.Old).MatchString(line) {
@@ -334,58 +198,16 @@ func scanTextContent(rel, content string) []retiredHit {
 	return scanText(rel, content, isMarkdownSurface(rel))
 }
 
-// scanText scans content line by line for the unscoped rows and block by block
-// (a markdown paragraph, or one line otherwise) for the rows with Kept.
+// scanText scans content line by line. Shell and config lines (md false)
+// have their `#` comment stripped first.
 func scanText(rel, content string, md bool) []retiredHit {
 	lines := strings.Split(content, "\n")
-	if !md {
-		for i := range lines {
-			lines[i] = stripHashComment(lines[i])
-		}
-	}
 	var hits []retiredHit
 	for i, line := range lines {
+		if !md {
+			line = stripHashComment(line)
+		}
 		hits = append(hits, scanTextLine(rel, i+1, line)...)
-	}
-	for a := 0; a < len(lines); {
-		b := a + 1
-		if md && !isParagraphBreak(lines[a]) {
-			for b < len(lines) && !isParagraphBreak(lines[b]) {
-				b++
-			}
-		}
-		hits = append(hits, scanKeptRows(rel, lines, a, b)...)
-		a = b
-	}
-	return hits
-}
-
-// isParagraphBreak: a blank line or a code-fence line ends a markdown block (a
-// fence's backticks must not pair with an inline code span's).
-func isParagraphBreak(line string) bool {
-	t := strings.TrimSpace(line)
-	return t == "" || strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~")
-}
-
-// scanKeptRows checks lines[a:b], joined as one block, against every kindToken
-// row with Kept: each occurrence Kept does not bind is a hit on its line.
-func scanKeptRows(rel string, lines []string, a, b int) []retiredHit {
-	text := strings.Join(lines[a:b], "\n")
-	var hits []retiredHit
-	for _, r := range retiredVocabulary {
-		if r.Kind != kindToken || r.Kept == nil {
-			continue
-		}
-		last := -1
-		for _, sp := range tokenSpans(text, r.Old) {
-			if r.Kept(rel, text, sp[0], sp[1]) {
-				continue
-			}
-			if ln := a + strings.Count(text[:sp[0]], "\n"); ln != last {
-				last = ln
-				hits = append(hits, retiredHit{rel, ln + 1, r, strings.TrimSpace(lines[ln])})
-			}
-		}
 	}
 	return hits
 }
@@ -403,13 +225,9 @@ func scanGoLiteral(rel string, lineNo int, lit string) []retiredHit {
 		hit := false
 		switch r.Kind {
 		case kindToken:
-			for _, sp := range tokenSpans(val, r.Old) {
-				if r.Kept == nil || !r.Kept(rel, val, sp[0], sp[1]) {
-					hit = true
-				}
-			}
+			hit = tokenRe(r.Old).MatchString(val)
 		case kindGoFlag:
-			hit = val == r.Old && (r.Kept == nil || !r.Kept(rel, val, 0, len(val)))
+			hit = val == r.Old
 		case kindGoPrefix:
 			hit = strings.HasPrefix(val, r.Old)
 		case kindJSONKey:
@@ -538,38 +356,31 @@ func testRetiredNonVacuity(t *testing.T) {
 			t.Errorf("row %s: %q detected in %d of %d planted sites", r.Row, r.Old, own, want)
 		}
 	}
-	// Row 12 on a line naming both nouns: the change-claim flag must still be
-	// caught next to a kept gate-drive one (gateDriveBound, whose kept side
-	// negative_controls pins).
-	mixed := "`gate drive start --gate-context <ctx>`, then `change claim --gate-context <ctx>`"
-	row12 := 0
-	for _, h := range scanTextContent("skills/x/SKILL.md", mixed) {
-		if h.row.Row == "12" {
-			row12++
-		}
-	}
-	if row12 == 0 {
-		t.Errorf("row 12: change claim --gate-context not detected on a line that also names gate drive: %q", mixed)
-	}
-	// Row 12 is inverted (gateDriveBound): a --gate-context NOT syntactically
-	// bound to a gate-drive command is retired, whatever noun the prose uses for
-	// its owner. The first case is the pre-0471 implement-next "Verify the run"
-	// clause, which names gate.drive four times and change.claim never, yet its
-	// last flag is the claim's (review finding 3 of change 0471).
+	// Rows 12 and 38e (change 0477): the gate drive's flag is now --run-context,
+	// so every --gate-context is retired, including the spellings change 0471 kept
+	// as the gate drive's namesake. Each line below was a CLEAN negative control
+	// before 0477; each must now hit the plain row.
 	for _, line := range []string{
-		"pass it into every `gate.drive.prepare-scope` / `gate.drive.start --gate-context` this run performs — each invoked with `--json` per the shared capture requirement — and into the Step-2 claim's --gate-context.",
+		"docket gate drive prepare-scope --gate-context <ctx>",
+		"docket gate drive start --gate-context <ctx> --run-id <id>",
+		"include the run-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`, and the run id",
+		"plus gate-drive `--gate-context <token>` if dispatched with one",
+		"| `prepare-scope` | `gate.drive.prepare-scope --change-id <id> [--gate-context <token>] [--run-id <id>]`: mint",
 		"pass it into `gate.drive.start` and into the Step-2 claim's `--gate-context`",
-		"gate drive start takes the token, and the Step-2 claim's --gate-context",
-		"`gate drive start --owner task && change claim --gate-context <ctx>`",
-		"the `gate.drive.start` operation, then the claim with `--gate-context <ctx>`",
 	} {
-		if !hasRetiredRow(scanTextContent("skills/x/SKILL.md", line), "12") {
-			t.Errorf("row 12: a --gate-context not bound to a gate-drive command was not detected: %q", line)
+		for _, rel := range []string{"skills/x/SKILL.md", "tests/test_x.sh"} {
+			if !hasRetiredRow(scanTextContent(rel, line), "12, 38e") {
+				t.Errorf("rows 12/38e: a --gate-context in %s was not detected: %q", rel, line)
+			}
 		}
 	}
-	unbound := "package p\nvar m = " + strconv.Quote("(the <run-context> goes to --gate-context)") + "\n"
-	if !hasRetiredRow(goHits("internal/app/x.go", unbound), "12") {
-		t.Errorf("row 12: an unbound --gate-context in a Go literal was not detected")
+	for _, c := range []struct{ rel, src string }{
+		{"internal/cli/gate.go", "package p\nvar f = \"gate-context\"\n"},
+		{"internal/app/x.go", "package p\nvar m = \"(the <run-context> goes to the gate drive's --gate-context)\"\n"},
+	} {
+		if !hasRetiredRow(goHits(c.rel, c.src), "12, 38e") {
+			t.Errorf("rows 12/38e: the former kept Go spelling in %s was not detected: %q", c.rel, c.src)
+		}
 	}
 }
 
@@ -597,18 +408,14 @@ func testRetiredNegativeControls(t *testing.T) {
 		// trailing hyphen exclusion keeps "gate-verdict-is" from matching row 8.
 		"see docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md",
 		"see docs/adrs/0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md",
-		"docket gate drive prepare-scope --gate-context <ctx>",
-		"docket gate drive start --gate-context <ctx> --run-id <id>",
 		"run.start then run.verdict then run.continue",
-		// Row 12's scope: the generated dispatch clause names both nouns, and its
-		// --gate-context is the gate drive's kept flag.
-		"include the run-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`, and the run id",
-		// The other gate-drive bindings gateDriveBound accepts: the same code span
-		// as a gate-drive command, and a gate-drive qualifier before the flag.
-		"pass it into every `gate.drive.prepare-scope` / `gate.drive.start --gate-context` this run performs",
-		"plus gate-drive `--gate-context <token>` if dispatched with one",
-		"(the <run-context> goes to the gate drive's --gate-context)",
-		"| `prepare-scope` | `gate.drive.prepare-scope --change-id <id> [--gate-context <token>] [--run-id <id>]`: mint",
+		// Change 0477's new spellings, and the committed receipt key row 38c must
+		// never reach (Decision 3).
+		"docket gate drive start --run-context <ctx> --run-id <id>",
+		"pass it, always as `--run-context`, into every `gate.drive.prepare-scope` / `gate.drive.start`",
+		"DOCKET_AGENT_GUARDIAN_RUN_KEY is set on the guardian",
+		"the run.start result carries run_context and the gate drive stores run_context_hash",
+		"the claim receipt's gate_context_hash is committed state",
 	}
 	for _, line := range cleanText {
 		for _, rel := range []string{"skills/x/SKILL.md", "tests/test_x.sh"} {
@@ -617,22 +424,12 @@ func testRetiredNegativeControls(t *testing.T) {
 			}
 		}
 	}
-	// Markdown only: the house argv idiom "the `<gate-drive op>` operation with
-	// `<flags>`", whose flag span wraps across lines of one paragraph.
-	cleanMarkdown := []string{
-		"the `gate.drive.start` operation with `--owner task\n--repo-dir <w> --scope-id <id> --child-cap <token> --gate-context <token> --run-root\n<dir> --json -- <the test command>`. Every identity value comes in your dispatch\nprompt — pass the bundle through unchanged, omitting gate-drive `--gate-context` only when no dispatch\ncontext reached you;",
-		"run the `gate.drive.prepare-scope`\noperation with `--change-id <id> --worktree\n<worktree> --gate-context <run-context> --run-id <run-id> --json` (the run context",
-	}
-	for _, md := range cleanMarkdown {
-		if hits := scanTextContent("skills/x/SKILL.md", md); len(hits) != 0 {
-			t.Errorf("markdown negative control %q matched: %v", md, hits)
-		}
-	}
 	cleanGo := []struct{ rel, src string }{
 		{"internal/app/change_claim.go", "package p\ntype R struct {\n\tH string `json:\"gate_context_hash\"`\n}\n"},
 		{"cmd/releasepkg/main.go", "package p\nvar f = \"source-epoch\"\n"},
-		{"internal/cli/gate.go", "package p\nvar f = \"gate-context\"\n"},
-		{"internal/app/x.go", "package p\nvar m = \"(the <run-context> goes to the gate drive's --gate-context)\"\n"},
+		{"internal/cli/gate.go", "package p\nvar f = \"run-context\"\n"},
+		{"internal/app/agent_guardian.go", "package p\nconst e = \"DOCKET_AGENT_GUARDIAN_RUN_KEY\"\n"},
+		{"internal/app/runtracker_start.go", "package p\ntype R struct {\n\tC string `json:\"run_context,omitempty\"`\n}\n"},
 		{"internal/app/evidence_ops.go", "package p\nvar r = \"gate-stopped\"\n"},
 		{"internal/p/p.go", "package p\n// run epoch gate-armed in a comment is a passing mention\nvar x = 1\n"},
 	}
