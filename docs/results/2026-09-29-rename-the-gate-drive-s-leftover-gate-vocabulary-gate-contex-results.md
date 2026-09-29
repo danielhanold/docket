@@ -26,8 +26,8 @@ One departure from the plan: the new dispatch sentence is one word longer, so th
 
 A dispatched run whose loaded skill text still passes `--gate-context` fails against the new binary with "unknown flag". A coordinator session that loaded the old AGENTS.md dispatch block will also keep writing the old label into dispatch requests until it restarts.
 
-1. Before merging, confirm no `docket-implement-next` run is active: `ps aux | grep -c "docket gate drive"` should show only the grep itself.
-   Expected: no live gate-drive processes.
+1. Before merging, confirm no `docket-implement-next` run is active. Run `docket status` and, for each change it lists as `in-progress`, run `docket run verify --id <id>`. As a secondary check, `ps aux | grep "docket gate drive" | grep -v grep` should print nothing. A run can be active without a gate-drive process (while it plans or reviews), so the status check is the one that counts.
+   Expected: no change is `in-progress` under a live run, and no gate-drive processes.
 2. Merge the PR, then follow the repository's "Rebuild the binary after a merge to main" procedure (`repository.sync-integration`, then `development.install --source /Users/homer/dev/docket`).
    Expected: `docket version` reports the merged `main` HEAD.
 3. Run `docket gate drive start --help`.
@@ -39,4 +39,10 @@ A dispatched run whose loaded skill text still passes `--gate-context` fails aga
 
 - Each of the five plan tasks ran focused tests test-first through the gate driver. The seal was mutation-tested: restoring the old spelling in a skill argv line, the CLI flag literal, the env constant, the struct tag, and the generator's dispatch sentence each turned the seal red and named the replacement. Weakening the token boundary turned the `gate_context_hash` negative controls red, which proves they work.
 - A residual grep finds the old spellings only in test lines that assert they are refused or retired.
-- The whole suite (`build.test_command`) runs at the build gate. Its evidence is in the PR body.
+- The whole suite (`build.test_command`) passed at the build gate: 74 of 74 files. The certifying run's evidence is in the PR body. The budget report showed only parallel-screening lines (`BUDGET WATCH` / `PARALLEL-SENSITIVE`) in unrelated integration and toolchain tests, with no serially confirmed breach.
+- A whole-branch review returned 5 findings: 1 important and 4 minor. All five were fixed in-branch.
+  - The run-context wiring test now requires the specific `scope-identity-mismatch` refusal, so a busy worktree can no longer satisfy it. This was mutation-checked.
+  - The unknown-run-id hint now names where the run context goes.
+  - The seal also catches reads of `dispatch_context` by consumers such as `jq`, not just struct tags. This was mutation-checked.
+  - An overlong comment was reflowed.
+  - This file's landing check now uses the status surface.
