@@ -22,7 +22,7 @@
 // nothing (the dispatch context's child capability continues to carry authority,
 // per ADR-0111) and travels onto a scoped start's worktree execution slot so an
 // omitted or stale epoch cannot detach a workflow-owned worktree (the gatedrive
-// stale-run-epoch fence). It is safe to print.
+// stale-run-id fence). It is safe to print.
 //
 // DURABILITY + CAS: writes go through the same atomic temp-file + rename discipline
 // as writeGateRecordAtomic (0600), and every read-modify-write serializes on a
@@ -185,43 +185,43 @@ type EpochErrorKind string
 const (
 	// ErrEpochNotFound: no epoch record exists for the gate key (never minted, or
 	// pruned with its gate record).
-	ErrEpochNotFound EpochErrorKind = "epoch-not-found"
+	ErrEpochNotFound EpochErrorKind = "run-not-found"
 	// ErrEpochCorrupt: the record could not be decoded, or its schema version is not
 	// the one this store understands. Fail closed.
-	ErrEpochCorrupt EpochErrorKind = "epoch-corrupt"
+	ErrEpochCorrupt EpochErrorKind = "run-record-corrupt"
 	// ErrEpochExists: a mint found an epoch already minted for the gate key. Bind-once:
 	// a second mint can never overwrite the first.
-	ErrEpochExists EpochErrorKind = "epoch-exists"
+	ErrEpochExists EpochErrorKind = "run-exists"
 	// ErrEpochNotActive: a participant registration (or another active-only transition)
 	// was attempted on an epoch whose state is not active — a fenced or terminal epoch
 	// admits no new participant.
-	ErrEpochNotActive EpochErrorKind = "epoch-not-active"
+	ErrEpochNotActive EpochErrorKind = "run-not-active"
 	// ErrEpochMismatch: a caller presented an expected epoch id that is not this
 	// record's EpochID — a stale locator. It confers no registration authority.
-	ErrEpochMismatch EpochErrorKind = "epoch-mismatch"
+	ErrEpochMismatch EpochErrorKind = "run-id-mismatch"
 	// ErrEpochNotCancelled: a resume attempted to supersede an epoch whose state is
 	// not confirmed-cancelled — resume reserves a replacement ONLY after confirmed
 	// cancellation, never over an active or still-cancelling run (change 0375 Task 12).
-	ErrEpochNotCancelled EpochErrorKind = "epoch-not-cancelled"
+	ErrEpochNotCancelled EpochErrorKind = "run-not-cancelled"
 	// ErrEpochAmbiguous: more than one non-superseded epoch matches one change id, so
 	// the run a resume targets cannot be resolved to a single epoch. Fail closed.
-	ErrEpochAmbiguous EpochErrorKind = "epoch-ambiguous"
+	ErrEpochAmbiguous EpochErrorKind = "run-ambiguous"
 	// ErrEpochOwnerAmbiguous: two or more ACTIVE (or completing) epochs are bound to
 	// one canonical worktree, so ambient owner lookup (findEpochByWorktree) cannot name
 	// a single current owner. It is a contradiction, never resolved by directory order
 	// or timestamp: the path fence refuses locally (change 0446 spec §5).
-	ErrEpochOwnerAmbiguous EpochErrorKind = "epoch-owner-ambiguous"
+	ErrEpochOwnerAmbiguous EpochErrorKind = "run-owner-ambiguous"
 	// ErrEpochOwnerUnresolved: the worktree's execution slot names a RunEpochID that no
 	// readable epoch record carries, so the worktree's current owner is unresolved. The
 	// path fence refuses locally with that locator rather than admitting unfenced
 	// (change 0446 spec §1).
-	ErrEpochOwnerUnresolved EpochErrorKind = "epoch-owner-unresolved"
+	ErrEpochOwnerUnresolved EpochErrorKind = "run-owner-unresolved"
 	// ErrEpochIO: an underlying filesystem, lock, or randomness operation failed.
-	ErrEpochIO EpochErrorKind = "epoch-io"
+	ErrEpochIO EpochErrorKind = "run-record-io"
 	// ErrEpochParticipantUnknown: a terminal-observation record named a native
 	// handle that no registered participant carries (change 0441) — evidence for a
 	// participant this epoch never registered is never stored.
-	ErrEpochParticipantUnknown EpochErrorKind = "epoch-participant-unknown"
+	ErrEpochParticipantUnknown EpochErrorKind = "run-participant-unknown"
 )
 
 // EpochError is the epoch store's typed failure carrying a stable kind and stage.
@@ -234,9 +234,9 @@ type EpochError struct {
 
 func (e *EpochError) Error() string {
 	if e.err != nil {
-		return fmt.Sprintf("run epoch %s: %s: %v", e.Op, e.Kind, e.err)
+		return fmt.Sprintf("run %s: %s: %v", e.Op, e.Kind, e.err)
 	}
-	return fmt.Sprintf("run epoch %s: %s", e.Op, e.Kind)
+	return fmt.Sprintf("run %s: %s", e.Op, e.Kind)
 }
 
 func (e *EpochError) Unwrap() error { return e.err }
@@ -263,7 +263,7 @@ func AsEpochError(err error) (*EpochError, bool) {
 // key — bind-once, a second arm can never clobber the first. On success it returns
 // the persisted active record (EpochID + Generation stamped).
 func MintEpochRecord(repoDir, gateKey, changeID string) (EpochRecord, error) {
-	dir, err := gateKeyDir(repoDir, gateKey, "mint-epoch")
+	dir, err := gateKeyDir(repoDir, gateKey, "mint-run")
 	if err != nil {
 		return EpochRecord{}, err
 	}
@@ -274,18 +274,18 @@ func MintEpochRecord(repoDir, gateKey, changeID string) (EpochRecord, error) {
 	defer lock.Close()
 
 	if _, serr := os.Stat(filepath.Join(dir, epochRecordFileName)); serr == nil {
-		return EpochRecord{}, epochErr(ErrEpochExists, "mint-epoch", nil)
+		return EpochRecord{}, epochErr(ErrEpochExists, "mint-run", nil)
 	} else if !errors.Is(serr, fs.ErrNotExist) {
-		return EpochRecord{}, epochErr(ErrEpochIO, "mint-epoch", serr)
+		return EpochRecord{}, epochErr(ErrEpochIO, "mint-run", serr)
 	}
 
 	epochID, err := epochToken()
 	if err != nil {
-		return EpochRecord{}, epochErr(ErrEpochIO, "mint-epoch", err)
+		return EpochRecord{}, epochErr(ErrEpochIO, "mint-run", err)
 	}
 	gen, err := epochToken()
 	if err != nil {
-		return EpochRecord{}, epochErr(ErrEpochIO, "mint-epoch", err)
+		return EpochRecord{}, epochErr(ErrEpochIO, "mint-run", err)
 	}
 	now := time.Now().UTC()
 	rec := EpochRecord{
@@ -308,11 +308,11 @@ func MintEpochRecord(repoDir, gateKey, changeID string) (EpochRecord, error) {
 // unparseable document or an unknown schema version (ErrEpochCorrupt) — a record
 // the store cannot read is never a live epoch.
 func LoadEpochRecord(repoDir, gateKey string) (EpochRecord, string, error) {
-	dir, err := gateKeyDir(repoDir, gateKey, "load-epoch")
+	dir, err := gateKeyDir(repoDir, gateKey, "load-run-record")
 	if err != nil {
 		return EpochRecord{}, "", err
 	}
-	return readStoredEpoch(dir, "load-epoch")
+	return readStoredEpoch(dir, "load-run-record")
 }
 
 // readStoredEpoch decodes the epoch envelope in dir and fails closed on a missing,
@@ -416,7 +416,7 @@ func bindEpochChange(repoDir, gateKey, changeID string) error {
 			if rec.ChangeID == changeID {
 				return nil // idempotent
 			}
-			return epochErr(ErrEpochMismatch, "bind-epoch-change", nil)
+			return epochErr(ErrEpochMismatch, "bind-run-change", nil)
 		}
 		rec.ChangeID = changeID
 		return nil
@@ -452,7 +452,7 @@ func bindEpochWorktree(repoDir, gateKey, worktree string) error {
 			if rec.Worktree == worktree {
 				return nil // idempotent
 			}
-			return epochErr(ErrEpochMismatch, "bind-epoch-worktree", nil)
+			return epochErr(ErrEpochMismatch, "bind-run-worktree", nil)
 		}
 		rec.Worktree = worktree
 		return nil
@@ -471,7 +471,7 @@ func bindEpochWorktree(repoDir, gateKey, worktree string) error {
 // persisted record untouched. The whole read-modify-write is under the lock, so a
 // concurrent registration serializes rather than losing an update.
 func epochCAS(repoDir, gateKey string, mutate func(*EpochRecord) error) error {
-	dir, err := gateKeyDir(repoDir, gateKey, "epoch-cas")
+	dir, err := gateKeyDir(repoDir, gateKey, "run-record-cas")
 	if err != nil {
 		return err
 	}
@@ -481,7 +481,7 @@ func epochCAS(repoDir, gateKey string, mutate func(*EpochRecord) error) error {
 	}
 	defer lock.Close()
 
-	rec, _, err := readStoredEpoch(dir, "epoch-cas")
+	rec, _, err := readStoredEpoch(dir, "run-record-cas")
 	if err != nil {
 		return err
 	}
@@ -492,7 +492,7 @@ func epochCAS(repoDir, gateKey string, mutate func(*EpochRecord) error) error {
 	rec.UpdatedAt = time.Now().UTC()
 	gen, err := epochToken()
 	if err != nil {
-		return epochErr(ErrEpochIO, "epoch-cas", err)
+		return epochErr(ErrEpochIO, "run-record-cas", err)
 	}
 	return writeEpochAtomic(dir, storedEpoch{Generation: gen, Record: rec})
 }
@@ -504,27 +504,27 @@ func epochCAS(repoDir, gateKey string, mutate func(*EpochRecord) error) error {
 func writeEpochAtomic(dir string, stored storedEpoch) error {
 	buf, err := json.Marshal(stored)
 	if err != nil {
-		return epochErr(ErrEpochIO, "write-epoch", err)
+		return epochErr(ErrEpochIO, "write-run-record", err)
 	}
 	tmp, err := os.CreateTemp(dir, "."+epochRecordFileName+".tmp-*")
 	if err != nil {
-		return epochErr(ErrEpochIO, "write-epoch", err)
+		return epochErr(ErrEpochIO, "write-run-record", err)
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName) // no-op after a successful rename
 	if _, err := tmp.Write(buf); err != nil {
 		tmp.Close()
-		return epochErr(ErrEpochIO, "write-epoch", err)
+		return epochErr(ErrEpochIO, "write-run-record", err)
 	}
 	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
-		return epochErr(ErrEpochIO, "write-epoch", err)
+		return epochErr(ErrEpochIO, "write-run-record", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return epochErr(ErrEpochIO, "write-epoch", err)
+		return epochErr(ErrEpochIO, "write-run-record", err)
 	}
 	if err := os.Rename(tmpName, filepath.Join(dir, epochRecordFileName)); err != nil {
-		return epochErr(ErrEpochIO, "write-epoch", err)
+		return epochErr(ErrEpochIO, "write-run-record", err)
 	}
 	return nil
 }
@@ -605,7 +605,7 @@ func CompleteEpoch(repoDir, gateKey string) error {
 		case EpochCompleted:
 			return errEpochFenceNoWrite
 		default:
-			return epochErr(ErrEpochNotActive, "complete-epoch", nil)
+			return epochErr(ErrEpochNotActive, "complete-run", nil)
 		}
 	})
 	if errors.Is(err, errEpochFenceNoWrite) {
@@ -637,7 +637,7 @@ func SupersedeCancelledEpoch(repoDir, gateKey, replacementKey string) error {
 		case EpochSuperseded:
 			return errEpochAlreadySuperseded
 		default:
-			return epochErr(ErrEpochNotCancelled, "supersede-epoch", nil)
+			return epochErr(ErrEpochNotCancelled, "supersede-run", nil)
 		}
 	})
 }
@@ -815,7 +815,7 @@ func findEpochDirByID(rungateRoot, epochID string) (dir string, rec EpochRecord,
 // "no such epoch" is
 // (false, nil): a locator that resolves to nothing cannot prove a run was cancelled,
 // and the takeover's other guards still protect it. An enumeration/IO fault is
-// returned so the takeover fails closed (HALT epoch-unreadable).
+// returned so the takeover fails closed (HALT run-record-unreadable).
 func epochRevokedResolver(gitCommonDir string) func(string) (bool, error) {
 	rungateRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
 	return func(epochID string) (bool, error) {

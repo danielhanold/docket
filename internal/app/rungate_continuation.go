@@ -1,4 +1,4 @@
-// The continuation seam for the run gate's `gate-continue` decision (change 0359).
+// The continuation seam for the run gate's `run-continue` decision (change 0359).
 //
 // A tracked gate drive that a dispatched implement-next run left live (or wrote a
 // verdict for and then died before its parent consumed it) is HEALTHY work to
@@ -37,13 +37,13 @@ import (
 
 // GateDecisionContinue is the NONTERMINAL gate decision (change 0359): the same
 // implement-next attempt owns live or terminal-unconsumed tracked work, so the
-// gate keeps the same key and spends no retry. It joins gate-done / gate-retry-once
-// / gate-stop (attributed) and gate-observe (unattributed) as a leading report
-// token, but unlike gate-retry-once it is a continuation of the SAME attempt, not
+// gate keeps the same key and spends no retry. It joins run-done / run-retry-once
+// / run-stop (attributed) and run-observe (unattributed) as a leading report
+// token, but unlike run-retry-once it is a continuation of the SAME attempt, not
 // a second attempt.
-const GateDecisionContinue = "gate-continue"
+const GateDecisionContinue = "run-continue"
 
-// Continuation-path gate-unavailable reason tokens. A takeover that HALTs passes
+// Continuation-path run-tracker-unavailable reason tokens. A takeover that HALTs passes
 // the driver's own cause token through instead of these.
 const (
 	// ReasonGateContinuationUnavailable: a run-waiting continuation could not be
@@ -123,7 +123,7 @@ func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error)
 	// app-side epoch launch gate over the same registry, beside the revocation resolver.
 	driver.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
 	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
-	// settled through exact-token retirement rather than refused stale-run-epoch
+	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
 	driver.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
 	return &gatedriveContinuationSeam{store: store, driver: driver}, nil

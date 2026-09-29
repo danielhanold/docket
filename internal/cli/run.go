@@ -66,8 +66,8 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = verify.MarkFlagRequired("id")
 
 	// run start arms the implement-next run gate: it re-syncs, records the
-	// before-set + dispatch epoch in a durable record, and prints `gate-armed <key>
-	// <epoch> <dispatch-context>` (or `gate-unarmed <reason>`). The sole positional
+	// before-set + dispatch epoch in a durable record, and prints `run-started <key>
+	// <epoch> <dispatch-context>` (or `run-untracked <reason>`). The sole positional
 	// argument is the gate target; only `implement-next` is accepted, and any other
 	// value is an invalid-input result (non-zero exit) the app layer owns. It
 	// reuses the same read-only planning seams as verify.
@@ -111,10 +111,10 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	// run verdict reports the run-gate verdict in one of two modes. In ATTRIBUTED
 	// mode (`run verdict <key>`) it loads the durable record armed by run start,
 	// attributes exactly one new in-progress claim, delegates the run predicate to
-	// app.RunVerify, and prints one line of the attributed vocabulary (gate-done /
-	// gate-retry-once / gate-stop …). In UNATTRIBUTED mode (`run verdict
+	// app.RunVerify, and prints one line of the attributed vocabulary (run-done /
+	// run-retry-once / run-stop …). In UNATTRIBUTED mode (`run verdict
 	// --unattributed [<id>...]`) it holds no key, writes nothing, and prints one
-	// observe-only line per verified id (gate-observe …) — a separate app entry
+	// observe-only line per verified id (run-observe …) — a separate app entry
 	// (RunGateVerdictObserve) with no path to a retry grant. Both modes wire the
 	// SAME read-only planning + workspace + GitHub seams as verify, including the
 	// best-effort local run-waiting receipt reader, because the run predicate is
@@ -141,7 +141,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			wdeps.Waiting = newWaitingReader(c.Context(), repoDir)
 			// Wire the continuation seam so a tracked drive under this dispatch's
-			// recovery scope is continued (gate-continue) rather than stopped. It is
+			// recovery scope is continued (run-continue) rather than stopped. It is
 			// additive: an unresolvable store/supervisor leaves it nil and the verdict
 			// takes the ordinary retry/stop path (change 0359).
 			wdeps.Continuation = newContinuationSeam(c.Context(), repoDir)
@@ -166,14 +166,14 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	gateVerdict.Flags().Bool("unattributed", false, "observe-only mode: verify hint ids (or every in-progress id) and print gate-observe lines, holding no key and writing nothing")
+	gateVerdict.Flags().Bool("unattributed", false, "observe-only mode: verify hint ids (or every in-progress id) and print run-observe lines, holding no key and writing nothing")
 	gateVerdict.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
-	// run continue redeems the single-use continuation a gate-continue verdict
+	// run continue redeems the single-use continuation a run-continue verdict
 	// recorded (change 0359): the resumed implement-next controller presents the
 	// durable key and the continuation id, and this leaf constant-time-compares the
 	// id, claims the recovered drive through the commandless drive service, and
-	// prints one report line (gate-claimed on success, gate-stop on a fail-closed
+	// prints one report line (run-continued on success, run-stop on a fail-closed
 	// refusal). The continuation seam is composed best-effort through the app
 	// boundary; an unresolvable store/supervisor leaves it nil and the claim fails
 	// closed to claim-unavailable.

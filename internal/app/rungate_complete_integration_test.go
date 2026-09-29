@@ -129,7 +129,7 @@ func TestIntegrationGateCompletionCompleteSuccessfulRunIdempotentReplay(t *testi
 }
 
 // TestIntegrationGateCompletionCompleteSuccessfulRunNeverRelabelsCancellation: a cancelling/cancelled run is
-// run-cancelled, a superseded run is stale-run-epoch, and the epoch state is never
+// run-cancelled, a superseded run is stale-run-id, and the epoch state is never
 // rewritten to a successful one.
 func TestIntegrationGateCompletionCompleteSuccessfulRunNeverRelabelsCancellation(t *testing.T) {
 	cases := []struct {
@@ -138,7 +138,7 @@ func TestIntegrationGateCompletionCompleteSuccessfulRunNeverRelabelsCancellation
 	}{
 		{EpochCancelling, "run-cancelled"},
 		{EpochCancelled, "run-cancelled"},
-		{EpochSuperseded, "stale-run-epoch"},
+		{EpochSuperseded, "stale-run-id"},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.state), func(t *testing.T) {
@@ -434,12 +434,12 @@ func TestIntegrationGateCompletionStandaloneFinalizeAdmissionBlockedThenAdmitted
 
 	// BEFORE closeout: the standalone finalize gate's admission shape presents an
 	// empty epoch to a slot the run epoch still owns (released, between drives) and is
-	// refused stale-run-epoch.
+	// refused stale-run-id.
 	if _, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil); func() bool {
 		oe, ok := gatedrive.AsOwnershipError(err)
 		return !ok || oe.Kind != gatedrive.ErrStaleRunEpoch
 	}() {
-		t.Fatalf("before closeout: raw reserve must refuse stale-run-epoch, got %v", err)
+		t.Fatalf("before closeout: raw reserve must refuse stale-run-id, got %v", err)
 	}
 
 	// Close out the verified successful run.
@@ -492,7 +492,7 @@ func TestIntegrationGateCompletionOrdinaryReleaseStillRetainsEpochBetweenDrives(
 		oe, ok := gatedrive.AsOwnershipError(err)
 		return !ok || oe.Kind != gatedrive.ErrStaleRunEpoch
 	}() {
-		t.Fatalf("foreign reserve between drives must refuse stale-run-epoch, got %v", err)
+		t.Fatalf("foreign reserve between drives must refuse stale-run-id, got %v", err)
 	}
 }
 

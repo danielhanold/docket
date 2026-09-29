@@ -100,7 +100,7 @@ type WorkspaceService interface {
 // `run verdict` (change 0359): it locates a tracked drive under the
 // dispatch's outer recovery scope, performs the event-authorized outer takeover,
 // and reads a cooperative handoff token so the verdict can emit a nonterminal
-// gate-continue. A nil seam means the verdict path never continues a tracked
+// run-continue. A nil seam means the verdict path never continues a tracked
 // drive and takes the ordinary retry/stop path instead.
 type WorkspaceDeps struct {
 	Service      WorkspaceService

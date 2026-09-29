@@ -22,8 +22,8 @@ import (
 // These are the `docket run start` (arm the gate) tests (change 0334,
 // Task 2). run start re-syncs the metadata worktree to fresh origin, reads the
 // in-progress claim set, captures a dispatch epoch AFTER that read, and mints a
-// durable gate record — printing `gate-armed <key>` on success and
-// `gate-unarmed <reason-token>` on any failure, exiting 0 either way (the report
+// durable gate record — printing `run-started <key>` on success and
+// `run-untracked <reason-token>` on any failure, exiting 0 either way (the report
 // line is the contract). Only `implement-next` is an accepted target; anything
 // else is a usage error that exits non-zero.
 //
@@ -145,14 +145,14 @@ func TestIntegrationGateArmGateBeforePreparesOuterScope(t *testing.T) {
 	if sp.req.ChangeID != "" || sp.req.Branch != "" || sp.req.Worktree != "" {
 		t.Errorf("fresh scope request carried identity: %+v", sp.req)
 	}
-	// Armed line: gate-armed <key> <epoch> <dispatch-context>, followed by the
+	// Armed line: run-started <key> <epoch> <dispatch-context>, followed by the
 	// honest owner-lifecycle caveat (change 0375 Task 13). The epoch id is minted
 	// beside the gate record and surfaced so the Stop path is followable.
 	ep, _, err := LoadEpochRecord(repo, res.Key)
 	if err != nil {
 		t.Fatalf("LoadEpochRecord: %v", err)
 	}
-	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 	if res.DispatchContext != scopeGrantChild {
@@ -216,9 +216,9 @@ func TestIntegrationGateArmGateBeforeFreshArmSurfacesRunEpoch(t *testing.T) {
 		t.Errorf("result Epoch = %q, want the minted epoch id %q", res.Epoch, ep.EpochID)
 	}
 
-	// Human report line: gate-armed <key> <epoch> <dispatch-context>, then the
+	// Human report line: run-started <key> <epoch> <dispatch-context>, then the
 	// owner-lifecycle caveat.
-	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }
@@ -512,8 +512,8 @@ func TestIntegrationGateArmArmedLineIsAlwaysThreeTokens(t *testing.T) {
 		}
 		first := strings.SplitN(res.HumanText(), "\n", 2)[0]
 		fields := strings.Fields(first)
-		if len(fields) != 4 || fields[0] != "gate-armed" {
-			t.Fatalf("armed line %q: want exactly `gate-armed <key> <epoch> <dispatch-context>`", first)
+		if len(fields) != 4 || fields[0] != "run-started" {
+			t.Fatalf("armed line %q: want exactly `run-started <key> <epoch> <dispatch-context>`", first)
 		}
 		if fields[1] != res.Key || fields[2] != res.Epoch || fields[3] != res.DispatchContext {
 			t.Fatalf("armed line %q: fields (%q,%q,%q), want (key %q, epoch %q, dispatch context %q)",

@@ -43,10 +43,10 @@ verdict, not the worker's report, says what may happen next.
        ▼
   run verdict <key> ──reads the gate's durable state, not the prose──►
        │
-       ├─ gate-retry-once ──► exactly one more launch, same key
+       ├─ run-retry-once ──► exactly one more launch, same key
        │                      (granted at most run.max_attempts - 1 times)
-       ├─ gate-continue ───► the same attempt resumes; spends no retry
-       ├─ gate-stop / gate-observe ─► no re-launch is authorized
+       ├─ run-continue ───► the same attempt resumes; spends no retry
+       ├─ run-stop / run-observe ─► no re-launch is authorized
        └─ run-halted ──────► the run needs a human
 ```
 

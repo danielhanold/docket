@@ -23,7 +23,7 @@ import (
 // origin, reads the current in-progress claim set, captures a dispatch epoch
 // AFTER that read, and mints a durable gate record under the git common dir
 // (rungate_store.go). Its whole contract is the printed report line:
-// `gate-armed <key> <epoch> <dispatch-context>` on success, `gate-unarmed
+// `run-started <key> <epoch> <dispatch-context>` on success, `run-untracked
 // <reason-token>` on any failure — both exit 0 (learning
 // exit-code-encodes-a-non-failure). Only `implement-next` is an accepted
 // target; anything else is a usage error that exits non-zero.
@@ -48,11 +48,11 @@ const (
 	gateBeforeStoredTarget   = "docket-implement-next"
 )
 
-// The stable reason tokens a gate-unarmed line carries. Each names the arming
+// The stable reason tokens a run-untracked line carries. Each names the arming
 // step that failed; a consumer keys on the token, never the prose.
 const (
 	// ReasonGateInvalidTarget: the target argument was not `implement-next`. This
-	// is a usage error (non-zero exit), not a gate-unarmed report line.
+	// is a usage error (non-zero exit), not a run-untracked report line.
 	ReasonGateInvalidTarget = "invalid-target"
 	// ReasonGateSyncFailed: the fresh-origin metadata re-sync (PinContext) failed,
 	// so the before-read could not be taken from authoritative state.
@@ -91,7 +91,7 @@ const (
 	// ReasonGateResumeEpochUnreadable: the prior run epoch could not be read or its
 	// supersede transition faulted — fail closed rather than admit a replacement over
 	// an unresolvable run (change 0375 Task 12).
-	ReasonGateResumeEpochUnreadable = "resume-epoch-unreadable"
+	ReasonGateResumeEpochUnreadable = "resume-run-record-unreadable"
 	// ReasonGateResumeRunCompleting: a --resume id's prior epoch is COMPLETING — a
 	// keyed verdict verified the run complete and durably fenced the epoch, but
 	// closeout is unfinished, so the epoch still owns its worktree (change 0441).
@@ -139,7 +139,7 @@ func gateHashToken(token string) string {
 
 // RunGateBeforeResult is the protocol-v1 document `run start` returns. On
 // an armed gate Result is applied and Key names the durable record; on a
-// gate-unarmed report Result is still applied (the report line exits 0) and
+// run-untracked report Result is still applied (the report line exits 0) and
 // Reason carries the stable token. A usage error (bad target) carries a
 // non-applied Result and no report line. It never carries authored document
 // bodies.
@@ -160,7 +160,7 @@ type RunGateBeforeResult struct {
 	// start, gate drive prepare-scope). Without it the documented Stop path names an
 	// epoch the arm never surfaced (change 0375). Never empty on an armed result
 	// (change 0463): armedGateResult refuses to arm without one, so the positional
-	// `gate-armed <key> <epoch> <dispatch-context>` line always has three tokens.
+	// `run-started <key> <epoch> <dispatch-context>` line always has three tokens.
 	Epoch   string `json:"run_id,omitempty"`
 	Target  string `json:"target,omitempty"`
 	Reason  string `json:"reason,omitempty"`
@@ -173,18 +173,18 @@ type RunGateBeforeResult struct {
 	OwnerLifecycle string `json:"owner_lifecycle,omitempty"`
 }
 
-// HumanText renders the one report line. An armed gate prints `gate-armed <key>
+// HumanText renders the one report line. An armed gate prints `run-started <key>
 // <epoch> <dispatch-context>`. That is always three tokens, because every armed
 // result carries an epoch (armedGateResult, change 0463), so a positional
-// parser can never read the dispatch context as the epoch. A gate-unarmed
-// report prints `gate-unarmed <reason-token>`; a usage error (a non-applied
+// parser can never read the dispatch context as the epoch. A run-untracked
+// report prints `run-untracked <reason-token>`; a usage error (a non-applied
 // result) names its reason instead of a report line. The parent capability
 // never appears here — only the child dispatch context, which is meant for the
 // child.
 func (r RunGateBeforeResult) HumanText() string {
 	if r.Result == ResultApplied {
 		if r.Armed {
-			line := "gate-armed " + r.Key + " " + r.Epoch + " " + r.DispatchContext
+			line := "run-started " + r.Key + " " + r.Epoch + " " + r.DispatchContext
 			if r.OwnerLifecycle != "" {
 				// Honest standing caveat: the dispatched route cancels no run on owner
 				// death; a Stop is the explicit `run.cancel` operation.
@@ -192,7 +192,7 @@ func (r RunGateBeforeResult) HumanText() string {
 			}
 			return line
 		}
-		return "gate-unarmed " + r.Reason
+		return "run-untracked " + r.Reason
 	}
 	if r.Reason != "" {
 		return fmt.Sprintf("%s: %s (%s)", r.Operation, r.Result, r.Reason)
@@ -206,7 +206,7 @@ func newRunGateBeforeResult(result Result, out RunGateBeforeResult) RunGateBefor
 	return out
 }
 
-// gateUnarmed builds a gate-unarmed report line: a success-shaped envelope
+// gateUnarmed builds a run-untracked report line: a success-shaped envelope
 // (exit 0) carrying the stable reason token. It never mints a record.
 func gateUnarmed(reason string) RunGateBeforeResult {
 	return newRunGateBeforeResult(ResultApplied, RunGateBeforeResult{Armed: false, Reason: reason})
@@ -220,7 +220,7 @@ func gateUnarmedMsg(reason, message string) RunGateBeforeResult {
 }
 
 // gateResumeObserve builds the observe-the-reservation report a repeat arm or the
-// loser of a concurrent-resume race returns: gate-unarmed with the winner's reserved
+// loser of a concurrent-resume race returns: run-untracked with the winner's reserved
 // gate key in Key, so the caller recovers the single reserved replacement rather than
 // admitting a second (change 0375 Task 12). It mints no record and no epoch.
 func gateResumeObserve(reservedKey string) RunGateBeforeResult {
@@ -233,10 +233,10 @@ func gateResumeObserve(reservedKey string) RunGateBeforeResult {
 }
 
 // armedGateResult builds the armed report for key. Every armed gate carries a run
-// epoch (change 0463): parents read the `gate-armed <key> <epoch> <dispatch-context>`
+// epoch (change 0463): parents read the `run-started <key> <epoch> <dispatch-context>`
 // line positionally, and both tokens are 32-hex, so the line is unambiguous only
 // when the epoch slot is always filled. An empty epoch therefore fails closed as
-// gate-unarmed mint-failed. It never prints a two-token line whose dispatch context
+// run-untracked mint-failed. It never prints a two-token line whose dispatch context
 // a parent would read as the epoch.
 func armedGateResult(key, epochID, dispatchContext string) RunGateBeforeResult {
 	if epochID == "" {
@@ -295,7 +295,7 @@ func acquireResumeLock(repoDir, changeID string) (*os.File, error) {
 // spelling). An active, completing, or unrecognized owner refuses resume-active-run
 // with that owner's locator. A fenced owner (cancelling, cancelled, superseded) is
 // no live owner: a fresh active epoch outranks it, so it does not block. An
-// ambiguous or unreadable owner set refuses resume-epoch-unreadable, fail-closed.
+// ambiguous or unreadable owner set refuses resume-run-record-unreadable, fail-closed.
 // It returns refused=false when the resume may mint.
 func resumeWorktreeOwnerRefusal(repoDir, worktree string) (RunGateBeforeResult, bool) {
 	canon := worktree
@@ -375,7 +375,7 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 		BeforeIDs:        p.beforeIDs,
 		AttributedID:     p.attributedID,
 		Retry:            RetryUnused,
-		Disposition:      "gate-armed",
+		Disposition:      "run-started",
 		ScopeID:          grant.ScopeID,
 		ParentCap:        grant.ParentCapability,
 		ChildContextHash: gateHashToken(grant.ChildCapability),
@@ -422,11 +422,11 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 // launch census with the old epoch id against it (change 0446 spec §4). When the
 // evidence is accounted it retires, through the shared retirement
 // (retireSlotOwnership), a RELEASED slot that still carries the old epoch's
-// ownership, so the replacement's own reservation is not refused stale-run-epoch. It
+// ownership, so the replacement's own reservation is not refused stale-run-id. It
 // never cancels or alters an already-reserved successor: a successor-held slot is
 // the shared successor outcome, returned as the detail of an ok result. Incomplete
 // or unreadable proof returns ok=false with a bounded, credential-free detail for the
-// gate-unarmed message; it creates no replacement and yields no dispatch
+// run-untracked message; it creates no replacement and yields no dispatch
 // authorization. worktree is the resume request's verified feature worktree — the one
 // armResumeReplacement binds — which resolves a torn replacement chain (a replacement
 // epoch never minted or never bound) instead of dead-ending every repeat resume.
@@ -443,8 +443,8 @@ func validateResumeQuiescence(seams cancelSeams, repoDir string, ep EpochRecord,
 // usage error (non-zero exit); otherwise it re-syncs, reads the in-progress
 // claim set, captures the dispatch epoch after that read, optionally verifies an
 // explicit resume id, prepares the OUTER recovery scope (change 0359), mints the
-// durable record and its run epoch, and returns `gate-armed <key> <epoch>
-// <dispatch-context>` — degrading any arming failure to a `gate-unarmed <reason>`
+// durable record and its run epoch, and returns `run-started <key> <epoch>
+// <dispatch-context>` — degrading any arming failure to a `run-untracked <reason>`
 // report line that still exits 0.
 //
 // resumeID (0 = none) requests explicit resume attribution: the id is pre-bound
@@ -604,7 +604,7 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 				// released slot that still carries its ownership (change 0435), then
 				// atomically supersede and reserve exactly one replacement dispatch (one
 				// winner under a concurrent-resume race). Unresolved evidence refuses on the
-				// existing gate-unarmed channel rather than reserving over an unquiesced run.
+				// existing run-untracked channel rather than reserving over an unquiesced run.
 				if qok, detail := validateResumeQuiescence(seams, repoDir, oldEp, worktree); !qok {
 					return gateUnarmedMsg(ReasonGateResumeCancellationPending,
 						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
@@ -678,7 +678,7 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		BeforeIDs:        beforeIDs,
 		AttributedID:     attributedID,
 		Retry:            RetryUnused,
-		Disposition:      "gate-armed",
+		Disposition:      "run-started",
 		ScopeID:          grant.ScopeID,
 		ParentCap:        grant.ParentCapability,
 		ChildContextHash: gateHashToken(grant.ChildCapability),

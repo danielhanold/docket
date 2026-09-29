@@ -1,7 +1,7 @@
 // Continuation redemption — `docket run continue <key> <continuation-id>`
 // (change 0359).
 //
-// A `gate-continue` verdict hands the resumed implement-next controller two
+// A `run-continue` verdict hands the resumed implement-next controller two
 // tokens: the durable gate key and a single-use continuation id. This file is the
 // redemption verb: it loads the durable gate record, verifies the presented
 // continuation id against the stored one with a CONSTANT-TIME compare
@@ -14,7 +14,7 @@
 // It fails CLOSED at every step: no stored continuation → no-continuation; a
 // mismatch → continuation-mismatch; a HALTED claim (a raced owner, a drifted
 // fingerprint) → a gate-stop-shaped refusal carrying the driver's own cause; a
-// command fault or an unwired seam → gate-unavailable. The triple is cleared ONLY
+// command fault or an unwired seam → run-tracker-unavailable. The triple is cleared ONLY
 // on a successful claim — every refusal leaves it intact so a legitimate retry with
 // the correct id can still succeed. On success the JSON document carries the fresh
 // owner generation the controller advances with; the human text names the drive id
@@ -35,9 +35,9 @@ import (
 const OperationRunGateClaim = "run.continue"
 
 // GateClaimDecisionClaimed is the leading token of a successful claim report line.
-// It joins gate-done / gate-retry-once / gate-stop / gate-continue / gate-observe
+// It joins run-done / run-retry-once / run-stop / run-continue / run-observe
 // as a decision word; a fail-closed refusal reuses GateDecisionStop.
-const GateClaimDecisionClaimed = "gate-claimed"
+const GateClaimDecisionClaimed = "run-continued"
 
 // Fail-closed reason tokens for the claim path. A HALTED claim carries the
 // driver's own cause alongside ReasonGateHaltedClaim.
@@ -136,7 +136,7 @@ func (s *gatedriveClaimSeam) Claim(driveID, handoffToken string) (GateClaimOutco
 type RunGateClaimResult struct {
 	Envelope
 	Key      string `json:"key,omitempty"`
-	Decision string `json:"decision,omitempty"` // gate-claimed | gate-stop
+	Decision string `json:"decision,omitempty"` // run-continued | run-stop
 	// Outcome is the drive's recorded outcome on a successful claim; a refusal
 	// carries no outcome (the reason token carries the disposition instead).
 	Outcome    string `json:"outcome,omitempty"`
@@ -150,7 +150,7 @@ type RunGateClaimResult struct {
 
 // HumanText renders the single claim report line. A success names the drive id and
 // the drive's recorded outcome ONLY — never the generation, which is authority and
-// travels solely in the JSON document. A refusal renders a gate-stop line carrying
+// travels solely in the JSON document. A refusal renders a run-stop line carrying
 // the reason token (and the driver's cause on a halted claim).
 func (r RunGateClaimResult) HumanText() string {
 	if r.Decision == GateClaimDecisionClaimed {
@@ -170,7 +170,7 @@ func (r RunGateClaimResult) HumanText() string {
 func RunGateClaim(repoDir, key, continuationID string, seam ClaimSeam) RunGateClaimResult {
 	rec, err := LoadGateRecord(repoDir, key)
 	if err != nil {
-		// No record to persist to: fail closed to a gate-stop carrying the store's
+		// No record to persist to: fail closed to a run-stop carrying the store's
 		// typed reason token.
 		return newGateClaimStop(key, gateStoreReason(err), "")
 	}
@@ -230,7 +230,7 @@ func RunGateClaim(repoDir, key, continuationID string, seam ClaimSeam) RunGateCl
 	return res
 }
 
-// newGateClaimStop builds a terminal gate-stop claim refusal (no record to
+// newGateClaimStop builds a terminal run-stop claim refusal (no record to
 // persist — the load itself failed).
 func newGateClaimStop(key, reason, cause string) RunGateClaimResult {
 	r := RunGateClaimResult{Key: key, Decision: GateDecisionStop, Reason: reason, Cause: cause, Terminal: true}
@@ -238,7 +238,7 @@ func newGateClaimStop(key, reason, cause string) RunGateClaimResult {
 	return r
 }
 
-// persistGateClaimStop builds a terminal gate-stop claim refusal and records its
+// persistGateClaimStop builds a terminal run-stop claim refusal and records its
 // disposition onto the (already-loaded) record. It never clears the continuation
 // triple — a refusal leaves the record exactly as it found it so a legitimate
 // retry with the correct id can still succeed.

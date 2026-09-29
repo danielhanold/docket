@@ -418,7 +418,7 @@ func TestReconcileSafeRefusalRows(t *testing.T) {
 			// it, however provably finished it is.
 			name:    "epoch fenced",
 			seam:    &incumbentSeam{},
-			finding: "incumbent-epoch-fenced",
+			finding: "incumbent-run-fenced",
 			seed: func(t *testing.T, d *Driver, store *Store, seam *incumbentSeam, req StartRequest) seeded {
 				req.RunEpochID = "E-owner"
 				token := finishedDriveIncumbent(t, d, store, seam, req)

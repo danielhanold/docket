@@ -139,7 +139,7 @@ const (
 	// owns (change 0375 Task 9, spec "omission cannot detach"). A slot with no epoch
 	// (a standalone gate) fences nothing. It confers no admission and never stops the
 	// incumbent.
-	ErrStaleRunEpoch OwnershipErrorKind = "stale-run-epoch"
+	ErrStaleRunEpoch OwnershipErrorKind = "stale-run-id"
 )
 
 // IncumbentSnapshot is a bounded, credential-free projection of the execution
@@ -175,7 +175,7 @@ type OwnershipError struct {
 	Legacy *LegacyHistorySummary
 	// Incumbent is the credential-free projection of the execution occupying a
 	// worktree admission slot, populated ONLY on the worktree-admission refusal
-	// legs (worktree-busy, unresolved-execution, stale-run-epoch) from the exact
+	// legs (worktree-busy, unresolved-execution, stale-run-id) from the exact
 	// record read under the slot's flock. Nil for every other OwnershipError.
 	// Kind/Op/Legacy are unchanged by its presence.
 	Incumbent *IncumbentSnapshot

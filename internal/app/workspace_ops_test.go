@@ -122,9 +122,9 @@ func TestWorkspaceFenceRefusalMessageIsReasonAware(t *testing.T) {
 	if cancelled.Message != "the run that owns this workspace was cancelled or superseded; publish nothing" {
 		t.Fatalf("cancelled message unexpectedly changed: %q", cancelled.Message)
 	}
-	if superseded := workspaceFenceRefusal(3, ErrStaleRunEpoch); superseded.Reason != "stale-run-epoch" ||
+	if superseded := workspaceFenceRefusal(3, ErrStaleRunEpoch); superseded.Reason != "stale-run-id" ||
 		superseded.Message != cancelled.Message {
-		t.Fatalf("superseded reason=%q message=%q, want stale-run-epoch + the cancelled-or-superseded wording", superseded.Reason, superseded.Message)
+		t.Fatalf("superseded reason=%q message=%q, want stale-run-id + the cancelled-or-superseded wording", superseded.Reason, superseded.Message)
 	}
 	completed := workspaceFenceRefusal(3, ErrRunCompleted)
 	if completed.Reason != "run-completed" {

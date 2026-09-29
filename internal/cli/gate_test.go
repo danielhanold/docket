@@ -636,7 +636,7 @@ func makeCancelledEpoch(t *testing.T, wt string) string {
 		Target:       "docket-implement-next",
 		AttemptLimit: 1,
 		Retry:        app.RetryUnused,
-		Disposition:  "gate-armed",
+		Disposition:  "run-started",
 	})
 	if err != nil {
 		t.Fatalf("MintGateRecord: %v", err)
@@ -1054,7 +1054,7 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 // TestGateDriveStartUnknownRunEpochIsNamed (change 0463): the 0382 misuse, where a
 // well-formed but unknown --run-id (a dispatch-context-shaped 32-hex token) goes
 // through the REAL epoch launch gate, is refused invalid-input with the named
-// unknown-run-epoch, never the catch-all invalid-request. The presented value is
+// unknown-run-id, never the catch-all invalid-request. The presented value is
 // never echoed.
 func TestGateDriveStartUnknownRunEpochIsNamed(t *testing.T) {
 	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
@@ -1065,8 +1065,8 @@ func TestGateDriveStartUnknownRunEpochIsNamed(t *testing.T) {
 		"--change-id", "463", "--task-id", "task-3", "--phase", "build", "--branch", "fix/x",
 		"--run-id", bogus, "--", "/bin/echo", "hi")
 	doc := decodeOneJSON(t, out)
-	if doc["result"] != "invalid-input" || doc["reason"] != "unknown-run-epoch" {
-		t.Fatalf("unknown --run-id must refuse invalid-input/unknown-run-epoch, got %v", doc)
+	if doc["result"] != "invalid-input" || doc["reason"] != "unknown-run-id" {
+		t.Fatalf("unknown --run-id must refuse invalid-input/unknown-run-id, got %v", doc)
 	}
 	if _, ok := doc["drive"]; ok {
 		t.Fatalf("a refused start must carry no drive document: %v", doc)
@@ -1080,7 +1080,7 @@ func TestGateDriveStartUnknownRunEpochIsNamed(t *testing.T) {
 }
 
 // TestGateDrivePrepareScopeUnknownRunEpochIsNamed (change 0463): through the real
-// wiring, prepare-scope with an unknown --run-id refuses unknown-run-epoch and
+// wiring, prepare-scope with an unknown --run-id refuses unknown-run-id and
 // mints no scope. In human mode it renders reason + remedy without the value. The
 // cancelled-epoch prepare in TestGateDrivePrepareScopeRunEpochGatesTakeover must
 // stay applied, because the pre-check is resolvability only, never liveness.
@@ -1092,8 +1092,8 @@ func TestGateDrivePrepareScopeUnknownRunEpochIsNamed(t *testing.T) {
 
 	out, _, _ := runCLI(t, append([]string{"--json"}, args...)...)
 	doc := decodeOneJSON(t, out)
-	if doc["result"] != "invalid-input" || doc["reason"] != "unknown-run-epoch" {
-		t.Fatalf("got %v, want invalid-input/unknown-run-epoch", doc)
+	if doc["result"] != "invalid-input" || doc["reason"] != "unknown-run-id" {
+		t.Fatalf("got %v, want invalid-input/unknown-run-id", doc)
 	}
 	if id, _ := doc["scope_id"].(string); id != "" {
 		t.Fatalf("a refused prepare-scope minted scope %q", id)
@@ -1105,7 +1105,7 @@ func TestGateDrivePrepareScopeUnknownRunEpochIsNamed(t *testing.T) {
 	// A non-applied result may render on either stream; check both together.
 	hOut, hErr, _ := runCLI(t, args...)
 	human := hOut + hErr
-	if !strings.Contains(human, "unknown-run-epoch") || !strings.Contains(human, "--gate-context") || strings.Contains(human, bogus) {
+	if !strings.Contains(human, "unknown-run-id") || !strings.Contains(human, "--gate-context") || strings.Contains(human, bogus) {
 		t.Fatalf("human output must name reason + remedy and never the value, got %q", human)
 	}
 }

@@ -29,23 +29,23 @@ operation below from the capability catalog. If it is missing, the install is br
 never rebuild the gate by hand.
 
 1. Before dispatching `docket-implement-next`, run `run.start` with `implement-next`. It prints
-   `gate-armed <key> <epoch> <dispatch-context>`; keep all three (they won't survive the next tool
+   `run-started <key> <epoch> <dispatch-context>`; keep all three (they won't survive the next tool
    call) and copy the `<dispatch-context>` and the `<epoch>` into the dispatch prompt. The `<epoch>`
    is the run epoch id you thread into `run.cancel --run-id` (below) and every `--run-id` dispatch
    flag (`agent.enter`, `gate drive start`, `gate drive prepare-scope`). Add `--resume <id>` to arm
-   for resuming an already-in-progress change. `gate-unarmed` still lets you dispatch, but keyless
+   for resuming an already-in-progress change. `run-untracked` still lets you dispatch, but keyless
    (step 2's fallback) and can never authorize a re-dispatch.
 2. After the run returns, or its completion notification arrives, run `run.verdict`
    with `<key>`; without a key, run it with `--unattributed` plus any change id the notification
-   names. Obey the resulting `gate-*` report line exactly, never its exit code or the child's prose.
-3. Only `gate-retry-once` authorizes another dispatch: the same `docket-implement-next`, once, for
-   the id and unmet conjuncts it names, keeping the same key. `gate-continue <key> run-waiting
+   names. Obey the resulting `run-*` report line exactly, never its exit code or the child's prose.
+3. Only `run-retry-once` authorizes another dispatch: the same `docket-implement-next`, once, for
+   the id and unmet conjuncts it names, keeping the same key. `run-continue <key> run-waiting
    <change-id> <continuation-id> <phase>` is **nonterminal**: the same attempt still owns tracked
-   work, so it keeps the same key, spends no retry, and is distinct from `gate-retry-once` (a
+   work, so it keeps the same key, spends no retry, and is distinct from `run-retry-once` (a
    continuation, not a second attempt). On it, resume the existing implement-next agent,
    or dispatch `docket-implement-next` again with the explicit change id, the continuation id, and the
-   same key, and run `run.verdict` with `<key>` again. Every `gate-stop` and every
-   `gate-observe` forbids re-dispatch; `run-halted` means a human is needed.
+   same key, and run `run.verdict` with `<key>` again. Every `run-stop` and every
+   `run-observe` forbids re-dispatch; `run-halted` means a human is needed.
 
 ## Stopping a dispatched run — there is no automatic Stop button
 
@@ -87,7 +87,7 @@ what to do instead:
   response) returns that same reserved key rather than minting a second run — dispatch the reserved
   replacement; never start a parallel one.
 
-Resume admits **exactly one** replacement, and only after cancellation is confirmed. `gate-continue`
+Resume admits **exactly one** replacement, and only after cancellation is confirmed. `run-continue`
 is unchanged by any of this: it stays nonterminal, keeps the same key, spends no retry, and resumes
 the existing agent (or re-dispatches with the change id and continuation id) as in step 3 above.
 

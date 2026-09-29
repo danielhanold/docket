@@ -78,7 +78,7 @@ const (
 	findingIncumbentSettled    = "incumbent-settled"
 	findingIncumbentAdmissible = "incumbent-admissible"
 	findingSlotUnreadable      = "incumbent-slot-unreadable"
-	findingEpochFenced         = "incumbent-epoch-fenced"
+	findingEpochFenced         = "incumbent-run-fenced"
 	findingKindUnknown         = "incumbent-kind-unknown"
 	findingReservationPending  = "incumbent-reservation-pending"
 	findingRunUnproven         = "incumbent-run-unproven"
@@ -388,7 +388,7 @@ func (s *Store) releaseProvenIncumbent(worktreeRoot, expectToken string, expectS
 // isIncumbentRefusal reports whether err is a worktree-admission refusal decided on
 // an occupying incumbent (worktree-busy or unresolved-execution carrying the
 // incumbent snapshot) — the only refusals finished-incumbent reconciliation can
-// change. A stale-run-epoch fence, a legacy-inventory refusal (no incumbent: the slot
+// change. A stale-run-id fence, a legacy-inventory refusal (no incumbent: the slot
 // is absent), and every store fault are not.
 func isIncumbentRefusal(err error) (*OwnershipError, bool) {
 	oe, ok := AsOwnershipError(err)

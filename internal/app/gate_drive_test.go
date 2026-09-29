@@ -1133,7 +1133,7 @@ func TestBudgetedBuildAdvisoryReconcilesWithScopeEpoch(t *testing.T) {
 		eng.reconcile = func(w, e string) (bool, string, error) {
 			reconciledEpochs = append(reconciledEpochs, e)
 			if e != epoch {
-				return false, "incumbent-epoch-fenced", nil
+				return false, "incumbent-run-fenced", nil
 			}
 			return true, "incumbent-settled", nil
 		}
@@ -1168,7 +1168,7 @@ func TestBudgetedBuildAdvisoryReconcilesWithScopeEpoch(t *testing.T) {
 		if got.Result == ResultApplied || got.Reason != string(gatedrive.ErrWorktreeBusy) {
 			t.Fatalf("a foreign presented epoch must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
 		}
-		if !strings.Contains(got.Message, "incumbent-epoch-fenced") {
+		if !strings.Contains(got.Message, "incumbent-run-fenced") {
 			t.Fatalf("refusal must name the epoch fence, got %q", got.Message)
 		}
 		if eng.startCount != 0 {
@@ -1360,7 +1360,7 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 
 // TestMapDriveFailureFenceReasons proves the run-epoch mutation-fence refusal
 // (MutationFenceError) is classified through the SAME shared mapDriveFailure
-// classifier into its bounded, stable token (run-cancelled / stale-run-epoch) with
+// classifier into its bounded, stable token (run-cancelled / stale-run-id) with
 // a distinct valid-next-action message, and that a wrapped credential leaks into
 // neither the reason nor the message. It is the fail-safe path for a fenced-epoch
 // error that ever chains through the gate-drive seam.
@@ -1372,7 +1372,7 @@ func TestMapDriveFailureFenceReasons(t *testing.T) {
 		err  *MutationFenceError
 	}{
 		{"run-cancelled", ErrRunCancelled},
-		{"stale-run-epoch", ErrStaleRunEpoch},
+		{"stale-run-id", ErrStaleRunEpoch},
 	} {
 		wrapped := fmt.Errorf("mutation refused carrying %s: %w", secret, tc.err)
 		res, reason := mapDriveFailure(wrapped)
@@ -1754,18 +1754,18 @@ func TestMapDriveFailureEpochErrors(t *testing.T) {
 	wrapped := fmt.Errorf("refused %s: %w", presented, epochErr(ErrEpochNotFound, "find-dir-by-id", nil))
 	res, reason := mapDriveFailure(wrapped)
 	if res != ResultInvalidInput || reason != ReasonUnknownRunEpoch {
-		t.Fatalf("mapDriveFailure = (%s, %q), want (invalid-input, unknown-run-epoch)", res, reason)
+		t.Fatalf("mapDriveFailure = (%s, %q), want (invalid-input, unknown-run-id)", res, reason)
 	}
-	if res, reason := mapDriveFailure(epochErr(ErrEpochIO, "find-by-id", nil)); res != ResultInternalError || reason != "epoch-io" {
+	if res, reason := mapDriveFailure(epochErr(ErrEpochIO, "find-by-id", nil)); res != ResultInternalError || reason != "run-record-io" {
 		t.Fatalf("an unreadable registry must be an internal error, got (%s, %q)", res, reason)
 	}
 	eng := &fakeDriveEngine{err: wrapped}
 	got := newGateDriveService(eng, 0, "", "").Advance("d1", "owner")
 	if got.Reason != ReasonUnknownRunEpoch {
-		t.Fatalf("service reason = %q, want unknown-run-epoch", got.Reason)
+		t.Fatalf("service reason = %q, want unknown-run-id", got.Reason)
 	}
 	if !strings.Contains(got.Message, "--gate-context") {
-		t.Fatalf("service must attach the unknown-run-epoch next action, got %q", got.Message)
+		t.Fatalf("service must attach the unknown-run-id next action, got %q", got.Message)
 	}
 	if strings.Contains(got.Message, presented) || strings.Contains(got.HumanText(), presented) {
 		t.Fatalf("the presented value leaked: message=%q human=%q", got.Message, got.HumanText())
@@ -1786,7 +1786,7 @@ func TestPrepareScopeRefusesUnknownRunEpoch(t *testing.T) {
 	}
 	got := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463", RunEpochID: "bogus-epoch-value"})
 	if got.Result != ResultInvalidInput || got.Reason != ReasonUnknownRunEpoch {
-		t.Fatalf("got (%s, %q), want (invalid-input, unknown-run-epoch)", got.Result, got.Reason)
+		t.Fatalf("got (%s, %q), want (invalid-input, unknown-run-id)", got.Result, got.Reason)
 	}
 	if got.ScopeID != "" || got.ChildCapability != "" || got.ParentCapability != "" {
 		t.Fatalf("a refused prepare-scope must carry no grant: %+v", got)
@@ -1797,7 +1797,7 @@ func TestPrepareScopeRefusesUnknownRunEpoch(t *testing.T) {
 	if asked != "bogus-epoch-value" {
 		t.Fatalf("locator asked %q, want the presented id", asked)
 	}
-	if !strings.Contains(got.Message, "--gate-context") || !strings.Contains(got.HumanText(), "unknown-run-epoch") {
+	if !strings.Contains(got.Message, "--gate-context") || !strings.Contains(got.HumanText(), "unknown-run-id") {
 		t.Fatalf("refusal must carry reason and next action: message=%q human=%q", got.Message, got.HumanText())
 	}
 	if strings.Contains(got.Message, "bogus-epoch-value") || strings.Contains(got.HumanText(), "bogus-epoch-value") {

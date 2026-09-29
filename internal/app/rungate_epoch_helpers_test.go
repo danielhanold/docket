@@ -19,7 +19,7 @@ func mintTestGateKey(t *testing.T, repo string) string {
 		Target:       gateBeforeStoredTarget,
 		AttemptLimit: 1,
 		Retry:        RetryUnused,
-		Disposition:  "gate-armed",
+		Disposition:  "run-started",
 	})
 	if err != nil {
 		t.Fatalf("MintGateRecord: %v", err)

@@ -78,9 +78,9 @@ func TestIntegrationWorkflowLifecycleRootEntryGateAttribution(t *testing.T) {
 				}
 				wdeps.ClaimProofs = NewClaimProofScanner(node.deps)
 				verdict := RunGateVerdict(ctx, node.deps, wdeps, gdeps, node.dir, armed.Key)
-				want := "gate-done " + armed.Key + " run-complete 3"
+				want := "run-done " + armed.Key + " run-complete 3"
 				if drop {
-					want = "gate-done " + armed.Key + " no-attributable-claim"
+					want = "run-done " + armed.Key + " no-attributable-claim"
 				}
 				if got := verdict.HumanText(); got != want {
 					t.Fatalf("claim-binding bridge: got %q, want %q", got, want)

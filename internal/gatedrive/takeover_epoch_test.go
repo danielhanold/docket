@@ -121,7 +121,7 @@ func TestTakeoverCannotReviveCancelledEpoch(t *testing.T) {
 			t.Fatalf("Takeover: %v", err)
 		}
 		if took.Outcome != HALTED || took.Cause != CauseEpochUnreadable {
-			t.Fatalf("a resolver fault must HALT epoch-unreadable, got %s/%q", took.Outcome, took.Cause)
+			t.Fatalf("a resolver fault must HALT run-record-unreadable, got %s/%q", took.Outcome, took.Cause)
 		}
 	})
 }

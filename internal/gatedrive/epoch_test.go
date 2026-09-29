@@ -70,7 +70,7 @@ func TestEpochOmissionCannotDetachOwnedWorktree(t *testing.T) {
 	other.RunEpochID = "E-prime"
 
 	// While the slot is still reserved (owned, mid-flight) the epoch fence precedes
-	// the plain worktree-busy check: an omitted or different epoch is stale-run-epoch,
+	// the plain worktree-busy check: an omitted or different epoch is stale-run-id,
 	// not worktree-busy.
 	if _, err := s.ReserveWorktreeExecution(empty); !isOwnership(err, ErrStaleRunEpoch) {
 		t.Fatalf("owned+omitted epoch must be ErrStaleRunEpoch, got %v", err)
@@ -172,7 +172,7 @@ func TestScopeSchemaV2LegacyTolerated(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Scoped starts inherit the scope's run epoch (change 0467). A scope prepared
 // with epoch E hands E to every scoped start under it: a start presenting no
-// epoch is admitted as E (it used to be refused stale-run-epoch against the
+// epoch is admitted as E (it used to be refused stale-run-id against the
 // E-owned slot), presenting E still admits, presenting F != E is refused
 // scope-identity-mismatch before anything is reserved, and a scope with no
 // epoch leaves the presented value governing, exactly as before.
@@ -368,7 +368,7 @@ func TestScopedSuccessorStartInheritsScopeEpoch(t *testing.T) {
 // TestEpochlessScopeKeepsPresentedEpoch: a scope with no pinned epoch (a legacy
 // v2 scope, or one prepared without) supplies nothing — the presented value
 // governs, unchanged from before. Presenting none over an epoch-e1-owned slot is
-// still fenced stale-run-epoch; presenting epoch-e1 admits.
+// still fenced stale-run-id; presenting epoch-e1 admits.
 func TestEpochlessScopeKeepsPresentedEpoch(t *testing.T) {
 	clk := &fakeClock{now: startEpoch()}
 	store := OpenStore(testsupport.TempDir(t))
@@ -377,7 +377,7 @@ func TestEpochlessScopeKeepsPresentedEpoch(t *testing.T) {
 	d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
 
 	if _, err := d.Start(req); !isOwnershipKind(err, ErrStaleRunEpoch) {
-		t.Fatalf("an epoch-less scope must not supply an epoch: want stale-run-epoch, got %v", err)
+		t.Fatalf("an epoch-less scope must not supply an epoch: want stale-run-id, got %v", err)
 	}
 	req.RunEpochID = "epoch-e1"
 	doc, err := d.Start(req)

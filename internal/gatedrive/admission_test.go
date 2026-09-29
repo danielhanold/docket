@@ -415,7 +415,7 @@ func TestReserveRefusalCarriesIncumbentSnapshot(t *testing.T) {
 
 // TestReserveUnresolvedRefusalCarriesSnapshot proves the unresolved-execution
 // refusal also snapshots the incumbent, and TestReserveStaleEpochCarriesSnapshot
-// proves the stale-run-epoch fence does (EpochOwned true, epoch id NOT projected).
+// proves the stale-run-id fence does (EpochOwned true, epoch id NOT projected).
 func TestReserveUnresolvedRefusalCarriesSnapshot(t *testing.T) {
 	store, worktree, repoID := newAdmissionFixture(t)
 	token, err := store.ReserveRawWorktreeExecution(repoID, worktree, nil)
@@ -444,7 +444,7 @@ func TestReserveStaleEpochCarriesSnapshot(t *testing.T) {
 	_, err = store.ReserveRawWorktreeExecution(repoID, worktree, nil)
 	oe, ok := AsOwnershipError(err)
 	if !ok || oe.Kind != ErrStaleRunEpoch {
-		t.Fatalf("err = %v, want stale-run-epoch", err)
+		t.Fatalf("err = %v, want stale-run-id", err)
 	}
 	if oe.Incumbent == nil || !oe.Incumbent.EpochOwned {
 		t.Fatalf("stale-epoch snapshot = %+v", oe.Incumbent)
@@ -812,7 +812,7 @@ func TestReleasedSlotWithLiveEpochStillFenced(t *testing.T) {
 
 			_, err := store.ReserveWorktreeExecutionForEpoch(repoID, worktree, "epoch-e2", nil)
 			if !isOwnership(err, ErrStaleRunEpoch) {
-				t.Fatalf("err = %v, want stale-run-epoch", err)
+				t.Fatalf("err = %v, want stale-run-id", err)
 			}
 			if string(readSlotBytes(t, store, worktree)) != string(before) {
 				t.Fatal("a fenced reservation must not touch the slot")
@@ -835,7 +835,7 @@ func TestReleasedSlotSeamErrorFailsClosed(t *testing.T) {
 
 	_, err := store.ReserveRawWorktreeExecution(repoID, worktree, nil)
 	if !isOwnership(err, ErrStaleRunEpoch) {
-		t.Fatalf("err = %v, want stale-run-epoch", err)
+		t.Fatalf("err = %v, want stale-run-id", err)
 	}
 	if string(readSlotBytes(t, store, worktree)) != string(before) {
 		t.Fatal("a seam error must leave the slot untouched")
@@ -868,7 +868,7 @@ func TestReleasedSlotUnresolvedEpochMarksIncumbent(t *testing.T) {
 			_, err := store.ReserveWorktreeExecutionForEpoch(repoID, worktree, "epoch-e2", nil)
 			oe, ok := AsOwnershipError(err)
 			if !ok || oe.Kind != ErrStaleRunEpoch || oe.Incumbent == nil {
-				t.Fatalf("err = %v, want stale-run-epoch with an incumbent snapshot", err)
+				t.Fatalf("err = %v, want stale-run-id with an incumbent snapshot", err)
 			}
 			if oe.Incumbent.EpochUnresolved != tc.want {
 				t.Fatalf("EpochUnresolved = %v, want %v", oe.Incumbent.EpochUnresolved, tc.want)
@@ -897,7 +897,7 @@ func TestBusySlotNeverConsultsSettledSeam(t *testing.T) {
 
 	_, err = store.ReserveWorktreeExecutionForEpoch(repoID, worktree, "epoch-e2", nil)
 	if !isOwnership(err, ErrStaleRunEpoch) {
-		t.Fatalf("err = %v, want stale-run-epoch", err)
+		t.Fatalf("err = %v, want stale-run-id", err)
 	}
 	if seam.callCount() != 0 {
 		t.Fatalf("a busy slot consulted the settlement seam %d times", seam.callCount())

@@ -945,7 +945,7 @@ the **dispatch context** (a token). The dispatch context and the run epoch are b
 implement-next dispatch prompt; a scope prepared with `--run-id` hands that epoch to every scoped
 start under it, so build-task workers never receive it (except the repair worker, for its
 build-owned post-fix re-run). It prints
-`gate-armed <key> <epoch> <dispatch-context>`; `gate-unarmed` still allows a keyless dispatch that
+`run-started <key> <epoch> <dispatch-context>`; `run-untracked` still allows a keyless dispatch that
 can never authorise a re-dispatch.
 
 ```sh
@@ -974,7 +974,7 @@ docket run cancel --key <key> --run-id <epoch> --reason "superseded by 413"
 
 ### Continuation
 
-A single-use id handed out with `gate-continue`, redeemed by the resumed controller so the same
+A single-use id handed out with `run-continue`, redeemed by the resumed controller so the same
 attempt carries on.
 
 ```sh
@@ -996,11 +996,11 @@ code or the child's prose.
 
 | Line | Meaning |
 |---|---|
-| `gate-retry-once …` | The only line that authorises another dispatch — once, same key, for the id and unmet conjuncts it names. Granted at most `run.max_attempts - 1` times. |
-| `gate-continue <key> run-waiting <id> <continuation-id> <phase>` | Non-terminal: the same attempt still owns work. Resume it with the continuation id; spends no retry. |
-| `gate-done …` | Finished (e.g. `gate-done run-complete`). |
-| `gate-stop …` | Stop; no re-dispatch (e.g. `gate-stop gate-unavailable takeover-ambiguous`). |
-| `gate-observe …` | Observe only; no re-dispatch (e.g. `gate-observe run-incomplete`). |
+| `run-retry-once …` | The only line that authorises another dispatch — once, same key, for the id and unmet conjuncts it names. Granted at most `run.max_attempts - 1` times. |
+| `run-continue <key> run-waiting <id> <continuation-id> <phase>` | Non-terminal: the same attempt still owns work. Resume it with the continuation id; spends no retry. |
+| `run-done …` | Finished (e.g. `run-done run-complete`). |
+| `run-stop …` | Stop; no re-dispatch (e.g. `run-stop run-tracker-unavailable takeover-ambiguous`). |
+| `run-observe …` | Observe only; no re-dispatch (e.g. `run-observe run-incomplete`). |
 | `run-halted` | A human is needed. |
 
 ```sh
@@ -1008,7 +1008,7 @@ docket run verdict <key>
 docket run verdict --unattributed 412   # no key: observe-only, can never authorise a retry
 ```
 
-### Gate-context refusal (`gate-context-invalid` / `gate-context-conflict`)
+### Gate-context refusal (`run-context-invalid` / `run-context-conflict`)
 
 The two `change.claim` outcomes when the dispatch context token passed as `--run-context` fails validation against
 the armed gate: the token is invalid, or it conflicts with a claim already bound to the gate. Either refusal writes
@@ -2027,7 +2027,7 @@ below.
 |---|---|---|
 | `block_dispositions` | `recorded` `already` `cleared` `nothing-to-clear` `unknown` `contended` `refused` `failed` | `finalize block`, `finalize clear-block` |
 | `cancel_dispositions` | `cancelled` `already-cancelled` `cancellation-pending` `refused` | `run cancel` |
-| `claim_dispositions` | `applied` `already-claimed` `contended` `failed` `gate-context-invalid` `gate-context-conflict` | `change claim`, `change refresh-claim` |
+| `claim_dispositions` | `applied` `already-claimed` `contended` `failed` `run-context-invalid` `run-context-conflict` | `change claim`, `change refresh-claim` |
 | `cleanup_dispositions` | `cleaned` `already-clean` `pending` `retained` `children-retarget-required` `rebase-scratch-cleared` | `finalize cleanup`, `gate cleanup` |
 | `closeout_dispositions` | `done-archived` `stacked-merged` `root-archived` `already` `children-retarget-required` `contended` `blocked` `unknown` `failed` | `finalize closeout` |
 | `groom_outcomes` | `spec` `trivial` `revise` `abstain` `rearm` | `change groom` (request `outcome`) |
@@ -2366,7 +2366,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Gate facade](#run-gate) — see Run gate
 - [Gate run / run dir](#gate-run--run-dir)
 - [Gate verdict](#gate-verdict)
-- [Gate-context refusal (gate-context-invalid / gate-context-conflict)](#gate-context-refusal-gate-context-invalid--gate-context-conflict)
+- [Gate-context refusal (run-context-invalid / run-context-conflict)](#gate-context-refusal-gate-context-invalid--gate-context-conflict)
 - [Git hooks in docket worktrees (pre-commit, husky, lefthook)](#git-hooks-in-docket-worktrees-pre-commit-husky-lefthook)
 - [GitHub board mirror / github_project](#github-board-mirror--github_project)
 - [Groom](#groom)

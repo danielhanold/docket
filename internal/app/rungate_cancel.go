@@ -310,7 +310,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 	// carry a parent-held authority; a CONFIRMED claim binding for the epoch's change
 	// must exist.
 	if expectEpoch == "" || ep.EpochID != expectEpoch {
-		return cancelRefused("epoch-mismatch")
+		return cancelRefused("run-id-mismatch")
 	}
 	if rec.ParentCap == "" {
 		return cancelRefused("authority-unavailable")
@@ -375,7 +375,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 	case EpochCancelling:
 		// Repeat: resume cleanup on the already-fenced epoch.
 	default:
-		return cancelRefused("epoch-state-unknown")
+		return cancelRefused("run-state-unknown")
 	}
 
 	// Reload after the fence so the cleanup below reads the fenced record.
@@ -968,7 +968,7 @@ func cancelEpochReason(err error) string {
 	if ee, ok := AsEpochError(err); ok {
 		return string(ee.Kind)
 	}
-	return "epoch-unreadable"
+	return "run-record-unreadable"
 }
 
 // Compile-time seam assertions.

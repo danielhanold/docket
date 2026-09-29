@@ -441,7 +441,7 @@ func TestIntegrationGateEpochCheckRunEpochLinkage(t *testing.T) {
 	repo := newGateRepo(t)
 	bare := mintTestGateKey(t, repo)
 	if err := CheckRunEpochLinkage(repo, bare, "0790b760e26444866ef2e156ba383326"); !isEpochKind(err, ErrEpochNotFound) {
-		t.Fatalf("gate key without an epoch: got %v, want epoch-not-found", err)
+		t.Fatalf("gate key without an epoch: got %v, want run-not-found", err)
 	}
 
 	withEpoch := mintTestGateKey(t, repo)
@@ -453,7 +453,7 @@ func TestIntegrationGateEpochCheckRunEpochLinkage(t *testing.T) {
 		t.Fatalf("matching pair must pass, got %v", err)
 	}
 	if err := CheckRunEpochLinkage(repo, withEpoch, "0790b760e26444866ef2e156ba383326"); !isEpochKind(err, ErrEpochMismatch) {
-		t.Fatalf("wrong epoch id: got %v, want epoch-mismatch", err)
+		t.Fatalf("wrong epoch id: got %v, want run-id-mismatch", err)
 	}
 
 	gone := mintTestGateKey(t, repo)
@@ -465,6 +465,6 @@ func TestIntegrationGateEpochCheckRunEpochLinkage(t *testing.T) {
 		t.Fatalf("remove gate dir: %v", err)
 	}
 	if err := CheckRunEpochLinkage(repo, gone, ep.EpochID); !isEpochKind(err, ErrEpochNotFound) {
-		t.Fatalf("absent gate key: got %v, want epoch-not-found", err)
+		t.Fatalf("absent gate key: got %v, want run-not-found", err)
 	}
 }

@@ -280,7 +280,7 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // outer recovery scope grants at most ONE automatic outer takeover per arming:
 // the first accepted takeover closes it, and a second detached-crash takeover
 // under the same gate key then finds scope.Closed and HALTs scope-closed
-// (gateOuterContinuation maps that to a terminal gate-stop gate-unavailable, no
+// (gateOuterContinuation maps that to a terminal run-stop run-tracker-unavailable, no
 // retry spent). This is intentional fail-closed behavior — a human recovers by
 // re-arming a fresh scope via `run start --resume` — not a bug; see the spec's
 // §5 continuation clause ("remains active until implement-next reaches a true

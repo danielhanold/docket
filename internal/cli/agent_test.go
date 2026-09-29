@@ -446,7 +446,7 @@ func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
 
 	const bogus = "0790b760e26444866ef2e156ba383326"
 	mintKey := func() string {
-		key, err := app.MintGateRecord(repo, app.GateRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "gate-armed"})
+		key, err := app.MintGateRecord(repo, app.GateRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "run-started"})
 		if err != nil {
 			t.Fatalf("MintGateRecord: %v", err)
 		}
@@ -461,8 +461,8 @@ func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
 	for _, tc := range []struct {
 		name, key, wantReason string
 	}{
-		{"gate key with no epoch", bare, "unknown-run-epoch"},
-		{"epoch id not the key's", withEpoch, "stale-run-epoch"},
+		{"gate key with no epoch", bare, "unknown-run-id"},
+		{"epoch id not the key's", withEpoch, "stale-run-id"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			base := []string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
@@ -495,7 +495,7 @@ func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
 // AGENTS.md threads only --run-id into agent.enter, so a lone --run-id (no
 // --run-key) must still be checked for existence before Codex is spawned. A
 // misrouted token (0382: the dispatch context passed as the epoch) refuses with
-// unknown-run-epoch and launches nothing; a lone epoch that DOES exist passes the
+// unknown-run-id and launches nothing; a lone epoch that DOES exist passes the
 // preflight and reaches the launch (the stub codex records the invocation).
 func TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch(t *testing.T) {
 	seedAgentInstallation(t)
@@ -508,7 +508,7 @@ func TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch(t *testing.T) {
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	key, err := app.MintGateRecord(repo, app.GateRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "gate-armed"})
+	key, err := app.MintGateRecord(repo, app.GateRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "run-started"})
 	if err != nil {
 		t.Fatalf("MintGateRecord: %v", err)
 	}

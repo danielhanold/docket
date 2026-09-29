@@ -93,7 +93,7 @@ func TestIntegrationGateArmResumeRefusesActiveEpochWithLocator(t *testing.T) {
 
 // TestIntegrationGateArmResumeRefusesCompletingEpochWithoutSuperseding: a resume of a change whose prior
 // epoch is COMPLETING (a verified successful run mid-closeout, change 0441) is refused
-// gate-unarmed with the run-completing reason — it names the keyed run verdict/cancel
+// run-untracked with the run-completing reason — it names the keyed run verdict/cancel
 // remedy, never turns the closeout into a cancelled predecessor, and reserves no
 // replacement.
 func TestIntegrationGateArmResumeRefusesCompletingEpochWithoutSuperseding(t *testing.T) {
@@ -128,7 +128,7 @@ func TestIntegrationGateArmResumeRefusesCompletingEpochWithoutSuperseding(t *tes
 }
 
 // TestIntegrationGateArmResumeRefusesCompletedEpochWithoutSuperseding: a resume of a change whose prior
-// epoch is COMPLETED (successful closeout finished, change 0441) is refused gate-unarmed
+// epoch is COMPLETED (successful closeout finished, change 0441) is refused run-untracked
 // with the run-completed reason — there is nothing to resume; the state and any
 // reservation stay untouched (never quiescence-checked into a supersede).
 func TestIntegrationGateArmResumeRefusesCompletedEpochWithoutSuperseding(t *testing.T) {
@@ -360,7 +360,7 @@ func seedResumeSlot(t *testing.T, repoDir, priorKey, ownerEpoch string) (common 
 
 // TestIntegrationGateArmResumeDeniedWhileOldEpochNotQuiescent (AC6/AC7): a durably cancelled epoch
 // whose launch evidence is still unsettled cannot authorize a replacement — the arm
-// refuses on the existing gate-unarmed channel (ReasonGateResumeCancellationPending),
+// refuses on the existing run-untracked channel (ReasonGateResumeCancellationPending),
 // mints no record, reserves no replacement, and leaves the old epoch cancelled.
 func TestIntegrationGateArmResumeDeniedWhileOldEpochNotQuiescent(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
@@ -778,7 +778,7 @@ func TestIntegrationGateArmResumeSupersededChecksReplacementSlot(t *testing.T) {
 // TestIntegrationGateArmEpochlessResumeMintsBoundEpoch (change 0463): resuming an in-progress change
 // that has NO prior run epoch (its first dispatch was never armed) mints one. The
 // epoch is bound to the change and to the verified feature worktree, and the result
-// carries its id, so the armed line is always `gate-armed <key> <epoch> <dispatch-context>`.
+// carries its id, so the armed line is always `run-started <key> <epoch> <dispatch-context>`.
 func TestIntegrationGateArmEpochlessResumeMintsBoundEpoch(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	deps, wdeps := resumeEpochDeps(t)
@@ -921,7 +921,7 @@ func TestIntegrationGateCancelRunCancelResumeAuthorityFailsClosed(t *testing.T) 
 		common, _ := gateGitCommonDir(repo)
 		key, err := MintGateRecord(repo, GateRecord{
 			Target: gateBeforeStoredTarget, AttemptLimit: 2, Retry: RetryUnused,
-			Disposition: "gate-armed", ParentCap: "parent-cap-raw", AttributedID: 5,
+			Disposition: "run-started", ParentCap: "parent-cap-raw", AttributedID: 5,
 		})
 		if err != nil {
 			t.Fatalf("MintGateRecord: %v", err)
@@ -943,7 +943,7 @@ func TestIntegrationGateCancelRunCancelResumeAuthorityFailsClosed(t *testing.T) 
 		common, _ := gateGitCommonDir(repo)
 		key, err := MintGateRecord(repo, GateRecord{
 			Target: gateBeforeStoredTarget, AttemptLimit: 2, Retry: RetryUnused,
-			Disposition: "gate-armed", ParentCap: "parent-cap-raw", AttributedID: 5,
+			Disposition: "run-started", ParentCap: "parent-cap-raw", AttributedID: 5,
 		})
 		if err != nil {
 			t.Fatalf("MintGateRecord: %v", err)
@@ -969,7 +969,7 @@ func TestIntegrationGateCancelRunCancelResumeAuthorityFailsClosed(t *testing.T) 
 // per-change resume lock keeps concurrent arms from minting two live epochs for one
 // change (TestRaceIntegrationAppConcurrencyEpochlessResumesArmOnce), but such a pair can still exist,
 // for example left by a binary that predates the lock. A resume over it must fail
-// closed as resume-epoch-unreadable and must never arm a third run. Recovery is an
+// closed as resume-run-record-unreadable and must never arm a third run. Recovery is an
 // explicit 'docket run cancel' of either epoch by its own key and epoch, which
 // runCancel's resume-verified authority accepts (TestIntegrationGateArmEpochlessResumeEpochJoinsCancelCycle
 // drives that cancel path); the surviving epoch is then the worktree's sole live owner.
@@ -1152,7 +1152,7 @@ func TestIntegrationGateArmEpochlessResumeRefusesLiveWorktreeOwner(t *testing.T)
 // line unambiguous.
 func TestIntegrationGateArmArmedGateResultRequiresEpoch(t *testing.T) {
 	if got := armedGateResult("k", "", "ctx"); got.Armed || got.Reason != ReasonGateMintFailed || got.Key != "" || got.DispatchContext != "" {
-		t.Fatalf("an epochless armed result must fail closed as gate-unarmed mint-failed, got %+v", got)
+		t.Fatalf("an epochless armed result must fail closed as run-untracked mint-failed, got %+v", got)
 	}
 	got := armedGateResult("k", "e", "ctx")
 	if !got.Armed || got.Result != ResultApplied || got.Key != "k" || got.Epoch != "e" || got.DispatchContext != "ctx" ||

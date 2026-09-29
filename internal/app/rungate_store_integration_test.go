@@ -33,7 +33,7 @@ func repeat(s string, n int) string {
 // mintPlainGate mints a minimal armed record for store-primitive tests.
 func mintPlainGate(t *testing.T, repoDir string) string {
 	t.Helper()
-	key, err := MintGateRecord(repoDir, GateRecord{Target: "docket-implement-next", Retry: RetryUnused, Disposition: "gate-armed", AttemptLimit: 2})
+	key, err := MintGateRecord(repoDir, GateRecord{Target: "docket-implement-next", Retry: RetryUnused, Disposition: "run-started", AttemptLimit: 2})
 	if err != nil {
 		t.Fatalf("MintGateRecord: %v", err)
 	}

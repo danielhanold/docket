@@ -27,7 +27,7 @@
 //
 // NEVER RELABEL. completing/completed are new states; a cancelling/cancelled/
 // superseded/mismatched run is never relabelled successful (run-cancelled /
-// stale-run-epoch), and an explicit human cancellation may win from completing —
+// stale-run-id), and an explicit human cancellation may win from completing —
 // completion then loses without reporting success (CompleteEpoch's completing→
 // completed CAS refuses once a cancel fence lands).
 //
@@ -104,9 +104,9 @@ func (o appLaunchObserver) observe(worktree, epochID string) (gatedrive.EpochLau
 }
 
 // completeSuccessfulRun drives the whole successful-run ownership closeout over the
-// injected seams, returning ok, a bounded reason token for the gate-unavailable
-// channel when ok is false (one of run-cancelled, stale-run-epoch,
-// completion-unaccounted, completion-unpersisted, epoch-unreadable), and the bounded
+// injected seams, returning ok, a bounded reason token for the run-tracker-unavailable
+// channel when ok is false (one of run-cancelled, stale-run-id,
+// completion-unaccounted, completion-unpersisted, run-record-unreadable), and the bounded
 // credential-free findings that name every unsettled obligation; findings may also
 // carry informational mutation-settled:<op> tokens, even on a successful closeout.
 // The caller (Task 8)
@@ -126,12 +126,12 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 			case EpochCancelling, EpochCancelled:
 				return false, "run-cancelled", nil
 			case EpochSuperseded:
-				return false, "stale-run-epoch", nil
+				return false, "stale-run-id", nil
 			default:
-				return false, "epoch-unreadable", nil // an unknown/garbage state: fail closed
+				return false, "run-record-unreadable", nil // an unknown/garbage state: fail closed
 			}
 		}
-		return false, "epoch-unreadable", nil // IO/corrupt/not-found/mismatch: fail closed
+		return false, "run-record-unreadable", nil // IO/corrupt/not-found/mismatch: fail closed
 	}
 	if observed == EpochCompleted {
 		return true, "", nil // idempotent completed-receipt replay
@@ -153,7 +153,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 	// (2) Reload the fenced record. All remaining proof runs OUTSIDE the epoch lock.
 	ep, _, lerr := LoadEpochRecord(repoDir, gateKey)
 	if lerr != nil {
-		return false, "epoch-unreadable", findings
+		return false, "run-record-unreadable", findings
 	}
 
 	// (3) Observation-only accounting over the fenced record. Any blocking obligation
@@ -170,7 +170,7 @@ func completeSuccessfulRun(seams cancelSeams, repoDir, gateKey string) (ok bool,
 	// cancellation that won meanwhile — a state no longer completing loses to it.
 	reEp, _, rlerr := LoadEpochRecord(repoDir, gateKey)
 	if rlerr != nil {
-		return false, "epoch-unreadable", findings
+		return false, "run-record-unreadable", findings
 	}
 	switch reEp.State {
 	case EpochCompleting:

@@ -47,16 +47,16 @@ func epochRecordBytes(t *testing.T, repo, key string) []byte {
 
 // TestIntegrationGateCompletionVerdictRunCompleteSettlesUncertainPublication (change 0444 acceptance 3): the
 // REAL keyed verdict over a settleable pair settles the original through the
-// attributed closeout and ends in gate-done run-complete, with the original durably
+// attributed closeout and ends in run-done run-complete, with the original durably
 // completed and the epoch completed. Without settlement the uncertain original would
-// block the closeout (completion-unaccounted), so gate-done proves the settle ran on
+// block the closeout (completion-unaccounted), so run-done proves the settle ran on
 // this path.
 func TestIntegrationGateCompletionVerdictRunCompleteSettlesUncertainPublication(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
 	seedSettleablePair(t, fx.repo, fx.key)
 
 	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
-	if got, want := res.HumanText(), "gate-done "+fx.key+" run-complete 3"; got != want {
+	if got, want := res.HumanText(), "run-done "+fx.key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q (findings %v)", got, want, res.CompletionFindings)
 	}
 	if countFinding(res.CompletionFindings, "mutation-settled:"+OperationWorkspacePublish) != 1 {
@@ -92,7 +92,7 @@ func TestIntegrationGateCompletionReadOnlyVerdictPathsNeverSettleSettleablePair(
 			before := epochRecordBytes(t, fx.repo, fx.key)
 
 			obs := RunGateVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
-			if got, want := obs.HumanText(), "gate-observe run-complete 3"; got != want {
+			if got, want := obs.HumanText(), "run-observe run-complete 3"; got != want {
 				t.Fatalf("observe HumanText = %q, want %q", got, want)
 			}
 			if after := epochRecordBytes(t, fx.repo, fx.key); !bytes.Equal(before, after) {
