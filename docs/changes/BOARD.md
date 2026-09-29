@@ -1,12 +1,6 @@
 # Backlog
 
-**475 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 322 done · 🗑️ 120 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0468](active/0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md) | Rename colliding docket terms and retire obsolete glossary entries | `medium` | `refactor` | [#351](https://github.com/danielhanold/docket/pull/351) | awaiting merge |
+**475 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 323 done · 🗑️ 120 killed
 
 ## 🔴 Blocked (1)
 
@@ -27,10 +21,10 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0475](active/0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | `low` | `chore` | needs-brainstorm |
-| [0474](active/0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and the terminal/fence lifecycle codes | `medium` | `refactor` | ⏳ waiting on #468 — needs your merge |
-| [0473](active/0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | `medium` | `refactor` | ⏳ waiting on #468 — needs your merge |
-| [0472](active/0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | `medium` | `refactor` | ⏳ waiting on #468 — needs your merge |
-| [0471](active/0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | `medium` | `refactor` | ⏳ waiting on #468 — needs your merge |
+| [0474](active/0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and the terminal/fence lifecycle codes | `medium` | `refactor` | needs-brainstorm |
+| [0473](active/0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | `medium` | `refactor` | needs-brainstorm |
+| [0472](active/0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | `medium` | `refactor` | needs-brainstorm |
+| [0471](active/0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | `medium` | `refactor` | needs-brainstorm |
 | [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | needs-brainstorm |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-brainstorm |
 | [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-brainstorm |
@@ -89,7 +83,6 @@ graph TD
   0443
   0457
   0464
-  0468
   0469
   0468 --> 0471
   0468 --> 0472
@@ -101,14 +94,16 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
+  0468:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (442)</summary>
+<details><summary>✅🗑️ Archive — done + killed (443)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0470](archive/2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) | Install the no-real-git test guard in internal/gatedrive | 2026-09-29 |
+| [0468](archive/2026-09-29-0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md) | Rename colliding docket terms and retire obsolete glossary entries | 2026-09-29 |
 | [0467](archive/2026-09-29-0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) | Scoped gate starts inherit the run epoch; thread it through the build chain | 2026-09-29 |
 | [0466](archive/2026-09-29-0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) | Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive) | 2026-09-29 |
 | [0292](archive/2026-09-29-0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | 2026-09-29 |
@@ -123,7 +118,6 @@ graph TD
 | [0382](archive/2026-09-27-0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | 2026-09-27 |
 | [0460](archive/2026-09-26-0460-artifact-backlink-refuses-an-absolute-change-path-with-unkno.md) | artifact.backlink refuses an absolute --change path with unknown-change | 2026-09-26 |
 | [0459](archive/2026-09-26-0459-worker-s-gate-drive-acknowledge-is-refused-scope-closed-afte.md) | Worker's gate.drive.acknowledge is refused scope-closed after the parent claims its WAITING drive | 2026-09-26 |
-| [0458](archive/2026-09-25-0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md) | Attach refuses a same-path same-day re-attach with verify-delta invalid-state | 2026-09-25 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -248,7 +242,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 71 done |
+| [2026-09](archive/) | 72 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |

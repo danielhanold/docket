@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0468 — Rename colliding docket terms and retire obsolete glossary entries](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md)**
+> ↩ **[Change 0468 — Rename colliding docket terms and retire obsolete glossary entries](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-29-0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md)**
 <!-- docket:backlink:end -->
 
 # Collision-free docket vocabulary — design
