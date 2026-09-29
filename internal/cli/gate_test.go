@@ -592,6 +592,64 @@ func TestGateDriveScopeBoundStartRoundTrips(t *testing.T) {
 	}
 }
 
+// TestGateDriveRunContextWiredThroughScope (change 0477, ADR-0129 row 38e): the
+// value passed as --run-context reaches BOTH prepare-scope (which pins its hash)
+// and start (which must present the same token). A read left on the retired
+// "gate-context" name returns "" silently: a stale prepare-scope read pins no
+// context and the mismatched start below would bind; a stale start read presents
+// "" and the matched start below would be refused.
+func TestGateDriveRunContextWiredThroughScope(t *testing.T) {
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
+	root := testsupport.TempDir(t)
+	prepare := func(task string) (scopeID, childCap string) {
+		t.Helper()
+		out, errS, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
+			"--repo-dir", wt, "--change-id", "477", "--task-id", task,
+			"--phase", "build", "--branch", "fix/x", "--worktree", wt,
+			"--run-context", "ctx-A")
+		if code != 0 || errS != "" {
+			t.Fatalf("prepare-scope %s: out=%q err=%q code=%d", task, out, errS, code)
+		}
+		g := decodeOneJSON(t, out)
+		scopeID, _ = g["scope_id"].(string)
+		childCap, _ = g["child_capability"].(string)
+		if scopeID == "" || childCap == "" {
+			t.Fatalf("prepare-scope %s missing a grant field: %v", task, g)
+		}
+		return scopeID, childCap
+	}
+	start := func(task, scopeID, childCap, runContext string) map[string]any {
+		t.Helper()
+		out, errS, _ := runCLI(t, "--json", "gate", "drive", "start",
+			"--repo-dir", wt, "--run-root", root, "--owner", "task",
+			"--scope-id", scopeID, "--child-cap", childCap, "--run-context", runContext,
+			"--change-id", "477", "--task-id", task, "--phase", "build",
+			"--branch", "fix/x", "--", "/bin/echo", "hi")
+		if errS != "" {
+			t.Fatalf("start %s wrote stderr: out=%q err=%q", task, out, errS)
+		}
+		return decodeOneJSON(t, out)
+	}
+
+	sA, cA := prepare("task-matched")
+	doc := start("task-matched", sA, cA, "ctx-A")
+	if doc["result"] != "applied" {
+		t.Fatalf("a start presenting the scope's own --run-context must bind: %v", doc)
+	}
+	if id, _ := driveDoc(t, doc)["drive_id"].(string); id == "" {
+		t.Fatalf("matched start bound no drive id: %v", doc)
+	}
+
+	sB, cB := prepare("task-mismatched")
+	doc = start("task-mismatched", sB, cB, "ctx-B")
+	if doc["result"] == "applied" {
+		t.Fatalf("a start presenting a different --run-context than the scope pinned must be refused: %v", doc)
+	}
+	if _, ok := doc["drive"]; ok {
+		t.Fatalf("a refused start must carry no drive document: %v", doc)
+	}
+}
+
 // TestGateDriveTakeoverWired proves the `gate drive takeover` leaf is registered
 // and reaches the app seam: it composes the commandless service and emits exactly
 // one gate.drive.takeover protocol document (its workflow outcome — a HALTED
@@ -1071,8 +1129,8 @@ func TestGateDriveStartUnknownRunIDIsNamed(t *testing.T) {
 	if _, ok := doc["drive"]; ok {
 		t.Fatalf("a refused start must carry no drive document: %v", doc)
 	}
-	if msg, _ := doc["message"].(string); !strings.Contains(msg, "--gate-context") {
-		t.Fatalf("refusal must carry the next action, got %q", msg)
+	if msg, _ := doc["message"].(string); !strings.Contains(msg, "--run-context") || strings.Contains(msg, "--gate-context") {
+		t.Fatalf("refusal must carry the next action naming --run-context, got %q", msg)
 	}
 	if strings.Contains(out, bogus) {
 		t.Fatalf("the presented --run-id value leaked into the output: %s", out)
@@ -1105,7 +1163,8 @@ func TestGateDrivePrepareScopeUnknownRunIDIsNamed(t *testing.T) {
 	// A non-applied result may render on either stream; check both together.
 	hOut, hErr, _ := runCLI(t, args...)
 	human := hOut + hErr
-	if !strings.Contains(human, "unknown-run-id") || !strings.Contains(human, "--gate-context") || strings.Contains(human, bogus) {
+	if !strings.Contains(human, "unknown-run-id") || !strings.Contains(human, "--run-context") ||
+		strings.Contains(human, "--gate-context") || strings.Contains(human, bogus) {
 		t.Fatalf("human output must name reason + remedy and never the value, got %q", human)
 	}
 }
