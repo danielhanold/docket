@@ -99,7 +99,7 @@ func TestAgentEnterCLIUsesVerifiedFeatureWorktree(t *testing.T) {
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("DOCKET_AGENT_TEST_SERVER", "1")
-	request := "Resolve this rebase exactly.\nOpaque dispatch context: `unchanged`.\n"
+	request := "Resolve this rebase exactly.\nOpaque run context: `unchanged`.\n"
 	t.Setenv("DOCKET_AGENT_TEST_REQUEST", request)
 	t.Setenv("DOCKET_AGENT_TEST_CWD", paths.b)
 	t.Setenv("DOCKET_AGENT_TEST_ROLE", "docket-rebase-resolver")
@@ -429,7 +429,7 @@ func TestAgentEnterRequiresClosedExecutionContext(t *testing.T) {
 }
 
 // TestAgentEnterRefusesBadRunIDLinkageBeforeLaunch (change 0463): an agent.enter
-// whose --run-key/--run-id pair names no run epoch, or names a different one,
+// whose --run-key/--run-id pair names no run record, or names a different one,
 // is refused with a named token BEFORE Codex is spawned. A stub codex that records
 // any invocation proves nothing launched. The presented value never appears in the
 // JSON or human output.
@@ -461,8 +461,8 @@ func TestAgentEnterRefusesBadRunIDLinkageBeforeLaunch(t *testing.T) {
 	for _, tc := range []struct {
 		name, key, wantReason string
 	}{
-		{"gate key with no epoch", bare, "unknown-run-id"},
-		{"epoch id not the key's", withRun, "stale-run-id"},
+		{"run key with no run record", bare, "unknown-run-id"},
+		{"run id not the key's", withRun, "stale-run-id"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			base := []string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
@@ -485,7 +485,7 @@ func TestAgentEnterRefusesBadRunIDLinkageBeforeLaunch(t *testing.T) {
 				t.Fatalf("human output must name the remedy and never the value: out=%q err=%q", human.String(), herr.String())
 			}
 			if _, err := os.Stat(marker); err == nil {
-				t.Fatalf("codex was launched despite a bad run-epoch linkage")
+				t.Fatalf("codex was launched despite a bad run-id linkage")
 			}
 		})
 	}
@@ -494,8 +494,8 @@ func TestAgentEnterRefusesBadRunIDLinkageBeforeLaunch(t *testing.T) {
 // TestAgentEnterLoneRunIDIsPreflightedBeforeLaunch (change 0463, review fix):
 // AGENTS.md threads only --run-id into agent.enter, so a lone --run-id (no
 // --run-key) must still be checked for existence before Codex is spawned. A
-// misrouted token (0382: the dispatch context passed as the epoch) refuses with
-// unknown-run-id and launches nothing; a lone epoch that DOES exist passes the
+// misrouted token (0382: the run context passed as the run id) refuses with
+// unknown-run-id and launches nothing; a lone run id that DOES exist passes the
 // preflight and reaches the launch (the stub codex records the invocation).
 func TestAgentEnterLoneRunIDIsPreflightedBeforeLaunch(t *testing.T) {
 	seedAgentInstallation(t)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docket-suite: go
 # tests/test_go_integration_app_recordops.sh — Go integration shard (change 0465, extending change
-# 0333's partition): the change/ADR record-operation tests over real git (unrelated-invalid-record, claim gate-context, and real-git replay families) — real-git tests moved out of the
+# 0333's partition): the change/ADR record-operation tests over real git (unrelated-invalid-record, claim run-context, and real-git replay families) — real-git tests moved out of the
 # default internal/app corpus, which must never start real git (the no-real-git guard
 # in internal/app/nogit_guard_test.go) — behind the `integration` build tag, prefix
 # ^TestIntegrationRecordOps. Declarations only — execution and inspection live in

@@ -152,10 +152,10 @@ const dispatchRuleFrontmatter = "---\n" +
 
 // DispatchRuleContent renders the compact Cursor dispatch rule as a whole `.mdc`
 // file: the always-apply frontmatter above, then the shared machine-neutral
-// dispatch interior (heading, compact routing rule, run gate) verbatim from
+// dispatch interior (heading, compact routing rule, run tracker) verbatim from
 // harness.DispatchInterior. It emits NO per-agent definitions — a Cursor agent
 // resolves the named docket subagents through its own registry, exactly as the
-// compact rule instructs (change 0334) — so it needs only the run-gate payload,
+// compact rule instructs (change 0334) — so it needs only the run-tracker payload,
 // not the asset catalog. It replaces the retired global rule's assembler: a
 // repository's `.cursor/rules`, not a personal global one, is where parent-facing
 // routing now lives (change 0351), and internal/reposeed is its only caller.

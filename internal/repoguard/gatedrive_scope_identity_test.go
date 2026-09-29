@@ -52,7 +52,7 @@ var requiredStartRowFlags = []string{
 // the worker (matched case-insensitively against the collapsed block).
 var requiredBundleElems = []string{
 	"feature worktree", "change id", "task id", "phase", "branch",
-	"scope id", "child capability", "dispatch context",
+	"scope id", "child capability", "run context",
 }
 
 var (

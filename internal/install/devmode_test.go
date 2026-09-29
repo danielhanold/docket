@@ -26,7 +26,7 @@ func newSource(t *testing.T) string {
 	writeFile(t, filepath.Join(dir, "skills", "docket-toy", "SKILL.md"), "# toy skill\n")
 	writeFile(t, filepath.Join(dir, "agents", "docket-toy.md"), agentSource("v1"))
 	writeFile(t, filepath.Join(dir, "agents", "harness-defaults.yml"), "claude: {}\n")
-	writeFile(t, filepath.Join(dir, "cursor-rules", "run-gate.md"), "# run gate\n")
+	writeFile(t, filepath.Join(dir, "cursor-rules", "run-tracker.md"), "# run tracker\n")
 	writeFile(t, filepath.Join(dir, ".docket.example.yml"), "version: 1\n")
 	regenerateSource(t, dir)
 	return dir

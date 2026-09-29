@@ -550,7 +550,7 @@ func syntheticAgentCatalog(agentFiles map[string]string) assets.Catalog {
 	for _, p := range paths {
 		add(p, assets.RoleAgentSource, agentFiles[p])
 	}
-	add("cursor-rules/run-gate.md", assets.RoleDispatch, "## Run gate — verify a dispatched implement-next run before you relay it\n\nRead git.\n")
+	add("cursor-rules/run-tracker.md", assets.RoleDispatch, "## Run tracker — verify a dispatched implement-next run before you relay it\n\nRead git.\n")
 	add("skills/docket-build-task/SKILL.md", assets.RoleSkill, "skill")
 	sort.Slice(m.Entries, func(i, j int) bool { return m.Entries[i].Path < m.Entries[j].Path })
 

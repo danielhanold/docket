@@ -138,7 +138,7 @@ Each harness must be observed against all of them:
 2. a test spanning the first slice, with deterministic worker-to-controller handoff;
 3. a worker that returns before handoff, followed by controller takeover of the same process;
 4. an implement-next controller that returns, followed by top-parent continuation of the same
-   process and same gate key;
+   process and same run key;
 5. no duplicate process, no new task, and no retry consumption while the drive is active;
 6. terminal pass and terminal failure consumed by the correct resumed role;
 7. explicit resume of an already-in-progress change remaining attributable.

@@ -4,7 +4,7 @@
 # split by change 0434): the change authoring real-repository operation tests
 # (create/adr/learning/groom/kill/claim/lifecycle/reconcile, gate-record storage,
 # evidence records), behind the `integration` build tag, prefix
-# ^TestIntegrationChangeAuthoring. The run-gate/verify/repair runtime half lives in
+# ^TestIntegrationChangeAuthoring. The run-tracker/verify/repair runtime half lives in
 # tests/test_go_integration_app_changeruntime.sh. Declarations only — execution and inspection live in
 # tests/lib/go-integration-shard.sh; the completeness contract is
 # tests/test_go_integration_contract.sh.

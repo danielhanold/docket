@@ -13,10 +13,10 @@ import (
 	"github.com/danielhanold/docket/internal/install"
 )
 
-// runTracker is a stand-in run-gate payload. Plan is pure and never parses it, so
+// runTracker is a stand-in run-tracker payload. Plan is pure and never parses it, so
 // any deterministic bytes exercise the wiring; the wording constraint asserts
 // its exact propagation through harness.DispatchInterior below.
-var runTracker = []byte("## Run gate — bracket a dispatched run\n\nDrive the gate, never yield.\n")
+var runTracker = []byte("## Run tracker — bracket a dispatched run\n\nDrive the gate, never yield.\n")
 
 const worktreeRoot = "/repo"
 

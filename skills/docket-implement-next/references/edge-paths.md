@@ -53,26 +53,26 @@ nothing) without the acknowledgement, on version drift (`contended`), or on a li
 never resets or adopts a workspace whose writer may still be live. Once resumed, the change re-enters
 this resume path with its marker gone.
 
-**Arming a resume over a run's gate epoch.** Resuming a change re-arms the run gate too, and one
-worktree carries at most one live run. When the caller arms the resume (`run.start … --resume
-<id>`), the arm refuses to open a second run over one that has not verifiably stopped:
+**Starting a resume over a live run.** Resuming a change starts the run tracker again too, and one
+worktree carries at most one live run. When the caller starts the resume (`run.start … --resume
+<id>`), `run.start` refuses to open a second run over one that has not verifiably stopped:
 
-- Prior epoch still **active** (an undispatched earlier resume arm counts) → refused
-  `resume-active-run`, naming the change, epoch, and gate key, with the remedy: cancel the prior run
+- Prior run still **active** (an undispatched earlier resume start counts) → refused
+  `resume-active-run`, naming the change, run id, and run key, with the remedy: cancel the prior run
   via the `run.cancel` operation (`--key <key> --run-id <id> --reason <why>`) and resume after
   confirmed cancellation, or continue the live run via `run.verdict`. **Never** force a fresh
   claim over a possibly-live run — that is claim theft.
 - Cancellation still finishing → refused `cancellation-pending`; the resume observes that cleanup
   only. Finish the cancel first, then resume.
-- Prior epoch confirmed-cancelled and superseded → the arm reserves **exactly one** replacement
-  dispatch and returns that reserved key; a repeat arm (or one recovering a lost response) returns
+- Prior run confirmed-cancelled and superseded → `run.start` reserves **exactly one** replacement
+  dispatch and returns that reserved key; a repeat start (or one recovering a lost response) returns
   the same reservation (`resume-replacement-reserved`) rather than minting a second run. Resume thus
   admits one replacement, only after cancellation is confirmed.
 
 **The plan seam (change 0324).** An attributed caller-side re-dispatch — one naming the id and
 `verify-run`'s unmet conjuncts — enters this resume path before ordinary ready-queue and
 proposed-only allowlist filtering; a normal invocation that merely names an already-`in-progress`
-id still skips it (it may belong to a live concurrent run — the caller gate's
+id still skips it (it may belong to a live concurrent run — the run tracker's
 before-set/dispatch attribution is what distinguishes a resume from claim theft). Then:
 
 1. `plan:` already set and its committed artifact + backlink verify → reuse it and continue at

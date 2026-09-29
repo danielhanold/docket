@@ -51,13 +51,13 @@ const dispatchPreamble = "When a requested Docket workflow has a registered same
 	"failure, not a fallback trigger."
 
 // RunTrackerAsset is the basename of the dispatch-role payload carrying the run
-// gate. It is matched by basename rather than by full path so the bundle's root
+// tracker. It is matched by basename rather than by full path so the bundle's root
 // layout can move without every adapter learning the new spelling.
-const RunTrackerAsset = "run-gate.md"
+const RunTrackerAsset = "run-tracker.md"
 
-// RunTracker returns the run-gate payload from the catalog. A bundle without one
+// RunTracker returns the run-tracker payload from the catalog. A bundle without one
 // is an error rather than an empty tail: a dispatch surface silently missing
-// its gate is exactly the failure the gate exists to prevent.
+// its run tracker is exactly the failure the run tracker exists to prevent.
 func RunTracker(c assets.Catalog) ([]byte, error) {
 	for _, e := range c.EntriesByRole(assets.RoleDispatch) {
 		if path.Base(e.Path) != RunTrackerAsset {
@@ -65,7 +65,7 @@ func RunTracker(c assets.Catalog) ([]byte, error) {
 		}
 		body, err := c.Bytes(e.Path)
 		if err != nil {
-			return nil, fmt.Errorf("harness: reading the run-gate payload %s: %w", e.Path, err)
+			return nil, fmt.Errorf("harness: reading the run-tracker payload %s: %w", e.Path, err)
 		}
 		return body, nil
 	}
@@ -74,9 +74,9 @@ func RunTracker(c assets.Catalog) ([]byte, error) {
 
 // DispatchInterior renders the managed-block interior every dispatch surface
 // shares: the heading, the compact routing rule, a blank line, then the
-// run-gate payload verbatim.
+// run-tracker payload verbatim.
 //
-// The rule precedes the run gate's `##` heading so the two sections read as
+// The rule precedes the run tracker's `##` heading so the two sections read as
 // siblings — order is structure in a headed markdown document. The block no
 // longer lists the agent roster: an agent added to the bundle reaches every
 // dispatch surface through the harness's own agent registry, which this rule
@@ -98,8 +98,8 @@ func DispatchInterior(runTracker []byte) string {
 // root, feature, and metadata launch routes without a role-name roster.
 const CodexRootEntryClause = "### Codex root-coordinator entry\n\n" +
 	"For Codex, description markers select the native launch over the general named-child wording. `[docket launch: root-coordinator]` takes precedence: foreground catalog-resolved `agent.enter` at the caller cwd. Otherwise `[docket worktree: feature]` requires foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`; an unmarked metadata child uses direct native named-agent dispatch.\n\n" +
-	"For any `agent.enter` route: Write a request file containing the user's request unchanged; for implement-next include the unchanged gate dispatch-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`, and the unchanged run epoch, labeled for `--run-id` on prepare-scope and build-owned starts. Preserve resume/continuation ids and gate keys. Pass `--request`, `--role`, the active absolute caller `--cwd`, approval policy, and sandbox; pass the owning workflow's exact `--worktree` explicitly for feature children. Never omit dispatch context.\n\n" +
-	"A shell-tool yield carrying a live task/session identity is a liveness transition, not completion. You must retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism. Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved. Only after terminal output is collected may implement-next run the parent's keyed `run.verdict` and obey its report. Coordinator prose, thread or turn ids, and process exit alone do not prove gate ownership or completion. Do not substitute `codex exec`, another harness, a generic agent, or a parent relay."
+	"For any `agent.enter` route: Write a request file containing the user's request unchanged; for implement-next include the unchanged run-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`, and the unchanged run id, labeled for `--run-id` on prepare-scope and build-owned starts. Preserve resume/continuation ids and run keys. Pass `--request`, `--role`, the active absolute caller `--cwd`, approval policy, and sandbox; pass the owning workflow's exact `--worktree` explicitly for feature children. Never omit run context.\n\n" +
+	"A shell-tool yield carrying a live task/session identity is a liveness transition, not completion. You must retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism. Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved. Only after terminal output is collected may implement-next run the parent's keyed `run.verdict` and obey its report. Coordinator prose, thread or turn ids, and process exit alone do not prove run ownership or completion. Do not substitute `codex exec`, another harness, a generic agent, or a parent relay."
 
 func CodexDispatchInterior(runTracker []byte) string {
 	return DispatchInterior(runTracker) + "\n" + CodexRootEntryClause + "\n"

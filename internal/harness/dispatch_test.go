@@ -14,7 +14,7 @@ func TestRunTrackerFromEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunTracker: %v", err)
 	}
-	want, err := c.Bytes("cursor-rules/run-gate.md")
+	want, err := c.Bytes("cursor-rules/run-tracker.md")
 	if err != nil {
 		t.Fatalf("Bytes: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestRunTrackerMissing(t *testing.T) {
 		"cursor-rules/dispatch.head.md": "head\n",
 	}, assets.RoleDispatch)
 	if _, err := RunTracker(c); err == nil {
-		t.Fatalf("RunTracker accepted a bundle with no run-gate payload")
+		t.Fatalf("RunTracker accepted a bundle with no run-tracker payload")
 	} else if !strings.Contains(err.Error(), RunTrackerAsset) {
 		t.Fatalf("error %q does not name %q", err, RunTrackerAsset)
 	}
@@ -38,7 +38,7 @@ func TestRunTrackerMissing(t *testing.T) {
 // empty gate: the interior would otherwise ship without the section it exists
 // to carry.
 func TestRunTrackerUnreadable(t *testing.T) {
-	c := syntheticCatalog(map[string]string{"cursor-rules/run-gate.md": "gate\n"}, assets.RoleDispatch)
+	c := syntheticCatalog(map[string]string{"cursor-rules/run-tracker.md": "gate\n"}, assets.RoleDispatch)
 	broken := assets.NewCatalog(c.Manifest, func(string) ([]byte, error) {
 		return nil, errUnreadable
 	})
@@ -50,7 +50,7 @@ func TestRunTrackerUnreadable(t *testing.T) {
 var errUnreadable = errors.New("unreadable payload")
 
 func TestDispatchInterior(t *testing.T) {
-	const gate = "## Run gate — verify a dispatched implement-next run before you relay it\n\nRead git.\n\n\n"
+	const gate = "## Run tracker — verify a dispatched implement-next run before you relay it\n\nRead git.\n\n\n"
 
 	got := DispatchInterior([]byte(gate))
 
@@ -68,10 +68,10 @@ func TestDispatchInterior(t *testing.T) {
 			t.Errorf("interior is missing the routing-rule phrase %q", phrase)
 		}
 	}
-	// The routing rule precedes the run gate's heading: order is structure in a
+	// The routing rule precedes the run tracker's heading: order is structure in a
 	// headed markdown document.
 	ruleAt := strings.Index(got, "registered same-name")
-	gateAt := strings.Index(got, "## Run gate")
+	gateAt := strings.Index(got, "## Run tracker")
 	if !(ruleAt >= 0 && gateAt >= 0 && ruleAt < gateAt) {
 		t.Errorf("sections out of order: rule %d, gate %d", ruleAt, gateAt)
 	}
@@ -137,11 +137,11 @@ func TestDispatchPreambleStatesNativeOnlyPolicy(t *testing.T) {
 // The interior is inventory-independent: it renders the same block whatever the
 // bundle carries, because the roster has moved to the harness's own registry.
 func TestDispatchInteriorCarriesGate(t *testing.T) {
-	got := DispatchInterior([]byte("## Run gate\n"))
+	got := DispatchInterior([]byte("## Run tracker\n"))
 	if strings.Contains(got, "- **") {
 		t.Errorf("the interior rendered a bullet: %q", got)
 	}
-	if !strings.Contains(got, "## Run gate") {
-		t.Errorf("the interior dropped the run gate")
+	if !strings.Contains(got, "## Run tracker") {
+		t.Errorf("the interior dropped the run tracker")
 	}
 }

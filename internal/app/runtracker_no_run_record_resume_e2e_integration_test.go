@@ -13,11 +13,11 @@ import (
 )
 
 // TestIntegrationRunStartNoRunRecordResumeEndToEnd0382 reproduces change 0382's resumed run (change 0463).
-// The change was claimed by an UNARMED first dispatch, so no run epoch exists. The
-// resume arm must print `run-started <key> <epoch> <dispatch-context>`. Parsed
-// positionally (as AGENTS.md tells a parent), the <epoch> is admitted by the real
-// epoch launch gate for the resumed worktree and recorded on its execution slot.
-// The misrouted 0382 call (the dispatch context presented as the epoch) is refused
+// The change was claimed by an UNARMED first dispatch, so no run exists. The
+// resume start must print `run-started <key> <run-id> <run-context>`. Parsed
+// positionally (as AGENTS.md tells a parent), the <run-id> is admitted by the real
+// run launch gate for the resumed worktree and recorded on its execution slot.
+// The misrouted 0382 call (the run context presented as the run id) is refused
 // with the named unknown-run-id. The resume inspect path uses the raw temp
 // spelling and the start uses the symlink-resolved one (Review Focus 1).
 func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
@@ -31,26 +31,26 @@ func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
 	if _, _, found, ferr := FindRunByChange(repoDir, "5"); ferr != nil || found {
-		t.Fatalf("the unarmed claim must leave no epoch: found=%v err=%v", found, ferr)
+		t.Fatalf("the untracked claim must leave no run: found=%v err=%v", found, ferr)
 	}
 
-	// Arm the resume through the REAL outer-scope store, as production composes it.
+	// Start the resume through the REAL outer-scope store, as production composes it.
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(5, "epsilon", "v5", "")}}
 	deps := workspaceDepsFor(t, reader)
 	wdeps := WorkspaceDeps{Service: resumeInspectService(repoDir)}
 	store := gatedrive.OpenStore(common)
-	arm := RunStart(context.Background(), deps, wdeps, RunTrackerScopeDeps{Prepare: store.PrepareScope}, repoDir, "implement-next", 5)
-	if !arm.Started {
-		t.Fatalf("the epochless resume must arm: %q", arm.HumanText())
+	start := RunStart(context.Background(), deps, wdeps, RunTrackerScopeDeps{Prepare: store.PrepareScope}, repoDir, "implement-next", 5)
+	if !start.Started {
+		t.Fatalf("the no-run-record resume must start: %q", start.HumanText())
 	}
 
-	fields := strings.Fields(strings.SplitN(arm.HumanText(), "\n", 2)[0])
+	fields := strings.Fields(strings.SplitN(start.HumanText(), "\n", 2)[0])
 	if len(fields) != 4 || fields[0] != "run-started" {
-		t.Fatalf("armed line %q must be `run-started <key> <epoch> <dispatch-context>`", arm.HumanText())
+		t.Fatalf("started line %q must be `run-started <key> <run-id> <run-context>`", start.HumanText())
 	}
 	key, runID, dispatchCtx := fields[1], fields[2], fields[3]
-	if key != arm.Key || runID != arm.RunID || dispatchCtx != arm.RunContext {
-		t.Fatalf("positional fields (%q,%q,%q) disagree with the result (%q,%q,%q)", key, runID, dispatchCtx, arm.Key, arm.RunID, arm.RunContext)
+	if key != start.Key || runID != start.RunID || dispatchCtx != start.RunContext {
+		t.Fatalf("positional fields (%q,%q,%q) disagree with the result (%q,%q,%q)", key, runID, dispatchCtx, start.Key, start.RunID, start.RunContext)
 	}
 
 	svc, res, reason := NewTaskGateDriveService(common, "/bin/true", buildEffWithMaxAttempts("go test ./...", 4), []string{"/bin/echo", "ok"})
@@ -62,20 +62,20 @@ func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 		RunRoot: testsupport.TempDir(t), Cwd: worktree, RunContext: dispatchCtx, RunID: runID,
 	}
 
-	// The misrouted 0382 call: the dispatch context presented as the run epoch.
+	// The misrouted 0382 call: the run context presented as the run id.
 	bad := req
 	bad.RunID = dispatchCtx
 	if _, berr := svc.engine.Admit(svc.startRequest(bad)); berr == nil {
-		t.Fatalf("the dispatch context must never admit as a run epoch")
+		t.Fatalf("the run context must never admit as a run id")
 	} else if r, why := mapDriveFailure(berr); r != ResultInvalidInput || why != ReasonUnknownRunID {
-		t.Fatalf("misrouted epoch refused as (%s, %q), want (invalid-input, unknown-run-id)", r, why)
+		t.Fatalf("misrouted run id refused as (%s, %q), want (invalid-input, unknown-run-id)", r, why)
 	}
 
-	// The correctly parsed epoch is admitted by the real launch gate.
+	// The correctly parsed run id is admitted by the real launch gate.
 	ticket, aerr := svc.engine.Admit(svc.startRequest(req))
 	if aerr != nil {
 		r, why := mapDriveFailure(aerr)
-		t.Fatalf("the parsed epoch must admit for the resumed worktree, got (%s, %q): %v", r, why, aerr)
+		t.Fatalf("the parsed run id must admit for the resumed worktree, got (%s, %q): %v", r, why, aerr)
 	}
 	t.Cleanup(func() { _ = svc.engine.AbandonAdmission(ticket) })
 	slot, _, lerr := store.LoadWorktreeExecution(worktree)
@@ -83,6 +83,6 @@ func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 		t.Fatalf("LoadWorktreeExecution: %v", lerr)
 	}
 	if slot.RunID != runID {
-		t.Fatalf("worktree slot RunID = %q, want the armed epoch %q", slot.RunID, runID)
+		t.Fatalf("worktree slot RunID = %q, want the started run id %q", slot.RunID, runID)
 	}
 }

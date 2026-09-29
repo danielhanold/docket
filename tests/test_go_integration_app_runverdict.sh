@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docket-suite: go
 # tests/test_go_integration_app_runverdict.sh — Go integration shard (change 0465, extending change
-# 0333's partition): the run-gate verdict and claim-binding tests — real-git tests moved out of the
+# 0333's partition): the run-tracker verdict and claim-binding tests — real-git tests moved out of the
 # default internal/app corpus, which must never start real git (the no-real-git guard
 # in internal/app/nogit_guard_test.go) — behind the `integration` build tag, prefix
 # ^TestIntegrationRunVerdict. Declarations only — execution and inspection live in

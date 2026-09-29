@@ -66,8 +66,8 @@ worktree, and use the task-intent owner: the `gate.drive.start` operation with `
 <task-scratch-dir> --json -- <the test command>`. Every identity value comes in your dispatch
 prompt — pass the bundle through unchanged, omitting `--gate-context` only when no dispatch
 context was handed to you; the prepared scope pinned exactly this identity, and the driver
-rejects a start that omits or alters any of it. The run epoch is not in the bundle: it rides on the
-prepared scope, so a task-owned start passes none — a start that invents a different epoch is
+rejects a start that omits or alters any of it. The run id is not in the bundle: it rides on the
+prepared scope, so a task-owned start passes none — a start inventing another run id is
 refused `scope-identity-mismatch`. The run root is a scratch dir you pick and read from.
 Capture the drive id and owner generation from that `--json` response before any advance or handoff
 (the shared JSON-capture requirement in `docket-build`'s `references/gate-caller-loop.md`; human
@@ -89,10 +89,10 @@ with the typed cause; `WAITING` → **immediately** perform the `gate.drive.hand
 and return `WAITING` naming the drive id and that token. After a first `WAITING` never `advance` or restart — the controller owns the drive. `WAITING`
 consumes neither repair nor escalation budget.
 
-**The one epoch exception:** an integration-repair task's post-fix re-run of the full suite is
-build-owned — run the `gate.drive.start` operation with `--owner build --run-id <epoch> --json`,
-passing the run epoch your repair dispatch payload carried (omitted when it carried none). Only that
-start takes an epoch; every scoped task-owned start still passes none.
+**The one run-id exception:** an integration-repair task's post-fix re-run of the full suite is
+build-owned — run the `gate.drive.start` operation with `--owner build --run-id <run-id> --json`,
+passing the run id your repair dispatch payload carried (omitted when it carried none). Only that
+start takes one; every scoped task-owned start still passes none.
 
 **A `worktree-busy` refusal is a blocking diagnostic, never a retry trigger.** One canonical
 worktree carries at most one running gate at a time. If `gate.drive.start` comes back refused with
