@@ -141,11 +141,11 @@ func mxAssertDisposition(t *testing.T, res RunVerdictResult, disp string) {
 	}
 }
 
-// TestIntegrationRunFenceTwoGatesEachVerifyOnlyTheirOwn — spec acceptance item 1, all four orderings:
+// TestIntegrationRunFenceTwoRunsEachVerifyOnlyTheirOwn — spec acceptance item 1, all four orderings:
 // (complete A, verdict A, verdict B), (verdict B, complete A, verdict A), (both
 // in-progress), (both complete). Gate A must always report on A's id and gate B on
 // B's id; neither line may carry the sibling id.
-func TestIntegrationRunFenceTwoGatesEachVerifyOnlyTheirOwn(t *testing.T) {
+func TestIntegrationRunFenceTwoRunsEachVerifyOnlyTheirOwn(t *testing.T) {
 	const (
 		idA   = 3
 		slugA = "widget"
@@ -262,13 +262,13 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	mxAssertOwnIDOnly(t, res2, key, 3, 10)
 }
 
-// TestIntegrationRunFenceReplacementClaimBlocksOldGate — spec acceptance item 6 second half: after A
+// TestIntegrationRunFenceReplacementClaimBlocksOldRun — spec acceptance item 6 second half: after A
 // is confirmed-bound to change 3 at claim-3-v1, a NEWER committed proof for change 3
 // under a different request id means the change was reclaimed and re-claimed by
 // another run. A's verdict stops run-tracker-unavailable claim-replaced, never spends the
 // retry, and a subsequent verdict still refuses — the old gate never takes over the
 // replacement run.
-func TestIntegrationRunFenceReplacementClaimBlocksOldGate(t *testing.T) {
+func TestIntegrationRunFenceReplacementClaimBlocksOldRun(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
 	mxBind(t, repo, key, 3, "claim-3-v1", "r1")

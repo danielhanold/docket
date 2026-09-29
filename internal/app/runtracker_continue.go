@@ -13,7 +13,7 @@
 //
 // It fails CLOSED at every step: no stored continuation → no-continuation; a
 // mismatch → continuation-mismatch; a HALTED claim (a raced owner, a drifted
-// fingerprint) → a gate-stop-shaped refusal carrying the driver's own cause; a
+// fingerprint) → a run-stop-shaped refusal carrying the driver's own cause; a
 // command fault or an unwired seam → run-tracker-unavailable. The triple is cleared ONLY
 // on a successful claim — every refusal leaves it intact so a legitimate retry with
 // the correct id can still succeed. On success the JSON document carries the fresh

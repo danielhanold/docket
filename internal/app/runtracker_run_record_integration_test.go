@@ -189,7 +189,7 @@ func TestIntegrationRunRecordRunStartMintsRun(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordConfirmGateClaimBindsRunChange proves the claim confirmation binds the
+// TestIntegrationRunRecordConfirmRunTrackerClaimBindsRunChange proves the claim confirmation binds the
 // run to the confirmed change instance — the readable locator a later
 // resume/cancel resolves the run by.
 // TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable proves a started run reports the honest
@@ -213,7 +213,7 @@ func TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable(t *testing.T) 
 	}
 }
 
-func TestIntegrationRunRecordConfirmGateClaimBindsRunChange(t *testing.T) {
+func TestIntegrationRunRecordConfirmRunTrackerClaimBindsRunChange(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -236,10 +236,10 @@ func TestIntegrationRunRecordConfirmGateClaimBindsRunChange(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordConfirmGateClaimNoRunIsNoop proves a claim over a dispatch with NO run
+// TestIntegrationRunRecordConfirmRunTrackerClaimNoRunIsNoop proves a claim over a dispatch with NO run
 // (a standalone gate record) is unaffected: the confirm succeeds and no run is
 // fabricated. This guards the existing claim path against the run bind.
-func TestIntegrationRunRecordConfirmGateClaimNoRunIsNoop(t *testing.T) {
+func TestIntegrationRunRecordConfirmRunTrackerClaimNoRunIsNoop(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintTestRunKey(t, repo) // a gate record with no run minted beside it
 	if err := ReserveRunTrackerClaim(repo, key, 7, "req-x"); err != nil {

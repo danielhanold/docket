@@ -52,7 +52,7 @@ func TestAgentEnterCLIPreservesRequestAndReceipt(t *testing.T) {
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("DOCKET_AGENT_TEST_SERVER", "1")
-	request := "Please implement change 393.\nDispatch context: opaque-token\nPreserve `literal` and $bytes.\n"
+	request := "Please implement change 393.\nRun context: opaque-token\nPreserve `literal` and $bytes.\n"
 	t.Setenv("DOCKET_AGENT_TEST_REQUEST", request)
 	t.Setenv("DOCKET_AGENT_TEST_CWD", dir)
 	t.Setenv("DOCKET_AGENT_TEST_ROLE", "docket-implement-next")

@@ -125,7 +125,7 @@ func (d *Driver) reconcileFinishedIncumbent(worktreeRoot, runID string) (bool, s
 // the admission authority). finding is a bounded token naming the outcome. err is
 // non-nil only for a failed release write (settled is then false). runID is the
 // requesting admission's run: a slot another run owns is never touched, because
-// the reserve's run-run fence refuses that admission regardless of the
+// the reserve's run fence refuses that admission regardless of the
 // incumbent's state.
 func (s *Store) reconcileFinishedIncumbent(worktreeRoot, runID string, proc incumbentProofSeam) (settled bool, finding string, err error) {
 	for pass := 0; pass < maxIncumbentEvaluations; pass++ {

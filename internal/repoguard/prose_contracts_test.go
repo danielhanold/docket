@@ -268,7 +268,7 @@ var proseContracts = []proseContract{
 	// the parent's keyed verdict resolves ownership from durable proof, and an
 	// invalid/conflicting context fails closed rather than degrading to an
 	// ungated claim.
-	{sentinel: "change_0407_gate_context_claim", file: "skills/docket-implement-next/SKILL.md",
+	{sentinel: "change_0407_run_context_claim", file: "skills/docket-implement-next/SKILL.md",
 		present: []string{
 			"pass it to the claim as --run-context",
 			"an invalid or conflicting run context is a typed refusal that writes nothing — never retried as an ungated claim",

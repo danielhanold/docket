@@ -376,7 +376,7 @@ func validateRunKey(key string) error {
 }
 
 // MintRunTrackerRecord mints a fresh key, creates its directory under the repository's
-// rungate root, and atomically writes rec. Schema and Repo are stamped
+// run-tracker root, and atomically writes rec. Schema and Repo are stamped
 // authoritatively (any caller-supplied values are overwritten), so wrong-repo
 // detection cannot be defeated by a bad input value.
 func MintRunTrackerRecord(repoDir string, rec RunTrackerRecord) (string, error) {
@@ -414,7 +414,7 @@ func MintRunTrackerRecord(repoDir string, rec RunTrackerRecord) (string, error) 
 	return "", runTrackerErr(ErrRunTrackerIO, "mint", errors.New("could not mint a unique key"))
 }
 
-// LoadRunTrackerRecord reads the record for key from the repository's rungate root. It
+// LoadRunTrackerRecord reads the record for key from the repository's run-tracker root. It
 // validates the key before any filesystem or git touch, refuses a record whose
 // Repo does not match the current canonical common dir (wrong-repo), fails closed
 // on an unknown schema or unparseable JSON (corrupt-record), and reports Retry as
@@ -638,7 +638,7 @@ func RunTrackerRetryUsage(repoDir, key string) (int, error) {
 }
 
 // runKeyDir validates key and resolves its record directory under the
-// repository's rungate root, requiring the directory to already exist (minted).
+// repository's run-tracker root, requiring the directory to already exist (minted).
 // It is the shared preamble of the claim-binding primitives.
 func runKeyDir(repoDir, key, op string) (string, error) {
 	if err := validateRunKey(key); err != nil {
@@ -857,7 +857,7 @@ func LoadRunTrackerClaimBinding(repoDir, key string) (RunTrackerClaimBinding, bo
 }
 
 // FindRunTrackerRecordByContextHash resolves the single live (non-terminal) gate record
-// whose ChildContextHash equals contextHash. It reads the rungate root and skips
+// whose ChildContextHash equals contextHash. It reads the run-tracker root and skips
 // any sibling whose record fails to load — a foreign-repo or corrupt sibling never
 // blocks an unrelated claim. Zero matches is ErrRunTrackerNotFound; more than one is
 // ErrRunContextAmbiguous; exactly one returns (key, record, nil). An empty

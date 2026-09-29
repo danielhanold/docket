@@ -394,7 +394,7 @@ func (s *Store) reserveWorktreeExecutionOnce(rec admissionRecord, proc recoveryS
 	stored, rerr := s.readStoredAdmission(dir)
 	switch {
 	case rerr == nil:
-		// Run-run fence (change 0375 Task 9). A slot a workflow run owns admits
+		// Run fence (change 0375 Task 9). A slot a workflow run owns admits
 		// only that run's own sequential drives: an incoming reservation carrying a
 		// different (or empty) run cannot detach the worktree from its owning run.
 		// The check precedes the state switch, so it governs an executing incumbent AND

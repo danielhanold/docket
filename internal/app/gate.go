@@ -245,7 +245,7 @@ func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, st
 	return wt.Root, repo.CommonDir, store, true
 }
 
-// rawStaleRunRefusal enforces the run-run fence at the raw launch boundary: a
+// rawStaleRunRefusal enforces the run fence at the raw launch boundary: a
 // worktree slot that links a run this raw launch does not carry is refused
 // stale-run-id (an incumbent workflow owns the worktree). A raw launch carries
 // rawGateRun (none), and until Task 9 records runs into slots this stays

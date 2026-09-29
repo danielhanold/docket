@@ -232,7 +232,7 @@ func TestSignatureStartArgvBoundaryLandsLast(t *testing.T) {
 	}
 }
 
-func TestSignatureGateClaimPositionalPair(t *testing.T) {
+func TestSignatureRunContinuePositionalPair(t *testing.T) {
 	// run continue shape (change 0359): two leading positionals (key, continuation
 	// id) taken from Use, then the optional repo-dir flag from pflag data. No bare
 	// `--`, so the positional tail leads and the flag trails.

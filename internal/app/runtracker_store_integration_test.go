@@ -40,10 +40,10 @@ func mintPlainRunTracker(t *testing.T, repoDir string) string {
 	return key
 }
 
-// TestIntegrationRunRecordGateSchemaV2RecordFailsClosed: a hand-written schema-2 record (the pre-0407
+// TestIntegrationRunRecordRunTrackerSchemaV2RecordFailsClosed: a hand-written schema-2 record (the pre-0407
 // shape whose AttributedID may be an inferred guess) must fail closed on load as
 // corrupt-record — never a silent migration that blesses an old guessed id.
-func TestIntegrationRunRecordGateSchemaV2RecordFailsClosed(t *testing.T) {
+func TestIntegrationRunRecordRunTrackerSchemaV2RecordFailsClosed(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key, err := MintRunTrackerRecord(repo, RunTrackerRecord{Target: "docket-implement-next", Retry: RetryUnused, AttemptLimit: 2})
 	if err != nil {
@@ -66,10 +66,10 @@ func TestIntegrationRunRecordGateSchemaV2RecordFailsClosed(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordReserveGateClaimIsBindOnce: the first reservation wins; a different
+// TestIntegrationRunRecordReserveRunTrackerClaimIsBindOnce: the first reservation wins; a different
 // (change, request) under the same key is refused binding-conflict; an
 // identical replay is a no-op.
-func TestIntegrationRunRecordReserveGateClaimIsBindOnce(t *testing.T) {
+func TestIntegrationRunRecordReserveRunTrackerClaimIsBindOnce(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintPlainRunTracker(t, repo)
 	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-aaa"); err != nil {
@@ -85,10 +85,10 @@ func TestIntegrationRunRecordReserveGateClaimIsBindOnce(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordConfirmGateClaimMirrorsRecord: confirm finalizes the binding and mirrors
+// TestIntegrationRunRecordConfirmRunTrackerClaimMirrorsRecord: confirm finalizes the binding and mirrors
 // AttributedID/BoundRequestID/BoundRevision onto the record; a mismatched
 // confirm is binding-conflict; a re-confirm is idempotent.
-func TestIntegrationRunRecordConfirmGateClaimMirrorsRecord(t *testing.T) {
+func TestIntegrationRunRecordConfirmRunTrackerClaimMirrorsRecord(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintPlainRunTracker(t, repo)
 	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-aaa"); err != nil {
@@ -127,9 +127,9 @@ func TestIntegrationRunRecordConfirmWithoutReservationFails(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordLoadGateClaimBindingCorruptFailsClosed: unparseable binding bytes are a
+// TestIntegrationRunRecordLoadRunTrackerClaimBindingCorruptFailsClosed: unparseable binding bytes are a
 // typed corrupt-record error, never (ok=false, nil).
-func TestIntegrationRunRecordLoadGateClaimBindingCorruptFailsClosed(t *testing.T) {
+func TestIntegrationRunRecordLoadRunTrackerClaimBindingCorruptFailsClosed(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintPlainRunTracker(t, repo)
 	common, _ := runTrackerGitCommonDir(repo)
@@ -143,10 +143,10 @@ func TestIntegrationRunRecordLoadGateClaimBindingCorruptFailsClosed(t *testing.T
 	}
 }
 
-// TestIntegrationRunRecordFindGateRecordByContextHash: exactly-one non-terminal match resolves;
+// TestIntegrationRunRecordFindRunTrackerRecordByContextHash: exactly-one non-terminal match resolves;
 // zero is not-found; two started gates sharing a hash is context-ambiguous;
 // a terminal record does not match.
-func TestIntegrationRunRecordFindGateRecordByContextHash(t *testing.T) {
+func TestIntegrationRunRecordFindRunTrackerRecordByContextHash(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	keyA := mintRunTrackerWithHash(t, repo, "ha", false)
 	_ = mintRunTrackerWithHash(t, repo, "hb", false)
@@ -171,10 +171,10 @@ func TestIntegrationRunRecordFindGateRecordByContextHash(t *testing.T) {
 
 // --- counted per-attempt retry budget and schema v4 (change 0421) ---
 
-// TestIntegrationRunRecordConsumeGateRetryPerAttemptCAS: with limit 3, distinct attempts each grant
+// TestIntegrationRunRecordConsumeRunTrackerRetryPerAttemptCAS: with limit 3, distinct attempts each grant
 // their own marker exactly once, a repeat of a spent attempt refuses, and an
 // attempt at or above the limit refuses WITHOUT creating a marker.
-func TestIntegrationRunRecordConsumeGateRetryPerAttemptCAS(t *testing.T) {
+func TestIntegrationRunRecordConsumeRunTrackerRetryPerAttemptCAS(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintPlainRunTracker(t, repo)
 
@@ -203,9 +203,9 @@ func TestIntegrationRunRecordConsumeGateRetryPerAttemptCAS(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordConsumeGateRetryLimitOne: a limit of 1 disables retries — attempt 1 is
+// TestIntegrationRunRecordConsumeRunTrackerRetryLimitOne: a limit of 1 disables retries — attempt 1 is
 // already at the limit, so nothing is granted and no marker is created.
-func TestIntegrationRunRecordConsumeGateRetryLimitOne(t *testing.T) {
+func TestIntegrationRunRecordConsumeRunTrackerRetryLimitOne(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintPlainRunTracker(t, repo)
 	if ok, err := ConsumeRunTrackerRetry(repo, key, 1, 1); err != nil || ok {
@@ -216,11 +216,11 @@ func TestIntegrationRunRecordConsumeGateRetryLimitOne(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordGateRetryUsageCountsLegacyMarker: a bare legacy `retry-consumed` marker
+// TestIntegrationRunRecordRunTrackerRetryUsageCountsLegacyMarker: a bare legacy `retry-consumed` marker
 // (schema v3's single-permit name) counts as one consumed marker and is read as
 // the attempt-1 marker, so an already-consumed legacy permit can never be
 // re-granted — an older consumed marker must never read as unused budget.
-func TestIntegrationRunRecordGateRetryUsageCountsLegacyMarker(t *testing.T) {
+func TestIntegrationRunRecordRunTrackerRetryUsageCountsLegacyMarker(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintPlainRunTracker(t, repo)
 	common, _ := runTrackerGitCommonDir(repo)
@@ -236,10 +236,10 @@ func TestIntegrationRunRecordGateRetryUsageCountsLegacyMarker(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordLoadGateRecordRefusesV3: a v3-shaped record fails closed on load with the
+// TestIntegrationRunRecordLoadRunTrackerRecordRefusesV3: a v3-shaped record fails closed on load with the
 // schema-mismatch diagnostic — the v4 store never silently migrates an older
 // record whose consumed state could be reinterpreted as unused budget.
-func TestIntegrationRunRecordLoadGateRecordRefusesV3(t *testing.T) {
+func TestIntegrationRunRecordLoadRunTrackerRecordRefusesV3(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintPlainRunTracker(t, repo)
 	rec, err := LoadRunTrackerRecord(repo, key)
@@ -259,10 +259,10 @@ func TestIntegrationRunRecordLoadGateRecordRefusesV3(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordSaveGateRecordRefusesUnstampedLimit: a v4 record whose AttemptLimit is
+// TestIntegrationRunRecordSaveRunTrackerRecordRefusesUnstampedLimit: a v4 record whose AttemptLimit is
 // below the floor is a corrupt/unstamped record and must fail closed on the write
 // boundary, exactly like a partial continuation triple or claim-binding pair.
-func TestIntegrationRunRecordSaveGateRecordRefusesUnstampedLimit(t *testing.T) {
+func TestIntegrationRunRecordSaveRunTrackerRecordRefusesUnstampedLimit(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintPlainRunTracker(t, repo)
 	rec, err := LoadRunTrackerRecord(repo, key)

@@ -22,7 +22,7 @@ import (
 // dispatch (one winner under a concurrent race); a repeat start observes that
 // reservation. None of these reset the change-owned full-suite budget.
 
-// resumeEpochRepo builds a working repo whose corpus shows change 5 in-progress and
+// resumeRunRepo builds a working repo whose corpus shows change 5 in-progress and
 // returns the repoDir plus a resume-starting deps/wdeps pair (WorkspaceInspect applies
 // at a known worktree). Each call yields independent deps so concurrent resumes share
 // only the filesystem under test.
@@ -270,10 +270,10 @@ func classifyResumePair(t *testing.T, a, b RunStartResult) (started, observed Ru
 	}
 }
 
-// TestIntegrationRunStartRepeatArmObservesReservation: after a confirmed-cancelled resume reserves a
+// TestIntegrationRunStartRepeatStartObservesReservation: after a confirmed-cancelled resume reserves a
 // replacement, a SECOND resume of the same change returns that reserved key and
 // mints NO new run.
-func TestIntegrationRunStartRepeatArmObservesReservation(t *testing.T) {
+func TestIntegrationRunStartRepeatStartObservesReservation(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	seedPriorRun(t, repoDir, RunCancelled)
 
@@ -302,7 +302,7 @@ func TestIntegrationRunStartRepeatArmObservesReservation(t *testing.T) {
 	}
 }
 
-// countRunRecords counts the run.json files under the repository's rungate root —
+// countRunRecords counts the run.json files under the repository's run-tracker root —
 // the number of runs, used to prove a repeat start mints none.
 func countRunRecords(t *testing.T, repoDir string) int {
 	t.Helper()
@@ -312,7 +312,7 @@ func countRunRecords(t *testing.T, repoDir string) int {
 	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
-		t.Fatalf("read rungate root: %v", err)
+		t.Fatalf("read run-tracker root: %v", err)
 	}
 	n := 0
 	for _, e := range entries {
@@ -722,11 +722,11 @@ func TestIntegrationRunStartResumeTornReplacementConverges(t *testing.T) {
 // observed, and a slot the replacement itself holds is the successor outcome.
 func TestIntegrationRunStartResumeSupersededChecksReplacementSlot(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		owner     func(priorRun string) string
-		release   bool
-		wantArmed bool   // true: the reservation is observed
-		wantRun   string // "" = retired, "prior" = the predecessor's id kept, else literal
+		name        string
+		owner       func(priorRun string) string
+		release     bool
+		wantStarted bool   // true: the reservation is observed
+		wantRun     string // "" = retired, "prior" = the predecessor's id kept, else literal
 	}{
 		{"predecessor-unreleased-refuses", func(p string) string { return p }, false, false, "prior"},
 		{"predecessor-released-retired", func(p string) string { return p }, true, true, ""},
@@ -755,7 +755,7 @@ func TestIntegrationRunStartResumeSupersededChecksReplacementSlot(t *testing.T) 
 			d := sp.deps()
 			d.CancelSeams = func(string) cancelSeams { return cancelSeams{store: store, launches: okLaunchReconciler()} }
 			res := RunStart(context.Background(), deps, wdeps, d, repoDir, "implement-next", 5)
-			if tc.wantArmed {
+			if tc.wantStarted {
 				if res.Reason != ReasonRunResumeReplacementReserved {
 					t.Fatalf("Reason = %q (%q), want the reservation observed", res.Reason, res.Message)
 				}
@@ -967,7 +967,7 @@ func TestIntegrationRunCancelRunCancelResumeAuthorityFailsClosed(t *testing.T) {
 
 // TestIntegrationRunStartConcurrentNoRunRecordResumeRunsFailSafe (change 0463 decision 4): the
 // per-change resume lock keeps concurrent starts from minting two live runs for one
-// change (TestRaceIntegrationAppConcurrencyNoRunRecordResumesArmOnce), but such a pair can still exist,
+// change (TestRaceIntegrationAppConcurrencyNoRunRecordResumesStartOnce), but such a pair can still exist,
 // for example left by a binary that predates the lock. A resume over it must fail
 // closed as resume-run-record-unreadable and must never start a third run. Recovery is an
 // explicit 'docket run cancel' of either run by its own key and run id, which
@@ -992,12 +992,12 @@ func TestIntegrationRunStartConcurrentNoRunRecordResumeRunsFailSafe(t *testing.T
 	}
 }
 
-// TestRaceIntegrationAppConcurrencyNoRunRecordResumesArmOnce (change 0463, post-review): no-run-record resume
+// TestRaceIntegrationAppConcurrencyNoRunRecordResumesStartOnce (change 0463, post-review): no-run-record resume
 // starts of one change race from the "no prior run" check to the mint and bind. The
 // per-change resume lock serializes that window, so exactly one start wins; every other
 // start then sees the winner's live run and refuses resume-active-run. Exactly one
 // live run may end up bound to the change.
-func TestRaceIntegrationAppConcurrencyNoRunRecordResumesArmOnce(t *testing.T) {
+func TestRaceIntegrationAppConcurrencyNoRunRecordResumesStartOnce(t *testing.T) {
 	const starts = 12
 	repoDir := newWorkingRepo(t, nil).invocation
 	results := make([]RunStartResult, starts)
@@ -1033,13 +1033,13 @@ func TestRaceIntegrationAppConcurrencyNoRunRecordResumesArmOnce(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartResumeRefusalNamesAbandonedArmRemedy (change 0463, post-review): a no-run-record
+// TestIntegrationRunStartResumeRefusalNamesAbandonedStartRemedy (change 0463, post-review): a no-run-record
 // resume start binds its run at start time, so a start that was never dispatched blocks
 // the next resume until it is cancelled. Nothing records whether an agent is using
 // the run, so the refusal cannot say which case applies; it names both remedies,
 // including the abandoned-start case, for either kind of incumbent (found by change or
 // by worktree).
-func TestIntegrationRunStartResumeRefusalNamesAbandonedArmRemedy(t *testing.T) {
+func TestIntegrationRunStartResumeRefusalNamesAbandonedStartRemedy(t *testing.T) {
 	for _, msg := range []string{
 		resumeActiveLocator("k", RunRecord{ChangeID: "5", RunID: "e"}),
 		resumeWorktreeOwnerLocator("/tmp/wt/epsilon", "k", RunRecord{RunID: "e"}),
@@ -1147,10 +1147,10 @@ func TestIntegrationRunStartNoRunRecordResumeRefusesLiveWorktreeOwner(t *testing
 	})
 }
 
-// TestIntegrationRunStartArmedGateResultRequiresRun (change 0463): the started constructor refuses to
+// TestIntegrationRunStartStartedResultRequiresRun (change 0463): the started constructor refuses to
 // start without a run. That guarantee is what makes the positional three-token
 // line unambiguous.
-func TestIntegrationRunStartArmedGateResultRequiresRun(t *testing.T) {
+func TestIntegrationRunStartStartedResultRequiresRun(t *testing.T) {
 	if got := startedRunResult("k", "", "ctx"); got.Started || got.Reason != ReasonRunMintFailed || got.Key != "" || got.RunContext != "" {
 		t.Fatalf("a no-run-record started result must fail closed as run-untracked mint-failed, got %+v", got)
 	}

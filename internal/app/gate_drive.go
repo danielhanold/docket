@@ -154,7 +154,7 @@ type GateDriveService struct {
 	// finalize service also stores a non-nil budgetStore.
 	budgetStore *gatedrive.Store
 	maxAttempts int
-	// runLocate resolves a presented run-run id against the repository's run
+	// runLocate resolves a presented run id against the repository's run
 	// registry before PrepareScope mints a scope (change 0463). A non-nil error is a
 	// typed RunError. Nil on the fake-engine test seam and on services that never
 	// serve prepare-scope.

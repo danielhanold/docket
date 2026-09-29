@@ -48,7 +48,7 @@ func TestScopedStartCarriesRunIntoSlot(t *testing.T) {
 	}
 }
 
-// TestRunOmissionCannotDetachOwnedWorktree proves the slot's run-run fence: a
+// TestRunOmissionCannotDetachOwnedWorktree proves the slot's run fence: a
 // slot owned by run E admits only E's own sequential drives. A reservation
 // carrying a different run (or none) is refused ErrStaleRunID — while the slot
 // is still owned AND after it is released between drives — and only E readmits,
