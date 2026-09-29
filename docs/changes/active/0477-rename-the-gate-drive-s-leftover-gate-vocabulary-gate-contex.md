@@ -22,7 +22,7 @@ branch: 'refactor/rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-29T21:27:49Z'
+claimed_at: '2026-09-29T21:30:07Z'
 ---
 
 ## Artifacts
