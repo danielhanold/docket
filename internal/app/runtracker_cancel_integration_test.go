@@ -1551,8 +1551,8 @@ func TestIntegrationRunCancelTerminalRepairTornResumeConverges(t *testing.T) {
 			t.Fatalf("corrupt replacement run: %v", err)
 		}
 		res := runCancel(cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human repair")
-		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "replacement-epoch-unreadable:"+replKey) {
-			t.Fatalf("result = %q %v, want refused replacement-epoch-unreadable:%s", res.Disposition, res.Findings, replKey)
+		if res.Disposition != CancelDispositionRefused || !hasFinding(res.Findings, "replacement-run-record-unreadable:"+replKey) {
+			t.Fatalf("result = %q %v, want refused replacement-run-record-unreadable:%s", res.Disposition, res.Findings, replKey)
 		}
 		if epo := loadSlotRun(t, fx.store, fx.worktree); epo != fx.runID {
 			t.Fatalf("slot run = %q, want the refused slot untouched", epo)
