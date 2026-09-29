@@ -52,7 +52,7 @@ This ADR records the vocabulary settled by change 0468. It is the single referen
 ### Naming rules
 
 2. **Hard cut, no aliases.** When a family lands, the old spellings of its flags, operation ids, tokens and codes are refused. Docket's own consumers (skills, agent wrappers, generated dispatch material) ship with the binary through `docket install`, so they switch in one step. Consumer repos pick the new names up by re-running `docket install`. No alias or deprecation machinery is built.
-3. **Persisted storage names stay unchanged.** On-disk directories, files and JSON keys in durable run-tracker, gate-drive and receipt state keep their current names (row 38, row 45). Renaming them would make every existing record unreadable at upgrade, including in-flight runs. No human or agent reads them.
+3. **Local run-tracker storage is renamed by reset; committed state stays.** The run tracker's durable state under `.git/docket/` takes the new names (row 38). That covers the run records, the resume locks, and the gate-admission, gate-scope and gate-drive records that carry run ids or run contexts. It is not migrated. Each store whose persisted names change moves to a new root (a new directory name, or a `v1` → `v2` bump), so the new binary never reads the old state and starts empty. This is safe only when nothing is in flight at upgrade, which family (a) already requires. Old roots are left inert and may be deleted by hand. Committed state is not renamed, because git history on the metadata branch cannot be rewritten: the claim receipts' `gate_context_hash` key and the claim idempotency digest keep their spelling. Row 45 (`resolver_budget_version`, family (b)) stays unchanged.
 4. **"epoch" splits by meaning.** Where the code means the identifier, it becomes **run id**. Where it means the stored file, it becomes **run record**. Where it means the run or its state, it becomes **run**. A uniform `epoch → run-id` substitution was rejected: it makes codes such as `epoch-io` and `epoch-corrupt` say the id itself is at fault.
 5. **"gate" means a suite checkpoint only.** The build gate, finalize gate, suite gate, gate drive, gate run and the `docket gate …` CLI noun keep the word. The run gate becomes the **run tracker**, and its `gate-*` tokens become `run-*`.
 6. **"final" names change-lifecycle end states.** That covers `done` / `killed`, and ADR statuses other than Accepted. **"terminal" stays** for the process-level meaning, "a run or process has finished" (`record-terminal`, `incumbent-nonterminal`, `terminal_receipt`, JSON `terminal`). That is the standard state-machine sense and does not collide.
@@ -62,13 +62,13 @@ This ADR records the vocabulary settled by change 0468. It is the single referen
 10. **No human-readable old→new mapping in the glossary.** The mapping lives in (i) this change's ADR, as the decision record, and (ii) a code-level **retired-vocabulary table** in `internal/repoguard`. That table maps each retired wire token to its replacement, drives the family absence seals, and names the replacement in every seal failure. The first family to land creates the table, and each later family appends its rows. The umbrella does not create an empty table, because a seal over an empty list cannot be mutation-tested.
 11. **Retired features go to an "Obsolete terms" section of the glossary**, separate from renames: runner delegation, the runner shim / `runners` block, `runtime.bash`, terminal publish. The config-decode warnings for those keys stay.
 
-### Rename table (rows 1-66)
+### Rename table (rows 1-66, plus 38a-38d)
 
-Row ownership: rows 1-38 -> change 0471; rows 39-45 -> change 0472; rows 46-52 -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
+Row ownership: rows 1-38 and 38a-38d -> change 0471; rows 39-45 -> change 0472; rows 46-52 -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
 
 Kinds:
 - **concept**: a word in docs, skills and agent text.
-- **op / flag / token / key / code**: wire surfaces, hard-cut.
+- **op / flag / token / key / code / env**: wire surfaces, hard-cut (`env` is an environment variable passed between docket processes).
 - **stage**: the `failure.stage` label and the `run epoch <stage>: <kind>` error-text prefix.
 - **disk**: persisted state (Decision 3).
 
@@ -115,7 +115,11 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 | 35 | stage | `mint-epoch`, `find-epoch`, `complete-epoch`, `supersede-epoch` | `mint-run`, `find-run`, `complete-run`, `supersede-run` |
 | 36 | stage | `write-epoch`, `load-epoch`, `epoch-cas` | `write-run-record`, `load-run-record`, `run-record-cas` |
 | 37 | stage | `bind-epoch-change`, `bind-epoch-worktree`, `epoch-launch-gate`, `reserve-worktree-execution-epoch`, `retire-worktree-execution-epoch`; error-text prefix `run epoch` | `bind-run-change`, `bind-run-worktree`, `run-launch-gate`, `reserve-worktree-execution-run`, `retire-worktree-execution-run`; prefix `run` |
-| 38 | disk | dirs `rungate/`, `rungate-resume/`; files `epoch.json`, `epoch.lock`; keys `epoch_id`, `dispatch_epoch`, `run_epoch_id` | unchanged (Decision 3) |
+| 38 | disk | under `.git/docket/`: `rungate/<key>/` (files `epoch.json`, `epoch.lock`; keys `epoch_id`, `gate_key`, `dispatch_epoch`); `rungate-resume/<id>/epoch.lock`; `gate-admission/v1` (implicit key `RunEpochID`); `gate-scopes/v1` (keys `run_epoch_id`, `gate_context_hash`); `gate-drives/v1` (key `gate_context_hash`) | `run-tracker/<key>/` (files `run.json`, `run.lock`; keys `run_id`, `run_key`, `dispatched_at`); `run-tracker-resume/<id>/run.lock`; `gate-admission/v2` (explicit JSON tags on every field; key `run_id`); `gate-scopes/v2` (keys `run_id`, `run_context_hash`); `gate-drives/v2` (key `run_context_hash`). Reset, not migrated (Decision 3). `dispatch_epoch` is a Unix timestamp, so it becomes `dispatched_at` beside `created_at` |
+| 38a | flag | `agent enter --run-gate-key` | `--run-key` |
+| 38b | key | `run.gate-before` (row 7: `run.start`) result JSON `epoch` | `run_id` |
+| 38c | key | `change.claim` request `gate_context` | `run_context` |
+| 38d | env | `DOCKET_AGENT_GUARDIAN_EPOCH` | `DOCKET_AGENT_GUARDIAN_RUN_ID` |
 
 `run.cancel`, `run.verify`, `--key`, and the verdict reason tokens that do not carry "gate" or "epoch" (e.g. `run-waiting`, `takeover-ambiguous`, `no-attributable-claim`) are unchanged.
 
@@ -178,6 +182,9 @@ Agent names (`docket-build-economy` … `docket-review-deep`) are unchanged.
 - Process-level "terminal" (Decision 6).
 - Agent names, the tier names inside each tier, frontmatter fields.
 - `cmd/releasepkg --source-epoch`, which is a real Unix epoch (`SOURCE_DATE_EPOCH`).
+- `gate-failed` (the suite gate failed) and the `gate-scope` run participant kind (a gate-drive scope): both use "gate" in the checkpoint sense.
+- The committed claim-receipt key `gate_context_hash` and the claim idempotency digest payload (Decision 3).
+- The `gatelifecycle` integration shard, which tests gate launch/stop (the gate-run sense).
 
 ### Deviations
 
@@ -187,9 +194,9 @@ A family change that has to deviate from a row records the deviation through the
 
 - **Hard cut, no aliases.** When a family lands, the old spellings of its flags, operation ids, tokens and codes are refused outright; no alias, deprecation-window or dual-spelling machinery is built. Docket's own skills, agent wrappers and generated dispatch material ship with the binary and switch in one step.
 - **Consumer repos must re-run `docket install` per family.** Their generated dispatch material names the old tokens until reinstalled; each family's results `**Human action:**` says so.
-- **Family (a) (0471) must land with no dispatched run in flight** (drain or cancel first), and the post-merge binary rebuild must run immediately. Between merge and rebuild, CLAUDE.md names `run.start` while the installed binary only knows `run.gate-before`; catalog resolution stops the coordinator loudly (safe, but blocking until the rebuild).
+- **Family (a) (0471) must land with no dispatched run in flight** (drain or cancel first), and the post-merge binary rebuild must run immediately. Between merge and rebuild, CLAUDE.md names `run.start` while the installed binary only knows `run.gate-before`; catalog resolution stops the coordinator loudly (safe, but blocking until the rebuild). Every machine must also switch to the new binary with no implement-next or finalize run in flight in any docket repo, because the new binary starts the run tracker's local stores empty (Decision 3).
 - **Change 0469 must drop rows 5, 6 and 48-52** (gate key, dispatch context, dispatch tiers), which this ADR now owns; its remaining run-tracker items touch family (a)'s files, so its grooming should consider `depends_on: [471]`.
-- Persisted storage names (rows 38, 45), config keys, agent names and frontmatter fields stay, so existing records and `.docket.yml` files remain readable.
+- Config keys, agent names, frontmatter fields, committed claim-receipt keys and row 45 stay, so `.docket.yml` files and metadata history remain readable. The run tracker's local stores restart empty at upgrade under their new names (row 38), and their old roots are left inert.
 - A code-level retired-vocabulary table in `internal/repoguard`, created by the first family to land and appended by later ones, drives the absence seals and names each replacement; the glossary carries no old->new mapping.
 - Cost: four family PRs touching many files (e.g. `run-epoch` in 594 Go sites), golden output churn, and a one-time consumer reinstall per family.
 
@@ -198,6 +205,12 @@ A family change that has to deviate from a row records the deviation through the
 - **One PR for all renames.** Rejected: touches four subsystems (run tracker, finalize, groom, review), rebases badly against concurrent loops, and is hard to review.
 - **Aliases / deprecation window.** Rejected: the CLI has no alias mechanism and docket's own consumers switch in one step via `docket install`.
 - **Uniform `epoch -> run-id` substitution.** Rejected: makes codes like `epoch-io` / `epoch-corrupt` say the id itself is at fault; split by meaning instead (Decision 4).
-- **Renaming persisted storage names or config keys.** Rejected: would make existing records unreadable at upgrade, and a renamed config key would be silently ignored as unknown.
+- **Keeping the run tracker's storage names (this ADR's original Decision 3).** Rejected at change 0471's grooming: docket has a single user, nothing is in flight at upgrade, and a reset to new roots costs no migration code, so the storage layer need not keep the retired vocabulary.
+- **Migrating run-tracker storage in place.** Rejected: a migration must lock out live writers and survive a crash mid-move to preserve state that nothing reads; with nothing in flight, a reset is enough.
+- **Renaming config keys.** Rejected: a renamed config key would be silently ignored as unknown.
 - **Past-tense groom outcome (`rearmed`).** Rejected: reads as a result; `re-enable` matches the requested-action form of `revise`/`abstain`.
 - **Human-readable old->new mapping in the glossary.** Rejected: the ADR plus the repoguard retired-vocabulary table carry it.
+
+## Amendment — 2026-09-29 (change 0471 grooming)
+
+Edited in place with the human's explicit authorization, before any family change was built. Decision 3 changed from "persisted storage names stay unchanged" to a reset of the run tracker's local storage. Row 38 was replaced and rows 38a-38d were added. "Explicitly not renamed", Consequences and Alternatives were updated to match.
