@@ -14,7 +14,7 @@ discovered_from: [466]
 adrs: []
 spec:
 plan: 'docs/superpowers/plans/2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md'
-results:
+results: 'docs/results/2026-09-29-install-the-no-real-git-test-guard-in-internal-gatedrive-results.md'
 trivial: true
 auto_groomable:
 branch_prefix:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-29T06:24:03Z'
 | Artifact | Link |
 |---|---|
 | Plan | [2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md](https://github.com/danielhanold/docket/blob/chore/install-the-no-real-git-test-guard-in-internal-gatedrive/docs/superpowers/plans/2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) |
+| Results | [2026-09-29-install-the-no-real-git-test-guard-in-internal-gatedrive-results.md](https://github.com/danielhanold/docket/blob/chore/install-the-no-real-git-test-guard-in-internal-gatedrive/docs/results/2026-09-29-install-the-no-real-git-test-guard-in-internal-gatedrive-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
