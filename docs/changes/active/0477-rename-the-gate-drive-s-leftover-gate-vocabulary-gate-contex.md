@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-29T21:27:04Z'
+reconciled: true
+claimed_at: '2026-09-29T21:27:49Z'
 ---
 
 ## Artifacts
@@ -54,3 +54,9 @@ Apply ADR-0129 rows 38e-38h (recorded at this change's grooming, 2026-09-29) as 
 ## Out of scope
 
 Aliases or a deprecation window; the committed claim-receipt key `gate_context_hash`; the gate drive's own name and every checkpoint sense of "gate"; point-in-time records (archived changes, specs, plans, results); rows owned by changes 0472-0474; the unrelated `gofmt` failure in internal/githubcli/comment_integration_test.go (change 0478).
+
+## Reconcile log
+
+### 2026-09-29
+
+2026-09-29: Re-traced on main 32fd8adea. Every site the spec names still carries the old spelling (internal/cli/gate.go flag registrations and reads, agent_guardian.go env constant, runtracker_start.go dispatch_context tag, runtracker_run_id_refusal.go hint, skills docket-build / docket-build-task / docket-implement-next and embedded copies, harness/dispatch.go + AGENTS.md managed block, capability_production_test.go goldens, repoguard seal row 12 Kept machinery). No work landed elsewhere; 0472-0474 still proposed. Scope unchanged.
