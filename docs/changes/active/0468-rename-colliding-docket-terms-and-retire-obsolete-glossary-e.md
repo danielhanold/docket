@@ -13,7 +13,7 @@ related: [402, 467, 469, 471, 472, 473, 474]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-29-0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-29T08:55:03Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-design.md) |
+| Plan | [2026-09-29-0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md](https://github.com/danielhanold/docket/blob/refactor/rename-colliding-docket-terms-and-retire-obsolete-glossary-e/docs/superpowers/plans/2026-09-29-0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
