@@ -1,6 +1,6 @@
 # Backlog
 
-**471 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 13 proposed · ⚪ 12 deferred · ✅ 321 done · 🗑️ 120 killed
+**472 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 14 proposed · ⚪ 12 deferred · ✅ 321 done · 🗑️ 120 killed
 
 ## 🔵 Built (1)
 
@@ -22,10 +22,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (13)
+## 🟡 Proposed (14)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0472](active/0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | `medium` | `refactor` | ⏳ waiting on #468 — not yet built |
 | [0471](active/0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | `medium` | `refactor` | ⏳ waiting on #468 — not yet built |
 | [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | needs-brainstorm |
 | [0468](active/0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md) | Rename colliding docket terms and retire obsolete glossary entries | `medium` | `refactor` | needs-brainstorm |
@@ -90,6 +91,7 @@ graph TD
   0469
   0466 --> 0470
   0468 --> 0471
+  0468 --> 0472
   0192:::done
   0251:::done
   0370:::done
