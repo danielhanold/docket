@@ -29,7 +29,7 @@ import (
 )
 
 // reopenStore models a process restart: OpenStore roots a store at
-// <gitCommonDir>/docket/gate-drives/v1, so recovering the common dir and opening a
+// <gitCommonDir>/docket/gate-drives/v2, so recovering the common dir and opening a
 // FRESH store over it exercises the same durable records a restarted process reads,
 // with no carried-over in-memory state.
 func reopenStore(s *Store) *Store {

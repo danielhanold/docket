@@ -273,7 +273,7 @@ func resumeIncumbentRemedy(gateKey, epochID string) string {
 
 // acquireResumeLock takes the exclusive per-change resume lock that serializes
 // `gate-before --resume` arms of one change (change 0463). It lives outside the
-// rungate root, under <git-common-dir>/docket/rungate-resume/<change-id>, so the
+// rungate root, under <git-common-dir>/docket/run-tracker-resume/<change-id>, so the
 // scanners that walk gate-key directories never see it. Closing the returned file
 // releases the lock.
 func acquireResumeLock(repoDir, changeID string) (*os.File, error) {
@@ -281,7 +281,7 @@ func acquireResumeLock(repoDir, changeID string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	dir := filepath.Join(common, "docket", "rungate-resume", changeID)
+	dir := filepath.Join(common, "docket", runTrackerResumeDirName, changeID)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, epochErr(ErrEpochIO, "resume-lock-dir", err)
 	}

@@ -148,8 +148,8 @@ func TestIntegrationGateEpochEpochUnknownSchemaFailsClosed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
-	path := filepath.Join(common, "docket", "rungate", key, epochRecordFileName)
-	bad := `{"generation":"g","record":{"schema_version":99,"gate_key":"` + key + `","state":"active","epoch_id":"e"}}`
+	path := filepath.Join(common, "docket", runTrackerDirName, key, epochRecordFileName)
+	bad := `{"generation":"g","record":{"schema_version":99,"run_key":"` + key + `","state":"active","run_id":"e"}}`
 	if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
 		t.Fatalf("seed bad schema: %v", err)
 	}

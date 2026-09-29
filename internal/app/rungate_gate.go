@@ -5,7 +5,7 @@
 // worktree a start names must NOT be allowed to launch or reserve a new gate
 // execution.
 //
-// SERIALIZATION. The gate holds the SAME per-key epoch.lock the mutation fence and
+// SERIALIZATION. The gate holds the SAME per-key run.lock the mutation fence and
 // the cancellation transition serialize on (rungate_epoch.go's epochCAS), across
 // both the liveness read AND reserve, so a concurrent active→cancelling fence has
 // exactly two outcomes: it lands BEFORE the gate's locked read (the gate refuses and
@@ -38,14 +38,14 @@ import (
 // epochLaunchGate builds the production gatedrive.EpochLaunchGate over this
 // repository's run-epoch registry (rooted at gitCommonDir, the same root
 // epochRevokedResolver derives). The returned gate locates the epoch by its public
-// id (unique match), acquires that key's epoch.lock, RE-READS the record under the
+// id (unique match), acquires that key's run.lock, RE-READS the record under the
 // lock (the unlocked scan only located the directory), validates that the epoch is
 // active AND owns the worktree the start names, and only then runs reserve while
 // still holding the lock. It NEVER writes the epoch record. It fires only for a
 // non-empty epoch id (the driver's epochGated helper calls it only then), so a
 // standalone gate that carries no run epoch keeps its existing behavior.
 func epochLaunchGate(gitCommonDir string) gatedrive.EpochLaunchGate {
-	rungateRoot := filepath.Join(gitCommonDir, "docket", "rungate")
+	rungateRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
 	return func(epochID, worktree string, reserve func() error) error {
 		// Canonicalize the worktree the start names ONCE, outside the lock (fingerprint
 		// and path resolution stay out of the epoch critical section). A worktree the

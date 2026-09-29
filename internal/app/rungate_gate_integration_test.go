@@ -15,7 +15,7 @@ import (
 // These are the app-side epoch launch gate tests (change 0437 Task 5). The gate is
 // the production gatedrive.EpochLaunchGate the driver's reservation/launch paths run
 // their durable reservation body under: it locates the epoch by its public id
-// (unique match), holds that key's epoch.lock across a read-only liveness read, and
+// (unique match), holds that key's run.lock across a read-only liveness read, and
 // runs reserve only when the epoch is active AND bound to the worktree the start
 // names. It never writes the epoch record. Every refusal fails closed.
 
@@ -47,10 +47,10 @@ func epochGateFixture(t *testing.T) (repo, common, key, epochID, worktree string
 // rungateRootOf builds the run-epoch registry root the gate scans, the same shape
 // epochLaunchGate derives internally.
 func rungateRootOf(common string) string {
-	return filepath.Join(common, "docket", "rungate")
+	return filepath.Join(common, "docket", runTrackerDirName)
 }
 
-// epochLockHeld reports whether SOMEONE holds the per-key epoch.lock, by attempting
+// epochLockHeld reports whether SOMEONE holds the per-key run.lock, by attempting
 // a non-blocking exclusive flock on a fresh open file description: EWOULDBLOCK means
 // the lock is held elsewhere (flock serializes across open descriptions, even within
 // one process). It is the deterministic oracle for "the gate holds the epoch lock
@@ -141,7 +141,7 @@ func TestIntegrationGateEpochEpochLaunchGateRefusalMatrix(t *testing.T) {
 			name: "corrupt record",
 			setup: func(t *testing.T, repo, common, key, epochID, worktree string) (string, string) {
 				path := filepath.Join(rungateRootOf(common), key, epochRecordFileName)
-				bad := `{"generation":"g","record":{"schema_version":99,"state":"active","epoch_id":"` + epochID + `"}}`
+				bad := `{"generation":"g","record":{"schema_version":99,"state":"active","run_id":"` + epochID + `"}}`
 				if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
 					t.Fatalf("corrupt record: %v", err)
 				}

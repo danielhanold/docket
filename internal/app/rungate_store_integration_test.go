@@ -56,7 +56,7 @@ func TestIntegrationGateEpochGateSchemaV2RecordFailsClosed(t *testing.T) {
 	rec.Schema = 2 // bypass SaveGateRecord's authoritative stamp: write the file directly
 	common, _ := gateGitCommonDir(repo)
 	buf, _ := json.Marshal(rec)
-	if err := os.WriteFile(filepath.Join(common, "docket", "rungate", key, gateRecordFileName), buf, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, gateRecordFileName), buf, 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	_, lerr := LoadGateRecord(repo, key)
@@ -133,7 +133,7 @@ func TestIntegrationGateEpochLoadGateClaimBindingCorruptFailsClosed(t *testing.T
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	common, _ := gateGitCommonDir(repo)
-	if err := os.WriteFile(filepath.Join(common, "docket", "rungate", key, gateClaimBindingName), []byte("{not json"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, gateClaimBindingName), []byte("{not json"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	_, _, err := LoadGateClaimBinding(repo, key)
@@ -194,7 +194,7 @@ func TestIntegrationGateEpochConsumeGateRetryPerAttemptCAS(t *testing.T) {
 		t.Fatalf("ConsumeGateRetry(3,3) = %v,%v; want false,nil (attempt >= limit)", ok, err)
 	}
 	common, _ := gateGitCommonDir(repo)
-	dir := filepath.Join(common, "docket", "rungate", key)
+	dir := filepath.Join(common, "docket", runTrackerDirName, key)
 	if _, serr := os.Stat(filepath.Join(dir, gateRetryMarkerFor(3))); !os.IsNotExist(serr) {
 		t.Fatalf("marker for the refused over-limit attempt must not exist (stat err=%v)", serr)
 	}
@@ -224,7 +224,7 @@ func TestIntegrationGateEpochGateRetryUsageCountsLegacyMarker(t *testing.T) {
 	repo := newGateRepo(t)
 	key := mintPlainGate(t, repo)
 	common, _ := gateGitCommonDir(repo)
-	dir := filepath.Join(common, "docket", "rungate", key)
+	dir := filepath.Join(common, "docket", runTrackerDirName, key)
 	if err := os.WriteFile(filepath.Join(dir, gateRetryMarkerName), nil, 0o644); err != nil {
 		t.Fatalf("plant legacy marker: %v", err)
 	}
@@ -249,7 +249,7 @@ func TestIntegrationGateEpochLoadGateRecordRefusesV3(t *testing.T) {
 	rec.Schema = 3 // write a v3-shaped record directly, bypassing the authoritative stamp
 	common, _ := gateGitCommonDir(repo)
 	buf, _ := json.Marshal(rec)
-	if err := os.WriteFile(filepath.Join(common, "docket", "rungate", key, gateRecordFileName), buf, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, gateRecordFileName), buf, 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	_, lerr := LoadGateRecord(repo, key)

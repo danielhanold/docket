@@ -979,7 +979,7 @@ func TestIntegrationGateVerdictVerdictCorruptBindingFailsClosed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(common, "docket", "rungate", key, gateClaimBindingName), []byte("{not json"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, gateClaimBindingName), []byte("{not json"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: &fakeProofScanner{}}, GitHubDeps{}, repo, key)

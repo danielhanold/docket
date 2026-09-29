@@ -4,7 +4,7 @@
 // so a dispatch's gate outcome survives the launching process, a
 // `git worktree remove`, and a restart.
 //
-// WHERE: <git-common-dir>/docket/rungate/<key>/record.json — the same family as
+// WHERE: <git-common-dir>/docket/run-tracker/<key>/record.json — the same family as
 // the dispatch dir and the gate-drive store. Rooting under the git COMMON dir
 // (not a worktree's .git) means the record sits outside every worktree yet stays
 // reachable from any linked worktree of the same repository, is never tracked,
@@ -91,6 +91,15 @@ const (
 	gateClaimBindingName = "claim-binding.json"
 )
 
+// The run tracker's local storage roots under <git-common-dir>/docket/
+// (ADR-0129 row 38, change 0471). They were renamed by RESET, not migrated: the
+// binary never reads the retired rungate/ and rungate-resume/ roots, which stay
+// inert on disk and may be deleted by hand.
+const (
+	runTrackerDirName       = "run-tracker"
+	runTrackerResumeDirName = "run-tracker-resume"
+)
+
 // gateRetryMarkerPattern matches the retry-marker file shape GateRetryUsage counts:
 // the bare legacy name and the per-attempt "retry-consumed-<n>" form (change 0421).
 // It is anchored so no record.json / claim-binding.json / temp file can match.
@@ -130,14 +139,14 @@ const gateKeyMaxLen = 128
 // canonical git common dir.
 type GateRecord struct {
 	Schema        int    `json:"schema"`
-	Repo          string `json:"repo"`           // canonical git-common-dir path
-	Target        string `json:"target"`         // "docket-implement-next"
-	CreatedAt     int64  `json:"created_at"`     // epoch seconds
-	DispatchEpoch int64  `json:"dispatch_epoch"` // captured AFTER the before-read
-	BeforeIDs     []int  `json:"before_ids"`     // fresh-origin in-progress set
-	AttributedID  int    `json:"attributed_id"`  // 0 = not yet attributed
-	Retry         string `json:"retry"`          // RetryUnused | RetryConsumed
-	Disposition   string `json:"disposition"`    // latest gate-* report line
+	Repo          string `json:"repo"`          // canonical git-common-dir path
+	Target        string `json:"target"`        // "docket-implement-next"
+	CreatedAt     int64  `json:"created_at"`    // epoch seconds
+	DispatchEpoch int64  `json:"dispatched_at"` // Unix seconds, captured AFTER the before-read
+	BeforeIDs     []int  `json:"before_ids"`    // fresh-origin in-progress set
+	AttributedID  int    `json:"attributed_id"` // 0 = not yet attributed
+	Retry         string `json:"retry"`         // RetryUnused | RetryConsumed
+	Disposition   string `json:"disposition"`   // latest gate-* report line
 	Terminal      bool   `json:"terminal"`
 
 	// AttemptLimit is the snapshotted run.max_attempts value (change 0421, schema
@@ -342,7 +351,7 @@ func gateGitCommonDir(repoDir string) (string, error) {
 	return common, nil
 }
 
-// gateRoot resolves <git-common-dir>/docket/rungate for repoDir. It resolves,
+// gateRoot resolves <git-common-dir>/docket/run-tracker for repoDir. It resolves,
 // never creates — an observer must be able to ask where the root is without
 // minting one as a side effect of looking.
 func gateRoot(repoDir string) (string, error) {
@@ -350,7 +359,7 @@ func gateRoot(repoDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(common, "docket", "rungate"), nil
+	return filepath.Join(common, "docket", runTrackerDirName), nil
 }
 
 // validateGateKey enforces the path-safety contract before any path is built: a
@@ -375,7 +384,7 @@ func MintGateRecord(repoDir string, rec GateRecord) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	root := filepath.Join(common, "docket", "rungate")
+	root := filepath.Join(common, "docket", runTrackerDirName)
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", gateErr(ErrGateIO, "mint", err)
 	}
@@ -418,7 +427,7 @@ func LoadGateRecord(repoDir, key string) (GateRecord, error) {
 	if err != nil {
 		return GateRecord{}, err
 	}
-	dir := filepath.Join(common, "docket", "rungate", key)
+	dir := filepath.Join(common, "docket", runTrackerDirName, key)
 	buf, err := os.ReadFile(filepath.Join(dir, gateRecordFileName))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -495,7 +504,7 @@ func SaveGateRecord(repoDir, key string, rec GateRecord) error {
 	if err != nil {
 		return err
 	}
-	dir := filepath.Join(common, "docket", "rungate", key)
+	dir := filepath.Join(common, "docket", runTrackerDirName, key)
 	if fi, serr := os.Stat(dir); serr != nil || !fi.IsDir() {
 		return gateErr(ErrGateNotFound, "save", serr)
 	}
@@ -576,7 +585,7 @@ func ConsumeGateRetry(repoDir, key string, attempt, limit int) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	dir := filepath.Join(common, "docket", "rungate", key)
+	dir := filepath.Join(common, "docket", runTrackerDirName, key)
 	if fi, serr := os.Stat(dir); serr != nil || !fi.IsDir() {
 		return false, gateErr(ErrGateNotFound, "consume", serr)
 	}
@@ -620,7 +629,7 @@ func GateRetryUsage(repoDir, key string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	dir := filepath.Join(common, "docket", "rungate", key)
+	dir := filepath.Join(common, "docket", runTrackerDirName, key)
 	n, cerr := countGateRetryMarkers(dir)
 	if cerr != nil {
 		return 0, gateErr(ErrGateIO, "retry-usage", cerr)
@@ -639,7 +648,7 @@ func gateKeyDir(repoDir, key, op string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(common, "docket", "rungate", key)
+	dir := filepath.Join(common, "docket", runTrackerDirName, key)
 	if fi, serr := os.Stat(dir); serr != nil || !fi.IsDir() {
 		return "", gateErr(ErrGateNotFound, op, serr)
 	}

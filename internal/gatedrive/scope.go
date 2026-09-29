@@ -12,7 +12,7 @@
 // directory, sharing every durability and privacy discipline the drive store
 // established (store.go):
 //
-//	<git-common-dir>/docket/gate-scopes/v1/<opaque-scope-id>/record.json
+//	<git-common-dir>/docket/gate-scopes/v2/<opaque-scope-id>/record.json
 //
 // The directory is owner-only (0700) and its record is private (0600). Writes go
 // through the same writeAtomicJSON helper, and every mutating transition runs
@@ -120,7 +120,7 @@ type scopeRecord struct {
 	Phase           string `json:"phase"`
 	Branch          string `json:"branch"`
 	Worktree        string `json:"worktree"`
-	GateContextHash string `json:"gate_context_hash,omitempty"`
+	GateContextHash string `json:"run_context_hash,omitempty"`
 	ChildCapHash    string `json:"child_cap_hash"`
 	ParentCapHash   string `json:"parent_cap_hash"`
 
@@ -130,7 +130,7 @@ type scopeRecord struct {
 	// scopedRunEpoch) and travels onto its worktree execution slot so an omitted or
 	// stale epoch cannot detach the worktree. Empty for a v2 legacy scope and for a
 	// scope prepared without an epoch. (schema v3)
-	RunEpochID string `json:"run_epoch_id,omitempty"`
+	RunEpochID string `json:"run_id,omitempty"`
 
 	// The single-slot lifecycle (schema v2). At most one current drive occupies
 	// the slot at a time; a sequence of drives passes through it, each successor

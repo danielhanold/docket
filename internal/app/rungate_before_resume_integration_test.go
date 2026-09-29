@@ -302,7 +302,7 @@ func TestIntegrationGateArmRepeatArmObservesReservation(t *testing.T) {
 	}
 }
 
-// countEpochRecords counts the epoch.json files under the repository's rungate root —
+// countEpochRecords counts the run.json files under the repository's rungate root —
 // the number of run epochs, used to prove a repeat arm mints none.
 func countEpochRecords(t *testing.T, repoDir string) int {
 	t.Helper()

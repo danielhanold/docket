@@ -26,13 +26,13 @@ var legacyFixtureID = map[string]string{
 
 // seedLegacyFixtures installs each named Task 2 fixture into a fresh temp
 // gitCommonDir at the exact store path gatedrive.OpenStore roots
-// (<gitCommonDir>/docket/gate-drives/v1/<id>/record.json) and returns the
+// (<gitCommonDir>/docket/gate-drives/v2/<id>/record.json) and returns the
 // gitCommonDir. It reads the frozen fixtures the gatedrive package owns, so the
 // app-layer mapping is exercised against the same records the driver reads.
 func seedLegacyFixtures(t *testing.T, names ...string) string {
 	t.Helper()
 	gitCommonDir := testsupport.TempDir(t)
-	root := filepath.Join(gitCommonDir, "docket", "gate-drives", "v1")
+	root := filepath.Join(gitCommonDir, "docket", "gate-drives", "v2")
 	for _, name := range names {
 		id, ok := legacyFixtureID[name]
 		if !ok {

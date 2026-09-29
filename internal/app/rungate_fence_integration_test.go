@@ -641,14 +641,14 @@ func TestIntegrationGateFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm
 // --- change 0446 Task 7: deterministic worktree owner selection and the
 // slot-named-epoch rule (spec §§1, 5; AC3, AC6). ---
 
-// epochRecordPath is the epoch.json path for key under repo's rungate root.
+// epochRecordPath is the run.json path for key under repo's rungate root.
 func epochRecordPath(t *testing.T, repo, key string) string {
 	t.Helper()
 	common, err := gateGitCommonDir(repo)
 	if err != nil {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
-	return filepath.Join(common, "docket", "rungate", key, epochRecordFileName)
+	return filepath.Join(common, "docket", runTrackerDirName, key, epochRecordFileName)
 }
 
 func mustCanon(t *testing.T, path string) string {
@@ -856,7 +856,7 @@ func TestIntegrationGateFenceSlotNamedEpochUnreadableRefusesLocally(t *testing.T
 			// The remedy must be valid in this state: name where the epoch records
 			// live and that a human repairs them, and never point at run.cancel
 			// (which cannot resolve an epoch no readable record carries).
-			if msg := aerr.Error(); !strings.Contains(msg, filepath.Join("docket", "rungate")) ||
+			if msg := aerr.Error(); !strings.Contains(msg, filepath.Join("docket", runTrackerDirName)) ||
 				!strings.Contains(msg, "human") || !strings.Contains(msg, "run.cancel cannot") {
 				t.Fatalf("refusal %q must name the rungate store, human repair, and run.cancel's inapplicability", msg)
 			}

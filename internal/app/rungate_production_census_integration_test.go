@@ -51,7 +51,7 @@ func seedCensusDrive(t *testing.T, common, id string, fields map[string]any) {
 
 func writeCensusDriveBytes(t *testing.T, common, id string, buf []byte) {
 	t.Helper()
-	dir := filepath.Join(common, "docket", "gate-drives", "v1", id)
+	dir := filepath.Join(common, "docket", "gate-drives", "v2", id)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatalf("mkdir drive dir: %v", err)
 	}
@@ -89,7 +89,7 @@ func seedUnrelatedDamagedHistory(t *testing.T, fx cancelFixture, prefix string) 
 		"worktree_path": filepath.Join(gone, "other-worktree"), "raw_run_dir": filepath.Join(gone, "other-run"),
 		"last_outcome": string(gatedrive.WAITING),
 	})
-	badEpoch := filepath.Join(fx.common, "docket", "rungate", prefix+"-damaged-unrelated-epoch")
+	badEpoch := filepath.Join(fx.common, "docket", runTrackerDirName, prefix+"-damaged-unrelated-epoch")
 	if err := os.MkdirAll(badEpoch, 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -190,5 +190,5 @@ func admissionRecordFile(t *testing.T, common, worktree string) string {
 		t.Fatalf("EvalSymlinks: %v", err)
 	}
 	sum := sha256.Sum256([]byte(canon))
-	return filepath.Join(common, "docket", "gate-admission", "v1", hex.EncodeToString(sum[:]), "record.json")
+	return filepath.Join(common, "docket", "gate-admission", "v2", hex.EncodeToString(sum[:]), "record.json")
 }

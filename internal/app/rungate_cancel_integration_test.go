@@ -23,7 +23,7 @@ import (
 // removeAdmissionRecord deletes the worktree slot's record file so the next slot
 // write fails typed (ErrNotFound) — a deterministic durable-write failure. The
 // path shape is the documented storage layout in admission.go's file header:
-// <git-common-dir>/docket/gate-admission/v1/<admission-key>/record.json, where the
+// <git-common-dir>/docket/gate-admission/v2/<admission-key>/record.json, where the
 // admission key is the sha256 (lowercase hex) of the canonical, symlink-resolved
 // worktree root (admissionKey). It fails loudly if the record is not where the
 // layout says, rather than skipping — a moved constant must surface here.
@@ -34,7 +34,7 @@ func removeAdmissionRecord(t *testing.T, common, worktree string) {
 		t.Fatalf("EvalSymlinks: %v", err)
 	}
 	sum := sha256.Sum256([]byte(canon))
-	rec := filepath.Join(common, "docket", "gate-admission", "v1", hex.EncodeToString(sum[:]), "record.json")
+	rec := filepath.Join(common, "docket", "gate-admission", "v2", hex.EncodeToString(sum[:]), "record.json")
 	if _, err := os.Stat(rec); err != nil {
 		t.Fatalf("admission record not at documented layout %q: %v", rec, err)
 	}

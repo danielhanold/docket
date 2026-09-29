@@ -645,7 +645,7 @@ func makeCancelledEpoch(t *testing.T, wt string) string {
 	if err != nil {
 		t.Fatalf("MintEpochRecord: %v", err)
 	}
-	path := filepath.Join(wt, ".git", "docket", "rungate", key, "epoch.json")
+	path := filepath.Join(wt, ".git", "docket", "run-tracker", key, "run.json")
 	buf, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read epoch record: %v", err)
