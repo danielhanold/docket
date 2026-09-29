@@ -1770,7 +1770,7 @@ func TestMapDriveFailureRunErrors(t *testing.T) {
 	if got.Reason != ReasonUnknownRunID {
 		t.Fatalf("service reason = %q, want unknown-run-id", got.Reason)
 	}
-	if !strings.Contains(got.Message, "--gate-context") {
+	if !strings.Contains(got.Message, "--run-context") || strings.Contains(got.Message, "--gate-context") {
 		t.Fatalf("service must attach the unknown-run-id next action, got %q", got.Message)
 	}
 	if strings.Contains(got.Message, presented) || strings.Contains(got.HumanText(), presented) {
@@ -1803,7 +1803,7 @@ func TestPrepareScopeRefusesUnknownRunID(t *testing.T) {
 	if asked != "bogus-run-value" {
 		t.Fatalf("locator asked %q, want the presented id", asked)
 	}
-	if !strings.Contains(got.Message, "--gate-context") || !strings.Contains(got.HumanText(), "unknown-run-id") {
+	if !strings.Contains(got.Message, "--run-context") || strings.Contains(got.Message, "--gate-context") || !strings.Contains(got.HumanText(), "unknown-run-id") {
 		t.Fatalf("refusal must carry reason and next action: message=%q human=%q", got.Message, got.HumanText())
 	}
 	if strings.Contains(got.Message, "bogus-run-value") || strings.Contains(got.HumanText(), "bogus-run-value") {

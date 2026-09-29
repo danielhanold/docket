@@ -50,10 +50,13 @@ func TestClassifyRunIDError(t *testing.T) {
 // Other reasons carry no invented message.
 func TestRunIDNextAction(t *testing.T) {
 	unknown := RunIDNextAction(ReasonUnknownRunID)
-	for _, want := range []string{"--run-id", "--gate-context", "run-started <key> <run-id> <run-context>"} {
+	for _, want := range []string{"--run-id", "--run-context", "run-started <key> <run-id> <run-context>"} {
 		if !strings.Contains(unknown, want) {
 			t.Errorf("unknown-run-id message must mention %q, got %q", want, unknown)
 		}
+	}
+	if strings.Contains(unknown, "--gate-context") {
+		t.Errorf("unknown-run-id message names the retired --gate-context: %q", unknown)
 	}
 	stale := RunIDNextAction("stale-run-id")
 	if stale == "" || stale == unknown {
