@@ -64,7 +64,7 @@
 # DOCKET-MODE (migrate an existing repo with `docket repository migrate` — change 0002): changes, the
 # board, ADRs, and specs are the live surface on the `docket` branch, checked out into a
 # <repo>/.docket worktree, while the integration branch keeps code, build artifacts, and
-# published terminal records. `main` opts out to single-branch mode, where planning metadata
+# published archived records. `main` opts out to single-branch mode, where planning metadata
 # sits beside the code on the integration branch and no .docket worktree is used. Only those
 # two values parse — anything else is a hard startup error.
 # scope: repo-only (shared-setting guarded, ADR-0019)
@@ -361,7 +361,7 @@ github_project: auto
 # terminal_publish — the terminal-record publish opt-in (changes 0064/0084). DEFERRED FROM GO v1:
 # the key remains a parseable, shared-setting guarded configuration value but activates nothing.
 # terminal publication is deferred from Go v1 — `docket finalize closeout` is the complete
-# automated closeout boundary. Terminal records stay on the metadata branch; the integration
+# automated closeout boundary. Archived records stay on the metadata branch; the integration
 # branch gets code, plans, and results via PRs alone. An enabled value copies nothing onto the
 # integration branch and is not a Bash fallback; existing published records remain as history.
 # scope: repo-only (shared-setting guarded, ADR-0019)

@@ -32,7 +32,7 @@ your repo/
   │           │
   │   [ integration branch: main ] ── never merges ── [ metadata branch: docket ]
   │                                                            ▲
-  │        terminal record copied ──────────────────────►     │  backlog / spec / ADR
+  │        archived record copied ──────────────────────►     │  backlog / spec / ADR
   │        onto the integration branch                         │  edits commit here
   │                                                            │
   └── .docket/   (metadata worktree, checked out on the metadata branch)
@@ -50,7 +50,7 @@ accepted; the **board**, the generated overview of every change and its state,
 never edited by hand; and the **learnings**, the loop's memory of lessons from
 past builds, curated by a human. Your code checkout never sees any of them.
 
-When a change closes out, its terminal record — the archived change file and any
+When a change closes out, its archived record — the archived change file and any
 results — reaches the integration branch by copying the file across, not by
 merging the metadata branch. That leaves a durable record on `main` for anyone
 browsing the code without the metadata worktree, while keeping the two histories
@@ -63,7 +63,7 @@ directory you happen to be standing in when you invoke a command.
 ## The invariants
 
 - The metadata branch and the integration branch never merge into each other; a
-  terminal record reaches the integration branch by copy, not merge.
+  archived record reaches the integration branch by copy, not merge.
 - Docket-mode is the default; a repository that is not yet set up is refused with
   a migration prompt rather than left half-initialized.
 - Backlog, spec, ADR, board, and learnings edits commit to the metadata worktree
@@ -79,7 +79,7 @@ directory you happen to be standing in when you invoke a command.
 ## Decided in
 
 - [ADR-0001](../adrs/0001-docket-metadata-branch-model.md) — put planning
-  metadata on an orphan `docket` branch and publish terminal records by copy
+  metadata on an orphan `docket` branch and publish archived records by copy
   instead of merging the two branches.
 - [ADR-0002](../adrs/0002-docket-mode-default-and-bootstrap.md) — made
   docket-mode the default and set the refuse-and-migrate response for a

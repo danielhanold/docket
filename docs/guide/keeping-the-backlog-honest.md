@@ -6,11 +6,11 @@ work and the checks that flag what needs a human, what each of those checks mean
 answer it, how a change that a crashed run left stuck heals itself, and how to recover a run that
 stopped and asked for you.
 
-## Status versus the terminal sweep
+## Status versus the merged-PR sweep
 
 Two different mechanisms keep the backlog current, and it helps to keep them apart.
 
-The **terminal sweep** is close-out. When a change (one unit of planned work, roughly one pull
+The **merged-PR sweep** is close-out. When a change (one unit of planned work, roughly one pull
 request, tracked as one markdown file) has its pull request merged, something has to move it to
 `done`, archive it, and refresh the **board** (the generated overview of every change and its
 state, never edited by hand). The deliberate way to do that is to close the change out yourself
@@ -100,7 +100,7 @@ do when a run halts or simply dies.
 The backlog can only stay honest if the repo is set up the way the tools expect. docket's
 supported default is **docket-mode**: planning metadata lives on the **metadata branch** (the
 `docket` git branch where the backlog, specs, and decisions are stored, separate from the code)
-via a dedicated worktree, and terminal records stay there unless the repo opts in to publishing
+via a dedicated worktree, and archived records stay there unless the repo opts in to publishing
 them onto the integration branch (the branch code lands on, usually `main`). Trunk-based and
 GitFlow layouts are both supported. **main-mode** — everything on one branch — is a
 fully-supported opt-out: pin `metadata_branch: main` (and `integration_branch: main`) to keep

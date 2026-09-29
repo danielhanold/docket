@@ -39,9 +39,9 @@ make it depend on that parent, and a `depends_on` entry is never satisfied by an
 
 ## The `stacked-merged` state
 
-`stacked-merged` is the sixth **active**, non-terminal status: the change's PR merged into its stack
+`stacked-merged` is the sixth **active**, non-final status: the change's PR merged into its stack
 parent's branch rather than into the integration branch. The change file stays in `active/`, its
-feature branch is **not** deleted, and no terminal record is published — there is no terminal
+feature branch is **not** deleted, and no archived record is published — there is no final
 transition yet to publish.
 
 What it satisfies:

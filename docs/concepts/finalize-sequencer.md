@@ -54,7 +54,7 @@ gates the next and each specialized job is split out to the worker suited to it.
   human approval is required is configured ahead of time, and the
   single-maintainer path is branch protection that requires a pull request but
   zero approvals.
-- Archiving copies the terminal record onto the integration branch and refreshes
+- Archiving copies the archived record onto the integration branch and refreshes
   the **board** — the generated overview of every change and its state, never
   edited by hand. If that publish cannot complete, the failure is marked as
   deferred rather than dropped, so a human can finish it later.
@@ -78,7 +78,7 @@ gates the next and each specialized job is split out to the worker suited to it.
 - Branch and worktree teardown is fail-closed — never half-destructive — so an
   interrupted finalize is recoverable.
 - A handled post-archive publish failure is marked as deferred, not dropped, so
-  an expected terminal record is never lost silently.
+  an expected archived record is never lost silently.
 
 ## Decided in
 

@@ -52,7 +52,7 @@ Survey TODOs, deferred changes, known gaps, and the ADR backlog; emit several li
 
 ## Proposed-kill sub-path
 
-When a `proposed` change is abandoned (obsolete, decided against, a duplicate) the producer drives it to the `killed` terminal state — this is one of the two kill origins the shared terminal close-out serves (the other is the implementer's reconcile-kill from `in-progress`).
+When a `proposed` change is abandoned (obsolete, decided against, a duplicate) the producer drives it to the `killed` final status — this is one of the two kill origins the shared close-out serves (the other is the implementer's reconcile-kill from `in-progress`).
 
 Follow `references/terminal-close-out.md`'s **kill path** — one atomic `change.kill` operation transaction that archives the record on `docket`, re-renders its `## Artifacts` block, retargets the linked spec's back-link, and re-renders the inline board in one metadata commit (mechanics and ordering live there — do not restate them here). Trust the typed outcome; a refusal aborts the kill and is surfaced, writing nothing. A `proposed` change never had a feature branch or open PR — the reference's cleanup step is a no-op here — and usually no plan/results — terminal publication is deferred from Go v1, so the kill copies nothing onto the integration branch; the archived change file, plus its `spec:`/`adrs:` if set, stays on `docket`. The archive date matches `origin/<integration_branch>`.
 

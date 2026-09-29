@@ -112,7 +112,7 @@ When `board_surfaces` includes `inline`, the docket app is the single gated writ
 
 ### Merge sweep
 
-The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no terminal record is copied onto the `integration_branch`. Runs inside the `maintenance.preflight` operation at implementation scope (`docket-implement-next` Step 0 runs that operation inline on its selection path — no id or an id set), and in full scope on any explicit refresh/cleanup invocation.
+The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no archived record is copied onto the `integration_branch`. Runs inside the `maintenance.preflight` operation at implementation scope (`docket-implement-next` Step 0 runs that operation inline on its selection path — no id or an id set), and in full scope on any explicit refresh/cleanup invocation.
 
 The rebase-onto-base + re-run-tests gate lives in `docket-finalize-change`'s merge step and is **finalize-only** — the sweep only archives PRs that are already merged, it never merges, so the gate has nothing to act on here.
 

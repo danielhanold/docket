@@ -67,7 +67,7 @@ For a non-reversing material change in context — where the decision still stan
 
 ## How an ADR reaches the integration branch (deferred)
 
-ADRs and their index are authored and live on `metadata_branch` (`docket`). terminal publication is deferred from Go v1 — integration-branch publication of ADR bytes is not performed: none of the three historical cases — a change-tied ADR on its change's terminal transition, a standalone ADR on acceptance, or a status flip to an already-published ADR — copies ADR bytes onto the integration branch. The `Accepted` decision ledger lives on `docket` only.
+ADRs and their index are authored and live on `metadata_branch` (`docket`). terminal publication is deferred from Go v1 — integration-branch publication of ADR bytes is not performed: none of the three historical cases — a change-tied ADR on its change's final transition, a standalone ADR on acceptance, or a status flip to an already-published ADR — copies ADR bytes onto the integration branch. The `Accepted` decision ledger lives on `docket` only.
 
 Records already published onto the integration branch by an earlier tool version are left untouched as history: a status flip to such an ADR leaves the previously published copy in place, and the `adr-unpublished` health check keeps that drift visible (the marker is *read*; acting on it is deferred). An enabled `terminal_publish:` key activates nothing.
 
