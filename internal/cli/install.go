@@ -71,9 +71,9 @@ var assetIndependent = map[string]bool{
 	"pr publish":                  true,
 	"run":                         true, // the group itself; it reports a missing command
 	"run verify":                  true,
-	"run gate-before":             true,
-	"run gate-verdict":            true,
-	"run gate-claim":              true,
+	"run start":                   true,
+	"run verdict":                 true,
+	"run continue":                true,
 	"run cancel":                  true,
 	"learning":                    true, // the group itself; it reports a missing command
 	"learning record":             true,

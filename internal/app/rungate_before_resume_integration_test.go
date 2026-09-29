@@ -16,7 +16,7 @@ import (
 )
 
 // These are the resume-shares-admission tests (change 0375 Task 12): a
-// `run.gate-before --resume` shares the change's prior run epoch. An active prior
+// `run.start --resume` shares the change's prior run epoch. An active prior
 // run is refused with a safe locator; a cancelling one is pending; a
 // confirmed-cancelled one is superseded and reserves EXACTLY ONE replacement
 // dispatch (one winner under a concurrent race); a repeat arm observes that
@@ -93,7 +93,7 @@ func TestIntegrationGateArmResumeRefusesActiveEpochWithLocator(t *testing.T) {
 
 // TestIntegrationGateArmResumeRefusesCompletingEpochWithoutSuperseding: a resume of a change whose prior
 // epoch is COMPLETING (a verified successful run mid-closeout, change 0441) is refused
-// gate-unarmed with the run-completing reason — it names the keyed gate-verdict/cancel
+// gate-unarmed with the run-completing reason — it names the keyed run verdict/cancel
 // remedy, never turns the closeout into a cancelled predecessor, and reserves no
 // replacement.
 func TestIntegrationGateArmResumeRefusesCompletingEpochWithoutSuperseding(t *testing.T) {
@@ -109,8 +109,8 @@ func TestIntegrationGateArmResumeRefusesCompletingEpochWithoutSuperseding(t *tes
 	if res.Reason != ReasonGateResumeRunCompleting {
 		t.Fatalf("Reason = %q, want %q", res.Reason, ReasonGateResumeRunCompleting)
 	}
-	if !strings.Contains(res.Message, epochID) || !strings.Contains(res.Message, "gate-verdict") {
-		t.Fatalf("Message must name the epoch %q and the keyed gate-verdict remedy, got %q", epochID, res.Message)
+	if !strings.Contains(res.Message, epochID) || !strings.Contains(res.Message, "run verdict") {
+		t.Fatalf("Message must name the epoch %q and the keyed run verdict remedy, got %q", epochID, res.Message)
 	}
 	if res.Key != "" || sp.calls != 0 {
 		t.Fatalf("completing refusal must mint no record and prepare no scope: key=%q calls=%d", res.Key, sp.calls)
@@ -658,7 +658,7 @@ func tornResumePrior(t *testing.T, repoDir string, neverMinted bool) (priorKey, 
 
 // TestIntegrationGateArmResumeTornReplacementConverges (change 0446 spec "Repeated cancellation,
 // completion, and admission after safe reconciliation converge using existing
-// operations"): after a torn resume a repeat `run.gate-before --resume` is not a
+// operations"): after a torn resume a repeat `run.start --resume` is not a
 // permanent dead end. The superseded branch addresses the request's own feature
 // worktree (what armResumeReplacement binds), runs the census with the predecessor's
 // epoch id there, and observes the single reserved key — repeatedly, minting nothing.
@@ -815,7 +815,7 @@ func TestIntegrationGateArmEpochlessResumeMintsBoundEpoch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	for _, want := range []string{`"epoch":"` + res.Epoch + `"`, `"key":"` + res.Key + `"`, `"dispatch_context":"` + scopeGrantChild + `"`} {
+	for _, want := range []string{`"run_id":"` + res.Epoch + `"`, `"key":"` + res.Key + `"`, `"dispatch_context":"` + scopeGrantChild + `"`} {
 		if !strings.Contains(string(buf), want) {
 			t.Errorf("JSON result missing %s: %s", want, buf)
 		}
@@ -1044,7 +1044,7 @@ func TestIntegrationGateArmResumeRefusalNamesAbandonedArmRemedy(t *testing.T) {
 		resumeActiveLocator("k", EpochRecord{ChangeID: "5", EpochID: "e"}),
 		resumeWorktreeOwnerLocator("/tmp/wt/epsilon", "k", EpochRecord{EpochID: "e"}),
 	} {
-		for _, want := range []string{"never dispatched", "run cancel --key k --epoch e", "still running", "run gate-verdict"} {
+		for _, want := range []string{"never dispatched", "run cancel --key k --run-id e", "still running", "run verdict"} {
 			if !strings.Contains(msg, want) {
 				t.Errorf("refusal must contain %q, got %q", want, msg)
 			}

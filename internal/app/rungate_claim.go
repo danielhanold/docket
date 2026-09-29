@@ -1,4 +1,4 @@
-// Continuation redemption — `docket run gate-claim <key> <continuation-id>`
+// Continuation redemption — `docket run continue <key> <continuation-id>`
 // (change 0359).
 //
 // A `gate-continue` verdict hands the resumed implement-next controller two
@@ -9,7 +9,7 @@
 // a match, consumes the recovered drive's single-use handoff through the
 // commandless gate-drive service. The claim's CAS is single-use at the DRIVE
 // layer; clearing the record's continuation triple on success is single-use at the
-// RECORD layer, so a replayed gate-claim finds no continuation to redeem.
+// RECORD layer, so a replayed run continue finds no continuation to redeem.
 //
 // It fails CLOSED at every step: no stored continuation → no-continuation; a
 // mismatch → continuation-mismatch; a HALTED claim (a raced owner, a drifted
@@ -30,9 +30,9 @@ import (
 	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
-// OperationRunGateClaim is the operation key `run gate-claim` records in its
+// OperationRunGateClaim is the operation key `run continue` records in its
 // envelope.
-const OperationRunGateClaim = "run.gate-claim"
+const OperationRunGateClaim = "run.continue"
 
 // GateClaimDecisionClaimed is the leading token of a successful claim report line.
 // It joins gate-done / gate-retry-once / gate-stop / gate-continue / gate-observe
@@ -129,7 +129,7 @@ func (s *gatedriveClaimSeam) Claim(driveID, handoffToken string) (GateClaimOutco
 	return GateClaimOutcome{Generation: res.Drive.Generation, Phase: phase, Outcome: string(res.Drive.Outcome)}, nil
 }
 
-// RunGateClaimResult is the protocol-v1 document `run gate-claim` returns. It
+// RunGateClaimResult is the protocol-v1 document `run continue` returns. It
 // renders one report line and always exits 0 (a produced report line is not a
 // process failure). Generation travels ONLY in the JSON document — HumanText never
 // emits it (spec: ownership generations never appear in human text).

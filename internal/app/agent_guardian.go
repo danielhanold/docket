@@ -44,7 +44,7 @@ import (
 const (
 	guardianRepoDirEnv = "DOCKET_AGENT_GUARDIAN_REPO_DIR"
 	guardianGateKeyEnv = "DOCKET_AGENT_GUARDIAN_GATE_KEY"
-	guardianEpochEnv   = "DOCKET_AGENT_GUARDIAN_EPOCH"
+	guardianEpochEnv   = "DOCKET_AGENT_GUARDIAN_RUN_ID"
 	guardianMarkerEnv  = "DOCKET_AGENT_GUARDIAN_MARKER"
 	// guardianPipeFD is the inherited pipe read end (the first and only ExtraFiles
 	// slot), mirroring the supervisor's inherited-descriptor contract.

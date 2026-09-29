@@ -54,13 +54,13 @@ never resets or adopts a workspace whose writer may still be live. Once resumed,
 this resume path with its marker gone.
 
 **Arming a resume over a run's gate epoch.** Resuming a change re-arms the run gate too, and one
-worktree carries at most one live run. When the caller arms the resume (`run.gate-before … --resume
+worktree carries at most one live run. When the caller arms the resume (`run.start … --resume
 <id>`), the arm refuses to open a second run over one that has not verifiably stopped:
 
 - Prior epoch still **active** (an undispatched earlier resume arm counts) → refused
   `resume-active-run`, naming the change, epoch, and gate key, with the remedy: cancel the prior run
-  via the `run.cancel` operation (`--key <key> --epoch <id> --reason <why>`) and resume after
-  confirmed cancellation, or continue the live run via `run.gate-verdict`. **Never** force a fresh
+  via the `run.cancel` operation (`--key <key> --run-id <id> --reason <why>`) and resume after
+  confirmed cancellation, or continue the live run via `run.verdict`. **Never** force a fresh
   claim over a possibly-live run — that is claim theft.
 - Cancellation still finishing → refused `cancellation-pending`; the resume observes that cleanup
   only. Finish the cancel first, then resume.

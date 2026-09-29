@@ -393,7 +393,7 @@ func TestAgentEnterCapabilitySignature(t *testing.T) {
 		t.Fatal(err)
 	}
 	entry, ok := entryByID(entries, "agent.enter")
-	want := "--approval-policy <policy> --cwd <dir> --request <file> --role <name> --sandbox <mode> [--run-epoch <id>] [--run-gate-key <key>] [--worktree <dir>]"
+	want := "--approval-policy <policy> --cwd <dir> --request <file> --role <name> --sandbox <mode> [--run-id <id>] [--run-key <key>] [--worktree <dir>]"
 	if !ok || entry.Signature != want {
 		t.Fatalf("agent.enter signature = %q, present=%v; want %q", entry.Signature, ok, want)
 	}
@@ -429,7 +429,7 @@ func TestAgentEnterRequiresClosedExecutionContext(t *testing.T) {
 }
 
 // TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch (change 0463): an agent.enter
-// whose --run-gate-key/--run-epoch pair names no run epoch, or names a different one,
+// whose --run-key/--run-id pair names no run epoch, or names a different one,
 // is refused with a named token BEFORE Codex is spawned. A stub codex that records
 // any invocation proves nothing launched. The presented value never appears in the
 // JSON or human output.
@@ -466,7 +466,7 @@ func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			base := []string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
-				"--approval-policy", "never", "--sandbox", "workspace-write", "--run-gate-key", tc.key, "--run-epoch", bogus}
+				"--approval-policy", "never", "--sandbox", "workspace-write", "--run-key", tc.key, "--run-id", bogus}
 			var out, stderr bytes.Buffer
 			Run(append(base, "--json"), strings.NewReader("req"), &out, &stderr, devInfo(), hostFacts())
 			var res app.AgentEnterResult
@@ -481,7 +481,7 @@ func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
 			}
 			var human, herr bytes.Buffer
 			Run(base, strings.NewReader("req"), &human, &herr, devInfo(), hostFacts())
-			if !strings.Contains(human.String()+herr.String(), "--run-epoch") || strings.Contains(human.String()+herr.String(), bogus) {
+			if !strings.Contains(human.String()+herr.String(), "--run-id") || strings.Contains(human.String()+herr.String(), bogus) {
 				t.Fatalf("human output must name the remedy and never the value: out=%q err=%q", human.String(), herr.String())
 			}
 			if _, err := os.Stat(marker); err == nil {
@@ -492,8 +492,8 @@ func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
 }
 
 // TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch (change 0463, review fix):
-// AGENTS.md threads only --run-epoch into agent.enter, so a lone --run-epoch (no
-// --run-gate-key) must still be checked for existence before Codex is spawned. A
+// AGENTS.md threads only --run-id into agent.enter, so a lone --run-id (no
+// --run-key) must still be checked for existence before Codex is spawned. A
 // misrouted token (0382: the dispatch context passed as the epoch) refuses with
 // unknown-run-epoch and launches nothing; a lone epoch that DOES exist passes the
 // preflight and reaches the launch (the stub codex records the invocation).
@@ -518,7 +518,7 @@ func TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch(t *testing.T) {
 	}
 	enter := func(epoch string, extra ...string) []string {
 		return append([]string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
-			"--approval-policy", "never", "--sandbox", "workspace-write", "--run-epoch", epoch}, extra...)
+			"--approval-policy", "never", "--sandbox", "workspace-write", "--run-id", epoch}, extra...)
 	}
 
 	const bogus = "0790b760e26444866ef2e156ba383326"
@@ -529,18 +529,18 @@ func TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch(t *testing.T) {
 		t.Fatalf("decode %q: %v (stderr %q)", out.String(), err, stderr.String())
 	}
 	if res.Result != app.ResultInvalidInput || res.Reason != app.ReasonUnknownRunEpoch {
-		t.Fatalf("lone unknown --run-epoch: got (%s, %q), want (invalid-input, %q): %+v", res.Result, res.Reason, app.ReasonUnknownRunEpoch, res)
+		t.Fatalf("lone unknown --run-id: got (%s, %q), want (invalid-input, %q): %+v", res.Result, res.Reason, app.ReasonUnknownRunEpoch, res)
 	}
 	if strings.Contains(out.String(), bogus) {
 		t.Fatalf("JSON output leaked the presented value: %s", out.String())
 	}
 	var human, herr bytes.Buffer
 	Run(enter(bogus), strings.NewReader("req"), &human, &herr, devInfo(), hostFacts())
-	if !strings.Contains(human.String()+herr.String(), "--run-epoch") || strings.Contains(human.String()+herr.String(), bogus) {
+	if !strings.Contains(human.String()+herr.String(), "--run-id") || strings.Contains(human.String()+herr.String(), bogus) {
 		t.Fatalf("human output must name the remedy and never the value: out=%q err=%q", human.String(), herr.String())
 	}
 	if _, err := os.Stat(marker); err == nil {
-		t.Fatalf("codex was launched despite an unknown lone --run-epoch")
+		t.Fatalf("codex was launched despite an unknown lone --run-id")
 	}
 
 	out.Reset()
@@ -551,9 +551,9 @@ func TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch(t *testing.T) {
 		t.Fatalf("decode %q: %v (stderr %q)", out.String(), err, stderr.String())
 	}
 	if res.Reason == app.ReasonUnknownRunEpoch {
-		t.Fatalf("a lone --run-epoch that exists was refused: %+v", res)
+		t.Fatalf("a lone --run-id that exists was refused: %+v", res)
 	}
 	if _, err := os.Stat(marker); err != nil {
-		t.Fatalf("a lone existing --run-epoch must pass the preflight and reach launch; codex not invoked (result %+v)", res)
+		t.Fatalf("a lone existing --run-id must pass the preflight and reach launch; codex not invoked (result %+v)", res)
 	}
 }

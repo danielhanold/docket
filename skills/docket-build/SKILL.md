@@ -75,7 +75,7 @@ Emit one concise routing line per task naming both the profile and its reason.
 <!-- docket:feature-dispatch:start targets=docket-build-economy,docket-build-max,docket-build-premium,docket-build-standard -->
 **Before each worker dispatch, prepare its recovery scope:** run the `gate.drive.prepare-scope`
 operation with `--change-id <id> --task-id <task-N> --phase build --branch <branch> --worktree
-<worktree> --gate-context <dispatch-context> --run-epoch <epoch> --json` (the dispatch context and
+<worktree> --gate-context <dispatch-context> --run-id <epoch> --json` (the dispatch context and
 the run epoch arrived in *your* prompt from the gated parent — pass each value through, omitting a
 flag only when your prompt carried no such value). Capture the scope id and **both** capabilities from the
 `--json` response before dispatching (the shared JSON-capture requirement); the parent capability
@@ -148,7 +148,7 @@ the claimed drive's id, its terminal verdict, and an explicit statement that the
 by your claim and must never be acknowledged or reused. When the continued task may still need test
 drives, run `gate.drive.prepare-scope` again
 for the same change, task, phase, branch, and worktree (and dispatch context and
-`--run-epoch <epoch>`, as for the first scope) and include the new
+`--run-id <epoch>`, as for the first scope) and include the new
 start-ready scope bundle — child capability only; the parent capability stays in your notes, as for
 any dispatch. Reading the continuation's return is unchanged: a `COMPLETE` is settled against git
 state exactly as *Reading a worker's return* requires. Waiting consumes neither the task's repair
@@ -249,8 +249,8 @@ authoritative config the build role reads, never a command it invents:
    **skipped** evidence via the `evidence.record` operation (no run dir) — `result: skipped` /
    `reason: build-gate-off` at the current head — and proceed to review. Nothing to run or repair.
 2. **`build_gate: local`, non-empty `build_test_command`** — drive it through the native gate
-   **driver**: the `gate.drive.start` operation with `--owner build --run-epoch <epoch> --json`
-   (`--run-epoch` only when your prompt carried a run epoch) — capture that first response into `gate_reply` (its exit
+   **driver**: the `gate.drive.start` operation with `--owner build --run-id <epoch> --json`
+   (`--run-id` only when your prompt carried a run epoch) — capture that first response into `gate_reply` (its exit
    code, if needed, into `gate_rc`; never a zsh read-only special parameter such as
    `status`) and read the drive id and owner generation from it — then `gate.drive.advance` operation slices,
    exactly as *Gate execution posture* describes. `--owner build` resolves the build-owned command
@@ -302,7 +302,7 @@ diagnoses the cross-task failure, adds regression coverage where appropriate, fi
 the full suite; that post-fix re-run **is** the next budgeted attempt — started build-owned through
 the same driver so the facade charges it, no bypass. Its dispatch payload therefore also carries the
 run epoch from your prompt, outside the scope bundle, for that one start: the `gate.drive.start`
-operation with `--owner build --run-epoch <epoch> --json` (flag omitted when your prompt carried none).
+operation with `--owner build --run-id <epoch> --json` (flag omitted when your prompt carried none).
 That ladder starts one rung above the default
 deliberately: repair is cross-task diagnosis, never routine work. **Green at any point ends the phase
 immediately; review is never invoked while red.** A refused start (`suite-attempts-exhausted`) or a

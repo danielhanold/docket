@@ -32,7 +32,7 @@ carrying the gate's key, and later asks the gate for a verdict. The
 verdict, not the worker's report, says what may happen next.
 
 ```
-  gate-before ──arms──► <key> + dispatch-context
+  run start ──arms──► <key> + dispatch-context
        │                         (both handed to the launch)
        ▼
   launch the worker (carries the key)
@@ -41,7 +41,7 @@ verdict, not the worker's report, says what may happen next.
   worker runs, then a completion notification arrives
        │                         (the worker's own claim)
        ▼
-  gate-verdict <key> ──reads the gate's durable state, not the prose──►
+  run verdict <key> ──reads the gate's durable state, not the prose──►
        │
        ├─ gate-retry-once ──► exactly one more launch, same key
        │                      (granted at most run.max_attempts - 1 times)

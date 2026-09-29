@@ -190,11 +190,11 @@ func TestSignaturePositionalTailStripsFlagRestatements(t *testing.T) {
 		t.Fatalf("launch signature = %q, want %q", entries[0].Signature, wantLaunch)
 	}
 
-	// gate-verdict shape: "gate-verdict <key> | --unattributed [<id>...]" — the
+	// run verdict shape: "verdict <key> | --unattributed [<id>...]" — the
 	// `--unattributed` restatement is stripped from the tail (its following
 	// token `[<id>...]` is NOT a value placeholder, so it survives), and the
 	// real optional flag is projected from pflag data. Tail leads (no bare --).
-	verdict := leaf("gate-verdict <key> | --unattributed [<id>...]", "run.gate-verdict", EffectLocalWrite)
+	verdict := leaf("verdict <key> | --unattributed [<id>...]", "run.verdict", EffectLocalWrite)
 	verdict.Flags().Bool("unattributed", false, "attribute to no run")
 	root2 := newTestRoot()
 	root2.AddCommand(verdict)
@@ -233,10 +233,10 @@ func TestSignatureStartArgvBoundaryLandsLast(t *testing.T) {
 }
 
 func TestSignatureGateClaimPositionalPair(t *testing.T) {
-	// gate-claim shape (change 0359): two leading positionals (key, continuation
+	// run continue shape (change 0359): two leading positionals (key, continuation
 	// id) taken from Use, then the optional repo-dir flag from pflag data. No bare
 	// `--`, so the positional tail leads and the flag trails.
-	claim := leaf("gate-claim <key> <continuation-id>", "run.gate-claim", EffectLocalWrite)
+	claim := leaf("continue <key> <continuation-id>", "run.continue", EffectLocalWrite)
 	claim.Flags().String("repo-dir", "", "repository `dir` to operate on")
 	root := newTestRoot()
 	root.AddCommand(claim)
@@ -246,7 +246,7 @@ func TestSignatureGateClaimPositionalPair(t *testing.T) {
 	}
 	want := "<key> <continuation-id> [--repo-dir <dir>]"
 	if entries[0].Signature != want {
-		t.Fatalf("gate-claim signature = %q, want %q", entries[0].Signature, want)
+		t.Fatalf("run continue signature = %q, want %q", entries[0].Signature, want)
 	}
 }
 

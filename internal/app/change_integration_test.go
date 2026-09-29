@@ -1326,7 +1326,7 @@ func TestIntegrationChangeAuthoringGateRetryConsumeOnceThenFalse(t *testing.T) {
 }
 
 // TestIntegrationChangeAuthoringOuterBudgetEndToEnd drives the outer run gate end-to-end at
-// several configured run.max_attempts values (change 0421, Task 8). gate-before
+// several configured run.max_attempts values (change 0421, Task 8). run start
 // snapshots the AUTHORITATIVE run.max_attempts into the record's AttemptLimit at
 // mint, and successive quiescent run-incomplete verdicts then grant exactly
 // AttemptLimit-1 gate-retry-once lines — each on a distinct attempt transition —
@@ -1349,14 +1349,14 @@ func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 		t.Run(fmt.Sprintf("limit-%d", tc.limit), func(t *testing.T) {
 			f := newRunVerifyFixture(t, true)
 
-			// (1) Arm through the real gate-before, whose mint snapshots the
+			// (1) Arm through the real run start, whose mint snapshots the
 			// authoritative run.max_attempts into the record's AttemptLimit.
 			armReader := &fakeReader{pin: gatePinWithRunMaxAttempts(t, tc.limit), corpus: gateBeforeCorpus()}
 			armDeps := PlanningDeps{Reader: armReader, Clock: testClock()}
 			sp := &fakeScopePrep{grant: sampleScopeGrant()}
 			arm := RunGateBefore(context.Background(), armDeps, WorkspaceDeps{}, sp.deps(), f.repo.invocation, "implement-next", 0)
 			if !arm.Armed {
-				t.Fatalf("gate-before did not arm: %q", arm.HumanText())
+				t.Fatalf("run start did not arm: %q", arm.HumanText())
 			}
 			key := arm.Key
 			rec, err := LoadGateRecord(f.repo.invocation, key)
@@ -3843,9 +3843,9 @@ func TestIntegrationChangeRuntimeRunGateVerdictObserveSyncFailureUnavailable(t *
 	}
 }
 
-// TestRunGateVerdictRestartDurability: gate-before and gate-verdict share nothing
+// TestRunGateVerdictRestartDurability: run start and run verdict share nothing
 // but the repository directory and the key. Minting the record through the store
-// (as a separate gate-before process would) and then reading a verdict through a
+// (as a separate run start process would) and then reading a verdict through a
 // fresh RunGateVerdict call — no record value passed between them — still resolves
 // the attributed run.
 func TestIntegrationChangeRuntimeRunGateVerdictRestartDurability(t *testing.T) {
@@ -3856,7 +3856,7 @@ func TestIntegrationChangeRuntimeRunGateVerdictRestartDurability(t *testing.T) {
 	)
 	// Simulate the arming process: mint and forget (nothing carried in memory). The
 	// resume-verified shape (AttributedID set, no claim binding) is the durable state
-	// gate-before --resume leaves; a fresh verdict call resolves it from the record
+	// run start --resume leaves; a fresh verdict call resolves it from the record
 	// alone (change 0407).
 	key := gateMintAttributed(t, f.repo.invocation, 3)
 

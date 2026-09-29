@@ -3,7 +3,7 @@ package app
 import "path/filepath"
 
 // This file is the run-epoch refusal vocabulary (change 0463). The run epoch is a
-// public locator (ADR-0111) that a caller threads into --run-epoch flags (gate drive
+// public locator (ADR-0111) that a caller threads into --run-id flags (gate drive
 // start, gate drive prepare-scope, agent.enter). When the presented value cannot be
 // resolved, the caller must learn WHICH mistake it made through a stable token. A
 // catch-all invalid-request makes a misrouted token (0382: the dispatch context
@@ -11,7 +11,7 @@ import "path/filepath"
 // fixed vocabulary; nothing here echoes the presented value, a path, or record
 // content.
 
-// ReasonUnknownRunEpoch is the stable refusal token for a --run-epoch that names no
+// ReasonUnknownRunEpoch is the stable refusal token for a --run-id that names no
 // run epoch in this repository.
 const ReasonUnknownRunEpoch = "unknown-run-epoch"
 
@@ -48,18 +48,18 @@ func ClassifyRunEpochError(err error) (Result, string, bool) {
 func RunEpochNextAction(reason string) string {
 	switch reason {
 	case ReasonUnknownRunEpoch:
-		return "the --run-epoch value names no run epoch in this repository; pass the <epoch> field of the arm's " +
+		return "the --run-id value names no run epoch in this repository; pass the <epoch> field of the arm's " +
 			"`gate-armed <key> <epoch> <dispatch-context>` line (the <dispatch-context> goes to --gate-context) — " +
-			"never drop --run-epoch and retry"
+			"never drop --run-id and retry"
 	case ErrStaleRunEpoch.Reason:
-		return "the --run-epoch value is not the run epoch this gate key carries; pass the <epoch> printed on the same gate-armed line as the key"
+		return "the --run-id value is not the run epoch this gate key carries; pass the <epoch> printed on the same gate-armed line as the key"
 	default:
 		return ""
 	}
 }
 
 // runEpochLocator builds the existence check prepare-scope runs on a presented
-// --run-epoch. It resolves the id to exactly one epoch record under gitCommonDir's
+// --run-id. It resolves the id to exactly one epoch record under gitCommonDir's
 // run-epoch registry through findEpochDirByID (the same locator the epoch launch
 // gate uses) and returns its typed EpochError (not-found, ambiguous, IO) unchanged.
 // It checks RESOLVABILITY only, never liveness: a scope may legitimately carry a
@@ -74,7 +74,7 @@ func runEpochLocator(gitCommonDir string) func(string) error {
 }
 
 // CheckRunEpochExists verifies, before agent.enter spawns anything, that a lone
-// --run-epoch (presented without --run-gate-key) resolves to exactly one run epoch in
+// --run-id (presented without --run-key) resolves to exactly one run epoch in
 // repoDir's repository (change 0463). It is the same resolvability check prepare-scope
 // runs (runEpochLocator / findEpochDirByID): it never checks liveness, and it returns
 // the locator's typed *EpochError (not-found, ambiguous, IO) unchanged. A repository
@@ -88,7 +88,7 @@ func CheckRunEpochExists(repoDir, epochID string) error {
 }
 
 // CheckRunEpochLinkage verifies, before agent.enter spawns anything, that the
-// presented (--run-gate-key, --run-epoch) pair names a real run epoch (change 0463).
+// presented (--run-key, --run-id) pair names a real run epoch (change 0463).
 // It returns nil when the gate key's epoch record carries exactly epochID, and
 // otherwise ALWAYS an *EpochError:
 //   - a gate key with no directory, a malformed key, or no epoch record:

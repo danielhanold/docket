@@ -15,7 +15,7 @@ import (
 
 // These are the run-epoch registry tests (change 0375 Task 9). The epoch lives
 // beside the gate record under the same gate-key directory (rungate_epoch.go); the
-// gate key locates both. A fresh gate-before arm mints an active epoch; claim
+// gate key locates both. A fresh run start arm mints an active epoch; claim
 // confirmation binds its change; participant registration is gated on the active
 // state and fails closed on an unknown schema.
 // The fixtures untagged test files share (mintTestGateKey, forceEpochState,

@@ -50,7 +50,7 @@ func TestClassifyRunEpochError(t *testing.T) {
 // Other reasons carry no invented message.
 func TestRunEpochNextAction(t *testing.T) {
 	unknown := RunEpochNextAction(ReasonUnknownRunEpoch)
-	for _, want := range []string{"--run-epoch", "--gate-context", "gate-armed <key> <epoch> <dispatch-context>"} {
+	for _, want := range []string{"--run-id", "--gate-context", "gate-armed <key> <epoch> <dispatch-context>"} {
 		if !strings.Contains(unknown, want) {
 			t.Errorf("unknown-run-epoch message must mention %q, got %q", want, unknown)
 		}

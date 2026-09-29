@@ -317,7 +317,7 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
 	svc := newGateDriveService(engine, 0, "", "")
 	// prepare-scope is served by this commandless service: resolve a presented
-	// --run-epoch against the same registry before minting a scope (change 0463).
+	// --run-id against the same registry before minting a scope (change 0463).
 	svc.epochLocate = runEpochLocator(gitCommonDir)
 	return svc, "", ""
 }
@@ -623,7 +623,7 @@ func (s *GateDriveService) Claim(id, handoffID string) GateDriveResult {
 // safe reason and no grant. The two capabilities travel ONLY in the JSON
 // document — never in the human text (GateScopeResult.HumanText).
 func (s *GateDriveService) PrepareScope(req gatedrive.ScopeRequest) GateScopeResult {
-	// A presented --run-epoch must resolve before it is baked into the scope (change
+	// A presented --run-id must resolve before it is baked into the scope (change
 	// 0463): an unresolvable one refuses now with its named token, instead of
 	// surfacing later at start as a refusal the caller cannot attribute.
 	if req.RunEpochID != "" && s.epochLocate != nil {
@@ -747,7 +747,7 @@ func mapDriveFailure(err error) (Result, string) {
 		return ResultInvalidInput, fe.Reason
 	}
 	// A run-epoch registry failure (the epoch launch gate could not resolve the
-	// presented --run-epoch) surfaces its named token rather than collapsing to the
+	// presented --run-id) surfaces its named token rather than collapsing to the
 	// generic invalid-request (change 0463): unknown-run-epoch for a not-found epoch,
 	// the kind for any other registry fault.
 	if res, reason, ok := ClassifyRunEpochError(err); ok {

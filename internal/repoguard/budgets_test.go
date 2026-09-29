@@ -181,7 +181,7 @@ var skillBudgets = []skillBudget{
 	// 0154: docket-build/references/delegation-execution.md removed — it was the
 	// evidence record for the Bash delegation facade that change 0370 deleted; its
 	// budget row is deleted with it.
-	{"docket-build/references/gate-caller-loop.md", 175, 1872}, // 0467: +prepare-scope --run-epoch and scope-inherited start epoch (word ceiling 1826 -> 1872); 0375: +worktree-admission section (word ceiling 1750 -> 1826)
+	{"docket-build/references/gate-caller-loop.md", 175, 1872}, // 0467: +prepare-scope --run-id and scope-inherited start epoch (word ceiling 1826 -> 1872); 0375: +worktree-admission section (word ceiling 1750 -> 1826)
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
@@ -278,7 +278,7 @@ func TestSkillSizeBudgets(t *testing.T) {
 const (
 	dispatchStart  = "docket:dispatch:start"
 	dispatchEnd    = "docket:dispatch:end"
-	dispatchBudget = 1153 // 0467 review fix-3: the Codex agent.enter request file also carries the unchanged run epoch for --run-epoch (was 1140); 0467: step 1 copies the <epoch> into the dispatch prompt alongside the dispatch context (was 1137); 0375: step 1 now states the arm prints the run epoch id and where it threads (run.cancel --epoch and every --run-epoch dispatch flag), so the documented human Stop path is followable; this rides atop the earlier 0375 Stop/cancel + resume-after-stop contract (was 1110). Re-baselined at the exact new count; still strictly below the retired roster (the anti-regrowth invariant below).
+	dispatchBudget = 1153 // 0467 review fix-3: the Codex agent.enter request file also carries the unchanged run epoch for --run-id (was 1140); 0467: step 1 copies the <epoch> into the dispatch prompt alongside the dispatch context (was 1137); 0375: step 1 now states the arm prints the run epoch id and where it threads (run.cancel --run-id and every --run-id dispatch flag), so the documented human Stop path is followable; this rides atop the earlier 0375 Stop/cancel + resume-after-stop contract (was 1110). Re-baselined at the exact new count; still strictly below the retired roster (the anti-regrowth invariant below).
 	dispatchOld    = 1156 // pre-0334 roster block; the ceiling must stay strictly below it.
 )
 

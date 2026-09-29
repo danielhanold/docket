@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// These are the `docket run gate-claim <key> <continuation-id>` (change 0359)
-// tests. gate-claim redeems the single-use continuation a gate-continue verdict
+// These are the `docket run continue <key> <continuation-id>` (change 0359)
+// tests. run continue redeems the single-use continuation a gate-continue verdict
 // recorded: it loads the durable record, constant-time-compares the presented id
 // against the stored one, and consumes the recovered drive's handoff through a
 // (faked here) claim seam. It fails closed on no-continuation / mismatch /

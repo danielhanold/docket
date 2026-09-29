@@ -97,7 +97,7 @@ type WorkspaceService interface {
 // postcondition verdict instead.
 //
 // Continuation is the OPTIONAL drive-layer continuation seam consulted only by
-// `run gate-verdict` (change 0359): it locates a tracked drive under the
+// `run verdict` (change 0359): it locates a tracked drive under the
 // dispatch's outer recovery scope, performs the event-authorized outer takeover,
 // and reads a cooperative handoff token so the verdict can emit a nonterminal
 // gate-continue. A nil seam means the verdict path never continues a tracked

@@ -324,30 +324,30 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// required flags then the bare `--` separator carrying the argv tail last.
 		"gate.launch": "--cwd <dir> --root <dir> -- <argv...>",
 		// positional alternation tail leading, optional flags trailing.
-		"run.gate-verdict": "<key> | [<id>...] [--repo-dir <dir>] [--unattributed]",
-		// change 0359: gate-before gains --resume for explicit resume attribution;
+		"run.verdict": "<key> | [<id>...] [--repo-dir <dir>] [--unattributed]",
+		// change 0359: run start gains --resume for explicit resume attribution;
 		// the target positional leads, the optional flags trail sorted.
-		"run.gate-before": "<target> [--repo-dir <dir>] [--resume <id>]",
-		// change 0359: gate-claim redeems a single-use continuation — the two
+		"run.start": "<target> [--repo-dir <dir>] [--resume <id>]",
+		// change 0359: run continue redeems a single-use continuation — the two
 		// positionals (key, continuation id) lead, the optional repo dir trails.
-		"run.gate-claim": "<key> <continuation-id> [--repo-dir <dir>]",
+		"run.continue": "<key> <continuation-id> [--repo-dir <dir>]",
 		// change 0375: human Stop — the three required flags sorted, then the optional
 		// repo dir; no positional tail.
-		"run.cancel": "--epoch <id> --key <key> --reason <reason> [--repo-dir <dir>]",
+		"run.cancel": "--key <key> --reason <reason> --run-id <id> [--repo-dir <dir>]",
 		// change 0359: the config owners run their resolved suite command; the
 		// task-intent owner (--owner task) alone takes the focused argv after a bare
 		// `--` separator, which lands last.
 		// change 0405: gate.drive.start gains the two optional successor-receipt flags,
 		// sorted among the other optionals (after --phase, before --ref).
-		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--child-cap <token>] [--cwd <dir>] [--env-hash <hash>] [--gate-context <token>] [--idempotent-suite-gate] [--phase <name>] [--predecessor-drive-id <id>] [--predecessor-owner-gen <gen>] [--ref <ref>] [--repo-dir <dir>] [--run-epoch <id>] [--scope-id <id>] [--task-id <id>] -- <argv...>",
+		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--child-cap <token>] [--cwd <dir>] [--env-hash <hash>] [--gate-context <token>] [--idempotent-suite-gate] [--phase <name>] [--predecessor-drive-id <id>] [--predecessor-owner-gen <gen>] [--ref <ref>] [--repo-dir <dir>] [--run-id <id>] [--scope-id <id>] [--task-id <id>] -- <argv...>",
 		// change 0405: terminal acknowledgement — four required credential flags,
 		// sorted, then the optional repo dir.
 		"gate.drive.acknowledge": "--child-cap <token> --drive-id <id> --owner-gen <gen> --scope-id <id> [--repo-dir <dir>]",
 		// change 0359: recovery-scope preparation (required identity flags) and the
-		// event-authorized parent takeover. change 0375 adds the optional --run-epoch,
+		// event-authorized parent takeover. change 0375 adds the optional --run-id,
 		// which threads the run epoch onto the scope so the takeover epoch-revocation
 		// gate is live rather than dead code.
-		"gate.drive.prepare-scope": "--branch <name> --change-id <id> --phase <name> --task-id <id> --worktree <dir> [--gate-context <token>] [--repo-dir <dir>] [--run-epoch <id>]",
+		"gate.drive.prepare-scope": "--branch <name> --change-id <id> --phase <name> --task-id <id> --worktree <dir> [--gate-context <token>] [--repo-dir <dir>] [--run-id <id>]",
 		"gate.drive.takeover":      "--parent-cap <token> --scope-id <id> [--drive-id <id>] [--repo-dir <dir>]",
 	}
 	for id, wantSig := range want {

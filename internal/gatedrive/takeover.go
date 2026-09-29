@@ -282,7 +282,7 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // under the same gate key then finds scope.Closed and HALTs scope-closed
 // (gateOuterContinuation maps that to a terminal gate-stop gate-unavailable, no
 // retry spent). This is intentional fail-closed behavior — a human recovers by
-// re-arming a fresh scope via `gate-before --resume` — not a bug; see the spec's
+// re-arming a fresh scope via `run start --resume` — not a bug; see the spec's
 // §5 continuation clause ("remains active until implement-next reaches a true
 // terminal disposition") for the documented bound.
 func (s *Store) claimScopeForTakeover(scopeID, driveID string) error {

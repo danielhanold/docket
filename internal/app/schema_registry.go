@@ -105,9 +105,9 @@ var operationBindings = []OperationBinding{
 	{ID: "repository.prepare", Request: nil, Result: RepositoryPrepareResult{}},                                    // RunRepositoryPrepare
 	{ID: "repository.sync-integration", Request: nil, Result: RepositorySyncResult{}},                              // RunRepositorySyncIntegration
 	{ID: "run.cancel", Request: nil, Result: RunCancelResult{}},                                                    // RunCancel
-	{ID: "run.gate-before", Request: nil, Result: RunGateBeforeResult{}},                                           // RunGateBefore
-	{ID: "run.gate-claim", Request: nil, Result: RunGateClaimResult{}},                                             // RunGateClaim
-	{ID: "run.gate-verdict", Request: nil, Result: RunGateVerdictResult{}},                                         // RunGateVerdict (observe mode returns RunGateVerdictObserveResult)
+	{ID: "run.continue", Request: nil, Result: RunGateClaimResult{}},                                               // RunGateClaim
+	{ID: "run.start", Request: nil, Result: RunGateBeforeResult{}},                                                 // RunGateBefore
+	{ID: "run.verdict", Request: nil, Result: RunGateVerdictResult{}},                                              // RunGateVerdict (observe mode returns RunGateVerdictObserveResult)
 	{ID: "run.verify", Request: RunVerifyRequest{}, Result: RunVerifyResult{}},                                     // RunVerify
 	{ID: "status", Request: nil, Result: StatusResult{}},                                                           // Status
 	{ID: "uninstall", Request: nil, Result: InstallResult{}},                                                       // RunUninstall

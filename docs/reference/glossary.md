@@ -939,18 +939,18 @@ docket workspace publish --id 412 --head <sha>
 
 ### Arm / gate key / run epoch / dispatch context
 
-**Arming** (`run.gate-before`) mints three values before a dispatch: the **gate key** (ties a finish
+**Arming** (`run.start`) mints three values before a dispatch: the **gate key** (ties a finish
 to this launch), the **run epoch** (the id of this run, threaded into cancel and drive flags), and
 the **dispatch context** (a token). The dispatch context and the run epoch are both copied into the
-implement-next dispatch prompt; a scope prepared with `--run-epoch` hands that epoch to every scoped
+implement-next dispatch prompt; a scope prepared with `--run-id` hands that epoch to every scoped
 start under it, so build-task workers never receive it (except the repair worker, for its
 build-owned post-fix re-run). It prints
 `gate-armed <key> <epoch> <dispatch-context>`; `gate-unarmed` still allows a keyless dispatch that
 can never authorise a re-dispatch.
 
 ```sh
-docket run gate-before implement-next
-docket run gate-before implement-next --resume 412   # resuming an in-progress change
+docket run start implement-next
+docket run start implement-next --resume 412   # resuming an in-progress change
 ```
 
 ### Attribution / unattributed read
@@ -969,7 +969,7 @@ interrupting the coordinator, or killing a process does not tell the gate the ru
 cancel does.
 
 ```sh
-docket run cancel --key <key> --epoch <epoch> --reason "superseded by 413"
+docket run cancel --key <key> --run-id <epoch> --reason "superseded by 413"
 ```
 
 ### Continuation
@@ -978,20 +978,20 @@ A single-use id handed out with `gate-continue`, redeemed by the resumed control
 attempt carries on.
 
 ```sh
-docket run gate-claim <key> <continuation-id>
+docket run continue <key> <continuation-id>
 ```
 
 ### Epoch fence
 
 The mark `run.cancel` puts on a [run epoch](#arm--gate-key--run-epoch--dispatch-context) so nothing new can attach to
-that run. A fenced epoch is never restored, and a scope prepared with `--run-epoch` lets the fence also revoke a later
+that run. A fenced epoch is never restored, and a scope prepared with `--run-id` lets the fence also revoke a later
 takeover.
 
 **Used for:** making a cancel stick while teardown finishes.
 
 ### Gate verdict
 
-The single report line `run.gate-verdict` prints after a run returns. Obey the line, never the exit
+The single report line `run.verdict` prints after a run returns. Obey the line, never the exit
 code or the child's prose.
 
 | Line | Meaning |
@@ -1004,21 +1004,21 @@ code or the child's prose.
 | `run-halted` | A human is needed. |
 
 ```sh
-docket run gate-verdict <key>
-docket run gate-verdict --unattributed 412   # no key: observe-only, can never authorise a retry
+docket run verdict <key>
+docket run verdict --unattributed 412   # no key: observe-only, can never authorise a retry
 ```
 
 ### Gate-context refusal (`gate-context-invalid` / `gate-context-conflict`)
 
-The two `change.claim` outcomes when the dispatch context token passed as `--gate-context` fails validation against
+The two `change.claim` outcomes when the dispatch context token passed as `--run-context` fails validation against
 the armed gate: the token is invalid, or it conflicts with a claim already bound to the gate. Either refusal writes
 nothing.
 
 **Used for:** binding a gated dispatch to exactly one claim. Never retry a refused gated claim as an ungated one. Leave
-out `--gate-context` only when no dispatch context was given.
+out `--run-context` only when no dispatch context was given.
 
 ```sh
-docket change claim --id 412 --version <v> --gate-context <dispatch-context>
+docket change claim --id 412 --version <v> --run-context <dispatch-context>
 docket schema --json | jq '.vocabularies.claim_dispositions'
 ```
 
@@ -1034,7 +1034,7 @@ The bookkeeping around a launched build run: who launched it, whether it finishe
 be retried. It keeps that state durably, outside the worker's prose.
 
 **Used for:** deciding whether to dispatch again. A completion notification is the child's claim,
-never the parent's verdict. The `run.*` operations (`gate-before`, `gate-verdict`, `gate-claim`,
+never the parent's verdict. The `run.*` operations (`run start`, `run verdict`, `run continue`,
 `cancel`) are the **gate facade**: it owns attribution, durable state, and retry accounting, which
 are never reimplemented by hand. If the `docket` binary is missing, the install is broken.
 
@@ -1077,11 +1077,11 @@ dispatch boundary; `takeover` lets the parent reclaim a drive whose child return
 off; `acknowledge` consumes the final PASSED/FAILED result and closes the scope (idempotent).
 
 ```sh
-docket gate drive start   --repo-dir . --owner build --run-root <dir> --run-epoch <epoch> -- <suite argv>
+docket gate drive start   --repo-dir . --owner build --run-root <dir> --run-id <epoch> -- <suite argv>
 docket gate drive advance --drive-id <id> --owner-gen <gen>
 docket gate drive handoff --drive-id <id> --owner-gen <gen>
 docket gate drive claim   --drive-id <id> --handoff-id <token>
-docket gate drive prepare-scope --change-id 412 --task-id <id> --phase <name> --branch <name> --worktree <dir> --run-epoch <epoch>
+docket gate drive prepare-scope --change-id 412 --task-id <id> --phase <name> --branch <name> --worktree <dir> --run-id <epoch>
 docket gate drive takeover      --scope-id <id> --parent-cap <token>
 docket gate drive acknowledge   --scope-id <id> --child-cap <token> --drive-id <id> --owner-gen <gen>
 ```
@@ -1524,7 +1524,7 @@ Other harnesses dispatch named agents natively instead.
 
 ```sh
 docket agent enter --role <role> --request req.md --cwd "$PWD" \
-  --approval-policy <policy> --sandbox <mode> --run-epoch <epoch> --run-gate-key <key>
+  --approval-policy <policy> --sandbox <mode> --run-id <epoch> --run-key <key>
 ```
 
 ### Cursor dispatch rule (`docket-dispatch.mdc`)
@@ -2162,7 +2162,7 @@ docket version                        # confirm the installed commit
 
 ### Operation / operation id
 
-A single `docket` capability with a stable dotted id (`change.claim`, `run.gate-verdict`,
+A single `docket` capability with a stable dotted id (`change.claim`, `run.verdict`,
 `finalize.merge`). Skills resolve the command for an id from the catalog rather than hard-coding it.
 
 ### Protocol-v1 envelope
