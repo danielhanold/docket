@@ -1,12 +1,12 @@
 # Backlog
 
-**478 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 4 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 324 done · 🗑️ 120 killed
+**478 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 4 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 324 done · 🗑️ 120 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0477](active/0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) | Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context) | `high` | `refactor` | [spec](../superpowers/specs/2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md) | `refactor/rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0477](active/0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) | Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context) | `high` | `refactor` | [#353](https://github.com/danielhanold/docket/pull/353) | awaiting merge |
 
 ## 🔴 Blocked (1)
 

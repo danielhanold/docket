@@ -2,7 +2,7 @@
 id: 477
 slug: 'rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex'
 title: 'Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context)'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'refactor'
 created: '2026-09-29'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/353'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-29T21:39:42Z'
