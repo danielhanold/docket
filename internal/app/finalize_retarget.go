@@ -57,7 +57,7 @@ const (
 	childOutcomeContended      = "contended"        // unauthorized-open, ambiguous head, or version drift
 	childOutcomeUnknown        = "unknown"          // a probe could not establish the truth
 	childOutcomeSkippedDone    = "skipped-terminal" // stacked-merged/done/killed: does not block, not edited
-	childOutcomeSkippedNotOpen = "skipped-not-open" // non-terminal child with no open PR: does not block
+	childOutcomeSkippedNotOpen = "skipped-not-open" // non-final child with no open PR: does not block
 )
 
 // The stable machine reasons the operation reports for its typed refusals. Message
@@ -287,7 +287,7 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 		}
 		switch {
 		case len(prs) == 0:
-			// A non-terminal child with no open PR poses no orphan hazard when the
+			// A non-final child with no open PR poses no orphan hazard when the
 			// parent branch is deleted; it does not block and there is nothing to edit.
 			children = append(children, ChildRetargetOutcome{ID: int(childID), Outcome: childOutcomeSkippedNotOpen})
 		case len(prs) == 1:

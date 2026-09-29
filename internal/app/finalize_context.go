@@ -370,7 +370,7 @@ func ContextFinalize(ctx context.Context, deps FinalizeDeps, repoDir string, req
 		selectIDs = []int{req.ID}
 	}
 
-	// Probe live PR facts for every change in finalize's population — non-terminal
+	// Probe live PR facts for every change in finalize's population — non-final
 	// and carrying a PR reference, bounded by the allowlist when one is given — so
 	// the domain selector orders over authoritative facts. A probe error is
 	// unknown facts, never a clean absence.
@@ -595,7 +595,7 @@ func finalizeHasPRRef(c domain.Change) bool {
 }
 
 // finalizeInPopulation reports whether c is in finalize's population: a
-// non-terminal change carrying a usable PR reference. It is the single predicate
+// non-final change carrying a usable PR reference. It is the single predicate
 // `context finalize`, the explicit-id guard, and the maintenance sweep's batched
 // PR selection all key on, so the population can never drift between the readers
 // (learning duplicated-gate-copies-the-whole-predicate).

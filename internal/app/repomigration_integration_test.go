@@ -43,7 +43,7 @@ const legacyDocketYML = "# legacy docket configuration\n" +
 func cleanLegacyFiles() map[string]string {
 	return map[string]string{
 		// Active surface (the live planning surface migration prunes from
-		// integration). Non-terminal, since a terminal change in active/ is a
+		// integration). Non-final, since a final-status change in active/ is a
 		// placement error.
 		"docs/changes/active/0001-first-change.md":  migChangeRecord(1, "first-change", "proposed", "depends_on: [3]"),
 		"docs/changes/active/0002-second-change.md": migChangeRecord(2, "second-change", "proposed", ""),

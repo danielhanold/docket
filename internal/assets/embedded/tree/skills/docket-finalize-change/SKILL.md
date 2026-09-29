@@ -73,7 +73,7 @@ The `context.finalize` operation with `[--id <id> | --allowlist <ids>]`. Read-on
 If the candidate has open child PRs targeting this change's branch, they must be retargeted onto its effective base **before** the merge, or the merge refuses with `not-mergeable`/an open-children conjunct.
 
 - **Attended run:** author the exact authorized child set the human confirmed into a request file — `{ID, PRNumber, PRVersion}` per child, taken from the context bundle — and run the `finalize.retarget-children` operation with `--id <id> --version <version> --input <file>`. It probes/acts/verifies each authorized PR onto the effective base, adopting an already-retargeted exact PR as a no-op. A child open in the live graph but **absent from the authorized set** returns `contended` with zero edits — a new child appeared; re-read context. Version drift, an ambiguous head, or a probe error returns `contended`/`unknown` and enables no parent merge. It writes no metadata and never touches `stacked_on:`.
-- **Autonomous run:** retargeting an open child re-points work the human never authorized. An autonomous run does **not** author one: an eligible change carrying open unauthorized children is `halted` — record a `## Finalize blocked` marker (step 8's mechanism) and stop. Terminal children (`stacked-merged`/`done`) neither block nor retarget.
+- **Autonomous run:** retargeting an open child re-points work the human never authorized. An autonomous run does **not** author one: an eligible change carrying open unauthorized children is `halted` — record a `## Finalize blocked` marker (step 8's mechanism) and stop. Closed-out children (`stacked-merged`/`done`) neither block nor retarget.
 
 ### 3. Rebase onto the effective base (resolver loop)
 

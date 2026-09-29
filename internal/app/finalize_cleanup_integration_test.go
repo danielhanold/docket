@@ -238,11 +238,11 @@ func TestIntegrationFinalizeCleanupOnlyAfterTerminal(t *testing.T) {
 
 	t.Run("non-terminal-refused", func(t *testing.T) {
 		f := setupCloseoutFixture(t, planRepoModeDocket())
-		// The record is implemented (non-terminal), no aborted rebase scratch.
+		// The record is implemented (non-final), no aborted rebase scratch.
 		gh := f.mergedCleanupFake(f.head, strings.Repeat("d", 40))
 		res := FinalizeCleanup(context.Background(), f.cleanupDeps(gh, f.deps.Client, f.svc), f.repo.invocation, f.id)
 		if res.Result == ResultApplied {
-			t.Fatalf("cleanup of a non-terminal change must refuse, got %q disp %q", res.Result, res.Disposition)
+			t.Fatalf("cleanup of a non-final change must refuse, got %q disp %q", res.Result, res.Disposition)
 		}
 		if !f.localBranchPresent(t) || !f.remoteBranchPresent(t) {
 			t.Fatalf("a refused cleanup must leave the branches intact")
