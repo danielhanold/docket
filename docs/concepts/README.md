@@ -18,7 +18,7 @@ parts, the invariants, and the decisions behind it.
 - [Build profiles and the suite gate](./build-profiles-and-gate.md) — routing
   each task to a worker sized for its risk, then proving the whole suite green
   once.
-- [The run gate and attribution](./run-gate.md) — the bookkeeping that decides
+- [The run tracker and attribution](./run-tracker.md) — the bookkeeping that decides
   whether a launched build really finished and may be retried.
 - [Finalize as a sequencer](./finalize-sequencer.md) — close-out as an ordered
   chain of gated steps: rebase, retest, merge, archive.

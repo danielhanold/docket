@@ -1,4 +1,4 @@
-# The run gate and attribution
+# The run tracker and attribution
 
 ## The problem it solves
 
@@ -11,7 +11,7 @@ work again while it is still in flight, or you mark a change — one unit of
 planned work, roughly one pull request, tracked as one markdown file — as
 finished when it actually halted and needs a human.
 
-The **run gate** is the bookkeeping around a launched build run: who
+The **run tracker** is the bookkeeping around a launched build run: who
 launched it, whether it finished, whether it may be retried. It keeps
 those facts in durable state of its own, outside the worker's prose, so
 the decision to launch again rests on something the worker cannot fake by
@@ -21,18 +21,18 @@ Attribution is the second half of the same problem. When two build loops
 run at once, a finish has to be tied back to the exact launch that
 produced it — otherwise one loop's completed work gets credited to the
 other loop's launch, and the wrong change is retried or marked done. The
-gate answers "did *this* launch finish?" mechanically, by a key it minted
-when the launch was armed, never by matching on timing or names.
+tracker answers "did *this* launch finish?" mechanically, by a key it minted
+when the launch was started, never by matching on timing or names.
 
 ## The moving parts
 
-The parent arms the gate, launches a worker — an agent, a separately
+The parent starts a tracked run, launches a worker — an agent, a separately
 launched worker with its own context, pinned to a model and effort —
-carrying the gate's key, and later asks the gate for a verdict. The
+carrying the run key, and later asks the tracker for a verdict. The
 verdict, not the worker's report, says what may happen next.
 
 ```
-  run start ──arms──► <key> + dispatch-context
+  run start ──mints─► <key> + run-context
        │                         (both handed to the launch)
        ▼
   launch the worker (carries the key)
@@ -41,7 +41,7 @@ verdict, not the worker's report, says what may happen next.
   worker runs, then a completion notification arrives
        │                         (the worker's own claim)
        ▼
-  run verdict <key> ──reads the gate's durable state, not the prose──►
+  run verdict <key> ──reads the tracker's durable state, not the prose──►
        │
        ├─ run-retry-once ──► exactly one more launch, same key
        │                      (granted at most run.max_attempts - 1 times)
@@ -50,17 +50,17 @@ verdict, not the worker's report, says what may happen next.
        └─ run-halted ──────► the run needs a human
 ```
 
-- **Arming** mints the key and a dispatch-context string; the launch
-  carries both, so the finish can later be matched to this arming and no
+- **Starting** mints the key and a run-context string; the launch
+  carries both, so the finish can later be matched to this start and no
   other.
 - **The worker** is put to work by a dispatch — launching a named agent
-  to do a step and waiting for it to return — but the run gate itself
+  to do a step and waiting for it to return — but the run tracker itself
   does not sit and wait: it launches, then observes, so a long run does
   not pin the parent.
-- **The verdict** reads the gate's own record of the run and emits one
+- **The verdict** reads the tracker's own record of the run and emits one
   report line. Only one line authorizes another launch; the rest forbid
   it.
-- A run can end in a **halt** — a state the gate reports with its own
+- A run can end in a **halt** — a state the tracker reports with its own
   exit code, distinct from a plain pass or fail, because a runner that
   exits non-zero for its own reasons has not necessarily failed the work.
 
@@ -103,15 +103,15 @@ So a busy-slot refusal is diagnosed, never guessed around:
 ## The invariants
 
 - A completion notification is the worker's claim, never the parent's
-  verdict; only the gate's durable state authorizes a re-launch.
-- Every verdict is read against the key that armed the launch; with no
-  key, the gate falls back to an unattributed read against a named change
+  verdict; only the tracker's durable state authorizes a re-launch.
+- Every verdict is read against the key that started the launch; with no
+  key, the tracker falls back to an unattributed read against a named change
   id and can never authorize a re-launch from that fallback.
-- The gate attributes a claim conservatively: when it cannot mechanically
+- The tracker attributes a claim conservatively: when it cannot mechanically
   tie a finish to this launch, it declines to credit it rather than
   guessing.
 - A halt is reported with its own exit code, and that exit code is a
-  property of the run's state, not of how the gate learned the run had
+  property of the run's state, not of how the tracker learned the run had
   stopped.
 - A non-zero liveness probe is not evidence the run died — only a failed
   existence check is.
@@ -125,10 +125,10 @@ So a busy-slot refusal is diagnosed, never guessed around:
   — made a build run's verdict tri-state, so a runner-defined non-failure
   exit is read as a halt, not a pass.
 - [ADR-0075](../adrs/0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md)
-  — had the run gate attribute a claim conservatively and report a halt
+  — had the run tracker attribute a claim conservatively and report a halt
   with its own exit code.
 - [ADR-0078](../adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md)
-  — settled the parent-facing gate surface for Claude Code and its
+  — settled the parent-facing run-tracker surface for Claude Code and its
   one-physical-instructions-file policy.
 - [ADR-0080](../adrs/0080-detached-delegation-execution-posture-launch-then-observe.md)
   — set the detached-run posture to launch-then-observe.
@@ -140,7 +140,7 @@ So a busy-slot refusal is diagnosed, never guessed around:
   death.
 - [ADR-0088](../adrs/0088-halt-exit-code-is-a-property-of-run-state-not-discovery-path.md)
   — fixed a halt's exit code as a property of the run's state, not of the
-  path by which the gate discovered it.
+  path by which the tracker discovered it.
 - [ADR-0095](../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md)
   — replaced the per-platform detachment contract with a native
   supervisor that delivers a genuine session and an exact terminal record

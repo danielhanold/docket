@@ -379,8 +379,8 @@ set to the absolute canonical feature-worktree root and carry the unchanged stru
   For production Docket routing, install the candidate's Codex assets and generated `AGENTS.md`
   into a disposable repository, then start a fresh Codex parent with only an ordinary prose request
   such as "Please implement change 1." Do not tell that parent to invoke `agent.enter` or choose a
-  registered child. Observe it arm `run.start`, choose the marked role's root-entry operation,
-  and carry the emitted dispatch context unchanged into the request file. Require a real
+  registered child. Observe it call `run.start`, choose the marked role's root-entry operation,
+  and carry the emitted run context unchanged into the request file. Require a real
   `docket-plan-writer` child and a verified plan attachment, then complete the change. After the
   foreground root returns, require the parent's exact keyed report
   `run-done <key> run-complete <change-id>`. `no-attributable-claim` fails this completion check.

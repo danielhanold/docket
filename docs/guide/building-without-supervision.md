@@ -151,5 +151,5 @@ therefore only clears between drains when a merge happens outside the loop — y
 separate close-out drain ([Landing changes safely](./landing-changes.md)). Confirm the driver
 composes cleanly in your own setup before relying on it unattended; loop behavior is version- and
 mode-specific. The bookkeeping that decides whether a stopped run may be retried at all — who
-launched it, whether it finished, whether a re-dispatch is allowed — is the run gate, described in
-[The run gate and attribution](../concepts/run-gate.md).
+launched it, whether it finished, whether a re-dispatch is allowed — is the run tracker, described in
+[The run tracker and attribution](../concepts/run-tracker.md).
