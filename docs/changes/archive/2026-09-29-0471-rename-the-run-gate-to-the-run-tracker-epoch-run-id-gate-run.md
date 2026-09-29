@@ -2,7 +2,7 @@
 id: 471
 slug: 'rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run'
 title: 'Rename the run gate to the run tracker (epoch → run id, gate-* → run-*)'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -22,7 +22,7 @@ branch: 'refactor/rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run'
 pr: 'https://github.com/danielhanold/docket/pull/352'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-29T15:10:42Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-29T15:10:42Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-design.md) |
-| Plan | [2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md](https://github.com/danielhanold/docket/blob/refactor/rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run/docs/superpowers/plans/2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) |
-| Results | [2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-results.md](https://github.com/danielhanold/docket/blob/refactor/rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run/docs/results/2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-results.md) |
+| Plan | [2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) |
+| Results | [2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
