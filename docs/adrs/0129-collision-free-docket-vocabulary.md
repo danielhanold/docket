@@ -62,9 +62,9 @@ This ADR records the vocabulary settled by change 0468. It is the single referen
 10. **No human-readable old→new mapping in the glossary.** The mapping lives in (i) this change's ADR, as the decision record, and (ii) a code-level **retired-vocabulary table** in `internal/repoguard`. That table maps each retired wire token to its replacement, drives the family absence seals, and names the replacement in every seal failure. The first family to land creates the table, and each later family appends its rows. The umbrella does not create an empty table, because a seal over an empty list cannot be mutation-tested.
 11. **Retired features go to an "Obsolete terms" section of the glossary**, separate from renames: runner delegation, the runner shim / `runners` block, `runtime.bash`, terminal publish. The config-decode warnings for those keys stay.
 
-### Rename table (rows 1-66, plus 38a-38d)
+### Rename table (rows 1-66, plus 28a and 38a-38h)
 
-Row ownership: rows 1-38 and 38a-38d -> change 0471; rows 39-45 -> change 0472; rows 46-52 -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
+Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45 -> change 0472; rows 46-52 -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
 
 Kinds:
 - **concept**: a word in docs, skills and agent text.
@@ -121,6 +121,10 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 | 38b | key | `run.gate-before` (row 7: `run.start`) result JSON `epoch` | `run_id` |
 | 38c | key | `change.claim` request `gate_context` | `run_context` |
 | 38d | env | `DOCKET_AGENT_GUARDIAN_EPOCH` | `DOCKET_AGENT_GUARDIAN_RUN_ID` |
+| 38e | flag | gate drive `--gate-context` (`gate drive start`, `gate drive prepare-scope`) | `--run-context` |
+| 38f | env | `DOCKET_AGENT_GUARDIAN_GATE_KEY` | `DOCKET_AGENT_GUARDIAN_RUN_KEY` |
+| 38g | key | `run.start` (row 7) result JSON `dispatch_context` | `run_context` |
+| 38h | stage | error-text prefix `rungate store` | `run-tracker store` |
 
 `run.cancel`, `run.verify`, `--key`, and the verdict reason tokens that do not carry "gate" or "epoch" (e.g. `run-waiting`, `takeover-ambiguous`, `no-attributable-claim`) are unchanged.
 
@@ -219,3 +223,7 @@ Edited in place with the human's explicit authorization, before any family chang
 ## Update — 2026-09-29 (change 0471 build)
 
 The decision stands. Building family (a) found one name the table missed: the `run.cancel` finding token `replacement-epoch-unreadable:<key>`. Change 0471 renamed it to `replacement-run-record-unreadable:<key>`, following row 28's pattern, and the table now records it as row 28a. Added with the human's explicit authorization, after the change was built and its PR opened.
+
+## Update — 2026-09-29 (change 0477 grooming)
+
+The decision stands. Change 0471 kept three run-tracker spellings because no row named them: the gate drive's own `--gate-context` flag, the guardian environment variable `DOCKET_AGENT_GUARDIAN_GATE_KEY`, and the `run.start` result key `dispatch_context`. It also renamed the store error prefix `rungate store` to `run-tracker store` without a row. Change 0477 renames the three kept spellings, following rows 12, 5 and 6, and the table now records all four as rows 38e-38h. Row 38h only records the rename 0471 already made. With row 38e, every `--gate-context` is retired, including the gate drive's, so the gate drive and `change claim` take the same run-context token under one flag name. The committed claim-receipt key `gate_context_hash` still stays (Decision 3). Added with the human's explicit authorization at change 0477's grooming, before it was built.
