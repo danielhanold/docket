@@ -13,7 +13,7 @@ markdown file) life. Once its pull request is approved or merged, `docket-finali
 
 1. rebases the feature branch onto the **integration branch** (the branch code lands on, usually
    `main`),
-2. re-runs the test suite on the rebased branch (the merge gate),
+2. re-runs the test suite on the rebased branch (the finalize gate),
 3. merges the pull request,
 4. archives the change to `done` and refreshes the **board** (the generated overview of every change
    and its state, never edited by hand).
@@ -21,7 +21,7 @@ markdown file) life. Once its pull request is approved or merged, `docket-finali
 The retest is the load-bearing step. The build's own tests certified the branch as it stood when the
 build finished; the rebase re-checks it against whatever merged in the meantime, so a branch that was
 green in isolation but conflicts with newer work cannot land a broken integration. `finalize.gate` is
-the on/off switch for that merge gate — leave it `local` (the default) unless you trust each pull
+the on/off switch for that finalize gate — leave it `local` (the default) unless you trust each pull
 request's own continuous-integration checks, in which case `off` skips the local rebase-and-retest.
 The step-by-step mechanism, and what happens when the rebased suite reds, is
 [Finalize as a sequencer](../concepts/finalize-sequencer.md); re-greening after the rebase is covered
@@ -60,7 +60,7 @@ built-in `/loop` is the recommended driver:
   `## Finalize blocked`.
 
 Unlike the drainer that only builds changes, this driver **does merge** — that is the whole point of
-it, and it is the one place docket itself merges. Every merge still passes the rebase-retest gate, so
+it, and it is the one place docket itself merges. Every merge still passes the finalize gate, so
 `finalize.gate` stays your correctness control. (Draining the build side with the same loop is
 [Building without supervision](./building-without-supervision.md).)
 
@@ -70,7 +70,7 @@ the tiebreak — so each drain lands as many changes as it can before anything s
 
 ## When finalize is blocked
 
-A change whose merge gate fails is marked with a `## Finalize blocked` section (dated in its body),
+A change whose finalize gate fails is marked with a `## Finalize blocked` section (dated in its body),
 shows on the board as **finalize blocked — needs you**, and is skipped by later *unscoped* runs until
 a successful finalize clears it automatically. **Name its id to retry it:**
 `/loop docket-finalize-change 90` re-attempts change 90 specifically, and naming the id is exactly
@@ -103,7 +103,7 @@ is precisely why docket's earlier bot-approval design failed: its very first ste
 pull request** but require **zero** approvals (`required_approving_review_count: 0`; leave
 `enforce_admins` off). A solo maintainer cannot approve their own pull request, so a nonzero
 requirement is structurally unsatisfiable — but with zero required approvals,
-`docket-finalize-change` runs its rebase-retest gate and then merges via a plain `gh pr merge
+`docket-finalize-change` runs its finalize gate and then merges via a plain `gh pr merge
 --rebase`: **no `--admin`, no bot, and nothing for the classifier to deny.** Changing the real state of
 the external system beats arguing with the guard. Without this setting the drain stops at `halted` on
 the first merge.

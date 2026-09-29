@@ -1,6 +1,6 @@
-# Four-harness fresh-session acceptance — the human merge-gate procedure
+# Four-harness fresh-session acceptance — the PR-handoff procedure
 
-This is the human merge-gate checklist for change 0317. The fresh-session live acceptance is
+This is the PR-handoff checklist for change 0317. The fresh-session live acceptance is
 external truth: vendor behavior and process-start loading of agent/skill registries cannot be
 promoted to a pass by any in-repo test. This document is the procedure a human runs by hand against
 a candidate bundle; it is **not** run by this task, and the pass/fail evidence it produces is

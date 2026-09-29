@@ -153,10 +153,10 @@ var proseContracts = []proseContract{
 	// tests/test_cursor_dispatch_rule.sh — cursor dispatch head contract.
 	{sentinel: "test_cursor_dispatch_rule", file: "cursor-rules/dispatch.head.md",
 		present: []string{"## Required dispatch pattern", "run the skill inline"}},
-	// tests/test_cursor_contract_docs.sh — cursor validation merge-gate obligation
+	// tests/test_cursor_contract_docs.sh — cursor validation PR-handoff obligation
 	// (moved to the harness reference by change 0402).
 	{sentinel: "test_cursor_contract_docs", file: "docs/reference/harness/validation.md",
-		present: []string{"## The merge-gate obligation"}},
+		present: []string{"## The PR-handoff obligation"}},
 	// tests/test_cursor_permissions_docs.sh — the permissions guidance survives on the
 	// Cursor install page, which must link the example JSONs in the harness reference.
 	// Change 0402 folded docs/cursor/permissions.md into that page, so this

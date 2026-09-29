@@ -54,7 +54,7 @@ Every key is optional; an unset key means the shipped default. Common per-repo k
 planning and code live and how the board (the generated overview of every change and its state,
 never edited by hand) is rendered — `metadata_branch`, `integration_branch`, and `board_surfaces`
 — all of which are explained where they matter in
-[Where the metadata lives](../guide/where-the-metadata-lives.md), plus the merge-gate switch
+[Where the metadata lives](../guide/where-the-metadata-lives.md), plus the finalize-gate switch
 `finalize.gate` covered in [Proving the build](../guide/proving-the-build.md). Set only the keys you
 want to change, and copy their shape from `.docket.example.yml` rather than from any snippet — that
 example file is the surface the test suite keeps honest against docket's own resolver, and is

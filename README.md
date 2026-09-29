@@ -18,7 +18,7 @@ CLI to install.
 - **Hands-off implementation.** An autonomous skill claims the next ready change, refreshes it
   against the current state of the code, builds it with test-driven development, and opens a
   PR — with no supervision in between.
-- **You stay at the merge gate.** Agents never merge on their own authority. Your review of
+- **You own the PR handoff.** Agents never merge on their own authority. Your review of
   the pull request is the one required human checkpoint on the way to `done`.
 - **No new infrastructure.** Markdown files, git, and skills any supported harness can run —
   Claude Code, Cursor, Codex, and opencode are first-class.
@@ -65,7 +65,7 @@ The stance: plans rot, so refresh them just-in-time and never trust a stale back
 - **Merging the PR.** The one required checkpoint — the implementer stops at an open pull
   request every time.
 - **Finalize's confirmations.** Close-out merges only with your authorization, and unattended
-  repair at the merge gate blocks for your sign-off.
+  repair at the finalize gate blocks for your sign-off.
 - **Promoting a learning.** Findings graduate into the always-loaded instructions file only by
   your hand.
 - **Filing discovered work.** Runs report follow-up work; a human decides what enters the

@@ -30,7 +30,7 @@ product surfaces (the installer and the release downloader) keep their own shell
 ## Running it
 
 The whole suite runs through the Go-native runner — what `finalize.test_command` resolves to and
-what the merge gate runs (change 0318):
+what the finalize gate runs (change 0318):
 
 ```
 go run ./cmd/docket development test    # the whole-suite, branch-faithful source gate

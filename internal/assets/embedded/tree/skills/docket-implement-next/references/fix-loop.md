@@ -5,7 +5,7 @@ dispatching the first fix task.** Loaded on demand from Step 6; sibling files ar
 with the skill.
 
 The loop runs **after review returns and before the PR opens**, on the branch that is already
-green. The human's merge gate does not move: every auto-authored fix arrives inside the diff they
+green. The PR handoff does not move: every auto-authored fix arrives inside the diff they
 were going to read anyway. Nothing here relaxes `docket-review`'s read-only contract (ADR-0066) —
 the reviewer stays a reviewer, and the fixing is the implementer's.
 

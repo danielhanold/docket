@@ -100,7 +100,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 | Review rung chosen by rule | Not described. | Lean / standard / deep from the highest build profile; bumped above 1500 changed lines; refuses without green evidence at HEAD. | docket only |
 | Findings fixed by the agent | `@claude` on a PR comment pushes a fix. | Fixed before the PR opens by the fix loop (`review.min_fix_severity`, `review.max_fix_tasks`, blockers always); no PR-comment loop. | Both (pre-PR vs on-PR) |
 | Findings feed institutional memory | Into `CLAUDE.md`. | Learnings findings with promotion to `AGENTS.md`; harvest and index are human curation today. | docket · deferred |
-| Human merge gate | Code owner approves. | The implementer never merges; finalize merges only when authorised; branch-protection recipe. | Both |
+| PR handoff | Code owner approves. | The implementer never merges; finalize merges only when authorised; branch-protection recipe. | Both |
 | Rebase-and-retest before merge | Not described. | `finalize.gate` local / ci / both / off; evidence-based skip only on a no-op rebase. | docket only |
 | Conflict and repair agents at the gate | Not described. | `docket-rebase-resolver` (≤2), `docket-integration-repair` (≤2); unattended repair blocks for sign-off. | docket only |
 | Exactly-once, verified merge | Not described. | Every conjunct rechecked at the moment of effect; one permitted method; merge commit proven reachable. | docket only |

@@ -114,7 +114,7 @@ also kill an un-detached gate is unmeasured.
 
 **Verdict:** `supported` — standard launch shape only; un-detached behavior unmeasured
 
-## Change 0359 continuation/takeover acceptance — PENDING HUMAN RE-PROBE (pre-merge gate)
+## Change 0359 continuation/takeover acceptance — PENDING HUMAN RE-PROBE (before merge)
 
 The four-harness continuation/takeover acceptance probes for change 0359 were carved out of the
 autonomous build: they require driving four separately-installed harnesses and **must never be
@@ -150,7 +150,7 @@ Each harness must be observed against all of them:
 - A harness that cannot supply the direct-child return event or an explicit continuation is
   unsupported on that path, and the gap is reported, never bridged with a timer.
 
-This section is the outstanding merge-gate verification for change 0359: a human runs these probes
+This section is the outstanding PR-handoff verification for change 0359: a human runs these probes
 and records the evidence here before the PR merges. Do not merge on pending rows, and never write
 probe evidence that was not observed.
 

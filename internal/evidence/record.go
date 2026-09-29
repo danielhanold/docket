@@ -40,7 +40,7 @@ const (
 )
 
 // ReasonBuildGateOff is the fixed Reason a skipped record carries: the
-// repository explicitly disabled its build test gate (build.gate: off).
+// repository explicitly disabled its build gate (build.gate: off).
 const ReasonBuildGateOff = "build-gate-off"
 
 // Record is the immutable trusted build-evidence value. Every field is

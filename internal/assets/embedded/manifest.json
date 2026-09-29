@@ -1,14 +1,14 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:aa6aebe39ea3bbb09853acdfb8544cc6ede2533c0b193bf6f812b8fa127e171a",
+  "asset_set_id": "sha256:44808f18d6677716477491a74bc55aeab1e2e920b525bf328e1cb702f80bdcae",
   "entries": [
     {
       "path": ".docket.example.yml",
       "role": "config-schema",
       "mode": 420,
-      "size": 46228,
-      "sha256": "37f868d89efecb13dc02170a78005b757804d3cb7e61fcf482b38e57d89a62ad"
+      "size": 46207,
+      "sha256": "e27932c5c37de5ce65da3f42119a02e72cf0e0a72ccc368c9bf4e2503f6bf8a4"
     },
     {
       "path": "agents/docket-adr.md",
@@ -77,8 +77,8 @@
       "path": "agents/docket-implement-next.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 758,
-      "sha256": "8a8f3044e472af16458388a127d5f14685aeac5046e8bebc9e346e45cb2a54f6"
+      "size": 752,
+      "sha256": "9b1caaa0c29243ae65b4535682083ed77e869990afbeba92d5c1d7913ddd2ccc"
     },
     {
       "path": "agents/docket-integration-repair.md",
@@ -203,15 +203,15 @@
       "path": "cursor-rules/dispatch/docket-finalize-change.md",
       "role": "dispatch",
       "mode": 420,
-      "size": 843,
-      "sha256": "88b45153762acca4b6fc46b8ac9dc281fcd9451175cfeb9d205b125d6be19d4c"
+      "size": 838,
+      "sha256": "f41554c9f007347a26a74cb84c2f75c2b53a692bc13493f65f243c07d8719277"
     },
     {
       "path": "cursor-rules/dispatch/docket-implement-next.md",
       "role": "dispatch",
       "mode": 420,
-      "size": 899,
-      "sha256": "2a77177139747d296a5e4f08f56279acb5dfd62c345c60fd823b4859de498dda"
+      "size": 893,
+      "sha256": "747480d11bf6bf3e2459af45f3f0b0cf569de0e0ba751d03cd72b7ed3dbe0ec7"
     },
     {
       "path": "cursor-rules/dispatch/docket-integration-repair.md",
@@ -308,8 +308,8 @@
       "path": "skills/docket-build/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 30132,
-      "sha256": "2916825565ff7948578c69b03ff61cb65a9bd33d4dc900c0a21e1e59e446a5cf"
+      "size": 30127,
+      "sha256": "0c3fac5829178676c85dd8d28e736b55bba4040706e56cfd61c0889c49ae2e82"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",
@@ -329,8 +329,8 @@
       "path": "skills/docket-build/references/gate-execution.md",
       "role": "skill",
       "mode": 420,
-      "size": 9940,
-      "sha256": "de99c99749ceb5a79d1d6e5130f95ea189b7db1a173c6ae3a9ae88712d8edd4e"
+      "size": 9938,
+      "sha256": "d8d280cb3b0967c9a42cffe5bf3935733d935eabc54090e16fd688198da09571"
     },
     {
       "path": "skills/docket-build/references/task-routing.md",
@@ -343,8 +343,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 57407,
-      "sha256": "4ae3ae4b28e9d34b41a924afada3eaceed05ca98b8993484f587104c2fd1a2da"
+      "size": 57399,
+      "sha256": "f3eea3b38f6c158acc5d1c39a7669497249506b95fea211bbc8ad9f30cb4a2ea"
     },
     {
       "path": "skills/docket-convention/references/agent-layer.md",
@@ -371,8 +371,8 @@
       "path": "skills/docket-convention/references/stacked-changes.md",
       "role": "skill",
       "mode": 420,
-      "size": 13851,
-      "sha256": "875bcfad68542549c66d3223c26ed1569c13fcc28a1495e697bfe9906137d8d3"
+      "size": 13858,
+      "sha256": "5383cd5e68dc87037931306244370979dc63e328720d8cfd34e560ec3327d450"
     },
     {
       "path": "skills/docket-convention/references/terminal-close-out.md",
@@ -406,8 +406,8 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 56932,
-      "sha256": "6e2421f44a0fa5c2b40a7d61b816fa1932c7cb898bce73ee1fe306786c4f9bc1"
+      "size": 56920,
+      "sha256": "437a5030be523f6e86cb9d47ceeb2b62884d8da8382c4a1bcdf0f0bf5f93332c"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
@@ -420,8 +420,8 @@
       "path": "skills/docket-implement-next/references/fix-loop.md",
       "role": "skill",
       "mode": 420,
-      "size": 12474,
-      "sha256": "e816b20238f27eccb47536a1a85ff87331824ace07d16f5bb8db016b375115a4"
+      "size": 12466,
+      "sha256": "c91ebe0bce263c7cb86faea3223b12c53c563f1c43be0afc6f01169394c6a495"
     },
     {
       "path": "skills/docket-implement-next/results-template.md",

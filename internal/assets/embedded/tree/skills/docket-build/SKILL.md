@@ -245,7 +245,7 @@ gates cover only what each worker ran, and this is the one run that certifies th
 the implementation context as `build_gate`, `build_test_command`, and `build_max_attempts` —
 authoritative config the build role reads, never a command it invents:
 
-1. **`build_gate: off`** — the repo declares no build test gate. Run **nothing**: mint truthful
+1. **`build_gate: off`** — the repo declares no build gate. Run **nothing**: mint truthful
    **skipped** evidence via the `evidence.record` operation (no run dir) — `result: skipped` /
    `reason: build-gate-off` at the current head — and proceed to review. Nothing to run or repair.
 2. **`build_gate: local`, non-empty `build_test_command`** — drive it through the native gate

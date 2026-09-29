@@ -448,7 +448,7 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 
 	// unrelatedInvalidPath is a parseable but invalid unrelated record: unlike
 	// the unparseable A it lands in the built validation report as an error
-	// finding, so a merge gate that validated the whole corpus would refuse on it.
+	// finding, so a finalize gate that validated the whole corpus would refuse on it.
 	unrelatedInvalidPath := groomPath(30, "a-invalid")
 	unrelatedInvalid := func(t *testing.T) string {
 		t.Helper()
