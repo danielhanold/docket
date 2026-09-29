@@ -2,11 +2,11 @@
 id: 467
 slug: 'document-run-epoch-in-the-docket-build-task-gate-drive-start'
 title: 'Scoped gate starts inherit the run epoch; thread it through the build chain'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-28'
-updated: '2026-09-28'
+updated: '2026-09-29'
 depends_on: []
 stacked_on:
 related: [461, 463]
@@ -22,7 +22,7 @@ branch: 'fix/document-run-epoch-in-the-docket-build-task-gate-drive-start'
 pr: 'https://github.com/danielhanold/docket/pull/349'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-28T22:28:10Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-28T22:28:10Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-design.md) |
-| Plan | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start.md](https://github.com/danielhanold/docket/blob/fix/document-run-epoch-in-the-docket-build-task-gate-drive-start/docs/superpowers/plans/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) |
-| Results | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-results.md](https://github.com/danielhanold/docket/blob/fix/document-run-epoch-in-the-docket-build-task-gate-drive-start/docs/results/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-results.md) |
+| Plan | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) |
+| Results | [2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-28-document-run-epoch-in-the-docket-build-task-gate-drive-start-results.md) |
 | ADRs | [ADR-0111](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0111-run-gate-attribution-binds-a-dispatch-to-its-successful-clai.md) |
 <!-- docket:artifacts:end -->
 

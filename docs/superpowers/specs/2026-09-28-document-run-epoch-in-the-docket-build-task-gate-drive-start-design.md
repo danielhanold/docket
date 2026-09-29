@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0467 — Scoped gate starts inherit the run epoch; thread it through the build chain](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md)**
+> ↩ **[Change 0467 — Scoped gate starts inherit the run epoch; thread it through the build chain](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-29-0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md)**
 <!-- docket:backlink:end -->
 
 # Design — scoped gate starts inherit the run epoch (change 0467)
