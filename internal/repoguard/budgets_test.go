@@ -278,7 +278,7 @@ func TestSkillSizeBudgets(t *testing.T) {
 const (
 	dispatchStart  = "docket:dispatch:start"
 	dispatchEnd    = "docket:dispatch:end"
-	dispatchBudget = 1153 // 0467 review fix-3: the Codex agent.enter request file also carries the unchanged run id for --run-id (was 1140); 0467: step 1 copies the <run-id> into the dispatch prompt alongside the run context (was 1137); 0375: step 1 now states the arm prints the run id and where it threads (run.cancel --run-id and every --run-id dispatch flag), so the documented human Stop path is followable; this rides atop the earlier 0375 Stop/cancel + resume-after-stop contract (was 1110). Re-baselined at the exact new count; still strictly below the retired roster (the anti-regrowth invariant below).
+	dispatchBudget = 1154 // 0477: the Codex request-file sentence labels the run context for `--run-context` on change.claim and the gate drive, since the gate drive now takes the same flag (was 1153); 0467 review fix-3: the Codex agent.enter request file also carries the unchanged run id for --run-id (was 1140); 0467: step 1 copies the <run-id> into the dispatch prompt alongside the run context (was 1137); 0375: step 1 now states the arm prints the run id and where it threads (run.cancel --run-id and every --run-id dispatch flag), so the documented human Stop path is followable; this rides atop the earlier 0375 Stop/cancel + resume-after-stop contract (was 1110). Re-baselined at the exact new count; still strictly below the retired roster (the anti-regrowth invariant below).
 	dispatchOld    = 1156 // pre-0334 roster block; the ceiling must stay strictly below it.
 )
 
