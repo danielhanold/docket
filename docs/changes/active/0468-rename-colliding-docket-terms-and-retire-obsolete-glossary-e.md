@@ -22,7 +22,7 @@ branch: 'refactor/rename-colliding-docket-terms-and-retire-obsolete-glossary-e'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-29T09:07:42Z'
+claimed_at: '2026-09-29T09:07:51Z'
 ---
 
 ## Artifacts
