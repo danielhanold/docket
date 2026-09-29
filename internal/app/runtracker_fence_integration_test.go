@@ -361,7 +361,7 @@ func TestIntegrationRunFenceFreshRunClaimBindsRunWorktreeSoFenceActs(t *testing.
 		t.Fatalf("ConfirmRunTrackerClaim: %v", err)
 	}
 
-	// (a) The confirm bound the worktree onto the fresh run's run.
+	// (a) The confirm bound the worktree onto the fresh run's run record.
 	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)

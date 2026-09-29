@@ -63,7 +63,7 @@ import (
 // ErrUnknownSchema: an in-flight one-drive record is never silently reinterpreted
 // as a reusable sequential scope (spec "Version changed persistent formats").
 // Bumped to 3 by change 0375 Task 9, which adds RunID (the workflow run
-// run the scope's drives carry). Unlike the drive/gate stores, a v2 scope record
+// id the scope's drives carry). Unlike the drive/gate stores, a v2 scope record
 // is TOLERATED, not failed closed: a v2 record read by the new binary is only ever
 // a legacy IN-FLIGHT scope (no run existed when it was minted), so its missing
 // RunID reads as empty and the worktree admission fence governs — there is no

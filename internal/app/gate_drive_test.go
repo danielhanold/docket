@@ -1751,7 +1751,7 @@ func TestQuoteOperand(t *testing.T) {
 	}
 }
 
-// TestMapDriveFailureRunErrors (change 0463): an RunError chained through the
+// TestMapDriveFailureRunErrors (change 0463): a RunError chained through the
 // gate-drive seam (the run launch gate refusing an unknown --run-id) surfaces
 // its named token, never the catch-all invalid-request. The service attaches the
 // next-action message, and neither the reason nor the message echoes the value.

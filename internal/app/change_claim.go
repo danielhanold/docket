@@ -61,7 +61,7 @@ const (
 	// ClaimDispositionFailed is a transaction that failed mid-flight; the
 	// cause is carried in the envelope's failure field.
 	ClaimDispositionFailed = "failed"
-	// ClaimDispositionRunContextInvalid refuses a claim whose supplied gate
+	// ClaimDispositionRunContextInvalid refuses a claim whose supplied run
 	// context matches no live started run-tracker record in this repository (change 0407):
 	// an invalid context is never silently treated as an ungated claim. Doubles as
 	// the finding code.

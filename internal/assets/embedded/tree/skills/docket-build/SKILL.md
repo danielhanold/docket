@@ -86,7 +86,7 @@ workers are strictly sequential. Its dispatch payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
 It also gives the worker the plan task text, applicable repository instructions, selected
 profile and routing reason, the completion schema, and one **complete start-ready scope bundle**:
-the change id, task id, phase (`build`), branch, scope id, child capability, and the dispatch
+the change id, task id, phase (`build`), branch, scope id, child capability, and the run
 context when your prompt carried one — each value exactly as `prepare-scope` pinned it, for the
 worker to pass through to `gate.drive.start` unchanged. The bundle carries no run id: the scope
 pinned it, and every scoped start inherits it. One scope now carries the worker's whole

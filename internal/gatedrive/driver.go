@@ -172,7 +172,7 @@ type Driver struct {
 	// run store, so the resolver reads the app-owned run registry. When nil,
 	// or when a scope carries no RunID, the run launch gate is skipped and Takeover's
 	// existing ADR-0107 authorization is unchanged. A resolver error fails closed
-	// (the takeover HALTs rather than reviving a run whose run cannot be read).
+	// (the takeover HALTs rather than reviving a run whose run record cannot be read).
 	runRevoked RunRevokedFunc
 
 	// runLaunch, when set, is the app-owned authoritative run liveness read the
@@ -201,7 +201,7 @@ type RunLaunchGate func(runID, worktree string, reserve func() error) error
 // behavior governs).
 func (d *Driver) SetRunLaunchGate(g RunLaunchGate) { d.runLaunch = g }
 
-// RunLaunchGateWired reports whether an RunLaunchGate has been injected. It is a
+// RunLaunchGateWired reports whether a RunLaunchGate has been injected. It is a
 // read-only composition probe the app-layer wiring test keys on (change 0437 Task 5:
 // the wiring is where the takeover-only defect lived) — never part of the drive
 // protocol and never consulted by a drive operation.

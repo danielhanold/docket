@@ -146,7 +146,7 @@ contract is refused with `role-contract-unavailable`; it is never silently repai
 
 The parent includes the run tracker's run context unchanged in the request file, alongside the
 user's unchanged request and any resume/continuation identity. The coordinator uses it in its claim
-transaction. After foreground completion, the parent asks the same keyed gate for the verdict;
+transaction. After foreground completion, the parent asks that keyed run tracker for the verdict;
 thread/turn ids and coordinator prose are diagnostic output, never claim proof.
 If Codex requests interactive approval or user input, root entry reports an explicit unsupported
 interaction error: this foreground transport has no approval/input channel and cannot approve or

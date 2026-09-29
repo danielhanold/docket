@@ -265,7 +265,7 @@ func (s *Store) ReserveWorktreeExecution(rec admissionRecord) (token string, err
 // app.GateLaunch (change 0375 Task 7). It is the sole reserve entry point callable
 // from OUTSIDE this package, where the unexported admissionRecord literal is
 // unreachable: it composes a Kind "raw" record (no drive id, no scope id, no run
-// run) and delegates to the same reserveWorktreeExecution the driver uses, so a
+// id) and delegates to the same reserveWorktreeExecution the driver uses, so a
 // raw launch admits through exactly one authority and one lock/CAS discipline as
 // every scoped and scopeless start. proc is the caller's process-recovery seam,
 // used only for the first-admission legacy inventory; a nil proc fails a HALTED

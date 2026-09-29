@@ -49,10 +49,33 @@ var requiredStartRowFlags = []string{
 }
 
 // requiredBundleElems is what the controller's dispatch payload must name for
-// the worker (matched case-insensitively against the collapsed block).
+// the worker. They are matched case-insensitively against the bundle-enumeration
+// SENTENCE alone (from the 'complete start-ready scope bundle' claim to its first
+// sentence end), not the whole block: the block names "run context" elsewhere (the
+// prepare-scope sentence), so a whole-block match would stay green with the element
+// gone from the list the worker actually receives.
 var requiredBundleElems = []string{
-	"feature worktree", "change id", "task id", "phase", "branch",
+	"change id", "task id", "phase", "branch",
 	"scope id", "child capability", "run context",
+}
+
+// requiredBlockElems are payload elements the dispatch block names outside the
+// bundle sentence (the feature worktree rides on its own labelled line).
+var requiredBlockElems = []string{"feature worktree"}
+
+// bundleSentence returns the collapsed block's bundle-enumeration sentence: the
+// text from the bundle claim up to the first ". " sentence end (dotted op names
+// such as gate.drive.start carry no following space), or "" when the claim is absent.
+func bundleSentence(block string) string {
+	loc := bundleBindRe.FindStringIndex(block)
+	if loc == nil {
+		return ""
+	}
+	rest := block[loc[0]:]
+	if end := strings.Index(rest, ". "); end != -1 {
+		return rest[:end+1]
+	}
+	return rest
 }
 
 var (
@@ -154,9 +177,15 @@ func TestGateDriveScopedStartIdentity(t *testing.T) {
 	if !bundleBindRe.MatchString(block) {
 		t.Errorf("%s: dispatch payload lost its 'complete start-ready scope bundle' claim", buildSkillRel)
 	}
+	sentence := bundleSentence(block)
 	for _, elem := range requiredBundleElems {
+		if !strings.Contains(sentence, elem) {
+			t.Errorf("%s: dispatch payload bundle sentence lost element %q", buildSkillRel, elem)
+		}
+	}
+	for _, elem := range requiredBlockElems {
 		if !strings.Contains(block, elem) {
-			t.Errorf("%s: dispatch payload bundle lost element %q", buildSkillRel, elem)
+			t.Errorf("%s: dispatch payload lost element %q", buildSkillRel, elem)
 		}
 	}
 	if !childOnlyRe.MatchString(block) {
@@ -222,6 +251,12 @@ func TestGateDriveScopedStartIdentity(t *testing.T) {
 		}
 		if parentStayRe.MatchString("the parent capability is held. it never enters any prompt") {
 			t.Errorf("bounded gap failed: parent-capability clause bind must not span sentences")
+		}
+		// The bundle sentence ends at its first ". " — an element named only in a
+		// LATER sentence of the block must not satisfy the bundle list.
+		twoSentences := "one **complete start-ready scope bundle**: the change id, for `gate.drive.start` unchanged. prepare-scope pins the run context."
+		if s := bundleSentence(twoSentences); !strings.Contains(s, "gate.drive.start") || strings.Contains(s, "run context") {
+			t.Errorf("bundle sentence scoping failed: got %q", s)
 		}
 	})
 }

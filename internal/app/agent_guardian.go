@@ -172,7 +172,7 @@ type GuardianHandle struct {
 }
 
 // SpawnAgentGuardian re-execs executable as a detached death guardian for the run
-// run located by (runKey, runID) under repoDir, watching the returned handle's
+// located by (runKey, runID) under repoDir, watching the returned handle's
 // pipe. markerPath names the durable completion marker the owner writes (via
 // Complete) on a clean end so the guardian never mistakes it for a Stop. The
 // guardian is a new session leader (Setsid), so it survives the owner's terminal or

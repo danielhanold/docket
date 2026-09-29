@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:caf91c360bcd54926197135f15adbf3e78ddee150aaa388547151b5822a8330e",
+  "asset_set_id": "sha256:a1f2df8993e5e6407caa1d3b1e258cea1064d11cf0d2f66df91575335eeb2cdb",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -301,15 +301,15 @@
       "path": "skills/docket-build-task/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 14530,
-      "sha256": "c4cebafcbc9b7ccef8271e32f847374461fd2ce3da8b4bcff892a2ccec67429b"
+      "size": 14525,
+      "sha256": "ff6816f1dc5763f99d95c33bb27a598bba83f63148c29e6e03d48b8c2462e06c"
     },
     {
       "path": "skills/docket-build/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 30089,
-      "sha256": "174288d98e327d876ae70e5db0e4fc36431ca01d1ca5ad5fff0a764802cfd1f5"
+      "size": 30084,
+      "sha256": "2da0d9aaf0e62de52fc2f4edb8cb349485c858a4a1293fca96b7ed3c1bcca4df"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",
@@ -350,8 +350,8 @@
       "path": "skills/docket-convention/references/agent-layer.md",
       "role": "skill",
       "mode": 420,
-      "size": 17057,
-      "sha256": "95fd0e46e17c95b1d79f5cec645c0d093c83176e3510e0e66d1cd057deda6b9d"
+      "size": 17060,
+      "sha256": "e4febde481ef31f32025b2c979e051321a4ccd217a9ff679c25792c7d6d243c9"
     },
     {
       "path": "skills/docket-convention/references/dummy-mode.md",
