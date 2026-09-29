@@ -412,7 +412,7 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 	}
 
 	// Read every finalize-population change's live PR facts (the same
-	// non-terminal, PR-bearing population `context finalize` reads) in one batched
+	// non-final, PR-bearing population `context finalize` reads) in one batched
 	// pass over a shared GitHub identity, so the domain selector bands merged PRs
 	// into the merged-recovery closeout work. A failed batch is unknown facts —
 	// never a clean absence — surfaced as a finding rather than silently omitted.

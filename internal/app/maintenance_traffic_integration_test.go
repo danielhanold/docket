@@ -229,7 +229,7 @@ func trafficDoneRecord(id int, slug string) string {
 		fmt.Sprintf("docs/changes/results/%04d-%s-results.md", id, slug))
 }
 
-// trafficImplementedOpen is a non-terminal, PR-bearing record: it joins the
+// trafficImplementedOpen is a non-final, PR-bearing record: it joins the
 // finalize population the batched PR read covers, but its PR is UNKNOWN to the fake
 // gh (empty repository object) so it bands to nothing and the sweep leaves it
 // entirely alone — a population member that drives the batch count without
@@ -270,8 +270,8 @@ const (
 // --- Step 1: discovery + assessment traffic accounting --------------------
 
 // TestIntegrationSweepDiscoveryTrafficAccounting drives one full-scope sweep over
-// a mixed corpus — several non-terminal PR-bearing records (the batch population)
-// and several terminal done records (the assessment population) — and accounts for
+// a mixed corpus — several non-final PR-bearing records (the batch population)
+// and several archived done records (the assessment population) — and accounts for
 // every real git/gh process by purpose. The setup pin runs exactly once; the
 // once-per-sweep integration sync (change 0388) adds exactly one more bounded
 // operational-context load after the loop (a fixed +1 default-branch probe and +2

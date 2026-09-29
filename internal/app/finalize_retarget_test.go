@@ -461,7 +461,7 @@ func TestRetargetChildrenLeavesStackedOn(t *testing.T) {
 
 // TestRetargetChildrenSkipsTerminalChildren: stacked-merged and done children do
 // not block the parent merge and are never probed or edited; only the open,
-// non-terminal authorized child is retargeted.
+// non-final authorized child is retargeted.
 func TestRetargetChildrenSkipsTerminalChildren(t *testing.T) {
 	pin := docketPin(t)
 	corpus := []StatusBlob{

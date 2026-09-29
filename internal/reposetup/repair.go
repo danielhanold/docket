@@ -218,7 +218,7 @@ func planClaimedAt(path string, src []byte, doc document.Document, archived bool
 			Path:       path,
 			Field:      "claimed_at",
 			Repairable: false,
-			Message:    "claimed_at on a non-terminal archived record; needs manual review",
+			Message:    "claimed_at on a non-final archived record; needs manual review",
 		}, true
 	}
 	_ = f
@@ -232,7 +232,7 @@ func planClaimedAt(path string, src []byte, doc document.Document, archived bool
 		Field:      "claimed_at",
 		Code:       RepairDropClaimedAt,
 		Repairable: true,
-		Message:    "claimed_at on a terminal archived change; remove the stale claim lease",
+		Message:    "claimed_at on a final archived change; remove the stale claim lease",
 		Patch:      preview,
 	}, true
 }

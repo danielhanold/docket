@@ -196,7 +196,7 @@ func TestRepairDropClaimedAtRefused(t *testing.T) {
 		src      string
 		archived bool
 	}{
-		// Mutation-probe target: the terminal-status check refuses this.
+		// Mutation-probe target: the final-status check refuses this.
 		{"non-terminal archived record", "---\nid: 7\nstatus: in-progress\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n", true},
 		// An active (unarchived) record legitimately holds a claim lease.
 		{"active unarchived record", "---\nid: 7\nstatus: done\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n", false},

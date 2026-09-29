@@ -94,7 +94,7 @@ type finalizeRow struct {
 }
 
 // SelectFinalizeQueue returns the finalize disposition of every change that is
-// a finalize candidate — non-terminal and carrying a PR reference — bounded by
+// a finalize candidate — non-final and carrying a PR reference — bounded by
 // allowlist and ordered deterministically. When allowlist is non-empty only
 // changes whose ID it names are considered; an empty or nil allowlist filters
 // nothing. Population is read from the snapshot in authored order (never from

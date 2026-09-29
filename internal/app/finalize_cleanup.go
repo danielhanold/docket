@@ -611,8 +611,8 @@ func finalizeCleanupRemoteRef(ctx context.Context, deps FinalizeDeps, git Finali
 // finalizeCleanupAbortedRebase clears the owned scratch (the two anchor refs and
 // the receipt) of an explicitly-aborted owned rebase whose head was restored to
 // the receipt's recorded original head. It returns (result, true) when this
-// pre-terminal exception applies, and (_, false) when there is no such
-// aborted-restored scratch (the caller then refuses the non-terminal change).
+// pre-close-out exception applies, and (_, false) when there is no such
+// aborted-restored scratch (the caller then refuses the non-final change).
 func finalizeCleanupAbortedRebase(ctx context.Context, deps FinalizeDeps, cc *closeoutContext) (CleanupOpResult, bool) {
 	id := int(cc.change.ID())
 	if deps.Workspace == nil {
@@ -640,7 +640,7 @@ func finalizeCleanupAbortedRebase(ctx context.Context, deps FinalizeDeps, cc *cl
 
 	// The rewrite must be undone: the live feature tip equals the receipt's
 	// original head. A probe error retains everything; a tip that still differs is
-	// not a restored abort, so the non-terminal change is refused by the caller.
+	// not a restored abort, so the non-final change is refused by the caller.
 	tip, err := deps.Planning.Client.ResolveRef(ctx, cc.repo, featureRef)
 	if err != nil {
 		return cleanupRefusal(ResultExternalFailed, CleanupDispPending, ReasonCleanupRefProbe,

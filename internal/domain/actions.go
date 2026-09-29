@@ -323,7 +323,7 @@ type StackKillResult struct {
 	Descendants []DescendantOutcome
 }
 
-// KillStackParent kills a change and blocks every non-terminal descendant with
+// KillStackParent kills a change and blocks every non-final descendant with
 // the retained re-scope, re-parent, or kill reason. It is a distinct graph
 // action rather than a widening of Block: a descendant is blocked from any
 // non-final status, an already-blocked one is a semantic no-op, and a
