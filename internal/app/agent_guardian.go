@@ -43,7 +43,7 @@ import (
 // GuardianRequested is false for every user-facing command.
 const (
 	guardianRepoDirEnv = "DOCKET_AGENT_GUARDIAN_REPO_DIR"
-	guardianRunKeyEnv  = "DOCKET_AGENT_GUARDIAN_GATE_KEY"
+	guardianRunKeyEnv  = "DOCKET_AGENT_GUARDIAN_RUN_KEY"
 	guardianRunIDEnv   = "DOCKET_AGENT_GUARDIAN_RUN_ID"
 	guardianMarkerEnv  = "DOCKET_AGENT_GUARDIAN_MARKER"
 	// guardianPipeFD is the inherited pipe read end (the first and only ExtraFiles
