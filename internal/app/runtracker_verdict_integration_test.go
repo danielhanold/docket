@@ -29,11 +29,11 @@ import (
 // RunVerify delegation is driven by the run_verify_test.go fixtures (rvFixture,
 // rvRecord, rvInProgressRecord, rvPR, rvAgreeingReceipt).
 
-// runTrackerClaimRun is the Unix epoch of runTrackerDefaultClaimedAt — the claim instant
+// runTrackerClaimUnix is the Unix epoch of runTrackerDefaultClaimedAt — the claim instant
 // lifecycleChange stamps on an in-progress record. Attribution filter (c)
 // compares a candidate's claimed_at against the record's DispatchedAt, so tests
 // straddle this value.
-func runTrackerClaimRun(t *testing.T) int64 {
+func runTrackerClaimUnix(t *testing.T) int64 {
 	t.Helper()
 	tm, err := time.Parse(time.RFC3339, runTrackerDefaultClaimedAt)
 	if err != nil {

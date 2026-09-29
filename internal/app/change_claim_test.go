@@ -176,7 +176,7 @@ func TestClaimResultFromOutcomeFailedCarriesCause(t *testing.T) {
 // --- run-context binding (change 0407) -------------------------------------
 //
 // These drive ChangeClaim end-to-end over a real gate store (newRunTrackerRepo, whose
-// git common dir roots the rungate records the store primitives read/write) and
+// git common dir roots the run-tracker records the store primitives read/write) and
 // a real Discover client, with the metadata transaction faked by claimGateEngine.
 // The gate seam sits between resolveClaimTarget and the engine call, so a fake
 // engine is enough to prove validate/reserve/digest/receipt/confirm without a

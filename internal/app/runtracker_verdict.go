@@ -814,7 +814,7 @@ func runTrackerUnmetTokens(v RunVerifyResult) []string {
 // [<id>...]` (change 0334, Task 4).
 //
 // This mode holds NO key, reads and writes NO gate record, and consumes NO retry
-// permit: it never mints, saves, or calls ConsumeRunTrackerRetry, so the rungate root
+// permit: it never mints, saves, or calls ConsumeRunTrackerRetry, so the run-tracker root
 // is never even created. It re-syncs to fresh origin, then verifies either the
 // supplied hint ids (each a hint to verify, NEVER attribution evidence) or, when
 // none are supplied, every current in-progress id, and renders one line per id

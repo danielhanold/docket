@@ -33,7 +33,7 @@ import (
 type RunSettledFunc func(runID string) (settled bool, err error)
 
 // ErrRunRecordUnresolved is the sentinel an RunSettledFunc wraps when NO readable
-// run-run record carries the named run. It is unsettled (the fence keeps
+// run record carries the named run. It is unsettled (the fence keeps
 // refusing), and the refusal's incumbent snapshot is marked RunUnresolved so its
 // remedy never points at a cancellation that cannot resolve that run.
 var ErrRunRecordUnresolved = errors.New("run record unresolved")

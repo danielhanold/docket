@@ -623,7 +623,7 @@ func TestGateDriveTakeoverRequiresFlags(t *testing.T) {
 	}
 }
 
-// makeCancelledRun mints a run-run record in wt's rungate registry through the
+// makeCancelledRun mints a run record in wt's run-tracker registry through the
 // production mint path (MintRunTrackerRecord + MintRunRecord), then flips its persisted
 // state to cancelled — the durable fence a real run.cancel leaves behind — and
 // returns the run's public locator. The flip is a targeted state edit that

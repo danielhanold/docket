@@ -124,11 +124,11 @@ func resumeInspectService(worktree string) *fakeWorkspaceService {
 	}
 }
 
-// TestIntegrationRunStartRunStartPreparesOuterScope: a non-resume start prepares the outer scope,
+// TestIntegrationRunStartPreparesOuterScope: a non-resume start prepares the outer scope,
 // carries the scope binding in the record, prints the run context on the
 // started line, and NEVER leaks the parent capability into the result JSON or the
 // human text (it lives only in the 0600 record).
-func TestIntegrationRunStartRunStartPreparesOuterScope(t *testing.T) {
+func TestIntegrationRunStartPreparesOuterScope(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -187,13 +187,13 @@ func TestIntegrationRunStartRunStartPreparesOuterScope(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartRunStartFreshArmSurfacesRunID: a fresh (non-resume) start surfaces the
+// TestIntegrationRunStartFreshStartSurfacesRunID: a fresh (non-resume) start surfaces the
 // minted run's public id in the result (Run) and in the human report line
 // — the documented `run.cancel --run-id <id>` / `--run-id` value the operator and
 // the dispatcher thread through. Without it the primary human-Stop path names an
 // run the start never gave (change 0375). The surfaced id must equal the id the
 // bound run record actually carries — the same value run.cancel cross-checks.
-func TestIntegrationRunStartRunStartFreshArmSurfacesRunID(t *testing.T) {
+func TestIntegrationRunStartFreshStartSurfacesRunID(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -223,11 +223,11 @@ func TestIntegrationRunStartRunStartFreshArmSurfacesRunID(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartRunStartResumeBindsOnlyVerifiedInProgress: a --resume id pre-binds
+// TestIntegrationRunStartResumeBindsOnlyVerifiedInProgress: a --resume id pre-binds
 // attribution ONLY when the id is genuinely in-progress AND WorkspaceInspect
 // applies; a proposed id or a failed inspect is resume-unverified and mints no
 // record (and never prepares a scope).
-func TestIntegrationRunStartRunStartResumeBindsOnlyVerifiedInProgress(t *testing.T) {
+func TestIntegrationRunStartResumeBindsOnlyVerifiedInProgress(t *testing.T) {
 	t.Run("in-progress with valid inspect binds", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
 		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(5, "epsilon", "v5", "")}}
@@ -306,11 +306,11 @@ func TestIntegrationRunStartRunStartResumeBindsOnlyVerifiedInProgress(t *testing
 	})
 }
 
-// TestIntegrationRunStartRunStartNoTimestampGames: the resume path never plays a timestamp game.
+// TestIntegrationRunStartNoTimestampGames: the resume path never plays a timestamp game.
 // The resumed change stays in the fresh BeforeIDs and DispatchedAt stays
 // post-read — attribution is bound by verified identity, not by excluding the id
 // from the before-set.
-func TestIntegrationRunStartRunStartNoTimestampGames(t *testing.T) {
+func TestIntegrationRunStartNoTimestampGames(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(5, "epsilon", "v5", "")}}
 	deps := workspaceDepsFor(t, reader)
@@ -415,9 +415,9 @@ func TestIntegrationRunStartMintSnapshotsRunMaxAttempts(t *testing.T) {
 	})
 }
 
-// TestIntegrationRunStartGateRecordContinuationTripleRule: the store rejects a partial continuation
+// TestIntegrationRunStartRunTrackerRecordContinuationTripleRule: the store rejects a partial continuation
 // triple on BOTH the write and the read boundary as a corrupt record.
-func TestIntegrationRunStartGateRecordContinuationTripleRule(t *testing.T) {
+func TestIntegrationRunStartRunTrackerRecordContinuationTripleRule(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 
 	// Write boundary: minting/saving a partial triple fails closed.
@@ -454,9 +454,9 @@ func TestIntegrationRunStartGateRecordContinuationTripleRule(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateRecordSchema1FailsClosed: a schema-1 record fails closed as a corrupt
+// TestIntegrationRunStartRunTrackerRecordSchema1FailsClosed: a schema-1 record fails closed as a corrupt
 // record — the v2 store never migrates a pre-upgrade record.
-func TestIntegrationRunStartGateRecordSchema1FailsClosed(t *testing.T) {
+func TestIntegrationRunStartRunTrackerRecordSchema1FailsClosed(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key, err := MintRunTrackerRecord(repo, sampleRunTrackerRecord())
 	if err != nil {
@@ -499,12 +499,12 @@ func writeRawRunTrackerRecord(t *testing.T, root, key, tmpl string) {
 	}
 }
 
-// TestIntegrationRunStartArmedLineIsAlwaysThreeTokens (change 0463): every started result a real start
+// TestIntegrationRunStartStartedLineIsAlwaysThreeTokens (change 0463): every started result a real start
 // produces (fresh, no-run-record resume, cancelled-replacement resume) prints a first
 // line of exactly four space-separated fields. Field 3 is the run and field 4 is
 // the run context, so a positional parser can never read the run context
 // as the run.
-func TestIntegrationRunStartArmedLineIsAlwaysThreeTokens(t *testing.T) {
+func TestIntegrationRunStartStartedLineIsAlwaysThreeTokens(t *testing.T) {
 	check := func(t *testing.T, res RunStartResult) {
 		t.Helper()
 		if !res.Started {

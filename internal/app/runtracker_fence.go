@@ -314,7 +314,7 @@ func canonicalWorktree(path string) (string, error) {
 }
 
 // findRunByWorktree resolves the CURRENT ambient owner of the canonical worktree
-// canon by scanning the repository's rungate root (each run-key directory may hold
+// canon by scanning the repository's run-tracker root (each run-key directory may hold
 // one run.json beside its gate record) and returns the owning run's run key. It
 // collects EVERY matching run first and then selects deterministically (change
 // 0446 spec §5, following FindRunByChange's established shape) — never the first
@@ -336,7 +336,7 @@ func canonicalWorktree(path string) (string, error) {
 // silently nor let another active owner through unchallenged (admitWorkflowMutation
 // fails it closed as run-cancelled when it is the sole match).
 //
-// A missing rungate root or no match is (found=false, err=nil). A directory-
+// A missing run-tracker root or no match is (found=false, err=nil). A directory-
 // enumeration IO error is returned so the caller fails closed. A gate directory with
 // no run.json, a run with no bound Worktree (a standalone or not-yet-claimed
 // run, and every superseded run — SupersedeCancelledRun clears it), a fully
@@ -354,7 +354,7 @@ func findRunByWorktree(repoDir, canon string) (runKey string, found bool, err er
 	entries, derr := os.ReadDir(root)
 	if derr != nil {
 		if errors.Is(derr, fs.ErrNotExist) {
-			return "", false, nil // no rungate root: no runs
+			return "", false, nil // no run-tracker root: no runs
 		}
 		return "", false, derr
 	}
@@ -462,7 +462,7 @@ func slotNamedRunUnresolved(repoDir, canon string) error {
 // It must be valid in the state that produced it: no readable run record resolves
 // the owner, so run.cancel (which targets a run by its key and run id) cannot act on
 // it. The concrete step is inspecting the per-run-key run records under the
-// rungate store and a human repair of the damaged or missing record (or of the
+// run-tracker store and a human repair of the damaged or missing record (or of the
 // slot's stale reference) before this worktree is mutated.
 func unresolvedOwnerRemedy(runTrackerRoot string) string {
 	return "run.cancel cannot target a run no readable record carries — inspect the per-run-key run records (" +

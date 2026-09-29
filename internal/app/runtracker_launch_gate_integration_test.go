@@ -21,7 +21,7 @@ import (
 
 // runLaunchGateFixture mints a real run-key directory with an ACTIVE run bound to a
 // canonicalizable worktree, and returns the pieces a gate test drives: repo (for
-// runRecordCAS / bindRunWorktree), gitCommonDir (for runLaunchGate + the rungate
+// runRecordCAS / bindRunWorktree), gitCommonDir (for runLaunchGate + the run-tracker
 // root), the run key, the public run id, and the bound worktree path.
 func runLaunchGateFixture(t *testing.T) (repo, common, key, runID, worktree string) {
 	t.Helper()

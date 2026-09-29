@@ -643,7 +643,7 @@ func SupersedeCancelledRun(repoDir, runKey, replacementKey string) error {
 }
 
 // FindRunByChange resolves the run a resume of changeID targets by scanning
-// the repository's rungate root (each run-key directory may hold one run.json).
+// the repository's run-tracker root (each run-key directory may hold one run.json).
 // It returns the matching run's run key and record, found=false when no run
 // names the change, and a typed error for an enumeration fault or an unresolvable
 // ambiguity.
@@ -653,7 +653,7 @@ func SupersedeCancelledRun(repoDir, runKey, replacementKey string) error {
 // (more is ErrRunAmbiguous). When every match is superseded (the replacement has
 // not yet bound its own change at claim time), the unique superseded match — or, in
 // a longer chain, the tail whose ReplacementReserved points outside the matched set —
-// is returned, so a repeat resume still recovers the reservation. A missing rungate
+// is returned, so a repeat resume still recovers the reservation. A missing run-tracker
 // root or no match is (found=false, nil); a corrupt/unreadable sibling run is
 // skipped, mirroring findRunByWorktree.
 func FindRunByChange(repoDir, changeID string) (runKey string, rec RunRecord, found bool, err error) {
@@ -667,7 +667,7 @@ func FindRunByChange(repoDir, changeID string) (runKey string, rec RunRecord, fo
 	entries, derr := os.ReadDir(root)
 	if derr != nil {
 		if errors.Is(derr, fs.ErrNotExist) {
-			return "", RunRecord{}, false, nil // no rungate root: no runs
+			return "", RunRecord{}, false, nil // no run-tracker root: no runs
 		}
 		return "", RunRecord{}, false, runErr(ErrRunRecordIO, "find-by-change", derr)
 	}

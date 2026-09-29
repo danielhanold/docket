@@ -1094,7 +1094,7 @@ func TestIntegrationChangeAuthoringGatePruneRetentionWindow(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeAuthoringGateRecordCorruptAndSchema(t *testing.T) {
+func TestIntegrationChangeAuthoringRunTrackerRecordCorruptAndSchema(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	root, err := runTrackerRoot(repo)
 	if err != nil {
@@ -1129,7 +1129,7 @@ func TestIntegrationChangeAuthoringGateRecordCorruptAndSchema(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeAuthoringGateRecordLinkedWorktreeSameRecord(t *testing.T) {
+func TestIntegrationChangeAuthoringRunTrackerRecordLinkedWorktreeSameRecord(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key, err := MintRunTrackerRecord(repo, sampleRunTrackerRecord())
 	if err != nil {
@@ -1150,7 +1150,7 @@ func TestIntegrationChangeAuthoringGateRecordLinkedWorktreeSameRecord(t *testing
 	}
 }
 
-func TestIntegrationChangeAuthoringGateRecordMalformedKey(t *testing.T) {
+func TestIntegrationChangeAuthoringRunTrackerRecordMalformedKey(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	for _, key := range []string{"../escape", "", "UPPER", repeat("a", 300)} {
 		_, err := LoadRunTrackerRecord(repo, key)
@@ -1170,7 +1170,7 @@ func TestIntegrationChangeAuthoringGateRecordMalformedKey(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeAuthoringGateRecordMintLoadRoundTrip(t *testing.T) {
+func TestIntegrationChangeAuthoringRunTrackerRecordMintLoadRoundTrip(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	rec := sampleRunTrackerRecord()
 
@@ -1224,7 +1224,7 @@ func TestIntegrationChangeAuthoringGateRecordMintLoadRoundTrip(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeAuthoringGateRecordSaveDurableReload(t *testing.T) {
+func TestIntegrationChangeAuthoringRunTrackerRecordSaveDurableReload(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key, err := MintRunTrackerRecord(repo, sampleRunTrackerRecord())
 	if err != nil {
@@ -1253,7 +1253,7 @@ func TestIntegrationChangeAuthoringGateRecordSaveDurableReload(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeAuthoringGateRecordWrongRepo(t *testing.T) {
+func TestIntegrationChangeAuthoringRunTrackerRecordWrongRepo(t *testing.T) {
 	repoA := newRunTrackerRepo(t)
 	repoB := newRunTrackerRepo(t)
 
@@ -1291,7 +1291,7 @@ func TestIntegrationChangeAuthoringGateRecordWrongRepo(t *testing.T) {
 	}
 }
 
-func TestIntegrationChangeAuthoringGateRetryConsumeOnceThenFalse(t *testing.T) {
+func TestIntegrationChangeAuthoringRunTrackerRetryConsumeOnceThenFalse(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key, err := MintRunTrackerRecord(repo, sampleRunTrackerRecord())
 	if err != nil {
@@ -1351,14 +1351,14 @@ func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 
 			// (1) Start a run through the real run start, whose mint snapshots the
 			// authoritative run.max_attempts into the record's AttemptLimit.
-			armReader := &fakeReader{pin: runTrackerPinWithRunMaxAttempts(t, tc.limit), corpus: runStartCorpus()}
-			armDeps := PlanningDeps{Reader: armReader, Clock: testClock()}
+			startReader := &fakeReader{pin: runTrackerPinWithRunMaxAttempts(t, tc.limit), corpus: runStartCorpus()}
+			startDeps := PlanningDeps{Reader: startReader, Clock: testClock()}
 			sp := &fakeScopePrep{grant: sampleScopeGrant()}
-			arm := RunStart(context.Background(), armDeps, WorkspaceDeps{}, sp.deps(), f.repo.invocation, "implement-next", 0)
-			if !arm.Started {
-				t.Fatalf("run start did not start: %q", arm.HumanText())
+			started := RunStart(context.Background(), startDeps, WorkspaceDeps{}, sp.deps(), f.repo.invocation, "implement-next", 0)
+			if !started.Started {
+				t.Fatalf("run start did not start: %q", started.HumanText())
 			}
-			key := arm.Key
+			key := started.Key
 			rec, err := LoadRunTrackerRecord(f.repo.invocation, key)
 			if err != nil {
 				t.Fatalf("LoadRunTrackerRecord: %v", err)
@@ -3518,10 +3518,10 @@ func TestIntegrationChangeRuntimeHaltCorruptedRecordStillRefused(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeRuntimeRunStartArmsWithLoadableKey: a successful start prints `run-started
+// TestIntegrationChangeRuntimeRunStartMintsLoadableKey: a successful start prints `run-started
 // <key>`, the record loads, and its BeforeIDs are exactly the fixture's
 // in-progress ids with the store-owned target and an unused retry permit.
-func TestIntegrationChangeRuntimeRunStartArmsWithLoadableKey(t *testing.T) {
+func TestIntegrationChangeRuntimeRunStartMintsLoadableKey(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -3589,9 +3589,9 @@ func TestIntegrationChangeRuntimeRunStartDispatchRunAfterBeforeRead(t *testing.T
 	}
 }
 
-// TestIntegrationChangeRuntimeRunStartEmptyBacklogArms: no in-progress claims still starts with an
+// TestIntegrationChangeRuntimeRunStartEmptyBacklogStarts: no in-progress claims still starts with an
 // empty before-set — an empty set is a valid observation, not a failure.
-func TestIntegrationChangeRuntimeRunStartEmptyBacklogArms(t *testing.T) {
+func TestIntegrationChangeRuntimeRunStartEmptyBacklogStarts(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := PlanningDeps{Reader: runStartReader(t, []StatusBlob{}, nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
@@ -3772,7 +3772,7 @@ func TestIntegrationChangeRuntimeRunVerdictObserveHintsMixedVerdicts(t *testing.
 
 // TestIntegrationChangeRuntimeRunVerdictObserveIncompleteWritesNothing: an incomplete run observed
 // unattributed emits `run-observe run-incomplete <id> <unmet...>` and writes NO
-// record and consumes NOTHING — the rungate root is never created (no mint, no
+// record and consumes NOTHING — the run-tracker root is never created (no mint, no
 // save, no retry consumption on the observe path).
 func TestIntegrationChangeRuntimeRunVerdictObserveIncompleteWritesNothing(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -3789,13 +3789,13 @@ func TestIntegrationChangeRuntimeRunVerdictObserveIncompleteWritesNothing(t *tes
 		t.Fatalf("observe must never emit %q", RunDecisionRetryOnce)
 	}
 
-	// NO record, NO writes: the rungate root is never created by the observe path.
+	// NO record, NO writes: the run-tracker root is never created by the observe path.
 	root, err := runTrackerRoot(f.repo.invocation)
 	if err != nil {
 		t.Fatalf("runTrackerRoot: %v", err)
 	}
 	if _, statErr := os.Stat(root); !os.IsNotExist(statErr) {
-		t.Fatalf("rungate root %q exists (stat err %v); observe must write nothing", root, statErr)
+		t.Fatalf("run-tracker root %q exists (stat err %v); observe must write nothing", root, statErr)
 	}
 }
 

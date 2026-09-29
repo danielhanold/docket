@@ -15,7 +15,7 @@ import (
 // limit 2); -race guards the per-attempt O_EXCL single-grant CAS in
 // ConsumeRunTrackerRetry — a counted budget must not let concurrency spend several
 // future attempts, so exactly one of the racers grants attempt 1's marker.
-func TestRaceIntegrationAppConcurrencyGateRetryConcurrentExactlyOne(t *testing.T) {
+func TestRaceIntegrationAppConcurrencyRunTrackerRetryConcurrentExactlyOne(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key, err := MintRunTrackerRecord(repo, sampleRunTrackerRecord())
 	if err != nil {
@@ -63,7 +63,7 @@ func TestRaceIntegrationAppConcurrencyGateRetryConcurrentExactlyOne(t *testing.T
 // lose the CAS and return ErrRunTrackerBindingConflict. Defeating the CAS — e.g. a
 // short-circuiting pre-read that answers match-or-conflict on its own, or a
 // non-exclusive create — lets two distinct claims both bind and reddens here.
-func TestRaceIntegrationAppConcurrencyReserveGateClaimBindsExactlyOnce(t *testing.T) {
+func TestRaceIntegrationAppConcurrencyReserveRunTrackerClaimBindsExactlyOnce(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintPlainRunTracker(t, repo)
 

@@ -178,10 +178,10 @@ func TestIntegrationRunCancelRunCancelRefusedWrongRepo(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelFencesBeforeStopping: a participant that registers between the fence and
+// TestIntegrationRunCancelFencesBeforeStopping: a participant that registers between the fence and
 // the stop (a launch admitted before the fence won) is caught by the post-stop
 // re-enumeration, keeping the cancellation pending.
-func TestIntegrationRunCancelCancelFencesBeforeStopping(t *testing.T) {
+func TestIntegrationRunCancelFencesBeforeStopping(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	// A raw-run participant present at entry; stopping it proves teardown.
 	if err := RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: "raw-run", NativeHandle: "R1"}); err != nil {
@@ -213,10 +213,10 @@ func TestIntegrationRunCancelCancelFencesBeforeStopping(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelRepeatResumesCleanup: a first cancel fences and leaves the run pending
+// TestIntegrationRunCancelRepeatResumesCleanup: a first cancel fences and leaves the run pending
 // on an unproven stop; a repeat against the cancelling run resumes cleanup (no
 // re-fence, no authority restore) and completes to cancelled when the stop proves.
-func TestIntegrationRunCancelCancelRepeatResumesCleanup(t *testing.T) {
+func TestIntegrationRunCancelRepeatResumesCleanup(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: false}}
 
@@ -245,10 +245,10 @@ func TestIntegrationRunCancelCancelRepeatResumesCleanup(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelPendingOnUncompletedMutation: an admitted-not-completed mutation keeps
+// TestIntegrationRunCancelPendingOnUncompletedMutation: an admitted-not-completed mutation keeps
 // the cancellation pending even when every process teardown proves — no premature
 // cancelled.
-func TestIntegrationRunCancelCancelPendingOnUncompletedMutation(t *testing.T) {
+func TestIntegrationRunCancelPendingOnUncompletedMutation(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{{OpKey: "pr.publish", Status: "admitted"}}
@@ -270,12 +270,12 @@ func TestIntegrationRunCancelCancelPendingOnUncompletedMutation(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelSettlesUncertainPublicationWithIdenticalRetry (change 0444 acceptance
+// TestIntegrationRunCancelSettlesUncertainPublicationWithIdenticalRetry (change 0444 acceptance
 // 1): an uncertain PR publication plus a later completed identical retry — with
 // every process teardown proven — lets cancellation durably complete the original
 // entry and report cancelled; the terminal run is then quiescent for resume and
 // SupersedeCancelledRun admits exactly one replacement.
-func TestIntegrationRunCancelCancelSettlesUncertainPublicationWithIdenticalRetry(t *testing.T) {
+func TestIntegrationRunCancelSettlesUncertainPublicationWithIdenticalRetry(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	desc := MutationPublication{
 		RepoHost: "github.com", RepoOwner: "o", RepoName: "r",
@@ -318,12 +318,12 @@ func TestIntegrationRunCancelCancelSettlesUncertainPublicationWithIdenticalRetry
 	}
 }
 
-// TestIntegrationRunCancelCancelStaysPendingWithoutCompletedIdenticalRetry (change 0444 acceptance 2):
+// TestIntegrationRunCancelStaysPendingWithoutCompletedIdenticalRetry (change 0444 acceptance 2):
 // a workspace publication settles analogously, and an uncertain entry with NO
 // completed identical retry keeps cancellation-pending — then a subsequent
 // identical completed retry lets the SAME pending cancellation finish (acceptance
 // 4 tail).
-func TestIntegrationRunCancelCancelStaysPendingWithoutCompletedIdenticalRetry(t *testing.T) {
+func TestIntegrationRunCancelStaysPendingWithoutCompletedIdenticalRetry(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
@@ -368,10 +368,10 @@ func TestIntegrationRunCancelCancelStaysPendingWithoutCompletedIdenticalRetry(t 
 	}
 }
 
-// TestIntegrationRunCancelCancelNativeAdapterAbsentIsFindingNotSilence: with no native adapter wired, a
+// TestIntegrationRunCancelNativeAdapterAbsentIsFindingNotSilence: with no native adapter wired, a
 // native participant yields an explicit finding while the process teardown still
 // accounts the run to cancelled.
-func TestIntegrationRunCancelCancelNativeAdapterAbsentIsFindingNotSilence(t *testing.T) {
+func TestIntegrationRunCancelNativeAdapterAbsentIsFindingNotSilence(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	if err := RegisterRunParticipant(fx.repo, fx.key, fx.runID, RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}); err != nil {
 		t.Fatalf("RegisterRunParticipant: %v", err)
@@ -387,9 +387,9 @@ func TestIntegrationRunCancelCancelNativeAdapterAbsentIsFindingNotSilence(t *tes
 	}
 }
 
-// TestIntegrationRunCancelCancelNeverChargesOrResets: cancellation touches neither the change-owned
+// TestIntegrationRunCancelNeverChargesOrResets: cancellation touches neither the change-owned
 // suite budget nor the run-tracker retry markers, and resets no run-tracker-record retry state.
-func TestIntegrationRunCancelCancelNeverChargesOrResets(t *testing.T) {
+func TestIntegrationRunCancelNeverChargesOrResets(t *testing.T) {
 	fx := newCancelFixture(t, true)
 
 	// Seed a consumed retry marker and a reserved suite attempt.
@@ -441,11 +441,11 @@ func TestIntegrationRunCancelCancelNeverChargesOrResets(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelPendingWhileLaunchObligationUnresolved: even with every process teardown
+// TestIntegrationRunCancelPendingWhileLaunchObligationUnresolved: even with every process teardown
 // proven, a run-linked launch obligation the reconciler reports unsettled keeps
 // the cancellation pending (a completed replacement must never first appear after a
 // completed cancellation), surfacing the reconciler's findings.
-func TestIntegrationRunCancelCancelPendingWhileLaunchObligationUnresolved(t *testing.T) {
+func TestIntegrationRunCancelPendingWhileLaunchObligationUnresolved(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	recon := &fakeLaunchReconciler{report: gatedrive.RunLaunchReport{
@@ -468,10 +468,10 @@ func TestIntegrationRunCancelCancelPendingWhileLaunchObligationUnresolved(t *tes
 	}
 }
 
-// TestIntegrationRunCancelCancelCompletesWhenLaunchObligationsSettle: with the reconciler reporting every
+// TestIntegrationRunCancelCompletesWhenLaunchObligationsSettle: with the reconciler reporting every
 // launch obligation accounted and the rest of the accounting green, cancellation
 // completes to cancelled.
-func TestIntegrationRunCancelCancelCompletesWhenLaunchObligationsSettle(t *testing.T) {
+func TestIntegrationRunCancelCompletesWhenLaunchObligationsSettle(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	recon := okLaunchReconciler()
@@ -488,9 +488,9 @@ func TestIntegrationRunCancelCancelCompletesWhenLaunchObligationsSettle(t *testi
 	}
 }
 
-// TestIntegrationRunCancelCancelReconcilerUnavailableFailsClosed: a nil launch reconciler is not silence
+// TestIntegrationRunCancelReconcilerUnavailableFailsClosed: a nil launch reconciler is not silence
 // — it is a finding and a fail-closed pending, mirroring the nil-stopper rule.
-func TestIntegrationRunCancelCancelReconcilerUnavailableFailsClosed(t *testing.T) {
+func TestIntegrationRunCancelReconcilerUnavailableFailsClosed(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: nil}, fx.repo, fx.key, fx.runID, "human stop")
@@ -520,10 +520,10 @@ func TestIntegrationRunCancelRunCancelPublicEntry(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelNeverTouchesForeignSlot (AC4): a slot the worktree carries for a
+// TestIntegrationRunCancelNeverTouchesForeignSlot (AC4): a slot the worktree carries for a
 // DIFFERENT run is never marked, stopped, or released by this run's cancel — a
 // different nonempty RunID is a foreign owner, surfaced informationally.
-func TestIntegrationRunCancelCancelNeverTouchesForeignSlot(t *testing.T) {
+func TestIntegrationRunCancelNeverTouchesForeignSlot(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	// Occupy the worktree with a FOREIGN run's executing slot.
 	ftoken, err := fx.store.ReserveWorktreeExecutionForRun(fx.common, fx.worktree, "foreign-run", nil)
@@ -552,10 +552,10 @@ func TestIntegrationRunCancelCancelNeverTouchesForeignSlot(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelLeavesUnlinkedNoRunRecordSlot (AC4): a no-run-record slot whose execution is
+// TestIntegrationRunCancelLeavesUnlinkedNoRunRecordSlot (AC4): a no-run-record slot whose execution is
 // NOT independently linked to this run's registered participants is left
 // untouched, with an unresolved-ownership finding; cancellation still completes.
-func TestIntegrationRunCancelCancelLeavesUnlinkedNoRunRecordSlot(t *testing.T) {
+func TestIntegrationRunCancelLeavesUnlinkedNoRunRecordSlot(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	rtoken, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
 	if err != nil {
@@ -580,10 +580,10 @@ func TestIntegrationRunCancelCancelLeavesUnlinkedNoRunRecordSlot(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelStopsLinkedNoRunRecordSlot (AC4): a no-run-record slot IS torn down when its
+// TestIntegrationRunCancelStopsLinkedNoRunRecordSlot (AC4): a no-run-record slot IS torn down when its
 // exact execution (RawRunDir) is independently linked to a registered execution
 // participant of this run.
-func TestIntegrationRunCancelCancelStopsLinkedNoRunRecordSlot(t *testing.T) {
+func TestIntegrationRunCancelStopsLinkedNoRunRecordSlot(t *testing.T) {
 	fx := newCancelFixture(t, false)
 	runDir := filepath.Join(fx.worktree, "run-L")
 	rtoken, err := fx.store.ReserveRawWorktreeExecution(fx.common, fx.worktree, nil)
@@ -606,11 +606,11 @@ func TestIntegrationRunCancelCancelStopsLinkedNoRunRecordSlot(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelReleaseWriteFailureFailsClosed (AC5): a release whose durable write
+// TestIntegrationRunCancelReleaseWriteFailureFailsClosed (AC5): a release whose durable write
 // fails (the record vanishes between the proven stop and the release) keeps the
 // cancellation pending — a successful process stop never proves the release was
 // recorded.
-func TestIntegrationRunCancelCancelReleaseWriteFailureFailsClosed(t *testing.T) {
+func TestIntegrationRunCancelReleaseWriteFailureFailsClosed(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	stopper.onStop = func(runDir string) {
@@ -629,9 +629,9 @@ func TestIntegrationRunCancelCancelReleaseWriteFailureFailsClosed(t *testing.T) 
 	}
 }
 
-// TestIntegrationRunCancelCancelRetiresOwnedReleasedSlot (AC1/AC2 app half): completed cancellation
+// TestIntegrationRunCancelRetiresOwnedReleasedSlot (AC1/AC2 app half): completed cancellation
 // releases AND detaches the slot — RunID cleared, historical fields preserved.
-func TestIntegrationRunCancelCancelRetiresOwnedReleasedSlot(t *testing.T) {
+func TestIntegrationRunCancelRetiresOwnedReleasedSlot(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	before, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
@@ -659,9 +659,9 @@ func TestIntegrationRunCancelCancelRetiresOwnedReleasedSlot(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelPendingWhenRetirementFails (AC5): a retirement write failure keeps the
+// TestIntegrationRunCancelPendingWhenRetirementFails (AC5): a retirement write failure keeps the
 // run cancelling and the disposition pending — never a false cancelled.
-func TestIntegrationRunCancelCancelPendingWhenRetirementFails(t *testing.T) {
+func TestIntegrationRunCancelPendingWhenRetirementFails(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler(),
@@ -681,11 +681,11 @@ func TestIntegrationRunCancelCancelPendingWhenRetirementFails(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunCancelCancelInterruptedBetweenRetireAndFinalizeConverges (AC5): retirement landed
+// TestIntegrationRunCancelInterruptedBetweenRetireAndFinalizeConverges (AC5): retirement landed
 // but cancelled was never persisted (simulated crash between the two writes); the
 // retry revalidates, accepts the already-detached slot, and finishes the run
 // transition — without touching a successor.
-func TestIntegrationRunCancelCancelInterruptedBetweenRetireAndFinalizeConverges(t *testing.T) {
+func TestIntegrationRunCancelInterruptedBetweenRetireAndFinalizeConverges(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	// Reconstruct the crash state directly: the run record CAS has no seam, so
@@ -718,12 +718,12 @@ func TestIntegrationRunCancelCancelInterruptedBetweenRetireAndFinalizeConverges(
 	}
 }
 
-// TestIntegrationRunCancelCancelRetireRaceWithSuccessorLeavesSuccessor (AC4): the slot is replaced by a
+// TestIntegrationRunCancelRetireRaceWithSuccessorLeavesSuccessor (AC4): the slot is replaced by a
 // successor between the cancel's load and its retire CAS — the retire refuses on
 // the changed reservation, the re-read classifies the successor as foreign, and
 // cancellation completes WITHOUT touching it (never retried with the successor's
 // token).
-func TestIntegrationRunCancelCancelRetireRaceWithSuccessorLeavesSuccessor(t *testing.T) {
+func TestIntegrationRunCancelRetireRaceWithSuccessorLeavesSuccessor(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	var raced bool
@@ -754,10 +754,10 @@ func TestIntegrationRunCancelCancelRetireRaceWithSuccessorLeavesSuccessor(t *tes
 	}
 }
 
-// TestIntegrationRunCancelCancelConcurrentReplayIsIdempotent (AC4): two sequential replays of a
+// TestIntegrationRunCancelConcurrentReplayIsIdempotent (AC4): two sequential replays of a
 // completed cancellation are no-ops (already-cancelled) leaving slot and run
 // byte-stable.
-func TestIntegrationRunCancelCancelConcurrentReplayIsIdempotent(t *testing.T) {
+func TestIntegrationRunCancelConcurrentReplayIsIdempotent(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
@@ -1020,7 +1020,7 @@ func TestIntegrationRunCancelRetirementDoesNotUnfenceOldRunLaunches(t *testing.T
 
 // TestIntegrationRunCancelRepairChargesNothing (AC8): terminal repair — like cancellation — touches
 // neither the suite budget nor the run-tracker retry markers. This mirrors
-// TestIntegrationRunCancelCancelNeverChargesOrResets (same seeding and asserts) with the historical
+// TestIntegrationRunCancelNeverChargesOrResets (same seeding and asserts) with the historical
 // stale-slot repair arrangement of TestIntegrationRunCancelTerminalRepairRetiresHistoricalStaleSlot
 // (release WITHOUT retirement + run forced cancelled) placed between the seeding
 // and the accounting-neutrality asserts.
@@ -1579,14 +1579,14 @@ func TestIntegrationRunCancelTerminalRepairTornResumeConverges(t *testing.T) {
 	})
 }
 
-// TestIntegrationRunCancelCancelRemovedWorktreeRunReachesSlotByStoredIdentity (change 0446 spec AC2,
+// TestIntegrationRunCancelRemovedWorktreeRunReachesSlotByStoredIdentity (change 0446 spec AC2,
 // Task 10): cancelling an ACTIVE run whose feature worktree directory was removed
 // — with its slot still executing (the stop proves teardown) or already released
 // between drives — reaches the slot through its stored identity rather than
 // re-canonicalizing the missing path: the cancel completes, the slot is released
 // and detached from the run, a repeat is the idempotent no-op, and once the path
 // is recreated a replacement run's reservation admits over the same slot.
-func TestIntegrationRunCancelCancelRemovedWorktreeRunReachesSlotByStoredIdentity(t *testing.T) {
+func TestIntegrationRunCancelRemovedWorktreeRunReachesSlotByStoredIdentity(t *testing.T) {
 	for _, releasedFirst := range []bool{false, true} {
 		t.Run(map[bool]string{false: "executing-slot", true: "released-slot"}[releasedFirst], func(t *testing.T) {
 			fx := newCancelFixture(t, true)

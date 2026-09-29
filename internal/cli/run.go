@@ -75,7 +75,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "start <target>",
 		Short: "Start a tracked run for a dispatched workflow and print run-started <key> <run-id> <run-context>",
 		Args:  cobra.ExactArgs(1),
-		// local-write: mints the durable rungate record AND the outer recovery-scope
+		// local-write: mints the durable run-tracker record AND the outer recovery-scope
 		// record under the Git common dir; the re-sync is a read-only fetch.
 		Annotations: capability("run.start", EffectLocalWrite),
 		RunE: func(c *cobra.Command, args []string) error {
@@ -126,7 +126,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "verdict <key> | --unattributed [<id>...]",
 		Short: "Report the run tracker's verdict for a dispatched workflow (attributed or observe-only)",
 		Args:  cobra.ArbitraryArgs,
-		// local-write: writes only the durable rungate record and its O_EXCL retry
+		// local-write: writes only the durable run-tracker record and its O_EXCL retry
 		// marker. Attribution reads the already-landed in-progress claim set and
 		// binds it in the local record — it writes no metadata branch.
 		Annotations: capability("run.verdict", EffectLocalWrite),
@@ -208,7 +208,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Cancel a dispatched run: fence it, tear it down, and report the disposition",
 		Args:  cobra.NoArgs,
 		// process-control: stops the run's registered native tasks and processes.
-		// local-write: transitions the durable run-run record and releases the
+		// local-write: transitions the durable run record and releases the
 		// worktree execution slot.
 		Annotations: capability("run.cancel", EffectLocalWrite, EffectProcessControl),
 		RunE: func(c *cobra.Command, _ []string) error {

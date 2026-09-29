@@ -65,7 +65,7 @@ func TestIntegrationRunStartStorageResetIgnoresRetiredRoots(t *testing.T) {
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Started || res.Key == "" {
-		t.Fatalf("a fresh start over the retired roots must succeed: Armed=%v Key=%q reason=%q", res.Started, res.Key, res.Reason)
+		t.Fatalf("a fresh start over the retired roots must succeed: Started=%v Key=%q reason=%q", res.Started, res.Key, res.Reason)
 	}
 
 	keyDir := filepath.Join(common, "docket", "run-tracker", res.Key)

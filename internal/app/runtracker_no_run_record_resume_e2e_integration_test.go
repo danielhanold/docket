@@ -13,7 +13,7 @@ import (
 )
 
 // TestIntegrationRunStartNoRunRecordResumeEndToEnd0382 reproduces change 0382's resumed run (change 0463).
-// The change was claimed by an UNARMED first dispatch, so no run exists. The
+// The change was claimed by an UNTRACKED first dispatch, so no run exists. The
 // resume start must print `run-started <key> <run-id> <run-context>`. Parsed
 // positionally (as AGENTS.md tells a parent), the <run-id> is admitted by the real
 // run launch gate for the resumed worktree and recorded on its execution slot.
@@ -48,9 +48,9 @@ func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 	if len(fields) != 4 || fields[0] != "run-started" {
 		t.Fatalf("started line %q must be `run-started <key> <run-id> <run-context>`", start.HumanText())
 	}
-	key, runID, dispatchCtx := fields[1], fields[2], fields[3]
-	if key != start.Key || runID != start.RunID || dispatchCtx != start.RunContext {
-		t.Fatalf("positional fields (%q,%q,%q) disagree with the result (%q,%q,%q)", key, runID, dispatchCtx, start.Key, start.RunID, start.RunContext)
+	key, runID, runCtx := fields[1], fields[2], fields[3]
+	if key != start.Key || runID != start.RunID || runCtx != start.RunContext {
+		t.Fatalf("positional fields (%q,%q,%q) disagree with the result (%q,%q,%q)", key, runID, runCtx, start.Key, start.RunID, start.RunContext)
 	}
 
 	svc, res, reason := NewTaskGateDriveService(common, "/bin/true", buildEffWithMaxAttempts("go test ./...", 4), []string{"/bin/echo", "ok"})
@@ -59,12 +59,12 @@ func TestIntegrationRunStartNoRunRecordResumeEndToEnd0382(t *testing.T) {
 	}
 	req := GateDriveStartRequest{
 		RepoDir: common, Worktree: worktree, ChangeID: "5", TaskID: "task-6", Phase: "build",
-		RunRoot: testsupport.TempDir(t), Cwd: worktree, RunContext: dispatchCtx, RunID: runID,
+		RunRoot: testsupport.TempDir(t), Cwd: worktree, RunContext: runCtx, RunID: runID,
 	}
 
 	// The misrouted 0382 call: the run context presented as the run id.
 	bad := req
-	bad.RunID = dispatchCtx
+	bad.RunID = runCtx
 	if _, berr := svc.engine.Admit(svc.startRequest(bad)); berr == nil {
 		t.Fatalf("the run context must never admit as a run id")
 	} else if r, why := mapDriveFailure(berr); r != ResultInvalidInput || why != ReasonUnknownRunID {

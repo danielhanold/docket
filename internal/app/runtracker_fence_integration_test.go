@@ -641,7 +641,7 @@ func TestIntegrationRunFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(
 // --- change 0446 Task 7: deterministic worktree owner selection and the
 // slot-named-run rule (spec §§1, 5; AC3, AC6). ---
 
-// runRecordPath is the run.json path for key under repo's rungate root.
+// runRecordPath is the run.json path for key under repo's run-tracker root.
 func runRecordPath(t *testing.T, repo, key string) string {
 	t.Helper()
 	common, err := runTrackerGitCommonDir(repo)
@@ -858,7 +858,7 @@ func TestIntegrationRunFenceSlotNamedRunRecordUnreadableRefusesLocally(t *testin
 			// (which cannot resolve a run no readable record carries).
 			if msg := aerr.Error(); !strings.Contains(msg, filepath.Join("docket", runTrackerDirName)) ||
 				!strings.Contains(msg, "human") || !strings.Contains(msg, "run.cancel cannot") {
-				t.Fatalf("refusal %q must name the rungate store, human repair, and run.cancel's inapplicability", msg)
+				t.Fatalf("refusal %q must name the run-tracker store, human repair, and run.cancel's inapplicability", msg)
 			}
 
 			for _, wt := range []string{unref, companion} {

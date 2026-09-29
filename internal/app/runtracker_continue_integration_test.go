@@ -52,11 +52,11 @@ func runTrackerMintWithContinuation(t *testing.T, repoDir, cid, drive, handoff s
 	return key
 }
 
-// TestIntegrationRunStartGateClaimSuccessRedeemsAndClearsTriple: a matching continuation id claims
+// TestIntegrationRunStartContinueSuccessRedeemsAndClearsTriple: a matching continuation id claims
 // the recovered drive, clears the triple (single-use at the record layer), and
 // returns the fresh owner generation in JSON. The seam is called with the exact
 // drive id + handoff token from the triple.
-func TestIntegrationRunStartGateClaimSuccessRedeemsAndClearsTriple(t *testing.T) {
+func TestIntegrationRunStartContinueSuccessRedeemsAndClearsTriple(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{out: RunContinueOutcome{Generation: "freshgen", Phase: "build", Outcome: "WAITING"}}
@@ -86,9 +86,9 @@ func TestIntegrationRunStartGateClaimSuccessRedeemsAndClearsTriple(t *testing.T)
 	}
 }
 
-// TestIntegrationRunStartGateClaimRedactsGeneration: the generation travels only in the JSON
+// TestIntegrationRunStartContinueRedactsGeneration: the generation travels only in the JSON
 // document — HumanText names the drive id and outcome, never the generation.
-func TestIntegrationRunStartGateClaimRedactsGeneration(t *testing.T) {
+func TestIntegrationRunStartContinueRedactsGeneration(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{out: RunContinueOutcome{Generation: "secretgen", Phase: "build", Outcome: "WAITING"}}
@@ -104,9 +104,9 @@ func TestIntegrationRunStartGateClaimRedactsGeneration(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateClaimSingleUse: a second claim after a successful redemption finds no
+// TestIntegrationRunStartContinueSingleUse: a second claim after a successful redemption finds no
 // continuation (the triple was cleared) and fails closed to no-continuation.
-func TestIntegrationRunStartGateClaimSingleUse(t *testing.T) {
+func TestIntegrationRunStartContinueSingleUse(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{out: RunContinueOutcome{Generation: "freshgen", Phase: "build", Outcome: "WAITING"}}
@@ -123,9 +123,9 @@ func TestIntegrationRunStartGateClaimSingleUse(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateClaimNoContinuation: a record with no continuation triple fails closed
+// TestIntegrationRunStartContinueNoContinuation: a record with no continuation triple fails closed
 // to no-continuation and never touches the drive layer.
-func TestIntegrationRunStartGateClaimNoContinuation(t *testing.T) {
+func TestIntegrationRunStartContinueNoContinuation(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintStarted(t, repo, nil, 1, "") // started, no triple
 	seam := &fakeClaimSeam{}
@@ -139,9 +139,9 @@ func TestIntegrationRunStartGateClaimNoContinuation(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateClaimMismatch: a wrong continuation id fails closed to
+// TestIntegrationRunStartContinueMismatch: a wrong continuation id fails closed to
 // continuation-mismatch and leaves the triple intact for a legitimate retry.
-func TestIntegrationRunStartGateClaimMismatch(t *testing.T) {
+func TestIntegrationRunStartContinueMismatch(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintWithContinuation(t, repo, "cid-right", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{}
@@ -162,9 +162,9 @@ func TestIntegrationRunStartGateClaimMismatch(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateClaimMismatchDifferentLength: a length-differing id also fails closed
+// TestIntegrationRunStartContinueMismatchDifferentLength: a length-differing id also fails closed
 // (crypto/subtle returns 0 on unequal lengths) rather than panicking or matching.
-func TestIntegrationRunStartGateClaimMismatchDifferentLength(t *testing.T) {
+func TestIntegrationRunStartContinueMismatchDifferentLength(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	res := RunContinue(repo, key, "cid-abc-longer", &fakeClaimSeam{})
@@ -173,10 +173,10 @@ func TestIntegrationRunStartGateClaimMismatchDifferentLength(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateClaimHaltedCarriesCause: a HALTED drive-layer claim (unsafe ownership)
+// TestIntegrationRunStartContinueHaltedCarriesCause: a HALTED drive-layer claim (unsafe ownership)
 // fails closed to halted-claim carrying the driver's cause, and leaves the triple
 // intact.
-func TestIntegrationRunStartGateClaimHaltedCarriesCause(t *testing.T) {
+func TestIntegrationRunStartContinueHaltedCarriesCause(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{out: RunContinueOutcome{Halted: true, Cause: "fingerprint-mismatch", Outcome: "HALTED"}}
@@ -194,9 +194,9 @@ func TestIntegrationRunStartGateClaimHaltedCarriesCause(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateClaimCommandError: a command fault from the drive layer fails closed to
+// TestIntegrationRunStartContinueCommandError: a command fault from the drive layer fails closed to
 // claim-error and leaves the triple intact.
-func TestIntegrationRunStartGateClaimCommandError(t *testing.T) {
+func TestIntegrationRunStartContinueCommandError(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 	seam := &fakeClaimSeam{err: errFake}
@@ -211,9 +211,9 @@ func TestIntegrationRunStartGateClaimCommandError(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateClaimNilSeam: an unwired seam fails closed to claim-unavailable without
+// TestIntegrationRunStartContinueNilSeam: an unwired seam fails closed to claim-unavailable without
 // clearing the triple.
-func TestIntegrationRunStartGateClaimNilSeam(t *testing.T) {
+func TestIntegrationRunStartContinueNilSeam(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := runTrackerMintWithContinuation(t, repo, "cid-abc", "d0opaque", "h0token")
 
@@ -227,9 +227,9 @@ func TestIntegrationRunStartGateClaimNilSeam(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateClaimLoadErrorFailsClosed: a malformed key never touches the filesystem
+// TestIntegrationRunStartContinueLoadErrorFailsClosed: a malformed key never touches the filesystem
 // and fails closed to a run-stop carrying the store's typed reason token.
-func TestIntegrationRunStartGateClaimLoadErrorFailsClosed(t *testing.T) {
+func TestIntegrationRunStartContinueLoadErrorFailsClosed(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	res := RunContinue(repo, "Bad/Key", "cid-abc", &fakeClaimSeam{})
 	if res.Decision != RunDecisionStop {
