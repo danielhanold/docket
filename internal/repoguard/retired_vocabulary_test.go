@@ -150,6 +150,10 @@ var retiredVocabulary = []retiredToken{
 	// sealed by row 38's rungate token and needs no row of its own.
 	{Row: "38f", Kind: kindToken, Old: "DOCKET_AGENT_GUARDIAN_GATE_KEY", New: "DOCKET_AGENT_GUARDIAN_RUN_KEY"},
 	{Row: "38g", Kind: kindJSONKey, Old: "dispatch_context", New: "run_context"},
+	// 38g's token entry seals the key's consumers (a `jq -r .dispatch_context`
+	// read, a Go map-key literal), which the struct-tag entry above cannot see.
+	// No maintained namesake carries the spelling (change 0477 review Finding 3).
+	{Row: "38g", Kind: kindToken, Old: "dispatch_context", New: "run_context"},
 }
 
 // retiredHit is one seal violation.
@@ -381,6 +385,22 @@ func testRetiredNonVacuity(t *testing.T) {
 		if !hasRetiredRow(goHits(c.rel, c.src), "12, 38e") {
 			t.Errorf("rows 12/38e: the former kept Go spelling in %s was not detected: %q", c.rel, c.src)
 		}
+	}
+	// Row 38g (change 0477 review Finding 3): the retired run.start JSON key is
+	// sealed at its CONSUMERS too, not only at the producer's struct tag — a
+	// skill/shell line reading it and a Go map-key literal must both hit.
+	for _, line := range []string{
+		"ctx=$(docket run start implement-next --json | jq -r .dispatch_context)",
+		"read `.dispatch_context` from the run.start JSON result",
+	} {
+		for _, rel := range []string{"skills/x/SKILL.md", "tests/test_x.sh"} {
+			if !hasRetiredRow(scanTextContent(rel, line), "38g") {
+				t.Errorf("row 38g: a dispatch_context read in %s was not detected: %q", rel, line)
+			}
+		}
+	}
+	if !hasRetiredRow(goHits("internal/app/x.go", "package p\nvar c = m[\"dispatch_context\"]\n"), "38g") {
+		t.Errorf("row 38g: a dispatch_context Go map-key literal was not detected")
 	}
 }
 
