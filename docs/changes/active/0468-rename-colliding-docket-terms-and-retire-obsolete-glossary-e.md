@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [129]
 spec: 'docs/superpowers/specs/2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-design.md'
 plan: 'docs/superpowers/plans/2026-09-29-0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md'
-results:
+results: 'docs/results/2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-29T09:07:51Z'
 |---|---|
 | Spec | [2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-design.md) |
 | Plan | [2026-09-29-0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md](https://github.com/danielhanold/docket/blob/refactor/rename-colliding-docket-terms-and-retire-obsolete-glossary-e/docs/superpowers/plans/2026-09-29-0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md) |
+| Results | [2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-results.md](https://github.com/danielhanold/docket/blob/refactor/rename-colliding-docket-terms-and-retire-obsolete-glossary-e/docs/results/2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
