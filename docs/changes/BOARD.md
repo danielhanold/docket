@@ -1,6 +1,6 @@
 # Backlog
 
-**474 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 12 deferred · ✅ 322 done · 🗑️ 120 killed
+**475 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 322 done · 🗑️ 120 killed
 
 ## 🔴 Blocked (1)
 
@@ -17,10 +17,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (16)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0475](active/0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | `low` | `chore` | needs-brainstorm |
 | [0474](active/0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and the terminal/fence lifecycle codes | `medium` | `refactor` | ⏳ waiting on #468 — not yet built |
 | [0473](active/0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | `medium` | `refactor` | ⏳ waiting on #468 — not yet built |
 | [0472](active/0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | `medium` | `refactor` | ⏳ waiting on #468 — not yet built |
@@ -89,6 +90,7 @@ graph TD
   0468 --> 0472
   0468 --> 0473
   0468 --> 0474
+  0475
   0192:::done
   0251:::done
   0370:::done
