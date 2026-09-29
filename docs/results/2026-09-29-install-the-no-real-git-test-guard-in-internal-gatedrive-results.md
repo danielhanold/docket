@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0470 — Install the no-real-git test guard in internal/gatedrive](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md)**
+> ↩ **[Change 0470 — Install the no-real-git test guard in internal/gatedrive](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md)**
 <!-- docket:backlink:end -->
 # Install the no-real-git test guard in internal/gatedrive — Results
 
