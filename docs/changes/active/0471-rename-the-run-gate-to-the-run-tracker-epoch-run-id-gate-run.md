@@ -13,7 +13,7 @@ related: [467, 468, 469, 472, 473, 474]
 discovered_from: []
 adrs: [129]
 spec: 'docs/superpowers/specs/2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-29T14:04:55Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-design.md) |
+| Plan | [2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md](https://github.com/danielhanold/docket/blob/refactor/rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run/docs/superpowers/plans/2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
