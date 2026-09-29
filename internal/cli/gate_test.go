@@ -640,10 +640,15 @@ func TestGateDriveRunContextWiredThroughScope(t *testing.T) {
 		t.Fatalf("matched start bound no drive id: %v", doc)
 	}
 
+	// Both scopes share worktree wt, so scope A's drive may still hold the
+	// worktree execution slot here: a bare "not applied" check would also pass on a
+	// worktree-busy refusal even when prepare-scope pinned no context. Key on the
+	// identity refusal itself — the scope check runs before worktree admission, so
+	// only a pinned, mismatched run context yields scope-identity-mismatch.
 	sB, cB := prepare("task-mismatched")
 	doc = start("task-mismatched", sB, cB, "ctx-B")
-	if doc["result"] == "applied" {
-		t.Fatalf("a start presenting a different --run-context than the scope pinned must be refused: %v", doc)
+	if doc["result"] != "invalid-input" || doc["reason"] != "scope-identity-mismatch" {
+		t.Fatalf("a start presenting a different --run-context than the scope pinned must be refused scope-identity-mismatch (a worktree-busy or applied result means prepare-scope pinned no context): %v", doc)
 	}
 	if _, ok := doc["drive"]; ok {
 		t.Fatalf("a refused start must carry no drive document: %v", doc)
