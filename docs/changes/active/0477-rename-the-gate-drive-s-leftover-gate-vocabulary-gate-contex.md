@@ -13,7 +13,7 @@ related: [471, 472, 473, 474]
 discovered_from: [471]
 adrs: [129]
 spec: 'docs/superpowers/specs/2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-29-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-29T21:30:07Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md) |
+| Plan | [2026-09-29-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md](https://github.com/danielhanold/docket/blob/refactor/rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex/docs/superpowers/plans/2026-09-29-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
