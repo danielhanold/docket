@@ -90,7 +90,7 @@ and return `WAITING` naming the drive id and that token. After a first `WAITING`
 consumes neither repair nor escalation budget.
 
 **The one epoch exception:** an integration-repair task's post-fix re-run of the full suite is
-build-owned — run the `gate.drive.start` operation with `--owner build --run-epoch <epoch> --json`,
+build-owned — run the `gate.drive.start` operation with `--owner build --run-id <epoch> --json`,
 passing the run epoch your repair dispatch payload carried (omitted when it carried none). Only that
 start takes an epoch; every scoped task-owned start still passes none.
 

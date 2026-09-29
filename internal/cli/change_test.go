@@ -162,7 +162,7 @@ func TestChangeClaimCommandsRegistered(t *testing.T) {
 	}
 }
 
-// TestChangeClaimGateContextFlag: claim registers the optional --gate-context
+// TestChangeClaimGateContextFlag: claim registers the optional --run-context
 // flag and refresh-claim does NOT (refresh re-proves nothing about ownership).
 func TestChangeClaimGateContextFlag(t *testing.T) {
 	root := captureTree(t)
@@ -170,15 +170,15 @@ func TestChangeClaimGateContextFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("find claim: %v", err)
 	}
-	if claimCmd.Flags().Lookup("gate-context") == nil {
-		t.Fatalf("change claim must register --gate-context")
+	if claimCmd.Flags().Lookup("run-context") == nil {
+		t.Fatalf("change claim must register --run-context")
 	}
 	refreshCmd, _, err := root.Find([]string{"change", "refresh-claim"})
 	if err != nil {
 		t.Fatalf("find refresh-claim: %v", err)
 	}
-	if refreshCmd.Flags().Lookup("gate-context") != nil {
-		t.Fatalf("refresh-claim must not register --gate-context")
+	if refreshCmd.Flags().Lookup("run-context") != nil {
+		t.Fatalf("refresh-claim must not register --run-context")
 	}
 }
 

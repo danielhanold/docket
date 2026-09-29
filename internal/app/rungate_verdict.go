@@ -13,8 +13,8 @@ import (
 	"github.com/danielhanold/docket/internal/repository"
 )
 
-// This file is the `docket run gate-verdict <key>` operation in ATTRIBUTED mode
-// (change 0334, Task 3): it reads the durable gate record armed by gate-before,
+// This file is the `docket run verdict <key>` operation in ATTRIBUTED mode
+// (change 0334, Task 3): it reads the durable gate record armed by run start,
 // attributes exactly one new in-progress claim to the dispatched run, delegates
 // the run predicate to RunVerify, and maps that verdict onto one line of the
 // attributed vocabulary — spending from the counted retry budget atomically (change
@@ -42,7 +42,7 @@ import (
 // prior behavior. Unattributed observe mode is structurally unable to reach any of
 // this.
 //
-// OWNERSHIP (spec §gate-verdict, change 0407). A fresh gate resolves the verified
+// OWNERSHIP (spec §run verdict, change 0407). A fresh gate resolves the verified
 // dispatch-to-claim binding — never a before-set/cardinality snapshot — so a keyed
 // verdict can never attribute a concurrent loop's change. resolveGateOwnership
 // (below) "replace[s] before-set/cardinality attribution with the verified
@@ -53,7 +53,7 @@ import (
 // CLOSED to gate-stop gate-unavailable (or gate-done no-attributable-claim for a
 // provably absent claim). The record's BeforeIDs and DispatchEpoch are retained as
 // diagnostics only and can never create retry authority. A record that already
-// names an AttributedID with no claim binding is the `gate-before --resume` shape:
+// names an AttributedID with no claim binding is the `run start --resume` shape:
 // its id was pre-bound by verified WorkspaceInspect identity, so ownership returns
 // it directly and continuity is RunVerify's job, exactly as today.
 //
@@ -79,9 +79,9 @@ import (
 // <id> <continuation-id> <phase>` with Terminal false. Unsafe ownership
 // (ambiguous or halted takeover) earns neither retry nor continuation.
 
-// OperationRunGateVerdict is the operation key `run gate-verdict` records in its
+// OperationRunGateVerdict is the operation key `run verdict` records in its
 // envelope.
-const OperationRunGateVerdict = "run.gate-verdict"
+const OperationRunGateVerdict = "run.verdict"
 
 // The gate decision tokens — the leading word of every attributed report line.
 const (
@@ -164,7 +164,7 @@ const (
 	ReasonGateEpochUnreadable = "epoch-unreadable"
 )
 
-// RunGateVerdictResult is the protocol-v1 document `run gate-verdict` returns. It
+// RunGateVerdictResult is the protocol-v1 document `run verdict` returns. It
 // renders exactly one attributed report line and always exits 0 (a produced
 // report line is not a process failure — learning exit-code-encodes-a-non-failure).
 type RunGateVerdictResult struct {
@@ -178,7 +178,7 @@ type RunGateVerdictResult struct {
 	Phase        string   `json:"phase,omitempty"`
 	// ContinuationID is the single-use redemption token minted on a gate-continue
 	// decision (change 0359); it is the middle field of the continue line and the
-	// token a resumed controller presents to `run gate-claim`.
+	// token a resumed controller presents to `run continue`.
 	ContinuationID string `json:"continuation_id,omitempty"`
 	AmbiguousIDs   []int  `json:"ambiguous_ids,omitempty"`
 	Reason         string `json:"reason,omitempty"`
@@ -234,7 +234,7 @@ func (r RunGateVerdictResult) HumanText() string {
 	return strings.Join(fields, " ")
 }
 
-// gateVerdictLine builds an applied (exit-0) report result. Every gate-verdict
+// gateVerdictLine builds an applied (exit-0) report result. Every run verdict
 // outcome is a report line, so the envelope result is always ResultApplied.
 func gateVerdictLine(key, decision, outcome string, id int, terminal bool, set func(*RunGateVerdictResult)) RunGateVerdictResult {
 	r := RunGateVerdictResult{Key: key, Decision: decision, Outcome: outcome, AttributedID: id, Terminal: terminal}
@@ -519,10 +519,10 @@ func gateOuterContinuation(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			// A halted takeover is fail-closed: gate-stop gate-unavailable, no retry
 			// spent (a human is needed). One halt cause is intentional and bounded:
 			// the outer recovery scope is single-use per gate ARMING (it is minted
-			// once by gate-before), so the FIRST accepted outer takeover closes it and
+			// once by run start), so the FIRST accepted outer takeover closes it and
 			// a SECOND detached-crash takeover under the same key halts scope-closed
 			// here. That once-per-arming outer-takeover limit is by design — the human
-			// recovers by re-arming a fresh scope via `gate-before --resume`; see
+			// recovers by re-arming a fresh scope via `run start --resume`; see
 			// claimScopeForTakeover (internal/gatedrive/takeover.go) and the spec's §5
 			// continuation clause.
 			reason := cause
@@ -591,7 +591,7 @@ func gateStopUnavailable(repoDir, key string, rec GateRecord, id int, reason str
 // ReasonGateProofUnavailable rather than confirming with an empty path (change 0427).
 func resolveGateOwnership(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir, key string, rec *GateRecord) *RunGateVerdictResult {
 	// Resume-verified shape: an AttributedID with no claim binding was pre-bound by
-	// `gate-before --resume` through WorkspaceInspect identity. Continuity for it is
+	// `run start --resume` through WorkspaceInspect identity. Continuity for it is
 	// RunVerify's job, exactly as today — the proof continuity check never runs.
 	if rec.resumeAttributed() {
 		return nil
@@ -810,7 +810,7 @@ func gateUnmetTokens(v RunVerifyResult) []string {
 }
 
 // ---------------------------------------------------------------------------
-// UNATTRIBUTED (observe-only) mode — `docket run gate-verdict --unattributed
+// UNATTRIBUTED (observe-only) mode — `docket run verdict --unattributed
 // [<id>...]` (change 0334, Task 4).
 //
 // This mode holds NO key, reads and writes NO gate record, and consumes NO retry
@@ -965,7 +965,7 @@ func RunGateVerdictObserve(ctx context.Context, deps PlanningDeps, wdeps Workspa
 // observeInProgressIDs re-syncs to fresh origin and returns the current
 // in-progress change ids (sorted), or a non-empty gate-unavailable reason token
 // on a re-sync / corpus-read fault (fail closed). It writes nothing — the same
-// read-only plumbing gate-before and attribution use.
+// read-only plumbing run start and attribution use.
 func observeInProgressIDs(ctx context.Context, deps PlanningDeps, repoDir string) (ids []int, reason string) {
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {

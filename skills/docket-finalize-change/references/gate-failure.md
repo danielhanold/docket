@@ -107,7 +107,7 @@ launches when the worktree is already busy — reason `worktree-busy` (another g
 `unresolved-execution` (a prior run ended without proven teardown). This is a **blocking diagnostic,
 not a rebase conflict and not a red suite**: it is in neither the abort-and-report set above nor a
 `contended`/`waiting` continuation. Do not race a second gate. The remedy is operator-side — let the
-incumbent gate finish, or stop it via the `run.cancel` operation (`--key <key> --epoch <id> --reason
+incumbent gate finish, or stop it via the `run.cancel` operation (`--key <key> --run-id <id> --reason
 <why>`; an `unresolved-execution` slot must be recovered or cancelled, never cleared by a blind
 re-start) — then re-run finalize, which finds the slot free.
 

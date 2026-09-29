@@ -18,7 +18,7 @@ import (
 	"github.com/danielhanold/docket/internal/repository"
 )
 
-// This file is the `docket run gate-before` operation (change 0334, Task 2): it
+// This file is the `docket run start` operation (change 0334, Task 2): it
 // ARMS the implement-next run gate. It re-syncs the metadata worktree to fresh
 // origin, reads the current in-progress claim set, captures a dispatch epoch
 // AFTER that read, and mints a durable gate record under the git common dir
@@ -34,9 +34,9 @@ import (
 // reused rather than reimplemented (learning duplicated-gate-copies-the-whole-
 // predicate). The only durable write is the gate record.
 
-// OperationRunGateBefore is the operation key `run gate-before` records in its
+// OperationRunGateBefore is the operation key `run start` records in its
 // envelope.
-const OperationRunGateBefore = "run.gate-before"
+const OperationRunGateBefore = "run.start"
 
 // gateBeforeAcceptedTarget is the sole accepted target argument (the workflow
 // name, not the agent name); gateBeforeStoredTarget is the canonical agent name
@@ -96,7 +96,7 @@ const (
 	// keyed verdict verified the run complete and durably fenced the epoch, but
 	// closeout is unfinished, so the epoch still owns its worktree (change 0441).
 	// Resume never turns a completing run into a cancelled predecessor or reserves a
-	// replacement; the remedy is the keyed 'docket run gate-verdict' (finish closeout)
+	// replacement; the remedy is the keyed 'docket run verdict' (finish closeout)
 	// or an explicit 'docket run cancel'.
 	ReasonGateResumeRunCompleting = "resume-run-completing"
 	// ReasonGateResumeRunCompleted: a --resume id's prior epoch is COMPLETED — the
@@ -114,7 +114,7 @@ const (
 	ReasonOwnerLifecycleUnavailable = "owner-lifecycle-unavailable"
 )
 
-// GateScopeDeps carries the outer-scope preparation seam gate-before composes
+// GateScopeDeps carries the outer-scope preparation seam run start composes
 // so unit tests can fake the durable scope mint. Production wiring (internal/cli/
 // run.go) composes gatedrive.OpenStore(<git-common-dir>).PrepareScope; a unit
 // test injects a fake that records the request and returns a canned grant.
@@ -137,7 +137,7 @@ func gateHashToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// RunGateBeforeResult is the protocol-v1 document `run gate-before` returns. On
+// RunGateBeforeResult is the protocol-v1 document `run start` returns. On
 // an armed gate Result is applied and Key names the durable record; on a
 // gate-unarmed report Result is still applied (the report line exits 0) and
 // Reason carries the stable token. A usage error (bad target) carries a
@@ -145,7 +145,7 @@ func gateHashToken(token string) string {
 // bodies.
 type RunGateBeforeResult struct {
 	Envelope
-	Armed bool   `json:"armed"`
+	Armed bool   `json:"started"`
 	Key   string `json:"key,omitempty"`
 	// DispatchContext is the outer scope's ChildCapability the parent copies into
 	// the implement-next dispatch prompt; a nested drive carries its hash as the
@@ -155,13 +155,13 @@ type RunGateBeforeResult struct {
 	DispatchContext string `json:"dispatch_context,omitempty"`
 	// Epoch is the fresh run's PUBLIC epoch id, minted at arm time beside the gate
 	// record (rungate_epoch.go). It authorizes nothing (ADR-0111) but is the locator
-	// the operator threads into `run.cancel --epoch <id>` — the primary human Stop —
-	// and the dispatcher threads into each `--run-epoch` flag (agent.enter, gate drive
+	// the operator threads into `run.cancel --run-id <id>` — the primary human Stop —
+	// and the dispatcher threads into each `--run-id` flag (agent.enter, gate drive
 	// start, gate drive prepare-scope). Without it the documented Stop path names an
 	// epoch the arm never surfaced (change 0375). Never empty on an armed result
 	// (change 0463): armedGateResult refuses to arm without one, so the positional
 	// `gate-armed <key> <epoch> <dispatch-context>` line always has three tokens.
-	Epoch   string `json:"epoch,omitempty"`
+	Epoch   string `json:"run_id,omitempty"`
 	Target  string `json:"target,omitempty"`
 	Reason  string `json:"reason,omitempty"`
 	Message string `json:"message,omitempty"`
@@ -267,12 +267,12 @@ func resumeActiveLocator(gateKey string, ep EpochRecord) string {
 // agent is using the epoch, so the remedy names both cases rather than guessing.
 func resumeIncumbentRemedy(gateKey, epochID string) string {
 	return "if it was never dispatched or its agent has exited, cancel it with 'docket run cancel --key " +
-		gateKey + " --epoch " + epochID + " --reason <why>' and resume after confirmed cancellation; " +
-		"if its agent is still running, continue the live run via 'docket run gate-verdict'"
+		gateKey + " --run-id " + epochID + " --reason <why>' and resume after confirmed cancellation; " +
+		"if its agent is still running, continue the live run via 'docket run verdict'"
 }
 
 // acquireResumeLock takes the exclusive per-change resume lock that serializes
-// `gate-before --resume` arms of one change (change 0463). It lives outside the
+// `run start --resume` arms of one change (change 0463). It lives outside the
 // rungate root, under <git-common-dir>/docket/run-tracker-resume/<change-id>, so the
 // scanners that walk gate-key directories never see it. Closing the returned file
 // releases the lock.
@@ -408,7 +408,7 @@ func armResumeReplacement(repoDir string, sdeps GateScopeDeps, oldKey string, p 
 		return gateUnarmed(ReasonGateMintFailed)
 	}
 	// The replacement dispatch gets a fresh live epoch; surface its public id so the
-	// resumed run's Stop path (`run.cancel --epoch`) and `--run-epoch` flags are
+	// resumed run's Stop path (`run.cancel --run-id`) and `--run-id` flags are
 	// followable, exactly as a fresh arm's are (change 0375).
 	return armedGateResult(key, epochRec.EpochID, grant.ChildCapability)
 }
@@ -545,7 +545,7 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		defer lock.Close()
 
 		// (4a) Resume SHARES the run epoch's admission (change 0375 Task 12, spec
-		// "run.gate-before --resume and direct implement-next resume must share the same
+		// "run.start --resume and direct implement-next resume must share the same
 		// admission path"). Locate the change's prior epoch; its state decides whether a
 		// replacement may be admitted. No prior epoch (a legacy/pre-epoch resume, or a
 		// first dispatch that was never armed) falls through to the ordinary arm below,
@@ -594,7 +594,7 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 					return gateUnarmedMsg(ReasonGateResumeCancellationPending,
 						"change "+scopeChangeID+" has unresolved cancellation evidence ("+detail+
 							"); the reserved replacement cannot be re-authorized until it is resolved — "+
-							"settle it with 'docket run cancel --key "+oldKey+" --epoch "+oldEp.EpochID+
+							"settle it with 'docket run cancel --key "+oldKey+" --run-id "+oldEp.EpochID+
 							" --reason <why>', then re-run this resume (a record named unreadable or "+
 							"cyclic is never inferred safe and must be readable again first)")
 				}
@@ -627,7 +627,7 @@ func RunGateBefore(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 				// the keyed verdict, or cancel explicitly.
 				return gateUnarmedMsg(ReasonGateResumeRunCompleting,
 					"change "+scopeChangeID+" completed its run and is closing out (epoch "+
-						oldEp.EpochID+"); re-run the keyed 'docket run gate-verdict' to finish "+
+						oldEp.EpochID+"); re-run the keyed 'docket run verdict' to finish "+
 						"closeout, or cancel explicitly with 'docket run cancel'")
 			case EpochCompleted:
 				// The successful closeout finished (change 0441): terminal, nothing to

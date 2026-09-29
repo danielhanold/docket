@@ -66,7 +66,7 @@ import (
 // schema-mismatch diagnostic — a silent v3->v4 migration is deliberately rejected
 // because an older run's consumed retry marker must NEVER be reinterpreted as
 // unused configurable budget (a re-grant of an already-spent retry). The supported
-// recovery is a newly armed `gate-before --resume` for a still-valid in-progress
+// recovery is a newly armed `run start --resume` for a still-valid in-progress
 // change, exactly the 0407 precedent, never a migration that blesses old state.
 const gateSchemaVersion = 4
 
@@ -159,7 +159,7 @@ type GateRecord struct {
 	AttemptLimit int `json:"attempt_limit"`
 
 	// Outer recovery-scope binding (change 0359, schema v2). ScopeID names the
-	// recovery scope gate-before prepared for this dispatch boundary; ParentCap is
+	// recovery scope run start prepared for this dispatch boundary; ParentCap is
 	// the RAW parent capability the takeover path presents — persisted only in this
 	// 0600-private record and NEVER printed in HumanText, a report line, or the
 	// result JSON; ChildContextHash is the sha256 of the printed dispatch context
@@ -190,7 +190,7 @@ type GateRecord struct {
 	BoundRevision  string `json:"bound_revision,omitempty"`
 }
 
-// resumeAttributed reports whether rec has the resume-verified shape: `gate-before
+// resumeAttributed reports whether rec has the resume-verified shape: `run start
 // --resume` pre-bound AttributedID through WorkspaceInspect identity, and no claim
 // ever confirmed under it (BoundRequestID is still empty). A fresh arm gains
 // AttributedID only at confirm time, together with BoundRequestID, so it never
@@ -251,7 +251,7 @@ func gateContinuationTripleOK(rec GateRecord) bool {
 }
 
 // GateStoreErrorKind is the typed category of a GateStoreError. The caller (the
-// gate-verdict verb) maps it to a gate-unavailable reason token: ErrGateWrongRepo
+// run verdict verb) maps it to a gate-unavailable reason token: ErrGateWrongRepo
 // -> wrong-repo, ErrGateMalformedKey -> malformed-key, ErrGateCorruptRecord ->
 // corrupt-record; the remaining kinds are ordinary not-found / IO faults.
 type GateStoreErrorKind string

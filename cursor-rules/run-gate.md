@@ -7,14 +7,14 @@ launch shape, timestamps, ids, or exit codes. The `docket` binary is on `PATH`; 
 operation below from the capability catalog. If it is missing, the install is broken: surface it,
 never rebuild the gate by hand.
 
-1. Before dispatching `docket-implement-next`, run `run.gate-before` with `implement-next`. It prints
+1. Before dispatching `docket-implement-next`, run `run.start` with `implement-next`. It prints
    `gate-armed <key> <epoch> <dispatch-context>`; keep all three (they won't survive the next tool
    call) and copy the `<dispatch-context>` and the `<epoch>` into the dispatch prompt. The `<epoch>`
-   is the run epoch id you thread into `run.cancel --epoch` (below) and every `--run-epoch` dispatch
+   is the run epoch id you thread into `run.cancel --run-id` (below) and every `--run-id` dispatch
    flag (`agent.enter`, `gate drive start`, `gate drive prepare-scope`). Add `--resume <id>` to arm
    for resuming an already-in-progress change. `gate-unarmed` still lets you dispatch, but keyless
    (step 2's fallback) and can never authorize a re-dispatch.
-2. After the run returns, or its completion notification arrives, run `run.gate-verdict`
+2. After the run returns, or its completion notification arrives, run `run.verdict`
    with `<key>`; without a key, run it with `--unattributed` plus any change id the notification
    names. Obey the resulting `gate-*` report line exactly, never its exit code or the child's prose.
 3. Only `gate-retry-once` authorizes another dispatch: the same `docket-implement-next`, once, for
@@ -23,7 +23,7 @@ never rebuild the gate by hand.
    work, so it keeps the same key, spends no retry, and is distinct from `gate-retry-once` (a
    continuation, not a second attempt). On it, resume the existing implement-next agent,
    or dispatch `docket-implement-next` again with the explicit change id, the continuation id, and the
-   same key, and run `run.gate-verdict` with `<key>` again. Every `gate-stop` and every
+   same key, and run `run.verdict` with `<key>` again. Every `gate-stop` and every
    `gate-observe` forbids re-dispatch; `run-halted` means a human is needed.
 
 ## Stopping a dispatched run — there is no automatic Stop button
@@ -32,7 +32,7 @@ A run you dispatched has **no automatic Stop**: closing a tab, interrupting the 
 killing a process does not tell the gate the run is over, and the arm says so (it reports the
 honest owner-lifecycle caveat). To stop a dispatched run deliberately, invoke the explicit
 `run.cancel` operation (argv resolved from the capability catalog) with the key and epoch the arm
-gave you, plus a human reason — `--key <key> --epoch <id> --reason <why>`.
+gave you, plus a human reason — `--key <key> --run-id <id> --reason <why>`.
 
 It fences the run so nothing new can attach to it, then stops the run's registered native tasks and
 processes and reports one disposition:
@@ -49,14 +49,14 @@ no deadline, budget, or retry state. Completed work is never rolled back.
 
 ## Resuming after a stop or interruption
 
-Arm a resume with `run.gate-before … --resume <id>`. Because one worktree carries at most one live
+Arm a resume with `run.start … --resume <id>`. Because one worktree carries at most one live
 run, the arm refuses to start a second run over one that has not verifiably stopped, and tells you
 what to do instead:
 
 - `resume-active-run` — the prior run's epoch is still **active** (nothing has confirmed it
   stopped). The arm prints a locator naming the change, epoch, and key, plus the exact remedy:
-  **cancel it** via the `run.cancel` operation (`--key <key> --epoch <id> --reason <why>`) and
-  resume after confirmed cancellation, **or** continue the live run via `run.gate-verdict`. Do not
+  **cancel it** via the `run.cancel` operation (`--key <key> --run-id <id> --reason <why>`) and
+  resume after confirmed cancellation, **or** continue the live run via `run.verdict`. Do not
   force a fresh claim over a run that may still be live.
 - `cancellation-pending` — a cancellation is still finishing. The resume only observes that
   cleanup; it does not admit a replacement. Finish the cancel (re-run it until `cancelled`), then

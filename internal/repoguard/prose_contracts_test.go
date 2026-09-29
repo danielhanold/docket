@@ -270,7 +270,7 @@ var proseContracts = []proseContract{
 	// ungated claim.
 	{sentinel: "change_0407_gate_context_claim", file: "skills/docket-implement-next/SKILL.md",
 		present: []string{
-			"pass it to the claim as --gate-context",
+			"pass it to the claim as --run-context",
 			"an invalid or conflicting gate context is a typed refusal that writes nothing — never retried as an ungated claim",
 		}},
 	// change 0410 introduced the canonical required template; change 0440

@@ -148,7 +148,7 @@ is current when build starts; docket assumes it is not.
 | Audit trail | Git history; logged hook decisions; incident conversations. | Every transition a metadata commit; presence-encoded sections; receipts and leases; frozen plan/results records; ADR supersessions as new files. | Both |
 | Legacy tracker integration | One system of record per artifact. | One-way GitHub Issues mirror; Projects v2 guarded but unwired. | Both (GitHub issues only) |
 | Autonomy without a human channel | Scoped subagents; gates ask a human. | Abort-and-report wrappers; autonomy precedence; forked children never yield; four dispositions drive any loop. | docket only |
-| Run-gate bracketing for dispatched runs | Not described. | `run gate-before` / `gate-verdict` / `gate-claim`; retry-once accounting in durable records. | docket only |
+| Run-gate bracketing for dispatched runs | Not described. | `run start` / `run verdict` / `run continue`; retry-once accounting in durable records. | docket only |
 | Persona-calibrated human prose | Not described. | `dummy_mode`; rejected at the config gate today. | docket · deferred |
 | Archived records on the code branch | Everything on one branch. | `terminal_publish`; parseable, guarded, inert. | docket · deferred |
 | Metrics framework | Leading and lagging indicators; DORA. | None; most leading indicators derivable from existing timestamps. | Playbook only |

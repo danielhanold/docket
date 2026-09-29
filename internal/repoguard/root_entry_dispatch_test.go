@@ -64,7 +64,7 @@ func TestCommittedCodexDispatchObservesYieldedEntrySession(t *testing.T) {
 		"shell-tool yield carrying a live task/session identity is a liveness transition, not completion",
 		"retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism",
 		"Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved",
-		"Only after terminal output is collected may implement-next run the parent's keyed `run.gate-verdict`",
+		"Only after terminal output is collected may implement-next run the parent's keyed `run.verdict`",
 	} {
 		if !strings.Contains(content, clause) {
 			t.Errorf("AGENTS.md Codex dispatch policy lacks yielded-session barrier %q", clause)

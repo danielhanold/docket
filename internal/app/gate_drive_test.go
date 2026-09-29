@@ -1746,7 +1746,7 @@ func TestQuoteOperand(t *testing.T) {
 }
 
 // TestMapDriveFailureEpochErrors (change 0463): an EpochError chained through the
-// gate-drive seam (the epoch launch gate refusing an unknown --run-epoch) surfaces
+// gate-drive seam (the epoch launch gate refusing an unknown --run-id) surfaces
 // its named token, never the catch-all invalid-request. The service attaches the
 // next-action message, and neither the reason nor the message echoes the value.
 func TestMapDriveFailureEpochErrors(t *testing.T) {
@@ -1772,10 +1772,10 @@ func TestMapDriveFailureEpochErrors(t *testing.T) {
 	}
 }
 
-// TestPrepareScopeRefusesUnknownRunEpoch (change 0463): a presented --run-epoch that
+// TestPrepareScopeRefusesUnknownRunEpoch (change 0463): a presented --run-id that
 // the registry cannot resolve is refused before any scope is minted, with the named
 // token and the next action and without echoing the value. A scope with no
-// --run-epoch never consults the locator (standalone scopes are unchanged).
+// --run-id never consults the locator (standalone scopes are unchanged).
 func TestPrepareScopeRefusesUnknownRunEpoch(t *testing.T) {
 	eng := &fakeDriveEngine{grant: gatedrive.ScopeGrant{ScopeID: "scope-1", ChildCapability: "c", ParentCapability: "p"}}
 	svc := newGateDriveService(eng, 0, "", "")
@@ -1806,6 +1806,6 @@ func TestPrepareScopeRefusesUnknownRunEpoch(t *testing.T) {
 
 	asked = ""
 	if ok := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463"}); ok.Result != ResultApplied || asked != "" {
-		t.Fatalf("a scope without --run-epoch must skip the locator and apply: result=%s asked=%q", ok.Result, asked)
+		t.Fatalf("a scope without --run-id must skip the locator and apply: result=%s asked=%q", ok.Result, asked)
 	}
 }

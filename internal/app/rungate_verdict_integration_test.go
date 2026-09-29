@@ -15,8 +15,8 @@ import (
 	"github.com/danielhanold/docket/internal/repository"
 )
 
-// These are the `docket run gate-verdict <key>` (attributed mode) tests (change
-// 0334, Task 3). gate-verdict loads the durable gate record, attributes exactly
+// These are the `docket run verdict <key>` (attributed mode) tests (change
+// 0334, Task 3). run verdict loads the durable gate record, attributes exactly
 // one new in-progress claim through the three filters (id not in the before-set;
 // claimed_at parses; claimed_at >= dispatch epoch), then delegates the run
 // predicate to RunVerify and maps its verdict onto the attributed vocabulary —
@@ -51,7 +51,7 @@ func gateLightDeps(t *testing.T, corpus []StatusBlob) PlanningDeps {
 }
 
 // gateMintAttributed mints a record already attributed to id — the state a second
-// gate-verdict call reads after a first call attributed the claim.
+// run verdict call reads after a first call attributed the claim.
 func gateMintAttributed(t *testing.T, repoDir string, id int) string {
 	t.Helper()
 	key := gateMintArmed(t, repoDir, nil, 1, "")
@@ -190,7 +190,7 @@ func (r gatedWaitingReader) Read(_ context.Context, _ string, _ int) (WaitingRec
 }
 
 // gateMintArmedScoped mints an armed record carrying the outer recovery-scope
-// binding (ScopeID/ParentCap/ChildContextHash) gate-before stamps for a dispatched
+// binding (ScopeID/ParentCap/ChildContextHash) run start stamps for a dispatched
 // implement-next run, so the verdict path's outer-takeover branch is reachable.
 func gateMintArmedScoped(t *testing.T, repoDir, scopeID, parentCap, childContextHash string) string {
 	t.Helper()
@@ -656,7 +656,7 @@ func TestIntegrationGateVerdictVerdictFreshRunBindsScopeChange(t *testing.T) {
 }
 
 // TestIntegrationGateVerdictVerdictContinuationDoesNotRebindScope: a continuation (an already-attributed
-// record — the state a second gate-verdict call reads) skips attribution entirely,
+// record — the state a second run verdict call reads) skips attribution entirely,
 // so it MUST NOT re-bind the outer scope's change id. This is the bind-once guard's
 // other half: the fresh run binds, a continuation never touches it.
 func TestIntegrationGateVerdictVerdictContinuationDoesNotRebindScope(t *testing.T) {
@@ -988,7 +988,7 @@ func TestIntegrationGateVerdictVerdictCorruptBindingFailsClosed(t *testing.T) {
 	}
 }
 
-// TestIntegrationGateVerdictVerdictResumeBindingSkipsContinuity: a gate-before --resume record
+// TestIntegrationGateVerdictVerdictResumeBindingSkipsContinuity: a run start --resume record
 // (AttributedID set, BoundRequestID empty) is pre-bound by verified identity — the
 // continuity check never runs, so a scanner that WOULD report a replacement still
 // delegates to RunVerify (preserved verified-resume behavior).

@@ -65,19 +65,19 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	verify.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = verify.MarkFlagRequired("id")
 
-	// gate-before arms the implement-next run gate: it re-syncs, records the
+	// run start arms the implement-next run gate: it re-syncs, records the
 	// before-set + dispatch epoch in a durable record, and prints `gate-armed <key>
 	// <epoch> <dispatch-context>` (or `gate-unarmed <reason>`). The sole positional
 	// argument is the gate target; only `implement-next` is accepted, and any other
 	// value is an invalid-input result (non-zero exit) the app layer owns. It
 	// reuses the same read-only planning seams as verify.
 	gateBefore := &cobra.Command{
-		Use:   "gate-before <target>",
-		Short: "Arm the run gate for a dispatched workflow and print gate-armed <key> <epoch> <dispatch-context>",
+		Use:   "start <target>",
+		Short: "Start a tracked run for a dispatched workflow and print run-started <key> <run-id> <run-context>",
 		Args:  cobra.ExactArgs(1),
 		// local-write: mints the durable rungate record AND the outer recovery-scope
 		// record under the Git common dir; the re-sync is a read-only fetch.
-		Annotations: capability("run.gate-before", EffectLocalWrite),
+		Annotations: capability("run.start", EffectLocalWrite),
 		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -108,11 +108,11 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	gateBefore.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	gateBefore.Flags().Int("resume", 0, "resume an already-in-progress change by `id` (pre-binds attribution)")
 
-	// gate-verdict reports the run-gate verdict in one of two modes. In ATTRIBUTED
-	// mode (`gate-verdict <key>`) it loads the durable record armed by gate-before,
+	// run verdict reports the run-gate verdict in one of two modes. In ATTRIBUTED
+	// mode (`run verdict <key>`) it loads the durable record armed by run start,
 	// attributes exactly one new in-progress claim, delegates the run predicate to
 	// app.RunVerify, and prints one line of the attributed vocabulary (gate-done /
-	// gate-retry-once / gate-stop …). In UNATTRIBUTED mode (`gate-verdict
+	// gate-retry-once / gate-stop …). In UNATTRIBUTED mode (`run verdict
 	// --unattributed [<id>...]`) it holds no key, writes nothing, and prints one
 	// observe-only line per verified id (gate-observe …) — a separate app entry
 	// (RunGateVerdictObserve) with no path to a retry grant. Both modes wire the
@@ -123,13 +123,13 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	// usage error. Positionals are the key (attributed) or the hint ids
 	// (unattributed), so argument arity is validated per mode inside RunE.
 	gateVerdict := &cobra.Command{
-		Use:   "gate-verdict <key> | --unattributed [<id>...]",
-		Short: "Report the run-gate verdict for a dispatched workflow (attributed or observe-only)",
+		Use:   "verdict <key> | --unattributed [<id>...]",
+		Short: "Report the run tracker's verdict for a dispatched workflow (attributed or observe-only)",
 		Args:  cobra.ArbitraryArgs,
 		// local-write: writes only the durable rungate record and its O_EXCL retry
 		// marker. Attribution reads the already-landed in-progress claim set and
 		// binds it in the local record — it writes no metadata branch.
-		Annotations: capability("run.gate-verdict", EffectLocalWrite),
+		Annotations: capability("run.verdict", EffectLocalWrite),
 		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -160,7 +160,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			// Attributed mode requires exactly one positional: the durable key.
 			if len(args) != 1 {
-				return fmt.Errorf("gate-verdict requires exactly one <key>, or --unattributed [<id>...]")
+				return fmt.Errorf("run verdict requires exactly one <key>, or --unattributed [<id>...]")
 			}
 			setResult(app.RunGateVerdict(c.Context(), deps, wdeps, gdeps, repoDir, args[0]))
 			return nil
@@ -169,7 +169,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	gateVerdict.Flags().Bool("unattributed", false, "observe-only mode: verify hint ids (or every in-progress id) and print gate-observe lines, holding no key and writing nothing")
 	gateVerdict.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
-	// gate-claim redeems the single-use continuation a gate-continue verdict
+	// run continue redeems the single-use continuation a gate-continue verdict
 	// recorded (change 0359): the resumed implement-next controller presents the
 	// durable key and the continuation id, and this leaf constant-time-compares the
 	// id, claims the recovered drive through the commandless drive service, and
@@ -178,12 +178,12 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	// boundary; an unresolvable store/supervisor leaves it nil and the claim fails
 	// closed to claim-unavailable.
 	gateClaim := &cobra.Command{
-		Use:   "gate-claim <key> <continuation-id>",
+		Use:   "continue <key> <continuation-id>",
 		Short: "Redeem a single-use continuation for the resumed controller",
 		Args:  cobra.ExactArgs(2),
 		// local-write: consumes the recovered drive's handoff and clears the record's
 		// continuation triple on success; it launches no suite and controls no process.
-		Annotations: capability("run.gate-claim", EffectLocalWrite),
+		Annotations: capability("run.continue", EffectLocalWrite),
 		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -196,7 +196,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	gateClaim.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
 	// cancel is the coordinator's explicit human Stop (change 0375): it durably
-	// fences the run epoch located by --key (validated against --epoch and a confirmed
+	// fences the run epoch located by --key (validated against --run-id and a confirmed
 	// claim), tears down registered tasks and processes, reconciles admitted
 	// mutations, and reports one disposition (cancelled / already-cancelled /
 	// cancellation-pending / refused). It charges no suite attempt and resets no
@@ -205,7 +205,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	// run leaves.
 	cancel := &cobra.Command{
 		Use:   "cancel",
-		Short: "Cancel a dispatched run: fence its run epoch, tear it down, and report the disposition",
+		Short: "Cancel a dispatched run: fence it, tear it down, and report the disposition",
 		Args:  cobra.NoArgs,
 		// process-control: stops the run's registered native tasks and processes.
 		// local-write: transitions the durable run-epoch record and releases the
@@ -221,18 +221,18 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			key, _ := c.Flags().GetString("key")
-			epoch, _ := c.Flags().GetString("epoch")
+			epoch, _ := c.Flags().GetString("run-id")
 			reason, _ := c.Flags().GetString("reason")
 			setResult(app.RunCancel(c.Context(), deps, wdeps, repoDir, key, epoch, reason))
 			return nil
 		},
 	}
-	cancel.Flags().String("key", "", "durable gate `key` locating the run to cancel (required)")
-	cancel.Flags().String("epoch", "", "expected run epoch `id` (required)")
+	cancel.Flags().String("key", "", "durable run `key` locating the run to cancel (required)")
+	cancel.Flags().String("run-id", "", "expected run `id` (required)")
 	cancel.Flags().String("reason", "", "human `reason` for the cancellation (required)")
 	cancel.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cancel.MarkFlagRequired("key")
-	_ = cancel.MarkFlagRequired("epoch")
+	_ = cancel.MarkFlagRequired("run-id")
 	_ = cancel.MarkFlagRequired("reason")
 
 	runCmd.AddCommand(verify, gateBefore, gateVerdict, gateClaim, cancel)
@@ -271,7 +271,7 @@ func newWaitingReader(ctx context.Context, repoDir string) app.WaitingReceiptRea
 // binding the native supervisor at this binary's path — through the app boundary,
 // so internal/cli never imports internal/process (gateDriveRepoContext resolves
 // both via gitcli + os.Executable). Every resolution step is best-effort: any
-// failure returns a nil seam and gate-verdict takes its ordinary retry/stop path
+// failure returns a nil seam and run verdict takes its ordinary retry/stop path
 // without continuing a tracked drive.
 func newContinuationSeam(ctx context.Context, repoDir string) app.ContinuationSeam {
 	commonDir, exe, err := gateDriveRepoContext(ctx, repoDir)
@@ -289,7 +289,7 @@ func newContinuationSeam(ctx context.Context, repoDir string) app.ContinuationSe
 // rooting the durable drive store at the repository's Git common directory and
 // binding the native supervisor at this binary's path — through the app boundary,
 // so internal/cli never imports internal/process. Every resolution step is
-// best-effort: any failure returns a nil seam and gate-claim fails closed to
+// best-effort: any failure returns a nil seam and run continue fails closed to
 // claim-unavailable without clearing the record's continuation triple.
 func newClaimSeam(ctx context.Context, repoDir string) app.ClaimSeam {
 	commonDir, exe, err := gateDriveRepoContext(ctx, repoDir)

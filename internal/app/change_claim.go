@@ -78,12 +78,12 @@ const (
 type ChangeClaimRequest struct {
 	ID      int    `json:"id" docket:"required"`
 	Version string `json:"version" docket:"required"`
-	// GateContext is the run-gate dispatch context token from run.gate-before. It
+	// GateContext is the run-gate dispatch context token from run.start. It
 	// is optional — an ungated claim omits it. When present it is hashed at this
 	// boundary (gateHashToken), so the raw token never enters the transaction, the
 	// receipt, or any finding; only its hash is folded into the idempotency digest
 	// and recorded as the durable claim proof (change 0407).
-	GateContext string `json:"gate_context,omitempty"`
+	GateContext string `json:"run_context,omitempty"`
 }
 
 // claimDigestPayload is the semantic content of a claim request — everything

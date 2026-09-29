@@ -9,7 +9,7 @@ import (
 )
 
 // This file is the verdict path's read-only seam onto committed change.claim
-// proof (change 0407). A keyed gate-verdict must resolve ownership from the
+// proof (change 0407). A keyed run verdict must resolve ownership from the
 // durable, authoritative proof a successful claim leaves behind — the committed
 // claim receipt on the metadata branch — rather than inferring it from a
 // before-set/epoch snapshot. The scanner reads those receipts back through the

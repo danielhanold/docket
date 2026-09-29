@@ -94,7 +94,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			// capability continues to carry authority.
 			isRootCoordinator := contract.LaunchPosture == harness.LaunchRootCoordinator
 			if runGateKey == "" && runEpoch != "" {
-				// A lone --run-epoch (the shape AGENTS.md documents) carries no gate key to
+				// A lone --run-id (the shape AGENTS.md documents) carries no gate key to
 				// register against, but it is still preflighted for existence so a misrouted
 				// token (0382: the dispatch context passed as the epoch) refuses with
 				// unknown-run-epoch instead of proceeding silently unlinked (change 0463).
@@ -154,8 +154,8 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 	enter.Flags().StringVar(&approval, "approval-policy", "", "caller approval `policy` (required)")
 	enter.Flags().StringVar(&sandbox, "sandbox", "", "caller sandbox `mode` (required)")
 	enter.Flags().StringVar(&worktree, "worktree", "", "verified feature worktree `dir` (required for feature child roles)")
-	enter.Flags().StringVar(&runGateKey, "run-gate-key", "", "run gate `key` for lifecycle registration (optional; locator, not a credential)")
-	enter.Flags().StringVar(&runEpoch, "run-epoch", "", "run epoch `id` for lifecycle registration (optional; public locator, not a credential)")
+	enter.Flags().StringVar(&runGateKey, "run-key", "", "run `key` for lifecycle registration (optional; locator, not a credential)")
+	enter.Flags().StringVar(&runEpoch, "run-id", "", "run `id` for lifecycle registration (optional; public locator, not a credential)")
 	for _, flag := range []string{"role", "request", "cwd", "approval-policy", "sandbox"} {
 		_ = enter.MarkFlagRequired(flag)
 	}

@@ -387,7 +387,7 @@ func TestIntegrationGateFenceFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testi
 
 // TestIntegrationGateFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs is the change-0427
 // regression for the unconfirmed-reservation recovery leg: a fresh epoch whose
-// Worktree is empty (as gate-before mints it — neither claim confirmation nor
+// Worktree is empty (as run start mints it — neither claim confirmation nor
 // fixture setup pre-binds it), a reservation whose confirm was interrupted, and
 // the exact committed receipt. The verdict recovery must confirm WITH the
 // change's logical feature worktree — before the directory even exists — so

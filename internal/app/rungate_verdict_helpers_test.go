@@ -51,7 +51,7 @@ func gateIncompleteRecord() []byte {
 }
 
 // gateMintArmed mints an armed record (Retry unused, no attribution yet) with the
-// given before-set, dispatch epoch, and child-context hash, as gate-before would.
+// given before-set, dispatch epoch, and child-context hash, as run start would.
 // Since change 0407 the before-set and dispatch epoch are diagnostics only (they
 // no longer create attribution); hash is the record's ChildContextHash, the seam
 // the verdict path's proof filter keys on.

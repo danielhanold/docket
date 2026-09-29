@@ -375,7 +375,7 @@ func TestIntegrationRecordOpsChangeRefreshClaimUnrelatedInvalidRecordRefusals(t 
 	}
 }
 
-// TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve: a `gate-before --resume` arm pre-binds
+// TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve: a `run start --resume` arm pre-binds
 // the resumed change as AttributedID and never gets a claim binding (change 0463).
 // A claim under that context, for the resumed change itself or for any other change,
 // is refused gate-context-conflict BEFORE ReserveGateClaim writes a binding file: a

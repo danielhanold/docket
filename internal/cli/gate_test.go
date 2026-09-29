@@ -679,13 +679,13 @@ func makeCancelledEpoch(t *testing.T, wt string) string {
 }
 
 // TestGateDrivePrepareScopeRunEpochGatesTakeover proves the production wiring the
-// takeover epoch-revocation guard depends on: `gate drive prepare-scope --run-epoch
+// takeover epoch-revocation guard depends on: `gate drive prepare-scope --run-id
 // <id>` threads the run epoch onto the scope record so a later `gate drive takeover`
 // consults the app-owned run-epoch registry through the resolver
 // NewCommandlessGateDriveService wires (change 0375, acceptance criterion 7 / spec
 // "Parent takeover cannot revive a cancelled epoch"). With the scope's epoch reported
 // CANCELLED, the takeover HALTs not-owner — it refuses to revive a fenced run. The
-// control — a scope prepared with NO --run-epoch — never reaches the epoch gate and
+// control — a scope prepared with NO --run-id — never reaches the epoch gate and
 // HALTs for the ordinary drive-resolution reason (takeover-no-candidate), proving the
 // not-owner refusal keys on the epoch state the flag now supplies rather than on any
 // other guard. Before this wiring existed the scope carried no epoch, the guard was
@@ -698,9 +698,9 @@ func TestGateDrivePrepareScopeRunEpochGatesTakeover(t *testing.T) {
 		out, errS, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
 			"--repo-dir", wt, "--change-id", "375", "--task-id", "task-12",
 			"--phase", "build", "--branch", "fix/x", "--worktree", wt,
-			"--run-epoch", epochID)
+			"--run-id", epochID)
 		if code != 0 || errS != "" {
-			t.Fatalf("prepare-scope --run-epoch: out=%q err=%q code=%d", out, errS, code)
+			t.Fatalf("prepare-scope --run-id: out=%q err=%q code=%d", out, errS, code)
 		}
 		grant := decodeOneJSON(t, out)
 		scopeID, _ := grant["scope_id"].(string)
@@ -1052,7 +1052,7 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 }
 
 // TestGateDriveStartUnknownRunEpochIsNamed (change 0463): the 0382 misuse, where a
-// well-formed but unknown --run-epoch (a dispatch-context-shaped 32-hex token) goes
+// well-formed but unknown --run-id (a dispatch-context-shaped 32-hex token) goes
 // through the REAL epoch launch gate, is refused invalid-input with the named
 // unknown-run-epoch, never the catch-all invalid-request. The presented value is
 // never echoed.
@@ -1063,10 +1063,10 @@ func TestGateDriveStartUnknownRunEpochIsNamed(t *testing.T) {
 	out, _, _ := runCLI(t, "--json", "gate", "drive", "start",
 		"--repo-dir", wt, "--run-root", root, "--owner", "task",
 		"--change-id", "463", "--task-id", "task-3", "--phase", "build", "--branch", "fix/x",
-		"--run-epoch", bogus, "--", "/bin/echo", "hi")
+		"--run-id", bogus, "--", "/bin/echo", "hi")
 	doc := decodeOneJSON(t, out)
 	if doc["result"] != "invalid-input" || doc["reason"] != "unknown-run-epoch" {
-		t.Fatalf("unknown --run-epoch must refuse invalid-input/unknown-run-epoch, got %v", doc)
+		t.Fatalf("unknown --run-id must refuse invalid-input/unknown-run-epoch, got %v", doc)
 	}
 	if _, ok := doc["drive"]; ok {
 		t.Fatalf("a refused start must carry no drive document: %v", doc)
@@ -1075,12 +1075,12 @@ func TestGateDriveStartUnknownRunEpochIsNamed(t *testing.T) {
 		t.Fatalf("refusal must carry the next action, got %q", msg)
 	}
 	if strings.Contains(out, bogus) {
-		t.Fatalf("the presented --run-epoch value leaked into the output: %s", out)
+		t.Fatalf("the presented --run-id value leaked into the output: %s", out)
 	}
 }
 
 // TestGateDrivePrepareScopeUnknownRunEpochIsNamed (change 0463): through the real
-// wiring, prepare-scope with an unknown --run-epoch refuses unknown-run-epoch and
+// wiring, prepare-scope with an unknown --run-id refuses unknown-run-epoch and
 // mints no scope. In human mode it renders reason + remedy without the value. The
 // cancelled-epoch prepare in TestGateDrivePrepareScopeRunEpochGatesTakeover must
 // stay applied, because the pre-check is resolvability only, never liveness.
@@ -1088,7 +1088,7 @@ func TestGateDrivePrepareScopeUnknownRunEpochIsNamed(t *testing.T) {
 	wt := gateDriveRepo(t)
 	const bogus = "0790b760e26444866ef2e156ba383326"
 	args := []string{"gate", "drive", "prepare-scope", "--repo-dir", wt, "--change-id", "463",
-		"--task-id", "task-4", "--phase", "build", "--branch", "fix/x", "--worktree", wt, "--run-epoch", bogus}
+		"--task-id", "task-4", "--phase", "build", "--branch", "fix/x", "--worktree", wt, "--run-id", bogus}
 
 	out, _, _ := runCLI(t, append([]string{"--json"}, args...)...)
 	doc := decodeOneJSON(t, out)

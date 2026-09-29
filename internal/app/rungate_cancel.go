@@ -13,7 +13,7 @@
 // closed on wrong-repo), the presented epoch id must equal the record's public
 // EpochID, the record must carry a parent-held authority (a non-empty ParentCap),
 // and a CONFIRMED claim binding for the epoch's change must exist (LoadGateClaimBinding)
-// — or, for a record armed by `gate-before --resume`, the resume-verified attribution
+// — or, for a record armed by `run start --resume`, the resume-verified attribution
 // (AttributedID set, no claim binding at all), the shape resolveGateOwnership accepts.
 // Any missing/mismatched conjunct is a `refused` disposition with a bounded finding —
 // never a fence, never a stop.
@@ -324,7 +324,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectEpoch, reason string) RunC
 	case ok && binding.Confirmed:
 		ownerID = binding.ChangeID
 	case !ok && rec.resumeAttributed():
-		// Resume-verified authority (change 0463): `gate-before --resume` pre-binds
+		// Resume-verified authority (change 0463): `run start --resume` pre-binds
 		// AttributedID through WorkspaceInspect identity and never gets a claim binding
 		// (change.claim requires a proposed change). It is the same shape
 		// resolveGateOwnership accepts as ownership. Without it, the epoch a resume arm

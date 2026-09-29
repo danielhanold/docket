@@ -19,8 +19,8 @@ import (
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
-// These are the `docket run gate-before` (arm the gate) tests (change 0334,
-// Task 2). gate-before re-syncs the metadata worktree to fresh origin, reads the
+// These are the `docket run start` (arm the gate) tests (change 0334,
+// Task 2). run start re-syncs the metadata worktree to fresh origin, reads the
 // in-progress claim set, captures a dispatch epoch AFTER that read, and mints a
 // durable gate record — printing `gate-armed <key>` on success and
 // `gate-unarmed <reason-token>` on any failure, exiting 0 either way (the report
@@ -189,7 +189,7 @@ func TestIntegrationGateArmGateBeforePreparesOuterScope(t *testing.T) {
 
 // TestIntegrationGateArmGateBeforeFreshArmSurfacesRunEpoch: a fresh (non-resume) arm surfaces the
 // minted run epoch's public id in the result (Epoch) and in the human report line
-// — the documented `run.cancel --epoch <id>` / `--run-epoch` value the operator and
+// — the documented `run.cancel --run-id <id>` / `--run-id` value the operator and
 // the dispatcher thread through. Without it the primary human-Stop path names an
 // epoch the arm never gave (change 0375). The surfaced id must equal the id the
 // bound epoch record actually carries — the same value run.cancel cross-checks.
@@ -204,7 +204,7 @@ func TestIntegrationGateArmGateBeforeFreshArmSurfacesRunEpoch(t *testing.T) {
 	}
 
 	// The arm minted an epoch beside the gate record; its id is what run.cancel and
-	// every --run-epoch flag consume, so the arm must hand it back.
+	// every --run-id flag consume, so the arm must hand it back.
 	ep, _, err := LoadEpochRecord(repo, res.Key)
 	if err != nil {
 		t.Fatalf("LoadEpochRecord: %v", err)
@@ -345,7 +345,7 @@ func TestIntegrationGateArmGateBeforeNoTimestampGames(t *testing.T) {
 }
 
 // gatePinWithRunMaxAttempts builds a StatusPin whose resolved config carries an
-// explicit repository-layer run.max_attempts, so a gate-before arm through it
+// explicit repository-layer run.max_attempts, so a run start arm through it
 // snapshots that value into the record's AttemptLimit.
 func gatePinWithRunMaxAttempts(t *testing.T, n int) StatusPin {
 	t.Helper()
@@ -362,7 +362,7 @@ func gatePinWithRunMaxAttempts(t *testing.T, n int) StatusPin {
 	return p
 }
 
-// TestIntegrationGateArmMintSnapshotsRunMaxAttempts: gate-before snapshots the authoritative
+// TestIntegrationGateArmMintSnapshotsRunMaxAttempts: run start snapshots the authoritative
 // run.max_attempts into the record's AttemptLimit at mint (change 0421). A repo
 // configured run.max_attempts: 3 yields AttemptLimit == 3; the default yields 2;
 // and a later config change never rewrites an already-minted record's limit (the
