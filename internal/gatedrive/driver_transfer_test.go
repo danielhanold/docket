@@ -19,7 +19,7 @@ import (
 // claimant consumes the receipt (returning a distinct new owner generation), and
 // only the fresh owner can advance the same live run.
 func TestDriverHandoffThenClaimTransfersOwnership(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{} // stays running across slices
 	d, _ := newTestDriver(t, clk, proc, stableGit())
 
@@ -84,7 +84,7 @@ func TestDriverHandoffThenClaimTransfersOwnership(t *testing.T) {
 // owner generation fails closed to HALTED (never a silent transfer) and writes no
 // receipt, so the drive stays owned by its real owner.
 func TestDriverHandoffWrongOwnerHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 
@@ -119,7 +119,7 @@ func TestDriverHandoffWrongOwnerHalts(t *testing.T) {
 // outstanding handoff fails closed to HALTED — seeing a running suite is not
 // authority to take it over.
 func TestDriverClaimNoHandoffHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, _ := newTestDriver(t, clk, proc, stableGit())
 
@@ -143,7 +143,7 @@ func TestDriverClaimNoHandoffHalts(t *testing.T) {
 // since the handoff fails closed to HALTED and consumes no receipt, so the
 // single-use offer survives for a correct claimant.
 func TestDriverClaimFingerprintMismatchHalts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	git := stableGit()
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, git)
@@ -184,7 +184,7 @@ func TestDriverClaimFingerprintMismatchHalts(t *testing.T) {
 // transfer too, so a parent never later takes over a drive that was already
 // claimed.
 func TestClaimClosesScope(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{} // stays running across slices
 	d, store := newTestDriver(t, clk, proc, stableGit())
 

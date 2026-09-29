@@ -22,8 +22,8 @@ import (
 // excluded from change 0471's textual rename passes because its fixtures spell
 // the RETIRED layout on purpose.
 func TestIntegrationRunStartStorageResetIgnoresRetiredRoots(t *testing.T) {
-	repo := newGateRepo(t)
-	common, err := gateGitCommonDir(repo)
+	repo := newRunTrackerRepo(t)
+	common, err := runTrackerGitCommonDir(repo)
 	if err != nil {
 		t.Fatalf("gateGitCommonDir: %v", err)
 	}
@@ -43,11 +43,11 @@ func TestIntegrationRunStartStorageResetIgnoresRetiredRoots(t *testing.T) {
 	retiredRecord, err := json.Marshal(map[string]any{
 		"generation": "retired-gen",
 		"record": map[string]any{
-			"schema_version": epochSchemaVersion,
+			"schema_version": runSchemaVersion,
 			"gate_key":       "retired-key",
 			"change_id":      "5",
 			"worktree":       canon,
-			"state":          string(EpochActive),
+			"state":          string(RunActive),
 			"epoch_id":       "retired-run-id",
 			"created_at":     "2026-09-01T00:00:00Z",
 			"updated_at":     "2026-09-01T00:00:00Z",
@@ -61,11 +61,11 @@ func TestIntegrationRunStartStorageResetIgnoresRetiredRoots(t *testing.T) {
 	writeRetired(retiredRecordPath, retiredRecord)
 	writeRetired(retiredLockPath, nil)
 
-	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
-	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
-	if !res.Armed || res.Key == "" {
-		t.Fatalf("a fresh start over the retired roots must succeed: Armed=%v Key=%q reason=%q", res.Armed, res.Key, res.Reason)
+	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Started || res.Key == "" {
+		t.Fatalf("a fresh start over the retired roots must succeed: Armed=%v Key=%q reason=%q", res.Started, res.Key, res.Reason)
 	}
 
 	keyDir := filepath.Join(common, "docket", "run-tracker", res.Key)
@@ -89,10 +89,10 @@ func TestIntegrationRunStartStorageResetIgnoresRetiredRoots(t *testing.T) {
 		}
 	}
 
-	if _, _, found, err := FindEpochByChange(repo, "5"); err != nil || found {
+	if _, _, found, err := FindRunByChange(repo, "5"); err != nil || found {
 		t.Fatalf("the retired record must be invisible by change: found=%v err=%v", found, err)
 	}
-	if _, found, err := findEpochByWorktree(repo, canon); err != nil || found {
+	if _, found, err := findRunByWorktree(repo, canon); err != nil || found {
 		t.Fatalf("the retired record must be invisible by worktree: found=%v err=%v", found, err)
 	}
 	if got, err := os.ReadFile(retiredRecordPath); err != nil || !bytes.Equal(got, retiredRecord) {

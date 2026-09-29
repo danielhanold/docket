@@ -33,7 +33,7 @@ func failObserveProc() *fakeProc {
 // (PASSED, FAILED, or a still-running WAITING).
 func startedScope(t *testing.T, proc *fakeProc) (*Driver, *Store, ScopeGrant, DriveDoc, StartRequest) {
 	t.Helper()
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	d := scopedTestDriver(store, clk, proc, stableGit())
 	grant, req := prepareScopedStart(t, store)
@@ -260,7 +260,7 @@ func TestAcknowledgePostRetirementOwnerGenAsymmetry(t *testing.T) {
 			t.Fatalf("retirePredecessor (first half): %v", err)
 		}
 		rstore := reopenStore(store)
-		rd := scopedTestDriver(rstore, &fakeClock{now: startEpoch()}, passObserveProc(), stableGit())
+		rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, passObserveProc(), stableGit())
 
 		// The recovering ack presents a bogus owner gen with the correct child cap; the
 		// resumable-half branch skips retirePredecessor and completes the owner-
@@ -288,7 +288,7 @@ func TestAcknowledgePostRetirementOwnerGenAsymmetry(t *testing.T) {
 			t.Fatalf("retirePredecessor (first half): %v", err)
 		}
 		rstore := reopenStore(store)
-		rd := scopedTestDriver(rstore, &fakeClock{now: startEpoch()}, passObserveProc(), stableGit())
+		rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, passObserveProc(), stableGit())
 		if _, err := rd.Acknowledge(grant.ScopeID, "wrong-child-cap", second.DriveID, second.Generation); !isOwnershipKind(err, ErrScopeCapabilityMismatch) {
 			t.Fatalf("a wrong child cap must be refused before recovery, got %v", err)
 		}
@@ -475,7 +475,7 @@ func TestAcknowledgeRefusals(t *testing.T) {
 	})
 
 	t.Run("reserved slot", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		store := OpenStore(testsupport.TempDir(t))
 		d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
 		grant, err := store.PrepareScope(sampleScopeReq())

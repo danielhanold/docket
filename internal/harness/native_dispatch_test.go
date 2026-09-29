@@ -61,9 +61,9 @@ func TestNativeDispatchSurfaceRunnerFree(t *testing.T) {
 	// Part A: the two dispatch-surface producers every host shares. Each embeds
 	// dispatchPreamble, so a runner token inserted into the preamble reddens the
 	// ban here and the identity/never-fall-back asserts pin the policy clauses.
-	rg, err := harness.RunGate(in.Assets)
+	rg, err := harness.RunTracker(in.Assets)
 	if err != nil {
-		t.Fatalf("RunGate: %v", err)
+		t.Fatalf("RunTracker: %v", err)
 	}
 	surfaces := map[string]string{
 		"docket:dispatch interior": harness.DispatchInterior(rg),

@@ -44,7 +44,7 @@ func reopenStore(s *Store) *Store {
 // predecessor a successor start (or the terminal acknowledgement) can consume.
 func faultFirstPassed(t *testing.T) (*Store, *Driver, *fakeProc, ScopeGrant, StartRequest, DriveDoc) {
 	t.Helper()
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := passObserveProc()
 	d := scopedTestDriver(store, clk, proc, stableGit())
@@ -74,7 +74,7 @@ func successorReq(base StartRequest, pred DriveDoc) StartRequest {
 // adopted the reservation. The fresh worktree slot must be RELEASED rather than
 // leaked, so the worktree is free for a later execution; nothing launches.
 func TestFaultAdmissionThenScopeReservationLostReleasesSlot(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := passObserveProc()
 	d := scopedTestDriver(store, clk, proc, stableGit())
@@ -117,7 +117,7 @@ func TestFaultAdmissionThenScopeReservationLostReleasesSlot(t *testing.T) {
 // prove teardown. A deadline stop whose ownership cannot be established leaves
 // the admission unresolved and blocks a second execution.
 func TestHaltedDriveDoesNotReleaseSlot(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			return obs(process.StateRunning, runDir), nil
@@ -152,7 +152,7 @@ func TestHaltedDriveDoesNotReleaseSlot(t *testing.T) {
 // TestPassedDriveReleasesSlot proves a durable PASSED supervisor result releases
 // the worktree execution slot for the next top-level drive.
 func TestPassedDriveReleasesSlot(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	d, store := newTestDriver(t, clk, passObserveProc(), stableGit())
 	req := sampleStart()
 	doc, err := d.Start(req)
@@ -191,7 +191,7 @@ func TestFaultCrashBetweenConfirmAndReleaseThenRestart(t *testing.T) {
 	rec.LastOutcome = PASSED
 	id, owner := seedDrive(t, store, rec)
 
-	rd := NewDriver(reopenStore(store), &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+	rd := NewDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 	if _, err := rd.Advance(id, owner); err != nil {
 		t.Fatalf("restart Advance: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestFaultReleaseInterruptedThenRestart(t *testing.T) {
 	if err := os.Chmod(slotDir, 0o500); err != nil {
 		t.Fatalf("make release write fail: %v", err)
 	}
-	d := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+	d := NewDriver(store, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 	if _, err := d.Advance(id, owner); err != nil {
 		t.Fatalf("Advance during interrupted release: %v", err)
 	}
@@ -240,7 +240,7 @@ func TestFaultReleaseInterruptedThenRestart(t *testing.T) {
 		t.Fatalf("restore admission permissions: %v", err)
 	}
 
-	rd := NewDriver(reopenStore(store), &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+	rd := NewDriver(reopenStore(store), &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 	if _, err := rd.Advance(id, owner); err != nil {
 		t.Fatalf("restart Advance: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestFaultReleaseInterruptedThenRestart(t *testing.T) {
 // possibly-live process never frees the worktree — so a later start on that worktree
 // is refused ErrUnresolvedExecution until recovery resolves it.
 func TestFaultLaunchLostResponseLeavesUnresolved(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := &fakeProc{
 		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
@@ -335,7 +335,7 @@ func TestFaultSuccessorReservationWriteFailsThenRestart(t *testing.T) {
 	// launches exactly once — no duplicate from the failed attempt.
 	rstore := reopenStore(store)
 	rproc := passObserveProc()
-	rd := scopedTestDriver(rstore, &fakeClock{now: startEpoch()}, rproc, stableGit())
+	rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, rproc, stableGit())
 	second, err := rd.Start(succ)
 	if err != nil {
 		t.Fatalf("a successor retry after a reservation failure must succeed: %v", err)
@@ -372,7 +372,7 @@ func TestFaultSuccessorReservationWriteFailsThenRestart(t *testing.T) {
 // takeover of the reserved slot HALTs unresolved-launch-transition, and
 // enumeration does NOT report the scope empty.
 func TestFaultLaunchFailsThenRestart(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := &fakeProc{
 		launch: func(process.LaunchRequest) (*process.LaunchOutcome, error) {
@@ -407,7 +407,7 @@ func TestFaultLaunchFailsThenRestart(t *testing.T) {
 	// No duplicate launch: a fresh start over the reserved slot is refused, proven by
 	// a fresh (never-launching) proc.
 	rproc := passObserveProc()
-	rd := scopedTestDriver(rstore, &fakeClock{now: startEpoch()}, rproc, stableGit())
+	rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, rproc, stableGit())
 	if _, err := rd.Start(req); !isOwnershipKind(err, ErrScopeBusy) {
 		t.Fatalf("a start over a launch-failed reserved slot must fail ErrScopeBusy, got %v", err)
 	}
@@ -433,7 +433,7 @@ func TestFaultLaunchFailsThenRestart(t *testing.T) {
 // slot stays reserved (never empty), and after a restart no path launches a
 // duplicate and enumeration does not report the scope empty.
 func TestFaultAttachLaunchFailsThenRestart(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	grant, req := prepareScopedStart(t, store)
 
@@ -502,7 +502,7 @@ func TestFaultAttachLaunchFailsThenRestart(t *testing.T) {
 	}
 	// No duplicate launch: a fresh start is refused ErrScopeBusy without launching.
 	rproc := passObserveProc()
-	rd := scopedTestDriver(rstore, &fakeClock{now: startEpoch()}, rproc, stableGit())
+	rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, rproc, stableGit())
 	if _, err := rd.Start(req); !isOwnershipKind(err, ErrScopeBusy) {
 		t.Fatalf("a start over a persist-failed reserved slot must fail ErrScopeBusy, got %v", err)
 	}
@@ -554,7 +554,7 @@ func TestFaultPredecessorRetirementInterruptedThenRestart(t *testing.T) {
 	}
 
 	rproc := passObserveProc()
-	rd := scopedTestDriver(rstore, &fakeClock{now: startEpoch()}, rproc, stableGit())
+	rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, rproc, stableGit())
 
 	// Every recovery path is a typed fail-closed with no launch. A successor start:
 	// the slot is reserved (mid-transition) → ErrScopeBusy.
@@ -637,7 +637,7 @@ func TestFaultFinalAckInterruptedThenRestart(t *testing.T) {
 	// the SAME arguments must complete the close.
 	rstore := reopenStore(store)
 	rproc := passObserveProc()
-	rd := scopedTestDriver(rstore, &fakeClock{now: startEpoch()}, rproc, stableGit())
+	rd := scopedTestDriver(rstore, &fakeClock{now: startRun()}, rproc, stableGit())
 
 	doc, err := rd.Acknowledge(grant.ScopeID, grant.ChildCapability, second.DriveID, second.Generation)
 	if err != nil {
@@ -721,7 +721,7 @@ func freezeSlot(t *testing.T, dir string) {
 // and leave the slot NOT freed.
 func TestReleaseFailureSurfacesOnTerminalDoc(t *testing.T) {
 	t.Run("slice-persisted-terminal", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		running := true
 		proc := &fakeProc{observe: func(runDir string) (*process.Observation, error) {
 			if running {
@@ -776,7 +776,7 @@ func TestReleaseFailureSurfacesOnTerminalDoc(t *testing.T) {
 		id, owner := seedDrive(t, store, rec)
 		freezeSlot(t, slotDirFor(t, store, wt))
 
-		d := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+		d := NewDriver(store, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 		doc, err := d.Advance(id, owner)
 		if err != nil {
 			t.Fatalf("Advance: %v", err)
@@ -830,7 +830,7 @@ func TestHaltedDocWithholdsRunRootWhenSlotUnsettled(t *testing.T) {
 		proc := &fakeProc{stop: func(runDir, _ string) (*process.StopOutcome, error) {
 			return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir}, nil
 		}}
-		doc, err := NewDriver(store, &fakeClock{now: startEpoch()}, proc, stableGit()).Advance(id, owner)
+		doc, err := NewDriver(store, &fakeClock{now: startRun()}, proc, stableGit()).Advance(id, owner)
 		if err != nil {
 			t.Fatalf("Advance: %v", err)
 		}
@@ -850,7 +850,7 @@ func TestHaltedDocWithholdsRunRootWhenSlotUnsettled(t *testing.T) {
 	})
 	t.Run("proven-stop-exposes", func(t *testing.T) {
 		store, wt, id, owner := seedHalted(t)
-		doc, err := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit()).Advance(id, owner)
+		doc, err := NewDriver(store, &fakeClock{now: startRun()}, &fakeProc{}, stableGit()).Advance(id, owner)
 		if err != nil {
 			t.Fatalf("Advance: %v", err)
 		}
@@ -871,7 +871,7 @@ func TestHaltedDocWithholdsRunRootWhenSlotUnsettled(t *testing.T) {
 		rec.LastOutcome = HALTED
 		rec.LastCause = "stopped-not-initiated"
 		id, owner := seedDrive(t, store, rec)
-		doc, err := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit()).Advance(id, owner)
+		doc, err := NewDriver(store, &fakeClock{now: startRun()}, &fakeProc{}, stableGit()).Advance(id, owner)
 		if err != nil {
 			t.Fatalf("Advance: %v", err)
 		}
@@ -884,7 +884,7 @@ func TestHaltedDocWithholdsRunRootWhenSlotUnsettled(t *testing.T) {
 		if err := store.ownerCAS(id, func(r *driveRecord) error { r.LastOutcome = PASSED; r.LastCause = ""; return nil }); err != nil {
 			t.Fatalf("flip to PASSED: %v", err)
 		}
-		doc, err := NewDriver(store, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit()).Advance(id, owner)
+		doc, err := NewDriver(store, &fakeClock{now: startRun()}, &fakeProc{}, stableGit()).Advance(id, owner)
 		if err != nil {
 			t.Fatalf("Advance: %v", err)
 		}

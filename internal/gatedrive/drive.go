@@ -22,7 +22,7 @@ const ProtocolVersion = 1
 // driveSchemaVersion is the persisted driveRecord schema generation. The store
 // refuses an unknown schema version with a typed error rather than best-effort
 // migrating it, so this is bumped only on a real schema change. Bumped to 2 by
-// change 0359, which adds ScopeID + GateContextHash; a v1 record read by a v2
+// change 0359, which adds ScopeID + RunContextHash; a v1 record read by a v2
 // store fails closed as ErrUnknownSchema (never migrated). Bumped to 3 by change
 // 0375, which adds AdmissionToken (the worktree execution slot's reservation
 // token threaded into the raw launch). Bumped to 4 by change 0375 Task 5, which
@@ -108,10 +108,10 @@ const (
 	// scope with no bound drive — there is no live or unconsumed work to recover,
 	// so it fails closed rather than transferring nothing. (change 0359)
 	CauseTakeoverNoCandidate = "takeover-no-candidate"
-	// CauseEpochUnreadable: a takeover could not read the scope's run-epoch state
+	// CauseRunRecordUnreadable: a takeover could not read the scope's run-epoch state
 	// through the injected revocation resolver (an IO/corruption fault). It fails
 	// closed — a run whose epoch cannot be read is never revived. (change 0375 Task 12)
-	CauseEpochUnreadable = "run-record-unreadable"
+	CauseRunRecordUnreadable = "run-record-unreadable"
 )
 
 // DriveDoc is the protocol-v1 outcome document emitted by every driver
@@ -260,11 +260,11 @@ type driveRecord struct {
 	HandoffGeneration string `json:"handoff_generation,omitempty"`
 
 	// ScopeID links the drive to the recovery scope its owner was dispatched
-	// under; GateContextHash links every nested drive to the outer gate
+	// under; RunContextHash links every nested drive to the outer gate
 	// (sha256 of the outer child-context token). Both empty for scopeless
 	// drives (e.g. finalize's local gate). (schema v2, change 0359)
-	ScopeID         string `json:"scope_id,omitempty"`
-	GateContextHash string `json:"run_context_hash,omitempty"`
+	ScopeID        string `json:"scope_id,omitempty"`
+	RunContextHash string `json:"run_context_hash,omitempty"`
 
 	// AdmissionToken is the worktree execution slot's reservation token this
 	// drive launched under (admission.go). It is threaded into the raw launch as

@@ -85,13 +85,13 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 	// epoch is fenced by an explicit cancellation (run.cancel) or superseded by a
 	// resume, no continuation may reattach to its drives. The epoch state lives in
 	// the app-owned registry, reached through the injected resolver; a resolver error
-	// fails closed (HALT rather than an unproven revival). A scope with no RunEpochID
+	// fails closed (HALT rather than an unproven revival). A scope with no RunID
 	// (a standalone gate, or a scope prepared before epoch linkage) fences nothing,
 	// so the check is skipped and ADR-0107's authorization is unchanged.
-	if d.epochRevoked != nil && scope.RunEpochID != "" {
-		revoked, eerr := d.epochRevoked(scope.RunEpochID)
+	if d.runRevoked != nil && scope.RunID != "" {
+		revoked, eerr := d.runRevoked(scope.RunID)
 		if eerr != nil {
-			return d.haltDoc(driveID, "", driveRecord{}, CauseEpochUnreadable), nil
+			return d.haltDoc(driveID, "", driveRecord{}, CauseRunRecordUnreadable), nil
 		}
 		if revoked {
 			return d.haltDoc(driveID, "", driveRecord{}, string(ErrNotOwner)), nil
@@ -216,7 +216,7 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 // a fail-closed stale-predecessor (spec "An explicitly supplied old drive id cannot
 // bypass the current-scope association"). Otherwise a task scope resolves to its
 // CurrentDriveID, and an outer scope (no current drive) resolves to the UNIQUE
-// gate-context match: its nested drives carry GateContextHash == the outer scope's
+// gate-context match: its nested drives carry RunContextHash == the outer scope's
 // child capability hash (the dispatch context is the outer scope's child
 // capability). Zero matches or more than one fail closed with a distinct cause; a
 // real scan fault is a command error.
@@ -280,7 +280,7 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // outer recovery scope grants at most ONE automatic outer takeover per arming:
 // the first accepted takeover closes it, and a second detached-crash takeover
 // under the same gate key then finds scope.Closed and HALTs scope-closed
-// (gateOuterContinuation maps that to a terminal run-stop run-tracker-unavailable, no
+// (runTrackerOuterContinuation maps that to a terminal run-stop run-tracker-unavailable, no
 // retry spent). This is intentional fail-closed behavior — a human recovers by
 // re-arming a fresh scope via `run start --resume` — not a bug; see the spec's
 // §5 continuation clause ("remains active until implement-next reaches a true

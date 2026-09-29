@@ -13,10 +13,10 @@ import (
 	"github.com/danielhanold/docket/internal/install"
 )
 
-// runGate is a stand-in run-gate payload. Plan is pure and never parses it, so
+// runTracker is a stand-in run-gate payload. Plan is pure and never parses it, so
 // any deterministic bytes exercise the wiring; the wording constraint asserts
 // its exact propagation through harness.DispatchInterior below.
-var runGate = []byte("## Run gate — bracket a dispatched run\n\nDrive the gate, never yield.\n")
+var runTracker = []byte("## Run gate — bracket a dispatched run\n\nDrive the gate, never yield.\n")
 
 const worktreeRoot = "/repo"
 
@@ -49,7 +49,7 @@ func TestPlanClaudeAlone(t *testing.T) {
 	targets, owners := mustPlan(t, PlanInput{
 		WorktreeRoot: worktreeRoot,
 		Harnesses:    []string{"claude"},
-		RunGate:      runGate,
+		RunTracker:   runTracker,
 	})
 	if len(targets) != 1 {
 		t.Fatalf("claude alone planned %d targets, want 1: %+v", len(targets), targets)
@@ -79,7 +79,7 @@ func TestPlanClaudeAloneAbsentStateStillBlock(t *testing.T) {
 	targets, _ := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
 		Harnesses:     []string{"claude"},
-		RunGate:       runGate,
+		RunTracker:    runTracker,
 		ClaudeMDState: ClaudeMDAbsent,
 	})
 	tg := byPath(targets)[claudeMD()]
@@ -92,7 +92,7 @@ func TestPlanCodexAlone(t *testing.T) {
 	targets, owners := mustPlan(t, PlanInput{
 		WorktreeRoot: worktreeRoot,
 		Harnesses:    []string{"codex"},
-		RunGate:      runGate,
+		RunTracker:   runTracker,
 	})
 	if len(targets) != 1 {
 		t.Fatalf("codex alone planned %d targets, want 1: %+v", len(targets), targets)
@@ -110,7 +110,7 @@ func TestPlanOpencodeAlone(t *testing.T) {
 	targets, owners := mustPlan(t, PlanInput{
 		WorktreeRoot: worktreeRoot,
 		Harnesses:    []string{"opencode"},
-		RunGate:      runGate,
+		RunTracker:   runTracker,
 	})
 	tg := byPath(targets)[agentsMD()]
 	if tg.Kind != install.KindManagedBlock {
@@ -125,7 +125,7 @@ func TestPlanCursorAlone(t *testing.T) {
 	targets, owners := mustPlan(t, PlanInput{
 		WorktreeRoot: worktreeRoot,
 		Harnesses:    []string{"cursor"},
-		RunGate:      runGate,
+		RunTracker:   runTracker,
 	})
 	if len(targets) != 1 {
 		t.Fatalf("cursor alone planned %d targets, want 1: %+v", len(targets), targets)
@@ -134,8 +134,8 @@ func TestPlanCursorAlone(t *testing.T) {
 	if tg.Path != cursorRule() || tg.Kind != install.KindFile {
 		t.Errorf("cursor target = %+v, want %q as a KindFile", tg, cursorRule())
 	}
-	if !bytes.Equal(tg.Content, cursor.DispatchRuleContent(runGate)) {
-		t.Errorf("cursor content is not cursor.DispatchRuleContent(runGate)")
+	if !bytes.Equal(tg.Content, cursor.DispatchRuleContent(runTracker)) {
+		t.Errorf("cursor content is not cursor.DispatchRuleContent(runTracker)")
 	}
 	if got := owners[cursorRule()]; !reflect.DeepEqual(got, []string{"cursor"}) {
 		t.Errorf("cursor owners = %v, want [cursor]", got)
@@ -146,7 +146,7 @@ func TestPlanCodexOpencodeShareOneTarget(t *testing.T) {
 	targets, owners := mustPlan(t, PlanInput{
 		WorktreeRoot: worktreeRoot,
 		Harnesses:    []string{"opencode", "codex"},
-		RunGate:      runGate,
+		RunTracker:   runTracker,
 	})
 	if len(targets) != 1 {
 		t.Fatalf("codex+opencode planned %d targets, want 1 shared AGENTS.md: %+v", len(targets), targets)
@@ -164,7 +164,7 @@ func TestPlanClaudeCodexAbsentSymlinks(t *testing.T) {
 	targets, owners := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
 		Harnesses:     []string{"claude", "codex"},
-		RunGate:       runGate,
+		RunTracker:    runTracker,
 		ClaudeMDState: ClaudeMDAbsent,
 	})
 	idx := byPath(targets)
@@ -197,7 +197,7 @@ func TestPlanClaudeCodexLinkStateSymlinks(t *testing.T) {
 	targets, _ := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
 		Harnesses:     []string{"claude", "codex"},
-		RunGate:       runGate,
+		RunTracker:    runTracker,
 		ClaudeMDState: ClaudeMDLinkToAgents,
 	})
 	cl := byPath(targets)[claudeMD()]
@@ -210,7 +210,7 @@ func TestPlanClaudeCodexRegularFileGetsBlock(t *testing.T) {
 	targets, owners := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
 		Harnesses:     []string{"claude", "codex"},
-		RunGate:       runGate,
+		RunTracker:    runTracker,
 		ClaudeMDState: ClaudeMDRegularFile,
 	})
 	idx := byPath(targets)
@@ -234,7 +234,7 @@ func TestPlanClaudeCodexOtherGetsBlock(t *testing.T) {
 	targets, _ := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
 		Harnesses:     []string{"claude", "codex"},
-		RunGate:       runGate,
+		RunTracker:    runTracker,
 		ClaudeMDState: ClaudeMDOther,
 	})
 	cl := byPath(targets)[claudeMD()]
@@ -244,7 +244,7 @@ func TestPlanClaudeCodexOtherGetsBlock(t *testing.T) {
 }
 
 func TestPlanEmptyHarnessesPlansNothing(t *testing.T) {
-	targets, owners, err := Plan(PlanInput{WorktreeRoot: worktreeRoot, RunGate: runGate})
+	targets, owners, err := Plan(PlanInput{WorktreeRoot: worktreeRoot, RunTracker: runTracker})
 	if err != nil {
 		t.Fatalf("empty Harnesses errored: %v", err)
 	}
@@ -260,7 +260,7 @@ func TestPlanUnknownTokenErrors(t *testing.T) {
 	_, _, err := Plan(PlanInput{
 		WorktreeRoot: worktreeRoot,
 		Harnesses:    []string{"claude", "emacs"},
-		RunGate:      runGate,
+		RunTracker:   runTracker,
 	})
 	if err == nil {
 		t.Fatal("unknown harness token did not error")
@@ -273,7 +273,7 @@ func TestPlanNeverSkillOrAgent(t *testing.T) {
 	targets, _ := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
 		Harnesses:     []string{"claude", "codex", "opencode", "cursor"},
-		RunGate:       runGate,
+		RunTracker:    runTracker,
 		ClaudeMDState: ClaudeMDRegularFile,
 	})
 	for _, tg := range targets {
@@ -290,7 +290,7 @@ func TestPlanDispatchInteriorWordingConstraint(t *testing.T) {
 	targets, _ := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
 		Harnesses:     []string{"claude", "codex"},
-		RunGate:       runGate,
+		RunTracker:    runTracker,
 		ClaudeMDState: ClaudeMDRegularFile, // both CLAUDE.md and AGENTS.md are blocks
 	})
 	blocks := 0
@@ -299,9 +299,9 @@ func TestPlanDispatchInteriorWordingConstraint(t *testing.T) {
 			continue
 		}
 		blocks++
-		want := []byte(harness.DispatchInterior(runGate))
+		want := []byte(harness.DispatchInterior(runTracker))
 		if tg.Path == agentsMD() {
-			want = []byte(harness.CodexDispatchInterior(runGate))
+			want = []byte(harness.CodexDispatchInterior(runTracker))
 		}
 		if !bytes.Equal(tg.Content, want) {
 			t.Errorf("block %q carries the wrong harness interior", tg.Path)
@@ -319,7 +319,7 @@ func TestCodexRootEntryPolicyRoutesByRegistrationMarkers(t *testing.T) {
 	targets, _ := mustPlan(t, PlanInput{
 		WorktreeRoot: worktreeRoot,
 		Harnesses:    []string{"codex"},
-		RunGate:      runGate,
+		RunTracker:   runTracker,
 	})
 	content := string(byPath(targets)[agentsMD()].Content)
 	for _, clause := range []string{
@@ -344,7 +344,7 @@ func TestPlanTargetsSorted(t *testing.T) {
 	targets, owners := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
 		Harnesses:     []string{"cursor", "opencode", "codex", "claude"},
-		RunGate:       runGate,
+		RunTracker:    runTracker,
 		ClaudeMDState: ClaudeMDRegularFile,
 	})
 	paths := make([]string, len(targets))
@@ -368,7 +368,7 @@ func TestPlanRunnerFreeAndByteStable(t *testing.T) {
 	in := PlanInput{
 		WorktreeRoot: worktreeRoot,
 		Harnesses:    []string{"claude", "codex", "cursor", "opencode"},
-		RunGate:      runGate,
+		RunTracker:   runTracker,
 	}
 	first, _ := mustPlan(t, in)
 	if len(first) == 0 {

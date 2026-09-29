@@ -30,12 +30,12 @@ import (
 // The in-progress read reuses the same PinContext/ReadCorpus plumbing the claim
 // path uses (a fresh-origin fetch inside PinContext, one change-file parse), so
 // these tests inject the scriptable fakeReader for the corpus and a real temp
-// git repo (newGateRepo) for the store's git-common-dir rooting.
+// git repo (newRunTrackerRepo) for the store's git-common-dir rooting.
 
-// gateBeforeCorpus is a scriptable in-progress claim set: ids 3 and 7 are
+// runStartCorpus is a scriptable in-progress claim set: ids 3 and 7 are
 // in-progress (the before-set), id 5 is proposed and id 8 is blocked (neither is
 // an in-progress claim), so a correct before-read collects exactly {3, 7}.
-func gateBeforeCorpus() []StatusBlob {
+func runStartCorpus() []StatusBlob {
 	blob := func(id int, slug, status string) StatusBlob {
 		return StatusBlob{
 			Kind:     repository.KindChange,
@@ -53,9 +53,9 @@ func gateBeforeCorpus() []StatusBlob {
 	}
 }
 
-// gateBeforeReader is the fakeReader wired with a mainPin and the given corpus /
+// runStartReader is the fakeReader wired with a mainPin and the given corpus /
 // injected errors.
-func gateBeforeReader(t *testing.T, corpus []StatusBlob, pinErr, corpusErr error) *fakeReader {
+func runStartReader(t *testing.T, corpus []StatusBlob, pinErr, corpusErr error) *fakeReader {
 	t.Helper()
 	return &fakeReader{pin: mainPin(t), corpus: corpus, pinErr: pinErr, corpusErr: corpusErr}
 }
@@ -80,7 +80,7 @@ func sampleScopeGrant() gatedrive.ScopeGrant {
 	}
 }
 
-// fakeScopePrep is a scriptable GateScopeDeps.Prepare: it records the request it
+// fakeScopePrep is a scriptable RunTrackerScopeDeps.Prepare: it records the request it
 // was handed and returns a canned grant (or a canned error), so a test can prove
 // the scope was prepared with the right ChangeID/Branch/Worktree and was NOT
 // prepared on a pre-scope refusal.
@@ -91,8 +91,8 @@ type fakeScopePrep struct {
 	req   gatedrive.ScopeRequest
 }
 
-func (f *fakeScopePrep) deps() GateScopeDeps {
-	return GateScopeDeps{
+func (f *fakeScopePrep) deps() RunTrackerScopeDeps {
+	return RunTrackerScopeDeps{
 		Prepare: func(req gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
 			f.calls++
 			f.req = req
@@ -102,7 +102,7 @@ func (f *fakeScopePrep) deps() GateScopeDeps {
 			return f.grant, nil
 		},
 		// A permissive cancellation seam so every resume test that reaches the
-		// EpochCancelled/EpochSuperseded branches sees a quiescent old epoch (change
+		// RunCancelled/RunSuperseded branches sees a quiescent old epoch (change
 		// 0435): accounted launches, no worktree slot. Slot-bearing tests override
 		// CancelSeams with a real store. A nil store makes validateResumeQuiescence's
 		// slot leg vacuous, which is correct for fixtures that bind no worktree slot.
@@ -124,18 +124,18 @@ func resumeInspectService(worktree string) *fakeWorkspaceService {
 	}
 }
 
-// TestIntegrationRunStartGateBeforePreparesOuterScope: a non-resume arm prepares the outer scope,
+// TestIntegrationRunStartRunStartPreparesOuterScope: a non-resume arm prepares the outer scope,
 // carries the scope binding in the record, prints the dispatch context on the
 // armed line, and NEVER leaks the parent capability into the result JSON or the
 // human text (it lives only in the 0600 record).
-func TestIntegrationRunStartGateBeforePreparesOuterScope(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+func TestIntegrationRunStartRunStartPreparesOuterScope(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
-	if !res.Armed || res.Key == "" {
-		t.Fatalf("Armed=%v Key=%q, want armed", res.Armed, res.Key)
+	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Started || res.Key == "" {
+		t.Fatalf("Armed=%v Key=%q, want armed", res.Started, res.Key)
 	}
 	if sp.calls != 1 {
 		t.Fatalf("PrepareScope called %d times, want 1", sp.calls)
@@ -148,20 +148,20 @@ func TestIntegrationRunStartGateBeforePreparesOuterScope(t *testing.T) {
 	// Armed line: run-started <key> <epoch> <dispatch-context>, followed by the
 	// honest owner-lifecycle caveat (change 0375 Task 13). The epoch id is minted
 	// beside the gate record and surfaced so the Stop path is followable.
-	ep, _, err := LoadEpochRecord(repo, res.Key)
+	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.RunID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
-	if res.DispatchContext != scopeGrantChild {
-		t.Errorf("DispatchContext = %q, want %q", res.DispatchContext, scopeGrantChild)
+	if res.RunContext != scopeGrantChild {
+		t.Errorf("RunContext = %q, want %q", res.RunContext, scopeGrantChild)
 	}
 
-	rec, err := LoadGateRecord(repo, res.Key)
+	rec, err := LoadRunTrackerRecord(repo, res.Key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	if rec.ScopeID != scopeGrantID {
 		t.Errorf("ScopeID = %q, want %q", rec.ScopeID, scopeGrantID)
@@ -169,7 +169,7 @@ func TestIntegrationRunStartGateBeforePreparesOuterScope(t *testing.T) {
 	if rec.ParentCap != scopeGrantParent {
 		t.Errorf("ParentCap = %q, want the raw parent cap persisted in the 0600 record", rec.ParentCap)
 	}
-	if want := gateHashToken(scopeGrantChild); rec.ChildContextHash != want {
+	if want := runTrackerHashToken(scopeGrantChild); rec.ChildContextHash != want {
 		t.Errorf("ChildContextHash = %q, want sha256 of the dispatch context %q", rec.ChildContextHash, want)
 	}
 
@@ -187,47 +187,47 @@ func TestIntegrationRunStartGateBeforePreparesOuterScope(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunStartGateBeforeFreshArmSurfacesRunEpoch: a fresh (non-resume) arm surfaces the
+// TestIntegrationRunStartRunStartFreshArmSurfacesRunID: a fresh (non-resume) arm surfaces the
 // minted run epoch's public id in the result (Epoch) and in the human report line
 // — the documented `run.cancel --run-id <id>` / `--run-id` value the operator and
 // the dispatcher thread through. Without it the primary human-Stop path names an
 // epoch the arm never gave (change 0375). The surfaced id must equal the id the
 // bound epoch record actually carries — the same value run.cancel cross-checks.
-func TestIntegrationRunStartGateBeforeFreshArmSurfacesRunEpoch(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+func TestIntegrationRunStartRunStartFreshArmSurfacesRunID(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
-	if !res.Armed || res.Key == "" {
-		t.Fatalf("Armed=%v Key=%q, want armed", res.Armed, res.Key)
+	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Started || res.Key == "" {
+		t.Fatalf("Armed=%v Key=%q, want armed", res.Started, res.Key)
 	}
 
 	// The arm minted an epoch beside the gate record; its id is what run.cancel and
 	// every --run-id flag consume, so the arm must hand it back.
-	ep, _, err := LoadEpochRecord(repo, res.Key)
+	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if ep.EpochID == "" {
+	if ep.RunID == "" {
 		t.Fatalf("minted epoch has no id")
 	}
-	if res.Epoch != ep.EpochID {
-		t.Errorf("result Epoch = %q, want the minted epoch id %q", res.Epoch, ep.EpochID)
+	if res.RunID != ep.RunID {
+		t.Errorf("result Epoch = %q, want the minted epoch id %q", res.RunID, ep.RunID)
 	}
 
 	// Human report line: run-started <key> <epoch> <dispatch-context>, then the
 	// owner-lifecycle caveat.
-	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.EpochID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
+	if got, want := res.HumanText(), "run-started "+res.Key+" "+ep.RunID+" "+scopeGrantChild+"\n"+ReasonOwnerLifecycleUnavailable; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }
 
-// TestIntegrationRunStartGateBeforeResumeBindsOnlyVerifiedInProgress: a --resume id pre-binds
+// TestIntegrationRunStartRunStartResumeBindsOnlyVerifiedInProgress: a --resume id pre-binds
 // attribution ONLY when the id is genuinely in-progress AND WorkspaceInspect
 // applies; a proposed id or a failed inspect is resume-unverified and mints no
 // record (and never prepares a scope).
-func TestIntegrationRunStartGateBeforeResumeBindsOnlyVerifiedInProgress(t *testing.T) {
+func TestIntegrationRunStartRunStartResumeBindsOnlyVerifiedInProgress(t *testing.T) {
 	t.Run("in-progress with valid inspect binds", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
 		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(5, "epsilon", "v5", "")}}
@@ -235,8 +235,8 @@ func TestIntegrationRunStartGateBeforeResumeBindsOnlyVerifiedInProgress(t *testi
 		wdeps := WorkspaceDeps{Service: resumeInspectService("/tmp/wt/epsilon")}
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-		res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
-		if !res.Armed {
+		res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+		if !res.Started {
 			t.Fatalf("resume did not arm: %q", res.HumanText())
 		}
 		if sp.calls != 1 {
@@ -253,9 +253,9 @@ func TestIntegrationRunStartGateBeforeResumeBindsOnlyVerifiedInProgress(t *testi
 		if sp.req.Worktree != "/tmp/wt/epsilon" {
 			t.Errorf("scope Worktree = %q, want /tmp/wt/epsilon", sp.req.Worktree)
 		}
-		rec, err := LoadGateRecord(repoDir, res.Key)
+		rec, err := LoadRunTrackerRecord(repoDir, res.Key)
 		if err != nil {
-			t.Fatalf("LoadGateRecord: %v", err)
+			t.Fatalf("LoadRunTrackerRecord: %v", err)
 		}
 		if rec.AttributedID != 5 {
 			t.Errorf("AttributedID = %d, want 5 (pre-bound)", rec.AttributedID)
@@ -269,12 +269,12 @@ func TestIntegrationRunStartGateBeforeResumeBindsOnlyVerifiedInProgress(t *testi
 		wdeps := WorkspaceDeps{Service: resumeInspectService("/tmp/wt/epsilon")}
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-		res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
-		if res.Armed {
+		res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+		if res.Started {
 			t.Fatalf("armed for a non-in-progress resume id")
 		}
-		if res.Reason != ReasonGateResumeUnverified {
-			t.Errorf("Reason = %q, want %q", res.Reason, ReasonGateResumeUnverified)
+		if res.Reason != ReasonRunResumeUnverified {
+			t.Errorf("Reason = %q, want %q", res.Reason, ReasonRunResumeUnverified)
 		}
 		if res.Key != "" {
 			t.Errorf("minted a record %q for an unverified resume", res.Key)
@@ -293,12 +293,12 @@ func TestIntegrationRunStartGateBeforeResumeBindsOnlyVerifiedInProgress(t *testi
 		wdeps := WorkspaceDeps{Service: svc}
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-		res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
-		if res.Armed {
+		res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+		if res.Started {
 			t.Fatalf("armed despite a failed inspect")
 		}
-		if res.Reason != ReasonGateResumeUnverified {
-			t.Errorf("Reason = %q, want %q", res.Reason, ReasonGateResumeUnverified)
+		if res.Reason != ReasonRunResumeUnverified {
+			t.Errorf("Reason = %q, want %q", res.Reason, ReasonRunResumeUnverified)
 		}
 		if res.Key != "" || sp.calls != 0 {
 			t.Errorf("minted/prepared on a failed inspect: key=%q calls=%d", res.Key, sp.calls)
@@ -306,24 +306,24 @@ func TestIntegrationRunStartGateBeforeResumeBindsOnlyVerifiedInProgress(t *testi
 	})
 }
 
-// TestIntegrationRunStartGateBeforeNoTimestampGames: the resume path never plays a timestamp game.
-// The resumed change stays in the fresh BeforeIDs and DispatchEpoch stays
+// TestIntegrationRunStartRunStartNoTimestampGames: the resume path never plays a timestamp game.
+// The resumed change stays in the fresh BeforeIDs and DispatchedAt stays
 // post-read — attribution is bound by verified identity, not by excluding the id
 // from the before-set.
-func TestIntegrationRunStartGateBeforeNoTimestampGames(t *testing.T) {
+func TestIntegrationRunStartRunStartNoTimestampGames(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(5, "epsilon", "v5", "")}}
 	deps := workspaceDepsFor(t, reader)
 	wdeps := WorkspaceDeps{Service: resumeInspectService("/tmp/wt/epsilon")}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
-	if !res.Armed {
+	res := RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5)
+	if !res.Started {
 		t.Fatalf("resume did not arm: %q", res.HumanText())
 	}
-	rec, err := LoadGateRecord(repoDir, res.Key)
+	rec, err := LoadRunTrackerRecord(repoDir, res.Key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	// The resumed change is present in the fresh before-set (not excluded).
 	found := false
@@ -335,19 +335,19 @@ func TestIntegrationRunStartGateBeforeNoTimestampGames(t *testing.T) {
 	if !found {
 		t.Errorf("resumed id 5 not in BeforeIDs %v — attribution must not lean on excluding it", rec.BeforeIDs)
 	}
-	// DispatchEpoch is still captured post-read (>= CreatedAt), unchanged by resume.
-	if rec.DispatchEpoch < rec.CreatedAt {
-		t.Errorf("DispatchEpoch %d < CreatedAt %d — resume must not rewind the epoch", rec.DispatchEpoch, rec.CreatedAt)
+	// DispatchedAt is still captured post-read (>= CreatedAt), unchanged by resume.
+	if rec.DispatchedAt < rec.CreatedAt {
+		t.Errorf("DispatchedAt %d < CreatedAt %d — resume must not rewind the epoch", rec.DispatchedAt, rec.CreatedAt)
 	}
 	if rec.AttributedID != 5 {
 		t.Errorf("AttributedID = %d, want 5", rec.AttributedID)
 	}
 }
 
-// gatePinWithRunMaxAttempts builds a StatusPin whose resolved config carries an
+// runTrackerPinWithRunMaxAttempts builds a StatusPin whose resolved config carries an
 // explicit repository-layer run.max_attempts, so a run start arm through it
 // snapshots that value into the record's AttemptLimit.
-func gatePinWithRunMaxAttempts(t *testing.T, n int) StatusPin {
+func runTrackerPinWithRunMaxAttempts(t *testing.T, n int) StatusPin {
 	t.Helper()
 	snap, _, err := config.Resolve([]config.Source{{
 		Layer: config.LayerRepository,
@@ -369,27 +369,27 @@ func gatePinWithRunMaxAttempts(t *testing.T, n int) StatusPin {
 // snapshot rule — the load never re-reads config).
 func TestIntegrationRunStartMintSnapshotsRunMaxAttempts(t *testing.T) {
 	t.Run("configured value is snapshotted", func(t *testing.T) {
-		repo := newGateRepo(t)
-		reader := &fakeReader{pin: gatePinWithRunMaxAttempts(t, 3), corpus: gateBeforeCorpus()}
+		repo := newRunTrackerRepo(t)
+		reader := &fakeReader{pin: runTrackerPinWithRunMaxAttempts(t, 3), corpus: runStartCorpus()}
 		deps := PlanningDeps{Reader: reader, Clock: testClock()}
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-		res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
-		if !res.Armed {
+		res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+		if !res.Started {
 			t.Fatalf("did not arm: %q", res.HumanText())
 		}
-		rec, err := LoadGateRecord(repo, res.Key)
+		rec, err := LoadRunTrackerRecord(repo, res.Key)
 		if err != nil {
-			t.Fatalf("LoadGateRecord: %v", err)
+			t.Fatalf("LoadRunTrackerRecord: %v", err)
 		}
 		if rec.AttemptLimit != 3 {
 			t.Errorf("AttemptLimit = %d, want 3 (snapshotted run.max_attempts)", rec.AttemptLimit)
 		}
 		// The snapshot is immutable: a re-load never re-reads config, so the limit
 		// stays 3 regardless of any later configuration change.
-		rec2, err := LoadGateRecord(repo, res.Key)
+		rec2, err := LoadRunTrackerRecord(repo, res.Key)
 		if err != nil {
-			t.Fatalf("LoadGateRecord (reload): %v", err)
+			t.Fatalf("LoadRunTrackerRecord (reload): %v", err)
 		}
 		if rec2.AttemptLimit != 3 {
 			t.Errorf("reloaded AttemptLimit = %d, want 3 (snapshot immutable)", rec2.AttemptLimit)
@@ -397,17 +397,17 @@ func TestIntegrationRunStartMintSnapshotsRunMaxAttempts(t *testing.T) {
 	})
 
 	t.Run("default is 2", func(t *testing.T) {
-		repo := newGateRepo(t)
-		deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+		repo := newRunTrackerRepo(t)
+		deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-		res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
-		if !res.Armed {
+		res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+		if !res.Started {
 			t.Fatalf("did not arm: %q", res.HumanText())
 		}
-		rec, err := LoadGateRecord(repo, res.Key)
+		rec, err := LoadRunTrackerRecord(repo, res.Key)
 		if err != nil {
-			t.Fatalf("LoadGateRecord: %v", err)
+			t.Fatalf("LoadRunTrackerRecord: %v", err)
 		}
 		if rec.AttemptLimit != 2 {
 			t.Errorf("AttemptLimit = %d, want the built-in default 2", rec.AttemptLimit)
@@ -418,58 +418,58 @@ func TestIntegrationRunStartMintSnapshotsRunMaxAttempts(t *testing.T) {
 // TestIntegrationRunStartGateRecordContinuationTripleRule: the store rejects a partial continuation
 // triple on BOTH the write and the read boundary as a corrupt record.
 func TestIntegrationRunStartGateRecordContinuationTripleRule(t *testing.T) {
-	repo := newGateRepo(t)
+	repo := newRunTrackerRepo(t)
 
 	// Write boundary: minting/saving a partial triple fails closed.
-	partial := sampleGateRecord()
+	partial := sampleRunTrackerRecord()
 	partial.ContinuationID = "cont-1"
 	// ContinuationDrive / ContinuationHandoff deliberately left empty.
-	_, err := MintGateRecord(repo, partial)
-	if gse, ok := AsGateStoreError(err); !ok || gse.Kind != ErrGateCorruptRecord {
-		t.Errorf("mint of a partial triple = %v, want ErrGateCorruptRecord", err)
+	_, err := MintRunTrackerRecord(repo, partial)
+	if gse, ok := AsRunTrackerStoreError(err); !ok || gse.Kind != ErrRunTrackerCorruptRecord {
+		t.Errorf("mint of a partial triple = %v, want ErrRunTrackerCorruptRecord", err)
 	}
 
 	// A full triple writes and reads back cleanly.
-	full := sampleGateRecord()
+	full := sampleRunTrackerRecord()
 	full.ContinuationID = "cont-1"
 	full.ContinuationDrive = "drive-1"
 	full.ContinuationHandoff = "handoff-1"
-	key, err := MintGateRecord(repo, full)
+	key, err := MintRunTrackerRecord(repo, full)
 	if err != nil {
 		t.Fatalf("mint of a full triple: %v", err)
 	}
-	if _, err := LoadGateRecord(repo, key); err != nil {
+	if _, err := LoadRunTrackerRecord(repo, key); err != nil {
 		t.Fatalf("load of a full triple: %v", err)
 	}
 
 	// Read boundary: a partial triple planted on disk fails closed on load.
-	root, err := gateRoot(repo)
+	root, err := runTrackerRoot(repo)
 	if err != nil {
-		t.Fatalf("gateRoot: %v", err)
+		t.Fatalf("runTrackerRoot: %v", err)
 	}
-	writeRawGateRecord(t, root, key, `{"schema":2,"repo":%q,"target":"docket-implement-next","retry":"unused","continuation_id":"x","continuation_drive":"y"}`)
-	_, err = LoadGateRecord(repo, key)
-	if gse, ok := AsGateStoreError(err); !ok || gse.Kind != ErrGateCorruptRecord {
-		t.Errorf("load of a planted partial triple = %v, want ErrGateCorruptRecord", err)
+	writeRawRunTrackerRecord(t, root, key, `{"schema":2,"repo":%q,"target":"docket-implement-next","retry":"unused","continuation_id":"x","continuation_drive":"y"}`)
+	_, err = LoadRunTrackerRecord(repo, key)
+	if gse, ok := AsRunTrackerStoreError(err); !ok || gse.Kind != ErrRunTrackerCorruptRecord {
+		t.Errorf("load of a planted partial triple = %v, want ErrRunTrackerCorruptRecord", err)
 	}
 }
 
 // TestIntegrationRunStartGateRecordSchema1FailsClosed: a schema-1 record fails closed as a corrupt
 // record — the v2 store never migrates a pre-upgrade record.
 func TestIntegrationRunStartGateRecordSchema1FailsClosed(t *testing.T) {
-	repo := newGateRepo(t)
-	key, err := MintGateRecord(repo, sampleGateRecord())
+	repo := newRunTrackerRepo(t)
+	key, err := MintRunTrackerRecord(repo, sampleRunTrackerRecord())
 	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
+		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
-	root, err := gateRoot(repo)
+	root, err := runTrackerRoot(repo)
 	if err != nil {
-		t.Fatalf("gateRoot: %v", err)
+		t.Fatalf("runTrackerRoot: %v", err)
 	}
-	writeRawGateRecord(t, root, key, `{"schema":1,"repo":%q,"target":"docket-implement-next","retry":"unused"}`)
-	_, err = LoadGateRecord(repo, key)
-	if gse, ok := AsGateStoreError(err); !ok || gse.Kind != ErrGateCorruptRecord {
-		t.Errorf("schema 1 load = %v, want ErrGateCorruptRecord", err)
+	writeRawRunTrackerRecord(t, root, key, `{"schema":1,"repo":%q,"target":"docket-implement-next","retry":"unused"}`)
+	_, err = LoadRunTrackerRecord(repo, key)
+	if gse, ok := AsRunTrackerStoreError(err); !ok || gse.Kind != ErrRunTrackerCorruptRecord {
+		t.Errorf("schema 1 load = %v, want ErrRunTrackerCorruptRecord", err)
 	}
 }
 
@@ -477,13 +477,13 @@ func TestIntegrationRunStartGateRecordSchema1FailsClosed(t *testing.T) {
 // can drive WorkspaceInspect to a non-applied result.
 var errInspectProbe = errors.New("inspect probe failed")
 
-// writeRawGateRecord overwrites the record.json at root/key with tmpl formatted
+// writeRawRunTrackerRecord overwrites the record.json at root/key with tmpl formatted
 // against the record's own canonical repo value (read from the existing record so
 // the wrong-repo guard is not the thing that fires). It is how a test plants a
 // deliberately malformed on-disk record to prove a fail-closed load.
-func writeRawGateRecord(t *testing.T, root, key, tmpl string) {
+func writeRawRunTrackerRecord(t *testing.T, root, key, tmpl string) {
 	t.Helper()
-	path := filepath.Join(root, key, gateRecordFileName)
+	path := filepath.Join(root, key, runTrackerRecordFileName)
 	buf, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read existing record: %v", err)
@@ -505,9 +505,9 @@ func writeRawGateRecord(t *testing.T, root, key, tmpl string) {
 // the dispatch context, so a positional parser can never read the dispatch context
 // as the epoch.
 func TestIntegrationRunStartArmedLineIsAlwaysThreeTokens(t *testing.T) {
-	check := func(t *testing.T, res RunGateBeforeResult) {
+	check := func(t *testing.T, res RunStartResult) {
 		t.Helper()
-		if !res.Armed {
+		if !res.Started {
 			t.Fatalf("did not arm: %q", res.HumanText())
 		}
 		first := strings.SplitN(res.HumanText(), "\n", 2)[0]
@@ -515,31 +515,31 @@ func TestIntegrationRunStartArmedLineIsAlwaysThreeTokens(t *testing.T) {
 		if len(fields) != 4 || fields[0] != "run-started" {
 			t.Fatalf("armed line %q: want exactly `run-started <key> <epoch> <dispatch-context>`", first)
 		}
-		if fields[1] != res.Key || fields[2] != res.Epoch || fields[3] != res.DispatchContext {
+		if fields[1] != res.Key || fields[2] != res.RunID || fields[3] != res.RunContext {
 			t.Fatalf("armed line %q: fields (%q,%q,%q), want (key %q, epoch %q, dispatch context %q)",
-				first, fields[1], fields[2], fields[3], res.Key, res.Epoch, res.DispatchContext)
+				first, fields[1], fields[2], fields[3], res.Key, res.RunID, res.RunContext)
 		}
-		if res.Epoch == "" || res.Epoch == res.DispatchContext {
-			t.Fatalf("epoch %q must be a distinct non-empty token from the dispatch context %q", res.Epoch, res.DispatchContext)
+		if res.RunID == "" || res.RunID == res.RunContext {
+			t.Fatalf("epoch %q must be a distinct non-empty token from the dispatch context %q", res.RunID, res.RunContext)
 		}
 	}
 	t.Run("fresh arm", func(t *testing.T) {
-		repo := newGateRepo(t)
-		deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+		repo := newRunTrackerRepo(t)
+		deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
-		check(t, RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0))
+		check(t, RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0))
 	})
 	t.Run("epochless resume", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
-		deps, wdeps := resumeEpochDeps(t)
+		deps, wdeps := resumeRunDeps(t)
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
-		check(t, RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5))
+		check(t, RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5))
 	})
 	t.Run("cancelled-replacement resume", func(t *testing.T) {
 		repoDir := newWorkingRepo(t, nil).invocation
-		seedPriorEpoch(t, repoDir, EpochCancelled)
-		deps, wdeps := resumeEpochDeps(t)
+		seedPriorRun(t, repoDir, RunCancelled)
+		deps, wdeps := resumeRunDeps(t)
 		sp := &fakeScopePrep{grant: sampleScopeGrant()}
-		check(t, RunGateBefore(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5))
+		check(t, RunStart(context.Background(), deps, wdeps, sp.deps(), repoDir, "implement-next", 5))
 	})
 }

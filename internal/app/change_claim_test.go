@@ -175,7 +175,7 @@ func TestClaimResultFromOutcomeFailedCarriesCause(t *testing.T) {
 
 // --- gate-context binding (change 0407) ------------------------------------
 //
-// These drive ChangeClaim end-to-end over a real gate store (newGateRepo, whose
+// These drive ChangeClaim end-to-end over a real gate store (newRunTrackerRepo, whose
 // git common dir roots the rungate records the store primitives read/write) and
 // a real Discover client, with the metadata transaction faked by claimGateEngine.
 // The gate seam sits between resolveClaimTarget and the engine call, so a fake
@@ -234,21 +234,21 @@ func gateClaimDeps(t *testing.T, engine *claimGateEngine, corpus []StatusBlob) P
 // replay scan refuses the second as id-reuse rather than replaying the first's
 // receipt (criterion 3).
 func TestClaimSameIDDifferentContextDigestDiffers(t *testing.T) {
-	h1 := gateHashToken("tokA")
-	h2 := gateHashToken("tokB")
-	d1, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, GateContextHash: h1})
+	h1 := runTrackerHashToken("tokA")
+	h2 := runTrackerHashToken("tokB")
+	d1, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, RunContextHash: h1})
 	if err != nil {
 		t.Fatalf("digest 1: %v", err)
 	}
-	d2, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, GateContextHash: h2})
+	d2, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, RunContextHash: h2})
 	if err != nil {
 		t.Fatalf("digest 2: %v", err)
 	}
 	if d1 == d2 {
 		t.Errorf("digests match across differing contexts (%q); the same (id,version) would share the idempotency path", d1)
 	}
-	reqA := claimRequestID(ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tokA"})
-	reqB := claimRequestID(ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tokB"})
+	reqA := claimRequestID(ChangeClaimRequest{ID: 3, Version: gateClaimVersion, RunContext: "tokA"})
+	reqB := claimRequestID(ChangeClaimRequest{ID: 3, Version: gateClaimVersion, RunContext: "tokB"})
 	if reqA != reqB {
 		t.Errorf("request ids differ (%q vs %q); they must match so the engine's replay scan sees id-reuse", reqA, reqB)
 	}

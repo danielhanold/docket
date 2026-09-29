@@ -3,7 +3,7 @@
 // A tracked gate drive that a dispatched implement-next run left live (or wrote a
 // verdict for and then died before its parent consumed it) is HEALTHY work to
 // CONTINUE, not a quiescent incomplete to stop and spend the one retry on. This
-// file is the drive-layer surface RunGateVerdict needs to recognize and recover
+// file is the drive-layer surface RunVerdict needs to recognize and recover
 // such a drive:
 //
 //   - LocateOuterDrive resolves the candidate drives nested under this dispatch's
@@ -35,34 +35,34 @@ import (
 	"github.com/danielhanold/docket/internal/process"
 )
 
-// GateDecisionContinue is the NONTERMINAL gate decision (change 0359): the same
+// RunDecisionContinue is the NONTERMINAL gate decision (change 0359): the same
 // implement-next attempt owns live or terminal-unconsumed tracked work, so the
 // gate keeps the same key and spends no retry. It joins run-done / run-retry-once
 // / run-stop (attributed) and run-observe (unattributed) as a leading report
 // token, but unlike run-retry-once it is a continuation of the SAME attempt, not
 // a second attempt.
-const GateDecisionContinue = "run-continue"
+const RunDecisionContinue = "run-continue"
 
 // Continuation-path run-tracker-unavailable reason tokens. A takeover that HALTs passes
 // the driver's own cause token through instead of these.
 const (
-	// ReasonGateContinuationUnavailable: a run-waiting continuation could not be
+	// ReasonRunContinuationUnavailable: a run-waiting continuation could not be
 	// recorded (no continuation seam wired, or the drive's handoff token could not
 	// be read). Fail closed rather than emit an unredeemable continuation.
-	ReasonGateContinuationUnavailable = "continuation-unavailable"
-	// ReasonGateContinuationUnverified: an outer takeover synthesized a handoff, but
+	ReasonRunContinuationUnavailable = "continuation-unavailable"
+	// ReasonRunContinuationUnverified: an outer takeover synthesized a handoff, but
 	// the re-run of the unchanged RunVerify predicate did not certify it as
 	// run-waiting — an unsafe state that earns neither retry nor continuation.
-	ReasonGateContinuationUnverified = "continuation-unverified"
-	// ReasonGateLocateFailed: the outer-drive candidate scan itself faulted.
-	ReasonGateLocateFailed = "locate-failed"
-	// ReasonGateTakeoverError: the outer takeover returned a command error (not a
+	ReasonRunContinuationUnverified = "continuation-unverified"
+	// ReasonRunLocateFailed: the outer-drive candidate scan itself faulted.
+	ReasonRunLocateFailed = "locate-failed"
+	// ReasonRunTakeoverError: the outer takeover returned a command error (not a
 	// HALTED document) — an operational fault, fail closed.
-	ReasonGateTakeoverError = "takeover-error"
-	// ReasonGateTakeoverAmbiguous: more than one candidate drive resolved for the
+	ReasonRunTakeoverError = "takeover-error"
+	// ReasonRunTakeoverAmbiguous: more than one candidate drive resolved for the
 	// outer scope — unsafe ownership, never continued or retried. Mirrors the
 	// driver's own takeover-ambiguous cause token.
-	ReasonGateTakeoverAmbiguous = gatedrive.CauseTakeoverAmbiguous
+	ReasonRunTakeoverAmbiguous = gatedrive.CauseTakeoverAmbiguous
 )
 
 // ContinuationSeam is the drive-layer surface the verdict path needs. The
@@ -116,16 +116,16 @@ func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error)
 	// A parent takeover must not revive a cancelled/superseded run epoch (change 0375
 	// Task 12): the continuation seam performs the automatic outer takeover, so it
 	// carries the same run-epoch revocation resolver. It fires only for a scope that
-	// carries a RunEpochID.
-	driver.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	// carries a RunID.
+	driver.SetRunRevokedResolver(runRevokedResolver(gitCommonDir))
 	// A revoked/superseded/unbound run epoch must not be admitted or launched through
 	// the continuation seam's takeover/handoff synthesis either (change 0437): wire the
 	// app-side epoch launch gate over the same registry, beside the revocation resolver.
-	driver.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
+	driver.SetRunLaunchGate(runLaunchGate(gitCommonDir))
 	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
 	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
-	driver.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
+	driver.SetRunSettledResolver(runSettledResolver(gitCommonDir))
 	return &gatedriveContinuationSeam{store: store, driver: driver}, nil
 }
 

@@ -9,7 +9,7 @@
 // without verifying (contended, a local refusal, an internal error) is no
 // evidence. Everything in this file is a pure function of the durable epoch
 // record, except settleUncertainPublications, which persists the settlement
-// through the ordinary epochCAS (a settled original becomes completed but stays
+// through the ordinary runRecordCAS (a settled original becomes completed but stays
 // unverified: its own attempt observed nothing).
 package app
 
@@ -91,7 +91,7 @@ func validPublication(op string, p *MutationPublication) bool {
 // cross-operation, descriptor-less, or malformed candidate never settles —
 // missing evidence never counts as success. Pure over the record: no IO, no Git,
 // no GitHub.
-func publicationRetryMatch(rec EpochRecord, i int) bool {
+func publicationRetryMatch(rec RunRecord, i int) bool {
 	if i < 0 || i >= len(rec.AdmittedMutations) {
 		return false
 	}
@@ -117,7 +117,7 @@ func publicationRetryMatch(rec EpochRecord, i int) bool {
 // settleablePublicationIndexes returns, ascending, every journal index
 // publicationRetryMatch settles. The settlement writer re-derives this under
 // the epoch lock; accounting callers never act on a stale copy.
-func settleablePublicationIndexes(rec EpochRecord) []int {
+func settleablePublicationIndexes(rec RunRecord) []int {
 	var idxs []int
 	for i := range rec.AdmittedMutations {
 		if publicationRetryMatch(rec, i) {
@@ -129,7 +129,7 @@ func settleablePublicationIndexes(rec EpochRecord) []int {
 
 // settleUncertainPublications durably settles every uncertain publication entry
 // proven by a later verified identical retry (change 0444). The whole
-// re-read + match + write runs under one epochCAS, so the matches are
+// re-read + match + write runs under one runRecordCAS, so the matches are
 // re-derived from the FRESH record under the lock — an appended unrelated
 // entry can never be cleared by an older snapshot, a raced completion
 // callback or concurrent cancel serializes, and completed is never
@@ -140,14 +140,14 @@ func settleablePublicationIndexes(rec EpochRecord) []int {
 // never call it. A persistence/read failure is a bounded finding
 // ("mutation-settle-failed") — the entry stays uncertain, exclusion is
 // retained, and repeating the same cancel/keyed verdict retries the write.
-// A no-match pass writes nothing (errEpochFenceNoWrite).
-func settleUncertainPublications(repoDir, gateKey string) (settled, findings []string) {
+// A no-match pass writes nothing (errRunFenceNoWrite).
+func settleUncertainPublications(repoDir, runKey string) (settled, findings []string) {
 	var tokens []string
-	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
 		tokens = nil // the closure's view is the fresh locked record; never carry a stale pass
 		idxs := settleablePublicationIndexes(*rec)
 		if len(idxs) == 0 {
-			return errEpochFenceNoWrite
+			return errRunFenceNoWrite
 		}
 		for _, i := range idxs {
 			rec.AdmittedMutations[i].Status = mutationStatusCompleted
@@ -155,7 +155,7 @@ func settleUncertainPublications(repoDir, gateKey string) (settled, findings []s
 		}
 		return nil
 	})
-	if errors.Is(err, errEpochFenceNoWrite) {
+	if errors.Is(err, errRunFenceNoWrite) {
 		return nil, nil // nothing to settle: no write, no finding
 	}
 	if err != nil {

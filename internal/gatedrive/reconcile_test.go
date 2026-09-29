@@ -13,8 +13,8 @@ import (
 
 // ---------------------------------------------------------------------------
 // Cancellation's pending-launch accounting (change 0437 Task 6).
-// ReconcileEpochLaunches walks the drive registry, attributes each drive to its
-// run epoch through resolveDriveEpoch (the SAME linkage the launch paths use), and
+// ReconcileRunLaunches walks the drive registry, attributes each drive to its
+// run epoch through resolveDriveRun (the SAME linkage the launch paths use), and
 // proves — under the per-drive claimant flock and the process seam — whether each
 // nonterminal drive of a FENCED epoch has a settled or a still-pending launch. It
 // launches nothing, mutates no drive verdict, and preserves unresolved evidence.
@@ -30,16 +30,16 @@ func reconcileFindingPresent(findings []string, prefix string) bool {
 	return false
 }
 
-// seedScopedEpochDrive persists a drive enrolled in a fresh scope carrying epochID,
-// so resolveDriveEpoch answers epochID for it, and reserves the scope's slot for it
+// seedScopedRunDrive persists a drive enrolled in a fresh scope carrying runID,
+// so resolveDriveRun answers runID for it, and reserves the scope's slot for it
 // so the scope NAMES the drive as its current one — the positive current reference
 // the census follows (change 0446 spec §4). mutate tweaks the seeded record (its
 // launch identity, relaunch reservation, or outcome) before it is persisted.
-func seedScopedEpochDrive(t *testing.T, store *Store, epochID string, mutate func(*driveRecord)) (id, ownerGen string) {
+func seedScopedRunDrive(t *testing.T, store *Store, runID string, mutate func(*driveRecord)) (id, ownerGen string) {
 	t.Helper()
 	req := sampleStart()
 	sreq := scopeReqFor(req, "")
-	sreq.RunEpochID = epochID
+	sreq.RunID = runID
 	grant, err := store.PrepareScope(sreq)
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
@@ -59,19 +59,19 @@ func seedScopedEpochDrive(t *testing.T, store *Store, epochID string, mutate fun
 	return id, rec.OwnerGeneration
 }
 
-// admitEpochDrive admits (reserve only, no launch) a REAL drive on the sample
-// worktree for epochID through Driver.Admit — scoped under a fresh scope carrying
-// epochID, or scopeless — so the worktree slot names the epoch and holds the drive's
+// admitRunDrive admits (reserve only, no launch) a REAL drive on the sample
+// worktree for runID through Driver.Admit — scoped under a fresh scope carrying
+// runID, or scopeless — so the worktree slot names the epoch and holds the drive's
 // AdmissionToken exactly as production leaves it. It returns the ticket and, for a
 // scoped admission, the scope id.
-func admitEpochDrive(t *testing.T, d *Driver, store *Store, epochID string, scoped bool) (*AdmissionTicket, string) {
+func admitRunDrive(t *testing.T, d *Driver, store *Store, runID string, scoped bool) (*AdmissionTicket, string) {
 	t.Helper()
 	req := sampleStart()
-	req.RunEpochID = epochID
+	req.RunID = runID
 	scopeID := ""
 	if scoped {
 		sreq := scopeReqFor(req, "")
-		sreq.RunEpochID = epochID
+		sreq.RunID = runID
 		grant, err := store.PrepareScope(sreq)
 		if err != nil {
 			t.Fatalf("PrepareScope: %v", err)
@@ -123,20 +123,20 @@ func findingFor(findings []string, tok, id string) bool {
 // drive and a scoped drive, even though nothing was ever launched or registered.
 func TestReconcileSeesPendingReservedDrive(t *testing.T) {
 	t.Run("scopeless", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, _ := newTestDriver(t, clk, proc, stableGit())
 
 		req := sampleStart()
-		req.RunEpochID = "e1"
+		req.RunID = "e1"
 		ticket, err := d.Admit(req) // reserve only; no StartAdmitted
 		if err != nil {
 			t.Fatalf("Admit: %v", err)
 		}
 
-		report, err := d.ReconcileEpochLaunches(req.Worktree, "e1")
+		report, err := d.ReconcileRunLaunches(req.Worktree, "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if report.Accounted {
 			t.Fatalf("a reserved-but-unlaunched drive must NOT be accounted, findings=%v", report.Findings)
@@ -150,17 +150,17 @@ func TestReconcileSeesPendingReservedDrive(t *testing.T) {
 	})
 
 	t.Run("scoped", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RawRunDir = "" // never launched
 			r.RawOwnership = ""
 		})
 
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if report.Accounted {
 			t.Fatalf("a reserved-but-unlaunched scoped drive must NOT be accounted, findings=%v", report.Findings)
@@ -175,10 +175,10 @@ func TestReconcileSeesPendingReservedDrive(t *testing.T) {
 // flight) is reported claim-busy and Accounted=false, and that reconcile returns
 // without waiting on the claim.
 func TestReconcileBusyClaimIsPending(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedEpochDrive(t, store, "e1", nil)
+	id, _ := seedScopedRunDrive(t, store, "e1", nil)
 
 	// Hold the drive's claimant flock from the test: a launch is "in flight".
 	claim, busy, err := store.tryRelaunchClaim(id)
@@ -187,9 +187,9 @@ func TestReconcileBusyClaimIsPending(t *testing.T) {
 	}
 	defer claim.close()
 
-	done := make(chan EpochLaunchReport, 1)
+	done := make(chan RunLaunchReport, 1)
 	go func() {
-		r, _ := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		r, _ := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		done <- r
 	}()
 	select {
@@ -214,14 +214,14 @@ func TestReconcileBusyClaimIsPending(t *testing.T) {
 // "run-cancelled" under the held claim while PRESERVING the consumed reservation (the
 // sole relaunch is never refunded), so a later recovery Advance can never launch it.
 func TestReconcileProvenNeverLaunchedAccounts(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		resolve: func(root, token string) (*process.ReservationResolution, error) {
 			return &process.ReservationResolution{Disposition: "never-launched"}, nil
 		},
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 		r.RelaunchReserved = true
 		r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 	})
@@ -230,9 +230,9 @@ func TestReconcileProvenNeverLaunchedAccounts(t *testing.T) {
 		t.Fatalf("Load before: %v", err)
 	}
 
-	report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
-		t.Fatalf("ReconcileEpochLaunches: %v", err)
+		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
 	if !report.Accounted {
 		t.Fatalf("a proven never-launched reservation must be accounted, findings=%v", report.Findings)
@@ -261,7 +261,7 @@ func TestReconcileIdentifiedReplacementStopped(t *testing.T) {
 	const predecessor = "/runs/predecessor"
 
 	t.Run("proven-stop-accounts", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		var stopped []string
 		proc := &fakeProc{
 			stop: func(runDir, reason string) (*process.StopOutcome, error) {
@@ -270,15 +270,15 @@ func TestReconcileIdentifiedReplacementStopped(t *testing.T) {
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RawRunDir = replacement // the drive names the replacement
 			r.RawOwnership = "replacement"
 			r.RelaunchCount = 1
 		})
 
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if !report.Accounted {
 			t.Fatalf("a proven-stopped replacement must be accounted, findings=%v", report.Findings)
@@ -292,22 +292,22 @@ func TestReconcileIdentifiedReplacementStopped(t *testing.T) {
 	})
 
 	t.Run("unproven-stop-pending", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{
 			stop: func(runDir, reason string) (*process.StopOutcome, error) {
 				return &process.StopOutcome{State: process.StateSignaled, RunDir: runDir, Performed: false}, nil
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RawRunDir = replacement
 			r.RawOwnership = "replacement"
 			r.RelaunchCount = 1
 		})
 
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if report.Accounted {
 			t.Fatalf("an unproven replacement stop must keep the run pending, findings=%v", report.Findings)
@@ -338,7 +338,7 @@ func TestReconcileReservedRelaunchResolved(t *testing.T) {
 		}, seen
 	}
 	seed := func(store *Store) string {
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RelaunchReserved = true
 			r.RelaunchToken = relaunchToken
 			r.AdmissionToken = admissionToken
@@ -348,11 +348,11 @@ func TestReconcileReservedRelaunchResolved(t *testing.T) {
 
 	t.Run("never-launched-accounts", func(t *testing.T) {
 		proc, seen := newProc("never-launched", false)
-		d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, proc, stableGit())
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
 		seed(store)
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if *seen != relaunchToken {
 			t.Fatalf("resolved token = %q, want the RELAUNCH token %q (never the admission token)", *seen, relaunchToken)
@@ -364,11 +364,11 @@ func TestReconcileReservedRelaunchResolved(t *testing.T) {
 
 	t.Run("identified-stops-and-accounts", func(t *testing.T) {
 		proc, seen := newProc("identified", true)
-		d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, proc, stableGit())
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
 		id := seed(store)
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if *seen != relaunchToken {
 			t.Fatalf("resolved token = %q, want the RELAUNCH token %q", *seen, relaunchToken)
@@ -380,11 +380,11 @@ func TestReconcileReservedRelaunchResolved(t *testing.T) {
 
 	t.Run("unresolved-stays-pending", func(t *testing.T) {
 		proc, seen := newProc("unresolved", false)
-		d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, proc, stableGit())
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
 		id := seed(store)
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if *seen != relaunchToken {
 			t.Fatalf("resolved token = %q, want the RELAUNCH token %q", *seen, relaunchToken)
@@ -401,7 +401,7 @@ func TestReconcileReservedRelaunchResolved(t *testing.T) {
 // terminal HALTED "run-cancelled" before releasing the claim, so a SUBSEQUENT
 // Advance recovery on the same drive launches NOTHING — even though that recovery's
 // own read-only epoch pass races ahead of the fence and reads the epoch still live
-// (modelled here by injecting no epoch gate, so recoveryEpochRevoked returns false).
+// (modelled here by injecting no epoch gate, so recoveryRunRevoked returns false).
 // Without the settle the recovery would take the freed claim, resolve never-launched
 // under the stale revoked=false, and relaunch the dead run AFTER cancellation had
 // already completed. The oracle is a strict ordering (reconcile fully returns before
@@ -413,8 +413,8 @@ func TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow(t *tes
 			return &process.ReservationResolution{Disposition: "never-launched"}, nil
 		},
 	}
-	recDriver, store := newTestDriver(t, &fakeClock{now: startEpoch()}, recProc, stableGit())
-	id, ownerGen := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+	recDriver, store := newTestDriver(t, &fakeClock{now: startRun()}, recProc, stableGit())
+	id, ownerGen := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 		r.RelaunchReserved = true
 		r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 	})
@@ -422,9 +422,9 @@ func TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow(t *tes
 	// (a) Cancellation reconciles the FENCED epoch's reserved relaunch: proc proves
 	// never-launched, so the obligation is accounted. The reconcile fully returns
 	// (releasing the per-drive claim) before the Advance below runs.
-	report, err := recDriver.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	report, err := recDriver.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
-		t.Fatalf("ReconcileEpochLaunches: %v", err)
+		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
 	if !report.Accounted {
 		t.Fatalf("a proven never-launched reserved relaunch must be accounted, findings=%v", report.Findings)
@@ -448,7 +448,7 @@ func TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow(t *tes
 			return &process.ReservationResolution{Disposition: "never-launched"}, nil
 		},
 	}
-	advClk := &fakeClock{now: startEpoch().Add(time.Second)}
+	advClk := &fakeClock{now: startRun().Add(time.Second)}
 	advDriver := NewDriver(reopenStore(store), advClk, advProc, stableGit())
 	advDriver.slice = 4 * pollTick
 	advDriver.pollInterval = pollTick
@@ -483,15 +483,15 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 				return nil, errors.New("gatedrive-test: resolve fault")
 			},
 		}
-		d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RelaunchReserved = true
 			r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 		})
 		before, _ := store.Load(id)
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if report.Accounted || !reconcileFindingPresent(report.Findings, "resolution-unresolved:"+id) {
 			t.Fatalf("a resolve fault must preserve evidence (pending), findings=%v", report.Findings)
@@ -504,15 +504,15 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 
 	t.Run("unreadable-record", func(t *testing.T) {
 		proc := &fakeProc{}
-		d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", nil)
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		id, _ := seedScopedRunDrive(t, store, "e1", nil)
 		// Corrupt the record so Load fails closed on the walk.
 		if err := os.WriteFile(filepath.Join(store.root, id, recordFileName), []byte("{not-json"), 0o600); err != nil {
 			t.Fatalf("corrupt record: %v", err)
 		}
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if report.Accounted || !reconcileFindingPresent(report.Findings, "record-unreadable:"+id) {
 			t.Fatalf("an unreadable record must fail closed (pending), findings=%v", report.Findings)
@@ -525,15 +525,15 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 				return nil, errors.New("gatedrive-test: stop fault")
 			},
 		}
-		d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, proc, stableGit())
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RawRunDir = "/runs/live"
 			r.RawOwnership = "live"
 		})
 		before, _ := store.Load(id)
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if report.Accounted || !reconcileFindingPresent(report.Findings, "resolution-unresolved:"+id) {
 			t.Fatalf("a stop fault must preserve evidence (pending), findings=%v", report.Findings)
@@ -548,8 +548,8 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 // TestReconcileLostLinkageFailsClosed is change 0437's lost-linkage regression,
 // strengthened by change 0446 (spec §4): the drive is a REAL admitted drive whose
 // AdmissionToken the current worktree slot still holds — an ownership association
-// independent of the scope — before its scope is corrupted. resolveDriveEpoch then
-// cannot resolve it (ok==false, CauseEpochUnreadable), and because a current
+// independent of the scope — before its scope is corrupted. resolveDriveRun then
+// cannot resolve it (ok==false, CauseRunRecordUnreadable), and because a current
 // reference names it the census fails closed: Accounted=false with the exact
 // linkage-unresolved:<id> locator, never a silent skip out of cancellation's
 // pending-launch accounting.
@@ -559,10 +559,10 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 // is informational history, not a repository-wide veto on the epoch.
 func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 	t.Run("referenced-by-current-slot", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		ticket, scopeID := admitEpochDrive(t, d, store, "e1", true)
+		ticket, scopeID := admitRunDrive(t, d, store, "e1", true)
 
 		// Sever the drive's epoch linkage: corrupt its scope record so LoadScope fails.
 		// The drive itself remains a readable, nonterminal record whose token the
@@ -571,8 +571,8 @@ func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 
 		for _, mode := range []struct {
 			name string
-			run  func(string, string) (EpochLaunchReport, error)
-		}{{"reconcile", d.ReconcileEpochLaunches}, {"observe", d.ObserveEpochLaunches}} {
+			run  func(string, string) (RunLaunchReport, error)
+		}{{"reconcile", d.ReconcileRunLaunches}, {"observe", d.ObserveRunLaunches}} {
 			report, err := mode.run(sampleWorktree(), "e1")
 			if err != nil {
 				t.Fatalf("%s: %v", mode.name, err)
@@ -590,19 +590,19 @@ func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 	})
 
 	t.Run("hand-seeded-orphan-is-history", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", nil)
+		id, _ := seedScopedRunDrive(t, store, "e1", nil)
 		rec, err := store.Load(id)
 		if err != nil {
 			t.Fatalf("Load: %v", err)
 		}
 		corruptFile(t, filepath.Join(store.scopeRoot, rec.ScopeID, recordFileName))
 
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if !report.Accounted {
 			t.Fatalf("an orphan no current reference names must not veto the epoch, findings=%v", report.Findings)
@@ -625,9 +625,9 @@ func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 // drive's launch axis is settled BEFORE its linkage is resolved, so a deleted scope
 // does not turn a finished drive into linkage-unresolved.
 func TestCensusTerminalSettledBeforeLinkage(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	d, store := newTestDriver(t, clk, &fakeProc{}, stableGit())
-	id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 		r.LastOutcome = HALTED
 		r.LastCause = "stopped-not-initiated"
 	})
@@ -639,9 +639,9 @@ func TestCensusTerminalSettledBeforeLinkage(t *testing.T) {
 		t.Fatalf("remove scope: %v", err)
 	}
 
-	report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
-		t.Fatalf("ReconcileEpochLaunches: %v", err)
+		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
 	if !report.Accounted {
 		t.Fatalf("a terminal drive's launch axis is settled regardless of lost linkage, findings=%v", report.Findings)
@@ -669,11 +669,11 @@ func TestCensusUnreferencedCorruptRecordInformational(t *testing.T) {
 	}
 
 	t.Run("no-slot", func(t *testing.T) {
-		d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 		id := seedUnrelatedCorrupt(t, store)
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if !report.Accounted {
 			t.Fatalf("an unreferenced corrupt record must not veto the epoch, findings=%v", report.Findings)
@@ -684,13 +684,13 @@ func TestCensusUnreferencedCorruptRecordInformational(t *testing.T) {
 	})
 
 	t.Run("slot-holder-readable", func(t *testing.T) {
-		d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
-		ticket, _ := admitEpochDrive(t, d, store, "e1", false)
+		d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+		ticket, _ := admitRunDrive(t, d, store, "e1", false)
 		settleDriveOutcome(t, store, ticket.id, PASSED) // the slot's holder is readable and settled
 		id := seedUnrelatedCorrupt(t, store)
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if !report.Accounted {
 			t.Fatalf("a corrupt record the resolved slot does not name must not veto the epoch, findings=%v", report.Findings)
@@ -711,13 +711,13 @@ func TestCensusReferencedCorruptRecordBlocks(t *testing.T) {
 	for _, scoped := range []bool{true, false} {
 		name := map[bool]string{true: "scoped", false: "scopeless"}[scoped]
 		t.Run(name, func(t *testing.T) {
-			d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
-			ticket, _ := admitEpochDrive(t, d, store, "e1", scoped)
+			d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+			ticket, _ := admitRunDrive(t, d, store, "e1", scoped)
 			corruptFile(t, filepath.Join(store.root, ticket.id, recordFileName))
 
-			report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+			report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 			if err != nil {
-				t.Fatalf("ReconcileEpochLaunches: %v", err)
+				t.Fatalf("ReconcileRunLaunches: %v", err)
 			}
 			if report.Accounted {
 				t.Fatalf("a corrupt record named by current ownership must fail closed, findings=%v", report.Findings)
@@ -734,14 +734,14 @@ func TestCensusReferencedCorruptRecordBlocks(t *testing.T) {
 // the drive under it is itself terminal — because its current/pending drives can no
 // longer be followed.
 func TestCensusSlotNamedCorruptScopeBlocks(t *testing.T) {
-	d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
-	ticket, scopeID := admitEpochDrive(t, d, store, "e1", true)
+	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+	ticket, scopeID := admitRunDrive(t, d, store, "e1", true)
 	settleDriveOutcome(t, store, ticket.id, PASSED)
 	corruptFile(t, filepath.Join(store.scopeRoot, scopeID, recordFileName))
 
-	report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
-		t.Fatalf("ReconcileEpochLaunches: %v", err)
+		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
 	if report.Accounted {
 		t.Fatalf("a slot-named unreadable scope must fail closed, findings=%v", report.Findings)
@@ -756,14 +756,14 @@ func TestCensusSlotNamedCorruptScopeBlocks(t *testing.T) {
 // terminal one is settled history (no finding at all), a nonterminal unreferenced
 // one is informational — never record-unreadable.
 func TestCensusSchema2HistoricalTerminalSettles(t *testing.T) {
-	d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 	passed := copyLegacyFixture(t, store, "passed")
 	halted := copyLegacyFixture(t, store, "halted")
 	waiting := copyLegacyFixture(t, store, "waiting")
 
-	report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
-		t.Fatalf("ReconcileEpochLaunches: %v", err)
+		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
 	if !report.Accounted {
 		t.Fatalf("supported schema-2 history must not veto the epoch, findings=%v", report.Findings)
@@ -780,21 +780,21 @@ func TestCensusSchema2HistoricalTerminalSettles(t *testing.T) {
 	}
 }
 
-// TestCensusSupersededEpochStillEnumerates proves rule 5 (AC5's superseded branch):
+// TestCensusSupersededRunStillEnumerates proves rule 5 (AC5's superseded branch):
 // an empty worktreeRoot is not proof of quiescence — the census still walks the
 // registry and accounts the epoch's scope-linked drives, skipping only the slot
 // side (the app layer supplies a superseded epoch's replacement worktree for it).
-func TestCensusSupersededEpochStillEnumerates(t *testing.T) {
-	d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
-	id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+func TestCensusSupersededRunStillEnumerates(t *testing.T) {
+	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 		r.RawRunDir = "" // reserved, never launched
 		r.RawOwnership = ""
 	})
 
 	for _, mode := range []struct {
 		name string
-		run  func(string, string) (EpochLaunchReport, error)
-	}{{"reconcile", d.ReconcileEpochLaunches}, {"observe", d.ObserveEpochLaunches}} {
+		run  func(string, string) (RunLaunchReport, error)
+	}{{"reconcile", d.ReconcileRunLaunches}, {"observe", d.ObserveRunLaunches}} {
 		report, err := mode.run("", "e1")
 		if err != nil {
 			t.Fatalf("%s: %v", mode.name, err)
@@ -813,16 +813,16 @@ func TestCensusSupersededEpochStillEnumerates(t *testing.T) {
 // authority and is history-unattributed, while the CURRENT token holder carries the
 // epoch's live obligation and is accounted on its own.
 func TestCensusRotatedTokenScopelessIsHistorical(t *testing.T) {
-	d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
-	older, _ := admitEpochDrive(t, d, store, "e1", false)
+	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
+	older, _ := admitRunDrive(t, d, store, "e1", false)
 	if err := store.ReleaseWorktreeExecution(sampleWorktree(), older.token); err != nil {
 		t.Fatalf("ReleaseWorktreeExecution: %v", err)
 	}
-	current, _ := admitEpochDrive(t, d, store, "e1", false) // the slot now holds a new token
+	current, _ := admitRunDrive(t, d, store, "e1", false) // the slot now holds a new token
 
-	report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
-		t.Fatalf("ReconcileEpochLaunches: %v", err)
+		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
 	if !findingFor(report.Findings, "history-unattributed", older.id) || findingFor(report.Findings, "linkage-unresolved", older.id) {
 		t.Fatalf("findings = %v, want the rotated-token drive informational (history-unattributed:%s)", report.Findings, older.id)
@@ -832,9 +832,9 @@ func TestCensusRotatedTokenScopelessIsHistorical(t *testing.T) {
 	}
 
 	settleDriveOutcome(t, store, current.id, PASSED)
-	settled, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	settled, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
-		t.Fatalf("ReconcileEpochLaunches (settled): %v", err)
+		t.Fatalf("ReconcileRunLaunches (settled): %v", err)
 	}
 	if !settled.Accounted {
 		t.Fatalf("once the current holder settles, the rotated-token history must not keep the epoch unaccounted, findings=%v", settled.Findings)
@@ -845,7 +845,7 @@ func TestCensusRotatedTokenScopelessIsHistorical(t *testing.T) {
 // later replay — once the fake proves teardown — accounts it with no second launch
 // (AC5 replay convergence).
 func TestReconcileReplayConverges(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proven := false
 	proc := &fakeProc{
 		stop: func(runDir, reason string) (*process.StopOutcome, error) {
@@ -856,12 +856,12 @@ func TestReconcileReplayConverges(t *testing.T) {
 		},
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+	seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 		r.RawRunDir = "/runs/live"
 		r.RawOwnership = "live"
 	})
 
-	first, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	first, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
 		t.Fatalf("first reconcile: %v", err)
 	}
@@ -870,7 +870,7 @@ func TestReconcileReplayConverges(t *testing.T) {
 	}
 
 	proven = true
-	second, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+	second, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
 		t.Fatalf("second reconcile: %v", err)
 	}
@@ -883,26 +883,26 @@ func TestReconcileReplayConverges(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Observation-only launch accounting (change 0441 Task 4). ObserveEpochLaunches
+// Observation-only launch accounting (change 0441 Task 4). ObserveRunLaunches
 // is the SUCCESS-closeout view of one epoch's launch obligations: the same walk,
-// epoch linkage, and claimant probe as ReconcileEpochLaunches, but it NEVER stops
+// epoch linkage, and claimant probe as ReconcileRunLaunches, but it NEVER stops
 // a process, NEVER settles a never-launched reservation terminal, and NEVER
 // mutates a record. Shared implementation, one inventory.
 // ---------------------------------------------------------------------------
 
-// TestObserveEpochLaunchesNeverStopsOrSettles proves an epoch-linked NONTERMINAL
+// TestObserveRunLaunchesNeverStopsOrSettles proves an epoch-linked NONTERMINAL
 // drive with an attached run the fake proc reports RUNNING is reported pending
 // (run-live) in observe mode, that NO Stop is issued, and that the drive record on
 // disk is byte-identical afterward (observation mutates nothing).
-func TestObserveEpochLaunchesNeverStopsOrSettles(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+func TestObserveRunLaunchesNeverStopsOrSettles(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			return obs(process.StateRunning, runDir), nil
 		},
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 		r.RawRunDir = "/runs/live"
 		r.RawOwnership = "live"
 	})
@@ -912,9 +912,9 @@ func TestObserveEpochLaunchesNeverStopsOrSettles(t *testing.T) {
 		t.Fatalf("read record before: %v", err)
 	}
 
-	report, err := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+	report, err := d.ObserveRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
-		t.Fatalf("ObserveEpochLaunches: %v", err)
+		t.Fatalf("ObserveRunLaunches: %v", err)
 	}
 	if report.Accounted {
 		t.Fatalf("a live attached run must NOT be accounted in observe mode, findings=%v", report.Findings)
@@ -934,24 +934,24 @@ func TestObserveEpochLaunchesNeverStopsOrSettles(t *testing.T) {
 	}
 }
 
-// TestObserveEpochLaunchesAccountsProvenTerminalRun proves an attached run the fake
+// TestObserveRunLaunchesAccountsProvenTerminalRun proves an attached run the fake
 // proc proves STOPPED is accounted (run-terminal) in observe mode with no Stop call.
-func TestObserveEpochLaunchesAccountsProvenTerminalRun(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+func TestObserveRunLaunchesAccountsProvenTerminalRun(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
 			return obs(process.StateStopped, runDir), nil
 		},
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 		r.RawRunDir = "/runs/gone"
 		r.RawOwnership = "gone"
 	})
 
-	report, err := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+	report, err := d.ObserveRunLaunches(sampleWorktree(), "e1")
 	if err != nil {
-		t.Fatalf("ObserveEpochLaunches: %v", err)
+		t.Fatalf("ObserveRunLaunches: %v", err)
 	}
 	if !report.Accounted {
 		t.Fatalf("a proven-terminal run must be accounted in observe mode, findings=%v", report.Findings)
@@ -964,21 +964,21 @@ func TestObserveEpochLaunchesAccountsProvenTerminalRun(t *testing.T) {
 	}
 }
 
-// TestObserveEpochLaunchesKeepsNeverLaunchedPending proves observe mode reports a
+// TestObserveRunLaunchesKeepsNeverLaunchedPending proves observe mode reports a
 // reserved-never-launched drive AND a bare (unlaunched, unreserved) drive as pending
 // (launch-pending) and — unlike reconcile — NEVER settles the reservation terminal:
 // the record's outcome is unchanged (the completing launch-gate refusal settles it
 // later, and a replay then accounts).
-func TestObserveEpochLaunchesKeepsNeverLaunchedPending(t *testing.T) {
+func TestObserveRunLaunchesKeepsNeverLaunchedPending(t *testing.T) {
 	t.Run("reserved-never-launched", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{
 			resolve: func(root, token string) (*process.ReservationResolution, error) {
 				return &process.ReservationResolution{Disposition: "never-launched"}, nil
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RelaunchReserved = true
 			r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 		})
@@ -987,9 +987,9 @@ func TestObserveEpochLaunchesKeepsNeverLaunchedPending(t *testing.T) {
 			t.Fatalf("Load before: %v", err)
 		}
 
-		report, err := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ObserveRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ObserveEpochLaunches: %v", err)
+			t.Fatalf("ObserveRunLaunches: %v", err)
 		}
 		if report.Accounted {
 			t.Fatalf("observe must not account a never-launched reservation, findings=%v", report.Findings)
@@ -1007,10 +1007,10 @@ func TestObserveEpochLaunchesKeepsNeverLaunchedPending(t *testing.T) {
 	})
 
 	t.Run("bare-reservation", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RawRunDir = ""
 			r.RawOwnership = ""
 		})
@@ -1019,9 +1019,9 @@ func TestObserveEpochLaunchesKeepsNeverLaunchedPending(t *testing.T) {
 			t.Fatalf("Load before: %v", err)
 		}
 
-		report, err := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ObserveRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ObserveEpochLaunches: %v", err)
+			t.Fatalf("ObserveRunLaunches: %v", err)
 		}
 		if report.Accounted {
 			t.Fatalf("observe must not account a bare never-launched drive, findings=%v", report.Findings)
@@ -1039,14 +1039,14 @@ func TestObserveEpochLaunchesKeepsNeverLaunchedPending(t *testing.T) {
 	})
 }
 
-// TestObserveEpochLaunchesBusyClaimIsPending proves a held claimant flock is reported
+// TestObserveRunLaunchesBusyClaimIsPending proves a held claimant flock is reported
 // claim-busy and Accounted=false in observe mode, and that observe probes nonblocking
 // (returns without waiting on the claim) and stops nothing.
-func TestObserveEpochLaunchesBusyClaimIsPending(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+func TestObserveRunLaunchesBusyClaimIsPending(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
-	id, _ := seedScopedEpochDrive(t, store, "e1", nil)
+	id, _ := seedScopedRunDrive(t, store, "e1", nil)
 
 	claim, busy, err := store.tryRelaunchClaim(id)
 	if err != nil || busy {
@@ -1054,9 +1054,9 @@ func TestObserveEpochLaunchesBusyClaimIsPending(t *testing.T) {
 	}
 	defer claim.close()
 
-	done := make(chan EpochLaunchReport, 1)
+	done := make(chan RunLaunchReport, 1)
 	go func() {
-		r, _ := d.ObserveEpochLaunches(sampleWorktree(), "e1")
+		r, _ := d.ObserveRunLaunches(sampleWorktree(), "e1")
 		done <- r
 	}()
 	select {
@@ -1075,12 +1075,12 @@ func TestObserveEpochLaunchesBusyClaimIsPending(t *testing.T) {
 	}
 }
 
-// TestReconcileEpochLaunchesBehaviorUnchanged is the regression pin: after factoring
+// TestReconcileRunLaunchesBehaviorUnchanged is the regression pin: after factoring
 // the shared body, the reconcile (cancel) mode still STOPS an identified run and
 // still SETTLES a proven never-launched reservation terminal HALTED "run-cancelled".
-func TestReconcileEpochLaunchesBehaviorUnchanged(t *testing.T) {
+func TestReconcileRunLaunchesBehaviorUnchanged(t *testing.T) {
 	t.Run("identified-run-stopped", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		var stopped []string
 		proc := &fakeProc{
 			stop: func(runDir, reason string) (*process.StopOutcome, error) {
@@ -1089,15 +1089,15 @@ func TestReconcileEpochLaunchesBehaviorUnchanged(t *testing.T) {
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RawRunDir = "/runs/replacement"
 			r.RawOwnership = "replacement"
 			r.RelaunchCount = 1
 		})
 
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if !report.Accounted || !reconcileFindingPresent(report.Findings, "replacement-stopped:"+id) {
 			t.Fatalf("reconcile must still stop and account an identified run, findings=%v", report.Findings)
@@ -1108,21 +1108,21 @@ func TestReconcileEpochLaunchesBehaviorUnchanged(t *testing.T) {
 	})
 
 	t.Run("never-launched-settles-terminal", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{
 			resolve: func(root, token string) (*process.ReservationResolution, error) {
 				return &process.ReservationResolution{Disposition: "never-launched"}, nil
 			},
 		}
 		d, store := newTestDriver(t, clk, proc, stableGit())
-		id, _ := seedScopedEpochDrive(t, store, "e1", func(r *driveRecord) {
+		id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
 			r.RelaunchReserved = true
 			r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 		})
 
-		report, err := d.ReconcileEpochLaunches(sampleWorktree(), "e1")
+		report, err := d.ReconcileRunLaunches(sampleWorktree(), "e1")
 		if err != nil {
-			t.Fatalf("ReconcileEpochLaunches: %v", err)
+			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if !report.Accounted {
 			t.Fatalf("reconcile must account a proven never-launched reservation, findings=%v", report.Findings)
@@ -1141,12 +1141,12 @@ func TestReconcileEpochLaunchesBehaviorUnchanged(t *testing.T) {
 // slot alone never settles a launch obligation: a scopeless drive whose slot was
 // released but that never launched is still reported pending.
 func TestReconcileReleasedSlotWithPendingDriveNotAccounted(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 
 	req := sampleStart()
-	req.RunEpochID = "e1"
+	req.RunID = "e1"
 	ticket, err := d.Admit(req)
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
@@ -1157,9 +1157,9 @@ func TestReconcileReleasedSlotWithPendingDriveNotAccounted(t *testing.T) {
 		t.Fatalf("ReleaseWorktreeExecution: %v", rerr)
 	}
 
-	report, err := d.ReconcileEpochLaunches(req.Worktree, "e1")
+	report, err := d.ReconcileRunLaunches(req.Worktree, "e1")
 	if err != nil {
-		t.Fatalf("ReconcileEpochLaunches: %v", err)
+		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
 	if report.Accounted {
 		t.Fatalf("a released slot alone must not settle a pending launch, findings=%v", report.Findings)
@@ -1186,12 +1186,12 @@ func TestReconcileReleasedSlotWithPendingDriveNotAccounted(t *testing.T) {
 // on the cancellation AND the success-closeout view.
 func censusModes(d *Driver) []struct {
 	name string
-	run  func(string, string) (EpochLaunchReport, error)
+	run  func(string, string) (RunLaunchReport, error)
 } {
 	return []struct {
 		name string
-		run  func(string, string) (EpochLaunchReport, error)
-	}{{"reconcile", d.ReconcileEpochLaunches}, {"observe", d.ObserveEpochLaunches}}
+		run  func(string, string) (RunLaunchReport, error)
+	}{{"reconcile", d.ReconcileRunLaunches}, {"observe", d.ObserveRunLaunches}}
 }
 
 // TestCensusScopeNamedMissingDriveBlocks proves a drive a current scope reference
@@ -1203,7 +1203,7 @@ func censusModes(d *Driver) []struct {
 func TestCensusScopeNamedMissingDriveBlocks(t *testing.T) {
 	launchedMissing := func(t *testing.T, store *Store, recordLess bool) string {
 		t.Helper()
-		id, _ := seedScopedEpochDrive(t, store, "e1", nil)
+		id, _ := seedScopedRunDrive(t, store, "e1", nil)
 		rec, err := store.Load(id)
 		if err != nil {
 			t.Fatalf("Load: %v", err)
@@ -1228,7 +1228,7 @@ func TestCensusScopeNamedMissingDriveBlocks(t *testing.T) {
 		{"launched-deleted", func(t *testing.T, d *Driver, store *Store) string { return launchedMissing(t, store, false) }},
 		{"launched-record-less", func(t *testing.T, d *Driver, store *Store) string { return launchedMissing(t, store, true) }},
 		{"reserved-unproven", func(t *testing.T, d *Driver, store *Store) string {
-			id, _ := seedScopedEpochDrive(t, store, "e1", nil) // reserved, no slot, no pending-ack
+			id, _ := seedScopedRunDrive(t, store, "e1", nil) // reserved, no slot, no pending-ack
 			if err := os.RemoveAll(filepath.Join(store.root, id)); err != nil {
 				t.Fatalf("remove drive: %v", err)
 			}
@@ -1237,7 +1237,7 @@ func TestCensusScopeNamedMissingDriveBlocks(t *testing.T) {
 		{"launched-released-slot-deleted", func(t *testing.T, d *Driver, store *Store) string {
 			// A launch-confirmed drive whose slot was released under its scope: the
 			// released slot proves teardown, never that the named drive was withdrawn.
-			ticket, scopeID := admitEpochDrive(t, d, store, "e1", true)
+			ticket, scopeID := admitRunDrive(t, d, store, "e1", true)
 			if err := store.confirmScopeLaunch(scopeID, ticket.id); err != nil {
 				t.Fatalf("confirmScopeLaunch: %v", err)
 			}
@@ -1266,7 +1266,7 @@ func TestCensusScopeNamedMissingDriveBlocks(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+			d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 			id := tc.seed(t, d, store)
 			for _, mode := range censusModes(d) {
 				report, err := mode.run(sampleWorktree(), "e1")
@@ -1293,7 +1293,7 @@ type scopePredecessor struct{ id, gen string }
 func seedLaunchedScopePredecessor(t *testing.T, store *Store) (scopePredecessor, string, string) {
 	t.Helper()
 	sreq := scopeReqFor(sampleStart(), "")
-	sreq.RunEpochID = "e1"
+	sreq.RunID = "e1"
 	grant, err := store.PrepareScope(sreq)
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
@@ -1343,7 +1343,7 @@ func TestCensusWithdrawnReservationStaysAccounted(t *testing.T) {
 			return succ
 		}},
 		{"abandon-admission", func(t *testing.T, d *Driver, store *Store) string {
-			ticket, _ := admitEpochDrive(t, d, store, "e1", true)
+			ticket, _ := admitRunDrive(t, d, store, "e1", true)
 			if err := d.AbandonAdmission(ticket); err != nil {
 				t.Fatalf("AbandonAdmission: %v", err)
 			}
@@ -1352,7 +1352,7 @@ func TestCensusWithdrawnReservationStaysAccounted(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			d, store := newTestDriver(t, &fakeClock{now: startEpoch()}, &fakeProc{}, stableGit())
+			d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 			id := tc.seed(t, d, store)
 			for _, mode := range censusModes(d) {
 				report, err := mode.run(sampleWorktree(), "e1")

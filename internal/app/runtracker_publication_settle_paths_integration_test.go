@@ -20,7 +20,7 @@ func seedSettleablePair(t *testing.T, repo, key string) {
 	t.Helper()
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
+	if err := runRecordCAS(repo, key, func(r *RunRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
@@ -31,14 +31,14 @@ func seedSettleablePair(t *testing.T, repo, key string) {
 	}
 }
 
-// epochRecordBytes reads the durable epoch record file verbatim.
-func epochRecordBytes(t *testing.T, repo, key string) []byte {
+// runRecordBytes reads the durable epoch record file verbatim.
+func runRecordBytes(t *testing.T, repo, key string) []byte {
 	t.Helper()
-	common, err := gateGitCommonDir(repo)
+	common, err := runTrackerGitCommonDir(repo)
 	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
-	b, err := os.ReadFile(filepath.Join(common, "docket", runTrackerDirName, key, epochRecordFileName))
+	b, err := os.ReadFile(filepath.Join(common, "docket", runTrackerDirName, key, runRecordFileName))
 	if err != nil {
 		t.Fatalf("read epoch record: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestIntegrationRunCompletionVerdictRunCompleteSettlesUncertainPublication(t
 	fx := newVerdictCompletionFixture(t)
 	seedSettleablePair(t, fx.repo, fx.key)
 
-	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	res := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
 	if got, want := res.HumanText(), "run-done "+fx.key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q (findings %v)", got, want, res.CompletionFindings)
 	}
@@ -63,11 +63,11 @@ func TestIntegrationRunCompletionVerdictRunCompleteSettlesUncertainPublication(t
 		t.Fatalf("CompletionFindings = %v, want exactly one mutation-settled:%s",
 			res.CompletionFindings, OperationWorkspacePublish)
 	}
-	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
-	if ep.State != EpochCompleted {
+	if ep.State != RunCompleted {
 		t.Fatalf("epoch state = %q, want completed", ep.State)
 	}
 	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
@@ -85,17 +85,17 @@ func TestIntegrationRunCompletionReadOnlyVerdictPathsNeverSettleSettleablePair(t
 			fx := newVerdictCompletionFixture(t)
 			seedSettleablePair(t, fx.repo, fx.key)
 			if state == "completing" {
-				if _, err := FenceEpochCompleting(fx.repo, fx.key, ""); err != nil {
-					t.Fatalf("FenceEpochCompleting: %v", err)
+				if _, err := FenceRunCompleting(fx.repo, fx.key, ""); err != nil {
+					t.Fatalf("FenceRunCompleting: %v", err)
 				}
 			}
-			before := epochRecordBytes(t, fx.repo, fx.key)
+			before := runRecordBytes(t, fx.repo, fx.key)
 
-			obs := RunGateVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
+			obs := RunVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
 			if got, want := obs.HumanText(), "run-observe run-complete 3"; got != want {
 				t.Fatalf("observe HumanText = %q, want %q", got, want)
 			}
-			if after := epochRecordBytes(t, fx.repo, fx.key); !bytes.Equal(before, after) {
+			if after := runRecordBytes(t, fx.repo, fx.key); !bytes.Equal(before, after) {
 				t.Fatal("the unattributed observe verdict wrote the epoch record")
 			}
 
@@ -103,12 +103,12 @@ func TestIntegrationRunCompletionReadOnlyVerdictPathsNeverSettleSettleablePair(t
 			if v.Verdict != VerdictRunComplete {
 				t.Fatalf("RunVerify verdict = %q, want %q", v.Verdict, VerdictRunComplete)
 			}
-			if after := epochRecordBytes(t, fx.repo, fx.key); !bytes.Equal(before, after) {
+			if after := runRecordBytes(t, fx.repo, fx.key); !bytes.Equal(before, after) {
 				t.Fatal("RunVerify wrote the epoch record")
 			}
-			ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+			ep, _, err := LoadRunRecord(fx.repo, fx.key)
 			if err != nil {
-				t.Fatalf("LoadEpochRecord: %v", err)
+				t.Fatalf("LoadRunRecord: %v", err)
 			}
 			if ep.AdmittedMutations[0].Status != mutationStatusUncertain {
 				t.Fatalf("original status = %q, want still uncertain", ep.AdmittedMutations[0].Status)

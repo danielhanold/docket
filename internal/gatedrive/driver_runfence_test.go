@@ -21,10 +21,10 @@ import (
 // so a concurrent cancellation observes pending work rather than a free slot.
 // ---------------------------------------------------------------------------
 
-// flippableGate is a fake EpochLaunchGate whose verdict can be flipped between
+// flippableGate is a fake RunLaunchGate whose verdict can be flipped between
 // Admit and StartAdmitted, simulating a cancellation fence that lands in the
 // window between the two phases. Permissive by default (it runs reserve); once
-// refusing, it returns its sentinel WITHOUT running reserve — the EpochLaunchGate
+// refusing, it returns its sentinel WITHOUT running reserve — the RunLaunchGate
 // contract: a validation failure NEVER calls reserve.
 type flippableGate struct {
 	mu     sync.Mutex
@@ -45,7 +45,7 @@ func (g *flippableGate) callCount() int {
 	return g.calls
 }
 
-func (g *flippableGate) gate() EpochLaunchGate {
+func (g *flippableGate) gate() RunLaunchGate {
 	return func(_, _ string, reserve func() error) error {
 		g.mu.Lock()
 		g.calls++
@@ -69,22 +69,22 @@ func blockingLaunch(entered, release chan struct{}) func(process.LaunchRequest) 
 	}
 }
 
-// TestStartAdmittedRevalidatesEpoch proves a fence landing between Admit and
+// TestStartAdmittedRevalidatesRun proves a fence landing between Admit and
 // StartAdmitted refuses the delayed launch: the gate is flipped to refuse after a
 // permissive Admit, so StartAdmitted returns the gate's typed error, launches
 // nothing, fail-closed settles the reserved drive record HALTED "run-cancelled",
 // and releases the freshly reserved worktree slot (never-launched by
 // construction — no Launch call happened).
-func TestStartAdmittedRevalidatesEpoch(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+func TestStartAdmittedRevalidatesRun(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	sentinel := errors.New("gatedrive-test: epoch fence between admit and start")
 	g := &flippableGate{err: sentinel}
-	d.SetEpochLaunchGate(g.gate())
+	d.SetRunLaunchGate(g.gate())
 
 	req := sampleStart()
-	req.RunEpochID = "e1"
+	req.RunID = "e1"
 	ticket, err := d.Admit(req)
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
@@ -125,16 +125,16 @@ func TestStartAdmittedRevalidatesEpoch(t *testing.T) {
 // the slot with a different token). StartAdmitted refuses
 // ErrUnresolvedLaunchTransition without launching.
 func TestStartAdmittedRefusesForeignReservation(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	// A permissive gate: the epoch stays live, so the refusal must come from the
 	// exact-reservation revalidation, never the epoch check.
 	g := &flippableGate{}
-	d.SetEpochLaunchGate(g.gate())
+	d.SetRunLaunchGate(g.gate())
 
 	req := sampleStart()
-	req.RunEpochID = "e1"
+	req.RunID = "e1"
 	ticket, err := d.Admit(req)
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
@@ -148,7 +148,7 @@ func TestStartAdmittedRefusesForeignReservation(t *testing.T) {
 	newToken, _, rerr := store.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: req.RepoDir,
 		WorktreeRoot: req.Worktree,
-		RunEpochID:   "e1",
+		RunID:        "e1",
 		Kind:         "scopeless",
 	}, proc)
 	if rerr != nil {
@@ -175,14 +175,14 @@ func TestStartAdmittedRefusesForeignReservation(t *testing.T) {
 // tryRelaunchClaim is nonblocking, so StartAdmitted must return without the test
 // ever releasing the claim.
 func TestStartAdmittedRefusesBusyClaim(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	g := &flippableGate{}
-	d.SetEpochLaunchGate(g.gate())
+	d.SetRunLaunchGate(g.gate())
 
 	req := sampleStart()
-	req.RunEpochID = "e1"
+	req.RunID = "e1"
 	ticket, err := d.Admit(req)
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
@@ -219,14 +219,14 @@ func TestStartAdmittedRefusesBusyClaim(t *testing.T) {
 // launch+attach complete the claim is free again so the drive slice can reserve
 // its own relaunch.
 func TestStartAdmittedHoldsClaimAcrossLaunch(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	g := &flippableGate{}
-	d.SetEpochLaunchGate(g.gate())
+	d.SetRunLaunchGate(g.gate())
 
 	req := sampleStart()
-	req.RunEpochID = "e1"
+	req.RunID = "e1"
 	ticket, err := d.Admit(req)
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
@@ -267,18 +267,18 @@ func TestStartAdmittedHoldsClaimAcrossLaunch(t *testing.T) {
 	free.close()
 }
 
-// TestStartAdmittedEpochlessUnchanged proves the epoch-less standalone path is
-// preserved: an empty RunEpochID consults no gate and launches exactly as today —
+// TestStartAdmittedNoRunRecordUnchanged proves the epoch-less standalone path is
+// preserved: an empty RunID consults no gate and launches exactly as today —
 // but STILL under the claim (the claim discipline is unconditional; only the
 // epoch validation is conditional).
-func TestStartAdmittedEpochlessUnchanged(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+func TestStartAdmittedNoRunRecordUnchanged(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	g := &flippableGate{}
-	d.SetEpochLaunchGate(g.gate())
+	d.SetRunLaunchGate(g.gate())
 
-	req := sampleStart() // RunEpochID == ""
+	req := sampleStart() // RunID == ""
 	ticket, err := d.Admit(req)
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
@@ -330,28 +330,28 @@ func TestStartAdmittedEpochlessUnchanged(t *testing.T) {
 // Epoch linkage resolution; fence automatic relaunch and reserved-relaunch
 // recovery (change 0437 Task 3). A death earns at most one automatic relaunch,
 // and a crash between reserving that relaunch and attaching it earns recovery —
-// both now flow through the epoch gate. resolveDriveEpoch answers, from durable
+// both now flow through the epoch gate. resolveDriveRun answers, from durable
 // records only, which run epoch a drive is linked to; authorizeRelaunch reserves
 // the automatic replacement while the gate is held; and the recovery entry
 // validates the epoch (read-only) BEFORE taking the per-drive claim.
 // ---------------------------------------------------------------------------
 
-// startScopedWaitingWithEpoch prepares a scope carrying runEpoch, Starts a
+// startScopedWaitingWithRun prepares a scope carrying runID, Starts a
 // scope-bound drive under a permissive launch gate, and asserts the first slice
 // WAITs. It returns the scoped StartRequest, the WAITING doc, and the launch gate
 // the caller can flip to refuse a later relaunch.
-func startScopedWaitingWithEpoch(t *testing.T, d *Driver, store *Store, runEpoch string) (StartRequest, DriveDoc) {
+func startScopedWaitingWithRun(t *testing.T, d *Driver, store *Store, runID string) (StartRequest, DriveDoc) {
 	t.Helper()
 	req := sampleStart()
 	sreq := scopeReqFor(req, "")
-	sreq.RunEpochID = runEpoch
+	sreq.RunID = runID
 	grant, err := store.PrepareScope(sreq)
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
 	}
 	req.ScopeID = grant.ScopeID
 	req.ChildCapability = grant.ChildCapability
-	req.RunEpochID = runEpoch
+	req.RunID = runID
 	started, err := d.Start(req)
 	if err != nil {
 		t.Fatalf("Start: %v", err)
@@ -362,13 +362,13 @@ func startScopedWaitingWithEpoch(t *testing.T, d *Driver, store *Store, runEpoch
 	return req, started
 }
 
-// TestRelaunchRefusedWhenEpochRevoked proves a death's single automatic relaunch
+// TestRelaunchRefusedWhenRunRevoked proves a death's single automatic relaunch
 // is fenced on epoch liveness: a scoped drive whose scope carries a run epoch
 // dies while the gate refuses (a cancellation fence landed), so the relaunch leg
 // HALTs "run-cancelled", the ORIGINAL launch is the only one (no replacement),
 // and no relaunch was reserved.
-func TestRelaunchRefusedWhenEpochRevoked(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+func TestRelaunchRefusedWhenRunRevoked(t *testing.T) {
+	clk := &fakeClock{now: startRun()}
 	dead := false
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
@@ -380,9 +380,9 @@ func TestRelaunchRefusedWhenEpochRevoked(t *testing.T) {
 	}
 	d, store := newTestDriver(t, clk, proc, stableGit())
 	g := &flippableGate{err: errors.New("gatedrive-test: relaunch epoch fence")}
-	d.SetEpochLaunchGate(g.gate())
+	d.SetRunLaunchGate(g.gate())
 
-	req, started := startScopedWaitingWithEpoch(t, d, store, "e1")
+	req, started := startScopedWaitingWithRun(t, d, store, "e1")
 
 	// A cancellation fence revokes the epoch; the run dies on the next slice.
 	dead = true
@@ -415,7 +415,7 @@ func TestRelaunchRefusedWhenEpochRevoked(t *testing.T) {
 // wrapper asserts reserveRelaunch's CAS committed (RelaunchReserved set) before it
 // released.
 func TestRelaunchAuthorizedUnderGateThenLaunchedOutside(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	dead := false
 	var (
 		mu              sync.Mutex
@@ -461,20 +461,20 @@ func TestRelaunchAuthorizedUnderGateThenLaunchedOutside(t *testing.T) {
 		mu.Unlock()
 		return rerr
 	}
-	d.SetEpochLaunchGate(gate)
+	d.SetRunLaunchGate(gate)
 
 	// Permissive Start (RelaunchReserved never set during Start's admission
 	// reservations, so committedInside stays false until the relaunch reserve).
 	req := sampleStart()
 	sreq := scopeReqFor(req, "")
-	sreq.RunEpochID = "e1"
+	sreq.RunID = "e1"
 	grant, err := store.PrepareScope(sreq)
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
 	}
 	req.ScopeID = grant.ScopeID
 	req.ChildCapability = grant.ChildCapability
-	req.RunEpochID = "e1"
+	req.RunID = "e1"
 	started, err := d.Start(req)
 	if err != nil {
 		t.Fatalf("Start: %v", err)
@@ -503,13 +503,13 @@ func TestRelaunchAuthorizedUnderGateThenLaunchedOutside(t *testing.T) {
 	}
 }
 
-// TestRecoveredRelaunchValidatesEpochBeforeClaim proves the reserved-relaunch
+// TestRecoveredRelaunchValidatesRunBeforeClaim proves the reserved-relaunch
 // recovery entry validates the epoch (read-only) BEFORE taking the per-drive
 // claim — the lock order that forbids acquiring the epoch while holding the claim.
 // A revoked epoch settles a proven never-launched replacement HALTED
 // "run-cancelled" with no launch, while an identified replacement still attaches
 // and is observed normally (reconcile is teardown, not permission).
-func TestRecoveredRelaunchValidatesEpochBeforeClaim(t *testing.T) {
+func TestRecoveredRelaunchValidatesRunBeforeClaim(t *testing.T) {
 	// seedReservedRelaunchDrive persists a scoped drive whose scope carries epoch
 	// e1 and whose record has a reserved-but-unattached relaunch (the crash window
 	// recoverReservedRelaunch resolves).
@@ -517,7 +517,7 @@ func TestRecoveredRelaunchValidatesEpochBeforeClaim(t *testing.T) {
 		t.Helper()
 		req := sampleStart()
 		sreq := scopeReqFor(req, "")
-		sreq.RunEpochID = "e1"
+		sreq.RunID = "e1"
 		grant, err := store.PrepareScope(sreq)
 		if err != nil {
 			t.Fatalf("PrepareScope: %v", err)
@@ -539,7 +539,7 @@ func TestRecoveredRelaunchValidatesEpochBeforeClaim(t *testing.T) {
 	// revokingProbeGate refuses (the epoch is revoked) AND probes that the drive's
 	// per-drive claim is FREE when the gate is entered — proving the epoch is
 	// acquired before the claim.
-	revokingProbeGate := func(store *Store, id string, sawFreeClaim *bool) EpochLaunchGate {
+	revokingProbeGate := func(store *Store, id string, sawFreeClaim *bool) RunLaunchGate {
 		return func(_, _ string, _ func() error) error {
 			c, busy, cerr := store.tryRelaunchClaim(id)
 			if cerr == nil && !busy {
@@ -559,12 +559,12 @@ func TestRecoveredRelaunchValidatesEpochBeforeClaim(t *testing.T) {
 			},
 		}
 		sawFreeClaim := false
-		clk := &fakeClock{now: startEpoch().Add(time.Second)}
+		clk := &fakeClock{now: startRun().Add(time.Second)}
 		d := NewDriver(reopenStore(store), clk, proc, stableGit())
 		d.slice = 4 * pollTick
 		d.pollInterval = pollTick
 		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetEpochLaunchGate(revokingProbeGate(store, id, &sawFreeClaim))
+		d.SetRunLaunchGate(revokingProbeGate(store, id, &sawFreeClaim))
 
 		doc, err := d.Advance(id, ownerGen)
 		if err != nil {
@@ -593,12 +593,12 @@ func TestRecoveredRelaunchValidatesEpochBeforeClaim(t *testing.T) {
 			},
 		}
 		sawFreeClaim := false
-		clk := &fakeClock{now: startEpoch().Add(time.Second)}
+		clk := &fakeClock{now: startRun().Add(time.Second)}
 		d := NewDriver(reopenStore(store), clk, proc, stableGit())
 		d.slice = 4 * pollTick
 		d.pollInterval = pollTick
 		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetEpochLaunchGate(revokingProbeGate(store, id, &sawFreeClaim))
+		d.SetRunLaunchGate(revokingProbeGate(store, id, &sawFreeClaim))
 
 		doc, err := d.Advance(id, ownerGen)
 		if err != nil {
@@ -651,12 +651,12 @@ func TestRelaunchLostLinkageRefuses(t *testing.T) {
 	}
 	id, ownerGen := seedDrive(t, store, rec)
 
-	d := NewDriver(reopenStore(store), &fakeClock{now: startEpoch().Add(time.Second)}, proc, stableGit())
+	d := NewDriver(reopenStore(store), &fakeClock{now: startRun().Add(time.Second)}, proc, stableGit())
 	d.slice = pollTick
 	d.pollInterval = pollTick
 	d.sleep = func(dur time.Duration) {}
 	// A gate that fails the test if consulted: lost linkage must refuse BEFORE the gate.
-	d.SetEpochLaunchGate(func(_, _ string, _ func() error) error {
+	d.SetRunLaunchGate(func(_, _ string, _ func() error) error {
 		t.Fatalf("lost linkage must refuse before the epoch gate is consulted")
 		return nil
 	})
@@ -675,7 +675,7 @@ func TestRelaunchLostLinkageRefuses(t *testing.T) {
 
 // TestRelaunchStandaloneUnchanged proves a genuinely epoch-less drive relaunches
 // exactly as before this change, with the launch gate wired but never consulted:
-// a scopeless drive whose worktree slot records an empty RunEpochID, and a legacy
+// a scopeless drive whose worktree slot records an empty RunID, and a legacy
 // drive with no admission token and no scope, each earn their single automatic
 // relaunch through the epoch-less path.
 func TestRelaunchStandaloneUnchanged(t *testing.T) {
@@ -699,7 +699,7 @@ func TestRelaunchStandaloneUnchanged(t *testing.T) {
 		}
 		return p
 	}
-	tripGate := func(t *testing.T) EpochLaunchGate {
+	tripGate := func(t *testing.T) RunLaunchGate {
 		return func(_, _ string, _ func() error) error {
 			t.Fatalf("an epoch-less drive must NOT consult the launch gate")
 			return nil
@@ -713,7 +713,7 @@ func TestRelaunchStandaloneUnchanged(t *testing.T) {
 		slotToken, _, rerr := store.reserveWorktreeExecution(admissionRecord{
 			RepoIdentity: "/repo",
 			WorktreeRoot: wt,
-			RunEpochID:   "", // epoch-less slot
+			RunID:        "", // epoch-less slot
 			Kind:         "scopeless",
 		}, proc)
 		if rerr != nil {
@@ -724,12 +724,12 @@ func TestRelaunchStandaloneUnchanged(t *testing.T) {
 		rec.AdmissionToken = slotToken // matches: linkage resolves to an empty epoch
 		id, ownerGen := seedDrive(t, store, rec)
 
-		clk := &fakeClock{now: startEpoch().Add(time.Second)}
+		clk := &fakeClock{now: startRun().Add(time.Second)}
 		d := NewDriver(reopenStore(store), clk, proc, stableGit())
 		d.slice = 4 * pollTick
 		d.pollInterval = pollTick
 		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetEpochLaunchGate(tripGate(t))
+		d.SetRunLaunchGate(tripGate(t))
 
 		doc, err := d.Advance(id, ownerGen)
 		if err != nil {
@@ -749,12 +749,12 @@ func TestRelaunchStandaloneUnchanged(t *testing.T) {
 		rec := seedRecord(t) // AdmissionToken == "", ScopeID == ""
 		id, ownerGen := seedDrive(t, store, rec)
 
-		clk := &fakeClock{now: startEpoch().Add(time.Second)}
+		clk := &fakeClock{now: startRun().Add(time.Second)}
 		d := NewDriver(reopenStore(store), clk, proc, stableGit())
 		d.slice = 4 * pollTick
 		d.pollInterval = pollTick
 		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetEpochLaunchGate(tripGate(t))
+		d.SetRunLaunchGate(tripGate(t))
 
 		doc, err := d.Advance(id, ownerGen)
 		if err != nil {
@@ -778,16 +778,16 @@ func TestRelaunchStandaloneUnchanged(t *testing.T) {
 // oracles, never a timing sleep.
 // ---------------------------------------------------------------------------
 
-// TestNoEpochAcquisitionWhileClaimHeld proves the epoch gate is entered only while
+// TestNoRunAcquisitionWhileClaimHeld proves the epoch gate is entered only while
 // the per-drive claim is still free — for both the delayed StartAdmitted launch
 // and the reserved-relaunch recovery entry. A probing gate acquires the claim at
 // entry: if it is ever already held by this caller when the gate is entered, the
 // lock order (epoch before claim) is violated.
-func TestNoEpochAcquisitionWhileClaimHeld(t *testing.T) {
+func TestNoRunAcquisitionWhileClaimHeld(t *testing.T) {
 	// probeGate is a permissive gate that, at each ENTER, probes the drive's claim.
 	// The lock order requires it FREE at every entry; the gate records enters and
 	// whether any entry saw it already held.
-	probeGate := func(store *Store, id string, enters *int, sawHeld *bool) EpochLaunchGate {
+	probeGate := func(store *Store, id string, enters *int, sawHeld *bool) RunLaunchGate {
 		return func(_, _ string, reserve func() error) error {
 			*enters++
 			c, busy, cerr := store.tryRelaunchClaim(id)
@@ -803,19 +803,19 @@ func TestNoEpochAcquisitionWhileClaimHeld(t *testing.T) {
 	}
 
 	t.Run("StartAdmitted enters the gate before taking the claim", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &fakeProc{}
 		d, store := newTestDriver(t, clk, proc, stableGit())
 		// Admit under a plain permissive gate so the drive id exists to key the probe.
-		d.SetEpochLaunchGate((&flippableGate{}).gate())
+		d.SetRunLaunchGate((&flippableGate{}).gate())
 		req := sampleStart()
-		req.RunEpochID = "e1"
+		req.RunID = "e1"
 		ticket, err := d.Admit(req)
 		if err != nil {
 			t.Fatalf("Admit: %v", err)
 		}
 		enters, sawHeld := 0, false
-		d.SetEpochLaunchGate(probeGate(store, ticket.id, &enters, &sawHeld))
+		d.SetRunLaunchGate(probeGate(store, ticket.id, &enters, &sawHeld))
 
 		doc, serr := d.StartAdmitted(ticket)
 		if serr != nil {
@@ -836,7 +836,7 @@ func TestNoEpochAcquisitionWhileClaimHeld(t *testing.T) {
 		store := OpenStore(testsupport.TempDir(t))
 		req := sampleStart()
 		sreq := scopeReqFor(req, "")
-		sreq.RunEpochID = "e1"
+		sreq.RunID = "e1"
 		grant, err := store.PrepareScope(sreq)
 		if err != nil {
 			t.Fatalf("PrepareScope: %v", err)
@@ -861,12 +861,12 @@ func TestNoEpochAcquisitionWhileClaimHeld(t *testing.T) {
 			},
 		}
 		enters, sawHeld := 0, false
-		clk := &fakeClock{now: startEpoch().Add(time.Second)}
+		clk := &fakeClock{now: startRun().Add(time.Second)}
 		d := NewDriver(reopenStore(store), clk, proc, stableGit())
 		d.slice = 4 * pollTick
 		d.pollInterval = pollTick
 		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetEpochLaunchGate(probeGate(store, id, &enters, &sawHeld))
+		d.SetRunLaunchGate(probeGate(store, id, &enters, &sawHeld))
 
 		doc, err := d.Advance(id, ownerGen)
 		if err != nil {
@@ -897,11 +897,11 @@ func TestClaimContentionBounded(t *testing.T) {
 	wt := mkWorktree(t)
 	proc := newClaimWindowProc()
 	// A live worktree slot recording epoch e1 backs the scopeless drive's admission
-	// token, so resolveDriveEpoch attributes the drive to e1 and reconcile accounts it.
+	// token, so resolveDriveRun attributes the drive to e1 and reconcile accounts it.
 	token, _, terr := store.reserveWorktreeExecution(admissionRecord{
 		RepoIdentity: "/repo",
 		WorktreeRoot: wt,
-		RunEpochID:   "e1",
+		RunID:        "e1",
 		Kind:         "scopeless",
 	}, proc)
 	if terr != nil {
@@ -914,12 +914,12 @@ func TestClaimContentionBounded(t *testing.T) {
 
 	permissive := &flippableGate{}
 	mkDriver := func(seam ProcessSeam) *Driver {
-		clk := &fakeClock{now: startEpoch().Add(time.Second)}
+		clk := &fakeClock{now: startRun().Add(time.Second)}
 		d := NewDriver(reopenStore(store), clk, seam, stableGit())
 		d.slice = 4 * pollTick
 		d.pollInterval = pollTick
 		d.sleep = func(dur time.Duration) { clk.advance(dur) }
-		d.SetEpochLaunchGate(permissive.gate())
+		d.SetRunLaunchGate(permissive.gate())
 		return d
 	}
 
@@ -943,10 +943,10 @@ func TestClaimContentionBounded(t *testing.T) {
 
 	// Reconcilers race the held claim: each reports claim-busy pending and returns
 	// promptly (nonblocking), without the winner ever being released.
-	reconcileDone := make(chan EpochLaunchReport, reconcilers)
+	reconcileDone := make(chan RunLaunchReport, reconcilers)
 	for i := 0; i < reconcilers; i++ {
 		go func() {
-			r, _ := mkDriver(&fakeProc{}).ReconcileEpochLaunches(wt, "e1")
+			r, _ := mkDriver(&fakeProc{}).ReconcileRunLaunches(wt, "e1")
 			reconcileDone <- r
 		}()
 	}

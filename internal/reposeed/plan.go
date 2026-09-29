@@ -68,11 +68,11 @@ const (
 
 // PlanInput is the pure input to Plan. WorktreeRoot is a canonical absolute
 // path; Harnesses are the repository's explicit, already-validated opt-in
-// tokens; RunGate is the run-gate payload the interiors carry verbatim.
+// tokens; RunTracker is the run-gate payload the interiors carry verbatim.
 type PlanInput struct {
 	WorktreeRoot  string
 	Harnesses     []string
-	RunGate       []byte
+	RunTracker    []byte
 	ClaudeMDState ClaudeMDState
 }
 
@@ -96,10 +96,10 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 	}
 
 	root := filepath.Clean(in.WorktreeRoot)
-	interior := []byte(harness.DispatchInterior(in.RunGate))
+	interior := []byte(harness.DispatchInterior(in.RunTracker))
 	codexInterior := interior
 	if selected[harnessCodex] {
-		codexInterior = []byte(harness.CodexDispatchInterior(in.RunGate))
+		codexInterior = []byte(harness.CodexDispatchInterior(in.RunTracker))
 	}
 
 	var targets []install.Target
@@ -176,7 +176,7 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 		if err := add(install.Target{
 			Path:    filepath.Join(root, cursorRuleRel),
 			Kind:    install.KindFile,
-			Content: cursor.DispatchRuleContent(in.RunGate),
+			Content: cursor.DispatchRuleContent(in.RunTracker),
 			Role:    roleDispatch,
 		}, harnessCursor); err != nil {
 			return nil, nil, err

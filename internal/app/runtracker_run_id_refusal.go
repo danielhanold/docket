@@ -11,107 +11,107 @@ import "path/filepath"
 // fixed vocabulary; nothing here echoes the presented value, a path, or record
 // content.
 
-// ReasonUnknownRunEpoch is the stable refusal token for a --run-id that names no
+// ReasonUnknownRunID is the stable refusal token for a --run-id that names no
 // run epoch in this repository.
-const ReasonUnknownRunEpoch = "unknown-run-id"
+const ReasonUnknownRunID = "unknown-run-id"
 
-// ClassifyRunEpochError maps a run-epoch registry failure (an *EpochError anywhere
+// ClassifyRunIDError maps a run-epoch registry failure (an *RunError anywhere
 // in err's chain) to a protocol result and a bounded reason token:
 //   - not-found: unknown-run-id.
 //   - mismatch: the existing stale-linkage token, stale-run-id.
 //   - corrupt or unreadable: internal-error carrying the kind.
 //   - any other readable-but-unusable registry state: invalid-input carrying the kind.
 //
-// ok is false when err carries no *EpochError, so callers fall through to their
+// ok is false when err carries no *RunError, so callers fall through to their
 // own classification.
-func ClassifyRunEpochError(err error) (Result, string, bool) {
-	ee, ok := AsEpochError(err)
+func ClassifyRunIDError(err error) (Result, string, bool) {
+	ee, ok := AsRunError(err)
 	if !ok {
 		return "", "", false
 	}
 	switch ee.Kind {
-	case ErrEpochNotFound:
-		return ResultInvalidInput, ReasonUnknownRunEpoch, true
-	case ErrEpochMismatch:
-		return ResultInvalidInput, ErrStaleRunEpoch.Reason, true
-	case ErrEpochCorrupt, ErrEpochIO:
+	case ErrRunNotFound:
+		return ResultInvalidInput, ReasonUnknownRunID, true
+	case ErrRunIDMismatch:
+		return ResultInvalidInput, ErrStaleRunID.Reason, true
+	case ErrRunRecordCorrupt, ErrRunRecordIO:
 		return ResultInternalError, string(ee.Kind), true
 	default:
 		return ResultInvalidInput, string(ee.Kind), true
 	}
 }
 
-// RunEpochNextAction maps a run-epoch refusal reason to a one-line, credential-free
+// RunIDNextAction maps a run-epoch refusal reason to a one-line, credential-free
 // next action (the ownershipNextAction / fenceNextAction pattern). It never echoes
 // the presented value. A reason with no specific remedy yields "", and callers then
 // omit the message.
-func RunEpochNextAction(reason string) string {
+func RunIDNextAction(reason string) string {
 	switch reason {
-	case ReasonUnknownRunEpoch:
+	case ReasonUnknownRunID:
 		return "the --run-id value names no run epoch in this repository; pass the <epoch> field of the arm's " +
 			"`run-started <key> <epoch> <dispatch-context>` line (the <dispatch-context> goes to --gate-context) — " +
 			"never drop --run-id and retry"
-	case ErrStaleRunEpoch.Reason:
+	case ErrStaleRunID.Reason:
 		return "the --run-id value is not the run epoch this gate key carries; pass the <epoch> printed on the same run-started line as the key"
 	default:
 		return ""
 	}
 }
 
-// runEpochLocator builds the existence check prepare-scope runs on a presented
+// runIDLocator builds the existence check prepare-scope runs on a presented
 // --run-id. It resolves the id to exactly one epoch record under gitCommonDir's
-// run-epoch registry through findEpochDirByID (the same locator the epoch launch
-// gate uses) and returns its typed EpochError (not-found, ambiguous, IO) unchanged.
+// run-epoch registry through findRunDirByID (the same locator the epoch launch
+// gate uses) and returns its typed RunError (not-found, ambiguous, IO) unchanged.
 // It checks RESOLVABILITY only, never liveness: a scope may legitimately carry a
 // cancelled epoch (the takeover revocation gate reads it later), and the launch gate
 // still enforces liveness and worktree ownership at start.
-func runEpochLocator(gitCommonDir string) func(string) error {
-	rungateRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
-	return func(epochID string) error {
-		_, _, err := findEpochDirByID(rungateRoot, epochID)
+func runIDLocator(gitCommonDir string) func(string) error {
+	runTrackerRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
+	return func(runID string) error {
+		_, _, err := findRunDirByID(runTrackerRoot, runID)
 		return err
 	}
 }
 
-// CheckRunEpochExists verifies, before agent.enter spawns anything, that a lone
+// CheckRunIDExists verifies, before agent.enter spawns anything, that a lone
 // --run-id (presented without --run-key) resolves to exactly one run epoch in
 // repoDir's repository (change 0463). It is the same resolvability check prepare-scope
-// runs (runEpochLocator / findEpochDirByID): it never checks liveness, and it returns
-// the locator's typed *EpochError (not-found, ambiguous, IO) unchanged. A repository
-// whose git common dir cannot be resolved yields ErrEpochIO.
-func CheckRunEpochExists(repoDir, epochID string) error {
-	common, err := gateGitCommonDir(repoDir)
+// runs (runIDLocator / findRunDirByID): it never checks liveness, and it returns
+// the locator's typed *RunError (not-found, ambiguous, IO) unchanged. A repository
+// whose git common dir cannot be resolved yields ErrRunRecordIO.
+func CheckRunIDExists(repoDir, runID string) error {
+	common, err := runTrackerGitCommonDir(repoDir)
 	if err != nil {
-		return epochErr(ErrEpochIO, "check-exists", err)
+		return runErr(ErrRunRecordIO, "check-exists", err)
 	}
-	return runEpochLocator(common)(epochID)
+	return runIDLocator(common)(runID)
 }
 
-// CheckRunEpochLinkage verifies, before agent.enter spawns anything, that the
+// CheckRunIDLinkage verifies, before agent.enter spawns anything, that the
 // presented (--run-key, --run-id) pair names a real run epoch (change 0463).
-// It returns nil when the gate key's epoch record carries exactly epochID, and
-// otherwise ALWAYS an *EpochError:
+// It returns nil when the gate key's epoch record carries exactly runID, and
+// otherwise ALWAYS an *RunError:
 //   - a gate key with no directory, a malformed key, or no epoch record:
-//     ErrEpochNotFound (the pair names no epoch);
-//   - a different recorded id: ErrEpochMismatch;
-//   - a corrupt record: keeps ErrEpochCorrupt;
-//   - any other resolution fault: ErrEpochIO.
+//     ErrRunNotFound (the pair names no epoch);
+//   - a different recorded id: ErrRunIDMismatch;
+//   - a corrupt record: keeps ErrRunRecordCorrupt;
+//   - any other resolution fault: ErrRunRecordIO.
 //
 // It only reads. It never checks liveness, because participant registration still
 // refuses a non-active epoch.
-func CheckRunEpochLinkage(repoDir, gateKey, epochID string) error {
-	rec, _, err := LoadEpochRecord(repoDir, gateKey)
+func CheckRunIDLinkage(repoDir, runKey, runID string) error {
+	rec, _, err := LoadRunRecord(repoDir, runKey)
 	if err != nil {
-		if _, ok := AsEpochError(err); ok {
+		if _, ok := AsRunError(err); ok {
 			return err
 		}
-		if ge, ok := AsGateStoreError(err); ok && (ge.Kind == ErrGateNotFound || ge.Kind == ErrGateMalformedKey) {
-			return epochErr(ErrEpochNotFound, "check-linkage", nil)
+		if ge, ok := AsRunTrackerStoreError(err); ok && (ge.Kind == ErrRunTrackerNotFound || ge.Kind == ErrRunTrackerMalformedKey) {
+			return runErr(ErrRunNotFound, "check-linkage", nil)
 		}
-		return epochErr(ErrEpochIO, "check-linkage", err)
+		return runErr(ErrRunRecordIO, "check-linkage", err)
 	}
-	if rec.EpochID != epochID {
-		return epochErr(ErrEpochMismatch, "check-linkage", nil)
+	if rec.RunID != runID {
+		return runErr(ErrRunIDMismatch, "check-linkage", nil)
 	}
 	return nil
 }

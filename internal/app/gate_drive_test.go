@@ -48,29 +48,29 @@ type fakeDriveEngine struct {
 	// reconcile, when set, answers ReconcileFinishedIncumbent (change 0446 §3); nil
 	// reports an unsettled incumbent. reconcileCount counts the consultations so a
 	// test can prove a busy advisory refusal reached reconciliation first.
-	reconcile      func(worktree, runEpochID string) (bool, string, error)
+	reconcile      func(worktree, runID string) (bool, string, error)
 	reconcileCount int
-	// scopeEpoch, when set, is the run epoch a scoped start's scope pinned
-	// (AdvisoryRunEpoch, change 0467).
-	scopeEpoch string
+	// scopeRun, when set, is the run epoch a scoped start's scope pinned
+	// (AdvisoryRunID, change 0467).
+	scopeRun string
 }
 
-func (f *fakeDriveEngine) ReconcileFinishedIncumbent(worktree, runEpochID string) (bool, string, error) {
+func (f *fakeDriveEngine) ReconcileFinishedIncumbent(worktree, runID string) (bool, string, error) {
 	f.reconcileCount++
 	if f.reconcile == nil {
 		return false, "", nil
 	}
-	return f.reconcile(worktree, runEpochID)
+	return f.reconcile(worktree, runID)
 }
 
-// AdvisoryRunEpoch models the driver's resolution: a scoped start inherits
-// scopeEpoch when it presents none (or the same one); anything else keeps the
+// AdvisoryRunID models the driver's resolution: a scoped start inherits
+// scopeRun when it presents none (or the same one); anything else keeps the
 // presented epoch.
-func (f *fakeDriveEngine) AdvisoryRunEpoch(r gatedrive.StartRequest) string {
-	if r.ScopeID != "" && f.scopeEpoch != "" && (r.RunEpochID == "" || r.RunEpochID == f.scopeEpoch) {
-		return f.scopeEpoch
+func (f *fakeDriveEngine) AdvisoryRunID(r gatedrive.StartRequest) string {
+	if r.ScopeID != "" && f.scopeRun != "" && (r.RunID == "" || r.RunID == f.scopeRun) {
+		return f.scopeRun
 	}
-	return r.RunEpochID
+	return r.RunID
 }
 
 func (f *fakeDriveEngine) recordStart(r gatedrive.StartRequest) {
@@ -272,7 +272,7 @@ func TestServiceStartUnresolvedCommandIsCommandFailure(t *testing.T) {
 // dir without shelling out.
 func TestFinalizeConstructorResolvesConfig(t *testing.T) {
 	eff := config.Effective{
-		GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}},
+		RunObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}},
 	}
 	eff.Finalize.TestCommand = config.Value[string]{Value: "go test ./...", Provenance: config.Provenance{Layer: config.LayerRepository}}
 
@@ -298,7 +298,7 @@ func TestFinalizeConstructorResolvesConfig(t *testing.T) {
 // provenance.
 func TestOwnerConstructorsReadOnlyTheirOwnCommand(t *testing.T) {
 	eff := config.Effective{}
-	eff.GateObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.RunObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Build.TestCommand = config.Value[string]{Value: "go test ./build-only",
 		Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Finalize.TestCommand = config.Value[string]{Value: "make finalize-only",
@@ -327,7 +327,7 @@ func TestOwnerConstructorsReadOnlyTheirOwnCommand(t *testing.T) {
 // setup remedy — never a fabricated verdict, and never reaching the engine.
 func TestOwnerConstructorUnresolvedCommandNamesRemedy(t *testing.T) {
 	eff := config.Effective{}
-	eff.GateObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.RunObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	// Build command left unconfigured; finalize is set to prove the build owner
 	// does not fall back to it.
 	eff.Finalize.TestCommand = config.Value[string]{Value: "make finalize-only",
@@ -563,7 +563,7 @@ func TestPrepareScopeHumanTextRedactsCapabilities(t *testing.T) {
 // provenance.
 func TestTaskServiceForcesNonIdempotent(t *testing.T) {
 	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
-	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
+	eff := config.Effective{RunObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
 	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, argv)
 	if svc == nil {
 		t.Fatalf("task constructor must build a service: %s %s", res, reason)
@@ -594,7 +594,7 @@ func TestTaskServiceForcesNonIdempotent(t *testing.T) {
 // with ResultInvalidInput and the stable missing-argv reason — never a service
 // that could Start an empty command.
 func TestTaskServiceRequiresArgv(t *testing.T) {
-	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
+	eff := config.Effective{RunObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
 	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, nil)
 	if svc != nil {
 		t.Fatalf("empty argv must not build a service")
@@ -618,7 +618,7 @@ func TestTaskServiceRequiresArgv(t *testing.T) {
 // that resolved budget into the engine request.
 func TestTaskServiceResolvesObservationBudget(t *testing.T) {
 	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
-	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
+	eff := config.Effective{RunObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
 	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, argv)
 	if svc == nil {
 		t.Fatalf("task constructor must build a service: %s %s", res, reason)
@@ -639,7 +639,7 @@ func TestTaskServiceResolvesObservationBudget(t *testing.T) {
 }
 
 // TestStartForwardsScopeFields proves Start carries the scope-binding fields
-// (ScopeID, ChildCapability, GateContext) through to the engine unchanged.
+// (ScopeID, ChildCapability, RunContext) through to the engine unchanged.
 func TestStartForwardsScopeFields(t *testing.T) {
 	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
 	svc := newGateDriveService(eng, 5*time.Minute, "go test ./...", "prov")
@@ -648,12 +648,12 @@ func TestStartForwardsScopeFields(t *testing.T) {
 		Worktree:        "/repo",
 		ScopeID:         "sc-1",
 		ChildCapability: "childcap",
-		GateContext:     "ctx-token",
+		RunContext:      "ctx-token",
 	})
 	if got.Result != ResultApplied {
 		t.Fatalf("result = %s, want applied", got.Result)
 	}
-	if eng.lastStart.ScopeID != "sc-1" || eng.lastStart.ChildCapability != "childcap" || eng.lastStart.GateContext != "ctx-token" {
+	if eng.lastStart.ScopeID != "sc-1" || eng.lastStart.ChildCapability != "childcap" || eng.lastStart.RunContext != "ctx-token" {
 		t.Fatalf("Start must forward the scope fields, got %+v", eng.lastStart)
 	}
 }
@@ -780,7 +780,7 @@ func TestTakeoverMapsDoc(t *testing.T) {
 // build.max_attempts snapshot the reservation enforces.
 func buildEffWithMaxAttempts(command string, maxAttempts int) config.Effective {
 	eff := config.Effective{}
-	eff.GateObservation = config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.RunObservation = config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Build.TestCommand = config.Value[string]{Value: command, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Build.MaxAttempts = config.Value[int]{Value: maxAttempts, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	return eff
@@ -1057,8 +1057,8 @@ func TestBudgetedBuildReconcilesBeforeRefusal(t *testing.T) {
 	t.Run("finished incumbent settles and starts once", func(t *testing.T) {
 		svc, eng, dir := newBudgetTestBuildService(t, 4)
 		worktree, store := occupy(t, dir)
-		eng.reconcile = func(w, epoch string) (bool, string, error) {
-			return store.ReconcileFinishedIncumbent(w, epoch, finishedRunProof{disposition: "terminal"})
+		eng.reconcile = func(w, ownerRunID string) (bool, string, error) {
+			return store.ReconcileFinishedIncumbent(w, ownerRunID, finishedRunProof{disposition: "terminal"})
 		}
 
 		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0446"})
@@ -1080,8 +1080,8 @@ func TestBudgetedBuildReconcilesBeforeRefusal(t *testing.T) {
 	t.Run("live incumbent still refuses uncharged", func(t *testing.T) {
 		svc, eng, dir := newBudgetTestBuildService(t, 4)
 		worktree, store := occupy(t, dir)
-		eng.reconcile = func(w, epoch string) (bool, string, error) {
-			return store.ReconcileFinishedIncumbent(w, epoch, finishedRunProof{disposition: "live"})
+		eng.reconcile = func(w, ownerRunID string) (bool, string, error) {
+			return store.ReconcileFinishedIncumbent(w, ownerRunID, finishedRunProof{disposition: "live"})
 		}
 
 		got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: worktree, ChangeID: "0446"})
@@ -1100,39 +1100,39 @@ func TestBudgetedBuildReconcilesBeforeRefusal(t *testing.T) {
 	})
 }
 
-// TestBudgetedBuildAdvisoryReconcilesWithScopeEpoch (change 0467): a scoped
+// TestBudgetedBuildAdvisoryReconcilesWithScopeRun (change 0467): a scoped
 // build-owned start presenting NO run epoch, under a scope pinned to epoch E, over
 // a proven-finished incumbent slot E owns, is admitted — the advisory precheck
 // reconciles with the scope's epoch, exactly as Admit would, instead of the empty
 // presented one (which the slot's epoch fence would refuse worktree-busy). A start
 // presenting a foreign epoch stays fenced and is refused before admission.
-func TestBudgetedBuildAdvisoryReconcilesWithScopeEpoch(t *testing.T) {
+func TestBudgetedBuildAdvisoryReconcilesWithScopeRun(t *testing.T) {
 	const (
-		runID = "0467eeeeeeeeeeeeeeeeeeeeeeeeee01"
-		epoch = "epoch-e1"
+		runID      = "0467eeeeeeeeeeeeeeeeeeeeeeeeee01"
+		ownerRunID = "epoch-e1"
 	)
-	var reconciledEpochs []string
+	var reconciledRuns []string
 	setup := func(t *testing.T) (*GateDriveService, *fakeDriveEngine, string, GateDriveStartRequest, *gatedrive.Store) {
 		t.Helper()
-		reconciledEpochs = nil
+		reconciledRuns = nil
 		svc, eng, dir := newBudgetTestBuildService(t, 4)
 		worktree := testsupport.TempDir(t)
 		store := gatedrive.OpenStore(dir)
-		tok, err := store.ReserveWorktreeExecutionForEpoch("/repo", worktree, epoch, nil)
+		tok, err := store.ReserveWorktreeExecutionForRun("/repo", worktree, ownerRunID, nil)
 		if err != nil {
-			t.Fatalf("occupy worktree slot for %s: %v", epoch, err)
+			t.Fatalf("occupy worktree slot for %s: %v", ownerRunID, err)
 		}
 		if err := store.ConfirmWorktreeExecution(worktree, tok, runID, "/runs/"+runID); err != nil {
 			t.Fatalf("confirm incumbent: %v", err)
 		}
-		eng.scopeEpoch = epoch
+		eng.scopeRun = ownerRunID
 		// The E-owned slot is a scopeless-kind incumbent, which the real store proves
 		// finished only through a drive record this package cannot mint, so the seam
 		// is scripted: it applies the store's epoch fence (a slot another epoch owns
 		// is never settled) and otherwise reports the finished incumbent settled.
 		eng.reconcile = func(w, e string) (bool, string, error) {
-			reconciledEpochs = append(reconciledEpochs, e)
-			if e != epoch {
+			reconciledRuns = append(reconciledRuns, e)
+			if e != ownerRunID {
 				return false, "incumbent-run-fenced", nil
 			}
 			return true, "incumbent-settled", nil
@@ -1153,8 +1153,8 @@ func TestBudgetedBuildAdvisoryReconcilesWithScopeEpoch(t *testing.T) {
 		if eng.reconcileCount != 1 || eng.startCount != 1 || eng.startAdmittedCount != 1 {
 			t.Fatalf("reconcile=%d admit=%d launch=%d, want 1/1/1", eng.reconcileCount, eng.startCount, eng.startAdmittedCount)
 		}
-		if len(reconciledEpochs) != 1 || reconciledEpochs[0] != epoch {
-			t.Fatalf("the advisory check must reconcile under the scope's epoch, got %v", reconciledEpochs)
+		if len(reconciledRuns) != 1 || reconciledRuns[0] != ownerRunID {
+			t.Fatalf("the advisory check must reconcile under the scope's epoch, got %v", reconciledRuns)
 		}
 		if used, _ := suiteUsage(t, dir, "0467"); used != 1 {
 			t.Fatalf("usage = %d, want exactly one charged attempt", used)
@@ -1163,7 +1163,7 @@ func TestBudgetedBuildAdvisoryReconcilesWithScopeEpoch(t *testing.T) {
 
 	t.Run("foreign presented epoch stays fenced", func(t *testing.T) {
 		svc, eng, dir, req, _ := setup(t)
-		req.RunEpochID = "epoch-foreign"
+		req.RunID = "epoch-foreign"
 		got := svc.Start(req)
 		if got.Result == ResultApplied || got.Reason != string(gatedrive.ErrWorktreeBusy) {
 			t.Fatalf("a foreign presented epoch must refuse worktree-busy, got result=%s reason=%q", got.Result, got.Reason)
@@ -1174,8 +1174,8 @@ func TestBudgetedBuildAdvisoryReconcilesWithScopeEpoch(t *testing.T) {
 		if eng.startCount != 0 {
 			t.Fatalf("a fenced start must not reach admission, got %d", eng.startCount)
 		}
-		if len(reconciledEpochs) != 1 || reconciledEpochs[0] != "epoch-foreign" {
-			t.Fatalf("a foreign epoch must be reconciled as presented, got %v", reconciledEpochs)
+		if len(reconciledRuns) != 1 || reconciledRuns[0] != "epoch-foreign" {
+			t.Fatalf("a foreign epoch must be reconciled as presented, got %v", reconciledRuns)
 		}
 		if used, limit := suiteUsage(t, dir, "0467"); used != 0 || limit != 0 {
 			t.Fatalf("a refused start must charge nothing, got (%d,%d)", used, limit)
@@ -1274,7 +1274,7 @@ func TestMapDriveFailureOwnershipKinds(t *testing.T) {
 		// change 0375 worktree-admission ownership kinds.
 		gatedrive.ErrWorktreeBusy,
 		gatedrive.ErrUnresolvedExecution,
-		gatedrive.ErrStaleRunEpoch,
+		gatedrive.ErrStaleRunID,
 	}
 	const secret = "SECRET-ARGV"
 	for _, kind := range kinds {
@@ -1322,7 +1322,7 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 		// distinct next-action message.
 		gatedrive.ErrWorktreeBusy,
 		gatedrive.ErrUnresolvedExecution,
-		gatedrive.ErrStaleRunEpoch,
+		gatedrive.ErrStaleRunID,
 	} {
 		// Wrap the ownership error in credential-shaped free text (a stand-in for a
 		// reservation token / argv) that must reach NEITHER the reason NOR the message.
@@ -1372,7 +1372,7 @@ func TestMapDriveFailureFenceReasons(t *testing.T) {
 		err  *MutationFenceError
 	}{
 		{"run-cancelled", ErrRunCancelled},
-		{"stale-run-id", ErrStaleRunEpoch},
+		{"stale-run-id", ErrStaleRunID},
 	} {
 		wrapped := fmt.Errorf("mutation refused carrying %s: %w", secret, tc.err)
 		res, reason := mapDriveFailure(wrapped)
@@ -1517,13 +1517,13 @@ func TestGateDriveHumanTextRendersLegacyLines(t *testing.T) {
 	}
 }
 
-// TestProductionConstructorsWireEpochLaunchGate proves every production gate-drive
+// TestProductionConstructorsWireRunLaunchGate proves every production gate-drive
 // constructor injects the app-side epoch launch gate into the driver it composes —
 // the wiring is where the takeover-only defect lived, so deleting any ONE
-// SetEpochLaunchGate line must redden this test (change 0437 Task 5). It equally
+// SetRunLaunchGate line must redden this test (change 0437 Task 5). It equally
 // proves each wires the released-slot epoch settlement read (change 0446): deleting
-// any ONE SetEpochSettledResolver line reddens it too.
-func TestProductionConstructorsWireEpochLaunchGate(t *testing.T) {
+// any ONE SetRunSettledResolver line reddens it too.
+func TestProductionConstructorsWireRunLaunchGate(t *testing.T) {
 	dir := testsupport.TempDir(t)
 	eff := buildEffWithMaxAttempts("go test ./...", 4)
 
@@ -1532,10 +1532,10 @@ func TestProductionConstructorsWireEpochLaunchGate(t *testing.T) {
 		if d == nil {
 			t.Fatalf("%s: nil driver", name)
 		}
-		if !d.EpochLaunchGateWired() {
+		if !d.RunLaunchGateWired() {
 			t.Fatalf("%s: epoch launch gate not wired", name)
 		}
-		if !d.EpochSettledResolverWired() {
+		if !d.RunSettledResolverWired() {
 			t.Fatalf("%s: epoch settlement resolver not wired", name)
 		}
 	}
@@ -1574,12 +1574,12 @@ func TestProductionConstructorsWireEpochLaunchGate(t *testing.T) {
 	check("continuation", gs.driver)
 }
 
-// TestBuildStartEpochRefusalChargesNoAttempt proves an epoch-fenced admission
+// TestBuildStartRunRefusalChargesNoAttempt proves an epoch-fenced admission
 // charges no suite attempt: Admit returns ErrRunCancelled (a cancellation landed
 // before admission), so the start refuses with reason "run-cancelled", never
 // launches, and the budget is untouched — admission precedes charging (change 0437
 // Task 5).
-func TestBuildStartEpochRefusalChargesNoAttempt(t *testing.T) {
+func TestBuildStartRunRefusalChargesNoAttempt(t *testing.T) {
 	svc, eng, dir := newBudgetTestBuildService(t, 4)
 	eng.admitErr = ErrRunCancelled
 
@@ -1649,7 +1649,7 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 	rawInc := &gatedrive.IncumbentSnapshot{Kind: "raw", State: "executing",
 		RawRunID: "0123456789abcdef0123456789abcdef", RawRunDir: "/runs/0123456789abcdef0123456789abcdef"}
 	drivenInc := &gatedrive.IncumbentSnapshot{Kind: "scoped", State: "executing", DriveID: validDriveIDForTest(t)}
-	epochInc := &gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "executing", EpochOwned: true}
+	runInc := &gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "executing", RunOwned: true}
 	blankInc := &gatedrive.IncumbentSnapshot{State: "reserved"}
 	// A raw reservation not yet confirmed (no RawRunDir/RawRunID): the raw-stop
 	// guidance must NOT render, because there is no proven run identity to stop.
@@ -1675,13 +1675,13 @@ func TestMapDriveResultWorktreeAdmissionRefusal(t *testing.T) {
 		{"driven busy", ownershipErrWith(gatedrive.ErrWorktreeBusy, drivenInc),
 			"worktree-admission", "incumbent-drive:" + drivenInc.DriveID,
 			[]string{"occupies"}, []string{"gate stop", "driven gate occupies"}},
-		{"epoch owned", ownershipErrWith(gatedrive.ErrStaleRunEpoch, epochInc),
+		{"epoch owned", ownershipErrWith(gatedrive.ErrStaleRunID, runInc),
 			"worktree-admission", "",
 			[]string{"run.cancel", "resolves"}, []string{"gate stop", "epoch-"}},
 		// A slot-named epoch no readable record carries: run.cancel cannot target
 		// it, so the remedy must not suggest it and names the store + human repair.
-		{"epoch unresolved", ownershipErrWith(gatedrive.ErrStaleRunEpoch,
-			&gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "released", EpochOwned: true, EpochUnresolved: true}),
+		{"epoch unresolved", ownershipErrWith(gatedrive.ErrStaleRunID,
+			&gatedrive.IncumbentSnapshot{Kind: "scopeless", State: "released", RunOwned: true, RunUnresolved: true}),
 			"worktree-admission", "",
 			[]string{"docket/run-tracker", "human"}, []string{"run.cancel", "gate stop", "epoch-"}},
 		{"unknown identity", ownershipErrWith(gatedrive.ErrWorktreeBusy, blankInc),
@@ -1745,23 +1745,23 @@ func TestQuoteOperand(t *testing.T) {
 	}
 }
 
-// TestMapDriveFailureEpochErrors (change 0463): an EpochError chained through the
+// TestMapDriveFailureRunErrors (change 0463): an RunError chained through the
 // gate-drive seam (the epoch launch gate refusing an unknown --run-id) surfaces
 // its named token, never the catch-all invalid-request. The service attaches the
 // next-action message, and neither the reason nor the message echoes the value.
-func TestMapDriveFailureEpochErrors(t *testing.T) {
+func TestMapDriveFailureRunErrors(t *testing.T) {
 	const presented = "0790b760e26444866ef2e156ba383326"
-	wrapped := fmt.Errorf("refused %s: %w", presented, epochErr(ErrEpochNotFound, "find-dir-by-id", nil))
+	wrapped := fmt.Errorf("refused %s: %w", presented, runErr(ErrRunNotFound, "find-dir-by-id", nil))
 	res, reason := mapDriveFailure(wrapped)
-	if res != ResultInvalidInput || reason != ReasonUnknownRunEpoch {
+	if res != ResultInvalidInput || reason != ReasonUnknownRunID {
 		t.Fatalf("mapDriveFailure = (%s, %q), want (invalid-input, unknown-run-id)", res, reason)
 	}
-	if res, reason := mapDriveFailure(epochErr(ErrEpochIO, "find-by-id", nil)); res != ResultInternalError || reason != "run-record-io" {
+	if res, reason := mapDriveFailure(runErr(ErrRunRecordIO, "find-by-id", nil)); res != ResultInternalError || reason != "run-record-io" {
 		t.Fatalf("an unreadable registry must be an internal error, got (%s, %q)", res, reason)
 	}
 	eng := &fakeDriveEngine{err: wrapped}
 	got := newGateDriveService(eng, 0, "", "").Advance("d1", "owner")
-	if got.Reason != ReasonUnknownRunEpoch {
+	if got.Reason != ReasonUnknownRunID {
 		t.Fatalf("service reason = %q, want unknown-run-id", got.Reason)
 	}
 	if !strings.Contains(got.Message, "--gate-context") {
@@ -1772,20 +1772,20 @@ func TestMapDriveFailureEpochErrors(t *testing.T) {
 	}
 }
 
-// TestPrepareScopeRefusesUnknownRunEpoch (change 0463): a presented --run-id that
+// TestPrepareScopeRefusesUnknownRunID (change 0463): a presented --run-id that
 // the registry cannot resolve is refused before any scope is minted, with the named
 // token and the next action and without echoing the value. A scope with no
 // --run-id never consults the locator (standalone scopes are unchanged).
-func TestPrepareScopeRefusesUnknownRunEpoch(t *testing.T) {
+func TestPrepareScopeRefusesUnknownRunID(t *testing.T) {
 	eng := &fakeDriveEngine{grant: gatedrive.ScopeGrant{ScopeID: "scope-1", ChildCapability: "c", ParentCapability: "p"}}
 	svc := newGateDriveService(eng, 0, "", "")
 	var asked string
-	svc.epochLocate = func(id string) error {
+	svc.runLocate = func(id string) error {
 		asked = id
-		return epochErr(ErrEpochNotFound, "find-dir-by-id", nil)
+		return runErr(ErrRunNotFound, "find-dir-by-id", nil)
 	}
-	got := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463", RunEpochID: "bogus-epoch-value"})
-	if got.Result != ResultInvalidInput || got.Reason != ReasonUnknownRunEpoch {
+	got := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "463", RunID: "bogus-epoch-value"})
+	if got.Result != ResultInvalidInput || got.Reason != ReasonUnknownRunID {
 		t.Fatalf("got (%s, %q), want (invalid-input, unknown-run-id)", got.Result, got.Reason)
 	}
 	if got.ScopeID != "" || got.ChildCapability != "" || got.ParentCapability != "" {

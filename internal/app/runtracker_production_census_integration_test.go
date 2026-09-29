@@ -23,8 +23,8 @@ import (
 //
 //   - cancellation, success closeout, and resume quiescence run through
 //     productionCancelSeams: the real admission store, appLaunchReconciler /
-//     appLaunchObserver (Driver.ReconcileEpochLaunches / ObserveEpochLaunches over the
-//     real process service), appGateObserver, and appGateStopper;
+//     appLaunchObserver (Driver.ReconcileRunLaunches / ObserveRunLaunches over the
+//     real process service), appRunTrackerObserver, and appRunTrackerStopper;
 //   - unrelated corrupt, unsupported-schema, obsolete (lost-linkage, rotated-token),
 //     other-worktree, and HALTED drive records plus a corrupt unrelated epoch record are
 //     seeded BEFORE cancel/closeout, so the census walks them;
@@ -89,11 +89,11 @@ func seedUnrelatedDamagedHistory(t *testing.T, fx cancelFixture, prefix string) 
 		"worktree_path": filepath.Join(gone, "other-worktree"), "raw_run_dir": filepath.Join(gone, "other-run"),
 		"last_outcome": string(gatedrive.WAITING),
 	})
-	badEpoch := filepath.Join(fx.common, "docket", runTrackerDirName, prefix+"-damaged-unrelated-epoch")
-	if err := os.MkdirAll(badEpoch, 0o755); err != nil {
+	badRun := filepath.Join(fx.common, "docket", runTrackerDirName, prefix+"-damaged-unrelated-epoch")
+	if err := os.MkdirAll(badRun, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(badEpoch, epochRecordFileName), []byte("{not json"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(badRun, runRecordFileName), []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -103,7 +103,7 @@ func seedUnrelatedDamagedHistory(t *testing.T, fx cancelFixture, prefix string) 
 // clears the unresolved-command guard.
 func finalizeEffFor(command string) config.Effective {
 	eff := config.Effective{}
-	eff.GateObservation = config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.RunObservation = config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	eff.Finalize.TestCommand = config.Value[string]{Value: command, Provenance: config.Provenance{Layer: config.LayerRepository}}
 	return eff
 }
@@ -177,7 +177,7 @@ func prepareQuiescentRun(t *testing.T) cancelFixture {
 	if err := fx.store.ReleaseWorktreeExecution(fx.worktree, slot.ReservationToken); err != nil {
 		t.Fatalf("release slot: %v", err)
 	}
-	seedNamedEpoch(t, fx.repo, "0000-cancelled-predecessor", fx.worktree, EpochCancelled)
+	seedNamedRun(t, fx.repo, "0000-cancelled-predecessor", fx.worktree, RunCancelled)
 	seedUnrelatedDamagedHistory(t, fx, "a")
 	return fx
 }
@@ -198,15 +198,15 @@ func requireProcessSupervisorHere(t *testing.T) {
 // scratch is gone, and finalize then enters through its real gate-drive Start.
 func TestIntegrationRunCompletionProductionCensusCompleteThenFinalize(t *testing.T) {
 	fx := prepareQuiescentRun(t)
-	must(t, RegisterEpochParticipant(fx.repo, fx.key, fx.epochID,
-		EpochParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
-	must(t, RecordEpochParticipantTerminal(fx.repo, fx.key, fx.epochID,
+	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+		RunParticipant{Kind: "coordinator", NativeHandle: "turn-1"}))
+	must(t, RecordRunParticipantTerminal(fx.repo, fx.key, fx.runID,
 		"turn-1", "t1", ParticipantTerminalCompleted))
 	// The released slot's run is also a registered gate-scope participant whose
 	// scratch directory no longer exists: the production observer cannot observe it,
 	// so only the durable released-slot fact accounts it.
-	must(t, RegisterEpochParticipant(fx.repo, fx.key, fx.epochID,
-		EpochParticipant{Kind: participantKindGateScope, NativeHandle: fx.runDir}))
+	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+		RunParticipant{Kind: participantKindGateScope, NativeHandle: fx.runDir}))
 	if _, err := os.Stat(fx.runDir); !os.IsNotExist(err) {
 		t.Fatalf("precondition: the run's scratch %q must be absent (err=%v)", fx.runDir, err)
 	}
@@ -215,7 +215,7 @@ func TestIntegrationRunCompletionProductionCensusCompleteThenFinalize(t *testing
 	if !ok {
 		t.Fatalf("production closeout over unrelated history ok=false reason=%q findings=%v", reason, findings)
 	}
-	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCompleted {
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
 		t.Fatalf("epoch state = %q, want completed", st)
 	}
 	startFinalizeGate(t, fx)
@@ -227,11 +227,11 @@ func TestIntegrationRunCompletionProductionCensusCompleteThenFinalize(t *testing
 // through its real gate-drive Start.
 func TestIntegrationRunCompletionProductionCensusCancelThenFinalize(t *testing.T) {
 	fx := prepareQuiescentRun(t)
-	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("production cancel over unrelated history = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
-	if again := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.epochID, "human stop"); again.Disposition != CancelDispositionAlreadyCancelled {
+	if again := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop"); again.Disposition != CancelDispositionAlreadyCancelled {
 		t.Fatalf("repeated cancel = %q, want already-cancelled (findings=%v)", again.Disposition, again.Findings)
 	}
 	startFinalizeGate(t, fx)
@@ -243,14 +243,14 @@ func TestIntegrationRunCompletionProductionCensusCancelThenFinalize(t *testing.T
 // build gate — carrying its run epoch — starts through the real service and passes.
 func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGate(t *testing.T) {
 	fx := prepareQuiescentRun(t)
-	if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.epochID, "human stop"); res.Disposition != CancelDispositionCancelled {
+	if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop"); res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("production cancel = %q, want cancelled (findings=%v)", res.Disposition, res.Findings)
 	}
 	seedUnrelatedDamagedHistory(t, fx, "b") // history added between cancellation and resume
 
-	oldEp, _, err := LoadEpochRecord(fx.repo, fx.key)
+	oldEp, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ok, detail := validateResumeQuiescence(productionCancelSeams(fx.repo), fx.repo, oldEp, fx.worktree); !ok {
 		t.Fatalf("production resume quiescence over unrelated history refused: %s", detail)
@@ -260,7 +260,7 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 	if svc == nil {
 		t.Fatalf("build gate-drive service was nil: %s %s", res, reason)
 	}
-	sdeps := GateScopeDeps{Prepare: func(req gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
+	sdeps := RunTrackerScopeDeps{Prepare: func(req gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
 		g := svc.PrepareScope(req)
 		if g.Result != ResultApplied {
 			t.Fatalf("outer PrepareScope: %s (%s)", g.Result, g.Reason)
@@ -270,10 +270,10 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 	armed := armResumeReplacement(fx.repo, sdeps, fx.key, resumeReplacementParams{
 		attributedID: 42, scopeChangeID: "42", branch: "fix/x", worktree: fx.worktree, attemptLimit: 2,
 	})
-	if !armed.Armed || armed.Epoch == "" {
+	if !armed.Started || armed.RunID == "" {
 		t.Fatalf("resume did not arm a replacement: %+v", armed)
 	}
-	if st := loadEpochState(t, fx.repo, fx.key); st != EpochSuperseded {
+	if st := loadRunState(t, fx.repo, fx.key); st != RunSuperseded {
 		t.Fatalf("old epoch state = %q, want superseded", st)
 	}
 
@@ -281,7 +281,7 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 	t.Cleanup(func() { stopRunsUnder(runRoot) })
 	scope := svc.PrepareScope(gatedrive.ScopeRequest{
 		RepoIdentity: fx.worktree, Worktree: fx.worktree, ChangeID: "42", TaskID: "task-1",
-		Phase: "build", Branch: "fix/x", RunEpochID: armed.Epoch,
+		Phase: "build", Branch: "fix/x", RunID: armed.RunID,
 	})
 	if scope.Result != ResultApplied {
 		t.Fatalf("replacement PrepareScope: %s (%s)", scope.Result, scope.Reason)
@@ -290,7 +290,7 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 		RepoDir: fx.worktree, Worktree: fx.worktree, ChangeID: "42", TaskID: "task-1",
 		Phase: "build", Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: fx.worktree,
 		RunRoot: runRoot, ScopeID: scope.ScopeID, ChildCapability: scope.ChildCapability,
-		RunEpochID: armed.Epoch, IdempotentSuiteGate: true,
+		RunID: armed.RunID, IdempotentSuiteGate: true,
 	})
 	if got.Result != ResultApplied || got.Drive == nil {
 		t.Fatalf("replacement gate Start refused: result=%s reason=%q stage=%q locator=%q message=%q",

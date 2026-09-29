@@ -45,7 +45,7 @@ func mxImplementedRecord(id int, slug string) []byte {
 }
 
 // mxIncompleteRecord renders an in-progress (claimed, not-yet-implemented) change
-// (id, slug) whose only unmet postcondition is not-implemented — gateIncompleteRecord's
+// (id, slug) whose only unmet postcondition is not-implemented — runTrackerIncompleteRecord's
 // shape generalized to any id, reusing the fixture's pushed feature branch.
 func mxIncompleteRecord(id int, slug string) []byte {
 	src := lifecycleChange(id, slug, "in-progress")
@@ -97,11 +97,11 @@ func mxDeps(t *testing.T, f *rvFixture, id int, slug string, record []byte) (Pla
 // (change, request, revision) proof Task 3's ChangeClaim writes on the applied path.
 func mxBind(t *testing.T, repoDir, key string, id int, requestID, revision string) {
 	t.Helper()
-	if err := ReserveGateClaim(repoDir, key, id, requestID); err != nil {
-		t.Fatalf("ReserveGateClaim(%d): %v", id, err)
+	if err := ReserveRunTrackerClaim(repoDir, key, id, requestID); err != nil {
+		t.Fatalf("ReserveRunTrackerClaim(%d): %v", id, err)
 	}
-	if err := ConfirmGateClaim(repoDir, key, id, requestID, revision, ""); err != nil {
-		t.Fatalf("ConfirmGateClaim(%d): %v", id, err)
+	if err := ConfirmRunTrackerClaim(repoDir, key, id, requestID, revision, ""); err != nil {
+		t.Fatalf("ConfirmRunTrackerClaim(%d): %v", id, err)
 	}
 }
 
@@ -109,7 +109,7 @@ func mxBind(t *testing.T, repoDir, key string, id int, requestID, revision strin
 // in NO field of the report line. The gate key is stripped first: a random gate key
 // can itself contain the sibling's digit, so a raw strings.Contains over the whole
 // line would false-positive — the only numeric field after the key is the resolved id.
-func mxAssertOwnIDOnly(t *testing.T, res RunGateVerdictResult, key string, ownID, siblingID int) {
+func mxAssertOwnIDOnly(t *testing.T, res RunVerdictResult, key string, ownID, siblingID int) {
 	t.Helper()
 	if res.AttributedID != ownID {
 		t.Fatalf("AttributedID = %d, want %d (a gate must verify only its own change)", res.AttributedID, ownID)
@@ -125,11 +125,11 @@ func mxAssertOwnIDOnly(t *testing.T, res RunGateVerdictResult, key string, ownID
 // mxAssertDisposition asserts the verdict's outcome matches the intended
 // disposition (a completed bound change reports run-complete; an in-progress one
 // reports run-incomplete regardless of the retry decision word).
-func mxAssertDisposition(t *testing.T, res RunGateVerdictResult, disp string) {
+func mxAssertDisposition(t *testing.T, res RunVerdictResult, disp string) {
 	t.Helper()
 	switch disp {
 	case "complete":
-		if res.Decision != GateDecisionDone || res.Outcome != VerdictRunComplete {
+		if res.Decision != RunDecisionDone || res.Outcome != VerdictRunComplete {
 			t.Fatalf("disposition = %q/%q, want run-done/run-complete", res.Decision, res.Outcome)
 		}
 	case "incomplete":
@@ -155,8 +155,8 @@ func TestIntegrationRunFenceTwoGatesEachVerifyOnlyTheirOwn(t *testing.T) {
 	// The shared committed history both gates read: each change's own claim proof,
 	// newest-first. Continuity keys each gate on the NEWEST proof for its bound id.
 	proofs := []ClaimProof{
-		{RequestID: "claim-4-v", ChangeID: idB, GateContextHash: "hb", Revision: "rB"},
-		{RequestID: "claim-3-v", ChangeID: idA, GateContextHash: "ha", Revision: "rA"},
+		{RequestID: "claim-4-v", ChangeID: idB, RunContextHash: "hb", Revision: "rB"},
+		{RequestID: "claim-3-v", ChangeID: idA, RunContextHash: "ha", Revision: "rA"},
 	}
 
 	cases := []struct {
@@ -174,23 +174,23 @@ func TestIntegrationRunFenceTwoGatesEachVerifyOnlyTheirOwn(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newRunVerifyFixture(t, true)
 			// Both gates armed BEFORE either claim, each bound to its own change.
-			keyA := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
+			keyA := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 			mxBind(t, f.repo.invocation, keyA, idA, "claim-3-v", "rA")
-			keyB := gateMintArmed(t, f.repo.invocation, nil, 1, "hb")
+			keyB := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "hb")
 			mxBind(t, f.repo.invocation, keyB, idB, "claim-4-v", "rB")
 
-			runA := func() RunGateVerdictResult {
+			runA := func() RunVerdictResult {
 				deps, wdeps, gdeps := mxDeps(t, f, idA, slugA, mxDispRecord(idA, slugA, tc.dispA))
 				wdeps.ClaimProofs = &fakeProofScanner{proofs: proofs}
-				return RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, keyA)
+				return RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, keyA)
 			}
-			runB := func() RunGateVerdictResult {
+			runB := func() RunVerdictResult {
 				deps, wdeps, gdeps := mxDeps(t, f, idB, slugB, mxDispRecord(idB, slugB, tc.dispB))
 				wdeps.ClaimProofs = &fakeProofScanner{proofs: proofs}
-				return RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, keyB)
+				return RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, keyB)
 			}
 
-			var resA, resB RunGateVerdictResult
+			var resA, resB RunVerdictResult
 			if tc.bFirst {
 				resB = runB()
 				resA = runA()
@@ -215,10 +215,10 @@ func TestIntegrationRunFenceTwoGatesEachVerifyOnlyTheirOwn(t *testing.T) {
 // current claim set.
 func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
-	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
+	key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 	mxBind(t, f.repo.invocation, key, 3, "claim-3-v", "rA")
 
-	verdict := func(proofs []ClaimProof, corpus []StatusBlob) RunGateVerdictResult {
+	verdict := func(proofs []ClaimProof, corpus []StatusBlob) RunVerdictResult {
 		reader := &fakeReader{pin: f.pin, corpus: corpus, facts: domain.NewBranchFacts(nil)}
 		deps := PlanningDeps{Client: f.client, Reader: reader, Clock: testClock()}
 		wdeps := WorkspaceDeps{
@@ -226,10 +226,10 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 			ClaimProofs: &fakeProofScanner{proofs: proofs},
 		}
 		gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{rvPR(f.head, string(prEvidenceBytes(t, f.head)))}}}
-		return RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+		return RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	}
 
-	baseProof := ClaimProof{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "rA"}
+	baseProof := ClaimProof{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "rA"}
 	baseCorpus := []StatusBlob{mxBlob(3, "widget", mxImplementedRecord(3, "widget"))}
 
 	res1 := verdict([]ClaimProof{baseProof}, baseCorpus)
@@ -245,12 +245,12 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 	refreshed = strings.Replace(refreshed, "priority: medium", "priority: high", 1)
 	churnedCorpus := []StatusBlob{
 		mxBlob(3, "widget", []byte(refreshed)),
-		gateInProgressBlob(9, "sibling", "2026-09-01T00:00:00Z"),
-		gateInProgressBlob(10, "sibling2", "2026-09-02T00:00:00Z"),
+		runTrackerInProgressBlob(9, "sibling", "2026-09-01T00:00:00Z"),
+		runTrackerInProgressBlob(10, "sibling2", "2026-09-02T00:00:00Z"),
 	}
 	churnedProofs := []ClaimProof{
-		{RequestID: "sib-9", ChangeID: 9, GateContextHash: "OTHER"},
-		{RequestID: "sib-10", ChangeID: 10, GateContextHash: "OTHER2"},
+		{RequestID: "sib-9", ChangeID: 9, RunContextHash: "OTHER"},
+		{RequestID: "sib-10", ChangeID: 10, RunContextHash: "OTHER2"},
 		baseProof,
 	}
 
@@ -269,36 +269,36 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 // retry, and a subsequent verdict still refuses — the old gate never takes over the
 // replacement run.
 func TestIntegrationRunFenceReplacementClaimBlocksOldGate(t *testing.T) {
-	repo := newGateRepo(t)
-	key := gateMintArmed(t, repo, nil, 1, "ha")
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
 	mxBind(t, repo, key, 3, "claim-3-v1", "r1")
 
 	proofs := []ClaimProof{
-		{RequestID: "claim-3-v2", ChangeID: 3, GateContextHash: "hb"},
-		{RequestID: "claim-3-v1", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		{RequestID: "claim-3-v2", ChangeID: 3, RunContextHash: "hb"},
+		{RequestID: "claim-3-v1", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 	}
-	verdict := func() RunGateVerdictResult {
-		return RunGateVerdict(context.Background(), PlanningDeps{},
+	verdict := func() RunVerdictResult {
+		return RunVerdict(context.Background(), PlanningDeps{},
 			WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: proofs}}, GitHubDeps{}, repo, key)
 	}
 
 	res := verdict()
-	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateClaimReplaced {
-		t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateClaimReplaced)
+	if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable || res.Reason != ReasonRunClaimReplaced {
+		t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonRunClaimReplaced)
 	}
 	if !res.Terminal {
 		t.Errorf("claim-replaced stop must be terminal")
 	}
-	if gateRetryMarkerExists(t, repo, key) {
+	if runTrackerRetryMarkerExists(t, repo, key) {
 		t.Errorf("a replaced claim must never spend the retry")
 	}
 
 	// A subsequent verdict is not a fresh chance to take over the replacement.
 	res2 := verdict()
-	if res2.Reason != ReasonGateClaimReplaced {
-		t.Fatalf("second verdict reason = %q, want %s (still refused)", res2.Reason, ReasonGateClaimReplaced)
+	if res2.Reason != ReasonRunClaimReplaced {
+		t.Fatalf("second verdict reason = %q, want %s (still refused)", res2.Reason, ReasonRunClaimReplaced)
 	}
-	if gateRetryMarkerExists(t, repo, key) {
+	if runTrackerRetryMarkerExists(t, repo, key) {
 		t.Errorf("the second refusal must still not spend the retry")
 	}
 }
@@ -309,14 +309,14 @@ func TestIntegrationRunFenceReplacementClaimBlocksOldGate(t *testing.T) {
 // bound id with the binding intact.
 func TestIntegrationRunFenceLaterVerdictCannotOverwriteBinding(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
-	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
+	key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 	mxBind(t, f.repo.invocation, key, 3, "claim-3-v", "r1")
 
-	proofs := []ClaimProof{{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"}}
-	verdict := func() RunGateVerdictResult {
+	proofs := []ClaimProof{{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"}}
+	verdict := func() RunVerdictResult {
 		deps, wdeps, gdeps := mxDeps(t, f, 3, "widget", mxImplementedRecord(3, "widget"))
 		wdeps.ClaimProofs = &fakeProofScanner{proofs: proofs}
-		return RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+		return RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	}
 
 	res1 := verdict()
@@ -326,9 +326,9 @@ func TestIntegrationRunFenceLaterVerdictCannotOverwriteBinding(t *testing.T) {
 
 	// A later verdict or replay can never overwrite the confirmed binding with a
 	// different revision — the store refuses binding-conflict.
-	err := ConfirmGateClaim(f.repo.invocation, key, 3, "claim-3-v", "DIFFERENT", "")
-	gse, ok := AsGateStoreError(err)
-	if !ok || gse.Kind != ErrGateBindingConflict {
+	err := ConfirmRunTrackerClaim(f.repo.invocation, key, 3, "claim-3-v", "DIFFERENT", "")
+	gse, ok := AsRunTrackerStoreError(err)
+	if !ok || gse.Kind != ErrRunTrackerBindingConflict {
 		t.Fatalf("want binding-conflict on a differing-revision confirm, got %v", err)
 	}
 
@@ -336,7 +336,7 @@ func TestIntegrationRunFenceLaterVerdictCannotOverwriteBinding(t *testing.T) {
 	if got, want := res2.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("re-run verdict = %q, want %q (same bound id, binding intact)", got, want)
 	}
-	b, present, berr := LoadGateClaimBinding(f.repo.invocation, key)
+	b, present, berr := LoadRunTrackerClaimBinding(f.repo.invocation, key)
 	if berr != nil || !present || b.ChangeID != 3 || b.Revision != "r1" || !b.Confirmed {
 		t.Fatalf("binding = %+v present=%v err=%v, want confirmed change 3 @ r1 unchanged", b, present, berr)
 	}

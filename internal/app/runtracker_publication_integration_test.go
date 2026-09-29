@@ -35,9 +35,9 @@ func TestIntegrationRunCompletionAdmissionJournalsPublicationDescriptorAndLegacy
 	}
 	done(mutationStatusUncertain, false)
 
-	ep, _, lerr := LoadEpochRecord(fx.repo, fx.key)
+	ep, _, lerr := LoadRunRecord(fx.repo, fx.key)
 	if lerr != nil {
-		t.Fatalf("LoadEpochRecord: %v", lerr)
+		t.Fatalf("LoadRunRecord: %v", lerr)
 	}
 	if len(ep.AdmittedMutations) != 1 {
 		t.Fatalf("journal length = %d, want 1", len(ep.AdmittedMutations))
@@ -51,16 +51,16 @@ func TestIntegrationRunCompletionAdmissionJournalsPublicationDescriptorAndLegacy
 	}
 
 	// Legacy shape: an entry with no publication field decodes and stays usable.
-	if cerr := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+	if cerr := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
 		r.AdmittedMutations = append(r.AdmittedMutations,
 			AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusCompleted})
 		return nil
 	}); cerr != nil {
-		t.Fatalf("epochCAS append legacy: %v", cerr)
+		t.Fatalf("runRecordCAS append legacy: %v", cerr)
 	}
-	ep2, _, lerr2 := LoadEpochRecord(fx.repo, fx.key)
+	ep2, _, lerr2 := LoadRunRecord(fx.repo, fx.key)
 	if lerr2 != nil {
-		t.Fatalf("LoadEpochRecord after legacy append: %v", lerr2)
+		t.Fatalf("LoadRunRecord after legacy append: %v", lerr2)
 	}
 	if ep2.AdmittedMutations[1].Publication != nil {
 		t.Fatal("legacy entry must decode with a nil descriptor")
@@ -100,9 +100,9 @@ func TestIntegrationRunCompletionJournaledRetryOutcomeGatesSettlement(t *testing
 			t.Fatalf("%s: admit retry: %v", tc.r, err)
 		}
 		rd(mutationJournalOutcome(tc.r))
-		ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+		ep, _, err := LoadRunRecord(fx.repo, fx.key)
 		if err != nil {
-			t.Fatalf("%s: LoadEpochRecord: %v", tc.r, err)
+			t.Fatalf("%s: LoadRunRecord: %v", tc.r, err)
 		}
 		orig, retry := len(ep.AdmittedMutations)-2, len(ep.AdmittedMutations)-1
 		if ep.AdmittedMutations[orig].Status != mutationStatusUncertain || ep.AdmittedMutations[orig].Verified {
@@ -124,9 +124,9 @@ func TestIntegrationRunCompletionJournaledRetryOutcomeGatesSettlement(t *testing
 		t.Fatalf("admit: %v", err)
 	}
 	ud(mutationStatusUncertain, true)
-	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if last := ep.AdmittedMutations[len(ep.AdmittedMutations)-1]; last.Verified {
 		t.Fatalf("uncertain entry persisted verified: %+v", last)
@@ -144,7 +144,7 @@ func TestIntegrationRunCompletionJournaledRetryOutcomeGatesSettlement(t *testing
 		t.Fatalf("legacy entry = %+v, want a valid descriptor and verified=false", legacy)
 	}
 	orig := AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: legacy.Publication}
-	if publicationRetryMatch(EpochRecord{AdmittedMutations: []AdmittedMutation{orig, legacy}}, 0) {
+	if publicationRetryMatch(RunRecord{AdmittedMutations: []AdmittedMutation{orig, legacy}}, 0) {
 		t.Fatal("a legacy completed entry with no verified flag must never settle")
 	}
 }
@@ -156,10 +156,10 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T
 	fx := newCancelFixture(t, false)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
-	participant := EpochParticipant{Kind: "task", NativeHandle: "handle-1", RegisteredAt: "2026-09-23T00:00:00Z"}
-	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
-		r.State = EpochCancelling // settlement is observation of fact; it works on a fenced epoch
-		r.Participants = []EpochParticipant{participant}
+	participant := RunParticipant{Kind: "task", NativeHandle: "handle-1", RegisteredAt: "2026-09-23T00:00:00Z"}
+	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
+		r.State = RunCancelling // settlement is observation of fact; it works on a fenced epoch
+		r.Participants = []RunParticipant{participant}
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
 			{OpKey: OperationPRPublish, Status: mutationStatusUncertain}, // legacy: stays pending
@@ -169,9 +169,9 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T
 	}); err != nil {
 		t.Fatalf("seed journal: %v", err)
 	}
-	before, _, err := LoadEpochRecord(fx.repo, fx.key)
+	before, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord (before): %v", err)
+		t.Fatalf("LoadRunRecord (before): %v", err)
 	}
 
 	settled, findings := settleUncertainPublications(fx.repo, fx.key)
@@ -182,9 +182,9 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T
 		t.Fatalf("settled = %v, want [mutation-settled:workspace.publish]", settled)
 	}
 
-	ep, gen, err := LoadEpochRecord(fx.repo, fx.key)
+	ep, gen, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if len(ep.AdmittedMutations) != 3 {
 		t.Fatalf("journal length = %d, want 3 (settlement never appends or drops entries)", len(ep.AdmittedMutations))
@@ -203,10 +203,10 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T
 		ep.AdmittedMutations[2].Publication == nil || *ep.AdmittedMutations[2].Publication != desc {
 		t.Fatal("the settling retry entry must be untouched")
 	}
-	if ep.State != EpochCancelling {
+	if ep.State != RunCancelling {
 		t.Fatalf("epoch state = %q; settlement must never transition the epoch", ep.State)
 	}
-	if ep.EpochID != before.EpochID || ep.ChangeID != before.ChangeID || ep.Worktree != before.Worktree {
+	if ep.RunID != before.RunID || ep.ChangeID != before.ChangeID || ep.Worktree != before.Worktree {
 		t.Fatal("settlement must never touch epoch identity fields")
 	}
 	if len(ep.Participants) != 1 || ep.Participants[0] != participant {
@@ -219,9 +219,9 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsDurable(t *testing.T
 	if len(settled2) != 0 || len(findings2) != 0 {
 		t.Fatalf("replay settled=%v findings=%v, want none", settled2, findings2)
 	}
-	_, gen2, err := LoadEpochRecord(fx.repo, fx.key)
+	_, gen2, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord (replay): %v", err)
+		t.Fatalf("LoadRunRecord (replay): %v", err)
 	}
 	if gen2 != gen {
 		t.Fatalf("replay rotated generation %q -> %q; a no-match pass must write nothing", gen, gen2)
@@ -234,7 +234,7 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsFailureIsBoundedFind
 	fx := newCancelFixture(t, false)
 	// Corrupt the record so the CAS read fails closed.
 	dir := filepath.Join(fx.common, "docket", runTrackerDirName, fx.key)
-	if err := os.WriteFile(filepath.Join(dir, epochRecordFileName), []byte("{not json"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, runRecordFileName), []byte("{not json"), 0o600); err != nil {
 		t.Fatalf("corrupt record: %v", err)
 	}
 	settled, findings := settleUncertainPublications(fx.repo, fx.key)
@@ -257,7 +257,7 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsWriteFailureReportsN
 	fx := newCancelFixture(t, false)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
-	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
@@ -285,9 +285,9 @@ func TestIntegrationRunCompletionSettleUncertainPublicationsWriteFailureReportsN
 	if err := os.Chmod(dir, 0o700); err != nil {
 		t.Fatalf("restore key dir: %v", err)
 	}
-	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.AdmittedMutations[0].Status != mutationStatusUncertain {
 		t.Fatal("a failed settlement write must leave the original entry uncertain")
@@ -306,7 +306,7 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	other := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/other", HeadCommit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
-	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
@@ -316,7 +316,7 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 		t.Fatalf("seed: %v", err)
 	}
 	// An unrelated admission lands right before settlement runs.
-	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
 		r.AdmittedMutations = append(r.AdmittedMutations,
 			AdmittedMutation{OpKey: OperationWorkspacePublish, Status: mutationStatusAdmitted, Publication: &other})
 		return nil
@@ -327,9 +327,9 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 	if len(findings) != 0 || len(settled) != 1 {
 		t.Fatalf("settled=%v findings=%v, want one settlement and no finding", settled, findings)
 	}
-	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.AdmittedMutations[2].Status != mutationStatusAdmitted {
 		t.Fatal("the racing unrelated admission must be untouched")
@@ -359,9 +359,9 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 	if s, f := settleUncertainPublications(fx.repo, fx.key); len(s) != 1 || len(f) != 0 {
 		t.Fatalf("settled=%v findings=%v after the retry completed, want one settlement", s, f)
 	}
-	ep, _, err = LoadEpochRecord(fx.repo, fx.key)
+	ep, _, err = LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord (ordering): %v", err)
+		t.Fatalf("LoadRunRecord (ordering): %v", err)
 	}
 	for i := 3; i <= 4; i++ {
 		if ep.AdmittedMutations[i].Status != mutationStatusCompleted {
@@ -382,7 +382,7 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 			HeadRef: "refs/heads/fix/round", HeadCommit: fmt.Sprintf("%040x", round+1)}
 		ru := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 			HeadRef: "refs/heads/fix/unrelated", HeadCommit: fmt.Sprintf("%040x", round+1)}
-		before, _, lerr := LoadEpochRecord(fx.repo, fx.key)
+		before, _, lerr := LoadRunRecord(fx.repo, fx.key)
 		if lerr != nil {
 			t.Fatalf("round %d: load: %v", round, lerr)
 		}
@@ -450,7 +450,7 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 			t.Fatalf("round %d: racing admissions failed: %v", round, admitErrs)
 		}
 
-		got, _, lerr := LoadEpochRecord(fx.repo, fx.key)
+		got, _, lerr := LoadRunRecord(fx.repo, fx.key)
 		if lerr != nil {
 			t.Fatalf("round %d: load after race: %v", round, lerr)
 		}
@@ -487,7 +487,7 @@ func TestRaceIntegrationAppConcurrencySettlementNeverDowngradesUnderRacingCallba
 		if _, f := settleUncertainPublications(fx.repo, fx.key); len(f) != 0 {
 			t.Fatalf("round %d: convergence findings = %v", round, f)
 		}
-		conv, _, lerr := LoadEpochRecord(fx.repo, fx.key)
+		conv, _, lerr := LoadRunRecord(fx.repo, fx.key)
 		if lerr != nil {
 			t.Fatalf("round %d: load after convergence: %v", round, lerr)
 		}
@@ -510,7 +510,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	fx := newCancelFixture(t, true)
 	desc := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
-	if err := epochCAS(fx.repo, fx.key, func(r *EpochRecord) error {
+	if err := runRecordCAS(fx.repo, fx.key, func(r *RunRecord) error {
 		r.AdmittedMutations = []AdmittedMutation{
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &desc},
 			{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &desc},
@@ -525,9 +525,9 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
 	originalStatus := func(when string) string {
 		t.Helper()
-		ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+		ep, _, err := LoadRunRecord(fx.repo, fx.key)
 		if err != nil {
-			t.Fatalf("LoadEpochRecord (%s): %v", when, err)
+			t.Fatalf("LoadRunRecord (%s): %v", when, err)
 		}
 		return ep.AdmittedMutations[0].Status
 	}
@@ -539,14 +539,14 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
 	seams := cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}
-	pre := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	pre := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
 	if pre.Disposition == CancelDispositionCancelled {
 		t.Fatalf("disposition = cancelled with an unwritable epoch; findings=%v", pre.Findings)
 	}
 	if s := originalStatus("unwritable fence"); s != mutationStatusUncertain {
 		t.Fatalf("original = %q after a failed fence, want uncertain", s)
 	}
-	if st := loadEpochState(t, fx.repo, fx.key); st != EpochActive {
+	if st := loadRunState(t, fx.repo, fx.key); st != RunActive {
 		t.Fatalf("epoch state = %q after a failed fence, want active (nothing landed)", st)
 	}
 	if err := os.Chmod(dir, 0o700); err != nil {
@@ -562,7 +562,7 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 			t.Errorf("chmod mid-teardown: %v", err)
 		}
 	}
-	res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q with an unpersistable settlement (findings %v), want cancellation-pending", res.Disposition, res.Findings)
 	}
@@ -581,13 +581,13 @@ func TestIntegrationRunCompletionSettlementInterruptionConverges(t *testing.T) {
 	if s := originalStatus("interrupted settlement"); s != mutationStatusUncertain {
 		t.Fatalf("original = %q after a failed settlement write, want uncertain", s)
 	}
-	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelling {
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelling {
 		t.Fatalf("epoch state = %q, want cancelling (the fence is durably held)", st)
 	}
 
 	// (c) Writable again: the SAME repeat cancel converges.
 	stopper.onStop = nil
-	res2 := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	res2 := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
 	if res2.Disposition != CancelDispositionCancelled {
 		t.Fatalf("repeat disposition = %q (findings %v), want cancelled", res2.Disposition, res2.Findings)
 	}

@@ -52,8 +52,8 @@ func builtinEffective() Effective {
 			MinFixSeverity: builtinValue("minor"),
 			MaxFixTasks:    builtinValue(10),
 		},
-		GateObservation: builtinValue(30),
-		BoardSurfaces:   builtinValue([]string{"inline"}),
+		RunObservation: builtinValue(30),
+		BoardSurfaces:  builtinValue([]string{"inline"}),
 		Board: Board{
 			SectionOrder: builtinValue(append([]string(nil), BoardSectionTokens...)),
 			Sorting:      builtinBoardSorting(),

@@ -12,7 +12,7 @@ import (
 
 // These tests pin change 0444 acceptance 3 at the real entry points: settlement of a
 // retry-proven uncertain publication happens through the attributed keyed verdict
-// (RunGateVerdict → gateCompleteRun → completeSuccessfulRun) and cancellation
+// (RunVerdict → runTrackerCompleteRun → completeSuccessfulRun) and cancellation
 // teardown ONLY; the unattributed observe verdict and RunVerify over the very same
 // settleable pair write nothing. TestSettleUncertainPublicationsAuthorizedCallers
 // pins the write to its two authorized callers by deriving every reference from
@@ -22,7 +22,7 @@ import (
 
 // TestSettleUncertainPublicationsAuthorizedCallers is change 0444's shape guard: the
 // settlement WRITE may be reached only from cancellation teardown
-// (reconcileEpochTeardown) and the attributed successful closeout
+// (reconcileRunTeardown) and the attributed successful closeout
 // (completeSuccessfulRun). It derives every reference to the identifier
 // settleUncertainPublications from the package's production source via the AST —
 // any use (a call, or the function taken as a value) counts, keyed on the
@@ -34,7 +34,7 @@ import (
 // (b) delete the call in completeSuccessfulRun -> the referrer set shrinks.
 func TestSettleUncertainPublicationsAuthorizedCallers(t *testing.T) {
 	const target = "settleUncertainPublications"
-	want := []string{"completeSuccessfulRun", "reconcileEpochTeardown"}
+	want := []string{"completeSuccessfulRun", "reconcileRunTeardown"}
 
 	entries, err := os.ReadDir(".")
 	if err != nil {

@@ -16,23 +16,23 @@ import (
 	"time"
 )
 
-// TestIntegrationRecordOpsClaimGateContextInvalidRefusesBeforeTransaction: a supplied context that
+// TestIntegrationRecordOpsClaimRunContextInvalidRefusesBeforeTransaction: a supplied context that
 // matches no armed gate record is a typed refusal that writes nothing and never
 // degrades to an ungated claim (spec: "Never treat a supplied but invalid
 // context as an ungated claim").
-func TestIntegrationRecordOpsClaimGateContextInvalidRefusesBeforeTransaction(t *testing.T) {
-	repoDir := newGateRepo(t) // no gate record armed
+func TestIntegrationRecordOpsClaimRunContextInvalidRefusesBeforeTransaction(t *testing.T) {
+	repoDir := newRunTrackerRepo(t) // no gate record armed
 	engine := &claimGateEngine{}
 	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
 
 	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
+		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, RunContext: "tok"})
 
 	if res.Result != ResultInvalidState {
 		t.Fatalf("result = %q, want invalid-state (findings %v)", res.Result, res.Findings)
 	}
-	if res.Disposition != ClaimDispositionGateContextInvalid {
-		t.Errorf("disposition = %q, want %q", res.Disposition, ClaimDispositionGateContextInvalid)
+	if res.Disposition != ClaimDispositionRunContextInvalid {
+		t.Errorf("disposition = %q, want %q", res.Disposition, ClaimDispositionRunContextInvalid)
 	}
 	if len(engine.calls) != 0 {
 		t.Errorf("engine called %d times on an invalid gate context, want 0", len(engine.calls))
@@ -44,13 +44,13 @@ func TestIntegrationRecordOpsClaimGateContextInvalidRefusesBeforeTransaction(t *
 	}
 }
 
-// TestIntegrationRecordOpsClaimGateContextReservesAndConfirms: a valid context reserves before the
+// TestIntegrationRecordOpsClaimRunContextReservesAndConfirms: a valid context reserves before the
 // transaction and confirms after the applied outcome; the digest payload and
 // receipt carry the context hash, never the raw token.
-func TestIntegrationRecordOpsClaimGateContextReservesAndConfirms(t *testing.T) {
-	repoDir := newGateRepo(t)
-	hash := gateHashToken("tok")
-	key := mintGateWithHash(t, repoDir, hash, false)
+func TestIntegrationRecordOpsClaimRunContextReservesAndConfirms(t *testing.T) {
+	repoDir := newRunTrackerRepo(t)
+	hash := runTrackerHashToken("tok")
+	key := mintRunTrackerWithHash(t, repoDir, hash, false)
 
 	var midOK, midConfirmed bool
 	var midChangeID int
@@ -58,9 +58,9 @@ func TestIntegrationRecordOpsClaimGateContextReservesAndConfirms(t *testing.T) {
 		result: appliedGateResult(t, 3),
 		onExecute: func(_ transaction.Request) {
 			// The reservation must exist, unconfirmed, at Execute time.
-			b, ok, err := LoadGateClaimBinding(repoDir, key)
+			b, ok, err := LoadRunTrackerClaimBinding(repoDir, key)
 			if err != nil {
-				t.Errorf("mid-transaction LoadGateClaimBinding: %v", err)
+				t.Errorf("mid-transaction LoadRunTrackerClaimBinding: %v", err)
 				return
 			}
 			midOK, midConfirmed, midChangeID = ok, b.Confirmed, b.ChangeID
@@ -69,7 +69,7 @@ func TestIntegrationRecordOpsClaimGateContextReservesAndConfirms(t *testing.T) {
 	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
 
 	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
+		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, RunContext: "tok"})
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied (findings %v)", res.Result, res.Findings)
 	}
@@ -79,7 +79,7 @@ func TestIntegrationRecordOpsClaimGateContextReservesAndConfirms(t *testing.T) {
 			midOK, midConfirmed, midChangeID)
 	}
 
-	b, ok, err := LoadGateClaimBinding(repoDir, key)
+	b, ok, err := LoadRunTrackerClaimBinding(repoDir, key)
 	if err != nil || !ok || !b.Confirmed || b.ChangeID != 3 || b.Revision != gateClaimCommit {
 		t.Fatalf("post-claim binding = %+v ok=%v err=%v; want confirmed change 3 @ %s", b, ok, err, gateClaimCommit)
 	}
@@ -88,11 +88,11 @@ func TestIntegrationRecordOpsClaimGateContextReservesAndConfirms(t *testing.T) {
 		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
 	}
 	gotDigest := engine.calls[0].Idempotency.Digest
-	withHash, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, GateContextHash: hash})
+	withHash, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, RunContextHash: hash})
 	if err != nil {
 		t.Fatalf("canonicalDigest (hash): %v", err)
 	}
-	ungated, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, GateContextHash: ""})
+	ungated, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, RunContextHash: ""})
 	if err != nil {
 		t.Fatalf("canonicalDigest (ungated): %v", err)
 	}
@@ -107,8 +107,8 @@ func TestIntegrationRecordOpsClaimGateContextReservesAndConfirms(t *testing.T) {
 	if !okOp {
 		t.Fatalf("operation is %T, want changeClaimOp", engine.calls[0].Operation)
 	}
-	if op.gateContextHash != hash {
-		t.Errorf("op.gateContextHash = %q, want %q", op.gateContextHash, hash)
+	if op.runContextHash != hash {
+		t.Errorf("op.runContextHash = %q, want %q", op.runContextHash, hash)
 	}
 	// The receipt bytes the operation hands the engine carry the hash, never the token.
 	plan, opRes := claimPlanFor(t, map[string]string{groomPath(3, "widget"): claimableChange(3, "widget")}, op)
@@ -123,12 +123,12 @@ func TestIntegrationRecordOpsClaimGateContextReservesAndConfirms(t *testing.T) {
 	}
 }
 
-// TestIntegrationRecordOpsClaimGateContextConflictRefused: a second claim for a DIFFERENT change id
+// TestIntegrationRecordOpsClaimRunContextConflictRefused: a second claim for a DIFFERENT change id
 // under the same context is refused run-context-conflict before its
 // transaction (criterion 3: one context cannot claim two changes).
-func TestIntegrationRecordOpsClaimGateContextConflictRefused(t *testing.T) {
-	repoDir := newGateRepo(t)
-	mintGateWithHash(t, repoDir, gateHashToken("tok"), false)
+func TestIntegrationRecordOpsClaimRunContextConflictRefused(t *testing.T) {
+	repoDir := newRunTrackerRepo(t)
+	mintRunTrackerWithHash(t, repoDir, runTrackerHashToken("tok"), false)
 	corpus := []StatusBlob{
 		changeBlob(3, "widget", "feat", "high", ""),
 		changeBlob(4, "gadget", "feat", "high", ""),
@@ -136,42 +136,42 @@ func TestIntegrationRecordOpsClaimGateContextConflictRefused(t *testing.T) {
 
 	engine1 := &claimGateEngine{result: appliedGateResult(t, 3)}
 	first := ChangeClaim(context.Background(), gateClaimDeps(t, engine1, corpus), repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
+		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, RunContext: "tok"})
 	if first.Result != ResultApplied {
 		t.Fatalf("first claim result = %q, want applied (%v)", first.Result, first.Findings)
 	}
 
 	engine2 := &claimGateEngine{result: appliedGateResult(t, 4)}
 	second := ChangeClaim(context.Background(), gateClaimDeps(t, engine2, corpus), repoDir,
-		ChangeClaimRequest{ID: 4, Version: gateClaimVersion, GateContext: "tok"})
+		ChangeClaimRequest{ID: 4, Version: gateClaimVersion, RunContext: "tok"})
 
 	if second.Result != ResultInvalidState {
 		t.Errorf("second result = %q, want invalid-state", second.Result)
 	}
-	if second.Disposition != ClaimDispositionGateContextConflict {
-		t.Errorf("second disposition = %q, want %q", second.Disposition, ClaimDispositionGateContextConflict)
+	if second.Disposition != ClaimDispositionRunContextConflict {
+		t.Errorf("second disposition = %q, want %q", second.Disposition, ClaimDispositionRunContextConflict)
 	}
 	if len(engine2.calls) != 0 {
 		t.Errorf("second claim reached the engine %d times, want 0", len(engine2.calls))
 	}
 }
 
-// TestIntegrationRecordOpsClaimUngatedUnchanged: no GateContext → no gate lookup, no reservation,
+// TestIntegrationRecordOpsClaimUngatedUnchanged: no RunContext → no gate lookup, no reservation,
 // digest equals the empty-hash payload, receipt carries gate_context_hash "".
 func TestIntegrationRecordOpsClaimUngatedUnchanged(t *testing.T) {
-	repoDir := newGateRepo(t)
+	repoDir := newRunTrackerRepo(t)
 	engine := &claimGateEngine{result: appliedGateResult(t, 3)}
 	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
 
 	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion}) // no GateContext
+		ChangeClaimRequest{ID: 3, Version: gateClaimVersion}) // no RunContext
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied (%v)", res.Result, res.Findings)
 	}
 	if len(engine.calls) != 1 {
 		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
 	}
-	want, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, GateContextHash: ""})
+	want, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, RunContextHash: ""})
 	if err != nil {
 		t.Fatalf("canonicalDigest: %v", err)
 	}
@@ -179,8 +179,8 @@ func TestIntegrationRecordOpsClaimUngatedUnchanged(t *testing.T) {
 		t.Errorf("ungated digest = %q, want %q", engine.calls[0].Idempotency.Digest, want)
 	}
 	op := engine.calls[0].Operation.(changeClaimOp)
-	if op.gateContextHash != "" {
-		t.Errorf("ungated op.gateContextHash = %q, want empty", op.gateContextHash)
+	if op.runContextHash != "" {
+		t.Errorf("ungated op.runContextHash = %q, want empty", op.runContextHash)
 	}
 	plan, opRes := claimPlanFor(t, map[string]string{groomPath(3, "widget"): claimableChange(3, "widget")}, op)
 	if opRes.Refused {
@@ -194,15 +194,15 @@ func TestIntegrationRecordOpsClaimUngatedUnchanged(t *testing.T) {
 // TestIntegrationRecordOpsClaimTerminalGateRefused: a context whose only record is Terminal is
 // run-context-invalid (the dispatch it named is already decided).
 func TestIntegrationRecordOpsClaimTerminalGateRefused(t *testing.T) {
-	repoDir := newGateRepo(t)
-	mintGateWithHash(t, repoDir, gateHashToken("tok"), true) // terminal
+	repoDir := newRunTrackerRepo(t)
+	mintRunTrackerWithHash(t, repoDir, runTrackerHashToken("tok"), true) // terminal
 	engine := &claimGateEngine{}
 	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
 
 	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
-	if res.Disposition != ClaimDispositionGateContextInvalid {
-		t.Errorf("disposition = %q, want %q", res.Disposition, ClaimDispositionGateContextInvalid)
+		ChangeClaimRequest{ID: 3, Version: gateClaimVersion, RunContext: "tok"})
+	if res.Disposition != ClaimDispositionRunContextInvalid {
+		t.Errorf("disposition = %q, want %q", res.Disposition, ClaimDispositionRunContextInvalid)
 	}
 	if len(engine.calls) != 0 {
 		t.Errorf("engine called on a terminal gate context, want 0")
@@ -378,20 +378,20 @@ func TestIntegrationRecordOpsChangeRefreshClaimUnrelatedInvalidRecordRefusals(t 
 // TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve: a `run start --resume` arm pre-binds
 // the resumed change as AttributedID and never gets a claim binding (change 0463).
 // A claim under that context, for the resumed change itself or for any other change,
-// is refused run-context-conflict BEFORE ReserveGateClaim writes a binding file: a
+// is refused run-context-conflict BEFORE ReserveRunTrackerClaim writes a binding file: a
 // stray unconfirmed reservation would make run.cancel refuse claim-unconfirmed, and a
 // confirmed claim of a different change would make it refuse claim-mismatch, leaving
 // the resume epoch uncancellable either way.
 func TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve(t *testing.T) {
 	for _, id := range []int{3, 4} {
 		t.Run(fmt.Sprintf("claim-%d", id), func(t *testing.T) {
-			repoDir := newGateRepo(t)
-			key, err := MintGateRecord(repoDir, GateRecord{
+			repoDir := newRunTrackerRepo(t)
+			key, err := MintRunTrackerRecord(repoDir, RunTrackerRecord{
 				Target: "docket-implement-next", Retry: RetryUnused, AttemptLimit: 2,
-				ChildContextHash: gateHashToken("tok"), AttributedID: 3,
+				ChildContextHash: runTrackerHashToken("tok"), AttributedID: 3,
 			})
 			if err != nil {
-				t.Fatalf("MintGateRecord: %v", err)
+				t.Fatalf("MintRunTrackerRecord: %v", err)
 			}
 			corpus := []StatusBlob{
 				changeBlob(3, "widget", "feat", "high", ""),
@@ -400,35 +400,35 @@ func TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve(t *testing.T
 			engine := &claimGateEngine{result: appliedGateResult(t, id)}
 
 			res := ChangeClaim(context.Background(), gateClaimDeps(t, engine, corpus), repoDir,
-				ChangeClaimRequest{ID: id, Version: gateClaimVersion, GateContext: "tok"})
+				ChangeClaimRequest{ID: id, Version: gateClaimVersion, RunContext: "tok"})
 
-			if res.Result != ResultInvalidState || res.Disposition != ClaimDispositionGateContextConflict {
+			if res.Result != ResultInvalidState || res.Disposition != ClaimDispositionRunContextConflict {
 				t.Fatalf("result = %q disposition = %q, want invalid-state %q (findings %v)",
-					res.Result, res.Disposition, ClaimDispositionGateContextConflict, res.Findings)
+					res.Result, res.Disposition, ClaimDispositionRunContextConflict, res.Findings)
 			}
 			if len(engine.calls) != 0 {
 				t.Errorf("engine called %d times under a resume context, want 0", len(engine.calls))
 			}
-			if _, ok, berr := LoadGateClaimBinding(repoDir, key); berr != nil || ok {
+			if _, ok, berr := LoadRunTrackerClaimBinding(repoDir, key); berr != nil || ok {
 				t.Errorf("claim binding present=%v err=%v after refusal; want none written", ok, berr)
 			}
 		})
 	}
 }
 
-// TestIntegrationRecordOpsClaimGateContextRetryAfterConfirmAdmitted: the resume-context refusal keys on
+// TestIntegrationRecordOpsClaimRunContextRetryAfterConfirmAdmitted: the resume-context refusal keys on
 // the resume-verified shape only. A fresh arm's record gains AttributedID at confirm
 // time together with BoundRequestID, so an idempotent retry of the same confirmed
 // claim must still reach the engine rather than being refused as a resume context.
-func TestIntegrationRecordOpsClaimGateContextRetryAfterConfirmAdmitted(t *testing.T) {
-	repoDir := newGateRepo(t)
-	mintGateWithHash(t, repoDir, gateHashToken("tok"), false)
+func TestIntegrationRecordOpsClaimRunContextRetryAfterConfirmAdmitted(t *testing.T) {
+	repoDir := newRunTrackerRepo(t)
+	mintRunTrackerWithHash(t, repoDir, runTrackerHashToken("tok"), false)
 	corpus := []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}
 
 	for i := 0; i < 2; i++ {
 		engine := &claimGateEngine{result: appliedGateResult(t, 3)}
 		res := ChangeClaim(context.Background(), gateClaimDeps(t, engine, corpus), repoDir,
-			ChangeClaimRequest{ID: 3, Version: gateClaimVersion, GateContext: "tok"})
+			ChangeClaimRequest{ID: 3, Version: gateClaimVersion, RunContext: "tok"})
 		if res.Result != ResultApplied {
 			t.Fatalf("attempt %d result = %q disposition = %q, want applied (%v)", i+1, res.Result, res.Disposition, res.Findings)
 		}

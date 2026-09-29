@@ -23,7 +23,7 @@ func TestCommittedCodexDispatchMatchesGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gate, err := harness.RunGate(catalog)
+	gate, err := harness.RunTracker(catalog)
 	if err != nil {
 		t.Fatal(err)
 	}

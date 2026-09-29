@@ -78,7 +78,7 @@ func SchemaVocabularies(effects []string) map[string]Vocabulary {
 	v["claim_dispositions"] = Vocabulary{Members: []string{
 		ClaimDispositionApplied, ClaimDispositionAlreadyClaimed,
 		ClaimDispositionContended, ClaimDispositionFailed,
-		ClaimDispositionGateContextInvalid, ClaimDispositionGateContextConflict,
+		ClaimDispositionRunContextInvalid, ClaimDispositionRunContextConflict,
 	}}
 	v["halt_dispositions"] = Vocabulary{Members: []string{
 		HaltDispHalted, HaltDispResumed, HaltDispContended,

@@ -55,7 +55,7 @@ func TestRunTrackerResetIgnoresRetiredAdmissionSlot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	token, err := s.ReserveWorktreeExecutionForEpoch("repo-1", wt, "new-run", nil)
+	token, err := s.ReserveWorktreeExecutionForRun("repo-1", wt, "new-run", nil)
 	if err != nil || token == "" {
 		t.Fatalf("a reservation over a retired v1 slot must be admitted: token=%q err=%v", token, err)
 	}
@@ -63,8 +63,8 @@ func TestRunTrackerResetIgnoresRetiredAdmissionSlot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if slot.RunEpochID != "new-run" || slot.State != admissionReserved {
-		t.Fatalf("slot = (%q, %q), want (new-run, reserved)", slot.RunEpochID, slot.State)
+	if slot.RunID != "new-run" || slot.State != admissionReserved {
+		t.Fatalf("slot = (%q, %q), want (new-run, reserved)", slot.RunID, slot.State)
 	}
 	after, err := os.ReadFile(retiredPath)
 	if err != nil || !bytes.Equal(after, retired) {
@@ -95,7 +95,7 @@ func TestAdmissionRecordFieldsCarryExplicitJSONTags(t *testing.T) {
 }
 
 func TestAdmissionRecordPersistsRunIDKey(t *testing.T) {
-	b, err := json.Marshal(storedAdmission{Generation: "g", Record: admissionRecord{RunEpochID: "run-1", State: admissionReserved}})
+	b, err := json.Marshal(storedAdmission{Generation: "g", Record: admissionRecord{RunID: "run-1", State: admissionReserved}})
 	if err != nil {
 		t.Fatal(err)
 	}

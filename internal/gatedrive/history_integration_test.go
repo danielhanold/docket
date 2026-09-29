@@ -72,7 +72,7 @@ func newCensusDriver(t *testing.T, clk *fakeClock, proc *censusCountingProc) *Dr
 // the seam on its recorded run dir — which classifyN==0 forbids.
 func TestIntegrationGatedriveOutcomeTriggersNoLegacyCensusOrSecondStart(t *testing.T) {
 	t.Run("failed", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &censusCountingProc{fakeProc: &fakeProc{
 			observe: func(runDir string) (*process.Observation, error) {
 				return obs(process.StateFailed, runDir), nil
@@ -95,7 +95,7 @@ func TestIntegrationGatedriveOutcomeTriggersNoLegacyCensusOrSecondStart(t *testi
 	})
 
 	t.Run("halted", func(t *testing.T) {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		proc := &censusCountingProc{fakeProc: &fakeProc{}} // stays running → deadline HALT
 		d := newCensusDriver(t, clk, proc)
 		req := sampleStart()

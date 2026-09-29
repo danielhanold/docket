@@ -2,9 +2,9 @@
 // (runtracker_run_record.go, run.cancel) stops what the durable participant/slot records
 // already NAME, but a launch admitted just before the fence can still be reserved,
 // in-flight, or attached as a relaunch replacement the worktree slot has not caught
-// up to. ReconcileEpochLaunches is the read cancellation consumes to SEE those
+// up to. ReconcileRunLaunches is the read cancellation consumes to SEE those
 // obligations: it walks the drive registry, attributes each drive to its run epoch
-// through the SAME linkage predicate the launch paths use (resolveDriveEpoch), and
+// through the SAME linkage predicate the launch paths use (resolveDriveRun), and
 // for each nonterminal drive of the fenced epoch proves — through the per-drive
 // claimant flock and the process seam — whether its launch is settled or still
 // pending. It launches nothing, mutates no drive verdict, and preserves unresolved
@@ -16,9 +16,9 @@
 // TARGET epoch's obligations, never all history: a drive record it cannot read, or
 // whose epoch linkage is lost, blocks the epoch only when a CURRENT reference names
 // it — the target worktree's slot (its reservation token, or the scope it names) or
-// a scope carrying this RunEpochID (its current/pending drive ids). Any other
+// a scope carrying this RunID (its current/pending drive ids). Any other
 // unreadable or unlinked record is an informational history-unattributed finding
-// that does not clear Accounted. resolveDriveEpoch itself is untouched: losing a
+// that does not clear Accounted. resolveDriveRun itself is untouched: losing a
 // drive's ownership proof still refuses that drive's own launch/relaunch; only the
 // census's attribution of the failure changes.
 package gatedrive
@@ -30,21 +30,21 @@ import (
 	"sort"
 )
 
-// EpochLaunchReport is the bounded accounting of one epoch's launch obligations on
+// RunLaunchReport is the bounded accounting of one epoch's launch obligations on
 // one canonical worktree. Accounted is true only when every epoch-linked launch the
 // durable records name is provably settled (never-launched, or an identified run
 // proven stopped); any pending, busy, unresolved, or unreadable obligation makes it
 // false. Findings carry drive ids + disposition tokens only — never a reservation
 // token, argv, or env value — so a caller can surface them safely.
-type EpochLaunchReport struct {
+type RunLaunchReport struct {
 	Accounted bool
 	Findings  []string
 }
 
-// ReconcileEpochLaunches reconciles, for an ALREADY-FENCED epoch, every epoch-linked
+// ReconcileRunLaunches reconciles, for an ALREADY-FENCED epoch, every epoch-linked
 // launch obligation the durable records name: scoped drives whose scope carries
-// epochID, and scopeless drives whose AdmissionToken matches a worktree slot
-// recording epochID (both resolved through resolveDriveEpoch — the exact-reservation
+// runID, and scopeless drives whose AdmissionToken matches a worktree slot
+// recording runID (both resolved through resolveDriveRun — the exact-reservation
 // linkage the launch paths use, never restated here). For each nonterminal drive of
 // the epoch it takes the claimant flock NONBLOCKING — a busy claim is pending work,
 // never waited on — then re-reads the record and resolves the EXACT reservation
@@ -60,33 +60,33 @@ type EpochLaunchReport struct {
 // launched. It takes NO epoch lock (the epoch is already fenced; the lock order
 // forbids holding the epoch while probing a claim).
 //
-// An empty epochID has no epoch-linked launches to reconcile (a keyless/standalone
+// An empty runID has no epoch-linked launches to reconcile (a keyless/standalone
 // run), so it accounts vacuously. An empty worktreeRoot is NOT proof of quiescence
 // (a superseded epoch has an empty Worktree yet its scope-linked drives are still
-// enumerable by RunEpochID): the registry walk still runs and only the slot-side
+// enumerable by RunID): the registry walk still runs and only the slot-side
 // references are skipped. A superseded epoch's caller supplies the replacement's
-// worktree (the app's resolveTerminalEpochSlot), so the slot side is checked there.
-func (d *Driver) ReconcileEpochLaunches(worktreeRoot, epochID string) (EpochLaunchReport, error) {
-	return d.accountEpochLaunches(worktreeRoot, epochID, false)
+// worktree (the app's resolveTerminalRunSlot), so the slot side is checked there.
+func (d *Driver) ReconcileRunLaunches(worktreeRoot, runID string) (RunLaunchReport, error) {
+	return d.accountRunLaunches(worktreeRoot, runID, false)
 }
 
-// ObserveEpochLaunches is the SUCCESS-closeout view of one epoch's launch
+// ObserveRunLaunches is the SUCCESS-closeout view of one epoch's launch
 // obligations (change 0441): the SAME walk, epoch linkage, and claimant probe as
-// ReconcileEpochLaunches, but observation-only — it never stops a process, never
+// ReconcileRunLaunches, but observation-only — it never stops a process, never
 // settles a never-launched reservation terminal, and never mutates a record. Both
-// exported methods share one inventory (accountEpochLaunches) rather than copying a
+// exported methods share one inventory (accountRunLaunches) rather than copying a
 // second walk. A pending never-launched ticket stays pending (launch-pending) until
 // the completing launch-gate refusal settles it terminal; a replay then accounts.
-func (d *Driver) ObserveEpochLaunches(worktreeRoot, epochID string) (EpochLaunchReport, error) {
-	return d.accountEpochLaunches(worktreeRoot, epochID, true)
+func (d *Driver) ObserveRunLaunches(worktreeRoot, runID string) (RunLaunchReport, error) {
+	return d.accountRunLaunches(worktreeRoot, runID, true)
 }
 
-// accountEpochLaunches is the shared body behind ReconcileEpochLaunches (observeOnly
+// accountRunLaunches is the shared body behind ReconcileRunLaunches (observeOnly
 // false: the cancellation mode that stops identified runs and settles proven
-// never-launched reservations terminal) and ObserveEpochLaunches (observeOnly true:
+// never-launched reservations terminal) and ObserveRunLaunches (observeOnly true:
 // the success-closeout mode that stops nothing, settles nothing, and mutates no
 // record). The walk, epoch linkage, and per-drive claimant probe are identical; only
-// the terminal per-drive disposition differs, threaded through reconcileEpochDrive.
+// the terminal per-drive disposition differs, threaded through reconcileRunDrive.
 //
 // The walk applies change 0446 spec §4's attribution rules, in order, per record:
 //
@@ -100,7 +100,7 @@ func (d *Driver) ObserveEpochLaunches(worktreeRoot, epochID string) (EpochLaunch
 //     loadHistoricalDrive; a supported schema-2 record with a terminal outcome is
 //     settled history.
 //  3. Positive reference decides blocking. A still-unreadable record, or a readable
-//     nonterminal one whose resolveDriveEpoch linkage is lost, blocks
+//     nonterminal one whose resolveDriveRun linkage is lost, blocks
 //     (record-unreadable:/linkage-unresolved:) only when a current reference names
 //     it (censusRefs.names / censusRefs.namesUnreadable); otherwise it is an
 //     informational history-unattributed:<id>.
@@ -111,8 +111,8 @@ func (d *Driver) ObserveEpochLaunches(worktreeRoot, epochID string) (EpochLaunch
 //  6. Token rotation. An older nonterminal scopeless drive whose AdmissionToken the
 //     slot no longer holds resolves ok=false and, named by no current reference, is
 //     historical: every launch path verifies the current token before launching
-//     (StartAdmitted's verifyAdmittedSlot, authorizeRelaunch's resolveDriveEpoch,
-//     and the crash-window recovery's recoveryEpochRevoked, which settles instead
+//     (StartAdmitted's verifyAdmittedSlot, authorizeRelaunch's resolveDriveRun,
+//     and the crash-window recovery's recoveryRunRevoked, which settles instead
 //     of relaunching), so it has lost launch authority and the current token holder
 //     carries any live obligation.
 //  7. Missing named drive. A drive id a current reference names (a scope's
@@ -122,13 +122,13 @@ func (d *Driver) ObserveEpochLaunches(worktreeRoot, epochID string) (EpochLaunch
 //     launch (censusRefs.withdrawn): then it is an informational
 //     reservation-withdrawn:<id>, so the removeReservedDrive legs never strand
 //     cancellation.
-func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly bool) (EpochLaunchReport, error) {
-	report := EpochLaunchReport{Accounted: true}
-	if epochID == "" {
+func (d *Driver) accountRunLaunches(worktreeRoot, runID string, observeOnly bool) (RunLaunchReport, error) {
+	report := RunLaunchReport{Accounted: true}
+	if runID == "" {
 		return report, nil
 	}
 
-	refs := d.censusReferences(worktreeRoot, epochID, &report)
+	refs := d.censusReferences(worktreeRoot, runID, &report)
 
 	entries, err := os.ReadDir(d.store.root)
 	if err != nil {
@@ -207,7 +207,7 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 		if isTerminalOutcome(w.rec.LastOutcome) {
 			continue
 		}
-		linked, ok, _ := d.resolveDriveEpoch(w.rec)
+		linked, ok, _ := d.resolveDriveRun(w.rec)
 		if !ok {
 			// The drive's epoch linkage is LOST or unreadable (an unreadable scope, or a
 			// scopeless AdmissionToken the worktree slot no longer matches). Rule 3: it
@@ -221,10 +221,10 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 			}
 			continue
 		}
-		if linked != epochID {
+		if linked != runID {
 			continue // a clean resolution to another epoch (or epoch-less): not this epoch's obligation
 		}
-		settled, finding := d.reconcileEpochDrive(w.id, w.rec, observeOnly)
+		settled, finding := d.reconcileRunDrive(w.id, w.rec, observeOnly)
 		if finding != "" {
 			report.Findings = append(report.Findings, finding)
 		}
@@ -241,7 +241,7 @@ func (d *Driver) accountEpochLaunches(worktreeRoot, epochID string, observeOnly 
 // when that slot names the epoch.
 type censusRefs struct {
 	ids map[string]bool
-	// slotToken is the target slot's ReservationToken when the slot's RunEpochID is
+	// slotToken is the target slot's ReservationToken when the slot's RunID is
 	// the target epoch ("" otherwise, or when no worktree was supplied).
 	slotToken string
 	// slotOccupied reports that the target epoch's slot still holds an unreleased
@@ -285,7 +285,7 @@ func (r censusRefs) withdrawn(id string) bool {
 // accountMissing applies rule 7: every id a current reference names that has no
 // record among present is a missing named drive — record-missing:<id> keeps the
 // epoch unaccounted — unless withdrawn proves it never launched.
-func (r censusRefs) accountMissing(present map[string]bool, report *EpochLaunchReport) {
+func (r censusRefs) accountMissing(present map[string]bool, report *RunLaunchReport) {
 	ids := make([]string, 0, len(r.ids))
 	for id := range r.ids {
 		if !present[id] {
@@ -325,13 +325,13 @@ func (r censusRefs) namesUnreadable(id string, holderFound bool) bool {
 	return r.slotOccupied && !holderFound
 }
 
-// censusReferences builds the census's current-reference set for epochID and
+// censusReferences builds the census's current-reference set for runID and
 // records the fail-closed findings for a required reference it cannot read: an
 // unreadable scope registry (the epoch's scopes cannot be enumerated), an unreadable
 // target slot, or an unreadable scope the epoch's slot names (rule 4). An unreadable
 // scope nothing current names is skipped: it establishes no reference, and any
 // nonterminal drive under it surfaces as history-unattributed in the walk.
-func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLaunchReport) censusRefs {
+func (d *Driver) censusReferences(worktreeRoot, runID string, report *RunLaunchReport) censusRefs {
 	refs := censusRefs{
 		ids:         map[string]bool{},
 		reservedBy:  map[string]string{},
@@ -365,7 +365,7 @@ func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLau
 		if lerr != nil {
 			continue
 		}
-		if s.RunEpochID == epochID {
+		if s.RunID == runID {
 			addScope(entry.Name(), s)
 		}
 	}
@@ -384,7 +384,7 @@ func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLau
 		report.Findings = append(report.Findings, "slot-unreadable")
 		return refs
 	}
-	if slot.RunEpochID != epochID {
+	if slot.RunID != runID {
 		return refs // the slot names another epoch (or none): its occupant is not this epoch's
 	}
 	refs.slotToken = slot.ReservationToken
@@ -406,7 +406,7 @@ func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLau
 	return refs
 }
 
-// reconcileEpochDrive accounts one epoch-linked drive's launch obligation and
+// reconcileRunDrive accounts one epoch-linked drive's launch obligation and
 // reports whether it is settled plus a bounded, credential-free finding (drive id +
 // disposition token). It launches nothing and never mutates the drive verdict when
 // observeOnly is set. A terminal drive is already accounted by the slot/participant
@@ -416,7 +416,7 @@ func (d *Driver) censusReferences(worktreeRoot, epochID string, report *EpochLau
 // disposition for an identified/attached run and a proven never-launched reservation:
 // cancellation stops / settles them, closeout only observes (never-launched stays
 // pending as launch-pending, an attached run is observed, not stopped).
-func (d *Driver) reconcileEpochDrive(id string, rec driveRecord, observeOnly bool) (settled bool, finding string) {
+func (d *Driver) reconcileRunDrive(id string, rec driveRecord, observeOnly bool) (settled bool, finding string) {
 	if isTerminalOutcome(rec.LastOutcome) {
 		return true, "" // teardown accounted by the slot/participant reconciliation
 	}
@@ -524,13 +524,13 @@ func (d *Driver) observeIdentifiedRun(id, runDir string) (bool, string) {
 }
 
 // settleNeverLaunchedCancelled settles a reserved relaunch that provably never ran,
-// under the per-drive claim reconcileEpochDrive already holds. That held claim
+// under the per-drive claim reconcileRunDrive already holds. That held claim
 // excludes any concurrent launcher (Advance's recoverReservedRelaunch, StartAdmitted,
 // and reserveRelaunch all take the SAME flock), so the reservation is genuinely idle
 // AND cannot be launched while the claim is held. Settling the drive terminal HALTED
 // "run-cancelled" here — BEFORE the caller releases the claim — closes the
 // launch-after-cancel window (spec AC4): a later Advance recovery whose read-only
-// epoch pass raced ahead of this fence (recoveryEpochRevoked read the epoch still
+// epoch pass raced ahead of this fence (recoveryRunRevoked read the epoch still
 // live) now finds a terminal record at isTerminalOutcome and returns the recorded
 // verdict rather than authorizing a new launch. The CAS preserves the consumed
 // reservation (RelaunchReserved is never cleared, mirroring haltReservedRelaunchCause)

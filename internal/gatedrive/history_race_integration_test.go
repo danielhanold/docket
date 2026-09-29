@@ -47,7 +47,7 @@ func TestRaceIntegrationGatedriveConcurrentStartsOverLegacySeededStoreArbitrateA
 	barrier.Add(2) // only the two Starts fingerprint; CleanupHistory never touches git.
 	git := &barrierGit{wg: &barrier, head: "HEAD1"}
 	mkDriver := func() *Driver {
-		clk := &fakeClock{now: startEpoch()}
+		clk := &fakeClock{now: startRun()}
 		d := NewDriver(store, clk, proc, git)
 		d.slice = 4 * pollTick
 		d.pollInterval = pollTick

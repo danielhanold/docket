@@ -6,7 +6,7 @@
 //
 // WHERE: <git-common-dir>/docket/run-tracker/<gate-key>/run.json — the epoch record
 // sits next to the gate record.json the arming gate minted. Rooting under the git
-// COMMON dir (via gateKeyDir, the shared preamble the claim-binding primitives
+// COMMON dir (via runKeyDir, the shared preamble the claim-binding primitives
 // use) keeps it outside every worktree yet reachable from any linked worktree, is
 // never tracked, and never leaks into a commit.
 //
@@ -18,18 +18,18 @@
 // registration, and the state-gated compare-and-swap; the transitions and the
 // mutation journal reconciliation are wired by later tasks.
 //
-// IDENTITY vs. AUTHORITY: EpochID is a random, PUBLIC locator — it authorizes
+// IDENTITY vs. AUTHORITY: RunID is a random, PUBLIC locator — it authorizes
 // nothing (the dispatch context's child capability continues to carry authority,
 // per ADR-0111) and travels onto a scoped start's worktree execution slot so an
 // omitted or stale epoch cannot detach a workflow-owned worktree (the gatedrive
 // stale-run-id fence). It is safe to print.
 //
 // DURABILITY + CAS: writes go through the same atomic temp-file + rename discipline
-// as writeGateRecordAtomic (0600), and every read-modify-write serializes on a
+// as writeRunTrackerRecordAtomic (0600), and every read-modify-write serializes on a
 // per-key run.lock flock plus a persisted physical generation the loader returns,
 // so a concurrent participant registration never loses an update and physical
 // contention never surfaces as a logical failure. Unknown schema versions and
-// corrupt records fail closed with a typed EpochError — a record the store cannot
+// corrupt records fail closed with a typed RunError — a record the store cannot
 // read is never treated as a live epoch or a free fence.
 package app
 
@@ -48,58 +48,58 @@ import (
 	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
-// epochSchemaVersion is the on-disk EpochRecord schema this store understands. A
+// runSchemaVersion is the on-disk RunRecord schema this store understands. A
 // record carrying any other version fails closed as a corrupt record — never a
 // best-effort migration.
-const epochSchemaVersion = 1
+const runSchemaVersion = 1
 
-// epochRecordFileName is the atomic record within a gate-key directory;
-// epochLockFileName is the per-key flock the compare-and-swap serializes on.
+// runRecordFileName is the atomic record within a gate-key directory;
+// runLockFileName is the per-key flock the compare-and-swap serializes on.
 const (
-	epochRecordFileName = "run.json"
-	epochLockFileName   = "run.lock"
+	runRecordFileName = "run.json"
+	runLockFileName   = "run.lock"
 )
 
-// epochState is the lifecycle state of one run epoch. Only an active epoch admits
+// runState is the lifecycle state of one run epoch. Only an active epoch admits
 // a new participant registration; the cancelling/cancelled/superseded states are
 // the durable fence a later human cancellation or resume drives it into, and the
 // completing/completed states are the durable fence a verified successful keyed-
 // verdict closeout drives it into (change 0441). Success is never encoded as
 // cancellation.
-type epochState string
+type runState string
 
 const (
-	// EpochActive: the epoch owns the run; new participants may register, and the
+	// RunActive: the epoch owns the run; new participants may register, and the
 	// worktree admission fence links its slots to this epoch.
-	EpochActive epochState = "active"
-	// EpochCancelling: an explicit cancellation (run.cancel, Task 10) has fenced the
+	RunActive runState = "active"
+	// RunCancelling: an explicit cancellation (run.cancel, Task 10) has fenced the
 	// epoch and is tearing the run down; no new participant, start, or mutation admits.
-	EpochCancelling epochState = "cancelling"
-	// EpochCancelled: cancellation completed with full accounting; the epoch is
+	RunCancelling runState = "cancelling"
+	// RunCancelled: cancellation completed with full accounting; the epoch is
 	// terminal and admits nothing.
-	EpochCancelled epochState = "cancelled"
-	// EpochSuperseded: a resume (Task 12) atomically superseded a confirmed-cancelled
+	RunCancelled runState = "cancelled"
+	// RunSuperseded: a resume (Task 12) atomically superseded a confirmed-cancelled
 	// epoch, reserving exactly one replacement dispatch. Terminal for this epoch.
-	EpochSuperseded epochState = "superseded"
+	RunSuperseded runState = "superseded"
 )
 
-// EpochCompleting / EpochCompleted: the successful-run closeout lifecycle
-// (change 0441). Completing is the durable success fence — RunGateVerdict
+// RunCompleting / RunCompleted: the successful-run closeout lifecycle
+// (change 0441). Completing is the durable success fence — RunVerdict
 // verified run-complete but ownership accounting/retirement is unfinished, so
 // the epoch still owns its worktree and admits no NEW registration, start,
 // mutation, takeover, or relaunch. Completed means retirement finished:
 // terminal, excluded from ambient worktree-owner lookup, revoked for explicit
 // references. Success is never encoded as cancellation.
 const (
-	EpochCompleting epochState = "completing"
-	EpochCompleted  epochState = "completed"
+	RunCompleting runState = "completing"
+	RunCompleted  runState = "completed"
 )
 
-// EpochParticipant is one registered coordinator/worker/task/raw-run boundary the
+// RunParticipant is one registered coordinator/worker/task/raw-run boundary the
 // epoch tracks so a cancellation knows what to stop. NativeHandle is the adapter's
 // own opaque task handle (a thread/turn id, a drive id) — a locator, never a
 // credential. RegisteredAt is an RFC3339 UTC stamp set at registration.
-type EpochParticipant struct {
+type RunParticipant struct {
 	Kind         string `json:"kind"` // coordinator|task|gate-scope|raw-run
 	NativeHandle string `json:"native_handle,omitempty"`
 	RegisteredAt string `json:"registered_at"`
@@ -115,7 +115,7 @@ type EpochParticipant struct {
 }
 
 // ParticipantTerminalCompleted / ParticipantTerminalFailed are the only two
-// terminal-observation statuses RecordEpochParticipantTerminal will store — a
+// terminal-observation statuses RecordRunParticipantTerminal will store — a
 // terminal failure is termination evidence, not an implementation verdict
 // (change 0441). Any other value is malformed evidence and is refused. They are
 // exported as the single canonical set for the codexentry/CLI adapter boundary
@@ -147,19 +147,19 @@ type AdmittedMutation struct {
 	Verified    bool                 `json:"verified,omitempty"`
 }
 
-// EpochRecord is the durable run-epoch state. GateKey binds it to the arming gate
+// RunRecord is the durable run-epoch state. RunKey binds it to the arming gate
 // record it lives beside; ChangeID and Worktree are bound once the claim confirms
-// the change instance (bindEpochChange) and a scope claims the feature worktree.
-// EpochID is the random public locator. Participants and AdmittedMutations are the
+// the change instance (bindRunChange) and a scope claims the feature worktree.
+// RunID is the random public locator. Participants and AdmittedMutations are the
 // accounting a cancellation reconciles.
-type EpochRecord struct {
+type RunRecord struct {
 	SchemaVersion     int                `json:"schema_version"`
-	GateKey           string             `json:"run_key"`
+	RunKey            string             `json:"run_key"`
 	ChangeID          string             `json:"change_id,omitempty"`
 	Worktree          string             `json:"worktree,omitempty"`
-	State             epochState         `json:"state"`
-	EpochID           string             `json:"run_id"`
-	Participants      []EpochParticipant `json:"participants,omitempty"`
+	State             runState           `json:"state"`
+	RunID             string             `json:"run_id"`
+	Participants      []RunParticipant   `json:"participants,omitempty"`
 	AdmittedMutations []AdmittedMutation `json:"admitted_mutations,omitempty"`
 	// ReplacementReserved carries the resume winner's replacement reservation (the
 	// new gate key) once a confirmed-cancelled epoch is superseded (Task 12). Empty
@@ -169,186 +169,186 @@ type EpochRecord struct {
 	UpdatedAt           time.Time `json:"updated_at"`
 }
 
-// storedEpoch is the on-disk envelope: the store-owned physical generation token
-// beside the EpochRecord it guards, mirroring storedScope/storedAdmission for the
+// storedRun is the on-disk envelope: the store-owned physical generation token
+// beside the RunRecord it guards, mirroring storedScope/storedAdmission for the
 // gatedrive stores. The generation rotates on every accepted write so a caller can
 // prove it is mutating the state it last read.
-type storedEpoch struct {
-	Generation string      `json:"generation"`
-	Record     EpochRecord `json:"record"`
+type storedRun struct {
+	Generation string    `json:"generation"`
+	Record     RunRecord `json:"record"`
 }
 
-// EpochErrorKind is the typed category of an EpochError, so a caller can branch on
+// RunErrorKind is the typed category of an RunError, so a caller can branch on
 // a not-found / corrupt / not-active / mismatch condition rather than string prose.
-type EpochErrorKind string
+type RunErrorKind string
 
 const (
-	// ErrEpochNotFound: no epoch record exists for the gate key (never minted, or
+	// ErrRunNotFound: no epoch record exists for the gate key (never minted, or
 	// pruned with its gate record).
-	ErrEpochNotFound EpochErrorKind = "run-not-found"
-	// ErrEpochCorrupt: the record could not be decoded, or its schema version is not
+	ErrRunNotFound RunErrorKind = "run-not-found"
+	// ErrRunRecordCorrupt: the record could not be decoded, or its schema version is not
 	// the one this store understands. Fail closed.
-	ErrEpochCorrupt EpochErrorKind = "run-record-corrupt"
-	// ErrEpochExists: a mint found an epoch already minted for the gate key. Bind-once:
+	ErrRunRecordCorrupt RunErrorKind = "run-record-corrupt"
+	// ErrRunExists: a mint found an epoch already minted for the gate key. Bind-once:
 	// a second mint can never overwrite the first.
-	ErrEpochExists EpochErrorKind = "run-exists"
-	// ErrEpochNotActive: a participant registration (or another active-only transition)
+	ErrRunExists RunErrorKind = "run-exists"
+	// ErrRunNotActive: a participant registration (or another active-only transition)
 	// was attempted on an epoch whose state is not active — a fenced or terminal epoch
 	// admits no new participant.
-	ErrEpochNotActive EpochErrorKind = "run-not-active"
-	// ErrEpochMismatch: a caller presented an expected epoch id that is not this
-	// record's EpochID — a stale locator. It confers no registration authority.
-	ErrEpochMismatch EpochErrorKind = "run-id-mismatch"
-	// ErrEpochNotCancelled: a resume attempted to supersede an epoch whose state is
+	ErrRunNotActive RunErrorKind = "run-not-active"
+	// ErrRunIDMismatch: a caller presented an expected epoch id that is not this
+	// record's RunID — a stale locator. It confers no registration authority.
+	ErrRunIDMismatch RunErrorKind = "run-id-mismatch"
+	// ErrRunNotCancelled: a resume attempted to supersede an epoch whose state is
 	// not confirmed-cancelled — resume reserves a replacement ONLY after confirmed
 	// cancellation, never over an active or still-cancelling run (change 0375 Task 12).
-	ErrEpochNotCancelled EpochErrorKind = "run-not-cancelled"
-	// ErrEpochAmbiguous: more than one non-superseded epoch matches one change id, so
+	ErrRunNotCancelled RunErrorKind = "run-not-cancelled"
+	// ErrRunAmbiguous: more than one non-superseded epoch matches one change id, so
 	// the run a resume targets cannot be resolved to a single epoch. Fail closed.
-	ErrEpochAmbiguous EpochErrorKind = "run-ambiguous"
-	// ErrEpochOwnerAmbiguous: two or more ACTIVE (or completing) epochs are bound to
-	// one canonical worktree, so ambient owner lookup (findEpochByWorktree) cannot name
+	ErrRunAmbiguous RunErrorKind = "run-ambiguous"
+	// ErrRunOwnerAmbiguous: two or more ACTIVE (or completing) epochs are bound to
+	// one canonical worktree, so ambient owner lookup (findRunByWorktree) cannot name
 	// a single current owner. It is a contradiction, never resolved by directory order
 	// or timestamp: the path fence refuses locally (change 0446 spec §5).
-	ErrEpochOwnerAmbiguous EpochErrorKind = "run-owner-ambiguous"
-	// ErrEpochOwnerUnresolved: the worktree's execution slot names a RunEpochID that no
+	ErrRunOwnerAmbiguous RunErrorKind = "run-owner-ambiguous"
+	// ErrRunOwnerUnresolved: the worktree's execution slot names a RunID that no
 	// readable epoch record carries, so the worktree's current owner is unresolved. The
 	// path fence refuses locally with that locator rather than admitting unfenced
 	// (change 0446 spec §1).
-	ErrEpochOwnerUnresolved EpochErrorKind = "run-owner-unresolved"
-	// ErrEpochIO: an underlying filesystem, lock, or randomness operation failed.
-	ErrEpochIO EpochErrorKind = "run-record-io"
-	// ErrEpochParticipantUnknown: a terminal-observation record named a native
+	ErrRunOwnerUnresolved RunErrorKind = "run-owner-unresolved"
+	// ErrRunRecordIO: an underlying filesystem, lock, or randomness operation failed.
+	ErrRunRecordIO RunErrorKind = "run-record-io"
+	// ErrRunParticipantUnknown: a terminal-observation record named a native
 	// handle that no registered participant carries (change 0441) — evidence for a
 	// participant this epoch never registered is never stored.
-	ErrEpochParticipantUnknown EpochErrorKind = "run-participant-unknown"
+	ErrRunParticipantUnknown RunErrorKind = "run-participant-unknown"
 )
 
-// EpochError is the epoch store's typed failure carrying a stable kind and stage.
+// RunError is the epoch store's typed failure carrying a stable kind and stage.
 // It never embeds record content or any credential.
-type EpochError struct {
-	Kind EpochErrorKind
+type RunError struct {
+	Kind RunErrorKind
 	Op   string
 	err  error
 }
 
-func (e *EpochError) Error() string {
+func (e *RunError) Error() string {
 	if e.err != nil {
 		return fmt.Sprintf("run %s: %s: %v", e.Op, e.Kind, e.err)
 	}
 	return fmt.Sprintf("run %s: %s", e.Op, e.Kind)
 }
 
-func (e *EpochError) Unwrap() error { return e.err }
+func (e *RunError) Unwrap() error { return e.err }
 
-func epochErr(kind EpochErrorKind, op string, err error) *EpochError {
-	return &EpochError{Kind: kind, Op: op, err: err}
+func runErr(kind RunErrorKind, op string, err error) *RunError {
+	return &RunError{Kind: kind, Op: op, err: err}
 }
 
-// AsEpochError unwraps err to an *EpochError when one is in the chain so a caller
+// AsRunError unwraps err to an *RunError when one is in the chain so a caller
 // can branch on its Kind.
-func AsEpochError(err error) (*EpochError, bool) {
-	var e *EpochError
+func AsRunError(err error) (*RunError, bool) {
+	var e *RunError
 	if errors.As(err, &e) {
 		return e, true
 	}
 	return nil, false
 }
 
-// MintEpochRecord mints a fresh run epoch beside the gate record for gateKey,
+// MintRunRecord mints a fresh run epoch beside the gate record for runKey,
 // keyed by the gate key. changeID may be "" (a fresh non-resume arm binds the
-// change later, at claim confirmation, via bindEpochChange). The gate-key
-// directory must already exist (minted by MintGateRecord). It mints under the
-// per-key flock and refuses ErrEpochExists if an epoch was already minted for the
+// change later, at claim confirmation, via bindRunChange). The gate-key
+// directory must already exist (minted by MintRunTrackerRecord). It mints under the
+// per-key flock and refuses ErrRunExists if an epoch was already minted for the
 // key — bind-once, a second arm can never clobber the first. On success it returns
-// the persisted active record (EpochID + Generation stamped).
-func MintEpochRecord(repoDir, gateKey, changeID string) (EpochRecord, error) {
-	dir, err := gateKeyDir(repoDir, gateKey, "mint-run")
+// the persisted active record (RunID + Generation stamped).
+func MintRunRecord(repoDir, runKey, changeID string) (RunRecord, error) {
+	dir, err := runKeyDir(repoDir, runKey, "mint-run")
 	if err != nil {
-		return EpochRecord{}, err
+		return RunRecord{}, err
 	}
-	lock, err := acquireEpochLock(dir)
+	lock, err := acquireRunLock(dir)
 	if err != nil {
-		return EpochRecord{}, err
+		return RunRecord{}, err
 	}
 	defer lock.Close()
 
-	if _, serr := os.Stat(filepath.Join(dir, epochRecordFileName)); serr == nil {
-		return EpochRecord{}, epochErr(ErrEpochExists, "mint-run", nil)
+	if _, serr := os.Stat(filepath.Join(dir, runRecordFileName)); serr == nil {
+		return RunRecord{}, runErr(ErrRunExists, "mint-run", nil)
 	} else if !errors.Is(serr, fs.ErrNotExist) {
-		return EpochRecord{}, epochErr(ErrEpochIO, "mint-run", serr)
+		return RunRecord{}, runErr(ErrRunRecordIO, "mint-run", serr)
 	}
 
-	epochID, err := epochToken()
+	runID, err := runToken()
 	if err != nil {
-		return EpochRecord{}, epochErr(ErrEpochIO, "mint-run", err)
+		return RunRecord{}, runErr(ErrRunRecordIO, "mint-run", err)
 	}
-	gen, err := epochToken()
+	gen, err := runToken()
 	if err != nil {
-		return EpochRecord{}, epochErr(ErrEpochIO, "mint-run", err)
+		return RunRecord{}, runErr(ErrRunRecordIO, "mint-run", err)
 	}
 	now := time.Now().UTC()
-	rec := EpochRecord{
-		SchemaVersion: epochSchemaVersion,
-		GateKey:       gateKey,
+	rec := RunRecord{
+		SchemaVersion: runSchemaVersion,
+		RunKey:        runKey,
 		ChangeID:      changeID,
-		State:         EpochActive,
-		EpochID:       epochID,
+		State:         RunActive,
+		RunID:         runID,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
-	if err := writeEpochAtomic(dir, storedEpoch{Generation: gen, Record: rec}); err != nil {
-		return EpochRecord{}, err
+	if err := writeRunAtomic(dir, storedRun{Generation: gen, Record: rec}); err != nil {
+		return RunRecord{}, err
 	}
 	return rec, nil
 }
 
-// LoadEpochRecord reads the epoch record for gateKey and returns it with its
-// physical generation. It fails closed on a missing record (ErrEpochNotFound), an
-// unparseable document or an unknown schema version (ErrEpochCorrupt) — a record
+// LoadRunRecord reads the epoch record for runKey and returns it with its
+// physical generation. It fails closed on a missing record (ErrRunNotFound), an
+// unparseable document or an unknown schema version (ErrRunRecordCorrupt) — a record
 // the store cannot read is never a live epoch.
-func LoadEpochRecord(repoDir, gateKey string) (EpochRecord, string, error) {
-	dir, err := gateKeyDir(repoDir, gateKey, "load-run-record")
+func LoadRunRecord(repoDir, runKey string) (RunRecord, string, error) {
+	dir, err := runKeyDir(repoDir, runKey, "load-run-record")
 	if err != nil {
-		return EpochRecord{}, "", err
+		return RunRecord{}, "", err
 	}
-	return readStoredEpoch(dir, "load-run-record")
+	return readStoredRun(dir, "load-run-record")
 }
 
-// readStoredEpoch decodes the epoch envelope in dir and fails closed on a missing,
+// readStoredRun decodes the epoch envelope in dir and fails closed on a missing,
 // corrupt, or unknown-schema record. It takes no lock: the atomic rename in every
 // write guarantees a reader observes a whole document.
-func readStoredEpoch(dir, op string) (EpochRecord, string, error) {
-	buf, err := os.ReadFile(filepath.Join(dir, epochRecordFileName))
+func readStoredRun(dir, op string) (RunRecord, string, error) {
+	buf, err := os.ReadFile(filepath.Join(dir, runRecordFileName))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return EpochRecord{}, "", epochErr(ErrEpochNotFound, op, err)
+			return RunRecord{}, "", runErr(ErrRunNotFound, op, err)
 		}
-		return EpochRecord{}, "", epochErr(ErrEpochIO, op, err)
+		return RunRecord{}, "", runErr(ErrRunRecordIO, op, err)
 	}
-	var stored storedEpoch
+	var stored storedRun
 	if err := json.Unmarshal(buf, &stored); err != nil {
-		return EpochRecord{}, "", epochErr(ErrEpochCorrupt, op, err)
+		return RunRecord{}, "", runErr(ErrRunRecordCorrupt, op, err)
 	}
-	if stored.Record.SchemaVersion != epochSchemaVersion {
-		return EpochRecord{}, "", epochErr(ErrEpochCorrupt, op,
-			fmt.Errorf("epoch schema version %d, want %d", stored.Record.SchemaVersion, epochSchemaVersion))
+	if stored.Record.SchemaVersion != runSchemaVersion {
+		return RunRecord{}, "", runErr(ErrRunRecordCorrupt, op,
+			fmt.Errorf("epoch schema version %d, want %d", stored.Record.SchemaVersion, runSchemaVersion))
 	}
 	return stored.Record, stored.Generation, nil
 }
 
-// RegisterEpochParticipant appends p to the epoch's participants under the CAS. It
-// verifies expectEpoch matches the record's EpochID when expectEpoch is non-empty
-// (a stale locator is ErrEpochMismatch) and REJECTS when the state is not active
-// (ErrEpochNotActive) — a fenced or terminal epoch admits no new participant. It
+// RegisterRunParticipant appends p to the epoch's participants under the CAS. It
+// verifies expectRunID matches the record's RunID when expectRunID is non-empty
+// (a stale locator is ErrRunIDMismatch) and REJECTS when the state is not active
+// (ErrRunNotActive) — a fenced or terminal epoch admits no new participant. It
 // stamps RegisteredAt (RFC3339 UTC) when the caller left it empty.
-func RegisterEpochParticipant(repoDir, gateKey, expectEpoch string, p EpochParticipant) error {
-	return epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
-		if expectEpoch != "" && rec.EpochID != expectEpoch {
-			return epochErr(ErrEpochMismatch, "register-participant", nil)
+func RegisterRunParticipant(repoDir, runKey, expectRunID string, p RunParticipant) error {
+	return runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
+		if expectRunID != "" && rec.RunID != expectRunID {
+			return runErr(ErrRunIDMismatch, "register-participant", nil)
 		}
-		if rec.State != EpochActive {
-			return epochErr(ErrEpochNotActive, "register-participant", nil)
+		if rec.State != RunActive {
+			return runErr(ErrRunNotActive, "register-participant", nil)
 		}
 		if p.RegisteredAt == "" {
 			p.RegisteredAt = time.Now().UTC().Format(time.RFC3339)
@@ -358,25 +358,25 @@ func RegisterEpochParticipant(repoDir, gateKey, expectEpoch string, p EpochParti
 	})
 }
 
-// RecordEpochParticipantTerminal stamps the adapter's exact terminal observation
+// RecordRunParticipantTerminal stamps the adapter's exact terminal observation
 // (change 0441) onto the participant whose NativeHandle equals handle. Completing
 // an ALREADY-registered participant's record is observation of fact, so — unlike
-// RegisterEpochParticipant — it is allowed in ANY epoch state (mirroring the
+// RegisterRunParticipant — it is allowed in ANY epoch state (mirroring the
 // mutation journal's completion callback, which has no state gate); registering
 // NEW work stays active-only. It fails closed on malformed evidence: an empty
-// handle/turn or a status outside {completed, failed} is ErrEpochMismatch, and a
-// handle no participant carries is ErrEpochParticipantUnknown. It is idempotent on
-// identical evidence; a DIFFERENT already-recorded status or turn is ErrEpochMismatch
+// handle/turn or a status outside {completed, failed} is ErrRunIDMismatch, and a
+// handle no participant carries is ErrRunParticipantUnknown. It is idempotent on
+// identical evidence; a DIFFERENT already-recorded status or turn is ErrRunIDMismatch
 // — recorded terminal evidence is never silently overwritten. A non-empty
-// expectEpoch mismatching EpochID is ErrEpochMismatch (a stale locator).
-func RecordEpochParticipantTerminal(repoDir, gateKey, expectEpoch, handle, turn, status string) error {
+// expectRunID mismatching RunID is ErrRunIDMismatch (a stale locator).
+func RecordRunParticipantTerminal(repoDir, runKey, expectRunID, handle, turn, status string) error {
 	if handle == "" || turn == "" ||
 		(status != ParticipantTerminalCompleted && status != ParticipantTerminalFailed) {
-		return epochErr(ErrEpochMismatch, "record-participant-terminal", nil)
+		return runErr(ErrRunIDMismatch, "record-participant-terminal", nil)
 	}
-	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
-		if expectEpoch != "" && rec.EpochID != expectEpoch {
-			return epochErr(ErrEpochMismatch, "record-participant-terminal", nil)
+	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
+		if expectRunID != "" && rec.RunID != expectRunID {
+			return runErr(ErrRunIDMismatch, "record-participant-terminal", nil)
 		}
 		for i := range rec.Participants {
 			p := &rec.Participants[i]
@@ -385,264 +385,264 @@ func RecordEpochParticipantTerminal(repoDir, gateKey, expectEpoch, handle, turn,
 			}
 			if p.TerminalStatus != "" {
 				if p.TerminalStatus == status && p.TerminalTurn == turn {
-					return errEpochFenceNoWrite // idempotent replay of identical evidence
+					return errRunFenceNoWrite // idempotent replay of identical evidence
 				}
-				return epochErr(ErrEpochMismatch, "record-participant-terminal", nil)
+				return runErr(ErrRunIDMismatch, "record-participant-terminal", nil)
 			}
 			p.TerminalStatus = status
 			p.TerminalTurn = turn
 			p.TerminalObservedAt = time.Now().UTC().Format(time.RFC3339)
 			return nil
 		}
-		return epochErr(ErrEpochParticipantUnknown, "record-participant-terminal", nil)
+		return runErr(ErrRunParticipantUnknown, "record-participant-terminal", nil)
 	})
-	if errors.Is(err, errEpochFenceNoWrite) {
+	if errors.Is(err, errRunFenceNoWrite) {
 		return nil
 	}
 	return err
 }
 
-// bindEpochChange binds the epoch's ChangeID once, at claim confirmation, so the
+// bindRunChange binds the epoch's ChangeID once, at claim confirmation, so the
 // epoch records which change instance it owns (a locator for a later resume/cancel
 // lookup, per ADR-0111 proofs — the committed claim receipt remains authority). It
 // is a NO-OP when no epoch exists for the key (a standalone gate arms none): an
-// ErrEpochNotFound is swallowed so a claim over a keyless or epoch-less dispatch is
+// ErrRunNotFound is swallowed so a claim over a keyless or epoch-less dispatch is
 // unaffected. Binding is idempotent: an already-bound identical id is a no-op; a
-// bind over a different id fails closed (ErrEpochMismatch) so a confirmed claim can
+// bind over a different id fails closed (ErrRunIDMismatch) so a confirmed claim can
 // never silently re-point an epoch's change. Callers treat it best-effort.
-func bindEpochChange(repoDir, gateKey, changeID string) error {
-	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+func bindRunChange(repoDir, runKey, changeID string) error {
+	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
 		if rec.ChangeID != "" {
 			if rec.ChangeID == changeID {
 				return nil // idempotent
 			}
-			return epochErr(ErrEpochMismatch, "bind-run-change", nil)
+			return runErr(ErrRunIDMismatch, "bind-run-change", nil)
 		}
 		rec.ChangeID = changeID
 		return nil
 	})
-	if ee, ok := AsEpochError(err); ok && ee.Kind == ErrEpochNotFound {
+	if ee, ok := AsRunError(err); ok && ee.Kind == ErrRunNotFound {
 		return nil // no epoch (standalone gate): nothing to bind
 	}
 	return err
 }
 
-// bindEpochWorktree binds the epoch's Worktree once, at claim confirmation, so a
+// bindRunWorktree binds the epoch's Worktree once, at claim confirmation, so a
 // FRESH (non-resume) run's epoch is locatable by the mutation fence
-// (findEpochByWorktree) and actionable by run.cancel's worktree teardown
+// (findRunByWorktree) and actionable by run.cancel's worktree teardown
 // (reconcileWorktreeSlot) — the same job armResumeReplacement does for the resume path
 // (change 0375). Without it a fresh run's epoch keeps Worktree == "", which every
 // worktree-keyed consumer skips, so the fence and the teardown are inert for the common
 // first-dispatch case. The bound value is the LOGICAL feature worktree path (it need
 // not exist yet at bind time): the fence canonicalizes the stored value at COMPARE time
-// (epochOwnsWorktree), once the workspace exists, so a logical spelling resolves to the
+// (runOwnsWorktree), once the workspace exists, so a logical spelling resolves to the
 // same canonical worktree the mutations run in. It is a NO-OP on an empty worktree
 // (nothing to bind) and a NO-OP when no epoch exists for the key (a standalone gate
-// arms none): ErrEpochNotFound is swallowed so a claim over a keyless or epoch-less
+// arms none): ErrRunNotFound is swallowed so a claim over a keyless or epoch-less
 // dispatch is unaffected. Binding is idempotent: an already-bound identical worktree is
-// a no-op; a bind over a different worktree fails closed (ErrEpochMismatch) so a
+// a no-op; a bind over a different worktree fails closed (ErrRunIDMismatch) so a
 // confirmed claim can never silently re-point an epoch's worktree (mirroring
-// bindEpochChange). Callers treat it best-effort.
-func bindEpochWorktree(repoDir, gateKey, worktree string) error {
+// bindRunChange). Callers treat it best-effort.
+func bindRunWorktree(repoDir, runKey, worktree string) error {
 	if worktree == "" {
 		return nil // nothing to bind (a keyless/standalone confirm, or an unknown path)
 	}
-	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
 		if rec.Worktree != "" {
 			if rec.Worktree == worktree {
 				return nil // idempotent
 			}
-			return epochErr(ErrEpochMismatch, "bind-run-worktree", nil)
+			return runErr(ErrRunIDMismatch, "bind-run-worktree", nil)
 		}
 		rec.Worktree = worktree
 		return nil
 	})
-	if ee, ok := AsEpochError(err); ok && ee.Kind == ErrEpochNotFound {
+	if ee, ok := AsRunError(err); ok && ee.Kind == ErrRunNotFound {
 		return nil // no epoch (standalone gate): nothing to bind
 	}
 	return err
 }
 
-// epochCAS runs a logical epoch transition under a flock-serialized physical
+// runRecordCAS runs a logical epoch transition under a flock-serialized physical
 // compare-and-swap: it acquires the per-key run.lock, reads the current record,
 // applies mutate to a copy, and atomically writes it back under a freshly rotated
 // generation. Any error mutate returns is a deliberate logical rejection (or a
 // real IO fault) and aborts with NO write, so a rejected transition leaves the
 // persisted record untouched. The whole read-modify-write is under the lock, so a
 // concurrent registration serializes rather than losing an update.
-func epochCAS(repoDir, gateKey string, mutate func(*EpochRecord) error) error {
-	dir, err := gateKeyDir(repoDir, gateKey, "run-record-cas")
+func runRecordCAS(repoDir, runKey string, mutate func(*RunRecord) error) error {
+	dir, err := runKeyDir(repoDir, runKey, "run-record-cas")
 	if err != nil {
 		return err
 	}
-	lock, err := acquireEpochLock(dir)
+	lock, err := acquireRunLock(dir)
 	if err != nil {
 		return err
 	}
 	defer lock.Close()
 
-	rec, _, err := readStoredEpoch(dir, "run-record-cas")
+	rec, _, err := readStoredRun(dir, "run-record-cas")
 	if err != nil {
 		return err
 	}
 	if err := mutate(&rec); err != nil {
 		return err
 	}
-	rec.SchemaVersion = epochSchemaVersion
+	rec.SchemaVersion = runSchemaVersion
 	rec.UpdatedAt = time.Now().UTC()
-	gen, err := epochToken()
+	gen, err := runToken()
 	if err != nil {
-		return epochErr(ErrEpochIO, "run-record-cas", err)
+		return runErr(ErrRunRecordIO, "run-record-cas", err)
 	}
-	return writeEpochAtomic(dir, storedEpoch{Generation: gen, Record: rec})
+	return writeRunAtomic(dir, storedRun{Generation: gen, Record: rec})
 }
 
-// writeEpochAtomic marshals stored and writes it at dir/run.json through a
+// writeRunAtomic marshals stored and writes it at dir/run.json through a
 // same-directory temp file followed by os.Rename — the atomic-adjacent replacement
-// rule, matching writeGateRecordAtomic. The temp file is created 0600 so the
+// rule, matching writeRunTrackerRecordAtomic. The temp file is created 0600 so the
 // private record's mode survives the rename.
-func writeEpochAtomic(dir string, stored storedEpoch) error {
+func writeRunAtomic(dir string, stored storedRun) error {
 	buf, err := json.Marshal(stored)
 	if err != nil {
-		return epochErr(ErrEpochIO, "write-run-record", err)
+		return runErr(ErrRunRecordIO, "write-run-record", err)
 	}
-	tmp, err := os.CreateTemp(dir, "."+epochRecordFileName+".tmp-*")
+	tmp, err := os.CreateTemp(dir, "."+runRecordFileName+".tmp-*")
 	if err != nil {
-		return epochErr(ErrEpochIO, "write-run-record", err)
+		return runErr(ErrRunRecordIO, "write-run-record", err)
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName) // no-op after a successful rename
 	if _, err := tmp.Write(buf); err != nil {
 		tmp.Close()
-		return epochErr(ErrEpochIO, "write-run-record", err)
+		return runErr(ErrRunRecordIO, "write-run-record", err)
 	}
 	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
-		return epochErr(ErrEpochIO, "write-run-record", err)
+		return runErr(ErrRunRecordIO, "write-run-record", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return epochErr(ErrEpochIO, "write-run-record", err)
+		return runErr(ErrRunRecordIO, "write-run-record", err)
 	}
-	if err := os.Rename(tmpName, filepath.Join(dir, epochRecordFileName)); err != nil {
-		return epochErr(ErrEpochIO, "write-run-record", err)
+	if err := os.Rename(tmpName, filepath.Join(dir, runRecordFileName)); err != nil {
+		return runErr(ErrRunRecordIO, "write-run-record", err)
 	}
 	return nil
 }
 
-// acquireEpochLock opens (creating if needed) the per-key run.lock and takes an
+// acquireRunLock opens (creating if needed) the per-key run.lock and takes an
 // exclusive flock, mirroring gatedrive's acquireExclusiveLock: the flock is the
 // critical-section primitive for one read-modify-write, never the lifetime
 // guarantee (the persisted state is the authority).
-func acquireEpochLock(dir string) (*os.File, error) {
-	f, err := os.OpenFile(filepath.Join(dir, epochLockFileName), os.O_CREATE|os.O_RDWR, 0o600)
+func acquireRunLock(dir string) (*os.File, error) {
+	f, err := os.OpenFile(filepath.Join(dir, runLockFileName), os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
-		return nil, epochErr(ErrEpochIO, "lock-open", err)
+		return nil, runErr(ErrRunRecordIO, "lock-open", err)
 	}
 	if err := f.Chmod(0o600); err != nil {
 		f.Close()
-		return nil, epochErr(ErrEpochIO, "lock-chmod", err)
+		return nil, runErr(ErrRunRecordIO, "lock-chmod", err)
 	}
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
 		f.Close()
-		return nil, epochErr(ErrEpochIO, "lock", err)
+		return nil, runErr(ErrRunRecordIO, "lock", err)
 	}
 	return f, nil
 }
 
-// errEpochAlreadySuperseded is the sentinel SupersedeCancelledEpoch's CAS returns
+// errRunAlreadySuperseded is the sentinel SupersedeCancelledRun's CAS returns
 // when a concurrent resume already superseded the epoch — the loser observes the
 // winner's reservation rather than reserving a second replacement. It is internal
-// to the supersede one-winner race and never surfaces as a typed EpochError.
-var errEpochAlreadySuperseded = errors.New("run epoch already superseded")
+// to the supersede one-winner race and never surfaces as a typed RunError.
+var errRunAlreadySuperseded = errors.New("run epoch already superseded")
 
-// errEpochFenceNoWrite aborts a completion-lifecycle CAS with no write when the
+// errRunFenceNoWrite aborts a completion-lifecycle CAS with no write when the
 // observed state already satisfies the transition (idempotent replay).
-var errEpochFenceNoWrite = errors.New("run epoch completion state already satisfied")
+var errRunFenceNoWrite = errors.New("run epoch completion state already satisfied")
 
-// FenceEpochCompleting compare-and-swaps an active epoch active→completing, the
+// FenceRunCompleting compare-and-swaps an active epoch active→completing, the
 // durable success fence a verified keyed run-complete drives (change 0441). It
-// returns the state OBSERVED under the lock. active→fenced (EpochCompleting, nil);
-// already completing→idempotent replay (EpochCompleting, nil); completed→
-// (EpochCompleted, nil) (replay of a finished closeout); any cancelling/cancelled/
-// superseded/unknown state is returned as-is plus ErrEpochNotActive and is NEVER
-// relabelled successful. A non-empty expectEpoch mismatching EpochID is
-// ErrEpochMismatch — a stale locator confers no completion authority.
-func FenceEpochCompleting(repoDir, gateKey, expectEpoch string) (epochState, error) {
-	var observed epochState
-	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
-		if expectEpoch != "" && rec.EpochID != expectEpoch {
-			return epochErr(ErrEpochMismatch, "fence-completing", nil)
+// returns the state OBSERVED under the lock. active→fenced (RunCompleting, nil);
+// already completing→idempotent replay (RunCompleting, nil); completed→
+// (RunCompleted, nil) (replay of a finished closeout); any cancelling/cancelled/
+// superseded/unknown state is returned as-is plus ErrRunNotActive and is NEVER
+// relabelled successful. A non-empty expectRunID mismatching RunID is
+// ErrRunIDMismatch — a stale locator confers no completion authority.
+func FenceRunCompleting(repoDir, runKey, expectRunID string) (runState, error) {
+	var observed runState
+	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
+		if expectRunID != "" && rec.RunID != expectRunID {
+			return runErr(ErrRunIDMismatch, "fence-completing", nil)
 		}
 		observed = rec.State
 		switch rec.State {
-		case EpochActive:
-			rec.State = EpochCompleting
-			observed = EpochCompleting
+		case RunActive:
+			rec.State = RunCompleting
+			observed = RunCompleting
 			return nil
-		case EpochCompleting, EpochCompleted:
-			return errEpochFenceNoWrite // idempotent observation, no write
+		case RunCompleting, RunCompleted:
+			return errRunFenceNoWrite // idempotent observation, no write
 		default:
-			return epochErr(ErrEpochNotActive, "fence-completing", nil)
+			return runErr(ErrRunNotActive, "fence-completing", nil)
 		}
 	})
-	if errors.Is(err, errEpochFenceNoWrite) {
+	if errors.Is(err, errRunFenceNoWrite) {
 		return observed, nil
 	}
 	return observed, err
 }
 
-// CompleteEpoch compare-and-swaps a fenced epoch completing→completed, retiring a
+// CompleteRun compare-and-swaps a fenced epoch completing→completed, retiring a
 // successful closeout (change 0441). already completed→idempotent nil (a completed
-// receipt replay is safe); ANY other state is ErrEpochNotActive — a concurrent
+// receipt replay is safe); ANY other state is ErrRunNotActive — a concurrent
 // cancellation that won from completing makes completion lose, and there is no
 // shortcut past the fence from active.
-func CompleteEpoch(repoDir, gateKey string) error {
-	err := epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+func CompleteRun(repoDir, runKey string) error {
+	err := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
 		switch rec.State {
-		case EpochCompleting:
-			rec.State = EpochCompleted
+		case RunCompleting:
+			rec.State = RunCompleted
 			return nil
-		case EpochCompleted:
-			return errEpochFenceNoWrite
+		case RunCompleted:
+			return errRunFenceNoWrite
 		default:
-			return epochErr(ErrEpochNotActive, "complete-run", nil)
+			return runErr(ErrRunNotActive, "complete-run", nil)
 		}
 	})
-	if errors.Is(err, errEpochFenceNoWrite) {
+	if errors.Is(err, errRunFenceNoWrite) {
 		return nil
 	}
 	return err
 }
 
-// SupersedeCancelledEpoch atomically transitions a CONFIRMED-CANCELLED epoch to
+// SupersedeCancelledRun atomically transitions a CONFIRMED-CANCELLED epoch to
 // superseded and records replacementKey as its one reserved replacement dispatch
 // (change 0375 Task 12, spec "After confirmed cancellation, atomically supersede
 // the old epoch and reserve one replacement dispatch. Two concurrent resumes
 // produce one winner"). The whole read-check-write runs under the epoch CAS, so two
 // concurrent resumes serialize: the WINNER sees the cancelled state, sets superseded
 // + ReplacementReserved, and returns nil; the LOSER sees the already-superseded
-// state and returns errEpochAlreadySuperseded (its caller re-reads and reports the
+// state and returns errRunAlreadySuperseded (its caller re-reads and reports the
 // winner's reservation). Any non-cancelled state (active/cancelling) is
-// ErrEpochNotCancelled — resume never supersedes a run that has not confirmed
+// ErrRunNotCancelled — resume never supersedes a run that has not confirmed
 // cancellation. A superseded epoch owns no worktree for the mutation fence, so its
 // Worktree is cleared as the same atomic transition.
-func SupersedeCancelledEpoch(repoDir, gateKey, replacementKey string) error {
-	return epochCAS(repoDir, gateKey, func(rec *EpochRecord) error {
+func SupersedeCancelledRun(repoDir, runKey, replacementKey string) error {
+	return runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
 		switch rec.State {
-		case EpochCancelled:
-			rec.State = EpochSuperseded
+		case RunCancelled:
+			rec.State = RunSuperseded
 			rec.ReplacementReserved = replacementKey
 			rec.Worktree = "" // a superseded epoch no longer owns the worktree fence
 			return nil
-		case EpochSuperseded:
-			return errEpochAlreadySuperseded
+		case RunSuperseded:
+			return errRunAlreadySuperseded
 		default:
-			return epochErr(ErrEpochNotCancelled, "supersede-run", nil)
+			return runErr(ErrRunNotCancelled, "supersede-run", nil)
 		}
 	})
 }
 
-// FindEpochByChange resolves the run epoch a resume of changeID targets by scanning
+// FindRunByChange resolves the run epoch a resume of changeID targets by scanning
 // the repository's rungate root (each gate-key directory may hold one run.json).
 // It returns the matching epoch's gate key and record, found=false when no epoch
 // names the change, and a typed error for an enumeration fault or an unresolvable
@@ -650,30 +650,30 @@ func SupersedeCancelledEpoch(repoDir, gateKey, replacementKey string) error {
 //
 // Disambiguation across a resume chain (E1 superseded → E2 …): a matched epoch that
 // is NOT superseded is the current run and wins — exactly one such epoch must exist
-// (more is ErrEpochAmbiguous). When every match is superseded (the replacement has
+// (more is ErrRunAmbiguous). When every match is superseded (the replacement has
 // not yet bound its own change at claim time), the unique superseded match — or, in
 // a longer chain, the tail whose ReplacementReserved points outside the matched set —
 // is returned, so a repeat resume still recovers the reservation. A missing rungate
 // root or no match is (found=false, nil); a corrupt/unreadable sibling epoch is
-// skipped, mirroring findEpochByWorktree.
-func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecord, found bool, err error) {
+// skipped, mirroring findRunByWorktree.
+func FindRunByChange(repoDir, changeID string) (runKey string, rec RunRecord, found bool, err error) {
 	if changeID == "" {
-		return "", EpochRecord{}, false, nil
+		return "", RunRecord{}, false, nil
 	}
-	root, rerr := gateRoot(repoDir)
+	root, rerr := runTrackerRoot(repoDir)
 	if rerr != nil {
-		return "", EpochRecord{}, false, rerr
+		return "", RunRecord{}, false, rerr
 	}
 	entries, derr := os.ReadDir(root)
 	if derr != nil {
 		if errors.Is(derr, fs.ErrNotExist) {
-			return "", EpochRecord{}, false, nil // no rungate root: no epochs
+			return "", RunRecord{}, false, nil // no rungate root: no epochs
 		}
-		return "", EpochRecord{}, false, epochErr(ErrEpochIO, "find-by-change", derr)
+		return "", RunRecord{}, false, runErr(ErrRunRecordIO, "find-by-change", derr)
 	}
 	type matchEntry struct {
 		key string
-		rec EpochRecord
+		rec RunRecord
 	}
 	var matches []matchEntry
 	for _, e := range entries {
@@ -681,7 +681,7 @@ func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecor
 			continue
 		}
 		key := e.Name()
-		r, _, lerr := readStoredEpoch(filepath.Join(root, key), "find-by-change")
+		r, _, lerr := readStoredRun(filepath.Join(root, key), "find-by-change")
 		if lerr != nil {
 			continue // no run.json here, or a corrupt/unreadable sibling: cannot match
 		}
@@ -690,12 +690,12 @@ func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecor
 		}
 	}
 	if len(matches) == 0 {
-		return "", EpochRecord{}, false, nil
+		return "", RunRecord{}, false, nil
 	}
 	// Prefer a non-superseded match: it is the current run for the change.
 	var live []matchEntry
 	for _, m := range matches {
-		if m.rec.State != EpochSuperseded {
+		if m.rec.State != RunSuperseded {
 			live = append(live, m)
 		}
 	}
@@ -703,7 +703,7 @@ func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecor
 	case len(live) == 1:
 		return live[0].key, live[0].rec, true, nil
 	case len(live) > 1:
-		return "", EpochRecord{}, false, epochErr(ErrEpochAmbiguous, "find-by-change", nil)
+		return "", RunRecord{}, false, runErr(ErrRunAmbiguous, "find-by-change", nil)
 	}
 	// Every match is superseded: resolve to the chain tail whose reserved replacement
 	// is not itself one of the matched (superseded) epochs.
@@ -723,90 +723,90 @@ func FindEpochByChange(repoDir, changeID string) (gateKey string, rec EpochRecor
 	if len(tail) == 1 {
 		return tail[0].key, tail[0].rec, true, nil
 	}
-	return "", EpochRecord{}, false, epochErr(ErrEpochAmbiguous, "find-by-change", nil)
+	return "", RunRecord{}, false, runErr(ErrRunAmbiguous, "find-by-change", nil)
 }
 
-// epochDirMatch is one gate-key directory whose run.json records the sought
-// EpochID: the shared shape scanEpochsByID yields to both findEpochByID (first
-// match) and findEpochDirByID (unique match).
-type epochDirMatch struct {
+// runDirMatch is one gate-key directory whose run.json records the sought
+// RunID: the shared shape scanRunsByID yields to both findRunByID (first
+// match) and findRunDirByID (unique match).
+type runDirMatch struct {
 	dir string
-	rec EpochRecord
+	rec RunRecord
 }
 
-// scanEpochsByID is the single walker under findEpochByID and findEpochDirByID (one
-// walker, two shapes): it enumerates rungateRoot and returns every gate-key
-// directory whose run.json records EpochID == epochID. An empty id or a missing
-// root is (nil, nil); an enumeration fault is a typed ErrEpochIO; a corrupt or
+// scanRunsByID is the single walker under findRunByID and findRunDirByID (one
+// walker, two shapes): it enumerates runTrackerRoot and returns every gate-key
+// directory whose run.json records RunID == runID. An empty id or a missing
+// root is (nil, nil); an enumeration fault is a typed ErrRunRecordIO; a corrupt or
 // unreadable sibling is SKIPPED for matching (it cannot prove it holds the sought
-// id), mirroring findEpochByWorktree's conservative skip.
-func scanEpochsByID(rungateRoot, epochID string) ([]epochDirMatch, error) {
-	if epochID == "" {
+// id), mirroring findRunByWorktree's conservative skip.
+func scanRunsByID(runTrackerRoot, runID string) ([]runDirMatch, error) {
+	if runID == "" {
 		return nil, nil
 	}
-	entries, derr := os.ReadDir(rungateRoot)
+	entries, derr := os.ReadDir(runTrackerRoot)
 	if derr != nil {
 		if errors.Is(derr, fs.ErrNotExist) {
 			return nil, nil
 		}
-		return nil, epochErr(ErrEpochIO, "find-by-id", derr)
+		return nil, runErr(ErrRunRecordIO, "find-by-id", derr)
 	}
-	var matches []epochDirMatch
+	var matches []runDirMatch
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
-		dir := filepath.Join(rungateRoot, e.Name())
-		r, _, lerr := readStoredEpoch(dir, "find-by-id")
+		dir := filepath.Join(runTrackerRoot, e.Name())
+		r, _, lerr := readStoredRun(dir, "find-by-id")
 		if lerr != nil {
 			continue
 		}
-		if r.EpochID == epochID {
-			matches = append(matches, epochDirMatch{dir: dir, rec: r})
+		if r.RunID == runID {
+			matches = append(matches, runDirMatch{dir: dir, rec: r})
 		}
 	}
 	return matches, nil
 }
 
-// findEpochByID locates the epoch whose public EpochID equals epochID by scanning
-// rungateRoot (each gate-key directory may hold one run.json). It returns the
+// findRunByID locates the epoch whose public RunID equals runID by scanning
+// runTrackerRoot (each gate-key directory may hold one run.json). It returns the
 // record and found=true on a match, (found=false, nil) for a clean absence, and a
 // typed error only for an enumeration fault. A corrupt/unreadable sibling is
 // skipped. It underlies the Takeover revocation resolver, which keys on a scope's
-// RunEpochID (the public locator, not the gate key).
-func findEpochByID(rungateRoot, epochID string) (EpochRecord, bool, error) {
-	matches, err := scanEpochsByID(rungateRoot, epochID)
+// RunID (the public locator, not the gate key).
+func findRunByID(runTrackerRoot, runID string) (RunRecord, bool, error) {
+	matches, err := scanRunsByID(runTrackerRoot, runID)
 	if err != nil {
-		return EpochRecord{}, false, err
+		return RunRecord{}, false, err
 	}
 	if len(matches) == 0 {
-		return EpochRecord{}, false, nil
+		return RunRecord{}, false, nil
 	}
 	return matches[0].rec, true, nil
 }
 
-// findEpochDirByID resolves the UNIQUE gate-key directory holding the epoch whose
-// public EpochID is epochID (change 0437 Task 5 — the epoch launch gate locates the
-// key directory it must lock and re-read under). Zero matches → ErrEpochNotFound;
-// more than one → ErrEpochAmbiguous; corrupt/unreadable siblings are skipped for
-// matching but the enumeration-fault contract mirrors findEpochByID. It shares the
-// one walker (scanEpochsByID) with findEpochByID.
-func findEpochDirByID(rungateRoot, epochID string) (dir string, rec EpochRecord, err error) {
-	matches, serr := scanEpochsByID(rungateRoot, epochID)
+// findRunDirByID resolves the UNIQUE gate-key directory holding the epoch whose
+// public RunID is runID (change 0437 Task 5 — the epoch launch gate locates the
+// key directory it must lock and re-read under). Zero matches → ErrRunNotFound;
+// more than one → ErrRunAmbiguous; corrupt/unreadable siblings are skipped for
+// matching but the enumeration-fault contract mirrors findRunByID. It shares the
+// one walker (scanRunsByID) with findRunByID.
+func findRunDirByID(runTrackerRoot, runID string) (dir string, rec RunRecord, err error) {
+	matches, serr := scanRunsByID(runTrackerRoot, runID)
 	if serr != nil {
-		return "", EpochRecord{}, serr
+		return "", RunRecord{}, serr
 	}
 	switch len(matches) {
 	case 0:
-		return "", EpochRecord{}, epochErr(ErrEpochNotFound, "find-dir-by-id", nil)
+		return "", RunRecord{}, runErr(ErrRunNotFound, "find-dir-by-id", nil)
 	case 1:
 		return matches[0].dir, matches[0].rec, nil
 	default:
-		return "", EpochRecord{}, epochErr(ErrEpochAmbiguous, "find-dir-by-id", nil)
+		return "", RunRecord{}, runErr(ErrRunAmbiguous, "find-dir-by-id", nil)
 	}
 }
 
-// epochRevokedResolver builds the gatedrive.EpochRevokedFunc the Takeover path
+// runRevokedResolver builds the gatedrive.RunRevokedFunc the Takeover path
 // consults (change 0375 Task 12). It reads the app-owned run-epoch registry under
 // gitCommonDir and reports revoked=true when the named epoch is cancelled,
 // superseded, or completing/completed (a successful closeout — change 0441; a
@@ -816,22 +816,22 @@ func findEpochDirByID(rungateRoot, epochID string) (dir string, rec EpochRecord,
 // (false, nil): a locator that resolves to nothing cannot prove a run was cancelled,
 // and the takeover's other guards still protect it. An enumeration/IO fault is
 // returned so the takeover fails closed (HALT run-record-unreadable).
-func epochRevokedResolver(gitCommonDir string) func(string) (bool, error) {
-	rungateRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
-	return func(epochID string) (bool, error) {
-		rec, ok, err := findEpochByID(rungateRoot, epochID)
+func runRevokedResolver(gitCommonDir string) func(string) (bool, error) {
+	runTrackerRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
+	return func(runID string) (bool, error) {
+		rec, ok, err := findRunByID(runTrackerRoot, runID)
 		if err != nil {
 			return false, err
 		}
 		if !ok {
 			return false, nil
 		}
-		return rec.State == EpochCancelled || rec.State == EpochSuperseded ||
-			rec.State == EpochCompleting || rec.State == EpochCompleted, nil
+		return rec.State == RunCancelled || rec.State == RunSuperseded ||
+			rec.State == RunCompleting || rec.State == RunCompleted, nil
 	}
 }
 
-// epochSettledResolver builds the gatedrive.EpochSettledFunc the worktree admission
+// runSettledResolver builds the gatedrive.RunSettledFunc the worktree admission
 // fence consults when a RELEASED slot still names another run epoch (change 0446
 // spec §§2, 5). It reads the app-owned run-epoch registry under gitCommonDir and
 // reports settled=true only for an epoch whose readable record is terminal with
@@ -840,23 +840,23 @@ func epochRevokedResolver(gitCommonDir string) func(string) (bool, error) {
 // accounting), or superseded (a resume superseded an already confirmed-cancelled
 // epoch). Active, cancelling, and completing epochs are NOT settled: they still own
 // the worktree between drives until their own closeout completes. A clean "no such
-// epoch" is (false, gatedrive.ErrEpochUnresolved) — a slot-named epoch with no
+// epoch" is (false, gatedrive.ErrRunRecordUnresolved) — a slot-named epoch with no
 // readable record is an unresolved owner, never settlement — and an ambiguous id or
 // an enumeration/IO fault is returned as an error; the fence fails closed on all.
-func epochSettledResolver(gitCommonDir string) func(string) (bool, error) {
-	rungateRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
-	return func(epochID string) (bool, error) {
-		_, rec, err := findEpochDirByID(rungateRoot, epochID)
+func runSettledResolver(gitCommonDir string) func(string) (bool, error) {
+	runTrackerRoot := filepath.Join(gitCommonDir, "docket", runTrackerDirName)
+	return func(runID string) (bool, error) {
+		_, rec, err := findRunDirByID(runTrackerRoot, runID)
 		if err != nil {
-			if ee, ok := AsEpochError(err); ok && ee.Kind == ErrEpochNotFound {
+			if ee, ok := AsRunError(err); ok && ee.Kind == ErrRunNotFound {
 				// Unsettled, and typed so the admission refusal's remedy never points
 				// at a run.cancel that cannot resolve this epoch.
-				return false, gatedrive.ErrEpochUnresolved
+				return false, gatedrive.ErrRunRecordUnresolved
 			}
 			return false, err
 		}
 		switch rec.State {
-		case EpochCompleted, EpochCancelled, EpochSuperseded:
+		case RunCompleted, RunCancelled, RunSuperseded:
 			return true, nil
 		default:
 			return false, nil
@@ -864,10 +864,10 @@ func epochSettledResolver(gitCommonDir string) func(string) (bool, error) {
 	}
 }
 
-// epochToken mints a random 32-hex-char token (16 crypto-random bytes) for the
-// public EpochID locator and for the physical generation. Both are opaque lookup
+// runToken mints a random 32-hex-char token (16 crypto-random bytes) for the
+// public RunID locator and for the physical generation. Both are opaque lookup
 // tokens, never encoded state.
-func epochToken() (string, error) {
+func runToken() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", err

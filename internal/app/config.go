@@ -254,7 +254,7 @@ func effectiveLines(eff *config.Effective) []effectiveLine {
 		leafLine("reclaim.auto", strconv.FormatBool(eff.Reclaim.Auto.Value), eff.Reclaim.Auto.Provenance),
 		leafLine("review.min_fix_severity", textValue(eff.Review.MinFixSeverity.Value), eff.Review.MinFixSeverity.Provenance),
 		leafLine("review.max_fix_tasks", strconv.Itoa(eff.Review.MaxFixTasks.Value), eff.Review.MaxFixTasks.Provenance),
-		leafLine("gate_observation_budget", strconv.Itoa(eff.GateObservation.Value), eff.GateObservation.Provenance),
+		leafLine("gate_observation_budget", strconv.Itoa(eff.RunObservation.Value), eff.RunObservation.Provenance),
 		leafLine("board_surfaces", listValue(eff.BoardSurfaces.Value), eff.BoardSurfaces.Provenance),
 	}
 	// board presentation (change 0367): the section permutation, then one sort

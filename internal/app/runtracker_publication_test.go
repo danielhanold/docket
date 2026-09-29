@@ -109,14 +109,14 @@ func TestPublicationRetryMatchMatrix(t *testing.T) {
 		f(&c)
 		return &c
 	}
-	rec := func(entries ...AdmittedMutation) EpochRecord {
-		return EpochRecord{AdmittedMutations: entries}
+	rec := func(entries ...AdmittedMutation) RunRecord {
+		return RunRecord{AdmittedMutations: entries}
 	}
 	uncertain := AdmittedMutation{OpKey: OperationPRPublish, Status: mutationStatusUncertain, Publication: &base}
 
 	cases := []struct {
 		name string
-		rec  EpochRecord
+		rec  RunRecord
 		want bool
 	}{
 		{"identical completed retry settles", rec(uncertain,
@@ -234,7 +234,7 @@ func TestMutationJournalOutcomeVerifiesOnlyObservedPostcondition(t *testing.T) {
 func TestSettleablePublicationIndexes(t *testing.T) {
 	base := MutationPublication{RepoDir: "/repo/.git", Remote: "origin",
 		HeadRef: "refs/heads/fix/w", HeadCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
-	r := EpochRecord{AdmittedMutations: []AdmittedMutation{
+	r := RunRecord{AdmittedMutations: []AdmittedMutation{
 		{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain, Publication: &base},                 // 0: settleable
 		{OpKey: OperationWorkspacePublish, Status: mutationStatusUncertain},                                     // 1: legacy, pending
 		{OpKey: OperationWorkspacePublish, Status: mutationStatusCompleted, Verified: true, Publication: &base}, // 2: the retry

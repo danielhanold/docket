@@ -18,61 +18,61 @@ import (
 // gate key locates both. A fresh run start arm mints an active epoch; claim
 // confirmation binds its change; participant registration is gated on the active
 // state and fails closed on an unknown schema.
-// The fixtures untagged test files share (mintTestGateKey, forceEpochState,
+// The fixtures untagged test files share (mintTestRunKey, forceRunState,
 // must) live in runtracker_run_record_helpers_test.go (change 0465).
 
-// isEpochKind reports whether err carries an *EpochError of the given kind.
-func isEpochKind(err error, kind EpochErrorKind) bool {
-	ee, ok := AsEpochError(err)
+// isRunKind reports whether err carries an *RunError of the given kind.
+func isRunKind(err error, kind RunErrorKind) bool {
+	ee, ok := AsRunError(err)
 	return ok && ee.Kind == kind
 }
 
-// TestIntegrationRunRecordEpochRecordCRUD proves mint → load → register round-trips: mint yields an
-// active record with a non-empty public EpochID keyed by the gate key, load
+// TestIntegrationRunRecordRunRecordCRUD proves mint → load → register round-trips: mint yields an
+// active record with a non-empty public RunID keyed by the gate key, load
 // returns a generation, a second mint is refused bind-once, a participant is
 // appended with a stamped RegisteredAt under a rotated generation, and a stale
 // expected-epoch locator confers no registration authority.
-func TestIntegrationRunRecordEpochRecordCRUD(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintTestGateKey(t, repo)
+func TestIntegrationRunRecordRunRecordCRUD(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	key := mintTestRunKey(t, repo)
 
-	rec, err := MintEpochRecord(repo, key, "375")
+	rec, err := MintRunRecord(repo, key, "375")
 	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+		t.Fatalf("MintRunRecord: %v", err)
 	}
-	if rec.State != EpochActive {
+	if rec.State != RunActive {
 		t.Fatalf("a fresh epoch must be active, got %q", rec.State)
 	}
-	if rec.EpochID == "" {
-		t.Fatalf("mint must assign a public EpochID locator")
+	if rec.RunID == "" {
+		t.Fatalf("mint must assign a public RunID locator")
 	}
-	if rec.GateKey != key {
-		t.Fatalf("epoch must record its gate key %q, got %q", key, rec.GateKey)
+	if rec.RunKey != key {
+		t.Fatalf("epoch must record its gate key %q, got %q", key, rec.RunKey)
 	}
 
 	// Bind-once: a second mint for the same key never clobbers the first.
-	if _, err := MintEpochRecord(repo, key, "375"); !isEpochKind(err, ErrEpochExists) {
-		t.Fatalf("a second mint must be refused ErrEpochExists, got %v", err)
+	if _, err := MintRunRecord(repo, key, "375"); !isRunKind(err, ErrRunExists) {
+		t.Fatalf("a second mint must be refused ErrRunExists, got %v", err)
 	}
 
-	got, gen, err := LoadEpochRecord(repo, key)
+	got, gen, err := LoadRunRecord(repo, key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if gen == "" {
 		t.Fatalf("load must return a physical generation")
 	}
-	if got.EpochID != rec.EpochID || got.ChangeID != "375" || got.State != EpochActive {
+	if got.RunID != rec.RunID || got.ChangeID != "375" || got.State != RunActive {
 		t.Fatalf("load round-trip mismatch: %+v", got)
 	}
 
-	p := EpochParticipant{Kind: "coordinator", NativeHandle: "handle-1"}
-	if err := RegisterEpochParticipant(repo, key, rec.EpochID, p); err != nil {
-		t.Fatalf("RegisterEpochParticipant: %v", err)
+	p := RunParticipant{Kind: "coordinator", NativeHandle: "handle-1"}
+	if err := RegisterRunParticipant(repo, key, rec.RunID, p); err != nil {
+		t.Fatalf("RegisterRunParticipant: %v", err)
 	}
-	got, gen2, err := LoadEpochRecord(repo, key)
+	got, gen2, err := LoadRunRecord(repo, key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord after register: %v", err)
+		t.Fatalf("LoadRunRecord after register: %v", err)
 	}
 	if len(got.Participants) != 1 {
 		t.Fatalf("participant not appended: %+v", got.Participants)
@@ -88,100 +88,100 @@ func TestIntegrationRunRecordEpochRecordCRUD(t *testing.T) {
 	}
 
 	// A stale expected-epoch locator is refused: registration binds to the exact epoch.
-	if err := RegisterEpochParticipant(repo, key, "not-the-epoch", p); !isEpochKind(err, ErrEpochMismatch) {
-		t.Fatalf("a stale expected-epoch must be refused ErrEpochMismatch, got %v", err)
+	if err := RegisterRunParticipant(repo, key, "not-the-epoch", p); !isRunKind(err, ErrRunIDMismatch) {
+		t.Fatalf("a stale expected-epoch must be refused ErrRunIDMismatch, got %v", err)
 	}
 }
 
 // TestIntegrationRunRecordRegisterParticipantRejectsNonActive proves a fenced (non-active) epoch admits
 // no new participant: after the epoch flips active→cancelling, registration fails
-// closed ErrEpochNotActive.
+// closed ErrRunNotActive.
 func TestIntegrationRunRecordRegisterParticipantRejectsNonActive(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintTestGateKey(t, repo)
-	rec, err := MintEpochRecord(repo, key, "")
+	repo := newRunTrackerRepo(t)
+	key := mintTestRunKey(t, repo)
+	rec, err := MintRunRecord(repo, key, "")
 	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+		t.Fatalf("MintRunRecord: %v", err)
 	}
 	// Fence the epoch through the CAS (the durable active→cancelling transition Task 10
 	// drives; here it stands in so the state gate is exercised).
-	if err := epochCAS(repo, key, func(r *EpochRecord) error {
-		r.State = EpochCancelling
+	if err := runRecordCAS(repo, key, func(r *RunRecord) error {
+		r.State = RunCancelling
 		return nil
 	}); err != nil {
-		t.Fatalf("epochCAS fence: %v", err)
+		t.Fatalf("runRecordCAS fence: %v", err)
 	}
-	err = RegisterEpochParticipant(repo, key, rec.EpochID, EpochParticipant{Kind: "task"})
-	if !isEpochKind(err, ErrEpochNotActive) {
-		t.Fatalf("register on a cancelling epoch must be refused ErrEpochNotActive, got %v", err)
+	err = RegisterRunParticipant(repo, key, rec.RunID, RunParticipant{Kind: "task"})
+	if !isRunKind(err, ErrRunNotActive) {
+		t.Fatalf("register on a cancelling epoch must be refused ErrRunNotActive, got %v", err)
 	}
 	// The rejected registration wrote nothing: the participant list stays empty.
-	got, _, err := LoadEpochRecord(repo, key)
+	got, _, err := LoadRunRecord(repo, key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if len(got.Participants) != 0 {
 		t.Fatalf("a rejected registration must write nothing, got %+v", got.Participants)
 	}
 }
 
-// TestIntegrationRunRecordLoadEpochNotFound proves a load before any mint fails closed ErrEpochNotFound
+// TestIntegrationRunRecordLoadRunNotFound proves a load before any mint fails closed ErrRunNotFound
 // rather than fabricating a live epoch.
-func TestIntegrationRunRecordLoadEpochNotFound(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintTestGateKey(t, repo)
-	if _, _, err := LoadEpochRecord(repo, key); !isEpochKind(err, ErrEpochNotFound) {
-		t.Fatalf("load with no epoch must be ErrEpochNotFound, got %v", err)
+func TestIntegrationRunRecordLoadRunNotFound(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	key := mintTestRunKey(t, repo)
+	if _, _, err := LoadRunRecord(repo, key); !isRunKind(err, ErrRunNotFound) {
+		t.Fatalf("load with no epoch must be ErrRunNotFound, got %v", err)
 	}
 }
 
-// TestIntegrationRunRecordEpochUnknownSchemaFailsClosed proves a record carrying an unknown schema
-// version fails closed ErrEpochCorrupt on load — a record the store cannot read is
+// TestIntegrationRunRecordRunUnknownSchemaFailsClosed proves a record carrying an unknown schema
+// version fails closed ErrRunRecordCorrupt on load — a record the store cannot read is
 // never a live epoch (premium: fail-closed schema versioning).
-func TestIntegrationRunRecordEpochUnknownSchemaFailsClosed(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintTestGateKey(t, repo)
-	if _, err := MintEpochRecord(repo, key, "375"); err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+func TestIntegrationRunRecordRunUnknownSchemaFailsClosed(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	key := mintTestRunKey(t, repo)
+	if _, err := MintRunRecord(repo, key, "375"); err != nil {
+		t.Fatalf("MintRunRecord: %v", err)
 	}
-	common, err := gateGitCommonDir(repo)
+	common, err := runTrackerGitCommonDir(repo)
 	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
-	path := filepath.Join(common, "docket", runTrackerDirName, key, epochRecordFileName)
+	path := filepath.Join(common, "docket", runTrackerDirName, key, runRecordFileName)
 	bad := `{"generation":"g","record":{"schema_version":99,"run_key":"` + key + `","state":"active","run_id":"e"}}`
 	if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
 		t.Fatalf("seed bad schema: %v", err)
 	}
-	if _, _, err := LoadEpochRecord(repo, key); !isEpochKind(err, ErrEpochCorrupt) {
-		t.Fatalf("unknown schema must be ErrEpochCorrupt, got %v", err)
+	if _, _, err := LoadRunRecord(repo, key); !isRunKind(err, ErrRunRecordCorrupt) {
+		t.Fatalf("unknown schema must be ErrRunRecordCorrupt, got %v", err)
 	}
 }
 
-// TestIntegrationRunRecordGateBeforeMintsEpoch proves a fresh (non-resume) arm binds a new run epoch
-// beside the gate record, keyed by the gate key: active, with a public EpochID and
+// TestIntegrationRunRecordRunStartMintsRun proves a fresh (non-resume) arm binds a new run epoch
+// beside the gate record, keyed by the gate key: active, with a public RunID and
 // no change bound yet.
-func TestIntegrationRunRecordGateBeforeMintsEpoch(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+func TestIntegrationRunRecordRunStartMintsRun(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
-	if !res.Armed || res.Key == "" {
-		t.Fatalf("Armed=%v Key=%q, want armed", res.Armed, res.Key)
+	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Started || res.Key == "" {
+		t.Fatalf("Armed=%v Key=%q, want armed", res.Started, res.Key)
 	}
-	ep, _, err := LoadEpochRecord(repo, res.Key)
+	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
 		t.Fatalf("a fresh arm must mint an epoch keyed by the gate key: %v", err)
 	}
-	if ep.State != EpochActive {
+	if ep.State != RunActive {
 		t.Fatalf("minted epoch must be active, got %q", ep.State)
 	}
-	if ep.EpochID == "" {
-		t.Fatalf("minted epoch must carry a public EpochID")
+	if ep.RunID == "" {
+		t.Fatalf("minted epoch must carry a public RunID")
 	}
-	if ep.GateKey != res.Key {
-		t.Fatalf("epoch gate key = %q, want %q", ep.GateKey, res.Key)
+	if ep.RunKey != res.Key {
+		t.Fatalf("epoch gate key = %q, want %q", ep.RunKey, res.Key)
 	}
 	// A fresh arm has not yet chosen a change, so the epoch binds none until claim.
 	if ep.ChangeID != "" {
@@ -189,7 +189,7 @@ func TestIntegrationRunRecordGateBeforeMintsEpoch(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordConfirmGateClaimBindsEpochChange proves the claim confirmation binds the
+// TestIntegrationRunRecordConfirmGateClaimBindsRunChange proves the claim confirmation binds the
 // epoch to the confirmed change instance — the readable locator a later
 // resume/cancel resolves the run by.
 // TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable proves an armed gate reports the honest
@@ -197,13 +197,13 @@ func TestIntegrationRunRecordGateBeforeMintsEpoch(t *testing.T) {
 // no automatic Stop/owner-death cancellation, so a Stop is the explicit run.cancel
 // operation. The field is a standing caveat, never a refusal — the gate still arms.
 func TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+	repo := newRunTrackerRepo(t)
+	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
-	if !res.Armed {
-		t.Fatalf("gate must arm; got Armed=%v Reason=%q", res.Armed, res.Reason)
+	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Started {
+		t.Fatalf("gate must arm; got Armed=%v Reason=%q", res.Started, res.Reason)
 	}
 	if res.OwnerLifecycle != ReasonOwnerLifecycleUnavailable {
 		t.Fatalf("OwnerLifecycle = %q, want %q", res.OwnerLifecycle, ReasonOwnerLifecycleUnavailable)
@@ -213,209 +213,209 @@ func TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable(t *testing.T) 
 	}
 }
 
-func TestIntegrationRunRecordConfirmGateClaimBindsEpochChange(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+func TestIntegrationRunRecordConfirmGateClaimBindsRunChange(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
-	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
-	if !res.Armed {
+	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Started {
 		t.Fatalf("arm failed: %+v", res)
 	}
-	if err := ReserveGateClaim(repo, res.Key, 42, "req-1"); err != nil {
-		t.Fatalf("ReserveGateClaim: %v", err)
+	if err := ReserveRunTrackerClaim(repo, res.Key, 42, "req-1"); err != nil {
+		t.Fatalf("ReserveRunTrackerClaim: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, res.Key, 42, "req-1", "revabc123", ""); err != nil {
-		t.Fatalf("ConfirmGateClaim: %v", err)
+	if err := ConfirmRunTrackerClaim(repo, res.Key, 42, "req-1", "revabc123", ""); err != nil {
+		t.Fatalf("ConfirmRunTrackerClaim: %v", err)
 	}
-	ep, _, err := LoadEpochRecord(repo, res.Key)
+	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.ChangeID != "42" {
 		t.Fatalf("claim confirmation must bind the epoch change id, got %q", ep.ChangeID)
 	}
 }
 
-// TestIntegrationRunRecordConfirmGateClaimNoEpochIsNoop proves a claim over a dispatch with NO epoch
+// TestIntegrationRunRecordConfirmGateClaimNoRunIsNoop proves a claim over a dispatch with NO epoch
 // (a standalone gate record) is unaffected: the confirm succeeds and no epoch is
 // fabricated. This guards the existing claim path against the epoch bind.
-func TestIntegrationRunRecordConfirmGateClaimNoEpochIsNoop(t *testing.T) {
-	repo := newGateRepo(t)
-	key := mintTestGateKey(t, repo) // a gate record with no epoch minted beside it
-	if err := ReserveGateClaim(repo, key, 7, "req-x"); err != nil {
-		t.Fatalf("ReserveGateClaim: %v", err)
+func TestIntegrationRunRecordConfirmGateClaimNoRunIsNoop(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	key := mintTestRunKey(t, repo) // a gate record with no epoch minted beside it
+	if err := ReserveRunTrackerClaim(repo, key, 7, "req-x"); err != nil {
+		t.Fatalf("ReserveRunTrackerClaim: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 7, "req-x", "rev-x", ""); err != nil {
-		t.Fatalf("ConfirmGateClaim over a no-epoch dispatch must succeed: %v", err)
+	if err := ConfirmRunTrackerClaim(repo, key, 7, "req-x", "rev-x", ""); err != nil {
+		t.Fatalf("ConfirmRunTrackerClaim over a no-epoch dispatch must succeed: %v", err)
 	}
-	if _, _, err := LoadEpochRecord(repo, key); !isEpochKind(err, ErrEpochNotFound) {
+	if _, _, err := LoadRunRecord(repo, key); !isRunKind(err, ErrRunNotFound) {
 		t.Fatalf("no epoch must be fabricated by the claim, got %v", err)
 	}
 }
 
-// mintEpochFixture mints a gate-key directory and an active epoch beside it
+// mintRunFixture mints a gate-key directory and an active epoch beside it
 // (change 0441), returning the repo and the gate key the completion-lifecycle
 // tests drive. changeID "441" mirrors the change under test.
-func mintEpochFixture(t *testing.T) (repo, key string) {
+func mintRunFixture(t *testing.T) (repo, key string) {
 	t.Helper()
-	repo = newGateRepo(t)
-	key = mintTestGateKey(t, repo)
-	if _, err := MintEpochRecord(repo, key, "441"); err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+	repo = newRunTrackerRepo(t)
+	key = mintTestRunKey(t, repo)
+	if _, err := MintRunRecord(repo, key, "441"); err != nil {
+		t.Fatalf("MintRunRecord: %v", err)
 	}
 	return repo, key
 }
 
-func TestIntegrationRunRecordFenceEpochCompletingFromActive(t *testing.T) {
-	repo, key := mintEpochFixture(t) // reuse/extract the file's existing mint helper; changeID "441"
-	st, err := FenceEpochCompleting(repo, key, "")
-	if err != nil || st != EpochCompleting {
+func TestIntegrationRunRecordFenceRunCompletingFromActive(t *testing.T) {
+	repo, key := mintRunFixture(t) // reuse/extract the file's existing mint helper; changeID "441"
+	st, err := FenceRunCompleting(repo, key, "")
+	if err != nil || st != RunCompleting {
 		t.Fatalf("fence: state %q err %v", st, err)
 	}
-	rec, _, _ := LoadEpochRecord(repo, key)
-	if rec.State != EpochCompleting {
+	rec, _, _ := LoadRunRecord(repo, key)
+	if rec.State != RunCompleting {
 		t.Fatalf("persisted state %q", rec.State)
 	}
 	// Idempotent replay resumes the same closeout.
-	if st, err = FenceEpochCompleting(repo, key, ""); err != nil || st != EpochCompleting {
+	if st, err = FenceRunCompleting(repo, key, ""); err != nil || st != RunCompleting {
 		t.Fatalf("replay: state %q err %v", st, err)
 	}
 }
 
-func TestIntegrationRunRecordFenceEpochCompletingNeverRelabelsTerminalStates(t *testing.T) {
-	for _, s := range []epochState{EpochCancelling, EpochCancelled, EpochSuperseded, epochState("garbage")} {
-		repo, key := mintEpochFixture(t)
-		forceEpochState(t, repo, key, s) // helper: epochCAS setting rec.State = s
-		st, err := FenceEpochCompleting(repo, key, "")
-		ee, ok := AsEpochError(err)
-		if !ok || ee.Kind != ErrEpochNotActive || st != s {
+func TestIntegrationRunRecordFenceRunCompletingNeverRelabelsTerminalStates(t *testing.T) {
+	for _, s := range []runState{RunCancelling, RunCancelled, RunSuperseded, runState("garbage")} {
+		repo, key := mintRunFixture(t)
+		forceRunState(t, repo, key, s) // helper: runRecordCAS setting rec.State = s
+		st, err := FenceRunCompleting(repo, key, "")
+		ee, ok := AsRunError(err)
+		if !ok || ee.Kind != ErrRunNotActive || st != s {
 			t.Fatalf("state %q: got st %q err %v", s, st, err)
 		}
-		rec, _, _ := LoadEpochRecord(repo, key)
+		rec, _, _ := LoadRunRecord(repo, key)
 		if rec.State != s {
 			t.Fatalf("state %q was rewritten to %q", s, rec.State)
 		}
 	}
 }
 
-func TestIntegrationRunRecordFenceEpochCompletingRejectsStaleLocator(t *testing.T) {
-	repo, key := mintEpochFixture(t)
-	_, err := FenceEpochCompleting(repo, key, "not-the-epoch-id")
-	if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochMismatch {
+func TestIntegrationRunRecordFenceRunCompletingRejectsStaleLocator(t *testing.T) {
+	repo, key := mintRunFixture(t)
+	_, err := FenceRunCompleting(repo, key, "not-the-epoch-id")
+	if ee, ok := AsRunError(err); !ok || ee.Kind != ErrRunIDMismatch {
 		t.Fatalf("err %v", err)
 	}
 }
 
-func TestIntegrationRunRecordCompleteEpochOnlyFromCompleting(t *testing.T) {
-	repo, key := mintEpochFixture(t)
-	if err := CompleteEpoch(repo, key); err == nil {
+func TestIntegrationRunRecordCompleteRunOnlyFromCompleting(t *testing.T) {
+	repo, key := mintRunFixture(t)
+	if err := CompleteRun(repo, key); err == nil {
 		t.Fatal("completed from active") // never a shortcut past the fence
 	}
-	_, _ = FenceEpochCompleting(repo, key, "")
-	if err := CompleteEpoch(repo, key); err != nil {
+	_, _ = FenceRunCompleting(repo, key, "")
+	if err := CompleteRun(repo, key); err != nil {
 		t.Fatalf("complete: %v", err)
 	}
-	if err := CompleteEpoch(repo, key); err != nil {
+	if err := CompleteRun(repo, key); err != nil {
 		t.Fatalf("idempotent replay: %v", err) // completed receipt replay is safe
 	}
 	// Cancellation that won from completing makes completion lose.
-	repo2, key2 := mintEpochFixture(t)
-	_, _ = FenceEpochCompleting(repo2, key2, "")
-	forceEpochState(t, repo2, key2, EpochCancelling)
-	if err := CompleteEpoch(repo2, key2); err == nil {
+	repo2, key2 := mintRunFixture(t)
+	_, _ = FenceRunCompleting(repo2, key2, "")
+	forceRunState(t, repo2, key2, RunCancelling)
+	if err := CompleteRun(repo2, key2); err == nil {
 		t.Fatal("completion must lose to a cancellation that won")
 	}
 }
 
-func TestIntegrationRunRecordRegisterEpochParticipantRejectedOnCompletingAndCompleted(t *testing.T) {
-	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
-		repo, key := mintEpochFixture(t)
-		forceEpochState(t, repo, key, s)
-		err := RegisterEpochParticipant(repo, key, "", EpochParticipant{Kind: "task", NativeHandle: "h"})
-		if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochNotActive {
+func TestIntegrationRunRecordRegisterRunParticipantRejectedOnCompletingAndCompleted(t *testing.T) {
+	for _, s := range []runState{RunCompleting, RunCompleted} {
+		repo, key := mintRunFixture(t)
+		forceRunState(t, repo, key, s)
+		err := RegisterRunParticipant(repo, key, "", RunParticipant{Kind: "task", NativeHandle: "h"})
+		if ee, ok := AsRunError(err); !ok || ee.Kind != ErrRunNotActive {
 			t.Fatalf("state %q admitted a registration: %v", s, err)
 		}
 	}
 }
 
 func TestIntegrationRunRecordSupersedeRefusesCompletingAndCompleted(t *testing.T) {
-	for _, s := range []epochState{EpochCompleting, EpochCompleted} {
-		repo, key := mintEpochFixture(t)
-		forceEpochState(t, repo, key, s)
-		err := SupersedeCancelledEpoch(repo, key, "replacement-key")
-		if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochNotCancelled {
+	for _, s := range []runState{RunCompleting, RunCompleted} {
+		repo, key := mintRunFixture(t)
+		forceRunState(t, repo, key, s)
+		err := SupersedeCancelledRun(repo, key, "replacement-key")
+		if ee, ok := AsRunError(err); !ok || ee.Kind != ErrRunNotCancelled {
 			t.Fatalf("state %q superseded: %v", s, err)
 		}
 	}
 }
 
-func TestIntegrationRunRecordRecordEpochParticipantTerminal(t *testing.T) {
-	repo, key := mintEpochFixture(t)
-	must(t, RegisterEpochParticipant(repo, key, "", EpochParticipant{Kind: "coordinator", NativeHandle: "thread-1"}))
-	must(t, RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalCompleted))
-	rec, _, _ := LoadEpochRecord(repo, key)
+func TestIntegrationRunRecordRecordRunParticipantTerminal(t *testing.T) {
+	repo, key := mintRunFixture(t)
+	must(t, RegisterRunParticipant(repo, key, "", RunParticipant{Kind: "coordinator", NativeHandle: "thread-1"}))
+	must(t, RecordRunParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalCompleted))
+	rec, _, _ := LoadRunRecord(repo, key)
 	p := rec.Participants[0]
 	if p.TerminalStatus != ParticipantTerminalCompleted || p.TerminalTurn != "turn-9" || p.TerminalObservedAt == "" {
 		t.Fatalf("evidence not persisted: %+v", p)
 	}
 	// Idempotent identical replay; conflicting evidence fails closed.
-	must(t, RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalCompleted))
-	if err := RecordEpochParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalFailed); err == nil {
+	must(t, RecordRunParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalCompleted))
+	if err := RecordRunParticipantTerminal(repo, key, "", "thread-1", "turn-9", ParticipantTerminalFailed); err == nil {
 		t.Fatal("conflicting terminal status accepted")
 	}
-	if err := RecordEpochParticipantTerminal(repo, key, "", "thread-1", "other-turn", ParticipantTerminalCompleted); err == nil {
+	if err := RecordRunParticipantTerminal(repo, key, "", "thread-1", "other-turn", ParticipantTerminalCompleted); err == nil {
 		t.Fatal("mismatched turn accepted") // AC4: mismatched turn cannot satisfy
 	}
 }
 
-func TestIntegrationRunRecordRecordEpochParticipantTerminalUnknownHandleAndBadInput(t *testing.T) {
-	repo, key := mintEpochFixture(t)
-	err := RecordEpochParticipantTerminal(repo, key, "", "ghost", "t", ParticipantTerminalCompleted)
-	if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochParticipantUnknown {
+func TestIntegrationRunRecordRecordRunParticipantTerminalUnknownHandleAndBadInput(t *testing.T) {
+	repo, key := mintRunFixture(t)
+	err := RecordRunParticipantTerminal(repo, key, "", "ghost", "t", ParticipantTerminalCompleted)
+	if ee, ok := AsRunError(err); !ok || ee.Kind != ErrRunParticipantUnknown {
 		t.Fatalf("err %v", err)
 	}
 	for _, bad := range [][3]string{{"", "t", "completed"}, {"h", "", "completed"}, {"h", "t", ""}, {"h", "t", "yielded"}} {
-		if RecordEpochParticipantTerminal(repo, key, "", bad[0], bad[1], bad[2]) == nil {
+		if RecordRunParticipantTerminal(repo, key, "", bad[0], bad[1], bad[2]) == nil {
 			t.Fatalf("malformed evidence %v accepted", bad)
 		}
 	}
 }
 
-func TestIntegrationRunRecordRecordEpochParticipantTerminalAllowedAfterFence(t *testing.T) {
+func TestIntegrationRunRecordRecordRunParticipantTerminalAllowedAfterFence(t *testing.T) {
 	// "Completion of an existing participant is allowed after the completing
 	// fence; registering or reopening work is not."
-	for _, s := range []epochState{EpochCompleting, EpochCancelling} {
-		repo, key := mintEpochFixture(t)
-		must(t, RegisterEpochParticipant(repo, key, "", EpochParticipant{Kind: "task", NativeHandle: "h1"}))
-		forceEpochState(t, repo, key, s)
-		must(t, RecordEpochParticipantTerminal(repo, key, "", "h1", "turn-1", ParticipantTerminalFailed))
+	for _, s := range []runState{RunCompleting, RunCancelling} {
+		repo, key := mintRunFixture(t)
+		must(t, RegisterRunParticipant(repo, key, "", RunParticipant{Kind: "task", NativeHandle: "h1"}))
+		forceRunState(t, repo, key, s)
+		must(t, RecordRunParticipantTerminal(repo, key, "", "h1", "turn-1", ParticipantTerminalFailed))
 	}
 }
 
-// TestIntegrationRunRecordEpochSettledResolverStates (change 0446): the admission settlement read
+// TestIntegrationRunRecordRunSettledResolverStates (change 0446): the admission settlement read
 // reports settled only for an epoch whose record is terminal with its accounting
 // done — completed, cancelled, superseded. Active, cancelling, and completing
 // epochs still own their worktree, and an unknown epoch id is an unresolved owner,
 // never settlement.
-func TestIntegrationRunRecordEpochSettledResolverStates(t *testing.T) {
+func TestIntegrationRunRecordRunSettledResolverStates(t *testing.T) {
 	cases := []struct {
-		state   epochState
+		state   runState
 		settled bool
 	}{
-		{EpochActive, false},
-		{EpochCancelling, false},
-		{EpochCompleting, false},
-		{EpochCancelled, true},
-		{EpochSuperseded, true},
-		{EpochCompleted, true},
+		{RunActive, false},
+		{RunCancelling, false},
+		{RunCompleting, false},
+		{RunCancelled, true},
+		{RunSuperseded, true},
+		{RunCompleted, true},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.state), func(t *testing.T) {
-			repo, common, key, epochID, _ := epochGateFixture(t)
-			if tc.state != EpochActive {
-				fenceEpoch(t, repo, key, tc.state)
+			repo, common, key, runID, _ := runLaunchGateFixture(t)
+			if tc.state != RunActive {
+				fenceRun(t, repo, key, tc.state)
 			}
-			settled, err := epochSettledResolver(common)(epochID)
+			settled, err := runSettledResolver(common)(runID)
 			if err != nil {
 				t.Fatalf("resolver err: %v", err)
 			}
@@ -425,46 +425,46 @@ func TestIntegrationRunRecordEpochSettledResolverStates(t *testing.T) {
 		})
 	}
 	t.Run("unknown-epoch", func(t *testing.T) {
-		_, common, _, _, _ := epochGateFixture(t)
-		settled, err := epochSettledResolver(common)("0123456789abcdef0123456789abcdef")
-		if !errors.Is(err, gatedrive.ErrEpochUnresolved) || settled {
-			t.Fatalf("unknown epoch = (%v, %v), want (false, ErrEpochUnresolved)", settled, err)
+		_, common, _, _, _ := runLaunchGateFixture(t)
+		settled, err := runSettledResolver(common)("0123456789abcdef0123456789abcdef")
+		if !errors.Is(err, gatedrive.ErrRunRecordUnresolved) || settled {
+			t.Fatalf("unknown epoch = (%v, %v), want (false, ErrRunRecordUnresolved)", settled, err)
 		}
 	})
 }
 
-// TestIntegrationRunRecordCheckRunEpochLinkage (change 0463): the agent.enter preflight answers with a
-// typed EpochError. Not-found covers both a gate key with no epoch and a gate key
+// TestIntegrationRunRecordCheckRunIDLinkage (change 0463): the agent.enter preflight answers with a
+// typed RunError. Not-found covers both a gate key with no epoch and a gate key
 // that does not exist (the pair names no epoch). Mismatch covers a different
 // recorded id. A matching pair is nil.
-func TestIntegrationRunRecordCheckRunEpochLinkage(t *testing.T) {
-	repo := newGateRepo(t)
-	bare := mintTestGateKey(t, repo)
-	if err := CheckRunEpochLinkage(repo, bare, "0790b760e26444866ef2e156ba383326"); !isEpochKind(err, ErrEpochNotFound) {
+func TestIntegrationRunRecordCheckRunIDLinkage(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	bare := mintTestRunKey(t, repo)
+	if err := CheckRunIDLinkage(repo, bare, "0790b760e26444866ef2e156ba383326"); !isRunKind(err, ErrRunNotFound) {
 		t.Fatalf("gate key without an epoch: got %v, want run-not-found", err)
 	}
 
-	withEpoch := mintTestGateKey(t, repo)
-	ep, err := MintEpochRecord(repo, withEpoch, "463")
+	withRun := mintTestRunKey(t, repo)
+	ep, err := MintRunRecord(repo, withRun, "463")
 	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+		t.Fatalf("MintRunRecord: %v", err)
 	}
-	if err := CheckRunEpochLinkage(repo, withEpoch, ep.EpochID); err != nil {
+	if err := CheckRunIDLinkage(repo, withRun, ep.RunID); err != nil {
 		t.Fatalf("matching pair must pass, got %v", err)
 	}
-	if err := CheckRunEpochLinkage(repo, withEpoch, "0790b760e26444866ef2e156ba383326"); !isEpochKind(err, ErrEpochMismatch) {
+	if err := CheckRunIDLinkage(repo, withRun, "0790b760e26444866ef2e156ba383326"); !isRunKind(err, ErrRunIDMismatch) {
 		t.Fatalf("wrong epoch id: got %v, want run-id-mismatch", err)
 	}
 
-	gone := mintTestGateKey(t, repo)
-	root, rerr := gateRoot(repo)
+	gone := mintTestRunKey(t, repo)
+	root, rerr := runTrackerRoot(repo)
 	if rerr != nil {
-		t.Fatalf("gateRoot: %v", rerr)
+		t.Fatalf("runTrackerRoot: %v", rerr)
 	}
 	if err := os.RemoveAll(filepath.Join(root, gone)); err != nil {
 		t.Fatalf("remove gate dir: %v", err)
 	}
-	if err := CheckRunEpochLinkage(repo, gone, ep.EpochID); !isEpochKind(err, ErrEpochNotFound) {
+	if err := CheckRunIDLinkage(repo, gone, ep.RunID); !isRunKind(err, ErrRunNotFound) {
 		t.Fatalf("absent gate key: got %v, want run-not-found", err)
 	}
 }

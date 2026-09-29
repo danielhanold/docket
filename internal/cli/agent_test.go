@@ -428,12 +428,12 @@ func TestAgentEnterRequiresClosedExecutionContext(t *testing.T) {
 	}
 }
 
-// TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch (change 0463): an agent.enter
+// TestAgentEnterRefusesBadRunIDLinkageBeforeLaunch (change 0463): an agent.enter
 // whose --run-key/--run-id pair names no run epoch, or names a different one,
 // is refused with a named token BEFORE Codex is spawned. A stub codex that records
 // any invocation proves nothing launched. The presented value never appears in the
 // JSON or human output.
-func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
+func TestAgentEnterRefusesBadRunIDLinkageBeforeLaunch(t *testing.T) {
 	seedAgentInstallation(t)
 	repo := gateDriveRepo(t)
 	bin := testsupport.TempDir(t)
@@ -446,23 +446,23 @@ func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
 
 	const bogus = "0790b760e26444866ef2e156ba383326"
 	mintKey := func() string {
-		key, err := app.MintGateRecord(repo, app.GateRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "run-started"})
+		key, err := app.MintRunTrackerRecord(repo, app.RunTrackerRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "run-started"})
 		if err != nil {
-			t.Fatalf("MintGateRecord: %v", err)
+			t.Fatalf("MintRunTrackerRecord: %v", err)
 		}
 		return key
 	}
 	bare := mintKey()
-	withEpoch := mintKey()
-	if _, err := app.MintEpochRecord(repo, withEpoch, "463"); err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+	withRun := mintKey()
+	if _, err := app.MintRunRecord(repo, withRun, "463"); err != nil {
+		t.Fatalf("MintRunRecord: %v", err)
 	}
 
 	for _, tc := range []struct {
 		name, key, wantReason string
 	}{
 		{"gate key with no epoch", bare, "unknown-run-id"},
-		{"epoch id not the key's", withEpoch, "stale-run-id"},
+		{"epoch id not the key's", withRun, "stale-run-id"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			base := []string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
@@ -491,13 +491,13 @@ func TestAgentEnterRefusesBadRunEpochLinkageBeforeLaunch(t *testing.T) {
 	}
 }
 
-// TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch (change 0463, review fix):
+// TestAgentEnterLoneRunIDIsPreflightedBeforeLaunch (change 0463, review fix):
 // AGENTS.md threads only --run-id into agent.enter, so a lone --run-id (no
 // --run-key) must still be checked for existence before Codex is spawned. A
 // misrouted token (0382: the dispatch context passed as the epoch) refuses with
 // unknown-run-id and launches nothing; a lone epoch that DOES exist passes the
 // preflight and reaches the launch (the stub codex records the invocation).
-func TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch(t *testing.T) {
+func TestAgentEnterLoneRunIDIsPreflightedBeforeLaunch(t *testing.T) {
 	seedAgentInstallation(t)
 	repo := gateDriveRepo(t)
 	bin := testsupport.TempDir(t)
@@ -508,17 +508,17 @@ func TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch(t *testing.T) {
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	key, err := app.MintGateRecord(repo, app.GateRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "run-started"})
+	key, err := app.MintRunTrackerRecord(repo, app.RunTrackerRecord{Target: "docket-implement-next", AttemptLimit: 1, Retry: app.RetryUnused, Disposition: "run-started"})
 	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
+		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
-	rec, err := app.MintEpochRecord(repo, key, "463")
+	rec, err := app.MintRunRecord(repo, key, "463")
 	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+		t.Fatalf("MintRunRecord: %v", err)
 	}
-	enter := func(epoch string, extra ...string) []string {
+	enter := func(runID string, extra ...string) []string {
 		return append([]string{"agent", "enter", "--role", "docket-implement-next", "--request", "-", "--cwd", repo,
-			"--approval-policy", "never", "--sandbox", "workspace-write", "--run-id", epoch}, extra...)
+			"--approval-policy", "never", "--sandbox", "workspace-write", "--run-id", runID}, extra...)
 	}
 
 	const bogus = "0790b760e26444866ef2e156ba383326"
@@ -528,8 +528,8 @@ func TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &res); err != nil {
 		t.Fatalf("decode %q: %v (stderr %q)", out.String(), err, stderr.String())
 	}
-	if res.Result != app.ResultInvalidInput || res.Reason != app.ReasonUnknownRunEpoch {
-		t.Fatalf("lone unknown --run-id: got (%s, %q), want (invalid-input, %q): %+v", res.Result, res.Reason, app.ReasonUnknownRunEpoch, res)
+	if res.Result != app.ResultInvalidInput || res.Reason != app.ReasonUnknownRunID {
+		t.Fatalf("lone unknown --run-id: got (%s, %q), want (invalid-input, %q): %+v", res.Result, res.Reason, app.ReasonUnknownRunID, res)
 	}
 	if strings.Contains(out.String(), bogus) {
 		t.Fatalf("JSON output leaked the presented value: %s", out.String())
@@ -545,12 +545,12 @@ func TestAgentEnterLoneRunEpochIsPreflightedBeforeLaunch(t *testing.T) {
 
 	out.Reset()
 	stderr.Reset()
-	Run(enter(rec.EpochID, "--json"), strings.NewReader("req"), &out, &stderr, devInfo(), hostFacts())
+	Run(enter(rec.RunID, "--json"), strings.NewReader("req"), &out, &stderr, devInfo(), hostFacts())
 	res = app.AgentEnterResult{}
 	if err := json.Unmarshal(out.Bytes(), &res); err != nil {
 		t.Fatalf("decode %q: %v (stderr %q)", out.String(), err, stderr.String())
 	}
-	if res.Reason == app.ReasonUnknownRunEpoch {
+	if res.Reason == app.ReasonUnknownRunID {
 		t.Fatalf("a lone --run-id that exists was refused: %+v", res)
 	}
 	if _, err := os.Stat(marker); err != nil {

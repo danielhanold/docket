@@ -405,11 +405,11 @@ func ensureManagedGitignore(primaryWorktree string) (bool, error) {
 // ownership record — all in one journaled transaction. It returns the surface
 // paths to name as pending review and whether anything changed.
 func installAuthorizedSurfaces(ctx context.Context, git *gitcli.Client, primaryWorktree string) ([]string, bool, error) {
-	runGate, err := buildRunGate()
+	runTracker, err := buildRunTracker()
 	if err != nil {
 		return nil, false, err
 	}
-	phase, _, _, err := ResolveRepoPhase(ctx, git, primaryWorktree, nil, runGate, nil, config.ResolveContext{DefaultBranch: "main"})
+	phase, _, _, err := ResolveRepoPhase(ctx, git, primaryWorktree, nil, runTracker, nil, config.ResolveContext{DefaultBranch: "main"})
 	if err != nil {
 		return nil, false, err
 	}
@@ -503,15 +503,15 @@ func repoRecordAlreadyOnDisk(recordPath string, recordBytes []byte) (bool, error
 	return string(existing) == string(recordBytes), nil
 }
 
-// buildRunGate renders the dispatch run-gate payload from the embedded asset
+// buildRunTracker renders the dispatch run-gate payload from the embedded asset
 // catalog — the same source the installer's repository phase renders surfaces
 // from — so a repository init and an install agree on surface bytes.
-func buildRunGate() ([]byte, error) {
+func buildRunTracker() ([]byte, error) {
 	catalog, err := assets.EmbeddedCatalog()
 	if err != nil {
 		return nil, err
 	}
-	return harness.RunGate(catalog)
+	return harness.RunTracker(catalog)
 }
 
 // toGitcliTrailers maps reposetup's gitcli-free trailer pairs to gitcli.Trailer,

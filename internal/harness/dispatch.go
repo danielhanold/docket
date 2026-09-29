@@ -50,17 +50,17 @@ const dispatchPreamble = "When a requested Docket workflow has a registered same
 	"an inline reconstruction of its contract — a missing registration is a visible capability\n" +
 	"failure, not a fallback trigger."
 
-// RunGateAsset is the basename of the dispatch-role payload carrying the run
+// RunTrackerAsset is the basename of the dispatch-role payload carrying the run
 // gate. It is matched by basename rather than by full path so the bundle's root
 // layout can move without every adapter learning the new spelling.
-const RunGateAsset = "run-gate.md"
+const RunTrackerAsset = "run-gate.md"
 
-// RunGate returns the run-gate payload from the catalog. A bundle without one
+// RunTracker returns the run-gate payload from the catalog. A bundle without one
 // is an error rather than an empty tail: a dispatch surface silently missing
 // its gate is exactly the failure the gate exists to prevent.
-func RunGate(c assets.Catalog) ([]byte, error) {
+func RunTracker(c assets.Catalog) ([]byte, error) {
 	for _, e := range c.EntriesByRole(assets.RoleDispatch) {
-		if path.Base(e.Path) != RunGateAsset {
+		if path.Base(e.Path) != RunTrackerAsset {
 			continue
 		}
 		body, err := c.Bytes(e.Path)
@@ -69,7 +69,7 @@ func RunGate(c assets.Catalog) ([]byte, error) {
 		}
 		return body, nil
 	}
-	return nil, fmt.Errorf("harness: the asset bundle carries no %s dispatch payload", RunGateAsset)
+	return nil, fmt.Errorf("harness: the asset bundle carries no %s dispatch payload", RunTrackerAsset)
 }
 
 // DispatchInterior renders the managed-block interior every dispatch surface
@@ -82,14 +82,14 @@ func RunGate(c assets.Catalog) ([]byte, error) {
 // dispatch surface through the harness's own agent registry, which this rule
 // defers to rather than restating (change 0334), so the interior no longer
 // depends on the inventory at all.
-func DispatchInterior(runGate []byte) string {
+func DispatchInterior(runTracker []byte) string {
 	var b strings.Builder
 	b.WriteString(DispatchHeading + "\n\n")
 	b.WriteString(dispatchPreamble + "\n\n")
 	// One trailing newline, whatever the payload carries: the interior digest
 	// normalizes a trailing newline away, so this is presentation only, but a
 	// stable spelling keeps the frozen goldens honest.
-	b.WriteString(strings.TrimRight(string(runGate), "\n") + "\n")
+	b.WriteString(strings.TrimRight(string(runTracker), "\n") + "\n")
 	return b.String()
 }
 
@@ -101,6 +101,6 @@ const CodexRootEntryClause = "### Codex root-coordinator entry\n\n" +
 	"For any `agent.enter` route: Write a request file containing the user's request unchanged; for implement-next include the unchanged gate dispatch-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`, and the unchanged run epoch, labeled for `--run-id` on prepare-scope and build-owned starts. Preserve resume/continuation ids and gate keys. Pass `--request`, `--role`, the active absolute caller `--cwd`, approval policy, and sandbox; pass the owning workflow's exact `--worktree` explicitly for feature children. Never omit dispatch context.\n\n" +
 	"A shell-tool yield carrying a live task/session identity is a liveness transition, not completion. You must retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism. Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved. Only after terminal output is collected may implement-next run the parent's keyed `run.verdict` and obey its report. Coordinator prose, thread or turn ids, and process exit alone do not prove gate ownership or completion. Do not substitute `codex exec`, another harness, a generic agent, or a parent relay."
 
-func CodexDispatchInterior(runGate []byte) string {
-	return DispatchInterior(runGate) + "\n" + CodexRootEntryClause + "\n"
+func CodexDispatchInterior(runTracker []byte) string {
+	return DispatchInterior(runTracker) + "\n" + CodexRootEntryClause + "\n"
 }

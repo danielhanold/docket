@@ -36,7 +36,7 @@ import (
 // an Advance presenting that old generation is an identity disagreement that
 // HALTs and drives nothing — it never silently continues the suite.
 func TestOldOwnerCannotAdvanceAfterHandoff(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{} // default: would observe a live run if ever consulted
 	d, store := newTestDriver(t, clk, proc, stableGit())
 
@@ -83,7 +83,7 @@ func TestOldOwnerCannotAdvanceAfterHandoff(t *testing.T) {
 // the terminal — returning PASSED and exposing the raw run dir for evidence,
 // trusting the durable receipt rather than any transcript.
 func TestFreshOwnerConsumesTerminalWrittenWhileNoAgentActive(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	proc := &fakeProc{
 		// The suite completed green while no agent was watching; the durable
 		// terminal is what a later Advance reads.
@@ -141,7 +141,7 @@ func TestFreshOwnerConsumesTerminalWrittenWhileNoAgentActive(t *testing.T) {
 // successor start is refused ErrScopeTransferred (change 0459) and the child's original owner
 // generation is dead.
 func TestScopedWaitingHandoffClaimClosesScope(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	proc := &fakeProc{
 		observe: func(runDir string) (*process.Observation, error) {
@@ -231,7 +231,7 @@ func TestScopedWaitingHandoffClaimClosesScope(t *testing.T) {
 // nothing written and nothing launched. Observed on change 0458 Task 2, where
 // the old ErrScopeClosed refusal steered a finished worker into a false BLOCKED.
 func TestClaimedScopeAcknowledgeAndStartAreTransferred(t *testing.T) {
-	clk := &fakeClock{now: startEpoch()}
+	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	running := true
 	proc := &fakeProc{

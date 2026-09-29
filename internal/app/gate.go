@@ -140,12 +140,12 @@ func applyState(r *GateResult, st process.State, term *process.Terminal) {
 	}
 }
 
-// rawGateEpoch is the run epoch a raw app.GateLaunch carries: none. A raw launch
+// rawGateRun is the run epoch a raw app.GateLaunch carries: none. A raw launch
 // never owns an implementation epoch, so it presents the empty epoch to the
 // stale-run-id fence. Real epochs are threaded into workflow gates by Task 9;
 // until a slot records a non-empty epoch this fence stays dormant (it compiles and
 // stays green), then rejects a raw launch into a worktree an epoch owns.
-const rawGateEpoch = ""
+const rawGateRun = ""
 
 // GateLaunch launches a supervised run and maps its handle and post-launch
 // state to a protocol result. When cwd sits inside a registered git worktree, the
@@ -170,7 +170,7 @@ func GateLaunch(root, cwd string, argv []string) GateResult {
 	worktreeRoot, repoIdentity, store, admit := resolveWorktreeAdmission(cwd)
 	var token string
 	if admit {
-		if refusal, refused := rawStaleEpochRefusal(store, worktreeRoot); refused {
+		if refusal, refused := rawStaleRunRefusal(store, worktreeRoot); refused {
 			return refusal
 		}
 		t, aerr := store.ReserveRawWorktreeExecution(repoIdentity, worktreeRoot, svc)
@@ -241,14 +241,14 @@ func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, st
 	// is settled by the reserve through exact-token retirement rather than refused
 	// stale-run-id (change 0446): the raw path wires the same settlement read the
 	// gate-drive constructors do.
-	store.SetEpochSettledResolver(epochSettledResolver(repo.CommonDir))
+	store.SetRunSettledResolver(runSettledResolver(repo.CommonDir))
 	return wt.Root, repo.CommonDir, store, true
 }
 
-// rawStaleEpochRefusal enforces the run-epoch fence at the raw launch boundary: a
+// rawStaleRunRefusal enforces the run-epoch fence at the raw launch boundary: a
 // worktree slot that links a run epoch this raw launch does not carry is refused
 // stale-run-id (an incumbent workflow owns the worktree). A raw launch carries
-// rawGateEpoch (none), and until Task 9 records epochs into slots this stays
+// rawGateRun (none), and until Task 9 records epochs into slots this stays
 // dormant. A missing or unreadable slot is not a refusal here: the reserve is the
 // authority that fails closed on an unreadable record.
 //
@@ -259,29 +259,29 @@ func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, st
 // outcome — it would only mutate another run's slot on behalf of a refused start.
 //
 // A RELEASED slot is the exception (change 0446 spec §§2, 5): its surviving
-// RunEpochID may name a completed or confirmed-cancelled run, which the reserve
+// RunID may name a completed or confirmed-cancelled run, which the reserve
 // settles through exact-token retirement. Refusing it here would pre-empt that
 // settlement, so a released slot defers to ReserveRawWorktreeExecution — the
 // authority that consults the settlement read and still refuses stale-run-id
 // whenever the named epoch is live, unreadable, or unresolved.
-func rawStaleEpochRefusal(store *gatedrive.Store, worktreeRoot string) (GateResult, bool) {
+func rawStaleRunRefusal(store *gatedrive.Store, worktreeRoot string) (GateResult, bool) {
 	slot, _, err := store.LoadWorktreeExecution(worktreeRoot)
 	if err != nil {
 		return GateResult{}, false
 	}
-	if slot.RunEpochID != "" && slot.RunEpochID != rawGateEpoch && slot.State != "released" {
+	if slot.RunID != "" && slot.RunID != rawGateRun && slot.State != "released" {
 		// Decide-and-act on the single LoadWorktreeExecution read above: the
 		// refusal's Cause is projected from the SAME slot record the fence
 		// decided on, never a second re-read that a later-changed slot could
 		// falsify. This mirrors gatedrive's own incumbentSnapshot projector;
 		// that projector is unexported, so the bounded fields are copied here.
 		inc := &gatedrive.IncumbentSnapshot{
-			Kind:       slot.Kind,
-			State:      string(slot.State),
-			DriveID:    slot.DriveID,
-			RawRunID:   slot.RawRunID,
-			RawRunDir:  slot.RawRunDir,
-			EpochOwned: slot.RunEpochID != "",
+			Kind:      slot.Kind,
+			State:     string(slot.State),
+			DriveID:   slot.DriveID,
+			RawRunID:  slot.RawRunID,
+			RawRunDir: slot.RawRunDir,
+			RunOwned:  slot.RunID != "",
 		}
 		return GateResult{
 			Envelope: NewEnvelope(OperationGateLaunch, ResultBlocked),

@@ -114,7 +114,7 @@ type WorkspaceDeps struct {
 	// run-complete verdict drives the successful-run ownership closeout with (change
 	// 0441); nil composes productionCancelSeams(repoDir). Unit tests inject
 	// permissive or adversarial seams; production callers leave it nil. It mirrors
-	// the resume path's GateScopeDeps.CancelSeams injection so both closeout drivers
+	// the resume path's RunTrackerScopeDeps.CancelSeams injection so both closeout drivers
 	// reach the same seam-factory shape.
 	CancelSeams func(repoDir string) cancelSeams
 }

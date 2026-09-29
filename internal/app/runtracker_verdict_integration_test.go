@@ -24,44 +24,44 @@ import (
 // failure, and failing closed to run-tracker-unavailable on any load error or
 // unrecognized verdict. Every outcome is a report line that exits 0.
 //
-// The store is rooted at a real temp git repo (newGateRepo / the run-verify
+// The store is rooted at a real temp git repo (newRunTrackerRepo / the run-verify
 // fixture's invocation clone); attribution reads the fakeReader corpus; the
 // RunVerify delegation is driven by the run_verify_test.go fixtures (rvFixture,
 // rvRecord, rvInProgressRecord, rvPR, rvAgreeingReceipt).
 
-// gateClaimEpoch is the Unix epoch of gateDefaultClaimedAt — the claim instant
+// runTrackerClaimRun is the Unix epoch of runTrackerDefaultClaimedAt — the claim instant
 // lifecycleChange stamps on an in-progress record. Attribution filter (c)
-// compares a candidate's claimed_at against the record's DispatchEpoch, so tests
+// compares a candidate's claimed_at against the record's DispatchedAt, so tests
 // straddle this value.
-func gateClaimEpoch(t *testing.T) int64 {
+func runTrackerClaimRun(t *testing.T) int64 {
 	t.Helper()
-	tm, err := time.Parse(time.RFC3339, gateDefaultClaimedAt)
+	tm, err := time.Parse(time.RFC3339, runTrackerDefaultClaimedAt)
 	if err != nil {
-		t.Fatalf("parse %q: %v", gateDefaultClaimedAt, err)
+		t.Fatalf("parse %q: %v", runTrackerDefaultClaimedAt, err)
 	}
 	return tm.Unix()
 }
 
-// gateLightDeps wires a planning-only deps set over the given corpus (no git
+// runTrackerLightDeps wires a planning-only deps set over the given corpus (no git
 // client, no workspace/github seams) for attribution paths that never reach
 // RunVerify.
-func gateLightDeps(t *testing.T, corpus []StatusBlob) PlanningDeps {
+func runTrackerLightDeps(t *testing.T, corpus []StatusBlob) PlanningDeps {
 	t.Helper()
 	return PlanningDeps{Reader: &fakeReader{pin: mainPin(t), corpus: corpus}, Clock: testClock()}
 }
 
-// gateMintAttributed mints a record already attributed to id — the state a second
+// runTrackerMintAttributed mints a record already attributed to id — the state a second
 // run verdict call reads after a first call attributed the claim.
-func gateMintAttributed(t *testing.T, repoDir string, id int) string {
+func runTrackerMintAttributed(t *testing.T, repoDir string, id int) string {
 	t.Helper()
-	key := gateMintArmed(t, repoDir, nil, 1, "")
-	rec, err := LoadGateRecord(repoDir, key)
+	key := runTrackerMintStarted(t, repoDir, nil, 1, "")
+	rec, err := LoadRunTrackerRecord(repoDir, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	rec.AttributedID = id
-	if err := SaveGateRecord(repoDir, key, rec); err != nil {
-		t.Fatalf("SaveGateRecord: %v", err)
+	if err := SaveRunTrackerRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveRunTrackerRecord: %v", err)
 	}
 	return key
 }
@@ -76,7 +76,7 @@ func gateMintAttributed(t *testing.T, repoDir string, id int) string {
 
 // --- unattributed (observe-only) mode --------------------------------------
 //
-// RunGateVerdictObserve is the `--unattributed` mode (change 0334, Task 4): NO
+// RunVerdictObserve is the `--unattributed` mode (change 0334, Task 4): NO
 // key, NO record, NO writes. It re-syncs, verifies each supplied hint id (a hint
 // is an id to verify, never attribution evidence) — or every current in-progress
 // id when none are supplied — and renders one `run-observe <verdict> <id>` line
@@ -84,11 +84,11 @@ func gateMintAttributed(t *testing.T, repoDir string, id int) string {
 // that only knows the `run-observe` prefix and is structurally unable to emit
 // run-retry-once.
 
-// gateHaltedInProgressBlob builds an in-progress change carrying a durable
+// runTrackerHaltedInProgressBlob builds an in-progress change carrying a durable
 // "## Run halted" body section — status stays in-progress (so observeInProgress
 // counts it) while RunVerify short-circuits it to run-halted with reader-only
 // deps, letting the observe tests assert exact lines without the full git path.
-func gateHaltedInProgressBlob(id int, slug string) StatusBlob {
+func runTrackerHaltedInProgressBlob(id int, slug string) StatusBlob {
 	src := strings.TrimRight(lifecycleChange(id, slug, "in-progress"), "\n") +
 		"\n\n## Run halted\n\n### 2026-08-14\n\nPaused.\n"
 	return StatusBlob{
@@ -100,9 +100,9 @@ func gateHaltedInProgressBlob(id int, slug string) StatusBlob {
 	}
 }
 
-// gateProposedBlob builds a proposed (never-claimed) change — RunVerify maps it
+// runTrackerProposedBlob builds a proposed (never-claimed) change — RunVerify maps it
 // to run-unclaimed with reader-only deps.
-func gateProposedBlob(id int, slug string) StatusBlob {
+func runTrackerProposedBlob(id int, slug string) StatusBlob {
 	return StatusBlob{
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
@@ -123,7 +123,7 @@ func gateProposedBlob(id int, slug string) StatusBlob {
 // that only starts reporting a handoff after the takeover synthesizes one — so the
 // re-run of the UNCHANGED RunVerify predicate validates the continuation.
 
-// fakeContinuationSeam fakes the drive-layer surface RunGateVerdict needs on the
+// fakeContinuationSeam fakes the drive-layer surface RunVerdict needs on the
 // continuation path: outer-drive candidate resolution, the event-authorized
 // takeover+handoff synthesis, and the existing-handoff read.
 type fakeContinuationSeam struct {
@@ -189,78 +189,78 @@ func (r gatedWaitingReader) Read(_ context.Context, _ string, _ int) (WaitingRec
 	return r.receipt, true, nil
 }
 
-// gateMintArmedScoped mints an armed record carrying the outer recovery-scope
+// runTrackerMintStartedScoped mints an armed record carrying the outer recovery-scope
 // binding (ScopeID/ParentCap/ChildContextHash) run start stamps for a dispatched
 // implement-next run, so the verdict path's outer-takeover branch is reachable.
-func gateMintArmedScoped(t *testing.T, repoDir, scopeID, parentCap, childContextHash string) string {
+func runTrackerMintStartedScoped(t *testing.T, repoDir, scopeID, parentCap, childContextHash string) string {
 	t.Helper()
-	key := gateMintArmed(t, repoDir, nil, 1, "")
-	rec, err := LoadGateRecord(repoDir, key)
+	key := runTrackerMintStarted(t, repoDir, nil, 1, "")
+	rec, err := LoadRunTrackerRecord(repoDir, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	rec.ScopeID = scopeID
 	rec.ParentCap = parentCap
 	rec.ChildContextHash = childContextHash
-	if err := SaveGateRecord(repoDir, key, rec); err != nil {
-		t.Fatalf("SaveGateRecord: %v", err)
+	if err := SaveRunTrackerRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveRunTrackerRecord: %v", err)
 	}
 	return key
 }
 
-// gateMintAttributedScoped mints a scoped record already attributed to id — the
+// runTrackerMintAttributedScoped mints a scoped record already attributed to id — the
 // resume-verified shape (AttributedID set, BoundRequestID empty) a continuation of
-// a scoped dispatch reads. resolveGateOwnership returns immediately for this shape
+// a scoped dispatch reads. resolveRunTrackerOwnership returns immediately for this shape
 // (change 0407: continuity for a resume-bound id is RunVerify's job), so it reaches
 // the unchanged continuation and retry paths exactly as a first verdict's
 // attribution used to.
-func gateMintAttributedScoped(t *testing.T, repoDir, scopeID, parentCap, childContextHash string, id int) string {
+func runTrackerMintAttributedScoped(t *testing.T, repoDir, scopeID, parentCap, childContextHash string, id int) string {
 	t.Helper()
-	key := gateMintArmedScoped(t, repoDir, scopeID, parentCap, childContextHash)
-	rec, err := LoadGateRecord(repoDir, key)
+	key := runTrackerMintStartedScoped(t, repoDir, scopeID, parentCap, childContextHash)
+	rec, err := LoadRunTrackerRecord(repoDir, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	rec.AttributedID = id
-	if err := SaveGateRecord(repoDir, key, rec); err != nil {
-		t.Fatalf("SaveGateRecord: %v", err)
+	if err := SaveRunTrackerRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveRunTrackerRecord: %v", err)
 	}
 	return key
 }
 
-// gateMintAttributedLimit mints an UNSCOPED attributed record (AttributedID set,
+// runTrackerMintAttributedLimit mints an UNSCOPED attributed record (AttributedID set,
 // no ScopeID) whose AttemptLimit is limit — the shape a quiescent run-incomplete
 // verdict reaches straight through to the retry CAS (ScopeID == "" skips the
-// continuation check). limit must be >= 1 (SaveGateRecord's v4 floor). It lets the
+// continuation check). limit must be >= 1 (SaveRunTrackerRecord's v4 floor). It lets the
 // counted-budget tests drive successive eligible incompletes at a chosen limit.
-func gateMintAttributedLimit(t *testing.T, repoDir string, id, limit int) string {
+func runTrackerMintAttributedLimit(t *testing.T, repoDir string, id, limit int) string {
 	t.Helper()
-	key := gateMintArmed(t, repoDir, nil, 1, "")
-	rec, err := LoadGateRecord(repoDir, key)
+	key := runTrackerMintStarted(t, repoDir, nil, 1, "")
+	rec, err := LoadRunTrackerRecord(repoDir, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	rec.AttributedID = id
 	rec.AttemptLimit = limit
-	if err := SaveGateRecord(repoDir, key, rec); err != nil {
-		t.Fatalf("SaveGateRecord: %v", err)
+	if err := SaveRunTrackerRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveRunTrackerRecord: %v", err)
 	}
 	return key
 }
 
-// gateMintAttributedScopedLimit is gateMintAttributedScoped with the AttemptLimit
+// runTrackerMintAttributedScopedLimit is runTrackerMintAttributedScoped with the AttemptLimit
 // overridden to limit (>= 1) — a scoped, attributed record used by the
 // continuation-vs-budget tests.
-func gateMintAttributedScopedLimit(t *testing.T, repoDir, scopeID, parentCap, childContextHash string, id, limit int) string {
+func runTrackerMintAttributedScopedLimit(t *testing.T, repoDir, scopeID, parentCap, childContextHash string, id, limit int) string {
 	t.Helper()
-	key := gateMintAttributedScoped(t, repoDir, scopeID, parentCap, childContextHash, id)
-	rec, err := LoadGateRecord(repoDir, key)
+	key := runTrackerMintAttributedScoped(t, repoDir, scopeID, parentCap, childContextHash, id)
+	rec, err := LoadRunTrackerRecord(repoDir, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	rec.AttemptLimit = limit
-	if err := SaveGateRecord(repoDir, key, rec); err != nil {
-		t.Fatalf("SaveGateRecord: %v", err)
+	if err := SaveRunTrackerRecord(repoDir, key, rec); err != nil {
+		t.Fatalf("SaveRunTrackerRecord: %v", err)
 	}
 	return key
 }
@@ -285,14 +285,14 @@ func TestIntegrationRunVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.T
 		t.Run(fmt.Sprintf("limit-%d", tc.limit), func(t *testing.T) {
 			f := newRunVerifyFixture(t, true)
 			deps, wdeps, gdeps := f.deps(
-				gateIncompleteRecord(),
+				runTrackerIncompleteRecord(),
 				rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 			)
-			key := gateMintAttributedLimit(t, f.repo.invocation, 3, tc.limit)
+			key := runTrackerMintAttributedLimit(t, f.repo.invocation, 3, tc.limit)
 
 			for i := 1; i <= tc.wantRetries; i++ {
-				res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-				if res.Decision != GateDecisionRetryOnce || res.Terminal {
+				res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+				if res.Decision != RunDecisionRetryOnce || res.Terminal {
 					t.Fatalf("call %d: Decision=%q Terminal=%v, want run-retry-once/false", i, res.Decision, res.Terminal)
 				}
 				if got, want := res.HumanText(), "run-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
@@ -304,8 +304,8 @@ func TestIntegrationRunVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.T
 			}
 
 			// The next eligible incomplete is the terminal run-stop: budget exhausted.
-			res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-			if res.Decision != GateDecisionStop || !res.Terminal {
+			res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+			if res.Decision != RunDecisionStop || !res.Terminal {
 				t.Fatalf("terminal: Decision=%q Terminal=%v, want run-stop/true", res.Decision, res.Terminal)
 			}
 			if got, want := res.HumanText(), "run-stop "+key+" run-incomplete 3 not-implemented"; got != want {
@@ -314,8 +314,8 @@ func TestIntegrationRunVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.T
 			if res.AttemptsUsed != tc.limit || res.AttemptLimit != tc.limit {
 				t.Errorf("terminal attempts %d/%d, want %d/%d (exhausted)", res.AttemptsUsed, res.AttemptLimit, tc.limit, tc.limit)
 			}
-			if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != tc.wantRetries {
-				t.Errorf("GateRetryUsage = %d,%v; want %d,nil", used, err, tc.wantRetries)
+			if used, err := RunTrackerRetryUsage(f.repo.invocation, key); err != nil || used != tc.wantRetries {
+				t.Errorf("RunTrackerRetryUsage = %d,%v; want %d,nil", used, err, tc.wantRetries)
 			}
 		})
 	}
@@ -323,54 +323,54 @@ func TestIntegrationRunVerdictVerdictIncompleteRespectsAttemptLimit(t *testing.T
 
 // TestIntegrationRunVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGrant: after a run-retry-once
 // for attempt 1 (default limit 2), a second verdict call WITHOUT a new attempt
-// completing is the terminal run-stop — the budget is spent — and GateRetryUsage
+// completing is the terminal run-stop — the budget is spent — and RunTrackerRetryUsage
 // stays 1 (no second marker).
 func TestIntegrationRunVerdictVerdictIncompleteRepeatObservationDoesNotDoubleGrant(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		gateIncompleteRecord(),
+		runTrackerIncompleteRecord(),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	key := gateMintAttributedLimit(t, f.repo.invocation, 3, 2)
+	key := runTrackerMintAttributedLimit(t, f.repo.invocation, 3, 2)
 
-	res1 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res1.Decision != GateDecisionRetryOnce {
+	res1 := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res1.Decision != RunDecisionRetryOnce {
 		t.Fatalf("first: Decision = %q, want run-retry-once", res1.Decision)
 	}
-	res2 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res2.Decision != GateDecisionStop || !res2.Terminal {
+	res2 := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res2.Decision != RunDecisionStop || !res2.Terminal {
 		t.Fatalf("repeat: Decision=%q Terminal=%v, want run-stop/true", res2.Decision, res2.Terminal)
 	}
-	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 1 {
-		t.Errorf("GateRetryUsage = %d,%v; want 1,nil (no double grant)", used, err)
+	if used, err := RunTrackerRetryUsage(f.repo.invocation, key); err != nil || used != 1 {
+		t.Errorf("RunTrackerRetryUsage = %d,%v; want 1,nil (no double grant)", used, err)
 	}
 }
 
 // TestIntegrationRunVerdictVerdictIncompleteNoGrantLeavesRetryMirrorUnused: an immediate-exhaustion
 // (limit 1) run-incomplete stops terminally with no retry granted and no marker
-// created, so the persisted GateRecord's readable Retry mirror must stay
-// RetryUnused — nothing was consumed. LoadGateRecord only upgrades the mirror from
+// created, so the persisted RunTrackerRecord's readable Retry mirror must stay
+// RetryUnused — nothing was consumed. LoadRunTrackerRecord only upgrades the mirror from
 // markers and never downgrades, so a mirror set to RetryConsumed on a no-grant stop
-// would permanently misreport "consumed" though GateRetryUsage == 0. This reddens
+// would permanently misreport "consumed" though RunTrackerRetryUsage == 0. This reddens
 // if the mirror is set before branching on `granted`.
 func TestIntegrationRunVerdictVerdictIncompleteNoGrantLeavesRetryMirrorUnused(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		gateIncompleteRecord(),
+		runTrackerIncompleteRecord(),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	key := gateMintAttributedLimit(t, f.repo.invocation, 3, 1)
+	key := runTrackerMintAttributedLimit(t, f.repo.invocation, 3, 1)
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res.Decision != GateDecisionStop || !res.Terminal {
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != RunDecisionStop || !res.Terminal {
 		t.Fatalf("Decision=%q Terminal=%v, want run-stop/true (limit 1 grants no retry)", res.Decision, res.Terminal)
 	}
-	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
-		t.Fatalf("GateRetryUsage = %d,%v; want 0,nil (no marker on a no-grant stop)", used, err)
+	if used, err := RunTrackerRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
+		t.Fatalf("RunTrackerRetryUsage = %d,%v; want 0,nil (no marker on a no-grant stop)", used, err)
 	}
-	rec, err := LoadGateRecord(f.repo.invocation, key)
+	rec, err := LoadRunTrackerRecord(f.repo.invocation, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	if rec.Retry != RetryUnused {
 		t.Errorf("persisted Retry mirror = %v, want RetryUnused (nothing was consumed)", rec.Retry)
@@ -382,19 +382,19 @@ func TestIntegrationRunVerdictVerdictIncompleteNoGrantLeavesRetryMirrorUnused(t 
 // attempt — run-halted keeps absolute precedence ahead of any counting, and the
 // attempts surface stays absent on the halt path.
 func TestIntegrationRunVerdictVerdictHaltPrecedenceOverBudget(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := gateLightDeps(t, []StatusBlob{gateHaltedInProgressBlob(3, rvSlug)})
-	key := gateMintAttributedLimit(t, repo, 3, 4)
+	repo := newRunTrackerRepo(t)
+	deps := runTrackerLightDeps(t, []StatusBlob{runTrackerHaltedInProgressBlob(3, rvSlug)})
+	key := runTrackerMintAttributedLimit(t, repo, 3, 4)
 
-	res := RunGateVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
-	if res.Decision != GateDecisionStop || res.Outcome != VerdictRunHalted {
+	res := RunVerdict(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, key)
+	if res.Decision != RunDecisionStop || res.Outcome != VerdictRunHalted {
 		t.Fatalf("Decision/Outcome = %q/%q, want run-stop/run-halted", res.Decision, res.Outcome)
 	}
 	if !res.Terminal {
 		t.Errorf("run-halted stop must be terminal")
 	}
-	if used, err := GateRetryUsage(repo, key); err != nil || used != 0 {
-		t.Errorf("GateRetryUsage = %d,%v; want 0,nil (halt precedes counting)", used, err)
+	if used, err := RunTrackerRetryUsage(repo, key); err != nil || used != 0 {
+		t.Errorf("RunTrackerRetryUsage = %d,%v; want 0,nil (halt precedes counting)", used, err)
 	}
 	if res.AttemptsUsed != 0 || res.AttemptLimit != 0 {
 		t.Errorf("halt path surfaced attempts %d/%d, want 0/0 (no counting)", res.AttemptsUsed, res.AttemptLimit)
@@ -403,7 +403,7 @@ func TestIntegrationRunVerdictVerdictHaltPrecedenceOverBudget(t *testing.T) {
 
 // TestIntegrationRunVerdictVerdictContinuationConsumesNoAttempt: a scope-bound run-incomplete taken over
 // as a live continuation reaches run-continue WITHOUT touching the retry CAS —
-// GateRetryUsage stays 0 even with a fresh limit-4 budget. This reddens if the CAS
+// RunTrackerRetryUsage stays 0 even with a fresh limit-4 budget. This reddens if the CAS
 // is ever moved above the outer-takeover check.
 func TestIntegrationRunVerdictVerdictContinuationConsumesNoAttempt(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -415,14 +415,14 @@ func TestIntegrationRunVerdictVerdictContinuationConsumesNoAttempt(t *testing.T)
 		handoffToken: "h0token",
 		onTakeover:   func() { tookOver = true },
 	}
-	key := gateMintAttributedScopedLimit(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3, 4)
+	key := runTrackerMintAttributedScopedLimit(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3, 4)
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res.Decision != GateDecisionContinue {
-		t.Fatalf("Decision = %q, want %q", res.Decision, GateDecisionContinue)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != RunDecisionContinue {
+		t.Fatalf("Decision = %q, want %q", res.Decision, RunDecisionContinue)
 	}
-	if used, err := GateRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
-		t.Errorf("GateRetryUsage = %d,%v; want 0,nil (a continuation spends no attempt)", used, err)
+	if used, err := RunTrackerRetryUsage(f.repo.invocation, key); err != nil || used != 0 {
+		t.Errorf("RunTrackerRetryUsage = %d,%v; want 0,nil (a continuation spends no attempt)", used, err)
 	}
 }
 
@@ -435,11 +435,11 @@ func TestIntegrationRunVerdictVerdictWaitingIsNonterminalContinue(t *testing.T) 
 	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
 	// Resume-verified shape (AttributedID set, no binding): ownership resolution
 	// returns immediately and the run-waiting continuation maps unchanged.
-	key := gateMintAttributed(t, f.repo.invocation, 3)
+	key := runTrackerMintAttributed(t, f.repo.invocation, 3)
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res.Decision != GateDecisionContinue {
-		t.Fatalf("Decision = %q, want %q", res.Decision, GateDecisionContinue)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != RunDecisionContinue {
+		t.Fatalf("Decision = %q, want %q", res.Decision, RunDecisionContinue)
 	}
 	if res.Terminal {
 		t.Errorf("run-continue must be nonterminal")
@@ -451,12 +451,12 @@ func TestIntegrationRunVerdictVerdictWaitingIsNonterminalContinue(t *testing.T) 
 	if got := res.HumanText(); got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
-	if gateRetryMarkerExists(t, f.repo.invocation, key) {
+	if runTrackerRetryMarkerExists(t, f.repo.invocation, key) {
 		t.Errorf("retry marker present — a continuation must not spend the retry")
 	}
-	rec, err := LoadGateRecord(f.repo.invocation, key)
+	rec, err := LoadRunTrackerRecord(f.repo.invocation, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	if rec.ContinuationID != res.ContinuationID || rec.ContinuationDrive != "d0opaque" || rec.ContinuationHandoff != "h0token" {
 		t.Errorf("triple = {%q,%q,%q}, want {%q,d0opaque,h0token}",
@@ -471,7 +471,7 @@ func TestIntegrationRunVerdictVerdictWaitingIsNonterminalContinue(t *testing.T) 
 // whose recovery scope still binds a tracked drive is TAKEN OVER and continued,
 // and the O_EXCL retry marker is NEVER created — asserted on the filesystem, so
 // the "cannot reach the retry CAS" ordering property is real. This is the mutation
-// target for Task 6 Step 3 (moving ConsumeGateRetry above the tracked-drive check
+// target for Task 6 Step 3 (moving ConsumeRunTrackerRetry above the tracked-drive check
 // creates the marker and reddens this test).
 func TestIntegrationRunVerdictVerdictIncompleteWithTrackedDriveContinuesWithoutRetry(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -483,21 +483,21 @@ func TestIntegrationRunVerdictVerdictIncompleteWithTrackedDriveContinuesWithoutR
 		handoffToken: "h0token",
 		onTakeover:   func() { tookOver = true },
 	}
-	key := gateMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
+	key := runTrackerMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res.Decision != GateDecisionContinue {
-		t.Fatalf("Decision = %q, want %q", res.Decision, GateDecisionContinue)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != RunDecisionContinue {
+		t.Fatalf("Decision = %q, want %q", res.Decision, RunDecisionContinue)
 	}
 	if res.Terminal {
 		t.Errorf("run-continue must be nonterminal")
 	}
-	if gateRetryMarkerExists(t, f.repo.invocation, key) {
+	if runTrackerRetryMarkerExists(t, f.repo.invocation, key) {
 		t.Fatalf("retry marker present — a takeover-continue must not reach the retry CAS")
 	}
-	rec, err := LoadGateRecord(f.repo.invocation, key)
+	rec, err := LoadRunTrackerRecord(f.repo.invocation, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	if rec.ContinuationID == "" || rec.ContinuationDrive != "d0opaque" || rec.ContinuationHandoff != "h0token" {
 		t.Errorf("triple = {%q,%q,%q}, want {non-empty,d0opaque,h0token}",
@@ -514,13 +514,13 @@ func TestIntegrationRunVerdictVerdictIncompleteWithTrackedDriveContinuesWithoutR
 func TestIntegrationRunVerdictVerdictIncompleteQuiescentStillRetriesOnce(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		gateIncompleteRecord(),
+		runTrackerIncompleteRecord(),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
 	wdeps.Continuation = &fakeContinuationSeam{candidates: nil} // zero candidates
-	key := gateMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
+	key := runTrackerMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
-	res1 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	res1 := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if got, want := res1.HumanText(), "run-retry-once "+key+" run-incomplete 3 not-implemented"; got != want {
 		t.Fatalf("first call HumanText = %q, want %q", got, want)
 	}
@@ -528,7 +528,7 @@ func TestIntegrationRunVerdictVerdictIncompleteQuiescentStillRetriesOnce(t *test
 		t.Errorf("run-retry-once must be nonterminal")
 	}
 
-	res2 := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	res2 := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if got, want := res2.HumanText(), "run-stop "+key+" run-incomplete 3 not-implemented"; got != want {
 		t.Fatalf("second call HumanText = %q, want %q", got, want)
 	}
@@ -543,14 +543,14 @@ func TestIntegrationRunVerdictVerdictIncompleteQuiescentStillRetriesOnce(t *test
 func TestIntegrationRunVerdictVerdictAmbiguousDrivesStops(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		gateIncompleteRecord(),
+		runTrackerIncompleteRecord(),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
 	wdeps.Continuation = &fakeContinuationSeam{candidates: []string{"a", "b"}}
-	key := gateMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
+	key := runTrackerMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable {
 		t.Fatalf("decision/outcome = %q/%q, want run-stop/run-tracker-unavailable", res.Decision, res.Outcome)
 	}
 	if res.Reason != "takeover-ambiguous" {
@@ -559,7 +559,7 @@ func TestIntegrationRunVerdictVerdictAmbiguousDrivesStops(t *testing.T) {
 	if !res.Terminal {
 		t.Errorf("ambiguous-drives stop must be terminal")
 	}
-	if gateRetryMarkerExists(t, f.repo.invocation, key) {
+	if runTrackerRetryMarkerExists(t, f.repo.invocation, key) {
 		t.Errorf("ambiguous drives must never spend the retry")
 	}
 }
@@ -569,7 +569,7 @@ func TestIntegrationRunVerdictVerdictAmbiguousDrivesStops(t *testing.T) {
 func TestIntegrationRunVerdictVerdictTakeoverHaltStops(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		gateIncompleteRecord(),
+		runTrackerIncompleteRecord(),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
 	wdeps.Continuation = &fakeContinuationSeam{
@@ -577,10 +577,10 @@ func TestIntegrationRunVerdictVerdictTakeoverHaltStops(t *testing.T) {
 		takeoverHalt:  true,
 		takeoverCause: "identity-mismatch",
 	}
-	key := gateMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
+	key := runTrackerMintAttributedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1", 3)
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable {
 		t.Fatalf("decision/outcome = %q/%q, want run-stop/run-tracker-unavailable", res.Decision, res.Outcome)
 	}
 	if res.Reason != "identity-mismatch" {
@@ -589,7 +589,7 @@ func TestIntegrationRunVerdictVerdictTakeoverHaltStops(t *testing.T) {
 	if !res.Terminal {
 		t.Errorf("halted takeover must be terminal")
 	}
-	if gateRetryMarkerExists(t, f.repo.invocation, key) {
+	if runTrackerRetryMarkerExists(t, f.repo.invocation, key) {
 		t.Errorf("halted takeover must never spend the retry")
 	}
 }
@@ -600,18 +600,18 @@ func TestIntegrationRunVerdictVerdictContinueNeverAuthorizesNewClaim(t *testing.
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
 	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
-	key := gateMintAttributed(t, f.repo.invocation, 3)
+	key := runTrackerMintAttributed(t, f.repo.invocation, 3)
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res.Decision != GateDecisionContinue {
-		t.Fatalf("Decision = %q, want %q", res.Decision, GateDecisionContinue)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != RunDecisionContinue {
+		t.Fatalf("Decision = %q, want %q", res.Decision, RunDecisionContinue)
 	}
 	if res.AttributedID != 3 {
 		t.Errorf("AttributedID = %d, want 3 (attribution untouched on continue)", res.AttributedID)
 	}
-	rec, err := LoadGateRecord(f.repo.invocation, key)
+	rec, err := LoadRunTrackerRecord(f.repo.invocation, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	if rec.AttributedID != 3 {
 		t.Errorf("record AttributedID = %d, want 3", rec.AttributedID)
@@ -638,12 +638,12 @@ func TestIntegrationRunVerdictVerdictFreshRunBindsScopeChange(t *testing.T) {
 	// adopts it and mirrors the change id onto the still-lagging record (AttributedID
 	// 0 → 3), firing the scope bind.
 	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ctxhash-1", Revision: "r1"},
+		{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ctxhash-1", Revision: "r1"},
 	}}
 	// A scoped, unattributed record: ScopeID present, AttributedID == 0 (fresh run).
-	key := gateMintArmedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
+	key := runTrackerMintStartedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if res.AttributedID != 3 {
 		t.Fatalf("AttributedID = %d, want 3 (fresh attribution resolved the sole claim)", res.AttributedID)
 	}
@@ -665,19 +665,19 @@ func TestIntegrationRunVerdictVerdictContinuationDoesNotRebindScope(t *testing.T
 	seam := &fakeContinuationSeam{handoffToken: "h0token"}
 	wdeps.Continuation = seam
 	// Already attributed AND scoped: a continuation of the same attempt.
-	key := gateMintArmedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
-	rec, err := LoadGateRecord(f.repo.invocation, key)
+	key := runTrackerMintStartedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
+	rec, err := LoadRunTrackerRecord(f.repo.invocation, key)
 	if err != nil {
-		t.Fatalf("LoadGateRecord: %v", err)
+		t.Fatalf("LoadRunTrackerRecord: %v", err)
 	}
 	rec.AttributedID = 3
-	if err := SaveGateRecord(f.repo.invocation, key, rec); err != nil {
-		t.Fatalf("SaveGateRecord: %v", err)
+	if err := SaveRunTrackerRecord(f.repo.invocation, key, rec); err != nil {
+		t.Fatalf("SaveRunTrackerRecord: %v", err)
 	}
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if res.Decision != GateDecisionContinue {
-		t.Fatalf("Decision = %q, want %q (a live continuation)", res.Decision, GateDecisionContinue)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != RunDecisionContinue {
+		t.Fatalf("Decision = %q, want %q (a live continuation)", res.Decision, RunDecisionContinue)
 	}
 	if seam.bindCalls != 0 {
 		t.Fatalf("BindScopeChange called %d times on a continuation, want 0 (bind-once: never re-bind)", seam.bindCalls)
@@ -690,25 +690,25 @@ func TestIntegrationRunVerdictVerdictContinuationDoesNotRebindScope(t *testing.T
 func TestIntegrationRunVerdictVerdictObservePathStillCannotContinue(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
-		gateIncompleteRecord(),
+		runTrackerIncompleteRecord(),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	res := RunGateVerdictObserve(context.Background(), deps, wdeps, gdeps, f.repo.invocation, []string{"3"})
+	res := RunVerdictObserve(context.Background(), deps, wdeps, gdeps, f.repo.invocation, []string{"3"})
 	line := res.HumanText()
-	if strings.HasPrefix(line, GateDecisionRetryOnce) {
-		t.Errorf("observe must never emit %q; line = %q", GateDecisionRetryOnce, line)
+	if strings.HasPrefix(line, RunDecisionRetryOnce) {
+		t.Errorf("observe must never emit %q; line = %q", RunDecisionRetryOnce, line)
 	}
-	if strings.Contains(line, GateDecisionContinue) {
-		t.Errorf("observe must never emit %q; line = %q", GateDecisionContinue, line)
+	if strings.Contains(line, RunDecisionContinue) {
+		t.Errorf("observe must never emit %q; line = %q", RunDecisionContinue, line)
 	}
-	if !strings.HasPrefix(line, GateDecisionObserve) {
-		t.Errorf("observe line must start with %q; got %q", GateDecisionObserve, line)
+	if !strings.HasPrefix(line, RunDecisionObserve) {
+		t.Errorf("observe line must start with %q; got %q", RunDecisionObserve, line)
 	}
 }
 
 // --- ownership from proof, never inference (change 0407) --------------------
 //
-// resolveGateOwnership replaces the before-set/cardinality attribution with the
+// resolveRunTrackerOwnership replaces the before-set/cardinality attribution with the
 // verified dispatch-to-claim binding: a confirmed binding's continuity is checked
 // against committed proofs, an unconfirmed reservation recovers only from its exact
 // receipt, an absent binding adopts the sole matching proof, and every missing /
@@ -725,18 +725,18 @@ func TestIntegrationRunVerdictVerdictConfirmedBindingResolvesBoundChange(t *test
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
-	if err := ReserveGateClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
+	key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
+	if err := ReserveRunTrackerClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(f.repo.invocation, key, 3, "claim-3-v", "r1", ""); err != nil {
+	if err := ConfirmRunTrackerClaim(f.repo.invocation, key, 3, "claim-3-v", "r1", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 	}}
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
@@ -750,13 +750,13 @@ func TestIntegrationRunVerdictVerdictConfirmedBindingResolvesBoundChange(t *test
 // under a DIFFERENT context hash is filtered out, the retry is never spent, and the
 // sibling id never appears in the report.
 func TestIntegrationRunVerdictVerdictNoBindingNoProofIsNoAttributableClaim(t *testing.T) {
-	repo := newGateRepo(t)
-	key := gateMintArmed(t, repo, nil, 1, "ha")
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "x", ChangeID: 9, GateContextHash: "OTHER"},
+		{RequestID: "x", ChangeID: 9, RunContextHash: "OTHER"},
 	}}}
 
-	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	res := RunVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
 	if got, want := res.HumanText(), "run-done "+key+" no-attributable-claim"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
@@ -769,7 +769,7 @@ func TestIntegrationRunVerdictVerdictNoBindingNoProofIsNoAttributableClaim(t *te
 	if len(res.AmbiguousIDs) != 0 {
 		t.Errorf("no id may be named on a no-attributable-claim; got AmbiguousIDs=%v", res.AmbiguousIDs)
 	}
-	if gateRetryMarkerExists(t, repo, key) {
+	if runTrackerRetryMarkerExists(t, repo, key) {
 		t.Errorf("no-attributable-claim must never spend the retry")
 	}
 }
@@ -783,19 +783,19 @@ func TestIntegrationRunVerdictVerdictUnconfirmedReservationRecoversFromExactRece
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
-	if err := ReserveGateClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
+	key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
+	if err := ReserveRunTrackerClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
 	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 	}}
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q (recovered from the exact receipt)", got, want)
 	}
-	b, ok, err := LoadGateClaimBinding(f.repo.invocation, key)
+	b, ok, err := LoadRunTrackerClaimBinding(f.repo.invocation, key)
 	if err != nil || !ok || !b.Confirmed || b.ChangeID != 3 {
 		t.Fatalf("binding = %+v ok=%v err=%v, want confirmed change 3", b, ok, err)
 	}
@@ -806,18 +806,18 @@ func TestIntegrationRunVerdictVerdictUnconfirmedReservationRecoversFromExactRece
 // no-attributable-claim and the reservation is left refused (never released so a
 // different claim can take it, never confirmed).
 func TestIntegrationRunVerdictVerdictUnconfirmedReservationWithoutReceiptStops(t *testing.T) {
-	repo := newGateRepo(t)
-	key := gateMintArmed(t, repo, nil, 1, "ha")
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: nil}}
 
-	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	res := RunVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
 	if got, want := res.HumanText(), "run-done "+key+" no-attributable-claim"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
-	b, ok, err := LoadGateClaimBinding(repo, key)
+	b, ok, err := LoadRunTrackerClaimBinding(repo, key)
 	if err != nil || !ok || b.Confirmed || b.ChangeID != 3 || b.RequestID != "claim-3-v" {
 		t.Fatalf("binding = %+v ok=%v err=%v, want the unconfirmed reservation intact", b, ok, err)
 	}
@@ -826,22 +826,22 @@ func TestIntegrationRunVerdictVerdictUnconfirmedReservationWithoutReceiptStops(t
 // TestIntegrationRunVerdictVerdictUnconfirmedReservationSiblingContextHashIsNoAttributableClaim: an
 // unconfirmed reservation whose only committed proof shares the request id but
 // carries a DIFFERENT context hash is a sibling collision, not this dispatch's
-// receipt. gateProofForClaim's `&& p.GateContextHash == contextHash` clause must
+// receipt. runTrackerProofForClaim's `&& p.RunContextHash == contextHash` clause must
 // reject it, so the verdict is no-attributable-claim and nothing is adopted.
 // Dropping that clause reddens this test (mutation-load-bearing) — neither
 // RecoversFromExactReceipt (matching hash) nor WithoutReceiptStops (no proofs)
 // exercises the same-request-id sibling.
 func TestIntegrationRunVerdictVerdictUnconfirmedReservationSiblingContextHashIsNoAttributableClaim(t *testing.T) {
-	repo := newGateRepo(t)
-	key := gateMintArmed(t, repo, nil, 1, "ha")
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "hb"},
+		{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "hb"},
 	}}}
 
-	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	res := RunVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
 	if got, want := res.HumanText(), "run-done "+key+" no-attributable-claim"; got != want {
 		t.Fatalf("HumanText = %q, want %q (sibling context hash must not recover)", got, want)
 	}
@@ -861,32 +861,32 @@ func TestIntegrationRunVerdictVerdictAbsentBindingAdoptsSoleProof(t *testing.T) 
 			rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
 			rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 		)
-		key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
+		key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 		wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-			{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+			{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 		}}
 
-		res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+		res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 		if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 			t.Fatalf("HumanText = %q, want %q", got, want)
 		}
-		b, ok, err := LoadGateClaimBinding(f.repo.invocation, key)
+		b, ok, err := LoadRunTrackerClaimBinding(f.repo.invocation, key)
 		if err != nil || !ok || !b.Confirmed || b.ChangeID != 3 {
 			t.Fatalf("binding = %+v ok=%v err=%v, want confirmed change 3 after adoption", b, ok, err)
 		}
 	})
 
 	t.Run("two proofs is binding-conflict", func(t *testing.T) {
-		repo := newGateRepo(t)
-		key := gateMintArmed(t, repo, nil, 1, "ha")
+		repo := newRunTrackerRepo(t)
+		key := runTrackerMintStarted(t, repo, nil, 1, "ha")
 		wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
-			{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
-			{RequestID: "claim-4-v", ChangeID: 4, GateContextHash: "ha", Revision: "r2"},
+			{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
+			{RequestID: "claim-4-v", ChangeID: 4, RunContextHash: "ha", Revision: "r2"},
 		}}}
 
-		res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
-		if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateBindingConflict {
-			t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateBindingConflict)
+		res := RunVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+		if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable || res.Reason != ReasonRunBindingConflict {
+			t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonRunBindingConflict)
 		}
 		if !res.Terminal {
 			t.Errorf("binding-conflict is terminal")
@@ -899,27 +899,27 @@ func TestIntegrationRunVerdictVerdictAbsentBindingAdoptsSoleProof(t *testing.T) 
 // re-claimed by another run — the old gate must neither retry nor take over the
 // replacement. The binding is left unchanged and the retry is never spent.
 func TestIntegrationRunVerdictVerdictClaimReplacedStops(t *testing.T) {
-	repo := newGateRepo(t)
-	key := gateMintArmed(t, repo, nil, 1, "ha")
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-v1"); err != nil {
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-v1"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v1", "r1", ""); err != nil {
+	if err := ConfirmRunTrackerClaim(repo, key, 3, "claim-3-v1", "r1", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v2", ChangeID: 3, GateContextHash: ""},
-		{RequestID: "claim-3-v1", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		{RequestID: "claim-3-v2", ChangeID: 3, RunContextHash: ""},
+		{RequestID: "claim-3-v1", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 	}}}
 
-	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
-	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateClaimReplaced {
-		t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateClaimReplaced)
+	res := RunVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable || res.Reason != ReasonRunClaimReplaced {
+		t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonRunClaimReplaced)
 	}
-	if gateRetryMarkerExists(t, repo, key) {
+	if runTrackerRetryMarkerExists(t, repo, key) {
 		t.Errorf("a replaced claim must never spend the retry")
 	}
-	b, _, err := LoadGateClaimBinding(repo, key)
+	b, _, err := LoadRunTrackerClaimBinding(repo, key)
 	if err != nil {
 		t.Fatalf("load binding: %v", err)
 	}
@@ -932,19 +932,19 @@ func TestIntegrationRunVerdictVerdictClaimReplacedStops(t *testing.T) {
 // cannot verify continuity — unlike the continuation seam, ownership can never
 // proceed without proofs, so it fails closed to proof-unavailable.
 func TestIntegrationRunVerdictVerdictNilProofScannerFailsClosed(t *testing.T) {
-	repo := newGateRepo(t)
-	key := gateMintArmed(t, repo, nil, 1, "ha")
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1", ""); err != nil {
+	if err := ConfirmRunTrackerClaim(repo, key, 3, "claim-3-v", "r1", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
-	res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: nil}, GitHubDeps{}, repo, key)
-	if res.Decision != GateDecisionStop || res.Reason != ReasonGateProofUnavailable {
-		t.Fatalf("got %q/%q, want run-stop/%s", res.Decision, res.Reason, ReasonGateProofUnavailable)
+	res := RunVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: nil}, GitHubDeps{}, repo, key)
+	if res.Decision != RunDecisionStop || res.Reason != ReasonRunProofUnavailable {
+		t.Fatalf("got %q/%q, want run-stop/%s", res.Decision, res.Reason, ReasonRunProofUnavailable)
 	}
-	if gateRetryMarkerExists(t, repo, key) {
+	if runTrackerRetryMarkerExists(t, repo, key) {
 		t.Errorf("proof-unavailable must never spend the retry")
 	}
 }
@@ -952,20 +952,20 @@ func TestIntegrationRunVerdictVerdictNilProofScannerFailsClosed(t *testing.T) {
 // TestIntegrationRunVerdictVerdictProofScanErrorFailsClosed: a proof-scan error fails closed to
 // proof-unavailable and never consumes a retry.
 func TestIntegrationRunVerdictVerdictProofScanErrorFailsClosed(t *testing.T) {
-	repo := newGateRepo(t)
-	key := gateMintArmed(t, repo, nil, 1, "ha")
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, key, 3, "claim-3-v", "r1", ""); err != nil {
+	if err := ConfirmRunTrackerClaim(repo, key, 3, "claim-3-v", "r1", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{err: errors.New("boom")}}
-	res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
-	if res.Decision != GateDecisionStop || res.Reason != ReasonGateProofUnavailable {
-		t.Fatalf("got %q/%q, want run-stop/%s", res.Decision, res.Reason, ReasonGateProofUnavailable)
+	res := RunVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+	if res.Decision != RunDecisionStop || res.Reason != ReasonRunProofUnavailable {
+		t.Fatalf("got %q/%q, want run-stop/%s", res.Decision, res.Reason, ReasonRunProofUnavailable)
 	}
-	if gateRetryMarkerExists(t, repo, key) {
+	if runTrackerRetryMarkerExists(t, repo, key) {
 		t.Errorf("a scan error must never spend the retry")
 	}
 }
@@ -973,18 +973,18 @@ func TestIntegrationRunVerdictVerdictProofScanErrorFailsClosed(t *testing.T) {
 // TestIntegrationRunVerdictVerdictCorruptBindingFailsClosed: an unparseable binding file is a typed
 // binding-unreadable stop — never a silent (ok=false) fall-through to attribution.
 func TestIntegrationRunVerdictVerdictCorruptBindingFailsClosed(t *testing.T) {
-	repo := newGateRepo(t)
-	key := gateMintArmed(t, repo, nil, 1, "ha")
-	common, err := gateGitCommonDir(repo)
+	repo := newRunTrackerRepo(t)
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+	common, err := runTrackerGitCommonDir(repo)
 	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, gateClaimBindingName), []byte("{not json"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(common, "docket", runTrackerDirName, key, runTrackerClaimBindingName), []byte("{not json"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	res := RunGateVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: &fakeProofScanner{}}, GitHubDeps{}, repo, key)
-	if res.Decision != GateDecisionStop || res.Reason != ReasonGateBindingUnreadable {
-		t.Fatalf("got %q/%q, want run-stop/%s", res.Decision, res.Reason, ReasonGateBindingUnreadable)
+	res := RunVerdict(context.Background(), PlanningDeps{}, WorkspaceDeps{ClaimProofs: &fakeProofScanner{}}, GitHubDeps{}, repo, key)
+	if res.Decision != RunDecisionStop || res.Reason != ReasonRunBindingUnreadable {
+		t.Fatalf("got %q/%q, want run-stop/%s", res.Decision, res.Reason, ReasonRunBindingUnreadable)
 	}
 }
 
@@ -998,34 +998,34 @@ func TestIntegrationRunVerdictVerdictResumeBindingSkipsContinuity(t *testing.T) 
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	key := gateMintAttributed(t, f.repo.invocation, 3)
+	key := runTrackerMintAttributed(t, f.repo.invocation, 3)
 	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v2", ChangeID: 3, GateContextHash: ""},
+		{RequestID: "claim-3-v2", ChangeID: 3, RunContextHash: ""},
 	}}
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q (resume-bound id delegates, never claim-replaced)", got, want)
 	}
-	if res.Reason == ReasonGateClaimReplaced {
+	if res.Reason == ReasonRunClaimReplaced {
 		t.Errorf("a resume-bound verdict must never stop on continuity")
 	}
 }
 
-// TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndEpoch pins the 0407 defect: a sibling
+// TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndRun pins the 0407 defect: a sibling
 // in-progress claim the OLD before-set/epoch filters would have attributed sits in
 // the corpus, but ownership reads only committed proofs. With no proof carrying the
 // record's context hash, the verdict is no-attributable-claim — never the sibling.
 // Mutation partner: re-introducing epoch/before-set inference reddens exactly this.
-func TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := gateLightDeps(t, []StatusBlob{gateInProgressBlob(9, "sibling", "keep")})
-	key := gateMintArmed(t, repo, nil, 1, "ha")
+func TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndRun(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	deps := runTrackerLightDeps(t, []StatusBlob{runTrackerInProgressBlob(9, "sibling", "keep")})
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
 	wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "sib", ChangeID: 9, GateContextHash: "OTHER"},
+		{RequestID: "sib", ChangeID: 9, RunContextHash: "OTHER"},
 	}}}
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, GitHubDeps{}, repo, key)
+	res := RunVerdict(context.Background(), deps, wdeps, GitHubDeps{}, repo, key)
 	if got, want := res.HumanText(), "run-done "+key+" no-attributable-claim"; got != want {
 		t.Fatalf("HumanText = %q, want %q (never the sibling)", got, want)
 	}
@@ -1040,7 +1040,7 @@ func TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testin
 // --- successful-run ownership closeout on a keyed run-complete (change 0441) ------
 //
 // A verified keyed run-complete now additionally drives the epoch-ownership closeout
-// (gateCompleteRun → completeSuccessfulRun) so a standalone finalize gate can admit on
+// (runTrackerCompleteRun → completeSuccessfulRun) so a standalone finalize gate can admit on
 // the same worktree. These tests wire Task 7's completion shape UNDER the key the
 // verdict loads: the run-verify fixture drives RunVerify to run-complete for change 3,
 // a confirmed binding + matching proof resolve ownership, and an active epoch bound to
@@ -1049,55 +1049,55 @@ func TestIntegrationRunVerdictVerdictOwnershipIgnoresBeforeSetAndEpoch(t *testin
 // keyless/standalone/legacy shape (no epoch beside the record) keeps EXACTLY the prior
 // behavior, and unattributed observe mode never touches ownership.
 
-// TestIntegrationRunVerdictVerdictRunCompleteClosesOutEpochOwnership: a keyed run-complete drives the
-// closeout — run-done run-complete, the epoch is completed, and the slot's RunEpochID
+// TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership: a keyed run-complete drives the
+// closeout — run-done run-complete, the epoch is completed, and the slot's RunID
 // is cleared so a standalone finalize gate can admit.
-func TestIntegrationRunVerdictVerdictRunCompleteClosesOutEpochOwnership(t *testing.T) {
+func TestIntegrationRunVerdictVerdictRunCompleteClosesOutRunOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
-	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	res := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
 	if got, want := res.HumanText(), "run-done "+fx.key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
-	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCompleted {
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
 		t.Fatalf("epoch state = %q, want completed", st)
 	}
 	slot, _, err := fx.store.LoadWorktreeExecution(fx.worktree)
 	if err != nil {
 		t.Fatalf("load slot: %v", err)
 	}
-	if slot.RunEpochID != "" {
-		t.Fatalf("slot RunEpochID = %q, want cleared", slot.RunEpochID)
+	if slot.RunID != "" {
+		t.Fatalf("slot RunID = %q, want cleared", slot.RunID)
 	}
 }
 
-// TestIntegrationRunVerdictVerdictRunCompleteWithoutEpochUnchanged: with no epoch beside the record the
+// TestIntegrationRunVerdictVerdictRunCompleteWithoutRunUnchanged: with no epoch beside the record the
 // verdict keeps EXACTLY the prior behavior — run-done run-complete, no epoch
 // fabricated, no completion findings.
-func TestIntegrationRunVerdictVerdictRunCompleteWithoutEpochUnchanged(t *testing.T) {
+func TestIntegrationRunVerdictVerdictRunCompleteWithoutRunUnchanged(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	key := gateMintArmed(t, f.repo.invocation, nil, 1, "ha")
-	if err := ReserveGateClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
+	key := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
+	if err := ReserveRunTrackerClaim(f.repo.invocation, key, 3, "claim-3-v"); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
-	if err := ConfirmGateClaim(f.repo.invocation, key, 3, "claim-3-v", "r1", ""); err != nil {
+	if err := ConfirmRunTrackerClaim(f.repo.invocation, key, 3, "claim-3-v", "r1", ""); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 	}}
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
 	if got, want := res.HumanText(), "run-done "+key+" run-complete 3"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 	if len(res.CompletionFindings) != 0 {
 		t.Errorf("no-epoch path carried completion findings: %v", res.CompletionFindings)
 	}
-	if _, _, err := LoadEpochRecord(f.repo.invocation, key); !isEpochKind(err, ErrEpochNotFound) {
+	if _, _, err := LoadRunRecord(f.repo.invocation, key); !isRunKind(err, ErrRunNotFound) {
 		t.Fatalf("no epoch must be fabricated by the closeout: %v", err)
 	}
 }
@@ -1111,15 +1111,15 @@ func TestIntegrationRunVerdictVerdictRunCompleteWithoutEpochUnchanged(t *testing
 // re-observed.
 func TestIntegrationRunVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSuccess(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
-	must(t, RegisterEpochParticipant(fx.repo, fx.key, fx.epochID,
-		EpochParticipant{Kind: "raw-run", NativeHandle: "exec-live"}))
+	must(t, RegisterRunParticipant(fx.repo, fx.key, fx.runID,
+		RunParticipant{Kind: "raw-run", NativeHandle: "exec-live"}))
 	fx.observer.defaultProven = false // the participant's run is not provably terminal
-	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
-	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
+	res := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable {
 		t.Fatalf("decision/outcome = %q/%q, want run-stop/run-tracker-unavailable", res.Decision, res.Outcome)
 	}
-	if res.Reason != ReasonGateCompletionUnaccounted {
-		t.Fatalf("reason = %q, want %q", res.Reason, ReasonGateCompletionUnaccounted)
+	if res.Reason != ReasonRunCompletionUnaccounted {
+		t.Fatalf("reason = %q, want %q", res.Reason, ReasonRunCompletionUnaccounted)
 	}
 	if len(res.CompletionFindings) == 0 {
 		t.Fatal("a blocked closeout carried no diagnostic findings to settle")
@@ -1127,28 +1127,28 @@ func TestIntegrationRunVerdictVerdictRunCompleteBlockedCloseoutStopsWithoutSucce
 	if !res.Terminal {
 		t.Error("a blocked closeout stop is terminal")
 	}
-	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCompleting {
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleting {
 		t.Fatalf("epoch state = %q, want completing (the success fence holds)", st)
 	}
-	if gateRetryMarkerExists(t, fx.repo, fx.key) {
+	if runTrackerRetryMarkerExists(t, fx.repo, fx.key) {
 		t.Error("a blocked closeout must never spend the retry")
 	}
 }
 
-// TestIntegrationRunVerdictVerdictRunCompleteCancelledEpochNeverReportsSuccess: an explicit cancellation
+// TestIntegrationRunVerdictVerdictRunCompleteCancelledRunNeverReportsSuccess: an explicit cancellation
 // that already won is never relabelled successful — run-stop run-tracker-unavailable
 // run-cancelled, never run-done, and the epoch state is untouched.
-func TestIntegrationRunVerdictVerdictRunCompleteCancelledEpochNeverReportsSuccess(t *testing.T) {
+func TestIntegrationRunVerdictVerdictRunCompleteCancelledRunNeverReportsSuccess(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
-	forceEpochState(t, fx.repo, fx.key, EpochCancelled)
-	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
-	if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable {
+	forceRunState(t, fx.repo, fx.key, RunCancelled)
+	res := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable {
 		t.Fatalf("decision/outcome = %q/%q, want run-stop/run-tracker-unavailable", res.Decision, res.Outcome)
 	}
-	if res.Reason != ReasonGateRunCancelled {
-		t.Fatalf("reason = %q, want %q (never run-done)", res.Reason, ReasonGateRunCancelled)
+	if res.Reason != ReasonRunCancelled {
+		t.Fatalf("reason = %q, want %q (never run-done)", res.Reason, ReasonRunCancelled)
 	}
-	if st := loadEpochState(t, fx.repo, fx.key); st != EpochCancelled {
+	if st := loadRunState(t, fx.repo, fx.key); st != RunCancelled {
 		t.Fatalf("epoch state = %q, want cancelled (never relabelled)", st)
 	}
 }
@@ -1166,23 +1166,23 @@ func TestIntegrationRunVerdictVerdictRunCompleteReportPersistFailureIsReported(t
 	if ok, reason, findings := completeSuccessfulRun(fx.seams(), fx.repo, fx.key); !ok {
 		t.Fatalf("pre-closeout ok=false reason=%q findings=%v", reason, findings)
 	}
-	keyDir, err := gateKeyDir(fx.repo, fx.key, "test-persist-fault")
+	keyDir, err := runKeyDir(fx.repo, fx.key, "test-persist-fault")
 	if err != nil {
-		t.Fatalf("gateKeyDir: %v", err)
+		t.Fatalf("runKeyDir: %v", err)
 	}
 	if err := os.Chmod(keyDir, 0o500); err != nil {
 		t.Fatalf("chmod key dir read-only: %v", err)
 	}
-	res := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	res := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
 	if err := os.Chmod(keyDir, 0o700); err != nil {
 		t.Fatalf("restore key dir: %v", err)
 	}
-	if res.Decision != GateDecisionStop || res.Reason != ReasonGateReportUnpersisted {
+	if res.Decision != RunDecisionStop || res.Reason != ReasonRunReportUnpersisted {
 		t.Fatalf("decision/reason = %q/%q, want run-stop/report-unpersisted", res.Decision, res.Reason)
 	}
 
 	// Fault cleared: the completed epoch replays to run-done run-complete.
-	res2 := RunGateVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
+	res2 := RunVerdict(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, fx.key)
 	if got, want := res2.HumanText(), "run-done "+fx.key+" run-complete 3"; got != want {
 		t.Fatalf("replay HumanText = %q, want %q", got, want)
 	}
@@ -1193,7 +1193,7 @@ func TestIntegrationRunVerdictVerdictRunCompleteReportPersistFailureIsReported(t
 // it holds no key, drives no closeout, and renders the plain observe run-complete line.
 func TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership(t *testing.T) {
 	fx := newVerdictCompletionFixture(t)
-	_, genBefore, err := LoadEpochRecord(fx.repo, fx.key)
+	_, genBefore, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
 		t.Fatalf("load epoch before: %v", err)
 	}
@@ -1202,12 +1202,12 @@ func TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership(t *testing
 		t.Fatalf("load slot before: %v", err)
 	}
 
-	res := RunGateVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
+	res := RunVerdictObserve(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, []string{"3"})
 	if got, want := res.HumanText(), "run-observe run-complete 3"; got != want {
 		t.Fatalf("observe HumanText = %q, want %q", got, want)
 	}
 
-	_, genAfter, err := LoadEpochRecord(fx.repo, fx.key)
+	_, genAfter, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
 		t.Fatalf("load epoch after: %v", err)
 	}
@@ -1218,8 +1218,8 @@ func TestIntegrationRunVerdictVerdictObserveModeNeverTouchesOwnership(t *testing
 	if err != nil {
 		t.Fatalf("load slot after: %v", err)
 	}
-	if slotAfter.RunEpochID != slotBefore.RunEpochID || slotAfter.State != slotBefore.State {
-		t.Fatalf("observe mode mutated the slot: before {RunEpochID:%q State:%q} after {RunEpochID:%q State:%q}",
-			slotBefore.RunEpochID, slotBefore.State, slotAfter.RunEpochID, slotAfter.State)
+	if slotAfter.RunID != slotBefore.RunID || slotAfter.State != slotBefore.State {
+		t.Fatalf("observe mode mutated the slot: before {RunID:%q State:%q} after {RunID:%q State:%q}",
+			slotBefore.RunID, slotBefore.State, slotAfter.RunID, slotAfter.State)
 	}
 }

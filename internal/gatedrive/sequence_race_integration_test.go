@@ -58,7 +58,7 @@ func TestRaceIntegrationGatedriveSequenceConcurrentScopesResolveOwnWork(t *testi
 		}
 		req.ScopeID = grant.ScopeID
 		req.ChildCapability = grant.ChildCapability
-		req.GateContext = gateCtx
+		req.RunContext = gateCtx
 		return grant, req
 	}
 
@@ -217,8 +217,8 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	reapSupervisors(t, runRoot)
 	d := realSeqDriver(store, svc)
-	epochs := &genSettled{settled: map[string]bool{}}
-	d.SetEpochSettledResolver(epochs.resolve)
+	runIDs := &genSettled{settled: map[string]bool{}}
+	d.SetRunSettledResolver(runIDs.resolve)
 
 	slotOf := func(path string) admissionRecord {
 		t.Helper()
@@ -228,10 +228,10 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 		}
 		return slot
 	}
-	passAt := func(path, branch, epoch, marker string) DriveDoc {
+	passAt := func(path, branch, runID, marker string) DriveDoc {
 		t.Helper()
 		req := realSeqStart(path, branch, runRoot, "0446", marker, seqPassCmd(marker))
-		req.RunEpochID = epoch
+		req.RunID = runID
 		doc := driveSeqToTerminal(t, d, req)
 		if doc.Outcome != PASSED {
 			t.Fatalf("%s must PASS, got %s (%s)", marker, doc.Outcome, doc.Cause)
@@ -241,25 +241,25 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 
 	// 1. Several successive epochs on one path.
 	lastGen := 0
-	for i, epoch := range []string{"epoch-g1", "epoch-g2", "epoch-g3"} {
-		passAt(wt, "feat/gen", epoch, fmt.Sprintf("gen-%d", i+1))
+	for i, runID := range []string{"epoch-g1", "epoch-g2", "epoch-g3"} {
+		passAt(wt, "feat/gen", runID, fmt.Sprintf("gen-%d", i+1))
 		slot := slotOf(wt)
-		if slot.State != admissionReleased || slot.RunEpochID != epoch {
-			t.Fatalf("after %s: slot %s/%q, want released/%s", epoch, slot.State, slot.RunEpochID, epoch)
+		if slot.State != admissionReleased || slot.RunID != runID {
+			t.Fatalf("after %s: slot %s/%q, want released/%s", runID, slot.State, slot.RunID, runID)
 		}
 		if slot.ExecutionGen <= lastGen {
-			t.Fatalf("after %s: execution generation %d did not advance past %d", epoch, slot.ExecutionGen, lastGen)
+			t.Fatalf("after %s: execution generation %d did not advance past %d", runID, slot.ExecutionGen, lastGen)
 		}
 		lastGen = slot.ExecutionGen
 		if i == 0 {
 			// Unsettled: the live epoch owns its worktree between drives.
 			foreign := realSeqStart(wt, "feat/gen", runRoot, "0446", "foreign", seqPassCmd("foreign"))
-			foreign.RunEpochID = "epoch-foreign"
-			if _, err := d.Start(foreign); !isOwnershipKind(err, ErrStaleRunEpoch) {
+			foreign.RunID = "epoch-foreign"
+			if _, err := d.Start(foreign); !isOwnershipKind(err, ErrStaleRunID) {
 				t.Fatalf("an unsettled epoch must fence a different epoch, got %v", err)
 			}
 		}
-		epochs.settle(epoch)
+		runIDs.settle(runID)
 	}
 
 	// 2. A symlink alias reaches the same slot and admits (epoch-less start over the
@@ -269,8 +269,8 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 		t.Fatalf("symlink alias: %v", err)
 	}
 	passAt(alias, "feat/gen", "", "gen-alias")
-	if slot := slotOf(wt); slot.ExecutionGen != lastGen+1 || slot.RunEpochID != "" {
-		t.Fatalf("the alias must reuse the canonical slot: gen %d (want %d) epoch %q", slot.ExecutionGen, lastGen+1, slot.RunEpochID)
+	if slot := slotOf(wt); slot.ExecutionGen != lastGen+1 || slot.RunID != "" {
+		t.Fatalf("the alias must reuse the canonical slot: gen %d (want %d) epoch %q", slot.ExecutionGen, lastGen+1, slot.RunID)
 	}
 
 	// 3. Live-incumbent counter-case at the same canonical path.
@@ -303,10 +303,10 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 		t.Fatalf("worktree must be removed, stat err = %v", err)
 	}
 	removedSlot := slotOf(wt) // stored-identity addressing, not re-canonicalization
-	if removedSlot.RunEpochID != "epoch-g4" || removedSlot.ReservationToken != g4.ReservationToken {
-		t.Fatalf("the removed worktree's slot must resolve to its stored record, got epoch %q", removedSlot.RunEpochID)
+	if removedSlot.RunID != "epoch-g4" || removedSlot.ReservationToken != g4.ReservationToken {
+		t.Fatalf("the removed worktree's slot must resolve to its stored record, got epoch %q", removedSlot.RunID)
 	}
-	if err := store.RetireWorktreeExecutionEpoch(wt, "epoch-g4", g4.ReservationToken); err != nil {
+	if err := store.RetireWorktreeExecutionRun(wt, "epoch-g4", g4.ReservationToken); err != nil {
 		t.Fatalf("retire a removed worktree's epoch through its stored identity: %v", err)
 	}
 	git(t, repo, "worktree", "add", wt, "-b", "feat/gen-r1")
@@ -314,11 +314,11 @@ func TestRaceIntegrationGatedriveSameWorktreeGenerations(t *testing.T) {
 
 	// 5. Remove and recreate again WITHOUT retiring: the settled epoch-g5 left on the
 	// inherited released slot is settled at admission, never refused.
-	epochs.settle("epoch-g5")
+	runIDs.settle("epoch-g5")
 	git(t, repo, "worktree", "remove", "--force", wt)
 	git(t, repo, "worktree", "add", wt, "-b", "feat/gen-r2")
 	passAt(wt, "feat/gen-r2", "", "gen-6")
-	if slot := slotOf(wt); slot.RunEpochID != "" || slot.State != admissionReleased {
-		t.Fatalf("final slot = %s/%q, want released and epoch-free", slot.State, slot.RunEpochID)
+	if slot := slotOf(wt); slot.RunID != "" || slot.State != admissionReleased {
+		t.Fatalf("final slot = %s/%q, want released and epoch-free", slot.State, slot.RunID)
 	}
 }

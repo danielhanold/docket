@@ -113,12 +113,12 @@ type driveEngine interface {
 	// ReconcileFinishedIncumbent settles a proven-finished incumbent on a worktree's
 	// execution slot with the engine's own process seam (change 0446 spec §3), so an
 	// advisory busy refusal is final only after reconciliation had its chance.
-	ReconcileFinishedIncumbent(worktree, runEpochID string) (settled bool, finding string, err error)
-	// AdvisoryRunEpoch resolves, read-only, the run epoch Admit would admit a start
+	ReconcileFinishedIncumbent(worktree, runID string) (settled bool, finding string, err error)
+	// AdvisoryRunID resolves, read-only, the run epoch Admit would admit a start
 	// under (change 0467): a credentialed scoped start inherits its scope's pinned
 	// epoch, anything else keeps the presented one. The advisory precheck
 	// reconciles with it so it never refuses a start Admit would admit.
-	AdvisoryRunEpoch(gatedrive.StartRequest) string
+	AdvisoryRunID(gatedrive.StartRequest) string
 }
 
 // GateDriveService is the in-process seam over the native gate driver. It owns
@@ -154,11 +154,11 @@ type GateDriveService struct {
 	// finalize service also stores a non-nil budgetStore.
 	budgetStore *gatedrive.Store
 	maxAttempts int
-	// epochLocate resolves a presented run-epoch id against the repository's run-epoch
+	// runLocate resolves a presented run-epoch id against the repository's run-epoch
 	// registry before PrepareScope mints a scope (change 0463). A non-nil error is a
-	// typed EpochError. Nil on the fake-engine test seam and on services that never
+	// typed RunError. Nil on the fake-engine test seam and on services that never
 	// serve prepare-scope.
-	epochLocate func(epochID string) error
+	runLocate func(runID string) error
 }
 
 // GateDriveStartRequest is the caller-supplied identity and launch context for a
@@ -178,19 +178,19 @@ type GateDriveStartRequest struct {
 	RunRoot             string
 	IdempotentSuiteGate bool
 	// Scope binding (change 0359): ScopeID + ChildCapability bind the new drive
-	// into a recovery scope the parent prepared, and GateContext is the raw outer
+	// into a recovery scope the parent prepared, and RunContext is the raw outer
 	// child-context token linking a nested drive to the outer gate. All optional;
 	// empty means a scopeless drive (pre-0359 behavior). ChildCapability and
-	// GateContext are raw tokens the driver verifies/hashes and persists nowhere in
+	// RunContext are raw tokens the driver verifies/hashes and persists nowhere in
 	// the clear.
 	ScopeID         string
 	ChildCapability string
-	GateContext     string
-	// RunEpochID links this drive to the workflow run epoch (change 0375 Task 9): a
+	RunContext      string
+	// RunID links this drive to the workflow run epoch (change 0375 Task 9): a
 	// locator, not a credential, recorded on the worktree execution slot so an omitted
 	// or stale epoch cannot detach a workflow-owned worktree. Empty for a standalone
 	// gate (finalize's local gate, an ad-hoc task drive) that owns no epoch.
-	RunEpochID string
+	RunID string
 	// Successor receipt (change 0405): a scoped drive that follows a predecessor in
 	// the same recovery scope names the predecessor it acknowledges — both fields
 	// together, or both empty for a scope's first drive. They are forwarded verbatim
@@ -261,23 +261,23 @@ func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective
 	engine := gatedrive.NewSystemDriver(store, proc)
 	// A parent takeover must not revive a cancelled/superseded run epoch (change 0375
 	// Task 12): wire the run-epoch revocation resolver over this repository's registry.
-	// It fires only for a scope carrying a RunEpochID, so standalone/pre-linkage
+	// It fires only for a scope carrying a RunID, so standalone/pre-linkage
 	// scopes are unaffected.
-	engine.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	engine.SetRunRevokedResolver(runRevokedResolver(gitCommonDir))
 	// A revoked/superseded/unbound run epoch must not be admitted or launched (change
 	// 0437): wire the app-side epoch launch gate over the same registry. It fires only
-	// for a start carrying a RunEpochID, so standalone gates are unaffected.
-	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
+	// for a start carrying a RunID, so standalone gates are unaffected.
+	engine.SetRunLaunchGate(runLaunchGate(gitCommonDir))
 	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
 	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
-	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
-	budget := time.Duration(eff.GateObservation.Value) * time.Minute
+	engine.SetRunSettledResolver(runSettledResolver(gitCommonDir))
+	budget := time.Duration(eff.RunObservation.Value) * time.Minute
 	// Provenance emits layer identities only — never a value — so it is safe to
 	// persist in the drive record. The owning key is <owner>.test_command, derived
 	// from owner so the stem and the message can never drift apart.
 	prov := fmt.Sprintf("gate_observation_budget=%s;%s.test_command=%s",
-		eff.GateObservation.Provenance.Layer, owner, command.Provenance.Layer)
+		eff.RunObservation.Provenance.Layer, owner, command.Provenance.Layer)
 	svc := newGateDriveService(engine, budget, command.Value, prov)
 	svc.owner = owner
 	// Reuse the engine's store for the build owner's suite-attempt reservation so a
@@ -304,21 +304,21 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	engine := gatedrive.NewSystemDriver(store, proc)
 	// A parent takeover must not revive a cancelled/superseded run epoch (change 0375
 	// Task 12): wire the run-epoch revocation resolver over this repository's registry.
-	// It fires only for a scope carrying a RunEpochID, so standalone/pre-linkage
+	// It fires only for a scope carrying a RunID, so standalone/pre-linkage
 	// scopes are unaffected.
-	engine.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	engine.SetRunRevokedResolver(runRevokedResolver(gitCommonDir))
 	// A revoked/superseded/unbound run epoch must not be admitted or launched (change
 	// 0437): wire the app-side epoch launch gate over the same registry. It fires only
-	// for a start carrying a RunEpochID, so standalone gates are unaffected.
-	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
+	// for a start carrying a RunID, so standalone gates are unaffected.
+	engine.SetRunLaunchGate(runLaunchGate(gitCommonDir))
 	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
 	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
-	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
+	engine.SetRunSettledResolver(runSettledResolver(gitCommonDir))
 	svc := newGateDriveService(engine, 0, "", "")
 	// prepare-scope is served by this commandless service: resolve a presented
 	// --run-id against the same registry before minting a scope (change 0463).
-	svc.epochLocate = runEpochLocator(gitCommonDir)
+	svc.runLocate = runIDLocator(gitCommonDir)
 	return svc, "", ""
 }
 
@@ -353,18 +353,18 @@ func NewTaskGateDriveService(gitCommonDir, exePath string, eff config.Effective,
 	engine := gatedrive.NewSystemDriver(store, proc)
 	// A parent takeover must not revive a cancelled/superseded run epoch (change 0375
 	// Task 12): wire the run-epoch revocation resolver over this repository's registry.
-	// It fires only for a scope carrying a RunEpochID, so standalone/pre-linkage
+	// It fires only for a scope carrying a RunID, so standalone/pre-linkage
 	// scopes are unaffected.
-	engine.SetEpochRevokedResolver(epochRevokedResolver(gitCommonDir))
+	engine.SetRunRevokedResolver(runRevokedResolver(gitCommonDir))
 	// A revoked/superseded/unbound run epoch must not be admitted or launched (change
 	// 0437): wire the app-side epoch launch gate over the same registry. It fires only
-	// for a start carrying a RunEpochID, so standalone gates are unaffected.
-	engine.SetEpochLaunchGate(epochLaunchGate(gitCommonDir))
+	// for a start carrying a RunID, so standalone gates are unaffected.
+	engine.SetRunLaunchGate(runLaunchGate(gitCommonDir))
 	// A released slot whose leftover run epoch is completed or confirmed-cancelled is
 	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
-	engine.SetEpochSettledResolver(epochSettledResolver(gitCommonDir))
-	budget := time.Duration(eff.GateObservation.Value) * time.Minute
+	engine.SetRunSettledResolver(runSettledResolver(gitCommonDir))
+	budget := time.Duration(eff.RunObservation.Value) * time.Minute
 	svc := newGateDriveService(engine, budget, "", "task.argv=agent-supplied")
 	svc.owner = "task"
 	svc.taskIntent = true
@@ -431,8 +431,8 @@ func (s *GateDriveService) startRequest(req GateDriveStartRequest) gatedrive.Sta
 		IdempotentSuiteGate: idempotent,
 		ScopeID:             req.ScopeID,
 		ChildCapability:     req.ChildCapability,
-		GateContext:         req.GateContext,
-		RunEpochID:          req.RunEpochID,
+		RunContext:          req.RunContext,
+		RunID:               req.RunID,
 		PredecessorDriveID:  req.PredecessorDriveID,
 		PredecessorOwnerGen: req.PredecessorOwnerGen,
 	}
@@ -469,8 +469,8 @@ func (s *GateDriveService) startBudgetedBuild(req GateDriveStartRequest, startRe
 		// start inherits its scope's pinned epoch (change 0467) — never the raw
 		// presented one, or an epoch-less scoped start is fenced here though Admit
 		// would admit it.
-		epoch := s.engine.AdvisoryRunEpoch(startReq)
-		settled, finding, _ := s.engine.ReconcileFinishedIncumbent(req.Worktree, epoch)
+		runID := s.engine.AdvisoryRunID(startReq)
+		settled, finding, _ := s.engine.ReconcileFinishedIncumbent(req.Worktree, runID)
 		if !settled {
 			if oe, ok := gatedrive.AsOwnershipError(err); ok {
 				oe.Reconciliation = finding
@@ -626,13 +626,13 @@ func (s *GateDriveService) PrepareScope(req gatedrive.ScopeRequest) GateScopeRes
 	// A presented --run-id must resolve before it is baked into the scope (change
 	// 0463): an unresolvable one refuses now with its named token, instead of
 	// surfacing later at start as a refusal the caller cannot attribute.
-	if req.RunEpochID != "" && s.epochLocate != nil {
-		if lerr := s.epochLocate(req.RunEpochID); lerr != nil {
+	if req.RunID != "" && s.runLocate != nil {
+		if lerr := s.runLocate(req.RunID); lerr != nil {
 			res, reason := mapDriveFailure(lerr)
 			return GateScopeResult{
 				Envelope: NewEnvelope(OperationGateDrivePrepareScope, res),
 				Reason:   reason,
-				Message:  RunEpochNextAction(reason),
+				Message:  RunIDNextAction(reason),
 			}
 		}
 	}
@@ -713,8 +713,8 @@ func mapDriveResult(op string, doc gatedrive.DriveDoc, err error) GateDriveResul
 			}
 		} else if fe, ok := AsMutationFenceError(err); ok {
 			result.Message = fenceNextAction(fe.Reason)
-		} else if _, reason, ok := ClassifyRunEpochError(err); ok {
-			result.Message = RunEpochNextAction(reason)
+		} else if _, reason, ok := ClassifyRunIDError(err); ok {
+			result.Message = RunIDNextAction(reason)
 		}
 		return result
 	}
@@ -750,7 +750,7 @@ func mapDriveFailure(err error) (Result, string) {
 	// presented --run-id) surfaces its named token rather than collapsing to the
 	// generic invalid-request (change 0463): unknown-run-id for a not-found epoch,
 	// the kind for any other registry fault.
-	if res, reason, ok := ClassifyRunEpochError(err); ok {
+	if res, reason, ok := ClassifyRunIDError(err); ok {
 		return res, reason
 	}
 	if se, ok := gatedrive.AsStoreError(err); ok {
@@ -789,7 +789,7 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 		return "this worktree's gate execution slot is occupied by an execution admission could not prove finished (a proven-finished occupant is settled automatically); wait for the incumbent or settle its slot through its own stop/cancel route — do not start a second gate in the same worktree"
 	case gatedrive.ErrUnresolvedExecution:
 		return "a prior execution in this worktree is unresolved; recover it through the parent or run.cancel, never a blind re-start"
-	case gatedrive.ErrStaleRunEpoch:
+	case gatedrive.ErrStaleRunID:
 		return "an in-flight run owns this worktree; present that run's epoch or cancel it before starting"
 	case gatedrive.ErrScopeCapabilityMismatch:
 		return "use the complete identity bundle from your dispatch prompt"
@@ -824,7 +824,7 @@ var rawRunIDShape = regexp.MustCompile("^[0-9a-f]{32}$")
 // incumbentRefusalLocator returns the bounded safe locator for an admission
 // refusal's incumbent: "incumbent-drive:<id>" / "incumbent-run:<id>", "" when no
 // identity validates. (This is the single bounded-locator convention shared by
-// every admission-refusal path, including rawStaleEpochRefusal in gate.go.) A drive
+// every admission-refusal path, including rawStaleRunRefusal in gate.go.) A drive
 // id is validated with gatedrive.ValidDriveID and a raw run id with rawRunIDShape,
 // so an arbitrary directory name or drive id can never render into the locator.
 func incumbentRefusalLocator(inc *gatedrive.IncumbentSnapshot) string {
@@ -859,11 +859,11 @@ func quoteOperand(path string) string {
 // DriveID is historical evidence at most and never selects guidance (change 0446).
 func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.IncumbentSnapshot) string {
 	switch {
-	case inc != nil && inc.EpochUnresolved:
+	case inc != nil && inc.RunUnresolved:
 		// No readable epoch record carries the slot's epoch: run.cancel targets a run
 		// by key and epoch and cannot act on it, so it is never suggested here.
 		return "this worktree's execution slot names a workflow run epoch that no readable epoch record carries, so neither a continuation nor a cancellation by key and epoch can target it; inspect the per-gate-key epoch records under the repository's Git common dir (docket/run-tracker/<gate-key>/run.json) — a human must repair the damaged or missing record, or the slot's stale epoch reference, before a gate can start here; never a raw manual teardown"
-	case kind == gatedrive.ErrStaleRunEpoch || (inc != nil && inc.EpochOwned):
+	case kind == gatedrive.ErrStaleRunID || (inc != nil && inc.RunOwned):
 		return "a workflow run epoch owns this worktree's execution slot; continue that run through its own gate-drive continuation, or — when that run's epoch record resolves — cancel it with the run.cancel operation using that run's key and epoch; if no readable epoch record carries it, run.cancel cannot target it and a human must repair that record under docket/run-tracker — never a raw manual teardown and never a stale epoch presented as a bypass"
 	case inc != nil && inc.Kind == "raw" && inc.RawRunDir != "" && rawRunIDShape.MatchString(inc.RawRunID):
 		dir := quoteOperand(inc.RawRunDir)

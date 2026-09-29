@@ -78,7 +78,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 	// the independent oracle each exact-version request submits.
 	ver := func() string { return blobVersionAt(t, repo.origin, m.branch, recPath) }
 
-	complete := func(dispatchContext string) GitHubDeps {
+	complete := func(runContext string) GitHubDeps {
 		// (1) Authoritative implementation context.
 		ctxRes := ContextImplementation(ctx, node.deps, node.dir, ImplementationContextRequest{ID: id})
 		if ctxRes.Result != ResultApplied || ctxRes.Context == nil {
@@ -93,7 +93,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		}
 
 		// (2) Claim.
-		claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: v, GateContext: dispatchContext})
+		claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: v, RunContext: runContext})
 		if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
 			t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
 		}
@@ -158,8 +158,8 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 
 		// (8) Launch the real trivially-passing gate through the native supervisor and
 		// observe it to a passed terminal.
-		gateRoot := testsupport.TempDir(t)
-		launch := GateLaunch(gateRoot, wp, []string{passingGateScript(t)})
+		runTrackerRoot := testsupport.TempDir(t)
+		launch := GateLaunch(runTrackerRoot, wp, []string{passingGateScript(t)})
 		if launch.Result != ResultApplied || launch.RunDir == "" {
 			t.Fatalf("gate launch = %q (reason %q)", launch.Result, launch.Reason)
 		}

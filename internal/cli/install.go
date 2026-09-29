@@ -278,7 +278,7 @@ func installOptions(ctx context.Context, harnesses []string, repoDir string, res
 // from, and the legacy reproducer is the same frozen one the machine transaction
 // inspects against, so machine and repository agree on what "unchanged" means.
 func resolveRepoPhase(ctx context.Context, opts install.Options, harnesses []string, repoDir string) (*install.RepoPhase, []config.Diagnostic, *InstallRefusal) {
-	runGate, err := harness.RunGate(opts.Catalog)
+	runTracker, err := harness.RunTracker(opts.Catalog)
 	if err != nil {
 		return nil, nil, &InstallRefusal{Reason: install.ReasonAssetManifestInvalid, Err: err}
 	}
@@ -287,7 +287,7 @@ func resolveRepoPhase(ctx context.Context, opts install.Options, harnesses []str
 		return nil, nil, &InstallRefusal{Reason: install.ReasonInvalidOptions, Err: err}
 	}
 	legacy := install.LegacyReproducerFor(opts, harnessNamesForLegacy(harnesses))
-	phase, _, warnings, err := app.ResolveRepoPhase(ctx, git, repoDir, harnesses, runGate, legacy, installResolveContext())
+	phase, _, warnings, err := app.ResolveRepoPhase(ctx, git, repoDir, harnesses, runTracker, legacy, installResolveContext())
 	if err != nil {
 		var re *app.RepoResolutionError
 		if errors.As(err, &re) {

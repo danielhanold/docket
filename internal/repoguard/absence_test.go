@@ -390,9 +390,9 @@ func testGeneratorOutputAbsence(t *testing.T) {
 			writeGen([]string{name, fmt.Sprintf("%03d-%s", i, filepath.Base(tg.Path))}, tg.Content)
 		}
 	}
-	rg, err := harness.RunGate(cat)
+	rg, err := harness.RunTracker(cat)
 	if err != nil {
-		t.Fatalf("RunGate: %v", err)
+		t.Fatalf("RunTracker: %v", err)
 	}
 	writeGen([]string{"dispatch", "interior.md"}, []byte(harness.DispatchInterior(rg)))
 	writeGen([]string{"dispatch", "cursor-rule.mdc"}, cursor.DispatchRuleContent(rg))

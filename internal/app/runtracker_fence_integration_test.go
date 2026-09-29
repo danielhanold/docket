@@ -29,13 +29,13 @@ import (
 // acceptance-criterion-5 barriers and as the fence's mutation evidence: neutering the
 // hook (or admitWorkflowMutation) reddens all three block-after-cancel tests.
 
-// mintFenceEpoch mints a gate record and an epoch under repoDir, binds the epoch to
+// mintFenceRun mints a gate record and an epoch under repoDir, binds the epoch to
 // worktree and drives it to state, and returns the gate key. It is the minimal setup
 // admitWorkflowMutation needs to find the owning epoch by worktree.
-func mintFenceEpoch(t *testing.T, repoDir, worktree string, state epochState) string {
+func mintFenceRun(t *testing.T, repoDir, worktree string, state runState) string {
 	t.Helper()
-	key, err := MintGateRecord(repoDir, GateRecord{
-		Target:       gateBeforeStoredTarget,
+	key, err := MintRunTrackerRecord(repoDir, RunTrackerRecord{
+		Target:       runStartStoredTarget,
 		AttemptLimit: 2,
 		Retry:        RetryUnused,
 		Disposition:  "run-started",
@@ -43,17 +43,17 @@ func mintFenceEpoch(t *testing.T, repoDir, worktree string, state epochState) st
 		ScopeID:      "scope-1",
 	})
 	if err != nil {
-		t.Fatalf("MintGateRecord: %v", err)
+		t.Fatalf("MintRunTrackerRecord: %v", err)
 	}
-	if _, err := MintEpochRecord(repoDir, key, "7"); err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+	if _, err := MintRunRecord(repoDir, key, "7"); err != nil {
+		t.Fatalf("MintRunRecord: %v", err)
 	}
-	if err := epochCAS(repoDir, key, func(r *EpochRecord) error {
+	if err := runRecordCAS(repoDir, key, func(r *RunRecord) error {
 		r.Worktree = worktree
 		r.State = state
 		return nil
 	}); err != nil {
-		t.Fatalf("epochCAS set worktree/state: %v", err)
+		t.Fatalf("runRecordCAS set worktree/state: %v", err)
 	}
 	return key
 }
@@ -88,8 +88,8 @@ func (fenceStubLoader) ValidateEvolution(_, _ transaction.LoadedState) []domain.
 // cancelled epoch that owns the worktree, is refused at StageAdmission — before any
 // fetch, allocation, plan, or push — so nothing is mutated.
 func TestIntegrationRunFenceFenceBlocksEngineMutationAfterCancel(t *testing.T) {
-	repoDir := newGateRepo(t)
-	mintFenceEpoch(t, repoDir, repoDir, EpochCancelling)
+	repoDir := newRunTrackerRepo(t)
+	mintFenceRun(t, repoDir, repoDir, RunCancelling)
 
 	engine, err := transaction.NewEngine(newGitClient(t), testClock())
 	if err != nil {
@@ -128,7 +128,7 @@ func TestIntegrationRunFenceFenceBlocksEngineMutationAfterCancel(t *testing.T) {
 // reason and gh (EnsurePullRequest) is never invoked.
 func TestIntegrationRunFenceFenceBlocksPRPublishAfterCancel(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
-	mintFenceEpoch(t, repoDir, repoDir, EpochCancelling)
+	mintFenceRun(t, repoDir, repoDir, RunCancelling)
 
 	reader := prReader(t)
 	gh := &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureCreated, PR: prMatchPR("verified")}}
@@ -153,7 +153,7 @@ func TestIntegrationRunFenceFenceBlocksPRPublishAfterCancel(t *testing.T) {
 // never invoked.
 func TestIntegrationRunFenceFenceBlocksWorkspacePublishAfterCancel(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
-	mintFenceEpoch(t, repoDir, repoDir, EpochCancelling)
+	mintFenceRun(t, repoDir, repoDir, RunCancelling)
 
 	const head = "abcdef0000000000000000000000000000000000"
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")}}
@@ -192,14 +192,14 @@ func TestIntegrationRunFenceInFlightMutationReconcilesBeforeCancelled(t *testing
 
 	seams := cancelSeams{store: fx.store, stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
 
-	res := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
 	if res.Disposition != CancelDispositionPending {
 		t.Fatalf("disposition = %q, want cancellation-pending while a mutation is in flight", res.Disposition)
 	}
 	if !hasFinding(res.Findings, "mutation-pending:") {
 		t.Fatalf("findings = %v, want a mutation-pending finding", res.Findings)
 	}
-	if got := loadEpochState(t, fx.repo, fx.key); got != EpochCancelling {
+	if got := loadRunState(t, fx.repo, fx.key); got != RunCancelling {
 		t.Fatalf("epoch state = %q, want cancelling (fenced, not yet cancelled)", got)
 	}
 
@@ -207,11 +207,11 @@ func TestIntegrationRunFenceInFlightMutationReconcilesBeforeCancelled(t *testing
 	// reaches cancelled.
 	done(mutationStatusCompleted, false)
 
-	res2 := runCancel(seams, fx.repo, fx.key, fx.epochID, "human stop")
+	res2 := runCancel(seams, fx.repo, fx.key, fx.runID, "human stop")
 	if res2.Disposition != CancelDispositionCancelled {
 		t.Fatalf("repeat disposition = %q, want cancelled after reconciliation (findings %v)", res2.Disposition, res2.Findings)
 	}
-	if got := loadEpochState(t, fx.repo, fx.key); got != EpochCancelled {
+	if got := loadRunState(t, fx.repo, fx.key); got != RunCancelled {
 		t.Fatalf("epoch state = %q, want cancelled", got)
 	}
 }
@@ -220,7 +220,7 @@ func TestIntegrationRunFenceInFlightMutationReconcilesBeforeCancelled(t *testing
 // unfenced (the completion callback is a no-op), and an epoch owning a DIFFERENT
 // worktree never fences this one.
 func TestIntegrationRunFenceStandaloneMutationUnfenced(t *testing.T) {
-	repoDir := newGateRepo(t)
+	repoDir := newRunTrackerRepo(t)
 
 	// (a) No epoch at all.
 	done, err := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
@@ -235,7 +235,7 @@ func TestIntegrationRunFenceStandaloneMutationUnfenced(t *testing.T) {
 	if err := os.MkdirAll(other, 0o755); err != nil {
 		t.Fatalf("mkdir other worktree: %v", err)
 	}
-	mintFenceEpoch(t, repoDir, other, EpochCancelling)
+	mintFenceRun(t, repoDir, other, RunCancelling)
 
 	done2, err := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
 	if err != nil {
@@ -244,11 +244,11 @@ func TestIntegrationRunFenceStandaloneMutationUnfenced(t *testing.T) {
 	done2(mutationStatusCompleted, false)
 }
 
-// TestIntegrationRunFenceFenceRefusesSupersededEpochAsStale: a superseded epoch (a resume replaced it)
+// TestIntegrationRunFenceFenceRefusesSupersededRunAsStale: a superseded epoch (a resume replaced it)
 // refuses the mutation with the stale-run-id reason, distinct from run-cancelled.
-func TestIntegrationRunFenceFenceRefusesSupersededEpochAsStale(t *testing.T) {
-	repoDir := newGateRepo(t)
-	mintFenceEpoch(t, repoDir, repoDir, EpochSuperseded)
+func TestIntegrationRunFenceFenceRefusesSupersededRunAsStale(t *testing.T) {
+	repoDir := newRunTrackerRepo(t)
+	mintFenceRun(t, repoDir, repoDir, RunSuperseded)
 
 	_, err := admitWorkflowMutation(repoDir, OperationWorkspacePublish, nil)
 	fe, ok := AsMutationFenceError(err)
@@ -265,7 +265,7 @@ func TestIntegrationRunFenceFenceRefusesSupersededEpochAsStale(t *testing.T) {
 // alias cannot dodge it. Here the epoch stores a symlink spelling of the worktree and
 // the mutation runs with the canonical spelling; the fence still matches.
 func TestIntegrationRunFenceFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T) {
-	repoDir := newGateRepo(t)
+	repoDir := newRunTrackerRepo(t)
 	canonRepo, err := canonicalWorktree(repoDir)
 	if err != nil {
 		t.Fatalf("canonicalWorktree(repoDir): %v", err)
@@ -276,7 +276,7 @@ func TestIntegrationRunFenceFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T)
 	if err := os.Symlink(canonRepo, alias); err != nil {
 		t.Fatalf("symlink alias: %v", err)
 	}
-	mintFenceEpoch(t, repoDir, alias, EpochCancelling)
+	mintFenceRun(t, repoDir, alias, RunCancelling)
 
 	// The mutation runs with the canonical spelling; the fence resolves the epoch's
 	// aliased Worktree to the same canonical path and refuses.
@@ -286,13 +286,13 @@ func TestIntegrationRunFenceFenceMatchesWorktreeAcrossSymlinkAlias(t *testing.T)
 	}
 }
 
-// TestIntegrationRunFenceAdmitWorkflowMutationRefusesCompletingEpoch: a completing epoch (a verified
+// TestIntegrationRunFenceAdmitWorkflowMutationRefusesCompletingRun: a completing epoch (a verified
 // successful closeout is mid-flight, change 0441) still owns its worktree and refuses
 // a new mutation with the distinct run-completed reason — never relabelled as a
 // cancellation.
-func TestIntegrationRunFenceAdmitWorkflowMutationRefusesCompletingEpoch(t *testing.T) {
-	repoDir := newGateRepo(t)
-	mintFenceEpoch(t, repoDir, repoDir, EpochCompleting)
+func TestIntegrationRunFenceAdmitWorkflowMutationRefusesCompletingRun(t *testing.T) {
+	repoDir := newRunTrackerRepo(t)
+	mintFenceRun(t, repoDir, repoDir, RunCompleting)
 
 	_, err := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
 	fe, ok := AsMutationFenceError(err)
@@ -301,13 +301,13 @@ func TestIntegrationRunFenceAdmitWorkflowMutationRefusesCompletingEpoch(t *testi
 	}
 }
 
-// TestIntegrationRunFenceCompletedEpochExcludedFromAmbientOwnerLookup: a fully completed epoch (change
+// TestIntegrationRunFenceCompletedRunExcludedFromAmbientOwnerLookup: a fully completed epoch (change
 // 0441) no longer owns the worktree for ambient lookup, so a standalone mutation on
-// that worktree is admitted UNFENCED and findEpochByWorktree no longer names it. A
+// that worktree is admitted UNFENCED and findRunByWorktree no longer names it. A
 // COMPLETING epoch, in contrast, is still the owner (its closeout has not finished).
-func TestIntegrationRunFenceCompletedEpochExcludedFromAmbientOwnerLookup(t *testing.T) {
-	repoDir := newGateRepo(t)
-	key := mintFenceEpoch(t, repoDir, repoDir, EpochCompleted)
+func TestIntegrationRunFenceCompletedRunExcludedFromAmbientOwnerLookup(t *testing.T) {
+	repoDir := newRunTrackerRepo(t)
+	key := mintFenceRun(t, repoDir, repoDir, RunCompleted)
 
 	done, err := admitWorkflowMutation(repoDir, OperationPRPublish, nil)
 	if err != nil || done == nil {
@@ -319,65 +319,65 @@ func TestIntegrationRunFenceCompletedEpochExcludedFromAmbientOwnerLookup(t *test
 	if cerr != nil {
 		t.Fatalf("canonicalWorktree(repoDir): %v", cerr)
 	}
-	if _, found, ferr := findEpochByWorktree(repoDir, canon); ferr != nil || found {
+	if _, found, ferr := findRunByWorktree(repoDir, canon); ferr != nil || found {
 		t.Fatalf("completed epoch still owns the worktree lookup (found %v err %v)", found, ferr)
 	}
 
 	// The same epoch, moved back to completing, is still the worktree owner.
-	fenceEpoch(t, repoDir, key, EpochCompleting)
-	if _, found, ferr := findEpochByWorktree(repoDir, canon); ferr != nil || !found {
+	fenceRun(t, repoDir, key, RunCompleting)
+	if _, found, ferr := findRunByWorktree(repoDir, canon); ferr != nil || !found {
 		t.Fatalf("completing epoch lost worktree ownership before closeout finished (found %v err %v)", found, ferr)
 	}
 }
 
-// TestIntegrationRunFenceFreshRunClaimBindsEpochWorktreeSoFenceActs is the BLOCKER regression (change
+// TestIntegrationRunFenceFreshRunClaimBindsRunWorktreeSoFenceActs is the BLOCKER regression (change
 // 0375): a FRESH (non-resume) run's claim confirmation must bind the epoch's Worktree
 // so the mutation fence locates the epoch. It drives the REAL arm→reserve→confirm
-// production path (RunGateBefore mints the fresh epoch with Worktree == ""; the claim
+// production path (RunStart mints the fresh epoch with Worktree == ""; the claim
 // confirmation binds it) rather than a fixture that sets r.Worktree directly, then
 // asserts both halves of the defect: the epoch worktree is bound, and a post-cancel
 // workflow mutation running in that worktree is refused run-cancelled. Before the fix
-// the fresh epoch kept Worktree == "", findEpochByWorktree skipped it, and the mutation
+// the fresh epoch kept Worktree == "", findRunByWorktree skipped it, and the mutation
 // was admitted UNFENCED even after the epoch was cancelling — the fence and run.cancel
 // teardown were both inert for the common first-dispatch case.
-func TestIntegrationRunFenceFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testing.T) {
-	repo := newGateRepo(t)
-	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+func TestIntegrationRunFenceFreshRunClaimBindsRunWorktreeSoFenceActs(t *testing.T) {
+	repo := newRunTrackerRepo(t)
+	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
 	// A FRESH arm (resumeID 0) mints a run epoch beside the gate record with Worktree "".
-	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
-	if !res.Armed {
+	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
+	if !res.Started {
 		t.Fatalf("fresh arm failed: %+v", res)
 	}
 
 	// The real production claim→confirm sequence for a fresh dispatch, carrying the
 	// change's feature worktree — the same path change_claim.go drives.
 	worktree := repo
-	if err := ReserveGateClaim(repo, res.Key, 42, "req-1"); err != nil {
-		t.Fatalf("ReserveGateClaim: %v", err)
+	if err := ReserveRunTrackerClaim(repo, res.Key, 42, "req-1"); err != nil {
+		t.Fatalf("ReserveRunTrackerClaim: %v", err)
 	}
-	if err := ConfirmGateClaim(repo, res.Key, 42, "req-1", "revabc123", worktree); err != nil {
-		t.Fatalf("ConfirmGateClaim: %v", err)
+	if err := ConfirmRunTrackerClaim(repo, res.Key, 42, "req-1", "revabc123", worktree); err != nil {
+		t.Fatalf("ConfirmRunTrackerClaim: %v", err)
 	}
 
 	// (a) The confirm bound the worktree onto the fresh run's epoch.
-	ep, _, err := LoadEpochRecord(repo, res.Key)
+	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.Worktree != worktree {
 		t.Fatalf("fresh-run claim must bind the epoch worktree, got %q want %q", ep.Worktree, worktree)
 	}
 
-	// (b) findEpochByWorktree now locates the fresh epoch: cancel it, and a workflow
+	// (b) findRunByWorktree now locates the fresh epoch: cancel it, and a workflow
 	// mutation running in that worktree is refused run-cancelled. Before the fix the
 	// empty-worktree epoch was skipped and this mutation was admitted unfenced.
-	if err := epochCAS(repo, res.Key, func(r *EpochRecord) error {
-		r.State = EpochCancelling
+	if err := runRecordCAS(repo, res.Key, func(r *RunRecord) error {
+		r.State = RunCancelling
 		return nil
 	}); err != nil {
-		t.Fatalf("epochCAS to cancelling: %v", err)
+		t.Fatalf("runRecordCAS to cancelling: %v", err)
 	}
 	_, ferr := admitWorkflowMutation(worktree, OperationPRPublish, nil)
 	if fe, ok := AsMutationFenceError(ferr); !ok || fe.Reason != "run-cancelled" {
@@ -385,51 +385,51 @@ func TestIntegrationRunFenceFreshRunClaimBindsEpochWorktreeSoFenceActs(t *testin
 	}
 }
 
-// TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs is the change-0427
+// TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsRunWorktreeSoFenceActs is the change-0427
 // regression for the unconfirmed-reservation recovery leg: a fresh epoch whose
 // Worktree is empty (as run start mints it — neither claim confirmation nor
 // fixture setup pre-binds it), a reservation whose confirm was interrupted, and
 // the exact committed receipt. The verdict recovery must confirm WITH the
 // change's logical feature worktree — before the directory even exists — so
-// LoadEpochRecord shows it bound, and after RunCancel a workflow mutation from
+// LoadRunRecord shows it bound, and after RunCancel a workflow mutation from
 // that worktree is refused specifically run-cancelled. Restoring the empty
-// worktree argument at the unconfirmed-reservation ConfirmGateClaim call reddens
+// worktree argument at the unconfirmed-reservation ConfirmRunTrackerClaim call reddens
 // both halves.
-func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceActs(t *testing.T) {
+func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsRunWorktreeSoFenceActs(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
 	repo := f.repo.invocation
-	key := gateMintArmed(t, repo, nil, 1, "ha")
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
 
 	// Give the armed record a parent-held authority so RunCancel's authority gate
-	// (rec.ParentCap != "") is satisfied later; gateMintArmed leaves it empty. This
+	// (rec.ParentCap != "") is satisfied later; runTrackerMintStarted leaves it empty. This
 	// is cancel-fixture scaffolding, not part of the recovery under test.
-	if rec, lerr := LoadGateRecord(repo, key); lerr != nil {
-		t.Fatalf("LoadGateRecord: %v", lerr)
+	if rec, lerr := LoadRunTrackerRecord(repo, key); lerr != nil {
+		t.Fatalf("LoadRunTrackerRecord: %v", lerr)
 	} else {
 		rec.ParentCap = "parent-cap-raw"
-		if serr := SaveGateRecord(repo, key, rec); serr != nil {
-			t.Fatalf("SaveGateRecord: %v", serr)
+		if serr := SaveRunTrackerRecord(repo, key, rec); serr != nil {
+			t.Fatalf("SaveRunTrackerRecord: %v", serr)
 		}
 	}
 
 	// A REAL fresh epoch, minted exactly as a fresh (non-resume) arm mints it:
 	// change unbound (""), Worktree "". Nothing below pre-binds either.
-	ep, err := MintEpochRecord(repo, key, "")
+	ep, err := MintRunRecord(repo, key, "")
 	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+		t.Fatalf("MintRunRecord: %v", err)
 	}
 
 	// The interrupted-confirm shape: reserved, never confirmed, with the exact
 	// committed receipt (same request id, same context hash).
-	if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
-		t.Fatalf("ReserveGateClaim: %v", err)
+	if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-v"); err != nil {
+		t.Fatalf("ReserveRunTrackerClaim: %v", err)
 	}
 	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 	}}
 
 	// The expected LOGICAL feature path, from the same canonical identity
@@ -442,9 +442,9 @@ func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceA
 	if _, serr := os.Stat(want); serr == nil {
 		t.Fatalf("precondition: feature dir %q must not exist yet (binding precedes workspace.prepare)", want)
 	}
-	seedPendingEpochMutation(t, repo, key)
+	seedPendingRunMutation(t, repo, key)
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
 	// The verdict recovery binds the epoch worktree, then drives the successful-run
 	// ownership closeout (change 0441). Here that closeout fails CLOSED on the owned
 	// in-flight mutation seeded above (mutation-pending) — the epoch is left durably
@@ -456,9 +456,9 @@ func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceA
 
 	// (a) The recovery confirm bound the epoch's worktree, with the directory
 	// still absent — the bind stores the logical path.
-	epAfter, _, err := LoadEpochRecord(repo, key)
+	epAfter, _, err := LoadRunRecord(repo, key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if epAfter.Worktree != want {
 		t.Fatalf("epoch worktree = %q, want %q (verdict recovery must bind the run epoch's worktree)", epAfter.Worktree, want)
@@ -472,13 +472,13 @@ func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceA
 	if err := os.MkdirAll(want, 0o755); err != nil {
 		t.Fatalf("mkdir feature worktree: %v", err)
 	}
-	common, err := gateGitCommonDir(repo)
+	common, err := runTrackerGitCommonDir(repo)
 	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
 	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
-	reconcilePendingEpochMutations(t, repo, key)
-	cres := runCancel(seams, repo, key, ep.EpochID, "0427 regression stop")
+	reconcilePendingRunMutations(t, repo, key)
+	cres := runCancel(seams, repo, key, ep.RunID, "0427 regression stop")
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
 	}
@@ -488,42 +488,42 @@ func TestIntegrationRunFenceVerdictUnconfirmedRecoveryBindsEpochWorktreeSoFenceA
 	}
 }
 
-// TestIntegrationRunFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs is the change-0427
+// TestIntegrationRunFenceVerdictSoleProofAdoptionBindsRunWorktreeSoFenceActs is the change-0427
 // regression for the absent-binding recovery leg: a fresh epoch with an empty
 // Worktree and NO binding file, with exactly one committed proof carrying the
 // record's context hash. Adoption must reserve + confirm WITH the change's
 // logical feature worktree (directory still absent), bind the epoch, and after
 // RunCancel a workflow mutation from that worktree is refused run-cancelled.
-// Restoring the empty worktree argument at the sole-proof ConfirmGateClaim call
+// Restoring the empty worktree argument at the sole-proof ConfirmRunTrackerClaim call
 // reddens both halves.
-func TestIntegrationRunFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceActs(t *testing.T) {
+func TestIntegrationRunFenceVerdictSoleProofAdoptionBindsRunWorktreeSoFenceActs(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
 	repo := f.repo.invocation
-	key := gateMintArmed(t, repo, nil, 1, "ha")
+	key := runTrackerMintStarted(t, repo, nil, 1, "ha")
 
 	// Give the armed record a parent-held authority so RunCancel's authority gate
-	// (rec.ParentCap != "") is satisfied later; gateMintArmed leaves it empty. This
+	// (rec.ParentCap != "") is satisfied later; runTrackerMintStarted leaves it empty. This
 	// is cancel-fixture scaffolding, not part of the adoption under test.
-	if rec, lerr := LoadGateRecord(repo, key); lerr != nil {
-		t.Fatalf("LoadGateRecord: %v", lerr)
+	if rec, lerr := LoadRunTrackerRecord(repo, key); lerr != nil {
+		t.Fatalf("LoadRunTrackerRecord: %v", lerr)
 	} else {
 		rec.ParentCap = "parent-cap-raw"
-		if serr := SaveGateRecord(repo, key, rec); serr != nil {
-			t.Fatalf("SaveGateRecord: %v", serr)
+		if serr := SaveRunTrackerRecord(repo, key, rec); serr != nil {
+			t.Fatalf("SaveRunTrackerRecord: %v", serr)
 		}
 	}
 
-	ep, err := MintEpochRecord(repo, key, "")
+	ep, err := MintRunRecord(repo, key, "")
 	if err != nil {
-		t.Fatalf("MintEpochRecord: %v", err)
+		t.Fatalf("MintRunRecord: %v", err)
 	}
-	// NO ReserveGateClaim: the no-binding branch adopts the sole matching proof.
+	// NO ReserveRunTrackerClaim: the no-binding branch adopts the sole matching proof.
 	wdeps.ClaimProofs = &fakeProofScanner{proofs: []ClaimProof{
-		{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+		{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 	}}
 
 	repoID, err := f.client.Discover(context.Background(), gitcli.DiscoverOptions{InvocationPath: repo})
@@ -534,9 +534,9 @@ func TestIntegrationRunFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceAct
 	if _, serr := os.Stat(want); serr == nil {
 		t.Fatalf("precondition: feature dir %q must not exist yet", want)
 	}
-	seedPendingEpochMutation(t, repo, key)
+	seedPendingRunMutation(t, repo, key)
 
-	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
+	res := RunVerdict(context.Background(), deps, wdeps, gdeps, repo, key)
 	// Adoption binds the epoch worktree, then the successful-run closeout (change 0441)
 	// fails CLOSED on the owned in-flight mutation seeded above (mutation-pending), and
 	// the epoch is left completing while the ADOPTION binding this test guards is
@@ -544,13 +544,13 @@ func TestIntegrationRunFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceAct
 	if got, wantLine := res.HumanText(), "run-stop "+key+" run-tracker-unavailable completion-unaccounted"; got != wantLine {
 		t.Fatalf("HumanText = %q, want %q (adoption binding must still land)", got, wantLine)
 	}
-	b, ok, berr := LoadGateClaimBinding(repo, key)
+	b, ok, berr := LoadRunTrackerClaimBinding(repo, key)
 	if berr != nil || !ok || !b.Confirmed || b.ChangeID != 3 {
 		t.Fatalf("binding = %+v ok=%v err=%v, want confirmed change 3 after adoption", b, ok, berr)
 	}
-	epAfter, _, err := LoadEpochRecord(repo, key)
+	epAfter, _, err := LoadRunRecord(repo, key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if epAfter.Worktree != want {
 		t.Fatalf("epoch worktree = %q, want %q (sole-proof adoption must bind the run epoch's worktree)", epAfter.Worktree, want)
@@ -559,16 +559,16 @@ func TestIntegrationRunFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceAct
 	if err := os.MkdirAll(want, 0o755); err != nil {
 		t.Fatalf("mkdir feature worktree: %v", err)
 	}
-	common, err := gateGitCommonDir(repo)
+	common, err := runTrackerGitCommonDir(repo)
 	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
 	seams := cancelSeams{store: gatedrive.OpenStore(common), stopper: &fakeCancelStopper{}, launches: okLaunchReconciler()}
 	// An explicit cancellation wins even from the completing epoch the blocked closeout
 	// left (change 0441); the fence must then locate the recovered epoch by its bound
 	// worktree and refuse the mutation run-cancelled.
-	reconcilePendingEpochMutations(t, repo, key)
-	cres := runCancel(seams, repo, key, ep.EpochID, "0427 regression stop")
+	reconcilePendingRunMutations(t, repo, key)
+	cres := runCancel(seams, repo, key, ep.RunID, "0427 regression stop")
 	if cres.Disposition != CancelDispositionCancelled {
 		t.Fatalf("cancel disposition = %q (findings %v), want cancelled", cres.Disposition, cres.Findings)
 	}
@@ -583,32 +583,32 @@ func TestIntegrationRunFenceVerdictSoleProofAdoptionBindsEpochWorktreeSoFenceAct
 // reader, no client), the verdict refuses run-stop run-tracker-unavailable
 // proof-unavailable BEFORE any confirm — it never substitutes an empty worktree.
 // The unconfirmed reservation stays intact-unconfirmed; the sole-proof leg
-// writes NO reservation at all (resolution precedes ReserveGateClaim).
+// writes NO reservation at all (resolution precedes ReserveRunTrackerClaim).
 func TestIntegrationRunFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(t *testing.T) {
 	t.Run("unconfirmed reservation leg", func(t *testing.T) {
-		repo := newGateRepo(t)
-		key := gateMintArmed(t, repo, nil, 1, "ha")
-		if _, err := MintEpochRecord(repo, key, ""); err != nil {
-			t.Fatalf("MintEpochRecord: %v", err)
+		repo := newRunTrackerRepo(t)
+		key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+		if _, err := MintRunRecord(repo, key, ""); err != nil {
+			t.Fatalf("MintRunRecord: %v", err)
 		}
-		if err := ReserveGateClaim(repo, key, 3, "claim-3-v"); err != nil {
-			t.Fatalf("ReserveGateClaim: %v", err)
+		if err := ReserveRunTrackerClaim(repo, key, 3, "claim-3-v"); err != nil {
+			t.Fatalf("ReserveRunTrackerClaim: %v", err)
 		}
 		wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
-			{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+			{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 		}}}
 
-		res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
-		if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateProofUnavailable {
-			t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s (refuse before confirming)", res.Decision, res.Outcome, res.Reason, ReasonGateProofUnavailable)
+		res := RunVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+		if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable || res.Reason != ReasonRunProofUnavailable {
+			t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s (refuse before confirming)", res.Decision, res.Outcome, res.Reason, ReasonRunProofUnavailable)
 		}
-		b, ok, err := LoadGateClaimBinding(repo, key)
+		b, ok, err := LoadRunTrackerClaimBinding(repo, key)
 		if err != nil || !ok || b.Confirmed {
 			t.Fatalf("binding = %+v ok=%v err=%v, want the reservation intact and UNCONFIRMED", b, ok, err)
 		}
-		ep, _, err := LoadEpochRecord(repo, key)
+		ep, _, err := LoadRunRecord(repo, key)
 		if err != nil {
-			t.Fatalf("LoadEpochRecord: %v", err)
+			t.Fatalf("LoadRunRecord: %v", err)
 		}
 		if ep.Worktree != "" {
 			t.Fatalf("epoch worktree = %q, want empty (nothing may bind on a refusal)", ep.Worktree)
@@ -616,24 +616,24 @@ func TestIntegrationRunFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(
 	})
 
 	t.Run("sole-proof adoption leg", func(t *testing.T) {
-		repo := newGateRepo(t)
-		key := gateMintArmed(t, repo, nil, 1, "ha")
-		if _, err := MintEpochRecord(repo, key, ""); err != nil {
-			t.Fatalf("MintEpochRecord: %v", err)
+		repo := newRunTrackerRepo(t)
+		key := runTrackerMintStarted(t, repo, nil, 1, "ha")
+		if _, err := MintRunRecord(repo, key, ""); err != nil {
+			t.Fatalf("MintRunRecord: %v", err)
 		}
 		wdeps := WorkspaceDeps{ClaimProofs: &fakeProofScanner{proofs: []ClaimProof{
-			{RequestID: "claim-3-v", ChangeID: 3, GateContextHash: "ha", Revision: "r1"},
+			{RequestID: "claim-3-v", ChangeID: 3, RunContextHash: "ha", Revision: "r1"},
 		}}}
 
-		res := RunGateVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
-		if res.Decision != GateDecisionStop || res.Outcome != GateOutcomeUnavailable || res.Reason != ReasonGateProofUnavailable {
-			t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonGateProofUnavailable)
+		res := RunVerdict(context.Background(), PlanningDeps{}, wdeps, GitHubDeps{}, repo, key)
+		if res.Decision != RunDecisionStop || res.Outcome != RunOutcomeUnavailable || res.Reason != ReasonRunProofUnavailable {
+			t.Fatalf("got %q/%q/%q, want run-stop/run-tracker-unavailable/%s", res.Decision, res.Outcome, res.Reason, ReasonRunProofUnavailable)
 		}
 		if res.AttributedID != 0 {
 			t.Errorf("AttributedID = %d, want 0 (nothing adopted on a refusal)", res.AttributedID)
 		}
-		if _, ok, err := LoadGateClaimBinding(repo, key); err != nil || ok {
-			t.Fatalf("binding present=%v err=%v, want NO reservation written (resolution precedes ReserveGateClaim)", ok, err)
+		if _, ok, err := LoadRunTrackerClaimBinding(repo, key); err != nil || ok {
+			t.Fatalf("binding present=%v err=%v, want NO reservation written (resolution precedes ReserveRunTrackerClaim)", ok, err)
 		}
 	})
 }
@@ -641,14 +641,14 @@ func TestIntegrationRunFenceVerdictRecoveryUnresolvedIdentityStopsBeforeConfirm(
 // --- change 0446 Task 7: deterministic worktree owner selection and the
 // slot-named-epoch rule (spec §§1, 5; AC3, AC6). ---
 
-// epochRecordPath is the run.json path for key under repo's rungate root.
-func epochRecordPath(t *testing.T, repo, key string) string {
+// runRecordPath is the run.json path for key under repo's rungate root.
+func runRecordPath(t *testing.T, repo, key string) string {
 	t.Helper()
-	common, err := gateGitCommonDir(repo)
+	common, err := runTrackerGitCommonDir(repo)
 	if err != nil {
-		t.Fatalf("gateGitCommonDir: %v", err)
+		t.Fatalf("runTrackerGitCommonDir: %v", err)
 	}
-	return filepath.Join(common, "docket", runTrackerDirName, key, epochRecordFileName)
+	return filepath.Join(common, "docket", runTrackerDirName, key, runRecordFileName)
 }
 
 func mustCanon(t *testing.T, path string) string {
@@ -676,23 +676,23 @@ func TestIntegrationRunFenceOwnerSelectionActiveBeatsCancelledRegardlessOfOrder(
 		{name: "active sorts first", cancelled: "yyyy-cancelled", cancelling: "zzzz-cancelling", active: "aaaa-active"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := newGateRepo(t)
-			seedNamedEpoch(t, repo, tc.cancelled, repo, EpochCancelled)
-			seedNamedEpoch(t, repo, tc.cancelling, repo, EpochCancelling)
-			seedNamedEpoch(t, repo, tc.active, repo, EpochActive)
+			repo := newRunTrackerRepo(t)
+			seedNamedRun(t, repo, tc.cancelled, repo, RunCancelled)
+			seedNamedRun(t, repo, tc.cancelling, repo, RunCancelling)
+			seedNamedRun(t, repo, tc.active, repo, RunActive)
 
-			key, found, err := findEpochByWorktree(repo, mustCanon(t, repo))
+			key, found, err := findRunByWorktree(repo, mustCanon(t, repo))
 			if err != nil || !found || key != tc.active {
-				t.Fatalf("findEpochByWorktree = (%q, %v, %v), want the active owner %q", key, found, err, tc.active)
+				t.Fatalf("findRunByWorktree = (%q, %v, %v), want the active owner %q", key, found, err, tc.active)
 			}
 			done, err := admitWorkflowMutation(repo, OperationPRPublish, nil)
 			if err != nil {
 				t.Fatalf("the active run's mutation was refused: %v", err)
 			}
 			done(mutationStatusCompleted, false)
-			ep, _, lerr := LoadEpochRecord(repo, tc.active)
+			ep, _, lerr := LoadRunRecord(repo, tc.active)
 			if lerr != nil {
-				t.Fatalf("LoadEpochRecord(active): %v", lerr)
+				t.Fatalf("LoadRunRecord(active): %v", lerr)
 			}
 			if len(ep.AdmittedMutations) != 1 || ep.AdmittedMutations[0].Status != mutationStatusCompleted {
 				t.Fatalf("active epoch journal = %+v, want exactly the one completed mutation", ep.AdmittedMutations)
@@ -707,13 +707,13 @@ func TestIntegrationRunFenceOwnerSelectionActiveBeatsCancelledRegardlessOfOrder(
 // a substitute). Several fenced records resolve deterministically to the lexically
 // first key.
 func TestIntegrationRunFenceOwnerSelectionSoleCancelledStillFences(t *testing.T) {
-	for _, state := range []epochState{EpochCancelled, EpochCancelling} {
+	for _, state := range []runState{RunCancelled, RunCancelling} {
 		t.Run(string(state), func(t *testing.T) {
-			repo := newGateRepo(t)
-			seedNamedEpoch(t, repo, "mmmm-fenced", repo, state)
-			key, found, err := findEpochByWorktree(repo, mustCanon(t, repo))
+			repo := newRunTrackerRepo(t)
+			seedNamedRun(t, repo, "mmmm-fenced", repo, state)
+			key, found, err := findRunByWorktree(repo, mustCanon(t, repo))
 			if err != nil || !found || key != "mmmm-fenced" {
-				t.Fatalf("findEpochByWorktree = (%q, %v, %v), want the sole fenced epoch", key, found, err)
+				t.Fatalf("findRunByWorktree = (%q, %v, %v), want the sole fenced epoch", key, found, err)
 			}
 			_, aerr := admitWorkflowMutation(repo, OperationWorkspacePublish, nil)
 			if fe, ok := AsMutationFenceError(aerr); !ok || fe.Reason != "run-cancelled" {
@@ -723,45 +723,45 @@ func TestIntegrationRunFenceOwnerSelectionSoleCancelledStillFences(t *testing.T)
 	}
 
 	t.Run("several fenced resolve to the first key", func(t *testing.T) {
-		repo := newGateRepo(t)
-		seedNamedEpoch(t, repo, "zzzz-cancelled", repo, EpochCancelled)
-		seedNamedEpoch(t, repo, "bbbb-cancelling", repo, EpochCancelling)
-		key, found, err := findEpochByWorktree(repo, mustCanon(t, repo))
+		repo := newRunTrackerRepo(t)
+		seedNamedRun(t, repo, "zzzz-cancelled", repo, RunCancelled)
+		seedNamedRun(t, repo, "bbbb-cancelling", repo, RunCancelling)
+		key, found, err := findRunByWorktree(repo, mustCanon(t, repo))
 		if err != nil || !found || key != "bbbb-cancelling" {
-			t.Fatalf("findEpochByWorktree = (%q, %v, %v), want bbbb-cancelling", key, found, err)
+			t.Fatalf("findRunByWorktree = (%q, %v, %v), want bbbb-cancelling", key, found, err)
 		}
 	})
 }
 
 // TestIntegrationRunFenceOwnerSelectionTwoActiveOwnersAmbiguous: two active (or active + completing)
 // epochs bound to one canonical path are a contradiction — a typed
-// ErrEpochOwnerAmbiguous naming the worktree, and the mutation is refused, never
+// ErrRunOwnerAmbiguous naming the worktree, and the mutation is refused, never
 // silently admitted against one of them.
 func TestIntegrationRunFenceOwnerSelectionTwoActiveOwnersAmbiguous(t *testing.T) {
-	for _, second := range []epochState{EpochActive, EpochCompleting} {
+	for _, second := range []runState{RunActive, RunCompleting} {
 		t.Run(string(second), func(t *testing.T) {
-			repo := newGateRepo(t)
+			repo := newRunTrackerRepo(t)
 			canon := mustCanon(t, repo)
-			seedNamedEpoch(t, repo, "aaaa-owner", repo, EpochActive)
-			seedNamedEpoch(t, repo, "bbbb-owner", repo, second)
-			seedNamedEpoch(t, repo, "cccc-cancelled", repo, EpochCancelled)
+			seedNamedRun(t, repo, "aaaa-owner", repo, RunActive)
+			seedNamedRun(t, repo, "bbbb-owner", repo, second)
+			seedNamedRun(t, repo, "cccc-cancelled", repo, RunCancelled)
 
-			_, found, err := findEpochByWorktree(repo, canon)
-			if ee, ok := AsEpochError(err); !ok || ee.Kind != ErrEpochOwnerAmbiguous || found {
-				t.Fatalf("findEpochByWorktree = (found %v, %v), want ErrEpochOwnerAmbiguous", found, err)
+			_, found, err := findRunByWorktree(repo, canon)
+			if ee, ok := AsRunError(err); !ok || ee.Kind != ErrRunOwnerAmbiguous || found {
+				t.Fatalf("findRunByWorktree = (found %v, %v), want ErrRunOwnerAmbiguous", found, err)
 			}
 			if !strings.Contains(err.Error(), canon) {
 				t.Fatalf("ambiguity error %q must name the worktree %q", err, canon)
 			}
 			_, aerr := admitWorkflowMutation(repo, OperationPRPublish, nil)
-			if ee, ok := AsEpochError(aerr); !ok || ee.Kind != ErrEpochOwnerAmbiguous {
-				t.Fatalf("admit = %v, want an ErrEpochOwnerAmbiguous refusal", aerr)
+			if ee, ok := AsRunError(aerr); !ok || ee.Kind != ErrRunOwnerAmbiguous {
+				t.Fatalf("admit = %v, want an ErrRunOwnerAmbiguous refusal", aerr)
 			}
-			if reason, _ := fenceRefusalReasonMessage(aerr, "change"); reason != string(ErrEpochOwnerAmbiguous) {
-				t.Fatalf("refusal reason = %q, want %q (never relabelled run-cancelled)", reason, ErrEpochOwnerAmbiguous)
+			if reason, _ := fenceRefusalReasonMessage(aerr, "change"); reason != string(ErrRunOwnerAmbiguous) {
+				t.Fatalf("refusal reason = %q, want %q (never relabelled run-cancelled)", reason, ErrRunOwnerAmbiguous)
 			}
 			for _, k := range []string{"aaaa-owner", "bbbb-owner"} {
-				if ep, _, lerr := LoadEpochRecord(repo, k); lerr != nil || len(ep.AdmittedMutations) != 0 {
+				if ep, _, lerr := LoadRunRecord(repo, k); lerr != nil || len(ep.AdmittedMutations) != 0 {
 					t.Fatalf("epoch %s journal = %+v (err %v), want nothing admitted", k, ep.AdmittedMutations, lerr)
 				}
 			}
@@ -773,27 +773,27 @@ func TestIntegrationRunFenceOwnerSelectionTwoActiveOwnersAmbiguous(t *testing.T)
 // owner — alone it leaves the path unfenced, and beside a cancelled epoch the
 // cancelled one (not the completed one) is returned.
 func TestIntegrationRunFenceOwnerSelectionCompletedNeverOwns(t *testing.T) {
-	repo := newGateRepo(t)
+	repo := newRunTrackerRepo(t)
 	canon := mustCanon(t, repo)
-	seedNamedEpoch(t, repo, "aaaa-completed", repo, EpochCompleted)
-	if key, found, err := findEpochByWorktree(repo, canon); err != nil || found {
-		t.Fatalf("findEpochByWorktree = (%q, %v, %v), want no owner for a completed epoch", key, found, err)
+	seedNamedRun(t, repo, "aaaa-completed", repo, RunCompleted)
+	if key, found, err := findRunByWorktree(repo, canon); err != nil || found {
+		t.Fatalf("findRunByWorktree = (%q, %v, %v), want no owner for a completed epoch", key, found, err)
 	}
 	if _, err := admitWorkflowMutation(repo, OperationPRPublish, nil); err != nil {
 		t.Fatalf("completed epoch fenced a mutation: %v", err)
 	}
-	seedNamedEpoch(t, repo, "zzzz-cancelled", repo, EpochCancelled)
-	if key, found, err := findEpochByWorktree(repo, canon); err != nil || !found || key != "zzzz-cancelled" {
-		t.Fatalf("findEpochByWorktree = (%q, %v, %v), want the cancelled epoch, never the completed one", key, found, err)
+	seedNamedRun(t, repo, "zzzz-cancelled", repo, RunCancelled)
+	if key, found, err := findRunByWorktree(repo, canon); err != nil || !found || key != "zzzz-cancelled" {
+		t.Fatalf("findRunByWorktree = (%q, %v, %v), want the cancelled epoch, never the completed one", key, found, err)
 	}
 }
 
-// TestIntegrationRunFenceSlotNamedEpochUnreadableRefusesLocally (AC3): the worktree's execution slot
+// TestIntegrationRunFenceSlotNamedRunRecordUnreadableRefusesLocally (AC3): the worktree's execution slot
 // names run epoch E. When no readable epoch record carries E — the record is corrupt,
 // I/O-unreadable, or gone — the path fence refuses locally with E and the worktree in
 // the error instead of admitting unfenced. The same damage to an epoch record NO slot
 // names stays diagnostic, and a companion unrelated worktree keeps admitting.
-func TestIntegrationRunFenceSlotNamedEpochUnreadableRefusesLocally(t *testing.T) {
+func TestIntegrationRunFenceSlotNamedRunRecordUnreadableRefusesLocally(t *testing.T) {
 	damage := map[string]func(t *testing.T, path string){
 		"corrupt": func(t *testing.T, path string) {
 			if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
@@ -837,21 +837,21 @@ func TestIntegrationRunFenceSlotNamedEpochUnreadableRefusesLocally(t *testing.T)
 					t.Fatalf("mkdir %s: %v", d, err)
 				}
 			}
-			seedNamedEpoch(t, fx.repo, "unreferenced-epoch", unref, EpochActive)
+			seedNamedRun(t, fx.repo, "unreferenced-epoch", unref, RunActive)
 
-			apply(t, epochRecordPath(t, fx.repo, fx.key))
-			apply(t, epochRecordPath(t, fx.repo, "unreferenced-epoch"))
+			apply(t, runRecordPath(t, fx.repo, fx.key))
+			apply(t, runRecordPath(t, fx.repo, "unreferenced-epoch"))
 
 			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
-			ee, ok := AsEpochError(aerr)
-			if !ok || ee.Kind != ErrEpochOwnerUnresolved {
-				t.Fatalf("admit on a slot-named %s epoch = %v, want ErrEpochOwnerUnresolved (fail closed, never unfenced)", name, aerr)
+			ee, ok := AsRunError(aerr)
+			if !ok || ee.Kind != ErrRunOwnerUnresolved {
+				t.Fatalf("admit on a slot-named %s epoch = %v, want ErrRunOwnerUnresolved (fail closed, never unfenced)", name, aerr)
 			}
-			if !strings.Contains(aerr.Error(), fx.epochID) || !strings.Contains(aerr.Error(), canon) {
-				t.Fatalf("refusal %q must name epoch %s and worktree %s", aerr, fx.epochID, canon)
+			if !strings.Contains(aerr.Error(), fx.runID) || !strings.Contains(aerr.Error(), canon) {
+				t.Fatalf("refusal %q must name epoch %s and worktree %s", aerr, fx.runID, canon)
 			}
-			if reason, _ := fenceRefusalReasonMessage(aerr, "workspace"); reason != string(ErrEpochOwnerUnresolved) {
-				t.Fatalf("refusal reason = %q, want %q", reason, ErrEpochOwnerUnresolved)
+			if reason, _ := fenceRefusalReasonMessage(aerr, "workspace"); reason != string(ErrRunOwnerUnresolved) {
+				t.Fatalf("refusal reason = %q, want %q", reason, ErrRunOwnerUnresolved)
 			}
 			// The remedy must be valid in this state: name where the epoch records
 			// live and that a human repairs them, and never point at run.cancel
@@ -875,7 +875,7 @@ func TestIntegrationRunFenceSlotNamedEpochUnreadableRefusesLocally(t *testing.T)
 // TestIntegrationRunFenceUnreadableSlotRefusesLocally (review fix): with no readable ambient owner, a
 // worktree whose execution slot the store cannot READ (corrupt or I/O-unreadable)
 // is not evidence that the slot names no epoch — the path fence refuses with
-// ErrEpochOwnerUnresolved naming the worktree instead of admitting unfenced. An
+// ErrRunOwnerUnresolved naming the worktree instead of admitting unfenced. An
 // ABSENT slot still admits unfenced (the standalone contract).
 func TestIntegrationRunFenceUnreadableSlotRefusesLocally(t *testing.T) {
 	damage := map[string]func(t *testing.T, path string){
@@ -901,14 +901,14 @@ func TestIntegrationRunFenceUnreadableSlotRefusesLocally(t *testing.T) {
 			canon := mustCanon(t, fx.worktree)
 			// Remove E's record so no ambient owner is readable; the slot is then the
 			// only evidence, and it is damaged.
-			if err := os.Remove(epochRecordPath(t, fx.repo, fx.key)); err != nil {
+			if err := os.Remove(runRecordPath(t, fx.repo, fx.key)); err != nil {
 				t.Fatalf("remove epoch record: %v", err)
 			}
 			apply(t, admissionRecordFile(t, fx.common, fx.worktree))
 
 			_, aerr := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
-			if ee, ok := AsEpochError(aerr); !ok || ee.Kind != ErrEpochOwnerUnresolved {
-				t.Fatalf("admit over an unreadable %s slot = %v, want ErrEpochOwnerUnresolved (never unfenced)", name, aerr)
+			if ee, ok := AsRunError(aerr); !ok || ee.Kind != ErrRunOwnerUnresolved {
+				t.Fatalf("admit over an unreadable %s slot = %v, want ErrRunOwnerUnresolved (never unfenced)", name, aerr)
 			}
 			if !strings.Contains(aerr.Error(), canon) || strings.Contains(aerr.Error(), "run.cancel using") {
 				t.Fatalf("refusal %q must name worktree %s and never suggest run.cancel", aerr, canon)
@@ -917,7 +917,7 @@ func TestIntegrationRunFenceUnreadableSlotRefusesLocally(t *testing.T) {
 	}
 	t.Run("absent-slot-admits", func(t *testing.T) {
 		fx := newCancelFixture(t, false)
-		if err := os.Remove(epochRecordPath(t, fx.repo, fx.key)); err != nil {
+		if err := os.Remove(runRecordPath(t, fx.repo, fx.key)); err != nil {
 			t.Fatalf("remove epoch record: %v", err)
 		}
 		done, err := admitWorkflowMutation(fx.worktree, OperationPRPublish, nil)
@@ -928,47 +928,47 @@ func TestIntegrationRunFenceUnreadableSlotRefusesLocally(t *testing.T) {
 	})
 }
 
-// TestIntegrationRunFenceEpochCarryingFencesUnchangedByOwnerSelection (AC6, separate proof): owner
+// TestIntegrationRunFenceRunCarryingFencesUnchangedByOwnerSelection (AC6, separate proof): owner
 // selection answers only "who owns this path now". After a NEW active owner binds the
 // path, the stale epoch's own epoch-carrying fences still refuse it — the launch gate
 // (by id) and the takeover revocation resolver — for a cancelled, superseded, and
 // completed stale epoch alike, while ambient lookup names the new owner.
-func TestIntegrationRunFenceEpochCarryingFencesUnchangedByOwnerSelection(t *testing.T) {
+func TestIntegrationRunFenceRunCarryingFencesUnchangedByOwnerSelection(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		stale func(t *testing.T, repo, key string)
 		want  *MutationFenceError
 	}{
 		{name: "cancelled", want: ErrRunCancelled, stale: func(t *testing.T, repo, key string) {
-			fenceEpoch(t, repo, key, EpochCancelled)
+			fenceRun(t, repo, key, RunCancelled)
 		}},
-		{name: "superseded", want: ErrStaleRunEpoch, stale: func(t *testing.T, repo, key string) {
-			fenceEpoch(t, repo, key, EpochCancelled)
-			if err := SupersedeCancelledEpoch(repo, key, "zzzz-new-owner"); err != nil {
-				t.Fatalf("SupersedeCancelledEpoch: %v", err)
+		{name: "superseded", want: ErrStaleRunID, stale: func(t *testing.T, repo, key string) {
+			fenceRun(t, repo, key, RunCancelled)
+			if err := SupersedeCancelledRun(repo, key, "zzzz-new-owner"); err != nil {
+				t.Fatalf("SupersedeCancelledRun: %v", err)
 			}
 		}},
 		{name: "completed", want: ErrRunCompleted, stale: func(t *testing.T, repo, key string) {
-			fenceEpoch(t, repo, key, EpochCompleted)
+			fenceRun(t, repo, key, RunCompleted)
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			repo, common, key, staleID, worktree := epochGateFixture(t)
+			repo, common, key, staleID, worktree := runLaunchGateFixture(t)
 			tc.stale(t, repo, key)
-			seedNamedEpoch(t, repo, "zzzz-new-owner", worktree, EpochActive)
+			seedNamedRun(t, repo, "zzzz-new-owner", worktree, RunActive)
 
-			if got, found, err := findEpochByWorktree(repo, mustCanon(t, worktree)); err != nil || !found || got != "zzzz-new-owner" {
+			if got, found, err := findRunByWorktree(repo, mustCanon(t, worktree)); err != nil || !found || got != "zzzz-new-owner" {
 				t.Fatalf("ambient owner = (%q, %v, %v), want the new active owner", got, found, err)
 			}
 			calls := 0
-			lerr := epochLaunchGate(common)(staleID, worktree, func() error { calls++; return nil })
+			lerr := runLaunchGate(common)(staleID, worktree, func() error { calls++; return nil })
 			if fe, ok := AsMutationFenceError(lerr); !ok || fe != tc.want {
 				t.Fatalf("launch gate for the stale %s epoch = %v, want %v", tc.name, lerr, tc.want)
 			}
 			if calls != 0 {
 				t.Fatalf("the stale epoch's reserve ran %d times; it must never run", calls)
 			}
-			if revoked, err := epochRevokedResolver(common)(staleID); err != nil || !revoked {
+			if revoked, err := runRevokedResolver(common)(staleID); err != nil || !revoked {
 				t.Fatalf("takeover resolver for the stale %s epoch = (%v, %v), want revoked", tc.name, revoked, err)
 			}
 		})
@@ -981,7 +981,7 @@ func TestIntegrationRunFenceEpochCarryingFencesUnchangedByOwnerSelection(t *test
 // bytes never contain the raw title or body (digests only). (change 0444)
 func TestIntegrationRunFencePRPublishJournalsPublicationIdentity(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
-	key := mintFenceEpoch(t, repoDir, repoDir, EpochActive)
+	key := mintFenceRun(t, repoDir, repoDir, RunActive)
 
 	gh := &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureCreated, PR: prMatchPR("verified")}}
 	deps := workspaceDepsFor(t, prReader(t))
@@ -998,9 +998,9 @@ func TestIntegrationRunFencePRPublishJournalsPublicationIdentity(t *testing.T) {
 	}
 	call := gh.ensureCalls[0]
 
-	ep, _, err := LoadEpochRecord(repoDir, key)
+	ep, _, err := LoadRunRecord(repoDir, key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if len(ep.AdmittedMutations) != 1 {
 		t.Fatalf("journal length = %d, want 1", len(ep.AdmittedMutations))
@@ -1036,11 +1036,11 @@ func TestIntegrationRunFencePRPublishJournalsPublicationIdentity(t *testing.T) {
 	}
 
 	// Leak check on the durable record bytes: digests only, never content.
-	common, cerr := gateGitCommonDir(repoDir)
+	common, cerr := runTrackerGitCommonDir(repoDir)
 	if cerr != nil {
-		t.Fatalf("gateGitCommonDir: %v", cerr)
+		t.Fatalf("runTrackerGitCommonDir: %v", cerr)
 	}
-	raw, rerr := os.ReadFile(filepath.Join(rungateRootOf(common), key, epochRecordFileName))
+	raw, rerr := os.ReadFile(filepath.Join(runTrackerRootOf(common), key, runRecordFileName))
 	if rerr != nil {
 		t.Fatalf("read epoch record: %v", rerr)
 	}
@@ -1056,7 +1056,7 @@ func TestIntegrationRunFencePRPublishJournalsPublicationIdentity(t *testing.T) {
 // name, exact feature ref, and the full intended commit. (change 0444)
 func TestIntegrationRunFenceWorkspacePublishJournalsPublicationIdentity(t *testing.T) {
 	repoDir := newWorkingRepo(t, nil).invocation
-	key := mintFenceEpoch(t, repoDir, repoDir, EpochActive)
+	key := mintFenceRun(t, repoDir, repoDir, RunActive)
 
 	const head = "abcdef0000000000000000000000000000000000"
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")}}
@@ -1081,9 +1081,9 @@ func TestIntegrationRunFenceWorkspacePublishJournalsPublicationIdentity(t *testi
 		t.Fatalf("PublishHead ExpectedHead = %q, want the checked head %q", call.ExpectedHead, head)
 	}
 
-	ep, _, err := LoadEpochRecord(repoDir, key)
+	ep, _, err := LoadRunRecord(repoDir, key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if len(ep.AdmittedMutations) != 1 {
 		t.Fatalf("journal length = %d, want 1", len(ep.AdmittedMutations))
@@ -1134,7 +1134,7 @@ func TestIntegrationRunFenceWorkspacePublishMovedHeadUnderLockIsHeadMismatch(t *
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			repoDir := newWorkingRepo(t, nil).invocation
-			key := mintFenceEpoch(t, repoDir, repoDir, EpochActive)
+			key := mintFenceRun(t, repoDir, repoDir, RunActive)
 			reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")}}
 			svc := &fakeWorkspaceService{inspection: ready, publishErr: moved,
 				publishRes: workspace.PublishResult{Disposition: workspace.PublishFailed, Head: gitcli.ObjectID(tc.resHead)}}
@@ -1151,9 +1151,9 @@ func TestIntegrationRunFenceWorkspacePublishMovedHeadUnderLockIsHeadMismatch(t *
 					t.Fatalf("message = %q, want it to say nothing was published", res.Message)
 				}
 			}
-			ep, _, err := LoadEpochRecord(repoDir, key)
+			ep, _, err := LoadRunRecord(repoDir, key)
 			if err != nil {
-				t.Fatalf("LoadEpochRecord: %v", err)
+				t.Fatalf("LoadRunRecord: %v", err)
 			}
 			if len(ep.AdmittedMutations) != 1 || ep.AdmittedMutations[0].Status != mutationStatusCompleted || ep.AdmittedMutations[0].Verified {
 				t.Fatalf("journal = %+v, want one completed, unverified entry", ep.AdmittedMutations)
@@ -1197,9 +1197,9 @@ func TestIntegrationRunFenceProductionUncertainThenIdenticalRetryThenCancel(t *t
 		t.Fatalf("ensure calls = %d/%d, want 1/1", len(ghFail.ensureCalls), len(ghOK.ensureCalls))
 	}
 
-	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if len(ep.AdmittedMutations) != 2 ||
 		ep.AdmittedMutations[0].Status != mutationStatusUncertain ||
@@ -1223,7 +1223,7 @@ func TestIntegrationRunFenceProductionUncertainThenIdenticalRetryThenCancel(t *t
 	}
 	before := snapshot()
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
 	if res.Disposition != CancelDispositionCancelled {
 		t.Fatalf("disposition = %q (findings %v), want cancelled via the production-journaled match", res.Disposition, res.Findings)
 	}
@@ -1231,9 +1231,9 @@ func TestIntegrationRunFenceProductionUncertainThenIdenticalRetryThenCancel(t *t
 		t.Fatalf("adapter calls moved during cancellation %v -> %v; reconciliation must issue no GitHub call", before, after)
 	}
 
-	ep, _, err = LoadEpochRecord(fx.repo, fx.key)
+	ep, _, err = LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord after cancel: %v", err)
+		t.Fatalf("LoadRunRecord after cancel: %v", err)
 	}
 	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
 		t.Fatalf("original entry status = %q, want durably completed", ep.AdmittedMutations[0].Status)
@@ -1241,7 +1241,7 @@ func TestIntegrationRunFenceProductionUncertainThenIdenticalRetryThenCancel(t *t
 
 	// Leak audit: neither the durable journal bytes nor the cancel findings carry
 	// title/body content — digests and bounded tokens only.
-	raw, rerr := os.ReadFile(filepath.Join(rungateRootOf(fx.common), fx.key, epochRecordFileName))
+	raw, rerr := os.ReadFile(filepath.Join(runTrackerRootOf(fx.common), fx.key, runRecordFileName))
 	if rerr != nil {
 		t.Fatalf("read epoch record: %v", rerr)
 	}
@@ -1265,9 +1265,9 @@ func TestIntegrationRunFenceProductionUncertainThenIdenticalRetryThenCancel(t *t
 // blocker: a refused/failed retry must never count as proof).
 func assertUnverifiedRetryLeavesOriginalPending(t *testing.T, fx cancelFixture, op string) {
 	t.Helper()
-	ep, _, err := LoadEpochRecord(fx.repo, fx.key)
+	ep, _, err := LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord: %v", err)
+		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if len(ep.AdmittedMutations) != 2 || ep.AdmittedMutations[0].Status != mutationStatusUncertain {
 		t.Fatalf("journal = %+v, want [uncertain original, resolved retry]", ep.AdmittedMutations)
@@ -1277,7 +1277,7 @@ func assertUnverifiedRetryLeavesOriginalPending(t *testing.T, fx cancelFixture, 
 		t.Fatalf("descriptors = %+v / %+v, want two identical valid descriptors (else the case is vacuous)", a, b)
 	}
 	stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+	res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
 	if res.Disposition == CancelDispositionCancelled {
 		t.Fatalf("disposition = cancelled (findings %v): an unverified retry settled the uncertain original", res.Findings)
 	}
@@ -1287,9 +1287,9 @@ func assertUnverifiedRetryLeavesOriginalPending(t *testing.T, fx cancelFixture, 
 	if hasFinding(res.Findings, "mutation-settled") {
 		t.Fatalf("findings = %v; an unverified retry must settle nothing", res.Findings)
 	}
-	ep, _, err = LoadEpochRecord(fx.repo, fx.key)
+	ep, _, err = LoadRunRecord(fx.repo, fx.key)
 	if err != nil {
-		t.Fatalf("LoadEpochRecord after cancel: %v", err)
+		t.Fatalf("LoadRunRecord after cancel: %v", err)
 	}
 	if s := ep.AdmittedMutations[0].Status; s != mutationStatusUncertain {
 		t.Fatalf("original = %q after cancel, want uncertain (missing evidence never counts as success)", s)
@@ -1397,7 +1397,7 @@ func TestIntegrationRunFenceProductionUnverifiedWorkspaceRetryNeverSettles(t *te
 				return
 			}
 			stopper := &fakeCancelStopper{proven: map[string]bool{fx.runDir: true}}
-			res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.epochID, "human stop")
+			res := runCancel(cancelSeams{store: fx.store, stopper: stopper, launches: okLaunchReconciler()}, fx.repo, fx.key, fx.runID, "human stop")
 			if res.Disposition != CancelDispositionCancelled {
 				t.Fatalf("disposition = %q (findings %v), want cancelled via a verified identical retry", res.Disposition, res.Findings)
 			}

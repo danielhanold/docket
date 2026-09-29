@@ -159,8 +159,8 @@ const dispatchRuleFrontmatter = "---\n" +
 // not the asset catalog. It replaces the retired global rule's assembler: a
 // repository's `.cursor/rules`, not a personal global one, is where parent-facing
 // routing now lives (change 0351), and internal/reposeed is its only caller.
-func DispatchRuleContent(runGate []byte) []byte {
-	return []byte(dispatchRuleFrontmatter + harness.DispatchInterior(runGate))
+func DispatchRuleContent(runTracker []byte) []byte {
+	return []byte(dispatchRuleFrontmatter + harness.DispatchInterior(runTracker))
 }
 
 // renderAgent maps one agent source onto a Cursor custom-agent document,
