@@ -22,7 +22,7 @@ branch: 'chore/install-the-no-real-git-test-guard-in-internal-gatedrive'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-29T06:04:48Z'
+claimed_at: '2026-09-29T06:24:03Z'
 ---
 
 ## Artifacts
