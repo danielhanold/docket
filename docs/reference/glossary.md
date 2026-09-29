@@ -26,6 +26,7 @@ Terms are grouped by the layer of docket they belong to. Jump to a group:
 11. [Skills, agents, and harnesses](#skills-agents-and-harnesses)
 12. [Configuration](#configuration)
 13. [Operations and the CLI protocol](#operations-and-the-cli-protocol)
+14. [Obsolete terms](#obsolete-terms)
 
 An [alphabetical index](#alphabetical-index) closes the page.
 
@@ -50,6 +51,13 @@ docket repository migrate            # existing repo (human-typed)
 docket repository init               # fresh repo
 docket repository configure-tests    # write the pending build/finalize test policy
 ```
+
+### Archived record
+
+A change's archived file (plus its results) once it reaches a final status, `done` or `killed`. It
+stays on the metadata branch; the integration branch gets code, plans, and results through PRs alone.
+
+**Used for:** historical browsing. `archive/` on the metadata branch keeps every closed change.
 
 ### Bootstrap guard
 
@@ -162,16 +170,6 @@ docket capabilities --json                      # step 2: capability bootstrap, 
 docket repository prepare --repo-dir . --json   # step 3: prepare, its own call
 ```
 
-### Terminal record / terminal publish
-
-The terminal record is a change's archived file (plus results) once it reaches `done` or `killed`.
-Terminal publish was the opt-in copying of those records onto the integration branch.
-
-**Used for:** historical browsing. Also called **selective publish on close-out**. Terminal
-publication is deferred from Go v1: `terminal_publish: false` is inert, and `true` blocks every
-repository mutation until you remove it. The integration branch gets code, plans, and results
-through PRs alone.
-
 ### Worktree / feature workspace
 
 An isolated working copy of the repo, on its own branch. A change's build happens in a feature
@@ -245,7 +243,7 @@ docket adr reverse   --request reverse.json
 
 ### Backlog
 
-The set of changes docket tracks. Day to day it means the non-terminal changes in
+The set of changes docket tracks. Day to day it means the changes not yet in a final status, in
 `<changes_dir>/active/`; the board and the status digest summarise it.
 
 **Used for:** the queue that grooming and implement-next draw from. It is durable, so work captured
@@ -274,7 +272,7 @@ One unit of planned work, roughly one pull request, tracked as one markdown file
 
 **Used for:** everything. A change carries a frontmatter **manifest** (id, status, priority, type,
 dependencies, links) and a PM-altitude body (`## Why`, `## What changes`, `## Out of scope`, …).
-Active changes live in `<changes_dir>/active/NNNN-<slug>.md`; terminal ones in
+Active changes live in `<changes_dir>/active/NNNN-<slug>.md`; final ones (`done`, `killed`) in
 `archive/<date>-NNNN-<slug>.md`.
 
 ```sh
@@ -449,16 +447,18 @@ build-ready without a spec.
 Statuses: `proposed` · `in-progress` · `blocked` · `deferred` · `implemented` · `stacked-merged` ·
 `done` · `killed` (closed vocabulary `statuses` in `docket schema`).
 
+`done` and `killed` are the two **final statuses**; every other status is non-final.
+
 | Status | Meaning | Moved there by |
 |---|---|---|
 | `proposed` | Drafted, awaiting work | `change create`, `change revive`, `change reclaim` |
 | `in-progress` | Claimed, being built | `change claim`, `change unblock` |
 | `blocked` | External blocker, recorded in `blocked_by:` | `change block` |
 | `deferred` | Consciously shelved, may revive | `change defer` |
-| `implemented` | Built, PR open — the human merge gate | `change mark-implemented` |
+| `implemented` | Built, PR open — the PR handoff | `change mark-implemented` |
 | `stacked-merged` | Merged into its stack parent, awaiting the stack root | finalize close-out |
-| `done` | PR merged and archived (happy terminal) | finalize close-out / sweep |
-| `killed` | Abandoned as obsolete (sad terminal) | `change kill`, reconcile |
+| `done` | PR merged and archived (happy final status) | finalize close-out / sweep |
+| `killed` | Abandoned as obsolete (sad final status) | `change kill`, reconcile |
 
 ### `## Why deferred` / `## Why killed`
 
@@ -477,7 +477,7 @@ docket change kill  --request kill.json    # {change_id, path, version, why_kill
 ### Archive
 
 The single physical move of a change file from `active/` to `archive/<UTC-date>-NNNN-<slug>.md` on
-a terminal transition (`done` or `killed`). It is idempotent.
+a final transition (`done` or `killed`). It is idempotent.
 
 ### Block / unblock, defer / revive, kill
 
@@ -534,13 +534,6 @@ docket change resume-halted --id 412 --version <v> --acknowledge-quiescent
 **quiescent** (no longer writing). Without it, on version drift, or on a live gate lock, the
 operation refuses and writes nothing.
 
-### Human merge gate
-
-The stop at `implemented`: implement-next opens the pull request and ends there. It never merges; a human (or a
-finalize run they start) takes the change the rest of the way.
-
-**Used for:** keeping merge a human decision. After review, the next step is `docket-finalize-change`.
-
 ### Owned sections / section intents (`preserve` / `replace` / `remove`)
 
 **Owned sections** are the change-body headings that typed operations may write: `## Why`,
@@ -556,6 +549,14 @@ refused with `invalid-section-heading`. A `revise` needs at least one `replace` 
 ```sh
 docket schema --operation change.groom   # the sections[] shape
 ```
+
+### PR handoff
+
+The stop at `implemented`: implement-next opens the pull request and ends there. It never merges; a human (or a
+finalize run they start) takes the change the rest of the way. It is a handoff to a person, not a
+[gate](#gate): no suite runs at this stop.
+
+**Used for:** keeping merge a human decision. After review, the next step is `docket-finalize-change`.
 
 ### Readiness: build-ready / needs-brainstorm / not-proposed
 
@@ -635,12 +636,12 @@ missing context and flipping it back, which removes that section in the same com
 docket change groom --request groom.json
 ```
 
-### Auto-groom / auto-groomable / autonomous-eligible
+### Auto-groom / auto-groomable
 
-**Auto-groom** grooms stubs with no human, gated by an adversarial **critic**. A stub is
-**effective auto-groomable** when its `auto_groomable:` override is `true`, or unset and the repo's
-`auto_groom` knob is `true`. It is **autonomous-eligible** when it is needs-brainstorm *and*
-auto-groomable.
+**Auto-groom** grooms stubs with no human, gated by an adversarial **critic**. A stub's **effective
+auto-groomable** value is its `auto_groomable:` override when set, or else the repo's `auto_groom`
+knob. A stub is **auto-groomable** (selectable by auto-groom) when it is needs-brainstorm *and* that
+effective value is `true`.
 
 **Used for:** draining design work unattended. Arm a stub by committing `auto_groomable: true`
 before dispatch; an uncommitted flag fails preflight.
@@ -771,15 +772,15 @@ stops it for repair, or halts it for a human. It never guesses a pass from a wor
 **Used for:** knowing which checkpoint stopped a run. The kinds are:
 - [Focused tests / task gate](#focused-tests--task-gate) — one build task's own tests.
 - [Build gate](#build-gate) — the one whole-suite run after the last task.
-- [Finalize gate](#finalize-gate) — the rebase-retest (merge) gate that re-runs the suite before merging.
+- [Finalize gate](#finalize-gate) — re-runs the whole suite on the rebased branch before merging.
 - [Run gate](#run-gate) — bookkeeping that decides whether a dispatched run may be retried.
-- [Human merge gate](#human-merge-gate) — the `implemented` stop where a person merges.
 - [Policy gate](#policy-gate-require_pr_approval) — `require_pr_approval`, which asks whether a merge was authorised.
 - Adversarial gate — the [critic](#critic) that must pass an auto-groom draft.
 - [Admission slot](#admission-slot) — one gate execution per worktree at a time.
 
 The build and finalize gates both run the whole suite. The page that covers them is
-[Suite gate / test gate](#suite-gate--test-gate).
+[Suite gate](#suite-gate). The `implemented` stop where a person merges is the
+[PR handoff](#pr-handoff), not a gate.
 
 ### Implementation context
 
@@ -889,7 +890,7 @@ docket run verify --id 412
 ### Suite command (`build.test_command` / `finalize.test_command`) / configure-tests
 
 The two config keys that name "the tests": `build.test_command` for the build gate and `finalize.test_command` for
-finalize's merge gate. They are independent and may differ. Both default to `""`, which means unconfigured.
+the finalize gate. They are independent and may differ. Both default to `""`, which means unconfigured.
 
 **Used for:** telling docket what command to run. A `local` gate with an empty command halts as a configuration gap,
 not a red suite, and names `docket repository configure-tests` as the remedy. Each gate reads its key from config,
@@ -900,7 +901,7 @@ docket repository configure-tests --repo-dir .   # generate the build/finalize t
 docket diagnostic config --repo-dir . --json      # see what each key resolves to
 ```
 
-### Suite gate / test gate
+### Suite gate
 
 A full run of the configured test suite that certifies a branch, as opposed to one task's focused tests. The build gate
 and finalize's local gate are both suite gates, and each reads its own command from config.
@@ -986,8 +987,7 @@ The mark `run.cancel` puts on a [run epoch](#arm--gate-key--run-epoch--dispatch-
 that run. A fenced epoch is never restored, and a scope prepared with `--run-epoch` lets the fence also revoke a later
 takeover.
 
-**Used for:** making a cancel stick while teardown finishes. This is not the config
-[coordination fence](#coordination-key--scope-tag--fence), which is a different mechanism.
+**Used for:** making a cancel stick while teardown finishes.
 
 ### Gate verdict
 
@@ -1219,7 +1219,7 @@ suite.
 
 ### Closeout / closeout notes
 
-**Closeout** is the terminal transition that archives the change (`done-archived`,
+**Closeout** is the final transition that archives the change (`done-archived`,
 `stacked-merged`, or `root-archived` for a stack root). **Closeout notes** is the optional final
 body section it writes (`### Verification`, `### Late findings`).
 
@@ -1272,8 +1272,8 @@ words implement-next uses.
 
 ### Finalize gate
 
-How finalize validates the rebased branch before merging; the guide and skills also call it the
-**rebase-retest gate** or the **merge gate**. `finalize.gate` is `local` (run
+How finalize validates the rebased branch before merging: it rebases onto the integration branch and
+re-runs the suite. `finalize.gate` is `local` (run
 `finalize.test_command` here, default) or `off` (trust the PR's CI). `ci` and `both` are deferred in
 Go v1 and block every repository mutation while set.
 
@@ -1335,7 +1335,7 @@ is branch protection that requires a PR but zero approvals.
 ### Policy gate (`require_pr_approval`)
 
 `finalize.require_pr_approval` is a policy check that a human authorised the merge. It is separate from the
-rebase-retest correctness gate. When `true`, auto-detect finalize refuses a PR whose review decision is not `APPROVED`.
+[finalize gate](#finalize-gate). When `true`, auto-detect finalize refuses a PR whose review decision is not `APPROVED`.
 
 **Used for:** requiring GitHub approval on unattended merges. Naming a change id (`docket-finalize-change 412`, or an id
 list to `/loop`) counts as the authorisation and overrides it. The retest runs either way.
@@ -1470,9 +1470,9 @@ docket status --priority high --type fix
 docket status --records --json
 ```
 
-### Status vs the terminal sweep
+### Status vs the merged-PR sweep
 
-These are two different ways the backlog stays current. The **terminal sweep** is close-out: it
+These are two different ways the backlog stays current. The **merged-PR sweep** is close-out: it
 moves already-merged changes to `done`, archives them, and refreshes the board. That makes it the
 safety net for when you skipped finalize. **Status** only reads and reports, including health
 checks.
@@ -1481,7 +1481,7 @@ checks.
 skill runs the sweep and then reads. The `docket status` command on its own never writes.
 
 ```sh
-docket maintenance sweep --scope full   # the terminal sweep (writes)
+docket maintenance sweep --scope full   # the merged-PR sweep (writes)
 docket status                           # the report (read-only)
 ```
 
@@ -1579,7 +1579,7 @@ has recorded yet. It is Tier A, so without dispatch it runs inline with the same
 
 ### docket-auto-groom
 
-The autonomous groomer. It drains every autonomous-eligible stub in one invocation. For each stub
+The autonomous groomer. It drains every auto-groomable stub in one invocation. For each stub
 it drafts a spec with an `## Assumptions` block, or a trivial verdict, then has the critic attack it.
 Each stub exits as spec, trivial, or abstain.
 
@@ -1776,22 +1776,6 @@ process. Clearing the conversation or opening a new chat in the same process is 
 **Used for:** avoiding a new fork that seems to do nothing, a healthy pin that looks broken, or an
 "agent type not found" error in an old session.
 
-### Runner / delegation
-
-**Runner delegation** handed an agent's whole run to a different harness, chosen by an explicit
-`runner:` key on that agent. It is retired in Go v1 (change 0371): any `agents.<h>.<a>.runner` value
-blocks every repository mutation until removed. See [Runner shim / `runners` block](#runner-shim--runners-block).
-
-### Runner shim / `runners` block
-
-These are the config for runner delegation. `runners.<name>` holds per-runner knobs:
-`codex.sandbox`, `codex.network`, `opencode.permissions`, and `shim_model` / `shim_effort`, which
-pin the small relay agent that runs in your own harness.
-
-**Used for:** nothing in Go v1. Cross-harness delegation is retired (change 0371). Any
-`agents.<h>.<a>.runner` value blocks mutation, and every `runners.*` key is an inert companion
-(`inert-setting`).
-
 ### Sandbox / allowlisting the binary
 
 Cursor decides whether a command runs through three independent gates: command approval (`terminalAllowlist`), filesystem access, and network. Docket needs the network to fetch, rebase, and push, so under a sandboxed harness it must run
@@ -1920,10 +1904,10 @@ global file; the same pin in `.docket.yml` or `.docket.local.yml` blocks mutatio
 docket diagnostic config --repo-dir . --json
 ```
 
-### Coordination key / scope tag / fence
+### Coordination key / scope tag / shared-setting guard
 
 A coordination key is a config key whose value must be identical for every clone, so it may only be
-set in the committed repo config. The **fence** ignores (with a warning) a coordination key set in
+set in the committed repo config. The **shared-setting guard** ignores (with a warning) a coordination key set in
 any other layer. Each key's **scope tag** in the example file is `repo-only`, `any layer`, or
 `local-only`.
 
@@ -1940,7 +1924,7 @@ commit is an ancestor of the merge head, and every file added since then is unde
 Default `false`.
 
 **Used for:** skipping the redundant re-run caused by the results file committed after testing. Turn
-it on only if no test reads files from `results_dir`. It is repo-only (coordination-fenced), because
+it on only if no test reads files from `results_dir`. It is repo-only (shared-setting guarded), because
 it states a fact about one repo's suite.
 
 ### GitHub board mirror / `github_project`
@@ -1950,7 +1934,7 @@ of `board_surfaces` and the `github_project` key. Neither works in Go v1. `inlin
 the only supported surface.
 
 **Used for:** nothing yet. `github_project` is inert: it is read by nothing and only its
-coordination fence runs. A `github` token in the committed `board_surfaces` blocks every mutation
+shared-setting guard runs. A `github` token in the committed `board_surfaces` blocks every mutation
 until you remove it.
 
 ### Inert / deferred setting
@@ -2018,14 +2002,6 @@ Blockers are always fixed.
 
 **Used for:** trading PR polish against run cost. The implementer applies the threshold, not the
 reviewer. Pair it with `review.max_fix_tasks`, which caps non-blocker fix tasks per run.
-
-### `runtime.bash` (obsolete)
-
-A former key that named the path to Bash 4 or newer for docket's shell scripts. The Bash runtime is
-gone, so the key is now warned about and ignored in every layer.
-
-**Used for:** nothing today. Delete it if a diagnostic flags it. `.docket.example.yml` still shows
-it as live, but that text is out of date.
 
 ---
 
@@ -2250,6 +2226,45 @@ docket development install --source ~/dev/docket
 
 ---
 
+## Obsolete terms
+
+Retired features. Their config keys are still recognised, so a stale file gets a warning or a refusal
+instead of being silently accepted; nothing in current docket uses them.
+
+### Runner delegation
+
+**Runner delegation** handed an agent's whole run to a different harness, chosen by an explicit
+`runner:` key on that agent. It is retired in Go v1 (change 0371): any `agents.<h>.<a>.runner` value
+blocks every repository mutation until removed. See [Runner shim / `runners` block](#runner-shim--runners-block).
+
+### Runner shim / `runners` block
+
+These are the config for runner delegation. `runners.<name>` holds per-runner knobs:
+`codex.sandbox`, `codex.network`, `opencode.permissions`, and `shim_model` / `shim_effort`, which
+pin the small relay agent that runs in your own harness.
+
+**Used for:** nothing in Go v1. Cross-harness delegation is retired (change 0371). Any
+`agents.<h>.<a>.runner` value blocks mutation, and every `runners.*` key is an inert companion
+(`inert-setting`).
+
+### `runtime.bash`
+
+A former key that named the path to Bash 4 or newer for docket's shell scripts. The Bash runtime is
+gone, so the key is now warned about and ignored in every layer.
+
+**Used for:** nothing today. Delete it if a diagnostic flags it. `.docket.example.yml` still shows
+it as live, but that text is out of date.
+
+### Terminal publish
+
+Terminal publish (also called **selective publish on close-out**) was the opt-in copying of archived
+records onto the integration branch. It is deferred from Go v1: `terminal_publish: false` is inert,
+and `true` blocks every repository mutation until you remove it.
+
+**Used for:** nothing in Go v1. The integration branch gets code, plans, and results through PRs alone.
+
+---
+
 ## Alphabetical index
 
 - [## Artifacts block](#-artifacts-block)
@@ -2266,11 +2281,12 @@ docket development install --source ~/dev/docket
 - [Agent enter](#agent-enter)
 - [agent_harnesses](#agent_harnesses)
 - [Archive](#archive)
+- [Archived record](#archived-record)
 - [Arm / gate key / run epoch / dispatch context](#arm--gate-key--run-epoch--dispatch-context)
 - [Attempt budgets (run.max_attempts / build.max_attempts / finalize repair)](#attempt-budgets-runmax_attempts--buildmax_attempts--finalize-repair)
 - [Attribution / unattributed read](#attribution--unattributed-read)
 - [Auto-capture / discovered work](#auto-capture--discovered-work)
-- [Auto-groom / auto-groomable / autonomous-eligible](#auto-groom--auto-groomable--autonomous-eligible)
+- [Auto-groom / auto-groomable](#auto-groom--auto-groomable)
 - [Backlog](#backlog)
 - [Block / unblock, defer / revive, kill](#block--unblock-defer--revive-kill)
 - [Board](#board)
@@ -2296,7 +2312,7 @@ docket development install --source ~/dev/docket
 - [Config layers](#config-layers)
 - [Contended](#contended)
 - [Continuation](#continuation)
-- [Coordination key / scope tag / fence](#coordination-key--scope-tag--fence)
+- [Coordination key / scope tag / shared-setting guard](#coordination-key--scope-tag--shared-setting-guard)
 - [Critic](#critic)
 - [Cursor dispatch rule (docket-dispatch.mdc)](#cursor-dispatch-rule-docket-dispatchmdc)
 - [Cursor's three gates](#sandbox--allowlisting-the-binary) — see Sandbox / allowlisting the binary
@@ -2322,7 +2338,7 @@ docket development install --source ~/dev/docket
 - [docket-status](#docket-status)
 - [Drive disposition: WAITING / PASSED / FAILED / HALTED](#drive-disposition-waiting--passed--failed--halted)
 - [Dummy mode / persona / "In plain terms"](#dummy-mode--persona--in-plain-terms)
-- [Effective auto-groomable](#auto-groom--auto-groomable--autonomous-eligible) — see Auto-groom / auto-groomable / autonomous-eligible
+- [Effective auto-groomable](#auto-groom--auto-groomable) — see Auto-groom / auto-groomable
 - [Effects](#effects)
 - [Entity version](#entity-version)
 - [Epoch fence](#epoch-fence)
@@ -2357,7 +2373,6 @@ docket development install --source ~/dev/docket
 - [Harness](#harness)
 - [Harness defaults sidecar (agents/harness-defaults.yml)](#harness-defaults-sidecar-agentsharness-defaultsyml)
 - [Health check / health code](#health-check--health-code)
-- [Human merge gate](#human-merge-gate)
 - [Id / slug](#id--slug)
 - [Identity mismatch / identity drift](#identity-mismatch--identity-drift)
 - [Identity repair (change repair-identity)](#identity-repair-change-repair-identity)
@@ -2379,7 +2394,6 @@ docket development install --source ~/dev/docket
 - [Managed global config](#managed-global-config)
 - [Manifest](#manifest)
 - [Mark implemented](#mark-implemented)
-- [Merge gate](#finalize-gate) — see Finalize gate
 - [Merge policy / branch protection](#merge-policy--branch-protection)
 - [Metadata branch](#metadata-branch)
 - [Metadata worktree](#metadata-worktree)
@@ -2392,6 +2406,7 @@ docket development install --source ~/dev/docket
 - [Plan](#plan)
 - [Plan writer](#plan-writer)
 - [Policy gate (require_pr_approval)](#policy-gate-require_pr_approval)
+- [PR handoff](#pr-handoff)
 - [PR publish](#pr-publish)
 - [Preflight](#preflight)
 - [Presence-encoded section](#presence-encoded-section)
@@ -2404,7 +2419,6 @@ docket development install --source ~/dev/docket
 - [Rebase continue / rebase abort](#rebase-continue--rebase-abort)
 - [Rebase receipt / attempt token (--attempt)](#rebase-receipt--attempt-token---attempt)
 - [Rebase resolver / integration repair](#rebase-resolver--integration-repair)
-- [Rebase-retest gate](#finalize-gate) — see Finalize gate
 - [Re-certify (evidence recertify)](#re-certify-evidence-recertify)
 - [reclaim.auto / reclaim.lease_ttl](#reclaimauto--reclaimlease_ttl)
 - [Reconcile / reconcile log](#reconcile--reconcile-log)
@@ -2424,25 +2438,25 @@ docket development install --source ~/dev/docket
 - [review.min_fix_severity](#reviewmin_fix_severity)
 - [Run gate](#run-gate)
 - [Run verify](#run-verify)
-- [Runner / delegation](#runner--delegation)
+- [Runner delegation](#runner-delegation)
 - [Runner shim / runners block](#runner-shim--runners-block)
-- [runtime.bash (obsolete)](#runtimebash-obsolete)
+- [runtime.bash](#runtimebash)
 - [Sandbox / allowlisting the binary](#sandbox--allowlisting-the-binary)
 - [Schema / request file](#schema--request-file)
 - [Selection order](#selection-order)
-- [Selective publish](#terminal-record--terminal-publish) — see Terminal record / terminal publish
+- [Selective publish](#terminal-publish) — see Terminal publish
 - [Skill](#skill)
 - [Spec](#spec)
 - [Stacked change / effective base](#stacked-change--effective-base)
 - [Status](#status)
-- [Status vs the terminal sweep](#status-vs-the-terminal-sweep)
+- [Status vs the merged-PR sweep](#status-vs-the-merged-pr-sweep)
 - [Step-0 preamble](#step-0-preamble)
 - [Stub](#stub)
 - [Suite command (build.test_command / finalize.test_command) / configure-tests](#suite-command-buildtest_command--finalizetest_command--configure-tests)
-- [Suite gate / test gate](#suite-gate--test-gate)
+- [Suite gate](#suite-gate)
 - [Sweep](#sweep)
 - [Sync integration](#sync-integration)
-- [Terminal record / terminal publish](#terminal-record--terminal-publish)
+- [Terminal publish](#terminal-publish)
 - [Tri-state verdict / halt exit code](#tri-state-verdict--halt-exit-code)
 - [Trivial](#trivial)
 - [Two invocation paths: skill-invoke vs agent-dispatch](#two-invocation-paths-skill-invoke-vs-agent-dispatch)
