@@ -790,7 +790,7 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	case gatedrive.ErrUnresolvedExecution:
 		return "a prior execution in this worktree is unresolved; recover it through the parent or run.cancel, never a blind re-start"
 	case gatedrive.ErrStaleRunID:
-		return "an in-flight run owns this worktree; present that run's run or cancel it before starting"
+		return "an in-flight run owns this worktree; present that run's run id or cancel it before starting"
 	case gatedrive.ErrScopeCapabilityMismatch:
 		return "use the complete identity bundle from your dispatch prompt"
 	case gatedrive.ErrScopeIdentityMismatch:
@@ -885,7 +885,7 @@ func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.In
 // rather than implying every retained record in the repository blocks. The
 // inventory-level op means the drive registry itself could not be read.
 func legacyInventoryMessage(op string) string {
-	const tail = "; inspect or recover it with docket gate history cleanup (--dry-run first); unrelated or unreadable history never blocks an admission; run.cancel applies only to a live run with an owning run"
+	const tail = "; inspect or recover it with docket gate history cleanup (--dry-run first); unrelated or unreadable history never blocks an admission; run.cancel applies only to a live run with a readable run record"
 	if op == "inventory-legacy-drives" {
 		return "the gate drive registry could not be read to assess the requested worktree's pre-slot history" + tail
 	}
