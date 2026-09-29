@@ -2,7 +2,7 @@
 id: 477
 slug: 'rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex'
 title: 'Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context)'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'refactor'
 created: '2026-09-29'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-29T21:27:04Z'
 ---
 
 ## Artifacts
