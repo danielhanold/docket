@@ -5,9 +5,9 @@
 # native supervisor internal/process.Service across slices, fresh-process resume, deadline and
 # death handling, real-git sequences, and the worktree fingerprint/handoff proofs over real
 # repositories) — moved out of the default internal/gatedrive corpus behind the `integration`
-# build tag, prefix ^TestIntegrationGatedrive. internal/gatedrive has no no-real-git guard (its
-# moved corpus is mixed real-process and real-git; the spec omitted the guard): the budget
-# row of tests/test_go_race.sh is its growth detector. Declarations only — execution and
+# build tag, prefix ^TestIntegrationGatedrive. The default internal/gatedrive corpus must never
+# start real git (testsupport.InstallNoGitGuard, installed from the package's TestMain, change
+# 0470). Declarations only — execution and
 # inspection live in
 # tests/lib/go-integration-shard.sh; the completeness contract is
 # tests/test_go_integration_contract.sh.

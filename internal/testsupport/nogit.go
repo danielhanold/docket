@@ -5,10 +5,8 @@ package testsupport
 // process-lifecycle corpus behind `//go:build integration`; this guard makes that
 // partition an enforced invariant for a package: its default-tag test corpus never
 // starts a real `git`. Installed from the TestMain of internal/app,
-// internal/repository/transaction, and internal/workspace. internal/gatedrive is
-// deliberately unguarded: its moved corpus is mixed real-process and real-git, the
-// spec left the guard out, and its budget row in tests/test_go_race.sh is the
-// growth detector.
+// internal/repository/transaction, internal/workspace (change 0466), and
+// internal/gatedrive (change 0470).
 //
 // Mechanism (keyed on the exec itself, never on spellings): InstallNoGitGuard,
 // called from TestMain before m.Run, puts a directory holding a refusing `git` shim
