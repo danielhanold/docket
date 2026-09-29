@@ -2,7 +2,7 @@
 id: 470
 slug: 'install-the-no-real-git-test-guard-in-internal-gatedrive'
 title: 'Install the no-real-git test guard in internal/gatedrive'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-29'
@@ -22,7 +22,7 @@ branch: 'chore/install-the-no-real-git-test-guard-in-internal-gatedrive'
 pr: 'https://github.com/danielhanold/docket/pull/350'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-29T06:24:03Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,8 @@ claimed_at: '2026-09-29T06:24:03Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md](https://github.com/danielhanold/docket/blob/chore/install-the-no-real-git-test-guard-in-internal-gatedrive/docs/superpowers/plans/2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) |
-| Results | [2026-09-29-install-the-no-real-git-test-guard-in-internal-gatedrive-results.md](https://github.com/danielhanold/docket/blob/chore/install-the-no-real-git-test-guard-in-internal-gatedrive/docs/results/2026-09-29-install-the-no-real-git-test-guard-in-internal-gatedrive-results.md) |
+| Plan | [2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-29-0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) |
+| Results | [2026-09-29-install-the-no-real-git-test-guard-in-internal-gatedrive-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-29-install-the-no-real-git-test-guard-in-internal-gatedrive-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
