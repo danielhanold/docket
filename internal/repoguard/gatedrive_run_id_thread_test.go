@@ -1,11 +1,11 @@
 package repoguard
 
-// Change 0467: the run epoch the gated parent's arm prints must reach every call
+// Change 0467: the run id that run.start prints must reach every call
 // that mints a recovery scope or starts a build-owned drive, while a build-task
 // worker's scoped starts never carry it — the driver hands a scoped start the
-// epoch its scope pinned. The one worker exception is the integration-repair
+// run id its scope pinned. The one worker exception is the integration-repair
 // worker's build-owned post-fix full-suite re-run: docket-build hands it the
-// epoch in the repair dispatch payload (0467 review fix-1). Prongs over maintained workflow markdown (isWorkflowMD, so the
+// run id in the repair dispatch payload (0467 review fix-1). Prongs over maintained workflow markdown (isWorkflowMD, so the
 // embedded mirrors are scanned too):
 //   (A) every paragraph referencing gate.drive.prepare-scope carries --run-id;
 //   (B) every build-owned gate.drive.start paragraph (--owner build) carries
@@ -15,16 +15,16 @@ package repoguard
 //   (D) the repair worker's post-fix re-run is a build-owned start site in both
 //       docket-build and docket-build-task (floor), so prong B binds it to
 //       --run-id — the exception is pinned, and prong C stays unweakened.
-// TestRunTrackerCopiesRunIDIntoDispatchPrompt (below) binds the managed run-gate
-// source to copying the epoch into the dispatch prompt.
+// TestRunTrackerCopiesRunIDIntoDispatchPrompt (below) binds the managed run-tracker
+// source to copying the run into the dispatch prompt.
 // Site discovery is keyed on syntactic shape, never a per-file allowlist; the
 // shared caller contract (sharedContractRel) is the operation reference, not a
 // caller, and is excluded exactly as in TestGateDriveScopedStartIdentity.
 // Residual risk, recorded not hidden: an instruction that names the operation
 // without its `gate.drive.` prefix (a bare `prepare-scope`), or a build-owned
 // start without the --owner build token in the same paragraph, is not a site;
-// at run time the driver still fences such an epoch-less start against an
-// epoch-owned worktree (stale-run-id).
+// at run time the driver still fences such a no-run-record start against a
+// run-owned worktree (stale-run-id).
 
 import (
 	"fmt"
@@ -119,9 +119,9 @@ func TestGateDriveRunIDThreaded(t *testing.T) {
 		}
 	}
 	for _, rel := range append(mirror(buildSkillRel), mirror(buildTaskSkillRel)...) {
-		// (D) The repair worker's build-owned re-run is handed the epoch.
+		// (D) The repair worker's build-owned re-run is handed the run id.
 		if repairSites[rel] == 0 {
-			t.Errorf("coverage floor: %s carries no build-owned repair re-run start with --run-id site (the repair worker has no epoch source)", rel)
+			t.Errorf("coverage floor: %s carries no build-owned repair re-run start with --run-id site (the repair worker has no run-id source)", rel)
 		}
 	}
 	for _, rel := range mirror(buildTaskSkillRel) {
@@ -130,22 +130,22 @@ func TestGateDriveRunIDThreaded(t *testing.T) {
 		}
 	}
 	if len(violations) != 0 {
-		t.Errorf("run-epoch threading violations (%d):\n%s", len(violations), strings.Join(violations, "\n"))
+		t.Errorf("run-id threading violations (%d):\n%s", len(violations), strings.Join(violations, "\n"))
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		prep := "run the `gate.drive.prepare-scope` operation with `--change-id <id> --worktree <w> --gate-context <g> --run-id <epoch> --json`"
+		prep := "run the `gate.drive.prepare-scope` operation with `--change-id <id> --worktree <w> --gate-context <g> --run-id <run-id> --json`"
 		if !isPrepareScopeSite(prep) || !carriesRunID(prep) {
 			t.Fatalf("a complete prepare-scope invocation was misclassified")
 		}
-		if carriesRunID(strings.Replace(prep, "--run-id <epoch> ", "", 1)) {
+		if carriesRunID(strings.Replace(prep, "--run-id <run-id> ", "", 1)) {
 			t.Errorf("stripping --run-id from a prepare-scope invocation was not detected")
 		}
-		build := "the `gate.drive.start` operation with `--owner build --run-id <epoch> --json`"
+		build := "the `gate.drive.start` operation with `--owner build --run-id <run-id> --json`"
 		if !isBuildOwnerStartSite(build) || !carriesRunID(build) {
 			t.Fatalf("a complete build-owned start was misclassified")
 		}
-		if carriesRunID(strings.Replace(build, "--run-id <epoch> ", "", 1)) {
+		if carriesRunID(strings.Replace(build, "--run-id <run-id> ", "", 1)) {
 			t.Errorf("stripping --run-id from a build-owned start was not detected")
 		}
 		if isBuildOwnerStartSite("the `gate.drive.start` operation with `--owner builder --json`") {
@@ -157,11 +157,11 @@ func TestGateDriveRunIDThreaded(t *testing.T) {
 		if carriesRunID("pass `--run-id-x <x>`") {
 			t.Errorf("--run-id token boundary failed: '--run-id-x' matched")
 		}
-		repair := "the repair worker's post-fix re-run is the `gate.drive.start` operation with `--owner build --run-id <epoch> --json`"
+		repair := "the repair worker's post-fix re-run is the `gate.drive.start` operation with `--owner build --run-id <run-id> --json`"
 		if !isRepairRerunSite(repair) || !carriesRunID(repair) {
 			t.Fatalf("a complete repair re-run start was misclassified")
 		}
-		if carriesRunID(strings.Replace(repair, "--run-id <epoch> ", "", 1)) {
+		if carriesRunID(strings.Replace(repair, "--run-id <run-id> ", "", 1)) {
 			t.Errorf("stripping --run-id from the repair re-run start was not detected")
 		}
 		if isRepairRerunSite("the final suite gate is the `gate.drive.start` operation with `--owner build --json`, no failure to repair") {
@@ -174,59 +174,59 @@ func TestGateDriveRunIDThreaded(t *testing.T) {
 		if !isScopedTaskStartSite(task) || !carriesRunID(task) {
 			t.Errorf("a worker start that passes --run-id must be classified and flagged")
 		}
-		wrapped := "run `gate.drive.prepare-scope` again\nfor the same change (and `--run-id\n<epoch>`)"
+		wrapped := "run `gate.drive.prepare-scope` again\nfor the same change (and `--run-id\n<run-id>`)"
 		if got := paragraphs(wrapped); len(got) != 1 || !isPrepareScopeSite(got[0]) || !carriesRunID(got[0]) {
 			t.Errorf("whitespace collapse failed: a wrapped prepare-scope site did not match as one paragraph")
 		}
 	})
 }
 
-// runTrackerRunIDCopyRe binds the copy instruction to the epoch AND to its
+// runTrackerRunIDCopyRe binds the copy instruction to the run id AND to its
 // destination with one bounded, sentence-local gap: a rewrite that keeps the
-// word <epoch> elsewhere but drops "copy it into the dispatch prompt" reddens.
-var runTrackerRunIDCopyRe = regexp.MustCompile("copy the [^.]{0,60}`<epoch>` into the dispatch prompt")
+// word <run-id> elsewhere but drops "copy it into the dispatch prompt" reddens.
+var runTrackerRunIDCopyRe = regexp.MustCompile("copy the [^.]{0,60}`<run-id>` into the dispatch prompt")
 
-// TestRunTrackerCopiesRunIDIntoDispatchPrompt: the managed run-gate source, its
+// TestRunTrackerCopiesRunIDIntoDispatchPrompt: the managed run-tracker source, its
 // embedded mirror, and the committed AGENTS.md rendering all tell the parent to
-// copy the arm's <epoch> into the implement-next dispatch prompt (change 0467) —
-// otherwise the epoch never reaches the build chain.
+// copy run.start's <run-id> into the implement-next dispatch prompt (change 0467) —
+// otherwise the run id never reaches the build chain.
 func TestRunTrackerCopiesRunIDIntoDispatchPrompt(t *testing.T) {
 	root := guardRoot(t)
 	for _, rel := range []string{
-		"cursor-rules/run-gate.md",
-		"internal/assets/embedded/tree/cursor-rules/run-gate.md",
+		"cursor-rules/run-tracker.md",
+		"internal/assets/embedded/tree/cursor-rules/run-tracker.md",
 		"AGENTS.md",
 	} {
 		if !runTrackerRunIDCopyRe.MatchString(collapseWS(readMaintained(t, root, rel))) {
-			t.Errorf("%s: run-gate step 1 does not copy the `<epoch>` into the dispatch prompt", rel)
+			t.Errorf("%s: run-tracker step 1 does not copy the `<run-id>` into the dispatch prompt", rel)
 		}
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		good := "keep all three and copy the `<dispatch-context>` and the `<epoch>`\n   into the dispatch prompt."
+		good := "keep all three and copy the `<run-context>` and the `<run-id>`\n   into the dispatch prompt."
 		if !runTrackerRunIDCopyRe.MatchString(collapseWS(good)) {
 			t.Fatalf("the intended (wrapped) wording did not match")
 		}
-		old := "copy the `<dispatch-context>` into the dispatch prompt. The `<epoch>` is the run epoch id"
+		old := "copy the `<run-context>` into the dispatch prompt. The `<run-id>` is the run id"
 		if runTrackerRunIDCopyRe.MatchString(collapseWS(old)) {
-			t.Errorf("the pre-0467 wording (epoch not copied) matched")
+			t.Errorf("the pre-0467 wording (run id not copied) matched")
 		}
-		if runTrackerRunIDCopyRe.MatchString("copy the `<dispatch-context>`. Later, `<epoch>` into the dispatch prompt") {
+		if runTrackerRunIDCopyRe.MatchString("copy the `<run-context>`. Later, `<run-id>` into the dispatch prompt") {
 			t.Errorf("bounded gap failed: the binding must not span sentences")
 		}
 	})
 }
 
 // codexRequestRunIDRe binds the Codex agent.enter request-file sentence to the
-// run epoch and its --run-id destination, sentence-local (a dot inside a token like change.claim is not a sentence end): agent.enter's own
+// run id and its --run-id destination, sentence-local (a dot inside a token like change.claim is not a sentence end): agent.enter's own
 // --run-id is lifecycle registration only and is never forwarded, so the
-// request file is the epoch's only path to implement-next on that route (0467
+// request file is the run id's only path to implement-next on that route (0467
 // review fix-3).
-var codexRequestRunIDRe = regexp.MustCompile("Write a request file (?:[^.]|\\.\\S){0,400}run epoch(?:[^.]|\\.\\S){0,80}`--run-id`")
+var codexRequestRunIDRe = regexp.MustCompile("Write a request file (?:[^.]|\\.\\S){0,400}run id(?:[^.]|\\.\\S){0,80}`--run-id`")
 
 // TestCodexRequestFileCarriesRunID: the generator source and the committed
 // AGENTS.md rendering both tell the Codex agent.enter route to carry the run
-// epoch in the request file.
+// run id in the request file.
 func TestCodexRequestFileCarriesRunID(t *testing.T) {
 	root := guardRoot(t)
 	for name, text := range map[string]string{
@@ -234,18 +234,18 @@ func TestCodexRequestFileCarriesRunID(t *testing.T) {
 		"AGENTS.md":                    readMaintained(t, root, "AGENTS.md"),
 	} {
 		if !codexRequestRunIDRe.MatchString(collapseWS(text)) {
-			t.Errorf("%s: the Codex agent.enter request file does not carry the run epoch for `--run-id`", name)
+			t.Errorf("%s: the Codex agent.enter request file does not carry the run id for `--run-id`", name)
 		}
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		good := "Write a request file containing the request unchanged; for implement-next include the unchanged gate dispatch-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`, and the unchanged run epoch, labeled for `--run-id`."
+		good := "Write a request file containing the request unchanged; for implement-next include the unchanged run-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`, and the unchanged run id, labeled for `--run-id`."
 		if !codexRequestRunIDRe.MatchString(good) {
 			t.Fatalf("the intended wording did not match")
 		}
-		old := "Write a request file containing the request unchanged; for implement-next include the unchanged gate dispatch-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`. Preserve ids. Pass the run epoch to `--run-id`."
+		old := "Write a request file containing the request unchanged; for implement-next include the unchanged run-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`. Preserve ids. Pass the run id to `--run-id`."
 		if codexRequestRunIDRe.MatchString(old) {
-			t.Errorf("the pre-fix wording (epoch outside the request-file sentence) matched")
+			t.Errorf("the pre-fix wording (run id outside the request-file sentence) matched")
 		}
 	})
 }

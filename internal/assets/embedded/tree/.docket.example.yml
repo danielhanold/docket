@@ -224,15 +224,15 @@ build:
   max_attempts: 4
 
 
-# ═══ run — the autonomous implement-next run gate ══════════════════════════════════════════
+# ═══ run — the autonomous implement-next run tracker ══════════════════════════════════════════
 
-# The outer run gate that brackets an autonomous docket-implement-next run (change 0421).
+# The outer run tracker that brackets an autonomous docket-implement-next run (change 0421).
 run:
   # max_attempts — how many end-to-end implementation attempts an autonomous run may make on
   # one change: the original attempt plus eligible retries after an incomplete run. 2 (the
   # default) allows a single retry; 1 disables retries. Explicit halts always need a human
   # regardless of this limit. Must be a whole number of 1 or more. A change to this value takes
-  # effect on the next run you arm, never on one already in progress.
+  # effect on the next run you start, never on one already in progress.
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   max_attempts: 2
 

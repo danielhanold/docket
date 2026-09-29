@@ -144,7 +144,7 @@ Before launch, root entry compares the selected installed role and preloaded ski
 registration planner's output and asset catalog. A missing, edited, or stale
 contract is refused with `role-contract-unavailable`; it is never silently repaired during entry.
 
-The parent includes the run gate's dispatch context unchanged in the request file, alongside the
+The parent includes the run tracker's run context unchanged in the request file, alongside the
 user's unchanged request and any resume/continuation identity. The coordinator uses it in its claim
 transaction. After foreground completion, the parent asks the same keyed gate for the verdict;
 thread/turn ids and coordinator prose are diagnostic output, never claim proof.

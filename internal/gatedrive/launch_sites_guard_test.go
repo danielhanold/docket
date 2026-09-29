@@ -15,7 +15,7 @@ import (
 )
 
 // Change 0437 Task 8: a syntactic, computed guard that binds every process
-// launch in this package to the epoch-authorization boundary. Spec AC7:
+// launch in this package to the run-authorization boundary. Spec AC7:
 // "Derive any launch-site guard from syntactic executable call sites, not a
 // hand-maintained spelling list."
 //
@@ -26,8 +26,8 @@ import (
 //      read from the struct declaration (never a regex or a written-down spelling
 //      of "proc" — a byte-pattern guard matches a spelling, learning
 //      byte-pattern-guard-matches-a-spelling).
-//   2. Boundary set — the functions whose body calls the single epoch-authorization
-//      helper runLaunchGated (the ONE helper every epoch-backed reservation/launch
+//   2. Boundary set — the functions whose body calls the single run-authorization
+//      helper runLaunchGated (the ONE helper every run-backed reservation/launch
 //      authorization flows through, by design of Task 1). Computed from the AST,
 //      not enumerated.
 //   3. Reachability — the package-internal receiver call graph. Every function
@@ -206,13 +206,13 @@ func analyzeGatedriveLaunchSites(root string) (launchGuardResult, error) {
 		callers := callersOf(name)
 		if len(callers) == 0 {
 			res.violations = append(res.violations,
-				name+" launches but crosses no epoch boundary and has no caller to cross one")
+				name+" launches but crosses no run boundary and has no caller to cross one")
 			continue
 		}
 		for _, c := range callers {
 			if !directlyGuarded(c) {
 				res.violations = append(res.violations,
-					"launch in "+name+" is reachable via caller "+c+" which does not cross the epoch boundary")
+					"launch in "+name+" is reachable via caller "+c+" which does not cross the run boundary")
 			}
 		}
 	}
@@ -221,7 +221,7 @@ func analyzeGatedriveLaunchSites(root string) (launchGuardResult, error) {
 }
 
 // TestLaunchSitesBoundToRunLaunchGate is the run-level guard: every launch site in
-// the finished package is bound, syntactically, to the epoch-authorization
+// the finished package is bound, syntactically, to the run-authorization
 // boundary, and the computed population is non-empty.
 func TestLaunchSitesBoundToRunLaunchGate(t *testing.T) {
 	res, err := analyzeGatedriveLaunchSites(".")
@@ -235,7 +235,7 @@ func TestLaunchSitesBoundToRunLaunchGate(t *testing.T) {
 		t.Fatalf("could not derive the ProcessSeam field name from the package — guard cannot bind launches")
 	}
 	if len(res.boundaryFuncs) == 0 {
-		t.Fatalf("no epoch-boundary functions found (none call runLaunchGated) — guard is vacuous")
+		t.Fatalf("no run-boundary functions found (none call runLaunchGated) — guard is vacuous")
 	}
 	// Population floor (computed and reported): a guard that finds no launch sites
 	// is broken, not green.

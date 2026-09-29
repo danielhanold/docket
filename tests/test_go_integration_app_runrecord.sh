@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docket-suite: go
 # tests/test_go_integration_app_runrecord.sh — Go integration shard (change 0465, extending change
-# 0333's partition): the run-gate epoch record, gate store and launch-gate tests — real-git tests moved out of the
+# 0333's partition): the run-tracker run record, run-tracker store and launch-gate tests — real-git tests moved out of the
 # default internal/app corpus, which must never start real git (the no-real-git guard
 # in internal/app/nogit_guard_test.go) — behind the `integration` build tag, prefix
 # ^TestIntegrationRunRecord. Declarations only — execution and inspection live in
