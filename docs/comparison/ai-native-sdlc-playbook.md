@@ -143,14 +143,14 @@ is current when build starts; docket assumes it is not.
 
 | Principle | Playbook | docket | Status |
 |---|---|---|---|
-| Governance as configuration | Skills, hooks, managed settings; `CLAUDE.md` and `REVIEW.md` reviewed like code. | Four config layers per key; coordination-key fence; every key documented in `.docket.example.yml` or the suite fails; the capability catalog is the only hard-coded CLI spelling. | Both (different content) |
+| Governance as configuration | Skills, hooks, managed settings; `CLAUDE.md` and `REVIEW.md` reviewed like code. | Four config layers per key; shared-setting guard; every key documented in `.docket.example.yml` or the suite fails; the capability catalog is the only hard-coded CLI spelling. | Both (different content) |
 | Human judgement points | Intent, plan approval, design review, PR approval, findings triage, policy changes. | Change creation and grooming, the PR merge, finalize confirmations and repair sign-off, learnings promotion, filing discovered work, abstained stubs. Plan approval deliberately not a human point. | Both |
 | Audit trail | Git history; logged hook decisions; incident conversations. | Every transition a metadata commit; presence-encoded sections; receipts and leases; frozen plan/results records; ADR supersessions as new files. | Both |
-| Legacy tracker integration | One system of record per artifact. | One-way GitHub Issues mirror; Projects v2 fenced but unwired. | Both (GitHub issues only) |
+| Legacy tracker integration | One system of record per artifact. | One-way GitHub Issues mirror; Projects v2 guarded but unwired. | Both (GitHub issues only) |
 | Autonomy without a human channel | Scoped subagents; gates ask a human. | Abort-and-report wrappers; autonomy precedence; forked children never yield; four dispositions drive any loop. | docket only |
 | Run-gate bracketing for dispatched runs | Not described. | `run gate-before` / `gate-verdict` / `gate-claim`; retry-once accounting in durable records. | docket only |
 | Persona-calibrated human prose | Not described. | `dummy_mode`; rejected at the config gate today. | docket · deferred |
-| Terminal records on the code branch | Everything on one branch. | `terminal_publish`; parseable, fenced, inert. | docket · deferred |
+| Terminal records on the code branch | Everything on one branch. | `terminal_publish`; parseable, guarded, inert. | docket · deferred |
 | Metrics framework | Leading and lagging indicators; DORA. | None; most leading indicators derivable from existing timestamps. | Playbook only |
 
 **Gaps the comparison surfaces (candidates, not commitments):** a PR-comment fix loop after the
@@ -171,7 +171,7 @@ no-test-edits guard during repair; an intake path from production or scanner fin
 | Landing changes safely | 5 | Finalize end to end; blocked and identity repair; branch protection; /loop finalize | Closing out hands-free, hands-off finalize |
 | Keeping the backlog honest | 6 | Status vs sweep; health codes; reclaim; halted recovery | Reclaiming stale claims, docket-status |
 | Remembering why | 6 | ADRs; learnings and promotion; what is human-curated today | Learnings, docket-adr |
-| Governing through configuration | cross | Layers and the fence; every config block by purpose; skills map; capability catalog; dummy_mode | Configuration, convention config |
+| Governing through configuration | cross | Layers and the shared-setting guard; every config block by purpose; skills map; capability catalog; dummy_mode | Configuration, convention config |
 | Running on your harness | cross | Install and update; model pins; invocation paths; Cursor/Codex/opencode; runner delegation | Install, Updating, Tuning, Runner delegation, docs/* |
 | Where the metadata lives | cross | Two-branch model; artifact locations; GitFlow; migration and bootstrap guard; hooks; terminal_publish | docket-mode, Migration, Status |
 | Reference | appendix | CLI by noun and verb; manifest and ADR fields; dispositions, reason tokens, health codes; skill and agent inventory | `docket --help`, convention |

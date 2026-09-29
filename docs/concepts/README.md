@@ -11,8 +11,8 @@ parts, the invariants, and the decisions behind it.
   a unit of work moves through, and the events that move it.
 - [Skills, agents, and harness dispatch](./skills-agents-dispatch.md) — how one
   set of instructions runs on any vendor's tool, at the right model for the job.
-- [Config layers and the coordination fence](./config-layers.md) — four ordered
-  config layers, and the fence that keeps a shared setting from being overridden.
+- [Config layers and the shared-setting guard](./config-layers.md) — four ordered
+  config layers, and the guard that keeps a shared setting from being overridden.
 - [Reconcile](./reconcile.md) — the build-time check that kills stale work
   before a line of code is written.
 - [Build profiles and the test gate](./build-profiles-and-gate.md) — routing

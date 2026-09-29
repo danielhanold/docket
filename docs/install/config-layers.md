@@ -77,7 +77,7 @@ machine-local value can never silently split shared state. Its own path, and eve
 installer generates, is kept out of git by a marker-bounded block the installer maintains in the
 repo's `.gitignore`.
 
-## The coordination fence
+## The shared-setting guard
 
 Some keys write **shared** state, and a value for them that lived on only one machine would
 silently split the backlog across machines or mint external objects that others cannot see. These
@@ -86,13 +86,13 @@ every clone, so it may only be set in the committed repo config. They are ignore
 warning, when set either globally **or** in a repo's `.docket.local.yml`; they take effect only in
 the committed `.docket.yml`.
 
-The fenced keys are `metadata_branch`, `integration_branch`, `changes_dir`, `adrs_dir`,
+The guarded keys are `metadata_branch`, `integration_branch`, `changes_dir`, `adrs_dir`,
 `results_dir`, `github_project`, `terminal_publish`, and the `github` token of `board_surfaces` —
 each naming either the **metadata branch** (the `docket` git branch where the backlog, specs, and
 decisions are stored, separate from the code), the **integration branch** (the branch code lands
 on, usually `main`), a shared directory, or an external GitHub object. The reasoning behind the
-fence — why a per-clone value here would corrupt shared state — is
-[Config layers and the coordination fence](../concepts/config-layers.md).
+guard — why a per-clone value here would corrupt shared state — is
+[Config layers and the shared-setting guard](../concepts/config-layers.md).
 
 ## When a config file is misplaced or malformed
 

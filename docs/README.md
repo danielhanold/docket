@@ -29,7 +29,7 @@ Index: [install/README.md](install/README.md)
 - [Global config](install/global-config.md) — the machine-wide file at
   `~/.config/docket/config.yml`: what belongs there, and how to enable a second harness.
 - [Repo config](install/config-layers.md) — `.docket.yml` and `.docket.local.yml`, the four-layer
-  precedence, the coordination fence, and what happens when a file is misplaced or malformed.
+  precedence, the shared-setting guard, and what happens when a file is misplaced or malformed.
 - [Workflow roles](install/workflow-roles.md) — rebind any of the five workflow steps to a
   different skill, or to none, with the `skills:` map.
 - [Models](install/models-and-effort.md) — run each docket skill at its own model and effort
@@ -80,8 +80,8 @@ Index: [concepts/README.md](concepts/README.md)
   moves through, and the events that move it.
 - [Skills, agents, and harness dispatch](concepts/skills-agents-dispatch.md) — how one set of
   instructions runs on any vendor's tool, at the right model for the job.
-- [Config layers and the coordination fence](concepts/config-layers.md) — four ordered config layers,
-  and the fence that keeps a shared setting from being overridden.
+- [Config layers and the shared-setting guard](concepts/config-layers.md) — four ordered config layers,
+  and the guard that keeps a shared setting from being overridden.
 - [Reconcile](concepts/reconcile.md) — the build-time check that kills stale work before a line of
   code is written.
 - [Build profiles and the test gate](concepts/build-profiles-and-gate.md) — routing each task to a
