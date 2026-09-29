@@ -7,7 +7,7 @@ package repoguard
 // wherever a launch happens, and that whatever reserves the slot also releases it.
 //
 // DERIVATION. The covered population is DERIVED, never remembered — the same rule
-// anchored on admitWorkflowMutation (internal/app/rungate_fence.go, "do not rely on
+// anchored on admitWorkflowMutation (internal/app/runtracker_fence.go, "do not rely on
 // a remembered list"): this guard WALKS the maintained non-test Go surface under
 // internal/, collects launch call sites by SYNTACTIC SHAPE (a `.Launch(` selector,
 // a spawnSupervisor call, or an exec.Command that shells `docket ... gate`), keyed

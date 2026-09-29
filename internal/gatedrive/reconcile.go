@@ -1,5 +1,5 @@
 // Cancellation's pending-launch accounting (change 0437 Task 6). Fencing an epoch
-// (rungate_epoch.go, run.cancel) stops what the durable participant/slot records
+// (runtracker_run_record.go, run.cancel) stops what the durable participant/slot records
 // already NAME, but a launch admitted just before the fence can still be reserved,
 // in-flight, or attached as a relaunch replacement the worktree slot has not caught
 // up to. ReconcileEpochLaunches is the read cancellation consumes to SEE those

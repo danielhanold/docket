@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// TestIntegrationGateArmStorageResetIgnoresRetiredRoots pins ADR-0129 Decision 3
+// TestIntegrationRunStartStorageResetIgnoresRetiredRoots pins ADR-0129 Decision 3
 // (change 0471): the run tracker's local stores were renamed by RESET, not
 // migrated. A repository still holding the retired roots (an ACTIVE run record
 // under rungate/<key>/epoch.json bound to change 5 and this worktree, plus a
@@ -21,7 +21,7 @@ import (
 // record, and the retired files stay byte-for-byte untouched. This file is
 // excluded from change 0471's textual rename passes because its fixtures spell
 // the RETIRED layout on purpose.
-func TestIntegrationGateArmStorageResetIgnoresRetiredRoots(t *testing.T) {
+func TestIntegrationRunStartStorageResetIgnoresRetiredRoots(t *testing.T) {
 	repo := newGateRepo(t)
 	common, err := gateGitCommonDir(repo)
 	if err != nil {
