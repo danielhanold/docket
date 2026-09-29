@@ -2,7 +2,7 @@
 id: 470
 slug: 'install-the-no-real-git-test-guard-in-internal-gatedrive'
 title: 'Install the no-real-git test guard in internal/gatedrive'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'chore'
 created: '2026-09-29'
@@ -18,10 +18,11 @@ results:
 trivial: true
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/install-the-no-real-git-test-guard-in-internal-gatedrive'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-29T05:57:39Z'
 ---
 
 ## Artifacts
