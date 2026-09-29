@@ -2,11 +2,11 @@
 id: 292
 slug: shared-tested-mutation-probe-harness-take-the-landing-check
 title: 'Shared, tested mutation-probe harness — take the landing check out of each plan author''s care'
-status: proposed
+status: 'killed'
 priority: high
 type: feat
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-09-29'
 depends_on: []
 related: []
 discovered_from: [260]
@@ -70,3 +70,13 @@ surface has to cover.
 
 - **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the proposed home (`scripts/mutation-probe.sh` + `.md`, `grep -c` landing checks) is deleted and no Go successor exists. Options: a `docket development` subcommand that mutates / `go test`s / restores, or a prose template in the plan-writer / build-task guidance. The recurrence evidence is all Bash-era — re-check whether the class still fires on Go-native plans before building.
 
+## Why killed
+
+Obsolete after the Bash→Go migration (groomed 2026-09-29, human decision).
+
+- **The proposed home is gone.** `scripts/mutation-probe.sh` and its `.md` contract would have lived in a `scripts/` tree that the migration removed; no Go successor exists to extend.
+- **All recurrence evidence is from the Bash era.** The five probe defects (#0281, #0286, three in #0260) were shell `grep -c` landing checks whose counter literal could not change under its own mutation. The `plan-supplied-test-code-is-unverified` learning was last extended 2026-08-12, and a search of the September archive (#0364–#0454) found no Go-era recurrence. The 2026-09-02 backlog review made building conditional on that re-check.
+- **The defect shape is shell-specific.** Go-native plans mutate and re-run `go test`, so the `grep -c` counter trap that shaped the harness's parameter surface no longer applies.
+- **The discipline is already codified.** `docket-build-task` requires mutation evidence for every guard, and `AGENTS.md` carries the "A guard is code: mutation-test it" rule, which covers the stub's own fallback option of a prose template in build guidance.
+
+Nothing depends on #0292. If a Go-era recurrence shows up, capture a fresh change for a Go-native probe helper (e.g. a `docket development` subcommand that mutates, runs `go test`, and restores) rather than reviving this one.
