@@ -106,6 +106,7 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 | 26 | code | `epoch-participant-unknown` | `run-participant-unknown` |
 | 27 | code | `epoch-state-unknown` | `run-state-unknown` |
 | 28 | code | `epoch-unreadable` | `run-record-unreadable` |
+| 28a | code | `replacement-epoch-unreadable` (`run.cancel` finding token, form `replacement-epoch-unreadable:<key>`) | `replacement-run-record-unreadable` |
 | 29 | code | `incumbent-epoch-fenced` | `incumbent-run-fenced` |
 | 30 | code | `resume-epoch-unreadable` | `resume-run-record-unreadable` |
 | 31 | code | `stale-run-epoch` | `stale-run-id` |
@@ -214,3 +215,7 @@ A family change that has to deviate from a row records the deviation through the
 ## Amendment — 2026-09-29 (change 0471 grooming)
 
 Edited in place with the human's explicit authorization, before any family change was built. Decision 3 changed from "persisted storage names stay unchanged" to a reset of the run tracker's local storage. Row 38 was replaced and rows 38a-38d were added. "Explicitly not renamed", Consequences and Alternatives were updated to match.
+
+## Update — 2026-09-29 (change 0471 build)
+
+The decision stands. Building family (a) found one name the table missed: the `run.cancel` finding token `replacement-epoch-unreadable:<key>`. Change 0471 renamed it to `replacement-run-record-unreadable:<key>`, following row 28's pattern, and the table now records it as row 28a. Added with the human's explicit authorization, after the change was built and its PR opened.
