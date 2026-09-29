@@ -11,7 +11,7 @@ fit.
 - [Global config](global-config.md) — the machine-wide file at `~/.config/docket/config.yml`: what
   belongs there, and how to enable a second harness.
 - [Repo config](config-layers.md) — `.docket.yml` and `.docket.local.yml`, the four-layer
-  precedence, the coordination fence, and what happens when a file is misplaced or malformed.
+  precedence, the shared-setting guard, and what happens when a file is misplaced or malformed.
 - [Workflow roles](workflow-roles.md) — rebind any of the five workflow steps to a different skill,
   or to none, with the `skills:` map.
 - [Models](models-and-effort.md) — run each docket skill at its own model and effort instead of one

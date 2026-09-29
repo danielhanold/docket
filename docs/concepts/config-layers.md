@@ -1,4 +1,4 @@
-# Config layers and the coordination fence
+# Config layers and the shared-setting guard
 
 ## The problem it solves
 
@@ -14,7 +14,7 @@ be just as wrong.
 
 One flat config file cannot serve both needs at once. Docket instead
 resolves configuration from several ordered **layers**, each a file at a
-known location, and draws a fence through them. A **coordination key** — a
+known location, and draws a guard through them. A **coordination key** — a
 config key whose value must be identical for every clone, so it may only
 be set in the committed repo config — is honored from the shared file and
 nowhere else; a personal value lives in a layer that is never committed
@@ -24,7 +24,7 @@ and never reaches anyone else.
 
 Four layers resolve per key, from lowest precedence to highest. A later
 layer overrides an earlier one for the keys it sets — except where the
-fence forbids it.
+guard forbids it.
 
 ```
  lowest precedence ─────────────────────────────────► highest precedence
@@ -37,7 +37,7 @@ fence forbids it.
  every machine        THIS machine          EVERY clone       THIS machine
  (baseline)           (personal)            (SHARED)          (personal)
 
-           ┌───────────────── the fence ──────────────────┐
+           ┌────────── the shared-setting guard ──────────┐
            │ a coordination key is read ONLY from           │
            │ committed .docket.yml; the same key set in     │
            │ the global or machine-local layer is ignored   │
@@ -61,7 +61,7 @@ fence forbids it.
   clone, so it can override a personal key without ever touching what the
   team sees — and it still cannot override a coordination key.
 
-The fenced keys today are `metadata_branch`, `integration_branch`,
+The guarded keys today are `metadata_branch`, `integration_branch`,
 `changes_dir`, `adrs_dir`, `results_dir`, `github_project`,
 `terminal_publish`, and the `github` token of `board_surfaces`.
 
@@ -80,7 +80,7 @@ The fenced keys today are `metadata_branch`, `integration_branch`,
   that layer only; the repo's other layers are still honored, so a broken
   personal file never bricks a repo.
 - A documented config key is read through the config resolver, never by a
-  raw read of `.docket.yml`, so the layering and the fence are always
+  raw read of `.docket.yml`, so the layering and the guard are always
   applied.
 - The global file must be named `config.yml`; a `~/.config/docket/.docket.yml`
   is never read.
@@ -88,7 +88,7 @@ The fenced keys today are `metadata_branch`, `integration_branch`,
 ## Decided in
 
 - [ADR-0019](../adrs/0019-global-config-fence-classification.md) — set the
-  coordination-key fence classification rule that decides which keys may
+  shared-setting guard classification rule that decides which keys may
   live only in the committed layer.
 - [ADR-0016](../adrs/0016-harness-first-agent-config.md) — made agent
   model and effort resolve per harness with a field-level default
