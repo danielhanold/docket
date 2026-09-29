@@ -10,7 +10,7 @@
 Some docket words had more than one meaning. This change settles every rename in one decision record and applies the renames that are prose only:
 
 - **ADR-0129, "Collision-free docket vocabulary"**, is on the `docket` branch. It holds the naming rules and the full 66-row rename table, with each row assigned to the change that owns it.
-- **Coordination-key fence → shared-setting guard.** This covers the docs and skills. The `internal/config` comments stay for now because they sit next to the `fenced-setting-ignored` code that change 0474 renames.
+- **Coordination-key fence → shared-setting guard**, in docs, skills and the `internal/config` comments. Go identifiers and the `fenced-setting-ignored` code stay; change 0474 renames that code.
 - **Human merge gate → PR handoff.** The "merge gate", "rebase-retest gate" and "test gate" aliases are gone; **finalize gate** and **suite gate** remain.
 - **Change-lifecycle "terminal" → final.** "Terminal status" is now "final status", "terminal record" is "archived record", "terminal sweep" is "merged-PR sweep", and "terminal close-out" is "close-out". This covers docs, skills and Go comments or messages. Where "terminal" means a run or process has finished, it stays.
 - **"Autonomous-eligible"** is now part of the auto-groomable entry.
@@ -27,7 +27,13 @@ The build ran with no changes to identifiers, test names or wire tokens. It rege
   - comments owned by change 0474.
 - A glossary anchor check found 237 in-page links and none dangling.
 - A token-count check confirmed that no wire token owned by a family change was altered.
+- A deep whole-branch review returned 0 blockers, 2 important findings and 2 minor findings, and all four were fixed in the branch (commit ff5eab634):
+  - the `internal/config` comments now say "shared-setting guard";
+  - user-facing CLI help and messages that said "terminal change" now say "final change";
+  - "Final status" and "Close-out" are now in the glossary index;
+  - the last finalize-gate alias in `docket-status` is gone.
 - The full-suite build gate certifies the final head. Its evidence is in the PR body.
+- The suite run reported one budget breach: `SERIAL CONFIRMED OVER BUDGET` for `tests/test_go_integration_app_rebaserecovery.sh` (61s solo against a 60s threshold). This change only edits prose, so that test was already slow before it. It does not fail the run.
 
 ## Known issues and follow-ups
 
@@ -38,7 +44,3 @@ Two comments in this repo's own `.docket.yml` still use the old wording. The tes
 ### Leftover lifecycle "terminal child" comments
 
 A few Go comments still say "terminal child" or "terminal outcomes" when they mean a finished stacked change: `finalize_merge.go`, `stackcloseout.go`, `finalize_retarget_test.go` and `finalize_e2e_test.go`. They sit next to the `skipped-terminal` token that change 0474 renames, so it makes sense for 0474 to reword them as well.
-
-### Config "coordination fence" comments
-
-The comments in `internal/config/**` still say "coordination fence". They are left for change 0474, which renames the `fenced-setting-ignored` code next to them.
