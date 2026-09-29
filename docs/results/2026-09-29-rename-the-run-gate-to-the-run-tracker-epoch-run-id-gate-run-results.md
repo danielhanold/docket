@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0471 — Rename the run gate to the run tracker (epoch → run id, gate-* → run-*)](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md)**
+> ↩ **[Change 0471 — Rename the run gate to the run tracker (epoch → run id, gate-* → run-*)](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-29-0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md)**
 <!-- docket:backlink:end -->
 # Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) — Results
 
