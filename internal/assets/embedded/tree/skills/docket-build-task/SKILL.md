@@ -64,7 +64,7 @@ worktree, and use the task-intent owner: the `gate.drive.start` operation with `
 --repo-dir <feature-worktree> --change-id <id> --task-id <task-N> --phase build --branch <branch>
 --scope-id <id> --child-cap <token> --gate-context <token> --run-root
 <task-scratch-dir> --json -- <the test command>`. Every identity value comes in your dispatch
-prompt — pass the bundle through unchanged, omitting gate-drive `--gate-context` only when no dispatch
+prompt — pass the bundle through unchanged, omitting gate-drive `--gate-context` only when no run
 context reached you; the prepared scope pinned exactly this identity, and the driver
 rejects a start that omits or alters any of it. The run id is not in the bundle: it rides on the
 prepared scope, so a task-owned start passes none — a start inventing another run id is

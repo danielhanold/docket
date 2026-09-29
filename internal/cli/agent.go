@@ -96,7 +96,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			if runKey == "" && runID != "" {
 				// A lone --run-id (the shape AGENTS.md documents) carries no run key to
 				// register against, but it is still preflighted for existence so a misrouted
-				// token (0382: the run context passed as the run) refuses with
+				// token (0382: the run context passed as the run id) refuses with
 				// unknown-run-id instead of proceeding silently unlinked (change 0463).
 				if lerr := app.CheckRunIDExists(effectiveCWD, runID); lerr != nil {
 					res, reason, _ := app.ClassifyRunIDError(lerr)

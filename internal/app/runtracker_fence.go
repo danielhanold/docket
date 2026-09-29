@@ -220,7 +220,7 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 		if uerr := slotNamedRunUnresolved(repoDir, canon); uerr != nil {
 			return nil, uerr
 		}
-		// Standalone use, or the run's run was pruned with its gate record and no
+		// Standalone use, or the run's run record was pruned with its gate record and no
 		// slot names it: the mutation is unfenced.
 		return noopJournalDone, nil
 	}

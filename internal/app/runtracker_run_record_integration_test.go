@@ -21,7 +21,7 @@ import (
 // The fixtures untagged test files share (mintTestRunKey, forceRunState,
 // must) live in runtracker_run_record_helpers_test.go (change 0465).
 
-// isRunKind reports whether err carries an *RunError of the given kind.
+// isRunKind reports whether err carries a *RunError of the given kind.
 func isRunKind(err error, kind RunErrorKind) bool {
 	ee, ok := AsRunError(err)
 	return ok && ee.Kind == kind

@@ -806,7 +806,7 @@ func ConfirmRunTrackerClaim(repoDir, key string, changeID int, requestID, revisi
 	// refused inside bindRunChange and swallowed here (the receipt already bound the
 	// change).
 	_ = bindRunChange(repoDir, key, strconv.Itoa(changeID))
-	// Bind the run's feature worktree (change 0375). A FRESH run's run is minted
+	// Bind the run's feature worktree (change 0375). A FRESH run's run record is minted
 	// with an empty Worktree, so without this the mutation fence (findRunByWorktree)
 	// and run.cancel's worktree teardown are inert for the common first-dispatch case —
 	// the resume path already binds it in armResumeReplacement. Best-effort and a NO-OP

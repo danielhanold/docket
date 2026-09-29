@@ -983,8 +983,8 @@ docket run continue <key> <continuation-id>
 
 ### Run fence
 
-The mark `run.cancel` puts on a [run id](#start--run-key--run-id--run-context) so nothing new can attach to
-that run. A fenced run is never restored, and a scope prepared with `--run-id` lets the fence also revoke a later
+The mark `run.cancel` puts on a run, located by its [run id](#start--run-key--run-id--run-context), so nothing new can
+attach to it. A fenced run is never restored, and a scope prepared with `--run-id` lets the fence also revoke a later
 takeover.
 
 **Used for:** making a cancel stick while teardown finishes.

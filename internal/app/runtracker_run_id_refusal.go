@@ -2,12 +2,12 @@ package app
 
 import "path/filepath"
 
-// This file is the run refusal vocabulary (change 0463). The run is a
+// This file is the run refusal vocabulary (change 0463). The run id is a
 // public locator (ADR-0111) that a caller threads into --run-id flags (gate drive
 // start, gate drive prepare-scope, agent.enter). When the presented value cannot be
 // resolved, the caller must learn WHICH mistake it made through a stable token. A
 // catch-all invalid-request makes a misrouted token (0382: the run context
-// passed as the run) indistinguishable from a malformed request. Tokens are a
+// passed as the run id) indistinguishable from a malformed request. Tokens are a
 // fixed vocabulary; nothing here echoes the presented value, a path, or record
 // content.
 
@@ -15,7 +15,7 @@ import "path/filepath"
 // run in this repository.
 const ReasonUnknownRunID = "unknown-run-id"
 
-// ClassifyRunIDError maps a run registry failure (an *RunError anywhere
+// ClassifyRunIDError maps a run registry failure (a *RunError anywhere
 // in err's chain) to a protocol result and a bounded reason token:
 //   - not-found: unknown-run-id.
 //   - mismatch: the existing stale-linkage token, stale-run-id.
@@ -90,7 +90,7 @@ func CheckRunIDExists(repoDir, runID string) error {
 // CheckRunIDLinkage verifies, before agent.enter spawns anything, that the
 // presented (--run-key, --run-id) pair names a real run (change 0463).
 // It returns nil when the run key's run record carries exactly runID, and
-// otherwise ALWAYS an *RunError:
+// otherwise ALWAYS a *RunError:
 //   - a run key with no directory, a malformed key, or no run record:
 //     ErrRunNotFound (the pair names no run);
 //   - a different recorded id: ErrRunIDMismatch;

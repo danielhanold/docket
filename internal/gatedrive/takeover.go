@@ -81,7 +81,7 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 
 	// A takeover CANNOT revive a cancelled or superseded run (change 0375
 	// Task 12, spec "Parent takeover cannot revive a cancelled run"). The parent
-	// capability authorizes recovery of HEALTHY non-cancelled work; once the run's
+	// capability authorizes recovery of HEALTHY non-cancelled work; once the
 	// run is fenced by an explicit cancellation (run.cancel) or superseded by a
 	// resume, no continuation may reattach to its drives. The run state lives in
 	// the app-owned registry, reached through the injected resolver; a resolver error

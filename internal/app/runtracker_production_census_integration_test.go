@@ -31,7 +31,7 @@ import (
 //   - finalize is entered through NewFinalizeGateDriveService(...).Start — the
 //     Driver.Start/Admit path finalize's processFinalizeGate uses — and the resumed
 //     replacement's gate through NewBuildGateDriveService(...).Start carrying its run
-//     run, each launching one real /bin/echo run to PASSED.
+//     id, each launching one real /bin/echo run to PASSED.
 
 // seedCensusDrive writes one drive record (the executable schema 4 unless fields
 // overrides schema_version) straight into the repository's drive registry. It stands
@@ -61,7 +61,7 @@ func writeCensusDriveBytes(t *testing.T, common, id string, buf []byte) {
 }
 
 // seedUnrelatedDamagedHistory seeds history with no ownership connection to the run
-// run under test, including records bound to the SAME worktree path by earlier
+// under test, including records bound to the SAME worktree path by earlier
 // generations: a corrupt record, an unsupported-schema record, a HALTED drive on this
 // worktree whose run dir is gone, a nonterminal scopeless drive whose admission token
 // the slot no longer holds (rotated), a nonterminal scoped drive whose scope record is

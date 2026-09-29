@@ -232,8 +232,8 @@ func runTrackerResumeObserve(reservedKey string) RunStartResult {
 	})
 }
 
-// startedRunResult builds the started report for key. Every started run tracker carries a run
-// run (change 0463): parents read the `run-started <key> <run-id> <run-context>`
+// startedRunResult builds the started report for key. Every started run carries a run
+// id (change 0463): parents read the `run-started <key> <run-id> <run-context>`
 // line positionally, and both tokens are 32-hex, so the line is unambiguous only
 // when the run slot is always filled. An empty run therefore fails closed as
 // run-untracked mint-failed. It never prints a two-token line whose run context
@@ -714,7 +714,7 @@ func RunStart(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, sdeps
 	//     active and refuses resume-active-run.
 	// Binding both in one CAS means a failed bind leaves an UNBOUND orphan (inert,
 	// like a fresh start's), never an orphan that names the change. A mint or bind
-	// failure unarms fail-closed; the orphan gate record left behind is inert, because
+	// failure fails closed with no key; the orphan gate record left behind is inert, because
 	// no key is returned and nothing dispatches against it.
 	//
 	// A resume reaches this mint and bind still holding the per-change resume lock it

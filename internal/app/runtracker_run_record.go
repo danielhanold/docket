@@ -178,7 +178,7 @@ type storedRun struct {
 	Record     RunRecord `json:"record"`
 }
 
-// RunErrorKind is the typed category of an RunError, so a caller can branch on
+// RunErrorKind is the typed category of a RunError, so a caller can branch on
 // a not-found / corrupt / not-active / mismatch condition rather than string prose.
 type RunErrorKind string
 
@@ -245,7 +245,7 @@ func runErr(kind RunErrorKind, op string, err error) *RunError {
 	return &RunError{Kind: kind, Op: op, err: err}
 }
 
-// AsRunError unwraps err to an *RunError when one is in the chain so a caller
+// AsRunError unwraps err to a *RunError when one is in the chain so a caller
 // can branch on its Kind.
 func AsRunError(err error) (*RunError, bool) {
 	var e *RunError
@@ -428,10 +428,10 @@ func bindRunChange(repoDir, runKey, changeID string) error {
 }
 
 // bindRunWorktree binds the run's Worktree once, at claim confirmation, so a
-// FRESH (non-resume) run's run is locatable by the mutation fence
+// FRESH (non-resume) run's run record is locatable by the mutation fence
 // (findRunByWorktree) and actionable by run.cancel's worktree teardown
 // (reconcileWorktreeSlot) — the same job armResumeReplacement does for the resume path
-// (change 0375). Without it a fresh run's run keeps Worktree == "", which every
+// (change 0375). Without it a fresh run's run record keeps Worktree == "", which every
 // worktree-keyed consumer skips, so the fence and the teardown are inert for the common
 // first-dispatch case. The bound value is the LOGICAL feature worktree path (it need
 // not exist yet at bind time): the fence canonicalizes the stored value at COMPARE time

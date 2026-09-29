@@ -110,7 +110,7 @@ const (
 	CauseTakeoverNoCandidate = "takeover-no-candidate"
 	// CauseRunRecordUnreadable: a takeover could not read the scope's run state
 	// through the injected revocation resolver (an IO/corruption fault). It fails
-	// closed — a run whose run cannot be read is never revived. (change 0375 Task 12)
+	// closed — a run whose run record cannot be read is never revived. (change 0375 Task 12)
 	CauseRunRecordUnreadable = "run-record-unreadable"
 )
 
