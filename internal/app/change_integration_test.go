@@ -1333,7 +1333,7 @@ func TestIntegrationChangeAuthoringGateRetryConsumeOnceThenFalse(t *testing.T) {
 // before the terminal run-stop. The report-line TOKENS are asserted byte-for-byte
 // so the counted budget never changes a parsed line, and GateRetryUsage confirms the
 // on-disk marker count matches the grants. Unlike the direct RunGateVerdict call in
-// TestIntegrationGateVerdictVerdictIncompleteRespectsAttemptLimit, the limit here
+// TestIntegrationRunVerdictVerdictIncompleteRespectsAttemptLimit, the limit here
 // flows from config through the real arm, not a hand-stamped record.
 func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 	cases := []struct {

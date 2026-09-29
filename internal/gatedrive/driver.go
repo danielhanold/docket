@@ -125,7 +125,7 @@ type StartRequest struct {
 	GateContext     string
 
 	// RunEpochID links this drive's top-level execution to the workflow run epoch
-	// (rungate_epoch.go) the arming gate minted, and is recorded on the worktree
+	// (runtracker_run_record.go) the arming gate minted, and is recorded on the worktree
 	// execution slot the start reserves (admission.go). It is a LOCATOR, never a
 	// credential: it authorizes nothing (the scope's child capability carries
 	// authority), but it fences the worktree — a later gate in the same worktree that

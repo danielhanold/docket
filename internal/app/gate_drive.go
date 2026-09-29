@@ -734,7 +734,7 @@ func mapDriveFailure(err error) (Result, string) {
 	if oe, ok := gatedrive.AsOwnershipError(err); ok {
 		return ResultInvalidInput, string(oe.Kind)
 	}
-	// A run-epoch mutation fence (rungate_fence.go) is a distinct refusal type
+	// A run-epoch mutation fence (runtracker_fence.go) is a distinct refusal type
 	// carrying its OWN stable token — "run-cancelled" (the owning epoch is
 	// cancelling/cancelled), "stale-run-id" (superseded by a resume), or
 	// "run-completed" (a successful completing/completed closeout, change 0441). It
