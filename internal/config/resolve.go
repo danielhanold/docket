@@ -299,7 +299,7 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 	set(assign(&eff.Reclaim.Auto, r.declared, "reclaim.auto"))
 	set(assign(&eff.Review.MinFixSeverity, r.declared, "review.min_fix_severity"))
 	set(assign(&eff.Review.MaxFixTasks, r.declared, "review.max_fix_tasks"))
-	set(assign(&eff.RunObservation, r.declared, "gate_observation_budget"))
+	set(assign(&eff.GateObservation, r.declared, "gate_observation_budget"))
 	set(assign(&eff.BoardSurfaces, r.declared, "board_surfaces"))
 	set(assign(&eff.Board.SectionOrder, r.declared, "board.section_order"))
 	for _, s := range BoardSectionTokens {

@@ -167,7 +167,7 @@ type Tally struct {
 // Go runner's own additions for failure modes the oracle cannot represent.
 //
 // strict is the run's confirmed exit disposition for a direct crossing: when it is
-// set, a strict-armed OverDirect breach on an otherwise-green run trackers the run
+// set, a strict-armed OverDirect breach on an otherwise-green run gates the run
 // (exit 4), so the OVER BUDGET note must render the oracle's strict arm instead of
 // the advisory exit-0 line — the exact ADR-0074 harm the note-selection guards.
 func RenderReport(w io.Writer, outcomes []TargetOutcome, unknown []string, wall int, verbose, strict bool, logsDir string) Tally {
@@ -268,7 +268,7 @@ func RenderReport(w io.Writer, outcomes []TargetOutcome, unknown []string, wall 
 			fmt.Fprintf(w, "Note: this run already fails on missing results (exit 3). The breach above is a separate finding.\n")
 		case strict:
 			// The strict arm: a strict-armed direct crossing on an otherwise-green
-			// run trackers the run (exit 4), so a reader must NOT be handed "the tests
+			// run gates the run (exit 4), so a reader must NOT be handed "the tests
 			// all passed … (exit 0)" (ADR-0074, same reason the red branch leads).
 			// Byte-for-byte with the former Bash oracle's `BUDGET_STRICT=1`
 			// arm ("Strict: --strict-budget was given …").

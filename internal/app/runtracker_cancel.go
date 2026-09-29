@@ -223,17 +223,17 @@ func RunCancel(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repo
 func productionCancelSeams(repoDir string) cancelSeams {
 	common, err := runTrackerGitCommonDir(repoDir)
 	if err != nil {
-		return cancelSeams{stopper: appRunTrackerStopper{}}
+		return cancelSeams{stopper: appGateStopper{}}
 	}
 	store := gatedrive.OpenStore(common)
 	return cancelSeams{
 		store:    store,
-		stopper:  appRunTrackerStopper{},
+		stopper:  appGateStopper{},
 		native:   nil, // Task 13 wires the native adapter hook.
 		launches: appLaunchReconciler{store: store},
 		// The observation-only seams the successful-run closeout consumes (change 0441):
 		// a nil pairing would fail closed, so both are wired for the completion path.
-		observer:       appRunTrackerObserver{},
+		observer:       appGateObserver{},
 		launchObserver: appLaunchObserver{store: store},
 	}
 }
@@ -245,7 +245,7 @@ func productionCancelSeams(repoDir string) cancelSeams {
 // and takes no run lock). A nil store or an unresolvable process service proves
 // nothing (fail closed): reconcile returns an error the caller turns into a finding +
 // accounted=false, mirroring the nil-stopper rule. It resolves the process service
-// per call, exactly as appRunTrackerStopper does.
+// per call, exactly as appGateStopper does.
 type appLaunchReconciler struct {
 	store *gatedrive.Store
 }
@@ -261,14 +261,14 @@ func (r appLaunchReconciler) reconcile(worktree, runID string) (gatedrive.RunLau
 	return gatedrive.NewSystemDriver(r.store, svc).ReconcileRunLaunches(worktree, runID)
 }
 
-// appRunTrackerStopper is the production cancelStopper: it drives the ownership-gated
+// appGateStopper is the production cancelStopper: it drives the ownership-gated
 // process.Stop through the app gate seam and reports PROVEN teardown, reusing the
 // same proof rule the raw-launch confirmation path uses (a performed stop, or a run
 // state that proves the group is gone). It carries no credential into the stop
 // reason.
-type appRunTrackerStopper struct{}
+type appGateStopper struct{}
 
-func (appRunTrackerStopper) stopProcess(runDir string) (bool, error) {
+func (appGateStopper) stopProcess(runDir string) (bool, error) {
 	svc, _, reason := gateService()
 	if svc == nil {
 		return false, fmt.Errorf("gate service unavailable: %s", reason)
@@ -973,9 +973,9 @@ func cancelRunReason(err error) string {
 
 // Compile-time seam assertions.
 var (
-	_ cancelStopper       = appRunTrackerStopper{}
+	_ cancelStopper       = appGateStopper{}
 	_ runLaunchReconciler = appLaunchReconciler{}
-	_ processObserver     = appRunTrackerObserver{}
+	_ processObserver     = appGateObserver{}
 	_ runLaunchObserver   = appLaunchObserver{}
 	_ OperationResult     = RunCancelResult{}
 )

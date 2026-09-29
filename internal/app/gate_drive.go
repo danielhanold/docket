@@ -272,12 +272,12 @@ func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective
 	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
 	engine.SetRunSettledResolver(runSettledResolver(gitCommonDir))
-	budget := time.Duration(eff.RunObservation.Value) * time.Minute
+	budget := time.Duration(eff.GateObservation.Value) * time.Minute
 	// Provenance emits layer identities only — never a value — so it is safe to
 	// persist in the drive record. The owning key is <owner>.test_command, derived
 	// from owner so the stem and the message can never drift apart.
 	prov := fmt.Sprintf("gate_observation_budget=%s;%s.test_command=%s",
-		eff.RunObservation.Provenance.Layer, owner, command.Provenance.Layer)
+		eff.GateObservation.Provenance.Layer, owner, command.Provenance.Layer)
 	svc := newGateDriveService(engine, budget, command.Value, prov)
 	svc.owner = owner
 	// Reuse the engine's store for the build owner's suite-attempt reservation so a
@@ -364,7 +364,7 @@ func NewTaskGateDriveService(gitCommonDir, exePath string, eff config.Effective,
 	// settled through exact-token retirement rather than refused stale-run-id
 	// (change 0446): wire the settlement read over the same registry.
 	engine.SetRunSettledResolver(runSettledResolver(gitCommonDir))
-	budget := time.Duration(eff.RunObservation.Value) * time.Minute
+	budget := time.Duration(eff.GateObservation.Value) * time.Minute
 	svc := newGateDriveService(engine, budget, "", "task.argv=agent-supplied")
 	svc.owner = "task"
 	svc.taskIntent = true
