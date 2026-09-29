@@ -74,3 +74,8 @@ Where a renamed term is also a wire token (operation id, CLI flag, config key, c
 - Terms that are already standard or plain English (harness, claim, stub, trivial, spec, plan, handoff, takeover, slice, fix loop, war story, sweep, stacked change, preflight, `gate-retry-once`, `gate-done`, `gate-stop`).
 - Rewriting frozen build records, archived changes, specs, or Accepted ADRs.
 - Removing the old wire-token spellings; alias removal is a later change after the deprecation window.
+
+## Open questions
+
+- **Aliases or a hard cut?** This stub plans to keep old wire-token spellings as accepted aliases for a deprecation window (see *What changes* and *Out of scope*). ADR-0129 (Decision 2) chose the opposite for its own renames: a hard cut with no aliases. Its reasons are that the CLI has no alias mechanism, and that docket's own consumers switch in one step via `docket install`. Grooming must decide whether 0469 follows ADR-0129 and drops the alias plan, or keeps aliases and records why this change differs.
+- **Depend on 0471?** ADR-0129 says the remaining run-tracker items here ("unmet conjuncts", admission slot, `unresolved-execution`, owner generation, continuation id) touch the same files as change 0471 (run tracker renames). Grooming should consider `depends_on: [471]`.
