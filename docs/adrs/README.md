@@ -114,6 +114,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0126](0126-named-implement-next-skips-unrelated-maintenance-preflight.md) — Named implement-next skips unrelated maintenance preflight (Accepted) ← change #448 · relates to ADR-0101, ADR-0106
 - [ADR-0127](0127-scoped-metadata-validation-for-named-operations.md) — Scoped metadata validation for named operations (Accepted) ← change #449 · relates to ADR-0093
 - [ADR-0128](0128-resume-arms-mint-an-arm-time-epoch-that-run-cancel-can-cance.md) — Resume arms mint an arm-time epoch that run.cancel can cancel without a claim binding (Accepted) ← change #463 · relates to ADR-0111, ADR-0118
+- [ADR-0129](0129-collision-free-docket-vocabulary.md) — Collision-free docket vocabulary (Accepted)
 
 ## Superseded / Reversed
 
