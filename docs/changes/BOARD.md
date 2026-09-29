@@ -1,12 +1,12 @@
 # Backlog
 
-**476 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 323 done · 🗑️ 120 killed
+**476 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 323 done · 🗑️ 120 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0471](active/0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-29-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run-design.md) | `refactor/rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0471](active/0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | `medium` | `refactor` | [#352](https://github.com/danielhanold/docket/pull/352) | awaiting merge |
 
 ## 🔴 Blocked (1)
 

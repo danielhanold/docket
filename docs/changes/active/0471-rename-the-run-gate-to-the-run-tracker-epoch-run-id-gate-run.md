@@ -2,7 +2,7 @@
 id: 471
 slug: 'rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run'
 title: 'Rename the run gate to the run tracker (epoch → run id, gate-* → run-*)'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/352'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-29T15:10:42Z'
