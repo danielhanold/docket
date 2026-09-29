@@ -76,7 +76,7 @@ move docket out of the sandbox — see above).
 Allowlisting `docket` authorizes, **unprompted**, every operation the binary can run — including
 destructive and external-writing ones:
 
-- `docket-status`'s guarded sweep — archives merged changes, publishes terminal records onto the
+- `docket-status`'s guarded sweep — archives merged changes, publishes archived records onto the
   **integration branch** (the branch code lands on, usually `main`), and deletes merged feature
   branches and worktrees.
 - terminal-publish's direct push to the integration branch.

@@ -150,7 +150,7 @@ is current when build starts; docket assumes it is not.
 | Autonomy without a human channel | Scoped subagents; gates ask a human. | Abort-and-report wrappers; autonomy precedence; forked children never yield; four dispositions drive any loop. | docket only |
 | Run-gate bracketing for dispatched runs | Not described. | `run gate-before` / `gate-verdict` / `gate-claim`; retry-once accounting in durable records. | docket only |
 | Persona-calibrated human prose | Not described. | `dummy_mode`; rejected at the config gate today. | docket · deferred |
-| Terminal records on the code branch | Everything on one branch. | `terminal_publish`; parseable, guarded, inert. | docket · deferred |
+| Archived records on the code branch | Everything on one branch. | `terminal_publish`; parseable, guarded, inert. | docket · deferred |
 | Metrics framework | Leading and lagging indicators; DORA. | None; most leading indicators derivable from existing timestamps. | Playbook only |
 
 **Gaps the comparison surfaces (candidates, not commitments):** a PR-comment fix loop after the

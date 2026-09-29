@@ -89,15 +89,15 @@ could be titled "docket" and collide on `.worktrees/docket`; the metadata worktr
 infrastructure while `.worktrees/` entries are ephemeral and get pruned; and keeping it out of
 `.worktrees/` puts it outside the blast radius of any worktree-pruning cleanup.
 
-## Publishing terminal records to your code branch (`terminal_publish`, opt-in)
+## Publishing archived records to your code branch (`terminal_publish`, opt-in)
 
 By default docket keeps **all** records on the metadata branch, and your integration branch
 accumulates only code, plans, and results — every one of them through a pull request. When a change
-reaches a terminal state (its pull request merged, or the change abandoned), its record stays on
+reaches a final status (its pull request merged, or the change abandoned), its record stays on
 the metadata branch. The mechanics of that close-out copy — what gets copied and why the live board
 never does — are [Landing changes safely](./landing-changes.md#selective-publish-on-close-out).
 
-Setting `terminal_publish: true` in the repository's committed `.docket.yml` opts in: each terminal
+Setting `terminal_publish: true` in the repository's committed `.docket.yml` opts in: each final
 transition then also adds one direct commit to the integration branch carrying that change's record
 — the archived change file, its spec, and its `Accepted` ADRs — and ADR writes publish `Accepted`
 decisions the same way. Your code history then reads as code plus a clean, browsable trail of
@@ -129,7 +129,7 @@ integration_branch: main
 
 This reproduces the original single-branch behavior **exactly**: no metadata branch, no `.docket/`
 worktree, no terminal-publish copy. Planning commits land on the integration branch alongside your
-code, and the archive move there *is* the terminal record. Because the two-branch layout is the
+code, and the archive move there *is* the archived record. Because the two-branch layout is the
 default, an existing single-branch repository must pin `metadata_branch: main` to keep running
 as-is until it deliberately migrates — otherwise the bootstrap guard stops and asks it to migrate.
 
@@ -163,7 +163,7 @@ docket repository migrate
 It prints the resolved target repo and prompts for confirmation before changing anything (pass
 `--yes` to skip the prompt in automation). It then creates the orphan metadata branch seeded from
 your current planning directories, prunes the live planning surface (active changes, the changes
-index, the board) off the integration branch while keeping terminal records and build artifacts
+index, the board) off the integration branch while keeping archived records and build artifacts
 there, and adds `.docket/` and `.worktrees/` to `.gitignore`. Re-running it converges from any
 partial state.
 

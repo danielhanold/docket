@@ -43,7 +43,7 @@ the example file for its keys, defaults, and per-block scope.
 - **`board_surfaces`** — which derived board view(s) to render; `[]` disables the board entirely.
 - **`board`** — board-rendering options.
 - **`github_project`** — the GitHub Projects target when the board mirrors to GitHub.
-- **`terminal_publish`** — opt-in publishing of terminal records to the integration branch.
+- **`terminal_publish`** — opt-in publishing of archived records to the integration branch.
 - **`auto_groom`** — opt-in autonomous grooming of the needs-brainstorm queue.
 - **`change_types`** — the allowed change-type taxonomy.
 - **`auto_capture`** — the discovered-work capture policy.

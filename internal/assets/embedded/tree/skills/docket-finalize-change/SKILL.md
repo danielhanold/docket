@@ -7,12 +7,12 @@ description: Use when a change's PR is approved or merged and you want to close 
 
 ## Overview
 
-`docket-finalize-change` drives a verified `implemented` change through its terminal half: it reads one authoritative finalize context, retargets authorized open children, rebases onto the current effective base through the resolver/repair loop, runs the local gate, publishes the rebased head with its evidence, merges the PR exactly once against an authoritative verification, archives the terminal records, and cleans only Docket-owned resources. The skill is the **workflow controller**: every mechanical effect is one named Docket operation (argv resolved from the capability catalog) that reloads fresh authority, submits exact identities, and returns one protocol-v1 document with a closed disposition. It never merges, rebases, deletes, force-pushes, or writes metadata by hand — it sequences the operations and keys on their tokens.
+`docket-finalize-change` drives a verified `implemented` change through its terminal half: it reads one authoritative finalize context, retargets authorized open children, rebases onto the current effective base through the resolver/repair loop, runs the local gate, publishes the rebased head with its evidence, merges the PR exactly once against an authoritative verification, archives the records, and cleans only Docket-owned resources. The skill is the **workflow controller**: every mechanical effect is one named Docket operation (argv resolved from the capability catalog) that reloads fresh authority, submits exact identities, and returns one protocol-v1 document with a closed disposition. It never merges, rebases, deletes, force-pushes, or writes metadata by hand — it sequences the operations and keys on their tokens.
 
 **Closeout notes ride the invocation, not a pause.** The finalize request may carry already-known
 verification outcomes or late findings; step 9 routes them into the closeout operation's structured
 request. The skill never pauses after merge and never asks a mid-run question — it records only the
-context supplied at invocation. Post-merge observations belong in the terminal record's `## Closeout
+context supplied at invocation. Post-merge observations belong in the archived record's `## Closeout
 notes` section, never the frozen merged `results:` file.
 
 ## When to use
@@ -21,7 +21,7 @@ notes` section, never the frozen merged `results:` file.
 
 ## Convention (load first — blocking)
 
-Invoke `docket-convention` first (unless already loaded this session) and follow its **Step-0 preamble (every operating skill)**: load the convention, run the capability bootstrap, then run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call and validate the protocol-v1 envelope, carrying its typed context values forward as literals (it resolves config, enforces the bootstrap verdict fail-closed, and ensures + syncs the metadata working tree). Everything below uses its vocabulary — build-ready, entity version, effective base, integration branch, terminal transition — without redefinition.
+Invoke `docket-convention` first (unless already loaded this session) and follow its **Step-0 preamble (every operating skill)**: load the convention, run the capability bootstrap, then run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call and validate the protocol-v1 envelope, carrying its typed context values forward as literals (it resolves config, enforces the bootstrap verdict fail-closed, and ensures + syncs the metadata working tree). Everything below uses its vocabulary — build-ready, entity version, effective base, integration branch, final transition — without redefinition.
 
 ## How every operation is invoked
 
@@ -144,7 +144,7 @@ The `finalize.merge` operation with `--id <id> --version <version> --head <head>
 
 `--admin` is honored **only** on an attended, explicitly-named run where a sole maintainer forces past an otherwise-unsatisfiable required review; it is never inferred from an approval absence or a permission error, and a `merge-denied` stays `denied` (`halted`). A named id overrides the `approval-required` and `finalize-blocked` skips (step 1); it never overrides malformed state, a wrong PR identity, an unsafe stack, or the repair sign-off.
 
-### 9. Closeout — archive the terminal records
+### 9. Closeout — archive the records
 
 Every mutating Go transaction re-renders `BOARD.md` in the same commit as the record it reflects, so it needs no separate pass and stays fresh by construction. The board is the live planning view, **never** published to the integration branch.
 
@@ -152,7 +152,7 @@ The `finalize.closeout` operation with `--id <id> [--input <request-file>]`. Whe
 verification outcomes or late findings, translate that prose into two structured lists — `verification_outcomes`
 and `late_findings`, each an array of strings — in a bounded JSON request file passed via `--input`; closeout
 renders them under `## Closeout notes` in the same transaction that archives the record, an identical-notes retry
-replays as `already`, and different notes against a terminal record are refused (`terminal-notes-frozen`). With no
+replays as `already`, and different notes against an archived record are refused (`terminal-notes-frozen`). With no
 notes, call the unchanged no-input form and archive immediately — no post-merge pause or second user step. No
 caller-supplied done boolean or archive date: it reloads metadata, reprobes the PR and its destination, derives the
 UTC archive date from the verified `mergedAt`, and applies one atomic transaction. Route on `disposition`:
@@ -160,13 +160,13 @@ UTC archive date from the verified `mergedAt`, and applies one atomic transactio
 - `done-archived` — an ordinary change merged to the integration branch: marked `done` (only after the merge-commit reachability proof), relocated to the dated archive path, artifact block + spec backlink + inline board rerendered, validated, committed by explicit path, lease-pushed.
 - `stacked-merged` — the PR merged into a live parent's branch: marked `stacked-merged` in place, not archived, branch and workspace retained until the root lands.
 - `root-archived` — a stack root reached integration and every carried descendant is proven: its chain of merged PR destinations establishes the carry relationship AND its merged work is verified still present in Git — reachable in the pinned integration history, or exact-content at the root's merge result — since a merged destination alone is a relationship, never proof the content shipped. One transaction archives the root and every descendant using the root's merge date, one board render over the final population. One unproven descendant leaves the root recoverable, zero descendant writes.
-- `already` — the promised terminal state already exists (a response-lost success): a keyed no-op, never a duplicate transition.
+- `already` — the promised final state already exists (a response-lost success): a keyed no-op, never a duplicate transition.
 - `children-retarget-required` — a descendant is not yet stacked-merged; return to step 2 (attended) or `halted` (autonomous).
 - `contended` / `blocked` / `unknown` — a lost race, an illegal source status or destination mismatch, or an unobservable probe; re-read context (`contended`) or stop (`halted`). In `docket` mode the metadata transaction lands first and a separate integration-ref leg patches only the existing `docket:backlink` blocks; a failed leg leaves the change truthfully `done` with a `terminal-backlink-pending` finding that a retry recovers — cleanup (step 10) repairs it, never a reason to redo the merge.
 
 ### 10. Cleanup — Docket-owned resources only
 
-The `finalize.cleanup` operation with `--id <id>`. An ordered, independently retryable suffix: repair a pending backlink first, remove the workspace from manifest facts, delete the local branch only when its exact recorded tip is worktree-detached and contained in the verified merge chain, and delete the remote ref only under the exact lease after a fresh probe shows no open child PR targets it. Every probe treats present, cleanly absent, and unknown as three outcomes — an injected or real probe error retains the resource with a pending result and `children-retarget-required`/a retention reason, never a destroy. A non-terminal change refuses (the one pre-terminal exception is restoring an aborted owned rebase). Stacked-merged changes retain their workspace and branches until the root closes. Cleanup failure never unwinds the merge.
+The `finalize.cleanup` operation with `--id <id>`. An ordered, independently retryable suffix: repair a pending backlink first, remove the workspace from manifest facts, delete the local branch only when its exact recorded tip is worktree-detached and contained in the verified merge chain, and delete the remote ref only under the exact lease after a fresh probe shows no open child PR targets it. Every probe treats present, cleanly absent, and unknown as three outcomes — an injected or real probe error retains the resource with a pending result and `children-retarget-required`/a retention reason, never a destroy. A non-final change refuses (the one pre-final exception is restoring an aborted owned rebase). Stacked-merged changes retain their workspace and branches until the root closes. Cleanup failure never unwinds the merge.
 
 ### 11. Integration sync — best-effort, end-of-run
 
@@ -208,7 +208,7 @@ rebuild — an installation may already have changed, so never claim it was unto
 
 **Failure posture — report separately, reverse nothing.** Any unmet condition keeps every verified merged change
 `done` and is reported separately as **binary rebuild incomplete**, naming the failed condition and the source
-path. A failed rebuild never reverses a merge, revives a terminal change, writes a `## Finalize blocked` marker,
+path. A failed rebuild never reverses a merge, revives a closed change, writes a `## Finalize blocked` marker,
 rewrites frozen records or closeout notes, or changes an earlier halt verdict. Never stash, switch branches, reset,
 discard files, or build from another checkout to force it. State the obstacle and the recovery sequence: resolve
 the reported source state, rerun integration sync, then repeat the proof, install, and identity check — the bare

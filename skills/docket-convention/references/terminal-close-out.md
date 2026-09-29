@@ -1,6 +1,6 @@
-# Terminal close-out — the shared per-change sequence
+# Close-out — the shared per-change sequence
 
-> Single source for the close-out sequence a terminal transition (`done` or `killed`) runs:
+> Single source for the close-out sequence a final transition (`done` or `killed`) runs:
 > archive → re-render `## Artifacts` → cleanup → board (terminal publication is deferred from Go v1).
 > All four drivers route
 > through this file: `docket-finalize-change`'s per-change close-out and `docket-status`'s merge
@@ -16,7 +16,7 @@ Contents: [The sequence](#the-sequence-docket-mode) · [Failure posture](#failur
 All metadata writes happen in the metadata working tree (`.docket/`), synced to `origin/docket`
 before the first read; every commit pushes immediately.
 
-1. **Archive on `docket` first.** The two terminal outcomes split here: `done` runs the Go
+1. **Archive on `docket` first.** The two final outcomes split here: `done` runs the Go
    `finalize.closeout` transaction; `killed` runs the Go `change.kill` transaction (`finalize.closeout`
    does not cover the `killed` outcome — change 0369).
 
@@ -65,8 +65,8 @@ before the first read; every commit pushes immediately.
    *Determinism invariant*).
 
 2. **Artifact block + spec back-link — owned atomically by step 1, no separate caller commit.**
-   Both terminal transactions re-render the archived record's `## Artifacts` block (plan/results
-   re-point to the integration branch at terminal state) **and** re-stamp every metadata-resident
+   Both close-out transactions re-render the archived record's `## Artifacts` block (plan/results
+   re-point to the integration branch at final state) **and** re-stamp every metadata-resident
    back-link — the spec's `docket:backlink` block included (change 0136) — retargeted to the
    now-**archived** change path, **in the same step-1 metadata commit** as the archive:
 
@@ -90,9 +90,9 @@ before the first read; every commit pushes immediately.
    terminal publication is deferred from Go v1 — the `finalize.closeout` operation is the complete automated closeout boundary.
    publication-deferral marking is deferred from Go v1 — existing `publish-deferred` markers remain as historical evidence.
    Step 1's supported Go metadata closeout — the `finalize.closeout` operation on the done path,
-   the `change.kill` operation on the kill path — is the whole automated closeout: no terminal record is
+   the `change.kill` operation on the kill path — is the whole automated closeout: no archived record is
    copied onto the integration branch, and the `## Publish deferred` marker is never written. A request
-   that specifically requires *published* terminal artifacts on the integration branch stops
+   that specifically requires *published* archived artifacts on the integration branch stops
    **before** claiming that outcome, even when the metadata transaction itself succeeded. Existing
    published records and any existing `## Publish deferred` markers remain untouched historical
    evidence — the `publish-deferred` health check keeps them visible. An enabled `terminal_publish:`
@@ -105,7 +105,7 @@ before the first read; every commit pushes immediately.
    ```
 
    Trust the typed outcome. Ownership is proven **inside the transaction** (change 0369): only
-   workspaces and feature refs proven owned by *this* terminal change are removed — the local ref
+   workspaces and feature refs proven owned by *this* closed change are removed — the local ref
    only when its recorded tip is detached from every worktree AND contained in the verified merge
    chain, the remote ref only under an exact old-value lease with no open child PR still targeting
    it — never the `.docket/` metadata worktree, the primary tree, or any out-of-tree path. Any
@@ -113,7 +113,7 @@ before the first read; every commit pushes immediately.
    branch never merged keeps its feature ref rather than losing it). A failure aborts per the
    caller's posture.
 
-5. **Board refresh — owned atomically by step 1, no separate pass.** Both terminal transactions
+5. **Board refresh — owned atomically by step 1, no separate pass.** Both close-out transactions
    render the inline `BOARD.md` **inside their own step-1 metadata commit** — the `finalize.closeout`
    operation on the done path, the `change.kill` operation on the kill path — so **no separate Board pass
    runs**, and no skill ever hand-renders the board or double-commits it. The step-1 transaction is
@@ -142,7 +142,7 @@ self-heals); other callers keep their own posture (abort-and-report).
 
 ## Determinism invariant
 
-Two agents both driving the same terminal transition converge through the step-1 transaction's
+Two agents both driving the same final transition converge through the step-1 transaction's
 exact-version CAS: one applies and the other reads `contended` (a lost race), re-runs
 the `repository.prepare` operation, and re-reads authority rather than racing a second write. The archive
 date is the transaction's own UTC clock (never a caller `now()`), so a replay after a lost response

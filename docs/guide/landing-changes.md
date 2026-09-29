@@ -29,10 +29,10 @@ in [Proving the build](./proving-the-build.md).
 
 ## Selective publish on close-out
 
-On a **terminal transition** — a change reaching `done` (its pull request merged) or `killed`
+On a **final transition** — a change reaching `done` (its pull request merged) or `killed`
 (abandoned) — the driving skill archives that change on the **metadata branch** (the `docket` git
 branch where the backlog, specs, and decisions are stored, separate from the code). A repo that opts
-in with `terminal_publish: true` *also* copies that change's terminal records — the archived change
+in with `terminal_publish: true` *also* copies that change's archived records — the archived change
 file, its spec if any, and the `Accepted` ADRs (an architecture decision record: one file per
 decision, immutable once accepted) from its manifest — onto the integration branch in one dedicated
 commit, sourced from the metadata branch.

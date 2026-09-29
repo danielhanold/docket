@@ -12,7 +12,7 @@ with `--json` (a write-free read) and take the named change's `unmet_dependencie
 
 For **each** id in that set — and never any other change — run one `finalize.closeout` operation
 with `--id <that id>` (resolve argv from the capability catalog). The operation itself re-proves the
-merged PR and applies the one verified terminal shape, so run no cleanup suffix and no reclaim, and
+merged PR and applies the one verified final shape, so run no cleanup suffix and no reclaim, and
 never widen or recurse beyond this set. Map each envelope locally and key success on the envelope `result` `applied` or `no-op` — never on its `disposition` token:
 
 - Every closeout succeeds → re-run the `repository.prepare` operation and re-run
@@ -31,7 +31,7 @@ refusal: an ancestor's closeout cannot prove the carry of a named change not yet
 
 ## Reconcile-kill (Step 3, change OBSOLETE)
 
-The convention's terminal close-out reference owns invocations and ordering; this skill's posture is CALLER-side only: trust each exit code, a failure aborts the
+The convention's close-out reference owns invocations and ordering; this skill's posture is CALLER-side only: trust each exit code, a failure aborts the
 kill and is surfaced. The reference's cleanup step prunes any feature worktree/branch already
 created. Terminal publication is deferred from Go v1 — the kill archives on `docket` via the `change.kill`
 operation and copies nothing onto the integration branch.
