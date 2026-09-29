@@ -1,12 +1,12 @@
 # Backlog
 
-**475 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 322 done · 🗑️ 120 killed
+**475 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 322 done · 🗑️ 120 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0468](active/0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md) | Rename colliding docket terms and retire obsolete glossary entries | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-29-rename-colliding-docket-terms-and-retire-obsolete-glossary-e-design.md) | `refactor/rename-colliding-docket-terms-and-retire-obsolete-glossary-e` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0468](active/0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md) | Rename colliding docket terms and retire obsolete glossary entries | `medium` | `refactor` | [#351](https://github.com/danielhanold/docket/pull/351) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
@@ -27,10 +27,10 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0475](active/0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | `low` | `chore` | needs-brainstorm |
-| [0474](active/0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and the terminal/fence lifecycle codes | `medium` | `refactor` | ⏳ waiting on #468 — not yet built |
-| [0473](active/0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | `medium` | `refactor` | ⏳ waiting on #468 — not yet built |
-| [0472](active/0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | `medium` | `refactor` | ⏳ waiting on #468 — not yet built |
-| [0471](active/0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | `medium` | `refactor` | ⏳ waiting on #468 — not yet built |
+| [0474](active/0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and the terminal/fence lifecycle codes | `medium` | `refactor` | ⏳ waiting on #468 — needs your merge |
+| [0473](active/0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) | Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks | `medium` | `refactor` | ⏳ waiting on #468 — needs your merge |
+| [0472](active/0472-rename-change-version-to-revision-version-revision.md) | Rename change version to revision (--version → --revision) | `medium` | `refactor` | ⏳ waiting on #468 — needs your merge |
+| [0471](active/0471-rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run.md) | Rename the run gate to the run tracker (epoch → run id, gate-* → run-*) | `medium` | `refactor` | ⏳ waiting on #468 — needs your merge |
 | [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | needs-brainstorm |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-brainstorm |
 | [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-brainstorm |

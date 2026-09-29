@@ -2,7 +2,7 @@
 id: 468
 slug: 'rename-colliding-docket-terms-and-retire-obsolete-glossary-e'
 title: 'Rename colliding docket terms and retire obsolete glossary entries'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-28'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/rename-colliding-docket-terms-and-retire-obsolete-glossary-e'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/351'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-29T09:07:51Z'
