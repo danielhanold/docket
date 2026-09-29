@@ -134,7 +134,7 @@ func TestGateDriveRunIDThreaded(t *testing.T) {
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		prep := "run the `gate.drive.prepare-scope` operation with `--change-id <id> --worktree <w> --gate-context <g> --run-id <run-id> --json`"
+		prep := "run the `gate.drive.prepare-scope` operation with `--change-id <id> --worktree <w> --run-context <g> --run-id <run-id> --json`"
 		if !isPrepareScopeSite(prep) || !carriesRunID(prep) {
 			t.Fatalf("a complete prepare-scope invocation was misclassified")
 		}
@@ -239,11 +239,11 @@ func TestCodexRequestFileCarriesRunID(t *testing.T) {
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		good := "Write a request file containing the request unchanged; for implement-next include the unchanged run-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`, and the unchanged run id, labeled for `--run-id`."
+		good := "Write a request file containing the request unchanged; for implement-next include the unchanged run-context token, labeled for `--run-context` on `change.claim` and the gate drive, and the unchanged run id, labeled for `--run-id`."
 		if !codexRequestRunIDRe.MatchString(good) {
 			t.Fatalf("the intended wording did not match")
 		}
-		old := "Write a request file containing the request unchanged; for implement-next include the unchanged run-context token, labeled for `change.claim --run-context` and gate-drive `--gate-context`. Preserve ids. Pass the run id to `--run-id`."
+		old := "Write a request file containing the request unchanged; for implement-next include the unchanged run-context token, labeled for `--run-context` on `change.claim` and the gate drive. Preserve ids. Pass the run id to `--run-id`."
 		if codexRequestRunIDRe.MatchString(old) {
 			t.Errorf("the pre-fix wording (run id outside the request-file sentence) matched")
 		}

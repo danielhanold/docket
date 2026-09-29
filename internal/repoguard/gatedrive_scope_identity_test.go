@@ -9,7 +9,7 @@ package repoguard
 //   (A) corpus scan: every scoped task-start instruction paragraph (syntactic
 //       shape: a gate.drive.start reference plus --owner task in one collapsed
 //       paragraph) carries the complete flag bundle, including the
-//       --gate-context pass-through;
+//       --run-context pass-through;
 //   (B) the build controller's feature-dispatch payload block hands the worker
 //       the complete start-ready scope bundle (and only the child capability);
 //   (C) the shared caller contract's start row documents the identity flags.
@@ -34,18 +34,18 @@ const (
 
 // requiredScopedStartFlags is the complete bundle a scoped task-owned
 // gate.drive.start instruction must carry: the identity flags the prepared
-// scope pinned, the scope-binding pair, the gate-context pass-through, and
+// scope pinned, the scope-binding pair, the run-context pass-through, and
 // the existing transport flags.
 var requiredScopedStartFlags = []string{
 	"--repo-dir", "--change-id", "--task-id", "--phase", "--branch",
-	"--scope-id", "--child-cap", "--gate-context", "--run-root", "--json",
+	"--scope-id", "--child-cap", "--run-context", "--run-root", "--json",
 }
 
 // requiredStartRowFlags is what the shared contract's start row must document
 // for a scope-bound start (transport flags are documented elsewhere in it).
 var requiredStartRowFlags = []string{
 	"--repo-dir", "--change-id", "--task-id", "--phase", "--branch",
-	"--scope-id", "--child-cap", "--gate-context",
+	"--scope-id", "--child-cap", "--run-context",
 }
 
 // requiredBundleElems is what the controller's dispatch payload must name for
@@ -218,7 +218,7 @@ func TestGateDriveScopedStartIdentity(t *testing.T) {
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {
-		full := "run the `gate.drive.start` operation with `--owner task --repo-dir <w> --change-id <id> --task-id <t> --phase build --branch <b> --scope-id <s> --child-cap <c> --gate-context <g> --run-root <r> --json -- <cmd>`"
+		full := "run the `gate.drive.start` operation with `--owner task --repo-dir <w> --change-id <id> --task-id <t> --phase build --branch <b> --scope-id <s> --child-cap <c> --run-context <g> --run-root <r> --json -- <cmd>`"
 		if !isScopedTaskStartSite(full) {
 			t.Fatalf("a complete scoped task-start invocation was not classified as a site")
 		}

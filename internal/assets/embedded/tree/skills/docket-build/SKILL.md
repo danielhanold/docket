@@ -75,7 +75,7 @@ Emit one concise routing line per task naming both the profile and its reason.
 <!-- docket:feature-dispatch:start targets=docket-build-economy,docket-build-max,docket-build-premium,docket-build-standard -->
 **Before each worker dispatch, prepare its recovery scope:** run the `gate.drive.prepare-scope`
 operation with `--change-id <id> --task-id <task-N> --phase build --branch <branch> --worktree
-<worktree> --gate-context <run-context> --run-id <run-id> --json` (the run context and
+<worktree> --run-context <run-context> --run-id <run-id> --json` (the run context and
 the run id arrived in *your* prompt from the gated parent — pass each value through, omitting a
 flag only when your prompt carried no such value). Capture the scope id and **both** capabilities from the
 `--json` response before dispatching (the shared JSON-capture requirement); the parent capability
