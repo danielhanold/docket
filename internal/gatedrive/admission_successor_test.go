@@ -76,7 +76,7 @@ func driveSuccessorRotation(t *testing.T) (store *Store, req StartRequest, oldTo
 
 // TestSuccessorRotatesExecutingSlot proves the executing arm rotates: the
 // successor launches under a FRESH reservation token with a bumped ExecutionGen
-// and cleared raw-run identity, the scope/epoch survive, and after launch-confirm
+// and cleared raw-run identity, the scope/run survive, and after launch-confirm
 // the slot carries the SUCCESSOR's run identity.
 func TestSuccessorRotatesExecutingSlot(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
@@ -145,7 +145,7 @@ func TestSuccessorRotatesExecutingSlot(t *testing.T) {
 		t.Fatalf("rotation must clear the raw-run identity before launch, got (%q,%q)", succSnap.RawRunID, succSnap.RawRunDir)
 	}
 	if succSnap.RunID != "E-rot" {
-		t.Fatalf("rotation must preserve the run epoch, got %q", succSnap.RunID)
+		t.Fatalf("rotation must preserve the run, got %q", succSnap.RunID)
 	}
 	if succSnap.ScopeID != req.ScopeID {
 		t.Fatalf("rotation must preserve the scope, got %q want %q", succSnap.ScopeID, req.ScopeID)
@@ -165,7 +165,7 @@ func TestSuccessorRotatesExecutingSlot(t *testing.T) {
 		t.Fatalf("after launch-confirm the slot must carry the successor's run identity, got %q", final.RawRunID)
 	}
 	if final.RunID != "E-rot" || final.ScopeID != req.ScopeID {
-		t.Fatalf("the scope/epoch fields must survive rotation, got epoch=%q scope=%q", final.RunID, final.ScopeID)
+		t.Fatalf("the scope/run fields must survive rotation, got run=%q scope=%q", final.RunID, final.ScopeID)
 	}
 }
 

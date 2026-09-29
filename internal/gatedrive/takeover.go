@@ -79,14 +79,14 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 		return d.haltDoc(driveID, "", driveRecord{}, string(ErrScopeCapabilityMismatch)), nil
 	}
 
-	// A takeover CANNOT revive a cancelled or superseded run epoch (change 0375
-	// Task 12, spec "Parent takeover cannot revive a cancelled epoch"). The parent
+	// A takeover CANNOT revive a cancelled or superseded run (change 0375
+	// Task 12, spec "Parent takeover cannot revive a cancelled run"). The parent
 	// capability authorizes recovery of HEALTHY non-cancelled work; once the run's
-	// epoch is fenced by an explicit cancellation (run.cancel) or superseded by a
-	// resume, no continuation may reattach to its drives. The epoch state lives in
+	// run is fenced by an explicit cancellation (run.cancel) or superseded by a
+	// resume, no continuation may reattach to its drives. The run state lives in
 	// the app-owned registry, reached through the injected resolver; a resolver error
 	// fails closed (HALT rather than an unproven revival). A scope with no RunID
-	// (a standalone gate, or a scope prepared before epoch linkage) fences nothing,
+	// (a standalone gate, or a scope prepared before run linkage) fences nothing,
 	// so the check is skipped and ADR-0107's authorization is unchanged.
 	if d.runRevoked != nil && scope.RunID != "" {
 		revoked, eerr := d.runRevoked(scope.RunID)
@@ -217,7 +217,7 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 // bypass the current-scope association"). Otherwise a task scope resolves to its
 // CurrentDriveID, and an outer scope (no current drive) resolves to the UNIQUE
 // gate-context match: its nested drives carry RunContextHash == the outer scope's
-// child capability hash (the dispatch context is the outer scope's child
+// child capability hash (the run context is the outer scope's child
 // capability). Zero matches or more than one fail closed with a distinct cause; a
 // real scan fault is a command error.
 func (d *Driver) resolveTakeoverDrive(scope scopeRecord, driveID string) (string, string, error) {
@@ -276,13 +276,13 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // current drive) resolves nested drives by gate context, so its CurrentDriveID is
 // empty and the revalidation is skipped.
 //
-// Single-use is per-scope, and a scope is minted once per gate ARMING, so the
-// outer recovery scope grants at most ONE automatic outer takeover per arming:
+// Single-use is per-scope, and a scope is minted once per run START, so the
+// outer recovery scope grants at most ONE automatic outer takeover per start:
 // the first accepted takeover closes it, and a second detached-crash takeover
-// under the same gate key then finds scope.Closed and HALTs scope-closed
+// under the same run key then finds scope.Closed and HALTs scope-closed
 // (runTrackerOuterContinuation maps that to a terminal run-stop run-tracker-unavailable, no
 // retry spent). This is intentional fail-closed behavior — a human recovers by
-// re-arming a fresh scope via `run start --resume` — not a bug; see the spec's
+// restarting a fresh scope via `run start --resume` — not a bug; see the spec's
 // §5 continuation clause ("remains active until implement-next reaches a true
 // terminal disposition") for the documented bound.
 func (s *Store) claimScopeForTakeover(scopeID, driveID string) error {

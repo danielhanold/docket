@@ -65,9 +65,9 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	verify.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = verify.MarkFlagRequired("id")
 
-	// run start arms the implement-next run gate: it re-syncs, records the
-	// before-set + dispatch epoch in a durable record, and prints `run-started <key>
-	// <epoch> <dispatch-context>` (or `run-untracked <reason>`). The sole positional
+	// run start starts the implement-next run tracker: it re-syncs, records the
+	// before-set + dispatch time in a durable record, and prints `run-started <key>
+	// <run-id> <run-context>` (or `run-untracked <reason>`). The sole positional
 	// argument is the gate target; only `implement-next` is accepted, and any other
 	// value is an invalid-input result (non-zero exit) the app layer owns. It
 	// reuses the same read-only planning seams as verify.
@@ -108,8 +108,8 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	runStart.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	runStart.Flags().Int("resume", 0, "resume an already-in-progress change by `id` (pre-binds attribution)")
 
-	// run verdict reports the run-gate verdict in one of two modes. In ATTRIBUTED
-	// mode (`run verdict <key>`) it loads the durable record armed by run start,
+	// run verdict reports the run-tracker verdict in one of two modes. In ATTRIBUTED
+	// mode (`run verdict <key>`) it loads the durable record started by run start,
 	// attributes exactly one new in-progress claim, delegates the run predicate to
 	// app.RunVerify, and prints one line of the attributed vocabulary (run-done /
 	// run-retry-once / run-stop …). In UNATTRIBUTED mode (`run verdict
@@ -146,7 +146,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			// takes the ordinary retry/stop path (change 0359).
 			wdeps.Continuation = newContinuationSeam(c.Context(), repoDir)
 			// Wire the claim-proof scanner so ownership resolves from committed
-			// change.claim receipts rather than a before-set/epoch snapshot (change
+			// change.claim receipts rather than a before-set/run snapshot (change
 			// 0407). Unlike the continuation seam, the verdict path fails closed when
 			// this is nil — ownership can never proceed without proof access.
 			wdeps.ClaimProofs = app.NewClaimProofScanner(deps)
@@ -196,7 +196,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	gateClaim.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
 	// cancel is the coordinator's explicit human Stop (change 0375): it durably
-	// fences the run epoch located by --key (validated against --run-id and a confirmed
+	// fences the run located by --key (validated against --run-id and a confirmed
 	// claim), tears down registered tasks and processes, reconciles admitted
 	// mutations, and reports one disposition (cancelled / already-cancelled /
 	// cancellation-pending / refused). It charges no suite attempt and resets no
@@ -208,7 +208,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Cancel a dispatched run: fence it, tear it down, and report the disposition",
 		Args:  cobra.NoArgs,
 		// process-control: stops the run's registered native tasks and processes.
-		// local-write: transitions the durable run-epoch record and releases the
+		// local-write: transitions the durable run-run record and releases the
 		// worktree execution slot.
 		Annotations: capability("run.cancel", EffectLocalWrite, EffectProcessControl),
 		RunE: func(c *cobra.Command, _ []string) error {

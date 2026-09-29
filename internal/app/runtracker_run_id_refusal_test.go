@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// TestClassifyRunIDError (change 0463): every run-epoch registry failure maps to
-// a stable protocol result and a fixed reason token. A not-found epoch is the named
+// TestClassifyRunIDError (change 0463): every run registry failure maps to
+// a stable protocol result and a fixed reason token. A not-found run is the named
 // unknown-run-id. A presented value wrapped into the error chain never leaks into
 // the reason.
 func TestClassifyRunIDError(t *testing.T) {
@@ -38,10 +38,10 @@ func TestClassifyRunIDError(t *testing.T) {
 		}
 	}
 	if _, _, ok := ClassifyRunIDError(errors.New("plain failure")); ok {
-		t.Error("a non-epoch error must not classify")
+		t.Error("a non-run error must not classify")
 	}
 	if _, _, ok := ClassifyRunIDError(ErrStaleRunID); ok {
-		t.Error("a mutation-fence error is not an epoch-registry error")
+		t.Error("a mutation-fence error is not a run-registry error")
 	}
 }
 
@@ -50,7 +50,7 @@ func TestClassifyRunIDError(t *testing.T) {
 // Other reasons carry no invented message.
 func TestRunIDNextAction(t *testing.T) {
 	unknown := RunIDNextAction(ReasonUnknownRunID)
-	for _, want := range []string{"--run-id", "--gate-context", "run-started <key> <epoch> <dispatch-context>"} {
+	for _, want := range []string{"--run-id", "--gate-context", "run-started <key> <run-id> <run-context>"} {
 		if !strings.Contains(unknown, want) {
 			t.Errorf("unknown-run-id message must mention %q, got %q", want, unknown)
 		}

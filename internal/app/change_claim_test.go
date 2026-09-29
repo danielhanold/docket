@@ -173,7 +173,7 @@ func TestClaimResultFromOutcomeFailedCarriesCause(t *testing.T) {
 	}
 }
 
-// --- gate-context binding (change 0407) ------------------------------------
+// --- run-context binding (change 0407) -------------------------------------
 //
 // These drive ChangeClaim end-to-end over a real gate store (newRunTrackerRepo, whose
 // git common dir roots the rungate records the store primitives read/write) and

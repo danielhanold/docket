@@ -1,6 +1,6 @@
 // The durable per-dispatch gate-record store (change 0334, Task 1). It is the
 // Go generalization of scripts/lib/docket-dispatch-dir.sh's durable-dir
-// conventions, holding the implement-next run gate's attribution / retry state
+// conventions, holding the implement-next run tracker's attribution / retry state
 // so a dispatch's gate outcome survives the launching process, a
 // `git worktree remove`, and a restart.
 //
@@ -66,7 +66,7 @@ import (
 // schema-mismatch diagnostic — a silent v3->v4 migration is deliberately rejected
 // because an older run's consumed retry marker must NEVER be reinterpreted as
 // unused configurable budget (a re-grant of an already-spent retry). The supported
-// recovery is a newly armed `run start --resume` for a still-valid in-progress
+// recovery is a newly started `run start --resume` for a still-valid in-progress
 // change, exactly the 0407 precedent, never a migration that blesses old state.
 const runTrackerSchemaVersion = 4
 
@@ -150,7 +150,7 @@ type RunTrackerRecord struct {
 	Terminal     bool   `json:"terminal"`
 
 	// AttemptLimit is the snapshotted run.max_attempts value (change 0421, schema
-	// v4): the total number of attributed implementation attempts this gate arming
+	// v4): the total number of attributed implementation attempts this gate starting
 	// permits, counting the original dispatch. It is stamped at mint and is
 	// IMMUTABLE thereafter — a config edit after mint never rewrites an already-owned
 	// budget (the snapshot rule). The counted retry budget grants at most
@@ -162,7 +162,7 @@ type RunTrackerRecord struct {
 	// recovery scope run start prepared for this dispatch boundary; ParentCap is
 	// the RAW parent capability the takeover path presents — persisted only in this
 	// 0600-private record and NEVER printed in HumanText, a report line, or the
-	// result JSON; ChildContextHash is the sha256 of the printed dispatch context
+	// result JSON; ChildContextHash is the sha256 of the printed run context
 	// (the outer scope's ChildCapability), matched against a nested drive's
 	// RunContextHash when the verdict path locates the outer drive.
 	ScopeID          string `json:"scope_id,omitempty"`
@@ -192,7 +192,7 @@ type RunTrackerRecord struct {
 
 // resumeAttributed reports whether rec has the resume-verified shape: `run start
 // --resume` pre-bound AttributedID through WorkspaceInspect identity, and no claim
-// ever confirmed under it (BoundRequestID is still empty). A fresh arm gains
+// ever confirmed under it (BoundRequestID is still empty). A fresh start gains
 // AttributedID only at confirm time, together with BoundRequestID, so it never
 // matches. resolveRunTrackerOwnership accepts this shape as ownership, runCancel accepts
 // it as cancel authority, and ChangeClaim refuses to reserve a claim under it
@@ -218,7 +218,7 @@ func runTrackerBoundPairOK(rec RunTrackerRecord) bool {
 }
 
 // RunTrackerClaimBinding is the durable, bind-once record of which (change, claim
-// request) a gate key's dispatch context is bound to (change 0407). It is written
+// request) a run key's run context is bound to (change 0407). It is written
 // by ReserveRunTrackerClaim through an os.Link hard-link create (the compare-and-swap
 // that serializes competing binding attempts with whole-file atomicity) and
 // finalized by ConfirmRunTrackerClaim. Schema is stamped authoritatively; a load fails
@@ -274,12 +274,12 @@ const (
 	// ErrRunTrackerIO: an underlying filesystem or randomness operation failed.
 	ErrRunTrackerIO RunTrackerStoreErrorKind = "io"
 	// ErrRunTrackerBindingConflict: a competing binding attempt for a different claim
-	// under one dispatch context — the claim-binding file already binds a different
+	// under one run context — the claim-binding file already binds a different
 	// (change, request), or a confirm named fields that disagree with the reserved
 	// binding. Bind-once: a later attempt can never overwrite the first (change 0407).
 	ErrRunTrackerBindingConflict RunTrackerStoreErrorKind = "binding-conflict"
 	// ErrRunContextAmbiguous: more than one live (non-terminal) gate record claims
-	// one dispatch-context hash, so ownership cannot be resolved to a single record.
+	// one run-context hash, so ownership cannot be resolved to a single record.
 	// Fail closed (change 0407).
 	ErrRunContextAmbiguous RunTrackerStoreErrorKind = "context-ambiguous"
 )
@@ -677,7 +677,7 @@ func readRunTrackerClaimBinding(dir, op string) (RunTrackerClaimBinding, bool, e
 	return b, true, nil
 }
 
-// ReserveRunTrackerClaim binds key's dispatch context to (changeID, requestID) exactly
+// ReserveRunTrackerClaim binds key's run context to (changeID, requestID) exactly
 // once, before the claim's metadata transaction. The os.Link hard-link create is
 // the compare-and-swap: the reservation is written to a same-directory temp file
 // and hard-linked into place, so of any number of concurrent callers exactly one
@@ -755,9 +755,9 @@ func reserveMatchOrConflict(b RunTrackerClaimBinding, changeID int, requestID st
 // the confirm durable).
 //
 // worktree is the change's canonical feature worktree (the LOGICAL path — it need not
-// exist yet), bound onto the run epoch here so a FRESH run's mutation fence and
+// exist yet), bound onto the run here so a FRESH run's mutation fence and
 // run.cancel teardown locate it (change 0375). It is best-effort and a NO-OP when
-// empty or when no epoch exists (see bindRunWorktree); the claim path passes it, the
+// empty or when no run exists (see bindRunWorktree); the claim path passes it, the
 // verdict recovery paths — which have no worktree in hand — pass "".
 func ConfirmRunTrackerClaim(repoDir, key string, changeID int, requestID, revision, worktree string) error {
 	dir, err := runKeyDir(repoDir, key, "confirm")
@@ -798,19 +798,19 @@ func ConfirmRunTrackerClaim(repoDir, key string, changeID int, requestID, revisi
 	rec.AttributedID = changeID
 	rec.BoundRequestID = requestID
 	rec.BoundRevision = revision
-	// Bind the run epoch to this confirmed change instance (change 0375 Task 9). The
-	// committed claim receipt is authority (ADR-0111); the epoch's ChangeID is the
+	// Bind the run to this confirmed change instance (change 0375 Task 9). The
+	// committed claim receipt is authority (ADR-0111); the run's ChangeID is the
 	// readable locator a later resume/cancel resolves the run by. It is best-effort
-	// and a NO-OP when no epoch exists (a standalone or keyless dispatch), so it never
+	// and a NO-OP when no run exists (a standalone or keyless dispatch), so it never
 	// fails an otherwise-confirmed claim; a genuine re-point over a different change is
 	// refused inside bindRunChange and swallowed here (the receipt already bound the
 	// change).
 	_ = bindRunChange(repoDir, key, strconv.Itoa(changeID))
-	// Bind the run epoch's feature worktree (change 0375). A FRESH run's epoch is minted
+	// Bind the run's feature worktree (change 0375). A FRESH run's run is minted
 	// with an empty Worktree, so without this the mutation fence (findRunByWorktree)
 	// and run.cancel's worktree teardown are inert for the common first-dispatch case —
 	// the resume path already binds it in armResumeReplacement. Best-effort and a NO-OP
-	// on an empty worktree or a keyless/epoch-less dispatch; a benign spelling difference
+	// on an empty worktree or a keyless/no-run-record dispatch; a benign spelling difference
 	// against a resume's pre-bound worktree is refused inside bindRunWorktree and
 	// swallowed here.
 	_ = bindRunWorktree(repoDir, key, worktree)

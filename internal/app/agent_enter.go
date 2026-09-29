@@ -6,9 +6,9 @@ const OperationAgentEnter = "agent.enter"
 // Human mode relays the role's final message verbatim; JSON mode retains thread
 // and turn identities for diagnostics.
 //
-// Run-gate claim proofs own attribution. The optional `--run-key`/`--run-id`
+// Run-tracker claim proofs own attribution. The optional `--run-key`/`--run-id`
 // lifecycle-linkage flags (change 0375 Task 13) register this entry's thread as a
-// run-epoch participant and — for a root coordinator — wire the signal-connected
+// run participant and — for a root coordinator — wire the signal-connected
 // cancellation and the death guardian; they are lifecycle REGISTRATION only and
 // confer no attribution and no authority. ThreadID/TurnID remain diagnostics, not
 // authority.

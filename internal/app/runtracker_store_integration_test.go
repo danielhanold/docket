@@ -30,7 +30,7 @@ func repeat(s string, n int) string {
 
 // --- claim-binding primitives and schema v3 (change 0407) ---
 
-// mintPlainRunTracker mints a minimal armed record for store-primitive tests.
+// mintPlainRunTracker mints a minimal started record for store-primitive tests.
 func mintPlainRunTracker(t *testing.T, repoDir string) string {
 	t.Helper()
 	key, err := MintRunTrackerRecord(repoDir, RunTrackerRecord{Target: "docket-implement-next", Retry: RetryUnused, Disposition: "run-started", AttemptLimit: 2})
@@ -144,7 +144,7 @@ func TestIntegrationRunRecordLoadGateClaimBindingCorruptFailsClosed(t *testing.T
 }
 
 // TestIntegrationRunRecordFindGateRecordByContextHash: exactly-one non-terminal match resolves;
-// zero is not-found; two armed gates sharing a hash is context-ambiguous;
+// zero is not-found; two started gates sharing a hash is context-ambiguous;
 // a terminal record does not match.
 func TestIntegrationRunRecordFindGateRecordByContextHash(t *testing.T) {
 	repo := newRunTrackerRepo(t)

@@ -409,13 +409,13 @@ func TestReserveRefusalCarriesIncumbentSnapshot(t *testing.T) {
 		t.Fatalf("snapshot run identity = %q %q", inc.RawRunID, inc.RawRunDir)
 	}
 	if inc.DriveID != "" || inc.RunOwned {
-		t.Fatalf("raw snapshot leaked drive/epoch facts: %+v", inc)
+		t.Fatalf("raw snapshot leaked drive/run facts: %+v", inc)
 	}
 }
 
 // TestReserveUnresolvedRefusalCarriesSnapshot proves the unresolved-execution
 // refusal also snapshots the incumbent, and TestReserveStaleRunCarriesSnapshot
-// proves the stale-run-id fence does (RunOwned true, epoch id NOT projected).
+// proves the stale-run-id fence does (RunOwned true, run id NOT projected).
 func TestReserveUnresolvedRefusalCarriesSnapshot(t *testing.T) {
 	store, worktree, repoID := newAdmissionFixture(t)
 	token, err := store.ReserveRawWorktreeExecution(repoID, worktree, nil)
@@ -437,9 +437,9 @@ func TestReserveUnresolvedRefusalCarriesSnapshot(t *testing.T) {
 
 func TestReserveStaleRunCarriesSnapshot(t *testing.T) {
 	store, worktree, repoID := newAdmissionFixture(t)
-	_, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "epoch-a", nil)
+	_, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "run-a", nil)
 	if err != nil {
-		t.Fatalf("epoch reserve: %v", err)
+		t.Fatalf("run reserve: %v", err)
 	}
 	_, err = store.ReserveRawWorktreeExecution(repoID, worktree, nil)
 	oe, ok := AsOwnershipError(err)
@@ -447,7 +447,7 @@ func TestReserveStaleRunCarriesSnapshot(t *testing.T) {
 		t.Fatalf("err = %v, want stale-run-id", err)
 	}
 	if oe.Incumbent == nil || !oe.Incumbent.RunOwned {
-		t.Fatalf("stale-epoch snapshot = %+v", oe.Incumbent)
+		t.Fatalf("stale-run snapshot = %+v", oe.Incumbent)
 	}
 }
 
@@ -686,8 +686,8 @@ func TestAdmissionSlotDriveIDHasNoProductionWriter(t *testing.T) {
 	}
 }
 
-// settledSeam is a scripted RunSettledFunc: it answers from settled (epoch id →
-// verdict), returns err when set, and records every epoch id it was asked about so
+// settledSeam is a scripted RunSettledFunc: it answers from settled (run id →
+// verdict), returns err when set, and records every run id it was asked about so
 // a test can prove the seam was (or was never) consulted.
 type settledSeam struct {
 	mu      sync.Mutex
@@ -712,13 +712,13 @@ func (f *settledSeam) callCount() int {
 	return len(f.calls)
 }
 
-// releasedRunSlot reserves worktree for epoch "epoch-e1" and releases it, leaving
+// releasedRunSlot reserves worktree for run "run-e1" and releases it, leaving
 // the realistic between-drives shape: a released slot whose RunID survives.
 func releasedRunSlot(t *testing.T, s *Store, worktree, repoID string) admissionRecord {
 	t.Helper()
-	token, err := s.ReserveWorktreeExecutionForRun(repoID, worktree, "epoch-e1", nil)
+	token, err := s.ReserveWorktreeExecutionForRun(repoID, worktree, "run-e1", nil)
 	if err != nil {
-		t.Fatalf("epoch reserve: %v", err)
+		t.Fatalf("run reserve: %v", err)
 	}
 	if err := s.ReleaseWorktreeExecution(worktree, token); err != nil {
 		t.Fatalf("release: %v", err)
@@ -727,8 +727,8 @@ func releasedRunSlot(t *testing.T, s *Store, worktree, repoID string) admissionR
 	if err != nil {
 		t.Fatalf("load released slot: %v", err)
 	}
-	if slot.State != admissionReleased || slot.RunID != "epoch-e1" {
-		t.Fatalf("fixture slot = %q/%q, want released/epoch-e1", slot.State, slot.RunID)
+	if slot.State != admissionReleased || slot.RunID != "run-e1" {
+		t.Fatalf("fixture slot = %q/%q, want released/run-e1", slot.State, slot.RunID)
 	}
 	return slot
 }
@@ -745,20 +745,20 @@ func readSlotBytes(t *testing.T, s *Store, worktree string) []byte {
 }
 
 // TestReleasedSlotWithCompletedRunReadmits: a released slot whose leftover
-// RunID names an epoch the settlement seam proves settled (completed, or
+// RunID names a run the settlement seam proves settled (completed, or
 // confirmed-cancelled) is retired through the exact-token retirement and the
-// reservation admits — for a new epoch and for a raw (epoch-less) start alike
-// (change 0446 spec §§2, 5). The seam is asked about exactly the slot's epoch.
+// reservation admits — for a new run and for a raw (no-run-record) start alike
+// (change 0446 spec §§2, 5). The seam is asked about exactly the slot's run.
 func TestReleasedSlotWithCompletedRunReadmits(t *testing.T) {
 	cases := []struct {
 		name    string
 		reserve func(s *Store, wt, repoID string) error
 		wantRun string
 	}{
-		{"new-epoch", func(s *Store, wt, repoID string) error {
-			_, err := s.ReserveWorktreeExecutionForRun(repoID, wt, "epoch-e2", nil)
+		{"new-run", func(s *Store, wt, repoID string) error {
+			_, err := s.ReserveWorktreeExecutionForRun(repoID, wt, "run-e2", nil)
 			return err
-		}, "epoch-e2"},
+		}, "run-e2"},
 		{"raw", func(s *Store, wt, repoID string) error {
 			_, err := s.ReserveRawWorktreeExecution(repoID, wt, nil)
 			return err
@@ -768,11 +768,11 @@ func TestReleasedSlotWithCompletedRunReadmits(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			store, worktree, repoID := newAdmissionFixture(t)
 			prior := releasedRunSlot(t, store, worktree, repoID)
-			seam := &settledSeam{settled: map[string]bool{"epoch-e1": true}}
+			seam := &settledSeam{settled: map[string]bool{"run-e1": true}}
 			store.SetRunSettledResolver(seam.resolve)
 
 			if err := tc.reserve(store, worktree, repoID); err != nil {
-				t.Fatalf("reserve over a settled epoch's released slot: %v", err)
+				t.Fatalf("reserve over a settled run's released slot: %v", err)
 			}
 			got, _, err := store.LoadWorktreeExecution(worktree)
 			if err != nil {
@@ -784,17 +784,17 @@ func TestReleasedSlotWithCompletedRunReadmits(t *testing.T) {
 			if got.State != admissionReserved || got.ExecutionGen != prior.ExecutionGen+1 {
 				t.Fatalf("slot = %q gen %d, want reserved gen %d", got.State, got.ExecutionGen, prior.ExecutionGen+1)
 			}
-			if len(seam.calls) != 1 || seam.calls[0] != "epoch-e1" {
-				t.Fatalf("seam calls = %v, want exactly [epoch-e1]", seam.calls)
+			if len(seam.calls) != 1 || seam.calls[0] != "run-e1" {
+				t.Fatalf("seam calls = %v, want exactly [run-e1]", seam.calls)
 			}
 		})
 	}
 }
 
-// TestReleasedSlotWithLiveRunStillFenced: an unsettled epoch (the seam answers
+// TestReleasedSlotWithLiveRunStillFenced: an unsettled run (the seam answers
 // false — active, cancelling, or completing) and an absent seam both keep today's
 // ErrStaleRunID refusal and leave the slot byte-for-byte untouched: a live
-// epoch owns its worktree between drives.
+// run owns its worktree between drives.
 func TestReleasedSlotWithLiveRunStillFenced(t *testing.T) {
 	for _, withSeam := range []bool{true, false} {
 		name := "seam-unsettled"
@@ -804,13 +804,13 @@ func TestReleasedSlotWithLiveRunStillFenced(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			store, worktree, repoID := newAdmissionFixture(t)
 			releasedRunSlot(t, store, worktree, repoID)
-			seam := &settledSeam{settled: map[string]bool{"epoch-e1": false}}
+			seam := &settledSeam{settled: map[string]bool{"run-e1": false}}
 			if withSeam {
 				store.SetRunSettledResolver(seam.resolve)
 			}
 			before := readSlotBytes(t, store, worktree)
 
-			_, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "epoch-e2", nil)
+			_, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "run-e2", nil)
 			if !isOwnership(err, ErrStaleRunID) {
 				t.Fatalf("err = %v, want stale-run-id", err)
 			}
@@ -825,11 +825,11 @@ func TestReleasedSlotWithLiveRunStillFenced(t *testing.T) {
 }
 
 // TestReleasedSlotSeamErrorFailsClosed: a settlement-seam error (an unreadable
-// epoch registry) is never proof of settlement — ErrStaleRunID, slot untouched.
+// run registry) is never proof of settlement — ErrStaleRunID, slot untouched.
 func TestReleasedSlotSeamErrorFailsClosed(t *testing.T) {
 	store, worktree, repoID := newAdmissionFixture(t)
 	releasedRunSlot(t, store, worktree, repoID)
-	seam := &settledSeam{settled: map[string]bool{"epoch-e1": true}, err: os.ErrPermission}
+	seam := &settledSeam{settled: map[string]bool{"run-e1": true}, err: os.ErrPermission}
 	store.SetRunSettledResolver(seam.resolve)
 	before := readSlotBytes(t, store, worktree)
 
@@ -843,10 +843,10 @@ func TestReleasedSlotSeamErrorFailsClosed(t *testing.T) {
 }
 
 // TestReleasedSlotUnresolvedRunMarksIncumbent: when the settlement seam reports
-// that NO readable record carries the released slot's epoch (ErrRunRecordUnresolved),
+// that NO readable record carries the released slot's run (ErrRunRecordUnresolved),
 // the refusal stays ErrStaleRunID with the slot untouched, and its incumbent
-// snapshot says the epoch is unresolved — so the printed remedy never points at a
-// run.cancel that cannot resolve that epoch. An unsettled epoch and any other seam
+// snapshot says the run is unresolved — so the printed remedy never points at a
+// run.cancel that cannot resolve that run. An unsettled run and any other seam
 // error leave the flag clear.
 func TestReleasedSlotUnresolvedRunMarksIncumbent(t *testing.T) {
 	cases := []struct {
@@ -855,7 +855,7 @@ func TestReleasedSlotUnresolvedRunMarksIncumbent(t *testing.T) {
 		want bool
 	}{
 		{"unresolved", &settledSeam{err: fmt.Errorf("lookup: %w", ErrRunRecordUnresolved)}, true},
-		{"unsettled", &settledSeam{settled: map[string]bool{"epoch-e1": false}}, false},
+		{"unsettled", &settledSeam{settled: map[string]bool{"run-e1": false}}, false},
 		{"other-error", &settledSeam{err: os.ErrPermission}, false},
 	}
 	for _, tc := range cases {
@@ -865,7 +865,7 @@ func TestReleasedSlotUnresolvedRunMarksIncumbent(t *testing.T) {
 			store.SetRunSettledResolver(tc.seam.resolve)
 			before := readSlotBytes(t, store, worktree)
 
-			_, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "epoch-e2", nil)
+			_, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "run-e2", nil)
 			oe, ok := AsOwnershipError(err)
 			if !ok || oe.Kind != ErrStaleRunID || oe.Incumbent == nil {
 				t.Fatalf("err = %v, want stale-run-id with an incumbent snapshot", err)
@@ -880,22 +880,22 @@ func TestReleasedSlotUnresolvedRunMarksIncumbent(t *testing.T) {
 	}
 }
 
-// TestBusySlotNeverConsultsSettledSeam: the epoch fence on a busy slot is
-// unchanged — an executing slot another epoch owns refuses ErrStaleRunID and
+// TestBusySlotNeverConsultsSettledSeam: the run fence on a busy slot is
+// unchanged — an executing slot another run owns refuses ErrStaleRunID and
 // the settlement seam is never asked, even when it would answer settled.
 func TestBusySlotNeverConsultsSettledSeam(t *testing.T) {
 	store, worktree, repoID := newAdmissionFixture(t)
-	token, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "epoch-e1", nil)
+	token, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "run-e1", nil)
 	if err != nil {
-		t.Fatalf("epoch reserve: %v", err)
+		t.Fatalf("run reserve: %v", err)
 	}
 	if err := store.ConfirmWorktreeExecution(worktree, token, "0123456789abcdef0123456789abcdef", "/runs/0123456789abcdef0123456789abcdef"); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
-	seam := &settledSeam{settled: map[string]bool{"epoch-e1": true}}
+	seam := &settledSeam{settled: map[string]bool{"run-e1": true}}
 	store.SetRunSettledResolver(seam.resolve)
 
-	_, err = store.ReserveWorktreeExecutionForRun(repoID, worktree, "epoch-e2", nil)
+	_, err = store.ReserveWorktreeExecutionForRun(repoID, worktree, "run-e2", nil)
 	if !isOwnership(err, ErrStaleRunID) {
 		t.Fatalf("err = %v, want stale-run-id", err)
 	}
@@ -903,7 +903,7 @@ func TestBusySlotNeverConsultsSettledSeam(t *testing.T) {
 		t.Fatalf("a busy slot consulted the settlement seam %d times", seam.callCount())
 	}
 	slot, _, err := store.LoadWorktreeExecution(worktree)
-	if err != nil || slot.State != admissionExecuting || slot.RunID != "epoch-e1" {
+	if err != nil || slot.State != admissionExecuting || slot.RunID != "run-e1" {
 		t.Fatalf("busy slot changed: %+v err=%v", slot, err)
 	}
 }
@@ -922,18 +922,18 @@ func TestRecreatedWorktreePathInheritsAndSettles(t *testing.T) {
 	if err := os.MkdirAll(worktree, 0o700); err != nil {
 		t.Fatalf("recreate worktree: %v", err)
 	}
-	seam := &settledSeam{settled: map[string]bool{"epoch-e1": true}}
+	seam := &settledSeam{settled: map[string]bool{"run-e1": true}}
 	store.SetRunSettledResolver(seam.resolve)
 
-	if _, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "epoch-e2", nil); err != nil {
+	if _, err := store.ReserveWorktreeExecutionForRun(repoID, worktree, "run-e2", nil); err != nil {
 		t.Fatalf("reserve on recreated path: %v", err)
 	}
 	got, _, err := store.LoadWorktreeExecution(worktree)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if got.RunID != "epoch-e2" || got.ExecutionGen != prior.ExecutionGen+1 {
-		t.Fatalf("slot = epoch %q gen %d, want epoch-e2 gen %d", got.RunID, got.ExecutionGen, prior.ExecutionGen+1)
+	if got.RunID != "run-e2" || got.ExecutionGen != prior.ExecutionGen+1 {
+		t.Fatalf("slot = run %q gen %d, want run-e2 gen %d", got.RunID, got.ExecutionGen, prior.ExecutionGen+1)
 	}
 	if got.LegacyInventoried {
 		t.Fatal("a readmit over the inherited slot must not re-run the legacy inventory")
@@ -955,7 +955,7 @@ const quarantineFixtureID = "b66ce1405cd813e5519c344360f61bd4"
 // schema-4 HALTED stopped-not-initiated drive whose worktree was removed and whose
 // scratch run root is gone) — into store s under its original id, and returns the
 // installed bytes. The fixture is only ever copied into an isolated test store,
-// never into a live registry. Note: the manually edited live CANCELLED epoch state
+// never into a live registry. Note: the manually edited live CANCELLED run state
 // that accompanied the incident is not a test oracle; only this frozen record is.
 func installQuarantineFixture(t *testing.T, s *Store) []byte {
 	t.Helper()
@@ -978,8 +978,8 @@ func installQuarantineFixture(t *testing.T, s *Store) []byte {
 // that blocked every new worktree's first gate admission in the 0368 incident is
 // seeded into an isolated store; a fresh, unrelated worktree then admits through
 // every start shape — a scopeless (finalize-style) drive, a scoped (task-style)
-// drive, an epoch-carrying (build-style) drive, and a participating raw
-// reservation — and the epoch launch census of an unrelated epoch is accounted.
+// drive, a run-carrying (build-style) drive, and a participating raw
+// reservation — and the run launch census of an unrelated run is accounted.
 // The frozen record's bytes never change.
 func TestQuarantinedHaltedRecordIsNonblockingForUnrelatedWorktree(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
@@ -998,20 +998,20 @@ func TestQuarantinedHaltedRecordIsNonblockingForUnrelatedWorktree(t *testing.T) 
 	}
 	build := sampleStart()
 	build.Worktree = mkWorktree(t)
-	build.RunID = "epoch-fresh"
+	build.RunID = "run-fresh"
 	if doc, err := d.Start(build); err != nil || doc.Outcome != WAITING {
-		t.Fatalf("epoch-carrying start over the quarantined record: doc=%+v err=%v", doc, err)
+		t.Fatalf("run-carrying start over the quarantined record: doc=%+v err=%v", doc, err)
 	}
 	if _, err := s.ReserveRawWorktreeExecution("repo-x", mkWorktree(t), proc); err != nil {
 		t.Fatalf("raw reservation over the quarantined record: %v", err)
 	}
 
-	report, err := d.ObserveRunLaunches(mkWorktree(t), "epoch-unrelated")
+	report, err := d.ObserveRunLaunches(mkWorktree(t), "run-unrelated")
 	if err != nil {
 		t.Fatalf("ObserveRunLaunches: %v", err)
 	}
 	if !report.Accounted {
-		t.Fatalf("the quarantined record must not leave an unrelated epoch unaccounted, findings=%v", report.Findings)
+		t.Fatalf("the quarantined record must not leave an unrelated run unaccounted, findings=%v", report.Findings)
 	}
 
 	after, err := os.ReadFile(filepath.Join(s.root, quarantineFixtureID, recordFileName))
@@ -1153,7 +1153,7 @@ func seedMixedHistory(t *testing.T, s *Store, seed int64, other, removed, scratc
 // and after their scratch run dirs are deleted — never veto an unrelated worktree.
 // With scratch present every recorded run even LOOKS live to the process seam, the
 // worst case an unrelated record can present. Every start shape admits (scopeless,
-// scoped, epoch-carrying, participating raw), admission probes no unrelated history,
+// scoped, run-carrying, participating raw), admission probes no unrelated history,
 // no historical byte changes, and the repository-wide cleanup assessment still
 // reports every record with its class counters partitioning the findings exactly.
 func TestFirstAdmissionMixedHistorySweep(t *testing.T) {
@@ -1188,9 +1188,9 @@ func TestFirstAdmissionMixedHistorySweep(t *testing.T) {
 				}
 				build := sampleStart()
 				build.Worktree = mkWorktree(t)
-				build.RunID = "epoch-fresh"
+				build.RunID = "run-fresh"
 				if doc, err := d.Start(build); err != nil || doc.Outcome != WAITING {
-					t.Fatalf("epoch-carrying start: doc=%+v err=%v", doc, err)
+					t.Fatalf("run-carrying start: doc=%+v err=%v", doc, err)
 				}
 				if _, err := s.ReserveRawWorktreeExecution("repo-x", mkWorktree(t), proc); err != nil {
 					t.Fatalf("raw reservation: %v", err)
@@ -1246,7 +1246,7 @@ func TestFirstAdmissionMixedHistorySweep(t *testing.T) {
 
 // TestTargetedCorruptionRefusesLocallyCompanionProceeds (spec AC3): corrupting the
 // EXACT drive a current reservation names refuses that worktree — with the
-// incumbent snapshot and the bounded reconciliation locator — and keeps its epoch
+// incumbent snapshot and the bounded reconciliation locator — and keeps its run
 // census unaccounted, while an unrelated corrupt record and a companion worktree in
 // the same store are unaffected. Covered in the two windows where the current
 // reference is the only link: reserved-before-launch (between Admit and

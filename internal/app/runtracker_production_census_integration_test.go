@@ -26,12 +26,12 @@ import (
 //     appLaunchObserver (Driver.ReconcileRunLaunches / ObserveRunLaunches over the
 //     real process service), appRunTrackerObserver, and appRunTrackerStopper;
 //   - unrelated corrupt, unsupported-schema, obsolete (lost-linkage, rotated-token),
-//     other-worktree, and HALTED drive records plus a corrupt unrelated epoch record are
+//     other-worktree, and HALTED drive records plus a corrupt unrelated run record are
 //     seeded BEFORE cancel/closeout, so the census walks them;
 //   - finalize is entered through NewFinalizeGateDriveService(...).Start — the
 //     Driver.Start/Admit path finalize's processFinalizeGate uses — and the resumed
 //     replacement's gate through NewBuildGateDriveService(...).Start carrying its run
-//     epoch, each launching one real /bin/echo run to PASSED.
+//     run, each launching one real /bin/echo run to PASSED.
 
 // seedCensusDrive writes one drive record (the executable schema 4 unless fields
 // overrides schema_version) straight into the repository's drive registry. It stands
@@ -61,12 +61,12 @@ func writeCensusDriveBytes(t *testing.T, common, id string, buf []byte) {
 }
 
 // seedUnrelatedDamagedHistory seeds history with no ownership connection to the run
-// epoch under test, including records bound to the SAME worktree path by earlier
+// run under test, including records bound to the SAME worktree path by earlier
 // generations: a corrupt record, an unsupported-schema record, a HALTED drive on this
 // worktree whose run dir is gone, a nonterminal scopeless drive whose admission token
 // the slot no longer holds (rotated), a nonterminal scoped drive whose scope record is
 // missing (lost linkage), a nonterminal drive bound to a removed other worktree, and a
-// corrupt unrelated epoch record. prefix keeps the ids distinct across calls.
+// corrupt unrelated run record. prefix keeps the ids distinct across calls.
 func seedUnrelatedDamagedHistory(t *testing.T, fx cancelFixture, prefix string) {
 	t.Helper()
 	id := func(n string) string { return prefix + "eeeeeeeeeeeeeeeeeeeeeeeeeeee" + n }
@@ -89,7 +89,7 @@ func seedUnrelatedDamagedHistory(t *testing.T, fx cancelFixture, prefix string) 
 		"worktree_path": filepath.Join(gone, "other-worktree"), "raw_run_dir": filepath.Join(gone, "other-run"),
 		"last_outcome": string(gatedrive.WAITING),
 	})
-	badRun := filepath.Join(fx.common, "docket", runTrackerDirName, prefix+"-damaged-unrelated-epoch")
+	badRun := filepath.Join(fx.common, "docket", runTrackerDirName, prefix+"-damaged-unrelated-run")
 	if err := os.MkdirAll(badRun, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func stopRunsUnder(root string) {
 
 // startFinalizeGate enters finalize's local gate exactly as processFinalizeGate's
 // RunLocalGate does for a fresh drive — the finalize-owned service's Start with the
-// workspace as repo, worktree, and cwd, no epoch — and drives it to its terminal.
+// workspace as repo, worktree, and cwd, no run — and drives it to its terminal.
 func startFinalizeGate(t *testing.T, fx cancelFixture) {
 	t.Helper()
 	svc, res, reason := NewFinalizeGateDriveService(fx.common, guardianExecutable(t), finalizeEffFor("/bin/echo finalize"))
@@ -162,7 +162,7 @@ func startFinalizeGate(t *testing.T, fx cancelFixture) {
 	}
 }
 
-// prepareQuiescentRun is the shared arrangement: a real authorized epoch owning a
+// prepareQuiescentRun is the shared arrangement: a real authorized run owning a
 // worktree whose slot is RELEASED (its drives are done), a sorted-first cancelled
 // never-superseded predecessor bound to the same path, and unrelated damaged history
 // seeded before any closeout or cancellation runs.
@@ -216,12 +216,12 @@ func TestIntegrationRunCompletionProductionCensusCompleteThenFinalize(t *testing
 		t.Fatalf("production closeout over unrelated history ok=false reason=%q findings=%v", reason, findings)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunCompleted {
-		t.Fatalf("epoch state = %q, want completed", st)
+		t.Fatalf("run state = %q, want completed", st)
 	}
 	startFinalizeGate(t, fx)
 }
 
-// TestIntegrationRunCompletionProductionCensusCancelThenFinalize (AC5/AC6): an otherwise quiescent epoch
+// TestIntegrationRunCompletionProductionCensusCancelThenFinalize (AC5/AC6): an otherwise quiescent run
 // cancels through the production reconciliation census with unrelated damaged
 // history present — repeated cancellation converges — and finalize then enters
 // through its real gate-drive Start.
@@ -240,7 +240,7 @@ func TestIntegrationRunCompletionProductionCensusCancelThenFinalize(t *testing.T
 // TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGate (AC5): after a production
 // cancellation, NEW unrelated history lands, then resume re-proves quiescence through
 // the production census, reserves exactly one replacement, and the replacement's
-// build gate — carrying its run epoch — starts through the real service and passes.
+// build gate — carrying its run — starts through the real service and passes.
 func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGate(t *testing.T) {
 	fx := prepareQuiescentRun(t)
 	if res := runCancel(productionCancelSeams(fx.repo), fx.repo, fx.key, fx.runID, "human stop"); res.Disposition != CancelDispositionCancelled {
@@ -267,21 +267,21 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 		}
 		return gatedrive.ScopeGrant{ScopeID: g.ScopeID, ChildCapability: g.ChildCapability, ParentCapability: g.ParentCapability}, nil
 	}}
-	armed := armResumeReplacement(fx.repo, sdeps, fx.key, resumeReplacementParams{
+	started := armResumeReplacement(fx.repo, sdeps, fx.key, resumeReplacementParams{
 		attributedID: 42, scopeChangeID: "42", branch: "fix/x", worktree: fx.worktree, attemptLimit: 2,
 	})
-	if !armed.Started || armed.RunID == "" {
-		t.Fatalf("resume did not arm a replacement: %+v", armed)
+	if !started.Started || started.RunID == "" {
+		t.Fatalf("resume did not start a replacement: %+v", started)
 	}
 	if st := loadRunState(t, fx.repo, fx.key); st != RunSuperseded {
-		t.Fatalf("old epoch state = %q, want superseded", st)
+		t.Fatalf("old run state = %q, want superseded", st)
 	}
 
 	runRoot := filepath.Join(testsupport.TempDir(t), "build-runs")
 	t.Cleanup(func() { stopRunsUnder(runRoot) })
 	scope := svc.PrepareScope(gatedrive.ScopeRequest{
 		RepoIdentity: fx.worktree, Worktree: fx.worktree, ChangeID: "42", TaskID: "task-1",
-		Phase: "build", Branch: "fix/x", RunID: armed.RunID,
+		Phase: "build", Branch: "fix/x", RunID: started.RunID,
 	})
 	if scope.Result != ResultApplied {
 		t.Fatalf("replacement PrepareScope: %s (%s)", scope.Result, scope.Reason)
@@ -290,7 +290,7 @@ func TestIntegrationRunCompletionProductionCensusCancelResumeStartsReplacementGa
 		RepoDir: fx.worktree, Worktree: fx.worktree, ChangeID: "42", TaskID: "task-1",
 		Phase: "build", Branch: "fix/x", Ref: "refs/heads/fix/x", Cwd: fx.worktree,
 		RunRoot: runRoot, ScopeID: scope.ScopeID, ChildCapability: scope.ChildCapability,
-		RunID: armed.RunID, IdempotentSuiteGate: true,
+		RunID: started.RunID, IdempotentSuiteGate: true,
 	})
 	if got.Result != ResultApplied || got.Drive == nil {
 		t.Fatalf("replacement gate Start refused: result=%s reason=%q stage=%q locator=%q message=%q",

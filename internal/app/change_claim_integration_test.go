@@ -17,11 +17,11 @@ import (
 )
 
 // TestIntegrationRecordOpsClaimRunContextInvalidRefusesBeforeTransaction: a supplied context that
-// matches no armed gate record is a typed refusal that writes nothing and never
+// matches no started run-tracker record is a typed refusal that writes nothing and never
 // degrades to an ungated claim (spec: "Never treat a supplied but invalid
 // context as an ungated claim").
 func TestIntegrationRecordOpsClaimRunContextInvalidRefusesBeforeTransaction(t *testing.T) {
-	repoDir := newRunTrackerRepo(t) // no gate record armed
+	repoDir := newRunTrackerRepo(t) // no gate record started
 	engine := &claimGateEngine{}
 	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
 
@@ -35,7 +35,7 @@ func TestIntegrationRecordOpsClaimRunContextInvalidRefusesBeforeTransaction(t *t
 		t.Errorf("disposition = %q, want %q", res.Disposition, ClaimDispositionRunContextInvalid)
 	}
 	if len(engine.calls) != 0 {
-		t.Errorf("engine called %d times on an invalid gate context, want 0", len(engine.calls))
+		t.Errorf("engine called %d times on an invalid run context, want 0", len(engine.calls))
 	}
 	for _, f := range res.Findings {
 		if strings.Contains(f.Message, "tok") {
@@ -205,7 +205,7 @@ func TestIntegrationRecordOpsClaimTerminalGateRefused(t *testing.T) {
 		t.Errorf("disposition = %q, want %q", res.Disposition, ClaimDispositionRunContextInvalid)
 	}
 	if len(engine.calls) != 0 {
-		t.Errorf("engine called on a terminal gate context, want 0")
+		t.Errorf("engine called on a terminal run context, want 0")
 	}
 }
 
@@ -375,13 +375,13 @@ func TestIntegrationRecordOpsChangeRefreshClaimUnrelatedInvalidRecordRefusals(t 
 	}
 }
 
-// TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve: a `run start --resume` arm pre-binds
+// TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve: a `run start --resume` start pre-binds
 // the resumed change as AttributedID and never gets a claim binding (change 0463).
 // A claim under that context, for the resumed change itself or for any other change,
 // is refused run-context-conflict BEFORE ReserveRunTrackerClaim writes a binding file: a
 // stray unconfirmed reservation would make run.cancel refuse claim-unconfirmed, and a
 // confirmed claim of a different change would make it refuse claim-mismatch, leaving
-// the resume epoch uncancellable either way.
+// the resume run uncancellable either way.
 func TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve(t *testing.T) {
 	for _, id := range []int{3, 4} {
 		t.Run(fmt.Sprintf("claim-%d", id), func(t *testing.T) {
@@ -417,7 +417,7 @@ func TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve(t *testing.T
 }
 
 // TestIntegrationRecordOpsClaimRunContextRetryAfterConfirmAdmitted: the resume-context refusal keys on
-// the resume-verified shape only. A fresh arm's record gains AttributedID at confirm
+// the resume-verified shape only. A fresh start's record gains AttributedID at confirm
 // time together with BoundRequestID, so an idempotent retry of the same confirmed
 // claim must still reach the engine rather than being refused as a resume context.
 func TestIntegrationRecordOpsClaimRunContextRetryAfterConfirmAdmitted(t *testing.T) {

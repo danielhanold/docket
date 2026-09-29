@@ -332,8 +332,8 @@ func TestReconcileSafeRefusalRows(t *testing.T) {
 	type seeded struct {
 		token string
 		state admissionState
-		// reconcileRun, when set, reconciles directly with this requesting epoch
-		// instead of going through Admit (the epoch fence is only reachable when the
+		// reconcileRun, when set, reconciles directly with this requesting run
+		// instead of going through Admit (the run fence is only reachable when the
 		// slot is foreign to the caller, which the reserve fences before any
 		// incumbent refusal exists).
 		direct       bool
@@ -414,16 +414,16 @@ func TestReconcileSafeRefusalRows(t *testing.T) {
 			},
 		},
 		{
-			// A PASSED drive a DIFFERENT run epoch owns: the requester never touches
+			// A PASSED drive a DIFFERENT run owns: the requester never touches
 			// it, however provably finished it is.
-			name:    "epoch fenced",
+			name:    "run fenced",
 			seam:    &incumbentSeam{},
 			finding: "incumbent-run-fenced",
 			seed: func(t *testing.T, d *Driver, store *Store, seam *incumbentSeam, req StartRequest) seeded {
 				req.RunID = "E-owner"
 				token := finishedDriveIncumbent(t, d, store, seam, req)
 				if got := mustSlot(t, store, req.Worktree).RunID; got != "E-owner" {
-					t.Fatalf("seed slot epoch = %q, want E-owner", got)
+					t.Fatalf("seed slot run = %q, want E-owner", got)
 				}
 				return seeded{token: token, state: admissionExecuting, direct: true, reconcileRun: "E-other"}
 			},

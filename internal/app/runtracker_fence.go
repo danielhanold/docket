@@ -1,7 +1,7 @@
-// Run-epoch mutation-boundary fencing (change 0375 Task 11). Cancellation fences
-// the coordinator, not only its test supervisor: after a run epoch is fenced
+// Run mutation-boundary fencing (change 0375 Task 11). Cancellation fences
+// the coordinator, not only its test supervisor: after a run is fenced
 // (runtracker_cancel.go flips active→cancelling), no NEW workflow mutation from that
-// epoch may be admitted, and an operation already in flight is journaled so a
+// run may be admitted, and an operation already in flight is journaled so a
 // cancellation stays PENDING until it is observed/reconciled (it is never reported
 // `cancelled` while an owned writer or unresolved external effect remains). This
 // file is the admission gate the shared mutation boundaries pass through.
@@ -28,21 +28,21 @@
 // (internal/repoguard/gatelaunch_admission_test.go); this file provides the single
 // admission function all three reach and the anchor the guard keys on.
 //
-// LINKAGE. The owning epoch of a mutation is the run epoch bound to the change's
+// LINKAGE. The owning run of a mutation is the run bound to the change's
 // canonical feature worktree — the SAME link run.cancel (runtracker_cancel.go) drives
 // the slot teardown through: RunRecord.Worktree, the canonical feature worktree an
-// epoch records once its run claims the workspace (spec "Bind a run epoch to the
+// run records once its run claims the workspace (spec "Bind a run to the
 // existing verified claim instance and canonical workspace"). A mutation boundary
 // runs with repoDir = that feature worktree, so it canonicalizes repoDir and finds
-// the epoch whose Worktree matches. A worktree no epoch owns (no matching record, or
-// only standalone/empty-worktree epochs) admits the mutation UNFENCED — standalone
+// the run whose Worktree matches. A worktree no run owns (no matching record, or
+// only standalone/empty-worktree runs) admits the mutation UNFENCED — standalone
 // use is unchanged. Two spellings of one worktree (a `/tmp` symlink to
 // `/private/tmp`, say) canonicalize to one path, so a different spelling cannot
 // dodge the fence.
 //
-// AUTHORITY vs. LOCATOR. The epoch id is a public locator, never a credential
-// (ADR-0111): dispatch-context authority still governs who may run the mutation.
-// The fence only revalidates that the located run epoch has not been cancelled; it
+// AUTHORITY vs. LOCATOR. The run id is a public locator, never a credential
+// (ADR-0111): run-context authority still governs who may run the mutation.
+// The fence only revalidates that the located run has not been cancelled; it
 // never grants or withholds authority.
 package app
 
@@ -59,7 +59,7 @@ import (
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
-// The AdmittedMutation.Status values Task 11 writes into the epoch journal (Task 10
+// The AdmittedMutation.Status values Task 11 writes into the run journal (Task 10
 // reads them; mutationStatusCompleted is the sole "accounted" status, defined in
 // runtracker_cancel.go). `admitted` is journaled before a mutation is performed;
 // `completed` marks a mutation that finished with an observed outcome; `uncertain`
@@ -71,11 +71,11 @@ const (
 	mutationStatusUncertain = "uncertain"
 )
 
-// MutationFenceError is the typed refusal a fenced run epoch raises at a mutation
+// MutationFenceError is the typed refusal a fenced run raises at a mutation
 // boundary. Reason is one of the stable tokens the fence vocabulary defines —
-// "run-cancelled" (the owning epoch is cancelling/cancelled), "stale-run-id"
-// (the owning epoch was superseded by a resume), or "run-completed" (the owning
-// epoch is completing/completed a successful closeout, change 0441). It carries no
+// "run-cancelled" (the owning run is cancelling/cancelled), "stale-run-id"
+// (the owning run was superseded by a resume), or "run-completed" (the owning
+// run is completing/completed a successful closeout, change 0441). It carries no
 // credential, argv, environment, or child output — only the bounded reason token.
 type MutationFenceError struct {
 	Reason string
@@ -86,19 +86,19 @@ func (e *MutationFenceError) Error() string {
 }
 
 // The two fence refusals, as reusable sentinels (compared by identity through the
-// errors chain, or by Reason). run-cancelled fences a cancelling/cancelled epoch;
+// errors chain, or by Reason). run-cancelled fences a cancelling/cancelled run;
 // stale-run-id fences a superseded one.
 var (
-	// ErrRunCancelled: the owning run epoch is cancelling or cancelled — no new
-	// mutation from that epoch is admitted (spec "After cancellation is recorded, no
-	// new mutation from the old epoch is admitted").
+	// ErrRunCancelled: the owning run is cancelling or cancelled — no new
+	// mutation from that run is admitted (spec "After cancellation is recorded, no
+	// new mutation from the old run is admitted").
 	ErrRunCancelled = &MutationFenceError{Reason: "run-cancelled"}
-	// ErrStaleRunID: the owning run epoch was superseded by a confirmed resume —
+	// ErrStaleRunID: the owning run was superseded by a confirmed resume —
 	// this caller carries a stale run identity and is refused.
 	ErrStaleRunID = &MutationFenceError{Reason: "stale-run-id"}
-	// ErrRunCompleted: the owning run epoch finished (or is finishing) a SUCCESSFUL
+	// ErrRunCompleted: the owning run finished (or is finishing) a SUCCESSFUL
 	// closeout (change 0441) — completing/completed. No new mutation, launch, or
-	// registration from that epoch admits, and the refusal is distinguishable from
+	// registration from that run admits, and the refusal is distinguishable from
 	// cancellation so a caller can tell a successful retirement from a stop.
 	ErrRunCompleted = &MutationFenceError{Reason: "run-completed"}
 )
@@ -113,7 +113,7 @@ func AsMutationFenceError(err error) (*MutationFenceError, bool) {
 	return nil, false
 }
 
-// fenceRefusalReasonMessage resolves a run-epoch mutation fence error into its
+// fenceRefusalReasonMessage resolves a run mutation fence error into its
 // stable machine reason token AND an accurate human message clause for the owned
 // subject ("change" / "workspace"). Only the reason token is machine-readable —
 // gate logic keys on it and it rides through unchanged. The message is explanatory
@@ -146,7 +146,7 @@ func fenceRefusalReasonMessage(ferr error, subject string) (reason, message stri
 }
 
 // mutationJournalDone is the completion callback admitWorkflowMutation returns for
-// an admitted (active-epoch) mutation. The caller invokes it exactly once after the
+// an admitted (active-run) mutation. The caller invokes it exactly once after the
 // mutation resolves — with mutationStatusCompleted on an observed outcome, or
 // mutationStatusUncertain when the remote outcome could not be observed — and with
 // verified true ONLY when the boundary observed the operation's postcondition
@@ -156,45 +156,45 @@ func fenceRefusalReasonMessage(ferr error, subject string) (reason, message stri
 type mutationJournalDone func(status string, verified bool)
 
 // noopJournalDone is the completion callback for an UNFENCED mutation (no owning
-// epoch): there is nothing to reconcile, so completion is a no-op.
+// run): there is nothing to reconcile, so completion is a no-op.
 func noopJournalDone(string, bool) {}
 
-// admitWorkflowMutation is the run-epoch admission gate every covered mutation
+// admitWorkflowMutation is the run admission gate every covered mutation
 // boundary passes through. repoDir is the change's canonical feature worktree; op
 // is the operation key journaled. pub is the optional publication identity
 // journaled with the admission (change 0444); nil for non-publication boundaries.
 // It returns a completion callback and an error:
 //
-//   - No owning epoch (no registered worktree, no slot, a standalone-gate slot with
-//     no epoch, or a pruned epoch no slot names) → (noopJournalDone, nil): admit
+//   - No owning run (no registered worktree, no slot, a standalone-gate slot with
+//     no run, or a pruned run no slot names) → (noopJournalDone, nil): admit
 //     UNFENCED. This is the standalone contract — a mutation outside any workflow run
 //     is unchanged.
-//   - Owning epoch ACTIVE → journal an `admitted` entry under the epoch's
+//   - Owning run ACTIVE → journal an `admitted` entry under the run's
 //     compare-and-swap and return (done, nil). `done(completed|uncertain, verified)`
 //     updates exactly that entry after the mutation resolves.
-//   - Owning epoch CANCELLING/CANCELLED → (nil, ErrRunCancelled).
-//   - Owning epoch SUPERSEDED → (nil, ErrStaleRunID).
-//   - Owning epoch COMPLETING/COMPLETED → (nil, ErrRunCompleted). A completed epoch
-//     is normally already excluded from findRunByWorktree, so this arm chiefly
-//     fences a completing (mid-closeout) epoch; the completed arm is defense in depth.
+//   - Owning run CANCELLING/CANCELLED → (nil, ErrRunCancelled).
+//   - Owning run SUPERSEDED → (nil, ErrStaleRunID).
+//   - Owning run COMPLETING/COMPLETED → (nil, ErrRunCompleted). A completed run
+//     is normally already excluded from findRunByWorktree, so this start chiefly
+//     fences a completing (mid-closeout) run; the completed start is defense in depth.
 //   - Two or more active owners bound to the worktree → (nil, ErrRunOwnerAmbiguous):
 //     a contradiction refuses locally, never resolved by order (change 0446 §5).
 //   - No ambient owner, but the worktree's execution slot NAMES a RunID that no
-//     readable epoch record carries (corrupt, IO-unreadable, or absent) → fail closed
-//     with ErrRunOwnerUnresolved naming the epoch id and worktree (change 0446 §1).
+//     readable run record carries (corrupt, IO-unreadable, or absent) → fail closed
+//     with ErrRunOwnerUnresolved naming the run id and worktree (change 0446 §1).
 //     A record the store cannot read is never treated as a free run when a current
-//     reference names it; an unreadable epoch no slot names stays diagnostic. A slot
+//     reference names it; an unreadable run no slot names stays diagnostic. A slot
 //     the store cannot read at all (anything but absent) fails closed the same way.
 //   - Any registry enumeration or slot-store fault while resolving that owner → fail
 //     closed: (nil, err).
 //
 // The state gate and the `admitted` append happen in ONE runRecordCAS, so a cancellation
-// that fences the epoch between the slot read and the journal write is observed
+// that fences the run between the slot read and the journal write is observed
 // atomically — there is no admit-then-fenced window.
 func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutationJournalDone, error) {
 	// Canonicalize the change's feature worktree so a different spelling of one
 	// worktree cannot dodge the fence. A path that cannot be canonicalized (it does
-	// not exist) owns no epoch — admit unfenced. This fail-open on the CALLER's own
+	// not exist) owns no run — admit unfenced. This fail-open on the CALLER's own
 	// uncanonicalizable repoDir is an accepted residual risk the change 0446 spec
 	// records verbatim ("The path fence also fails open when the caller's own
 	// `repoDir` cannot be canonicalized; keep that behavior unless implementation
@@ -214,19 +214,19 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 		return nil, ferr
 	}
 	if !found {
-		// No readable run epoch owns this worktree. Before admitting unfenced, honour
-		// the worktree slot's positive reference (spec §1): a slot naming an epoch that
+		// No readable run owns this worktree. Before admitting unfenced, honour
+		// the worktree slot's positive reference (spec §1): a slot naming a run that
 		// no readable record carries means the current owner is unresolved.
 		if uerr := slotNamedRunUnresolved(repoDir, canon); uerr != nil {
 			return nil, uerr
 		}
-		// Standalone use, or the run's epoch was pruned with its gate record and no
+		// Standalone use, or the run's run was pruned with its gate record and no
 		// slot names it: the mutation is unfenced.
 		return noopJournalDone, nil
 	}
 
 	// Atomic state gate + `admitted` journal. runRecordCAS serializes on the per-key
-	// epoch lock, so a concurrent run.cancel either loses the race (this admit wins
+	// run lock, so a concurrent run.cancel either loses the race (this admit wins
 	// and is later reconciled) or wins (this returns the fence refusal) — never both.
 	var idx int
 	cerr := runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
@@ -247,7 +247,7 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 			// A successful closeout (fenced or finished) admits no new mutation, and
 			// its refusal is distinguishable from cancellation (change 0441). Defense
 			// in depth for completed: findRunByWorktree already drops a completed
-			// epoch from ambient lookup, so this arm is normally reached only for
+			// run from ambient lookup, so this start is normally reached only for
 			// completing.
 			return ErrRunCompleted
 		default:
@@ -262,7 +262,7 @@ func admitWorkflowMutation(repoDir, op string, pub *MutationPublication) (mutati
 	done := func(status string, verified bool) {
 		// Best-effort reconciliation: update exactly the entry this admission appended.
 		// No state gate — marking an in-flight mutation completed/uncertain must work
-		// even after the epoch was fenced, so a cancellation can move from pending to
+		// even after the run was fenced, so a cancellation can move from pending to
 		// cancelled once every admitted mutation is reconciled. Verified is persisted
 		// only beside a completed status: an uncertain entry never carries it.
 		_ = runRecordCAS(repoDir, runKey, func(rec *RunRecord) error {
@@ -302,7 +302,7 @@ func mutationJournalOutcome(r Result) (status string, verified bool) {
 }
 
 // canonicalWorktree resolves path to its absolute, every-symlink-hop-resolved form —
-// the same canonical shape an epoch's Worktree is bound in — so two spellings of one
+// the same canonical shape a run's Worktree is bound in — so two spellings of one
 // worktree compare equal. It reaches no Git: a mutation boundary is invoked with the
 // worktree root as repoDir, which is all the fence needs to match.
 func canonicalWorktree(path string) (string, error) {
@@ -314,9 +314,9 @@ func canonicalWorktree(path string) (string, error) {
 }
 
 // findRunByWorktree resolves the CURRENT ambient owner of the canonical worktree
-// canon by scanning the repository's rungate root (each gate-key directory may hold
-// one run.json beside its gate record) and returns the owning epoch's gate key. It
-// collects EVERY matching epoch first and then selects deterministically (change
+// canon by scanning the repository's rungate root (each run-key directory may hold
+// one run.json beside its gate record) and returns the owning run's run key. It
+// collects EVERY matching run first and then selects deterministically (change
 // 0446 spec §5, following FindRunByChange's established shape) — never the first
 // directory-order match:
 //
@@ -329,7 +329,7 @@ func canonicalWorktree(path string) (string, error) {
 //     when its Worktree was never cleared — superseded) match is still returned, so
 //     the mutation fence keeps refusing until the recovery/replacement workflow
 //     authorizes current work. Every fenced match refuses identically, so the
-//     lexically first gate key is returned for stability.
+//     lexically first run key is returned for stability.
 //
 // A match whose state is none of the known ones is counted with the active matches:
 // it cannot be proven to have stopped owning the path, so it can neither be outranked
@@ -338,12 +338,12 @@ func canonicalWorktree(path string) (string, error) {
 //
 // A missing rungate root or no match is (found=false, err=nil). A directory-
 // enumeration IO error is returned so the caller fails closed. A gate directory with
-// no run.json, an epoch with no bound Worktree (a standalone or not-yet-claimed
-// run, and every superseded epoch — SupersedeCancelledRun clears it), a fully
-// COMPLETED epoch (a successful closeout no longer owns its worktree — change 0441; a
-// completing epoch still does), or an UNREADABLE/corrupt record is skipped. Skipping
+// no run.json, a run with no bound Worktree (a standalone or not-yet-claimed
+// run, and every superseded run — SupersedeCancelledRun clears it), a fully
+// COMPLETED run (a successful closeout no longer owns its worktree — change 0441; a
+// completing run still does), or an UNREADABLE/corrupt record is skipped. Skipping
 // an unreadable record is discovery, not required evidence (spec §1): the required
-// half — a slot that NAMES an epoch no readable record carries — is enforced by
+// half — a slot that NAMES a run no readable record carries — is enforced by
 // admitWorkflowMutation through that positive slot reference, never by failing
 // closed on every unreadable sibling.
 func findRunByWorktree(repoDir, canon string) (runKey string, found bool, err error) {
@@ -354,7 +354,7 @@ func findRunByWorktree(repoDir, canon string) (runKey string, found bool, err er
 	entries, derr := os.ReadDir(root)
 	if derr != nil {
 		if errors.Is(derr, fs.ErrNotExist) {
-			return "", false, nil // no rungate root: no epochs
+			return "", false, nil // no rungate root: no runs
 		}
 		return "", false, derr
 	}
@@ -372,7 +372,7 @@ func findRunByWorktree(repoDir, canon string) (runKey string, found bool, err er
 			continue // a standalone or not-yet-claimed run owns no worktree
 		}
 		if r.State == RunCompleted {
-			continue // a fully completed epoch no longer owns any worktree (change 0441)
+			continue // a fully completed run no longer owns any worktree (change 0441)
 		}
 		if !runOwnsWorktree(r.Worktree, canon) {
 			continue
@@ -390,7 +390,7 @@ func findRunByWorktree(repoDir, canon string) (runKey string, found bool, err er
 	case len(owners) > 1:
 		sort.Strings(owners)
 		return "", false, runErr(ErrRunOwnerAmbiguous, "find-by-worktree",
-			fmt.Errorf("%d active run epochs (gate keys %s) are bound to worktree %s",
+			fmt.Errorf("%d active runs (run keys %s) are bound to worktree %s",
 				len(owners), strings.Join(owners, ", "), canon))
 	case len(fenced) > 0:
 		sort.Strings(fenced)
@@ -401,7 +401,7 @@ func findRunByWorktree(repoDir, canon string) (runKey string, found bool, err er
 
 // slotNamedRunUnresolved enforces the required-evidence half of ambient owner
 // lookup (change 0446 spec §1): "when the requested worktree's slot names a
-// `RunID`, ambient owner lookup for that worktree must resolve that epoch to a
+// `RunID`, ambient owner lookup for that worktree must resolve that run to a
 // readable record". It is consulted only after findRunByWorktree found no readable
 // owner. It opens the gatedrive admission store at the repository's Git common dir
 // (the same store productionCancelSeams opens) and reads the worktree's slot:
@@ -410,17 +410,17 @@ func findRunByWorktree(repoDir, canon string) (runKey string, found bool, err er
 //     unfenced admit is unchanged);
 //   - a slot the store cannot READ (corrupt, IO, invalid — any error but
 //     ErrNotFound) → ErrRunOwnerUnresolved naming the worktree: an unreadable
-//     slot is not evidence that it names no epoch, so the fence fails closed;
-//   - a slot naming an epoch some readable record carries → nil (that epoch simply
+//     slot is not evidence that it names no run, so the fence fails closed;
+//   - a slot naming a run some readable record carries → nil (that run simply
 //     does not own this path now: completed, superseded, not yet bound, or bound
 //     elsewhere);
-//   - a slot naming an epoch NO readable record carries → ErrRunOwnerUnresolved
-//     naming the epoch id and worktree. The positive reference comes from the slot,
+//   - a slot naming a run NO readable record carries → ErrRunOwnerUnresolved
+//     naming the run id and worktree. The positive reference comes from the slot,
 //     so the refusal never depends on reading the unreadable record itself;
 //   - a common-dir, registry-enumeration, or ambiguous-id fault → that error (fail
 //     closed).
 //
-// The epoch id is a public locator, never a credential (ADR-0111), so the locator
+// The run id is a public locator, never a credential (ADR-0111), so the locator
 // carries it verbatim.
 func slotNamedRunUnresolved(repoDir, canon string) error {
 	common, err := runTrackerGitCommonDir(repoDir)
@@ -431,16 +431,16 @@ func slotNamedRunUnresolved(repoDir, canon string) error {
 	slot, _, lerr := gatedrive.OpenStore(common).LoadWorktreeExecution(canon)
 	if lerr != nil {
 		if se, ok := gatedrive.AsStoreError(lerr); ok && se.Kind == gatedrive.ErrNotFound {
-			return nil // no slot: nothing names an epoch (the standalone contract)
+			return nil // no slot: nothing names a run (the standalone contract)
 		}
 		// A slot the store cannot read (corrupt, IO, invalid) is not evidence that it
-		// names no epoch: fail closed. Only the bounded store kind is rendered.
+		// names no run: fail closed. Only the bounded store kind is rendered.
 		kind := "unreadable"
 		if se, ok := gatedrive.AsStoreError(lerr); ok {
 			kind = string(se.Kind)
 		}
 		return runErr(ErrRunOwnerUnresolved, "find-by-worktree",
-			fmt.Errorf("the execution slot of worktree %s could not be read (%s), so whether a run epoch owns it is unknown; %s",
+			fmt.Errorf("the execution slot of worktree %s could not be read (%s), so whether a run owns it is unknown; %s",
 				canon, kind, unresolvedOwnerRemedy(runTrackerRoot)))
 	}
 	if slot.RunID == "" {
@@ -454,25 +454,25 @@ func slotNamedRunUnresolved(repoDir, canon string) error {
 		return nil
 	}
 	return runErr(ErrRunOwnerUnresolved, "find-by-worktree",
-		fmt.Errorf("the execution slot of worktree %s names run epoch %s, but no readable epoch record carries it; %s",
+		fmt.Errorf("the execution slot of worktree %s names run %s, but no readable run record carries it; %s",
 			canon, slot.RunID, unresolvedOwnerRemedy(runTrackerRoot)))
 }
 
 // unresolvedOwnerRemedy is the next step an ErrRunOwnerUnresolved refusal prints.
-// It must be valid in the state that produced it: no readable epoch record resolves
-// the owner, so run.cancel (which targets a run by its key and epoch) cannot act on
-// it. The concrete step is inspecting the per-gate-key epoch records under the
+// It must be valid in the state that produced it: no readable run record resolves
+// the owner, so run.cancel (which targets a run by its key and run id) cannot act on
+// it. The concrete step is inspecting the per-run-key run records under the
 // rungate store and a human repair of the damaged or missing record (or of the
 // slot's stale reference) before this worktree is mutated.
 func unresolvedOwnerRemedy(runTrackerRoot string) string {
-	return "run.cancel cannot target an epoch no readable record carries — inspect the per-gate-key epoch records (" +
-		filepath.Join(runTrackerRoot, "<gate-key>", runRecordFileName) +
+	return "run.cancel cannot target a run no readable record carries — inspect the per-run-key run records (" +
+		filepath.Join(runTrackerRoot, "<run-key>", runRecordFileName) +
 		"); a human must repair the damaged or missing record, or the worktree slot's stale reference, before mutating this worktree"
 }
 
-// runOwnsWorktree reports whether an epoch's stored Worktree names the same
+// runOwnsWorktree reports whether a run's stored Worktree names the same
 // canonical worktree as canon. It canonicalizes the stored value defensively (an
-// epoch bound before this canonicalization, or a fixture that stored a raw spelling)
+// run bound before this canonicalization, or a fixture that stored a raw spelling)
 // and falls back to a direct compare when the stored path no longer resolves (its
 // worktree was cleaned up).
 func runOwnsWorktree(stored, canon string) bool {
@@ -493,7 +493,7 @@ func runOwnsWorktree(stored, canon string) bool {
 // applied-or-failed within the same Execute — so it leaves NO lingering uncertain
 // remote effect for a cancellation to separately reconcile. The engine journal
 // entry is therefore admitted-and-completed at the admission boundary: the fence's
-// load-bearing job for the engine is REFUSING a fenced epoch's new mutation, while
+// load-bearing job for the engine is REFUSING a fenced run's new mutation, while
 // the two async external boundaries (PR creation, workspace publish) carry the
 // admitted→completed/uncertain in-flight journaling that genuinely matters.
 func MutationAdmissionHook(repoDir string) func(transaction.OperationKey) error {

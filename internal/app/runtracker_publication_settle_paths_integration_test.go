@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-// seedSettleablePair journals a settleable pair on the fixture's epoch: an uncertain
+// seedSettleablePair journals a settleable pair on the fixture's run: an uncertain
 // workspace publish followed by a verified completed identical retry.
 func seedSettleablePair(t *testing.T, repo, key string) {
 	t.Helper()
@@ -31,7 +31,7 @@ func seedSettleablePair(t *testing.T, repo, key string) {
 	}
 }
 
-// runRecordBytes reads the durable epoch record file verbatim.
+// runRecordBytes reads the durable run record file verbatim.
 func runRecordBytes(t *testing.T, repo, key string) []byte {
 	t.Helper()
 	common, err := runTrackerGitCommonDir(repo)
@@ -40,7 +40,7 @@ func runRecordBytes(t *testing.T, repo, key string) []byte {
 	}
 	b, err := os.ReadFile(filepath.Join(common, "docket", runTrackerDirName, key, runRecordFileName))
 	if err != nil {
-		t.Fatalf("read epoch record: %v", err)
+		t.Fatalf("read run record: %v", err)
 	}
 	return b
 }
@@ -48,7 +48,7 @@ func runRecordBytes(t *testing.T, repo, key string) []byte {
 // TestIntegrationRunCompletionVerdictRunCompleteSettlesUncertainPublication (change 0444 acceptance 3): the
 // REAL keyed verdict over a settleable pair settles the original through the
 // attributed closeout and ends in run-done run-complete, with the original durably
-// completed and the epoch completed. Without settlement the uncertain original would
+// completed and the run completed. Without settlement the uncertain original would
 // block the closeout (completion-unaccounted), so run-done proves the settle ran on
 // this path.
 func TestIntegrationRunCompletionVerdictRunCompleteSettlesUncertainPublication(t *testing.T) {
@@ -68,7 +68,7 @@ func TestIntegrationRunCompletionVerdictRunCompleteSettlesUncertainPublication(t
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.State != RunCompleted {
-		t.Fatalf("epoch state = %q, want completed", ep.State)
+		t.Fatalf("run state = %q, want completed", ep.State)
 	}
 	if ep.AdmittedMutations[0].Status != mutationStatusCompleted {
 		t.Fatalf("original status = %q, want durably completed by the keyed verdict", ep.AdmittedMutations[0].Status)
@@ -77,7 +77,7 @@ func TestIntegrationRunCompletionVerdictRunCompleteSettlesUncertainPublication(t
 
 // TestIntegrationRunCompletionReadOnlyVerdictPathsNeverSettleSettleablePair (change 0444 acceptance 3): the
 // unattributed observe verdict and RunVerify, run over the same settleable pair on an
-// ACTIVE and on a COMPLETING epoch, leave the epoch record byte-identical — neither
+// ACTIVE and on a COMPLETING run, leave the run record byte-identical — neither
 // is an authorized settlement writer.
 func TestIntegrationRunCompletionReadOnlyVerdictPathsNeverSettleSettleablePair(t *testing.T) {
 	for _, state := range []string{"active", "completing"} {
@@ -96,7 +96,7 @@ func TestIntegrationRunCompletionReadOnlyVerdictPathsNeverSettleSettleablePair(t
 				t.Fatalf("observe HumanText = %q, want %q", got, want)
 			}
 			if after := runRecordBytes(t, fx.repo, fx.key); !bytes.Equal(before, after) {
-				t.Fatal("the unattributed observe verdict wrote the epoch record")
+				t.Fatal("the unattributed observe verdict wrote the run record")
 			}
 
 			v := RunVerify(context.Background(), fx.deps, fx.wdeps, fx.gdeps, fx.repo, RunVerifyRequest{ID: 3})
@@ -104,7 +104,7 @@ func TestIntegrationRunCompletionReadOnlyVerdictPathsNeverSettleSettleablePair(t
 				t.Fatalf("RunVerify verdict = %q, want %q", v.Verdict, VerdictRunComplete)
 			}
 			if after := runRecordBytes(t, fx.repo, fx.key); !bytes.Equal(before, after) {
-				t.Fatal("RunVerify wrote the epoch record")
+				t.Fatal("RunVerify wrote the run record")
 			}
 			ep, _, err := LoadRunRecord(fx.repo, fx.key)
 			if err != nil {

@@ -2,7 +2,7 @@
 // (change 0359).
 //
 // A `run-continue` verdict hands the resumed implement-next controller two
-// tokens: the durable gate key and a single-use continuation id. This file is the
+// tokens: the durable run key and a single-use continuation id. This file is the
 // redemption verb: it loads the durable gate record, verifies the presented
 // continuation id against the stored one with a CONSTANT-TIME compare
 // (crypto/subtle, so a mismatch leaks no timing signal about the secret), and, on

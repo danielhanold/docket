@@ -482,7 +482,7 @@ func TestTakeoverRace(t *testing.T) {
 // BEFORE launch; a second Start on the same scope while the first drive is live
 // fails.
 func TestStartBindsScope(t *testing.T) {
-	const gateCtx = "outer-dispatch-context-token"
+	const gateCtx = "outer-run-context-token"
 
 	// Happy path: binds + stamps.
 	clk := &fakeClock{now: startRun()}

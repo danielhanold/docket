@@ -140,11 +140,11 @@ func applyState(r *GateResult, st process.State, term *process.Terminal) {
 	}
 }
 
-// rawGateRun is the run epoch a raw app.GateLaunch carries: none. A raw launch
-// never owns an implementation epoch, so it presents the empty epoch to the
-// stale-run-id fence. Real epochs are threaded into workflow gates by Task 9;
-// until a slot records a non-empty epoch this fence stays dormant (it compiles and
-// stays green), then rejects a raw launch into a worktree an epoch owns.
+// rawGateRun is the run a raw app.GateLaunch carries: none. A raw launch
+// never owns an implementation run, so it presents the empty run to the
+// stale-run-id fence. Real runs are threaded into workflow gates by Task 9;
+// until a slot records a non-empty run this fence stays dormant (it compiles and
+// stays green), then rejects a raw launch into a worktree a run owns.
 const rawGateRun = ""
 
 // GateLaunch launches a supervised run and maps its handle and post-launch
@@ -237,7 +237,7 @@ func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, st
 		return "", "", nil, false
 	}
 	store = gatedrive.OpenStore(repo.CommonDir)
-	// A released slot whose leftover run epoch is completed or confirmed-cancelled
+	// A released slot whose leftover run is completed or confirmed-cancelled
 	// is settled by the reserve through exact-token retirement rather than refused
 	// stale-run-id (change 0446): the raw path wires the same settlement read the
 	// gate-drive constructors do.
@@ -245,16 +245,16 @@ func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, st
 	return wt.Root, repo.CommonDir, store, true
 }
 
-// rawStaleRunRefusal enforces the run-epoch fence at the raw launch boundary: a
-// worktree slot that links a run epoch this raw launch does not carry is refused
+// rawStaleRunRefusal enforces the run-run fence at the raw launch boundary: a
+// worktree slot that links a run this raw launch does not carry is refused
 // stale-run-id (an incumbent workflow owns the worktree). A raw launch carries
-// rawGateRun (none), and until Task 9 records epochs into slots this stays
+// rawGateRun (none), and until Task 9 records runs into slots this stays
 // dormant. A missing or unreadable slot is not a refusal here: the reserve is the
 // authority that fails closed on an unreadable record.
 //
-// This is an EPOCH-ownership refusal, not an incumbent-state one, so it precedes the
+// This is a RUN-ownership refusal, not an incumbent-state one, so it precedes the
 // reserve's finished-incumbent reconciliation deliberately (change 0446 spec §3):
-// the epoch fence refuses a raw launch into an epoch-owned worktree whether or not
+// the run fence refuses a raw launch into a run-owned worktree whether or not
 // the incumbent execution has finished, so reconciling first could not change the
 // outcome — it would only mutate another run's slot on behalf of a refused start.
 //
@@ -263,7 +263,7 @@ func resolveWorktreeAdmission(cwd string) (worktreeRoot, repoIdentity string, st
 // settles through exact-token retirement. Refusing it here would pre-empt that
 // settlement, so a released slot defers to ReserveRawWorktreeExecution — the
 // authority that consults the settlement read and still refuses stale-run-id
-// whenever the named epoch is live, unreadable, or unresolved.
+// whenever the named run is live, unreadable, or unresolved.
 func rawStaleRunRefusal(store *gatedrive.Store, worktreeRoot string) (GateResult, bool) {
 	slot, _, err := store.LoadWorktreeExecution(worktreeRoot)
 	if err != nil {

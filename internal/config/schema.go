@@ -251,7 +251,7 @@ func buildRegistry() []pathSpec {
 		{path: "build.max_attempts", kind: kindInt, def: 4,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
 
-		// run. The outer implement-next run gate's own attempt policy (change 0421).
+		// run. The outer implement-next run tracker's own attempt policy (change 0421).
 		{path: "run.max_attempts", kind: kindInt, def: 2,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
 

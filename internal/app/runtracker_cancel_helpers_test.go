@@ -46,7 +46,7 @@ func (f *fakeNativeCanceller) cancelNativeTask(handle string) error {
 }
 
 // fakeLaunchReconciler is an injectable runLaunchReconciler: it records each
-// (worktree,epoch) pair it was asked to reconcile and returns a canned report/error.
+// (worktree,run) pair it was asked to reconcile and returns a canned report/error.
 type fakeLaunchReconciler struct {
 	report gatedrive.RunLaunchReport
 	err    error
@@ -58,7 +58,7 @@ func (f *fakeLaunchReconciler) reconcile(worktree, runID string) (gatedrive.RunL
 	return f.report, f.err
 }
 
-// okLaunchReconciler is a permissive fake reconciler: every epoch's launch
+// okLaunchReconciler is a permissive fake reconciler: every run's launch
 // obligations are already accounted with no findings, so a cancel test that does not
 // exercise the launch-reconciliation path behaves exactly as before the seam existed.
 func okLaunchReconciler() *fakeLaunchReconciler {
@@ -66,7 +66,7 @@ func okLaunchReconciler() *fakeLaunchReconciler {
 }
 
 // cancelFixture is one prepared cancelable run: a gate record with a parent-held
-// authority, an active epoch bound to change 42 with a confirmed claim, a canonical
+// authority, an active run bound to change 42 with a confirmed claim, a canonical
 // feature worktree, and a confirmed worktree execution slot whose process is runDir.
 type cancelFixture struct {
 	repo     string
@@ -126,7 +126,7 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 	if slot {
 		// The slot records a real owning RunID so the ownership-checked
 		// teardown treats it as slotOwned (change 0435) — the same teardown behavior
-		// the raw (epoch-less) reservation used to get, now anchored on true epoch
+		// the raw (no-run-record) reservation used to get, now anchored on true run
 		// ownership rather than the worktree location alone.
 		runDir := filepath.Join(worktree, "run-1")
 		token, terr := fx.store.ReserveWorktreeExecutionForRun(common, worktree, ep.RunID, nil)
@@ -141,7 +141,7 @@ func newCancelFixture(t *testing.T, slot bool) cancelFixture {
 	return fx
 }
 
-// loadRunState reads the epoch's current state.
+// loadRunState reads the run's current state.
 func loadRunState(t *testing.T, repo, key string) runState {
 	t.Helper()
 	ep, _, err := LoadRunRecord(repo, key)

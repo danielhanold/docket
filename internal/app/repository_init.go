@@ -503,7 +503,7 @@ func repoRecordAlreadyOnDisk(recordPath string, recordBytes []byte) (bool, error
 	return string(existing) == string(recordBytes), nil
 }
 
-// buildRunTracker renders the dispatch run-gate payload from the embedded asset
+// buildRunTracker renders the dispatch run-tracker payload from the embedded asset
 // catalog — the same source the installer's repository phase renders surfaces
 // from — so a repository init and an install agree on surface bytes.
 func buildRunTracker() ([]byte, error) {

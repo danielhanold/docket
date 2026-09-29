@@ -623,12 +623,12 @@ func TestGateDriveTakeoverRequiresFlags(t *testing.T) {
 	}
 }
 
-// makeCancelledRun mints a run-epoch record in wt's rungate registry through the
+// makeCancelledRun mints a run-run record in wt's rungate registry through the
 // production mint path (MintRunTrackerRecord + MintRunRecord), then flips its persisted
 // state to cancelled — the durable fence a real run.cancel leaves behind — and
-// returns the epoch's public locator. The flip is a targeted state edit that
+// returns the run's public locator. The flip is a targeted state edit that
 // preserves the minted schema version and generation, so the production loader and
-// the takeover resolver decode it as a genuine cancelled epoch rather than a corrupt
+// the takeover resolver decode it as a genuine cancelled run rather than a corrupt
 // record.
 func makeCancelledRun(t *testing.T, wt string) string {
 	t.Helper()
@@ -648,50 +648,50 @@ func makeCancelledRun(t *testing.T, wt string) string {
 	path := filepath.Join(wt, ".git", "docket", "run-tracker", key, "run.json")
 	buf, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read epoch record: %v", err)
+		t.Fatalf("read run record: %v", err)
 	}
 	var stored map[string]any
 	if err := json.Unmarshal(buf, &stored); err != nil {
-		t.Fatalf("decode epoch record: %v", err)
+		t.Fatalf("decode run record: %v", err)
 	}
 	record, ok := stored["record"].(map[string]any)
 	if !ok {
-		t.Fatalf("epoch record has no record object: %s", buf)
+		t.Fatalf("run record has no record object: %s", buf)
 	}
 	record["state"] = string(app.RunCancelled)
 	encoded, err := json.Marshal(stored)
 	if err != nil {
-		t.Fatalf("re-encode epoch record: %v", err)
+		t.Fatalf("re-encode run record: %v", err)
 	}
 	if err := os.WriteFile(path, encoded, 0o600); err != nil {
-		t.Fatalf("write epoch record: %v", err)
+		t.Fatalf("write run record: %v", err)
 	}
 	// Confirm the production loader reads the flipped state as cancelled, so the test
-	// exercises a genuine revoked epoch rather than a mis-shaped fixture.
+	// exercises a genuine revoked run rather than a mis-shaped fixture.
 	got, _, err := app.LoadRunRecord(wt, key)
 	if err != nil {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if got.State != app.RunCancelled {
-		t.Fatalf("epoch state = %q, want cancelled", got.State)
+		t.Fatalf("run state = %q, want cancelled", got.State)
 	}
 	return rec.RunID
 }
 
 // TestGateDrivePrepareScopeRunIDGatesTakeover proves the production wiring the
-// takeover epoch-revocation guard depends on: `gate drive prepare-scope --run-id
-// <id>` threads the run epoch onto the scope record so a later `gate drive takeover`
-// consults the app-owned run-epoch registry through the resolver
+// takeover run-revocation guard depends on: `gate drive prepare-scope --run-id
+// <id>` threads the run onto the scope record so a later `gate drive takeover`
+// consults the app-owned run registry through the resolver
 // NewCommandlessGateDriveService wires (change 0375, acceptance criterion 7 / spec
-// "Parent takeover cannot revive a cancelled epoch"). With the scope's epoch reported
+// "Parent takeover cannot revive a cancelled run"). With the scope's run reported
 // CANCELLED, the takeover HALTs not-owner — it refuses to revive a fenced run. The
-// control — a scope prepared with NO --run-id — never reaches the epoch gate and
+// control — a scope prepared with NO --run-id — never reaches the run launch gate and
 // HALTs for the ordinary drive-resolution reason (takeover-no-candidate), proving the
-// not-owner refusal keys on the epoch state the flag now supplies rather than on any
-// other guard. Before this wiring existed the scope carried no epoch, the guard was
+// not-owner refusal keys on the run state the flag now supplies rather than on any
+// other guard. Before this wiring existed the scope carried no run, the guard was
 // dead code, and a parent takeover could reattach to a cancelled run.
 func TestGateDrivePrepareScopeRunIDGatesTakeover(t *testing.T) {
-	t.Run("cancelled epoch refuses takeover", func(t *testing.T) {
+	t.Run("cancelled run refuses takeover", func(t *testing.T) {
 		wt := gateDriveRepo(t)
 		runID := makeCancelledRun(t, wt)
 
@@ -716,17 +716,17 @@ func TestGateDrivePrepareScopeRunIDGatesTakeover(t *testing.T) {
 		}
 		d := driveDoc(t, decodeOneJSON(t, out))
 		if d["outcome"] != "HALTED" {
-			t.Fatalf("a takeover of a cancelled epoch must HALT, got outcome=%v: %v", d["outcome"], d)
+			t.Fatalf("a takeover of a cancelled run must HALT, got outcome=%v: %v", d["outcome"], d)
 		}
 		if d["cause"] != "not-owner" {
-			t.Fatalf("HALT cause=%v, want not-owner (the epoch-revocation refusal): %v", d["cause"], d)
+			t.Fatalf("HALT cause=%v, want not-owner (the run-revocation refusal): %v", d["cause"], d)
 		}
 		if gen, _ := d["generation"].(string); gen != "" {
 			t.Fatalf("a refused takeover must mint no owner generation, got %q", gen)
 		}
 	})
 
-	t.Run("no epoch skips the epoch gate", func(t *testing.T) {
+	t.Run("no run skips the run launch gate", func(t *testing.T) {
 		wt := gateDriveRepo(t)
 
 		out, errS, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
@@ -751,12 +751,12 @@ func TestGateDrivePrepareScopeRunIDGatesTakeover(t *testing.T) {
 		if d["outcome"] != "HALTED" {
 			t.Fatalf("a takeover with no candidate drive must HALT, got %v", d["outcome"])
 		}
-		// A scope with no epoch never reaches the epoch gate: it halts at ordinary
-		// drive resolution (no candidate), so the cancelled-epoch case's not-owner is
-		// demonstrably the epoch-revocation refusal and not a byproduct of some other
+		// A scope with no run never reaches the run launch gate: it halts at ordinary
+		// drive resolution (no candidate), so the cancelled-run case's not-owner is
+		// demonstrably the run-revocation refusal and not a byproduct of some other
 		// guard firing first.
 		if d["cause"] != "takeover-no-candidate" {
-			t.Fatalf("no-epoch takeover cause=%v, want takeover-no-candidate: %v", d["cause"], d)
+			t.Fatalf("no-run takeover cause=%v, want takeover-no-candidate: %v", d["cause"], d)
 		}
 	})
 }
@@ -1052,8 +1052,8 @@ func TestGateLaunchInsideWorktreeSecondRefused(t *testing.T) {
 }
 
 // TestGateDriveStartUnknownRunIDIsNamed (change 0463): the 0382 misuse, where a
-// well-formed but unknown --run-id (a dispatch-context-shaped 32-hex token) goes
-// through the REAL epoch launch gate, is refused invalid-input with the named
+// well-formed but unknown --run-id (a run-context-shaped 32-hex token) goes
+// through the REAL run launch gate, is refused invalid-input with the named
 // unknown-run-id, never the catch-all invalid-request. The presented value is
 // never echoed.
 func TestGateDriveStartUnknownRunIDIsNamed(t *testing.T) {
@@ -1082,7 +1082,7 @@ func TestGateDriveStartUnknownRunIDIsNamed(t *testing.T) {
 // TestGateDrivePrepareScopeUnknownRunIDIsNamed (change 0463): through the real
 // wiring, prepare-scope with an unknown --run-id refuses unknown-run-id and
 // mints no scope. In human mode it renders reason + remedy without the value. The
-// cancelled-epoch prepare in TestGateDrivePrepareScopeRunIDGatesTakeover must
+// cancelled-run prepare in TestGateDrivePrepareScopeRunIDGatesTakeover must
 // stay applied, because the pre-check is resolvability only, never liveness.
 func TestGateDrivePrepareScopeUnknownRunIDIsNamed(t *testing.T) {
 	wt := gateDriveRepo(t)

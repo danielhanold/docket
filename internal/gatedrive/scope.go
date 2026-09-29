@@ -63,9 +63,9 @@ import (
 // ErrUnknownSchema: an in-flight one-drive record is never silently reinterpreted
 // as a reusable sequential scope (spec "Version changed persistent formats").
 // Bumped to 3 by change 0375 Task 9, which adds RunID (the workflow run
-// epoch the scope's drives carry). Unlike the drive/gate stores, a v2 scope record
+// run the scope's drives carry). Unlike the drive/gate stores, a v2 scope record
 // is TOLERATED, not failed closed: a v2 record read by the new binary is only ever
-// a legacy IN-FLIGHT scope (no epoch existed when it was minted), so its missing
+// a legacy IN-FLIGHT scope (no run existed when it was minted), so its missing
 // RunID reads as empty and the worktree admission fence governs — there is no
 // spent-retry equivalent a re-read could re-grant, so reinterpreting it detaches
 // nothing. The next write stamps it forward to v3; v1 and every other version
@@ -124,12 +124,12 @@ type scopeRecord struct {
 	ChildCapHash   string `json:"child_cap_hash"`
 	ParentCapHash  string `json:"parent_cap_hash"`
 
-	// RunID links every drive this scope admits to the workflow run epoch
+	// RunID links every drive this scope admits to the workflow run
 	// (change 0375 Task 9). It is a locator, not a credential — the child capability
 	// carries authority — and is inherited by each scoped start (the driver's
 	// scopedRunID) and travels onto its worktree execution slot so an omitted or
-	// stale epoch cannot detach the worktree. Empty for a v2 legacy scope and for a
-	// scope prepared without an epoch. (schema v3)
+	// stale run cannot detach the worktree. Empty for a v2 legacy scope and for a
+	// scope prepared without a run. (schema v3)
 	RunID string `json:"run_id,omitempty"`
 
 	// The single-slot lifecycle (schema v2). At most one current drive occupies
@@ -175,8 +175,8 @@ type ScopeRequest struct {
 	Branch       string
 	Worktree     string
 	RunContext   string
-	// RunID is the workflow run epoch every drive under this scope carries onto
-	// its worktree execution slot; empty prepares a scope with no epoch (change 0375
+	// RunID is the workflow run every drive under this scope carries onto
+	// its worktree execution slot; empty prepares a scope with no run (change 0375
 	// Task 9).
 	RunID string
 }

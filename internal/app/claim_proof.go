@@ -12,7 +12,7 @@ import (
 // proof (change 0407). A keyed run verdict must resolve ownership from the
 // durable, authoritative proof a successful claim leaves behind — the committed
 // claim receipt on the metadata branch — rather than inferring it from a
-// before-set/epoch snapshot. The scanner reads those receipts back through the
+// before-set/run snapshot. The scanner reads those receipts back through the
 // same engine trailer grammar the idempotency scan uses; a later task consumes
 // its output to bind a dispatch to exactly its own claim.
 

@@ -354,7 +354,7 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneCont
 
 // race shard (change 0333, generalized for change 0421): N concurrent RunVerdict
 // calls contend on the on-disk gate record; -race guards the single-grant CAS.
-// TestRunGateVerdictConcurrentRetryGrantsOnce is the mutation target: N concurrent
+// TestRaceIntegrationAppConcurrencyRunVerdictConcurrentRetryGrantsOnce is the mutation target: N concurrent
 // verdict calls observing the SAME completed attempt (attempt 1, a fresh record) at
 // limit 3 must grant EXACTLY ONE run-retry-once — a counted budget must NOT let
 // concurrency spend several future attempts. The attempt derives from the marker

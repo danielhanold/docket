@@ -13,9 +13,9 @@ import (
 	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
-// These are the run-epoch registry tests (change 0375 Task 9). The epoch lives
-// beside the gate record under the same gate-key directory (runtracker_run_record.go); the
-// gate key locates both. A fresh run start arm mints an active epoch; claim
+// These are the run registry tests (change 0375 Task 9). The run lives
+// beside the run-tracker record under the same run-key directory (runtracker_run_record.go); the
+// run key locates both. A fresh run start mints an active run; claim
 // confirmation binds its change; participant registration is gated on the active
 // state and fails closed on an unknown schema.
 // The fixtures untagged test files share (mintTestRunKey, forceRunState,
@@ -28,10 +28,10 @@ func isRunKind(err error, kind RunErrorKind) bool {
 }
 
 // TestIntegrationRunRecordRunRecordCRUD proves mint → load → register round-trips: mint yields an
-// active record with a non-empty public RunID keyed by the gate key, load
+// active record with a non-empty public RunID keyed by the run key, load
 // returns a generation, a second mint is refused bind-once, a participant is
 // appended with a stamped RegisteredAt under a rotated generation, and a stale
-// expected-epoch locator confers no registration authority.
+// expected-run locator confers no registration authority.
 func TestIntegrationRunRecordRunRecordCRUD(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintTestRunKey(t, repo)
@@ -41,13 +41,13 @@ func TestIntegrationRunRecordRunRecordCRUD(t *testing.T) {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
 	if rec.State != RunActive {
-		t.Fatalf("a fresh epoch must be active, got %q", rec.State)
+		t.Fatalf("a fresh run must be active, got %q", rec.State)
 	}
 	if rec.RunID == "" {
 		t.Fatalf("mint must assign a public RunID locator")
 	}
 	if rec.RunKey != key {
-		t.Fatalf("epoch must record its gate key %q, got %q", key, rec.RunKey)
+		t.Fatalf("run must record its run key %q, got %q", key, rec.RunKey)
 	}
 
 	// Bind-once: a second mint for the same key never clobbers the first.
@@ -87,14 +87,14 @@ func TestIntegrationRunRecordRunRecordCRUD(t *testing.T) {
 		t.Fatalf("a CAS write must rotate the physical generation")
 	}
 
-	// A stale expected-epoch locator is refused: registration binds to the exact epoch.
-	if err := RegisterRunParticipant(repo, key, "not-the-epoch", p); !isRunKind(err, ErrRunIDMismatch) {
-		t.Fatalf("a stale expected-epoch must be refused ErrRunIDMismatch, got %v", err)
+	// A stale expected-run locator is refused: registration binds to the exact run.
+	if err := RegisterRunParticipant(repo, key, "not-the-run", p); !isRunKind(err, ErrRunIDMismatch) {
+		t.Fatalf("a stale expected-run must be refused ErrRunIDMismatch, got %v", err)
 	}
 }
 
-// TestIntegrationRunRecordRegisterParticipantRejectsNonActive proves a fenced (non-active) epoch admits
-// no new participant: after the epoch flips active→cancelling, registration fails
+// TestIntegrationRunRecordRegisterParticipantRejectsNonActive proves a fenced (non-active) run admits
+// no new participant: after the run flips active→cancelling, registration fails
 // closed ErrRunNotActive.
 func TestIntegrationRunRecordRegisterParticipantRejectsNonActive(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -103,7 +103,7 @@ func TestIntegrationRunRecordRegisterParticipantRejectsNonActive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
-	// Fence the epoch through the CAS (the durable active→cancelling transition Task 10
+	// Fence the run through the CAS (the durable active→cancelling transition Task 10
 	// drives; here it stands in so the state gate is exercised).
 	if err := runRecordCAS(repo, key, func(r *RunRecord) error {
 		r.State = RunCancelling
@@ -113,7 +113,7 @@ func TestIntegrationRunRecordRegisterParticipantRejectsNonActive(t *testing.T) {
 	}
 	err = RegisterRunParticipant(repo, key, rec.RunID, RunParticipant{Kind: "task"})
 	if !isRunKind(err, ErrRunNotActive) {
-		t.Fatalf("register on a cancelling epoch must be refused ErrRunNotActive, got %v", err)
+		t.Fatalf("register on a cancelling run must be refused ErrRunNotActive, got %v", err)
 	}
 	// The rejected registration wrote nothing: the participant list stays empty.
 	got, _, err := LoadRunRecord(repo, key)
@@ -126,18 +126,18 @@ func TestIntegrationRunRecordRegisterParticipantRejectsNonActive(t *testing.T) {
 }
 
 // TestIntegrationRunRecordLoadRunNotFound proves a load before any mint fails closed ErrRunNotFound
-// rather than fabricating a live epoch.
+// rather than fabricating a live run.
 func TestIntegrationRunRecordLoadRunNotFound(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintTestRunKey(t, repo)
 	if _, _, err := LoadRunRecord(repo, key); !isRunKind(err, ErrRunNotFound) {
-		t.Fatalf("load with no epoch must be ErrRunNotFound, got %v", err)
+		t.Fatalf("load with no run must be ErrRunNotFound, got %v", err)
 	}
 }
 
 // TestIntegrationRunRecordRunUnknownSchemaFailsClosed proves a record carrying an unknown schema
 // version fails closed ErrRunRecordCorrupt on load — a record the store cannot read is
-// never a live epoch (premium: fail-closed schema versioning).
+// never a live run (premium: fail-closed schema versioning).
 func TestIntegrationRunRecordRunUnknownSchemaFailsClosed(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	key := mintTestRunKey(t, repo)
@@ -158,8 +158,8 @@ func TestIntegrationRunRecordRunUnknownSchemaFailsClosed(t *testing.T) {
 	}
 }
 
-// TestIntegrationRunRecordRunStartMintsRun proves a fresh (non-resume) arm binds a new run epoch
-// beside the gate record, keyed by the gate key: active, with a public RunID and
+// TestIntegrationRunRecordRunStartMintsRun proves a fresh (non-resume) start binds a new run
+// beside the run-tracker record, keyed by the run key: active, with a public RunID and
 // no change bound yet.
 func TestIntegrationRunRecordRunStartMintsRun(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -168,34 +168,34 @@ func TestIntegrationRunRecordRunStartMintsRun(t *testing.T) {
 
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Started || res.Key == "" {
-		t.Fatalf("Armed=%v Key=%q, want armed", res.Started, res.Key)
+		t.Fatalf("Started=%v Key=%q, want started", res.Started, res.Key)
 	}
 	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
-		t.Fatalf("a fresh arm must mint an epoch keyed by the gate key: %v", err)
+		t.Fatalf("a fresh start must mint a run keyed by the run key: %v", err)
 	}
 	if ep.State != RunActive {
-		t.Fatalf("minted epoch must be active, got %q", ep.State)
+		t.Fatalf("minted run must be active, got %q", ep.State)
 	}
 	if ep.RunID == "" {
-		t.Fatalf("minted epoch must carry a public RunID")
+		t.Fatalf("minted run must carry a public RunID")
 	}
 	if ep.RunKey != res.Key {
-		t.Fatalf("epoch gate key = %q, want %q", ep.RunKey, res.Key)
+		t.Fatalf("run record key = %q, want %q", ep.RunKey, res.Key)
 	}
-	// A fresh arm has not yet chosen a change, so the epoch binds none until claim.
+	// A fresh start has not yet chosen a change, so the run binds none until claim.
 	if ep.ChangeID != "" {
-		t.Fatalf("a fresh arm must bind no change yet, got %q", ep.ChangeID)
+		t.Fatalf("a fresh start must bind no change yet, got %q", ep.ChangeID)
 	}
 }
 
 // TestIntegrationRunRecordConfirmGateClaimBindsRunChange proves the claim confirmation binds the
-// epoch to the confirmed change instance — the readable locator a later
+// run to the confirmed change instance — the readable locator a later
 // resume/cancel resolves the run by.
-// TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable proves an armed gate reports the honest
+// TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable proves a started run reports the honest
 // owner-lifecycle limitation (change 0375 Task 13): the default dispatch route has
 // no automatic Stop/owner-death cancellation, so a Stop is the explicit run.cancel
-// operation. The field is a standing caveat, never a refusal — the gate still arms.
+// operation. The field is a standing caveat, never a refusal — the run tracker still starts.
 func TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	deps := PlanningDeps{Reader: runStartReader(t, runStartCorpus(), nil, nil), Clock: testClock()}
@@ -203,7 +203,7 @@ func TestIntegrationRunRecordNoAdapterReportsLifecycleUnavailable(t *testing.T) 
 
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Started {
-		t.Fatalf("gate must arm; got Armed=%v Reason=%q", res.Started, res.Reason)
+		t.Fatalf("gate must start; got Started=%v Reason=%q", res.Started, res.Reason)
 	}
 	if res.OwnerLifecycle != ReasonOwnerLifecycleUnavailable {
 		t.Fatalf("OwnerLifecycle = %q, want %q", res.OwnerLifecycle, ReasonOwnerLifecycleUnavailable)
@@ -219,7 +219,7 @@ func TestIntegrationRunRecordConfirmGateClaimBindsRunChange(t *testing.T) {
 	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Started {
-		t.Fatalf("arm failed: %+v", res)
+		t.Fatalf("start failed: %+v", res)
 	}
 	if err := ReserveRunTrackerClaim(repo, res.Key, 42, "req-1"); err != nil {
 		t.Fatalf("ReserveRunTrackerClaim: %v", err)
@@ -232,29 +232,29 @@ func TestIntegrationRunRecordConfirmGateClaimBindsRunChange(t *testing.T) {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.ChangeID != "42" {
-		t.Fatalf("claim confirmation must bind the epoch change id, got %q", ep.ChangeID)
+		t.Fatalf("claim confirmation must bind the run change id, got %q", ep.ChangeID)
 	}
 }
 
-// TestIntegrationRunRecordConfirmGateClaimNoRunIsNoop proves a claim over a dispatch with NO epoch
-// (a standalone gate record) is unaffected: the confirm succeeds and no epoch is
-// fabricated. This guards the existing claim path against the epoch bind.
+// TestIntegrationRunRecordConfirmGateClaimNoRunIsNoop proves a claim over a dispatch with NO run
+// (a standalone gate record) is unaffected: the confirm succeeds and no run is
+// fabricated. This guards the existing claim path against the run bind.
 func TestIntegrationRunRecordConfirmGateClaimNoRunIsNoop(t *testing.T) {
 	repo := newRunTrackerRepo(t)
-	key := mintTestRunKey(t, repo) // a gate record with no epoch minted beside it
+	key := mintTestRunKey(t, repo) // a gate record with no run minted beside it
 	if err := ReserveRunTrackerClaim(repo, key, 7, "req-x"); err != nil {
 		t.Fatalf("ReserveRunTrackerClaim: %v", err)
 	}
 	if err := ConfirmRunTrackerClaim(repo, key, 7, "req-x", "rev-x", ""); err != nil {
-		t.Fatalf("ConfirmRunTrackerClaim over a no-epoch dispatch must succeed: %v", err)
+		t.Fatalf("ConfirmRunTrackerClaim over a no-run dispatch must succeed: %v", err)
 	}
 	if _, _, err := LoadRunRecord(repo, key); !isRunKind(err, ErrRunNotFound) {
-		t.Fatalf("no epoch must be fabricated by the claim, got %v", err)
+		t.Fatalf("no run must be fabricated by the claim, got %v", err)
 	}
 }
 
-// mintRunFixture mints a gate-key directory and an active epoch beside it
-// (change 0441), returning the repo and the gate key the completion-lifecycle
+// mintRunFixture mints a run-key directory and an active run beside it
+// (change 0441), returning the repo and the run key the completion-lifecycle
 // tests drive. changeID "441" mirrors the change under test.
 func mintRunFixture(t *testing.T) (repo, key string) {
 	t.Helper()
@@ -300,7 +300,7 @@ func TestIntegrationRunRecordFenceRunCompletingNeverRelabelsTerminalStates(t *te
 
 func TestIntegrationRunRecordFenceRunCompletingRejectsStaleLocator(t *testing.T) {
 	repo, key := mintRunFixture(t)
-	_, err := FenceRunCompleting(repo, key, "not-the-epoch-id")
+	_, err := FenceRunCompleting(repo, key, "not-the-run-id")
 	if ee, ok := AsRunError(err); !ok || ee.Kind != ErrRunIDMismatch {
 		t.Fatalf("err %v", err)
 	}
@@ -393,9 +393,9 @@ func TestIntegrationRunRecordRecordRunParticipantTerminalAllowedAfterFence(t *te
 }
 
 // TestIntegrationRunRecordRunSettledResolverStates (change 0446): the admission settlement read
-// reports settled only for an epoch whose record is terminal with its accounting
+// reports settled only for a run whose record is terminal with its accounting
 // done — completed, cancelled, superseded. Active, cancelling, and completing
-// epochs still own their worktree, and an unknown epoch id is an unresolved owner,
+// runs still own their worktree, and an unknown run id is an unresolved owner,
 // never settlement.
 func TestIntegrationRunRecordRunSettledResolverStates(t *testing.T) {
 	cases := []struct {
@@ -424,24 +424,24 @@ func TestIntegrationRunRecordRunSettledResolverStates(t *testing.T) {
 			}
 		})
 	}
-	t.Run("unknown-epoch", func(t *testing.T) {
+	t.Run("unknown-run", func(t *testing.T) {
 		_, common, _, _, _ := runLaunchGateFixture(t)
 		settled, err := runSettledResolver(common)("0123456789abcdef0123456789abcdef")
 		if !errors.Is(err, gatedrive.ErrRunRecordUnresolved) || settled {
-			t.Fatalf("unknown epoch = (%v, %v), want (false, ErrRunRecordUnresolved)", settled, err)
+			t.Fatalf("unknown run = (%v, %v), want (false, ErrRunRecordUnresolved)", settled, err)
 		}
 	})
 }
 
 // TestIntegrationRunRecordCheckRunIDLinkage (change 0463): the agent.enter preflight answers with a
-// typed RunError. Not-found covers both a gate key with no epoch and a gate key
-// that does not exist (the pair names no epoch). Mismatch covers a different
+// typed RunError. Not-found covers both a run key with no run and a run key
+// that does not exist (the pair names no run). Mismatch covers a different
 // recorded id. A matching pair is nil.
 func TestIntegrationRunRecordCheckRunIDLinkage(t *testing.T) {
 	repo := newRunTrackerRepo(t)
 	bare := mintTestRunKey(t, repo)
 	if err := CheckRunIDLinkage(repo, bare, "0790b760e26444866ef2e156ba383326"); !isRunKind(err, ErrRunNotFound) {
-		t.Fatalf("gate key without an epoch: got %v, want run-not-found", err)
+		t.Fatalf("run key without a run: got %v, want run-not-found", err)
 	}
 
 	withRun := mintTestRunKey(t, repo)
@@ -453,7 +453,7 @@ func TestIntegrationRunRecordCheckRunIDLinkage(t *testing.T) {
 		t.Fatalf("matching pair must pass, got %v", err)
 	}
 	if err := CheckRunIDLinkage(repo, withRun, "0790b760e26444866ef2e156ba383326"); !isRunKind(err, ErrRunIDMismatch) {
-		t.Fatalf("wrong epoch id: got %v, want run-id-mismatch", err)
+		t.Fatalf("wrong run id: got %v, want run-id-mismatch", err)
 	}
 
 	gone := mintTestRunKey(t, repo)
@@ -465,6 +465,6 @@ func TestIntegrationRunRecordCheckRunIDLinkage(t *testing.T) {
 		t.Fatalf("remove gate dir: %v", err)
 	}
 	if err := CheckRunIDLinkage(repo, gone, ep.RunID); !isRunKind(err, ErrRunNotFound) {
-		t.Fatalf("absent gate key: got %v, want run-not-found", err)
+		t.Fatalf("absent run key: got %v, want run-not-found", err)
 	}
 }

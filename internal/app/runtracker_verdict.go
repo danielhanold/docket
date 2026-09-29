@@ -14,7 +14,7 @@ import (
 )
 
 // This file is the `docket run verdict <key>` operation in ATTRIBUTED mode
-// (change 0334, Task 3): it reads the durable gate record armed by run start,
+// (change 0334, Task 3): it reads the durable gate record started by run start,
 // attributes exactly one new in-progress claim to the dispatched run, delegates
 // the run predicate to RunVerify, and maps that verdict onto one line of the
 // attributed vocabulary — spending from the counted retry budget atomically (change
@@ -38,7 +38,7 @@ import (
 // report-unpersisted / run-record-unreadable) and never reports success — RunVerify's own
 // verdict is reported as fact through those tokens, never re-derived. The closeout is
 // observation-only, fails closed on missing evidence, and consumes no retry. A
-// keyless/standalone/legacy dispatch (no epoch beside the record) keeps EXACTLY the
+// keyless/standalone/legacy dispatch (no run beside the record) keeps EXACTLY the
 // prior behavior. Unattributed observe mode is structurally unable to reach any of
 // this.
 //
@@ -83,14 +83,14 @@ import (
 // envelope.
 const OperationRunVerdict = "run.verdict"
 
-// The gate decision tokens — the leading word of every attributed report line.
+// The run-tracker decision tokens — the leading word of every attributed report line.
 const (
 	RunDecisionDone      = "run-done"
 	RunDecisionRetryOnce = "run-retry-once"
 	RunDecisionStop      = "run-stop"
 )
 
-// The gate outcome tokens that are not themselves RunVerify verdicts. The run-*
+// The run-tracker outcome tokens that are not themselves RunVerify verdicts. The run-*
 // outcomes reuse the VerdictRun* spellings from run_verify.go verbatim (a report
 // carries RunVerify's own verdict word, never a re-spelling).
 const (
@@ -141,23 +141,23 @@ const (
 	// ReasonRunCancelled: a cancelling/cancelled run — never relabelled successful
 	// (an explicit human cancellation won, from active or from completing).
 	ReasonRunCancelled = "run-cancelled"
-	// ReasonStaleRunID: a superseded epoch — the run this key named is stale.
+	// ReasonStaleRunID: a superseded run — the run this key named is stale.
 	ReasonStaleRunID = "stale-run-id"
 	// ReasonRunCompletionUnaccounted: a live/busy/pending/uncertain obligation blocks
-	// completion (fail closed). The epoch stays durably completing; the remedy — named
+	// completion (fail closed). The run stays durably completing; the remedy — named
 	// in the result's CompletionFindings — is to settle the evidence and repeat the same
 	// keyed verdict, or cancel explicitly.
 	ReasonRunCompletionUnaccounted = "completion-unaccounted"
 	// ReasonRunCompletionUnpersisted: the completing→completed transition could not be
 	// persisted for a reason other than a winning cancellation (fail closed, reportable).
 	ReasonRunCompletionUnpersisted = "completion-unpersisted"
-	// ReasonRunReportUnpersisted: the closeout finished and the epoch is durably
+	// ReasonRunReportUnpersisted: the closeout finished and the run is durably
 	// completed, but the terminal gate REPORT mirror could not be saved. The failure is
 	// REPORTED, not hidden by the best-effort save (spec: "completion-path persistence
-	// failures must be reported"); the epoch is already completed, so a repeat of the
+	// failures must be reported"); the run is already completed, so a repeat of the
 	// same keyed verdict replays to run-done run-complete once the fault clears.
 	ReasonRunReportUnpersisted = "report-unpersisted"
-	// ReasonRunRecordUnreadable: the run epoch record beside the key could not be read
+	// ReasonRunRecordUnreadable: the run record beside the key could not be read
 	// (a store fault, corruption, or schema mismatch — anything but a clean absence,
 	// which is the keyless/standalone/legacy shape). A record the store cannot read is
 	// never a free closeout; fail closed.
@@ -265,7 +265,7 @@ func runTrackerStoreReason(err error) string {
 	return runTrackerReasonStoreError
 }
 
-// RunVerdict reports the attributed run-gate verdict for one dispatched
+// RunVerdict reports the attributed run-tracker verdict for one dispatched
 // implement-next run. See the file header for the attribution, retry-ordering,
 // and fail-closed contracts.
 func RunVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps, repoDir, key string) RunVerdictResult {
@@ -411,7 +411,7 @@ func RunVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gde
 // the confirmed claim binding and delegated the run predicate to RunVerify; this owns
 // only the ownership retirement.
 //
-//  1. Locate the run epoch beside the gate record. A clean ABSENCE (ErrRunNotFound)
+//  1. Locate the run beside the run-tracker record. A clean ABSENCE (ErrRunNotFound)
 //     is the keyless/standalone/legacy shape: EXACTLY the prior behavior — best-effort
 //     report mirror + run-done run-complete. Any OTHER load fault fails closed
 //     (run-record-unreadable): a record the store cannot read is never a free closeout.
@@ -419,12 +419,12 @@ func RunVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gde
 //     run-tracker-unavailable with the engine's bounded reason token and the diagnostic
 //     findings; completion loses without reporting success, and no retry is consumed
 //     (runTrackerStopUnavailable leaves the permit untouched).
-//  3. On success the epoch is durably completed. The terminal report mirror is saved
+//  3. On success the run is durably completed. The terminal report mirror is saved
 //     as a CHECKED write — a persistence failure is REPORTED (report-unpersisted),
-//     never hidden by the best-effort save; the epoch is already completed, so the
+//     never hidden by the best-effort save; the run is already completed, so the
 //     remedy is the idempotent replay (a repeat of the same keyed verdict).
 func runTrackerCompleteRun(repoDir, key string, rec RunTrackerRecord, id int, seams cancelSeams) RunVerdictResult {
-	// (1) Locate the run epoch. Absence is the keyless/standalone/legacy shape; any
+	// (1) Locate the run. Absence is the keyless/standalone/legacy shape; any
 	// other fault fails closed.
 	if _, _, lerr := LoadRunRecord(repoDir, key); lerr != nil {
 		if ee, ok := AsRunError(lerr); ok && ee.Kind == ErrRunNotFound {
@@ -450,9 +450,9 @@ func runTrackerCompleteRun(repoDir, key string, rec RunTrackerRecord, id int, se
 			}))
 	}
 
-	// (3) Closeout succeeded; the epoch is durably completed. Save the terminal report
+	// (3) Closeout succeeded; the run is durably completed. Save the terminal report
 	// mirror as a CHECKED write — a completion-path persistence failure is reported, not
-	// hidden. On failure the epoch stays completed, so the same keyed verdict replays to
+	// hidden. On failure the run stays completed, so the same keyed verdict replays to
 	// run-done run-complete once the fault clears.
 	res := runVerdictLine(key, RunDecisionDone, VerdictRunComplete, id, true, func(r *RunVerdictResult) {
 		r.CompletionFindings = findings
@@ -518,11 +518,11 @@ func runTrackerOuterContinuation(ctx context.Context, deps PlanningDeps, wdeps W
 		if halted {
 			// A halted takeover is fail-closed: run-stop run-tracker-unavailable, no retry
 			// spent (a human is needed). One halt cause is intentional and bounded:
-			// the outer recovery scope is single-use per gate ARMING (it is minted
+			// the outer recovery scope is single-use per run START (it is minted
 			// once by run start), so the FIRST accepted outer takeover closes it and
 			// a SECOND detached-crash takeover under the same key halts scope-closed
-			// here. That once-per-arming outer-takeover limit is by design — the human
-			// recovers by re-arming a fresh scope via `run start --resume`; see
+			// here. That once-per-start outer-takeover limit is by design — the human
+			// recovers by restarting a fresh scope via `run start --resume`; see
 			// claimScopeForTakeover (internal/gatedrive/takeover.go) and the spec's §5
 			// continuation clause.
 			reason := cause
@@ -586,7 +586,7 @@ func runTrackerStopUnavailable(repoDir, key string, rec RunTrackerRecord, id int
 // The two recovery legs (the unconfirmed reservation and the sole-proof adoption)
 // resolve the recovered change's logical feature worktree through
 // runTrackerRecoveredWorktree before confirming, so a run recovered solely through the
-// verdict path binds the epoch worktree exactly as the fresh-claim path does and
+// verdict path binds the run worktree exactly as the fresh-claim path does and
 // stays fenceable and cancellable; an unresolvable identity refuses through
 // ReasonRunProofUnavailable rather than confirming with an empty path (change 0427).
 func resolveRunTrackerOwnership(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir, key string, rec *RunTrackerRecord) *RunVerdictResult {
@@ -645,7 +645,7 @@ func resolveRunTrackerOwnership(ctx context.Context, deps PlanningDeps, wdeps Wo
 		// proof (best-effort mirror) — but the worktree it binds must be real: resolve
 		// the recovered change's logical feature worktree first (change 0427), and
 		// refuse (fail closed, before confirming) when identity cannot be resolved,
-		// never confirming with an empty path that would leave the run epoch
+		// never confirming with an empty path that would leave the run
 		// unfenceable and uncancellable.
 		wt, ok := runTrackerRecoveredWorktree(ctx, deps, repoDir, binding.ChangeID)
 		if !ok {
@@ -670,7 +670,7 @@ func resolveRunTrackerOwnership(ctx context.Context, deps PlanningDeps, wdeps Wo
 			// FIRST (change 0427) — a refusal here writes nothing, neither
 			// reservation nor confirm — then reserve + confirm best-effort with
 			// that worktree, then mirror. Confirming with an empty path would
-			// leave the recovered run epoch unfenceable and uncancellable.
+			// leave the recovered run unfenceable and uncancellable.
 			wt, ok := runTrackerRecoveredWorktree(ctx, deps, repoDir, p.ChangeID)
 			if !ok {
 				return runTrackerOwnershipStop(repoDir, key, *rec, ReasonRunProofUnavailable)
@@ -839,7 +839,7 @@ const RunDecisionObserve = "run-observe"
 const RunOutcomeNoCurrentRun = "no-current-run"
 
 // ReasonRunUnattributedKey is the usage-error reason when --unattributed is
-// given a non-integer positional: hints are change ids, and a gate key can never
+// given a non-integer positional: hints are change ids, and a run key can never
 // be one. This is a usage error (non-zero exit), never a report line.
 const ReasonRunUnattributedKey = "unattributed-key"
 
@@ -916,12 +916,12 @@ func newRunTrackerObserveReport(obs ...RunObservation) RunVerdictObserveResult {
 	return r
 }
 
-// RunVerdictObserve reports the unattributed (observe-only) run-gate verdicts.
+// RunVerdictObserve reports the unattributed (observe-only) run-tracker verdicts.
 // hints are the raw positional arguments; each must parse as an integer change id
-// (a non-integer — for example a gate key — is a usage error). See the section
+// (a non-integer — for example a run key — is a usage error). See the section
 // header for the no-writes / no-retry structural contract.
 func RunVerdictObserve(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps, repoDir string, hints []string) RunVerdictObserveResult {
-	// Parse the hints. A non-integer positional is a gate key (or garbage), not a
+	// Parse the hints. A non-integer positional is a run key (or garbage), not a
 	// change-id hint: usage error, non-zero exit, never a report line.
 	hintIDs := make([]int, 0, len(hints))
 	for _, h := range hints {
@@ -929,7 +929,7 @@ func RunVerdictObserve(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDe
 		if err != nil {
 			out := RunVerdictObserveResult{
 				Reason:  ReasonRunUnattributedKey,
-				Message: fmt.Sprintf("--unattributed takes change-id hints, not %q; a gate key is not a hint", h),
+				Message: fmt.Sprintf("--unattributed takes change-id hints, not %q; a run key is not a hint", h),
 			}
 			out.Envelope = NewEnvelope(OperationRunVerdict, ResultInvalidInput)
 			return out

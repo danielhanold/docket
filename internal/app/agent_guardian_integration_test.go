@@ -16,7 +16,7 @@ import (
 //
 // Each test spawns a guardian, then either simulates an abrupt owner death (closing
 // the pipe with no marker) or a clean end (Complete writes the marker first). Both
-// reap the guardian synchronously (cmd.Wait), so the epoch state is settled and the
+// reap the guardian synchronously (cmd.Wait), so the run state is settled and the
 // assertions are deterministic — no polling.
 
 // guardianExecutable returns this test binary's path (the guardian re-exec target).
@@ -29,8 +29,8 @@ func guardianExecutable(t *testing.T) string {
 	return exe
 }
 
-// spawnTestGuardian mints an active epoch and spawns a guardian for it, returning
-// the handle, the epoch, and the gate key.
+// spawnTestGuardian mints an active run and spawns a guardian for it, returning
+// the handle, the run, and the run key.
 func spawnTestGuardian(t *testing.T) (*GuardianHandle, RunRecord, string, string) {
 	t.Helper()
 	repo := newRunTrackerRepo(t)
@@ -51,7 +51,7 @@ func spawnTestGuardian(t *testing.T) (*GuardianHandle, RunRecord, string, string
 }
 
 // TestIntegrationGateLifecycleGuardianEOFFencesRun proves an abrupt owner death — the pipe closes with no
-// completion marker — makes the guardian fence the run epoch to cancelling, the
+// completion marker — makes the guardian fence the run to cancelling, the
 // durable exclusion that admits no replacement.
 func TestIntegrationGateLifecycleGuardianEOFFencesRun(t *testing.T) {
 	handle, _, key, repo := spawnTestGuardian(t)
@@ -70,7 +70,7 @@ func TestIntegrationGateLifecycleGuardianEOFFencesRun(t *testing.T) {
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.State != RunCancelling {
-		t.Fatalf("epoch state = %s, want cancelling after abrupt owner death", ep.State)
+		t.Fatalf("run state = %s, want cancelling after abrupt owner death", ep.State)
 	}
 }
 
@@ -89,17 +89,17 @@ func TestIntegrationGateLifecycleGuardianCompletionMarkerPreventsCancel(t *testi
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.State != RunActive {
-		t.Fatalf("epoch state = %s, want active (a completion marker must prevent a fence)", ep.State)
+		t.Fatalf("run state = %s, want active (a completion marker must prevent a fence)", ep.State)
 	}
 }
 
 // TestIntegrationGateLifecycleGuardianStaleMarkerDoesNotSuppressFence proves SpawnAgentGuardian clears any
 // pre-existing completion marker before it starts the guardian, so only a marker
 // this owner writes during THIS lifetime can suppress the fence. A stale marker
-// left in a reused gate-key directory (from a prior clean completion) must NOT
+// left in a reused run-key directory (from a prior clean completion) must NOT
 // pre-suppress a fresh guardian's fence: an abrupt owner death still finds no
-// marker and fences the epoch — the exact abrupt-death case the guardian exists to
-// catch. Defense in depth: gate keys are unique today, but the guardian must not
+// marker and fences the run — the exact abrupt-death case the guardian exists to
+// catch. Defense in depth: run keys are unique today, but the guardian must not
 // depend on that for its safety property.
 func TestIntegrationGateLifecycleGuardianStaleMarkerDoesNotSuppressFence(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -112,7 +112,7 @@ func TestIntegrationGateLifecycleGuardianStaleMarkerDoesNotSuppressFence(t *test
 	if err != nil {
 		t.Fatalf("AgentGuardianMarkerPath: %v", err)
 	}
-	// Plant a STALE marker in the gate-key directory before the guardian spawns —
+	// Plant a STALE marker in the run-key directory before the guardian spawns —
 	// as if a prior clean completion had left one behind.
 	if err := os.WriteFile(marker, []byte("stale\n"), 0o600); err != nil {
 		t.Fatalf("planting stale marker: %v", err)
@@ -137,14 +137,14 @@ func TestIntegrationGateLifecycleGuardianStaleMarkerDoesNotSuppressFence(t *test
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if got.State != RunCancelling {
-		t.Fatalf("epoch state = %s, want cancelling: a stale pre-spawn marker must not suppress the fence", got.State)
+		t.Fatalf("run state = %s, want cancelling: a stale pre-spawn marker must not suppress the fence", got.State)
 	}
 }
 
 // TestIntegrationGateLifecycleGuardianCannotMutate proves the guardian holds cancel/observe authority only:
 // a registered guardian participant confers nothing (a workflow mutation is still
-// admitted while the epoch is active), and the ONLY effect a guardian can have on
-// mutation admission is to FENCE the epoch on death — after which no workflow
+// admitted while the run is active), and the ONLY effect a guardian can have on
+// mutation admission is to FENCE the run on death — after which no workflow
 // mutation is admitted. The guardian can block, never enable.
 func TestIntegrationGateLifecycleGuardianCannotMutate(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -153,7 +153,7 @@ func TestIntegrationGateLifecycleGuardianCannotMutate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MintRunRecord: %v", err)
 	}
-	// Bind the worktree so the mutation fence resolves this epoch by worktree.
+	// Bind the worktree so the mutation fence resolves this run by worktree.
 	canon, err := canonicalWorktree(repo)
 	if err != nil {
 		t.Fatalf("canonicalWorktree: %v", err)
@@ -166,12 +166,12 @@ func TestIntegrationGateLifecycleGuardianCannotMutate(t *testing.T) {
 	if err := RegisterRunParticipant(repo, key, ep.RunID, RunParticipant{Kind: "guardian", NativeHandle: "g1"}); err != nil {
 		t.Fatalf("RegisterRunParticipant: %v", err)
 	}
-	// A registered (even a would-be-dead) guardian participant leaves the epoch
+	// A registered (even a would-be-dead) guardian participant leaves the run
 	// ACTIVE — the durable exclusion that still blocks a replacement resume until an
-	// explicit recovery (Task 12's active-epoch refusal). The guardian's registration
+	// explicit recovery (Task 12's active-run refusal). The guardian's registration
 	// confers no fence.
 	if got, _, err := LoadRunRecord(repo, key); err != nil || got.State != RunActive {
-		t.Fatalf("epoch after guardian registration = %v (err=%v), want active", got.State, err)
+		t.Fatalf("run after guardian registration = %v (err=%v), want active", got.State, err)
 	}
 
 	// While active, a workflow mutation is admitted — the guardian participant
@@ -182,7 +182,7 @@ func TestIntegrationGateLifecycleGuardianCannotMutate(t *testing.T) {
 	}
 	done(mutationStatusCompleted, false)
 
-	// Now the owner dies abruptly and the guardian fences the epoch.
+	// Now the owner dies abruptly and the guardian fences the run.
 	marker, err := AgentGuardianMarkerPath(repo, key)
 	if err != nil {
 		t.Fatalf("AgentGuardianMarkerPath: %v", err)
@@ -205,17 +205,17 @@ func TestIntegrationGateLifecycleGuardianCannotMutate(t *testing.T) {
 }
 
 // TestIntegrationGateLifecycleGuardianLeavesCompletingRunForReplay pins the death guardian's completing
-// behavior (change 0441): the guardian fences ONLY an active epoch (guardianFenceAndReap
+// behavior (change 0441): the guardian fences ONLY an active run (guardianFenceAndReap
 // flips active→cancelling and reaps only when the fence lands), so an abrupt owner
-// death over a COMPLETING epoch — a keyed verdict verified run-complete and durably
-// fenced the epoch mid-closeout — leaves it exactly completing, untouched and
+// death over a COMPLETING run — a keyed verdict verified run-complete and durably
+// fenced the run mid-closeout — leaves it exactly completing, untouched and
 // unreaped, so a keyed-verdict replay resumes the closeout. Success is never encoded
 // as cancellation. This is the mutation-evidence target: make the guardian CAS also
 // flip completing→cancelling and this reddens.
 func TestIntegrationGateLifecycleGuardianLeavesCompletingRunForReplay(t *testing.T) {
 	handle, _, key, repo := spawnTestGuardian(t)
 
-	// The keyed verdict fenced the epoch to completing (successful closeout in
+	// The keyed verdict fenced the run to completing (successful closeout in
 	// flight). Force it BEFORE the owner dies so the guardian observes completing.
 	forceRunState(t, repo, key, RunCompleting)
 
@@ -232,6 +232,6 @@ func TestIntegrationGateLifecycleGuardianLeavesCompletingRunForReplay(t *testing
 		t.Fatalf("LoadRunRecord: %v", err)
 	}
 	if ep.State != RunCompleting {
-		t.Fatalf("epoch state = %s, want completing left untouched (the guardian fences only active; a keyed-verdict replay resumes closeout)", ep.State)
+		t.Fatalf("run state = %s, want completing left untouched (the guardian fences only active; a keyed-verdict replay resumes closeout)", ep.State)
 	}
 }

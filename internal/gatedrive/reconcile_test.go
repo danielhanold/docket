@@ -14,9 +14,9 @@ import (
 // ---------------------------------------------------------------------------
 // Cancellation's pending-launch accounting (change 0437 Task 6).
 // ReconcileRunLaunches walks the drive registry, attributes each drive to its
-// run epoch through resolveDriveRun (the SAME linkage the launch paths use), and
+// run through resolveDriveRun (the SAME linkage the launch paths use), and
 // proves — under the per-drive claimant flock and the process seam — whether each
-// nonterminal drive of a FENCED epoch has a settled or a still-pending launch. It
+// nonterminal drive of a FENCED run has a settled or a still-pending launch. It
 // launches nothing, mutates no drive verdict, and preserves unresolved evidence.
 // ---------------------------------------------------------------------------
 
@@ -61,7 +61,7 @@ func seedScopedRunDrive(t *testing.T, store *Store, runID string, mutate func(*d
 
 // admitRunDrive admits (reserve only, no launch) a REAL drive on the sample
 // worktree for runID through Driver.Admit — scoped under a fresh scope carrying
-// runID, or scopeless — so the worktree slot names the epoch and holds the drive's
+// runID, or scopeless — so the worktree slot names the run and holds the drive's
 // AdmissionToken exactly as production leaves it. It returns the ticket and, for a
 // scoped admission, the scope id.
 func admitRunDrive(t *testing.T, d *Driver, store *Store, runID string, scoped bool) (*AdmissionTicket, string) {
@@ -400,8 +400,8 @@ func TestReconcileReservedRelaunchResolved(t *testing.T) {
 // reserved relaunch never-launched UNDER THE HELD CLAIM, it settles the drive
 // terminal HALTED "run-cancelled" before releasing the claim, so a SUBSEQUENT
 // Advance recovery on the same drive launches NOTHING — even though that recovery's
-// own read-only epoch pass races ahead of the fence and reads the epoch still live
-// (modelled here by injecting no epoch gate, so recoveryRunRevoked returns false).
+// own read-only run pass races ahead of the fence and reads the run still live
+// (modelled here by injecting no run launch gate, so recoveryRunRevoked returns false).
 // Without the settle the recovery would take the freed claim, resolve never-launched
 // under the stale revoked=false, and relaunch the dead run AFTER cancellation had
 // already completed. The oracle is a strict ordering (reconcile fully returns before
@@ -419,7 +419,7 @@ func TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow(t *tes
 		r.RelaunchToken = "aaaaaaaaaaaaaaaa"
 	})
 
-	// (a) Cancellation reconciles the FENCED epoch's reserved relaunch: proc proves
+	// (a) Cancellation reconciles the FENCED run's reserved relaunch: proc proves
 	// never-launched, so the obligation is accounted. The reconcile fully returns
 	// (releasing the per-drive claim) before the Advance below runs.
 	report, err := recDriver.ReconcileRunLaunches(sampleWorktree(), "e1")
@@ -431,7 +431,7 @@ func TestReconcileNeverLaunchedSettlesTerminalClosingRecoveryLaunchWindow(t *tes
 	}
 
 	// (b) A later Advance recovery on the SAME drive, on a fresh store handle (an
-	// independent CLI process) whose epoch reads as live. Its seeded run is dead, so
+	// independent CLI process) whose run reads as live. Its seeded run is dead, so
 	// a NONTERMINAL record would drive its single relaunch and create a process AFTER
 	// the completed cancellation. The terminal settle in (a) must forbid that launch.
 	advProc := &fakeProc{
@@ -556,7 +556,7 @@ func TestReconcileFailuresPreserveEvidence(t *testing.T) {
 //
 // Its paired countertest is the hand-seeded orphan: the same corruption on a drive
 // no surviving current reference names (no slot, its only naming scope unreadable)
-// is informational history, not a repository-wide veto on the epoch.
+// is informational history, not a repository-wide veto on the run.
 func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 	t.Run("referenced-by-current-slot", func(t *testing.T) {
 		clk := &fakeClock{now: startRun()}
@@ -564,7 +564,7 @@ func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 		d, store := newTestDriver(t, clk, proc, stableGit())
 		ticket, scopeID := admitRunDrive(t, d, store, "e1", true)
 
-		// Sever the drive's epoch linkage: corrupt its scope record so LoadScope fails.
+		// Sever the drive's run linkage: corrupt its scope record so LoadScope fails.
 		// The drive itself remains a readable, nonterminal record whose token the
 		// worktree slot still carries.
 		corruptFile(t, filepath.Join(store.scopeRoot, scopeID, recordFileName))
@@ -578,7 +578,7 @@ func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 				t.Fatalf("%s: %v", mode.name, err)
 			}
 			if report.Accounted {
-				t.Fatalf("%s: a slot-referenced drive with lost epoch linkage must fail closed, findings=%v", mode.name, report.Findings)
+				t.Fatalf("%s: a slot-referenced drive with lost run linkage must fail closed, findings=%v", mode.name, report.Findings)
 			}
 			if !findingFor(report.Findings, "linkage-unresolved", ticket.id) {
 				t.Fatalf("%s: findings = %v, want linkage-unresolved:%s", mode.name, report.Findings, ticket.id)
@@ -605,7 +605,7 @@ func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if !report.Accounted {
-			t.Fatalf("an orphan no current reference names must not veto the epoch, findings=%v", report.Findings)
+			t.Fatalf("an orphan no current reference names must not veto the run, findings=%v", report.Findings)
 		}
 		if !findingFor(report.Findings, "history-unattributed", id) || reconcileFindingPresent(report.Findings, "linkage-unresolved:") {
 			t.Fatalf("findings = %v, want informational history-unattributed:%s and no linkage-unresolved", report.Findings, id)
@@ -614,11 +614,11 @@ func TestReconcileLostLinkageFailsClosed(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Epoch launch census attribution (change 0446 Task 5, spec §4). The census
-// accounts the TARGET epoch's obligations through current references — the target
-// worktree slot and scopes carrying the epoch — and never inherits all history: an
+// Run launch census attribution (change 0446 Task 5, spec §4). The census
+// accounts the TARGET run's obligations through current references — the target
+// worktree slot and scopes carrying the run — and never inherits all history: an
 // unreadable or unlinked record nothing current names is an informational
-// history-unattributed finding, while a named one still fails the epoch closed.
+// history-unattributed finding, while a named one still fails the run closed.
 // ---------------------------------------------------------------------------
 
 // TestCensusTerminalSettledBeforeLinkage proves rule 1: a terminal (here HALTED)
@@ -655,7 +655,7 @@ func TestCensusTerminalSettledBeforeLinkage(t *testing.T) {
 
 // TestCensusUnreferencedCorruptRecordInformational proves rule 3's diagnostic half:
 // a corrupt record no current reference names is history-unattributed and does not
-// clear Accounted — with no slot at all, and with an occupied epoch slot whose token
+// clear Accounted — with no slot at all, and with an occupied run slot whose token
 // a READABLE drive holds (so no unreadable record is a candidate holder).
 func TestCensusUnreferencedCorruptRecordInformational(t *testing.T) {
 	seedUnrelatedCorrupt := func(t *testing.T, store *Store) string {
@@ -676,7 +676,7 @@ func TestCensusUnreferencedCorruptRecordInformational(t *testing.T) {
 			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if !report.Accounted {
-			t.Fatalf("an unreferenced corrupt record must not veto the epoch, findings=%v", report.Findings)
+			t.Fatalf("an unreferenced corrupt record must not veto the run, findings=%v", report.Findings)
 		}
 		if !findingFor(report.Findings, "history-unattributed", id) {
 			t.Fatalf("findings = %v, want history-unattributed:%s", report.Findings, id)
@@ -693,7 +693,7 @@ func TestCensusUnreferencedCorruptRecordInformational(t *testing.T) {
 			t.Fatalf("ReconcileRunLaunches: %v", err)
 		}
 		if !report.Accounted {
-			t.Fatalf("a corrupt record the resolved slot does not name must not veto the epoch, findings=%v", report.Findings)
+			t.Fatalf("a corrupt record the resolved slot does not name must not veto the run, findings=%v", report.Findings)
 		}
 		if !findingFor(report.Findings, "history-unattributed", id) {
 			t.Fatalf("findings = %v, want history-unattributed:%s", report.Findings, id)
@@ -702,9 +702,9 @@ func TestCensusUnreferencedCorruptRecordInformational(t *testing.T) {
 }
 
 // TestCensusReferencedCorruptRecordBlocks proves rule 3's fail-closed half on REAL
-// admitted drives: a record a current reference names still keeps the epoch
+// admitted drives: a record a current reference names still keeps the run
 // unaccounted with its exact locator — the scoped drive through the scope that names
-// it, the scopeless drive through the occupied epoch slot whose token no readable
+// it, the scopeless drive through the occupied run slot whose token no readable
 // drive holds. The reference is established from the slot/scope side, never by
 // reading the corrupt record.
 func TestCensusReferencedCorruptRecordBlocks(t *testing.T) {
@@ -730,7 +730,7 @@ func TestCensusReferencedCorruptRecordBlocks(t *testing.T) {
 }
 
 // TestCensusSlotNamedCorruptScopeBlocks proves rule 4: a scope named by the target
-// epoch's current slot that cannot be read keeps the epoch unaccounted — even when
+// run's current slot that cannot be read keeps the run unaccounted — even when
 // the drive under it is itself terminal — because its current/pending drives can no
 // longer be followed.
 func TestCensusSlotNamedCorruptScopeBlocks(t *testing.T) {
@@ -766,7 +766,7 @@ func TestCensusSchema2HistoricalTerminalSettles(t *testing.T) {
 		t.Fatalf("ReconcileRunLaunches: %v", err)
 	}
 	if !report.Accounted {
-		t.Fatalf("supported schema-2 history must not veto the epoch, findings=%v", report.Findings)
+		t.Fatalf("supported schema-2 history must not veto the run, findings=%v", report.Findings)
 	}
 	for _, id := range []string{passed, halted} {
 		for _, f := range report.Findings {
@@ -782,8 +782,8 @@ func TestCensusSchema2HistoricalTerminalSettles(t *testing.T) {
 
 // TestCensusSupersededRunStillEnumerates proves rule 5 (AC5's superseded branch):
 // an empty worktreeRoot is not proof of quiescence — the census still walks the
-// registry and accounts the epoch's scope-linked drives, skipping only the slot
-// side (the app layer supplies a superseded epoch's replacement worktree for it).
+// registry and accounts the run's scope-linked drives, skipping only the slot
+// side (the app layer supplies a superseded run's replacement worktree for it).
 func TestCensusSupersededRunStillEnumerates(t *testing.T) {
 	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 	id, _ := seedScopedRunDrive(t, store, "e1", func(r *driveRecord) {
@@ -800,7 +800,7 @@ func TestCensusSupersededRunStillEnumerates(t *testing.T) {
 			t.Fatalf("%s: %v", mode.name, err)
 		}
 		if report.Accounted {
-			t.Fatalf("%s: a superseded epoch's unaccounted scope-linked drive must not account vacuously, findings=%v", mode.name, report.Findings)
+			t.Fatalf("%s: a superseded run's unaccounted scope-linked drive must not account vacuously, findings=%v", mode.name, report.Findings)
 		}
 		if !findingFor(report.Findings, "launch-pending", id) {
 			t.Fatalf("%s: findings = %v, want launch-pending:%s", mode.name, report.Findings, id)
@@ -811,7 +811,7 @@ func TestCensusSupersededRunStillEnumerates(t *testing.T) {
 // TestCensusRotatedTokenScopelessIsHistorical proves rule 6: an older nonterminal
 // scopeless drive whose AdmissionToken the slot no longer holds has lost launch
 // authority and is history-unattributed, while the CURRENT token holder carries the
-// epoch's live obligation and is accounted on its own.
+// run's live obligation and is accounted on its own.
 func TestCensusRotatedTokenScopelessIsHistorical(t *testing.T) {
 	d, store := newTestDriver(t, &fakeClock{now: startRun()}, &fakeProc{}, stableGit())
 	older, _ := admitRunDrive(t, d, store, "e1", false)
@@ -837,7 +837,7 @@ func TestCensusRotatedTokenScopelessIsHistorical(t *testing.T) {
 		t.Fatalf("ReconcileRunLaunches (settled): %v", err)
 	}
 	if !settled.Accounted {
-		t.Fatalf("once the current holder settles, the rotated-token history must not keep the epoch unaccounted, findings=%v", settled.Findings)
+		t.Fatalf("once the current holder settles, the rotated-token history must not keep the run unaccounted, findings=%v", settled.Findings)
 	}
 }
 
@@ -884,13 +884,13 @@ func TestReconcileReplayConverges(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // Observation-only launch accounting (change 0441 Task 4). ObserveRunLaunches
-// is the SUCCESS-closeout view of one epoch's launch obligations: the same walk,
-// epoch linkage, and claimant probe as ReconcileRunLaunches, but it NEVER stops
+// is the SUCCESS-closeout view of one run's launch obligations: the same walk,
+// run linkage, and claimant probe as ReconcileRunLaunches, but it NEVER stops
 // a process, NEVER settles a never-launched reservation terminal, and NEVER
 // mutates a record. Shared implementation, one inventory.
 // ---------------------------------------------------------------------------
 
-// TestObserveRunLaunchesNeverStopsOrSettles proves an epoch-linked NONTERMINAL
+// TestObserveRunLaunchesNeverStopsOrSettles proves a run-linked NONTERMINAL
 // drive with an attached run the fake proc reports RUNNING is reported pending
 // (run-live) in observe mode, that NO Stop is issued, and that the drive record on
 // disk is byte-identical afterward (observation mutates nothing).
@@ -1151,7 +1151,7 @@ func TestReconcileReleasedSlotWithPendingDriveNotAccounted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Admit: %v", err)
 	}
-	// Release the slot (it preserves the reservation token + epoch), but the drive
+	// Release the slot (it preserves the reservation token + run), but the drive
 	// itself never launched and remains nonterminal.
 	if rerr := store.ReleaseWorktreeExecution(req.Worktree, ticket.token); rerr != nil {
 		t.Fatalf("ReleaseWorktreeExecution: %v", rerr)
@@ -1172,11 +1172,11 @@ func TestReconcileReleasedSlotWithPendingDriveNotAccounted(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Missing named drives (change 0446 spec §4: "Follow current/pending scope
 // references so a corrupt or missing named drive is still detected"). A drive id a
-// current reference names whose record is absent keeps the epoch unaccounted
+// current reference names whose record is absent keeps the run unaccounted
 // (record-missing:<id>) — EXCEPT the scope's reserved current drive whose
 // reservation the existing records positively prove was withdrawn before any
 // launch: an open pending-ack journal (the successor admission's retire/clear half
-// never completed, and launch strictly follows it), or the epoch slot released
+// never completed, and launch strictly follows it), or the run slot released
 // under this scope (release proves the latest execution vacated, and a missing
 // record can never pass StartAdmitted's revalidation). Those removeReservedDrive
 // legs stay accounted, so cancellation is never stranded on them.
@@ -1195,7 +1195,7 @@ func censusModes(d *Driver) []struct {
 }
 
 // TestCensusScopeNamedMissingDriveBlocks proves a drive a current scope reference
-// names but whose record is gone fails the epoch closed with record-missing:<id>:
+// names but whose record is gone fails the run closed with record-missing:<id>:
 // a launch-confirmed current drive whose directory was deleted, the same drive
 // reduced to a record-less directory, a reserved current drive with no withdrawal
 // proof (no open pending-ack, no released slot for this scope), a launch-confirmed
@@ -1288,7 +1288,7 @@ func TestCensusScopeNamedMissingDriveBlocks(t *testing.T) {
 type scopePredecessor struct{ id, gen string }
 
 // seedLaunchedScopePredecessor seeds a launch-confirmed PASSED drive as the current
-// drive of a fresh scope carrying epoch e1, returning it, the scope id, and the
+// drive of a fresh scope carrying run e1, returning it, the scope id, and the
 // scope's child capability (for a successor reservation).
 func seedLaunchedScopePredecessor(t *testing.T, store *Store) (scopePredecessor, string, string) {
 	t.Helper()
@@ -1320,7 +1320,7 @@ func seedLaunchedScopePredecessor(t *testing.T, store *Store) (scopePredecessor,
 // reservation-withdrawn:<id>, never record-missing) when the records prove the
 // withdrawal — the successor admission's retirePredecessor failure leg (open
 // pending-ack journal), and a real scoped Admit abandoned through AbandonAdmission
-// (the epoch slot released under this scope).
+// (the run slot released under this scope).
 func TestCensusWithdrawnReservationStaysAccounted(t *testing.T) {
 	cases := []struct {
 		name string

@@ -2,42 +2,42 @@
 // cancellation of one workflow implementation run. A child failure or an ordinary
 // dispatch return NEVER invokes this — only an explicit human cancellation (or, in
 // Task 13, a registered lifecycle event) does. Cancellation is the coordinator's
-// authoritative Stop: it durably FENCES the run epoch (runtracker_run_record.go) before any
+// authoritative Stop: it durably FENCES the run (runtracker_run_record.go) before any
 // teardown, so once fenced no new participant, start, relaunch, successor, resume
-// claim, or mutation admission can attach to the epoch, and it reports `cancelled`
+// claim, or mutation admission can attach to the run, and it reports `cancelled`
 // ONLY after full accounting of registered tasks, processes and admitted mutations.
 //
-// AUTHORITY. The gate key LOCATES the run (the durable gate record + the epoch that
+// AUTHORITY. The run key LOCATES the run (the durable gate record + the run that
 // lives beside it); it does not authorize. Authorization is the conjunction the spec
 // pins: the record's repository must be the current repository (LoadRunTrackerRecord fails
-// closed on wrong-repo), the presented epoch id must equal the record's public
+// closed on wrong-repo), the presented run id must equal the record's public
 // RunID, the record must carry a parent-held authority (a non-empty ParentCap),
-// and a CONFIRMED claim binding for the epoch's change must exist (LoadRunTrackerClaimBinding)
-// — or, for a record armed by `run start --resume`, the resume-verified attribution
+// and a CONFIRMED claim binding for the run's change must exist (LoadRunTrackerClaimBinding)
+// — or, for a record started by `run start --resume`, the resume-verified attribution
 // (AttributedID set, no claim binding at all), the shape resolveRunTrackerOwnership accepts.
 // Any missing/mismatched conjunct is a `refused` disposition with a bounded finding —
 // never a fence, never a stop.
 //
-// ORDER (spec "Flow (exact order)"). validate key + load record + epoch; validate
+// ORDER (spec "Flow (exact order)"). validate key + load record + run; validate
 // authority; CAS active→cancelling (the durable fence); cancel registered native
 // tasks (Task 13's adapter hook — an absent adapter produces a FINDING, not silence);
 // for each registered raw-run/gate participant mark the worktree slot stopping and
-// process.Stop it; RE-ENUMERATE the epoch's participants and the worktree admission
+// process.Stop it; RE-ENUMERATE the run's participants and the worktree admission
 // record after stopping (a launch admitted before the fence won and can register
 // after the initial snapshot); reconcile AdmittedMutations (any admitted-not-completed
-// entry keeps it pending); all accounted → retire the epoch's released-slot
+// entry keeps it pending); all accounted → retire the run's released-slot
 // ownership (RetireWorktreeExecutionRun), then CAS cancelling→cancelled and release
 // proven slots (`cancelled`), else `cancellation-pending`. A repeat against a
-// cancelling epoch RESUMES cleanup without restoring authority; against a
-// cancelled/superseded epoch it performs the bounded historical repair
+// cancelling run RESUMES cleanup without restoring authority; against a
+// cancelled/superseded run it performs the bounded historical repair
 // (repairTerminalRun): quiescence-checked retirement of a stale released slot, an
 // idempotent `already-cancelled` when there is nothing to repair, and a `refused`
 // finding for an unsafe history (never `cancellation-pending` over durable terminal
 // state). Completed work is never rolled back.
 //
 // ACCOUNTING (spec). Cancellation charges NO full-suite attempt and resets NO
-// deadline/relaunch/budget/retry state: RunCancel touches only the epoch record and
-// the worktree admission slot — never the change-owned suite budget or the gate
+// deadline/relaunch/budget/retry state: RunCancel touches only the run record and
+// the worktree admission slot — never the change-owned suite budget or the run-tracker
 // retry markers. The WAITING/PASSED/FAILED/HALTED outcome vocabulary is not widened;
 // cancellation is never a test failure or a retry permission.
 package app
@@ -57,20 +57,20 @@ const OperationRunCancel = "run.cancel"
 // The cancellation dispositions. Each is a produced report line, never a re-spelling
 // of a test-outcome word.
 const (
-	// CancelDispositionCancelled: the epoch was fenced and cancellation completed
+	// CancelDispositionCancelled: the run was fenced and cancellation completed
 	// with full accounting — every process torn down (proven), the worktree slot
 	// released, and no admitted-not-completed mutation.
 	CancelDispositionCancelled = "cancelled"
-	// CancelDispositionAlreadyCancelled: the epoch was already cancelled (or
+	// CancelDispositionAlreadyCancelled: the run was already cancelled (or
 	// superseded) — idempotent, nothing to do.
 	CancelDispositionAlreadyCancelled = "already-cancelled"
-	// CancelDispositionPending: the epoch is fenced (durably cancelling) but full
+	// CancelDispositionPending: the run is fenced (durably cancelling) but full
 	// accounting is not yet reached — an unproven stop, an unaccounted racing
 	// participant, or an admitted-not-completed mutation. Repeatable: a later
 	// run.cancel resumes cleanup without restoring authority.
 	CancelDispositionPending = "cancellation-pending"
 	// CancelDispositionRefused: authority could not be validated — a wrong repo,
-	// a mismatched epoch, an unconfirmed claim, or a missing parent authority. No
+	// a mismatched run, an unconfirmed claim, or a missing parent authority. No
 	// fence, no stop.
 	CancelDispositionRefused = "refused"
 )
@@ -153,7 +153,7 @@ type nativeTaskCanceller interface {
 	cancelNativeTask(handle string) error
 }
 
-// runLaunchReconciler accounts, for an already-fenced epoch, the pending and
+// runLaunchReconciler accounts, for an already-fenced run, the pending and
 // replacement LAUNCH obligations the durable drive records name — a reserved-but-
 // unlaunched drive, a busy launch claim, or a relaunch replacement the worktree slot
 // still records the predecessor for — that the participant/slot teardown above cannot
@@ -179,18 +179,18 @@ type cancelSeams struct {
 	// closeout (completeSuccessfulRun, change 0441) consumes: one shared seam bundle,
 	// two flows — cancellation STOPS (stopper/native/launches), completion only
 	// OBSERVES (observer/launchObserver). observer observes whether an execution's
-	// process is proven-terminal without stopping it; launchObserver walks an epoch's
+	// process is proven-terminal without stopping it; launchObserver walks a run's
 	// launch obligations without settling any. A nil observer/launchObserver proves
 	// nothing (fail closed), mirroring the nil-stopper/nil-reconciler rule.
 	observer       processObserver
 	launchObserver runLaunchObserver
-	// retire overrides the slot epoch-retirement write (unit tests inject faults and
+	// retire overrides the slot run-retirement write (unit tests inject faults and
 	// successor races); nil delegates to store.RetireWorktreeExecutionRun. A nil
 	// store with a nil retire proves nothing (retireSlot fails closed).
 	retire func(worktree, runID, token string) error
 }
 
-// retireSlot performs the ownership-checked epoch retirement write through the
+// retireSlot performs the ownership-checked run retirement write through the
 // seam, defaulting to the production store operation
 // (RetireWorktreeExecutionRun). A nil store and a nil retire seam cannot prove a
 // detachment, so it fails closed rather than reporting a false success.
@@ -206,7 +206,7 @@ func (s cancelSeams) retireSlot(worktree, runID, token string) error {
 
 // RunCancel is the public `run cancel` entry. deps and wdeps are accepted for the
 // stable operation signature and are reserved for the mutation-boundary
-// reconciliation later tasks wire (Task 11); Task 10 reconciles from the epoch's own
+// reconciliation later tasks wire (Task 11); Task 10 reconciles from the run's own
 // durable journal and needs neither. It composes the production cancellation seams
 // from repoDir and delegates to runCancel, which owns the whole flow.
 func RunCancel(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir, key, expectRunID, reason string) RunCancelResult {
@@ -240,9 +240,9 @@ func productionCancelSeams(repoDir string) cancelSeams {
 
 // appLaunchReconciler is the production runLaunchReconciler: it composes a gatedrive
 // driver over the cancellation store and the app gate seam's process service, then
-// reconciles one epoch's launch obligations through ReconcileRunLaunches. The
-// composed driver needs no epoch launch gate (reconcile is teardown, not admission,
-// and takes no epoch lock). A nil store or an unresolvable process service proves
+// reconciles one run's launch obligations through ReconcileRunLaunches. The
+// composed driver needs no run launch gate (reconcile is teardown, not admission,
+// and takes no run lock). A nil store or an unresolvable process service proves
 // nothing (fail closed): reconcile returns an error the caller turns into a finding +
 // accounted=false, mirroring the nil-stopper rule. It resolves the process service
 // per call, exactly as appRunTrackerStopper does.
@@ -289,7 +289,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 		return cancelRefused("reason-required")
 	}
 
-	// (1) Validate key shape + load the gate record. The load carries the
+	// (1) Validate key shape + load the run-tracker record. The load carries the
 	// REPOSITORY authority: a record whose Repo does not name this repository's
 	// canonical common dir (wrong-repo), a malformed key, or an absent record all
 	// fail closed here — the key locates nothing to cancel.
@@ -298,16 +298,16 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 		return cancelRefused(runTrackerStoreReason(err))
 	}
 
-	// (1b) Load the epoch that lives beside the gate record. A missing or corrupt
-	// epoch is refused — there is no run fence to drive.
+	// (1b) Load the run that lives beside the run-tracker record. A missing or corrupt
+	// run is refused — there is no run fence to drive.
 	ep, _, err := LoadRunRecord(repoDir, key)
 	if err != nil {
 		return cancelRefused(cancelRunReason(err))
 	}
 
-	// (2) Validate the remaining authority conjuncts: the presented epoch id must be
+	// (2) Validate the remaining authority conjuncts: the presented run id must be
 	// the record's public RunID (a stale locator confers nothing); the record must
-	// carry a parent-held authority; a CONFIRMED claim binding for the epoch's change
+	// carry a parent-held authority; a CONFIRMED claim binding for the run's change
 	// must exist.
 	if expectRunID == "" || ep.RunID != expectRunID {
 		return cancelRefused("run-id-mismatch")
@@ -327,7 +327,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 		// Resume-verified authority (change 0463): `run start --resume` pre-binds
 		// AttributedID through WorkspaceInspect identity and never gets a claim binding
 		// (change.claim requires a proposed change). It is the same shape
-		// resolveRunTrackerOwnership accepts as ownership. Without it, the epoch a resume arm
+		// resolveRunTrackerOwnership accepts as ownership. Without it, the run a resume start
 		// mints could never be cancelled, and the next resume would refuse
 		// resume-active-run with a remedy that always refuses. Only a record with NO
 		// binding file qualifies: a reservation that exists but is unconfirmed still
@@ -340,21 +340,21 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 		return cancelRefused("claim-mismatch")
 	}
 
-	// (3) State gate + the durable fence. A terminal epoch is already-cancelled; an
-	// active epoch is fenced active→cancelling here; a cancelling epoch is a repeat
+	// (3) State gate + the durable fence. A terminal run is already-cancelled; an
+	// active run is fenced active→cancelling here; a cancelling run is a repeat
 	// that resumes cleanup WITHOUT restoring authority (no re-fence, no state
 	// restore).
 	switch ep.State {
 	case RunCancelled, RunSuperseded:
-		// A terminal epoch by itself is not proof of quiescence: a pre-0435 cancel
+		// A terminal run by itself is not proof of quiescence: a pre-0435 cancel
 		// released its slot but never retired the stale RunID. Run the bounded
 		// historical repair over the records already present. Authority was validated
-		// above; repairTerminalRun never revives the epoch, replays a mutation, resets
+		// above; repairTerminalRun never revives the run, replays a mutation, resets
 		// a budget, regresses terminal state, or stops a replacement's process.
 		return repairTerminalRun(seams, repoDir, ep)
 	case RunActive, RunCompleting:
 		// An explicit human cancellation WINS even from a completing (successful,
-		// mid-closeout) epoch (change 0441): fence active/completing→cancelling and run
+		// mid-closeout) run (change 0441): fence active/completing→cancelling and run
 		// the existing teardown/accounting unchanged. Completion then loses without
 		// reporting success — its completing→completed CAS refuses once this fence
 		// lands. A concurrent cancel that already fenced it leaves it cancelling: not an
@@ -373,7 +373,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 		// and never cancellation-pending over durable terminal state.
 		return cancelRefused("run-completed")
 	case RunCancelling:
-		// Repeat: resume cleanup on the already-fenced epoch.
+		// Repeat: resume cleanup on the already-fenced run.
 	default:
 		return cancelRefused("run-state-unknown")
 	}
@@ -384,7 +384,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 		return cancelRefused(cancelRunReason(err))
 	}
 
-	// (4)–(7) Teardown accounting over the fenced epoch: cancel native tasks, stop
+	// (4)–(7) Teardown accounting over the fenced run: cancel native tasks, stop
 	// execution participants and the worktree slot, re-enumerate to catch a launch
 	// admitted before the fence, and reconcile the mutation journal.
 	accounted, findings, terr := reconcileRunTeardown(seams, repoDir, key, ep)
@@ -393,12 +393,12 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 	}
 
 	// (8) Verdict. Not fully accounted → cancellation-pending (durable fence held,
-	// repeatable). Fully accounted → retire the epoch's released-slot ownership UNDER
+	// repeatable). Fully accounted → retire the run's released-slot ownership UNDER
 	// THE ADMISSION LOCK (retireWorktreeSlotOwnership → RetireWorktreeExecutionRun),
 	// and only then CAS cancelling→cancelled. These are two existing records, not a
 	// transaction: a failure BEFORE retirement leaves ownership intact and
 	// cancellation pending; a failure AFTER safe detachment (all launch, execution,
-	// and mutation obligations settled first) leaves the epoch fenced cancelling —
+	// and mutation obligations settled first) leaves the run fenced cancelling —
 	// also pending, never refused and never a rollback — and a retry revalidates the
 	// proof, accepts the already-detached slot, and finishes the transition.
 	if !accounted {
@@ -424,8 +424,8 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 }
 
 // slotRetirement is the one outcome shape of the shared slot retirement
-// (retireSlotOwnership). detached reports that the epoch's ownership of the slot is
-// accounted detached — retired now, already detached, absent, epoch-less, or held by
+// (retireSlotOwnership). detached reports that the run's ownership of the slot is
+// accounted detached — retired now, already detached, absent, no-run-record, or held by
 // a successor; retired reports that THIS call wrote the retirement (terminal repair
 // distinguishes an applied repair from an idempotent no-op on it); finding is the
 // bounded, credential-free finding, when any.
@@ -435,7 +435,7 @@ type slotRetirement struct {
 	finding  string
 }
 
-// retireWorktreeSlotOwnership retires the epoch's ownership of its RELEASED worktree
+// retireWorktreeSlotOwnership retires the run's ownership of its RELEASED worktree
 // slot and reports (detached, finding) — the cancellation-specific detachment
 // ordinary execution release never performs (ordinary ReleaseWorktreeExecution
 // retains RunID for between-drives ownership). It is the single retirement
@@ -450,11 +450,11 @@ func retireWorktreeSlotOwnership(seams cancelSeams, ep RunRecord) (bool, string)
 }
 
 // retireSlotOwnership is the shared body behind every retirement site. It touches
-// ONLY a slot this epoch owns (classifySlotOwnership: a different nonempty RunID
+// ONLY a slot this run owns (classifySlotOwnership: a different nonempty RunID
 // is a foreign owner, never cleared, never retried with its token), and only once
 // that slot is released. Outcomes:
 //   - a nil store or an empty ep.Worktree (a keyless/standalone run owns no slot), an
-//     absent slot, or an epoch-less slot (linked or not: it carries no RunID
+//     absent slot, or a no-run-record slot (linked or not: it carries no RunID
 //     ownership field to retire) → detached;
 //   - a slot a different nonempty RunID holds — whether the successor already
 //     held it or won the retirement CAS race (the re-read below) — → detached with
@@ -466,7 +466,7 @@ func retireWorktreeSlotOwnership(seams cancelSeams, ep RunRecord) (bool, string)
 //     concurrent replay's retirement) is detached, a successor is the successor
 //     outcome, anything else is not detached, "slot-retire-failed".
 //
-// A superseded epoch's cleared Worktree is resolved to its replacement's worktree by
+// A superseded run's cleared Worktree is resolved to its replacement's worktree by
 // the caller (resolveTerminalRunSlot) before this runs, so the predecessor's stale
 // ownership of that slot is retired here too.
 func retireSlotOwnership(seams cancelSeams, ep RunRecord) slotRetirement {
@@ -503,20 +503,20 @@ func retireSlotOwnership(seams cancelSeams, ep RunRecord) slotRetirement {
 	return slotRetirement{detached: true, retired: true}
 }
 
-// resolveTerminalRunSlot returns ep with the worktree whose slot a TERMINAL epoch's
+// resolveTerminalRunSlot returns ep with the worktree whose slot a TERMINAL run's
 // quiescence checks address, plus a bounded finding when that worktree cannot be
-// resolved. An epoch that still records its Worktree (or any non-superseded epoch)
-// is returned unchanged. A SUPERSEDED epoch's Worktree was cleared by
+// resolved. A run that still records its Worktree (or any non-superseded run)
+// is returned unchanged. A SUPERSEDED run's Worktree was cleared by
 // SupersedeCancelledRun, but an empty worktree is not proof of quiescence (change
-// 0446 spec §4: "For a superseded epoch, that check uses the replacement's worktree
-// slot to confirm the predecessor's token and epoch no longer hold it"). The
-// replacement is followed through ReplacementReserved — the replacement's GATE KEY,
-// so its epoch is read by LoadRunRecord — and, when that replacement was itself
-// superseded, onward along the chain until an epoch that binds a worktree.
+// 0446 spec §4: "For a superseded run, that check uses the replacement's worktree
+// slot to confirm the predecessor's token and run no longer hold it"). The
+// replacement is followed through ReplacementReserved — the replacement's RUN KEY,
+// so its run is read by LoadRunRecord — and, when that replacement was itself
+// superseded, onward along the chain until a run that binds a worktree.
 //
 // A TORN resume ends the chain at a replacement that binds no worktree:
-// armResumeReplacement supersedes, then mints the replacement epoch, then binds its
-// Worktree, so a failure between leaves the replacement epoch never minted
+// armResumeReplacement supersedes, then mints the replacement run, then binds its
+// Worktree, so a failure between leaves the replacement run never minted
 // (ErrRunNotFound) or minted unbound. That is a known, recoverable shape — not
 // corruption — so it resolves to an EXISTING stored identity rather than dead-ending
 // every later resume and cancel (change 0446 spec: "Repeated cancellation,
@@ -526,13 +526,13 @@ func retireSlotOwnership(seams cancelSeams, ep RunRecord) slotRetirement {
 // gate record's prepared scope worktree (armResumeReplacement prepares that scope
 // before the supersede), else the predecessor gate record's scope worktree
 // (storedScopeWorktree). Only when none exists is it refused
-// replacement-worktree-unresolved:<gate key>.
+// replacement-worktree-unresolved:<run key>.
 //
 // A genuinely bad chain still fails closed with its exact locator, never inferred
-// safe: a replacement epoch that cannot be read (corrupt, I/O) is
-// replacement-epoch-unreadable:<gate key>, a superseded link that records no
+// safe: a replacement run that cannot be read (corrupt, I/O) is
+// replacement-epoch-unreadable:<run key>, a superseded link that records no
 // replacement is replacement-worktree-unresolved, and a loop is
-// replacement-chain-cycle:<gate key>.
+// replacement-chain-cycle:<run key>.
 func resolveTerminalRunSlot(seams cancelSeams, repoDir string, ep RunRecord, requestWorktree string) (RunRecord, string) {
 	if ep.Worktree != "" || ep.State != RunSuperseded {
 		return ep, ""
@@ -573,7 +573,7 @@ func resolveTerminalRunSlot(seams cancelSeams, repoDir string, ep RunRecord, req
 		rec, _, err := LoadRunRecord(repoDir, key)
 		if err != nil {
 			if ee, ok := AsRunError(err); ok && ee.Kind == ErrRunNotFound {
-				return torn(key) // the replacement epoch was never minted
+				return torn(key) // the replacement run was never minted
 			}
 			return ep, "replacement-epoch-unreadable:" + key
 		}
@@ -588,8 +588,8 @@ func resolveTerminalRunSlot(seams cancelSeams, repoDir string, ep RunRecord, req
 }
 
 // storedScopeWorktree returns the feature worktree recorded on the outer recovery
-// scope the gate record under runKey names, or "" when there is none to read — no
-// store, no such gate record, no scope id, or an unreadable scope. It is an identity
+// scope the run-tracker record under runKey names, or "" when there is none to read — no
+// store, no such run-tracker record, no scope id, or an unreadable scope. It is an identity
 // lookup only: "" never means safe, it means this source has no identity to offer.
 func storedScopeWorktree(seams cancelSeams, repoDir, runKey string) string {
 	if seams.store == nil || runKey == "" {
@@ -607,17 +607,17 @@ func storedScopeWorktree(seams cancelSeams, repoDir, runKey string) string {
 }
 
 // verifyTerminalRunQuiescence revalidates a terminal (cancelled/superseded)
-// epoch's EXISTING launch and mutation evidence using the same bounded accounting
+// run's EXISTING launch and mutation evidence using the same bounded accounting
 // cancellation uses — change 0437's launch reconciler plus the admitted-mutation
 // journal (reconcileRunTeardown's steps (5c) and (7)). It first resolves the slot
 // worktree (resolveTerminalRunSlot) and returns that resolved record, which the
-// caller hands to the shared retirement: for a superseded epoch the launch census
-// runs with the PREDECESSOR's epoch id against the REPLACEMENT's worktree, so both
+// caller hands to the shared retirement: for a superseded run the launch census
+// runs with the PREDECESSOR's run id against the REPLACEMENT's worktree, so both
 // the scope-linked drives (enumerable by RunID) and the replacement slot's
 // references are accounted. It fails closed: an unresolvable replacement worktree,
 // an absent or erroring reconciler, an unaccounted launch obligation (a busy claim,
 // an unresolved relaunch), or an admitted-not-completed mutation is non-quiescence
-// with a bounded finding. It performs no epoch or slot write, and it does not
+// with a bounded finding. It performs no run or slot write, and it does not
 // re-prove participants, which terminal repair deliberately does not re-enumerate.
 // requestWorktree is the caller's own verified worktree identity, if any (resume's
 // feature worktree; "" for run.cancel), used only to resolve a torn replacement
@@ -652,17 +652,17 @@ func verifyTerminalRunQuiescence(seams cancelSeams, repoDir string, ep RunRecord
 }
 
 // repairTerminalRun is the bounded repair a repeat run.cancel performs against a
-// DURABLY terminal (cancelled/superseded) epoch: after re-proving quiescence
+// DURABLY terminal (cancelled/superseded) run: after re-proving quiescence
 // (verifyTerminalRunQuiescence) it retires, through the shared retirement
-// (retireSlotOwnership), a released slot that still carries this epoch's RunID —
+// (retireSlotOwnership), a released slot that still carries this run's RunID —
 // the historical stale-ownership incident change 0435 closed — and otherwise no-ops
 // idempotently. A retirement it wrote is cancelled (applied); an already-detached,
-// absent, epoch-less, or successor-held slot is already-cancelled (the successor
+// absent, no-run-record, or successor-held slot is already-cancelled (the successor
 // finding surfaced, the successor untouched); an unsafe or unverifiable history is
 // refused with its specific finding — never cancellation-pending over durable
-// terminal state, never a regression to cancelling, never a revived epoch. It is not
+// terminal state, never a regression to cancelling, never a revived run. It is not
 // a general recovery engine: it uses only the records already present, and missing
-// or contradictory evidence fails closed to refused. It never writes the epoch record.
+// or contradictory evidence fails closed to refused. It never writes the run record.
 func repairTerminalRun(seams cancelSeams, repoDir string, ep RunRecord) RunCancelResult {
 	slotEp, quiescent, findings := verifyTerminalRunQuiescence(seams, repoDir, ep, "")
 	if !quiescent {
@@ -683,7 +683,7 @@ func repairTerminalRun(seams cancelSeams, repoDir string, ep RunRecord) RunCance
 }
 
 // reconcileRunTeardown performs the cancellation teardown accounting for an
-// already-FENCED epoch — the spec's flow steps (4)–(7): cancel registered native
+// already-FENCED run — the spec's flow steps (4)–(7): cancel registered native
 // tasks through the adapter hook (an absent adapter is a bounded FINDING, not
 // silence), stop each registered execution participant and the worktree admission
 // slot on proven teardown, RE-ENUMERATE the participants after stopping (a launch
@@ -691,11 +691,11 @@ func repairTerminalRun(seams cancelSeams, repoDir string, ep RunRecord) RunCance
 // uncertain publications a later verified identical retry proves (change 0444), and
 // reconcile the admitted-mutation journal (an admitted-not-completed entry keeps
 // the run pending). It returns whether the run is fully accounted, the bounded
-// credential-free findings, and a non-nil err only for an epoch re-read fault.
+// credential-free findings, and a non-nil err only for a run re-read fault.
 //
-// It NEVER validates authority and NEVER transitions the epoch (its only epoch write
+// It NEVER validates authority and NEVER transitions the run (its only run write
 // is settleUncertainPublications' uncertain→completed flip of retry-proven journal
-// entries, which leaves the epoch state untouched): the caller fences
+// entries, which leaves the run state untouched): the caller fences
 // first — run.cancel under the authority conjunction, or the detached death
 // guardian on abrupt owner death — and finalizes cancelling→cancelled after. Both
 // callers share this one accounting so the two fencing authorities reconcile a run
@@ -737,7 +737,7 @@ func reconcileRunTeardown(seams cancelSeams, repoDir, runKey string, ep RunRecor
 	}
 
 	// (5b) Reconcile the worktree admission slot itself — the top-level execution the
-	// epoch owns. Marking stopping, stopping its process, and releasing on proven
+	// run owns. Marking stopping, stopping its process, and releasing on proven
 	// teardown is the authoritative slot teardown; an unproven or unreadable slot
 	// keeps cancellation pending (fail closed).
 	slotAccounted, slotFinding := reconcileWorktreeSlot(seams, ep)
@@ -748,7 +748,7 @@ func reconcileRunTeardown(seams cancelSeams, repoDir, runKey string, ep RunRecor
 		accounted = false
 	}
 
-	// (5c) Reconcile the epoch's pending and replacement LAUNCH obligations the durable
+	// (5c) Reconcile the run's pending and replacement LAUNCH obligations the durable
 	// drive records name — a reserved-but-unlaunched drive, a busy launch claim, or a
 	// relaunch replacement the worktree slot still records the predecessor for — that
 	// the participant/slot teardown above cannot see (change 0437 Task 6). A nil or
@@ -832,33 +832,33 @@ func stopParticipantProcess(seams cancelSeams, handle string) bool {
 	return err == nil && proven
 }
 
-// slotOwnershipClass classifies a loaded worktree slot against the fenced epoch —
+// slotOwnershipClass classifies a loaded worktree slot against the fenced run —
 // the ownership predicate every slot-touching cancel path shares. Ownership is
 // established BEFORE marking, stopping, releasing, or retiring: the slot's current
-// reservation token alone is not proof of epoch ownership (spec). A different
+// reservation token alone is not proof of run ownership (spec). A different
 // nonempty RunID is a foreign owner (or a successor) and is never touched;
 // Tasks 4/5/7 reuse this classifier.
 type slotOwnershipClass int
 
 const (
-	// slotOwned: the slot records this epoch's id — the epoch's own top-level execution.
+	// slotOwned: the slot records this run's id — the run's own top-level execution.
 	slotOwned slotOwnershipClass = iota
-	// slotLinkedLegacy: an epoch-less slot whose exact execution (RawRunDir) is
-	// independently linked to one of this epoch's REGISTERED execution participants.
+	// slotLinkedLegacy: a no-run-record slot whose exact execution (RawRunDir) is
+	// independently linked to one of this run's REGISTERED execution participants.
 	slotLinkedLegacy
 	// slotForeign: a different nonempty RunID — a foreign owner or a successor.
 	// Never marked, stopped, released, or cleared.
 	slotForeign
-	// slotUnowned: epoch-less with no independent linkage — not provably this
-	// epoch's; left untouched with an unresolved-ownership finding.
+	// slotUnowned: no-run-record with no independent linkage — not provably this
+	// run's; left untouched with an unresolved-ownership finding.
 	slotUnowned
 )
 
-// classifySlotOwnership decides whether the fenced epoch owns the loaded slot. A
-// nonempty RunID is authoritative: equal to this epoch it is slotOwned, a
+// classifySlotOwnership decides whether the fenced run owns the loaded slot. A
+// nonempty RunID is authoritative: equal to this run it is slotOwned, a
 // different nonempty id is a foreign owner (slotForeign) — never touched. An
-// epoch-less slot (the legacy shape) is ours only when its exact execution
-// (RawRunDir) matches one of this epoch's REGISTERED execution participants
+// no-run-record slot (the legacy shape) is ours only when its exact execution
+// (RawRunDir) matches one of this run's REGISTERED execution participants
 // (slotLinkedLegacy); otherwise it is not provably ours (slotUnowned).
 func classifySlotOwnership(slotRunID, slotRawRunDir string, ep RunRecord) slotOwnershipClass {
 	if slotRunID != "" {
@@ -877,10 +877,10 @@ func classifySlotOwnership(slotRunID, slotRawRunDir string, ep RunRecord) slotOw
 	return slotUnowned
 }
 
-// markWorktreeSlotStopping best-effort marks the epoch's worktree execution slot
+// markWorktreeSlotStopping best-effort marks the run's worktree execution slot
 // stopping before its process is stopped, using the slot's own persisted
 // reservation token (RunCancel holds no token of its own). It marks ONLY a slot
-// this epoch owns — slotOwned or slotLinkedLegacy per classifySlotOwnership: a
+// this run owns — slotOwned or slotLinkedLegacy per classifySlotOwnership: a
 // different nonempty RunID is a foreign owner and is left untouched. A missing
 // store, empty worktree, unreadable slot, or already-terminal slot is also left
 // untouched — the authoritative release decision is reconcileWorktreeSlot's.
@@ -904,13 +904,13 @@ func markWorktreeSlotStopping(seams cancelSeams, ep RunRecord) {
 	}
 }
 
-// reconcileWorktreeSlot stops the epoch's worktree execution slot and releases it on
-// PROVEN teardown. It touches ONLY a slot this epoch owns (classifySlotOwnership): a
+// reconcileWorktreeSlot stops the run's worktree execution slot and releases it on
+// PROVEN teardown. It touches ONLY a slot this run owns (classifySlotOwnership): a
 // foreign owner (a different nonempty RunID) is never marked, stopped,
-// released, or cleared, and an epoch-less slot with no independent participant
+// released, or cleared, and a no-run-record slot with no independent participant
 // linkage is left untouched with its ownership surfaced — both are accounted (they
-// are not this epoch's obligation; launch obligations independently linked to this
-// epoch are still accounted by the launch reconciler). For an owned slot it returns
+// are not this run's obligation; launch obligations independently linked to this
+// run are still accounted by the launch reconciler). For an owned slot it returns
 // whether the slot is accounted (released, absent, or already released) and a
 // bounded finding when it is not. It CHECKS the release write: a proven process stop
 // does not prove the release was durably recorded, so a failed release fails closed
@@ -930,11 +930,11 @@ func reconcileWorktreeSlot(seams cancelSeams, ep RunRecord) (accounted bool, fin
 	}
 	switch classifySlotOwnership(slot.RunID, slot.RawRunDir, ep) {
 	case slotForeign:
-		// A different nonempty RunID is a foreign owner: not this epoch's
+		// A different nonempty RunID is a foreign owner: not this run's
 		// obligation, never marked/stopped/released/cleared.
 		return true, "slot-foreign-owner"
 	case slotUnowned:
-		// Epoch-less with no independent participant linkage: not provably ours —
+		// no-run-record with no independent participant linkage: not provably ours —
 		// left untouched, ownership surfaced.
 		return true, "slot-ownership-unresolved"
 	}
@@ -962,7 +962,7 @@ func reconcileWorktreeSlot(seams cancelSeams, ep RunRecord) (accounted bool, fin
 	}
 }
 
-// cancelRunReason maps an epoch-store load error to a bounded refusal reason
+// cancelRunReason maps a run-store load error to a bounded refusal reason
 // token — the RunError kind when one is present, else a generic fallback.
 func cancelRunReason(err error) string {
 	if ee, ok := AsRunError(err); ok {

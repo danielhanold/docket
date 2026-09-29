@@ -10,21 +10,21 @@ import (
 	"github.com/danielhanold/docket/internal/testsupport"
 )
 
-// These are the gatedrive-side run-epoch tests (change 0375 Task 9). A scoped
+// These are the gatedrive-side run tests (change 0375 Task 9). A scoped
 // start threads its RunID onto the worktree execution slot, and the slot's
-// epoch fence refuses any later reservation that does not carry the owning epoch —
-// an omitted or stale epoch cannot detach a workflow-owned worktree, even over the
-// released (between-drives) slot the epoch still owns. The scope schema's v2->v3
+// run fence refuses any later reservation that does not carry the owning run —
+// an omitted or stale run cannot detach a workflow-owned worktree, even over the
+// released (between-drives) slot the run still owns. The scope schema's v2->v3
 // ride-along tolerates a legacy in-flight scope record.
 
 // TestScopedStartCarriesRunIntoSlot proves a scoped Start records its RunID
 // on the worktree execution slot it reserves, so the fence links the worktree to
-// the workflow epoch.
+// the workflow run.
 func TestScopedStartCarriesRunIntoSlot(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	_, req := prepareScopedStart(t, store)
-	req.RunID = "epoch-carry-xyz"
+	req.RunID = "run-carry-xyz"
 
 	proc := &fakeProc{} // launch + observe running
 	d := scopedTestDriver(store, clk, proc, stableGit())
@@ -40,19 +40,19 @@ func TestScopedStartCarriesRunIntoSlot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadWorktreeExecution: %v", err)
 	}
-	if slot.RunID != "epoch-carry-xyz" {
-		t.Fatalf("the slot must record the start's run epoch, got %q", slot.RunID)
+	if slot.RunID != "run-carry-xyz" {
+		t.Fatalf("the slot must record the start's run, got %q", slot.RunID)
 	}
 	if slot.State != admissionExecuting {
 		t.Fatalf("after a launched Start the slot must be executing, got %q", slot.State)
 	}
 }
 
-// TestRunOmissionCannotDetachOwnedWorktree proves the slot's run-epoch fence: a
-// slot owned by epoch E admits only E's own sequential drives. A reservation
-// carrying a different epoch (or none) is refused ErrStaleRunID — while the slot
+// TestRunOmissionCannotDetachOwnedWorktree proves the slot's run-run fence: a
+// slot owned by run E admits only E's own sequential drives. A reservation
+// carrying a different run (or none) is refused ErrStaleRunID — while the slot
 // is still owned AND after it is released between drives — and only E readmits,
-// preserving the epoch.
+// preserving the run.
 func TestRunOmissionCannotDetachOwnedWorktree(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
 	wt := mkWorktree(t)
@@ -61,7 +61,7 @@ func TestRunOmissionCannotDetachOwnedWorktree(t *testing.T) {
 	owning.RunID = "E"
 	token, err := s.ReserveWorktreeExecution(owning)
 	if err != nil {
-		t.Fatalf("reserve for epoch E: %v", err)
+		t.Fatalf("reserve for run E: %v", err)
 	}
 
 	empty := sampleAdmission(wt)
@@ -69,14 +69,14 @@ func TestRunOmissionCannotDetachOwnedWorktree(t *testing.T) {
 	other := sampleAdmission(wt)
 	other.RunID = "E-prime"
 
-	// While the slot is still reserved (owned, mid-flight) the epoch fence precedes
-	// the plain worktree-busy check: an omitted or different epoch is stale-run-id,
+	// While the slot is still reserved (owned, mid-flight) the run fence precedes
+	// the plain worktree-busy check: an omitted or different run is stale-run-id,
 	// not worktree-busy.
 	if _, err := s.ReserveWorktreeExecution(empty); !isOwnership(err, ErrStaleRunID) {
-		t.Fatalf("owned+omitted epoch must be ErrStaleRunID, got %v", err)
+		t.Fatalf("owned+omitted run must be ErrStaleRunID, got %v", err)
 	}
 	if _, err := s.ReserveWorktreeExecution(other); !isOwnership(err, ErrStaleRunID) {
-		t.Fatalf("owned+different epoch must be ErrStaleRunID, got %v", err)
+		t.Fatalf("owned+different run must be ErrStaleRunID, got %v", err)
 	}
 
 	// Release the slot (the between-drives window). It still belongs to E.
@@ -84,27 +84,27 @@ func TestRunOmissionCannotDetachOwnedWorktree(t *testing.T) {
 		t.Fatalf("release: %v", err)
 	}
 	if _, err := s.ReserveWorktreeExecution(empty); !isOwnership(err, ErrStaleRunID) {
-		t.Fatalf("released+omitted epoch must be ErrStaleRunID, got %v", err)
+		t.Fatalf("released+omitted run must be ErrStaleRunID, got %v", err)
 	}
 	if _, err := s.ReserveWorktreeExecution(other); !isOwnership(err, ErrStaleRunID) {
-		t.Fatalf("released+different epoch must be ErrStaleRunID, got %v", err)
+		t.Fatalf("released+different run must be ErrStaleRunID, got %v", err)
 	}
 
-	// The owning epoch readmits its own next sequential drive, preserving the epoch.
+	// The owning run readmits its own next sequential drive, preserving the run.
 	if _, err := s.ReserveWorktreeExecution(owning); err != nil {
-		t.Fatalf("owning epoch E must readmit its own drive, got %v", err)
+		t.Fatalf("owning run E must readmit its own drive, got %v", err)
 	}
 	got, _, err := s.LoadWorktreeExecution(wt)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
 	if got.RunID != "E" {
-		t.Fatalf("readmission must preserve epoch E, got %q", got.RunID)
+		t.Fatalf("readmission must preserve run E, got %q", got.RunID)
 	}
 }
 
-// TestStandaloneSlotFencesNoRun proves a slot with no epoch (a standalone gate)
-// fences nothing: a released epoch-less slot readmits any reservation, epoch-carrying
+// TestStandaloneSlotFencesNoRun proves a slot with no run (a standalone gate)
+// fences nothing: a released no-run-record slot readmits any reservation, run-carrying
 // or not — the fence is not a blanket refusal.
 func TestStandaloneSlotFencesNoRun(t *testing.T) {
 	s := OpenStore(testsupport.TempDir(t))
@@ -118,12 +118,12 @@ func TestStandaloneSlotFencesNoRun(t *testing.T) {
 	if err := s.ReleaseWorktreeExecution(wt, token); err != nil {
 		t.Fatalf("release: %v", err)
 	}
-	// An epoch-less slot admits a later epoch-carrying reservation: it detaches
-	// nothing (no epoch owned it).
+	// A no-run-record slot admits a later run-carrying reservation: it detaches
+	// nothing (no run owned it).
 	withRun := sampleAdmission(wt)
 	withRun.RunID = "E"
 	if _, err := s.ReserveWorktreeExecution(withRun); err != nil {
-		t.Fatalf("an epoch-less released slot must readmit, got %v", err)
+		t.Fatalf("a no-run-record released slot must readmit, got %v", err)
 	}
 }
 
@@ -144,13 +144,13 @@ func TestScopeSchemaV2LegacyTolerated(t *testing.T) {
 	if err := os.WriteFile(path, []byte(v2), 0o600); err != nil {
 		t.Fatalf("write v2: %v", err)
 	}
-	// v2 is tolerated: it loads with an empty epoch (never ErrUnknownSchema).
+	// v2 is tolerated: it loads with an empty run (never ErrUnknownSchema).
 	rec, err := s.LoadScope(g.ScopeID)
 	if err != nil {
 		t.Fatalf("a v2 scope record must be tolerated, got %v", err)
 	}
 	if rec.RunID != "" {
-		t.Fatalf("a legacy v2 record must read an empty epoch, got %q", rec.RunID)
+		t.Fatalf("a legacy v2 record must read an empty run, got %q", rec.RunID)
 	}
 	// The next CAS write stamps it forward to v3.
 	if err := s.closeScope(g.ScopeID); err != nil {
@@ -170,16 +170,16 @@ func TestScopeSchemaV2LegacyTolerated(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Scoped starts inherit the scope's run epoch (change 0467). A scope prepared
-// with epoch E hands E to every scoped start under it: a start presenting no
-// epoch is admitted as E (it used to be refused stale-run-id against the
+// Scoped starts inherit the scope's run (change 0467). A scope prepared
+// with run E hands E to every scoped start under it: a start presenting no
+// run is admitted as E (it used to be refused stale-run-id against the
 // E-owned slot), presenting E still admits, presenting F != E is refused
 // scope-identity-mismatch before anything is reserved, and a scope with no
-// epoch leaves the presented value governing, exactly as before.
+// run leaves the presented value governing, exactly as before.
 // ---------------------------------------------------------------------------
 
-// recordingRunLaunchGate is a permissive RunLaunchGate that records every epoch id
-// it is asked to validate, so a test can prove which epoch the driver gated on.
+// recordingRunLaunchGate is a permissive RunLaunchGate that records every run id
+// it is asked to validate, so a test can prove which run the driver gated on.
 type recordingRunLaunchGate struct {
 	mu   sync.Mutex
 	seen []string
@@ -201,8 +201,8 @@ func (g *recordingRunLaunchGate) runIDs() []string {
 }
 
 // prepareRunScopedStart prepares a scope pinned to scopeRun ("" for a scope
-// with no epoch) over the sample worktree and returns a StartRequest wired to it
-// that presents NO run epoch.
+// with no run) over the sample worktree and returns a StartRequest wired to it
+// that presents NO run.
 func prepareRunScopedStart(t *testing.T, store *Store, scopeRun string) StartRequest {
 	t.Helper()
 	req := sampleStart()
@@ -217,14 +217,14 @@ func prepareRunScopedStart(t *testing.T, store *Store, scopeRun string) StartReq
 	return req
 }
 
-// TestScopedStartInheritsScopeRun: a start that presents no epoch, under a
-// scope pinned to epoch-e1, over a released slot epoch-e1 still owns, is
-// admitted as epoch-e1 — the slot keeps epoch-e1 and every epoch-gate call the
-// start made named epoch-e1 (an empty epoch would bypass the gate entirely).
+// TestScopedStartInheritsScopeRun: a start that presents no run, under a
+// scope pinned to run-e1, over a released slot run-e1 still owns, is
+// admitted as run-e1 — the slot keeps run-e1 and every run-launch-gate call the
+// start made named run-e1 (an empty run would bypass the gate entirely).
 func TestScopedStartInheritsScopeRun(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
-	req := prepareRunScopedStart(t, store, "epoch-e1")
+	req := prepareRunScopedStart(t, store, "run-e1")
 	releasedRunSlot(t, store, req.Worktree, req.RepoDir)
 
 	g := &recordingRunLaunchGate{}
@@ -233,7 +233,7 @@ func TestScopedStartInheritsScopeRun(t *testing.T) {
 
 	doc, err := d.Start(req) // req.RunID == ""
 	if err != nil {
-		t.Fatalf("a scoped start presenting no epoch must inherit the scope's, got %v", err)
+		t.Fatalf("a scoped start presenting no run must inherit the scope's, got %v", err)
 	}
 	if doc.Outcome != WAITING {
 		t.Fatalf("first slice must WAIT, got %s (%s)", doc.Outcome, doc.Cause)
@@ -242,53 +242,53 @@ func TestScopedStartInheritsScopeRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadWorktreeExecution: %v", err)
 	}
-	if slot.State != admissionExecuting || slot.RunID != "epoch-e1" {
-		t.Fatalf("slot = %s/%q, want executing/epoch-e1", slot.State, slot.RunID)
+	if slot.State != admissionExecuting || slot.RunID != "run-e1" {
+		t.Fatalf("slot = %s/%q, want executing/run-e1", slot.State, slot.RunID)
 	}
 	seen := g.runIDs()
 	if len(seen) == 0 {
-		t.Fatal("the start never consulted the epoch gate: it ran epoch-less")
+		t.Fatal("the start never consulted the run launch gate: it ran no-run-record")
 	}
 	for _, e := range seen {
-		if e != "epoch-e1" {
-			t.Fatalf("epoch gate consulted with %q, want only epoch-e1 (all calls: %v)", e, seen)
+		if e != "run-e1" {
+			t.Fatalf("run launch gate consulted with %q, want only run-e1 (all calls: %v)", e, seen)
 		}
 	}
 }
 
-// TestScopedStartPresentingScopeRunAdmits: presenting the scope's own epoch
+// TestScopedStartPresentingScopeRunAdmits: presenting the scope's own run
 // still admits (regression pin — green before and after this change).
 func TestScopedStartPresentingScopeRunAdmits(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
-	req := prepareRunScopedStart(t, store, "epoch-e1")
+	req := prepareRunScopedStart(t, store, "run-e1")
 	releasedRunSlot(t, store, req.Worktree, req.RepoDir)
-	req.RunID = "epoch-e1"
+	req.RunID = "run-e1"
 
 	d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
 	doc, err := d.Start(req)
 	if err != nil || doc.Outcome != WAITING {
-		t.Fatalf("presenting the scope's epoch must admit and WAIT: doc=%+v err=%v", doc, err)
+		t.Fatalf("presenting the scope's run must admit and WAIT: doc=%+v err=%v", doc, err)
 	}
 	slot, _, err := store.LoadWorktreeExecution(req.Worktree)
 	if err != nil {
 		t.Fatalf("LoadWorktreeExecution: %v", err)
 	}
-	if slot.RunID != "epoch-e1" {
-		t.Fatalf("slot epoch = %q, want epoch-e1", slot.RunID)
+	if slot.RunID != "run-e1" {
+		t.Fatalf("slot run = %q, want run-e1", slot.RunID)
 	}
 }
 
-// TestScopedStartForeignRunRefused: presenting an epoch that differs from the
+// TestScopedStartForeignRunRefused: presenting a run that differs from the
 // scope's pinned one is refused scope-identity-mismatch before anything is
 // reserved — the worktree slot is byte-for-byte untouched, the scope's single
-// slot stays empty, nothing launched, and the epoch gate was never consulted.
+// slot stays empty, nothing launched, and the run launch gate was never consulted.
 func TestScopedStartForeignRunRefused(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
-	req := prepareRunScopedStart(t, store, "epoch-e1")
+	req := prepareRunScopedStart(t, store, "run-e1")
 	releasedRunSlot(t, store, req.Worktree, req.RepoDir)
-	req.RunID = "epoch-foreign"
+	req.RunID = "run-foreign"
 	before := readSlotBytes(t, store, req.Worktree)
 
 	g := &recordingRunLaunchGate{}
@@ -297,7 +297,7 @@ func TestScopedStartForeignRunRefused(t *testing.T) {
 	d.SetRunLaunchGate(g.gate())
 
 	if _, err := d.Start(req); !isOwnershipKind(err, ErrScopeIdentityMismatch) {
-		t.Fatalf("a foreign presented epoch must refuse scope-identity-mismatch, got %v", err)
+		t.Fatalf("a foreign presented run must refuse scope-identity-mismatch, got %v", err)
 	}
 	if string(readSlotBytes(t, store, req.Worktree)) != string(before) {
 		t.Fatal("a refused start must not touch the worktree slot")
@@ -313,22 +313,22 @@ func TestScopedStartForeignRunRefused(t *testing.T) {
 		t.Fatalf("a refused start must launch nothing, launched %d", proc.launchN)
 	}
 	if n := len(g.runIDs()); n != 0 {
-		t.Fatalf("a refused start must not reach the epoch gate, consulted %d times", n)
+		t.Fatalf("a refused start must not reach the run launch gate, consulted %d times", n)
 	}
 }
 
 // TestScopedSuccessorStartInheritsScopeRun: the worker's SEQUENCE of drives in
-// one scope — a successor start presenting no epoch after a PASSED predecessor
-// over the still-executing, epoch-e1-owned slot — is admitted (it rotates the
-// slot), while a successor presenting a foreign epoch is refused
+// one scope — a successor start presenting no run after a PASSED predecessor
+// over the still-executing, run-e1-owned slot — is admitted (it rotates the
+// slot), while a successor presenting a foreign run is refused
 // scope-identity-mismatch without consuming the predecessor receipt.
 func TestScopedSuccessorStartInheritsScopeRun(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
-	req := prepareRunScopedStart(t, store, "epoch-e1")
+	req := prepareRunScopedStart(t, store, "run-e1")
 	d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
 
-	first, err := d.Start(req) // presents no epoch: inherits epoch-e1
+	first, err := d.Start(req) // presents no run: inherits run-e1
 	if err != nil || first.Outcome != WAITING {
 		t.Fatalf("first start must inherit and WAIT: doc=%+v err=%v", first, err)
 	}
@@ -344,14 +344,14 @@ func TestScopedSuccessorStartInheritsScopeRun(t *testing.T) {
 	succ.PredecessorOwnerGen = first.Generation
 
 	foreign := succ
-	foreign.RunID = "epoch-foreign"
+	foreign.RunID = "run-foreign"
 	if _, err := d.Start(foreign); !isOwnershipKind(err, ErrScopeIdentityMismatch) {
-		t.Fatalf("a successor presenting a foreign epoch must refuse scope-identity-mismatch, got %v", err)
+		t.Fatalf("a successor presenting a foreign run must refuse scope-identity-mismatch, got %v", err)
 	}
 
-	second, err := d.Start(succ) // presents no epoch: inherits epoch-e1
+	second, err := d.Start(succ) // presents no run: inherits run-e1
 	if err != nil {
-		t.Fatalf("a successor presenting no epoch must inherit the scope's, got %v", err)
+		t.Fatalf("a successor presenting no run must inherit the scope's, got %v", err)
 	}
 	if second.Outcome != WAITING || second.DriveID == first.DriveID {
 		t.Fatalf("successor must be a NEW waiting drive, got %+v", second)
@@ -360,15 +360,15 @@ func TestScopedSuccessorStartInheritsScopeRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadWorktreeExecution: %v", err)
 	}
-	if slot.RunID != "epoch-e1" {
-		t.Fatalf("successor slot epoch = %q, want epoch-e1", slot.RunID)
+	if slot.RunID != "run-e1" {
+		t.Fatalf("successor slot run = %q, want run-e1", slot.RunID)
 	}
 }
 
-// TestNoRunRecordScopeKeepsPresentedRun: a scope with no pinned epoch (a legacy
+// TestNoRunRecordScopeKeepsPresentedRun: a scope with no pinned run (a legacy
 // v2 scope, or one prepared without) supplies nothing — the presented value
-// governs, unchanged from before. Presenting none over an epoch-e1-owned slot is
-// still fenced stale-run-id; presenting epoch-e1 admits.
+// governs, unchanged from before. Presenting none over a run-e1-owned slot is
+// still fenced stale-run-id; presenting run-e1 admits.
 func TestNoRunRecordScopeKeepsPresentedRun(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
@@ -377,38 +377,38 @@ func TestNoRunRecordScopeKeepsPresentedRun(t *testing.T) {
 	d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
 
 	if _, err := d.Start(req); !isOwnershipKind(err, ErrStaleRunID) {
-		t.Fatalf("an epoch-less scope must not supply an epoch: want stale-run-id, got %v", err)
+		t.Fatalf("a no-run-record scope must not supply a run: want stale-run-id, got %v", err)
 	}
-	req.RunID = "epoch-e1"
+	req.RunID = "run-e1"
 	doc, err := d.Start(req)
 	if err != nil || doc.Outcome != WAITING {
-		t.Fatalf("presenting the owning epoch under an epoch-less scope must admit: doc=%+v err=%v", doc, err)
+		t.Fatalf("presenting the owning run under a no-run-record scope must admit: doc=%+v err=%v", doc, err)
 	}
 }
 
 // TestAdvisoryRunIDMatchesAdmit pins the read-only resolution the application
 // layer's advisory pre-admission check reconciles with (change 0467): a
-// credentialed scoped start presenting no epoch (or the scope's) resolves to the
-// scope's pinned epoch; a foreign presented epoch, a rejected capability, an
-// unknown scope, a scopeless start, and an epoch-less scope all keep the
+// credentialed scoped start presenting no run (or the scope's) resolves to the
+// scope's pinned run; a foreign presented run, a rejected capability, an
+// unknown scope, a scopeless start, and a no-run-record scope all keep the
 // presented value.
 func TestAdvisoryRunIDMatchesAdmit(t *testing.T) {
 	clk := &fakeClock{now: startRun()}
 	store := OpenStore(testsupport.TempDir(t))
 	d := scopedTestDriver(store, clk, &fakeProc{}, stableGit())
-	pinned := prepareRunScopedStart(t, store, "epoch-e1")
+	pinned := prepareRunScopedStart(t, store, "run-e1")
 
 	cases := []struct {
 		name string
 		mut  func(r StartRequest) StartRequest
 		want string
 	}{
-		{"none presented inherits", func(r StartRequest) StartRequest { return r }, "epoch-e1"},
-		{"same presented", func(r StartRequest) StartRequest { r.RunID = "epoch-e1"; return r }, "epoch-e1"},
-		{"foreign presented kept", func(r StartRequest) StartRequest { r.RunID = "epoch-x"; return r }, "epoch-x"},
+		{"none presented inherits", func(r StartRequest) StartRequest { return r }, "run-e1"},
+		{"same presented", func(r StartRequest) StartRequest { r.RunID = "run-e1"; return r }, "run-e1"},
+		{"foreign presented kept", func(r StartRequest) StartRequest { r.RunID = "run-x"; return r }, "run-x"},
 		{"bad capability", func(r StartRequest) StartRequest { r.ChildCapability = "nope"; return r }, ""},
 		{"unknown scope", func(r StartRequest) StartRequest { r.ScopeID = "00000000000000000000000000000000"; return r }, ""},
-		{"scopeless", func(r StartRequest) StartRequest { r.ScopeID = ""; r.RunID = "epoch-s"; return r }, "epoch-s"},
+		{"scopeless", func(r StartRequest) StartRequest { r.ScopeID = ""; r.RunID = "run-s"; return r }, "run-s"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -421,8 +421,8 @@ func TestAdvisoryRunIDMatchesAdmit(t *testing.T) {
 	store2 := OpenStore(testsupport.TempDir(t))
 	d2 := scopedTestDriver(store2, clk, &fakeProc{}, stableGit())
 	noRunRecord := prepareRunScopedStart(t, store2, "")
-	noRunRecord.RunID = "epoch-p"
-	if got := d2.AdvisoryRunID(noRunRecord); got != "epoch-p" {
-		t.Fatalf("an epoch-less scope must keep the presented epoch, got %q", got)
+	noRunRecord.RunID = "run-p"
+	if got := d2.AdvisoryRunID(noRunRecord); got != "run-p" {
+		t.Fatalf("a no-run-record scope must keep the presented run, got %q", got)
 	}
 }

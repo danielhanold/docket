@@ -30,7 +30,7 @@ type Transport interface {
 type StartFunc func(context.Context, string) (Transport, error)
 
 // ParticipantRegistrar registers this entry's native task handle (its thread id)
-// as a run-epoch participant BEFORE the coordinator turn starts, so a later
+// as a run participant BEFORE the coordinator turn starts, so a later
 // cancellation knows the task exists. Registration is lifecycle linkage only — it
 // confers no attribution and no authority (claim proofs own attribution). The app
 // layer wires the implementation; a nil Registrar registers nothing (the honest
@@ -40,7 +40,7 @@ type ParticipantRegistrar interface {
 }
 
 // TerminalRecorder persists the adapter's exact terminal observation of this
-// entry's native task (the thread/turn that terminated) as run-epoch evidence —
+// entry's native task (the thread/turn that terminated) as run evidence —
 // change 0441. It is recorded ONLY after the transport is torn down, so the
 // evidence reflects a settled turn rather than a still-open stream. status is
 // terminalCompleted or terminalFailed; a terminal failure is termination evidence
@@ -62,7 +62,7 @@ const (
 )
 
 // LifecycleCanceller connects a catchable owner Stop (SIGTERM/SIGINT) to the run's
-// cancellation path: it fences the run epoch and tears the run down. It is injected
+// cancellation path: it fences the run and tears the run down. It is injected
 // from the app layer ONLY for an entry that carries cancellation authority (the root
 // coordinator); a feature child registers as a participant but receives a nil
 // Canceller — the flags register, they do not confer authority.
@@ -72,14 +72,14 @@ type LifecycleCanceller interface {
 
 type Client struct {
 	Start StartFunc
-	// Registrar, when non-nil, registers this entry's thread as a run-epoch
+	// Registrar, when non-nil, registers this entry's thread as a run
 	// participant before the turn starts.
 	Registrar ParticipantRegistrar
 	// Canceller, when non-nil, is invoked once if a SIGTERM/SIGINT reaches this
 	// owner while it waits on the turn — the signal-connected cancellation path.
 	Canceller LifecycleCanceller
 	// Terminal, when non-nil, records this entry's exact-turn termination as
-	// run-epoch evidence after the turn settles and the transport is closed.
+	// run evidence after the turn settles and the transport is closed.
 	Terminal TerminalRecorder
 	// signalSource, when non-nil, replaces OS signal notification during the turn
 	// wait so tests drive the cancellation path deterministically. Production leaves
@@ -185,7 +185,7 @@ func (c Client) Enter(ctx context.Context, req Request) (Result, error) {
 		return Result{}, fmt.Errorf("root-thread creation returned a malformed result")
 	}
 
-	// Register the native task handle (the thread id) as a run-epoch participant
+	// Register the native task handle (the thread id) as a run participant
 	// BEFORE the turn starts, so a cancellation that races the turn already knows the
 	// task exists. A registration failure is fatal — an unregistered turn cannot be
 	// reached by a later cancellation, so it must not start (fail closed).
@@ -222,7 +222,7 @@ func (c Client) Enter(ctx context.Context, req Request) (Result, error) {
 	output, waitErr := c.waitTurn(tr, thread.Thread.ID, turn.Turn.ID)
 
 	// Terminal observation (change 0441): record the exact turn's termination as
-	// run-epoch evidence, but ONLY after the transport's terminal response and
+	// run evidence, but ONLY after the transport's terminal response and
 	// teardown are accounted — close it explicitly here, before the idempotent
 	// deferred Close, so the record reflects a settled turn, not an open stream.
 	// waitTurn success is terminalCompleted; a turnFailedError is terminalFailed

@@ -130,13 +130,13 @@ const (
 	// admission until recovery resolves it, never a blind re-reservation (spec
 	// "Ambiguous launch or persistence failures fail closed").
 	ErrUnresolvedExecution OwnershipErrorKind = "unresolved-execution"
-	// ErrStaleRunID: a worktree execution slot is owned by a run epoch (an
+	// ErrStaleRunID: a worktree execution slot is owned by a run (an
 	// in-flight workflow implementation whose id the slot records) that the incoming
-	// reservation does not carry — an omitted epoch, or a different one. Omission
-	// cannot detach a workflow-owned worktree: the slot admits only that epoch's own
-	// sequential drives, so a later gate presenting a stale or empty epoch is refused
-	// rather than launched, even over a released (between-drives) slot the epoch still
-	// owns (change 0375 Task 9, spec "omission cannot detach"). A slot with no epoch
+	// reservation does not carry — an omitted run, or a different one. Omission
+	// cannot detach a workflow-owned worktree: the slot admits only that run's own
+	// sequential drives, so a later gate presenting a stale or empty run is refused
+	// rather than launched, even over a released (between-drives) slot the run still
+	// owns (change 0375 Task 9, spec "omission cannot detach"). A slot with no run
 	// (a standalone gate) fences nothing. It confers no admission and never stops the
 	// incumbent.
 	ErrStaleRunID OwnershipErrorKind = "stale-run-id"
@@ -154,10 +154,10 @@ type IncumbentSnapshot struct {
 	DriveID   string // "" for raw launches
 	RawRunID  string // "" until a raw launch was confirmed
 	RawRunDir string // "" until a raw launch was confirmed
-	RunOwned  bool   // a run epoch owns the slot (the epoch id itself is not projected)
-	// RunUnresolved: the settlement seam reported that no readable run-epoch
-	// record carries the slot's epoch (ErrRunRecordUnresolved), so the owning run
-	// cannot be cancelled by key and epoch — the remedy must not suggest it.
+	RunOwned  bool   // a run owns the slot (the run id itself is not projected)
+	// RunUnresolved: the settlement seam reported that no readable run
+	// record carries the slot's run (ErrRunRecordUnresolved), so the owning run
+	// cannot be cancelled by key and run id — the remedy must not suggest it.
 	RunUnresolved bool
 }
 

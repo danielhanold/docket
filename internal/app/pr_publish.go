@@ -230,13 +230,13 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		return prRefusal(ResultInvalidState, ReasonPRBodyAssemblyFailed, err.Error(), req.ID)
 	}
 
-	// (8a) Run-epoch mutation fence (change 0375 Task 11): PR creation is an external
-	// effect on GitHub, so admit through the owning run epoch before the ensure. A
-	// cancelled or superseded epoch refuses, and gh is never invoked; an active epoch
+	// (8a) Run mutation fence (change 0375 Task 11): PR creation is an external
+	// effect on GitHub, so admit through the owning run before the ensure. A
+	// cancelled or superseded run refuses, and gh is never invoked; an active run
 	// journals the admission, then this reconciles it once the ensure resolves —
 	// `uncertain` on an unobserved remote outcome (an EnsureUnknown or transport
 	// failure), so a cancellation stays pending until the effect is reconciled. A
-	// standalone/no-epoch run admits unfenced (the journal callback is a no-op).
+	// standalone/no-run-record run admits unfenced (the journal callback is a no-op).
 	// The admission journals the immutable publication identity (change 0444):
 	// resolved repo, exact head branch + full requested commit, effective base, and
 	// digests of the requested title and the fully assembled body — so a later
@@ -280,7 +280,7 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	return out
 }
 
-// prFenceRefusal builds a pr.publish refusal for a run-epoch mutation fence: the run
+// prFenceRefusal builds a pr.publish refusal for a run mutation fence: the run
 // that owns this change's worktree is cancelled, superseded, or completing a
 // successful closeout, so publication is blocked with the stable fence reason and an
 // accurate reason-aware message (via fenceRefusalReasonMessage), and gh is never
@@ -327,7 +327,7 @@ func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id 
 	}
 	// B must pass relevant validation before the GitHub publication (change
 	// 0449): an error on B or on a record B structurally requires refuses here,
-	// before the run-epoch admission and EnsurePullRequest, while an unrelated
+	// before the run admission and EnsurePullRequest, while an unrelated
 	// record's errors never veto it.
 	if bad := namedPreEffectErrors(build, id, c.Path()); len(bad) > 0 {
 		r := prRefusal(ResultInvalidState, ReasonPRRecordInvalid, namedPreEffectMessage(id, bad), id)

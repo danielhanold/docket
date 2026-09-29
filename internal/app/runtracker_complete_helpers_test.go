@@ -4,7 +4,7 @@ import (
 	"github.com/danielhanold/docket/internal/gatedrive"
 )
 
-// Run-gate completion test helpers shared with default-build (untagged) test files.
+// Run-tracker completion test helpers shared with default-build (untagged) test files.
 // The completion tests themselves live behind the integration tag in
 // runtracker_complete_integration_test.go (change 0465); these fakes stay untagged
 // because other untagged test files still reference them.
@@ -38,7 +38,7 @@ func (f *fakeProcessObserver) observeProcessTerminal(runDir string) (bool, error
 }
 
 // fakeLaunchObserver is an injectable runLaunchObserver: it records each
-// (worktree,epoch) pair, returns a canned report/error, and can inject a race via
+// (worktree,run) pair, returns a canned report/error, and can inject a race via
 // onObserve (a late participant registered after the accounting snapshot but before
 // re-enumeration). It settles nothing.
 type fakeLaunchObserver struct {

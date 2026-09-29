@@ -1325,7 +1325,7 @@ func TestIntegrationChangeAuthoringGateRetryConsumeOnceThenFalse(t *testing.T) {
 	}
 }
 
-// TestIntegrationChangeAuthoringOuterBudgetEndToEnd drives the outer run gate end-to-end at
+// TestIntegrationChangeAuthoringOuterBudgetEndToEnd drives the outer run tracker end-to-end at
 // several configured run.max_attempts values (change 0421, Task 8). run start
 // snapshots the AUTHORITATIVE run.max_attempts into the record's AttemptLimit at
 // mint, and successive quiescent run-incomplete verdicts then grant exactly
@@ -1334,7 +1334,7 @@ func TestIntegrationChangeAuthoringGateRetryConsumeOnceThenFalse(t *testing.T) {
 // so the counted budget never changes a parsed line, and RunTrackerRetryUsage confirms the
 // on-disk marker count matches the grants. Unlike the direct RunVerdict call in
 // TestIntegrationRunVerdictVerdictIncompleteRespectsAttemptLimit, the limit here
-// flows from config through the real arm, not a hand-stamped record.
+// flows from config through the real start, not a hand-stamped record.
 func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 	cases := []struct {
 		limit       int
@@ -1349,14 +1349,14 @@ func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 		t.Run(fmt.Sprintf("limit-%d", tc.limit), func(t *testing.T) {
 			f := newRunVerifyFixture(t, true)
 
-			// (1) Arm through the real run start, whose mint snapshots the
+			// (1) Start a run through the real run start, whose mint snapshots the
 			// authoritative run.max_attempts into the record's AttemptLimit.
 			armReader := &fakeReader{pin: runTrackerPinWithRunMaxAttempts(t, tc.limit), corpus: runStartCorpus()}
 			armDeps := PlanningDeps{Reader: armReader, Clock: testClock()}
 			sp := &fakeScopePrep{grant: sampleScopeGrant()}
 			arm := RunStart(context.Background(), armDeps, WorkspaceDeps{}, sp.deps(), f.repo.invocation, "implement-next", 0)
 			if !arm.Started {
-				t.Fatalf("run start did not arm: %q", arm.HumanText())
+				t.Fatalf("run start did not start: %q", arm.HumanText())
 			}
 			key := arm.Key
 			rec, err := LoadRunTrackerRecord(f.repo.invocation, key)
@@ -1367,7 +1367,7 @@ func TestIntegrationChangeAuthoringOuterBudgetEndToEnd(t *testing.T) {
 				t.Fatalf("snapshotted AttemptLimit = %d, want %d (config value must reach the record)", rec.AttemptLimit, tc.limit)
 			}
 
-			// (2) Attribute the armed record to the fixture's in-progress change 3 —
+			// (2) Attribute the started record to the fixture's in-progress change 3 —
 			// the state a first verdict leaves behind — keeping the snapshot intact.
 			rec.AttributedID = 3
 			if err := SaveRunTrackerRecord(f.repo.invocation, key, rec); err != nil {
@@ -3518,7 +3518,7 @@ func TestIntegrationChangeRuntimeHaltCorruptedRecordStillRefused(t *testing.T) {
 	}
 }
 
-// TestRunGateBeforeArmsWithLoadableKey: a successful arm prints `run-started
+// TestIntegrationChangeRuntimeRunStartArmsWithLoadableKey: a successful start prints `run-started
 // <key>`, the record loads, and its BeforeIDs are exactly the fixture's
 // in-progress ids with the store-owned target and an unused retry permit.
 func TestIntegrationChangeRuntimeRunStartArmsWithLoadableKey(t *testing.T) {
@@ -3534,7 +3534,7 @@ func TestIntegrationChangeRuntimeRunStartArmsWithLoadableKey(t *testing.T) {
 		t.Errorf("run-started exit code = %d, want 0", code)
 	}
 	if !res.Started || res.Key == "" {
-		t.Fatalf("Armed=%v Key=%q, want armed with a non-empty key", res.Started, res.Key)
+		t.Fatalf("Started=%v Key=%q, want started with a non-empty key", res.Started, res.Key)
 	}
 	ep, _, err := LoadRunRecord(repo, res.Key)
 	if err != nil {
@@ -3561,11 +3561,11 @@ func TestIntegrationChangeRuntimeRunStartArmsWithLoadableKey(t *testing.T) {
 		t.Errorf("AttributedID = %d, want 0 (not yet attributed)", got.AttributedID)
 	}
 	if got.Terminal {
-		t.Errorf("Terminal = true, want false on a fresh arm")
+		t.Errorf("Terminal = true, want false on a fresh start")
 	}
 }
 
-// TestRunGateBeforeDispatchEpochAfterBeforeRead: DispatchedAt is captured after
+// TestIntegrationChangeRuntimeRunStartDispatchRunAfterBeforeRead: DispatchedAt is captured after
 // the before-read, so it is at or after the record's CreatedAt and is a real
 // (non-zero) wall-clock stamp.
 func TestIntegrationChangeRuntimeRunStartDispatchRunAfterBeforeRead(t *testing.T) {
@@ -3575,7 +3575,7 @@ func TestIntegrationChangeRuntimeRunStartDispatchRunAfterBeforeRead(t *testing.T
 
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Started {
-		t.Fatalf("gate did not arm: %q", res.HumanText())
+		t.Fatalf("run tracker did not start: %q", res.HumanText())
 	}
 	rec, err := LoadRunTrackerRecord(repo, res.Key)
 	if err != nil {
@@ -3589,7 +3589,7 @@ func TestIntegrationChangeRuntimeRunStartDispatchRunAfterBeforeRead(t *testing.T
 	}
 }
 
-// TestRunGateBeforeEmptyBacklogArms: no in-progress claims still arms with an
+// TestIntegrationChangeRuntimeRunStartEmptyBacklogArms: no in-progress claims still starts with an
 // empty before-set — an empty set is a valid observation, not a failure.
 func TestIntegrationChangeRuntimeRunStartEmptyBacklogArms(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -3598,7 +3598,7 @@ func TestIntegrationChangeRuntimeRunStartEmptyBacklogArms(t *testing.T) {
 
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Started {
-		t.Fatalf("empty backlog did not arm: %q", res.HumanText())
+		t.Fatalf("empty backlog did not start: %q", res.HumanText())
 	}
 	rec, err := LoadRunTrackerRecord(repo, res.Key)
 	if err != nil {
@@ -3609,7 +3609,7 @@ func TestIntegrationChangeRuntimeRunStartEmptyBacklogArms(t *testing.T) {
 	}
 }
 
-// TestRunGateBeforeInvalidTarget: any target other than `implement-next` is a
+// TestIntegrationChangeRuntimeRunStartInvalidTarget: any target other than `implement-next` is a
 // usage error — a non-zero exit with no run-started / run-untracked report line.
 func TestIntegrationChangeRuntimeRunStartInvalidTarget(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -3618,7 +3618,7 @@ func TestIntegrationChangeRuntimeRunStartInvalidTarget(t *testing.T) {
 
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "bogus-target", 0)
 	if res.Started {
-		t.Fatalf("armed for an invalid target")
+		t.Fatalf("started for an invalid target")
 	}
 	if code := ExitCode(res.Env().Result); code == 0 {
 		t.Errorf("invalid-target exit code = 0, want non-zero (result %q)", res.Env().Result)
@@ -3628,7 +3628,7 @@ func TestIntegrationChangeRuntimeRunStartInvalidTarget(t *testing.T) {
 	}
 }
 
-// TestRunGateBeforeSyncFailure: a fresh-origin re-sync failure (PinContext) is
+// TestIntegrationChangeRuntimeRunStartSyncFailure: a fresh-origin re-sync failure (PinContext) is
 // reported as run-untracked with the sync reason token, exit 0.
 func TestIntegrationChangeRuntimeRunStartSyncFailure(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -3637,7 +3637,7 @@ func TestIntegrationChangeRuntimeRunStartSyncFailure(t *testing.T) {
 
 	res := RunStart(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if res.Started {
-		t.Fatalf("armed despite a sync failure, want run-untracked")
+		t.Fatalf("started despite a sync failure, want run-untracked")
 	}
 	if res.Reason != ReasonRunSyncFailed {
 		t.Errorf("Reason = %q, want %q", res.Reason, ReasonRunSyncFailed)
@@ -3647,7 +3647,7 @@ func TestIntegrationChangeRuntimeRunStartSyncFailure(t *testing.T) {
 	}
 }
 
-// TestRunGateBeforeUnreadableChangesDir: an unreadable corpus prints
+// TestIntegrationChangeRuntimeRunStartUnreadableChangesDir: an unreadable corpus prints
 // `run-untracked <reason>` with a stable token and still exits 0 (the report line
 // is the contract), and mints no record.
 func TestIntegrationChangeRuntimeRunStartUnreadableChangesDir(t *testing.T) {
@@ -3663,7 +3663,7 @@ func TestIntegrationChangeRuntimeRunStartUnreadableChangesDir(t *testing.T) {
 		t.Errorf("run-untracked exit code = %d, want 0", code)
 	}
 	if res.Started {
-		t.Fatalf("armed on an unreadable corpus, want run-untracked")
+		t.Fatalf("started on an unreadable corpus, want run-untracked")
 	}
 	if res.Reason != ReasonRunChangesUnreadable {
 		t.Errorf("Reason = %q, want %q", res.Reason, ReasonRunChangesUnreadable)
@@ -3673,7 +3673,7 @@ func TestIntegrationChangeRuntimeRunStartUnreadableChangesDir(t *testing.T) {
 	}
 }
 
-// TestRunGateVerdictLoadErrorsFailClosed: every store load fault maps to a
+// TestIntegrationChangeRuntimeRunVerdictLoadErrorsFailClosed: every store load fault maps to a
 // terminal run-stop run-tracker-unavailable carrying the store's typed reason token —
 // never a retry.
 func TestIntegrationChangeRuntimeRunVerdictLoadErrorsFailClosed(t *testing.T) {
@@ -3736,7 +3736,7 @@ func TestIntegrationChangeRuntimeRunVerdictLoadErrorsFailClosed(t *testing.T) {
 	})
 }
 
-// TestRunGateVerdictObserveEmptyBacklogNoCurrentRun: no in-progress ids and no
+// TestIntegrationChangeRuntimeRunVerdictObserveEmptyBacklogNoCurrentRun: no in-progress ids and no
 // hints → a single terminal-shaped `run-observe no-current-run` line.
 func TestIntegrationChangeRuntimeRunVerdictObserveEmptyBacklogNoCurrentRun(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -3751,7 +3751,7 @@ func TestIntegrationChangeRuntimeRunVerdictObserveEmptyBacklogNoCurrentRun(t *te
 	}
 }
 
-// TestRunGateVerdictObserveHintsMixedVerdicts: supplied hint ids are each verified
+// TestIntegrationChangeRuntimeRunVerdictObserveHintsMixedVerdicts: supplied hint ids are each verified
 // and rendered as one `run-observe <verdict> <id>` line, in the INPUT order given
 // (never re-sorted), using RunVerify's verdict verbatim.
 func TestIntegrationChangeRuntimeRunVerdictObserveHintsMixedVerdicts(t *testing.T) {
@@ -3770,7 +3770,7 @@ func TestIntegrationChangeRuntimeRunVerdictObserveHintsMixedVerdicts(t *testing.
 	}
 }
 
-// TestRunGateVerdictObserveIncompleteWritesNothing: an incomplete run observed
+// TestIntegrationChangeRuntimeRunVerdictObserveIncompleteWritesNothing: an incomplete run observed
 // unattributed emits `run-observe run-incomplete <id> <unmet...>` and writes NO
 // record and consumes NOTHING — the rungate root is never created (no mint, no
 // save, no retry consumption on the observe path).
@@ -3799,7 +3799,7 @@ func TestIntegrationChangeRuntimeRunVerdictObserveIncompleteWritesNothing(t *tes
 	}
 }
 
-// TestRunGateVerdictObserveKeyIsUsageError: `--unattributed` combined with a key
+// TestIntegrationChangeRuntimeRunVerdictObserveKeyIsUsageError: `--unattributed` combined with a key
 // (a non-integer positional) is a usage error — a non-zero exit, never a report
 // line. Hints are change ids; a key can never be one.
 func TestIntegrationChangeRuntimeRunVerdictObserveKeyIsUsageError(t *testing.T) {
@@ -3815,7 +3815,7 @@ func TestIntegrationChangeRuntimeRunVerdictObserveKeyIsUsageError(t *testing.T) 
 	}
 }
 
-// TestRunGateVerdictObserveNoHintsAllInProgress: with no hints, every current
+// TestIntegrationChangeRuntimeRunVerdictObserveNoHintsAllInProgress: with no hints, every current
 // in-progress id is verified (sorted), one line each.
 func TestIntegrationChangeRuntimeRunVerdictObserveNoHintsAllInProgress(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -3831,7 +3831,7 @@ func TestIntegrationChangeRuntimeRunVerdictObserveNoHintsAllInProgress(t *testin
 	}
 }
 
-// TestRunGateVerdictObserveSyncFailureUnavailable: a re-sync/read fault fails
+// TestIntegrationChangeRuntimeRunVerdictObserveSyncFailureUnavailable: a re-sync/read fault fails
 // closed to a single `run-observe run-tracker-unavailable <reason>` line.
 func TestIntegrationChangeRuntimeRunVerdictObserveSyncFailureUnavailable(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -3843,7 +3843,7 @@ func TestIntegrationChangeRuntimeRunVerdictObserveSyncFailureUnavailable(t *test
 	}
 }
 
-// TestRunGateVerdictRestartDurability: run start and run verdict share nothing
+// TestIntegrationChangeRuntimeRunVerdictRestartDurability: run start and run verdict share nothing
 // but the repository directory and the key. Minting the record through the store
 // (as a separate run start process would) and then reading a verdict through a
 // fresh RunVerdict call — no record value passed between them — still resolves
@@ -3854,7 +3854,7 @@ func TestIntegrationChangeRuntimeRunVerdictRestartDurability(t *testing.T) {
 		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
 		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
 	)
-	// Simulate the arming process: mint and forget (nothing carried in memory). The
+	// Simulate the starting process: mint and forget (nothing carried in memory). The
 	// resume-verified shape (AttributedID set, no claim binding) is the durable state
 	// run start --resume leaves; a fresh verdict call resolves it from the record
 	// alone (change 0407).
@@ -3870,7 +3870,7 @@ func TestIntegrationChangeRuntimeRunVerdictRestartDurability(t *testing.T) {
 	}
 }
 
-// TestRunGateVerdictRunComplete: the attributed-id short-circuit verifies the
+// TestIntegrationChangeRuntimeRunVerdictRunComplete: the attributed-id short-circuit verifies the
 // stored id directly. An implemented change 3 (which fresh attribution could
 // never pick, being no longer in-progress) yields run-done run-complete —
 // proving the short-circuit bypassed attribution.
@@ -3894,7 +3894,7 @@ func TestIntegrationChangeRuntimeRunVerdictRunComplete(t *testing.T) {
 	}
 }
 
-// TestRunGateVerdictRunHalted: a halted in-progress change is attributed, then
+// TestIntegrationChangeRuntimeRunVerdictRunHalted: a halted in-progress change is attributed, then
 // RunVerify's run-halted maps to a terminal run-stop (a human is needed).
 func TestIntegrationChangeRuntimeRunVerdictRunHalted(t *testing.T) {
 	repo := newRunTrackerRepo(t)
@@ -3919,7 +3919,7 @@ func TestIntegrationChangeRuntimeRunVerdictRunHalted(t *testing.T) {
 	}
 }
 
-// TestRunGateVerdictRunIncompleteRetryThenStop drives the one-retry accounting:
+// TestIntegrationChangeRuntimeRunVerdictRunIncompleteRetryThenStop drives the one-retry accounting:
 // a not-implemented run yields run-retry-once on the first call (retry permit
 // consumed, non-terminal), and run-stop run-incomplete on the second (permit
 // spent, terminal). The post-pass durable state — not merely the emitted line —
@@ -3962,7 +3962,7 @@ func TestIntegrationChangeRuntimeRunVerdictRunIncompleteRetryThenStop(t *testing
 	}
 }
 
-// TestRunGateVerdictRunUnclaimed: the attributed-id short-circuit over a change
+// TestIntegrationChangeRuntimeRunVerdictRunUnclaimed: the attributed-id short-circuit over a change
 // that is now proposed (never-claimed) maps RunVerify's run-unclaimed to a
 // terminal run-done.
 func TestIntegrationChangeRuntimeRunVerdictRunUnclaimed(t *testing.T) {
@@ -3979,7 +3979,7 @@ func TestIntegrationChangeRuntimeRunVerdictRunUnclaimed(t *testing.T) {
 	}
 }
 
-// TestRunGateVerdictRunWaiting: a fully-agreeing local waiting receipt over an
+// TestIntegrationChangeRuntimeRunVerdictRunWaiting: a fully-agreeing local waiting receipt over an
 // in-progress change yields a NONTERMINAL run-continue (change 0359) that keeps
 // the key, spends no retry, and carries the minted continuation id and phase.
 func TestIntegrationChangeRuntimeRunVerdictRunWaiting(t *testing.T) {
@@ -4003,7 +4003,7 @@ func TestIntegrationChangeRuntimeRunVerdictRunWaiting(t *testing.T) {
 	}
 }
 
-// TestRunGateVerdictTwoKeysIsolated: two distinct keys in one repository hold
+// TestIntegrationChangeRuntimeRunVerdictTwoKeysIsolated: two distinct keys in one repository hold
 // independent retry permits — consuming one never touches the other.
 func TestIntegrationChangeRuntimeRunVerdictTwoKeysIsolated(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
@@ -4024,7 +4024,7 @@ func TestIntegrationChangeRuntimeRunVerdictTwoKeysIsolated(t *testing.T) {
 	}
 }
 
-// TestRunGateVerdictUnknownVerdictFailsClosed: a RunVerify outcome with no
+// TestIntegrationChangeRuntimeRunVerdictUnknownVerdictFailsClosed: a RunVerify outcome with no
 // recognized verdict (here an operational unknown-change error over an
 // attributed id absent from the corpus) fails closed to run-tracker-unavailable
 // unknown-verdict — never a retry, never a silent pass.

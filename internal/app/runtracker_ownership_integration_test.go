@@ -18,7 +18,7 @@ import (
 // This is the deterministic two-gate ownership interleaving matrix (change 0407,
 // spec acceptance items 1, 2, 6, 7). It exercises the acceptance criteria the unit
 // tests in runtracker_verdict_integration_test.go prove one branch at a time as WHOLE
-// interleavings: two gates A and B, each armed before either claim, each bound to
+// interleavings: two gates A and B, each started before either claim, each bound to
 // its own change through the store binding + committed-proof seams Task 3 produces,
 // verify only their own change and never each other's — under every ordering of
 // completion and verdict, under unrelated corpus churn, under a replacement claim,
@@ -106,7 +106,7 @@ func mxBind(t *testing.T, repoDir, key string, id int, requestID, revision strin
 }
 
 // mxAssertOwnIDOnly asserts the verdict resolved ownID and that siblingID appears
-// in NO field of the report line. The gate key is stripped first: a random gate key
+// in NO field of the report line. The run key is stripped first: a random run key
 // can itself contain the sibling's digit, so a raw strings.Contains over the whole
 // line would false-positive — the only numeric field after the key is the resolved id.
 func mxAssertOwnIDOnly(t *testing.T, res RunVerdictResult, key string, ownID, siblingID int) {
@@ -173,7 +173,7 @@ func TestIntegrationRunFenceTwoGatesEachVerifyOnlyTheirOwn(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newRunVerifyFixture(t, true)
-			// Both gates armed BEFORE either claim, each bound to its own change.
+			// Both gates started BEFORE either claim, each bound to its own change.
 			keyA := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "ha")
 			mxBind(t, f.repo.invocation, keyA, idA, "claim-3-v", "rA")
 			keyB := runTrackerMintStarted(t, f.repo.invocation, nil, 1, "hb")
@@ -239,7 +239,7 @@ func TestIntegrationRunFenceUnrelatedChurnDoesNotMoveOwnership(t *testing.T) {
 
 	// Refresh id 3's claimed_at and priority (a real refresh-claim / groom edit
 	// leaves the change complete), and add two sibling in-progress claims — exactly
-	// the churn the pre-0407 before-set/epoch inference keyed on.
+	// the churn the pre-0407 before-set/run inference keyed on.
 	refreshed := string(mxImplementedRecord(3, "widget"))
 	refreshed = strings.Replace(refreshed, "claimed_at: 2026-08-02T00:00:00Z", "claimed_at: 2026-09-05T00:00:00Z", 1)
 	refreshed = strings.Replace(refreshed, "priority: medium", "priority: high", 1)

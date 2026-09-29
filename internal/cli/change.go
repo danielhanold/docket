@@ -563,11 +563,11 @@ func newPlanningDepsOver(client *gitcli.Client, repoDir ...string) (app.Planning
 	if err != nil {
 		return app.PlanningDeps{}, err
 	}
-	// Run-epoch mutation fence (change 0375 Task 11): wire the admission hook here, at
+	// Run mutation fence (change 0375 Task 11): wire the admission hook here, at
 	// the single point where the transaction engine is assembled, so EVERY
 	// Engine.Execute caller is fenced mechanically. The hook closes over the change's
 	// feature worktree (repoDir); a caller that supplies none leaves the engine
-	// unfenced (a maintenance/standalone build that owns no implementation epoch).
+	// unfenced (a maintenance/standalone build that owns no implementation run).
 	if dir := optionalRepoDir(repoDir); dir != "" {
 		engine.AdmissionHook = app.MutationAdmissionHook(dir)
 	}

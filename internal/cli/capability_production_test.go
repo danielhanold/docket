@@ -345,7 +345,7 @@ func TestRepresentativeSignatures(t *testing.T) {
 		"gate.drive.acknowledge": "--child-cap <token> --drive-id <id> --owner-gen <gen> --scope-id <id> [--repo-dir <dir>]",
 		// change 0359: recovery-scope preparation (required identity flags) and the
 		// event-authorized parent takeover. change 0375 adds the optional --run-id,
-		// which threads the run epoch onto the scope so the takeover epoch-revocation
+		// which threads the run onto the scope so the takeover run-revocation
 		// gate is live rather than dead code.
 		"gate.drive.prepare-scope": "--branch <name> --change-id <id> --phase <name> --task-id <id> --worktree <dir> [--gate-context <token>] [--repo-dir <dir>] [--run-id <id>]",
 		"gate.drive.takeover":      "--parent-cap <token> --scope-id <id> [--drive-id <id>] [--repo-dir <dir>]",

@@ -28,7 +28,7 @@ import (
 //     the bounded, named probe (stackBranchesFor) never asks for it;
 //   - mixed old runtime records in the repository's gate registry — a corrupt
 //     drive record, an unsupported-schema drive, a HALTED drive bound to a
-//     removed worktree, and a corrupt run epoch (change 0446's history class).
+//     removed worktree, and a corrupt run (change 0446's history class).
 //
 // Every named step drives the production operation through the production
 // engine, loader, board renderer, and git status reader; only the GitHub and
@@ -79,7 +79,7 @@ func namedIsolationRuntime(t *testing.T, commonDir string) map[string][]byte {
 		"worktree_path": filepath.Join(gone, "removed-worktree"), "raw_run_dir": filepath.Join(gone, "halted-run"),
 		"last_outcome": string(gatedrive.HALTED), "last_cause": "stopped-not-initiated",
 	})
-	runDir := filepath.Join(commonDir, "docket", runTrackerDirName, "old-damaged-unrelated-epoch")
+	runDir := filepath.Join(commonDir, "docket", runTrackerDirName, "old-damaged-unrelated-run")
 	if err := os.MkdirAll(runDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

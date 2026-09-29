@@ -86,17 +86,17 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			}
 			client := codexentry.Client{}
 			// Optional lifecycle linkage (change 0375 Task 13): register this entry's
-			// thread as a run-epoch participant, and — for a root coordinator only —
+			// thread as a run participant, and — for a root coordinator only —
 			// connect a catchable Stop to the run's cancellation path and spawn the
 			// detached death guardian for an uncatchable death. A feature child registers
 			// but receives NO cancellation authority: the flags register, they do not
-			// confer. The epoch id is a public locator; the dispatch-context child
+			// confer. The run id is a public locator; the run-context child
 			// capability continues to carry authority.
 			isRootCoordinator := contract.LaunchPosture == harness.LaunchRootCoordinator
 			if runKey == "" && runID != "" {
-				// A lone --run-id (the shape AGENTS.md documents) carries no gate key to
+				// A lone --run-id (the shape AGENTS.md documents) carries no run key to
 				// register against, but it is still preflighted for existence so a misrouted
-				// token (0382: the dispatch context passed as the epoch) refuses with
+				// token (0382: the run context passed as the run) refuses with
 				// unknown-run-id instead of proceeding silently unlinked (change 0463).
 				if lerr := app.CheckRunIDExists(effectiveCWD, runID); lerr != nil {
 					res, reason, _ := app.ClassifyRunIDError(lerr)
@@ -106,7 +106,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			}
 			if runKey != "" && runID != "" {
 				// Preflight the linkage BEFORE anything is spawned (change 0463). An unknown
-				// or mismatched epoch refuses with its named token, instead of surfacing as a
+				// or mismatched run refuses with its named token, instead of surfacing as a
 				// generic root-entry failure after Codex already started a thread.
 				if lerr := app.CheckRunIDLinkage(effectiveCWD, runKey, runID); lerr != nil {
 					res, reason, _ := app.ClassifyRunIDError(lerr)
@@ -128,7 +128,7 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 			}
 			out, err := client.Enter(c.Context(), codexentry.Request{Contract: contract, UserRequest: string(request), CWD: effectiveCWD, ApprovalPolicy: approval, Sandbox: sandbox, Skills: skills})
 			if err != nil {
-				// A registration-time epoch fault (e.g. the epoch was fenced after the
+				// A registration-time run fault (e.g. the run was fenced after the
 				// preflight) keeps its named token (change 0463).
 				if res, reason, ok := app.ClassifyRunIDError(err); ok {
 					setResult(runIDRefusal(role, res, reason))
@@ -164,8 +164,8 @@ func newAgentCommand(info buildinfo.Info, setResult func(app.OperationResult)) *
 }
 
 // runParticipantRegistrar adapts app.RegisterRunParticipant to codexentry's
-// ParticipantRegistrar: it registers this entry's thread as a run-epoch participant
-// (change 0375 Task 13). The epoch id is presented as the expected locator so a
+// ParticipantRegistrar: it registers this entry's thread as a run participant
+// (change 0375 Task 13). The run id is presented as the expected locator so a
 // stale linkage is rejected; the registration carries no capability.
 type runParticipantRegistrar struct {
 	repoDir, runKey, runID, kind string
@@ -178,20 +178,20 @@ func (r runParticipantRegistrar) RegisterParticipant(handle string) error {
 	})
 }
 
-// runIDRefusal renders a typed run-epoch linkage failure as the agent.enter
+// runIDRefusal renders a typed run linkage failure as the agent.enter
 // refusal (change 0463): the named reason token and a credential-free next action.
 // It never includes the presented value.
 func runIDRefusal(role string, res app.Result, reason string) app.AgentEnterResult {
 	msg := app.RunIDNextAction(reason)
 	if msg == "" {
-		msg = "run-epoch linkage refused (" + reason + ")"
+		msg = "run linkage refused (" + reason + ")"
 	}
 	return app.AgentEnterResult{Envelope: app.NewEnvelope(app.OperationAgentEnter, res), Role: role, Reason: reason, Message: msg}
 }
 
 // runTerminalRecorder adapts app.RecordRunParticipantTerminal to codexentry's
 // TerminalRecorder (change 0441 Task 9): after the entry's turn settles, it stamps
-// the exact terminal observation onto the matching run-epoch participant. The epoch
+// the exact terminal observation onto the matching run participant. The run
 // id is the expected locator so a stale linkage is rejected; the record carries no
 // capability, and app validates the status value.
 type runTerminalRecorder struct {
@@ -206,7 +206,7 @@ func (r runTerminalRecorder) RecordTerminal(handle, turnID, status string) error
 // for a root coordinator that catches a Stop. RunCancel validates the run's own
 // authority (the record's parent capability + confirmed claim binding) — the
 // coordinator's signal cannot manufacture authority it lacks. Task 10's RunCancel
-// reconciles from the epoch journal and ignores the planning deps, so zero-value
+// reconciles from the run journal and ignores the planning deps, so zero-value
 // deps are passed rather than requiring a GitHub client at Stop time.
 type runLifecycleCanceller struct {
 	ctx                    context.Context
@@ -222,7 +222,7 @@ func (c runLifecycleCanceller) CancelRun(reason string) error {
 }
 
 // spawnAgentDeathGuardian re-execs this binary as a detached run death guardian for
-// (runKey, runID) under repoDir, so an uncatchable owner death fences the epoch
+// (runKey, runID) under repoDir, so an uncatchable owner death fences the run
 // automatically. It resolves the completion-marker path the guardian watches and
 // passes this binary's own path as the re-exec target.
 func spawnAgentDeathGuardian(repoDir, runKey, runID string) (*app.GuardianHandle, error) {
