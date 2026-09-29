@@ -1,13 +1,12 @@
 # Backlog
 
-**470 changes** — 🔵 2 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 14 proposed · ⚪ 12 deferred · ✅ 319 done · 🗑️ 119 killed
+**470 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 14 proposed · ⚪ 12 deferred · ✅ 320 done · 🗑️ 119 killed
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0467](active/0467-document-run-epoch-in-the-docket-build-task-gate-drive-start.md) | Scoped gate starts inherit the run epoch; thread it through the build chain | `medium` | `fix` | [#349](https://github.com/danielhanold/docket/pull/349) | awaiting merge |
-| [0466](active/0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) | Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive) | `medium` | `chore` | [#348](https://github.com/danielhanold/docket/pull/348) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
@@ -27,7 +26,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0470](active/0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) | Install the no-real-git test guard in internal/gatedrive | `medium` | `chore` | ⏳ waiting on #466 — needs your merge |
+| [0470](active/0470-install-the-no-real-git-test-guard-in-internal-gatedrive.md) | Install the no-real-git test guard in internal/gatedrive | `medium` | `chore` | build-ready (trivial) |
 | [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | needs-brainstorm |
 | [0468](active/0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md) | Rename colliding docket terms and retire obsolete glossary entries | `medium` | `refactor` | needs-brainstorm |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-brainstorm |
@@ -89,7 +88,6 @@ graph TD
   0443
   0457
   0464
-  0466
   0467
   0468
   0469
@@ -99,13 +97,15 @@ graph TD
   0370:::done
   0393:::done
   0407:::done
+  0466:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (438)</summary>
+<details><summary>✅🗑️ Archive — done + killed (439)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0466](archive/2026-09-29-0466-bring-test-go-race-back-under-its-60s-budget-row-transaction.md) | Bring test_go_race back under its 60s budget row (transaction, workspace, gatedrive) | 2026-09-29 |
 | [0465](archive/2026-09-28-0465-test-go-race-times-out-on-internal-app-in-ci-go-s-10m-per-pa.md) | test_go_race times out on internal/app in CI (Go's 10m per-package limit) | 2026-09-28 |
 | [0463](archive/2026-09-28-0463-resume-gate-armed-line-is-ambiguous-when-no-epoch-exists-dis.md) | Resume gate-armed line is ambiguous when no epoch exists — dispatch context gets passed as --run-epoch | 2026-09-28 |
 | [0461](archive/2026-09-28-0461-allow-editing-an-existing-change-s-title.md) | Allow editing an existing change's title | 2026-09-28 |
@@ -120,7 +120,6 @@ graph TD
 | [0458](archive/2026-09-25-0458-attach-refuses-a-same-path-same-day-re-attach-with-verify-de.md) | Attach refuses a same-path same-day re-attach with verify-delta invalid-state | 2026-09-25 |
 | [0454](archive/2026-09-25-0454-whole-repository-status-must-not-fail-on-an-unrelated-change.md) | Whole-repository status must not fail on an unrelated change's invalid branch name | 2026-09-25 |
 | [0453](archive/2026-09-25-0453-two-successors-sharing-one-stale-predecessor-receipt-can-sti.md) | Two successors sharing one stale predecessor receipt can still free a live worktree slot | 2026-09-25 |
-| [0450](archive/2026-09-25-0450-typed-change-unblock-operation-to-reverse-change-block.md) | Typed change.unblock operation to reverse change.block | 2026-09-25 |
 | [0432](archive/2026-09-18-0432-complete-native-codex-runner.md) | Complete native Codex runner | 2026-09-18 |
 | [0431](archive/2026-09-18-0431-native-codex-acceptance-for-active-worker-validation.md) | Native Codex acceptance for active worker validation | 2026-09-18 |
 | [0426](archive/2026-09-18-0426-constrain-agent-enter-to-explicit-legacy-and-feature-worktre.md) | Constrain agent.enter to explicit legacy and feature-worktree use | 2026-09-18 |
@@ -245,7 +244,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 68 done |
+| [2026-09](archive/) | 69 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
