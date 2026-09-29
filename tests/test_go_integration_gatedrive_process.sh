@@ -7,10 +7,8 @@
 # repositories) — moved out of the default internal/gatedrive corpus behind the `integration`
 # build tag, prefix ^TestIntegrationGatedrive. The default internal/gatedrive corpus must never
 # start real git (testsupport.InstallNoGitGuard, installed from the package's TestMain, change
-# 0470). Declarations only — execution and
-# inspection live in
-# tests/lib/go-integration-shard.sh; the completeness contract is
-# tests/test_go_integration_contract.sh.
+# 0470). Declarations only — execution and inspection live in tests/lib/go-integration-shard.sh;
+# the completeness contract is tests/test_go_integration_contract.sh.
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$REPO" || exit 1
