@@ -16,7 +16,7 @@ for whatever step you are on. Installing docket and configuring it is its own se
 - [Build: Building without supervision](building-without-supervision.md) — hand a designed piece of
   work to an autonomous loop and get back an open pull request, and learn what it checks, how hard
   it works on each part, and where it stops and waits for you.
-- [Test gate: Proving the build](proving-the-build.md) — how a finished branch earns the right to be
+- [Suite gate: Proving the build](proving-the-build.md) — how a finished branch earns the right to be
   reviewed and merged: the test run that certifies it and the durable record that run leaves behind.
 - [Review: Reviewing before the human does](reviewing-before-the-human.md) — what happens to a
   finished branch between its last build commit and the pull request you read, and who touches it on

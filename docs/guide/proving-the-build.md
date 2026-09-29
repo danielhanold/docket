@@ -1,4 +1,4 @@
-# Test gate: Proving the build
+# Suite gate: Proving the build
 
 By the end of this page you will know how a finished branch earns the right to be reviewed and
 merged: the one test run that certifies it, the durable record that run leaves behind, how the run is
@@ -32,7 +32,7 @@ belongs to the side that can act on a failure. The reasoning behind that split i
 Two `build:` config keys shape this step, both settable in any config layer:
 
 - `build.gate` — `local` (the default) runs the suite once after all tasks and mints exact-head
-  evidence on green; `off` declares that this repository has no build test gate, and truthful
+  evidence on green; `off` declares that this repository has no build gate, and truthful
   `skipped` evidence is recorded instead of running anything (quote the value `off`).
 - `build.checkpoint` — `false` (the default) keeps only the per-task code commits as the durable
   record of progress, so a resumed run reconstructs where it was from the plan, commits, code, and
@@ -126,7 +126,7 @@ on that repair. The full close-out flow, and what it does when repair cannot suc
 Two keys name the suite, one per gate, and they are **read from config, never from a second copy**:
 
 - `build.test_command` — the command the build gate runs.
-- `finalize.test_command` — the command finalize's merge gate runs before it merges.
+- `finalize.test_command` — the command the finalize gate runs before it merges.
 
 Both default to the empty string, which means *unconfigured*: a `local` gate with no command halts
 with a typed remedy pointing you at `docket repository configure-tests` rather than trying to guess a
@@ -134,7 +134,7 @@ command at runtime. They are **independent** — the two may diverge if a repo w
 build time than at merge time — but in this repository both resolve to the same command today. The
 one rule that matters whichever they resolve to: each gate reads its own key from config, so there is
 exactly one source for each and no drifting duplicate to keep in sync. `finalize.gate` is the
-matching on/off switch for the merge gate — `local` (the default), `ci`, `both`, or `off`, where
+matching on/off switch for the finalize gate — `local` (the default), `ci`, `both`, or `off`, where
 `off` merges trusting the pull request's own continuous-integration checks with no local
 rebase-and-retest.
 

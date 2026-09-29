@@ -16,7 +16,7 @@ import (
 //   tests/test_runtime_budgets.sh (registry<->files half only) -> TestRuntimeBudgetsCorrespondence
 //
 // NOTE on the runtime-budgets split: only the registry<->files correspondence is
-// ported here. The budget CEILING / sum / serial-pin / merge-gate-report
+// ported here. The budget CEILING / sum / serial-pin / finalize-gate-report
 // mechanics moved to internal/suiterunner and are re-proven by that package's own
 // tests (change 0370, Task 6); this guard owns the population correspondence.
 

@@ -76,7 +76,7 @@ your at-a-glance view: every change grouped by status, one Type cell per row, wi
 it with the status skill — a **skill** being a named, reusable instruction set an agent loads for
 one job — and never edit it by hand.
 
-One honest caveat about dependencies: chains serialize on the merge gate. A change that depends
+One honest caveat about dependencies: chains serialize on the PR handoff. A change that depends
 on another cannot start until that dependency's pull request is merged. Unrelated changes drain
 freely in parallel around it — only the dependent one waits.
 

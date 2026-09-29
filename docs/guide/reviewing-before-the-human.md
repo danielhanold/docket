@@ -43,7 +43,7 @@ hard the work was; the diff-size bump is the one signal independent of that self
 Findings come back **severity-tiered**, and they are fixed on the branch rather than recorded and left
 for you. After review returns and before the pull request opens, the drainer runs a bounded **fix
 loop**: each finding becomes a task through the same worker contract that wrote the code, committed
-into the same diff you were going to read anyway, so the merge gate does not move. The reviewer itself
+into the same diff you were going to read anyway, so the PR handoff does not move. The reviewer itself
 is unchanged — it returns the finding list and a one-line verdict, and never fixes anything.
 
 Two axes are kept deliberately apart:
@@ -109,4 +109,4 @@ been pushed to the open PR and only the evidence went stale, `docket evidence re
 re-runs the build gate at the new head and refreshes the PR's evidence block in place — no re-entry
 into implement-next and no merge-time re-gate needed. How that record is minted and carried forward
 is [Proving the build](./proving-the-build.md); the profile ladder and the gate verdict as a
-mechanism are [Build profiles and the test gate](../concepts/build-profiles-and-gate.md).
+mechanism are [Build profiles and the suite gate](../concepts/build-profiles-and-gate.md).

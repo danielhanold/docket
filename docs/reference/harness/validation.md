@@ -154,12 +154,12 @@ Run a real `docket-build` on a plan with at least four tasks, in the Cursor IDE:
 Record the Cursor version and each observed model ID. Anything short of a definitive observed answer
 is a gap, and becomes a follow-up stub.
 
-## The merge-gate obligation
+## The PR-handoff obligation
 
 Tier 3 necessarily runs **after** the PR opens — it needs the branch's generated artifacts in a live
-IDE. A green hermetic suite therefore does not clear the human merge gate on its own.
+IDE. A green hermetic suite therefore does not clear the PR handoff on its own.
 
 The PR body for any change touching the Cursor wrapper contract **must state that Cursor IDE
 validation is pending and name this checklist** (`docs/reference/harness/validation.md`), so the human at the
-merge gate knows what has not been verified yet. Merging on a green suite alone is exactly how the
+PR handoff knows what has not been verified yet. Merging on a green suite alone is exactly how the
 wrapper defect this runbook exists to prevent shipped in the first place.

@@ -37,7 +37,7 @@
 # GOMODCACHE/GOCACHE unset `go` finds neither a module cache nor a build cache
 # and re-downloads this module's requirements from the proxy and recompiles
 # cold on EVERY suite run — which puts a network dependency on the whole-suite
-# merge gate and fails it outright offline. So this file pins both caches to a
+# finalize gate and fails it outright offline. So this file pins both caches to a
 # stable location whenever the caller has not already chosen one:
 #   - the location is `<git common dir>/docket-go-cache/{mod,build}`. That
 #     directory sits OUTSIDE every working tree, so it owes no .gitignore entry

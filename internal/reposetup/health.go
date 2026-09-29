@@ -225,7 +225,7 @@ func findingFor(reason string, f Facts) Finding {
 }
 
 // TestConfigMissingCode is the stable machine token for the test-policy health
-// finding: a local test gate cannot run because no command is configured (or a
+// finding: a local suite gate cannot run because no command is configured (or a
 // legacy `auto` is still declared). Its remedy names `docket repository
 // configure-tests` — the setup-time upgrade path that generates the pending edit.
 const TestConfigMissingCode = "test-config-missing"
@@ -251,7 +251,7 @@ func TestConfigFinding(cfg config.Effective, committedYML []byte) *Finding {
 	return &Finding{
 		Code:     TestConfigMissingCode,
 		Severity: SeverityWarning,
-		Message:  "A local test gate has no configured command (or a legacy `auto` spelling is still declared); the gate cannot run until a command is set.",
+		Message:  "A local suite gate has no configured command (or a legacy `auto` spelling is still declared); the gate cannot run until a command is set.",
 		Remedy:   "Run `docket repository configure-tests` to generate the pending test-policy edit, then review and commit it.",
 	}
 }

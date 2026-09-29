@@ -1,4 +1,4 @@
-# Build profiles and the test gate
+# Build profiles and the suite gate
 
 ## The problem it solves
 

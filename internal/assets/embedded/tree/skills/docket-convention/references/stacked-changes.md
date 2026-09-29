@@ -141,7 +141,7 @@ context.finalize  --id <this change's id>   # resolve argv from the capability c
 An empty `open_child_prs` means no open children, so this section's gate does not fire. An id naming
 no change is a typed refusal, never an all-clear. `descendants` carries the whole transitive graph
 (each child's lifecycle and PR destination), which is what step 3.5's close-out gate asks for;
-`open_child_prs` is the open subset the merge gate keys on.
+`open_child_prs` is the open subset finalize's merge step keys on.
 
 - **Children still open** (any status short of `stacked-merged` or `done`, with a PR whose base is
   this parent's branch):

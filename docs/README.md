@@ -54,7 +54,7 @@ Index: [guide/README.md](guide/README.md)
 - [Build: Building without supervision](guide/building-without-supervision.md) — hand a designed piece of
   work to an autonomous loop and get back an open pull request, and learn what it checks, how hard
   it works on each part, and where it stops and waits for you.
-- [Test gate: Proving the build](guide/proving-the-build.md) — how a finished branch earns the right to be
+- [Suite gate: Proving the build](guide/proving-the-build.md) — how a finished branch earns the right to be
   reviewed and merged: the test run that certifies it and the durable record that run leaves behind.
 - [Review: Reviewing before the human does](guide/reviewing-before-the-human.md) — what happens to a
   finished branch between its last build commit and the pull request you read, and who touches it on
@@ -84,7 +84,7 @@ Index: [concepts/README.md](concepts/README.md)
   and the guard that keeps a shared setting from being overridden.
 - [Reconcile](concepts/reconcile.md) — the build-time check that kills stale work before a line of
   code is written.
-- [Build profiles and the test gate](concepts/build-profiles-and-gate.md) — routing each task to a
+- [Build profiles and the suite gate](concepts/build-profiles-and-gate.md) — routing each task to a
   worker sized for its risk, then proving the whole suite green once.
 - [The run gate and attribution](concepts/run-gate.md) — the bookkeeping that decides whether a
   launched build really finished and may be retried.

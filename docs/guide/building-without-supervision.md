@@ -81,7 +81,7 @@ A single run of the autonomous loop walks a fixed path and then stops:
 6. **Review.** Before the pull request opens, a bounded reviewer reads the whole branch — see
    [Reviewing before the human does](./reviewing-before-the-human.md) — and its findings are fixed
    on the branch.
-7. **Stop.** It opens the pull request and stops at the human merge gate. It never merges.
+7. **Stop.** It opens the pull request and stops at the PR handoff. It never merges.
 
 A change whose feature branch is cut from another change's *unmerged* branch is a **stacked change**
 (a change built on another change's unmerged branch rather than on the integration branch); its
@@ -119,7 +119,7 @@ than it looked gets exactly one shot at more capability before a human is asked.
 Once every task has committed, the build runs the whole test suite once as its gate — that half of
 the story, and how the result is certified, is [Proving the build](./proving-the-build.md). The
 deeper mechanism behind profile routing and the gate verdict lives in
-[Build profiles and the test gate](../concepts/build-profiles-and-gate.md).
+[Build profiles and the suite gate](../concepts/build-profiles-and-gate.md).
 
 ## Draining the queue hands-free
 
@@ -146,7 +146,7 @@ build work stays isolated and the driver's own context stays small:
   waiting on an unmerged dependency — is skipped this drain with its reason, not waited on.
 
 Budget and iteration caps belong to the driver, not to docket, which does not reimplement them. The
-one invariant the driver never breaks is the merge gate: **the loop never merges.** A dependency
+one invariant the driver never breaks is the PR handoff: **the loop never merges.** A dependency
 therefore only clears between drains when a merge happens outside the loop — you clicking Merge, or a
 separate close-out drain ([Landing changes safely](./landing-changes.md)). Confirm the driver
 composes cleanly in your own setup before relying on it unattended; loop behavior is version- and

@@ -23,7 +23,7 @@ machine it runs on. The other three tuples are proven by:
 
 - the **workflow smoke matrix** — four native runners, one real OS/arch each, each printing its own
   `SMOKE PASS <os>/<arch> <version>` line (emulation or cross-compile does not count); and
-- the **four-harness fresh-session live acceptance** — external truth routed to a human merge-gate
+- the **four-harness fresh-session live acceptance** — external truth routed to a PR-handoff
   checklist (`docs/release/four-harness-acceptance.md`).
 
 Both are external truth (learnings `external-truth-needs-a-human-checkpoint`,
