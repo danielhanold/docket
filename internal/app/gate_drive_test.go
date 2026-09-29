@@ -1348,6 +1348,9 @@ func TestMapDriveFailureOwnershipNextAction(t *testing.T) {
 			t.Fatalf("next-action message %q is shared by kinds %v and %v; each state gets its own action", got.Message, prev, kind)
 		}
 		seen[got.Message] = string(kind)
+		if kind == gatedrive.ErrStaleRunID && !strings.Contains(got.Message, "present that run's run id or cancel it before starting") {
+			t.Fatalf("stale-run-id message must name the run id, got %q", got.Message)
+		}
 	}
 
 	// A store command failure is not an ownership error: no next-action message.
@@ -1441,6 +1444,9 @@ func TestLegacyInventoryRefusalCarriesStageLocatorSummary(t *testing.T) {
 	}
 	if !strings.Contains(got.Message, "docket gate history cleanup") {
 		t.Fatalf("message must name docket gate history cleanup, got %q", got.Message)
+	}
+	if !strings.Contains(got.Message, "run.cancel applies only to a live run with a readable run record") {
+		t.Fatalf("message must scope run.cancel to a readable run record, got %q", got.Message)
 	}
 	if strings.Contains(got.Message, "this worktree") {
 		t.Fatalf("inventory message must not carry the slot-recovery %q prose, got %q", "this worktree", got.Message)
