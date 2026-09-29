@@ -15,7 +15,7 @@ adrs: []
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
 branch_prefix:
 branch:
@@ -45,3 +45,7 @@ Change 0466 moved gatedrive's real-git and real-process tests (about 12 of them)
 - Changing the guard helper itself or its behavior in the packages 0466 already covers.
 - Installing the guard in any package other than `internal/gatedrive`.
 - Re-tuning the `test_go_race` / `test_go_toolchain` budget rows or the race backstop.
+
+## Open questions
+
+None. Trivial: this reapplies 0466's established pattern (`TestMain` + `testsupport.InstallNoGitGuard` + a per-package mutation test) to one more package, with no design choices. The only unknown is whether the guard catches a default-corpus git straggler in gatedrive, and the fix for that is 0466's existing move behind the `integration` tag.
