@@ -2,7 +2,7 @@
 id: 468
 slug: 'rename-colliding-docket-terms-and-retire-obsolete-glossary-e'
 title: 'Rename colliding docket terms and retire obsolete glossary entries'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-28'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/rename-colliding-docket-terms-and-retire-obsolete-glossary-e'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-29T08:52:30Z'
 ---
 
 ## Artifacts
