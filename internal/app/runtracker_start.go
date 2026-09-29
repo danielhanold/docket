@@ -147,12 +147,12 @@ type RunStartResult struct {
 	Envelope
 	Started bool   `json:"started"`
 	Key     string `json:"key,omitempty"`
-	// RunContext is the outer scope's ChildCapability the parent copies into
-	// the implement-next dispatch prompt; a nested drive carries its hash as the
-	// RunContextHash. It is NOT secret from the child (change 0359). The parent
-	// capability is deliberately absent from this result — it lives only in the
+	// RunContext is the run-context token (the run tracker's recovery scope's
+	// ChildCapability) the parent copies into the implement-next dispatch prompt; a
+	// nested drive carries its hash as the RunContextHash. It is NOT secret from the
+	// child (change 0359). The parent capability is deliberately absent from this result — it lives only in the
 	// 0600-private gate record.
-	RunContext string `json:"dispatch_context,omitempty"`
+	RunContext string `json:"run_context,omitempty"`
 	// RunID is the fresh run's PUBLIC run id, minted at start time beside the run-tracker
 	// record (runtracker_run_record.go). It authorizes nothing (ADR-0111) but is the locator
 	// the operator threads into `run.cancel --run-id <id>` — the primary human Stop —

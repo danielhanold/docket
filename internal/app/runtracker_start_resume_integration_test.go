@@ -815,7 +815,7 @@ func TestIntegrationRunStartNoRunRecordResumeMintsBoundRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	for _, want := range []string{`"run_id":"` + res.RunID + `"`, `"key":"` + res.Key + `"`, `"dispatch_context":"` + scopeGrantChild + `"`} {
+	for _, want := range []string{`"run_id":"` + res.RunID + `"`, `"key":"` + res.Key + `"`, `"run_context":"` + scopeGrantChild + `"`} {
 		if !strings.Contains(string(buf), want) {
 			t.Errorf("JSON result missing %s: %s", want, buf)
 		}
