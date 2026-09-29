@@ -49,7 +49,7 @@ func RunIDNextAction(reason string) string {
 	switch reason {
 	case ReasonUnknownRunID:
 		return "the --run-id value names no run in this repository; pass the <run-id> field of the start's " +
-			"`run-started <key> <run-id> <run-context>` line (the <run-context> goes to --gate-context) — " +
+			"`run-started <key> <run-id> <run-context>` line (the <run-context> goes to the gate drive's --gate-context) — " +
 			"never drop --run-id and retry"
 	case ErrStaleRunID.Reason:
 		return "the --run-id value is not the run this run key carries; pass the <run-id> printed on the same run-started line as the key"
