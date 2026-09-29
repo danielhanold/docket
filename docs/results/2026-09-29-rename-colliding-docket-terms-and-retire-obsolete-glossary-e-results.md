@@ -37,10 +37,14 @@ The build ran with no changes to identifiers, test names or wire tokens. It rege
 
 ## Known issues and follow-ups
 
-### `.docket.yml` still says "terminal records"
+### Fixed after review: `.docket.yml` wording
 
-Two comments in this repo's own `.docket.yml` still use the old wording. The test `TestFixtureDocketSelf` compares that file byte for byte with a frozen fixture, so editing the comments breaks the test. Only this repo's config comments are affected, and nothing changes in behavior. Suggested next step: change the wording together with a new fixture version.
+The two lifecycle "terminal records" comments in this repo's own `.docket.yml` now read "published archived records" and "final records". `TestFixtureDocketSelf` compares that file byte for byte with a frozen copy, so the fixture was re-cut as `testdata/repositories/v0.9.8/` and the test now points at it. No key or value changed.
 
-### Leftover lifecycle "terminal child" comments
+### Fixed after review: leftover lifecycle "terminal child" comments
 
-A few Go comments still say "terminal child" or "terminal outcomes" when they mean a finished stacked change: `finalize_merge.go`, `stackcloseout.go`, `finalize_retarget_test.go` and `finalize_e2e_test.go`. They sit next to the `skipped-terminal` token that change 0474 renames, so it makes sense for 0474 to reword them as well.
+The comments and test messages that said "terminal child" or "terminal outcomes" for a finished stacked change now say "final": `internal/app/finalize_merge.go`, `internal/domain/stackcloseout.go`, `internal/app/finalize_retarget_test.go` and `internal/app/finalize_e2e_test.go`. The `skipped-terminal` token, its constant, and the test function name `TestRetargetChildrenSkipsTerminalChildren` are unchanged; change 0474 owns them (row 59). Process-level "terminal" (a finished run) and the finalize "terminal half" stay, per Decision 6.
+
+### Fixed after review: change 0469 drops rows now owned by ADR-0129
+
+Change 0469's rename table no longer lists "gate key / dispatch context" (rows 5 and 6) or "dispatch tiers A / B / C + carve-out" (rows 48–52). Its out-of-scope section now points to ADR-0129 for them.

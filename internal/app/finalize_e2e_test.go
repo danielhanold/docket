@@ -811,7 +811,7 @@ func toStringSlice(v any) []string {
 
 // --- TestE2EStack ---------------------------------------------------------
 
-// TestE2EStack proves the stacked-change terminal outcomes through CLI argv: a
+// TestE2EStack proves the stacked-change final outcomes through CLI argv: a
 // root's `finalize merge` REFUSES while an unauthorized child PR is still open
 // (open-children gate) and retains the child branch and its open PR; a child
 // merged into its live parent branch closes out to `stacked-merged` (retained,

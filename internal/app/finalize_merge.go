@@ -95,7 +95,7 @@ const (
 	// attended human authorization; refused before any effect.
 	ReasonMergeAdminNotAuthorized = "admin-requires-explicit-authorization"
 	// ReasonMergeNotFinalizable: the change carries no canonical pull-request
-	// reference, or is terminal — there is nothing to merge.
+	// reference, or is final — there is nothing to merge.
 	ReasonMergeNotFinalizable = "not-finalizable"
 	// ReasonMergeUnresolvedBase: the change's effective base did not resolve to a
 	// branch, so no merge destination exists.
@@ -675,7 +675,7 @@ func verifyMerge(ctx context.Context, deps FinalizeDeps, mc *mergeContext, repo 
 // probeUnretargetedOpenChildren returns the direct stack children whose live PR
 // is open and still targets the parent's feature branch — the exact set a merge
 // of the parent must NOT strand. A retargeted child (its PR now targets some
-// other base) does not block; a terminal child has no open PR. A probe error is
+// other base) does not block; a final child has no open PR. A probe error is
 // returned so the caller retains it as unknown (never a clean empty set).
 func probeUnretargetedOpenChildren(ctx context.Context, deps FinalizeDeps, repo githubcli.Repository, snap domain.Snapshot, parent domain.Change, parentFeatureBranch string) ([]int, error) {
 	var open []int

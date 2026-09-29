@@ -482,13 +482,13 @@ func TestRetargetChildrenSkipsTerminalChildren(t *testing.T) {
 	if got.Result != ResultApplied || got.Disposition != RetargetDispositionRetargeted {
 		t.Fatalf("result=%q disposition=%q, want applied/retargeted", got.Result, got.Disposition)
 	}
-	// The terminal children never had their heads probed.
+	// The final children never had their heads probed.
 	for _, head := range gh.finds {
 		if head == "feat/child-a" || head == "feat/child-b" {
-			t.Errorf("terminal child head %q was probed; terminal children must be skipped", head)
+			t.Errorf("final child head %q was probed; final children must be skipped", head)
 		}
 	}
-	// The terminal children are surfaced as skipped, not omitted; only 830 edited.
+	// The final children are surfaced as skipped, not omitted; only 830 edited.
 	if c := childOutcomeByID(t, got, 81); c.Outcome != childOutcomeSkippedDone {
 		t.Errorf("child 81 outcome=%q, want skipped-terminal", c.Outcome)
 	}

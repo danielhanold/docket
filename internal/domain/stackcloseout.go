@@ -124,7 +124,7 @@ func DeriveCarriedSet(s Snapshot, parent ChangeID, facts map[ChangeID]PRFacts) (
 				continue
 			}
 			if c.Status() != StatusStackedMerged {
-				// An open or terminal child claims no carry for this parent
+				// An open or final child claims no carry for this parent
 				// branch; grandchildren beneath it are not descended.
 				continue
 			}
