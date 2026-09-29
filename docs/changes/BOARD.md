@@ -1,6 +1,6 @@
 # Backlog
 
-**477 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 17 proposed · ⚪ 12 deferred · ✅ 324 done · 🗑️ 120 killed
+**478 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 18 proposed · ⚪ 12 deferred · ✅ 324 done · 🗑️ 120 killed
 
 ## 🔴 Blocked (1)
 
@@ -16,10 +16,11 @@
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (17)
+## 🟡 Proposed (18)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0478](active/0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | `low` | `chore` | needs-brainstorm |
 | [0477](active/0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) | Rename the gate drive's leftover gate vocabulary (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY) | `high` | `refactor` | needs-brainstorm |
 | [0476](active/0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | `medium` | `chore` | needs-brainstorm |
 | [0475](active/0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | `low` | `chore` | needs-brainstorm |
@@ -91,6 +92,7 @@ graph TD
   0475
   0476
   0477
+  0478
   0192:::done
   0251:::done
   0370:::done
