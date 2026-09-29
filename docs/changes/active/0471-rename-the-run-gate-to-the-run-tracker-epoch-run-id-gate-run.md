@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-29T14:01:51Z'
+reconciled: true
+claimed_at: '2026-09-29T14:03:37Z'
 ---
 
 ## Artifacts
@@ -66,3 +66,9 @@ Apply ADR-0129's family (a) rows 1–38 and 38a–38d (the ADR was amended in pl
 - Migrating old run-tracker state, an upgrade-detection guard, a live-run listing operation, or deleting old storage roots automatically.
 - Editing point-in-time records: archived changes, results, specs and plans.
 - Rows owned by the other ADR-0129 family changes (0472–0474) or by change 0469.
+
+## Reconcile log
+
+### 2026-09-29
+
+2026-09-29 — Reconciled against origin/main e68669728 (0468 merged, dependency satisfied). No retired run-gate spelling has been renamed elsewhere yet (run.gate-before / --run-epoch still present across Go sources); ADR-0129 family (a) rows remain the authority. Scope unchanged. Note: this build runs under the pre-rename installed binary, so the running gate still uses the old spellings until the post-merge rebuild.
