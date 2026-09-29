@@ -33,7 +33,7 @@ Traced at grooming (2026-09-28, maintained source, `*_test.go` included):
 | `gate-verdict` | 289 in 26 files | 1 | 13 |
 | `gate-before` | 154 in 21 files | 1 | 8 |
 | `rung` | 132 in 40 files | 21 | 14 |
-| `--version` (change revision) | 58; the flag is on 22 operations | 22 | 32 |
+| `--version` (change revision) | 58; a flag on 15 operations, a request key on 11 more, and three reads | 22 | 32 |
 | `rearm` | 63 in 13 files | 8 | 8 |
 
 Other facts found in the trace:
@@ -62,9 +62,9 @@ This ADR records the vocabulary settled by change 0468. It is the single referen
 10. **No human-readable old→new mapping in the glossary.** The mapping lives in (i) this change's ADR, as the decision record, and (ii) a code-level **retired-vocabulary table** in `internal/repoguard`. That table maps each retired wire token to its replacement, drives the family absence seals, and names the replacement in every seal failure. The first family to land creates the table, and each later family appends its rows. The umbrella does not create an empty table, because a seal over an empty list cannot be mutation-tested.
 11. **Retired features go to an "Obsolete terms" section of the glossary**, separate from renames: runner delegation, the runner shim / `runners` block, `runtime.bash`, terminal publish. The config-decode warnings for those keys stay.
 
-### Rename table (rows 1-66, plus 28a and 38a-38h)
+### Rename table (rows 1-66, plus 28a, 38a-38h, 40a, 41a-41b, 43a and 44a)
 
-Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45 -> change 0472; rows 46-52 -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
+Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45, 40a, 41a-41b, 43a and 44a -> change 0472; rows 46-52 -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
 
 Kinds:
 - **concept**: a word in docs, skills and agent text.
@@ -133,14 +133,21 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 | # | Kind | Old | New |
 |---|---|---|---|
 | 39 | concept | change version / entity version | revision / record revision |
-| 40 | flag | `--version <blob>` on `change.{attach-plan, attach-results, block, claim, defer, groom, halt, kill, mark-implemented, reclaim, reconcile, refresh-claim, resume-halted, revive, unblock}`, `finalize.{block, clear-block, merge, rebase, retarget-children}`, `workspace.{inspect, prepare}` | `--revision` |
-| 41 | key | request/response `version` on those operations and `learning.update`; `status` `changes[].version`; `context.implementation` / `context.finalize` | `revision` |
+| 40 | flag | `--version <blob>` on `change.{attach-plan, attach-results, claim, halt, mark-implemented, reclaim, refresh-claim, resume-halted}`, `finalize.{block, clear-block, merge, rebase, retarget-children}`, `workspace.prepare` | `--revision` |
+| 40a | flag | `change repair-identity --expect-version` | `--expect-revision` |
+| 41 | key | request `version` on `change.{block, defer, groom, kill, reconcile, revive, unblock}` and `learning.update`, and on the requests the row-40 flags build; `status` `changes[].version`; `context.implementation` `change.version` / `spec.version`; `context.finalize` `candidates[].version` | `revision` |
+| 41a | key | `status --records` `records[].version` | `revision` |
+| 41b | key | `context.finalize` `candidates[].pr.version` (the PR snapshot hash) | `pr.revision` |
 | 42 | key | `spec_version` (`change.groom`) | `spec_revision` |
-| 43 | key | `target.version` (`adr.record`, `adr.supersede`, `adr.reverse`) | `target.revision` |
-| 44 | key | `pr_version` (finalize merge, retarget) | `pr_revision` |
+| 43 | key | `target.version` (`adr.supersede`, `adr.reverse`) | `target.revision` |
+| 43a | key | `change.version` (`adr.record`; `successor.change.version` on `adr.supersede`, `adr.reverse`) | `change.revision` |
+| 44 | key | `pr_version` (`finalize.merge` result `merge.pr_version`; `finalize.retarget-children` authorized children) | `pr_revision` |
+| 44a | code | `version-mismatch`, `version-drift`, `spec-version-mismatch`, `reclaim-version-missing`, `empty-version`, `empty-change-version`, `empty-target-version`, `empty-spec_version`, `invalid-spec_version`, `empty-child_pr_version` | `revision-mismatch`, `revision-drift`, `spec-revision-mismatch`, `reclaim-revision-missing`, `empty-revision`, `empty-change-revision`, `empty-target-revision`, `empty-spec_revision`, `invalid-spec_revision`, `empty-child_pr_revision` |
 | 45 | disk | `resolver_budget_version` (rebase receipt) | unchanged (Decision 3) |
 
-`protocol_version`, `schema_version`, `capability_version`, `format_version`, `go_version`, `product_version`, the `version` operation, and `docket version` are unchanged. They name software or format versions, not record revisions.
+`protocol_version`, `schema_version`, `capability_version`, `format_version`, `go_version`, `product_version`, the `version` operation, `docket version` and the `capabilities` result's `binary.version` are unchanged. They name software or format versions, not record revisions.
+
+"Revision" names the exact id of a pinned state: a record revision is a git blob id, a PR revision is a hash over the PR's mutable snapshot, and the existing `*_revision` keys (`committed_revision`, `metadata_revision`, `*_branch_revision`, the run tracker's `revision` / `bound_revision`) are commit ids. They share the word in that one sense and are not renamed.
 
 ### Family (c) — tiers (change 0473; prose and Go identifiers, no wire tokens)
 
@@ -188,8 +195,10 @@ Agent names (`docket-build-economy` … `docket-review-deep`) are unchanged.
 - Agent names, the tier names inside each tier, frontmatter fields.
 - `cmd/releasepkg --source-epoch`, which is a real Unix epoch (`SOURCE_DATE_EPOCH`).
 - `gate-failed` (the suite gate failed) and the `gate-scope` run participant kind (a gate-drive scope): both use "gate" in the checkpoint sense.
-- The committed claim-receipt key `gate_context_hash` and the claim idempotency digest payload (Decision 3).
+- The committed claim-receipt key `gate_context_hash` and the claim idempotency digest payload (Decision 3), including the payload's `version` key.
 - The `gatelifecycle` integration shard, which tests gate launch/stop (the gate-run sense).
+- The existing commit-id `*_revision` keys (see the note under family (b)).
+- The release tools' `--version` flags (`cmd/releasepkg` and the release downloader), which name a software release.
 
 ### Deviations
 
@@ -227,3 +236,7 @@ The decision stands. Building family (a) found one name the table missed: the `r
 ## Update — 2026-09-29 (change 0477 grooming)
 
 The decision stands. Change 0471 kept three run-tracker spellings because no row named them: the gate drive's own `--gate-context` flag, the guardian environment variable `DOCKET_AGENT_GUARDIAN_GATE_KEY`, and the `run.start` result key `dispatch_context`. It also renamed the store error prefix `rungate store` to `run-tracker store` without a row. Change 0477 renames the three kept spellings, following rows 12, 5 and 6, and the table now records all four as rows 38e-38h. Row 38h only records the rename 0471 already made. With row 38e, every `--gate-context` is retired, including the gate drive's, so the gate drive and `change claim` take the same run-context token under one flag name. The committed claim-receipt key `gate_context_hash` still stays (Decision 3). Added with the human's explicit authorization at change 0477's grooming, before it was built.
+
+## Amendment — 2026-09-29 (change 0472 grooming)
+
+Edited in place with the human's explicit authorization, before family (b) was built. Tracing the code showed rows 40-44 were incomplete: row 40 listed operations that take the revision in a request file (or not at all, `workspace.inspect`) as flag operations, and row 43 listed `adr.record`, which carries no target. Rows 40, 41, 43 and 44 were corrected, rows 40a, 41a, 41b, 43a and 44a were added, the note defining "revision" was added under family (b), and "Explicitly not renamed" gained the claim digest's `version` key, the commit-id `*_revision` keys and the release tools' `--version`.
