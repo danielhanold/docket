@@ -83,8 +83,8 @@ import (
 //     at least one such node was emitted, closed by "```\n". The mermaid graph
 //     is outside section order/sorting: it never reads the presentation.
 //  5. The archive <details> block, rendered only when at least one archived
-//     terminal record exists: a summary line concatenating the present
-//     terminal emoji and joining their labels with " + ", then a
+//     record exists: a summary line concatenating the present
+//     final-status emoji and joining their labels with " + ", then a
 //     "# | Title | Merged" table of the archive rows sorted date-descending
 //     then id-descending. Every killed row renders verbatim; `done` rows past
 //     the 15 most recent collapse into a trailing per-YYYY-MM "Older done

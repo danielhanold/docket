@@ -41,7 +41,7 @@ const (
 	// CodeChangeArchiveDateInvalid marks an archived record whose filename
 	// carries no usable YYYY-MM-DD prefix.
 	CodeChangeArchiveDateInvalid = "change-archive-date-invalid"
-	// CodeChangeTerminalClaimStamp marks an archived terminal record that still
+	// CodeChangeTerminalClaimStamp marks an archived record that still
 	// carries a claim stamp — a lease nothing can ever release.
 	CodeChangeTerminalClaimStamp = "change-terminal-claim-stamp"
 	// CodeChangeStateIncoherent marks a lifecycle state missing a fact the
@@ -220,7 +220,7 @@ func changeIdentity(c domain.Change) []domain.Finding {
 }
 
 // changePlacement checks the record's directory against its status, the
-// archive filename date, and the claim stamp a terminal record must not carry.
+// archive filename date, and the claim stamp an archived record must not carry.
 func changePlacement(c domain.Change) []domain.Finding {
 	ref := changeRef(c)
 	var findings []domain.Finding

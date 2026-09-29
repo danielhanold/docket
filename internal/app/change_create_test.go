@@ -254,7 +254,7 @@ func TestChangeCreatePlanNoBoardWhenSurfaceEmpty(t *testing.T) {
 }
 
 // fixtureArchivedDone renders a minimal well-formed archived (done) change; an
-// archive-placed record must carry a terminal status.
+// archive-placed record must carry a final status.
 func fixtureArchivedDone(id int, slug string) string {
 	var b strings.Builder
 	b.WriteString("---\n")

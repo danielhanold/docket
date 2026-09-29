@@ -2,7 +2,7 @@ package app
 
 // finalize_closeout_notes.go — the optional authored closeout-notes payload:
 // its normalized shape, its validation, the digest that binds it into the
-// closeout receipt, and the splice that lands it as the terminal record's
+// closeout receipt, and the splice that lands it as the archived record's
 // final authored body section. The renderer (render.CloseoutNotesBody) owns
 // every Markdown byte; nothing here concatenates caller text into structure.
 

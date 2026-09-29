@@ -76,7 +76,7 @@ func TestEvaluateLeaseStates(t *testing.T) {
 }
 
 func TestEvaluateLeaseStatusOutranksStamp(t *testing.T) {
-	// A terminal record with a malformed stamp is still reported by status:
+	// An archived record with a malformed stamp is still reported by status:
 	// the stamp of a change holding no lease is not a lease diagnosis.
 	got := EvaluateLease(leaseChange(StatusKilled, OptionalTime{State: FieldMalformed, Raw: "??"}, ""), leaseNow, leaseTTL)
 	if got != LeaseNotInProgress {

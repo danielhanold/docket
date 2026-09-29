@@ -281,7 +281,7 @@ func TestSweepRetriesSuffixes(t *testing.T) {
 		t.Errorf("done record 41 must have cleanup retried; calls=%v", ops.calls)
 	}
 	if len(ops.callIDs(sweepKindCloseout)) != 0 {
-		t.Errorf("terminal records must not be closed out; closeouts=%v", ops.callIDs(sweepKindCloseout))
+		t.Errorf("archived records must not be closed out; closeouts=%v", ops.callIDs(sweepKindCloseout))
 	}
 	if res.Result != ResultApplied {
 		t.Errorf("result = %q, want applied", res.Result)

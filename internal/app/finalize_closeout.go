@@ -146,8 +146,8 @@ const (
 	// done) but the follow-up integration-ref backlink leg did not; a retryable
 	// health/maintenance finding.
 	ReasonCloseoutBacklinkPending = "terminal-backlink-pending"
-	// ReasonCloseoutNotesFrozen: the change is already terminal and the request
-	// carries notes that differ from the terminal record; refused — a terminal
+	// ReasonCloseoutNotesFrozen: the change is already final and the request
+	// carries notes that differ from the archived record; refused — an archived
 	// record is never rewritten.
 	ReasonCloseoutNotesFrozen = "terminal-notes-frozen"
 	// ReasonCloseoutStackedUnpreserved: the child's merge result is not preserved
@@ -265,19 +265,19 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 		return *refusal
 	}
 
-	// Terminal-state short circuits keyed on the promised state (the canonical
+	// Final-state short circuits keyed on the promised state (the canonical
 	// archive record), never a local proxy. A done change is already closed out; a
-	// killed/other terminal record is an illegal source.
+	// killed/other archived record is an illegal source.
 	switch cc.change.Status() {
 	case domain.StatusDone:
-		// Replay is proven against the terminal record's own bytes: the writer is
-		// the reader. Empty notes replay any terminal record; identical notes are a
-		// byte-level no-op; different notes cannot rewrite a frozen terminal record.
+		// Replay is proven against the archived record's own bytes: the writer is
+		// the reader. Empty notes replay any archived record; identical notes are a
+		// byte-level no-op; different notes cannot rewrite a frozen archived record.
 		if match, err := closeoutNotesMatchTerminal(cc.body, notes); err != nil {
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen, err.Error(), id)
 		} else if !match {
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen,
-				fmt.Sprintf("change %04d is already terminal; a retry carrying different notes is not a replay and cannot rewrite the terminal record", id), id)
+				fmt.Sprintf("change %04d is already final; a retry carrying different notes is not a replay and cannot rewrite the archived record", id), id)
 		}
 		return newCloseoutResult(ResultNoOp, CloseoutResult{
 			ID: id, Disposition: CloseoutDispAlready, ArchivePath: cc.change.Path(),
@@ -335,10 +335,10 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 		fmt.Sprintf("change %04d merged into %q, which is neither the integration branch nor a live parent branch", id, facts.BaseRef), id)
 }
 
-// closeoutNotesMatchTerminal reports whether the terminal record already
+// closeoutNotesMatchTerminal reports whether the archived record already
 // carries exactly the promise this request makes: splicing the request's notes
 // into the terminal bytes is a byte-level no-op. Empty notes match any
-// terminal record (the pre-notes replay). The comparison uses the same splice
+// archived record (the pre-notes replay). The comparison uses the same splice
 // that writes, so reader and writer can never disagree.
 func closeoutNotesMatchTerminal(body []byte, notes CloseoutNotes) (bool, error) {
 	if notes.Empty() {
@@ -740,7 +740,7 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen, err.Error(), id)
 		} else if !match {
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen,
-				fmt.Sprintf("change %04d is already stacked-merged; a retry carrying different notes is not a replay and cannot rewrite the terminal record", id), id)
+				fmt.Sprintf("change %04d is already stacked-merged; a retry carrying different notes is not a replay and cannot rewrite the closed-out record", id), id)
 		}
 		return newCloseoutResult(ResultNoOp, CloseoutResult{
 			ID: id, Disposition: CloseoutDispAlready,

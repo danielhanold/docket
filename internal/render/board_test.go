@@ -1018,7 +1018,7 @@ func TestBoardArchiveSameDayRowsSortIDDescending(t *testing.T) {
 // fence, i.e. last, outside section order/sorting.
 func TestBoardArchiveIsAFixedFooter(t *testing.T) {
 	// An active change so the board renders real sections + mermaid, plus an
-	// archived terminal record so the footer exists.
+	// archived record so the footer exists.
 	active := domain.NewChange(proposedChange(1, "one", "One"))
 	done := archivedDone(9, "2026-08-31", "done", "Done")
 
@@ -1157,7 +1157,7 @@ func renderRepair(t *testing.T, unrenderable []render.BoardUnrenderable, changes
 }
 
 // TestBoardUnclassifiableRecordLandsInRepairNotice pins the flipped
-// boardClassify abort: an active-located record carrying a terminal status used
+// boardClassify abort: an active-located record carrying a final status used
 // to fail the whole render; now the healthy record B renders normally and the
 // bad record surfaces by path in the repair notice.
 func TestBoardUnclassifiableRecordLandsInRepairNotice(t *testing.T) {

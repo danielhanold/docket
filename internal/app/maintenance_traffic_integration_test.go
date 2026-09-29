@@ -492,7 +492,7 @@ func TestIntegrationSweepAssessmentTrafficConstantAcrossHistory(t *testing.T) {
 }
 
 // TestIntegrationSweepImplementationScopeInspectsNoDeferredResources: implementation
-// scope defers every already-terminal record as an unprobed COUNT — it never gathers
+// scope defers every already-archived record as an unprobed COUNT — it never gathers
 // the shared inventory (no `ls-remote --heads`), fetches no deferred remote heads,
 // and reads no per-item deferred resource — while full scope on the SAME corpus DOES
 // gather the shared inventory and reports one entry per candidate. This proves the
