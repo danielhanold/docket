@@ -1,0 +1,44 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0468 — Rename colliding docket terms and retire obsolete glossary entries](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0468-rename-colliding-docket-terms-and-retire-obsolete-glossary-e.md)**
+<!-- docket:backlink:end -->
+# Rename colliding docket terms and retire obsolete glossary entries — Results
+
+**Human action:** None needed to merge. Read the wording in the PR diff to confirm the new names ("PR handoff", "shared-setting guard", "final status", "archived record", "close-out") read well where they appear. The wire-token renames are left for changes 0471–0474.
+
+## Outcome
+
+Some docket words had more than one meaning. This change settles every rename in one decision record and applies the renames that are prose only:
+
+- **ADR-0129, "Collision-free docket vocabulary"**, is on the `docket` branch. It holds the naming rules and the full 66-row rename table, with each row assigned to the change that owns it.
+- **Coordination-key fence → shared-setting guard.** This covers the docs and skills. The `internal/config` comments stay for now because they sit next to the `fenced-setting-ignored` code that change 0474 renames.
+- **Human merge gate → PR handoff.** The "merge gate", "rebase-retest gate" and "test gate" aliases are gone; **finalize gate** and **suite gate** remain.
+- **Change-lifecycle "terminal" → final.** "Terminal status" is now "final status", "terminal record" is "archived record", "terminal sweep" is "merged-PR sweep", and "terminal close-out" is "close-out". This covers docs, skills and Go comments or messages. Where "terminal" means a run or process has finished, it stays.
+- **"Autonomous-eligible"** is now part of the auto-groomable entry.
+- **Obsolete terms.** The glossary has a new section for retired features: runner delegation, the runner shim, `runtime.bash` and terminal publish.
+
+The build ran with no changes to identifiers, test names or wire tokens. It regenerated the embedded skill and agent copies and the harness goldens for the `docket-implement-next` description.
+
+## Verification performed
+
+- Each task ran its focused tests through the gate driver, and all passed. These covered assets, repoguard prose contracts, harness goldens, config, and the app, domain and reposetup packages. Vet and gofmt were also clean.
+- A whole-repo scan for the old phrases in rows 60–65 was re-run after the edits. Every remaining hit was sorted into one of three groups:
+  - process-level "terminal";
+  - frozen fixtures and point-in-time records;
+  - comments owned by change 0474.
+- A glossary anchor check found 237 in-page links and none dangling.
+- A token-count check confirmed that no wire token owned by a family change was altered.
+- The full-suite build gate certifies the final head. Its evidence is in the PR body.
+
+## Known issues and follow-ups
+
+### `.docket.yml` still says "terminal records"
+
+Two comments in this repo's own `.docket.yml` still use the old wording. The test `TestFixtureDocketSelf` compares that file byte for byte with a frozen fixture, so editing the comments breaks the test. Only this repo's config comments are affected, and nothing changes in behavior. Suggested next step: change the wording together with a new fixture version.
+
+### Leftover lifecycle "terminal child" comments
+
+A few Go comments still say "terminal child" or "terminal outcomes" when they mean a finished stacked change: `finalize_merge.go`, `stackcloseout.go`, `finalize_retarget_test.go` and `finalize_e2e_test.go`. They sit next to the `skipped-terminal` token that change 0474 renames, so it makes sense for 0474 to reword them as well.
+
+### Config "coordination fence" comments
+
+The comments in `internal/config/**` still say "coordination fence". They are left for change 0474, which renames the `fenced-setting-ignored` code next to them.
