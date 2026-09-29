@@ -6,7 +6,7 @@ status: 'proposed'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-28'
-updated: '2026-09-28'
+updated: '2026-09-29'
 depends_on: []
 stacked_on:
 related: [402, 468]
@@ -39,7 +39,6 @@ Rename the opaque terms (proposed names are hypotheses to settle at grooming):
 
 | Current | Suggested | Why |
 |---|---|---|
-| gate key / dispatch context | **run ticket** / **claim token** | What each is for: you hand in the ticket at verdict time; the token goes to `change.claim` |
 | "unmet **conjuncts**" (`gate-retry-once`) | **unmet conditions** | Logic-textbook jargon |
 | **Admission slot** | **worktree lock** | That's exactly what it is |
 | `unresolved-execution` | `previous-run-unconfirmed` | Says what's wrong: nothing proved the last run shut down |
@@ -52,7 +51,6 @@ Rename the opaque terms (proposed names are hypotheses to settle at grooming):
 | **Bootstrap verdicts** `STOP_MIGRATE` / `CREATE_ORPHAN` | `NEEDS_MIGRATION` / `CREATE_METADATA_BRANCH` | "Orphan" is git plumbing jargon |
 | **needs-brainstorm** (readiness) | **needs-grooming** | The project uses "groom" for this step and reserves "brainstorm" for net-new changes |
 | **Abstain** (auto-groom) | **hand back** | The stub goes back to the human queue |
-| **Dispatch tiers A / B / C** + carve-out | **run-inline / skip / halt** + **never-inline** | The letters carry no meaning; name them by behaviour |
 | **Dummy mode** / persona | **plain-language mode** / **reader profile** | "Dummy" is mildly pejorative and hides what it does |
 | **Coordination key / scope tag** | **shared setting** / **where-settable tag** | Describes the rule |
 | **Inert / deferred setting** | **unused / not-yet-supported setting** | Plain meaning |
@@ -72,6 +70,7 @@ Where a renamed term is also a wire token (operation id, CLI flag, config key, c
 ## Out of scope
 
 - The colliding-term renames and the obsolete-term retirement; those are tracked in the companion change.
+- Gate key, dispatch context, and dispatch tiers A / B / C + carve-out: ADR-0129 settles them (rows 5, 6 and 48–52) and assigns them to changes 0471 and 0473.
 - Terms that are already standard or plain English (harness, claim, stub, trivial, spec, plan, handoff, takeover, slice, fix loop, war story, sweep, stacked change, preflight, `gate-retry-once`, `gate-done`, `gate-stop`).
 - Rewriting frozen build records, archived changes, specs, or Accepted ADRs.
 - Removing the old wire-token spellings; alias removal is a later change after the deprecation window.
