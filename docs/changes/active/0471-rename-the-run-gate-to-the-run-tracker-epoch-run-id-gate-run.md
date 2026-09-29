@@ -2,7 +2,7 @@
 id: 471
 slug: 'rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run'
 title: 'Rename the run gate to the run tracker (epoch → run id, gate-* → run-*)'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/rename-the-run-gate-to-the-run-tracker-epoch-run-id-gate-run'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-29T14:01:51Z'
 ---
 
 ## Artifacts
