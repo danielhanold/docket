@@ -35,8 +35,8 @@ The OpenRouter IDs above are illustrative, not validated: docket keeps no vendor
 not entitlement.
 
 A delegated run is anchored at the repo's **main worktree** by default (ADR-0034, cwd-independent by
-design) — correct for the metadata-scoped `status`/`adr` agents. A **build profile** worker — one of
-four worker tiers (economy, standard, premium, max) a plan task is routed to by risk — must instead
+design) — correct for the metadata-scoped `status`/`adr` agents. A **build tier** worker — one of
+four workers (economy, standard, premium, max) a plan task is routed to by risk — must instead
 stay in the feature worktree on its branch, so a delegated build worker runs in the tree named by
 `--worktree`. That requirement is keyed on a **declared** fact, not a name shape: every built-in
 agent source carries `worktree-scope: feature` or `worktree-scope: metadata`, the generated shims
@@ -83,7 +83,7 @@ Rules and limits:
   default for the chosen model.
 - **Delegate leaves, not orchestrators.** A delegated run's own sub-dispatches run child-natively, so
   delegating `docket-implement-next` drags its review dispatch into the child too. Delegating the
-  four `build-*` profile workers rather than the `docket-build` controller is the same rule:
+  four `build-*` tier workers rather than the `docket-build` controller is the same rule:
   delegating the controller would move the routing decision into the child as well.
 
 **Prerequisites (codex):** Codex CLI installed and authenticated (`codex login`); superpowers

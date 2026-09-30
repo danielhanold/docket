@@ -45,7 +45,7 @@ floor to drift out of date.
 
 A workflow step names the agent it wants and dispatches it. Whether that dispatch
 capability actually exists is resolved from the machine's registry, never guessed
-from a tool name; where it is unavailable the workflow degrades in tiers instead
+from a tool name; where it is unavailable the workflow falls back by kind instead
 of crashing. On the harness that supports it, an inline skill dispatch rides a
 fork of the current context — the worker runs as a forked child rather than a
 fresh launch — and that fork has two documented invocation paths rather than one
@@ -65,7 +65,7 @@ precedence is pinned at the call site, not left for the dispatched agent to infe
 - An agent's model and effort come from a harness-indexed defaults sidecar; the
   wrapper template carries no model floor of its own.
 - Dispatch capability is resolved from the machine's registry, never inferred
-  from a tool name, and unavailability degrades in tiers.
+  from a tool name, and unavailability falls back by kind.
 - A named skill is passed through unvalidated, and a missing one degrades to the
   built-in default rather than aborting the workflow.
 - Autonomy precedence is fixed by pre-specification at the call site, not decided
@@ -95,7 +95,7 @@ precedence is pinned at the call site, not left for the dispatched agent to infe
   fixed autonomy precedence by pre-specification at the call site.
 - [ADR-0059](../adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md)
   — made dispatch capability resolved rather than inferred from a tool name, with
-  tiered unavailability.
+  per-kind fallbacks.
 - [ADR-0060](../adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md)
   — required a generated wrapper to conform to its target harness's own documented
   contract.

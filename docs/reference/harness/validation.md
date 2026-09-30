@@ -132,21 +132,21 @@ exactly depth 2, which Cursor permits. This phase confirms live that the documen
 actual need line up. A failure here is a definitive answer too, and a blocking one for SDD under
 Cursor.
 
-### Phase 7 — Profile-routed build under Cursor (required when `skills.build: docket-build`)
+### Phase 7 — Tier-routed build under Cursor (required when `skills.build: docket-build`)
 
-Docket ships Cursor model IDs for every wrapper, the four build profiles among them, so a Cursor
-repo can run a profile-routed build with no configuration. That routing is what these checks certify; none of them
+Docket ships Cursor model IDs for every wrapper, the four build tiers among them, so a Cursor
+repo can run a tier-routed build with no configuration. That routing is what these checks certify; none of them
 can be run by an autonomous build, and `cursor-agent` is not an accepted substitute.
 
 Run a real `docket-build` on a plan with at least four tasks, in the Cursor IDE:
 
-1. **Explicit routing, all four profiles.** A task carrying `**Build profile:** economy` lands on
+1. **Explicit routing, all four tiers.** A task carrying `**Build tier:** economy` lands on
    `docket-build-economy`; likewise `standard`, `premium`, and `max` on their own workers. Observable
    outcome: four dispatches, four distinct agent names, each child reporting the Cursor model its
    wrapper resolved — not the session model, and not a Claude ID.
-2. **One auto-classified task.** A task with no `**Build profile:**` line is routed by the
-   classifier. Observable outcome: the controller names the profile it chose and why, and the child
-   that runs is that profile's agent.
+2. **One auto-classified task.** A task with no `**Build tier:**` line is routed by the
+   classifier. Observable outcome: the controller names the tier it chose and why, and the child
+   that runs is that tier's agent.
 3. **One bounded escalation.** A task that a worker returns `NEEDS_ESCALATION` on retries exactly
    once, one tier up, and never climbs twice. Observable outcome: two dispatches for that task, the
    second at the next tier, and a halt (not a third dispatch) if the second also fails.

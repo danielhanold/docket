@@ -84,7 +84,7 @@ Index: [concepts/README.md](concepts/README.md)
   and the guard that keeps a shared setting from being overridden.
 - [Reconcile](concepts/reconcile.md) — the build-time check that kills stale work before a line of
   code is written.
-- [Build profiles and the suite gate](concepts/build-profiles-and-gate.md) — routing each task to a
+- [Build tiers and the suite gate](concepts/build-tiers-and-gate.md) — routing each task to a
   worker sized for its risk, then proving the whole suite green once.
 - [The run tracker and attribution](concepts/run-tracker.md) — the bookkeeping that decides whether a
   launched build really finished and may be retried.

@@ -4,19 +4,19 @@ By the end of this page you will know what happens to a finished branch between 
 and the pull request you read: who reviews it, what that reviewer is allowed to touch, how its
 findings get fixed before they ever reach you, and why the tests already ran before the review began.
 
-## The reviewer and its rungs
+## The reviewer and its tiers
 
 The review role — the step in the autonomous drainer that builds one change (one unit of planned
 work, roughly one pull request, tracked as one markdown file) end to end, run just before the pull
 request opens — reads the finished branch and hands back findings. It runs `docket-review`, one
-read-only reviewer contract behind three pinned rung wrappers: `docket-review-lean`,
+read-only reviewer contract behind three pinned tier wrappers: `docket-review-lean`,
 `docket-review-standard`, and `docket-review-deep`. These are three agents (a separately launched
 worker with its own context, pinned to a model and effort) that share the one contract and differ
 only in model and effort.
 
 The reviewer reads the branch diff, its commit log, and the tree. It never writes, never commits,
 never checks out another branch, never launches a sub-worker, and never runs the test suite. It gets
-one shot at the rung it was dispatched at (dispatch being the act of launching a named agent to do a
+one shot at the tier it was dispatched at (dispatch being the act of launching a named agent to do a
 step and waiting for it to return) — there is no reviewer escalation ladder.
 
 `docket-review` is the shipped default. To opt back out to the general-purpose reviewer, set the role
@@ -27,20 +27,20 @@ skills:
   review: superpowers:requesting-code-review
 ```
 
-## Choosing the rung
+## Choosing the review tier
 
-The rung is chosen **deterministically as one above the build** — not by the model's own judgment. The
-drainer takes the highest **build profile** (one of four worker tiers — economy, standard, premium,
+The review tier is chosen **deterministically as one above the build** — not by the model's own judgment. The
+drainer takes the highest **build tier** (one of four workers — economy, standard, premium,
 max — a plan task is routed to by risk) that any task routed or escalated to, and maps `economy` to
 lean, `standard` to standard, and `premium` or `max` to deep. A whole-branch diff of more than 1500
-changed lines bumps the rung one step, capped at deep.
+changed lines bumps the tier one step, capped at deep.
 
 The reason a cheap build earns a cheap review is that the build's own routing already answered how
 hard the work was; the diff-size bump is the one signal independent of that self-assessment.
 
 ## From findings to fixes
 
-Findings come back **severity-tiered**, and they are fixed on the branch rather than recorded and left
+Findings come back **severity-ranked**, and they are fixed on the branch rather than recorded and left
 for you. After review returns and before the pull request opens, the drainer runs a bounded **fix
 loop**: each finding becomes a task through the same worker contract that wrote the code, committed
 into the same diff you were going to read anyway, so the PR handoff does not move. The reviewer itself
@@ -108,5 +108,5 @@ running the suite itself is never the remedy. When a review-feedback follow-up c
 been pushed to the open PR and only the evidence went stale, `docket evidence recertify --id <id>`
 re-runs the build gate at the new head and refreshes the PR's evidence block in place — no re-entry
 into implement-next and no merge-time re-gate needed. How that record is minted and carried forward
-is [Proving the build](./proving-the-build.md); the profile ladder and the gate verdict as a
-mechanism are [Build profiles and the suite gate](../concepts/build-profiles-and-gate.md).
+is [Proving the build](./proving-the-build.md); the tier ladder and the gate verdict as a
+mechanism are [Build tiers and the suite gate](../concepts/build-tiers-and-gate.md).

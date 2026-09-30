@@ -15,7 +15,7 @@ parts, the invariants, and the decisions behind it.
   config layers, and the guard that keeps a shared setting from being overridden.
 - [Reconcile](./reconcile.md) — the build-time check that kills stale work
   before a line of code is written.
-- [Build profiles and the suite gate](./build-profiles-and-gate.md) — routing
+- [Build tiers and the suite gate](./build-tiers-and-gate.md) — routing
   each task to a worker sized for its risk, then proving the whole suite green
   once.
 - [The run tracker and attribution](./run-tracker.md) — the bookkeeping that decides
