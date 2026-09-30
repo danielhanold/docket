@@ -64,3 +64,19 @@ This matters because skills already loaded in a running session still send `--ve
 ### Integration-tagged `internal/app` exceeds the default go test timeout
 
 `go test -tags integration ./internal/app/` with no `-timeout` flag panicked at 10 minutes during this build. The configured suite command is unaffected, but an ad hoc focused run must pass `-timeout` or use `-run`. This is confirmed and predates this change. The suggested next action is to triage whether the suite partition should cap this package's runtime.
+
+### Closeout integration shard is over its serial budget
+
+The build gate reported `SERIAL CONFIRMED OVER BUDGET` for `tests/test_go_integration_app_closeout.sh`: 67s run alone against a 60s threshold. Nothing fails. It is a timing breach in the suite's budget report. It predates this change: the 2026-09-29 run-tracker rename results recorded 69s for the same shard. A human needs to decide whether to re-measure, split the shard, or adjust its budget row.
+
+### Review findings and how they were handled
+
+The whole-branch review returned 1 important and 6 minor findings and no blockers. All were fixed in-branch:
+
+- The bound `--version` seal now retires every `--version` in maintained markdown, unless a foreign software-version tool binds it. This closes a gap where the old wording in the finalize skill's paragraph left the seal green.
+- The Go seal now also covers `StringVar` / `StringVarP` flag names.
+- Comments that cited plan task numbers now name `TestRetiredVocabularySeal` instead.
+- `TestSchemaRevisionKeys` now checks only the new key paths. The seal owns the negative check, so the kept set of software-version keys is listed in one place only.
+- The glossary index order is fixed.
+- "entity revision" wording is now "record revision".
+- The test-budget breach is recorded above.
