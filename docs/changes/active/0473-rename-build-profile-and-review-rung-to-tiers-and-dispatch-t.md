@@ -22,7 +22,7 @@ branch: 'refactor/rename-build-profile-and-review-rung-to-tiers-and-dispatch-t'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-30T09:03:17Z'
+claimed_at: '2026-09-30T09:17:08Z'
 ---
 
 ## Artifacts
