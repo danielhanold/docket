@@ -13,7 +13,7 @@ related: [468, 469, 474]
 discovered_from: []
 adrs: [15, 86, 129]
 spec: 'docs/superpowers/specs/2026-09-30-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-30T09:03:17Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-30-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-30-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t-design.md) |
+| Plan | [2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md](https://github.com/danielhanold/docket/blob/refactor/rename-build-profile-and-review-rung-to-tiers-and-dispatch-t/docs/superpowers/plans/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0086](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0086-in-context-gating-dispatch-carved-out-of-the-tier-taxonomy.md), [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
