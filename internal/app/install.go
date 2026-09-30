@@ -48,7 +48,7 @@ type InstallResult struct {
 	RepoHarnesses []string `json:"repo_harnesses,omitempty"`
 
 	// Warnings are the warning-severity configuration diagnostics from the
-	// install-path reads (change 0392): tolerated unknown keys, fenced
+	// install-path reads (change 0392): tolerated unknown keys, guarded
 	// settings, and the rest — everything is surfaced, because filtering would
 	// only hide information.
 	Warnings   []InstallWarning         `json:"warnings,omitempty"`

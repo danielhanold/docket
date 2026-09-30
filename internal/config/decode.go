@@ -10,7 +10,7 @@ import (
 // This file is the typed decode stage: it walks one already-node-validated
 // layer against the registry and turns each declared leaf into a typed value
 // with provenance. It decides only what a single layer says — never what the
-// layer is allowed to say. Fences, precedence, defaults, and every cross-leaf
+// layer is allowed to say. Shared-setting guards, precedence, defaults, and every cross-leaf
 // rule belong to resolution, which is the only stage that knows how the layers
 // stack.
 
@@ -138,7 +138,7 @@ func (d *layerDecoder) decodeLeaf(path string, spec *pathSpec, key, val *yaml.No
 	case "runtime.bash":
 		// Obsolete in EVERY layer: docket no longer has a Bash runtime to
 		// select, so the setting is reported and excluded from resolution
-		// rather than fenced (a fence would imply some layer could honor it).
+		// rather than guarded (a guard would imply some layer could honor it).
 		diag := leafDiag(d.src, path, CodeObsoleteSetting, key,
 			"selected the Bash implementation, which docket no longer ships; it is ignored")
 		diag.Severity = SeverityWarning
@@ -150,7 +150,7 @@ func (d *layerDecoder) decodeLeaf(path string, spec *pathSpec, key, val *yaml.No
 		// Obsolete in EVERY layer (change 0363): docket v1 supports one metadata
 		// topology, so the setting selects nothing. It is recognized so
 		// inspection can attribute it and excluded from resolution rather than
-		// fenced. The remedy is layer-aware (learning printed-remedy-state-validity):
+		// guarded. The remedy is layer-aware (learning printed-remedy-state-validity):
 		// the committed .docket.yml occurrence is change 0352's migration input,
 		// so it points at `docket repository check`; a machine layer, over which
 		// migration claims no authority, is told to remove the key by hand.

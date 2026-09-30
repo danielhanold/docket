@@ -554,19 +554,19 @@ func TestListReplacesWhole(t *testing.T) {
 	}
 }
 
-// fenceCase declares one shared-setting-guarded path: what the committed layer
+// guardCase declares one shared-setting-guarded path: what the committed layer
 // says (which must win) and what a machine layer says (which must be warned
 // about and dropped).
-type fenceCase struct {
+type guardCase struct {
 	path    string
 	repo    string
 	machine string
 	want    any
 }
 
-func fenceCases() []fenceCase {
-	return []fenceCase{
-		// metadata_branch is no longer fenced — it is an obsolete tombstone
+func guardCases() []guardCase {
+	return []guardCase{
+		// metadata_branch is no longer guarded — it is an obsolete tombstone
 		// (change 0363), excluded at decode. Its tombstone behavior is covered by
 		// TestMetadataBranchIsObsoleteTombstone.
 		{"integration_branch", "integration_branch: develop\n", "integration_branch: trunk\n", "develop"},
@@ -582,11 +582,11 @@ func fenceCases() []fenceCase {
 	}
 }
 
-// TestEveryFence asserts BOTH halves for every repo-fenced row in both machine
+// TestEverySharedSettingGuard asserts BOTH halves for every repo-only row in both machine
 // layers: the machine declaration is warned about at ITS OWN provenance, and
 // the committed layer's value is the one that resolves. A warning alone would
-// be a false alarm if the fenced value still won.
-func TestEveryFence(t *testing.T) {
+// be a false alarm if the guarded value still won.
+func TestEverySharedSettingGuard(t *testing.T) {
 	// Sources are always supplied low-to-high, so which side the committed
 	// layer sits on depends on the machine layer under test.
 	machines := []struct {
@@ -601,24 +601,24 @@ func TestEveryFence(t *testing.T) {
 			return []Source{srcR(repo), srcL(machine)}
 		}},
 	}
-	for _, tc := range fenceCases() {
+	for _, tc := range guardCases() {
 		for _, m := range machines {
 			t.Run(tc.path+"/"+m.name, func(t *testing.T) {
 				res := mustResolve(t, m.ordered(tc.machine, tc.repo), mainCtx)
 
-				fenced := diagsWithCode(res, CodeFencedIgnored)
-				if len(fenced) != 1 {
-					t.Fatalf("got %d fenced-setting-ignored diagnostics, want 1: %v", len(fenced), diagSummary(res))
+				guarded := diagsWithCode(res, CodeSharedSettingIgnored)
+				if len(guarded) != 1 {
+					t.Fatalf("got %d shared-setting-ignored diagnostics, want 1: %v", len(guarded), diagSummary(res))
 				}
-				d := fenced[0]
+				d := guarded[0]
 				if d.Severity != SeverityWarning {
-					t.Errorf("fence severity = %q, want %q", d.Severity, SeverityWarning)
+					t.Errorf("guard severity = %q, want %q", d.Severity, SeverityWarning)
 				}
 				if d.Path != tc.path {
-					t.Errorf("fence path = %q, want %q", d.Path, tc.path)
+					t.Errorf("guard path = %q, want %q", d.Path, tc.path)
 				}
 				if d.Provenance == nil || d.Provenance.Layer != m.layer {
-					t.Errorf("fence provenance = %+v, want the declaring layer %q", d.Provenance, m.layer)
+					t.Errorf("guard provenance = %+v, want the declaring layer %q", d.Provenance, m.layer)
 				}
 
 				got, ok := res.declared[tc.path]
@@ -636,31 +636,31 @@ func TestEveryFence(t *testing.T) {
 	}
 }
 
-// The fence table is derived from the registry in both directions, so a new
-// repo-fenced row cannot ship untested and a row that loses its fence cannot
+// The guard table is derived from the registry in both directions, so a new
+// repo-only row cannot ship untested and a row that loses its guard cannot
 // keep a stale case.
-func TestEveryFenceCoversTheRegistry(t *testing.T) {
+func TestEverySharedSettingGuardCoversTheRegistry(t *testing.T) {
 	covered := make(map[string]bool)
-	for _, c := range fenceCases() {
+	for _, c := range guardCases() {
 		covered[c.path] = true
 	}
 	declared := make(map[string]bool)
 	for _, spec := range registry() {
-		if spec.scope == scopeRepoFenced {
+		if spec.scope == scopeRepoOnly {
 			declared[spec.path] = true
 			if !covered[spec.path] {
-				t.Errorf("registry row %q is repo-fenced but no fence case covers it", spec.path)
+				t.Errorf("registry row %q is repo-only but no guard case covers it", spec.path)
 			}
 		}
 	}
 	for path := range covered {
 		if !declared[path] {
-			t.Errorf("fence case %q is not a repo-fenced registry row", path)
+			t.Errorf("guard case %q is not a repo-only registry row", path)
 		}
 	}
 }
 
-func TestFencedPathStillReachesEffective(t *testing.T) {
+func TestGuardedPathStillReachesEffective(t *testing.T) {
 	res := mustResolve(t, []Source{srcR("changes_dir: docs/committed\n"), srcL("changes_dir: docs/machine\n")}, mainCtx)
 	value, prov, explicit := effectiveLeaf(t, res.effective, "changes_dir")
 	if value != "docs/committed" || prov.Layer != LayerRepository || !explicit {
@@ -668,11 +668,11 @@ func TestFencedPathStillReachesEffective(t *testing.T) {
 	}
 }
 
-// runtime.bash is obsolete in EVERY layer, not fenced into one: docket no
+// runtime.bash is obsolete in EVERY layer, not guarded into one: docket no
 // longer has a Bash runtime for any layer to select. Decode reports it and
-// drops it, so resolution must neither honor it nor add a fence warning on
+// drops it, so resolution must neither honor it nor add a guard warning on
 // top of the obsolescence notice.
-func TestRuntimeBashCommittedFence(t *testing.T) {
+func TestRuntimeBashCommittedGuard(t *testing.T) {
 	for _, build := range []func(string) Source{srcG, srcR, srcL} {
 		src := build("runtime:\n  bash: /bin/bash\n")
 		t.Run(string(src.Layer), func(t *testing.T) {
@@ -684,19 +684,19 @@ func TestRuntimeBashCommittedFence(t *testing.T) {
 			if len(obsolete) != 1 || obsolete[0].Path != "runtime.bash" {
 				t.Errorf("want one obsolete-setting diagnostic on runtime.bash, got %v", diagSummary(res))
 			}
-			if fenced := diagsWithCode(res, CodeFencedIgnored); len(fenced) != 0 {
-				t.Errorf("obsolete settings are not fenced settings; got %v", diagSummary(res))
+			if guarded := diagsWithCode(res, CodeSharedSettingIgnored); len(guarded) != 0 {
+				t.Errorf("obsolete settings are not guarded settings; got %v", diagSummary(res))
 			}
 		})
 	}
 }
 
-func TestBoardGithubTokenMachineFence(t *testing.T) {
+func TestBoardGithubTokenMachineGuard(t *testing.T) {
 	cases := []struct {
-		name       string
-		src        Source
-		want       []string
-		wantFenced bool
+		name        string
+		src         Source
+		want        []string
+		wantGuarded bool
 	}{
 		{"machine local drops github, keeps the rest", srcL("board_surfaces: [inline, github]\n"), []string{"inline"}, true},
 		{"machine global drops github down to an empty list", srcG("board_surfaces: [github]\n"), []string{}, true},
@@ -713,16 +713,16 @@ func TestBoardGithubTokenMachineFence(t *testing.T) {
 				t.Errorf("board_surfaces provenance = %+v (explicit %v), want the declaring layer %q",
 					got.Provenance, got.Explicit, tc.src.Layer)
 			}
-			fenced := diagsWithCode(res, CodeFencedIgnored)
-			if tc.wantFenced != (len(fenced) == 1) {
-				t.Fatalf("wantFenced=%v but got %v", tc.wantFenced, diagSummary(res))
+			guarded := diagsWithCode(res, CodeSharedSettingIgnored)
+			if tc.wantGuarded != (len(guarded) == 1) {
+				t.Fatalf("wantGuarded=%v but got %v", tc.wantGuarded, diagSummary(res))
 			}
-			if tc.wantFenced {
-				if fenced[0].Path != "board_surfaces" || fenced[0].Severity != SeverityWarning {
-					t.Errorf("fence diagnostic = %+v, want a board_surfaces warning", fenced[0])
+			if tc.wantGuarded {
+				if guarded[0].Path != "board_surfaces" || guarded[0].Severity != SeverityWarning {
+					t.Errorf("guard diagnostic = %+v, want a board_surfaces warning", guarded[0])
 				}
-				if fenced[0].Provenance == nil || fenced[0].Provenance.Layer != tc.src.Layer {
-					t.Errorf("fence provenance = %+v, want %q", fenced[0].Provenance, tc.src.Layer)
+				if guarded[0].Provenance == nil || guarded[0].Provenance.Layer != tc.src.Layer {
+					t.Errorf("guard provenance = %+v, want %q", guarded[0].Provenance, tc.src.Layer)
 				}
 			}
 		})
@@ -1106,21 +1106,22 @@ func TestWarnOnlyUnknownKeysKeepTheSnapshotValid(t *testing.T) {
 func TestDiagnosticOrdering(t *testing.T) {
 	in := []Diagnostic{
 		{Code: CodeInertSetting, Severity: SeverityInfo, Path: "learnings.cap"},
-		{Code: CodeFencedIgnored, Severity: SeverityWarning, Path: "terminal_publish"},
+		{Code: CodeSharedSettingIgnored, Severity: SeverityWarning, Path: "terminal_publish"},
 		{Code: CodeInvalidValue, Severity: SeverityError, Path: "metadata_branch"},
 		{Code: CodeDeferredSetting, Severity: SeverityInfo, Path: "auto_groom"},
 		{Code: CodeObsoleteSetting, Severity: SeverityWarning, Path: "runtime.bash"},
 		{Code: CodeInvalidType, Severity: SeverityError, Path: "metadata_branch"},
-		{Code: CodeFencedIgnored, Severity: SeverityWarning, Path: "runtime.bash"},
+		{Code: CodeSharedSettingIgnored, Severity: SeverityWarning, Path: "runtime.bash"},
 	}
 	sortDiagnostics(in)
 	want := []string{
 		"error/invalid-type/metadata_branch",
 		"error/invalid-value/metadata_branch",
-		// path before code: both runtime.bash warnings precede terminal_publish.
-		"warning/fenced-setting-ignored/runtime.bash",
+		// path before code: both runtime.bash warnings precede terminal_publish,
+		// and within one path the codes sort lexically.
 		"warning/obsolete-setting/runtime.bash",
-		"warning/fenced-setting-ignored/terminal_publish",
+		"warning/shared-setting-ignored/runtime.bash",
+		"warning/shared-setting-ignored/terminal_publish",
 		"info/deferred-setting/auto_groom",
 		"info/inert-setting/learnings.cap",
 	}
@@ -1245,19 +1246,19 @@ func TestUnknownKeyStrictWithoutTolerance(t *testing.T) {
 	}
 }
 
-// TestTolerateUnknownKeysLeavesFenceIntact: a fenced KNOWN key keeps its
+// TestTolerateUnknownKeysLeavesGuardIntact: a guarded KNOWN key keeps its
 // existing warn-and-ignore posture with the option on. Mirror the exact
-// layer/fixture of TestBoardGithubTokenMachineFence (a machine-layer
-// board_surfaces carrying the fenced github token), changing only the rctx.
-func TestTolerateUnknownKeysLeavesFenceIntact(t *testing.T) {
+// layer/fixture of TestBoardGithubTokenMachineGuard (a machine-layer
+// board_surfaces carrying the guarded github token), changing only the rctx.
+func TestTolerateUnknownKeysLeavesGuardIntact(t *testing.T) {
 	rctx := ResolveContext{DefaultBranch: "main", TolerateUnknownKeys: true}
 	res := mustResolve(t, []Source{srcL("board_surfaces: [inline, github]\n")}, rctx)
-	fenced := diagsWithCode(res, CodeFencedIgnored)
-	if len(fenced) != 1 || fenced[0].Severity != SeverityWarning {
-		t.Fatalf("fenced diagnostics = %v, want one fenced-setting-ignored warning", diagSummary(res))
+	guarded := diagsWithCode(res, CodeSharedSettingIgnored)
+	if len(guarded) != 1 || guarded[0].Severity != SeverityWarning {
+		t.Fatalf("guarded diagnostics = %v, want one shared-setting-ignored warning", diagSummary(res))
 	}
-	if fenced[0].Remedy == ToleratedUnknownKeyRemedy {
-		t.Errorf("the fence's own remedy was overwritten")
+	if guarded[0].Remedy == ToleratedUnknownKeyRemedy {
+		t.Errorf("the guard's own remedy was overwritten")
 	}
 }
 

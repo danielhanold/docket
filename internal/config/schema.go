@@ -47,15 +47,15 @@ const (
 type layerScope int
 
 const (
-	scopeAny        layerScope = iota
-	scopeRepoFenced            // machine-layer declaration → fenced-setting-ignored, excluded
+	scopeAny      layerScope = iota
+	scopeRepoOnly            // machine-layer declaration → shared-setting-ignored, excluded
 	// scopeLocalOnly: a committed-layer declaration may not be honored. Today
 	// the only row carrying this scope is the obsolete `runtime.bash`, whose
-	// committed-layer fence is enforced at DECODE (it is excluded there as
-	// obsolete and never reaches applyFence), so resolution carries no
+	// committed-layer guard is enforced at DECODE (it is excluded there as
+	// obsolete and never reaches applySharedSettingGuard), so resolution carries no
 	// scopeLocalOnly branch. A future non-obsolete scopeLocalOnly row must add
-	// the resolution-time fence back in applyFence, together with a test that
-	// reddens when that fence is stripped.
+	// the resolution-time guard back in applySharedSettingGuard, together with a test that
+	// reddens when that guard is stripped.
 	scopeLocalOnly
 )
 
@@ -192,23 +192,23 @@ func buildRegistry() []pathSpec {
 		// setting selects nothing. It is recognized in EVERY layer so inspection
 		// can attribute it, never resolved, and never a capability — the
 		// repository-layer occurrence is change 0352's migration input. Unlike
-		// runtime.bash (scopeLocalOnly, committed-fenced at decode) it must decode
+		// runtime.bash (scopeLocalOnly, committed-guarded at decode) it must decode
 		// in every layer including the repository one, so it carries the default
-		// scopeAny; decode excludes it as obsolete before any fence runs.
+		// scopeAny; decode excludes it as obsolete before any guard runs.
 		{path: "metadata_branch", kind: kindString, merge: mergeScalar,
 			disp: dispObsolete, validate: stringLeaf(false, false, false)},
 
 		// 3-6: repository identity — shared-setting-guarded, so a machine layer
 		// cannot silently relocate one clone's planning surfaces.
 		{path: "integration_branch", kind: kindString, def: "auto",
-			merge: mergeScalar, scope: scopeRepoFenced, disp: dispSupported,
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported,
 			validate: stringLeaf(true, false, false)},
 		{path: "changes_dir", kind: kindString, def: "docs/changes",
-			merge: mergeScalar, scope: scopeRepoFenced, disp: dispSupported, validate: dirLeaf},
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: dirLeaf},
 		{path: "adrs_dir", kind: kindString, def: "docs/adrs",
-			merge: mergeScalar, scope: scopeRepoFenced, disp: dispSupported, validate: dirLeaf},
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: dirLeaf},
 		{path: "results_dir", kind: kindString, def: "docs/results",
-			merge: mergeScalar, scope: scopeRepoFenced, disp: dispSupported, validate: dirLeaf},
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: dirLeaf},
 
 		// 7-11: finalize.
 		{path: "finalize.gate", kind: kindString, enum: []string{"local", "ci", "both", "off"}, def: "local",
@@ -224,7 +224,7 @@ func buildRegistry() []pathSpec {
 		{path: "finalize.repair_max_attempts", kind: kindInt, def: 6,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: intLeaf(1)},
 		{path: "finalize.skip_results_only_delta", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeRepoFenced, disp: dispDeferred, validate: boolLeaf()},
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispDeferred, validate: boolLeaf()},
 
 		// 11-12: learnings.
 		{path: "learnings.enabled", kind: kindBool, def: true,
@@ -283,10 +283,10 @@ func buildRegistry() []pathSpec {
 	// 34-...: project, publish, groom, and the remaining v0.9.2 rows.
 	rows = append(rows, []pathSpec{
 		{path: "github_project", kind: kindScalarOrMap, def: "auto",
-			merge: mergeScalar, scope: scopeRepoFenced, disp: dispInert,
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispInert,
 			validate: githubProjectLeaf()},
 		{path: "terminal_publish", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeRepoFenced, disp: dispDeferred, validate: boolLeaf()},
+			merge: mergeScalar, scope: scopeRepoOnly, disp: dispDeferred, validate: boolLeaf()},
 		{path: "auto_groom", kind: kindBool, def: false,
 			merge: mergeScalar, scope: scopeAny, disp: dispDeferred, validate: boolLeaf()},
 

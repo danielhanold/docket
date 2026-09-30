@@ -72,29 +72,29 @@ func TestRegistryEveryRowHasValidator(t *testing.T) {
 	}
 }
 
-// TestRegistryFencedSet pins both fence directions exactly: the eight
+// TestRegistryRepoOnlySet pins both guard directions exactly: the eight
 // shared-setting-guarded (repo-owned) paths and the single machine-only path.
-// Both compares are whole-set, so a row silently gaining or losing a fence
+// Both compares are whole-set, so a row silently gaining or losing a guard
 // reddens this test.
-func TestRegistryFencedSet(t *testing.T) {
-	wantRepoFenced := []string{
+func TestRegistryRepoOnlySet(t *testing.T) {
+	wantRepoOnly := []string{
 		"integration_branch", "changes_dir", "adrs_dir",
 		"results_dir", "finalize.skip_results_only_delta", "github_project",
 		"terminal_publish",
 	}
 	wantLocalOnly := []string{"runtime.bash"}
 
-	var repoFenced, localOnly []string
+	var repoOnly, localOnly []string
 	for _, spec := range registry() {
 		switch spec.scope {
-		case scopeRepoFenced:
-			repoFenced = append(repoFenced, spec.path)
+		case scopeRepoOnly:
+			repoOnly = append(repoOnly, spec.path)
 		case scopeLocalOnly:
 			localOnly = append(localOnly, spec.path)
 		}
 	}
-	if !reflect.DeepEqual(repoFenced, wantRepoFenced) {
-		t.Errorf("scopeRepoFenced set mismatch\n got: %v\nwant: %v", repoFenced, wantRepoFenced)
+	if !reflect.DeepEqual(repoOnly, wantRepoOnly) {
+		t.Errorf("scopeRepoOnly set mismatch\n got: %v\nwant: %v", repoOnly, wantRepoOnly)
 	}
 	if !reflect.DeepEqual(localOnly, wantLocalOnly) {
 		t.Errorf("scopeLocalOnly set mismatch\n got: %v\nwant: %v", localOnly, wantLocalOnly)
