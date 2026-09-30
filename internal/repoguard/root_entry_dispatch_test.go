@@ -6,14 +6,50 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/harness"
 )
 
-// Docket dogfoods the Codex route through its checked-in always-loaded policy.
-// Testing the renderer alone would leave a stale native-child instruction in
-// that file green. Replacing the block must be a byte-identical no-op.
+// committedHarnesses returns the agent_harnesses the committed .docket.yml
+// declares. Only the repository layer is read: the committed AGENTS.md renders
+// from the committed declaration, and a machine-local or global layer must not
+// change what this guard expects of a checked-in file.
+func committedHarnesses(t *testing.T) map[string]bool {
+	t.Helper()
+	src := config.Source{Layer: config.LayerRepository, Name: ".docket.yml",
+		Data: []byte(readMaintained(t, guardRoot(t), ".docket.yml"))}
+	snap, _, err := config.Resolve([]config.Source{src}, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		t.Fatalf("resolve committed .docket.yml: %v", err)
+	}
+	out := map[string]bool{}
+	for _, h := range snap.Effective.AgentHarnesses.Value {
+		out[h] = true
+	}
+	return out
+}
+
+// requireCodex skips a guard on the Codex clause of the committed AGENTS.md
+// when the repository does not enable the codex harness: the reposeed plan
+// renders that clause only for a codex opt-in.
+func requireCodex(t *testing.T) {
+	t.Helper()
+	if !committedHarnesses(t)["codex"] {
+		t.Skip("codex is not in the committed agent_harnesses; AGENTS.md carries no Codex dispatch clause")
+	}
+}
+
+// Docket dogfoods its dispatch route through its checked-in always-loaded
+// policy. Testing the renderer alone would leave a stale instruction in that
+// file green. Replacing the block must be a byte-identical no-op. The block
+// carries the Codex clause iff codex is enabled, mirroring the reposeed plan;
+// with neither codex nor opencode enabled the block is not planned at all.
 func TestCommittedCodexDispatchMatchesGenerator(t *testing.T) {
+	harnesses := committedHarnesses(t)
+	if !harnesses["codex"] && !harnesses["opencode"] {
+		t.Skip("neither codex nor opencode is in the committed agent_harnesses; AGENTS.md carries no dispatch block")
+	}
 	src := []byte(readMaintained(t, guardRoot(t), "AGENTS.md"))
 	doc, err := document.Parse(src)
 	if err != nil {
@@ -27,14 +63,18 @@ func TestCommittedCodexDispatchMatchesGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	interior := harness.DispatchInterior(gate)
+	if harnesses["codex"] {
+		interior = harness.CodexDispatchInterior(gate)
+	}
 	var patch document.PatchSet
-	patch.ReplaceBlock("dispatch", harness.CodexDispatchInterior(gate))
+	patch.ReplaceBlock("dispatch", interior)
 	want, err := doc.Apply(patch)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(src, want) {
-		t.Fatal("AGENTS.md dispatch block is stale; regenerate it from harness.CodexDispatchInterior")
+		t.Fatal("AGENTS.md dispatch block is stale; regenerate it from the reposeed dispatch interior")
 	}
 }
 
@@ -42,6 +82,7 @@ func TestCommittedCodexDispatchMatchesGenerator(t *testing.T) {
 // keeps the root coordinator path but loses the feature-worktree or metadata
 // branch of the generated marker policy.
 func TestCommittedCodexDispatchRoutesEveryScope(t *testing.T) {
+	requireCodex(t)
 	content := readMaintained(t, guardRoot(t), "AGENTS.md")
 	for _, clause := range []string{
 		"`[docket launch: root-coordinator]` takes precedence",
@@ -59,6 +100,7 @@ func TestCommittedCodexDispatchRoutesEveryScope(t *testing.T) {
 // mistakes a shell-tool liveness yield for agent.enter's terminal return and
 // advances while the original foreground task is still running.
 func TestCommittedCodexDispatchObservesYieldedEntrySession(t *testing.T) {
+	requireCodex(t)
 	content := readMaintained(t, guardRoot(t), "AGENTS.md")
 	for _, clause := range []string{
 		"shell-tool yield carrying a live task/session identity is a liveness transition, not completion",
