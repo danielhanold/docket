@@ -48,7 +48,7 @@ effect. Report bodies are redaction-only, never echoed into a result document.
 A repair is code the human's PR approval predated, so it never merges unseen:
 
 - **Autonomous finalize** cannot prompt. It records the sign-off requirement durably and STOPS:
-  the `finalize.block` operation with `--id <id> --version <version> --pr-number <n> --attempt <attempt>
+  the `finalize.block` operation with `--id <id> --revision <revision> --pr-number <n> --attempt <attempt>
   --reason repair-needs-signoff --head <repaired head> --input <block report>` — the disposition is
   `halted`. The human reviews the pushed repair on the PR and re-runs finalize; the retry clears the
   block (the `finalize.clear-block` operation) and merges.
@@ -121,7 +121,7 @@ writes them in that order so a crash between them replays by finding the comment
 ## The `## Finalize blocked` marker — write shape and lifecycle
 
 A gate or merge failure is recorded as a `## Finalize blocked` body section on the change record — a
-`finalize.block` metadata write in an exact-version transaction, never a hand-edit. It is **not** a new
+`finalize.block` metadata write in an exact-revision transaction, never a hand-edit. It is **not** a new
 lifecycle status or a reuse of `blocked`: the change really *is* `implemented` with an open PR, and a
 transient multi-cause abort encoded as a status would make every derived view say six things about one
 label. `stacked-merged` earns a status on the terms this case fails — one durable position, one cause, one exit.

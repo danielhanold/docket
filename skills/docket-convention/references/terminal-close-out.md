@@ -46,12 +46,12 @@ before the first read; every commit pushes immediately.
    drive the typed `change.kill` operation transaction. There is **no caller-supplied date**: it
    derives the UTC archive date from its own transaction clock **inside** the transaction (never a
    caller `now()`). Author the non-empty `## Why killed` section body and pin the exact record
-   submitted for the kill — its `path` and opaque entity `version`, both from the caller's
+   submitted for the kill — its `path` and opaque record `revision`, both from the caller's
    authoritative context read — into a bounded JSON request file (`-` for stdin):
 
    ```
    # request-file: { "change_id": <id>, "path": "<changes_dir>/active/<UTC-birth>-<id>-<slug>.md",
-   #                 "version": "<entity-version>", "why_killed": "<why>" }
+   #                 "revision": "<revision>", "why_killed": "<why>" }
    change.kill  --repo-dir .docket --input <request-file> --json   # resolve argv from the capability catalog
    ```
 
@@ -60,7 +60,7 @@ before the first read; every commit pushes immediately.
    atomically owns the archive move, the refreshed `updated:` date, the spliced `## Why killed`
    section, the `## Artifacts` re-render, the retargeted spec back-link, and the inline board render
    — so the step-2 re-render and step-5 board pass below carry **nothing** for the kill path, exactly
-   as `finalize.closeout` owns them for the done path. A wrong `version` or an illegal source status
+   as `finalize.closeout` owns them for the done path. A wrong `revision` or an illegal source status
    returns a typed refusal that writes nothing (a lost CAS race is `contended`; see
    *Determinism invariant*).
 
@@ -143,7 +143,7 @@ self-heals); other callers keep their own posture (abort-and-report).
 ## Determinism invariant
 
 Two agents both driving the same final transition converge through the step-1 transaction's
-exact-version CAS: one applies and the other reads `contended` (a lost race), re-runs
+exact-revision CAS: one applies and the other reads `contended` (a lost race), re-runs
 the `repository.prepare` operation, and re-reads authority rather than racing a second write. The archive
 date is the transaction's own UTC clock (never a caller `now()`), so a replay after a lost response
 reuses the same dated filename. Every derived view (`## Artifacts` block, back-links, inline board)
