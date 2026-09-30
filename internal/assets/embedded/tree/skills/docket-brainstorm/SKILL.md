@@ -19,7 +19,7 @@ follow-up agent turns anywhere — a single fresh dispatch, fully portable.
 
 Invoke the `docket-convention` skill via the Skill tool first — unless already invoked
 this session. `docket-brainstorm` is only ever invoked from `docket-new-change` or
-`docket-groom-next`, whose own blocking Step 0 already loads it, so in the normal case
+`docket-groom-next`, whose own blocking startup check already loads it, so in the normal case
 this is a no-op check, not a reload. Everything below uses convention vocabulary
 without redefinition.
 

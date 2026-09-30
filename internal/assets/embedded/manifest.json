@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:ac736c830b9fb4bad1f5e640060653ea5cb536b9d4934f865aa82a263ffc7868",
+  "asset_set_id": "sha256:990e0c6afeaaef19b12f14dec98758636404826ad657aca5deee6722ebc4db12",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -287,15 +287,15 @@
       "path": "skills/docket-auto-groom/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 11271,
-      "sha256": "ec365e0878b58c5f6620ca327ad0c911738c67302d226f6b4ec4f488bf41ae51"
+      "size": 11285,
+      "sha256": "b3314dfd5d6c92de5152bf109c60661e9e03f49f8340ed0e48ea204f76dc11f4"
     },
     {
       "path": "skills/docket-brainstorm/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 4479,
-      "sha256": "c58b0b77a5713befc40e37f3025517c6cf27b0de43af3320b099dcb53334c48c"
+      "size": 4486,
+      "sha256": "5e4bc94f56ddabe567d4e0749767162b7d8fe18008b66f71ee8eb864557aa61d"
     },
     {
       "path": "skills/docket-build-task/SKILL.md",
@@ -308,8 +308,8 @@
       "path": "skills/docket-build/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 30001,
-      "sha256": "049ecb4ac9b2cdb1d7fada9bacf8cc8ea7f798ac9589cd6fd8f2e7f0899d6d48"
+      "size": 30015,
+      "sha256": "b974c4ba3be9d3458e8beadba9c7bf6db65714897eb521ea45361afa0ca40248"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",
@@ -343,8 +343,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 57334,
-      "sha256": "d7c6d47175955a918b79bc04e093ca6ff198ced33406913cddd6f2f4780c836f"
+      "size": 57348,
+      "sha256": "fc50ea6d838212f08ebfed8ed8909b064010e081a2db10a982005bbefa19d758"
     },
     {
       "path": "skills/docket-convention/references/agent-layer.md",
@@ -385,8 +385,8 @@
       "path": "skills/docket-finalize-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 39257,
-      "sha256": "459a98f27039229b6f55d9e89bb70b83837164a8e5f4a51e57b7f80db6a75172"
+      "size": 39271,
+      "sha256": "2d79d128c27ea6152d05c5a1660f72941a1ebe0e24072c80ab91b0cc55192876"
     },
     {
       "path": "skills/docket-finalize-change/references/gate-failure.md",
@@ -399,15 +399,15 @@
       "path": "skills/docket-groom-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 14272,
-      "sha256": "8b16ed82b7c3598c7928042e761e3f155cc0a17cb122dc1b7c7c44eb1c0bf56f"
+      "size": 14293,
+      "sha256": "1b4bc369e2b4d6ce7b59480af6bd73ced549de2449b7541b3a9855109501f6ec"
     },
     {
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 56822,
-      "sha256": "e50f1578601933d023322e5a408755c41a52cabb6aec9faaa54d807ffd5bd035"
+      "size": 56857,
+      "sha256": "d0ee4668e7f7d7f8be3b4623c187ff7e2581c78bb028d37206092d4dce446e57"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
@@ -420,8 +420,8 @@
       "path": "skills/docket-implement-next/references/fix-loop.md",
       "role": "skill",
       "mode": 420,
-      "size": 12425,
-      "sha256": "7f1427380c13cfa2d798ee0a84c957a9e141548f954aa72109e7e56c9016114e"
+      "size": 12439,
+      "sha256": "5d1d78658a9f8602c8083637505e1d1ddd60ff0ffe868f9066491e235db03cd7"
     },
     {
       "path": "skills/docket-implement-next/results-template.md",
@@ -434,8 +434,8 @@
       "path": "skills/docket-new-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 11590,
-      "sha256": "0ed965ad5186dc05bacbc884e63d96e57be8f6a30e8ce05e6c8a4cf9c644e75b"
+      "size": 11611,
+      "sha256": "95dc10e340fbcbd73394d1ff10c765ab53d70cfde916e53b9f18501421273858"
     },
     {
       "path": "skills/docket-new-change/change-template.md",
@@ -455,8 +455,8 @@
       "path": "skills/docket-status/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 20104,
-      "sha256": "cae7136b3e77597f59bd0e0b9544f26ff8e08793ed809a25b61c372cfd077b26"
+      "size": 20111,
+      "sha256": "84e8e5000a662069aed31a41ecfd14db7d2fc6920a365231dee20d052d829920"
     }
   ]
 }

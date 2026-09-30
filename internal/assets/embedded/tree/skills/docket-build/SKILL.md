@@ -331,7 +331,7 @@ define the maximum duration of the build gate.
    child** has no such channel, so it may **never** yield: it observes by *blocking* instead —
    repeated short foreground reads of the artifact, control never handed back to its caller mid-gate.
 5. Observation is **bounded** by a finite budget — never wait indefinitely. That budget is
-   `GATE_OBSERVATION_BUDGET` (default 30, in minutes) from the Step-0 config export: docket
+   `GATE_OBSERVATION_BUDGET` (default 30, in minutes) from the startup-check config export: docket
    execution policy, distinct from any foreground-call timeout a particular harness imposes. The
    observation interval is an implementation detail; what the contract requires is that each
    observation is short-lived and the whole period finite. A budget of `0` is legal and is not a
@@ -410,7 +410,7 @@ separately configurable.
 
 ## Checkpointing
 
-Read `BUILD_CHECKPOINT` from the Step-0 config export.
+Read `BUILD_CHECKPOINT` from the startup-check config export.
 
 **`false` (default)** — persist nothing. Completed work is durable through the per-task code
 commits; keep only the compact in-context worker returns; write no `.superpowers/docket-build/`

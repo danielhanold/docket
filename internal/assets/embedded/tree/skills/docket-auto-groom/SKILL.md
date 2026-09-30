@@ -28,7 +28,7 @@ Repeat steps 1–5 until no auto-groomable stub remains; then step 6.
 
 ### Step 1 — Select
 
-Sync the metadata working tree (the Step-0 `repository.prepare` operation). Rank every **auto-groomable** stub (per the convention: needs-grooming AND effective `auto_groomable: true`; unsatisfied `depends_on` does NOT exclude — design ahead, note the dependency state in the assumptions) by the deterministic selection order. Pick the top. None left → step 6. Read the selected stub's exact record `path` + `revision` (blob object id) from the `status` operation (with `--json`) — the Step-4 groom transaction pins the record with those.
+Sync the metadata working tree (the startup-check `repository.prepare` operation). Rank every **auto-groomable** stub (per the convention: needs-grooming AND effective `auto_groomable: true`; unsatisfied `depends_on` does NOT exclude — design ahead, note the dependency state in the assumptions) by the deterministic selection order. Pick the top. None left → step 6. Read the selected stub's exact record `path` + `revision` (blob object id) from the `status` operation (with `--json`) — the Step-4 groom transaction pins the record with those.
 
 ### Step 2 — Designer pass
 
@@ -59,7 +59,7 @@ Every exit's Step-4 `change.groom` operation is the whole write — it re-checks
 
 Summarize the drain: groomed N (specs), trivial M, abstained K — each abstain with its one-line reason — plus anything skipped to a lost race. STOP. Grooming never implements; the build-ready output is `docket-implement-next`'s queue.
 
-**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (Step-0 export), write this drain's `reports` calibrated to `DUMMY_MODE_PERSONA`, and give any `change-sections` it writes (`## Auto-groom blocked`) an authored `### In plain terms` block alongside the full technical content, per the convention's *Dummy mode* shared definition.
+**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (startup-check export), write this drain's `reports` calibrated to `DUMMY_MODE_PERSONA`, and give any `change-sections` it writes (`## Auto-groom blocked`) an authored `### In plain terms` block alongside the full technical content, per the convention's *Dummy mode* shared definition.
 
 ## Termination & concurrency
 
