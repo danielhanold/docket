@@ -73,14 +73,12 @@ fixture there is nothing to seed and it exits 1 by design. The fresh-repo path i
   ```sh
   cd /path/to/fixture
   git remote get-url origin     # confirm it is ABSOLUTE (/abs/path/origin.git or a URL)
-  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh bootstrap
+  docket repository init --repo-dir .
+  docket repository prepare --repo-dir . --json
   ```
   Expected: the bootstrap guard sees a fresh repo (no `docket` branch, no live planning surface),
-  creates the metadata branch, and prints:
-  ```
-  docket-config: seeded the managed .gitignore block in <fixture>/.gitignore — COMMIT THIS …
-  BOOTSTRAP=PROCEED
-  ```
+  `docket repository init` creates the metadata branch, and `docket repository prepare` then
+  reports disposition `applied`.
   Concretely, this creates exactly two things: an **empty orphan `docket` branch on `origin`**,
   and the **managed block in the fixture's `.gitignore`** (commit that). It does **not** write
   `.docket.yml` — that file is optional, and no docket script ever creates it — and it does
@@ -235,9 +233,10 @@ fresh shell of Phase 1 step 1** — that is the only way `DOCKET_SCRIPTS_DIR` re
   a future Codex analogue of the Cursor permissions guide, if one turns out to be needed.
 
 **Pass when:** `DOCKET_SCRIPTS_DIR` resolves inside Codex, docket skills load, and
-`docket.sh preflight` runs to a `BOOTSTRAP=PROCEED` block without an unrecoverable sandbox
-denial. A failure here must be recorded as **one of** env-propagation (step 0 `UNSET`) or
-sandbox denial (step 3) — they are different findings and produce different follow-up stubs.
+`docket repository prepare --repo-dir . --json` reports disposition `applied` or `no-op` without
+an unrecoverable sandbox denial. A failure here must be recorded as **one of** env-propagation
+(step 0 `UNSET`) or sandbox denial (step 3) — they are different findings and produce different
+follow-up stubs.
 
 ## Phase 3 — Agents load
 

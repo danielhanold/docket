@@ -95,7 +95,7 @@ var capabilityExemptions = map[string]int{
 // capabilitySurfaceRemedy is the substantive check the guard's failures lead with,
 // before any exemption count is named, so a reader is steered to migrate the site,
 // not to launder it into the exemption pin.
-const capabilitySurfaceRemedy = "a new `docket <argv>` spelling on a workflow surface must be migrated to a catalog-resolved semantic operation — see docket-convention's Step-0 preamble"
+const capabilitySurfaceRemedy = "a new `docket <argv>` spelling on a workflow surface must be migrated to a catalog-resolved semantic operation — see docket-convention's startup check"
 
 // capabilitySurfaceCorpus is the maintained workflow surface: every *.md under
 // skills/ and agents/, every file under cursor-rules/, and the repo-root
@@ -248,11 +248,11 @@ func TestCapabilitySurface(t *testing.T) {
 	}
 
 	// Bootstrap-presence floor (marker-scoped-guard-needs-a-population-floor): the
-	// convention's Step-0 preamble must spell the one permitted bootstrap at least
+	// convention's startup check must spell the one permitted bootstrap at least
 	// once, or the allow-rule guards nothing.
 	conv := readMaintained(t, root, "skills/docket-convention/SKILL.md")
 	if !strings.Contains(conv, "docket capabilities --json") {
-		t.Errorf("bootstrap-presence floor: docket-convention's Step-0 preamble must spell `docket capabilities --json` at least once — the single permitted hard-coded bootstrap; without it the allow-rule and this whole guard are vacuous")
+		t.Errorf("bootstrap-presence floor: docket-convention's startup check must spell `docket capabilities --json` at least once — the single permitted hard-coded bootstrap; without it the allow-rule and this whole guard are vacuous")
 	}
 
 	t.Run("non_vacuity", func(t *testing.T) {

@@ -18,7 +18,7 @@ agent: docket-status
 
 ## Convention (load first — blocking)
 
-Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble*: capability bootstrap, then the `repository.prepare` operation with `--repo-dir <dir> --json`, validating the protocol-v1 envelope and carrying its typed context forward. Prepare enforces the bootstrap gate and syncs the metadata working tree fail-closed; its typed context gives you the resolved repo/branch/dir values the rest of this skill needs. Everything below uses the convention's vocabulary without redefinition.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check*: capability bootstrap, then the `repository.prepare` operation with `--repo-dir <dir> --json`, validating the protocol-v1 envelope and carrying its typed context forward. Prepare enforces the bootstrap gate and syncs the metadata working tree fail-closed; its typed context gives you the resolved repo/branch/dir values the rest of this skill needs. Everything below uses the convention's vocabulary without redefinition.
 
 ## Mode choice
 
@@ -54,7 +54,7 @@ maintenance.sweep  --scope <full|implementation> --json   # mutation, scope per 
 status             --json                                  # write-free read over the refreshed state
 ```
 
-Validate each protocol-v1 envelope and key on its typed **disposition**, never an exit code. The sweep emits one structured entry per item with a closed disposition (`applied` | `noop` | `contended` | `blocked` | `unknown` | `failed` | `skipped`), and the read returns the structured backlog plus any health findings. A `blocked` / `failed` / `unknown` sweep entry, or a read whose envelope carries an error disposition — a config-resolution failure, an unusable bootstrap verdict or metadata worktree, a bad argument — is a hard error: surface the diagnostic and stop rather than improvising a fix.
+Validate each protocol-v1 envelope and key on its typed **disposition**, never an exit code. The sweep emits one structured entry per item with a closed disposition (`applied` | `noop` | `contended` | `blocked` | `unknown` | `failed` | `skipped`), and the read returns the structured backlog plus any health findings. A `blocked` / `failed` / `unknown` sweep entry, or a read whose envelope carries an error disposition — a config-resolution failure, a refused bootstrap guard, an unusable metadata worktree, a bad argument — is a hard error: surface the diagnostic and stop rather than improvising a fix.
 
 **Scope of this stop:** if you invoked this skill yourself — the convention's `inline` fallback — this
 stop ends only the status role and you continue to your own next step; only an agent whose entire
