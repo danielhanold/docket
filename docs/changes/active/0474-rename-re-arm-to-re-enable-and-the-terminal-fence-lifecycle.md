@@ -2,7 +2,7 @@
 id: 474
 slug: 'rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle'
 title: 'Rename re-arm to re-enable and retire the lifecycle ''terminal'' and non-run ''fence'' names'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/356'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-30T14:57:21Z'
