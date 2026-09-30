@@ -90,11 +90,11 @@ const (
 	// kindGoPrefix: a non-test Go string literal that starts with Old — the
 	// retired error-text prefix.
 	kindGoPrefix
-	// kindBoundFlag: the bare flag Old (row 40's --version), retired only where
-	// it is BOUND to a change, finalize or workspace command (see scanBoundFlags
-	// for markdown/shell and scanGoBoundFlag for Go). Unbound, it names a
-	// software version and stays: docket version, the release tools, foreign
-	// CLIs.
+	// kindBoundFlag: the bare flag Old (row 40's --version), retired where it is
+	// BOUND to a change, finalize or workspace command (see scanBoundFlags for
+	// markdown/shell and scanGoBoundFlag for Go) and, in markdown, everywhere a
+	// foreign software-version tool does not bind it. A software version stays:
+	// docket version, the release tools, foreign CLIs.
 	kindBoundFlag
 	// kindSchemaKey: a request/result key whose name ends in Old, found by
 	// walking the schema registry (the wire contract), never by grepping tags
@@ -261,7 +261,7 @@ func scanText(rel, content string, md bool) []retiredHit {
 		lines[i] = line
 		hits = append(hits, scanTextLine(rel, i+1, line)...)
 	}
-	return append(hits, scanBoundFlags(rel, lines)...)
+	return append(hits, scanBoundFlags(rel, lines, md)...)
 }
 
 var jsonTagKeyRe = regexp.MustCompile(`json:"([^",]*)`)
@@ -305,23 +305,57 @@ func scanGoSource(rel string, src []byte) ([]retiredHit, error) {
 	var scanErr error
 	s.Init(file, src, func(pos token.Position, msg string) { scanErr = fmt.Errorf("%s: %s", pos, msg) }, 0)
 	var hits []retiredHit
-	// prev1..prev3 are the three tokens before this one, so a string literal
-	// that is a method call's first argument (x.M("…")) is recognisable.
-	var prev1, prev2, prev3 token.Token
+	// groups is the open-bracket stack: each entry is the method name when the
+	// '(' opened a method call (x.M(…)), else "", plus its top-level argument
+	// index, so a literal that is a whole argument of a method call is
+	// recognisable by position. prev1/prev2 (prevLit) are the tokens before.
+	type group struct {
+		method string
+		arg    int
+	}
+	var groups []group
+	var prev1, prev2 token.Token
+	var prevLit string
 	for {
 		pos, tok, lit := s.Scan()
 		if tok == token.EOF {
 			break
 		}
-		if tok == token.STRING {
+		switch tok {
+		case token.STRING:
 			hits = append(hits, scanGoLiteral(rel, fset.Position(pos).Line, lit)...)
-			if prev1 == token.LPAREN && prev2 == token.IDENT && prev3 == token.PERIOD && strings.HasPrefix(rel, "internal/cli/") {
+			if n := len(groups); n > 0 && groups[n-1].method != "" && strings.HasPrefix(rel, "internal/cli/") &&
+				(prev1 == token.LPAREN || prev1 == token.COMMA) && isFlagNameArg(groups[n-1].method, groups[n-1].arg) {
 				hits = append(hits, scanGoBoundFlag(rel, fset.Position(pos).Line, lit)...)
 			}
+		case token.LPAREN:
+			m := ""
+			if prev1 == token.IDENT && prev2 == token.PERIOD {
+				m = prevLit
+			}
+			groups = append(groups, group{method: m})
+		case token.LBRACE, token.LBRACK:
+			groups = append(groups, group{})
+		case token.RPAREN, token.RBRACE, token.RBRACK:
+			if len(groups) > 0 {
+				groups = groups[:len(groups)-1]
+			}
+		case token.COMMA:
+			if len(groups) > 0 {
+				groups[len(groups)-1].arg++
+			}
 		}
-		prev3, prev2, prev1 = prev2, prev1, tok
+		prev2, prev1, prevLit = prev1, tok, lit
 	}
 	return hits, scanErr
+}
+
+// isFlagNameArg reports whether argument arg of method names a flag: the FIRST
+// argument of any method (Flags().String("version", …), GetString,
+// MarkFlagRequired), or the SECOND of a pflag *Var / *VarP definition, whose
+// first argument is the destination pointer (StringVar(&v, "version", …)).
+func isFlagNameArg(method string, arg int) bool {
+	return arg == 0 || (arg == 1 && (strings.HasSuffix(method, "Var") || strings.HasSuffix(method, "VarP")))
 }
 
 // boundFlagFamilies are the command families whose bare --version pinned the
@@ -393,21 +427,49 @@ func refFamily(ref string) string {
 	return ref
 }
 
-// scanBoundFlags reports each kindBoundFlag row's flag that is BOUND to a
-// change, finalize or workspace command. A block is a maximal run of non-blank
-// lines, so a flag wrapped onto the line after its operation still binds, and a
-// blank line ends the binding. The flag's binding is the NEAREST catalog
-// operation reference that precedes it in its block, so `docket version`, the
-// release tools' --version and a foreign CLI's (`codex --version`) never bind.
+// foreignVersionRe matches a foreign software-version context: a tool whose own
+// --version names a software version, never a docket record revision — the
+// release tools (releasepkg, release-smoke, install.sh), `docket version`, and
+// the harness CLIs. It is an allowlist that fails CLOSED: a tool missing from
+// it reads as a retired --version (a visible false positive), never a silent
+// pass.
+var foreignVersionRe = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.-])(releasepkg|release-smoke|install\.sh|docket[ \t]+version|codex|opencode|cursor-agent|claude)(?:[^A-Za-z0-9_-]|$)`)
+
+// scanBoundFlags reports each kindBoundFlag row's retired flag. A block is a
+// maximal run of non-blank lines, so a flag wrapped onto the line after its
+// operation still binds, and a blank line ends the binding. The flag's binding
+// is the NEAREST anchor that precedes it: a catalog operation reference in its
+// block, or a foreign software-version context (foreignVersionRe) on its own
+// line. A markdown document whose title (its first `# ` heading) names a
+// foreign tool documents that tool (scripts/release-smoke.md), so the title
+// binds every --version in it.
 //
-// LIMITATION (byte-pattern-guard-matches-a-spelling): a foreign tool's
-// --version whose nearest preceding reference in the same block is a change,
-// finalize or workspace operation reads as bound. No maintained surface carries
-// that shape; the negative controls pin the shapes that exist.
-func scanBoundFlags(rel string, lines []string) []retiredHit {
+//   - Shell/config (md false): retired only when bound to a change, finalize or
+//     workspace operation, so the release tools' --version and a foreign CLI's
+//     (`codex --version`) stay.
+//   - Markdown (md true: skills, agents, cursor rules, always-loaded files,
+//     scripts docs, generator output): retired unless a foreign context is the binding. No
+//     markdown surface carries a docket software --version, so an UNBOUND
+//     mention (`Scalar identities (--id, --version, …)`) or one bound to another
+//     family is a record revision and is retired too.
+//
+// LIMITATION (byte-pattern-guard-matches-a-spelling): in shell, a foreign
+// tool's --version whose nearest preceding reference in the same block is a
+// change, finalize or workspace operation reads as bound. No maintained surface
+// carries that shape; the negative controls pin the shapes that exist.
+func scanBoundFlags(rel string, lines []string, md bool) []retiredHit {
 	re, _, err := catalogOpRefs()
 	if err != nil {
 		panic(fmt.Sprintf("retired-vocabulary seal: catalog operation references unavailable (fail closed): %v", err))
+	}
+	docForeign := false
+	if md {
+		for _, l := range lines {
+			if strings.HasPrefix(l, "# ") {
+				docForeign = foreignVersionRe.MatchString(l)
+				break
+			}
+		}
 	}
 	var hits []retiredHit
 	for start := 0; start < len(lines); {
@@ -427,14 +489,23 @@ func scanBoundFlags(rel string, lines []string) []retiredHit {
 			}
 			for _, m := range tokenRe(r.Old).FindAllStringIndex(block, -1) {
 				pos := m[0] + strings.Index(block[m[0]:m[1]], r.Old)
-				family := ""
+				family, refStart := "", -1
 				for _, ref := range refs {
 					if ref[2] >= pos {
 						break
 					}
-					family = refFamily(block[ref[2]:ref[3]])
+					family, refStart = refFamily(block[ref[2]:ref[3]]), ref[2]
 				}
-				if boundFlagFamilies[family] {
+				retired := boundFlagFamilies[family]
+				if md && !retired && !docForeign {
+					lineStart := strings.LastIndex(block[:pos], "\n") + 1
+					foreignStart := -1
+					for _, f := range foreignVersionRe.FindAllStringSubmatchIndex(block[lineStart:pos], -1) {
+						foreignStart = lineStart + f[2]
+					}
+					retired = foreignStart < 0 || foreignStart < refStart
+				}
+				if retired {
 					lineNo := start + 1 + strings.Count(block[:pos], "\n")
 					hits = append(hits, retiredHit{rel, lineNo, r, strings.TrimSpace(lines[lineNo-1])})
 				}
@@ -446,8 +517,9 @@ func scanBoundFlags(rel string, lines []string) []retiredHit {
 }
 
 // scanGoBoundFlag: a kindBoundFlag row's flag name (Old without its leading
-// "--") passed as the FIRST argument of a method call in non-test internal/cli
-// source, which is a flag definition or lookup (Flags().String("version", …),
+// "--") passed as a method call's flag-name argument (isFlagNameArg) in
+// non-test internal/cli source, which is a flag definition or lookup
+// (Flags().String("version", …), StringVar(&v, "version", …),
 // GetString("version"), MarkFlagRequired("version")). internal/cli builds every
 // change, finalize and workspace command, and none of its commands takes a
 // software --version (docket version is a subcommand with no such flag); the
@@ -726,9 +798,33 @@ func testRetiredNonVacuity(t *testing.T) {
 			t.Errorf("row 40: a bound --version in %s was not detected: %q", c.rel, c.text)
 		}
 	}
+	// Row 40 (change 0472 review finding): in maintained markdown every --version
+	// is retired unless a foreign software-version tool binds it on its own line —
+	// an UNBOUND mention (no catalog operation before it in its block) and one
+	// whose nearest operation is another family both hit. This is the
+	// docket-finalize-change paragraph as it read before the rename.
+	for _, c := range []struct{ rel, text string }{
+		{"skills/x/SKILL.md", "Each effect is one named operation — argv resolved from the capability catalog.\nScalar identities (`--id`, `--version`, …) ride on flags; the exact `--version` is always the opaque entity version"},
+		{"agents/x.md", "pass the record's `--version` unchanged"},
+		{"skills/x/SKILL.md", "then `docket run start implement-next` with `--version <v>`"},
+		// A foreign tool on an EARLIER line does not bind a --version below it.
+		{"skills/x/SKILL.md", "record `codex --version` alongside any finding,\nthen pass `--version <v>` to the claim"},
+		// Only a TITLE naming a foreign tool binds the whole document.
+		{"skills/x/SKILL.md", "# docket-finalize-change\n\nsee release-smoke.sh\n\n| `--version <v>` | yes | the record |"},
+	} {
+		if !hasRetiredRow(scanTextContent(c.rel, c.text), "40") {
+			t.Errorf("row 40: an unbound markdown --version in %s was not detected: %q", c.rel, c.text)
+		}
+	}
+	if hits := scanText("dispatch/x.md", "Scalar identities (`--id`, `--version`, …) ride on flags", true); !hasRetiredRow(hits, "40") {
+		t.Errorf("row 40: an unbound --version in generator markdown output was not detected")
+	}
 	for _, src := range []string{
 		"package p\nfunc f(c *C) { v, _ := c.Flags().GetString(\"version\"); _ = v }\n",
 		"package p\nfunc f(c *C) { _ = c.MarkFlagRequired(\"version\") }\n",
+		// Review finding: the *Var / *VarP forms name the flag in the SECOND argument.
+		"package p\nfunc f(c *C) { c.Flags().StringVar(&v, \"version\", \"\", \"x\") }\n",
+		"package p\nfunc f(c *C) { c.Flags().StringVarP(&o.v, \"version\", \"v\", \"\", \"x\") }\n",
 	} {
 		if !hasRetiredRow(goHits("internal/cli/finalize.go", src), "40") {
 			t.Errorf("row 40: a bound Go flag call was not detected: %q", src)
@@ -780,6 +876,8 @@ func testRetiredNegativeControls(t *testing.T) {
 		"the `change.claim` operation with `--id <id> --revision <v>`\n\nthen record `cursor-agent --version`",
 		"the `change.claim` operation with `--id <id> --revision <v>`",
 		"docket change repair-identity --id 1 --expect-revision <v> --adopt-pr-head",
+		// A document titled by a foreign tool documents that tool (scripts/release-smoke.md).
+		"# release-smoke.sh — native per-tuple smoke driver\n\n| Argument | Required |\n|---|---|\n| `--version <v>` | yes |",
 		"the rebase receipt keeps resolver_budget_version",
 		"every mutation result carries committed_revision, metadata_revision and base_branch_revision",
 		"the claim digest payload keeps its version key",
@@ -804,6 +902,10 @@ func testRetiredNegativeControls(t *testing.T) {
 		{"internal/cli/root.go", "package p\nvar c = &C{Use: \"version\"}\n"},
 		{"internal/cli/install.go", "package p\nvar m = map[string]bool{\"version\": true}\n"},
 		{"internal/cli/change.go", "package p\nfunc f(c *C) { c.Flags().String(\"revision\", \"\", \"x\") }\n"},
+		{"internal/cli/agent.go", "package p\nfunc f(c *C) { c.Flags().StringVar(&v, \"revision\", \"\", \"version\") }\n"},
+		{"internal/cli/agent.go", "package p\nfunc f(c *C) { c.Flags().StringVarP(&v, \"revision\", \"r\", \"version\", \"x\") }\n"},
+		{"cmd/releasepkg/main.go", "package p\nfunc f() { fs.StringVar(&v, \"version\", \"\", \"safe release version\") }\n"},
+		{"internal/cli/root.go", "package p\nfunc f() { x.Log(msg, \"version\") }\n"},
 		{"internal/app/change_claim.go", "package p\ntype P struct {\n\tRevision string `json:\"version\"`\n}\n"},
 		{"internal/workspace/rebasereceipt.go", "package p\ntype R struct {\n\tB string `json:\"resolver_budget_version,omitempty\"`\n}\n"},
 	}
