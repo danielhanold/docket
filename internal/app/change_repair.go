@@ -279,7 +279,7 @@ func validateRepairRequest(req RepairIdentityRequest) (reason, message string) {
 }
 
 // resolveRepairChange reads the corpus once, builds the snapshot, and returns
-// the change named by id together with its record path, exact entity revision,
+// the change named by id together with its record path, exact record revision,
 // and the built snapshot (the workspace gate resolves the effective base from
 // it). An id that names no single record is a request-shaped refusal.
 func resolveRepairChange(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int) (domain.Change, string, string, domain.Snapshot, *RepairIdentityResult) {

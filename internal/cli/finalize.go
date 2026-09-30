@@ -315,7 +315,7 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 
 // retargetChildrenInput is the bounded request-file payload for `finalize
 // retarget-children`: the exact human-authorized child set from context finalize.
-// The scalar identities (parent id, entity revision) ride on flags — only the
+// The scalar identities (parent id, record revision) ride on flags — only the
 // authored authorization set travels through the request file (Global
 // Constraints). DisallowUnknownFields (via decodeInputFlag) rejects any other key.
 type retargetChildrenInput struct {
@@ -323,7 +323,7 @@ type retargetChildrenInput struct {
 }
 
 // newFinalizeRetargetChildrenSubcommand builds `finalize retarget-children`: it
-// reads the parent id and pinned entity revision from flags, decodes the exact
+// reads the parent id and pinned record revision from flags, decodes the exact
 // authorized child set from --input, and hands the assembled request to the
 // operation over the shared finalize seams. No lifecycle, Git, GitHub, or stack
 // policy lives here — the operation owns all of it.

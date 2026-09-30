@@ -1,9 +1,6 @@
 package app
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 // schemaKeyPaths flattens every request/result key of the live schema into
 // "<op> REQ|RES <dotted.path>" strings.
@@ -31,8 +28,8 @@ func schemaKeyPaths(t *testing.T) map[string]bool {
 }
 
 // TestSchemaRevisionKeys is the golden schema check for ADR-0129 rows 41-44
-// (change 0472): each record/PR revision key is spelled revision, and the old
-// spelling is gone at the same path. The whole-schema negative is Task 7's seal.
+// (change 0472): each record/PR revision key is spelled revision. The
+// whole-schema negative is TestRetiredVocabularySeal (internal/repoguard).
 func TestSchemaRevisionKeys(t *testing.T) {
 	keys := schemaKeyPaths(t)
 	for _, p := range []string{
@@ -58,19 +55,6 @@ func TestSchemaRevisionKeys(t *testing.T) {
 	} {
 		if !keys[p] {
 			t.Errorf("schema lacks %s", p)
-		}
-	}
-	// The software/format versions of spec Decision 4 are the only keys that may
-	// still end in "version" (case-insensitive, so ExpectVersion is caught too).
-	kept := map[string]bool{
-		"capabilities RES capability_version": true,
-		"capabilities RES binary.version":     true,
-		"diagnostic.runtime RES go_version":   true,
-		"version RES version":                 true,
-	}
-	for p := range keys {
-		if strings.HasSuffix(strings.ToLower(p), "version") && !kept[p] {
-			t.Errorf("schema still carries the retired record-revision key %s", p)
 		}
 	}
 }

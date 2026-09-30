@@ -142,7 +142,7 @@ func TestRevisionFlagHardCut(t *testing.T) {
 // empty --revision as a control, which must reach its shape validator, so the
 // non-empty assert below it cannot pass vacuously. (workspace.prepare discovers the
 // repository before validating shape, so it is covered by the hard cut and by
-// Task 7's Go seal, not here.)
+// TestRetiredVocabularySeal (internal/repoguard), not here.)
 func TestRevisionFlagReachesRequest(t *testing.T) {
 	const rev = "0123456789abcdef0123456789abcdef01234567"
 	head := strings.Repeat("a", 40)

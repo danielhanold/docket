@@ -106,7 +106,7 @@ type AuthorizedChild struct {
 }
 
 // RetargetChildrenRequest is the closed request. ID and Revision pin the parent
-// record the authorization was based on (its exact entity revision); Children is
+// record the authorization was based on (its exact record revision); Children is
 // the exact authorized set the human approved from the context read. The scalar
 // identities ride on flags; the authorized set rides in a bounded request file.
 type RetargetChildrenRequest struct {
