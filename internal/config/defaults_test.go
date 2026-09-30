@@ -15,7 +15,7 @@ import (
 // actually ships. The frozen tree is an immutable input (testdata/README.md):
 // these tests only read both files.
 const (
-	sidecarPath     = "../../testdata/repositories/v0.9.3/agents-harness-defaults.yml"
+	sidecarPath     = "../../testdata/repositories/v0.9.9/agents-harness-defaults.yml"
 	liveSidecarPath = "../../agents/harness-defaults.yml"
 )
 

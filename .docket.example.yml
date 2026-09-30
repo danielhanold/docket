@@ -189,7 +189,7 @@ reclaim:
 
 # ═══ build — the docket-owned build role ═══════════════════════════════════════════════════
 
-# Knobs for docket's own build role, docket-build (change 0167) — the lean, profile-routed build
+# Knobs for docket's own build role, docket-build (change 0167) — the lean, tier-routed build
 # that has been the shipped default for `skills: build:` since change 0193. Inert if you rebind
 # that role away from docket-build.
 build:
@@ -248,13 +248,13 @@ review:
   # finding the reviewer returns is a fix candidate. important => minors are recorded in the PR body
   # instead of fixed. blocker => nothing but blockers is fixed, which is docket's pre-0218 behavior,
   # kept as a compat escape hatch. Blockers are ALWAYS fixed regardless of this value: a run cannot
-  # proceed past an unfixed blocker. Routing a fix to a model profile is by the fix's CHARACTER, not
-  # its severity, and never reaches the `max` profile; severity sets only what happens when a fix
+  # proceed past an unfixed blocker. Routing a fix to a build tier is by the fix's CHARACTER, not
+  # its severity, and never reaches the `max` tier; severity sets only what happens when a fix
   # fails. Anything other than these three values is a config error, not a silent fallback.
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   min_fix_severity: minor
   # max_fix_tasks — the most non-blocker fix TASKS that same loop dispatches in one run. The unit is
-  # the TASK, not the finding: minors sharing a routed profile are batched into one task, which
+  # the TASK, not the finding: minors sharing a routed tier are batched into one task, which
   # spends one slot. Blockers are NEVER counted against it — a run cannot proceed past an unfixed
   # blocker, so a cap that counted them would disarm the gate the blocker floor exists to protect.
   # Overflow findings are recorded in the PR body as deferred, with the cap named as the reason, and
@@ -474,7 +474,7 @@ dummy_mode:
 # implement-next, status); 4 (build-economy, build-standard, build-premium, build-max) are
 # docket-build's task workers and all preload the same docket-build-task
 # worker skill, differing only in model/effort; 3 (review-lean, review-standard, review-deep) are
-# docket-review's rung wrappers and all preload the same docket-review worker skill, likewise
+# docket-review's tier wrappers and all preload the same docket-review worker skill, likewise
 # differing only in model/effort; the other 5 (auto-groom-critic,
 # brainstorm-consultant, integration-repair, plan-writer, rebase-resolver) are standalone agents
 # those skills dispatch and wrap no skill of their own. new-change/groom-next are advisory-only
