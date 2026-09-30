@@ -61,7 +61,7 @@ type stopSite struct {
 var stopSites = []stopSite{
 	{"skills/docket-build/SKILL.md", "Then you stop — review", "terminal stop"},
 	{"skills/docket-build/SKILL.md", "Every halt is the same disposition", "halting stop"},
-	{"skills/docket-review/SKILL.md", "One shot at the dispatched rung", "second-person prohibitions"},
+	{"skills/docket-review/SKILL.md", "One shot at the dispatched tier", "second-person prohibitions"},
 	{"skills/docket-review/SKILL.md", "An unmet precondition or a blocking ambiguity is **abort-and-report**", "terminal stop"},
 	{"skills/docket-status/SKILL.md", "stop rather than improvising a fix", "hard-error stop"},
 	{"skills/docket-build-task/SKILL.md", "revise or replace them, but never discard them blindly", "second-person prohibitions"},

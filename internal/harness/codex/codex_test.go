@@ -728,8 +728,8 @@ func TestCodexNestedDispatchBoundary(t *testing.T) {
 	families := []string{
 		"docket-implement-next",     // implement-next composition
 		"docket-plan-writer",        // the pinned Step 4 dispatch that failed live
-		"docket-build-standard",     // profile-routed build
-		"docket-review-standard",    // rung-routed review
+		"docket-build-standard",     // tier-routed build
+		"docket-review-standard",    // tier-routed review
 		"docket-auto-groom-critic",  // auto-groom critic
 		"docket-rebase-resolver",    // finalize resolver
 		"docket-integration-repair", // finalize repair

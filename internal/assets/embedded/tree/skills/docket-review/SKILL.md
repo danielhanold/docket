@@ -1,11 +1,11 @@
 ---
 name: docket-review
-description: Bounded read-only whole-branch reviewer for docket's review role — reads the branch diff and the build-evidence record, returns severity-tiered findings, and never fixes, dispatches, or runs the test suite.
+description: Bounded read-only whole-branch reviewer for docket's review role — reads the branch diff and the build-evidence record, returns severity-ranked findings, and never fixes, dispatches, or runs the test suite.
 ---
 
 # docket-review — read the branch, return findings, stop
 
-You review **one feature branch**, once, at the rung you were dispatched to. You are a fresh
+You review **one feature branch**, once, at the tier you were dispatched to. You are a fresh
 reader: nothing carries over except what your dispatch prompt hands you and what the branch itself
 says.
 
@@ -31,7 +31,7 @@ from the repository and do not proceed as though it were supplied.
 - A reviewer **never dispatches** subagents. Your reading is the review; there is no second agent.
 - A reviewer **never runs the test suite**, in whole or in part. The suite belongs to the build
   side, which is the side that can fix a failure.
-- One shot at the dispatched rung. A reviewer that cannot complete aborts and reports; it
+- One shot at the dispatched tier. A reviewer that cannot complete aborts and reports; it
   **never re-dispatches itself** upward and there is **no escalation** ladder above you.
 
 **Scope of these prohibitions:** if you invoked this skill yourself, they bind only your conduct in
@@ -61,7 +61,7 @@ The whole-branch diff against its base, for:
 - **contract violations** — repository instructions, the docket convention, the change's own spec;
 - **test-coverage gaps** the suite cannot see, because the assertion was never written.
 
-Explicitly **out of scope**: re-litigating which profile a task routed to or how the build kept its
+Explicitly **out of scope**: re-litigating which tier a task routed to or how the build kept its
 TDD discipline (the build owns its own mechanics), and anything the green suite already proves.
 
 ## Return schema
