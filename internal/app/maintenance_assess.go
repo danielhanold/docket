@@ -34,7 +34,7 @@ import (
 const (
 	// ReasonSweepSnapshotNoWork: every destructive leg is provably a no-op at the
 	// pinned inventory — a cleaned tombstone, absent local/remote refs, and
-	// already-correct terminal backlinks. Nothing was dispatched.
+	// already-correct final backlinks. Nothing was dispatched.
 	ReasonSweepSnapshotNoWork = "snapshot-no-work"
 	// ReasonSweepSnapshotRetained: a stacked-merged record is retained until its
 	// stack root reaches the integration branch; a cleanup is never dispatched
@@ -221,7 +221,7 @@ func (a sweepLegAssessment) verdict() (disposition, reason, message string) {
 		"every destructive leg is provably a no-op at the pinned inventory"
 }
 
-// sweepAssessBacklinkLeg resolves the terminal-backlink leg: for each of the
+// sweepAssessBacklinkLeg resolves the final-backlink leg: for each of the
 // record's plan/results artifacts on the integration ref, it reads the pinned
 // bytes and asks the shared backlinkLegHasWork whether the rendered interior would
 // change. An already-correct block and a missing artifact are no-effect (the exact
@@ -260,7 +260,7 @@ func sweepAssessBacklinkLeg(ctx context.Context, deps FinalizeDeps, pin StatusPi
 }
 
 // sweepBacklinkArtifactPaths returns the record's plan and results pointer paths,
-// empties omitted — the integration-resident artifacts the terminal backlink leg
+// empties omitted — the integration-resident artifacts the final backlink leg
 // retargets (the spec is metadata-resident and never on the integration ref). It
 // mirrors closeoutBacklinkTargets' path selection.
 func sweepBacklinkArtifactPaths(c domain.Change) []string {

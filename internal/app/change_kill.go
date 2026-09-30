@@ -18,7 +18,7 @@ import (
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
-// This file is the `change kill` planning operation: a non-allocating terminal
+// This file is the `change kill` planning operation: a non-allocating final
 // transition that relocates a proposed or in-progress change into the archive
 // and lands every affected v1-owned derived view (the killed record's owned
 // lifecycle fields, its refreshed updated date, its spliced ## Why killed

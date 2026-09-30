@@ -12,7 +12,7 @@ import (
 // integration tests use, so the archive relocation, the derived-view rerenders,
 // the whole-repository validation, and the exact-lease push run against real
 // Git) plus a recording fake FinalizeGitHub that scripts the merged-PR reprobe a
-// hermetic suite cannot reach. Closeout is the atomic terminal metadata
+// hermetic suite cannot reach. Closeout is the atomic closing metadata
 // transaction: a false `done` or a byte-corrupted merged artifact is the risk it
 // is built to refuse, so every path proves the transaction landed nothing on a
 // refusal and every authored byte outside a generated block survived a success.

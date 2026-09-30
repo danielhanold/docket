@@ -31,14 +31,14 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
 - **`docket diagnostic`** — read-only diagnostics. Verbs: `docket diagnostic --help`.
 - **`docket evidence`** — record and verify the build evidence that certifies an exact tested
   commit. Verbs: `docket evidence --help`.
-- **`docket finalize`** — sequence a change's terminal half: rebase, publish, merge, and closeout. Verbs: `docket finalize --help`.
+- **`docket finalize`** — sequence a change's closing half: rebase, publish, merge, and closeout. Verbs: `docket finalize --help`.
 - **`docket gate`** — launch, observe, stop, and recover supervised local gate runs. Verbs: `docket gate --help`.
 - **`docket install`** — install docket's skills, agents, and dispatch material into your
   harnesses. Its verbs include `docket install check` (report installation status, read-only) and
   the operation `install.collect` — `docket install collect [--dry-run]`, which reclaims verified
   unreferenced version trees. Verbs: `docket install --help`.
 - **`docket learning`** — record and update manual learning findings. Verbs: `docket learning --help`.
-- **`docket maintenance`** — reclaim docket's terminal half in batch (status stays read-only). Verbs: `docket maintenance --help`.
+- **`docket maintenance`** — reclaim docket's closing half in batch (status stays read-only). Verbs: `docket maintenance --help`.
 - **`docket pr`** — publish the ready-for-review pull request for an in-progress change's tested
   head. Verbs: `docket pr --help`.
 - **`docket repository`** — initialize, migrate, and check the docket repository topology. Verbs: `docket repository --help`.

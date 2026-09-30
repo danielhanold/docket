@@ -323,7 +323,7 @@ func TestIntegrationFinalizeStateInterruptionMatrix(t *testing.T) {
 	t.Run("child-retarget-adopts-exact-pr", matrixChildRetarget)
 }
 
-// TestFinalizeNoForeignWrites proves the terminal metadata transaction writes only
+// TestFinalizeNoForeignWrites proves the closing metadata transaction writes only
 // through its own detached candidate worktree and the remote: the invocation's
 // primary checkout, the sibling feature worktree, and the transactions root are all
 // left as they were — no foreign index, HEAD, or worktree is touched.

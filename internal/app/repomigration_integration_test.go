@@ -84,7 +84,7 @@ func migChangeRecord(id int, slug, status, extra string) string {
 	return b.String()
 }
 
-// archivedRecord renders a minimal valid ARCHIVED (terminal) change record.
+// archivedRecord renders a minimal valid ARCHIVED (final) change record.
 func migArchivedRecord(id int, slug, status, extra string) string {
 	return migChangeRecord(id, slug, status, extra)
 }

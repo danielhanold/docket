@@ -27,7 +27,7 @@ import (
 // This file is Task 17: the hermetic, end-to-end finalize matrix. Unlike the
 // unit and real-git integration tests for Tasks 6-16 — which drive the app
 // entry points in-process — these tests build the real `./cmd/docket` binary to
-// a temporary path and drive the WHOLE terminal half of the workflow purely
+// a temporary path and drive the WHOLE closing half of the workflow purely
 // through CLI argv against disposable bare-remote repositories with hermetically
 // isolated configuration. They prove the spec's "End-to-end and mutation tests"
 // section bullet-for-bullet: ordinary finalize to archive+cleanup in both
@@ -465,7 +465,7 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 // resolved finalize.test_command (so a real rebase's local gate genuinely passes
 // on the disposable fixture), plus the one change record on the metadata branch.
 // It mirrors the workflow harness's buildConfiguredRepo but owns its own config so
-// the terminal-path gate is deterministic.
+// the closing-path gate is deterministic.
 func buildE2ERepo(t *testing.T, m planRepoMode, records map[string]string) *gitRepo {
 	t.Helper()
 	if m.name != "docket" {
@@ -594,7 +594,7 @@ func runOrdinaryFinalize(t *testing.T, s *e2eState) {
 		t.Errorf("archived change still present at the active path %q", s.recPath)
 	}
 
-	// (7) Cleanup: ownership-safe workspace + branch removal after terminal state.
+	// (7) Cleanup: ownership-safe workspace + branch removal after final state.
 	cl := s.dk(t, "", "finalize", "cleanup", "--id", strconv.Itoa(s.id))
 	if cl.result() != "applied" {
 		t.Fatalf("finalize cleanup = %q\n%s", cl.result(), cl.stdout)
@@ -676,7 +676,7 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, revision string) {
 
 // --- TestE2EConflictAndRepair ---------------------------------------------
 
-// TestE2EConflictAndRepair drives the full conflict/repair terminal path through
+// TestE2EConflictAndRepair drives the full conflict/repair closing path through
 // CLI argv: a base-conflicting rebase stops CONFLICTED; a verified resolver
 // report continues it; the local suite is RED at the rebased head (repair work);
 // the operator records a durable repair-needs-signoff halt; and after the repair
@@ -1039,7 +1039,7 @@ func countMergeCommits(t *testing.T, origin, branch string) int {
 
 // TestE2EResponseLossConvergence injects a lost response at the single
 // irreversible external boundary — the PR merge — where the effect LANDS on the
-// origin but gh returns no usable response, then reruns the terminal sequence and
+// origin but gh returns no usable response, then reruns the closing sequence and
 // asserts it converges: the merge is adopted (verified by an authoritative
 // reprobe), never issued twice, and closeout still archives to a single true
 // done state.

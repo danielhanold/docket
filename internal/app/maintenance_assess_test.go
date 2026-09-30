@@ -104,7 +104,7 @@ func (f assessFixture) assess(t *testing.T, ws WorkspaceService, shared sweepSha
 	return sweepAssessHistorical(context.Background(), deps, wdeps, f.inv, f.pin, shared, cands)
 }
 
-// assessInterior renders the exact terminal-backlink interior a record's already-
+// assessInterior renders the exact final-backlink interior a record's already-
 // correct integration artifact must carry — so a test can build an artifact whose
 // backlink block is already retargeted (no work).
 func assessInterior(t *testing.T, f assessFixture, id int) string {
@@ -197,7 +197,7 @@ func TestAssessStackedMergedIsSnapshotRetainedNoDispatch(t *testing.T) {
 }
 
 // TestAssessCleanTombstoneAbsentRefsCorrectBacklinksIsNoWork: a cleaned workspace
-// tombstone, absent local and remote refs, and an already-correct terminal
+// tombstone, absent local and remote refs, and an already-correct final
 // backlink is snapshot-no-work. It asserts the absence of ALL mutations: nothing
 // enqueued, and the workspace service was only inspected, never mutated.
 func TestAssessCleanTombstoneAbsentRefsCorrectBacklinksIsNoWork(t *testing.T) {
@@ -272,7 +272,7 @@ func TestAssessMissingManifestWithStaleBacklinkIsActionable(t *testing.T) {
 	}
 }
 
-// TestAssessStaleBacklinkLegIsActionable: a stale terminal backlink alone makes
+// TestAssessStaleBacklinkLegIsActionable: a stale final backlink alone makes
 // the record actionable (workspace clean, refs absent).
 func TestAssessStaleBacklinkLegIsActionable(t *testing.T) {
 	planPath := "docs/changes/plans/plan-41.md"
@@ -325,7 +325,7 @@ func TestAssessLeftoverRemoteRefLegIsActionable(t *testing.T) {
 	}
 }
 
-// TestAssessMalformedMarkersAreUnknownNeverNoWork: a malformed/unbalanced terminal
+// TestAssessMalformedMarkersAreUnknownNeverNoWork: a malformed/unbalanced final
 // backlink block is unresolved — unknown/snapshot-unknown — never a clean no-op.
 func TestAssessMalformedMarkersAreUnknownNeverNoWork(t *testing.T) {
 	planPath := "docs/changes/plans/plan-41.md"

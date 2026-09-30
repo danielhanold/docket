@@ -14,7 +14,7 @@ import (
 )
 
 // This file is the read-only `context finalize` operation and the shared
-// FinalizeDeps every terminal-half operation composes. `context finalize` pins
+// FinalizeDeps every closing-half operation composes. `context finalize` pins
 // the metadata corpus once, probes each finalize-population change's live pull
 // request, and reports the authoritative finalize disposition of every
 // candidate — the same deterministic queue domain.SelectFinalizeQueue derives —
@@ -43,12 +43,12 @@ const (
 	// usable (a non-positive id or a slug outside the record-slug grammar).
 	ReasonFinalizeMalformed = "malformed-record"
 	// ReasonFinalizeNotFinalizable is returned when an explicit --id names a
-	// change that is not in finalize's population — terminal, or carrying no PR
+	// change that is not in finalize's population — final, or carrying no PR
 	// reference — so there is nothing to finalize.
 	ReasonFinalizeNotFinalizable = "not-finalizable"
 )
 
-// FinalizeGitHub is the GitHub seam the terminal-half operations delegate their
+// FinalizeGitHub is the GitHub seam the closing-half operations delegate their
 // GitHub mechanics to. *githubcli.Client satisfies it; unit tests inject a
 // recording fake. It names the exact set of probe/act calls finalize needs
 // across its operations (Task 6-17), so later operations compose the same
@@ -67,7 +67,7 @@ type FinalizeGitHub interface {
 	MergePullRequest(ctx context.Context, repo githubcli.Repository, number int, expectedHead githubcli.ObjectRef, admin bool) (githubcli.MergeResult, error)
 }
 
-// FinalizeWorkspace is the workspace seam the terminal-half operations delegate
+// FinalizeWorkspace is the workspace seam the closing-half operations delegate
 // their workspace mechanics to. *workspace.Service satisfies it; unit tests
 // inject a fake. It names the read-only inspection, the rebase-receipt
 // lifecycle, and the two publish primitives finalize composes.
@@ -124,7 +124,7 @@ type FinalizePRProber interface {
 	ProbePR(ctx context.Context, repoDir, prRef string) (domain.PRFacts, error)
 }
 
-// FinalizeDeps is every seam the terminal-half operations compose. It layers the
+// FinalizeDeps is every seam the closing-half operations compose. It layers the
 // read-only planning seams (reader/engine/git client/clock) with the GitHub and
 // workspace services and the PR-facts prober the finalize half needs. Tasks
 // 7-17 reuse it; the read-only context operation touches only Planning.Reader

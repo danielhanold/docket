@@ -10,7 +10,7 @@ import (
 )
 
 // This file is Task 16: the real-git failure-injection and concurrency matrix for
-// the terminal path. It drives Tasks 6-15 through their app entry points against
+// the closing path. It drives Tasks 6-15 through their app entry points against
 // the same disposable bare-remote main/docket topology the other finalize
 // integration tests use, and asserts the spec's "Recovery and idempotency matrix"
 // row-for-row: after each irreversible boundary an interrupted run is replayed and
@@ -184,7 +184,7 @@ func matrixMerge(t *testing.T, m planRepoMode) {
 }
 
 // matrixCloseout covers "Metadata closeout push" and (docket mode) "Integration
-// backlink push": the terminal transaction lands once, and a replay keyed on the
+// backlink push": the closeout transaction lands once, and a replay keyed on the
 // canonical archive record is a verified no-op — never a second commit, never a
 // false-second-done.
 func matrixCloseout(t *testing.T, m planRepoMode) {

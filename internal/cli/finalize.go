@@ -14,7 +14,7 @@ import (
 // This file is the top-level `docket finalize` command family: thin adapters
 // that read their flags, hand them to the matching internal/app finalize
 // operation over the real Git/GitHub/workspace seams, and let the presenter own
-// the outcome. The terminal-half mutation subcommands land here in later change
+// the outcome. The closing-half mutation subcommands land here in later change
 // 0316 tasks; today the group is registered so its tree and shared dependency
 // wiring exist for those subcommands to attach to. Every lifecycle, Git,
 // GitHub, stack, reclaim, and cleanup policy belongs to internal/app, so no body
@@ -26,7 +26,7 @@ import (
 func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	finalizeCmd := &cobra.Command{
 		Use:   "finalize",
-		Short: "Sequence a change's terminal half: rebase, publish, merge, and closeout",
+		Short: "Sequence a change's closing half: rebase, publish, merge, and closeout",
 		// A command group resolves its subcommand before Args runs, so anything
 		// reaching here named no subcommand; NoArgs names an offending token and
 		// the bare `docket finalize` falls through to RunE's missing-command error.
@@ -51,7 +51,7 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 // newFinalizeCleanupSubcommand builds `finalize cleanup`: the ownership-safe
 // destructive suffix over one final change. It reloads the archived/stacked
-// state and the verified merge destination, repairs the terminal backlinks,
+// state and the verified merge destination, repairs the final backlinks,
 // removes the feature checkout, and deletes the local and remote feature refs
 // under exact proof — retaining any resource whose proof it cannot answer. Only
 // the change id and the target directory ride on flags; there is no authored
@@ -97,7 +97,7 @@ type closeoutInput struct {
 
 // newFinalizeCloseoutSubcommand builds `finalize closeout`: it reloads the
 // metadata, reprobes the recorded PR and its merge destination, and applies the
-// one verified terminal shape (done-archived, stacked-merged, or root carry). It
+// one verified closeout shape (done-archived, stacked-merged, or root carry). It
 // takes NO done boolean and NO archive date — the UTC archive date is derived
 // from the verified GitHub mergedAt — so the change id and the target directory
 // ride on flags; the optional authored closeout notes ride in --input (never

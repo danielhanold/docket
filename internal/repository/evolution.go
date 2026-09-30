@@ -112,7 +112,7 @@ func compareFrozenADR(before, after domain.ADR, beforeBytes, afterBytes []byte) 
 }
 
 // statusFlipFindings judges a difference the mask confined to the status value
-// span. Only an Accepted ADR may flip, and only to a parseable terminal
+// span. Only an Accepted ADR may flip, and only to a parseable final
 // status: a final status is closed, and an Accepted status respelled to
 // itself is a rewrite of a frozen field wearing a flip's clothes.
 func statusFlipFindings(before, after domain.ADR) []domain.Finding {

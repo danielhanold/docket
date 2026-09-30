@@ -33,7 +33,7 @@ the example file for its keys, defaults, and per-block scope.
 - **`metadata_branch`** — where planning metadata lives; selects docket-mode vs single-branch mode (repo-only).
 - **`integration_branch`** — the branch code lands on, usually `main` (repo-only).
 - **`changes_dir`, `adrs_dir`, `results_dir`** — where change files, ADRs, and results records live (repo-only).
-- **`finalize`** — the terminal-half sequencer's knobs (test command, publish behavior).
+- **`finalize`** — the closing-half sequencer's knobs (test command, publish behavior).
 - **`learnings`** — the learnings-ledger settings.
 - **`reclaim`** — the stale-claim reclamation policy (the claim lease and its threshold).
 - **`build`** — the build role's settings, including `build.test_command` (the build gate suite command).

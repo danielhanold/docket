@@ -14,7 +14,7 @@ import (
 )
 
 // This file is the `maintenance sweep` operation: the batch driver that reclaims
-// docket's terminal half over one pinned inventory. `docket status` stays
+// docket's closing half over one pinned inventory. `docket status` stays
 // read-only; every mutation this file dispatches goes through the same verified
 // closeout, cleanup, and reclaim operations a human invokes one at a time
 // (Tasks 12-14). The sweep composes them — it invents no new lifecycle policy,
@@ -669,7 +669,7 @@ func sweepRunCloseout(ctx context.Context, ops sweepOps, id int) []MaintenanceEn
 }
 
 // sweepRunCleanup prepares ONE fresh metadata observation and dispatches the
-// ownership-safe cleanup for one terminal (or completed-stack) record against it.
+// ownership-safe cleanup for one final (or completed-stack) record against it.
 func sweepRunCleanup(ctx context.Context, ops sweepOps, id int) MaintenanceEntry {
 	obs, err := ops.prepare(ctx)
 	if err != nil {

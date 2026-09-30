@@ -103,7 +103,7 @@ const (
 	ReasonBlockUnknownChange = "unknown-change"
 	// ReasonBlockAmbiguousID: an id is claimed by more than one record.
 	ReasonBlockAmbiguousID = "ambiguous-change"
-	// ReasonBlockNotBlockable: the change is terminal — there is no finalize
+	// ReasonBlockNotBlockable: the change is final — there is no finalize
 	// attempt to block.
 	ReasonBlockNotBlockable = "not-blockable"
 	// ReasonBlockRepoUnresolved: the GitHub repository identity did not resolve.
@@ -469,7 +469,7 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 }
 
 // resolveBlockTarget resolves the change record's canonical path from the pinned
-// corpus, refusing an unknown/ambiguous id or a terminal (non-blockable) change.
+// corpus, refusing an unknown/ambiguous id or a final (non-blockable) change.
 // allowFinal is false for `finalize block`. The authoritative blockability
 // gate re-runs inside the transaction on fresh state; this pre-read is a
 // supporting observation that resolves the exact target path.

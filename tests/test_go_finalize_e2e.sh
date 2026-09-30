@@ -5,7 +5,7 @@
 #
 # Runs the TestE2E* matrix in internal/app/finalize_e2e_test.go: each test builds
 # the real ./cmd/docket binary and a protocol-faithful fake `gh`, then drives the
-# whole terminal half of the workflow purely through CLI argv against disposable
+# whole closing half of the workflow purely through CLI argv against disposable
 # bare-remote repositories with hermetically isolated configuration.
 #
 # WHY THIS IS ITS OWN FILE and not folded into tests/test_go_toolchain.sh's plain

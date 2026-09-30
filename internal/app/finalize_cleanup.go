@@ -14,7 +14,7 @@ import (
 )
 
 // This file is `finalize cleanup` and `gate cleanup`: the two ownership-safe
-// destructive suffixes of the terminal half. Both are RETRYABLE suffixes, never
+// destructive suffixes of the closing half. Both are RETRYABLE suffixes, never
 // evidence that anything upstream succeeded, and both fail closed on every probe
 // they cannot answer — present, cleanly absent, and unknown are three outcomes,
 // and only cleanly-absent certifies an already-completed destructive leg
@@ -22,7 +22,7 @@ import (
 //
 // `finalize cleanup` runs an ordered suffix over one final change: it reloads
 // the archived/stacked state and the verified merge destination; repairs the
-// terminal backlinks first when needed; removes the feature checkout through the
+// final backlinks first when needed; removes the feature checkout through the
 // landed manifest-fact-driven workspace.Cleanup (never a base recomputed from the
 // now-archived record); deletes the LOCAL feature ref only when the exact
 // recorded tip is detached from every worktree AND contained in the verified
@@ -265,7 +265,7 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 	var findings []StatusFinding
 	var removed []string
 
-	// Leg 1: repair the terminal backlinks first when needed (docket mode). A
+	// Leg 1: repair the final backlinks first when needed (docket mode). A
 	// failed/contended leg is a pending finding; it never blocks the independent
 	// ref-deletion legs.
 	if f := finalizeCleanupBacklinkRepair(ctx, deps, cc, facts); f != nil {
