@@ -64,3 +64,18 @@ Consumer repos re-run `docket install`. The change lands with no gate drive in f
 ### 2026-09-30
 
 Reconciled against origin/main 366827eb5 and origin/docket 686ad1e. Every wire token in ADR-0129 rows 67-73 is still present in maintained source (needs-brainstorm, identity-mismatch, unresolved-execution, repair-identity, pr-identity-mismatch, identity-drift, MergeConjuncts), and the retired Bash-era names of rows 85-86 still appear in prose. Related changes 0402, 0468, 0471, 0474 are merged; nothing else absorbed this work. Scope, spec and relations unchanged.
+
+## Run halted
+
+### 2026-09-30
+
+Halted after the plan was attached and before the build. The build gate (`go run ./cmd/docket development test`) cannot go green at the current `main` (366827eb5): four `internal/repoguard` tests already fail there, independent of this change.
+
+- `TestCommittedCodexDispatchMatchesGenerator`
+- `TestCommittedCodexDispatchRoutesEveryScope`
+- `TestCommittedCodexDispatchObservesYieldedEntrySession`
+- `TestCodexRequestFileCarriesRunID`
+
+Cause: commit a96558229 dropped `codex` from `agent_harnesses`, and 366827eb5 regenerated AGENTS.md without the Codex root-entry dispatch clause these tests assert. Confirmed by running `go test ./internal/repoguard/ -run 'TestCommittedCodexDispatch|TestCodexRequestFileCarriesRunID'` in the fresh feature worktree.
+
+Human decision needed: either restore the Codex clause in AGENTS.md or scope these tests to repos that enable Codex, landed on `main`. Then resume 0469 through `change.resume-halted`. The claim, the feature branch (plan commit 54d538bc2), and the attached plan are left as they are.
