@@ -190,7 +190,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		return implementedRefusal(result, reason, err.Error(), req.ID)
 	}
 
-	// Resolve the change record and its current entity revision from one corpus read.
+	// Resolve the change record and its current record revision from one corpus read.
 	c, recPath, revision, refusal := resolveImplementedChange(ctx, deps, pin, eff, req.ID)
 	if refusal != nil {
 		return *refusal

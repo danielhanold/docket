@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-// miRevision is the exact entity revision the happy fixtures pin.
+// miRevision is the exact record revision the happy fixtures pin.
 const miRevision = "1234123412341234123412341234123412341234"
 
 // miRecord renders an in-progress change record with the given plan/results
