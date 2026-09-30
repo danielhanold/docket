@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [129]
 spec: 'docs/superpowers/specs/2026-09-29-rename-change-version-to-revision-version-revision-design.md'
 plan: 'docs/superpowers/plans/2026-09-30-0472-rename-change-version-to-revision-version-revision.md'
-results:
+results: 'docs/results/2026-09-30-rename-change-version-to-revision-version-revision-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-30T06:12:56Z'
 |---|---|
 | Spec | [2026-09-29-rename-change-version-to-revision-version-revision-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-29-rename-change-version-to-revision-version-revision-design.md) |
 | Plan | [2026-09-30-0472-rename-change-version-to-revision-version-revision.md](https://github.com/danielhanold/docket/blob/refactor/rename-change-version-to-revision-version-revision/docs/superpowers/plans/2026-09-30-0472-rename-change-version-to-revision-version-revision.md) |
+| Results | [2026-09-30-rename-change-version-to-revision-version-revision-results.md](https://github.com/danielhanold/docket/blob/refactor/rename-change-version-to-revision-version-revision/docs/results/2026-09-30-rename-change-version-to-revision-version-revision-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
