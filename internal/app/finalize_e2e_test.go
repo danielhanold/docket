@@ -1389,8 +1389,8 @@ func mergeMaps(a, b map[string]string) map[string]string {
 
 // --- TestE2EUnsupportedConfigRefused --------------------------------------
 
-// TestE2EUnsupportedConfigRefused loads the capability requests that refused Docket
-// off before 0326 — repository-local `agents.*`, `auto_capture.enabled`,
+// TestE2EUnsupportedConfigRefused loads the capability requests Docket refused
+// before 0326 — repository-local `agents.*`, `auto_capture.enabled`,
 // `build.checkpoint`, `finalize.skip_results_only_delta`, and `terminal_publish`
 // — into the invocation clone's OWN `.docket.yml` (a tempdir file, never a frozen
 // fixture tree), and proves every mutating 0316 operation that reruns the
