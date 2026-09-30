@@ -48,7 +48,7 @@ is unchanged — it returns the finding list and a one-line verdict, and never f
 
 Two axes are kept deliberately apart:
 
-- **Character** picks the model tier, using the same routing rubric the build applies to a **plan**
+- **Character** picks the build tier, using the same routing rubric the build applies to a **plan**
   (the task-by-task breakdown a build follows, written on the feature branch) task — so a subtle
   one-line fix is not handed to a cheap model just for being labelled minor.
 - **Severity** picks only the *failure posture*: a blocker that cannot be fixed halts the run, while an

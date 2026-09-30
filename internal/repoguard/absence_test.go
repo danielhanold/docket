@@ -98,7 +98,7 @@ import (
 //     TestBuiltinAgentsParityWithFrozenSidecar) and internal/assets/generate.go embeds
 //     it. Its header comment naming the deleted scripts/lib/harness-defaults.sh
 //     enforcer went STALE in this branch, but correcting the comment here reddens two
-//     byte-equality pins (the v0.9.3 frozen-sidecar parity AND the embedded-tree copy,
+//     byte-equality pins (the frozen-sidecar parity (currently v0.9.9) AND the embedded-tree copy,
 //     verified empirically), so the prose fix is deferred to a fixture re-cut and left
 //     as a residual for follow-up. The other residual — root .docket.yml naming
 //     run-tests.sh in a comment — is genuinely out of population (not under agents/, no

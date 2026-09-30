@@ -10,7 +10,7 @@ are not auto-loaded.
 `docket-rebase-resolver` resolves conflicts *during* the rebase and never runs Git rebase mechanics
 or tests; `docket-integration-repair` owns the **red suite** *after* the rebase lands, regardless of
 cause. Neither wraps a skill (only `docket-convention`); both are dispatched **foreground at the
-model/effort its wrapper resolves** — never a literal tier. Either dispatch payload includes:
+model/effort its wrapper resolves** — never a literal model or effort. Either dispatch payload includes:
 Feature worktree: <absolute canonical feature-worktree root>
 This harness-neutral input serves the feature-scoped role; Codex enters it through its installed
 contract, other harnesses through their native worktree mechanism. An authored repair from
