@@ -563,47 +563,67 @@ func TestChangeReclaimReachesOperation(t *testing.T) {
 	}
 }
 
-// TestChangeRepairIdentityRegistered proves repair-identity is wired as a change
-// subcommand carrying its scalar identity, revision pin, and the two mode/evidence
-// flag sets (no --request: the op writes one frontmatter field, not authored
-// Markdown), and is registered asset-independent.
-func TestChangeRepairIdentityRegistered(t *testing.T) {
+// TestChangeRelinkRetiresRepairIdentity is the ADR-0129 row 70 hard cut: the
+// catalog lists change.relink and no longer lists change.repair-identity, and the
+// old verb is not a registered subcommand.
+func TestChangeRelinkRetiresRepairIdentity(t *testing.T) {
+	out, errS, code := runCLI(t, "capabilities", "--json")
+	if code != 0 {
+		t.Fatalf("capabilities exited %d: %s", code, errS)
+	}
+	if !strings.Contains(out, `"id":"change.relink"`) {
+		t.Errorf("capability catalog lacks change.relink")
+	}
+	if strings.Contains(out, "repair-identity") {
+		t.Errorf("capability catalog still names the retired repair-identity")
+	}
 	root := captureTree(t)
-	cmd, _, err := root.Find([]string{"change", "repair-identity"})
-	if err != nil || cmd == nil || cmd.Name() != "repair-identity" {
-		t.Fatalf("change repair-identity not registered: cmd=%v err=%v", cmd, err)
-	}
-	for _, flag := range []string{"id", "expect-revision", "adopt-pr-head", "expect-pr", "expect-head", "adopt-pr", "expect-branch", "repo-dir"} {
-		if cmd.Flags().Lookup(flag) == nil {
-			t.Errorf("change repair-identity: missing --%s flag", flag)
-		}
-	}
-	if !assetIndependent["change repair-identity"] {
-		t.Errorf("change repair-identity is not registered asset-independent")
+	if cmd, _, err := root.Find([]string{"change", "repair-identity"}); err == nil && cmd != nil && cmd.Name() == "repair-identity" {
+		t.Errorf("change repair-identity is still a registered subcommand")
 	}
 }
 
-// TestChangeRepairIdentityFlagsRequired proves --id and --expect-revision are
+// TestChangeRelinkRegistered proves relink is wired as a change
+// subcommand carrying its scalar identity, revision pin, and the two mode/evidence
+// flag sets (no --request: the op writes one frontmatter field, not authored
+// Markdown), and is registered asset-independent.
+func TestChangeRelinkRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"change", "relink"})
+	if err != nil || cmd == nil || cmd.Name() != "relink" {
+		t.Fatalf("change relink not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "expect-revision", "adopt-pr-head", "expect-pr", "expect-head", "adopt-pr", "expect-branch", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("change relink: missing --%s flag", flag)
+		}
+	}
+	if !assetIndependent["change relink"] {
+		t.Errorf("change relink is not registered asset-independent")
+	}
+}
+
+// TestChangeRelinkFlagsRequired proves --id and --expect-revision are
 // required: omitting them is an argument error (exit 2) before any operation runs.
-func TestChangeRepairIdentityFlagsRequired(t *testing.T) {
-	_, errS, code := runCLI(t, "change", "repair-identity")
+func TestChangeRelinkFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "change", "relink")
 	if code != 2 || (!strings.Contains(errS, "id") && !strings.Contains(errS, "expect-revision")) {
 		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
 	}
 }
 
-// TestChangeRepairIdentityReachesOperation proves the command decodes its flags
+// TestChangeRelinkReachesOperation proves the command decodes its flags
 // and reaches the operation, which owns the mode/evidence validation: a request
 // naming neither mode is refused as invalid-request in exactly one protocol-v1
 // document naming the operation, before any repository is touched.
-func TestChangeRepairIdentityReachesOperation(t *testing.T) {
-	out, errS, code := runCLI(t, "change", "repair-identity",
+func TestChangeRelinkReachesOperation(t *testing.T) {
+	out, errS, code := runCLI(t, "change", "relink",
 		"--id", "3", "--expect-revision", "1234123412341234123412341234123412341234",
 		"--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
 	}
-	if !strings.Contains(out, `"operation":"change.repair-identity"`) {
+	if !strings.Contains(out, `"operation":"change.relink"`) {
 		t.Fatalf("document did not name the operation: %q", out)
 	}
 	if !strings.Contains(out, `"reason":"invalid-request"`) {

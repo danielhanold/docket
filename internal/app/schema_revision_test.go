@@ -41,7 +41,7 @@ func TestSchemaRevisionKeys(t *testing.T) {
 		"change.groom REQ revision", "change.groom REQ spec_revision",
 		"change.halt REQ revision", "change.kill REQ revision", "change.mark-implemented REQ revision",
 		"change.reclaim REQ revision", "change.reconcile REQ revision", "change.refresh-claim REQ revision",
-		"change.repair-identity REQ ExpectRevision",
+		"change.relink REQ ExpectRevision",
 		"change.resume-halted REQ revision", "change.revive REQ revision", "change.unblock REQ revision",
 		"context.finalize RES candidates.revision", "context.finalize RES candidates.pr.revision",
 		"context.implementation RES context.change.revision", "context.implementation RES context.spec.revision",

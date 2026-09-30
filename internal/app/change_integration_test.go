@@ -2806,10 +2806,10 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadPinsExactRevision(t *testing.T
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
 	engine.result = transaction.Result{Disposition: transaction.DispositionApplied, AppliedCommit: gitcli.ObjectID(strings.Repeat("c", 40))}
 
-	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
+	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
 		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
-	if res.Result != ResultApplied || res.Reason != RepairRepairedBranch {
+	if res.Result != ResultApplied || res.Reason != RepairRelinkedBranch {
 		t.Fatalf("repair = (%q, %q)", res.Result, res.Reason)
 	}
 	if len(engine.calls) != 1 {
@@ -2819,7 +2819,7 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadPinsExactRevision(t *testing.T
 	if len(exp) != 1 || string(exp[0].Revision.ObjectID) != repairRevision {
 		t.Errorf("transaction did not pin the exact approved revision: %+v", exp)
 	}
-	if engine.calls[0].Operation.Key() != transaction.OperationKey(OperationChangeRepairIdentity) {
+	if engine.calls[0].Operation.Key() != transaction.OperationKey(OperationChangeRelink) {
 		t.Errorf("operation key = %q", engine.calls[0].Operation.Key())
 	}
 }
@@ -2838,10 +2838,10 @@ func TestIntegrationChangeRuntimeRepairAbsentWorkspaceNoConflict(t *testing.T) {
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
 	engine.result = transaction.Result{Disposition: transaction.DispositionApplied, AppliedCommit: gitcli.ObjectID(strings.Repeat("c", 40))}
 
-	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
+	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
 		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
-	if res.Result != ResultApplied || res.Reason != RepairRepairedBranch {
+	if res.Result != ResultApplied || res.Reason != RepairRelinkedBranch {
 		t.Fatalf("an absent workspace must not conflict: result=%q reason=%q msg=%q", res.Result, res.Reason, res.Message)
 	}
 	if len(ws.inspectCalls) != 1 {
@@ -2864,10 +2864,10 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadWritesBranch(t *testing.T) {
 	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
 	deps := FinalizeDeps{Planning: node.deps, GitHub: gh, Workspace: ws}
 
-	res := RepairIdentity(context.Background(), deps, node.dir, RepairIdentityRequest{
+	res := Relink(context.Background(), deps, node.dir, RelinkRequest{
 		ID: 3, ExpectRevision: ver, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
-	if res.Result != ResultApplied || res.Reason != RepairRepairedBranch {
+	if res.Result != ResultApplied || res.Reason != RepairRelinkedBranch {
 		t.Fatalf("repair = (%q, %q) msg=%q findings=%v", res.Result, res.Reason, res.Message, res.Findings)
 	}
 	if res.Branch != "feat/renamed" || res.Revision == "" {
@@ -2895,7 +2895,7 @@ func TestIntegrationChangeRuntimeRepairCandidateBranchAbsent(t *testing.T) {
 	repo := newWorkingRepo(t, nil) // origin carries no feat/renamed branch
 	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
-	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
+	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
 		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	assertRepairRefused(t, res, ResultInvalidState, RepairCandidateBranchAbsent, engine)
@@ -2913,7 +2913,7 @@ func TestIntegrationChangeRuntimeRepairInspectErrorIsConflict(t *testing.T) {
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
 	ws := &fakeRepairWorkspace{inspectErr: errors.New("inspect boom")}
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
-	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
+	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
 		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	assertRepairRefused(t, res, ResultInvalidState, RepairWorkspaceConflict, engine)
@@ -2934,7 +2934,7 @@ func TestIntegrationChangeRuntimeRepairWorkspaceConflictBlocks(t *testing.T) {
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
 	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateReady}}
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
-	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
+	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
 		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	assertRepairRefused(t, res, ResultInvalidState, RepairWorkspaceConflict, engine)

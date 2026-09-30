@@ -215,19 +215,19 @@ the reported source state, rerun integration sync, then repeat the proof, instal
 install command alone is never a sufficient remedy for stale source. A repository whose instructions carry no such
 requirement skips this step entirely.
 
-## Identity repair checkpoint
+## Link check
 
-Two skip reasons from `context.finalize` name a mismatch between the recorded `branch:` and the PR's identity, not an ordinary blocker. Each is `halted` for a non-interactive caller and a human-gated repair for an attended one. **Never reconstruct a branch name and never search for a likely branch or PR** — the only names offered come from the recorded field and the exact PR the prober read.
+Two skip reasons from `context.finalize` name a mismatch between the recorded `branch:` and the PR's identity, not an ordinary blocker. Each is `halted` for a non-interactive caller and a human-gated relink for an attended one. **Never reconstruct a branch name and never search for a likely branch or PR** — the only names offered come from the recorded field and the exact PR the prober read.
 
 - **`branch-pr-head-mismatch`** — the recorded `branch:` and the exact PR's reported head disagree. Present the evidence — change id + revision, the recorded `branch:`, the exact PR number and state, and the reported head — and offer exactly three choices:
-  - **Trust the PR** — adopt the PR's head as the record: the `change.repair-identity` operation with `--id N --expect-revision V --adopt-pr-head --expect-pr M --expect-head H`.
-  - **Trust the record** — keep `branch:` and re-point the record at the correct PR the human supplies: the `change.repair-identity` operation with `--id N --expect-revision V --adopt-pr <ref> --expect-branch B`.
+  - **Trust the PR** — adopt the PR's head as the record: the `change.relink` operation with `--id N --expect-revision V --adopt-pr-head --expect-pr M --expect-head H`.
+  - **Trust the record** — keep `branch:` and re-point the record at the correct PR the human supplies: the `change.relink` operation with `--id N --expect-revision V --adopt-pr <ref> --expect-branch B`.
   - **Abort** — no writes.
-- **`branch-missing`** — the recorded `branch:` resolves to no remote ref. Offer **only** the exact PR's reported head (the repair op itself proves that remote branch exists); confirm it or abort. Never search for a likely branch or PR.
+- **`branch-missing`** — the recorded `branch:` resolves to no remote ref. Offer **only** the exact PR's reported head (the relink op itself proves that remote branch exists); confirm it or abort. Never search for a likely branch or PR.
 
-After a successful repair, **reload and re-probe from scratch** — run the `context.finalize` operation with `--id N` again before any finalize effect; the repaired record is authority only once re-read. A `stale-evidence` / `workspace-conflict` / `pr-unknown` / `candidate-branch-absent` refusal from the repair op is reported to the human **verbatim** and stops the flow, never retried around.
+After a successful relink, **reload and re-probe from scratch** — run the `context.finalize` operation with `--id N` again before any finalize effect; the relinked record is authority only once re-read. A `stale-evidence` / `workspace-conflict` / `pr-unknown` / `candidate-branch-absent` refusal from the relink op is reported to the human **verbatim** and stops the flow, never retried around.
 
-**Non-interactive callers** (implement-next's finalize sweep) never repair autonomously: they `halt` with the structured evidence for a human.
+**Non-interactive callers** (implement-next's finalize sweep) never relink autonomously: they `halt` with the structured evidence for a human.
 
 ## Sign-off, abort, and the blocked marker
 

@@ -54,7 +54,7 @@ var operationBindings = []OperationBinding{
 	{ID: "change.reclaim", Request: ChangeReclaimRequest{}, Result: ChangeReclaimResult{}},                         // ChangeReclaim
 	{ID: "change.reconcile", Request: ChangeReconcileRequest{}, Result: ChangeReconcileResult{}},                   // ChangeReconcile
 	{ID: "change.refresh-claim", Request: ChangeClaimRequest{}, Result: ChangeClaimResult{}},                       // ChangeRefreshClaim
-	{ID: "change.repair-identity", Request: RepairIdentityRequest{}, Result: RepairIdentityResult{}},               // RepairIdentity
+	{ID: "change.relink", Request: RelinkRequest{}, Result: RelinkResult{}},                                        // Relink
 	{ID: "change.resume-halted", Request: ResumeRequest{}, Result: HaltResult{}},                                   // ChangeResumeHalted
 	{ID: "change.revive", Request: ChangeReviveRequest{}, Result: ChangeLifecycleResult{}},                         // ChangeRevive
 	{ID: "change.unblock", Request: ChangeUnblockRequest{}, Result: ChangeLifecycleResult{}},                       // ChangeUnblock

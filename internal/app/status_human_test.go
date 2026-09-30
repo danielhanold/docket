@@ -329,7 +329,7 @@ func TestStatusHumanTextRemedies(t *testing.T) {
 		},
 		Findings: []StatusFinding{
 			{Code: "branch-malformed", Severity: "error", Entity: "change", Identity: "0454", Field: "branch", Message: "branch is not a valid git branch name",
-				Remedy: "run: docket change repair-identity --id 454"},
+				Remedy: "run: docket change relink --id 454"},
 			{Code: "newline-only", Severity: "warning", Entity: "change", Identity: "0002", Message: "w1",
 				Remedy: "\n"},
 			{Code: "multi-line", Severity: "notice", Field: "x", Message: "n1",
@@ -352,7 +352,7 @@ func TestStatusHumanTextRemedies(t *testing.T) {
 		"\n" +
 		"errors:\n" +
 		"  branch-malformed change 0454 (branch) — branch is not a valid git branch name\n" +
-		"    remedy: run: docket change repair-identity --id 454\n" +
+		"    remedy: run: docket change relink --id 454\n" +
 		"\n" +
 		"warnings:\n" +
 		"  newline-only change 0002 — w1\n" +

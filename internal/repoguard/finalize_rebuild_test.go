@@ -94,7 +94,7 @@ const (
 	agentsRel          = "AGENTS.md"
 	syncStepAnchor     = "### 11. Integration sync"
 	rebuildStepAnchor  = "### 12. Repository-required post-merge rebuild"
-	rebuildTerminator  = "## Identity repair checkpoint"
+	rebuildTerminator  = "## Link check"
 	agentsRebuildStart = "## Rebuild the binary after a merge to main"
 	// The rebuild section is bounded by the heading that follows it. AGENTS.md
 	// leads with the managed dispatch block, so the rebuild rule sits between

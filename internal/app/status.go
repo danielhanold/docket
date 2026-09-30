@@ -558,7 +558,7 @@ func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c d
 // change's recorded branch: cannot be a git branch name (gitcli.ValidBranchName,
 // the same predicate the whole-corpus probe filters on — change 0454). The
 // remedy is branched on the same condition that decides which repair can work
-// in this exact state: a parseable pr: names the typed repair-identity
+// in this exact state: a parseable pr: names the typed relink
 // adopt-pr-head command with the id, record revision, and PR number filled in
 // (the head branch must be read from the PR itself — status stays offline);
 // otherwise no typed operation edits branch:, so the remedy is the hand edit
@@ -572,7 +572,7 @@ func branchMalformedCheck(c domain.Change, blobByPath map[string]StatusBlob) []S
 	remedy := "correct branch: on the change record on the docket branch (the real feature branch, or clear it if no branch was ever created), then run: docket repository migrate to re-render the board"
 	if pr := c.PR(); pr.State == domain.FieldPresent {
 		if n, ok := parsePRRef(pr.Value); ok {
-			remedy = fmt.Sprintf("run: docket change repair-identity --id %d --expect-revision %s --adopt-pr-head --expect-pr %d --expect-head <the head branch shown on PR #%d>",
+			remedy = fmt.Sprintf("run: docket change relink --id %d --expect-revision %s --adopt-pr-head --expect-pr %d --expect-head <the head branch shown on PR #%d>",
 				int(c.ID()), blobByPath[c.Path()].Revision, n, n)
 		}
 	}

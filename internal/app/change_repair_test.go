@@ -12,8 +12,8 @@ import (
 	"testing"
 )
 
-// This file drives `change repair-identity`: the revision-pinned single-field
-// identity repair the finalize checkpoint hands a human's decision to. The
+// This file drives `change relink`: the revision-pinned single-field
+// relink that finalize's link check hands a human's decision to. The
 // clause-by-clause refusals run over fakes (a scripted reader/GitHub seam with a
 // recording engine that must never fire); the candidate-branch probe, the
 // workspace gate, and the applied write run end-to-end over real bare-remote
@@ -144,7 +144,7 @@ func repairGitHub(headBranch string) *fakeRepairGitHub {
 	}
 }
 
-func assertRepairRefused(t *testing.T, res RepairIdentityResult, wantResult Result, wantReason string, engine *recordingEngine) {
+func assertRepairRefused(t *testing.T, res RelinkResult, wantResult Result, wantReason string, engine *recordingEngine) {
 	t.Helper()
 	if res.Result != wantResult {
 		t.Fatalf("result = %q, want %q (reason %q, msg %q)", res.Result, wantResult, res.Reason, res.Message)
@@ -164,7 +164,7 @@ func assertRepairRefused(t *testing.T, res RepairIdentityResult, wantResult Resu
 // refused as stale-evidence, opening no transaction.
 func TestRepairStaleRevisionRefused(t *testing.T) {
 	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", "differentrevision000000000000000000000000"), repairGitHub("feat/widget"))
-	res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
+	res := Relink(context.Background(), deps, "/repo", RelinkRequest{
 		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
 	})
 	assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
@@ -177,7 +177,7 @@ func TestRepairStaleRevisionRefused(t *testing.T) {
 // stale-evidence before any Git work.
 func TestRepairStaleHeadRefused(t *testing.T) {
 	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/actual"))
-	res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
+	res := Relink(context.Background(), deps, "/repo", RelinkRequest{
 		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/approved",
 	})
 	assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
@@ -189,7 +189,7 @@ func TestRepairViewErrorIsUnknownNotApplied(t *testing.T) {
 	gh := repairGitHub("feat/widget")
 	gh.viewErr = errors.New("gh pr view: network boom")
 	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), gh)
-	res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
+	res := Relink(context.Background(), deps, "/repo", RelinkRequest{
 		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
 	})
 	assertRepairRefused(t, res, ResultExternalFailed, RepairPRUnknown, engine)
@@ -207,7 +207,7 @@ func TestRepairViewErrorIsUnknownNotApplied(t *testing.T) {
 func TestRepairAdoptPRRequiresHeadEqualsRecorded(t *testing.T) {
 	t.Run("unparseable-ref-is-invalid-request", func(t *testing.T) {
 		deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/widget"))
-		res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
+		res := Relink(context.Background(), deps, "/repo", RelinkRequest{
 			ID: 3, ExpectRevision: repairRevision, AdoptPR: "not-a-pr-reference", ExpectBranch: "feat/widget",
 		})
 		assertRepairRefused(t, res, ResultInvalidInput, RepairInvalidRequest, engine)
@@ -216,7 +216,7 @@ func TestRepairAdoptPRRequiresHeadEqualsRecorded(t *testing.T) {
 	t.Run("recorded-branch-drifted", func(t *testing.T) {
 		// The record carries feat/widget, but the human approved feat/other.
 		deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/widget"))
-		res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
+		res := Relink(context.Background(), deps, "/repo", RelinkRequest{
 			ID: 3, ExpectRevision: repairRevision, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/other",
 		})
 		assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
@@ -226,7 +226,7 @@ func TestRepairAdoptPRRequiresHeadEqualsRecorded(t *testing.T) {
 		// Recorded/approved branch feat/widget, but the PR's head is feat/elsewhere:
 		// the supplied PR does not prove identity.
 		deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/elsewhere"))
-		res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
+		res := Relink(context.Background(), deps, "/repo", RelinkRequest{
 			ID: 3, ExpectRevision: repairRevision, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/widget",
 		})
 		assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
@@ -241,17 +241,17 @@ func TestRepairInvalidRequestShape(t *testing.T) {
 	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/widget"))
 	for _, tc := range []struct {
 		name string
-		req  RepairIdentityRequest
+		req  RelinkRequest
 	}{
-		{"neither-mode", RepairIdentityRequest{ID: 3, ExpectRevision: repairRevision}},
-		{"both-modes", RepairIdentityRequest{ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget", AdoptPR: "x#1", ExpectBranch: "feat/widget"}},
-		{"head-mode-missing-head", RepairIdentityRequest{ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7}},
-		{"head-mode-missing-number", RepairIdentityRequest{ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectHead: "feat/widget"}},
-		{"pr-mode-missing-branch", RepairIdentityRequest{ID: 3, ExpectRevision: repairRevision, AdoptPR: "x#1"}},
-		{"empty-revision", RepairIdentityRequest{ID: 3, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget"}},
+		{"neither-mode", RelinkRequest{ID: 3, ExpectRevision: repairRevision}},
+		{"both-modes", RelinkRequest{ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget", AdoptPR: "x#1", ExpectBranch: "feat/widget"}},
+		{"head-mode-missing-head", RelinkRequest{ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7}},
+		{"head-mode-missing-number", RelinkRequest{ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectHead: "feat/widget"}},
+		{"pr-mode-missing-branch", RelinkRequest{ID: 3, ExpectRevision: repairRevision, AdoptPR: "x#1"}},
+		{"empty-revision", RelinkRequest{ID: 3, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			res := RepairIdentity(context.Background(), deps, "/repo", tc.req)
+			res := Relink(context.Background(), deps, "/repo", tc.req)
 			assertRepairRefused(t, res, ResultInvalidInput, RepairInvalidRequest, engine)
 		})
 	}
@@ -409,7 +409,7 @@ func TestRepairEarlyEngineErrorCarriesFailure(t *testing.T) {
 	}
 }
 
-// --- 0449: unrelated invalid records never block a named repair-identity ----
+// --- 0449: unrelated invalid records never block a named relink ----
 // Shares the unrelated-broken-record fixtures with change_claim_test.go. These
 // rows drive the production engine and status reader (repairRealDeps above
 // records the transaction instead) over a corpus that also carries an
@@ -417,7 +417,7 @@ func TestRepairEarlyEngineErrorCarriesFailure(t *testing.T) {
 
 // repairRealRun runs an AdoptPRHead repair through the production planning
 // seams over repo, with the candidate branch present and no owned workspace.
-func repairRealRun(t *testing.T, repo *gitRepo, recPath string) RepairIdentityResult {
+func repairRealRun(t *testing.T, repo *gitRepo, recPath string) RelinkResult {
 	t.Helper()
 	node := planningDepsFor(t, repo.invocation)
 	deps := FinalizeDeps{
@@ -425,7 +425,7 @@ func repairRealRun(t *testing.T, repo *gitRepo, recPath string) RepairIdentityRe
 		GitHub:    repairGitHub("feat/renamed"),
 		Workspace: &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}},
 	}
-	return RepairIdentity(context.Background(), deps, node.dir, RepairIdentityRequest{
+	return Relink(context.Background(), deps, node.dir, RelinkRequest{
 		ID: 3, ExpectRevision: blobRevisionAt(t, repo.origin, "docket", recPath),
 		AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})

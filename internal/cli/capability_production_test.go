@@ -350,12 +350,12 @@ func TestRepresentativeSignatures(t *testing.T) {
 		"gate.drive.prepare-scope": "--branch <name> --change-id <id> --phase <name> --task-id <id> --worktree <dir> [--repo-dir <dir>] [--run-context <token>] [--run-id <id>]",
 		"gate.drive.takeover":      "--parent-cap <token> --scope-id <id> [--drive-id <id>] [--repo-dir <dir>]",
 		// change 0472 (ADR-0129 rows 40, 40a): the record revision rides on
-		// --revision, and repair-identity's pin on --expect-revision.
-		"change.claim":           "--id <id> --revision <revision> [--repo-dir <dir>] [--run-context <token>]",
-		"change.repair-identity": "--expect-revision <revision> --id <id> [--adopt-pr <ref>] [--adopt-pr-head] [--expect-branch <name>] [--expect-head <ref>] [--expect-pr <n>] [--repo-dir <dir>]",
-		"finalize.block":         "--attempt <token> --head <ref> --id <id> --input <file> --pr-number <n> --reason <token> --revision <revision> [--repo-dir <dir>]",
-		"finalize.merge":         "--head <ref> --id <id> --revision <revision> [--admin] [--repo-dir <dir>]",
-		"workspace.prepare":      "--id <id> --revision <revision> [--repo-dir <dir>]",
+		// --revision, and relink's pin on --expect-revision.
+		"change.claim":      "--id <id> --revision <revision> [--repo-dir <dir>] [--run-context <token>]",
+		"change.relink":     "--expect-revision <revision> --id <id> [--adopt-pr <ref>] [--adopt-pr-head] [--expect-branch <name>] [--expect-head <ref>] [--expect-pr <n>] [--repo-dir <dir>]",
+		"finalize.block":    "--attempt <token> --head <ref> --id <id> --input <file> --pr-number <n> --reason <token> --revision <revision> [--repo-dir <dir>]",
+		"finalize.merge":    "--head <ref> --id <id> --revision <revision> [--admin] [--repo-dir <dir>]",
+		"workspace.prepare": "--id <id> --revision <revision> [--repo-dir <dir>]",
 	}
 	for id, wantSig := range want {
 		e, ok := entryByID(entries, id)

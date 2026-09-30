@@ -185,17 +185,17 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	markImplemented := newMarkImplementedSubcommand(setResult)
 
-	repairIdentity := newRepairIdentitySubcommand(setResult)
+	relink := newRelinkSubcommand(setResult)
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, unblock, revive, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented, repairIdentity)
+	changeCmd.AddCommand(create, groom, block, deferCmd, unblock, revive, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented, relink)
 	return changeCmd
 }
 
-// newRepairIdentitySubcommand builds `change repair-identity`: the revision-pinned
-// single-field identity repair the finalize identity checkpoint hands a human's
-// decision to. Its scalar identities and the approved evidence ride on flags —
-// the op writes exactly one frontmatter field (branch: or pr:), so there is no
-// authored request body. Exactly one mode is chosen: --adopt-pr-head (trust the
+// newRelinkSubcommand builds `change relink`: the revision-pinned
+// single-field relink that finalize's link check hands a human's decision to.
+// Its scalar identities and the approved evidence ride on flags — the op writes
+// exactly one frontmatter field (branch: or pr:), so there is no authored
+// request body. Exactly one mode is chosen: --adopt-pr-head (trust the
 // PR, the missing/mismatched-branch recovery) with --expect-pr/--expect-head, or
 // --adopt-pr (trust the record) with --expect-branch. The app layer owns the
 // mode/evidence validation and the closed reason-token vocabulary, so a
@@ -203,12 +203,12 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 // composes the finalize seams — the read-only planning seams, the GitHub adapter
 // (the exact PR read), and the workspace service (the ownership gate) — the same
 // wiring the other closing-half operations use.
-func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Command {
+func newRelinkSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "repair-identity",
-		Short:       "Repair a change's recorded identity at an exact revision: adopt the PR's head as branch, or a PR reference as pr",
+		Use:         "relink",
+		Short:       "Relink a change record to its branch or PR at an exact revision: adopt the PR's head as branch, or a PR reference as pr",
 		Args:        cobra.NoArgs,
-		Annotations: capability("change.repair-identity", EffectMetadataWrite),
+		Annotations: capability("change.relink", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -225,7 +225,7 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 			if err != nil {
 				return err
 			}
-			setResult(app.RepairIdentity(c.Context(), deps, repoDir, app.RepairIdentityRequest{
+			setResult(app.Relink(c.Context(), deps, repoDir, app.RelinkRequest{
 				ID:             id,
 				ExpectRevision: expectRevision,
 				AdoptPRHead:    adoptPRHead,

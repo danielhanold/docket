@@ -1324,7 +1324,7 @@ docket context finalize --id 412 --json            # exactly this change, even i
 docket context finalize --allowlist 90,92,94 --json
 ```
 
-### Identity repair (`change repair-identity`)
+### Relink (`change relink`)
 
 A human-gated fix for a change whose recorded `branch:` disagrees with its PR
 (`branch-pr-head-mismatch`) or points at a branch that no longer exists (`branch-missing`). There
@@ -1332,12 +1332,12 @@ are exactly two options. **Trust the PR** adopts the PR's head as `branch:`. **T
 keeps `branch:` and points `pr:` at a PR the human names.
 
 **Used for:** adopting the right PR or branch so finalize can proceed. Never guess or search for a
-branch or PR. After a repair, re-read `context finalize --id` before any other finalize step.
-Non-interactive callers halt instead of repairing.
+branch or PR. After a relink, re-read `context finalize --id` before any other finalize step.
+Non-interactive callers halt instead of relinking.
 
 ```sh
-docket change repair-identity --id 412 --expect-revision <v> --adopt-pr-head --expect-pr 301 --expect-head <branch>
-docket change repair-identity --id 412 --expect-revision <v> --adopt-pr <pr-ref> --expect-branch <branch>
+docket change relink --id 412 --expect-revision <v> --adopt-pr-head --expect-pr 301 --expect-head <branch>
+docket change relink --id 412 --expect-revision <v> --adopt-pr <pr-ref> --expect-branch <branch>
 ```
 
 ### Merge policy / branch protection
@@ -2376,7 +2376,6 @@ and `true` blocks every repository mutation until you remove it.
 - [Harness defaults sidecar (agents/harness-defaults.yml)](#harness-defaults-sidecar-agentsharness-defaultsyml)
 - [Health check / health code](#health-check--health-code)
 - [Id / slug](#id--slug)
-- [Identity repair (change repair-identity)](#identity-repair-change-repair-identity)
 - [Implementation context](#implementation-context)
 - [Implement-next / the drainer](#implement-next--the-drainer)
 - [Inert / deferred setting](#inert--deferred-setting)
@@ -2424,6 +2423,7 @@ and `true` blocks every repository mutation until you remove it.
 - [reclaim.auto / reclaim.lease_ttl](#reclaimauto--reclaimlease_ttl)
 - [Reconcile / reconcile log](#reconcile--reconcile-log)
 - [Related / discovered_from](#related--discovered_from)
+- [Relink (change relink)](#relink-change-relink)
 - [Repair sign-off (repair-needs-signoff)](#repair-sign-off-repair-needs-signoff)
 - [Repository check / migrate](#repository-check--migrate)
 - [request_id / replayed (idempotent replay)](#request_id--replayed-idempotent-replay)
