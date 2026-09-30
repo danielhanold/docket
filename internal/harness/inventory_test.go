@@ -116,7 +116,7 @@ func TestParseInventoryFromEmbedded(t *testing.T) {
 	if !reflect.DeepEqual(bs.Skills, []string{"docket-build-task"}) {
 		t.Errorf("build-standard skills = %v, want [docket-build-task]", bs.Skills)
 	}
-	if !strings.Contains(bs.Body, "STANDARD profile") {
+	if !strings.Contains(bs.Body, "STANDARD tier") {
 		t.Errorf("build-standard body does not read like the authored body: %.80q", bs.Body)
 	}
 

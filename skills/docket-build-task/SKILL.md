@@ -1,12 +1,12 @@
 ---
 name: docket-build-task
-description: The compact per-task worker contract for docket's own build role — owns exactly one plan task from focused test through implementation, verification, self-review, and one commit, returning COMPLETE, NEEDS_ESCALATION, or BLOCKED. Preloaded into the docket-build profile agents; not invoked directly by a human.
+description: The compact per-task worker contract for docket's own build role — owns exactly one plan task from focused test through implementation, verification, self-review, and one commit, returning COMPLETE, NEEDS_ESCALATION, or BLOCKED. Preloaded into the docket-build tier agents; not invoked directly by a human.
 ---
 
 # docket-build-task — one plan task, one commit
 
 You own **exactly one task** from the implementation plan, handed to you in your prompt along with
-the branch, the worktree, the selected build profile, the routing reason, and this task's
+the branch, the worktree, the selected build tier, the routing reason, and this task's
 start-ready drive scope bundle — its scope id, child capability, and every identity value the
 scope pinned. You are a fresh worker: nothing carries over from earlier tasks
 except the code and commits already on the branch.
@@ -187,7 +187,7 @@ self-invocation: only an agent whose entire assignment is this role ends its tur
   `claim`s. A bare "still waiting" with no handoff token strands the drive and is not a valid return.
   `WAITING` is neither repair nor escalation, and never accompanies a commit.
 - **`NEEDS_ESCALATION`** — the task proves materially more complex or riskier than the assigned
-  profile, with a **concrete reason** naming what exceeded it. An expected RED test, ordinary
+  tier, with a **concrete reason** naming what exceeded it. An expected RED test, ordinary
   debugging, or a single failed test run is **not** an escalation condition, and without a concrete
   reason the controller reads this as a malformed return and halts. Whether this task
   still has an escalation left is the controller's to know, not yours — so spend the outcome on
@@ -202,7 +202,7 @@ records.
 
 ```text
 OUTCOME: COMPLETE | WAITING | NEEDS_ESCALATION | BLOCKED
-PROFILE: <economy|standard|premium|max> — <one-line routing reason as given to you>
+TIER: <economy|standard|premium|max> — <one-line routing reason as given to you>
 VERIFICATION: <the focused command you ran> -> <result>
 TDD: <RED/GREEN evidence, or the three-part exception: why unsuitable / what replaced it / residual risk>
 HANDOFF: <drive-id + single-use handoff token — REQUIRED on WAITING, omit otherwise>
