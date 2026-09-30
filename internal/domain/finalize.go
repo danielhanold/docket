@@ -316,7 +316,7 @@ func allowlistSet(ids []ChangeID) map[ChangeID]bool {
 // FirstFailure names the first unmet conjunct so a refusal carries a stable,
 // distinct reason token.
 type MergeConjuncts struct {
-	Implemented, PRIdentityMatch, HeadsAgree, OpenNonDraft,
+	Implemented, PRLinkMatch, HeadsAgree, OpenNonDraft,
 	BaseIsEffectiveBase, GateSatisfied, ApprovalSatisfied,
 	NoOpenChildren, NotSuperseded bool
 }
@@ -330,8 +330,8 @@ func (m MergeConjuncts) FirstFailure() string {
 	switch {
 	case !m.Implemented:
 		return "not-implemented"
-	case !m.PRIdentityMatch:
-		return "pr-identity-mismatch"
+	case !m.PRLinkMatch:
+		return "pr-link-mismatch"
 	case !m.HeadsAgree:
 		return "head-moved"
 	case !m.OpenNonDraft:

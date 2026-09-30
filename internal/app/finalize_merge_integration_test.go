@@ -146,7 +146,7 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 		token string
 	}{
 		{"not-implemented", func(in *mergeConjunctInputs) { in.status = domain.StatusInProgress }, "not-implemented"},
-		{"pr-identity", func(in *mergeConjunctInputs) { in.prNumber = 9 }, "pr-identity-mismatch"},
+		{"pr-link", func(in *mergeConjunctInputs) { in.prNumber = 9 }, "pr-link-mismatch"},
 		{"head-pr", func(in *mergeConjunctInputs) { in.prHead = "deadbeef" }, "head-moved"},
 		{"head-remote", func(in *mergeConjunctInputs) { in.remoteHead = "deadbeef" }, "head-moved"},
 		{"head-local", func(in *mergeConjunctInputs) { in.localHead = "deadbeef" }, "head-moved"},
@@ -207,7 +207,7 @@ func TestIntegrationFinalizeMergeConjunctsRechecked(t *testing.T) {
 
 	// Cases achievable by perturbing the live fake/request over a shared baseline
 	// fixture (no metadata rewrite needed).
-	t.Run("pr-identity-mismatch", func(t *testing.T) {
+	t.Run("pr-link-mismatch", func(t *testing.T) {
 		f := setupMergeFixture(t, m)
 		gh := f.baselineFake(t)
 		gh.openByHead["feat/"+f.slug] = []githubcli.PullRequest{func() githubcli.PullRequest {
@@ -216,7 +216,7 @@ func TestIntegrationFinalizeMergeConjunctsRechecked(t *testing.T) {
 			return pr
 		}()}
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
-		assertMergeRefusal(t, res, gh, "pr-identity-mismatch")
+		assertMergeRefusal(t, res, gh, "pr-link-mismatch")
 	})
 
 	t.Run("head-moved", func(t *testing.T) {
@@ -366,12 +366,12 @@ func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 		assertMergeRefusal(t, res, gh, "superseded")
 	})
 
-	t.Run("explicit-id-does-not-override-pr-identity", func(t *testing.T) {
+	t.Run("explicit-id-does-not-override-pr-link", func(t *testing.T) {
 		f := setupMergeFixture(t, m)
 		gh := f.baselineFake(t)
 		gh.openByHead["feat/"+f.slug][0].Number = 9
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
-		assertMergeRefusal(t, res, gh, "pr-identity-mismatch")
+		assertMergeRefusal(t, res, gh, "pr-link-mismatch")
 	})
 
 	t.Run("explicit-id-does-not-override-gate", func(t *testing.T) {

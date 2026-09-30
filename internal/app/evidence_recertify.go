@@ -58,15 +58,15 @@ const (
 	ReasonRecertifyPRNotOpen        = "pr-not-open"
 	ReasonRecertifyGateFailed       = "gate-failed"
 	ReasonRecertifyGateHalted       = "gate-halted"
-	// ReasonRecertifyIdentityDrift: something the gate certified moved before
-	// the publish — the PR identity or the resolved build command. A changed
-	// head or command can never inherit the earlier pass.
-	ReasonRecertifyIdentityDrift      = "identity-drift"
-	ReasonRecertifyEvidenceUnverified = "evidence-unverified"
-	ReasonRecertifyBodyAssembly       = "body-assembly-failed"
-	ReasonRecertifyEditorUnavailable  = "pr-editor-unavailable"
-	ReasonRecertifyEditContended      = "pr-edit-contended"
-	ReasonRecertifyEditUnknown        = "pr-edit-unknown"
+	// ReasonRecertifyCertifiedInputChanged: an input the gate certified changed
+	// before the publish — the feature head, the open PR, or the resolved build
+	// command. A changed head or command can never inherit the earlier pass.
+	ReasonRecertifyCertifiedInputChanged = "certified-input-changed"
+	ReasonRecertifyEvidenceUnverified    = "evidence-unverified"
+	ReasonRecertifyBodyAssembly          = "body-assembly-failed"
+	ReasonRecertifyEditorUnavailable     = "pr-editor-unavailable"
+	ReasonRecertifyEditContended         = "pr-edit-contended"
+	ReasonRecertifyEditUnknown           = "pr-edit-unknown"
 )
 
 // EvidenceRecertifyRequest is the closed request for `evidence recertify`.
@@ -360,17 +360,17 @@ func publishRecertifiedEvidence(ctx context.Context, deps FinalizeDeps, repoDir 
 		return *refusal
 	}
 	if second.head != first.head {
-		return recertifyRefusal(ResultContended, ReasonRecertifyIdentityDrift,
+		return recertifyRefusal(ResultContended, ReasonRecertifyCertifiedInputChanged,
 			"the feature head moved after the gate; the run no longer certifies the current commit — rerun recertify", first.id)
 	}
 	if second.pr.Number != first.pr.Number {
-		return recertifyRefusal(ResultContended, ReasonRecertifyIdentityDrift,
+		return recertifyRefusal(ResultContended, ReasonRecertifyCertifiedInputChanged,
 			"the open pull request changed after the gate; re-read the change state and rerun recertify", first.id)
 	}
 	// A changed build configuration cannot inherit the pass: the recorded
 	// command must be byte-equal to the currently resolved build.test_command.
 	if second.build.Gate.Value == "off" || rec.Command == "" || rec.Command != second.build.TestCommand.Value {
-		return recertifyRefusal(ResultBlocked, ReasonRecertifyIdentityDrift,
+		return recertifyRefusal(ResultBlocked, ReasonRecertifyCertifiedInputChanged,
 			"the resolved build gate configuration changed after the run (or the evidence names a different command); rerun recertify under the current configuration", first.id)
 	}
 
