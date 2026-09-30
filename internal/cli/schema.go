@@ -13,7 +13,7 @@ import (
 // network-independent read of the request/result payload schemas and allowed
 // values, derived entirely from the live Go types. Like the capabilities
 // bootstrap it mirrors, its RunE touches no filesystem, config loader, git, or
-// network — it projects the closed effect vocabulary and hands it to app.Schema,
+// network — it projects the allowed effect values and hands it to app.Schema,
 // which reflects the operation-schema registry.
 func newSchemaCommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
@@ -48,7 +48,7 @@ func newSchemaCommand(setResult func(app.OperationResult)) *cobra.Command {
 	return cmd
 }
 
-// sortedEffectStrings projects the closed effect vocabulary (allEffects) into
+// sortedEffectStrings projects the allowed effect values (allEffects) into
 // the sorted string slice the schema surface publishes as its `effects`
 // vocabulary. It is derived from allEffects, never a second hand-maintained
 // list, so a new effect flows through automatically.

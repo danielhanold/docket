@@ -1,6 +1,6 @@
 package cli
 
-// This file owns docket's capability metadata: the closed effect vocabulary,
+// This file owns docket's capability metadata: the allowed effect values,
 // the annotation helper every leaf registration calls, and the walker that
 // projects the assembled Cobra tree into catalog entries. Inclusion is
 // annotation-driven and fail-closed: a public executable leaf without

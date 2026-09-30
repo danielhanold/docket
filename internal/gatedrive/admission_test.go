@@ -1079,6 +1079,10 @@ func (p *scratchAwareProc) probeCount() int {
 	return len(p.probes)
 }
 
+// mixedHistoryHaltCauses seeds one HALTED drive per cause; seedMixedHistory derives
+// both the drive run dirs and the scratch dirs it creates from it so they cannot drift.
+var mixedHistoryHaltCauses = []string{"deadline-expired", "stopped-not-initiated", "launch-unresolved", "worktree-changed", "run-cancelled"}
+
 // seedMixedHistory seeds several records of every history class in the spec's AC1
 // matrix, none positively bound to a fresh worktree: for each of a live OTHER
 // worktree and a REMOVED one — PASSED, FAILED, HALTED under several causes (run
@@ -1093,7 +1097,7 @@ func seedMixedHistory(t *testing.T, s *Store, seed int64, other, removed, scratc
 	for _, wt := range []string{other, removed} {
 		seedLegacyDrive(t, s, wt, PASSED, "", filepath.Join(scratch, "passed"))
 		seedLegacyDrive(t, s, wt, FAILED, "", filepath.Join(scratch, "failed"))
-		for _, cause := range []string{"deadline-expired", "stopped-not-initiated", "launch-unresolved", "worktree-changed", "run-cancelled"} {
+		for _, cause := range mixedHistoryHaltCauses {
 			seedLegacyDrive(t, s, wt, HALTED, cause, filepath.Join(scratch, "halted-"+cause))
 		}
 		seedLegacyDrive(t, s, wt, HALTED, "deadline-expired", "")
@@ -1120,8 +1124,11 @@ func seedMixedHistory(t *testing.T, s *Store, seed int64, other, removed, scratc
 	if err := os.WriteFile(filepath.Join(s.root, "stray-entry"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, dir := range []string{"passed", "failed", "waiting", "linked", "halted-deadline-expired",
-		"halted-stopped-not-initiated", "halted-launch-unresolved", "halted-identity-mismatch", "halted-run-cancelled"} {
+	scratchDirs := []string{"passed", "failed", "waiting", "linked"}
+	for _, cause := range mixedHistoryHaltCauses {
+		scratchDirs = append(scratchDirs, "halted-"+cause)
+	}
+	for _, dir := range scratchDirs {
 		if err := os.MkdirAll(filepath.Join(scratch, dir), 0o700); err != nil {
 			t.Fatal(err)
 		}

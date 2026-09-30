@@ -653,7 +653,7 @@ func TestIntegrationFinalizeRebaseOpsFinalizeRebaseGateHaltCarriesAdmissionRefus
 	gate := &fakeGate{result: LocalGateResult{
 		Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable,
 		HaltReason:  "worktree-busy",
-		HaltMessage: "a raw gate run occupies this worktree's execution slot; settle it with docket gate stop '/runs/x' --reason <why>",
+		HaltMessage: "a raw gate run occupies this worktree's slot; settle it with docket gate stop '/runs/x' --reason <why>",
 		HaltStage:   stageWorktreeAdmission,
 		HaltLocator: "incumbent-run:0123456789abcdef0123456789abcdef",
 	}}
