@@ -2,11 +2,11 @@
 id: 477
 slug: 'rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex'
 title: 'Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context)'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'refactor'
 created: '2026-09-29'
-updated: '2026-09-29'
+updated: '2026-09-30'
 depends_on: []
 stacked_on:
 related: [471, 472, 473, 474]
@@ -22,7 +22,7 @@ branch: 'refactor/rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex'
 pr: 'https://github.com/danielhanold/docket/pull/353'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-29T21:39:42Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-29T21:39:42Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-design.md) |
-| Plan | [2026-09-29-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md](https://github.com/danielhanold/docket/blob/refactor/rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex/docs/superpowers/plans/2026-09-29-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) |
-| Results | [2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-results.md](https://github.com/danielhanold/docket/blob/refactor/rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex/docs/results/2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-results.md) |
+| Plan | [2026-09-29-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-29-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md) |
+| Results | [2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-29-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
