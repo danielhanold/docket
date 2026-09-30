@@ -2,7 +2,7 @@
 id: 473
 slug: 'rename-build-profile-and-review-rung-to-tiers-and-dispatch-t'
 title: 'Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/rename-build-profile-and-review-rung-to-tiers-and-dispatch-t'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-30T09:00:17Z'
 ---
 
 ## Artifacts
