@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0473 — Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md)**
+> ↩ **[Change 0473 — Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-30-0473-rename-build-profile-and-review-rung-to-tiers-and-dispatch-t.md)**
 <!-- docket:backlink:end -->
 # Tiers rename (build tier, review tier, dispatch fallbacks) Implementation Plan
 
