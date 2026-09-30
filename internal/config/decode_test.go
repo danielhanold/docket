@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// repoSource is the layer every decode case is written against; the fence
+// repoSource is the layer every decode case is written against; the guard
 // rules that make the layer matter belong to resolution, not to decode.
 func repoSource(data string) Source {
 	return Source{Layer: LayerRepository, Name: ".docket.yml", Data: []byte(data)}
@@ -430,7 +430,7 @@ func TestDecodeObsoleteScalarAutoCaptureRemedy(t *testing.T) {
 
 // TestDecodeBoardSurfacesDropsUnknownTokens: an unknown surface is warned
 // about and removed, and the tokens around it survive. `github` is NOT dropped
-// here — its fence depends on the layer, so resolution owns it.
+// here — its guard depends on the layer, so resolution owns it.
 func TestDecodeBoardSurfacesDropsUnknownTokens(t *testing.T) {
 	leaves, diags := decodeDoc(t, "board_surfaces: [inline, trello, github]\n")
 	if len(diags) != 1 || diags[0].Code != CodeUnknownKey {

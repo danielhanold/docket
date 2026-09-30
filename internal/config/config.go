@@ -105,7 +105,7 @@ const (
 	CodeUnknownKey           = "unknown-key"
 	CodeInvalidType          = "invalid-type"
 	CodeInvalidValue         = "invalid-value"
-	CodeFencedIgnored        = "fenced-setting-ignored"
+	CodeSharedSettingIgnored = "shared-setting-ignored"
 	CodeObsoleteSetting      = "obsolete-setting"
 	CodeInertSetting         = "inert-setting"
 	CodeDeferredSetting      = "deferred-setting"

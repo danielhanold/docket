@@ -38,15 +38,15 @@ var invalidClass = []string{
 
 // resolution is the resolved configuration in the form the classifier needs:
 // the effective policy, the honored declarations behind it, and every
-// declaration including the ones a fence excluded.
+// declaration including the ones a guard excluded.
 type resolution struct {
 	effective Effective
 
 	// declared maps a concrete path to the HIGHEST honored layer's declaration
-	// of it, after fence exclusion. The classifier keys activation on these.
+	// of it, after guard exclusion. The classifier keys activation on these.
 	declared map[string]leafDecl
 
-	// allDecls is every declaration INCLUDING fenced-away ones, in low-to-high
+	// allDecls is every declaration INCLUDING guarded-away ones, in low-to-high
 	// layer order and document order within a layer, with the values as the
 	// declaring layer wrote them.
 	allDecls []leafDecl
@@ -105,11 +105,11 @@ func resolve(sources []Source, rctx ResolveContext) (*resolution, error) {
 		return res.done(), ErrInvalidConfig
 	}
 
-	// Fences first, then precedence: a fenced declaration is not a
+	// Guards first, then precedence: a guarded declaration is not a
 	// lower-precedence declaration, it is no declaration at all.
 	byLayer := make(map[LayerKind]map[string]leafDecl, len(sources))
 	for _, decl := range res.allDecls {
-		honored, ok := res.applyFence(decl)
+		honored, ok := res.applySharedSettingGuard(decl)
 		if !ok {
 			continue
 		}
@@ -210,30 +210,30 @@ func layerList(layers []LayerKind) string {
 	return strings.Join(names, ", ")
 }
 
-// applyFence decides whether a declaration is honored in the layer that made
+// applySharedSettingGuard decides whether a declaration is honored in the layer that made
 // it. The diagnostic keys on the DECLARATION's provenance alone — whether some
 // other layer also declares the path is a different question, and answering
 // them together would make the warning appear and disappear with an unrelated
 // file's contents.
-func (r *resolution) applyFence(decl leafDecl) (leafDecl, bool) {
+func (r *resolution) applySharedSettingGuard(decl leafDecl) (leafDecl, bool) {
 	switch {
-	case decl.spec.scope == scopeRepoFenced && isMachineLayer(decl.prov.Layer):
-		r.fenced(decl, decl.path,
+	case decl.spec.scope == scopeRepoOnly && isMachineLayer(decl.prov.Layer):
+		r.ignoreSharedSetting(decl, decl.path,
 			"coordinates the whole repository and may only be declared in the committed configuration",
 			fmt.Sprintf("move %s to the committed .docket.yml, or remove it here", decl.path))
 		return decl, false
 	}
 
 	if decl.path == "board_surfaces" && isMachineLayer(decl.prov.Layer) {
-		decl.value = r.keepUnfencedSurfaces(decl)
+		decl.value = r.keepUnguardedSurfaces(decl)
 	}
 	return decl, true
 }
 
-// keepUnfencedSurfaces drops the shared-setting-guarded `github` token from a
+// keepUnguardedSurfaces drops the shared-setting-guarded `github` token from a
 // machine layer's board_surfaces and returns the surviving tokens: the guard
 // is on the token, so the rest of the list still competes for the leaf.
-func (r *resolution) keepUnfencedSurfaces(decl leafDecl) []string {
+func (r *resolution) keepUnguardedSurfaces(decl leafDecl) []string {
 	tokens, ok := decl.value.([]string)
 	if !ok {
 		return nil
@@ -244,17 +244,17 @@ func (r *resolution) keepUnfencedSurfaces(decl leafDecl) []string {
 			kept = append(kept, token)
 			continue
 		}
-		r.fenced(decl, decl.path,
+		r.ignoreSharedSetting(decl, decl.path,
 			fmt.Sprintf("names the %q surface, which coordinates the whole repository and may only be requested by the committed configuration", boardSurfaceGitHub),
 			fmt.Sprintf("declare %q in the committed .docket.yml, or drop the token here", boardSurfaceGitHub))
 	}
 	return kept
 }
 
-func (r *resolution) fenced(decl leafDecl, path, why, remedy string) {
+func (r *resolution) ignoreSharedSetting(decl leafDecl, path, why, remedy string) {
 	prov := decl.prov
 	r.diags = append(r.diags, Diagnostic{
-		Code:       CodeFencedIgnored,
+		Code:       CodeSharedSettingIgnored,
 		Severity:   SeverityWarning,
 		Path:       path,
 		Provenance: &prov,

@@ -110,7 +110,7 @@ func TestClassifyMatrix(t *testing.T) {
 			sources: []Source{srcR("finalize:\n  test_command: make test\n  require_pr_approval: true\n")},
 		},
 
-		// Row 10 — repository-fenced deferred bool.
+		// Row 10 — repo-only deferred bool.
 		{
 			name:     "skip_results_only_delta true blocks",
 			sources:  []Source{srcR("finalize:\n  skip_results_only_delta: true\n")},
@@ -174,7 +174,7 @@ func TestClassifyMatrix(t *testing.T) {
 			blockers: []string{"board_surfaces"},
 		},
 		{
-			name:    "machine github board surface is fenced away, not classified",
+			name:    "machine github board surface is guarded away, not classified",
 			sources: []Source{srcL("board_surfaces: [inline, github]\n")},
 		},
 		{
@@ -466,10 +466,10 @@ func TestClassifyReasonsAndRemedies(t *testing.T) {
 	}
 }
 
-// TestClassifyFencedDeclarationsAreNotCapabilities: a fenced declaration is no
-// declaration at all, so it cannot be a capability request either — the fence
+// TestClassifyGuardedDeclarationsAreNotCapabilities: a guarded declaration is no
+// declaration at all, so it cannot be a capability request either — the guard
 // warning is the whole report.
-func TestClassifyFencedDeclarationsAreNotCapabilities(t *testing.T) {
+func TestClassifyGuardedDeclarationsAreNotCapabilities(t *testing.T) {
 	snap := mustSnapshot(t, srcL("terminal_publish: true\nfinalize:\n  skip_results_only_delta: true\n"))
 	if len(snap.Capabilities) != 0 {
 		t.Errorf("capabilities = %+v, want none", gotCaps(snap.Capabilities))
@@ -477,7 +477,7 @@ func TestClassifyFencedDeclarationsAreNotCapabilities(t *testing.T) {
 	if got := blockerPaths(snap); got != nil {
 		t.Errorf("blocker paths = %v, want none", got)
 	}
-	if got := diagPathsWithCode(snap, CodeFencedIgnored); len(got) != 2 {
-		t.Errorf("fenced-setting-ignored paths = %v, want both declarations reported", got)
+	if got := diagPathsWithCode(snap, CodeSharedSettingIgnored); len(got) != 2 {
+		t.Errorf("shared-setting-ignored paths = %v, want both declarations reported", got)
 	}
 }

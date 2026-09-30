@@ -15,7 +15,7 @@ func TestMetadataBranchIsObsoleteTombstone(t *testing.T) {
 	// obsoleteFor resolves one layer's metadata_branch declaration and returns
 	// the single obsolete-setting diagnostic it must produce. Resolution never
 	// errors on it: an obsolete setting is a warning, not an invalid config, and
-	// it is excluded from resolution rather than fenced.
+	// it is excluded from resolution rather than guarded.
 	obsoleteFor := func(t *testing.T, src Source) Diagnostic {
 		t.Helper()
 		res := mustResolve(t, []Source{src}, mainCtx)
@@ -29,8 +29,8 @@ func TestMetadataBranchIsObsoleteTombstone(t *testing.T) {
 		if obs[0].Severity != SeverityWarning || obs[0].Classification != Obsolete {
 			t.Errorf("obsolete diagnostic = %s/%s, want warning/obsolete", obs[0].Severity, obs[0].Classification)
 		}
-		if fenced := diagsWithCode(res, CodeFencedIgnored); len(fenced) != 0 {
-			t.Errorf("an obsolete setting is not a fenced setting; got %v", diagSummary(res))
+		if guarded := diagsWithCode(res, CodeSharedSettingIgnored); len(guarded) != 0 {
+			t.Errorf("an obsolete setting is not a guarded setting; got %v", diagSummary(res))
 		}
 		return obs[0]
 	}

@@ -1918,7 +1918,7 @@ docket diagnostic config --repo-dir . --json
 
 A coordination key is a config key whose value must be identical for every clone, so it may only be
 set in the committed repo config. The **shared-setting guard** ignores (with a warning) a coordination key set in
-any other layer. Each key's **scope tag** in the example file is `repo-only`, `any layer`, or
+any other layer. The warning's code is `shared-setting-ignored`. Each key's **scope tag** in the example file is `repo-only`, `any layer`, or
 `local-only`.
 
 ### Dummy mode / persona / "In plain terms"

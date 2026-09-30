@@ -92,8 +92,8 @@ func (c *classifier) declaration(decl leafDecl) {
 		c.deferred(decl, true, fmt.Sprintf("set %s to local or off, or remove the key", decl.path))
 
 	case dispSupportedOrDropped:
-		// Only the fenced `github` token carries a capability question, and a
-		// machine layer never reaches here with one: the fence stripped it, and
+		// Only the guarded `github` token carries a capability question, and a
+		// machine layer never reaches here with one: the guard stripped it, and
 		// reporting it twice would tell the user to edit a file that is already
 		// being ignored.
 		tokens, _ := decl.value.([]string)

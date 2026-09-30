@@ -438,33 +438,33 @@ func TestFixtureModeDocket(t *testing.T) {
 	}
 }
 
-// TestFixtureFencedMachineKeys: every repo-fenced setting declared from a
-// machine layer is warned about and excluded — and none of it blocks. A fence
+// TestFixtureGuardedMachineKeys: every repo-only setting declared from a
+// machine layer is warned about and excluded — and none of it blocks. A guard
 // is a coordination rule, not a capability question.
-func TestFixtureFencedMachineKeys(t *testing.T) {
+func TestFixtureGuardedMachineKeys(t *testing.T) {
 	snap := mustResolveFixture(t, "fenced-machine-keys")
 	eff := snap.Effective
 	def := builtinEffective()
 
-	// metadata_branch is no longer fenced — it is an obsolete tombstone (0363),
-	// excluded at decode rather than fenced, so the machine-layer declaration
-	// produces an obsolete-setting warning, not a fenced-setting-ignored one.
-	fenced := diagPathSet(snap, CodeFencedIgnored)
+	// metadata_branch is no longer guarded — it is an obsolete tombstone (0363),
+	// excluded at decode rather than guarded, so the machine-layer declaration
+	// produces an obsolete-setting warning, not a shared-setting-ignored one.
+	guarded := diagPathSet(snap, CodeSharedSettingIgnored)
 	for _, path := range []string{
 		"integration_branch", "changes_dir", "adrs_dir", "results_dir",
 		"finalize.skip_results_only_delta", "github_project", "terminal_publish", "board_surfaces",
 	} {
-		if !fenced[path] {
-			t.Errorf("%s is declared in a machine layer but produced no fenced-setting-ignored warning", path)
+		if !guarded[path] {
+			t.Errorf("%s is declared in a machine layer but produced no shared-setting-ignored warning", path)
 		}
 	}
 	for _, d := range snap.Diagnostics {
-		if d.Code == CodeFencedIgnored && d.Severity != SeverityWarning {
-			t.Errorf("%s: fenced-setting-ignored severity %q, want warning", d.Path, d.Severity)
+		if d.Code == CodeSharedSettingIgnored && d.Severity != SeverityWarning {
+			t.Errorf("%s: shared-setting-ignored severity %q, want warning", d.Path, d.Severity)
 		}
 	}
 
-	// Fenced scalars never become effective: each keeps its built-in value and
+	// Guarded scalars never become effective: each keeps its built-in value and
 	// built-in provenance, exactly as if the machine layers were absent.
 	for _, tc := range []struct {
 		path      string
@@ -477,14 +477,14 @@ func TestFixtureFencedMachineKeys(t *testing.T) {
 		{"results_dir", eff.ResultsDir.Value, def.ResultsDir.Value, eff.ResultsDir.Provenance.Layer},
 	} {
 		if tc.got != tc.want {
-			t.Errorf("%s = %q, want the built-in %q (the machine declaration is fenced)", tc.path, tc.got, tc.want)
+			t.Errorf("%s = %q, want the built-in %q (the machine declaration is guarded)", tc.path, tc.got, tc.want)
 		}
 		if tc.layer != LayerBuiltIn {
 			t.Errorf("%s provenance layer %q, want %q", tc.path, tc.layer, LayerBuiltIn)
 		}
 	}
 
-	// board_surfaces carries its fence on the TOKEN: `github` is stripped with
+	// board_surfaces carries its guard on the TOKEN: `github` is stripped with
 	// a warning and the rest of the machine layer's list still competes for
 	// the leaf, which is why this one leaf is explicit while the others are not.
 	assertSameStrings(t, "board_surfaces", eff.BoardSurfaces.Value, []string{"inline"})
@@ -493,9 +493,9 @@ func TestFixtureFencedMachineKeys(t *testing.T) {
 			eff.BoardSurfaces.Provenance.Layer, LayerRepositoryLocal)
 	}
 
-	// The point of the fixture: fences never block a mutation.
+	// The point of the fixture: guards never block a mutation.
 	if decision := PreflightMutation(snap); !decision.Allowed {
-		t.Errorf("preflight blocked on fenced declarations alone: %v", blockerPaths(snap))
+		t.Errorf("preflight blocked on guarded declarations alone: %v", blockerPaths(snap))
 	}
 }
 
