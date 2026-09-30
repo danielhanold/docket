@@ -34,7 +34,7 @@ import (
 // deterministic double. The driver depends on the native run-state vocabulary
 // (process.State) unchanged — it never invents or reinterprets a state.
 type ProcessSeam interface {
-	// Launch starts one detached native-supervisor run and returns its handle,
+	// Launch starts one detached gate-supervisor run and returns its handle,
 	// including the run's state at the moment Launch returned.
 	Launch(process.LaunchRequest) (*process.LaunchOutcome, error)
 	// Observe reads one read-only snapshot of a raw run's durable state without
