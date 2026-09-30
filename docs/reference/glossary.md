@@ -180,7 +180,7 @@ worktree under `.worktrees/`.
 
 ```sh
 docket workspace inspect --id 412
-docket workspace prepare --id 412 --version <version>
+docket workspace prepare --id 412 --revision <revision>
 ```
 
 ---
@@ -237,7 +237,7 @@ status flip lands in the same commit.
 must be `Accepted`, or the operation refuses.
 
 ```sh
-docket adr supersede --request supersede.json   # {request_id, target:{id,path,version}, successor:{…}}
+docket adr supersede --request supersede.json   # {request_id, target:{id,path,revision}, successor:{…}}
 docket adr reverse   --request reverse.json
 ```
 
@@ -280,17 +280,26 @@ docket schema --operation change.create        # the request fields
 docket change create --request new-change.json  # usually driven by docket-new-change
 ```
 
-### Change version (`--version`)
+### Revision (`--revision`)
 
-An opaque per-change revision token — the `version` field of each change in `docket status --json`.
-It is the change-specific form of the [entity version](#entity-version) (a git blob id).
+The exact id of a pinned state. Docket uses the word in one sense only:
 
-**Used for:** compare-and-swap. Mutating operations take `--version <id>` and refuse if the change
-moved under you, so two sessions can never silently overwrite each other.
+- **Record revision:** the git blob object id of a record a typed operation can mutate: a change,
+  an ADR, a learning finding, or a linked spec. Spelled `--revision` on a flag, `revision` in a
+  request or read (`docket status --json` carries one per change), `spec_revision` for a groom's
+  linked spec, `target.revision` for the ADR a supersede/reverse flips, and `change.revision` for
+  an ADR's producing change.
+- **PR revision:** a hash over a pull request's mutable snapshot, spelled `pr.revision` in
+  `context finalize` and `pr_revision` in `finalize merge` / `finalize retarget-children`.
+- **Commit revision:** the commit ids a mutation reports, spelled `committed_revision`,
+  `metadata_revision` and `*_branch_revision`.
+
+**Used for:** compare-and-swap. A mutating operation takes the record revision you read and refuses
+if the record moved under you, so two sessions can never silently overwrite each other.
 
 ```sh
-docket status --json | jq -r '.changes[] | select(.id==412) | .version'
-docket change claim --id 412 --version <that-token>
+docket status --json | jq -r '.changes[] | select(.id==412) | .revision'
+docket change claim --id 412 --revision <that-revision>
 ```
 
 ### Derived view / generated block / backlink
@@ -364,7 +373,7 @@ two findings. A promoted file is kept as the rule's receipt.
 
 ```sh
 docket learning record --request finding.json          # {request_id, slug, hook, topics, changes, apply, war_story}
-docket learning update --request finding-update.json   # {path, version, hook, topics, changes, sections}
+docket learning update --request finding-update.json   # {path, revision, hook, topics, changes, sections}
 ```
 
 ### Manifest
@@ -386,7 +395,7 @@ The task-by-task breakdown a build follows, written on the feature branch.
 hand-edited afterwards.
 
 ```sh
-docket change attach-plan --id 412 --version <v> --path docs/superpowers/plans/<file>.md --commit <sha>
+docket change attach-plan --id 412 --revision <v> --path docs/superpowers/plans/<file>.md --commit <sha>
 ```
 
 ### Presence-encoded section
@@ -408,7 +417,7 @@ known follow-ups). The file lives in `<results_dir>` on the feature branch; the 
 attached on the metadata branch.
 
 ```sh
-docket change attach-results --id 412 --version <v> --path docs/results/<file>.md --commit <sha>
+docket change attach-results --id 412 --revision <v> --path docs/results/<file>.md --commit <sha>
 ```
 
 ### Results `**Human action:**` line
@@ -470,8 +479,8 @@ and splice the section in the same commit.
 killed one in the archive.
 
 ```sh
-docket change defer --request defer.json   # {change_id, path, version, why_deferred}
-docket change kill  --request kill.json    # {change_id, path, version, why_killed}
+docket change defer --request defer.json   # {change_id, path, revision, why_deferred}
+docket change kill  --request kill.json    # {change_id, path, revision, why_killed}
 ```
 
 ### Archive
@@ -504,9 +513,9 @@ return trip (`in-progress → proposed`), logged in `## Reclaim log`.
 already has a branch (real work) is flagged for a human instead. Grooming never takes a claim.
 
 ```sh
-docket change claim         --id 412 --version <v>
-docket change refresh-claim --id 412 --version <v>   # extend the lease at a phase boundary
-docket change reclaim       --id 412 --version <v>   # refuses with lease-not-expired if still live
+docket change claim         --id 412 --revision <v>
+docket change refresh-claim --id 412 --revision <v>   # extend the lease at a phase boundary
+docket change reclaim       --id 412 --revision <v>   # refuses with lease-not-expired if still live
 ```
 
 Config: `reclaim.lease_ttl` (hours) and `reclaim.auto`.
@@ -526,12 +535,12 @@ section and commits it, so the stop is visible in git. **Resume-halted** removes
 new run can pick the change back up.
 
 ```sh
-docket change halt          --id 412 --version <v> --input halt.json
-docket change resume-halted --id 412 --version <v> --acknowledge-quiescent
+docket change halt          --id 412 --revision <v> --input halt.json
+docket change resume-halted --id 412 --revision <v> --acknowledge-quiescent
 ```
 
 `--acknowledge-quiescent` is required: it is your explicit statement that the prior worker is
-**quiescent** (no longer writing). Without it, on version drift, or on a live gate lock, the
+**quiescent** (no longer writing). Without it, on revision drift, or on a live gate lock, the
 operation refuses and writes nothing.
 
 ### Owned sections / section intents (`preserve` / `replace` / `remove`)
@@ -632,7 +641,7 @@ docket status --json | jq '.changes[] | select(.id==413) | .effective_base'
 missing context and flipping it back, which removes that section in the same commit.
 
 ```sh
-# groom.json: {"change_id": 412, "version": "<v>", "outcome": "rearm", ...}
+# groom.json: {"change_id": 412, "revision": "<v>", "outcome": "rearm", ...}
 docket change groom --request groom.json
 ```
 
@@ -692,12 +701,12 @@ The `change.groom` outcome that adjusts a change that is already groomed (`propo
 `spec:` or `trivial:`, so a change cannot flip between spec'd and trivial.
 
 **Used for:** fixing a just-landed design. Reach it by naming the id to `docket-groom-next`. A spec
-replace also needs `spec_version` (the spec's blob id), so a concurrent spec edit contends instead of
-being overwritten. A `title` alone is also a valid revise: it rewrites `title:`, the board row, and
+replace also needs `spec_revision` (the spec's blob id), so a concurrent spec edit contends
+instead of being overwritten. A `title` alone is also a valid revise: it rewrites `title:`, the board row, and
 the spec's backlink line, and renames nothing — the slug and every path stay put.
 
 ```sh
-# groom.json: {"change_id": 412, "path": "…", "version": "<v>", "outcome": "revise", "spec_markdown": "…", "spec_version": "<blob>"}
+# groom.json: {"change_id": 412, "path": "…", "revision": "<v>", "outcome": "revise", "spec_markdown": "…", "spec_revision": "<blob>"}
 docket change groom --request groom.json
 ```
 
@@ -812,7 +821,7 @@ The transition to `implemented` once the PR is open, carrying the evidence and P
 
 ```sh
 docket pr publish --id 412 --head <sha> --evidence <file> --body pr.json   # --body is a JSON request, not markdown
-docket change mark-implemented --id 412 --version <v> --head <sha> --pr <url> --evidence <file>
+docket change mark-implemented --id 412 --revision <v> --head <sha> --pr <url> --evidence <file>
 ```
 
 ### Plan writer
@@ -1018,7 +1027,7 @@ nothing.
 out `--run-context` only when no run context was given.
 
 ```sh
-docket change claim --id 412 --version <v> --run-context <run-context>
+docket change claim --id 412 --revision <v> --run-context <run-context>
 docket schema --json | jq '.vocabularies.claim_dispositions'
 ```
 
@@ -1233,8 +1242,8 @@ the next; a failed step stops the rest.
 
 ```sh
 docket context finalize --id 412 --json   # what finalize would act on
-docket finalize rebase  --id 412 --version <v> --head <sha>
-docket finalize merge   --id 412 --version <v> --head <sha>
+docket finalize rebase  --id 412 --revision <v> --head <sha>
+docket finalize merge   --id 412 --revision <v> --head <sha>
 docket finalize closeout --id 412
 docket finalize cleanup  --id 412
 ```
@@ -1249,9 +1258,9 @@ finalize skill's `references/gate-failure.md`.
 `finalize block` writes the marker (after first posting an owned PR comment); `clear-block` removes it.
 
 ```sh
-docket finalize block --id 412 --version <v> --pr-number 301 --attempt <token> \
+docket finalize block --id 412 --revision <v> --pr-number 301 --attempt <token> \
   --reason <token> --head <sha> --input block-report.json
-docket finalize clear-block --id 412 --version <v> --head <sha> --pr-number 301
+docket finalize clear-block --id 412 --revision <v> --head <sha> --pr-number 301
 ```
 
 ### Finalize drain / run outcome (`/loop docket-finalize-change`)
@@ -1323,8 +1332,8 @@ branch or PR. After a repair, re-read `context finalize --id` before any other f
 Non-interactive callers halt instead of repairing.
 
 ```sh
-docket change repair-identity --id 412 --expect-version <v> --adopt-pr-head --expect-pr 301 --expect-head <branch>
-docket change repair-identity --id 412 --expect-version <v> --adopt-pr <pr-ref> --expect-branch <branch>
+docket change repair-identity --id 412 --expect-revision <v> --adopt-pr-head --expect-pr 301 --expect-head <branch>
+docket change repair-identity --id 412 --expect-revision <v> --adopt-pr <pr-ref> --expect-branch <branch>
 ```
 
 ### Merge policy / branch protection
@@ -1373,7 +1382,7 @@ record a block against it. A token that does not match the receipt is refused be
 Never edit or delete a receipt by hand.
 
 ```sh
-docket finalize rebase  --id 412 --version <v> --head <sha>    # returns the attempt token
+docket finalize rebase  --id 412 --revision <v> --head <sha>    # returns the attempt token
 docket finalize publish --id 412 --attempt <token> --head <sha> --evidence evidence.json
 ```
 
@@ -1396,7 +1405,7 @@ merging.
 reviewing the pushed repair on the PR, re-run finalize. The retry clears the block and merges.
 
 ```sh
-docket finalize block --id 412 --version <v> --pr-number 301 --attempt <token> \
+docket finalize block --id 412 --revision <v> --pr-number 301 --attempt <token> \
   --reason repair-needs-signoff --head <repaired-sha> --input block-report.json
 ```
 
@@ -1421,7 +1430,7 @@ docket finalize resolver-reserve --id 412 --attempt <token>
 When a stack parent lands, finalize repoints its stacked children's PRs at the new base.
 
 ```sh
-docket finalize retarget-children --id 412 --version <v> --input children.json
+docket finalize retarget-children --id 412 --revision <v> --input children.json
 ```
 
 ### Sync integration
@@ -1981,7 +1990,7 @@ recommends it; with `true`, each maintenance sweep reclaims it back to `proposed
 mutation is opt-in. A claim with a branch is never reclaimed automatically.
 
 ```sh
-docket change reclaim --id 412 --version <v>   # the explicit, one-off reclaim
+docket change reclaim --id 412 --revision <v>   # the explicit, one-off reclaim
 ```
 
 ### Reserved type tokens `all` / `untyped`, and migrating to typed changes
@@ -2049,9 +2058,10 @@ docket schema --json | jq -c '.vocabularies.merge_dispositions'
 
 ### Compare-and-swap (CAS) / push-retry
 
-A **compare-and-swap** is a write that succeeds only if the record still matches the entity version
-you read. Docket pairs it with an exact-lease push to the metadata remote. **Push-retry** is the
-recovery when that race is lost: re-run `repository.prepare`, re-read the path and version, then retry.
+A **compare-and-swap** is a write that succeeds only if the record still matches the record
+revision you read. Docket pairs it with an exact-lease push to the metadata remote. **Push-retry** is
+the recovery when that race is lost: re-run `repository.prepare`, re-read the path and revision,
+then retry.
 
 **Used for:** letting several sessions and loops share one backlog without silent overwrites. A lost
 race returns `contended` and writes nothing. It is also why grooming needs no claim: the final-push
@@ -2059,7 +2069,7 @@ CAS already protects it.
 
 ```sh
 docket repository prepare --repo-dir . --json   # step 1 of every retry: re-sync
-docket status --json | jq -r '.changes[] | select(.id==412) | .version'   # step 2: fresh version
+docket status --json | jq -r '.changes[] | select(.id==412) | .revision'   # step 2: fresh revision
 ```
 
 ### Contended
@@ -2098,15 +2108,6 @@ docket status --json | jq '{summary, ready}'
 The closed set describing what an operation may touch: `read`, `local-write`, `metadata-write`,
 `external-write` (GitHub, pushes), `process-control`. A workflow stops if an operation's effects
 exceed what it is authorised to do.
-
-### Entity version
-
-The opaque revision token (a git blob object id) of any record a typed operation can mutate: a
-change, an ADR (`target.version`), a learning finding, or a linked spec (`spec_version`). Mutating
-requests pin it together with the record's `path`.
-
-**Used for:** compare-and-swap on every record type, not just changes. See *Change version* for the
-change-specific flag form.
 
 ### Finding / finding code / remedy
 
@@ -2303,7 +2304,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Capture modes: designed / rough stub / trivial / scan](#capture-modes-designed--rough-stub--trivial--scan)
 - [Change](#change)
 - [Change types](#change-types)
-- [Change version (--version)](#change-version---version)
+- [Change version / entity version](#revision---revision) — see Revision
 - [Claim / claim lease / reclaim](#claim--claim-lease--reclaim)
 - [Closed vocabulary (operation dispositions)](#closed-vocabulary-operation-dispositions)
 - [Close-out](#closeout--closeout-notes) — see Closeout / closeout notes
@@ -2340,7 +2341,6 @@ and `true` blocks every repository mutation until you remove it.
 - [Dummy mode / persona / "In plain terms"](#dummy-mode--persona--in-plain-terms)
 - [Effective auto-groomable](#auto-groom--auto-groomable) — see Auto-groom / auto-groomable
 - [Effects](#effects)
-- [Entity version](#entity-version)
 - [Escalation (NEEDS_ESCALATION)](#build-profile--escalation) — see Build profile / escalation
 - [Feature branch](#feature-branch)
 - [Final status](#change-lifecycle-and-statuses)
@@ -2432,6 +2432,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Resume dispositions](#resume-dispositions)
 - [Retarget children](#retarget-children)
 - [Review rung](#review-rung)
+- [Revision (--revision)](#revision---revision)
 - [review.min_fix_severity](#reviewmin_fix_severity)
 - [Run-context refusal (run-context-invalid / run-context-conflict)](#run-context-refusal-run-context-invalid--run-context-conflict)
 - [Run fence](#run-fence)
