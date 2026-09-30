@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/replace-opaque-docket-terms-with-clearer-names'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-30T18:08:11Z'
+reconciled: true
+claimed_at: '2026-09-30T18:09:55Z'
 ---
 
 ## Artifacts
@@ -58,3 +58,8 @@ Consumer repos re-run `docket install`. The change lands with no gate drive in f
 - Rewriting frozen build records, archived changes, specs, or Accepted ADRs other than ADR-0129's table.
 - Migrating persisted gate-drive records that carry a renamed halt cause.
 
+## Reconcile log
+
+### 2026-09-30
+
+Reconciled against origin/main 366827eb5 and origin/docket 686ad1e. Every wire token in ADR-0129 rows 67-73 is still present in maintained source (needs-brainstorm, identity-mismatch, unresolved-execution, repair-identity, pr-identity-mismatch, identity-drift, MergeConjuncts), and the retired Bash-era names of rows 85-86 still appear in prose. Related changes 0402, 0468, 0471, 0474 are merged; nothing else absorbed this work. Scope, spec and relations unchanged.
