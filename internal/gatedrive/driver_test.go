@@ -456,7 +456,7 @@ func TestPassFingerprintMismatchHalts(t *testing.T) {
 		t.Fatalf("a drifted pass must HALT, not %s", doc.Outcome)
 	}
 	if doc.Outcome == FAILED {
-		t.Fatalf("identity drift must never be reported as red")
+		t.Fatalf("a changed worktree must never be reported as red")
 	}
 	if doc.RawRunDir != "" {
 		t.Fatalf("a HALTED drive must not expose a raw run dir")
@@ -709,10 +709,10 @@ func TestDeathRelaunchRefusals(t *testing.T) {
 			wantCause: "deadline-expired",
 		},
 		{
-			name:      "identity mismatch",
+			name:      "worktree changed",
 			state:     process.StateSignaled,
 			driftGit:  true,
-			wantCause: "identity-mismatch",
+			wantCause: "worktree-changed",
 		},
 		{
 			name:      "former tree not proven gone",
@@ -988,7 +988,7 @@ func TestRelaunchCrashBetweenReserveAndLaunchRecovers(t *testing.T) {
 			name:         "unresolved replacement halts closed",
 			resolution:   &process.ReservationResolution{Disposition: "unresolved"},
 			wantOutcome:  HALTED,
-			wantCause:    "unresolved-execution",
+			wantCause:    "launch-unconfirmed",
 			wantLaunches: 0,
 			wantRelaunch: 0,
 			wantAttempt:  1,
@@ -1069,7 +1069,7 @@ func TestRelaunchCrashBetweenReserveAndLaunchRecovers(t *testing.T) {
 
 // TestRelaunchReservationNotRefundedOnUncertainty proves an uncertain reserved
 // replacement permanently consumes the drive's sole relaunch. Even if a later
-// probe would report clean absence, the terminal unresolved-execution outcome
+// probe would report clean absence, the terminal launch-unconfirmed outcome
 // remains authoritative and no new backend launch is permitted.
 func TestRelaunchReservationNotRefundedOnUncertainty(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
@@ -1099,7 +1099,7 @@ func TestRelaunchReservationNotRefundedOnUncertainty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first Advance: %v", err)
 	}
-	if first.Outcome != HALTED || first.Cause != "unresolved-execution" {
+	if first.Outcome != HALTED || first.Cause != "launch-unconfirmed" {
 		t.Fatalf("uncertain replacement must halt unresolved, got %s/%q", first.Outcome, first.Cause)
 	}
 	resolution = "never-launched"
@@ -1107,7 +1107,7 @@ func TestRelaunchReservationNotRefundedOnUncertainty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second Advance: %v", err)
 	}
-	if second.Outcome != HALTED || second.Cause != "unresolved-execution" {
+	if second.Outcome != HALTED || second.Cause != "launch-unconfirmed" {
 		t.Fatalf("reservation must not be refunded after uncertainty, got %s/%q", second.Outcome, second.Cause)
 	}
 	if proc.launchN != 0 || proc.resolveN != 1 {

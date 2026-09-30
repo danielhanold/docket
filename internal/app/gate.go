@@ -152,7 +152,7 @@ const rawGateRun = ""
 // launch first admits through the worktree execution slot (change 0375): one
 // canonical worktree carries at most one reserved-or-running top-level gate
 // execution across scoped, scopeless, and raw launches, so a second raw launch
-// into a busy worktree is REFUSED (worktree-busy / unresolved-execution) with a
+// into a busy worktree is REFUSED (worktree-busy / launch-unconfirmed) with a
 // safe incumbent locator and no process spawned — but only after the reserve's
 // finished-incumbent reconciliation (change 0446 spec §3) could not prove the
 // incumbent finished: a completed raw run nobody stopped, or a PASSED/FAILED drive
@@ -327,7 +327,7 @@ func admissionRefusalLegacy(err error) *gatedrive.LegacyHistorySummary {
 
 // mapAdmissionFailure classifies a worktree-admission rejection into a protocol
 // result and a bounded stable reason token. A typed ownership rejection surfaces
-// its kind verbatim (worktree-busy / unresolved-execution) as a blocked refusal; a
+// its kind verbatim (worktree-busy / launch-unconfirmed) as a blocked refusal; a
 // store error (unknown schema, corrupt record, IO) is an internal error. The kind
 // is the whole reason, so no argv, env, path, or token can leak.
 func mapAdmissionFailure(err error) (Result, string) {

@@ -96,7 +96,7 @@ start takes one; every scoped task-owned start still passes none.
 
 **A `worktree-busy` refusal is a blocking diagnostic, never a retry trigger.** One canonical
 worktree carries at most one running gate at a time. If `gate.drive.start` comes back refused with
-reason `worktree-busy` (or `unresolved-execution`), another gate is already live — or was left
+reason `worktree-busy` (or `launch-unconfirmed`), another gate is already live — or was left
 unresolved — in this worktree. That refusal is a **command failure**, not a `FAILED` suite result:
 it earns no repair attempt and no re-run. Never start a second gate in the same worktree and never
 loop on the start hoping the slot frees — return `BLOCKED` naming the reason and the incumbent drive

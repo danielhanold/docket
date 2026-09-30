@@ -132,7 +132,7 @@ func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, 
 	// worktree, change, task, phase — for each field the scope actually pins) must
 	// agree with the scope. A drift is fail-closed, never a transfer.
 	if !scopeIdentityMatch(scope, rec.RepoIdentity, rec.Branch, rec.WorktreePath, rec.ChangeID, rec.TaskID, rec.Phase) {
-		return d.haltDoc(resolvedID, "", rec, "identity-mismatch"), nil
+		return d.haltDoc(resolvedID, "", rec, "worktree-changed"), nil
 	}
 	// A drive that already carries an unclaimed handoff must be CLAIMED, not taken
 	// over — the child cooperated after all.

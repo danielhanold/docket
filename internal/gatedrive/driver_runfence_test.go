@@ -623,7 +623,7 @@ func TestRecoveredRelaunchValidatesRunBeforeClaim(t *testing.T) {
 // TestRelaunchLostLinkageRefuses proves a drive whose run linkage is LOST never
 // demotes to a standalone relaunch: a scopeless drive with an AdmissionToken whose
 // worktree slot now carries a DIFFERENT reservation token can no longer prove
-// whether it is run-backed, so its death-relaunch leg HALTs "unresolved-execution"
+// whether it is run-backed, so its death-relaunch leg HALTs "launch-unconfirmed"
 // without launching and without consulting the run launch gate.
 func TestRelaunchLostLinkageRefuses(t *testing.T) {
 	store := OpenStore(testsupport.TempDir(t))
@@ -665,8 +665,8 @@ func TestRelaunchLostLinkageRefuses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Advance: %v", err)
 	}
-	if doc.Outcome != HALTED || doc.Cause != "unresolved-execution" {
-		t.Fatalf("lost linkage = %s/%q, want HALTED/unresolved-execution", doc.Outcome, doc.Cause)
+	if doc.Outcome != HALTED || doc.Cause != "launch-unconfirmed" {
+		t.Fatalf("lost linkage = %s/%q, want HALTED/launch-unconfirmed", doc.Outcome, doc.Cause)
 	}
 	if proc.launchN != 0 {
 		t.Fatalf("lost linkage must launch nothing, proc.Launch called %d times", proc.launchN)

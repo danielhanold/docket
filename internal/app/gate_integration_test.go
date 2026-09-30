@@ -217,7 +217,7 @@ func waitGateRunTerminal(t *testing.T, runDir string) {
 // raw launch refused by the first-admission legacy inventory — a nonterminal
 // historical drive bound to THIS worktree — carries the drive's locator as its
 // Cause and the inventory summary whose finding names the matched worktree,
-// instead of a bare unresolved-execution with an empty cause. A second, unrelated
+// instead of a bare launch-unconfirmed with an empty cause. A second, unrelated
 // worktree of the same repository is not vetoed by that record.
 func TestIntegrationGateLifecycleGateLaunchLegacyInventoryRefusalNamesMatchedDrive(t *testing.T) {
 	requireRealGit(t)
@@ -238,8 +238,8 @@ func TestIntegrationGateLifecycleGateLaunchLegacyInventoryRefusalNamesMatchedDri
 		GateStop(res.RunDir, "test cleanup")
 		t.Fatalf("refused launch produced a run handle: %+v", res)
 	}
-	if res.Result != ResultBlocked || res.Reason != string(gatedrive.ErrUnresolvedExecution) {
-		t.Fatalf("result/reason = %s/%q, want blocked/unresolved-execution", res.Result, res.Reason)
+	if res.Result != ResultBlocked || res.Reason != string(gatedrive.ErrLaunchUnconfirmed) {
+		t.Fatalf("result/reason = %s/%q, want blocked/launch-unconfirmed", res.Result, res.Reason)
 	}
 	if res.Cause != "inventory-legacy-drive-"+id {
 		t.Fatalf("raw refusal cause = %q, want the matched drive locator", res.Cause)

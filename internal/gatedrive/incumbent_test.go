@@ -143,7 +143,7 @@ func rawIncumbent(t *testing.T, store *Store, worktree string) (token, runDir st
 func requireIncumbentRefusal(t *testing.T, err error, store *Store, worktree, token string, st admissionState) *OwnershipError {
 	t.Helper()
 	oe, ok := AsOwnershipError(err)
-	if !ok || (oe.Kind != ErrWorktreeBusy && oe.Kind != ErrUnresolvedExecution) {
+	if !ok || (oe.Kind != ErrWorktreeBusy && oe.Kind != ErrLaunchUnconfirmed) {
 		t.Fatalf("admit err = %v, want a worktree-busy/unresolved refusal", err)
 	}
 	if oe.Reconciliation == "" {

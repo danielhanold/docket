@@ -40,7 +40,7 @@ func TestDriveDocCarriesProtocolAndOutcome(t *testing.T) {
 // only bounded identity and a typed cause.
 func TestDriveDocRedactsSecrets(t *testing.T) {
 	// launch argv, env values, worktree diff, credential must never appear in the doc.
-	d := DriveDoc{ProtocolVersion: 1, Outcome: HALTED, Cause: "identity-mismatch"}
+	d := DriveDoc{ProtocolVersion: 1, Outcome: HALTED, Cause: "worktree-changed"}
 	b, err := json.Marshal(d)
 	if err != nil {
 		t.Fatal(err)

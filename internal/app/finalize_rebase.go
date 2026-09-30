@@ -2241,7 +2241,7 @@ func removeUnlaunchedGateRunRoot(runRoot string) (retained bool) {
 
 // mapDriveHaltCause maps a driver HALTED cause token onto the closed finalize
 // halt vocabulary. A deadline expiry is the running-at-budget analog; every other
-// fail-closed cause (identity drift, uncertain ownership, malformed/unreadable
+// fail-closed cause (a changed worktree, uncertain ownership, malformed/unreadable
 // state, an unadmitted death) is reported as unavailable — a human is needed. It
 // never fabricates a decidable pass/fail.
 func mapDriveHaltCause(cause string) string {

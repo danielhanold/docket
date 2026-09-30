@@ -1065,8 +1065,8 @@ docket gate history cleanup --repo-dir . --dry-run   # historical drives only â€
 ### Drive disposition: WAITING / PASSED / FAILED / HALTED
 
 The four outcomes of a `gate drive start` or `advance` call. `WAITING` means the drive is still live and this slice
-ended. `PASSED` and `FAILED` mean the suite finished green or red. `HALTED` means it cannot continue safely: identity
-drift, uncertain ownership, deadline expiry, bad state, or a process death.
+ended. `PASSED` and `FAILED` mean the suite finished green or red. `HALTED` means it cannot continue safely: a changed
+worktree, uncertain ownership, deadline expiry, bad state, or a process death.
 
 **Used for:** keying the next step on `.outcome`, never on an exit status or log text. Only `FAILED` feeds repair. Only
 `PASSED` exposes the run dir for evidence. `HALTED` stops automation and is never turned into a red suite.
@@ -1108,14 +1108,18 @@ docket gate recover --root <run-root>
 docket gate cleanup <run-dir>
 ```
 
-### Identity mismatch / identity drift
+### Worktree changed / certified input changed
 
-The state a gate checked no longer matches the state now in front of it. In a gate drive, a changed repository or
-process fingerprint is **identity drift**, and the drive halts. In finalize, an **identity mismatch** is a pull
-request whose pushed head no longer equals the branch finalize just rebased and retested.
+The state a gate checked no longer matches the state now in front of it. A gate drive halts
+`worktree-changed` when the worktree fingerprint (HEAD, index, status, live file bytes) moved
+since the drive started, or when a takeover finds a drive whose recorded branch, worktree or
+change is not the scope's. `evidence.recertify` refuses `certified-input-changed` when the PR
+head or the build command moved after the gate passed. In finalize, a pull request whose pushed
+head no longer equals the branch finalize just rebased and retested is refused `pr-head-mismatch`.
 
-**Used for:** refusing to certify or merge something that was not verified. It is a halt, never a red suite. Realign the
-pushed head (or undo the stray edit), then name the change id to run finalize again.
+**Used for:** refusing to certify or merge something that was not verified. It is a halt, never a
+red suite. Realign the pushed head (or undo the stray edit), then name the change id to run
+finalize again.
 
 ### Launch-then-observe / detached run
 
@@ -1189,13 +1193,13 @@ unavailable" are not verdicts; they end as budget halts.
 **Used for:** never reading a halt as a pass or a fail. The run tracker reports a halt with its own exit code. That code
 comes from the run's recorded state, not from how the gate found out the run stopped.
 
-### `worktree-busy` / `unresolved-execution`
+### `worktree-busy` / `launch-unconfirmed`
 
 The two reasons a gate start is refused at a worktree's [admission slot](#admission-slot). `worktree-busy` means another
-gate is live in that worktree. `unresolved-execution` means an earlier run ended without proven teardown.
+gate is live in that worktree. `launch-unconfirmed` means nothing proved whether an earlier launch happened.
 
 **Used for:** recognising a blocking diagnostic, which is neither a red suite nor a retry trigger. It charges no suite
-attempt. The fix is an operator act: let the incumbent finish, or stop it with `run.cancel`. An `unresolved-execution`
+attempt. The fix is an operator act: let the incumbent finish, or stop it with `run.cancel`. A `launch-unconfirmed`
 slot must be recovered or cancelled; restarting blind never clears it.
 
 ---
@@ -2372,7 +2376,6 @@ and `true` blocks every repository mutation until you remove it.
 - [Harness defaults sidecar (agents/harness-defaults.yml)](#harness-defaults-sidecar-agentsharness-defaultsyml)
 - [Health check / health code](#health-check--health-code)
 - [Id / slug](#id--slug)
-- [Identity mismatch / identity drift](#identity-mismatch--identity-drift)
 - [Identity repair (change repair-identity)](#identity-repair-change-repair-identity)
 - [Implementation context](#implementation-context)
 - [Implement-next / the drainer](#implement-next--the-drainer)
@@ -2469,4 +2472,5 @@ and `true` blocks every repository mutation until you remove it.
 - [Workflow role](#workflow-role)
 - [Workspace publish](#workspace-publish)
 - [Worktree / feature workspace](#worktree--feature-workspace)
-- [worktree-busy / unresolved-execution](#worktree-busy--unresolved-execution)
+- [Worktree changed / certified input changed](#worktree-changed--certified-input-changed)
+- [worktree-busy / launch-unconfirmed](#worktree-busy--launch-unconfirmed)

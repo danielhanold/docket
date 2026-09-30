@@ -386,7 +386,7 @@ func (s *Store) releaseProvenIncumbent(worktreeRoot, expectToken string, expectS
 }
 
 // isIncumbentRefusal reports whether err is a worktree-admission refusal decided on
-// an occupying incumbent (worktree-busy or unresolved-execution carrying the
+// an occupying incumbent (worktree-busy or launch-unconfirmed carrying the
 // incumbent snapshot) — the only refusals finished-incumbent reconciliation can
 // change. A stale-run-id fence, a legacy-inventory refusal (no incumbent: the slot
 // is absent), and every store fault are not.
@@ -395,7 +395,7 @@ func isIncumbentRefusal(err error) (*OwnershipError, bool) {
 	if !ok || oe.Incumbent == nil {
 		return nil, false
 	}
-	if oe.Kind != ErrWorktreeBusy && oe.Kind != ErrUnresolvedExecution {
+	if oe.Kind != ErrWorktreeBusy && oe.Kind != ErrLaunchUnconfirmed {
 		return nil, false
 	}
 	return oe, true

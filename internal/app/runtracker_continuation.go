@@ -144,7 +144,7 @@ func (s *gatedriveContinuationSeam) BindScopeChange(scopeID string, changeID int
 func (s *gatedriveContinuationSeam) TakeoverAndHandoff(scopeID, parentCap, driveID string) (string, bool, string, error) {
 	// Event-authorized takeover: on success the returned document's Generation is
 	// the fresh owner generation the parent now holds. A HALTED document is unsafe
-	// ownership (ambiguity, identity drift, expired deadline, outstanding handoff),
+	// ownership (ambiguity, a changed worktree, expired deadline, outstanding handoff),
 	// never a launch or a red result.
 	doc, err := s.driver.Takeover(scopeID, parentCap, driveID)
 	if err != nil {

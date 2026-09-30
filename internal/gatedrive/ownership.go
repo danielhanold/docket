@@ -124,12 +124,13 @@ const (
 	// top-level Docket gate execution per worktree"). It confers no admission and
 	// never stops the incumbent.
 	ErrWorktreeBusy OwnershipErrorKind = "worktree-busy"
-	// ErrUnresolvedExecution: a worktree execution slot is in the unresolved state —
-	// a launch whose outcome could not be established (a lost launch response, an
-	// interrupted release). The ambiguous state fails closed: the slot blocks a new
+	// ErrLaunchUnconfirmed: a worktree execution slot is in the unresolved state —
+	// nothing proved whether a launch happened: a lost launch response, or a crash
+	// between reserving the worktree and attaching the process (or an interrupted
+	// release). The ambiguous state fails closed: the slot blocks a new
 	// admission until recovery resolves it, never a blind re-reservation (spec
 	// "Ambiguous launch or persistence failures fail closed").
-	ErrUnresolvedExecution OwnershipErrorKind = "unresolved-execution"
+	ErrLaunchUnconfirmed OwnershipErrorKind = "launch-unconfirmed"
 	// ErrStaleRunID: a worktree execution slot is owned by a run (an
 	// in-flight workflow implementation whose id the slot records) that the incoming
 	// reservation does not carry — an omitted run, or a different one. Omission
@@ -175,7 +176,7 @@ type OwnershipError struct {
 	Legacy *LegacyHistorySummary
 	// Incumbent is the credential-free projection of the execution occupying a
 	// worktree admission slot, populated ONLY on the worktree-admission refusal
-	// legs (worktree-busy, unresolved-execution, stale-run-id) from the exact
+	// legs (worktree-busy, launch-unconfirmed, stale-run-id) from the exact
 	// record read under the slot's flock. Nil for every other OwnershipError.
 	// Kind/Op/Legacy are unchanged by its presence.
 	Incumbent *IncumbentSnapshot

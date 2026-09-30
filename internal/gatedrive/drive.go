@@ -73,7 +73,7 @@ const (
 	// deadline expiry, identity uncertainty, and handoff mismatch are NEVER
 	// converted into FAILED.
 	FAILED Outcome = "FAILED"
-	// HALTED: a fail-closed terminal — identity drift, uncertain ownership,
+	// HALTED: a fail-closed terminal — a changed worktree, uncertain ownership,
 	// deadline expiry, malformed state, or an unadmitted death. Never red.
 	HALTED Outcome = "HALTED"
 )
