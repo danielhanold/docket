@@ -22,7 +22,7 @@ branch: 'refactor/replace-opaque-docket-terms-with-clearer-names'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-30T20:20:33Z'
+claimed_at: '2026-09-30T22:05:17Z'
 ---
 
 ## Artifacts
