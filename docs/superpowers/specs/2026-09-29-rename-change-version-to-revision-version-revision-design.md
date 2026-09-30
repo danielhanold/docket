@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0472 — Rename change version to revision (--version → --revision)](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0472-rename-change-version-to-revision-version-revision.md)**
+> ↩ **[Change 0472 — Rename change version to revision (--version → --revision)](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-30-0472-rename-change-version-to-revision-version-revision.md)**
 <!-- docket:backlink:end -->
 
 # Revision rename (ADR-0129 family (b)) — design

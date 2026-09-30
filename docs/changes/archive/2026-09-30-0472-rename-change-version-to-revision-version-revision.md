@@ -2,7 +2,7 @@
 id: 472
 slug: 'rename-change-version-to-revision-version-revision'
 title: 'Rename change version to revision (--version → --revision)'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -22,7 +22,7 @@ branch: 'refactor/rename-change-version-to-revision-version-revision'
 pr: 'https://github.com/danielhanold/docket/pull/354'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-30T06:12:56Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-30T06:12:56Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-29-rename-change-version-to-revision-version-revision-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-29-rename-change-version-to-revision-version-revision-design.md) |
-| Plan | [2026-09-30-0472-rename-change-version-to-revision-version-revision.md](https://github.com/danielhanold/docket/blob/refactor/rename-change-version-to-revision-version-revision/docs/superpowers/plans/2026-09-30-0472-rename-change-version-to-revision-version-revision.md) |
-| Results | [2026-09-30-rename-change-version-to-revision-version-revision-results.md](https://github.com/danielhanold/docket/blob/refactor/rename-change-version-to-revision-version-revision/docs/results/2026-09-30-rename-change-version-to-revision-version-revision-results.md) |
+| Plan | [2026-09-30-0472-rename-change-version-to-revision-version-revision.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-30-0472-rename-change-version-to-revision-version-revision.md) |
+| Results | [2026-09-30-rename-change-version-to-revision-version-revision-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-30-rename-change-version-to-revision-version-revision-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
