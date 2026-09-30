@@ -6,8 +6,9 @@ package config
 // the 17x4 agent table, which the registry deliberately does not carry because
 // it is a table rather than a cell. The agent table is frozen against
 // `agents/harness-defaults.yml` at commit a4d72613 (change 0324, which added the
-// seventeenth agent docket-plan-writer), and its copy under
-// `testdata/repositories/v0.9.3/` is the parity oracle.
+// seventeenth agent docket-plan-writer), and its byte-exact copy under
+// `testdata/repositories/v0.9.9/` (re-cut comment-only by change 0473) is the
+// parity oracle.
 
 // builtinProvenance is the provenance every default carries.
 func builtinProvenance() Provenance {
