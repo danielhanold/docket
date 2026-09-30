@@ -62,9 +62,9 @@ This ADR records the vocabulary settled by change 0468. It is the single referen
 10. **No human-readable old→new mapping in the glossary.** The mapping lives in (i) this change's ADR, as the decision record, and (ii) a code-level **retired-vocabulary table** in `internal/repoguard`. That table maps each retired wire token to its replacement, drives the family absence seals, and names the replacement in every seal failure. The first family to land creates the table, and each later family appends its rows. The umbrella does not create an empty table, because a seal over an empty list cannot be mutation-tested.
 11. **Retired features go to an "Obsolete terms" section of the glossary**, separate from renames: runner delegation, the runner shim / `runners` block, `runtime.bash`, terminal publish. The config-decode warnings for those keys stay.
 
-### Rename table (rows 1-66, plus 28a, 38a-38h, 40a, 41a-41b, 43a and 44a)
+### Rename table (rows 1-66, plus 28a, 38a-38h, 40a, 41a-41b, 43a, 44a and 47a)
 
-Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45, 40a, 41a-41b, 43a and 44a -> change 0472; rows 46-52 -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
+Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45, 40a, 41a-41b, 43a and 44a -> change 0472; rows 46-52 and 47a -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
 
 Kinds:
 - **concept**: a word in docs, skills and agent text.
@@ -149,16 +149,17 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 
 "Revision" names the exact id of a pinned state: a record revision is a git blob id, a PR revision is a hash over the PR's mutable snapshot, and the existing `*_revision` keys (`committed_revision`, `metadata_revision`, `*_branch_revision`, the run tracker's `revision` / `bound_revision`) are commit ids. They share the word in that one sense and are not renamed.
 
-### Family (c) — tiers (change 0473; prose and Go identifiers, no wire tokens)
+### Family (c) — tiers (change 0473; prose and test strings only: no wire tokens, no Go identifiers)
 
 | # | Kind | Old | New |
 |---|---|---|---|
 | 46 | concept | build profile (economy / standard / premium / max) | build tier (the tier names are unchanged) |
 | 47 | concept | review rung (lean / standard / deep) | review tier (the tier names are unchanged) |
+| 47a | concept | finding severity called "tiers": "severity-tiered findings", "the tiers a reviewer assigns", "tiered by severity" | severity levels: "severity-ranked findings", "the severity levels a reviewer assigns", "ranked by severity" |
 | 48 | concept | dispatch tiers A / B / C and the carve-out | dispatch fallbacks, rows 49–52 |
 | 49 | concept | Tier A: deterministic (the `docket-status` and `docket-adr` dispatches) | `inline`: run inline as a first-class equivalent path |
 | 50 | concept | Tier B: adversarial (the `docket-auto-groom-critic` gate) | `abstain` |
-| 51 | concept | Tier C: discipline (plan writer, build, review, in-branch fix workers) | `auto-or-halt`: inline only when the role is explicitly `auto`, otherwise abort-and-report |
+| 51 | concept | Tier C: discipline (plan writer, build, review, in-branch fix workers), and its posture name "authorized-or-halt" | `auto-or-halt`: inline only when the role is explicitly `auto`, otherwise abort-and-report |
 | 52 | concept | carve-out (`docket-rebase-resolver`, `docket-integration-repair`) | `no-fallback`: abort-and-report, inline substitution forbidden |
 
 Agent names (`docket-build-economy` … `docket-review-deep`) are unchanged.
@@ -193,6 +194,7 @@ Agent names (`docket-build-economy` … `docket-review-deep`) are unchanged.
 - Config keys, including `finalize.gate`, `build.gate`, `terminal_publish`, `gate_observation_budget` (Decision 9).
 - Process-level "terminal" (Decision 6).
 - Agent names, the tier names inside each tier, frontmatter fields.
+- "tier" in its generic senses (model and effort cost tiers, the harness validation Tier 1/2/3, the learnings "tiering criterion"), the "ladder" metaphor for the ordered tiers, and "profile" in its unrelated senses (verification profile, remote-call profile, budget profile, codex's `--profile`).
 - `cmd/releasepkg --source-epoch`, which is a real Unix epoch (`SOURCE_DATE_EPOCH`).
 - `gate-failed` (the suite gate failed) and the `gate-scope` run participant kind (a gate-drive scope): both use "gate" in the checkpoint sense.
 - The committed claim-receipt key `gate_context_hash` and the claim idempotency digest payload (Decision 3), including the payload's `version` key.
