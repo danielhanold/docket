@@ -1,7 +1,7 @@
 ## docket-review-deep — dispatch only
 
 Trigger only from the `docket-implement-next` controller at its review step, when it has selected
-the DEEP reviewer rung. Never trigger this agent from a human request directly.
+the DEEP review tier. Never trigger this agent from a human request directly.
 
 Dispatch to the subagent `docket-review-deep`, foreground, using this mode's subagent-launch
 mechanism. The prompt must carry the branch and its base ref, the feature worktree the branch is
@@ -15,4 +15,4 @@ test suite. Do NOT dispatch a second reviewer afterwards.
 One concrete call, as an illustration of the shape — not the contract:
 
     Task(subagent_type: "docket-review-deep", run_in_background: false,
-         prompt: "Review branch feat/<slug> against origin/main. Rung: deep (build reached one of its two strongest profiles, or the diff crossed the size threshold). Evidence: <block>. <context>")
+         prompt: "Review branch feat/<slug> against origin/main. Tier: deep (build reached one of its two strongest tiers, or the diff crossed the size threshold). Evidence: <block>. <context>")

@@ -1,7 +1,7 @@
 ## docket-review-lean — dispatch only
 
 Trigger only from the `docket-implement-next` controller at its review step, when it has selected
-the LEAN reviewer rung. Never trigger this agent from a human request directly.
+the LEAN review tier. Never trigger this agent from a human request directly.
 
 Dispatch to the subagent `docket-review-lean`, foreground, using this mode's subagent-launch
 mechanism. The prompt must carry the branch and its base ref, the feature worktree the branch is
@@ -15,4 +15,4 @@ test suite. Do NOT dispatch a second reviewer afterwards.
 One concrete call, as an illustration of the shape — not the contract:
 
     Task(subagent_type: "docket-review-lean", run_in_background: false,
-         prompt: "Review branch feat/<slug> against origin/main. Rung: lean (build stayed on its cheapest profile). Evidence: <block>. <context>")
+         prompt: "Review branch feat/<slug> against origin/main. Tier: lean (build stayed on its cheapest tier). Evidence: <block>. <context>")

@@ -205,7 +205,7 @@ func TestSkillHandoffSites(t *testing.T) {
 		if !skillFramedRe.MatchString(framed) {
 			t.Errorf("framing ban missed the 0351 defect line")
 		}
-		if skillFramedRe.MatchString("Dispatch the selected rung wrapper by name, foreground") {
+		if skillFramedRe.MatchString("Dispatch the selected tier wrapper by name, foreground") {
 			t.Errorf("framing ban wrongly caught genuine nested-dispatch prose")
 		}
 	})
