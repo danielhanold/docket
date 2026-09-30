@@ -56,7 +56,7 @@ const (
 	childOutcomeAlready        = "already"          // already at the effective base; no edit issued
 	childOutcomeContended      = "contended"        // unauthorized-open, ambiguous head, or revision drift
 	childOutcomeUnknown        = "unknown"          // a probe could not establish the truth
-	childOutcomeSkippedDone    = "skipped-terminal" // stacked-merged/done/killed: does not block, not edited
+	childOutcomeSkippedDone    = "skipped-final"    // stacked-merged/done/killed: does not block, not edited; also emitted for stacked-merged children (the child no longer needs its PR retargeted)
 	childOutcomeSkippedNotOpen = "skipped-not-open" // non-final child with no open PR: does not block
 )
 

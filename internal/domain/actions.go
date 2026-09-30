@@ -348,7 +348,7 @@ func KillStackParent(s Snapshot, id ChangeID) (StackKillResult, *PolicyFailure) 
 	result := StackKillResult{Parent: killed}
 	for _, descendantID := range StackDescendantsParentFirst(s, id) {
 		descendant, out := s.Change(descendantID)
-		if out != LookupFound || descendant.Status().Terminal() {
+		if out != LookupFound || descendant.Status().Final() {
 			continue
 		}
 		if descendant.Status() == StatusBlocked {

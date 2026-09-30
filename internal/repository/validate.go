@@ -41,9 +41,9 @@ const (
 	// CodeChangeArchiveDateInvalid marks an archived record whose filename
 	// carries no usable YYYY-MM-DD prefix.
 	CodeChangeArchiveDateInvalid = "change-archive-date-invalid"
-	// CodeChangeTerminalClaimStamp marks an archived record that still
+	// CodeChangeFinalClaimStamp marks an archived record that still
 	// carries a claim stamp — a lease nothing can ever release.
-	CodeChangeTerminalClaimStamp = "change-terminal-claim-stamp"
+	CodeChangeFinalClaimStamp = "change-final-claim-stamp"
 	// CodeChangeStateIncoherent marks a lifecycle state missing a fact the
 	// state itself guarantees. Field names the missing fact.
 	CodeChangeStateIncoherent = "change-state-incoherent"
@@ -224,15 +224,15 @@ func changeIdentity(c domain.Change) []domain.Finding {
 func changePlacement(c domain.Change) []domain.Finding {
 	ref := changeRef(c)
 	var findings []domain.Finding
-	terminal := c.Status().Terminal()
+	final := c.Status().Final()
 	switch c.Location() {
 	case LocationActive:
-		if terminal {
+		if final {
 			findings = append(findings, finding(CodeChangePlacementInvalid, domain.SeverityError, ref, "status",
 				map[string]string{"placement": string(LocationActive), "status": string(c.Status())}))
 		}
 	case LocationArchive:
-		if c.Status() != "" && !terminal {
+		if c.Status() != "" && !final {
 			findings = append(findings, finding(CodeChangePlacementInvalid, domain.SeverityError, ref, "status",
 				map[string]string{"placement": string(LocationArchive), "status": string(c.Status())}))
 		}
@@ -240,8 +240,8 @@ func changePlacement(c domain.Change) []domain.Finding {
 			findings = append(findings, finding(CodeChangeArchiveDateInvalid, domain.SeverityError, ref, "path",
 				map[string]string{"base": path.Base(c.Path())}))
 		}
-		if terminal && c.ClaimedAt().State == domain.FieldPresent {
-			findings = append(findings, finding(CodeChangeTerminalClaimStamp, domain.SeverityError, ref, "claimed_at",
+		if final && c.ClaimedAt().State == domain.FieldPresent {
+			findings = append(findings, finding(CodeChangeFinalClaimStamp, domain.SeverityError, ref, "claimed_at",
 				map[string]string{"raw": c.ClaimedAt().Raw, "status": string(c.Status())}))
 		}
 	}

@@ -233,10 +233,10 @@ func TestIntegrationFinalizeCleanupNeverTouchesForeignTrees(t *testing.T) {
 	}
 }
 
-func TestIntegrationFinalizeCleanupOnlyAfterTerminal(t *testing.T) {
+func TestIntegrationFinalizeCleanupOnlyAfterFinal(t *testing.T) {
 	requireRealGit(t)
 
-	t.Run("non-terminal-refused", func(t *testing.T) {
+	t.Run("non-final-refused", func(t *testing.T) {
 		f := setupCloseoutFixture(t, planRepoModeDocket())
 		// The record is implemented (non-final), no aborted rebase scratch.
 		gh := f.mergedCleanupFake(f.head, strings.Repeat("d", 40))

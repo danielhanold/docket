@@ -96,7 +96,7 @@ func backlinkParseFinding(rel string, err error) domain.Finding {
 }
 
 // backlinkLegDetail renders the typed cause of a backlink leg that did not
-// land, so the terminal-backlink-pending finding is self-diagnosing. A failed
+// land, so the final-backlink-pending finding is self-diagnosing. A failed
 // disposition renders the typed *transaction.Failure (stage/kind: detail); a
 // refused disposition renders each refusal finding's code and path — after the
 // scoped loader, the only refusals left are in-scope artifact-level ones. Any

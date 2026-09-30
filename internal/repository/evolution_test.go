@@ -186,16 +186,16 @@ func TestValidateEvolutionRejectsEveryFrozenByteChange(t *testing.T) {
 	}
 }
 
-func TestValidateEvolutionRejectsUpdateAfterTerminalStatus(t *testing.T) {
+func TestValidateEvolutionRejectsUpdateAfterFinalStatus(t *testing.T) {
 	for _, status := range []string{"Superseded by ADR-0099", "Reversed by ADR-0099", "Deprecated"} {
 		t.Run(status, func(t *testing.T) {
-			terminal := minimalADR(7, "a-decision", status)
+			final := minimalADR(7, "a-decision", status)
 			in := evolutionInput(t,
-				map[string]string{adrPath(7, "a-decision"): terminal},
-				map[string]string{adrPath(7, "a-decision"): terminal + "\n## Update — 2026-08-14\n\nLate.\n"})
+				map[string]string{adrPath(7, "a-decision"): final},
+				map[string]string{adrPath(7, "a-decision"): final + "\n## Update — 2026-08-14\n\nLate.\n"})
 			got := ValidateEvolution(in)
-			if len(got) != 1 || got[0].Code != CodeADRUpdateAfterTerminal {
-				t.Fatalf("want one %s, got %v", CodeADRUpdateAfterTerminal, codesOf(got))
+			if len(got) != 1 || got[0].Code != CodeADRUpdateAfterFinal {
+				t.Fatalf("want one %s, got %v", CodeADRUpdateAfterFinal, codesOf(got))
 			}
 			if got[0].Severity != domain.SeverityError {
 				t.Fatalf("severity = %q, want error", got[0].Severity)
@@ -209,8 +209,8 @@ func TestValidateEvolutionRejectsIllegalStatusFlips(t *testing.T) {
 		name          string
 		before, after string
 	}{
-		{"terminal reopened", "Superseded by ADR-0099", "Accepted"},
-		{"terminal re-aimed", "Superseded by ADR-0099", "Superseded by ADR-0100"},
+		{"final reopened", "Superseded by ADR-0099", "Accepted"},
+		{"final re-aimed", "Superseded by ADR-0099", "Superseded by ADR-0100"},
 		{"accepted respelled", "Accepted", "'Accepted'"},
 		{"flipped to an unparseable status", "Accepted", "Retired"},
 	}

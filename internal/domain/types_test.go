@@ -31,7 +31,7 @@ func TestParseStatus(t *testing.T) {
 	}
 }
 
-func TestStatusTerminal(t *testing.T) {
+func TestStatusFinal(t *testing.T) {
 	tests := []struct {
 		in   Status
 		want bool
@@ -46,8 +46,8 @@ func TestStatusTerminal(t *testing.T) {
 		{StatusStackedMerged, false},
 	}
 	for _, tc := range tests {
-		if got := tc.in.Terminal(); got != tc.want {
-			t.Errorf("%q.Terminal() = %v; want %v", tc.in, got, tc.want)
+		if got := tc.in.Final(); got != tc.want {
+			t.Errorf("%q.Final() = %v; want %v", tc.in, got, tc.want)
 		}
 	}
 }

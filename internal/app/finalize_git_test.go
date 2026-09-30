@@ -201,7 +201,7 @@ func matrixCloseout(t *testing.T, m planRepoMode) {
 	if m.name == "docket" {
 		intBranch = "main"
 		intTip = originTip(t, f.repo.origin, intBranch)
-		// No terminal-backlink-pending finding: the integration leg landed.
+		// No final-backlink-pending finding: the integration leg landed.
 		for _, fd := range first.Findings {
 			if fd.Code == ReasonCloseoutBacklinkPending {
 				t.Fatalf("the docket-mode backlink leg did not land: %+v", fd)

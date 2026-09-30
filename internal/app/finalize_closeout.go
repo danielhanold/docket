@@ -65,7 +65,7 @@ import (
 // under the integration ref's exact lease. That second leg is generated-link maintenance,
 // not terminal publishing: it copies no metadata record and edits no authored
 // bytes. A failed or contended second leg leaves the change truthfully `done` and
-// emits a typed terminal-backlink-pending finding; its idempotency is keyed on the
+// emits a typed final-backlink-pending finding; its idempotency is keyed on the
 // remote block bytes (a block already pointing at the archive path is a no-op).
 
 // OperationFinalizeCloseout is the operation key the metadata closeout
@@ -145,11 +145,11 @@ const (
 	// ReasonCloseoutBacklinkPending: the metadata transaction landed (the change is
 	// done) but the follow-up integration-ref backlink leg did not; a retryable
 	// health/maintenance finding.
-	ReasonCloseoutBacklinkPending = "terminal-backlink-pending"
+	ReasonCloseoutBacklinkPending = "final-backlink-pending"
 	// ReasonCloseoutNotesFrozen: the change is already final and the request
 	// carries notes that differ from the archived record; refused — an archived
 	// record is never rewritten.
-	ReasonCloseoutNotesFrozen = "terminal-notes-frozen"
+	ReasonCloseoutNotesFrozen = "final-notes-frozen"
 	// ReasonCloseoutStackedUnpreserved: the child's merge result is not preserved
 	// at the parent's freshly pinned remote head; a historical PR destination is
 	// not evidence the parent currently carries the merge.
@@ -165,7 +165,7 @@ var closeoutBlockedHeadingSet = []string{finalizeBlockedSectionHeading}
 // names identity, the closed disposition, the root archive path and any carried
 // descendant ids on a terminal archive, and — on a refusal — a stable reason and
 // message. Findings carries validation diagnostics and the retryable
-// terminal-backlink-pending finding. It leaks no authored artifact bytes.
+// final-backlink-pending finding. It leaks no authored artifact bytes.
 type CloseoutResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
@@ -273,7 +273,7 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 		// Replay is proven against the archived record's own bytes: the writer is
 		// the reader. Empty notes replay any archived record; identical notes are a
 		// byte-level no-op; different notes cannot rewrite a frozen archived record.
-		if match, err := closeoutNotesMatchTerminal(cc.body, notes); err != nil {
+		if match, err := closeoutNotesMatchArchived(cc.body, notes); err != nil {
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen, err.Error(), id)
 		} else if !match {
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen,
@@ -316,7 +316,7 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 	// A stacked change whose destination is its live parent's branch takes the
 	// in-place stacked-merged path.
 	parent, pout := domain.StackParent(cc.snap, cc.change)
-	if pout == domain.LookupFound && !parent.Status().Terminal() {
+	if pout == domain.LookupFound && !parent.Status().Final() {
 		// Read the PARENT's own recorded branch (spec: "Stack parent and child
 		// operations use each record's branch independently"), never a slug-derived
 		// name. A live parent with no usable recorded branch cannot anchor the
@@ -335,12 +335,12 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 		fmt.Sprintf("change %04d merged into %q, which is neither the integration branch nor a live parent branch", id, facts.BaseRef), id)
 }
 
-// closeoutNotesMatchTerminal reports whether the archived record already
+// closeoutNotesMatchArchived reports whether the archived record already
 // carries exactly the promise this request makes: splicing the request's notes
 // into the terminal bytes is a byte-level no-op. Empty notes match any
 // archived record (the pre-notes replay). The comparison uses the same splice
 // that writes, so reader and writer can never disagree.
-func closeoutNotesMatchTerminal(body []byte, notes CloseoutNotes) (bool, error) {
+func closeoutNotesMatchArchived(body []byte, notes CloseoutNotes) (bool, error) {
 	if notes.Empty() {
 		return true, nil
 	}
@@ -736,7 +736,7 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 	if cc.change.Status() == domain.StatusStackedMerged {
 		// Replay against the terminal in-place record's own bytes: identical notes
 		// (or none) are a byte-level no-op; different notes cannot rewrite it.
-		if match, err := closeoutNotesMatchTerminal(cc.body, notes); err != nil {
+		if match, err := closeoutNotesMatchArchived(cc.body, notes); err != nil {
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen, err.Error(), id)
 		} else if !match {
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen,
@@ -851,7 +851,7 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 }
 
 // runCloseoutBacklinkLeg retargets the merged plan/results backlinks on the
-// integration ref in docket mode. It returns a terminal-backlink-pending finding
+// integration ref in docket mode. It returns a final-backlink-pending finding
 // when the leg did not land — the change stays truthfully done and the sweep
 // retries the leg — or nil when the leg landed (or had nothing to do).
 func runCloseoutBacklinkLeg(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, targets []closeoutTarget, archiveDate string) *StatusFinding {
@@ -1258,7 +1258,7 @@ func (o closeoutBacklinkOp) Plan(ctx context.Context, st transaction.AttemptStat
 	}
 	return transaction.MutationPlan{
 		Files:         files,
-		CommitSubject: fmt.Sprintf("change %04d terminal backlinks retargeted to archive", o.rootID),
+		CommitSubject: fmt.Sprintf("change %04d final backlinks retargeted to archive", o.rootID),
 		Receipt:       receipt,
 	}, transaction.OperationResult{}, nil
 }

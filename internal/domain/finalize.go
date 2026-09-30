@@ -117,7 +117,7 @@ func SelectFinalizeQueue(s Snapshot, facts map[ChangeID]PRFacts, blocked map[Cha
 		if len(allow) > 0 && !allow[c.ID()] {
 			continue
 		}
-		if c.Status().Terminal() {
+		if c.Status().Final() {
 			continue
 		}
 		if !hasPRRef(c) {

@@ -29,7 +29,7 @@ func TestIntegrationFinalizeCloseoutBacklinkLegDocketMode(t *testing.T) {
 	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
 		t.Fatalf("closeout = %q disp %q (reason %q)", res.Result, res.Disposition, res.Reason)
 	}
-	// No terminal-backlink-pending finding: the leg landed.
+	// No final-backlink-pending finding: the leg landed.
 	for _, fd := range res.Findings {
 		if fd.Code == ReasonCloseoutBacklinkPending {
 			t.Fatalf("the backlink leg did not land: %+v", fd)
@@ -116,7 +116,7 @@ func TestIntegrationFinalizeCloseoutBacklinkLegIgnoresUnrelatedCorpusErrors(t *t
 // TestCloseoutBacklinkPendingFindingNamesTheCause is the 0337 diagnosability
 // proof (spec D): when the leg still cannot land — here an IN-SCOPE failure,
 // the targeted plan artifact's own bytes fail document.Parse — the
-// terminal-backlink-pending finding carries the typed cause (the offending
+// final-backlink-pending finding carries the typed cause (the offending
 // artifact path), never a bare coarse token. The change itself still closes
 // out done+archived: the leg stays best-effort.
 func TestIntegrationFinalizeCloseoutBacklinkPendingFindingNamesTheCause(t *testing.T) {
@@ -302,7 +302,7 @@ func TestIntegrationFinalizeCloseoutNotesLandWithArchive(t *testing.T) {
 
 // TestCloseoutNotesReplayAndFrozen: an identical-notes retry replays as a
 // no-op with no second commit; a different-notes retry is refused with
-// terminal-notes-frozen and moves nothing.
+// final-notes-frozen and moves nothing.
 func TestIntegrationFinalizeCloseoutNotesReplayAndFrozen(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]

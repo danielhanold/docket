@@ -82,7 +82,7 @@ const (
 // The stable machine reasons a cleanup result reports. Message text is
 // explanatory and must not be parsed.
 const (
-	ReasonCleanupNotTerminal      = "not-terminal"
+	ReasonCleanupNotFinal         = "not-final"
 	ReasonCleanupNotFinalizable   = "not-finalizable"
 	ReasonCleanupRepoUnresolved   = "repository-unresolved"
 	ReasonCleanupProbeUnknown     = "merge-probe-unknown"
@@ -102,7 +102,7 @@ const (
 	ReasonCleanupRemoteProbe      = "remote-ref-probe-failed"
 	ReasonCleanupRemoteMoved      = "remote-ref-moved"
 	ReasonCleanupLeaseRejected    = "remote-lease-rejected"
-	ReasonCleanupBacklinkPending  = "terminal-backlink-pending"
+	ReasonCleanupBacklinkPending  = "final-backlink-pending"
 	ReasonCleanupReceiptRead      = "receipt-read-failed"
 	// gate cleanup reasons
 	ReasonGateCleanupUnownable = "run-unownable"
@@ -198,7 +198,7 @@ func FinalizeCleanup(ctx context.Context, deps FinalizeDeps, repoDir string, id 
 		// Retained until the stack root reaches the integration branch: the
 		// workspace and both branches carry the stacked code the root still needs.
 		return newCleanupResult(OperationFinalizeCleanup, ResultNoOp, CleanupOpResult{
-			ID: id, Disposition: CleanupDispRetained, Reason: ReasonCleanupNotTerminal,
+			ID: id, Disposition: CleanupDispRetained, Reason: ReasonCleanupNotFinal,
 			Message: "change is stacked-merged; its workspace and branches are retained until its root closes",
 		})
 	default:
@@ -207,8 +207,8 @@ func FinalizeCleanup(ctx context.Context, deps FinalizeDeps, repoDir string, id 
 		if res, handled := finalizeCleanupAbortedRebase(ctx, deps, cc); handled {
 			return res
 		}
-		return cleanupRefusal(ResultInvalidState, CleanupDispPending, ReasonCleanupNotTerminal,
-			"change is not terminal and carries no aborted-rebase scratch to clear; nothing to clean", id)
+		return cleanupRefusal(ResultInvalidState, CleanupDispPending, ReasonCleanupNotFinal,
+			"change is not final and carries no aborted-rebase scratch to clear; nothing to clean", id)
 	}
 }
 
@@ -341,7 +341,7 @@ func finalizeCleanupResult(id int, disp string, removed []string, findings []Sta
 // idempotently. In the normal flow (closeout already retargeted the blocks) it
 // is a clean no-op; when closeout left the leg pending it lands the exact
 // generated-only patch. A failed/contended leg is a retryable
-// terminal-backlink-pending finding — the change stays truthfully done.
+// final-backlink-pending finding — the change stays truthfully done.
 func finalizeCleanupBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, facts githubcli.MergedFacts) *StatusFinding {
 	archiveDate, ok := archiveDateFromMerge(facts.MergedAtUTC)
 	if !ok {
@@ -352,7 +352,7 @@ func finalizeCleanupBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc *c
 	}}
 	backlinkTargets, err := closeoutBacklinkTargets(cc, targets)
 	if err != nil {
-		f := cleanupWarning(ReasonCleanupBacklinkPending, "the terminal backlink interior could not be rendered; retry cleanup")
+		f := cleanupWarning(ReasonCleanupBacklinkPending, "the final backlink interior could not be rendered; retry cleanup")
 		return &f
 	}
 	if len(backlinkTargets) == 0 {
@@ -423,7 +423,7 @@ func (o cleanupBacklinkOp) Plan(ctx context.Context, st transaction.AttemptState
 			files = append(files, transaction.FileMutation{Path: gitcli.RepoPath(p), Kind: transaction.MutationReplace, Bytes: updated})
 		}
 	}
-	subject := "change " + itoa(o.rootID) + " terminal backlinks verified (cleanup)"
+	subject := "change " + itoa(o.rootID) + " final backlinks verified (cleanup)"
 	receipt, err := json.Marshal(closeoutBacklinkReceipt{ArchiveDate: o.archiveDate, Op: OperationFinalizeCloseoutBacklink, Root: o.rootID})
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, err
@@ -654,7 +654,7 @@ func finalizeCleanupAbortedRebase(ctx context.Context, deps FinalizeDeps, cc *cl
 	// conflicted rebase is live work — retain, never adopt.
 	if wsPath := finalizeCleanupWorkspacePath(ctx, deps, cc); wsPath != "" {
 		if st, serr := deps.Planning.Client.RebaseState(ctx, wsPath); serr == nil && st.Disposition != gitcli.RebaseUnchanged {
-			return cleanupRefusal(ResultBlocked, CleanupDispPending, ReasonCleanupNotTerminal,
+			return cleanupRefusal(ResultBlocked, CleanupDispPending, ReasonCleanupNotFinal,
 				"a rebase is in progress in the feature workspace; the owned scratch is retained", id), true
 		}
 	}

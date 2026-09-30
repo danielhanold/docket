@@ -181,7 +181,24 @@ func (f *closeoutFixture) remoteBranchPresent(t *testing.T) bool {
 	return rr.State == gitcli.RemoteRefFound
 }
 
-// --- TestFinalizeCleanupOnlyAfterTerminal ---------------------------------
+// --- TestFinalizeCleanupOnlyAfterFinal ------------------------------------
+
+// TestFinalLifecycleCodeSpellings pins the ADR-0129 rows 57 and 59 wire
+// spellings (change 0474). Drivers and skills key on these strings, not on the
+// constant names.
+func TestFinalLifecycleCodeSpellings(t *testing.T) {
+	for _, c := range []struct{ name, got, want string }{
+		{"ReasonCloseoutBacklinkPending", string(ReasonCloseoutBacklinkPending), "final-backlink-pending"},
+		{"ReasonCleanupBacklinkPending", string(ReasonCleanupBacklinkPending), "final-backlink-pending"},
+		{"ReasonCloseoutNotesFrozen", string(ReasonCloseoutNotesFrozen), "final-notes-frozen"},
+		{"ReasonCleanupNotFinal", string(ReasonCleanupNotFinal), "not-final"},
+		{"childOutcomeSkippedDone", string(childOutcomeSkippedDone), "skipped-final"},
+	} {
+		if c.got != c.want {
+			t.Errorf("%s = %q, want %q", c.name, c.got, c.want)
+		}
+	}
+}
 
 // --- TestFinalizeCleanupBranchDeletion ------------------------------------
 

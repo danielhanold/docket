@@ -1427,7 +1427,7 @@ docket finalize resolver-reserve --id 412 --attempt <token>
 
 ### Retarget children
 
-When a stack parent lands, finalize repoints its stacked children's PRs at the new base.
+When a stack parent lands, finalize repoints its stacked children's PRs at the new base. Each child reports an outcome. `skipped-final` is also emitted for stacked-merged children (the child no longer needs its PR retargeted).
 
 ```sh
 docket finalize retarget-children --id 412 --revision <v> --input children.json

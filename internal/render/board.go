@@ -349,8 +349,8 @@ func boardSortDate(c domain.Change, key BoardSortKey) (time.Time, bool) {
 	return ot.Value, true
 }
 
-// boardTerminalStatuses is the terminal group in display order (done, killed).
-var boardTerminalStatuses = []domain.Status{domain.StatusDone, domain.StatusKilled}
+// boardFinalStatuses is the final group in display order (done, killed).
+var boardFinalStatuses = []domain.Status{domain.StatusDone, domain.StatusKilled}
 
 // Board renders docs/changes/BOARD.md per the contract above.
 func Board(in BoardInput) ([]byte, error) {
@@ -432,7 +432,7 @@ func Board(in BoardInput) ([]byte, error) {
 		}
 		seg = append(seg, fmt.Sprintf("%s %d %s", boardSectionEmoji(s), n, boardSectionCountLabel(s)))
 	}
-	for _, s := range boardTerminalStatuses {
+	for _, s := range boardFinalStatuses {
 		n := archiveCount[s]
 		if n == 0 {
 			continue
@@ -490,12 +490,12 @@ func Board(in BoardInput) ([]byte, error) {
 
 	// --- archive ---
 	archiveTotal := 0
-	for _, s := range boardTerminalStatuses {
+	for _, s := range boardFinalStatuses {
 		archiveTotal += archiveCount[s]
 	}
 	if archiveTotal > 0 {
 		em, lbl := "", ""
-		for _, s := range boardTerminalStatuses {
+		for _, s := range boardFinalStatuses {
 			if archiveCount[s] == 0 {
 				continue
 			}
