@@ -1,5 +1,10 @@
 # v0.9.9 agent-defaults sidecar
 
+- **Source repo:** `danielhanold/docket`
+- **Commit:** `7b6d15926` (change 0473 feature commit; the tree equals `agents/harness-defaults.yml` at that commit)
+- **Date:** 2026-09-30
+- **Redaction:** none
+
 Source: docket's own `agents/harness-defaults.yml` as of change 0473 (rename build profile and
 review rung to tiers, and the dispatch fallbacks), 2026-09-30.
 
