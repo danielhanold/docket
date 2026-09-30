@@ -66,11 +66,11 @@ func TestIntegrationRecordOpsChangeGroomReviseSpecRevisionContendsRealGit(t *tes
 	}
 }
 
-// TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit drives both outcomes through the real
+// TestIntegrationRecordOpsChangeGroomAbstainThenReEnableRealGit drives both outcomes through the real
 // engine and a bare origin: the abstain lands the record and BOARD.md in ONE
-// commit; a re-arm pinned to the pre-abstain revision contends and writes
-// nothing; a re-arm at the current revision restores needs-brainstorm.
-func TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit(t *testing.T) {
+// commit; a re-enable pinned to the pre-abstain revision contends and writes
+// nothing; a re-enable at the current revision restores needs-brainstorm.
+func TestIntegrationRecordOpsChangeGroomAbstainThenReEnableRealGit(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(2, "add-a-widget")
 	repo := newWorkingRepo(t, map[string]string{recPath: groomableChange(2, "add-a-widget")})
@@ -90,26 +90,26 @@ func TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit(t *testing.T) {
 		t.Errorf("committed board does not show the abstain:\n%s", board)
 	}
 
-	stale := rearmRequest()
+	stale := reEnableRequest()
 	stale.Revision = ab.Revision // pre-abstain pin
 	if res := ChangeGroom(context.Background(), node.deps, node.dir, stale); res.Result != ResultContended {
-		t.Fatalf("stale re-arm = %q (findings %v), want contended", res.Result, res.Findings)
+		t.Fatalf("stale re-enable = %q (findings %v), want contended", res.Result, res.Findings)
 	}
 	if got := originTip(t, repo.origin, "docket"); got != tip {
-		t.Fatalf("a contended re-arm moved the metadata branch %s -> %s", tip, got)
+		t.Fatalf("a contended re-enable moved the metadata branch %s -> %s", tip, got)
 	}
 
-	fresh := rearmRequest()
+	fresh := reEnableRequest()
 	fresh.Revision = blobRevisionAt(t, repo.origin, "docket", recPath)
 	if res := ChangeGroom(context.Background(), node.deps, node.dir, fresh); res.Result != ResultApplied {
-		t.Fatalf("re-arm = %q (findings %v), want applied", res.Result, res.Findings)
+		t.Fatalf("re-enable = %q (findings %v), want applied", res.Result, res.Findings)
 	}
 	rec, _ := originFile(t, repo.origin, "docket", recPath)
 	board, _ := originFile(t, repo.origin, "docket", "docs/changes/BOARD.md")
 	if strings.Contains(rec, "## Auto-groom blocked") || !strings.Contains(rec, "\nauto_groomable: true\n") {
-		t.Errorf("re-armed record:\n%s", rec)
+		t.Errorf("re-enabled record:\n%s", rec)
 	}
 	if strings.Contains(board, "auto-groom blocked — needs you") {
-		t.Errorf("committed board still shows the abstain after re-arm:\n%s", board)
+		t.Errorf("committed board still shows the abstain after re-enable:\n%s", board)
 	}
 }

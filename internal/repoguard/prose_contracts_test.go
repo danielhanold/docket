@@ -218,18 +218,18 @@ var proseContracts = []proseContract{
 	{sentinel: "change_0382_typed_create_scalars", file: "skills/docket-new-change/SKILL.md",
 		present: []string{"`invalid-branch_prefix`"},
 		absent:  []string{"Two draft-time scalars `create` does not carry", "strip one presentation-only trailing slash"}},
-	// change 0382 — the auto-groom abstain and the human re-arm are typed
+	// change 0382 — the auto-groom abstain and the human re-enable are typed
 	// change.groom outcomes that re-render the board in the same commit; the
 	// plain-git abstain, its false "no board-visible cell" claim, and the
-	// hand-edit re-arm are gone.
+	// hand-edit re-enable are gone.
 	{sentinel: "change_0382_typed_abstain", file: "skills/docket-auto-groom/SKILL.md",
 		present: []string{"`outcome: abstain`", "`blocked_note`"},
 		absent:  []string{"changes no board-visible cell", "there is no typed groom for this outcome"}},
 	{sentinel: "change_0382_typed_abstain", file: "skills/docket-convention/SKILL.md",
-		present: []string{"`outcome: abstain`", "`outcome: rearm`"},
+		present: []string{"`outcome: abstain`", "`outcome: re-enable`"},
 		absent:  []string{"flips the flag back to `true`, and DELETES"}},
 	{sentinel: "change_0382_typed_abstain", file: "skills/docket-groom-next/SKILL.md",
-		present: []string{"`outcome: rearm`", "`nothing-to-rearm`"}},
+		present: []string{"`outcome: re-enable`", "`nothing-to-re-enable`"}},
 	// change 0461 — change.groom carries an optional title; a retitle renames
 	// nothing (slug, record path, spec path, and branch stay put).
 	{sentinel: "change_0461_retitle", file: "skills/docket-groom-next/SKILL.md",

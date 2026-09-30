@@ -401,7 +401,7 @@ func TestDecodeChangePresenceMarkers(t *testing.T) {
 		{"prose mention does not count", "The run halted; see ## Run halted below.\n", [4]bool{false, false, false, false}},
 		{"CRLF body still matches", "## Run halted\r\n", [4]bool{true, false, false, false}},
 		// A heading-shaped line inside fenced code is content, not a section: the
-		// board and the section-editing operations (rearm) must agree on it.
+		// board and the section-editing operations (re-enable) must agree on it.
 		{"backtick-fenced heading does not count", "```\n## Auto-groom blocked\n## Run halted\n```\n", [4]bool{false, false, false, false}},
 		{"tilde-fenced heading does not count", "~~~md\n## Finalize blocked\n## Publish deferred\n~~~\n", [4]bool{false, false, false, false}},
 		{"shorter run does not close the fence", "````\n```\n## Auto-groom blocked\n````\n", [4]bool{false, false, false, false}},

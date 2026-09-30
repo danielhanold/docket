@@ -60,7 +60,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		}, EffectMetadataWrite)
 
 	groom := changeSubcommand("change", "groom",
-		"Groom a proposed change to build-ready (spec or trivial), record or clear an auto-groom abstain (abstain, rearm), or revise an already-groomed one, from a JSON request",
+		"Groom a proposed change to build-ready (spec or trivial), record or clear an auto-groom abstain (abstain, re-enable), or revise an already-groomed one, from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.ChangeGroomRequest
 			if err := decodeRequestFlag(c, &req); err != nil {
