@@ -31,7 +31,7 @@ func TestChangeKillRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}{
 		{"non-positive change id", func(r *ChangeKillRequest) { r.ChangeID = 0 }, "invalid-change_id"},
 		{"empty path", func(r *ChangeKillRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeKillRequest) { r.Revision = "" }, "empty-version"},
+		{"empty revision", func(r *ChangeKillRequest) { r.Revision = "" }, "empty-revision"},
 		{"empty why_killed", func(r *ChangeKillRequest) { r.WhyKilled = "\n" }, "empty-why_killed"},
 	}
 	for _, c := range cases {

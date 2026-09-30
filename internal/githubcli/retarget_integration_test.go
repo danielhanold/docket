@@ -76,7 +76,7 @@ func TestIntegrationMergeRetargetProbeActVerify(t *testing.T) {
 		}
 	})
 
-	t.Run("contended-version-drift", func(t *testing.T) {
+	t.Run("contended-revision-drift", func(t *testing.T) {
 		// The live PR version differs from ExpectedRevision: refuse, no edit.
 		c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{retViewArm(atOld, 0)}})
 		out, _, err := c.RetargetPullRequest(context.Background(), retRepo(), 7, "sha256:stale-token-differs", newBase)

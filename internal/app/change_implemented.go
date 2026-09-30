@@ -72,9 +72,9 @@ const (
 	// ReasonImplementedNotInProgress: the change is not in-progress, so it cannot
 	// be marked implemented (conjunct 1); maps to invalid-state.
 	ReasonImplementedNotInProgress = "not-in-progress"
-	// ReasonImplementedVersionMismatch: the record moved since the submitted
+	// ReasonImplementedRevisionMismatch: the record moved since the submitted
 	// version (conjunct 1) — a lost race; maps to a contended outcome.
-	ReasonImplementedVersionMismatch = "version-mismatch"
+	ReasonImplementedRevisionMismatch = "revision-mismatch"
 	// ReasonImplementedNotReconciled: the change is not reconciled (conjunct 1).
 	ReasonImplementedNotReconciled = "not-reconciled"
 	// ReasonImplementedPlanUnlinked: the change carries no linked plan (conjunct 1).
@@ -129,7 +129,7 @@ const (
 // canonical build-evidence bytes, reparsed here — never a prior result.
 type MarkImplementedRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 	Head     string `json:"head" docket:"required"`
 	PR       string `json:"pr" docket:"required"`
 	// EvidenceRecord is read from the --evidence request file at the CLI boundary,
@@ -207,7 +207,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		if samePRRef(c.PR().Value, req.PR) {
 			return newChangeLifecycleResult(op, ResultNoOp, ChangeLifecycleResult{ID: req.ID, Status: string(domain.StatusImplemented)})
 		}
-		return implementedRefusal(ResultContended, ReasonImplementedVersionMismatch,
+		return implementedRefusal(ResultContended, ReasonImplementedRevisionMismatch,
 			fmt.Sprintf("change %04d is already implemented with a different PR reference", req.ID), req.ID)
 	}
 
@@ -217,8 +217,8 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			fmt.Sprintf("change %04d is %q, not in-progress", req.ID, c.RawStatus()), req.ID)
 	}
 	if revision != req.Revision {
-		return implementedRefusal(ResultContended, ReasonImplementedVersionMismatch,
-			"the change record moved since the submitted version; re-read authoritative context", req.ID)
+		return implementedRefusal(ResultContended, ReasonImplementedRevisionMismatch,
+			"the change record moved since the submitted revision; re-read authoritative context", req.ID)
 	}
 	if !c.Reconciled() {
 		return implementedRefusal(ResultInvalidState, ReasonImplementedNotReconciled,

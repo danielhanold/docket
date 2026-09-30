@@ -90,9 +90,9 @@ const (
 	// ReasonSweepReloadFailed: the fresh pre-mutation reload could not be read;
 	// the sweep dispatched no mutation for this item and moved on.
 	ReasonSweepReloadFailed = "reload-failed"
-	// ReasonSweepReclaimVersionMissing: the reloaded record carried no usable
+	// ReasonSweepReclaimRevisionMissing: the reloaded record carried no usable
 	// blob version to pin the exact-version reclaim; nothing was dispatched.
-	ReasonSweepReclaimVersionMissing = "reclaim-version-missing"
+	ReasonSweepReclaimRevisionMissing = "reclaim-revision-missing"
 	// ReasonSweepScopeInvalid: the typed scope was outside the closed
 	// vocabulary; the sweep read nothing and dispatched nothing.
 	ReasonSweepScopeInvalid = "sweep-scope-invalid"
@@ -705,7 +705,7 @@ func sweepRunReclaim(ctx context.Context, eff config.Effective, ops sweepOps, id
 		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepItemVanished, "record absent or ambiguous on reload")
 	}
 	if revision == "" {
-		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepReclaimVersionMissing, "reloaded record carried no blob version")
+		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepReclaimRevisionMissing, "reloaded record carried no record revision")
 	}
 	res := ops.reclaim(ctx, id, revision, obs)
 	return MaintenanceEntry{

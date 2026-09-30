@@ -119,7 +119,7 @@ func TestLearningUpdateRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		code string
 	}{
 		{"empty path", func(r *LearningUpdateRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *LearningUpdateRequest) { r.Revision = "" }, "empty-version"},
+		{"empty revision", func(r *LearningUpdateRequest) { r.Revision = "" }, "empty-revision"},
 		{"unknown heading", func(r *LearningUpdateRequest) {
 			r.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "x"}}
 		}, "invalid-section-heading"},

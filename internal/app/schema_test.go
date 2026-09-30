@@ -42,7 +42,7 @@ func mustReflect(t *testing.T, prototype any) TypeDescriptor {
 func TestReflectDescriptorChangeReconcileRequest(t *testing.T) {
 	d := mustReflect(t, ChangeReconcileRequest{})
 	keys := descriptorKeys(d)
-	want := []string{"id", "version", "sections", "spec_sections", "relations", "reconcile_log_entry"}
+	want := []string{"id", "revision", "sections", "spec_sections", "relations", "reconcile_log_entry"}
 	if !reflect.DeepEqual(keys, want) {
 		t.Fatalf("keys = %v, want %v", keys, want)
 	}
@@ -96,10 +96,10 @@ func TestReflectDescriptorChangeGroomRequest(t *testing.T) {
 	if sm.Required || sm.Type != "string" {
 		t.Errorf("spec_markdown = %+v, want optional string", sm)
 	}
-	// spec_version: the linked spec's pin (conditionally required by the
+	// spec_revision: the linked spec's pin (conditionally required by the
 	// validator on a spec-body revise, so not docket:"required").
-	if f := fieldByKey(t, d, "spec_version"); f.Required || f.Type != "string" {
-		t.Errorf("spec_version = %+v, want optional string", f)
+	if f := fieldByKey(t, d, "spec_revision"); f.Required || f.Type != "string" {
+		t.Errorf("spec_revision = %+v, want optional string", f)
 	}
 	if f := fieldByKey(t, d, "blocked_note"); f.Required || f.Type != "string" {
 		t.Errorf("blocked_note = %+v, want optional string", f)
@@ -200,9 +200,9 @@ func TestFlagAssembledRequestsEmitSnakeCaseKeys(t *testing.T) {
 		prototype any
 		want      []string
 	}{
-		{"change.mark-implemented", MarkImplementedRequest{}, []string{"id", "version", "head", "pr"}},
+		{"change.mark-implemented", MarkImplementedRequest{}, []string{"id", "revision", "head", "pr"}},
 		{"finalize.publish", FinalizePublishRequest{}, []string{"id", "attempt", "head"}},
-		{"finalize.merge", FinalizeMergeRequest{}, []string{"id", "version", "head", "admin", "explicit_id"}},
+		{"finalize.merge", FinalizeMergeRequest{}, []string{"id", "revision", "head", "admin", "explicit_id"}},
 		{"pr.publish", PRPublishRequest{}, []string{"id", "head", "title", "body"}},
 	}
 	for _, tc := range cases {

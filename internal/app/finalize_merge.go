@@ -163,7 +163,7 @@ const (
 // supplies the approval and finalize-blocked authorization.
 type FinalizeMergeRequest struct {
 	ID         int    `json:"id" docket:"required"`
-	Revision   string `json:"version" docket:"required"`
+	Revision   string `json:"revision" docket:"required"`
 	Head       string `json:"head" docket:"required"`
 	Admin      bool   `json:"admin"`
 	ExplicitID bool   `json:"explicit_id"`
@@ -176,7 +176,7 @@ type FinalizeMergeRequest struct {
 // closeout may proceed.
 type VerifiedMerge struct {
 	PRNumber    int    `json:"pr_number"`
-	PRRevision  string `json:"pr_version,omitempty"`
+	PRRevision  string `json:"pr_revision,omitempty"`
 	HeadOID     string `json:"head_oid"`
 	BaseRef     string `json:"base_ref"`
 	MergedAtUTC string `json:"merged_at_utc"`
@@ -756,7 +756,7 @@ func mergeConjunctMessage(token string, id int) string {
 	case "open-children":
 		return "an open child PR still targets this change's feature branch; retarget children first"
 	case "superseded":
-		return "the request was superseded by a newer record version or a finalize-blocked marker; re-read context finalize"
+		return "the request was superseded by a newer record revision or a finalize-blocked marker; re-read context finalize"
 	default:
 		return "a merge precondition does not hold"
 	}

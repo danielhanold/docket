@@ -51,7 +51,7 @@ const whyDeferredHeading = "## Why deferred"
 type ChangeBlockRequest struct {
 	ChangeID int    `json:"change_id" docket:"required"`
 	Path     string `json:"path" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 	Reason   string `json:"reason" docket:"required"`
 }
 
@@ -61,7 +61,7 @@ type ChangeBlockRequest struct {
 type ChangeDeferRequest struct {
 	ChangeID    int    `json:"change_id" docket:"required"`
 	Path        string `json:"path" docket:"required"`
-	Revision    string `json:"version" docket:"required"`
+	Revision    string `json:"revision" docket:"required"`
 	WhyDeferred string `json:"why_deferred" docket:"required"`
 }
 
@@ -72,7 +72,7 @@ type ChangeDeferRequest struct {
 type ChangeUnblockRequest struct {
 	ChangeID int    `json:"change_id" docket:"required"`
 	Path     string `json:"path" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 }
 
 // ChangeReviveRequest is the closed, caller-supplied request for one revive.
@@ -80,7 +80,7 @@ type ChangeUnblockRequest struct {
 type ChangeReviveRequest struct {
 	ChangeID int    `json:"change_id" docket:"required"`
 	Path     string `json:"path" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 }
 
 // ChangeLifecycleResult is the protocol-v1 document every change lifecycle
@@ -298,7 +298,7 @@ func validateLifecycleShape(idKey string, id int, recPath, revision string) []St
 		findings = append(findings, lifecycleFinding(FCEmptyPath, "path must name the change's current canonical record path"))
 	}
 	if strings.TrimSpace(revision) == "" {
-		findings = append(findings, lifecycleFinding(FCEmptyVersion, "version must be the exact full blob object id of the submitted record"))
+		findings = append(findings, lifecycleFinding(FCEmptyRevision, "revision must be the exact full blob object id of the submitted record"))
 	}
 	return findings
 }

@@ -92,7 +92,7 @@ func TestChangeGroomRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}{
 		{"non-positive change id", func(r *ChangeGroomRequest) { r.ChangeID = 0 }, "invalid-change_id"},
 		{"empty path", func(r *ChangeGroomRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeGroomRequest) { r.Revision = "" }, "empty-version"},
+		{"empty revision", func(r *ChangeGroomRequest) { r.Revision = "" }, "empty-revision"},
 		{"unknown outcome", func(r *ChangeGroomRequest) { r.Outcome = "maybe" }, "invalid-outcome"},
 		{"spec outcome empty markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "" }, "empty-spec_markdown"},
 		{"spec outcome unparseable markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "---\nid: 1\n" }, "invalid-spec_markdown"},
@@ -414,7 +414,7 @@ func trivialChange(id int, slug string) string {
 }
 
 // fakeTreeBlobID is the uniform blob id newFakeTree reports for every path, so
-// it is the spec_version that matches the linked spec on a fake tree.
+// it is the spec_revision that matches the linked spec on a fake tree.
 const fakeTreeBlobID = "a"
 
 // validReviseRequest is a well-formed revise request (sections + spec body)
@@ -465,20 +465,20 @@ func TestChangeGroomReviseShapeValidation(t *testing.T) {
 			r.SpecMarkdown = groomBacklinkedSpecMarkdown
 		}, "invalid-spec_markdown"},
 		// A spec-body revise overwrites the spec file, so it must pin its version.
-		{"spec revise without spec_version refused", func(r *ChangeGroomRequest) {
+		{"spec revise without spec_revision refused", func(r *ChangeGroomRequest) {
 			r.SpecRevision = ""
-		}, "empty-spec_version"},
-		{"sections-only revise without spec_version passes", func(r *ChangeGroomRequest) {
+		}, "empty-spec_revision"},
+		{"sections-only revise without spec_revision passes", func(r *ChangeGroomRequest) {
 			r.SpecMarkdown, r.SpecRevision = "", ""
 		}, ""},
-		// spec_version pins only a spec-body revise; anywhere else it would be
+		// spec_revision pins only a spec-body revise; anywhere else it would be
 		// silently unchecked, so it is refused.
-		{"sections-only revise with spec_version refused", func(r *ChangeGroomRequest) {
+		{"sections-only revise with spec_revision refused", func(r *ChangeGroomRequest) {
 			r.SpecMarkdown = ""
-		}, "invalid-spec_version"},
-		{"spec outcome with spec_version refused", func(r *ChangeGroomRequest) {
+		}, "invalid-spec_revision"},
+		{"spec outcome with spec_revision refused", func(r *ChangeGroomRequest) {
 			r.Outcome = GroomSpec
-		}, "invalid-spec_version"},
+		}, "invalid-spec_revision"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -537,28 +537,28 @@ func TestChangeGroomSpecReviseWithoutSpecVersionRefusedWithoutEngineCall(t *test
 	if len(engine.calls) != 0 {
 		t.Errorf("engine called %d times on an unpinned spec revise, want 0", len(engine.calls))
 	}
-	if !hasFindingCode(res.Findings, "empty-spec_version") {
-		t.Errorf("missing finding empty-spec_version; got %v", res.Findings)
+	if !hasFindingCode(res.Findings, "empty-spec_revision") {
+		t.Errorf("missing finding empty-spec_revision; got %v", res.Findings)
 	}
 }
 
 // TestChangeGroomSpecVersionMismatchMapsToContended pins the result mapping: a
-// plan refused with spec-version-mismatch is the spec analogue of a stale record
+// plan refused with spec-revision-mismatch is the spec analogue of a stale record
 // pin, so the caller sees contended (re-read and retry), not invalid-state.
 func TestChangeGroomSpecVersionMismatchMapsToContended(t *testing.T) {
 	_, opRes := groomPlanFor(t, reviseFixtureFiles(), baseGroomOp([]string{}, validReviseRequest()))
 	if opRes.Refused {
-		t.Fatalf("precondition: a matching spec_version must plan; got %v", opRes.Findings)
+		t.Fatalf("precondition: a matching spec_revision must plan; got %v", opRes.Findings)
 	}
 	res := changeGroomResultFromOutcome(transaction.Result{
 		Disposition: transaction.DispositionRefused,
 		Findings: []domain.Finding{{
-			Code: "spec-version-mismatch", Severity: domain.SeverityError,
+			Code: "spec-revision-mismatch", Severity: domain.SeverityError,
 			Entity: domain.EntityRef{Kind: domain.EntityChange},
 		}},
 	}, nil)
 	if res.Result != ResultContended {
-		t.Errorf("spec-version-mismatch refusal = %q, want contended", res.Result)
+		t.Errorf("spec-revision-mismatch refusal = %q, want contended", res.Result)
 	}
 	other := changeGroomResultFromOutcome(transaction.Result{
 		Disposition: transaction.DispositionRefused,
@@ -771,10 +771,10 @@ func TestChangeGroomPlanReviseRefusals(t *testing.T) {
 			groomPath(2, "add-a-widget"): revisableChange(2, "add-a-widget", reviseSpecPath),
 		}, func(r *ChangeGroomRequest) {}, "spec-file-missing"},
 		// The spec file is pinned at the path the record links: a stale
-		// spec_version refuses rather than overwriting a newer spec body.
-		{"spec-version-mismatch", reviseFixtureFiles(), func(r *ChangeGroomRequest) {
+		// spec_revision refuses rather than overwriting a newer spec body.
+		{"spec-revision-mismatch", reviseFixtureFiles(), func(r *ChangeGroomRequest) {
 			r.SpecRevision = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-		}, "spec-version-mismatch"},
+		}, "spec-revision-mismatch"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -945,7 +945,7 @@ func TestChangeGroomAbstainShapeValidation(t *testing.T) {
 			r.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "rewrite\n"}}
 		}, "invalid-sections"},
 		{"abstain with spec_markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "# Design\n" }, "invalid-spec_markdown"},
-		{"abstain with spec_version", func(r *ChangeGroomRequest) { r.SpecRevision = "a" }, "invalid-spec_version"},
+		{"abstain with spec_revision", func(r *ChangeGroomRequest) { r.SpecRevision = "a" }, "invalid-spec_revision"},
 		{"abstain with depends_on", func(r *ChangeGroomRequest) { r.DependsOn = []int{1} }, "invalid-depends_on"},
 		{"abstain with an explicit empty related", func(r *ChangeGroomRequest) { r.Related = []int{} }, "invalid-related"},
 		{"abstain with discovered_from", func(r *ChangeGroomRequest) { r.DiscoveredFrom = []int{1} }, "invalid-discovered_from"},
@@ -1119,7 +1119,7 @@ func TestChangeGroomRearmShapeValidation(t *testing.T) {
 		}, ""},
 		{"rearm with blocked_note", func(r *ChangeGroomRequest) { r.BlockedNote = "x\n" }, "invalid-blocked_note"},
 		{"rearm with spec_markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "# Design\n" }, "invalid-spec_markdown"},
-		{"rearm with spec_version", func(r *ChangeGroomRequest) { r.SpecRevision = "a" }, "invalid-spec_version"},
+		{"rearm with spec_revision", func(r *ChangeGroomRequest) { r.SpecRevision = "a" }, "invalid-spec_revision"},
 		// Review Focus 5: the op removes this section itself.
 		{"rearm editing ## Auto-groom blocked", func(r *ChangeGroomRequest) {
 			r.Sections = []SectionEditRequest{{Heading: "## Auto-groom blocked", Intent: "replace", Markdown: "x\n"}}
@@ -1308,7 +1308,7 @@ func TestChangeGroomPlanRearmRemovesSectionBeforeFollowingSection(t *testing.T) 
 }
 
 // titleOnlyReviseRequest is a revise carrying nothing but a title — no spec
-// body, no spec_version, no section edits (change 0461).
+// body, no spec_revision, no section edits (change 0461).
 func titleOnlyReviseRequest(title string) ChangeGroomRequest {
 	r := validReviseRequest()
 	r.SpecMarkdown, r.SpecRevision, r.Sections = "", "", nil

@@ -53,7 +53,7 @@ const whyKilledHeading = "## Why killed"
 type ChangeKillRequest struct {
 	ChangeID  int    `json:"change_id" docket:"required"`
 	Path      string `json:"path" docket:"required"`
-	Revision  string `json:"version" docket:"required"`
+	Revision  string `json:"revision" docket:"required"`
 	WhyKilled string `json:"why_killed" docket:"required"`
 }
 

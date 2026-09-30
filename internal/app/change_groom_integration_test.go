@@ -52,10 +52,10 @@ func TestIntegrationRecordOpsChangeGroomReviseSpecVersionContendsRealGit(t *test
 
 	res := revise("Body B.", recV, specV) // stale spec pin, current record pin
 	if res.Result != ResultContended {
-		t.Fatalf("revise B over a stale spec_version = %q (findings %v), want contended", res.Result, res.Findings)
+		t.Fatalf("revise B over a stale spec_revision = %q (findings %v), want contended", res.Result, res.Findings)
 	}
-	if !hasFindingCode(res.Findings, "spec-version-mismatch") {
-		t.Errorf("missing finding spec-version-mismatch; got %v", res.Findings)
+	if !hasFindingCode(res.Findings, "spec-revision-mismatch") {
+		t.Errorf("missing finding spec-revision-mismatch; got %v", res.Findings)
 	}
 	if got := originTip(t, repo.origin, "docket"); got != tip {
 		t.Errorf("a contended revise moved the metadata branch %s -> %s", tip, got)

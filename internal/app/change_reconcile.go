@@ -85,7 +85,7 @@ type DesiredRelations struct {
 // string fields and is never interpolated into any shell command.
 type ChangeReconcileRequest struct {
 	ID                int               `json:"id" docket:"required"`
-	Revision          string            `json:"version" docket:"required"`
+	Revision          string            `json:"revision" docket:"required"`
 	Sections          map[string]string `json:"sections"`
 	SpecSections      map[string]string `json:"spec_sections"`
 	Relations         *DesiredRelations `json:"relations"`

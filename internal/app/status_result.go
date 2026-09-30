@@ -46,7 +46,7 @@ type StatusChange struct {
 	Type          string `json:"type"`
 	Location      string `json:"location"`         // "active" | "archive"
 	Path          string `json:"path"`             // repo-relative record path
-	Revision      string `json:"version"`          // blob object id
+	Revision      string `json:"revision"`         // blob object id
 	Readiness     string `json:"readiness"`        // domain Readiness kind's named string
 	ReadinessWhy  string `json:"readiness_reason"` // explanatory, not parseable
 	UnmetDeps     []int  `json:"unmet_dependencies"`
@@ -63,7 +63,7 @@ type StatusRecord struct {
 	Identity string `json:"identity"` // "0310", adr id, or learning slug
 	Location string `json:"location"` // named domain location string
 	Path     string `json:"path"`
-	Revision string `json:"version"` // blob object id
+	Revision string `json:"revision"` // blob object id
 }
 
 // StatusFinding is one normalized health finding. It carries the DTO's own

@@ -77,7 +77,7 @@ const (
 // blob (the version the authoritative context read reported).
 type ChangeClaimRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 	// RunContext is the run-tracker run context token from run.start. It
 	// is optional — an ungated claim omits it. When present it is hashed at this
 	// boundary (runTrackerHashToken), so the raw token never enters the transaction, the

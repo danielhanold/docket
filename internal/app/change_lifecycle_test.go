@@ -97,7 +97,7 @@ func TestChangeBlockRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}{
 		{"non-positive change id", func(r *ChangeBlockRequest) { r.ChangeID = 0 }, "invalid-change_id"},
 		{"empty path", func(r *ChangeBlockRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeBlockRequest) { r.Revision = "" }, "empty-version"},
+		{"empty revision", func(r *ChangeBlockRequest) { r.Revision = "" }, "empty-revision"},
 		{"empty reason", func(r *ChangeBlockRequest) { r.Reason = "  " }, "empty-reason"},
 	}
 	for _, c := range cases {
@@ -131,7 +131,7 @@ func TestChangeDeferRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}{
 		{"non-positive change id", func(r *ChangeDeferRequest) { r.ChangeID = 0 }, "invalid-change_id"},
 		{"empty path", func(r *ChangeDeferRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeDeferRequest) { r.Revision = "" }, "empty-version"},
+		{"empty revision", func(r *ChangeDeferRequest) { r.Revision = "" }, "empty-revision"},
 		{"empty why_deferred", func(r *ChangeDeferRequest) { r.WhyDeferred = "\n" }, "empty-why_deferred"},
 	}
 	for _, c := range cases {
@@ -434,7 +434,7 @@ var pinnedShapeCases = []struct {
 }{
 	{"non-positive change id", func(id *int, _, _ *string) { *id = 0 }, "invalid-change_id"},
 	{"empty path", func(_ *int, p, _ *string) { *p = "" }, "empty-path"},
-	{"empty version", func(_ *int, _, v *string) { *v = " " }, "empty-version"},
+	{"empty revision", func(_ *int, _, v *string) { *v = " " }, "empty-revision"},
 }
 
 func TestChangeUnblockRejectsBadShapeWithoutEngineCall(t *testing.T) {

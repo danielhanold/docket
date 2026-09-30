@@ -133,7 +133,7 @@ func TestChangeAttachRejectsBadShape(t *testing.T) {
 	}{
 		{"non-positive id", func(r *ChangeAttachRequest) { r.ID = 0 }, "invalid-id"},
 		{"empty path", func(r *ChangeAttachRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeAttachRequest) { r.Revision = "" }, "empty-version"},
+		{"empty revision", func(r *ChangeAttachRequest) { r.Revision = "" }, "empty-revision"},
 		{"empty commit", func(r *ChangeAttachRequest) { r.Commit = " " }, "empty-commit"},
 	}
 	for _, c := range cases {

@@ -73,7 +73,7 @@ type ContextEntitySummary struct {
 type ContextEntity struct {
 	Path     string                `json:"path,omitempty"`
 	Source   []byte                `json:"source,omitempty"`
-	Revision string                `json:"version,omitempty"`
+	Revision string                `json:"revision,omitempty"`
 	Summary  *ContextEntitySummary `json:"summary,omitempty"`
 }
 

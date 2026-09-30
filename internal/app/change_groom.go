@@ -72,9 +72,9 @@ const (
 	GroomRearm GroomOutcome = "rearm"
 )
 
-// reasonSpecVersionMismatch is the Plan refusal for a stale spec_version on a
+// reasonSpecRevisionMismatch is the Plan refusal for a stale spec_revision on a
 // spec-body revise; changeGroomResultFromOutcome maps it onto contended.
-const reasonSpecVersionMismatch = "spec-version-mismatch"
+const reasonSpecRevisionMismatch = "spec-revision-mismatch"
 
 // specsDir is the metadata-tree directory design specs live in. It is a fixed v1
 // location (the Bash grooming skills write here); it is not configurable.
@@ -92,8 +92,8 @@ const autoGroomBlockedHeading = "## Auto-groom blocked"
 // fields and is never interpolated into any shell command.
 type ChangeGroomRequest struct {
 	ChangeID int          `json:"change_id" docket:"required"`
-	Path     string       `json:"path" docket:"required"`    // current canonical record path
-	Revision string       `json:"version" docket:"required"` // exact full blob object id
+	Path     string       `json:"path" docket:"required"`     // current canonical record path
+	Revision string       `json:"revision" docket:"required"` // exact full blob object id
 	Outcome  GroomOutcome `json:"outcome" docket:"required"`
 
 	SpecMarkdown string               `json:"spec_markdown,omitempty"` // required for the spec outcome
@@ -104,7 +104,7 @@ type ChangeGroomRequest struct {
 	// carrying spec_markdown requires it and no other request accepts it: the
 	// whole-body replace overwrites the spec file, so a concurrent spec edit
 	// contends instead of being silently clobbered.
-	SpecRevision string `json:"spec_version,omitempty"`
+	SpecRevision string `json:"spec_revision,omitempty"`
 
 	// BlockedNote is the authored body of one ## Auto-groom blocked entry. The
 	// abstain outcome requires it and no other outcome accepts it; the operation
@@ -245,7 +245,7 @@ func ChangeGroom(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		changesDir: eff.ChangesDir.Value,
 	}
 
-	// The engine pins the record. A spec-body revise's spec_version is checked
+	// The engine pins the record. A spec-body revise's spec_revision is checked
 	// in Plan instead, against the blob at the path the record links — the
 	// engine checks expectations before the record is read, and Plan runs on
 	// the same fetched base, so the check is just as exact.
@@ -267,13 +267,13 @@ func ChangeGroom(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 // changeGroomResultFromOutcome folds a transaction outcome into the result
 // document. A refusal from this operation is state-shaped (the groom gate, a
 // taken spec path, or an evolution refusal), so it maps onto invalid-state —
-// except a stale spec_version, the spec file's analogue of a stale record
+// except a stale spec_revision, the spec file's analogue of a stale record
 // version, which maps onto contended like the engine's own pin mismatch.
 func changeGroomResultFromOutcome(res transaction.Result, execErr error) ChangeGroomResult {
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
 	if res.Disposition == transaction.DispositionRefused {
 		for _, f := range res.Findings {
-			if f.Code == reasonSpecVersionMismatch {
+			if f.Code == reasonSpecRevisionMismatch {
 				result = ResultContended
 			}
 		}
@@ -309,7 +309,7 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 		addShape(FCEmptyPath, "path must name the change's current canonical record path")
 	}
 	if strings.TrimSpace(req.Revision) == "" {
-		addShape(FCEmptyVersion, "version must be the exact full blob object id of the submitted record")
+		addShape(FCEmptyRevision, "revision must be the exact full blob object id of the submitted record")
 	}
 
 	switch req.Outcome {
@@ -391,15 +391,15 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 	boundAuthored(&findings, "blocked_note", req.BlockedNote)
 
 	// A spec-body revise overwrites the linked spec file, so it must pin that
-	// file's version exactly like the record. Nothing else checks spec_version,
+	// file's version exactly like the record. Nothing else checks spec_revision,
 	// so it is refused anywhere else rather than silently ignored.
 	specRevise := req.Outcome == GroomRevise && strings.TrimSpace(req.SpecMarkdown) != ""
 	hasSpecRevision := strings.TrimSpace(req.SpecRevision) != ""
 	switch {
 	case specRevise && !hasSpecRevision:
-		addShape(FCEmptySpecVersion, "spec_version must be the exact full blob object id of the linked spec when a revise carries spec_markdown")
+		addShape(FCEmptySpecRevision, "spec_revision must be the exact full blob object id of the linked spec when a revise carries spec_markdown")
 	case !specRevise && hasSpecRevision:
-		addShape(FCInvalidSpecVersion, "spec_version applies only to a revise that carries spec_markdown")
+		addShape(FCInvalidSpecRevision, "spec_revision applies only to a revise that carries spec_markdown")
 	}
 
 	findings = append(findings, validateGroomSections(req.Sections)...)
@@ -597,12 +597,12 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 				fmt.Sprintf("change %04d links spec %q but no such file exists on the tree", o.req.ChangeID, c.Spec().Value))
 		}
 		// The whole-body replace overwrites the spec file, so it is pinned like
-		// the record: a stale spec_version refuses (mapped to contended) rather
+		// the record: a stale spec_revision refuses (mapped to contended) rather
 		// than clobbering a concurrent spec edit. The record's pin cannot catch
 		// that race — a same-day spec-only revise leaves the record unchanged.
 		if string(blobID) != o.req.SpecRevision {
-			return refuseGroom(reasonSpecVersionMismatch,
-				fmt.Sprintf("spec %q moved since the submitted spec_version; re-read it and retry", c.Spec().Value))
+			return refuseGroom(reasonSpecRevisionMismatch,
+				fmt.Sprintf("spec %q moved since the submitted spec_revision; re-read it and retry", c.Spec().Value))
 		}
 	}
 
@@ -880,7 +880,7 @@ func assembleSpecFile(backlink, markdown string) []byte {
 
 // restampSpecBacklink rewrites only the docket:backlink block of the spec at
 // specPath so it names gc's (new) title, over the spec's CURRENT bytes on the
-// attempt's base tree (change 0461). It takes no spec_version: nothing
+// attempt's base tree (change 0461). It takes no spec_revision: nothing
 // caller-authored is written, and a concurrent spec edit moves the base and
 // contends the push instead of being clobbered. A missing file refuses
 // spec-file-missing; a spec that does not parse (malformed markers) refuses
@@ -903,7 +903,7 @@ func restampSpecBacklink(ctx context.Context, tree transaction.Tree, specPath st
 	}
 	if _, ok := doc.Block(backlinkBlockName); !ok {
 		return nil, false, "spec-backlink-missing",
-			fmt.Sprintf("spec %q has no docket:backlink block to re-stamp with the new title; revise the spec body (send spec_markdown with the current body plus spec_version and title together) to rebuild the backlink block in one transaction", specPath), nil
+			fmt.Sprintf("spec %q has no docket:backlink block to re-stamp with the new title; revise the spec body (send spec_markdown with the current body plus spec_revision and title together) to rebuild the backlink block in one transaction", specPath), nil
 	}
 	block, err := render.BacklinkContent(gc, link)
 	if err != nil {
