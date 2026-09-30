@@ -135,7 +135,7 @@ func TestStatusBranchMalformedFindings(t *testing.T) {
 		t.Errorf("branch-malformed identities = %v, want exactly 0001 0002 0008", byIdentity)
 	}
 	prRemedy := byIdentity["0001"][0].Remedy
-	for _, want := range []string{"change repair-identity", "--id 1 ", "--expect-version blobchange0001", "--adopt-pr-head", "--expect-pr 77", "PR #77"} {
+	for _, want := range []string{"change repair-identity", "--id 1 ", "--expect-revision blobchange0001", "--adopt-pr-head", "--expect-pr 77", "PR #77"} {
 		if !strings.Contains(prRemedy, want) {
 			t.Errorf("PR-case remedy %q lacks %q", prRemedy, want)
 		}

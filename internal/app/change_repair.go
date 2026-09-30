@@ -18,7 +18,7 @@ import (
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
-// This file is `change repair-identity`: the version-pinned identity repair the
+// This file is `change repair-identity`: the revision-pinned identity repair the
 // finalize identity checkpoint hands a human's decision to. It writes exactly
 // ONE frontmatter field — either branch: (adopt the PR's reported head, the
 // missing-branch recovery) or pr: (adopt a PR reference the record's own branch
@@ -26,7 +26,7 @@ import (
 // after the repair is the workflow's job (Task 9), not this op's.
 //
 // Every Expect* field in the request is the exact evidence the human approved.
-// The op re-reads authority and refuses on any drift: a change-record version
+// The op re-reads authority and refuses on any drift: a change-record revision
 // that moved, a PR head that no longer matches, a PR number that no longer
 // names the approved pull request — each loses the race and is refused as
 // stale-evidence rather than applied on stale facts. Two external truths gate
@@ -53,7 +53,7 @@ const (
 	// RepairRepairedPR: the supplied PR reference was adopted as pr:.
 	RepairRepairedPR = "repaired-pr"
 	// RepairStaleEvidence: the approved evidence lost the race — the change
-	// version, the PR head, or the PR number no longer matches what the human saw.
+	// revision, the PR head, or the PR number no longer matches what the human saw.
 	RepairStaleEvidence = "stale-evidence"
 	// RepairWorkspaceConflict: an owned workspace targets a branch other than the
 	// one the record will carry, or its inspection could not be answered.
@@ -70,14 +70,14 @@ const (
 	RepairInvalidRequest = "invalid-request"
 )
 
-// RepairIdentityRequest is the version-pinned identity repair the finalize
+// RepairIdentityRequest is the revision-pinned identity repair the finalize
 // checkpoint hands a human's decision to. Exactly one of AdoptPRHead / AdoptPR
 // is set. Every Expect* field is the exact evidence the human approved; any
-// drift (change version, PR head, PR number) loses the race and is refused as
+// drift (change revision, PR head, PR number) loses the race and is refused as
 // stale-evidence rather than applied.
 type RepairIdentityRequest struct {
 	ID             int
-	ExpectRevision string // change-record version token from the finalize report
+	ExpectRevision string // change-record revision token from the finalize report
 
 	// AdoptPRHead trusts the PR: adopt the exact PR's reported head branch as
 	// branch: (the missing/mismatched-branch recovery).
@@ -145,7 +145,7 @@ type changeRepairReceipt struct {
 }
 
 // RepairIdentity re-reads the change record and, when every conjunct the human
-// approved still holds, drives one exact-version transaction that writes the one
+// approved still holds, drives one exact-revision transaction that writes the one
 // approved identity field. Every refusal predates the transaction (so a refused
 // call runs no engine and leaves the metadata untouched); the write is gated on
 // the exact PR read, the candidate-branch-present proof (AdoptPRHead), and the
@@ -218,7 +218,7 @@ func RepairIdentity(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 		return *refusal
 	}
 
-	// (5) Every conjunct holds: one exact-version transaction writes the one
+	// (5) Every conjunct holds: one exact-revision transaction writes the one
 	// approved field plus the refreshed updated stamp — nothing else.
 	op := changeRepairOp{
 		changeID:   req.ID,
@@ -246,7 +246,7 @@ func RepairIdentity(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 }
 
 // validateRepairRequest runs the configuration-independent request checks that
-// never reach any authority: a positive id, a non-empty approved version, and
+// never reach any authority: a positive id, a non-empty approved revision, and
 // exactly one mode with all of that mode's evidence present. It returns the
 // closed reason token and an explanatory message, or ("", "") when the shape is
 // well-formed. The unparseable-PR check for AdoptPR is deferred to the mode
@@ -256,7 +256,7 @@ func validateRepairRequest(req RepairIdentityRequest) (reason, message string) {
 		return RepairInvalidRequest, "id must be a positive change id"
 	}
 	if strings.TrimSpace(req.ExpectRevision) == "" {
-		return RepairInvalidRequest, "expect-version must be the change-record version token from the finalize report"
+		return RepairInvalidRequest, "expect-revision must be the change-record revision from the finalize report"
 	}
 	headMode := req.AdoptPRHead
 	prMode := strings.TrimSpace(req.AdoptPR) != ""
@@ -279,7 +279,7 @@ func validateRepairRequest(req RepairIdentityRequest) (reason, message string) {
 }
 
 // resolveRepairChange reads the corpus once, builds the snapshot, and returns
-// the change named by id together with its record path, exact entity version,
+// the change named by id together with its record path, exact entity revision,
 // and the built snapshot (the workspace gate resolves the effective base from
 // it). An id that names no single record is a request-shaped refusal.
 func resolveRepairChange(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int) (domain.Change, string, string, domain.Snapshot, *RepairIdentityResult) {
@@ -462,7 +462,7 @@ func repairConflict(message string, id int) *RepairIdentityResult {
 
 // repairResultFromOutcome folds the transaction outcome into the result
 // document. An applied outcome is the repair keyed on the field written; a
-// contended outcome is the record moving out from under the exact version
+// contended outcome is the record moving out from under the exact revision
 // (stale-evidence); a failure — mid-flight (failed disposition) or the engine's
 // early call-shape validation return (empty disposition with an error) — carries
 // its typed cause in the envelope's failure diagnosis.

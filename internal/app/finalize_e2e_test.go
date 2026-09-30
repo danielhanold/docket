@@ -575,7 +575,7 @@ func runOrdinaryFinalize(t *testing.T, s *e2eState) {
 	// (5) Merge: the attended --id invocation supplies approval; the gate is
 	// satisfied by the exact-head evidence now in the PR body. A REAL merge
 	// commit lands on the origin base branch and is proven reachable.
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
 	if mg.result() != "applied" {
 		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
 	}
@@ -639,7 +639,7 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, version string) {
 	// head PR evidence; in main mode the metadata transactions advanced the base,
 	// so a real rewrite happens and the local gate genuinely runs and passes. Both
 	// are valid ordinary outcomes; the subsequent steps thread the resulting head.
-	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--version", version, "--head", s.head)
+	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head)
 	if rb.result() != "applied" && rb.result() != "no-op" {
 		t.Fatalf("finalize rebase = %q\n%s", rb.result(), rb.stdout)
 	}
@@ -699,7 +699,7 @@ func TestE2EConflictAndRepair(t *testing.T) {
 	version := s.ver(t)
 
 	// (1) Rebase stops CONFLICTED on widget.go.
-	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--version", version, "--head", s.head)
+	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head)
 	if rb.str("disposition") != "conflicted" {
 		t.Fatalf("rebase disposition = %q, want conflicted\n%s", rb.str("disposition"), rb.stdout)
 	}
@@ -745,7 +745,7 @@ func TestE2EConflictAndRepair(t *testing.T) {
 	// here for a human sign-off. The marker names the reason on the record.
 	headAfterContinue := runGit(t, s.wp, "rev-parse", "HEAD")
 	blockPath := s.writeInput(t, "block.json", `{"report":"the local suite is red at the rebased head; an authored repair awaits a human sign-off","remedy":"review the repair, then clear the block and merge"}`)
-	blk := s.dk(t, "", "finalize", "block", "--id", strconv.Itoa(s.id), "--version", s.ver(t),
+	blk := s.dk(t, "", "finalize", "block", "--id", strconv.Itoa(s.id), "--revision", s.ver(t),
 		"--pr-number", strconv.Itoa(s.prNumber), "--attempt", attempt, "--reason", "repair-needs-signoff",
 		"--head", headAfterContinue, "--input", blockPath)
 	if blk.result() != "applied" {
@@ -783,11 +783,11 @@ func TestE2EConflictAndRepair(t *testing.T) {
 	if pub.result() != "applied" && pub.result() != "no-op" {
 		t.Fatalf("repair publish = %q\n%s", pub.result(), pub.stdout)
 	}
-	cb := s.dk(t, "", "finalize", "clear-block", "--id", strconv.Itoa(s.id), "--version", s.ver(t), "--head", repairHead, "--pr-number", strconv.Itoa(s.prNumber))
+	cb := s.dk(t, "", "finalize", "clear-block", "--id", strconv.Itoa(s.id), "--revision", s.ver(t), "--head", repairHead, "--pr-number", strconv.Itoa(s.prNumber))
 	if cb.result() != "applied" {
 		t.Fatalf("clear-block after sign-off = %q\n%s", cb.result(), cb.stdout)
 	}
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", s.ver(t), "--head", repairHead)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", s.ver(t), "--head", repairHead)
 	if mg.result() != "applied" {
 		t.Fatalf("post-repair merge = %q\n%s", mg.result(), mg.stdout)
 	}
@@ -858,7 +858,7 @@ func TestE2EStack(t *testing.T) {
 	// (c) The root merge REFUSES while the child PR is open, closes no child PR,
 	// and retains the child branch.
 	rootVer := verStack(t, s, rootID, rootSlug)
-	mgBlocked := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(rootID), "--version", rootVer, "--head", root.head)
+	mgBlocked := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(rootID), "--revision", rootVer, "--head", root.head)
 	if mgBlocked.result() == "applied" {
 		t.Fatalf("root merge succeeded with an open unauthorized child\n%s", mgBlocked.stdout)
 	}
@@ -875,7 +875,7 @@ func TestE2EStack(t *testing.T) {
 	// (a) The child merges into its live parent branch and closes out to
 	// stacked-merged (retained, not archived).
 	childVer := verStack(t, s, childID, childSlug)
-	cm := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(childID), "--version", childVer, "--head", child.head)
+	cm := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(childID), "--revision", childVer, "--head", child.head)
 	if cm.result() != "applied" {
 		t.Fatalf("child merge into parent branch = %q\n%s", cm.result(), cm.stdout)
 	}
@@ -896,7 +896,7 @@ func TestE2EStack(t *testing.T) {
 	syncWorktree(t, root.wp, rootBranch, s.repo.origin)
 	rootVer = verStack(t, s, rootID, rootSlug)
 	rootHead := runGit(t, root.wp, "rev-parse", "HEAD")
-	rbRoot := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(rootID), "--version", rootVer, "--head", rootHead)
+	rbRoot := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(rootID), "--revision", rootVer, "--head", rootHead)
 	if rbRoot.result() != "applied" && rbRoot.result() != "no-op" {
 		t.Fatalf("root rebase = %q\n%s", rbRoot.result(), rbRoot.stdout)
 	}
@@ -907,7 +907,7 @@ func TestE2EStack(t *testing.T) {
 	if pubRoot.result() != "applied" && pubRoot.result() != "no-op" {
 		t.Fatalf("root publish = %q\n%s", pubRoot.result(), pubRoot.stdout)
 	}
-	mgRoot := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(rootID), "--version", verStack(t, s, rootID, rootSlug), "--head", rootHead)
+	mgRoot := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(rootID), "--revision", verStack(t, s, rootID, rootSlug), "--head", rootHead)
 	if mgRoot.result() != "applied" {
 		t.Fatalf("root merge to integration = %q\n%s", mgRoot.result(), mgRoot.stdout)
 	}
@@ -1057,7 +1057,7 @@ func TestE2EResponseLossConvergence(t *testing.T) {
 	// authoritative reprobe discovers the landed merge and converges to a verified
 	// success rather than fabricating a failure.
 	s.env = withFault(s.env, "merge", "loss")
-	mg1 := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	mg1 := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
 	if mg1.result() != "applied" {
 		t.Fatalf("merge under lost response = %q (want applied via reprobe convergence)\n%s", mg1.result(), mg1.stdout)
 	}
@@ -1072,7 +1072,7 @@ func TestE2EResponseLossConvergence(t *testing.T) {
 	// A rerun with the fault cleared must NOT merge again: it converges to a
 	// verified already-merged no-op.
 	s.env = withFault(s.env, "", "")
-	mg2 := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", s.ver(t), "--head", head)
+	mg2 := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", s.ver(t), "--head", head)
 	if mg2.str("disposition") != "already-merged" {
 		t.Fatalf("merge rerun disposition = %q (want already-merged)\n%s", mg2.str("disposition"), mg2.stdout)
 	}
@@ -1166,7 +1166,7 @@ func TestE2EMergeSelectsRebaseShape(t *testing.T) {
 	s := reachImplemented(t, m, docketBin, ghBin)
 
 	head, version := rebaseAndPublish(t, s)
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
 	if mg.result() != "applied" {
 		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
 	}
@@ -1191,7 +1191,7 @@ func TestE2EMergeCommitShape(t *testing.T) {
 	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":true,"allow_squash_merge":true}`)
 
 	head, version := rebaseAndPublish(t, s)
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
 	if mg.result() != "applied" {
 		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
 	}
@@ -1216,7 +1216,7 @@ func TestE2ESquashOnlyShape(t *testing.T) {
 	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":false,"allow_squash_merge":true}`)
 
 	head, version := rebaseAndPublish(t, s)
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
 	if mg.result() != "applied" {
 		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
 	}
@@ -1248,7 +1248,7 @@ func TestE2EMergeMethodUnavailable(t *testing.T) {
 	head, version := rebaseAndPublish(t, s)
 	baseBefore := runGit(t, s.repo.origin, "rev-parse", "refs/heads/main")
 
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
 	if mg.result() != "blocked" {
 		t.Fatalf("finalize merge under empty policy = %q, want blocked\n%s", mg.result(), mg.stdout)
 	}
@@ -1286,7 +1286,7 @@ func TestE2EHaltResumeAndReclaim(t *testing.T) {
 
 	// --- halt then resume (id 3) ---
 	reportPath := s.writeInput(t, "halt.json", `{"report":"paused: awaiting an upstream decision"}`)
-	h := s.dk(t, "", "change", "halt", "--id", "3", "--version", verOf(t, s, 3), "--input", reportPath)
+	h := s.dk(t, "", "change", "halt", "--id", "3", "--revision", verOf(t, s, 3), "--input", reportPath)
 	if h.result() != "applied" {
 		t.Fatalf("change halt = %q\n%s", h.result(), h.stdout)
 	}
@@ -1295,18 +1295,18 @@ func TestE2EHaltResumeAndReclaim(t *testing.T) {
 	if verdict, _ := rv.doc["verdict"].(string); verdict != "run-halted" {
 		t.Fatalf("run verify after halt = %q, want run-halted\n%s", verdict, rv.stdout)
 	}
-	res := s.dk(t, "", "change", "resume-halted", "--id", "3", "--version", verOf(t, s, 3), "--acknowledge-quiescent")
+	res := s.dk(t, "", "change", "resume-halted", "--id", "3", "--revision", verOf(t, s, 3), "--acknowledge-quiescent")
 	if res.result() != "applied" {
 		t.Fatalf("change resume-halted = %q\n%s", res.result(), res.stdout)
 	}
 	// The marker is gone: a second resume finds nothing to resume.
-	res2 := s.dk(t, "", "change", "resume-halted", "--id", "3", "--version", verOf(t, s, 3), "--acknowledge-quiescent")
+	res2 := s.dk(t, "", "change", "resume-halted", "--id", "3", "--revision", verOf(t, s, 3), "--acknowledge-quiescent")
 	if res2.result() == "applied" {
 		t.Fatalf("resume-halted replayed as a success though the marker was cleared\n%s", res2.stdout)
 	}
 
 	// --- expired no-work reclaim (id 4) ---
-	rc := s.dk(t, "", "change", "reclaim", "--id", "4", "--version", verOf(t, s, 4))
+	rc := s.dk(t, "", "change", "reclaim", "--id", "4", "--revision", verOf(t, s, 4))
 	if rc.result() != "applied" {
 		t.Fatalf("change reclaim of an expired no-work change = %q\n%s", rc.result(), rc.stdout)
 	}
@@ -1438,15 +1438,15 @@ func TestE2EUnsupportedConfigFence(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"rebase", []string{"finalize", "rebase", "--id", strconv.Itoa(s.id), "--version", version, "--head", s.head}},
+		{"rebase", []string{"finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head}},
 		{"publish", []string{"finalize", "publish", "--id", strconv.Itoa(s.id), "--attempt", "x", "--head", s.head, "--evidence", evPath}},
-		{"block", []string{"finalize", "block", "--id", strconv.Itoa(s.id), "--version", version, "--pr-number", strconv.Itoa(s.prNumber), "--attempt", "x", "--reason", "wedged", "--head", s.head, "--input", reportPath}},
-		{"clear-block", []string{"finalize", "clear-block", "--id", strconv.Itoa(s.id), "--version", version, "--head", s.head, "--pr-number", strconv.Itoa(s.prNumber)}},
-		{"merge", []string{"finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", s.head}},
+		{"block", []string{"finalize", "block", "--id", strconv.Itoa(s.id), "--revision", version, "--pr-number", strconv.Itoa(s.prNumber), "--attempt", "x", "--reason", "wedged", "--head", s.head, "--input", reportPath}},
+		{"clear-block", []string{"finalize", "clear-block", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head, "--pr-number", strconv.Itoa(s.prNumber)}},
+		{"merge", []string{"finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head}},
 		{"closeout", []string{"finalize", "closeout", "--id", strconv.Itoa(s.id)}},
-		{"halt", []string{"change", "halt", "--id", strconv.Itoa(s.id), "--version", version, "--input", reportPath}},
-		{"resume-halted", []string{"change", "resume-halted", "--id", strconv.Itoa(s.id), "--version", version, "--acknowledge-quiescent"}},
-		{"reclaim", []string{"change", "reclaim", "--id", strconv.Itoa(s.id), "--version", version}},
+		{"halt", []string{"change", "halt", "--id", strconv.Itoa(s.id), "--revision", version, "--input", reportPath}},
+		{"resume-halted", []string{"change", "resume-halted", "--id", strconv.Itoa(s.id), "--revision", version, "--acknowledge-quiescent"}},
+		{"reclaim", []string{"change", "reclaim", "--id", strconv.Itoa(s.id), "--revision", version}},
 		{"maintenance-sweep", []string{"maintenance", "sweep"}},
 	}
 	for _, op := range fenced {

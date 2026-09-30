@@ -17,7 +17,7 @@ func TestWorkspaceCommandsRegistered(t *testing.T) {
 		path  []string
 		flags []string
 	}{
-		{[]string{"workspace", "prepare"}, []string{"id", "version", "repo-dir"}},
+		{[]string{"workspace", "prepare"}, []string{"id", "revision", "repo-dir"}},
 		{[]string{"workspace", "inspect"}, []string{"id", "repo-dir"}},
 		{[]string{"workspace", "publish"}, []string{"id", "head", "repo-dir"}},
 	}
@@ -61,11 +61,11 @@ func TestWorkspaceInspectEmitsOneDocument(t *testing.T) {
 }
 
 // TestWorkspacePrepareRoutesFlags: `docket workspace prepare` routes --id and
-// --version into app.WorkspacePrepare; against a non-repository directory the
+// --revision into app.WorkspacePrepare; against a non-repository directory the
 // pin fails, still yielding one document naming the prepare operation.
 func TestWorkspacePrepareRoutesFlags(t *testing.T) {
 	root := testsupport.TempDir(t)
-	out, errS, _ := runCLI(t, "workspace", "prepare", "--id", "7", "--version", "abc", "--repo-dir", root, "--json")
+	out, errS, _ := runCLI(t, "workspace", "prepare", "--id", "7", "--revision", "abc", "--repo-dir", root, "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -74,11 +74,11 @@ func TestWorkspacePrepareRoutesFlags(t *testing.T) {
 	}
 }
 
-// TestWorkspaceRequiredFlags: prepare requires --id and --version; publish
+// TestWorkspaceRequiredFlags: prepare requires --id and --revision; publish
 // requires --head — omitting one is an argument error (exit 2).
 func TestWorkspaceRequiredFlags(t *testing.T) {
-	if _, errS, code := runCLI(t, "workspace", "prepare", "--id", "7"); code != 2 || !strings.Contains(errS, "version") {
-		t.Errorf("missing --version not rejected: err=%q code=%d", errS, code)
+	if _, errS, code := runCLI(t, "workspace", "prepare", "--id", "7"); code != 2 || !strings.Contains(errS, "revision") {
+		t.Errorf("missing --revision not rejected: err=%q code=%d", errS, code)
 	}
 	if _, errS, code := runCLI(t, "workspace", "publish", "--id", "7"); code != 2 || !strings.Contains(errS, "head") {
 		t.Errorf("missing --head not rejected: err=%q code=%d", errS, code)

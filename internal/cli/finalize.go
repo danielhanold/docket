@@ -143,7 +143,7 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 
 // finalizeBlockInput is the bounded request-file payload for `finalize block`:
 // the authored report that crosses to the PR comment and the authored concrete
-// remedy recorded in the marker. The scalar identities (id, version, pr number,
+// remedy recorded in the marker. The scalar identities (id, revision, pr number,
 // attempt, reason, head) ride on flags — only the authored Markdown travels
 // through the request file (Global Constraints). DisallowUnknownFields (via
 // decodeInputFlag) rejects any other key.
@@ -154,7 +154,7 @@ type finalizeBlockInput struct {
 
 // newFinalizeBlockSubcommand builds `finalize block`: it ensures the owned PR
 // comment first, then upserts the single durable "## Finalize blocked" marker in
-// one exact-version transaction. The scalar identity rides on flags; the authored
+// one exact-revision transaction. The scalar identity rides on flags; the authored
 // report and remedy ride in --input (never argv).
 func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
@@ -162,7 +162,7 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 		Short: "Record a blocked finalize attempt: an owned PR comment then a durable marker",
 		Args:  cobra.NoArgs,
 		// external-write (the owned PR comment) + metadata-write (the durable
-		// "## Finalize blocked" marker upserted in an exact-version metadata-
+		// "## Finalize blocked" marker upserted in an exact-revision metadata-
 		// branch transaction — not local state).
 		Annotations: capability("finalize.block", EffectExternalWrite, EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
@@ -171,7 +171,7 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			prNumber, _ := c.Flags().GetInt("pr-number")
 			attempt, _ := c.Flags().GetString("attempt")
 			reason, _ := c.Flags().GetString("reason")
@@ -198,7 +198,7 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 		},
 	}
 	cmd.Flags().Int("id", 0, "change `id` whose finalize attempt is blocked (required)")
-	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().Int("pr-number", 0, "pull-request `n`umber the owned comment is ensured on (required)")
 	cmd.Flags().String("attempt", "", "opaque owned attempt `token` keying the comment marker and marker idempotency (required)")
 	cmd.Flags().String("reason", "", "stable machine reason `token` for the block (required)")
@@ -206,7 +206,7 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 	cmd.Flags().String("input", "", "JSON request `file` with the authored report and remedy, or - for stdin (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	_ = cmd.MarkFlagRequired("pr-number")
 	_ = cmd.MarkFlagRequired("attempt")
 	_ = cmd.MarkFlagRequired("reason")
@@ -225,7 +225,7 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 		Short: "Remove a finalize-blocked marker after reprobing head, remote ref, PR, and evidence",
 		Args:  cobra.NoArgs,
 		// metadata-write only: removes the "## Finalize blocked" marker in an
-		// exact-version metadata-branch transaction; the head/remote/PR/evidence
+		// exact-revision metadata-branch transaction; the head/remote/PR/evidence
 		// reprobes are read-only.
 		Annotations: capability("finalize.clear-block", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
@@ -234,7 +234,7 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			head, _ := c.Flags().GetString("head")
 			prNumber, _ := c.Flags().GetInt("pr-number")
 			deps, err := newFinalizeDeps(repoDir)
@@ -251,12 +251,12 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 		},
 	}
 	cmd.Flags().Int("id", 0, "change `id` whose finalize-blocked marker to clear (required)")
-	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().String("head", "", "exact current feature head `ref` the reprobe must confirm (required)")
 	cmd.Flags().Int("pr-number", 0, "canonical pull-request `n`umber whose open state is reprobed (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	_ = cmd.MarkFlagRequired("head")
 	_ = cmd.MarkFlagRequired("pr-number")
 	return cmd
@@ -265,7 +265,7 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 // newFinalizeMergeSubcommand builds `finalize merge`: it merges one exact pull
 // request at its authorized head after a fresh recheck of every merge conjunct,
 // then verifies the merge authoritatively. The scalar identity (id, pinned
-// version, expected head) rides on flags; --admin requests an admin-override
+// revision, expected head) rides on flags; --admin requests an admin-override
 // merge. Invoking this attended command is itself the human authorization, so
 // the request always carries ExplicitID — the app layer is what gates --admin on
 // it, refusing any merge whose admin was not explicitly named.
@@ -283,7 +283,7 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			head, _ := c.Flags().GetString("head")
 			admin, _ := c.Flags().GetBool("admin")
 			deps, err := newFinalizeDeps(repoDir)
@@ -303,19 +303,19 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 		},
 	}
 	cmd.Flags().Int("id", 0, "change `id` whose pull request to merge (required)")
-	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().String("head", "", "exact feature head `ref` the merge must match (required)")
 	cmd.Flags().Bool("admin", false, "request an admin-override merge (honored only on this attended, explicitly-named run)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	_ = cmd.MarkFlagRequired("head")
 	return cmd
 }
 
 // retargetChildrenInput is the bounded request-file payload for `finalize
 // retarget-children`: the exact human-authorized child set from context finalize.
-// The scalar identities (parent id, entity version) ride on flags — only the
+// The scalar identities (parent id, entity revision) ride on flags — only the
 // authored authorization set travels through the request file (Global
 // Constraints). DisallowUnknownFields (via decodeInputFlag) rejects any other key.
 type retargetChildrenInput struct {
@@ -323,7 +323,7 @@ type retargetChildrenInput struct {
 }
 
 // newFinalizeRetargetChildrenSubcommand builds `finalize retarget-children`: it
-// reads the parent id and pinned entity version from flags, decodes the exact
+// reads the parent id and pinned entity revision from flags, decodes the exact
 // authorized child set from --input, and hands the assembled request to the
 // operation over the shared finalize seams. No lifecycle, Git, GitHub, or stack
 // policy lives here — the operation owns all of it.
@@ -341,7 +341,7 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 
 			var input retargetChildrenInput
 			if err := decodeInputFlag(c, &input); err != nil {
@@ -360,18 +360,18 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 		},
 	}
 	cmd.Flags().Int("id", 0, "parent change `id` whose open children are retargeted (required)")
-	cmd.Flags().String("version", "", "exact parent record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact parent record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().String("input", "", "JSON request `file` with the authorized child set, or - for stdin (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	_ = cmd.MarkFlagRequired("input")
 	return cmd
 }
 
 // newFinalizeRebaseSubcommand builds `finalize rebase`: it rebases an implemented
 // change's feature branch onto its effective base and composes the local gate. The
-// scalar identity (id, pinned version, expected head) rides on flags; there is no
+// scalar identity (id, pinned revision, expected head) rides on flags; there is no
 // authored request body.
 func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
@@ -387,7 +387,7 @@ func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Com
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			revision, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("revision")
 			head, _ := c.Flags().GetString("head")
 			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
@@ -400,11 +400,11 @@ func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Com
 		},
 	}
 	cmd.Flags().Int("id", 0, "implemented change `id` to rebase (required)")
-	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("revision", "", "exact record `revision` (the blob object id) from the authoritative context read (required)")
 	cmd.Flags().String("head", "", "expected local feature head `ref` the rebase begins from (required)")
 	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
-	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("revision")
 	_ = cmd.MarkFlagRequired("head")
 	return cmd
 }
