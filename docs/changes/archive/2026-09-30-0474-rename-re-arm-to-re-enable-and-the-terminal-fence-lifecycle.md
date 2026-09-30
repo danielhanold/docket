@@ -2,7 +2,7 @@
 id: 474
 slug: 'rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle'
 title: 'Rename re-arm to re-enable and retire the lifecycle ''terminal'' and non-run ''fence'' names'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -22,7 +22,7 @@ branch: 'refactor/rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle'
 pr: 'https://github.com/danielhanold/docket/pull/356'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-30T14:57:21Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -31,8 +31,8 @@ claimed_at: '2026-09-30T14:57:21Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md) |
-| Plan | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md](https://github.com/danielhanold/docket/blob/refactor/rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle/docs/superpowers/plans/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) |
-| Results | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-results.md](https://github.com/danielhanold/docket/blob/refactor/rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle/docs/results/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-results.md) |
+| Plan | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) |
+| Results | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
