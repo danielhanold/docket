@@ -35,3 +35,29 @@ func TestClaimReceiptKeepsCommittedRunContextHashKey(t *testing.T) {
 		}
 	}
 }
+
+// TestClaimDigestStableAcrossRevisionRename pins ADR-0129 Decision 4 (change
+// 0472): the claim idempotency digest hashes a `version` key, and its digests
+// are committed as Docket-Request-Digest trailers on the metadata branch. The Go
+// field may be renamed, but a fixed (id, record revision, run-context hash) must
+// still hash to the value computed before the rename, or a lost-response claim
+// retry straddling the upgrade re-allocates instead of replaying.
+func TestClaimDigestStableAcrossRevisionRename(t *testing.T) {
+	const rev = "0123456789abcdef0123456789abcdef01234567"
+	for _, c := range []struct{ name, hash, want string }{
+		{"run-context", "sha256:run-context-hash", "sha256:da9fe54c15a964beee2ee8b4e241b5c8954bbf7b245b2c5b7b4ca3e3d110d143"},
+		{"ungated", "", "sha256:c95b30b1a04b0de646ff621e7f24982df264a43c70ec7389dce8ae502ad4181a"},
+	} {
+		got, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 472, Version: rev, RunContextHash: c.hash})
+		if err != nil {
+			t.Fatalf("%s: canonicalDigest: %v", c.name, err)
+		}
+		if string(got) != c.want {
+			t.Errorf("%s: claim digest = %s, want the pre-rename %s (the payload's JSON keys must not move)", c.name, got, c.want)
+		}
+	}
+	b, err := json.Marshal(claimDigestPayload{ID: 472, Version: rev})
+	if err != nil || !strings.Contains(string(b), `"version":"`+rev+`"`) {
+		t.Fatalf("claimDigestPayload marshals %s (err %v), want the committed \"version\" key", b, err)
+	}
+}
