@@ -33,7 +33,7 @@ import (
 //
 // Kill is a rename, not a reuse: the archive move is one MutationCreate at the
 // archive path plus one MutationDelete of the active path in the same plan.
-// Leaving the active file would keep the change visibly alive (presence-encoded
+// Leaving the active file would keep the change visibly alive (marker-section
 // state), so the delete is part of the transition. Identity checks compare by
 // record content, not path — repository.ValidateEvolution already models the
 // relocation, so no path-keyed check is added here.

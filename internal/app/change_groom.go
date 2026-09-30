@@ -80,7 +80,7 @@ const reasonSpecRevisionMismatch = "spec-revision-mismatch"
 // location (the Bash grooming skills write here); it is not configurable.
 const specsDir = "docs/superpowers/specs"
 
-// autoGroomBlockedHeading is the presence-encoded abstain section: the abstain
+// autoGroomBlockedHeading is the abstain marker section: the abstain
 // outcome appends to it, and the board's "auto-groom blocked — needs you" cell
 // keys on its presence (domain.ReadyAutoGroomBlocked).
 const autoGroomBlockedHeading = "## Auto-groom blocked"

@@ -151,7 +151,7 @@ const rawGateRun = ""
 // state to a protocol result. When cwd sits inside a registered git worktree, the
 // launch first admits through the worktree execution slot (change 0375): one
 // canonical worktree carries at most one reserved-or-running top-level gate
-// execution across scoped, scopeless, and raw launches, so a second raw launch
+// run across scoped, scopeless, and raw launches, so a second raw launch
 // into a busy worktree is REFUSED (worktree-busy / launch-unconfirmed) with a
 // safe incumbent locator and no process spawned — but only after the reserve's
 // finished-incumbent reconciliation (change 0446 spec §3) could not prove the

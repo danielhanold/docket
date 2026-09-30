@@ -1,5 +1,5 @@
 // Durable worktree execution slot: one canonical worktree admits at most one
-// reserved-or-running top-level gate execution.
+// reserved-or-running top-level gate run.
 //
 // A worktree execution slot is the outermost admission authority of the gate
 // driver. Before any gate process is launched — a scoped start, a scopeless
@@ -24,7 +24,7 @@
 // slot. The directory is owner-only (0700) and its record private (0600); writes
 // go through writeAtomicJSON and every read-modify-write serializes on a per-slot
 // blocking flock plus a persisted physical generation (admissionCAS), the same
-// compare-and-swap discipline the drive store established. Unknown schema
+// conflict-checked write discipline the drive store established. Unknown schema
 // versions and corrupt records fail closed with a typed StoreError, never a free
 // slot: a record the store cannot read is never proof the worktree is idle.
 //
@@ -247,7 +247,7 @@ func canonicalizeMissingPath(clean string) (string, error) {
 	}
 }
 
-// ReserveWorktreeExecution admits a new top-level gate execution for a worktree,
+// ReserveWorktreeExecution admits a new top-level gate run for a worktree,
 // or refuses it. It serializes on the slot's flock, then reads the current
 // record: an absent or released slot is admitted; a reserved, executing, or
 // stopping slot is refused ErrWorktreeBusy; an unresolved slot is refused
@@ -776,7 +776,7 @@ func verifyAdmissionToken(rec *admissionRecord, token, op string) error {
 }
 
 // admissionCAS runs a logical slot transition under the store's physical
-// compare-and-swap, mirroring scopeCAS/ownerCAS: it re-reads the current physical
+// conflict-checked write, mirroring scopeCAS/ownerCAS: it re-reads the current physical
 // generation and retries on a physical generation mismatch so concurrent writers
 // serialize and physical contention never surfaces as a logical failure. Any
 // error mutate itself returns is a deliberate logical rejection (or a real IO
@@ -813,7 +813,7 @@ func (s *Store) admissionCAS(worktreeRoot string, mutate func(*admissionRecord) 
 	return storeErr(ErrIO, op, fmt.Errorf("exceeded %d attempts under contention: %w", ownerCASMaxAttempts, lastErr))
 }
 
-// admissionCASOnce performs a single flock-serialized compare-and-swap on a slot
+// admissionCASOnce performs a single flock-serialized conflict-checked write on a slot
 // record keyed by its admission key, mirroring scopeCASOnce for scopes. A stale
 // physical generation returns ErrGenerationMismatch and writes nothing; a mutate
 // error aborts the transition with no write.

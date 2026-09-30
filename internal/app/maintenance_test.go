@@ -721,8 +721,8 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 	})
 }
 
-// TestSweepInvalidScopeRefusesBeforeAnyRead: a typed scope outside the closed
-// vocabulary is a fail-closed input refusal that dispatches nothing and reads
+// TestSweepInvalidScopeRefusesBeforeAnyRead: a typed scope outside the allowed
+// values is a fail-closed input refusal that dispatches nothing and reads
 // nothing (defense in depth behind the CLI's own validation).
 func TestSweepInvalidScopeRefusesBeforeAnyRead(t *testing.T) {
 	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: nil}

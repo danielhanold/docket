@@ -103,7 +103,7 @@ func TestCommittedCodexDispatchObservesYieldedEntrySession(t *testing.T) {
 	requireCodex(t)
 	content := readMaintained(t, guardRoot(t), "AGENTS.md")
 	for _, clause := range []string{
-		"shell-tool yield carrying a live task/session identity is a liveness transition, not completion",
+		"shell-tool yield carrying a live task/session identity means the command moved to background, not that it completed",
 		"retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism",
 		"Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved",
 		"Only after terminal output is collected may implement-next run the parent's keyed `run.verdict`",

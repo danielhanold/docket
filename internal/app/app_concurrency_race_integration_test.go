@@ -58,7 +58,7 @@ func TestRaceIntegrationAppConcurrencyRunTrackerRetryConcurrentExactlyOne(t *tes
 
 // race shard (change 0407): N goroutines call ReserveRunTrackerClaim with DISTINCT
 // (changeID, requestID) under ONE key; -race guards the os.Link hard-link create
-// that serializes competing binding attempts (the bind-once compare-and-swap).
+// that serializes competing binding attempts (the bind-once conflict-checked write).
 // Exactly one caller must create the binding (return nil) and every other must
 // lose the CAS and return ErrRunTrackerBindingConflict. Defeating the CAS — e.g. a
 // short-circuiting pre-read that answers match-or-conflict on its own, or a

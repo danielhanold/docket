@@ -482,7 +482,7 @@ func TestIntegrationFinalizeCloseoutOrdinary(t *testing.T) {
 			// stamped with the merge date.
 			recPath := groomPath(f.id, f.slug)
 			if _, ok := originFile(t, f.repo.origin, f.branch, recPath); ok {
-				t.Errorf("active record still present after closeout (presence-encoded state)")
+				t.Errorf("active record still present after closeout (marker-section state)")
 			}
 			archived, ok := originFile(t, f.repo.origin, f.branch, archivePath)
 			if !ok {

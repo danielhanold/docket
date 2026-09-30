@@ -253,7 +253,7 @@ authoritative config the build role reads, never a command it invents:
    (`--run-id` only when your prompt carried a run id) — capture that first response into `gate_reply` (its exit
    code, if needed, into `gate_rc`; never a zsh read-only special parameter such as
    `status`) and read the drive id and owner generation from it — then `gate.drive.advance` operation slices,
-   exactly as *Gate execution posture* describes. `--owner build` resolves the build-owned command
+   exactly as *Gate run posture* describes. `--owner build` resolves the build-owned command
    from config; the caller passes no suite argv.
 3. **`build_gate: local`, empty `build_test_command`** — a **configuration gap, not a red suite**:
    nothing to run, no failure to repair, and reading an empty command as RED would manufacture a
@@ -263,7 +263,7 @@ The verdict is an **exit status, never output text**. A run is **green if and on
 suite command exits zero**; any non-zero status is not green. A `PASS`/`FAIL` line, a summary count,
 or a progress ticker is **diagnostic only** — a gate that reads its verdict out of the output is not
 a gate. The deciding status is the one recorded in the **terminal result artifact** that *Gate
-execution posture* requires: **completed successfully** means that artifact records a zero status.
+run posture* requires: **completed successfully** means that artifact records a zero status.
 *Still running* and *result unavailable* are not verdicts, so they stay budget halts and are
 never red. Nor is every non-zero status red: a completed run whose recorded status the resolved
 runner defines as a **non-failure** outcome is a halt per *Halting conditions*, the same refusal the
@@ -312,14 +312,14 @@ repair cycle. `build_gate: off` runs no suite and spends no attempt, and an infr
 result-unavailable, configuration-gap, or observation-budget halt is unchanged and is **not** a red
 result to repair.
 
-### Gate execution posture
+### Gate run posture
 
 The suite may take longer than the harness will hold a foreground call open, so the gate is
 specified by capability rather than by mechanism. A harness's foreground-call timeout does **not**
 define the maximum duration of the build gate.
 
 1. Do **not** depend on a single foreground call remaining attached until the suite completes. Gate
-   execution must be able to outlive any individual foreground call used to start or observe it.
+   runs must be able to outlive any individual foreground call used to start or observe them.
 2. The gate writes its eventual outcome to a **durable result artifact** — readable after a yield,
    outside the committed tree, and non-colliding between concurrent gates. Where it lives is a
    per-harness decision, not a contract value.

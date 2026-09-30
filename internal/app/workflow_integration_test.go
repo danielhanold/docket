@@ -982,7 +982,7 @@ func TestIntegrationWorkflowLifecyclePlanningKillEndToEnd(t *testing.T) {
 			// The active record is gone; the archived record carries the killed status
 			// and the authored rationale.
 			if _, ok := originFile(t, repo.origin, m.branch, widgetPath); ok {
-				t.Errorf("active record still present after kill (presence-encoded state)")
+				t.Errorf("active record still present after kill (marker-section state)")
 			}
 			archived, ok := originFile(t, repo.origin, m.branch, archivePath)
 			if !ok {

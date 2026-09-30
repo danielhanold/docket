@@ -135,7 +135,7 @@ func startRun() time.Time { return time.Unix(1_000_000, 0).UTC() }
 // worktree root, so a scoped Start now needs a resolvable path (the old "/repo"
 // sentinel cannot be symlink-resolved). One shared directory is safe across tests:
 // every test owns a fresh Store (a fresh admission root under testsupport.TempDir),
-// so its admission slot is isolated even though the worktree key is shared. The git
+// so its worktree slot is isolated even though the worktree key is shared. The git
 // seam is faked in these tests, so ComputeFingerprint never touches the directory —
 // only admission's EvalSymlinks does.
 var (
@@ -1431,7 +1431,7 @@ func TestScopedStartAttachLaunchFailureStopsOrphan(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Worktree execution slot admission (change 0375 Task 3). A scoped start reserves
 // the canonical worktree's single execution slot before launch, so one worktree
-// carries at most one reserved-or-running top-level gate execution across DIFFERENT
+// carries at most one reserved-or-running top-level gate run across DIFFERENT
 // scopes — while a scope's own sequence reuses the slot it already holds.
 // ---------------------------------------------------------------------------
 
@@ -1564,7 +1564,7 @@ func TestScopedStartReleasesSlotOnTerminal(t *testing.T) {
 }
 
 // TestScopelessStartReservesBeforeLaunch proves that the finalize-style,
-// scopeless start owns a durable worktree admission slot before it asks the
+// scopeless start owns a durable worktree slot before it asks the
 // process backend to launch. Its private RunRoot is only the supervisor's
 // allocation directory; worktree admission is keyed by Worktree.
 func TestScopelessStartReservesBeforeLaunch(t *testing.T) {
@@ -1612,7 +1612,7 @@ func TestScopelessStartReservesBeforeLaunch(t *testing.T) {
 
 // TestScopelessPersistFailureReleasesOnProvenStop proves the post-launch
 // attach failure has no ambiguous-free path: a proven owned stop releases the
-// admission slot, while a stop the seam cannot prove leaves it unresolved.
+// worktree slot, while a stop the seam cannot prove leaves it unresolved.
 func TestScopelessPersistFailureReleasesOnProvenStop(t *testing.T) {
 	for name, stop := range map[string]func(string, string) (*process.StopOutcome, error){
 		"proven stop releases": func(runDir, reason string) (*process.StopOutcome, error) {

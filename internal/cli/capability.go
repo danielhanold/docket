@@ -29,7 +29,7 @@ const (
 	EffectProcessControl Effect = "process-control"
 )
 
-// allEffects is the closed vocabulary; validation derives from it, and the
+// allEffects holds the allowed values; validation derives from it, and the
 // catalog documents it. Adding a value here is a protocol event.
 var allEffects = map[Effect]bool{
 	EffectRead:           true,
@@ -165,7 +165,7 @@ func buildEntry(c *cobra.Command, id string) (CapabilityEntry, error) {
 }
 
 // parseEffects reads the space-joined effects annotation, validates each token
-// against the closed vocabulary, and returns them sorted and deduplicated. A
+// against the allowed values, and returns them sorted and deduplicated. A
 // missing/empty effect set or an unknown token is a construction error.
 func parseEffects(c *cobra.Command, id string) ([]string, error) {
 	parts := strings.Fields(c.Annotations[capAnnotationEffects])

@@ -265,7 +265,7 @@ review:
   max_fix_tasks: 10
 
 
-# ═══ Gate execution ════════════════════════════════════════════════════════════════════════
+# ═══ Gate run ══════════════════════════════════════════════════════════════════════════════
 
 # gate_observation_budget — (change 0223) how long, in MINUTES, docket is willing to await a
 # terminal result from a build gate it started. The gate must not assume the suite fits inside a

@@ -26,7 +26,7 @@
 // rule.
 //
 // RETRY CAS: ConsumeRunTrackerRetry's exclusivity rests on os.OpenFile with
-// O_CREATE|O_EXCL: the filesystem exclusive-create is the compare-and-swap, so of
+// O_CREATE|O_EXCL: the filesystem exclusive-create is the conflict-checked write, so of
 // any number of concurrent callers exactly one creates the marker and returns
 // true. Since change 0421 the permit is per-attempt: the marker for attempt n is
 // retry-consumed-<n> (runTrackerRetryMarkerFor), and the counted budget grants at most
@@ -83,7 +83,7 @@ const (
 // per-attempt marker is runTrackerRetryMarkerFor(n) == "retry-consumed-<n>", and the
 // bare name is read as the attempt-1 marker for legacy compatibility;
 // runTrackerClaimBindingName is the bind-once claim-binding file whose os.Link
-// hard-link create is the compare-and-swap serializing competing claim bindings
+// hard-link create is the conflict-checked write serializing competing claim bindings
 // (change 0407).
 const (
 	runTrackerRecordFileName   = "record.json"
@@ -219,7 +219,7 @@ func runTrackerBoundPairOK(rec RunTrackerRecord) bool {
 
 // RunTrackerClaimBinding is the durable, bind-once record of which (change, claim
 // request) a run key's run context is bound to (change 0407). It is written
-// by ReserveRunTrackerClaim through an os.Link hard-link create (the compare-and-swap
+// by ReserveRunTrackerClaim through an os.Link hard-link create (the conflict-checked write
 // that serializes competing binding attempts with whole-file atomicity) and
 // finalized by ConfirmRunTrackerClaim. Schema is stamped authoritatively; a load fails
 // closed on any other value.
@@ -564,7 +564,7 @@ func writeRunTrackerRecordAtomic(dir string, rec RunTrackerRecord) error {
 // refuses (false, nil) BEFORE any filesystem write when attempt >= limit (the
 // budget is spent, or limit 1 disables retries) or attempt < 1 (a nonsensical
 // attempt number). Otherwise the os.OpenFile O_CREATE|O_EXCL create of
-// runTrackerRetryMarkerFor(attempt) is the compare-and-swap: of any number of concurrent
+// runTrackerRetryMarkerFor(attempt) is the conflict-checked write: of any number of concurrent
 // callers observing the same attempt transition exactly one creates the marker and
 // returns true; every other observes fs.ErrExist and returns false without
 // granting. For attempt 1 the bare legacy retry-consumed marker (schema v3's single
@@ -600,7 +600,7 @@ func ConsumeRunTrackerRetry(repoDir, key string, attempt, limit int) (bool, erro
 	f, err := os.OpenFile(marker, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 	if err != nil {
 		if errors.Is(err, fs.ErrExist) {
-			return false, nil // lost the compare-and-swap; this attempt's permit already spent
+			return false, nil // lost the conflict-checked write; this attempt's permit already spent
 		}
 		return false, runTrackerErr(ErrRunTrackerIO, "consume", err)
 	}
@@ -679,7 +679,7 @@ func readRunTrackerClaimBinding(dir, op string) (RunTrackerClaimBinding, bool, e
 
 // ReserveRunTrackerClaim binds key's run context to (changeID, requestID) exactly
 // once, before the claim's metadata transaction. The os.Link hard-link create is
-// the compare-and-swap: the reservation is written to a same-directory temp file
+// the conflict-checked write: the reservation is written to a same-directory temp file
 // and hard-linked into place, so of any number of concurrent callers exactly one
 // creates the binding with whole-file atomicity (never a partially-written CAS
 // winner). An existing binding for the same (changeID, requestID) is an idempotent
@@ -695,7 +695,7 @@ func ReserveRunTrackerClaim(repoDir, key string, changeID int, requestID string)
 	// fs.ErrExist re-load branch and the atomicity guard stays load-bearing (a
 	// pre-read that answered match-or-conflict on its own would make the CAS
 	// untestable and would race a concurrent writer). This mirrors the
-	// reserveScopeDrive CAS discipline: the compare-and-swap is authority.
+	// reserveScopeDrive CAS discipline: the conflict-checked write is authority.
 	buf, err := json.Marshal(RunTrackerClaimBinding{Schema: bindingSchemaVersion, ChangeID: changeID, RequestID: requestID, Confirmed: false})
 	if err != nil {
 		return runTrackerErr(ErrRunTrackerIO, "reserve", err)

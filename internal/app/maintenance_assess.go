@@ -29,7 +29,7 @@ import (
 // dispatch a record it can prove needs nothing, and never certifies a mutation.
 
 // The stable reasons the snapshot assessment reports for a non-actionable
-// historical record (closed vocabulary additions). Message text is explanatory
+// historical record (allowed-value additions). Message text is explanatory
 // and must not be parsed.
 const (
 	// ReasonSweepSnapshotNoWork: every destructive leg is provably a no-op at the

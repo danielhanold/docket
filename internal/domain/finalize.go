@@ -8,7 +8,7 @@ import (
 // PRFacts is the live pull-request state a finalize decision consults, copied
 // out of a GitHub probe by the app layer. Every field is a plain value so the
 // domain reads facts without touching GitHub itself. State and Mergeable are
-// each drawn from a closed vocabulary; "unknown"/"UNKNOWN" carry a failed or
+// each drawn from a set of allowed values; "unknown"/"UNKNOWN" carry a failed or
 // indeterminate probe and are never laundered into a clean absence.
 type PRFacts struct {
 	Number, Revision        string

@@ -156,7 +156,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 			t.Fatalf("attach results = %q (reason %q msg %q findings %v)", attachR.Result, attachR.Reason, attachR.Message, attachR.Findings)
 		}
 
-		// (8) Launch the real trivially-passing gate through the native supervisor and
+		// (8) Launch the real trivially-passing gate through the gate supervisor and
 		// observe it to a passed terminal.
 		runTrackerRoot := testsupport.TempDir(t)
 		launch := GateLaunch(runTrackerRoot, wp, []string{passingGateScript(t)})

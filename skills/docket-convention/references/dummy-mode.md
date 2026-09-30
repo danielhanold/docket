@@ -76,6 +76,6 @@ starting an interactive skill or mid-session.
 - Never drop a decision, a caveat, or an option to make the prose simpler. Simplification is about
   **vocabulary and framing, never about content**: a question the human cannot answer is a failure,
   and so is a question that hides the thing they needed to weigh.
-- Prefer a concrete consequence over an abstraction ("the second save loses its work" beats "a CAS
+- Prefer a concrete consequence over an abstraction ("the second save loses its work" beats "a conflict-checked
   push races"), and keep the technical term alongside its gloss the first time, so the human can
   still search for it.

@@ -134,7 +134,7 @@ func TestProductionCapabilityCorrespondence(t *testing.T) {
 }
 
 // TestProductionEffectsCompleteAndClosed pins every entry's effect set: at least
-// one effect, each drawn from the closed vocabulary, sorted and deduplicated —
+// one effect, each drawn from the allowed values, sorted and deduplicated —
 // the exact shape the catalog contract promises consumers.
 func TestProductionEffectsCompleteAndClosed(t *testing.T) {
 	entries, err := collectCapabilities(productionRootForTest(t))
@@ -149,7 +149,7 @@ func TestProductionEffectsCompleteAndClosed(t *testing.T) {
 		seen := map[string]bool{}
 		for _, eff := range e.Effects {
 			if !allEffects[Effect(eff)] {
-				t.Errorf("entry %q declares effect %q outside the closed vocabulary", e.ID, eff)
+				t.Errorf("entry %q declares effect %q outside the allowed values", e.ID, eff)
 			}
 			if seen[eff] {
 				t.Errorf("entry %q declares effect %q more than once", e.ID, eff)

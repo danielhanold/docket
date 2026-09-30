@@ -15,7 +15,7 @@
 // (Task 12) supersedes. It records the participants a coordinator/worker/task
 // registered and the mutation admissions journaled at the shared mutation
 // boundaries (Task 11). This task establishes the record, its participant
-// registration, and the state-gated compare-and-swap; the transitions and the
+// registration, and the state-gated conflict-checked write; the transitions and the
 // mutation journal reconciliation are wired by later tasks.
 //
 // IDENTITY vs. AUTHORITY: RunID is a random, PUBLIC locator — it authorizes
@@ -54,7 +54,7 @@ import (
 const runSchemaVersion = 1
 
 // runRecordFileName is the atomic record within a run-key directory;
-// runLockFileName is the per-key flock the compare-and-swap serializes on.
+// runLockFileName is the per-key flock the conflict-checked write serializes on.
 const (
 	runRecordFileName = "run.json"
 	runLockFileName   = "run.lock"
@@ -464,7 +464,7 @@ func bindRunWorktree(repoDir, runKey, worktree string) error {
 }
 
 // runRecordCAS runs a logical run transition under a flock-serialized physical
-// compare-and-swap: it acquires the per-key run.lock, reads the current record,
+// conflict-checked write: it acquires the per-key run.lock, reads the current record,
 // applies mutate to a copy, and atomically writes it back under a freshly rotated
 // generation. Any error mutate returns is a deliberate logical rejection (or a
 // real IO fault) and aborts with NO write, so a rejected transition leaves the
@@ -559,7 +559,7 @@ var errRunAlreadySuperseded = errors.New("run already superseded")
 // observed state already satisfies the transition (idempotent replay).
 var errRunFenceNoWrite = errors.New("run completion state already satisfied")
 
-// FenceRunCompleting compare-and-swaps an active run active→completing, the
+// FenceRunCompleting moves an active run active→completing through a conflict-checked write, the
 // durable success fence a verified keyed run-complete drives (change 0441). It
 // returns the state OBSERVED under the lock. active→fenced (RunCompleting, nil);
 // already completing→idempotent replay (RunCompleting, nil); completed→
@@ -591,7 +591,7 @@ func FenceRunCompleting(repoDir, runKey, expectRunID string) (runState, error) {
 	return observed, err
 }
 
-// CompleteRun compare-and-swaps a fenced run completing→completed, retiring a
+// CompleteRun moves a fenced run completing→completed through a conflict-checked write, retiring a
 // successful closeout (change 0441). already completed→idempotent nil (a completed
 // receipt replay is safe); ANY other state is ErrRunNotActive — a concurrent
 // cancellation that won from completing makes completion lose, and there is no

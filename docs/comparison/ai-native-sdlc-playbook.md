@@ -69,7 +69,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 | Institutional knowledge file | `CLAUDE.md`; mistake twice → into the file. | `AGENTS.md` is the promotion destination for learnings; criterion *will the agent know to search for this?*; human-gated. | Both |
 | Skills as institutional knowledge | Policy skills, centrally owned. | docket is a skill set plus a pluggable `skills:` map; workflow skills, not policy skills. | Both (workflow vs policy) |
 | Deterministic hooks as guardrails | Protected paths, formatters, credential checks. | None; docket disables git hooks on its metadata worktree; its own guards are tests. | Playbook only |
-| Parallel work in worktrees | Multiple instances in separate worktrees. | `.worktrees/<slug>` per change; compare-and-swap claim; `/loop` drains. | Both |
+| Parallel work in worktrees | Multiple instances in separate worktrees. | `.worktrees/<slug>` per change; conflict-checked claim; `/loop` drains. | Both |
 | Subagents with scoped tools | Verification, simplification, exploration. | 17 generated wrappers, each pinned to a model and effort. | Both |
 | Model and effort matched to the task | Not described. | Economy / standard / premium / max, rubric-routed, one escalation; `max` reserved for irreversible work. | docket only |
 | TDD per task with one commit | Failing test first for bug fixes. | `docket-build-task`: baseline, failing test, implementation, self-review, one commit; SHA verified as an ancestor. | Both |
@@ -145,7 +145,7 @@ is current when build starts; docket assumes it is not.
 |---|---|---|---|
 | Governance as configuration | Skills, hooks, managed settings; `CLAUDE.md` and `REVIEW.md` reviewed like code. | Four config layers per key; shared-setting guard; every key documented in `.docket.example.yml` or the suite fails; the capability catalog is the only hard-coded CLI spelling. | Both (different content) |
 | Human judgement points | Intent, plan approval, design review, PR approval, findings triage, policy changes. | Change creation and grooming, the PR merge, finalize confirmations and repair sign-off, learnings promotion, filing discovered work, abstained stubs. Plan approval deliberately not a human point. | Both |
-| Audit trail | Git history; logged hook decisions; incident conversations. | Every transition a metadata commit; presence-encoded sections; receipts and leases; frozen plan/results records; ADR supersessions as new files. | Both |
+| Audit trail | Git history; logged hook decisions; incident conversations. | Every transition a metadata commit; marker sections; receipts and leases; frozen plan/results records; ADR supersessions as new files. | Both |
 | Legacy tracker integration | One system of record per artifact. | One-way GitHub Issues mirror; Projects v2 guarded but unwired. | Both (GitHub issues only) |
 | Autonomy without a human channel | Scoped subagents; gates ask a human. | Abort-and-report wrappers; autonomy precedence; forked children never yield; four dispositions drive any loop. | docket only |
 | Run-tracker bracketing for dispatched runs | Not described. | `run start` / `run verdict` / `run continue`; retry-once accounting in durable records. | docket only |

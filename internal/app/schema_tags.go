@@ -16,8 +16,8 @@ import (
 //	                    mints an error finding on its absence.
 //	success-only        the field is populated only on a successful result.
 //	refusal-only        the field is populated only on a refusal/failure result.
-//	enum=<vocabulary>   the field's value is drawn from the named closed
-//	                    vocabulary (e.g. enum=priority).
+//	enum=<vocabulary>   the field's value is drawn from the named set of
+//	                    allowed values (e.g. enum=priority).
 //
 // Options combine on one field: docket:"required,enum=priority". All four options
 // are now consumed: `required` by the request-shape validators (via

@@ -619,7 +619,7 @@ func decodeRequest(stdin io.Reader, flagName, source string, dst any) error {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
 		// An unknown-field refusal names only the offending key; append the
-		// accepted key set so the caller learns the whole closed vocabulary.
+		// accepted key set so the caller learns every allowed value.
 		if strings.Contains(err.Error(), "unknown field") {
 			return fmt.Errorf("decoding %s JSON: %w (accepted keys: %s)", flagName, err, strings.Join(requestJSONKeys(dst), ", "))
 		}

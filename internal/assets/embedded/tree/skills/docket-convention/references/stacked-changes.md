@@ -87,7 +87,7 @@ The walk applies four rules, upward from the change:
 3. **A `killed` parent stops the walk.**
 4. **Anything else is invalid** — a missing parent, a cycle, or a parent branch with no remote ref.
 
-`effective_base.kind` is a closed vocabulary; `branch` is meaningful **only** when `kind` is
+`effective_base.kind` takes a fixed set of allowed values; `branch` is meaningful **only** when `kind` is
 `resolved`, and `source_change` names the exact ancestor the walk stopped at:
 
 | `kind` | Meaning | What you must do |

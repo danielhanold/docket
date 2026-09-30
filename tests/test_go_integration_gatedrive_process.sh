@@ -2,7 +2,7 @@
 # docket-suite: go
 # tests/test_go_integration_gatedrive_process.sh — Go integration shard (change 0466, extending
 # change 0333's partition): the gate driver's real-process and real-git tests (driving the REAL
-# native supervisor internal/process.Service across slices, fresh-process resume, deadline and
+# gate supervisor internal/process.Service across slices, fresh-process resume, deadline and
 # death handling, real-git sequences, and the worktree fingerprint/handoff proofs over real
 # repositories) — moved out of the default internal/gatedrive corpus behind the `integration`
 # build tag, prefix ^TestIntegrationGatedrive. The default internal/gatedrive corpus must never

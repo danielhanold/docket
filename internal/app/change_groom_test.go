@@ -1177,7 +1177,7 @@ func TestChangeGroomPlanReEnableClearsSectionSetsFlagAndBoard(t *testing.T) {
 	}
 	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
 	if strings.Contains(rec, "## Auto-groom blocked") || strings.Contains(rec, "First note.") {
-		t.Errorf("re-enable left the presence-encoded section behind:\n%s", rec)
+		t.Errorf("re-enable left the marker section behind:\n%s", rec)
 	}
 	if !strings.Contains(rec, "\nauto_groomable: true\n") || strings.Contains(rec, "auto_groomable: false") {
 		t.Errorf("re-enable did not set auto_groomable: true:\n%s", rec)

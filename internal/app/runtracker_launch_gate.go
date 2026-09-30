@@ -3,7 +3,7 @@
 // admission/reservation body under (gatedrive.RunLaunchGate): a run that a
 // cancellation has fenced, a resume has superseded, or that does not own the
 // worktree a start names must NOT be allowed to launch or reserve a new gate
-// execution.
+// run.
 //
 // SERIALIZATION. The gate holds the SAME per-key run.lock the mutation fence and
 // the cancellation transition serialize on (runtracker_run_record.go's runRecordCAS), across

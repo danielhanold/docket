@@ -10,15 +10,15 @@ import (
 )
 
 // newSchemaCommand builds `docket schema`: a repository-, config-, git-, and
-// network-independent read of the request/result payload schemas and closed
-// vocabularies, derived entirely from the live Go types. Like the capabilities
+// network-independent read of the request/result payload schemas and allowed
+// values, derived entirely from the live Go types. Like the capabilities
 // bootstrap it mirrors, its RunE touches no filesystem, config loader, git, or
 // network — it projects the closed effect vocabulary and hands it to app.Schema,
 // which reflects the operation-schema registry.
 func newSchemaCommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "schema",
-		Short:       "Emit request/result payload schemas and closed vocabularies (read-only, repository-independent)",
+		Short:       "Emit request/result payload schemas and allowed values (read-only, repository-independent)",
 		Args:        cobra.NoArgs,
 		Annotations: capability("schema", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
