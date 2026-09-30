@@ -141,7 +141,7 @@ type changeReconcileReceipt struct {
 // the record's canonical path, and drives one atomic exact-revision transaction
 // that reconciles the change and — when inline is enabled — re-renders the
 // board. Every failure that predates the transaction (bad request shape, a
-// fenced board surface, a corpus-read failure) returns without an engine call.
+// refused board surface, a corpus-read failure) returns without an engine call.
 func ChangeReconcile(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeReconcileRequest) ChangeReconcileResult {
 	if findings := validateChangeReconcileShape(req); len(findings) > 0 {
 		return newChangeReconcileResult(ResultInvalidInput, ChangeReconcileResult{Findings: findings})
@@ -154,7 +154,7 @@ func ChangeReconcile(ctx context.Context, deps PlanningDeps, repoDir string, req
 	}
 	eff := pin.Config.Effective
 
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
 			return newChangeReconcileResult(pe.Result, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(pe.Reason), pe.Message)}})
@@ -289,7 +289,7 @@ func decodeChangeReconcileReceipt(b []byte) (changeReconcileReceipt, bool) {
 
 // validateChangeReconcileShape runs the configuration-independent request checks
 // that never reach the engine: the pinned-entity fields, the owned-section
-// fence over the named proposal sections, the required reconcile-log entry, and
+// check over the named proposal sections, the required reconcile-log entry, and
 // the authored-input size bound over every authored string.
 func validateChangeReconcileShape(req ChangeReconcileRequest) []StatusFinding {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
@@ -297,7 +297,7 @@ func validateChangeReconcileShape(req ChangeReconcileRequest) []StatusFinding {
 		findings = append(findings, lifecycleFinding(code, msg))
 	}
 
-	// Owned-section fence: a named proposal section must be an owned change
+	// Owned-section check: a named proposal section must be an owned change
 	// heading. The managed ## Artifacts block, the ## Reconcile log section, and
 	// any unowned heading are refused here — reconcile is a structured edit of
 	// owned proposal sections only.

@@ -167,7 +167,7 @@ func RepairIdentity(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 				strings.Join(blockerPaths(decision.Blockers), ", ")+"); withdraw it before any mutation", req.ID)
 	}
 	eff := pin.Config.Effective
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
 			return repairRefusal(pe.Result, pe.Reason, pe.Message, req.ID)

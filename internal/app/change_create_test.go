@@ -160,7 +160,7 @@ func TestChangeCreateRejectsUnknownTypeAndPriority(t *testing.T) {
 	}
 }
 
-func TestChangeCreateFencesGithubBoardSurface(t *testing.T) {
+func TestChangeCreateRefusesGithubBoardSurface(t *testing.T) {
 	engine := &recordingEngine{}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline", "github"})}
 	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
@@ -171,7 +171,7 @@ func TestChangeCreateFencesGithubBoardSurface(t *testing.T) {
 		t.Fatalf("result = %q, want unsupported-config", res.Result)
 	}
 	if len(engine.calls) != 0 {
-		t.Errorf("engine called despite a fenced board surface")
+		t.Errorf("engine called despite a refused github board surface")
 	}
 }
 

@@ -202,7 +202,7 @@ func ChangeRevive(ctx context.Context, deps PlanningDeps, repoDir string, req Ch
 }
 
 // executeChangeLifecycle is the shared driver every transition composes after
-// their own request-shape validation: it pins context, fences the board
+// their own request-shape validation: it pins context, checks the board
 // surface, discovers the repository, and submits one exact-revision transaction
 // carrying the supplied domain action and section edits.
 func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opKey string,
@@ -210,7 +210,7 @@ func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opK
 	action func(domain.Change) (domain.ActionResult, *domain.PolicyFailure), sections []render.SectionEdit) ChangeLifecycleResult {
 
 	// Pin authoritative context: the metadata mode, branches, and resolved
-	// configuration the board fence consults.
+	// configuration the board-surface check consults.
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
@@ -218,9 +218,9 @@ func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opK
 	}
 	eff := pin.Config.Effective
 
-	// Board-surface fence: a github surface is an unsupported configuration,
+	// Board-surface check: a github surface is an unsupported configuration,
 	// refused before any transaction; otherwise learn whether inline is on.
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
 			return newChangeLifecycleResult(opKey, pe.Result, ChangeLifecycleResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(pe.Reason), pe.Message)}})

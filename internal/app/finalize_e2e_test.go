@@ -33,7 +33,7 @@ import (
 // section bullet-for-bullet: ordinary finalize to archive+cleanup in both
 // repository modes, conflict/repair/sign-off, response-loss convergence, the
 // stack outcomes, out-of-band merge recovery, halt/resume plus reclaim, the
-// deferred-capability fence, and no dependence on a PATH `docket`.
+// deferred-capability refusal, and no dependence on a PATH `docket`.
 //
 // Isolation contract (per the Global Constraints and the spec):
 //   - The binary is invoked by ABSOLUTE PATH; PATH never carries a `docket`.
@@ -1387,9 +1387,9 @@ func mergeMaps(a, b map[string]string) map[string]string {
 	return out
 }
 
-// --- TestE2EUnsupportedConfigFence ----------------------------------------
+// --- TestE2EUnsupportedConfigRefused --------------------------------------
 
-// TestE2EUnsupportedConfigFence loads the capability requests that fenced Docket
+// TestE2EUnsupportedConfigRefused loads the capability requests that refused Docket
 // off before 0326 — repository-local `agents.*`, `auto_capture.enabled`,
 // `build.checkpoint`, `finalize.skip_results_only_delta`, and `terminal_publish`
 // — into the invocation clone's OWN `.docket.yml` (a tempdir file, never a frozen
@@ -1398,11 +1398,11 @@ func mergeMaps(a, b map[string]string) map[string]string {
 // metadata remote and the GitHub PR left byte-for-byte untouched. Global
 // model/effort pins are placed in the isolated XDG global layer and proven to
 // remain supported (they never block).
-func TestE2EUnsupportedConfigFence(t *testing.T) {
+func TestE2EUnsupportedConfigRefused(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
-	m := planRepoModes()[0] // mode-invariant: the fence is a config-layer property.
+	m := planRepoModes()[0] // mode-invariant: the refusal is a config-layer property.
 	s := reachImplemented(t, m, docketBin, ghBin)
 
 	// Global layer: model + effort pins remain supported (never a blocker).
@@ -1422,7 +1422,7 @@ func TestE2EUnsupportedConfigFence(t *testing.T) {
 	commitToOriginDefault(t, s.repo.origin, ".docket.yml", deferred, "request deferred capabilities")
 
 	// A read-only op still applies under deferred caps (global pins are supported
-	// and reads never fence), so context finalize is unaffected.
+	// and reads are never refused), so context finalize is unaffected.
 	cx := s.dk(t, "", "context", "finalize", "--id", strconv.Itoa(s.id))
 	if cx.result() != "applied" {
 		t.Fatalf("read-only context finalize under deferred caps = %q\n%s", cx.result(), cx.stdout)
@@ -1434,7 +1434,7 @@ func TestE2EUnsupportedConfigFence(t *testing.T) {
 	reportPath := s.writeInput(t, "report.json", `{"report":"fenced"}`)
 
 	// Every mutating 0316 operation that reruns the capability preflight.
-	fenced := []struct {
+	refused := []struct {
 		name string
 		args []string
 	}{
@@ -1449,7 +1449,7 @@ func TestE2EUnsupportedConfigFence(t *testing.T) {
 		{"reclaim", []string{"change", "reclaim", "--id", strconv.Itoa(s.id), "--revision", revision}},
 		{"maintenance-sweep", []string{"maintenance", "sweep"}},
 	}
-	for _, op := range fenced {
+	for _, op := range refused {
 		op := op
 		t.Run(op.name, func(t *testing.T) {
 			r := s.dk(t, "", op.args...)
@@ -1465,15 +1465,15 @@ func TestE2EUnsupportedConfigFence(t *testing.T) {
 	}
 
 	// Zero effect: the metadata remote, the integration branch, and the PR are
-	// exactly where they were before the fenced attempts.
+	// exactly where they were before the refused attempts.
 	if after := originTip(t, s.repo.origin, m.branch); after != beforeTip {
-		t.Errorf("a fenced operation moved the metadata remote: %s -> %s", beforeTip, after)
+		t.Errorf("a refused operation moved the metadata remote: %s -> %s", beforeTip, after)
 	}
 	if after := originTip(t, s.repo.origin, "main"); after != beforeBase {
-		t.Errorf("a fenced operation moved the integration branch: %s -> %s", beforeBase, after)
+		t.Errorf("a refused operation moved the integration branch: %s -> %s", beforeBase, after)
 	}
 	if st := fakeGHPRState(t, s.stateFile); st != "OPEN" {
-		t.Errorf("a fenced operation changed the PR state to %q; want OPEN (no GitHub effect)", st)
+		t.Errorf("a refused operation changed the PR state to %q; want OPEN (no GitHub effect)", st)
 	}
 }
 

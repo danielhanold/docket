@@ -197,7 +197,7 @@ func ChangeReclaim(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 	}
 	eff := pin.Config.Effective
 
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
 			return reclaimSkip(pe.Result, pe.Reason, pe.Message, req.ID)

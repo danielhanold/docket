@@ -203,7 +203,7 @@ func ChangeGroom(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	}
 
 	// 2. Pin authoritative context: the metadata mode, branches, and resolved
-	//    configuration the board fence consults.
+	//    configuration the board-surface check consults.
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
@@ -213,9 +213,9 @@ func ChangeGroom(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	}
 	eff := pin.Config.Effective
 
-	// 3. Board-surface fence: a github surface is an unsupported configuration,
+	// 3. Board-surface check: a github surface is an unsupported configuration,
 	//    refused before any transaction; otherwise learn whether inline is on.
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
 			return newChangeGroomResult(pe.Result, ChangeGroomResult{

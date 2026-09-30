@@ -347,7 +347,7 @@ func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, 
 }
 
 // claimPreflight performs the shared pre-transaction plumbing both claim
-// transitions need: pin context, fence the board surface, and discover the
+// transitions need: pin context, check the board surface, and discover the
 // repository. It returns a non-nil result pointer for any preflight failure.
 func claimPreflight(ctx context.Context, deps PlanningDeps, repoDir, opKey string) (
 	pin StatusPin, eff config.Effective, inline bool, repo gitcli.Repository, refusal *ChangeClaimResult) {
@@ -360,7 +360,7 @@ func claimPreflight(ctx context.Context, deps PlanningDeps, repoDir, opKey strin
 	}
 	eff = pin.Config.Effective
 
-	inline, err = fenceBoardSurface(eff)
+	inline, err = resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
 			r := newChangeClaimResult(opKey, pe.Result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(pe.Reason), pe.Message)}})

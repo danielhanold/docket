@@ -157,7 +157,7 @@ func TestChangeDeferRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}
 }
 
-func TestChangeBlockFencesGithubBoardSurface(t *testing.T) {
+func TestChangeBlockRefusesGithubBoardSurface(t *testing.T) {
 	engine := &recordingEngine{}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline", "github"})}
 	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
@@ -168,11 +168,11 @@ func TestChangeBlockFencesGithubBoardSurface(t *testing.T) {
 		t.Fatalf("result = %q, want unsupported-config", res.Result)
 	}
 	if len(engine.calls) != 0 {
-		t.Errorf("engine called despite a fenced board surface")
+		t.Errorf("engine called despite a refused github board surface")
 	}
 }
 
-func TestChangeDeferFencesGithubBoardSurface(t *testing.T) {
+func TestChangeDeferRefusesGithubBoardSurface(t *testing.T) {
 	engine := &recordingEngine{}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"github"})}
 	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
@@ -183,7 +183,7 @@ func TestChangeDeferFencesGithubBoardSurface(t *testing.T) {
 		t.Fatalf("result = %q, want unsupported-config", res.Result)
 	}
 	if len(engine.calls) != 0 {
-		t.Errorf("engine called despite a fenced board surface")
+		t.Errorf("engine called despite a refused github board surface")
 	}
 }
 
@@ -491,7 +491,7 @@ func TestChangeReviveRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}
 }
 
-func TestChangeUnblockFencesGithubBoardSurface(t *testing.T) {
+func TestChangeUnblockRefusesGithubBoardSurface(t *testing.T) {
 	engine := &recordingEngine{}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline", "github"})}
 	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
@@ -502,11 +502,11 @@ func TestChangeUnblockFencesGithubBoardSurface(t *testing.T) {
 		t.Fatalf("result = %q, want unsupported-config", res.Result)
 	}
 	if len(engine.calls) != 0 {
-		t.Errorf("engine called despite a fenced board surface")
+		t.Errorf("engine called despite a refused github board surface")
 	}
 }
 
-func TestChangeReviveFencesGithubBoardSurface(t *testing.T) {
+func TestChangeReviveRefusesGithubBoardSurface(t *testing.T) {
 	engine := &recordingEngine{}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"github"})}
 	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
@@ -517,7 +517,7 @@ func TestChangeReviveFencesGithubBoardSurface(t *testing.T) {
 		t.Fatalf("result = %q, want unsupported-config", res.Result)
 	}
 	if len(engine.calls) != 0 {
-		t.Errorf("engine called despite a fenced board surface")
+		t.Errorf("engine called despite a refused github board surface")
 	}
 }
 

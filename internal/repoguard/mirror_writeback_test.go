@@ -8,7 +8,7 @@ import (
 )
 
 // Change 0154 retired the GitHub board mirror from the skill bodies: the `github`
-// board surface is refused before any transaction — fenceBoardSurface (in
+// board surface is refused before any transaction — resolveBoardSurface (in
 // internal/app/planning.go) returns the planningError that refuses to proceed while a
 // `github` token is present, and dispSupportedOrDropped (in
 // internal/config/capability.go) classifies the surface as unsupported and emits the

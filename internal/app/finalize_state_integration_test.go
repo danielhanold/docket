@@ -206,7 +206,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 // TestFinalizeConcurrentMovement proves that a concurrent base move, a remote
 // feature-head move, and a same-record revision contention each produce a
 // contended/refused outcome — never a text-merge, a silent overwrite, or a merge —
-// because every effect is fenced by the exact old-value it read.
+// because every effect is guarded by the exact old value it read.
 func TestIntegrationFinalizeStateConcurrentMovement(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]

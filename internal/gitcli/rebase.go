@@ -20,7 +20,7 @@ const (
 	deleteOwnedRefOp Operation = "delete-owned-ref"
 )
 
-// ownedRefRequiredPrefix fences the owned-ref primitives: SetOwnedRef,
+// ownedRefRequiredPrefix guards the owned-ref primitives: SetOwnedRef,
 // DeleteOwnedRef, and the orig/base anchors BeginRebase writes may only ever
 // name a ref beneath it. It is Docket's private ref namespace; a ref outside it
 // (a real branch, a tag) is never a Docket-owned scratch ref and must never be
@@ -314,7 +314,7 @@ func (c *Client) DeleteOwnedRef(ctx context.Context, repo Repository, ref RefNam
 	return nil
 }
 
-// setOwnedRefInDir is the fenced update-ref used by SetOwnedRef and by
+// setOwnedRefInDir is the prefix-guarded update-ref used by SetOwnedRef and by
 // BeginRebase's anchor writes: it validates the ref is beneath refs/docket/ and
 // the oid is well-formed before running `update-ref <ref> <oid>` in dir. dir may
 // be any worktree of the repository — every worktree shares the one ref store.

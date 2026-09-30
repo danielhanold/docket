@@ -23,7 +23,7 @@ import (
 // inside the JSON strings and is never interpolated into any shell command —
 // the operation writes it through the transaction engine, never a subprocess.
 // Every policy question — validation, allocation, lifecycle legality, the
-// board fence — belongs to internal/app, so no body here branches on request
+// board-surface check — belongs to internal/app, so no body here branches on request
 // content.
 
 // systemClock is the production time source the planning operations read

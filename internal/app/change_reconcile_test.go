@@ -138,12 +138,12 @@ func TestChangeReconcileAppliesPatch(t *testing.T) {
 	}
 }
 
-// --- TestChangeReconcileOwnedFieldFence ------------------------------------
+// --- TestChangeReconcileRefusesNonOwnedSection -----------------------------
 
-// TestChangeReconcileOwnedFieldFence proves a request naming a non-owned section
+// TestChangeReconcileRefusesNonOwnedSection proves a request naming a non-owned section
 // (a managed block heading, or a heading outside the proposal set) is a typed
 // request-shape refusal reached before any engine call.
-func TestChangeReconcileOwnedFieldFence(t *testing.T) {
+func TestChangeReconcileRefusesNonOwnedSection(t *testing.T) {
 	cases := []struct {
 		name    string
 		heading string
@@ -166,7 +166,7 @@ func TestChangeReconcileOwnedFieldFence(t *testing.T) {
 				t.Fatalf("result = %q, want invalid-input", res.Result)
 			}
 			if len(engine.calls) != 0 {
-				t.Errorf("engine called %d times on a fenced section, want 0", len(engine.calls))
+				t.Errorf("engine called %d times on a refused section, want 0", len(engine.calls))
 			}
 			if !hasFindingCode(res.Findings, "invalid-section-heading") {
 				t.Errorf("missing invalid-section-heading; got %v", res.Findings)
