@@ -2,7 +2,7 @@
 id: 469
 slug: 'replace-opaque-docket-terms-with-clearer-names'
 title: 'Replace opaque docket terms with clearer names'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-28'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/replace-opaque-docket-terms-with-clearer-names'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-30T18:08:11Z'
 ---
 
 ## Artifacts
