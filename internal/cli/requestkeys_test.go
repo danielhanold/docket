@@ -11,7 +11,7 @@ import (
 // sorted top-level JSON keys DisallowUnknownFields enforces for a real request.
 func TestRequestJSONKeysReconcile(t *testing.T) {
 	got := requestJSONKeys(&app.ChangeReconcileRequest{})
-	want := []string{"id", "reconcile_log_entry", "relations", "sections", "spec_sections", "version"}
+	want := []string{"id", "reconcile_log_entry", "relations", "revision", "sections", "spec_sections"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("requestJSONKeys = %v, want %v", got, want)
 	}

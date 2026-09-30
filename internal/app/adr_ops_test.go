@@ -51,7 +51,7 @@ func TestADRRecordRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		}, "empty-change-path"},
 		{"producing change empty version", func(r *ADRRecordRequest) {
 			r.Change = &ADRProducingChange{ID: 1, Path: "docs/changes/active/0001-first.md", Revision: ""}
-		}, "empty-change-version"},
+		}, "empty-change-revision"},
 		{"producing change non-positive id", func(r *ADRRecordRequest) {
 			r.Change = &ADRProducingChange{ID: 0, Path: "docs/changes/active/0001-first.md", Revision: blobV}
 		}, "invalid-change-id"},
@@ -337,7 +337,7 @@ func TestADRSupersedeRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		{"short outer request id", func(r *ADRReplaceRequest) { r.RequestID = "short" }, "invalid-request_id"},
 		{"non-positive target id", func(r *ADRReplaceRequest) { r.Target.ID = 0 }, "invalid-target-id"},
 		{"empty target path", func(r *ADRReplaceRequest) { r.Target.Path = "" }, "empty-target-path"},
-		{"empty target version", func(r *ADRReplaceRequest) { r.Target.Revision = "" }, "empty-target-version"},
+		{"empty target revision", func(r *ADRReplaceRequest) { r.Target.Revision = "" }, "empty-target-revision"},
 		{"empty successor title", func(r *ADRReplaceRequest) { r.Successor.Title = "" }, "empty-title"},
 		{"empty successor decision", func(r *ADRReplaceRequest) { r.Successor.Decision = "" }, "empty-decision"},
 		{"duplicate successor relates_to", func(r *ADRReplaceRequest) { r.Successor.RelatesTo = []int{3, 3} }, "duplicate-relates_to"},

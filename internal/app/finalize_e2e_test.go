@@ -627,7 +627,7 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, version string) {
 			t.Fatalf("approval-required candidate carried no explicit-id override note: %v", cand)
 		}
 	}
-	version, _ = cand["version"].(string)
+	version, _ = cand["revision"].(string)
 	if version != s.ver(t) {
 		t.Fatalf("context version %q disagrees with origin oracle %q", version, s.ver(t))
 	}

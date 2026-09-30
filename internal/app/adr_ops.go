@@ -55,7 +55,7 @@ type ADRRecordRequest struct {
 type ADRProducingChange struct {
 	ID       int    `json:"id"`
 	Path     string `json:"path"`
-	Revision string `json:"version"`
+	Revision string `json:"revision"`
 }
 
 // adrProducingChangePaths returns the producing change's record path as an ADR
@@ -295,7 +295,7 @@ func validateADRContent(req ADRRecordRequest) []StatusFinding {
 			addShape(FCEmptyChangePath, "change.path must name the producing change's current canonical record path")
 		}
 		if strings.TrimSpace(req.Change.Revision) == "" {
-			addShape(FCEmptyChangeVersion, "change.version must be the exact full blob object id of the producing change")
+			addShape(FCEmptyChangeRevision, "change.revision must be the exact full blob object id of the producing change")
 		}
 	}
 	return findings
@@ -606,7 +606,7 @@ const adrNotAcceptedReason = "adr-not-accepted"
 type ADRTarget struct {
 	ID       int    `json:"id"`
 	Path     string `json:"path"`
-	Revision string `json:"version"`
+	Revision string `json:"revision"`
 }
 
 // ADRReplaceRequest is the closed, caller-supplied request for one supersede or
@@ -767,7 +767,7 @@ func validateADRReplaceShape(req ADRReplaceRequest) []StatusFinding {
 		findings = append(findings, adrFinding(FCEmptyTargetPath, "target.path must name the target ADR's current canonical record path"))
 	}
 	if strings.TrimSpace(req.Target.Revision) == "" {
-		findings = append(findings, adrFinding(FCEmptyTargetVersion, "target.version must be the exact full blob object id of the Accepted target"))
+		findings = append(findings, adrFinding(FCEmptyTargetRevision, "target.revision must be the exact full blob object id of the Accepted target"))
 	}
 	return append(findings, validateADRContent(req.Successor)...)
 }

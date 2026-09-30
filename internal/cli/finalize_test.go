@@ -54,7 +54,7 @@ func TestFinalizeRetargetChildrenFlagsRequired(t *testing.T) {
 // document naming it. A bare tempdir is no docket repo, so the operation fails past
 // its shape check — but only after naming itself.
 func TestFinalizeRetargetChildrenReachesOperation(t *testing.T) {
-	out, errS, _ := runCLIStdin(t, `{"children":[{"id":81,"pr_number":810,"pr_version":"cv810"}]}`,
+	out, errS, _ := runCLIStdin(t, `{"children":[{"id":81,"pr_number":810,"pr_revision":"cv810"}]}`,
 		"finalize", "retarget-children",
 		"--id", "80", "--version", "1234123412341234123412341234123412341234",
 		"--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
@@ -498,7 +498,7 @@ func TestFinalizeCloseoutRegistered(t *testing.T) {
 			t.Errorf("finalize closeout: missing --%s flag", flag)
 		}
 	}
-	for _, forbidden := range []string{"done", "archive-date", "version", "head"} {
+	for _, forbidden := range []string{"done", "archive-date", "revision", "head"} {
 		if cmd.Flags().Lookup(forbidden) != nil {
 			t.Errorf("finalize closeout must not carry a --%s flag", forbidden)
 		}

@@ -63,7 +63,7 @@ type LearningRecordRequest struct {
 // no-op).
 type LearningUpdateRequest struct {
 	Path     string               `json:"path" docket:"required"`
-	Revision string               `json:"version" docket:"required"`
+	Revision string               `json:"revision" docket:"required"`
 	Hook     string               `json:"hook"`
 	Topics   []string             `json:"topics"`
 	Changes  []int                `json:"changes"`
@@ -349,7 +349,7 @@ func validateLearningUpdateShape(req LearningUpdateRequest) []StatusFinding {
 		findings = append(findings, learningFinding(FCEmptyPath, "path must name the finding's current canonical record path"))
 	}
 	if strings.TrimSpace(req.Revision) == "" {
-		findings = append(findings, learningFinding(FCEmptyVersion, "version must be the exact full blob object id of the submitted record"))
+		findings = append(findings, learningFinding(FCEmptyRevision, "revision must be the exact full blob object id of the submitted record"))
 	}
 	findings = append(findings, validateLearningSections(req.Sections)...)
 	findings = append(findings, validateIDCollection("changes", req.Changes, FCInvalidChanges, FCDuplicateChanges)...)

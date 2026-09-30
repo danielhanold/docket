@@ -16,7 +16,7 @@ const (
 	// (minted through lifecycleFinding and the StatusFinding literal form).
 	FCAuthoredInputTooLarge       FindingCode = "authored-input-too-large"
 	FCEmptyAttempt                FindingCode = "empty-attempt"
-	FCEmptyChildPRVersion         FindingCode = "empty-child_pr_version"
+	FCEmptyChildPRRevision        FindingCode = "empty-child_pr_revision"
 	FCEmptyCommit                 FindingCode = "empty-commit"
 	FCEmptyEvidence               FindingCode = "empty-evidence"
 	FCEmptyNoteEntry              FindingCode = "empty-note-entry"
@@ -24,7 +24,7 @@ const (
 	FCEmptyPR                     FindingCode = "empty-pr"
 	FCEmptyReason                 FindingCode = "empty-reason"
 	FCEmptyReport                 FindingCode = "empty-report"
-	FCEmptyVersion                FindingCode = "empty-version"
+	FCEmptyRevision               FindingCode = "empty-revision"
 	FCEmptyWhyDeferred            FindingCode = "empty-why_deferred"
 	FCEmptyWhyKilled              FindingCode = "empty-why_killed"
 	FCDuplicateChildID            FindingCode = "duplicate-child_id"
@@ -120,18 +120,18 @@ const (
 	FCEmptyAlternatives         FindingCode = "empty-alternatives"
 	FCInvalidChangeDotID        FindingCode = "invalid-change-id"
 	FCEmptyChangePath           FindingCode = "empty-change-path"
-	FCEmptyChangeVersion        FindingCode = "empty-change-version"
+	FCEmptyChangeRevision       FindingCode = "empty-change-revision"
 	FCInvalidTargetID           FindingCode = "invalid-target-id"
 	FCEmptyTargetPath           FindingCode = "empty-target-path"
-	FCEmptyTargetVersion        FindingCode = "empty-target-version"
+	FCEmptyTargetRevision       FindingCode = "empty-target-revision"
 	FCEmptyHook                 FindingCode = "empty-hook"
 	FCEmptyApply                FindingCode = "empty-apply"
 	FCEmptyWarStory             FindingCode = "empty-war_story"
 	FCInvalidTopics             FindingCode = "invalid-topics"
 	FCEmptySpecMarkdown         FindingCode = "empty-spec_markdown"
 	FCInvalidSpecMarkdown       FindingCode = "invalid-spec_markdown"
-	FCEmptySpecVersion          FindingCode = "empty-spec_version"
-	FCInvalidSpecVersion        FindingCode = "invalid-spec_version"
+	FCEmptySpecRevision         FindingCode = "empty-spec_revision"
+	FCInvalidSpecRevision       FindingCode = "invalid-spec_revision"
 	FCMissingRationale          FindingCode = "missing-rationale"
 	FCEmptyRevise               FindingCode = "empty-revise"
 	FCEmptyBlockedNote          FindingCode = "empty-blocked_note"
@@ -166,11 +166,11 @@ const (
 // through their addShape/adrFinding/learningFinding closures are now registered
 // FindingCode constants (change 0399, review): invalid-request_id,
 // invalid-stacked_on, invalid-{target-id,topics,change-id,outcome,pr_number,
-// attempt,spec_markdown,spec_version,spec-section-heading}, missing-rationale, and the
+// attempt,spec_markdown,spec_revision,spec-section-heading}, missing-rationale, and the
 // enumerated empty-<field> expansions (empty-{title,why,what_changes,
 // out_of_scope,context,decision,consequences,alternatives,change-path,
-// change-version,target-path,target-version,hook,apply,war_story,spec_markdown,
-// spec_version,reconcile_log_entry,head}). Each expands to exactly
+// change-revision,target-path,target-revision,hook,apply,war_story,spec_markdown,
+// spec_revision,reconcile_log_entry,head}). Each expands to exactly
 // one registered member, so the vocabulary is closed over every value these
 // ops can emit and the minting guard (addShape/adrFinding/learningFinding in
 // ctorLit, plus the composite-literal and FindingCode("…") backstops) reddens
@@ -206,8 +206,8 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyAttempt,
 	FCEmptyBlockedNote,
 	FCEmptyChangePath,
-	FCEmptyChangeVersion,
-	FCEmptyChildPRVersion,
+	FCEmptyChangeRevision,
+	FCEmptyChildPRRevision,
 	FCEmptyCommit,
 	FCEmptyConsequences,
 	FCEmptyContext,
@@ -223,12 +223,12 @@ var AllFindingCodes = []FindingCode{
 	FCEmptyReconcileLogEntry,
 	FCEmptyReport,
 	FCEmptyRevise,
+	FCEmptyRevision,
 	FCEmptySpecMarkdown,
-	FCEmptySpecVersion,
+	FCEmptySpecRevision,
 	FCEmptyTargetPath,
-	FCEmptyTargetVersion,
+	FCEmptyTargetRevision,
 	FCEmptyTitle,
-	FCEmptyVersion,
 	FCEmptyWarStory,
 	FCEmptyWhatChanges,
 	FCEmptyWhy,
@@ -265,7 +265,7 @@ var AllFindingCodes = []FindingCode{
 	FCInvalidSlug,
 	FCInvalidSpecSectionHeading,
 	FCInvalidSpecMarkdown,
-	FCInvalidSpecVersion,
+	FCInvalidSpecRevision,
 	FCInvalidStackedOn,
 	FindingCode("invalid-successor-id"),
 	FCInvalidTargetID,

@@ -422,8 +422,8 @@ func TestRetargetChildrenParentVersionDrift(t *testing.T) {
 		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}}
 
 	got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
-	if got.Result != ResultContended || got.Reason != ReasonRetargetVersionDrift {
-		t.Fatalf("result=%q reason=%q, want contended/%s", got.Result, got.Reason, ReasonRetargetVersionDrift)
+	if got.Result != ResultContended || got.Reason != ReasonRetargetRevisionDrift {
+		t.Fatalf("result=%q reason=%q, want contended/%s", got.Result, got.Reason, ReasonRetargetRevisionDrift)
 	}
 	if len(gh.finds) != 0 || len(gh.retargets) != 0 {
 		t.Errorf("a stale parent version reached external probes: finds=%d retargets=%d", len(gh.finds), len(gh.retargets))
@@ -541,7 +541,7 @@ func TestRetargetChildrenShapeRefusals(t *testing.T) {
 	for _, f := range got.Findings {
 		codes[f.Code] = true
 	}
-	for _, want := range []string{"empty-version", "invalid-child_id", "invalid-child_pr_number", "empty-child_pr_version", "duplicate-child_id"} {
+	for _, want := range []string{"empty-revision", "invalid-child_id", "invalid-child_pr_number", "empty-child_pr_revision", "duplicate-child_id"} {
 		if !codes[want] {
 			t.Errorf("missing shape finding %q; got %v", want, codes)
 		}

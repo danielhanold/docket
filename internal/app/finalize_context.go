@@ -195,7 +195,7 @@ type FinalizePRReport struct {
 	Ref          string `json:"ref"`
 	Verdict      string `json:"verdict"` // "probed" | "unknown"
 	Number       string `json:"number,omitempty"`
-	Revision     string `json:"version,omitempty"`
+	Revision     string `json:"revision,omitempty"`
 	State        string `json:"state,omitempty"`
 	Draft        bool   `json:"draft,omitempty"`
 	Approved     bool   `json:"approved,omitempty"`
@@ -244,7 +244,7 @@ type FinalizeCandidateReport struct {
 	ID            int                  `json:"id"`
 	Slug          string               `json:"slug"`
 	Path          string               `json:"path"`
-	Revision      string               `json:"version"`
+	Revision      string               `json:"revision"`
 	Status        string               `json:"status"`
 	Branch        string               `json:"branch"`
 	Band          string               `json:"band,omitempty"`

@@ -130,7 +130,7 @@ const (
 // artifact path; Commit is the exact feature commit the writer reported.
 type ChangeAttachRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 	Path     string `json:"path" docket:"required"`
 	Commit   string `json:"commit" docket:"required"`
 }

@@ -183,7 +183,7 @@ func RepairIdentity(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 	}
 	if revision != req.ExpectRevision {
 		return repairRefusal(ResultContended, RepairStaleEvidence,
-			"the change record moved since the approved version; re-read authoritative context before repairing", req.ID)
+			"the change record moved since the approved revision; re-read authoritative context before repairing", req.ID)
 	}
 
 	// Resolve the mode into the exact field the record will carry and the branch

@@ -86,7 +86,7 @@ const (
 const (
 	// Identity / version refusals.
 	ReasonRebaseNotImplemented = "not-implemented" // the change is not `implemented`
-	ReasonRebaseVersionDrift   = "version-drift"   // the record version moved (contended)
+	ReasonRebaseRevisionDrift  = "revision-drift"  // the record revision moved (contended)
 	// Precondition refusals resolved before any Git mutation.
 	ReasonRebaseWorkspaceProbe      = "workspace-probe-failed"      // Inspect returned a probe error
 	ReasonRebaseWorkspaceNotReady   = "workspace-not-ready"         // not the clean, registered feature state
@@ -136,7 +136,7 @@ const (
 // head the rebase begins from (the authorization was computed against it).
 type FinalizeRebaseRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 	Head     string `json:"head" docket:"required"`
 }
 
@@ -724,8 +724,8 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 			fmt.Sprintf("change %04d is %q, not implemented; there is nothing to rebase", id, rc.change.RawStatus()), id)
 	}
 	if rc.revision != req.Revision {
-		return rebaseRefusal(op, ResultContended, RebaseDispContended, ReasonRebaseVersionDrift,
-			"the change record moved since the submitted version; re-read context finalize", id)
+		return rebaseRefusal(op, ResultContended, RebaseDispContended, ReasonRebaseRevisionDrift,
+			"the change record moved since the submitted revision; re-read context finalize", id)
 	}
 
 	// Verified open PR: exactly one for the feature head, naming the head and
@@ -1722,7 +1722,7 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 		if !written {
 			base.Disposition = RebaseDispContended
 			base.Gate.RunDir = ""
-			base.Reason = ReasonRebaseVersionDrift
+			base.Reason = ReasonRebaseRevisionDrift
 			base.Message = "the owned rewrite was superseded while the gate was running; re-read context finalize"
 			return newRebaseResult(op, ResultContended, base)
 		}

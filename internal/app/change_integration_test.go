@@ -1912,7 +1912,7 @@ func TestIntegrationChangeRuntimeMarkImplementedConjuncts(t *testing.T) {
 		{ // conjunct 1
 			name:   "entity version moved",
 			mutate: func(k *miKit) { k.reqVersion = "9999999999999999999999999999999999999999" },
-			reason: ReasonImplementedVersionMismatch,
+			reason: ReasonImplementedRevisionMismatch,
 		},
 		{ // conjunct 2a
 			name: "local head differs from supplied head",
@@ -2588,7 +2588,7 @@ func TestIntegrationChangeRuntimeReclaimTransaction(t *testing.T) {
 				assertBoardMatchesCommitted(t, repo.origin, m.branch, repo.invocation)
 			})
 
-			t.Run("version-drift-contends", func(t *testing.T) {
+			t.Run("revision-drift-contends", func(t *testing.T) {
 				repo := m.build(t, map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")})
 				node := planningDepsFor(t, repo.invocation)
 				before, _ := originFile(t, repo.origin, m.branch, recPath)
@@ -2969,7 +2969,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 			})
 
 			// A version drift is a lost race: contended, marker retained.
-			t.Run("version-drift-contended", func(t *testing.T) {
+			t.Run("revision-drift-contended", func(t *testing.T) {
 				f := setupHaltedFixture(t, m)
 				got := ChangeResumeHalted(context.Background(), f.deps,
 					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,

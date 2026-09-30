@@ -120,7 +120,7 @@ var reclaimActiveWorkspaceStates = map[string]bool{
 // dated log entry, so there is no authored input.
 type ChangeReclaimRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 }
 
 // ChangeReclaimResult is the protocol-v1 document `change reclaim` returns. It

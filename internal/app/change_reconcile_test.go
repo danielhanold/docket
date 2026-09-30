@@ -332,7 +332,7 @@ func TestChangeReconcileRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		code string
 	}{
 		{"non-positive id", func(r *ChangeReconcileRequest) { r.ID = 0 }, "invalid-id"},
-		{"empty version", func(r *ChangeReconcileRequest) { r.Revision = "" }, "empty-version"},
+		{"empty revision", func(r *ChangeReconcileRequest) { r.Revision = "" }, "empty-revision"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

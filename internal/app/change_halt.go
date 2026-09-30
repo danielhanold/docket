@@ -117,7 +117,7 @@ const (
 // argument.
 type HaltRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 	Report   string `json:"report" docket:"required"`
 }
 
@@ -127,7 +127,7 @@ type HaltRequest struct {
 // refuses before any effect.
 type ResumeRequest struct {
 	ID                   int    `json:"id" docket:"required"`
-	Revision             string `json:"version" docket:"required"`
+	Revision             string `json:"revision" docket:"required"`
 	AcknowledgeQuiescent bool   `json:"acknowledge_quiescent"`
 }
 

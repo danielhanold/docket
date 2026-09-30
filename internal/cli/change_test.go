@@ -258,7 +258,7 @@ func TestUnknownFieldErrorListsAcceptedKeys(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("exit = %d, want 2 (stdout %q)", code, out)
 	}
-	for _, key := range []string{"id", "version", "sections", "spec_sections", "relations", "reconcile_log_entry"} {
+	for _, key := range []string{"id", "revision", "sections", "spec_sections", "relations", "reconcile_log_entry"} {
 		if !strings.Contains(out, key) {
 			t.Errorf("unknown-field error must list accepted key %q: %q", key, out)
 		}

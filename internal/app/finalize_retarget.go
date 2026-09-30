@@ -21,7 +21,7 @@ import (
 // Two properties are load-bearing:
 //
 //   - The authorized set is exact. The children the human authorized travel in
-//     from the context read as {id, pr_number, pr_version}. The current stack
+//     from the context read as {id, pr_number, pr_revision}. The current stack
 //     graph is re-derived from domain.StackChildren over a freshly pinned
 //     snapshot — never the parent's rendered artifact table — and every open child
 //     found in the live graph must be named in the authorized set. A child open in
@@ -67,10 +67,10 @@ const (
 	// more than one; the operation never chooses.
 	ReasonRetargetUnknownChange = "unknown-change"
 	ReasonRetargetAmbiguousID   = "ambiguous-change"
-	// ReasonRetargetVersionDrift: the pinned parent record version no longer matches
+	// ReasonRetargetRevisionDrift: the pinned parent record version no longer matches
 	// the live record — the authorization was computed against a stale context;
 	// maps to contended.
-	ReasonRetargetVersionDrift = "version-drift"
+	ReasonRetargetRevisionDrift = "revision-drift"
 	// ReasonRetargetRepositoryUnresolved: the GitHub repository identity could not
 	// be resolved from the checkout; maps to external-failed.
 	ReasonRetargetRepositoryUnresolved = "repository-unresolved"
@@ -102,7 +102,7 @@ const (
 type AuthorizedChild struct {
 	ID         int    `json:"id"`
 	PRNumber   int    `json:"pr_number"`
-	PRRevision string `json:"pr_version"`
+	PRRevision string `json:"pr_revision"`
 }
 
 // RetargetChildrenRequest is the closed request. ID and Revision pin the parent
@@ -111,7 +111,7 @@ type AuthorizedChild struct {
 // identities ride on flags; the authorized set rides in a bounded request file.
 type RetargetChildrenRequest struct {
 	ID       int               `json:"id" docket:"required"`
-	Revision string            `json:"version" docket:"required"`
+	Revision string            `json:"revision" docket:"required"`
 	Children []AuthorizedChild `json:"children"`
 }
 
@@ -220,8 +220,8 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 		blobByPath[b.Path] = b
 	}
 	if blobByPath[parent.Path()].Revision != req.Revision {
-		return retargetRefusal(ResultContended, ReasonRetargetVersionDrift,
-			fmt.Sprintf("change %04d record version moved under the authorization; re-read context finalize", req.ID), req.ID)
+		return retargetRefusal(ResultContended, ReasonRetargetRevisionDrift,
+			fmt.Sprintf("change %04d record revision moved under the authorization; re-read context finalize", req.ID), req.ID)
 	}
 
 	// Resolve the GitHub repository identity and the parent's own effective base
@@ -336,7 +336,7 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 			if worst != RetargetDispositionUnknown {
 				worst = RetargetDispositionContended
 				blockResult, blockReason = ResultContended, ReasonRetargetChildContended
-				blockMessage = fmt.Sprintf("child %04d PR #%d version drifted; retarget refused without an edit", auth.ID, auth.PRNumber)
+				blockMessage = fmt.Sprintf("child %04d PR #%d revision drifted; retarget refused without an edit", auth.ID, auth.PRNumber)
 			}
 		default: // RetargetUnknown
 			children = append(children, ChildRetargetOutcome{ID: auth.ID, PRNumber: auth.PRNumber, Outcome: childOutcomeUnknown})
@@ -384,7 +384,7 @@ func childBlocksNothing(s domain.Status) bool {
 
 // validateRetargetShape runs the configuration-independent request checks that
 // never reach any external seam: the pinned parent id/version, and each authorized
-// child's id/pr_number/pr_version, with no duplicate child ids.
+// child's id/pr_number/pr_revision, with no duplicate child ids.
 func validateRetargetShape(req RetargetChildrenRequest) []StatusFinding {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	seen := make(map[int]bool, len(req.Children))
@@ -398,8 +398,8 @@ func validateRetargetShape(req RetargetChildrenRequest) []StatusFinding {
 				fmt.Sprintf("children[%d].pr_number must be a positive pull-request number", i)))
 		}
 		if ch.PRRevision == "" {
-			findings = append(findings, lifecycleFinding(FCEmptyChildPRVersion,
-				fmt.Sprintf("children[%d].pr_version must be the exact PR version from context finalize", i)))
+			findings = append(findings, lifecycleFinding(FCEmptyChildPRRevision,
+				fmt.Sprintf("children[%d].pr_revision must be the exact PR revision from context finalize", i)))
 		}
 		if ch.ID > 0 {
 			if seen[ch.ID] {

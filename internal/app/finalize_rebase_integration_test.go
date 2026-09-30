@@ -631,12 +631,12 @@ func TestIntegrationFinalizeRebaseGatePreconditions(t *testing.T) {
 		}
 	})
 
-	t.Run("version-drift", func(t *testing.T) {
+	t.Run("revision-drift", func(t *testing.T) {
 		f := setupRebaseFixture(t, main)
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
 			FinalizeRebaseRequest{ID: f.id, Revision: "sha256:" + strings.Repeat("b", 64), Head: f.head})
-		assertRebaseRefused(t, res, ResultContended, ReasonRebaseVersionDrift)
+		assertRebaseRefused(t, res, ResultContended, ReasonRebaseRevisionDrift)
 		f.receiptAbsent(t)
 	})
 

@@ -46,10 +46,10 @@ const (
 	// in-progress: the claim must land first, so a workspace is never allocated
 	// for an unclaimed change.
 	ReasonWorkspaceNotInProgress = "not-in-progress"
-	// ReasonWorkspaceVersionMismatch is returned by prepare when the record no
+	// ReasonWorkspaceRevisionMismatch is returned by prepare when the record no
 	// longer carries the submitted version — the caller lost a race and must not
 	// overwrite; it maps to a contended outcome.
-	ReasonWorkspaceVersionMismatch = "version-mismatch"
+	ReasonWorkspaceRevisionMismatch = "revision-mismatch"
 	// ReasonWorkspaceUnresolvedBase is returned when the change's effective base
 	// does not resolve to a single branch (a killed/missing/cyclic parent, or a
 	// live parent whose remote branch is absent).
@@ -68,7 +68,7 @@ const (
 // ignored by inspect.
 type WorkspaceIDRequest struct {
 	ID       int    `json:"id"`
-	Revision string `json:"version,omitempty"`
+	Revision string `json:"revision,omitempty"`
 }
 
 // WorkspacePublishRequest is the closed request for publish: the change and the
@@ -305,8 +305,8 @@ func WorkspacePrepare(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 		return newWorkspaceResult(OperationWorkspacePrepare, ResultContended, WorkspaceOpResult{
 			ID:          req.ID,
 			Disposition: string(workspace.PrepareContended),
-			Reason:      ReasonWorkspaceVersionMismatch,
-			Message:     "the change record moved since the submitted version; re-read authoritative context before preparing",
+			Reason:      ReasonWorkspaceRevisionMismatch,
+			Message:     "the change record moved since the submitted revision; re-read authoritative context before preparing",
 		})
 	}
 

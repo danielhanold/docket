@@ -143,7 +143,7 @@ const (
 // ride inside the JSON and never reach a shell or Git/gh argument.
 type BlockRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 	PRNumber int    `json:"pr_number" docket:"required"`
 	Attempt  string `json:"attempt" docket:"required"`
 	Reason   string `json:"reason" docket:"required"`
@@ -158,7 +158,7 @@ type BlockRequest struct {
 // reprobed.
 type ClearBlockRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Revision string `json:"version" docket:"required"`
+	Revision string `json:"revision" docket:"required"`
 	Head     string `json:"head" docket:"required"`
 	PRNumber int    `json:"pr_number" docket:"required"`
 }

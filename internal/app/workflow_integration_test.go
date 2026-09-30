@@ -1515,8 +1515,8 @@ func TestIntegrationWorkflowLifecycleWorkspacePrepareRequiresClaimedVersion(t *t
 		svc := &fakeWorkspaceService{}
 		res := WorkspacePrepare(context.Background(), workspaceDepsFor(t, reader), WorkspaceDeps{Service: svc},
 			repoDir, WorkspaceIDRequest{ID: 7, Revision: "stale-v"})
-		if res.Result != ResultContended || res.Reason != ReasonWorkspaceVersionMismatch {
-			t.Fatalf("result=%q reason=%q, want contended/version-mismatch", res.Result, res.Reason)
+		if res.Result != ResultContended || res.Reason != ReasonWorkspaceRevisionMismatch {
+			t.Fatalf("result=%q reason=%q, want contended/revision-mismatch", res.Result, res.Reason)
 		}
 		if len(svc.prepareCalls) != 0 {
 			t.Errorf("service called on a stale-version refusal (%d calls)", len(svc.prepareCalls))
