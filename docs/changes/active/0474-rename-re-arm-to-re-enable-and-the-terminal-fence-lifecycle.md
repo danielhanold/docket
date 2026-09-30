@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-30T14:01:40Z'
+reconciled: true
+claimed_at: '2026-09-30T14:03:27Z'
 ---
 
 ## Artifacts
@@ -60,3 +60,9 @@ The full inventory, the kept senses, the seal rows and the tests are in the spec
 - The process-level "terminal", Markdown code fences and `---` frontmatter fences (kept, listed in ADR-0129).
 - Editing point-in-time records: archived changes, results, specs, plans, Accepted ADRs and frozen testdata corpora.
 - Behavior changes of any kind; rows owned by other families or by change 0469.
+
+## Reconcile log
+
+### 2026-09-30
+
+Reconciled at claim against origin/main: 0468, 0471, 0472, 0473 and 0477 are merged; a grep of origin/main confirms every family-(d) site in the spec inventory (GroomRearm, fenced-setting-ignored, skipped-terminal, fenceBoardSurface, terminal-close-out.md) is still present. No scope change; the spec stands as written, with the inventory re-derived by whole-repo grep at build time.
