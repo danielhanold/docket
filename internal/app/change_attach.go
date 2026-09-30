@@ -218,14 +218,14 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 		return newAttachResult(opKey, ResultInvalidInput, ChangeAttachResult{Kind: kind, Findings: findings})
 	}
 
-	// (2) Pin context, fence the board surface, discover the repository.
+	// (2) Pin context, check the board surface, discover the repository.
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		return attachRefusal(opKey, result, kind, reason, err.Error())
 	}
 	eff := pin.Config.Effective
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
 			return attachRefusal(opKey, pe.Result, kind, pe.Reason, pe.Message)

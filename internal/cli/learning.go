@@ -15,7 +15,7 @@ import (
 // dependency plumbing (changeSubcommand, newPlanningDeps, decodeRequestFlag) in
 // change.go — the request-file conventions are identical across the whole
 // planning command surface. Every policy question — slug shape, duplicate
-// detection, the learnings.enabled fence — belongs to internal/app, so no body
+// detection, the learnings.enabled check — belongs to internal/app, so no body
 // here branches on request content.
 
 // newLearningCommand builds the `learning` command group. setResult is the

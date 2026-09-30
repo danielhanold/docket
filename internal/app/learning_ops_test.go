@@ -151,7 +151,7 @@ func TestLearningUpdateRejectsBadShapeWithoutEngineCall(t *testing.T) {
 
 // --- learnings-disabled preflight fence ------------------------------------
 
-func TestLearningRecordFencesWhenLearningsDisabled(t *testing.T) {
+func TestLearningRecordRefusesWhenLearningsDisabled(t *testing.T) {
 	engine := &recordingEngine{}
 	reader := &fakeChangeReader{pin: learningsDisabledPin()}
 	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
@@ -169,7 +169,7 @@ func TestLearningRecordFencesWhenLearningsDisabled(t *testing.T) {
 	}
 }
 
-func TestLearningUpdateFencesWhenLearningsDisabled(t *testing.T) {
+func TestLearningUpdateRefusesWhenLearningsDisabled(t *testing.T) {
 	engine := &recordingEngine{}
 	reader := &fakeChangeReader{pin: learningsDisabledPin()}
 	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}

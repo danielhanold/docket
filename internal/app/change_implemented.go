@@ -170,14 +170,14 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			"the reparsed evidence does not verify (green or skipped) against the supplied head ("+string(verdict)+")", req.ID)
 	}
 
-	// Pin authoritative context, fence the board surface, discover the repository.
+	// Pin authoritative context, check the board surface, discover the repository.
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		return implementedRefusal(result, reason, err.Error(), req.ID)
 	}
 	eff := pin.Config.Effective
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
 			return implementedRefusal(pe.Result, pe.Reason, pe.Message, req.ID)

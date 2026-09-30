@@ -389,7 +389,7 @@ func loadCloseoutContext(ctx context.Context, deps FinalizeDeps, repoDir string,
 	}
 	eff := pin.Config.Effective
 
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
 			r := closeoutRefusal(pe.Result, CloseoutDispBlocked, pe.Reason, pe.Message, id)

@@ -13,7 +13,7 @@ import (
 )
 
 // planningTestConfig builds a resolved configuration carrying the leaves the
-// planning loader and board fence consult: the corpus directories, the change
+// planning loader and board-surface check consult: the corpus directories, the change
 // type set the fixtures use, learnings enabled, and the board surfaces.
 func planningTestConfig(surfaces []string) config.Effective {
 	var eff config.Effective
@@ -313,32 +313,32 @@ func TestCanonicalDigestDiffersOnAnyChange(t *testing.T) {
 	}
 }
 
-func TestFenceBoardSurface(t *testing.T) {
-	inline, err := fenceBoardSurface(planningTestConfig([]string{"inline"}))
+func TestResolveBoardSurface(t *testing.T) {
+	inline, err := resolveBoardSurface(planningTestConfig([]string{"inline"}))
 	if err != nil || !inline {
 		t.Errorf("[inline] => (%v, %v), want (true, nil)", inline, err)
 	}
 
-	inline, err = fenceBoardSurface(planningTestConfig([]string{}))
+	inline, err = resolveBoardSurface(planningTestConfig([]string{}))
 	if err != nil || inline {
 		t.Errorf("[] => (%v, %v), want (false, nil)", inline, err)
 	}
 
-	_, err = fenceBoardSurface(planningTestConfig([]string{"inline", "github"}))
+	_, err = resolveBoardSurface(planningTestConfig([]string{"inline", "github"}))
 	if err == nil {
-		t.Fatal("[inline github] must be fenced, got nil error")
+		t.Fatal("[inline github] must be refused, got nil error")
 	}
 	var pe *planningError
 	if !errors.As(err, &pe) {
-		t.Fatalf("fence error is not a *planningError: %v", err)
+		t.Fatalf("refusal error is not a *planningError: %v", err)
 	}
 	if pe.Result != ResultUnsupportedConfig {
-		t.Errorf("fence result = %q, want %q", pe.Result, ResultUnsupportedConfig)
+		t.Errorf("refusal result = %q, want %q", pe.Result, ResultUnsupportedConfig)
 	}
 
-	// github alone is also fenced, before any inline decision.
-	if _, err := fenceBoardSurface(planningTestConfig([]string{"github"})); err == nil {
-		t.Error("[github] must be fenced")
+	// github alone is also refused, before any inline decision.
+	if _, err := resolveBoardSurface(planningTestConfig([]string{"github"})); err == nil {
+		t.Error("[github] must be refused")
 	}
 }
 

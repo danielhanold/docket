@@ -18,7 +18,7 @@ import (
 
 // This file is the shared plumbing every 0312 planning operation composes: the
 // production transaction.StateLoader over the config-derived corpus, the
-// request-content digest, the board-surface preflight fence, and the fold from
+// request-content digest, the board-surface preflight check, and the fold from
 // a transaction outcome into the protocol-v1 result taxonomy. It decides no
 // per-operation policy; each mutation task (change/learning/adr) supplies its
 // own validation, plan closure, and result struct on top of these seams.
@@ -35,7 +35,7 @@ type PlanningDeps struct {
 
 // planningError carries a protocol result alongside a machine reason and prose,
 // so a preflight refusal computed before any transaction (e.g. the board-surface
-// fence) maps cleanly onto the v1 taxonomy without a message-text switch. It is
+// check) maps cleanly onto the v1 taxonomy without a message-text switch. It is
 // the app-layer analogue of the transaction engine's typed Failure.
 type planningError struct {
 	Result  Result
@@ -216,7 +216,7 @@ func canonicalDigest(operation string, payload any) (transaction.RequestDigest, 
 	return transaction.RequestDigest("sha256:" + hex.EncodeToString(h.Sum(nil))), nil
 }
 
-// boardSurfaceGitHub is the fenced surface token: declaring it is an
+// boardSurfaceGitHub is the refused surface token: declaring it is an
 // unsupported configuration for this slice, refused at preflight before any
 // transaction runs.
 const boardSurfaceGitHub = "github"
@@ -225,16 +225,16 @@ const boardSurfaceGitHub = "github"
 // change operation's plan carries the rendered board bytes.
 const boardSurfaceInline = "inline"
 
-// ReasonUnsupportedBoardSurface is the stable machine reason a github-fenced
+// ReasonUnsupportedBoardSurface is the stable machine reason a github-refused
 // board configuration reports.
 const ReasonUnsupportedBoardSurface = "unsupported-board-surface"
 
-// fenceBoardSurface reads the resolved board_surfaces: a `github` token is an
+// resolveBoardSurface reads the resolved board_surfaces: a `github` token is an
 // unsupported configuration (refused before any transaction); otherwise inline
 // reports whether the inline board surface is enabled. The github check runs
-// first, so a `[inline github]` configuration is fenced rather than silently
+// first, so a `[inline github]` configuration is refused rather than silently
 // enabling inline.
-func fenceBoardSurface(eff config.Effective) (inline bool, err error) {
+func resolveBoardSurface(eff config.Effective) (inline bool, err error) {
 	for _, s := range eff.BoardSurfaces.Value {
 		if s == boardSurfaceGitHub {
 			return false, &planningError{

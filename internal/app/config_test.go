@@ -502,7 +502,7 @@ func TestJSONShapeInvalid(t *testing.T) {
 // configuration with no diagnostics explaining what to change.
 // TestMigrationHostContraction reproduces a representative four-layer
 // configuration state — not the migration host's byte-for-byte layers — and
-// pins the Go v1 capability fence's verdict on it, so the config contraction
+// pins the Go v1 capability check's verdict on it, so the config contraction
 // (change 0326) is proven against the classifier rather than assumed. The
 // synthetic global layer here is a supported agent pin, NOT the real host's
 // actual global auto_capture.enabled request (that request is why

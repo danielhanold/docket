@@ -25,7 +25,7 @@ import (
 // preflight when learnings.enabled is not true, and neither touches the
 // learnings README/index: the plan file set is exactly the one finding record.
 // Neither operation renders or reads the inline board — learnings are not a
-// board surface — so no board fence runs here.
+// board surface — so no board-surface check runs here.
 
 // OperationLearningRecord and OperationLearningUpdate are the operation keys the
 // two learning mutations record in their result envelopes, transaction
@@ -143,10 +143,10 @@ func learningsDir(eff config.Effective) string {
 	return path.Join(eff.ChangesDir.Value, "learnings")
 }
 
-// fenceLearningsEnabled refuses at preflight when learnings.enabled is not true:
+// requireLearningsEnabled refuses at preflight when learnings.enabled is not true:
 // an unsupported configuration for either learning operation, refused before any
 // transaction runs.
-func fenceLearningsEnabled(eff config.Effective) error {
+func requireLearningsEnabled(eff config.Effective) error {
 	if !eff.Learnings.Enabled.Value {
 		return &planningError{
 			Result:  ResultUnsupportedConfig,
@@ -173,7 +173,7 @@ func LearningRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, re
 	}
 	eff := pin.Config.Effective
 
-	if err := fenceLearningsEnabled(eff); err != nil {
+	if err := requireLearningsEnabled(eff); err != nil {
 		return learningPreflightRefusal(OperationLearningRecord, err)
 	}
 
@@ -237,7 +237,7 @@ func LearningUpdate(ctx context.Context, deps PlanningDeps, repoDir string, req 
 	}
 	eff := pin.Config.Effective
 
-	if err := fenceLearningsEnabled(eff); err != nil {
+	if err := requireLearningsEnabled(eff); err != nil {
 		return learningPreflightRefusal(OperationLearningUpdate, err)
 	}
 

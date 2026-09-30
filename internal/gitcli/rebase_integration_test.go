@@ -473,10 +473,10 @@ func TestIntegrationStoppedRebaseCommit(t *testing.T) {
 	}
 }
 
-// TestOwnedRefFence proves SetOwnedRef and DeleteOwnedRef refuse any ref outside
+// TestIntegrationRepoOwnedRefRefusesForeignRef proves SetOwnedRef and DeleteOwnedRef refuse any ref outside
 // refs/docket/ (a refs/heads name), touch nothing on refusal, and round-trip a
 // genuine owned ref.
-func TestIntegrationRepoOwnedRefFence(t *testing.T) {
+func TestIntegrationRepoOwnedRefRefusesForeignRef(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)

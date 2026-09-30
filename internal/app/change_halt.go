@@ -188,7 +188,7 @@ func ChangeHalt(ctx context.Context, deps PlanningDeps, repoDir string, req Halt
 	if findings := validateHaltShape(req); len(findings) > 0 {
 		return newHaltResult(OperationChangeHalt, ResultInvalidInput, HaltResult{ID: req.ID, Findings: findings})
 	}
-	pin, eff, inline, refusal := haltPinAndFence(ctx, OperationChangeHalt, deps, repoDir, req.ID)
+	pin, eff, inline, refusal := haltPreflight(ctx, OperationChangeHalt, deps, repoDir, req.ID)
 	if refusal != nil {
 		return *refusal
 	}
@@ -234,7 +234,7 @@ func ChangeResumeHalted(ctx context.Context, deps PlanningDeps, wdeps WorkspaceD
 			"resume-halted requires --acknowledge-quiescent: an explicit acknowledgement that the prior worker is quiescent", req.ID)
 	}
 
-	pin, eff, inline, refusal := haltPinAndFence(ctx, OperationChangeResumeHalted, deps, repoDir, req.ID)
+	pin, eff, inline, refusal := haltPreflight(ctx, OperationChangeResumeHalted, deps, repoDir, req.ID)
 	if refusal != nil {
 		return *refusal
 	}
@@ -333,10 +333,10 @@ func ChangeResumeHalted(ctx context.Context, deps PlanningDeps, wdeps WorkspaceD
 	return haltResultFromOutcome(OperationChangeResumeHalted, res, execErr, HaltDispResumed, ReasonResumeNotHalted)
 }
 
-// haltPinAndFence pins context, runs the deferred-capability preflight, and
-// resolves the inline board-surface fence — the shared pre-transaction plumbing
+// haltPreflight pins context, runs the deferred-capability preflight, and
+// resolves the inline board-surface check — the shared pre-transaction plumbing
 // both halt operations run.
-func haltPinAndFence(ctx context.Context, op string, deps PlanningDeps, repoDir string, id int) (StatusPin, config.Effective, bool, *HaltResult) {
+func haltPreflight(ctx context.Context, op string, deps PlanningDeps, repoDir string, id int) (StatusPin, config.Effective, bool, *HaltResult) {
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
@@ -352,7 +352,7 @@ func haltPinAndFence(ctx context.Context, op string, deps PlanningDeps, repoDir 
 		return StatusPin{}, config.Effective{}, false, &r
 	}
 	eff := pin.Config.Effective
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		var r HaltResult
 		if pe, ok := asPlanningError(err); ok {

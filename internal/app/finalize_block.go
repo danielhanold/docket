@@ -244,7 +244,7 @@ func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req B
 	}
 	eff := pin.Config.Effective
 
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		return blockPlanningError(OperationFinalizeBlock, err, req.ID)
 	}
@@ -337,7 +337,7 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	}
 	eff := pin.Config.Effective
 
-	inline, err := fenceBoardSurface(eff)
+	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		return blockPlanningError(OperationFinalizeClearBlock, err, req.ID)
 	}
@@ -508,7 +508,7 @@ func blockLookupRefusal(op string, out domain.LookupOutcome, id int) *BlockResul
 	return nil
 }
 
-// blockPlanningError folds a board-surface fence planning error into a block
+// blockPlanningError folds a board-surface check planning error into a block
 // result.
 func blockPlanningError(op string, err error, id int) BlockResult {
 	if pe, ok := asPlanningError(err); ok {
