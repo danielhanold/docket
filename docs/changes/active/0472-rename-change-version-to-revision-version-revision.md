@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/rename-change-version-to-revision-version-revision'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-30T05:43:03Z'
+reconciled: true
+claimed_at: '2026-09-30T05:44:40Z'
 ---
 
 ## Artifacts
@@ -58,3 +58,9 @@ Apply ADR-0129 family (b), as amended at grooming, as one hard cut with no alias
 - Renaming the commit-id `*_revision` keys, config keys, agent names or frontmatter fields.
 - Editing point-in-time records: archived changes, results, specs and plans. ADR-0129 was amended at grooming, and the build edits it only to record a newly found name, with the human's authorization.
 - Rows owned by changes 0473, 0474 and 0477, or by change 0469.
+
+## Reconcile log
+
+### 2026-09-30
+
+2026-09-30 — Reconciled against main at 27278a31d. Change 0477 has landed (done): the retired-vocabulary seal no longer carries the Kept/scanKeptRows machinery, so row 40's bound --version predicate is 0472's own, as the spec already anticipated. 0474 is still proposed and does not block. No scope adjustment: design, ADR-0129 family (b) rows, and landing procedure stand as groomed.
