@@ -107,7 +107,7 @@ func finalizeBlockOpFixture(req BlockRequest, url string) finalizeBlockOp {
 
 func sampleBlockRequest() BlockRequest {
 	return BlockRequest{
-		ID: 3, Version: blobV, PRNumber: 7, Attempt: "att1",
+		ID: 3, Revision: blobV, PRNumber: 7, Attempt: "att1",
 		Reason: "gate-repair-required", Head: strings.Repeat("a", 40),
 		Report: "The gate failed for this head.\n", Remedy: "Fix the flaky test and re-run.\n",
 	}
@@ -206,6 +206,6 @@ func setupBlockedFixture(t *testing.T, m planRepoMode) *rebaseFixture {
 // on that progress row with the before-gate refusal the bug produced.
 
 func blockTestRequest(f *rebaseFixture) BlockRequest {
-	return BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
+	return BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
 		Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix and retry.\n"}
 }

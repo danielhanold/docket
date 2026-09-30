@@ -198,7 +198,7 @@ func TestIntegrationEvidenceEvidenceRecertifyHappyPath(t *testing.T) {
 	if !strings.Contains(body, "Authored prose.") || !strings.Contains(body, "More prose.") {
 		t.Fatalf("authored PR body bytes were not preserved:\n%s", body)
 	}
-	if gh.ensLast.ExpectedHead != f.head || gh.ensLast.ExpectedVersion == "" {
+	if gh.ensLast.ExpectedHead != f.head || gh.ensLast.ExpectedRevision == "" {
 		t.Fatalf("PR edit was not pinned to head+version: %+v", gh.ensLast)
 	}
 }

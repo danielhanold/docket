@@ -76,8 +76,8 @@ const (
 // drift (change version, PR head, PR number) loses the race and is refused as
 // stale-evidence rather than applied.
 type RepairIdentityRequest struct {
-	ID            int
-	ExpectVersion string // change-record version token from the finalize report
+	ID             int
+	ExpectRevision string // change-record version token from the finalize report
 
 	// AdoptPRHead trusts the PR: adopt the exact PR's reported head branch as
 	// branch: (the missing/mismatched-branch recovery).
@@ -175,13 +175,13 @@ func RepairIdentity(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 		return repairRefusal(ResultInternalError, ReasonStatusInternalError, err.Error(), req.ID)
 	}
 
-	// (1) Re-read the change record. A version that no longer equals the approved
-	// ExpectVersion lost the race — stale-evidence, no write.
-	c, recPath, version, snap, refusal := resolveRepairChange(ctx, deps.Planning, pin, eff, req.ID)
+	// (1) Re-read the change record. A revision that no longer equals the approved
+	// ExpectRevision lost the race — stale-evidence, no write.
+	c, recPath, revision, snap, refusal := resolveRepairChange(ctx, deps.Planning, pin, eff, req.ID)
 	if refusal != nil {
 		return *refusal
 	}
-	if version != req.ExpectVersion {
+	if revision != req.ExpectRevision {
 		return repairRefusal(ResultContended, RepairStaleEvidence,
 			"the change record moved since the approved version; re-read authoritative context before repairing", req.ID)
 	}
@@ -235,8 +235,8 @@ func RepairIdentity(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.ExpectVersion)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.ExpectRevision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Scope:     changeScope(req.ID, recPath, false),
@@ -255,7 +255,7 @@ func validateRepairRequest(req RepairIdentityRequest) (reason, message string) {
 	if req.ID <= 0 {
 		return RepairInvalidRequest, "id must be a positive change id"
 	}
-	if strings.TrimSpace(req.ExpectVersion) == "" {
+	if strings.TrimSpace(req.ExpectRevision) == "" {
 		return RepairInvalidRequest, "expect-version must be the change-record version token from the finalize report"
 	}
 	headMode := req.AdoptPRHead
@@ -304,14 +304,14 @@ func resolveRepairChange(ctx context.Context, deps PlanningDeps, pin StatusPin, 
 		r := repairRefusal(ResultInvalidInput, RepairInvalidRequest, msg, id)
 		return domain.Change{}, "", "", domain.Snapshot{}, &r
 	}
-	version := ""
+	revision := ""
 	for _, b := range blobs {
 		if b.Path == c.Path() {
-			version = b.Version
+			revision = b.Revision
 			break
 		}
 	}
-	return c, c.Path(), version, build.Snapshot, nil
+	return c, c.Path(), revision, build.Snapshot, nil
 }
 
 // repairResolveMode reads the mode's external PR authority and, when the

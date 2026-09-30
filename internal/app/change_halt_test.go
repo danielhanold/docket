@@ -82,7 +82,7 @@ func TestChangeHaltPreservesCheckpoints(t *testing.T) {
 func TestChangeResumeHaltedRequiresAcknowledgement(t *testing.T) {
 	got := ChangeResumeHalted(context.Background(),
 		PlanningDeps{Reader: &fakeReader{}, Clock: testClock()}, WorkspaceDeps{}, "",
-		ResumeRequest{ID: 3, Version: blobV, AcknowledgeQuiescent: false})
+		ResumeRequest{ID: 3, Revision: blobV, AcknowledgeQuiescent: false})
 	if got.Result != ResultBlocked || got.Reason != ReasonResumeNotAcknowledged {
 		t.Fatalf("result=%q reason=%q, want blocked/%s", got.Result, got.Reason, ReasonResumeNotAcknowledged)
 	}
@@ -145,7 +145,7 @@ func TestValidateHaltShapeRejectsStructuralReport(t *testing.T) {
 	}
 	for name, report := range cases {
 		t.Run(name, func(t *testing.T) {
-			findings := validateHaltShape(HaltRequest{ID: 3, Version: blobV, Report: report})
+			findings := validateHaltShape(HaltRequest{ID: 3, Revision: blobV, Report: report})
 			if len(findings) != 1 {
 				t.Fatalf("findings = %+v, want exactly one", findings)
 			}
@@ -175,7 +175,7 @@ func TestValidateHaltShapeAcceptsValidBodies(t *testing.T) {
 	}
 	for name, report := range cases {
 		t.Run(name, func(t *testing.T) {
-			if findings := validateHaltShape(HaltRequest{ID: 3, Version: blobV, Report: report}); len(findings) != 0 {
+			if findings := validateHaltShape(HaltRequest{ID: 3, Revision: blobV, Report: report}); len(findings) != 0 {
 				t.Errorf("valid body refused: %+v", findings)
 			}
 		})
@@ -188,7 +188,7 @@ func TestValidateHaltShapeAcceptsValidBodies(t *testing.T) {
 // the validation runs before repository preparation and the transaction engine.
 func TestChangeHaltValidatesBeforeAnyEffect(t *testing.T) {
 	got := ChangeHalt(context.Background(), PlanningDeps{}, "",
-		HaltRequest{ID: 3, Version: blobV, Report: "## Run halted\n\nzz-authored-marker-zz\n"})
+		HaltRequest{ID: 3, Revision: blobV, Report: "## Run halted\n\nzz-authored-marker-zz\n"})
 	if got.Result != ResultInvalidInput {
 		t.Fatalf("result = %q, want %q", got.Result, ResultInvalidInput)
 	}

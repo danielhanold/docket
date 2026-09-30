@@ -202,7 +202,7 @@ func buildMI(t *testing.T, client *gitcli.Client, invocation string, k miKit) (
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(3, miSlug),
-		Version:  k.version,
+		Revision: k.version,
 		Data:     []byte(miRecord(3, miSlug, k.plan, k.results, k.reconciled, k.trivial)),
 	}
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{blob}, facts: domain.NewBranchFacts(nil)}
@@ -216,7 +216,7 @@ func buildMI(t *testing.T, client *gitcli.Client, invocation string, k miKit) (
 		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(k.localHead)},
 	}}
 	gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: k.probePRs, probeErr: k.probeErr}}
-	req := MarkImplementedRequest{ID: 3, Version: k.reqVersion, Head: k.reqHead, PR: k.reqPR, EvidenceRecord: k.evidence}
+	req := MarkImplementedRequest{ID: 3, Revision: k.reqVersion, Head: k.reqHead, PR: k.reqPR, EvidenceRecord: k.evidence}
 	return deps, wdeps, gdeps, invocation, req, engine
 }
 
@@ -259,7 +259,7 @@ func miRealRun(t *testing.T, repo *gitRepo, recPath, head string) ChangeLifecycl
 	}}
 	gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{happyPR(head)}}}
 	req := MarkImplementedRequest{
-		ID: 3, Version: blobVersionAt(t, repo.origin, "docket", recPath), Head: head,
+		ID: 3, Revision: blobVersionAt(t, repo.origin, "docket", recPath), Head: head,
 		PR: prRepo().Spec() + "#42", EvidenceRecord: prEvidenceBytes(t, head),
 	}
 	return ChangeMarkImplemented(context.Background(), node.deps, wdeps, gdeps, node.dir, req)

@@ -269,8 +269,8 @@ func TestBatchVersionMatchesSingleViewFixture(t *testing.T) {
 	if !got[7].Found {
 		t.Fatalf("pr 7 not found: %+v", got[7])
 	}
-	if got[7].PR.Version != single.Version {
-		t.Errorf("version mismatch:\n batch  %s\n single %s", got[7].PR.Version, single.Version)
+	if got[7].PR.Revision != single.Revision {
+		t.Errorf("version mismatch:\n batch  %s\n single %s", got[7].PR.Revision, single.Revision)
 	}
 	if got[7].PR.Approved != single.Approved {
 		t.Errorf("approval mismatch: batch=%v single=%v", got[7].PR.Approved, single.Approved)

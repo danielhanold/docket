@@ -82,7 +82,7 @@ type StatusBlob struct {
 	Kind     repository.RecordKind
 	Location repository.RecordLocation
 	Path     string // repo-relative
-	Version  string // blob object id
+	Revision string // blob object id
 	Data     []byte
 }
 
@@ -91,9 +91,9 @@ type StatusBlob struct {
 // It is the byte-returning companion to ArtifactExists, which reports only
 // presence.
 type StatusArtifact struct {
-	Found   bool
-	Version string // blob object id
-	Data    []byte
+	Found    bool
+	Revision string // blob object id
+	Data     []byte
 }
 
 // StatusReader is the seam between orchestration and Git. One call per concern;
@@ -477,7 +477,7 @@ func statusChange(snap domain.Snapshot, c domain.Change, facts domain.BranchFact
 		Type:         c.Type(),
 		Location:     string(c.Location()),
 		Path:         c.Path(),
-		Version:      blobByPath[c.Path()].Version,
+		Revision:     blobByPath[c.Path()].Revision,
 		Readiness:    string(readiness.Kind),
 		ReadinessWhy: readinessReason(readiness),
 		UnmetDeps:    unmet,
@@ -573,7 +573,7 @@ func branchMalformedCheck(c domain.Change, blobByPath map[string]StatusBlob) []S
 	if pr := c.PR(); pr.State == domain.FieldPresent {
 		if n, ok := parsePRRef(pr.Value); ok {
 			remedy = fmt.Sprintf("run: docket change repair-identity --id %d --expect-version %s --adopt-pr-head --expect-pr %d --expect-head <the head branch shown on PR #%d>",
-				int(c.ID()), blobByPath[c.Path()].Version, n, n)
+				int(c.ID()), blobByPath[c.Path()].Revision, n, n)
 		}
 	}
 	return []StatusFinding{{
@@ -603,7 +603,7 @@ func corpusRecords(snap domain.Snapshot, blobByPath map[string]StatusBlob) []Sta
 			Identity: changeIdentity(c.ID()),
 			Location: string(b.Location),
 			Path:     c.Path(),
-			Version:  b.Version,
+			Revision: b.Revision,
 		})
 	}
 
@@ -616,7 +616,7 @@ func corpusRecords(snap domain.Snapshot, blobByPath map[string]StatusBlob) []Sta
 			Identity: fmt.Sprintf("%04d", int(a.ID())),
 			Location: string(b.Location),
 			Path:     a.Path(),
-			Version:  b.Version,
+			Revision: b.Revision,
 		})
 	}
 
@@ -629,7 +629,7 @@ func corpusRecords(snap domain.Snapshot, blobByPath map[string]StatusBlob) []Sta
 			Identity: l.Slug(),
 			Location: string(b.Location),
 			Path:     l.Path(),
-			Version:  b.Version,
+			Revision: b.Revision,
 		})
 	}
 	return records

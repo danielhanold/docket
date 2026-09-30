@@ -171,7 +171,7 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			prNumber, _ := c.Flags().GetInt("pr-number")
 			attempt, _ := c.Flags().GetString("attempt")
 			reason, _ := c.Flags().GetString("reason")
@@ -186,7 +186,7 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 			}
 			setResult(app.FinalizeBlock(c.Context(), deps, repoDir, app.BlockRequest{
 				ID:       id,
-				Version:  version,
+				Revision: revision,
 				PRNumber: prNumber,
 				Attempt:  attempt,
 				Reason:   reason,
@@ -234,7 +234,7 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
 			prNumber, _ := c.Flags().GetInt("pr-number")
 			deps, err := newFinalizeDeps(repoDir)
@@ -243,7 +243,7 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 			}
 			setResult(app.FinalizeClearBlock(c.Context(), deps, repoDir, app.ClearBlockRequest{
 				ID:       id,
-				Version:  version,
+				Revision: revision,
 				Head:     head,
 				PRNumber: prNumber,
 			}))
@@ -283,7 +283,7 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
 			admin, _ := c.Flags().GetBool("admin")
 			deps, err := newFinalizeDeps(repoDir)
@@ -291,10 +291,10 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 				return err
 			}
 			setResult(app.FinalizeMerge(c.Context(), deps, repoDir, app.FinalizeMergeRequest{
-				ID:      id,
-				Version: version,
-				Head:    head,
-				Admin:   admin,
+				ID:       id,
+				Revision: revision,
+				Head:     head,
+				Admin:    admin,
 				// The attended `finalize merge --id` invocation IS the explicit human
 				// authorization the approval and finalize-blocked overrides read.
 				ExplicitID: true,
@@ -341,7 +341,7 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 
 			var input retargetChildrenInput
 			if err := decodeInputFlag(c, &input); err != nil {
@@ -353,7 +353,7 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 			}
 			setResult(app.FinalizeRetargetChildren(c.Context(), deps, repoDir, app.RetargetChildrenRequest{
 				ID:       id,
-				Version:  version,
+				Revision: revision,
 				Children: input.Children,
 			}))
 			return nil
@@ -387,14 +387,14 @@ func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Com
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
 			deps, err := newFinalizeDeps(repoDir)
 			if err != nil {
 				return err
 			}
 			setResult(app.FinalizeRebase(c.Context(), deps, repoDir, app.FinalizeRebaseRequest{
-				ID: id, Version: version, Head: head,
+				ID: id, Revision: revision, Head: head,
 			}))
 			return nil
 		},

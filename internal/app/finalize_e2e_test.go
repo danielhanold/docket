@@ -363,17 +363,17 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 	// A stacked child's effective base resolves only inside the claim transaction
 	// (ContextImplementation reads with empty branch facts), so the version comes
 	// from the origin oracle and eligibility is proven by the claim itself.
-	claim := ChangeClaim(e.ctx, e.node.deps, e.node.dir, ChangeClaimRequest{ID: id, Version: ver()})
+	claim := ChangeClaim(e.ctx, e.node.deps, e.node.dir, ChangeClaimRequest{ID: id, Revision: ver()})
 	if claim.Result != ResultApplied {
 		t.Fatalf("claim id %d = %q (findings %v)", id, claim.Result, claim.Findings)
 	}
 	rec := ChangeReconcile(e.ctx, e.node.deps, e.node.dir, ChangeReconcileRequest{
-		ID: id, Version: ver(), ReconcileLogEntry: "Reconciled against current reality.\n",
+		ID: id, Revision: ver(), ReconcileLogEntry: "Reconciled against current reality.\n",
 	})
 	if rec.Result != ResultApplied {
 		t.Fatalf("reconcile id %d = %q (findings %v)", id, rec.Result, rec.Findings)
 	}
-	prep := WorkspacePrepare(e.ctx, e.node.deps, e.wdeps, e.node.dir, WorkspaceIDRequest{ID: id, Version: ver()})
+	prep := WorkspacePrepare(e.ctx, e.node.deps, e.wdeps, e.node.dir, WorkspaceIDRequest{ID: id, Revision: ver()})
 	if prep.Result != ResultApplied {
 		t.Fatalf("workspace prepare id %d = %q (reason %q msg %q)", id, prep.Result, prep.Reason, prep.Message)
 	}
@@ -389,7 +389,7 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 	planHead := runGit(t, wp, "rev-parse", "HEAD")
 
 	attach := ChangeAttachPlan(e.ctx, e.node.deps, e.wdeps, e.node.dir,
-		ChangeAttachRequest{ID: id, Version: ver(), Path: planPath, Commit: planHead})
+		ChangeAttachRequest{ID: id, Revision: ver(), Path: planPath, Commit: planHead})
 	if attach.Result != ResultApplied {
 		t.Fatalf("attach plan id %d = %q (reason %q findings %v)", id, attach.Result, attach.Reason, attach.Findings)
 	}
@@ -409,7 +409,7 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 	head := runGit(t, wp, "rev-parse", "HEAD")
 
 	attachR := ChangeAttachResults(e.ctx, e.node.deps, e.wdeps, e.node.dir,
-		ChangeAttachRequest{ID: id, Version: ver(), Path: resultsPath, Commit: head})
+		ChangeAttachRequest{ID: id, Revision: ver(), Path: resultsPath, Commit: head})
 	if attachR.Result != ResultApplied {
 		t.Fatalf("attach results id %d = %q (reason %q findings %v)", id, attachR.Result, attachR.Reason, attachR.Findings)
 	}
@@ -453,7 +453,7 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 	}
 
 	mi := ChangeMarkImplemented(e.ctx, e.node.deps, e.wdeps, e.gdeps, e.node.dir, MarkImplementedRequest{
-		ID: id, Version: ver(), Head: head, PR: pr.Reference, EvidenceRecord: evidenceBytes,
+		ID: id, Revision: ver(), Head: head, PR: pr.Reference, EvidenceRecord: evidenceBytes,
 	})
 	if mi.Result != ResultApplied {
 		t.Fatalf("mark implemented id %d = %q (findings %v)", id, mi.Result, mi.Findings)
@@ -1354,14 +1354,14 @@ func reachInProgress(t *testing.T, docketBin, ghBin string) *e2eState {
 		if cx.Result != ResultApplied || cx.Context == nil {
 			t.Fatalf("context implementation id %d = %q", id, cx.Result)
 		}
-		cl := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: cx.Context.Change.Version})
+		cl := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: cx.Context.Change.Revision})
 		if cl.Result != ResultApplied {
 			t.Fatalf("claim id %d = %q (findings %v)", id, cl.Result, cl.Findings)
 		}
 	}
 	// id 3 gets an owned workspace so resume-halted has a matching-ownership,
 	// quiescent workspace to reprobe; id 4 is left no-work for the reclaim path.
-	prep := WorkspacePrepare(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: 3, Version: ver(3, "widget")})
+	prep := WorkspacePrepare(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: 3, Revision: ver(3, "widget")})
 	if prep.Result != ResultApplied {
 		t.Fatalf("workspace prepare id 3 = %q (reason %q)", prep.Result, prep.Reason)
 	}

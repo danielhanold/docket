@@ -43,13 +43,13 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
 			setResult(app.WorkspacePrepare(c.Context(), deps, wdeps, repoDir,
-				app.WorkspaceIDRequest{ID: id, Version: version}))
+				app.WorkspaceIDRequest{ID: id, Revision: revision}))
 			return nil
 		},
 	}

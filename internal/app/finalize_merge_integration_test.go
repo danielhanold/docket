@@ -134,7 +134,7 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 		gateOff: false, evidenceGreen: true, evidenceHead: head,
 		explicitID: true, requireApproval: false,
 		unretargetedOpenChildren: 0,
-		versionMatches:           true, finalizeBlocked: false,
+		revisionMatches:          true, finalizeBlocked: false,
 	}
 	if got := mergeConjuncts(good).FirstFailure(); got != "" {
 		t.Fatalf("a fully-satisfied input failed conjunct %q", got)
@@ -157,7 +157,7 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 		{"gate-stale-evidence", func(in *mergeConjunctInputs) { in.evidenceHead = "other" }, "gate-unsatisfied"},
 		{"approval", func(in *mergeConjunctInputs) { in.explicitID = false; in.requireApproval = true }, "approval-required"},
 		{"open-children", func(in *mergeConjunctInputs) { in.unretargetedOpenChildren = 1 }, "open-children"},
-		{"superseded-version", func(in *mergeConjunctInputs) { in.versionMatches = false }, "superseded"},
+		{"superseded-version", func(in *mergeConjunctInputs) { in.revisionMatches = false }, "superseded"},
 		{"superseded-blocked", func(in *mergeConjunctInputs) { in.explicitID = false; in.finalizeBlocked = true }, "superseded"},
 	}
 	for _, tc := range cases {
@@ -191,7 +191,7 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 	t.Run("explicit-id-never-overrides-version", func(t *testing.T) {
 		in := good
 		in.explicitID = true
-		in.versionMatches = false
+		in.revisionMatches = false
 		if got := mergeConjuncts(in).FirstFailure(); got != "superseded" {
 			t.Fatalf("explicit id wrongly overrode a superseding version: %q", got)
 		}
@@ -257,7 +257,7 @@ func TestIntegrationFinalizeMergeConjunctsRechecked(t *testing.T) {
 		f := setupMergeFixture(t, m)
 		gh := f.baselineFake(t)
 		req := mergeReq(f, f.head, true, false)
-		req.Version = "sha256:" + strings.Repeat("f", 64) // stale; explicit id never overrides a version
+		req.Revision = "sha256:" + strings.Repeat("f", 64) // stale; explicit id never overrides a version
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, req)
 		assertMergeRefusal(t, res, gh, "superseded")
 	})
@@ -302,7 +302,7 @@ func TestIntegrationFinalizeMergeConjunctsRechecked(t *testing.T) {
 		gh.openByHead["feat/gadget"] = []githubcli.PullRequest{{
 			Number: 8, State: githubcli.StateOpen, HeadBranch: "feat/gadget",
 			HeadCommit: strings.Repeat("c", 40), BaseBranch: "feat/" + f.slug,
-			Version: "sha256:" + strings.Repeat("e", 64),
+			Revision: "sha256:" + strings.Repeat("e", 64),
 		}}
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
 		assertMergeRefusal(t, res, gh, "open-children")
@@ -386,7 +386,7 @@ func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 		f := setupMergeFixture(t, m)
 		gh := f.baselineFake(t)
 		req := mergeReq(f, f.head, true, false)
-		req.Version = "sha256:" + strings.Repeat("f", 64)
+		req.Revision = "sha256:" + strings.Repeat("f", 64)
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, req)
 		assertMergeRefusal(t, res, gh, "superseded")
 	})

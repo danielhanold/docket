@@ -236,19 +236,19 @@ func gateClaimDeps(t *testing.T, engine *claimGateEngine, corpus []StatusBlob) P
 func TestClaimSameIDDifferentContextDigestDiffers(t *testing.T) {
 	h1 := runTrackerHashToken("tokA")
 	h2 := runTrackerHashToken("tokB")
-	d1, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, RunContextHash: h1})
+	d1, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimVersion, RunContextHash: h1})
 	if err != nil {
 		t.Fatalf("digest 1: %v", err)
 	}
-	d2, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Version: gateClaimVersion, RunContextHash: h2})
+	d2, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimVersion, RunContextHash: h2})
 	if err != nil {
 		t.Fatalf("digest 2: %v", err)
 	}
 	if d1 == d2 {
 		t.Errorf("digests match across differing contexts (%q); the same (id,version) would share the idempotency path", d1)
 	}
-	reqA := claimRequestID(ChangeClaimRequest{ID: 3, Version: gateClaimVersion, RunContext: "tokA"})
-	reqB := claimRequestID(ChangeClaimRequest{ID: 3, Version: gateClaimVersion, RunContext: "tokB"})
+	reqA := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimVersion, RunContext: "tokA"})
+	reqB := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimVersion, RunContext: "tokB"})
 	if reqA != reqB {
 		t.Errorf("request ids differ (%q vs %q); they must match so the engine's replay scan sees id-reuse", reqA, reqB)
 	}
@@ -292,7 +292,7 @@ func TestClaimResultRealEngineMalformedVersion(t *testing.T) {
 			// Shortened object id — the confirmed early-validation trigger
 			// (a full-length well-formed wrong id follows the contended
 			// path instead; see the change file's "## Why").
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: "abc123"},
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: "abc123"},
 		}},
 		Operation: claimEarlyErrOp{},
 		// Loader deliberately nil: expectations are validated before the

@@ -116,11 +116,11 @@ var reclaimActiveWorkspaceStates = map[string]bool{
 }
 
 // ChangeReclaimRequest is the closed, caller-supplied request for one reclaim.
-// ID and Version pin the exact submitted record; the reclaim generates its own
+// ID and Revision pin the exact submitted record; the reclaim generates its own
 // dated log entry, so there is no authored input.
 type ChangeReclaimRequest struct {
-	ID      int    `json:"id" docket:"required"`
-	Version string `json:"version" docket:"required"`
+	ID       int    `json:"id" docket:"required"`
+	Revision string `json:"version" docket:"required"`
 }
 
 // ChangeReclaimResult is the protocol-v1 document `change reclaim` returns. It
@@ -252,8 +252,8 @@ func ChangeReclaim(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Operation: op,
@@ -415,7 +415,7 @@ func decodeChangeReclaimReceipt(b []byte) (changeReclaimReceipt, bool) {
 // validateReclaimShape runs the configuration-independent request checks that
 // never reach the engine: the pinned-entity fields (id and version).
 func validateReclaimShape(req ChangeReclaimRequest) []StatusFinding {
-	return dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	return dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 }
 
 // reclaimOp is the SemanticOperation the engine drives per attempt. Every field

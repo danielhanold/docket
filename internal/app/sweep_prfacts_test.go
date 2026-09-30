@@ -122,7 +122,7 @@ func TestSweepPRSetFailedBatchIsUnknownPlusFinding(t *testing.T) {
 	results := map[int]githubcli.BatchPRResult{}
 	for i := 1; i <= 60; i++ {
 		results[i] = githubcli.BatchPRResult{Found: true, PR: githubcli.PullRequest{
-			Number: i, State: githubcli.StateOpen, HeadBranch: "feat/x", HeadCommit: "h", BaseBranch: "main", Version: "v",
+			Number: i, State: githubcli.StateOpen, HeadBranch: "feat/x", HeadCommit: "h", BaseBranch: "main", Revision: "v",
 		}}
 	}
 	gh := &countingSweepGitHub{repo: sweepTestRepo(), results: results, failBatchFor: map[int]bool{30: true}}
@@ -161,7 +161,7 @@ func TestSweepPRSetFailedBatchIsUnknownPlusFinding(t *testing.T) {
 		finalizeBlob(70, "resolved", "implemented", "high", prRefFor(70), ""),
 		finalizeBlob(71, "unresolved", "implemented", "high", prRefFor(71), ""),
 	})
-	resolved := domain.PRFacts{Number: "70", Version: "v70", State: "open", HeadBranch: "feat/resolved", HeadOID: "h70", BaseRef: "main"}
+	resolved := domain.PRFacts{Number: "70", Revision: "v70", State: "open", HeadBranch: "feat/resolved", HeadOID: "h70", BaseRef: "main"}
 	fake := &fakeSweepBatchReader{result: SweepPRSetResult{
 		Facts:    map[int]domain.PRFacts{70: resolved},
 		Failures: []SweepPRBatchFailure{{Numbers: []int{71}, Message: "gh graphql failed"}},
@@ -190,7 +190,7 @@ func TestSweepPRSetUnparseableRefIsUnknownPlusFinding(t *testing.T) {
 		finalizeBlob(80, "resolved", "implemented", "high", prRefFor(80), ""),
 		finalizeBlob(81, "unparseable", "implemented", "high", "not-a-pull-request-ref", ""),
 	})
-	resolved := domain.PRFacts{Number: "80", Version: "v80", State: "open", HeadBranch: "feat/resolved", HeadOID: "h80", BaseRef: "main"}
+	resolved := domain.PRFacts{Number: "80", Revision: "v80", State: "open", HeadBranch: "feat/resolved", HeadOID: "h80", BaseRef: "main"}
 	fake := &fakeSweepBatchReader{result: SweepPRSetResult{
 		Facts: map[int]domain.PRFacts{80: resolved},
 	}}
@@ -265,20 +265,20 @@ func TestSweepPRSetFactsParity(t *testing.T) {
 	}{
 		{
 			name: "open approved",
-			pr:   githubcli.PullRequest{Number: 7, State: githubcli.StateOpen, Approved: true, HeadBranch: "feat/x", HeadCommit: "h7", BaseBranch: "main", Version: "v7"},
+			pr:   githubcli.PullRequest{Number: 7, State: githubcli.StateOpen, Approved: true, HeadBranch: "feat/x", HeadCommit: "h7", BaseBranch: "main", Revision: "v7"},
 		},
 		{
 			name: "open draft unapproved",
-			pr:   githubcli.PullRequest{Number: 8, State: githubcli.StateOpen, Draft: true, HeadBranch: "feat/y", HeadCommit: "h8", BaseBranch: "main", Version: "v8"},
+			pr:   githubcli.PullRequest{Number: 8, State: githubcli.StateOpen, Draft: true, HeadBranch: "feat/y", HeadCommit: "h8", BaseBranch: "main", Revision: "v8"},
 		},
 		{
 			name: "closed",
-			pr:   githubcli.PullRequest{Number: 9, State: githubcli.StateClosed, HeadBranch: "feat/z", HeadCommit: "h9", BaseBranch: "main", Version: "v9"},
+			pr:   githubcli.PullRequest{Number: 9, State: githubcli.StateClosed, HeadBranch: "feat/z", HeadCommit: "h9", BaseBranch: "main", Revision: "v9"},
 		},
 		{
 			name:    "merged",
-			pr:      githubcli.PullRequest{Number: 10, State: githubcli.StateMerged, HeadBranch: "feat/m", HeadCommit: "h10", BaseBranch: "main", Version: "v10"},
-			merged:  &closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: githubcli.MergedFacts{HeadBranch: "feat/m", HeadOID: "h10", BaseRef: "main", MergedAtUTC: "2026-08-10T00:00:00Z", MergeCommit: "mc10", Version: "v10"}},
+			pr:      githubcli.PullRequest{Number: 10, State: githubcli.StateMerged, HeadBranch: "feat/m", HeadCommit: "h10", BaseBranch: "main", Revision: "v10"},
+			merged:  &closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: githubcli.MergedFacts{HeadBranch: "feat/m", HeadOID: "h10", BaseRef: "main", MergedAtUTC: "2026-08-10T00:00:00Z", MergeCommit: "mc10", Revision: "v10"}},
 			batchMC: "mc10",
 			batchAt: "2026-08-10T00:00:00Z",
 		},

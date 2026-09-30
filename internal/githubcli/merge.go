@@ -89,7 +89,7 @@ const (
 type MergedFacts struct {
 	HeadBranch                                 string
 	HeadOID, BaseRef, MergedAtUTC, MergeCommit string
-	Version                                    string
+	Revision                                   string
 }
 
 // MergeResult is the outcome of one MergePullRequest call. Method is attempt
@@ -134,7 +134,7 @@ func (s mergeSnapshot) facts() MergedFacts {
 		BaseRef:     s.pr.BaseBranch,
 		MergedAtUTC: s.mergedAt,
 		MergeCommit: s.mergeCommit,
-		Version:     s.pr.Version,
+		Revision:    s.pr.Revision,
 	}
 }
 

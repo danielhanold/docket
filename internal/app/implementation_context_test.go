@@ -24,7 +24,7 @@ func learningBlob(slug string) StatusBlob {
 		Kind:     repository.KindLearning,
 		Location: repository.LocationLedger,
 		Path:     "docs/changes/learnings/" + slug + ".md",
-		Version:  "bloblearn-" + slug,
+		Revision: "bloblearn-" + slug,
 		Data:     []byte(fm),
 	}
 }
@@ -40,7 +40,7 @@ func liveParentBlob(id int, slug, branch string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     fmt.Sprintf("docs/changes/active/%04d-%s.md", id, slug),
-		Version:  fmt.Sprintf("blobchange%04d", id),
+		Revision: fmt.Sprintf("blobchange%04d", id),
 		Data:     []byte(fm),
 	}
 }
@@ -67,7 +67,7 @@ func TestContextImplementationSelectsByPolicy(t *testing.T) {
 		pin:    pin,
 		corpus: corpus,
 		artifactData: map[string]StatusArtifact{
-			sourceMetadata + "|" + specPath: {Found: true, Version: "specblob-alpha", Data: specBytes},
+			sourceMetadata + "|" + specPath: {Found: true, Revision: "specblob-alpha", Data: specBytes},
 		},
 	}
 
@@ -86,8 +86,8 @@ func TestContextImplementationSelectsByPolicy(t *testing.T) {
 	if !bytes.Equal(b.Change.Source, corpus[0].Data) {
 		t.Errorf("change source bytes not byte-identical:\n got %q\nwant %q", b.Change.Source, corpus[0].Data)
 	}
-	if b.Change.Version != corpus[0].Version {
-		t.Errorf("change version = %q, want %q", b.Change.Version, corpus[0].Version)
+	if b.Change.Revision != corpus[0].Revision {
+		t.Errorf("change version = %q, want %q", b.Change.Revision, corpus[0].Revision)
 	}
 	if b.Change.Path != corpus[0].Path {
 		t.Errorf("change path = %q, want %q", b.Change.Path, corpus[0].Path)
@@ -95,7 +95,7 @@ func TestContextImplementationSelectsByPolicy(t *testing.T) {
 	if !bytes.Equal(b.Spec.Source, specBytes) {
 		t.Errorf("spec source bytes not byte-identical:\n got %q\nwant %q", b.Spec.Source, specBytes)
 	}
-	if b.Spec.Version != "specblob-alpha" || b.Spec.Path != specPath {
+	if b.Spec.Revision != "specblob-alpha" || b.Spec.Path != specPath {
 		t.Errorf("spec entity = %+v", b.Spec)
 	}
 	if b.MetadataCommit != pin.MetadataRevision {
@@ -143,7 +143,7 @@ func TestContextImplementationWorkflowExposesBuildPolicy(t *testing.T) {
 		pin:    pin,
 		corpus: corpus,
 		artifactData: map[string]StatusArtifact{
-			sourceMetadata + "|" + specPath: {Found: true, Version: "sa", Data: []byte("spec a\n")},
+			sourceMetadata + "|" + specPath: {Found: true, Revision: "sa", Data: []byte("spec a\n")},
 		},
 	}
 
@@ -183,8 +183,8 @@ func TestContextImplementationExplicitID(t *testing.T) {
 		pin:    pin,
 		corpus: corpus,
 		artifactData: map[string]StatusArtifact{
-			sourceMetadata + "|" + specA: {Found: true, Version: "sa", Data: []byte("spec a\n")},
-			sourceMetadata + "|" + specB: {Found: true, Version: "sb", Data: []byte("spec b\n")},
+			sourceMetadata + "|" + specA: {Found: true, Revision: "sa", Data: []byte("spec a\n")},
+			sourceMetadata + "|" + specB: {Found: true, Revision: "sb", Data: []byte("spec b\n")},
 		},
 	}
 
@@ -213,7 +213,7 @@ func TestContextImplementationFeatureBranchHonorsMintPrefix(t *testing.T) {
 		pin:    pin,
 		corpus: corpus,
 		artifactData: map[string]StatusArtifact{
-			sourceMetadata + "|" + specPath: {Found: true, Version: "sh", Data: []byte("hot\n")},
+			sourceMetadata + "|" + specPath: {Found: true, Revision: "sh", Data: []byte("hot\n")},
 		},
 	}
 
@@ -235,7 +235,7 @@ func TestContextImplementationRevisionConsistency(t *testing.T) {
 		pin:    pin,
 		corpus: []StatusBlob{changeBlob(11, "alpha", "feat", "high", "spec: "+specPath+"\n")},
 		artifactData: map[string]StatusArtifact{
-			sourceMetadata + "|" + specPath: {Found: true, Version: "sa", Data: []byte("spec a\n")},
+			sourceMetadata + "|" + specPath: {Found: true, Revision: "sa", Data: []byte("spec a\n")},
 		},
 	}
 	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})
@@ -397,7 +397,7 @@ func TestContextImplementationDoesNotEchoAuthoredBody(t *testing.T) {
 		pin:    pin,
 		corpus: corpus,
 		artifactData: map[string]StatusArtifact{
-			sourceMetadata + "|" + specPath: {Found: true, Version: "sa", Data: specBytes},
+			sourceMetadata + "|" + specPath: {Found: true, Revision: "sa", Data: specBytes},
 		},
 	}
 	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})
@@ -426,11 +426,11 @@ func TestContextImplementationReportsHalt(t *testing.T) {
 		"\n---\n\nBody.\n\n## Run halted\n\n### 2026-08-14\n\nPrior run paused.\n"
 	corpus := []StatusBlob{{
 		Kind: repository.KindChange, Location: repository.LocationActive,
-		Path: "docs/changes/active/0011-alpha.md", Version: "v11", Data: []byte(src),
+		Path: "docs/changes/active/0011-alpha.md", Revision: "v11", Data: []byte(src),
 	}}
 	fake := &fakeReader{
 		pin: pin, corpus: corpus,
-		artifactData: map[string]StatusArtifact{sourceMetadata + "|" + specA: {Found: true, Version: "sa", Data: []byte("spec a\n")}},
+		artifactData: map[string]StatusArtifact{sourceMetadata + "|" + specA: {Found: true, Revision: "sa", Data: []byte("spec a\n")}},
 	}
 	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{ID: 11})
 	if got.Result != ResultApplied || got.Context == nil {
@@ -465,7 +465,7 @@ func TestContextImplementationStackedLiveParentUsesRemoteFacts(t *testing.T) {
 				corpus: corpus,
 				facts:  domain.NewBranchFacts(map[string]bool{"feat/parent": true}),
 				artifactData: map[string]StatusArtifact{
-					sourceMetadata + "|" + specPath: {Found: true, Version: "sc", Data: []byte("spec child\n")},
+					sourceMetadata + "|" + specPath: {Found: true, Revision: "sc", Data: []byte("spec child\n")},
 				},
 			}
 			got := ContextImplementation(context.Background(), contextDeps(fake), "", req)
@@ -515,7 +515,7 @@ func TestContextImplementationStackedParentBranchAbsent(t *testing.T) {
 		changeBlob(21, "child", "feat", "high", "spec: "+specPath+"\nstacked_on: 20\n"),
 	}
 	art := map[string]StatusArtifact{
-		sourceMetadata + "|" + specPath: {Found: true, Version: "sc", Data: []byte("spec child\n")},
+		sourceMetadata + "|" + specPath: {Found: true, Revision: "sc", Data: []byte("spec child\n")},
 	}
 
 	t.Run("explicit-id", func(t *testing.T) {
@@ -552,7 +552,7 @@ func TestContextImplementationBranchFactsFailure(t *testing.T) {
 		},
 		factsErr: fmt.Errorf("git ls-remote: connection reset: %w", ErrStatusExternal),
 		artifactData: map[string]StatusArtifact{
-			sourceMetadata + "|" + specPath: {Found: true, Version: "sa", Data: []byte("spec a\n")},
+			sourceMetadata + "|" + specPath: {Found: true, Revision: "sa", Data: []byte("spec a\n")},
 		},
 	}
 	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})

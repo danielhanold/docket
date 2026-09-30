@@ -125,14 +125,14 @@ const (
 	ReasonAttachResultsContent = "results-content-invalid"
 )
 
-// ChangeAttachRequest is the closed request for one attach. ID and Version pin
+// ChangeAttachRequest is the closed request for one attach. ID and Revision pin
 // the change record (exact submitted blob); Path is the canonical repo-relative
 // artifact path; Commit is the exact feature commit the writer reported.
 type ChangeAttachRequest struct {
-	ID      int    `json:"id" docket:"required"`
-	Version string `json:"version" docket:"required"`
-	Path    string `json:"path" docket:"required"`
-	Commit  string `json:"commit" docket:"required"`
+	ID       int    `json:"id" docket:"required"`
+	Revision string `json:"version" docket:"required"`
+	Path     string `json:"path" docket:"required"`
+	Commit   string `json:"commit" docket:"required"`
 }
 
 // attachDigestPayload is the idempotency digest payload: the promised state a
@@ -210,7 +210,7 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 	opKey := attachOpKey(kind)
 
 	// (1) Request shape.
-	findings := validateLifecycleShape("id", req.ID, req.Path, req.Version)
+	findings := validateLifecycleShape("id", req.ID, req.Path, req.Revision)
 	if strings.TrimSpace(req.Commit) == "" {
 		findings = append(findings, lifecycleFinding(FCEmptyCommit, "commit must be the exact feature commit the writer reported"))
 	}
@@ -343,8 +343,8 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(ac.recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(ac.recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Idempotency: &transaction.IdempotencyKey{RequestID: attachRequestID(kind, req), Digest: digest},
 		Loader:      newPlanningLoader(eff),

@@ -77,7 +77,7 @@ type DesiredRelations struct {
 }
 
 // ChangeReconcileRequest is the closed, caller-supplied request for one
-// reconcile. ID and Version pin the exact submitted record; Sections replaces
+// reconcile. ID and Revision pin the exact submitted record; Sections replaces
 // owned proposal sections by canonical heading with full replacement text;
 // SpecSections replaces still-mutable linked-spec sections the same way;
 // Relations carries the complete desired relationship values; ReconcileLogEntry
@@ -85,7 +85,7 @@ type DesiredRelations struct {
 // string fields and is never interpolated into any shell command.
 type ChangeReconcileRequest struct {
 	ID                int               `json:"id" docket:"required"`
-	Version           string            `json:"version" docket:"required"`
+	Revision          string            `json:"version" docket:"required"`
 	Sections          map[string]string `json:"sections"`
 	SpecSections      map[string]string `json:"spec_sections"`
 	Relations         *DesiredRelations `json:"relations"`
@@ -193,8 +193,8 @@ func ChangeReconcile(ctx context.Context, deps PlanningDeps, repoDir string, req
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Scope:     changeScope(req.ID, recPath, false),
@@ -292,7 +292,7 @@ func decodeChangeReconcileReceipt(b []byte) (changeReconcileReceipt, bool) {
 // fence over the named proposal sections, the required reconcile-log entry, and
 // the authored-input size bound over every authored string.
 func validateChangeReconcileShape(req ChangeReconcileRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	addShape := func(code FindingCode, msg string) {
 		findings = append(findings, lifecycleFinding(code, msg))
 	}

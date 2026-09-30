@@ -174,7 +174,7 @@ func sweepInProgressBlob(id int, slug string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     fmt.Sprintf("docs/changes/active/%04d-%s.md", id, slug),
-		Version:  fmt.Sprintf("blobip%04d", id),
+		Revision: fmt.Sprintf("blobip%04d", id),
 		Data:     []byte(lifecycleChange(id, slug, "in-progress")),
 	}
 }
@@ -190,7 +190,7 @@ func sweepDeps(reader *fakeReader, prober FinalizePRProber) FinalizeDeps {
 func mergedFacts(number int, base string) domain.PRFacts {
 	return domain.PRFacts{
 		Number:      fmt.Sprintf("%d", number),
-		Version:     fmt.Sprintf("v%d", number),
+		Revision:    fmt.Sprintf("v%d", number),
 		State:       "merged",
 		HeadOID:     fmt.Sprintf("h%d", number),
 		BaseRef:     base,
@@ -623,7 +623,7 @@ func TestVanishedOnObservationSkipsAfterThatPrepare(t *testing.T) {
 
 // TestReclaimVersionFromObservation: the exact blob version the reclaim is pinned
 // to comes from the SHARED observation the attempt prepared — obs.inv
-// .versionByPath[path] — not a separate re-pin.
+// .revisionByPath[path] — not a separate re-pin.
 func TestReclaimVersionFromObservation(t *testing.T) {
 	corpus := []StatusBlob{sweepInProgressBlob(50, "stale")}
 	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
@@ -640,7 +640,7 @@ func TestReclaimVersionFromObservation(t *testing.T) {
 	if out != domain.LookupFound {
 		t.Fatalf("record 50 must be present in the observation")
 	}
-	want := obs.inv.versionByPath[c.Path()]
+	want := obs.inv.revisionByPath[c.Path()]
 	if want == "" {
 		t.Fatalf("observation carried no blob version for 50")
 	}
@@ -655,7 +655,7 @@ func TestReclaimVersionFromObservation(t *testing.T) {
 		t.Fatalf("reclaim was not dispatched for 50; calls=%v", ops.calls)
 	}
 	if got != want {
-		t.Fatalf("reclaim version = %q, want %q (from obs.inv.versionByPath)", got, want)
+		t.Fatalf("reclaim version = %q, want %q (from obs.inv.revisionByPath)", got, want)
 	}
 }
 

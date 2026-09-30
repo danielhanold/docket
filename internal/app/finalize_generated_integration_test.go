@@ -139,7 +139,7 @@ func beginBundleConflicts(t *testing.T, limit, featureCommits int, module string
 	t.Helper()
 	f, deps, head := prepareBundleConflictsWithoutBegin(t, limit, featureCommits, module)
 	begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
 	return f, deps, head, begin
 }
 
@@ -208,7 +208,7 @@ func TestIntegrationGeneratedOnlyGenerationFailureBlocks(t *testing.T) {
 	f, deps, head := prepareBundleConflictsWithoutBegin(t, 2, 1, docketModulePath)
 	deps.RegenerateBundle = func(string) error { return fmt.Errorf("synthetic generation failure") }
 	begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
 	if begin.Result != ResultBlocked || begin.Reason != ReasonRebaseGitFailed {
 		t.Fatalf("begin = (%q, %q), want blocked/%q", begin.Result, begin.Reason, ReasonRebaseGitFailed)
 	}
@@ -269,7 +269,7 @@ func beginMixedBundleConflict(t *testing.T, limit int) (*rebaseFixture, Finalize
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, head), RunDir: "/run/x"}}
 	deps := f.finalizeDeps(gh, gate)
 	begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
 	return f, deps, head, begin
 }
 
@@ -386,7 +386,7 @@ func TestIntegrationGeneratedOnlyInterruptedReentry(t *testing.T) {
 		return regenerateEmbeddedBundle(ws)
 	}
 	first := FinalizeRebase(ctx, deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
 	if first.Result != ResultBlocked || first.Reason != ReasonRebaseGitFailed {
 		t.Fatalf("interrupted entry = (%q, %q), want blocked/%q", first.Result, first.Reason, ReasonRebaseGitFailed)
 	}
@@ -399,7 +399,7 @@ func TestIntegrationGeneratedOnlyInterruptedReentry(t *testing.T) {
 	// attempt and the fast path resumes from the live stop.
 	deps.RegenerateBundle = nil
 	second := FinalizeRebase(ctx, deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
 	if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
 		t.Fatalf("re-entry = (%q, %q) reason %q msg %q, want applied/rebased", second.Result, second.Disposition, second.Reason, second.Message)
 	}

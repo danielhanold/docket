@@ -61,7 +61,7 @@ func stackFixtureBlob(id int, slug, status, branch, extra string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     fmt.Sprintf("docs/changes/active/%04d-%s.md", id, slug),
-		Version:  fmt.Sprintf("blobchange%04d", id),
+		Revision: fmt.Sprintf("blobchange%04d", id),
 		Data:     []byte(fm),
 	}
 }
@@ -188,8 +188,8 @@ func TestRetargetProbesOnlyParentStack(t *testing.T) {
 	deps := retargetDeps(&fakeReader{pin: pin, corpus: corpus}, gh, &recordingEngine{})
 	deps.Planning.Reader = poisoned(deps.Planning.Reader, "feat/a-parent")
 	req := RetargetChildrenRequest{
-		ID: 80, Version: "blobfin0080",
-		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}},
+		ID: 80, Revision: "blobfin0080",
+		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}},
 	}
 	got := FinalizeRetargetChildren(context.Background(), deps, "", req)
 	if got.Result != ResultApplied {

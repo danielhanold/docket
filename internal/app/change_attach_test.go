@@ -125,7 +125,7 @@ func TestChangeAttachContention(t *testing.T) {
 // TestChangeAttachRejectsBadShape proves the request-shape check refuses a
 // malformed request before any pin/engine work, for every missing scalar.
 func TestChangeAttachRejectsBadShape(t *testing.T) {
-	valid := ChangeAttachRequest{ID: 3, Version: blobV, Path: "docs/superpowers/plans/x.md", Commit: blobV}
+	valid := ChangeAttachRequest{ID: 3, Revision: blobV, Path: "docs/superpowers/plans/x.md", Commit: blobV}
 	cases := []struct {
 		name string
 		mut  func(*ChangeAttachRequest)
@@ -133,7 +133,7 @@ func TestChangeAttachRejectsBadShape(t *testing.T) {
 	}{
 		{"non-positive id", func(r *ChangeAttachRequest) { r.ID = 0 }, "invalid-id"},
 		{"empty path", func(r *ChangeAttachRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeAttachRequest) { r.Version = "" }, "empty-version"},
+		{"empty version", func(r *ChangeAttachRequest) { r.Revision = "" }, "empty-version"},
 		{"empty commit", func(r *ChangeAttachRequest) { r.Commit = " " }, "empty-commit"},
 	}
 	for _, c := range cases {

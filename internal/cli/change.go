@@ -125,7 +125,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		}, EffectMetadataWrite)
 
-	claim := changeIDVersionSubcommand("claim",
+	claim := changeIDRevisionSubcommand("claim",
 		"Claim a build-ready change at an exact version, moving it to in-progress",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
 			req.RunContext, _ = c.Flags().GetString("run-context")
@@ -133,7 +133,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		}, EffectMetadataWrite)
 	claim.Flags().String("run-context", "", "run-context `token` from run start, binding this claim to its started run (optional; omitted for an untracked claim)")
 
-	refreshClaim := changeIDVersionSubcommand("refresh-claim",
+	refreshClaim := changeIDRevisionSubcommand("refresh-claim",
 		"Re-stamp an in-progress change's claim lease at an exact version",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
 			setResult(app.ChangeRefreshClaim(c.Context(), deps, repoDir, req))
@@ -166,12 +166,12 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		"Record a bounded run-halted report on an in-progress change from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			var in changeHaltInput
 			if err := decodeInputFlag(c, &in); err != nil {
 				return err
 			}
-			setResult(app.ChangeHalt(c.Context(), deps, repoDir, app.HaltRequest{ID: id, Version: version, Report: in.Report}))
+			setResult(app.ChangeHalt(c.Context(), deps, repoDir, app.HaltRequest{ID: id, Revision: revision, Report: in.Report}))
 			return nil
 		}, EffectMetadataWrite)
 	halt.Flags().Int("id", 0, "in-progress change `id` to halt (required)")
@@ -215,7 +215,7 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			expectVersion, _ := c.Flags().GetString("expect-version")
+			expectRevision, _ := c.Flags().GetString("expect-version")
 			adoptPRHead, _ := c.Flags().GetBool("adopt-pr-head")
 			expectPR, _ := c.Flags().GetInt("expect-pr")
 			expectHead, _ := c.Flags().GetString("expect-head")
@@ -227,7 +227,7 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 			}
 			setResult(app.RepairIdentity(c.Context(), deps, repoDir, app.RepairIdentityRequest{
 				ID:             id,
-				ExpectVersion:  expectVersion,
+				ExpectRevision: expectRevision,
 				AdoptPRHead:    adoptPRHead,
 				ExpectPRNumber: expectPR,
 				ExpectHead:     expectHead,
@@ -278,7 +278,7 @@ func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Comma
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			ack, _ := c.Flags().GetBool("acknowledge-quiescent")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
@@ -286,7 +286,7 @@ func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Comma
 			}
 			setResult(app.ChangeResumeHalted(c.Context(), deps, wdeps, repoDir, app.ResumeRequest{
 				ID:                   id,
-				Version:              version,
+				Revision:             revision,
 				AcknowledgeQuiescent: ack,
 			}))
 			return nil
@@ -319,14 +319,14 @@ func newReclaimSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
 			setResult(app.ChangeReclaim(c.Context(), deps, wdeps, repoDir, app.ChangeReclaimRequest{
-				ID:      id,
-				Version: version,
+				ID:       id,
+				Revision: revision,
 			}))
 			return nil
 		},
@@ -360,7 +360,7 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
 			prRef, _ := c.Flags().GetString("pr")
 			evSource, _ := c.Flags().GetString("evidence")
@@ -375,7 +375,7 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 			}
 			setResult(app.ChangeMarkImplemented(c.Context(), deps, wdeps, gdeps, repoDir, app.MarkImplementedRequest{
 				ID:             id,
-				Version:        version,
+				Revision:       revision,
 				Head:           head,
 				PR:             prRef,
 				EvidenceRecord: record,
@@ -414,14 +414,14 @@ func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps 
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			artifactPath, _ := c.Flags().GetString("path")
 			commit, _ := c.Flags().GetString("commit")
 			deps, wdeps, err := newWorkspaceDeps(repoDir)
 			if err != nil {
 				return err
 			}
-			run(c, deps, wdeps, repoDir, app.ChangeAttachRequest{ID: id, Version: version, Path: artifactPath, Commit: commit})
+			run(c, deps, wdeps, repoDir, app.ChangeAttachRequest{ID: id, Revision: revision, Path: artifactPath, Commit: commit})
 			return nil
 		},
 	}
@@ -473,12 +473,12 @@ func decodeInputFlag(c *cobra.Command, dst any) error {
 	return decodeRequest(c.InOrStdin(), "--input", source, dst)
 }
 
-// changeIDVersionSubcommand builds one `change <verb>` command whose input is the
+// changeIDRevisionSubcommand builds one `change <verb>` command whose input is the
 // (id, version) pair rather than a JSON request body: the claim transitions
 // carry no authored Markdown, so they take scalar flags (Global Constraints:
 // request files are for authored Markdown, never these). run receives the
 // resolved dependencies, repo directory, and decoded request.
-func changeIDVersionSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest), effects ...Effect) *cobra.Command {
+func changeIDRevisionSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest), effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         verb,
 		Short:       short,
@@ -490,12 +490,12 @@ func changeIDVersionSubcommand(verb, short string, run func(c *cobra.Command, de
 				return err
 			}
 			id, _ := c.Flags().GetInt("id")
-			version, _ := c.Flags().GetString("version")
+			revision, _ := c.Flags().GetString("version")
 			deps, err := newPlanningDeps(repoDir)
 			if err != nil {
 				return err
 			}
-			run(c, deps, repoDir, app.ChangeClaimRequest{ID: id, Version: version})
+			run(c, deps, repoDir, app.ChangeClaimRequest{ID: id, Revision: revision})
 			return nil
 		},
 	}

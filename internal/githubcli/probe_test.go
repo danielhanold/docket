@@ -60,8 +60,8 @@ func TestVersionExcludesReviewDecision(t *testing.T) {
 	if approved.Approved == plain.Approved {
 		t.Fatalf("fixture vacuous: both documents decode to Approved=%v", approved.Approved)
 	}
-	if approved.Version != plain.Version {
-		t.Errorf("Version differs on review state alone:\n approved %s\n plain    %s", approved.Version, plain.Version)
+	if approved.Revision != plain.Revision {
+		t.Errorf("Version differs on review state alone:\n approved %s\n plain    %s", approved.Revision, plain.Revision)
 	}
 }
 

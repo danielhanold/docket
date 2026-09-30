@@ -33,7 +33,7 @@ func TestIntegrationFinalizeOpsFinalizeClearBlockUnrelatedInvalidRecordProgress(
 		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
 
 	got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-		ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
+		ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
 	if got.Result != ResultApplied || got.Disposition != BlockDispCleared {
 		t.Fatalf("finalize clear-block beside an unrelated unparseable record = %q disp %q reason %q (findings %v), want applied cleared",
 			got.Result, got.Disposition, got.Reason, got.Findings)

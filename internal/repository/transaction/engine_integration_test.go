@@ -230,7 +230,7 @@ func TestIntegrationTxnApplyEngineExpectationMatrix(t *testing.T) {
 		client, repo := r.discover(t)
 		eng := newEngine(t, client)
 		exp := []EntityExpectation{{Path: gitcli.RepoPath(firstPath),
-			Version: ExpectedVersion{Kind: VersionBlob, ObjectID: r.blobID(t, firstPath)}}}
+			Revision: ExpectedRevision{Kind: RevisionBlob, ObjectID: r.blobID(t, firstPath)}}}
 		res := mustExecute(t, eng, r, repo, exp, createOp(thirdChangePath, thirdChange()))
 		if res.Disposition != DispositionApplied {
 			t.Fatalf("disposition = %q, want applied", res.Disposition)
@@ -243,7 +243,7 @@ func TestIntegrationTxnApplyEngineExpectationMatrix(t *testing.T) {
 		eng := newEngine(t, client)
 		base := r.originTip(t)
 		exp := []EntityExpectation{{Path: gitcli.RepoPath(firstPath),
-			Version: ExpectedVersion{Kind: VersionBlob, ObjectID: "0000000000000000000000000000000000000000"}}}
+			Revision: ExpectedRevision{Kind: RevisionBlob, ObjectID: "0000000000000000000000000000000000000000"}}}
 		op := createOp(thirdChangePath, thirdChange())
 		res := mustExecute(t, eng, r, repo, exp, op)
 		if res.Disposition != DispositionContended {
@@ -271,7 +271,7 @@ func TestIntegrationTxnApplyEngineExpectationMatrix(t *testing.T) {
 		client, repo := r.discover(t)
 		eng := newEngine(t, client)
 		exp := []EntityExpectation{{Path: "docs/changes/active/9999-none.md",
-			Version: ExpectedVersion{Kind: VersionAbsent}}}
+			Revision: ExpectedRevision{Kind: RevisionAbsent}}}
 		res := mustExecute(t, eng, r, repo, exp, createOp(thirdChangePath, thirdChange()))
 		if res.Disposition != DispositionApplied {
 			t.Fatalf("disposition = %q, want applied", res.Disposition)
@@ -283,7 +283,7 @@ func TestIntegrationTxnApplyEngineExpectationMatrix(t *testing.T) {
 		client, repo := r.discover(t)
 		eng := newEngine(t, client)
 		exp := []EntityExpectation{{Path: gitcli.RepoPath(firstPath),
-			Version: ExpectedVersion{Kind: VersionAbsent}}}
+			Revision: ExpectedRevision{Kind: RevisionAbsent}}}
 		res := mustExecute(t, eng, r, repo, exp, createOp(thirdChangePath, thirdChange()))
 		if res.Disposition != DispositionContended {
 			t.Fatalf("disposition = %q, want contended", res.Disposition)

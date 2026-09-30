@@ -47,13 +47,13 @@ func TestADRRecordRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		{"duplicate relates_to", func(r *ADRRecordRequest) { r.RelatesTo = []int{2, 2} }, "duplicate-relates_to"},
 		{"non-positive relates_to", func(r *ADRRecordRequest) { r.RelatesTo = []int{0} }, "invalid-relates_to"},
 		{"producing change empty path", func(r *ADRRecordRequest) {
-			r.Change = &ADRProducingChange{ID: 1, Path: "", Version: blobV}
+			r.Change = &ADRProducingChange{ID: 1, Path: "", Revision: blobV}
 		}, "empty-change-path"},
 		{"producing change empty version", func(r *ADRRecordRequest) {
-			r.Change = &ADRProducingChange{ID: 1, Path: "docs/changes/active/0001-first.md", Version: ""}
+			r.Change = &ADRProducingChange{ID: 1, Path: "docs/changes/active/0001-first.md", Revision: ""}
 		}, "empty-change-version"},
 		{"producing change non-positive id", func(r *ADRRecordRequest) {
-			r.Change = &ADRProducingChange{ID: 0, Path: "docs/changes/active/0001-first.md", Version: blobV}
+			r.Change = &ADRProducingChange{ID: 0, Path: "docs/changes/active/0001-first.md", Revision: blobV}
 		}, "invalid-change-id"},
 	}
 	for _, c := range cases {
@@ -215,7 +215,7 @@ func TestADRRecordPlanWithProducingChange(t *testing.T) {
 		"docs/adrs/0001-one.md":             fixtureADR(1, "one"),
 	}
 	req := validADRRecordRequest()
-	req.Change = &ADRProducingChange{ID: 1, Path: "docs/changes/active/0001-first.md", Version: blobV}
+	req.Change = &ADRProducingChange{ID: 1, Path: "docs/changes/active/0001-first.md", Revision: blobV}
 	plan, opRes := adrRecordPlanFor(t, files, baseADRRecordOp(req))
 	if opRes.Refused {
 		t.Fatalf("unexpected refusal: %v", opRes.Findings)
@@ -252,7 +252,7 @@ func TestADRRecordPlanRefusesAbsentProducingChange(t *testing.T) {
 		"docs/adrs/0001-one.md": fixtureADR(1, "one"),
 	}
 	req := validADRRecordRequest()
-	req.Change = &ADRProducingChange{ID: 42, Path: "docs/changes/active/0042-ghost.md", Version: blobV}
+	req.Change = &ADRProducingChange{ID: 42, Path: "docs/changes/active/0042-ghost.md", Revision: blobV}
 	plan, opRes := adrRecordPlanFor(t, files, baseADRRecordOp(req))
 	if !opRes.Refused {
 		t.Fatalf("absent producing change was not refused")
@@ -281,7 +281,7 @@ func fixtureADRWithStatus(id int, slug, status string) string {
 func validADRReplaceRequest() ADRReplaceRequest {
 	return ADRReplaceRequest{
 		RequestID: "adr-replace-0001",
-		Target:    ADRTarget{ID: 1, Path: "docs/adrs/0001-one.md", Version: blobV},
+		Target:    ADRTarget{ID: 1, Path: "docs/adrs/0001-one.md", Revision: blobV},
 		Successor: ADRRecordRequest{
 			// RequestID intentionally empty: the outer key governs, this is ignored.
 			Title:        "Supersede the widget decision",
@@ -337,7 +337,7 @@ func TestADRSupersedeRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		{"short outer request id", func(r *ADRReplaceRequest) { r.RequestID = "short" }, "invalid-request_id"},
 		{"non-positive target id", func(r *ADRReplaceRequest) { r.Target.ID = 0 }, "invalid-target-id"},
 		{"empty target path", func(r *ADRReplaceRequest) { r.Target.Path = "" }, "empty-target-path"},
-		{"empty target version", func(r *ADRReplaceRequest) { r.Target.Version = "" }, "empty-target-version"},
+		{"empty target version", func(r *ADRReplaceRequest) { r.Target.Revision = "" }, "empty-target-version"},
 		{"empty successor title", func(r *ADRReplaceRequest) { r.Successor.Title = "" }, "empty-title"},
 		{"empty successor decision", func(r *ADRReplaceRequest) { r.Successor.Decision = "" }, "empty-decision"},
 		{"duplicate successor relates_to", func(r *ADRReplaceRequest) { r.Successor.RelatesTo = []int{3, 3} }, "duplicate-relates_to"},
@@ -530,7 +530,7 @@ func TestADRSupersedePlanWithProducingChange(t *testing.T) {
 		"docs/adrs/0001-one.md":             fixtureADR(1, "one"),
 	}
 	req := validADRReplaceRequest()
-	req.Successor.Change = &ADRProducingChange{ID: 3, Path: "docs/changes/active/0003-third.md", Version: blobV}
+	req.Successor.Change = &ADRProducingChange{ID: 3, Path: "docs/changes/active/0003-third.md", Revision: blobV}
 	plan, opRes := adrReplacePlanFor(t, files, baseADRReplaceOp(OperationADRSupersede, false, req))
 	if opRes.Refused {
 		t.Fatalf("unexpected refusal: %v", opRes.Findings)

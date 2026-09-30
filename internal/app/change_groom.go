@@ -86,25 +86,25 @@ const specsDir = "docs/superpowers/specs"
 const autoGroomBlockedHeading = "## Auto-groom blocked"
 
 // ChangeGroomRequest is the closed, caller-supplied request for one groom. Path
-// and Version pin the exact submitted record; the relationship collections are
+// and Revision pin the exact submitted record; the relationship collections are
 // the complete desired values (a nil collection is left unchanged, an explicit
 // empty collection clears the field). Authored Markdown rides inside the string
 // fields and is never interpolated into any shell command.
 type ChangeGroomRequest struct {
 	ChangeID int          `json:"change_id" docket:"required"`
 	Path     string       `json:"path" docket:"required"`    // current canonical record path
-	Version  string       `json:"version" docket:"required"` // exact full blob object id
+	Revision string       `json:"version" docket:"required"` // exact full blob object id
 	Outcome  GroomOutcome `json:"outcome" docket:"required"`
 
 	SpecMarkdown string               `json:"spec_markdown,omitempty"` // required for the spec outcome
 	Sections     []SectionEditRequest `json:"sections"`                // proposal-section edits
 
-	// SpecVersion pins the change's existing linked spec file (the path the
+	// SpecRevision pins the change's existing linked spec file (the path the
 	// record's spec: field names) by its exact full blob object id. A revise
 	// carrying spec_markdown requires it and no other request accepts it: the
 	// whole-body replace overwrites the spec file, so a concurrent spec edit
 	// contends instead of being silently clobbered.
-	SpecVersion string `json:"spec_version,omitempty"`
+	SpecRevision string `json:"spec_version,omitempty"`
 
 	// BlockedNote is the authored body of one ## Auto-groom blocked entry. The
 	// abstain outcome requires it and no other outcome accepts it; the operation
@@ -254,8 +254,8 @@ func ChangeGroom(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(req.Path),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(req.Path),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Operation: op,
@@ -308,7 +308,7 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 	if strings.TrimSpace(req.Path) == "" {
 		addShape(FCEmptyPath, "path must name the change's current canonical record path")
 	}
-	if strings.TrimSpace(req.Version) == "" {
+	if strings.TrimSpace(req.Revision) == "" {
 		addShape(FCEmptyVersion, "version must be the exact full blob object id of the submitted record")
 	}
 
@@ -394,11 +394,11 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 	// file's version exactly like the record. Nothing else checks spec_version,
 	// so it is refused anywhere else rather than silently ignored.
 	specRevise := req.Outcome == GroomRevise && strings.TrimSpace(req.SpecMarkdown) != ""
-	hasSpecVersion := strings.TrimSpace(req.SpecVersion) != ""
+	hasSpecRevision := strings.TrimSpace(req.SpecRevision) != ""
 	switch {
-	case specRevise && !hasSpecVersion:
+	case specRevise && !hasSpecRevision:
 		addShape(FCEmptySpecVersion, "spec_version must be the exact full blob object id of the linked spec when a revise carries spec_markdown")
-	case !specRevise && hasSpecVersion:
+	case !specRevise && hasSpecRevision:
 		addShape(FCInvalidSpecVersion, "spec_version applies only to a revise that carries spec_markdown")
 	}
 
@@ -600,7 +600,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		// the record: a stale spec_version refuses (mapped to contended) rather
 		// than clobbering a concurrent spec edit. The record's pin cannot catch
 		// that race — a same-day spec-only revise leaves the record unchanged.
-		if string(blobID) != o.req.SpecVersion {
+		if string(blobID) != o.req.SpecRevision {
 			return refuseGroom(reasonSpecVersionMismatch,
 				fmt.Sprintf("spec %q moved since the submitted spec_version; re-read it and retry", c.Spec().Value))
 		}

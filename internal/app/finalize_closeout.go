@@ -357,9 +357,9 @@ type closeoutContext struct {
 	eff               config.Effective
 	snap              domain.Snapshot
 	change            domain.Change
-	version           string
+	revision          string
 	body              []byte
-	blobVersions      map[string]string // record path -> exact blob version
+	blobRevisions     map[string]string // record path -> exact blob version
 	sources           map[string][]byte // record path -> exact record bytes
 	repo              gitcli.Repository
 	integrationBranch string
@@ -425,15 +425,15 @@ func loadCloseoutContext(ctx context.Context, deps FinalizeDeps, repoDir string,
 		return nil, &r
 	}
 
-	blobVersions := make(map[string]string, len(blobs))
+	blobRevisions := make(map[string]string, len(blobs))
 	sources := make(map[string][]byte, len(blobs))
-	var version string
+	var revision string
 	var body []byte
 	for _, b := range blobs {
-		blobVersions[b.Path] = b.Version
+		blobRevisions[b.Path] = b.Revision
 		sources[b.Path] = b.Data
 		if b.Path == c.Path() {
-			version = b.Version
+			revision = b.Revision
 			body = b.Data
 		}
 	}
@@ -451,8 +451,8 @@ func loadCloseoutContext(ctx context.Context, deps FinalizeDeps, repoDir string,
 	}
 
 	return &closeoutContext{
-		pin: pin, eff: eff, snap: snap, change: c, version: version, body: body,
-		blobVersions: blobVersions, sources: sources, repo: repo, integrationBranch: integration,
+		pin: pin, eff: eff, snap: snap, change: c, revision: revision, body: body,
+		blobRevisions: blobRevisions, sources: sources, repo: repo, integrationBranch: integration,
 		inline:     inline,
 		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
@@ -762,8 +762,8 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(cc.change.Path()),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(cc.version)},
+			Path:     gitcli.RepoPath(cc.change.Path()),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(cc.revision)},
 		}},
 		Loader:    newPlanningLoader(cc.eff),
 		Scope:     changeScope(id, cc.change.Path(), true),
@@ -803,10 +803,10 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 		targetPaths = append(targetPaths, tg.activePath, tg.archivePath)
 	}
 	for _, tg := range targets {
-		version := cc.blobVersions[tg.activePath]
+		revision := cc.blobRevisions[tg.activePath]
 		expectations = append(expectations, transaction.EntityExpectation{
-			Path:    gitcli.RepoPath(tg.activePath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(version)},
+			Path:     gitcli.RepoPath(tg.activePath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(revision)},
 		})
 	}
 

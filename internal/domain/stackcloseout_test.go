@@ -11,7 +11,7 @@ import (
 func mergedInto(base string) PRFacts {
 	return PRFacts{
 		Number:      "1",
-		Version:     "v1",
+		Revision:    "v1",
 		State:       "merged",
 		HeadOID:     "head",
 		BaseRef:     base,

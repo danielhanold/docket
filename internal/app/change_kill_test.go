@@ -17,7 +17,7 @@ func killArchivePath(id int, slug string) string {
 
 func validKillRequest() ChangeKillRequest {
 	return ChangeKillRequest{
-		ChangeID: 3, Path: groomPath(3, "widget"), Version: blobV, WhyKilled: "Superseded by a better plan.\n",
+		ChangeID: 3, Path: groomPath(3, "widget"), Revision: blobV, WhyKilled: "Superseded by a better plan.\n",
 	}
 }
 
@@ -31,7 +31,7 @@ func TestChangeKillRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}{
 		{"non-positive change id", func(r *ChangeKillRequest) { r.ChangeID = 0 }, "invalid-change_id"},
 		{"empty path", func(r *ChangeKillRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeKillRequest) { r.Version = "" }, "empty-version"},
+		{"empty version", func(r *ChangeKillRequest) { r.Revision = "" }, "empty-version"},
 		{"empty why_killed", func(r *ChangeKillRequest) { r.WhyKilled = "\n" }, "empty-why_killed"},
 	}
 	for _, c := range cases {

@@ -35,7 +35,7 @@ func runTrackerInProgressBlob(id int, slug, claimedAt string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Version:  miVersion,
+		Revision: miVersion,
 		Data:     []byte(src),
 	}
 }

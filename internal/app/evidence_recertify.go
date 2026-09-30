@@ -384,13 +384,13 @@ func publishRecertifiedEvidence(ctx context.Context, deps FinalizeDeps, repoDir 
 			"the wired GitHub seam does not provide the pull-request edit face", first.id)
 	}
 	eres, eerr := ensurer.EnsurePullRequest(ctx, githubcli.EnsurePullRequestRequest{
-		Repository:      second.repo,
-		HeadBranch:      second.branch,
-		ExpectedHead:    second.head,
-		BaseBranch:      second.pr.BaseBranch,
-		Title:           second.pr.Title,
-		Body:            string(newBody),
-		ExpectedVersion: second.pr.Version,
+		Repository:       second.repo,
+		HeadBranch:       second.branch,
+		ExpectedHead:     second.head,
+		BaseBranch:       second.pr.BaseBranch,
+		Title:            second.pr.Title,
+		Body:             string(newBody),
+		ExpectedRevision: second.pr.Revision,
 	})
 	if eerr != nil {
 		return mapRecertifyEnsureFailure(first.id, second.head, eerr)

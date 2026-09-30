@@ -62,11 +62,11 @@ func validLearningRecordRequest() LearningRecordRequest {
 
 func validLearningUpdateRequest() LearningUpdateRequest {
 	return LearningUpdateRequest{
-		Path:    learningPath("a-lesson"),
-		Version: blobV,
-		Hook:    "a revised hook",
-		Topics:  []string{"shell", "portability"},
-		Changes: []int{3, 4},
+		Path:     learningPath("a-lesson"),
+		Revision: blobV,
+		Hook:     "a revised hook",
+		Topics:   []string{"shell", "portability"},
+		Changes:  []int{3, 4},
 		Sections: []SectionEditRequest{
 			{Heading: "## War story", Intent: "replace", Markdown: "A longer war story.\n"},
 		},
@@ -119,7 +119,7 @@ func TestLearningUpdateRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		code string
 	}{
 		{"empty path", func(r *LearningUpdateRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *LearningUpdateRequest) { r.Version = "" }, "empty-version"},
+		{"empty version", func(r *LearningUpdateRequest) { r.Revision = "" }, "empty-version"},
 		{"unknown heading", func(r *LearningUpdateRequest) {
 			r.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "x"}}
 		}, "invalid-section-heading"},
@@ -349,11 +349,11 @@ func TestLearningUpdatePlanNoOpWhenNothingChanges(t *testing.T) {
 	// makes no section change: the planned bytes equal the source, so the plan is
 	// empty (the engine's no-op) and `updated` is NOT bumped.
 	req := LearningUpdateRequest{
-		Path:    learningPath("a-lesson"),
-		Version: blobV,
-		Hook:    "the original hook",
-		Topics:  []string{"shell"},
-		Changes: []int{3},
+		Path:     learningPath("a-lesson"),
+		Revision: blobV,
+		Hook:     "the original hook",
+		Topics:   []string{"shell"},
+		Changes:  []int{3},
 	}
 	plan, opRes := learningUpdatePlanFor(t, files, baseLearningUpdateOp(req))
 	if opRes.Refused {

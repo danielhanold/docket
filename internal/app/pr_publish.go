@@ -260,7 +260,7 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 
 	// (8b) Delegate to the idempotent adapter. ExpectedHead is the requested head,
 	// so the adapter refuses any GitHub head other than the published one — that is
-	// the published-remote-head conjunct. ExpectedVersion is empty: v1 tracks no PR
+	// the published-remote-head conjunct. ExpectedRevision is empty: v1 tracks no PR
 	// version, so this is the create-or-adopt face.
 	res, ensErr := gdeps.Service.EnsurePullRequest(ctx, githubcli.EnsurePullRequestRequest{
 		Repository:   repo,

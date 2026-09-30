@@ -29,7 +29,7 @@ func TestIntegrationRecordOpsChangeGroomReviseSpecVersionContendsRealGit(t *test
 		req := validReviseRequest()
 		req.Sections = nil
 		req.SpecMarkdown = "# Design\n\n" + body + "\n"
-		req.Version, req.SpecVersion = recV, specV
+		req.Revision, req.SpecRevision = recV, specV
 		return ChangeGroom(context.Background(), node.deps, node.dir, req)
 	}
 
@@ -77,7 +77,7 @@ func TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit(t *testing.T) {
 	node := planningDepsFor(t, repo.invocation)
 
 	ab := abstainRequest()
-	ab.Version = blobVersionAt(t, repo.origin, "docket", recPath)
+	ab.Revision = blobVersionAt(t, repo.origin, "docket", recPath)
 	if res := ChangeGroom(context.Background(), node.deps, node.dir, ab); res.Result != ResultApplied {
 		t.Fatalf("abstain = %q (findings %v), want applied", res.Result, res.Findings)
 	}
@@ -91,7 +91,7 @@ func TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit(t *testing.T) {
 	}
 
 	stale := rearmRequest()
-	stale.Version = ab.Version // pre-abstain pin
+	stale.Revision = ab.Revision // pre-abstain pin
 	if res := ChangeGroom(context.Background(), node.deps, node.dir, stale); res.Result != ResultContended {
 		t.Fatalf("stale re-arm = %q (findings %v), want contended", res.Result, res.Findings)
 	}
@@ -100,7 +100,7 @@ func TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit(t *testing.T) {
 	}
 
 	fresh := rearmRequest()
-	fresh.Version = blobVersionAt(t, repo.origin, "docket", recPath)
+	fresh.Revision = blobVersionAt(t, repo.origin, "docket", recPath)
 	if res := ChangeGroom(context.Background(), node.deps, node.dir, fresh); res.Result != ResultApplied {
 		t.Fatalf("re-arm = %q (findings %v), want applied", res.Result, res.Findings)
 	}

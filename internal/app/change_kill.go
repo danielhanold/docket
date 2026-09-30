@@ -47,13 +47,13 @@ const OperationChangeKill = "change.kill"
 const whyKilledHeading = "## Why killed"
 
 // ChangeKillRequest is the closed, caller-supplied request for one kill. Path
-// and Version pin the exact submitted record; WhyKilled is the non-empty
+// and Revision pin the exact submitted record; WhyKilled is the non-empty
 // authored ## Why killed section body. Authored text rides inside the string
 // fields and is never interpolated into any shell command.
 type ChangeKillRequest struct {
 	ChangeID  int    `json:"change_id" docket:"required"`
 	Path      string `json:"path" docket:"required"`
-	Version   string `json:"version" docket:"required"`
+	Revision  string `json:"version" docket:"required"`
 	WhyKilled string `json:"why_killed" docket:"required"`
 }
 
@@ -105,7 +105,7 @@ type changeKillReceipt struct {
 // (bad request shape, an empty rationale, a github board surface) returns
 // without an engine call.
 func ChangeKill(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeKillRequest) ChangeKillResult {
-	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Revision)
 	if strings.TrimSpace(req.WhyKilled) == "" {
 		findings = append(findings, lifecycleFinding(FCEmptyWhyKilled, "why_killed must be a non-empty authored section body"))
 	}
@@ -163,8 +163,8 @@ func ChangeKill(ctx context.Context, deps PlanningDeps, repoDir string, req Chan
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(req.Path),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(req.Path),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Operation: op,

@@ -10,10 +10,10 @@ package githubcli
 //	   PR with no open PR also blocks — Docket never creates duplicate history
 //	   after a terminal PR;
 //	3. one open PR already equal to the request (head commit, base, title, body,
-//	   ready state) is adopted (empty ExpectedVersion — the lost-create-response
-//	   recovery face) or unchanged (a supplied ExpectedVersion) with NO mutation;
+//	   ready state) is adopted (empty ExpectedRevision — the lost-create-response
+//	   recovery face) or unchanged (a supplied ExpectedRevision) with NO mutation;
 //	4. one open PR that differs requires its current opaque version to equal
-//	   ExpectedVersion before an edit; an empty or mismatched version is contended
+//	   ExpectedRevision before an edit; an empty or mismatched version is contended
 //	   and leaves the PR untouched;
 //	5. no PR is created with explicit head/base/repository/title and the body on
 //	   stdin;
@@ -71,17 +71,17 @@ const (
 
 // EnsurePullRequestRequest is the idempotent publication request. ExpectedHead
 // is the full object id from a successful workspace.PublishHead; BaseBranch is
-// the resolved effective-base branch, never guessed. An empty ExpectedVersion
+// the resolved effective-base branch, never guessed. An empty ExpectedRevision
 // permits create-or-adopt only; updating a differing open PR requires the exact
 // current version.
 type EnsurePullRequestRequest struct {
-	Repository      Repository
-	HeadBranch      string
-	ExpectedHead    string
-	BaseBranch      string
-	Title           string
-	Body            string
-	ExpectedVersion string
+	Repository       Repository
+	HeadBranch       string
+	ExpectedHead     string
+	BaseBranch       string
+	Title            string
+	Body             string
+	ExpectedRevision string
 }
 
 // EnsureResult is the value outcome. PR carries the verified snapshot on
@@ -146,15 +146,15 @@ func (c *Client) EnsurePullRequest(ctx context.Context, req EnsurePullRequestReq
 			// Step 3: already in the desired end state — no mutation. adopted is the
 			// lost-create-response recovery face (empty version); a supplied version
 			// is unchanged.
-			if req.ExpectedVersion == "" {
+			if req.ExpectedRevision == "" {
 				return EnsureResult{Disposition: EnsureAdopted, PR: pr}, nil
 			}
 			return EnsureResult{Disposition: EnsureUnchanged, PR: pr}, nil
 		}
-		// Step 4: the open PR differs. Only an ExpectedVersion equal to its exact
+		// Step 4: the open PR differs. Only an ExpectedRevision equal to its exact
 		// current version authorizes an edit; empty or mismatched is contended and
 		// leaves the PR untouched.
-		if req.ExpectedVersion == "" || req.ExpectedVersion != pr.Version {
+		if req.ExpectedRevision == "" || req.ExpectedRevision != pr.Revision {
 			return EnsureResult{Disposition: EnsureContended}, nil
 		}
 		return c.mutateAndVerify(ctx, req, editRequest(req, pr.Number), EnsureUpdated)
@@ -386,7 +386,7 @@ func decodePullRequestList(op string, data []byte) ([]PullRequest, error) {
 // validateEnsureRequest rejects a request that cannot compose a safe, explicit
 // gh invocation: an invalid repository identity, an empty head/base branch or
 // title, or an ExpectedHead that is not a full lowercase-hex object id. The body
-// may be empty; ExpectedVersion may be empty (create-or-adopt only).
+// may be empty; ExpectedRevision may be empty (create-or-adopt only).
 func validateEnsureRequest(req EnsurePullRequestRequest) error {
 	if err := validateRepository(req.Repository); err != nil {
 		return newFailure(ensureOp, StageValidate, KindInvalidInput, "repository identity invalid: "+err.Error(), err)

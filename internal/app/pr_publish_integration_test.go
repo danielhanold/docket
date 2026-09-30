@@ -55,12 +55,12 @@ func TestIntegrationFinalizeOpsPRPublishPreEffectValidationIsScoped(t *testing.T
 	b := inProgressChangeBlob(7, "widget", "v7", "")
 	unrelatedInvalid := StatusBlob{
 		Kind: repository.KindChange, Location: repository.LocationActive,
-		Path: groomPath(30, "a-invalid"), Version: "v30",
+		Path: groomPath(30, "a-invalid"), Revision: "v30",
 		Data: []byte(badType(lifecycleChange(30, "a-invalid", "proposed"))),
 	}
 	unrelatedBroken := StatusBlob{
 		Kind: repository.KindChange, Location: repository.LocationActive,
-		Path: unrelatedBrokenPath, Version: "v99", Data: []byte(unrelatedBrokenBytes),
+		Path: unrelatedBrokenPath, Revision: "v99", Data: []byte(unrelatedBrokenBytes),
 	}
 	badB := b
 	badB.Data = []byte(badType(string(b.Data)))
@@ -72,7 +72,7 @@ func TestIntegrationFinalizeOpsPRPublishPreEffectValidationIsScoped(t *testing.T
 	}
 	badDep := StatusBlob{
 		Kind: repository.KindChange, Location: repository.LocationArchive,
-		Path: depPath, Version: "v8", Data: []byte(badType(fixtureArchivedDone(8, "dep"))),
+		Path: depPath, Revision: "v8", Data: []byte(badType(fixtureArchivedDone(8, "dep"))),
 	}
 
 	publish := func(t *testing.T, corpus []StatusBlob) (PRPublishResult, *fakeGitHub) {

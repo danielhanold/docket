@@ -107,8 +107,8 @@ func TestValidateIdempotencyKeyNilIsValid(t *testing.T) {
 func TestValidateExpectations(t *testing.T) {
 	fullHex := gitcli.ObjectID(strings.Repeat("a", 40))
 	good := []EntityExpectation{
-		{Path: "docs/changes/0001-x.md", Version: ExpectedVersion{Kind: VersionBlob, ObjectID: fullHex}},
-		{Path: "docs/changes/0002-y.md", Version: ExpectedVersion{Kind: VersionAbsent}},
+		{Path: "docs/changes/0001-x.md", Revision: ExpectedRevision{Kind: RevisionBlob, ObjectID: fullHex}},
+		{Path: "docs/changes/0002-y.md", Revision: ExpectedRevision{Kind: RevisionAbsent}},
 	}
 	if err := validateExpectations(good); err != nil {
 		t.Fatalf("validateExpectations(good) = %v, want nil", err)
@@ -118,14 +118,14 @@ func TestValidateExpectations(t *testing.T) {
 		exps []EntityExpectation
 		name string
 	}{
-		{[]EntityExpectation{{Path: "", Version: ExpectedVersion{Kind: VersionBlob, ObjectID: fullHex}}}, "empty-path"},
-		{[]EntityExpectation{{Path: "a.md", Version: ExpectedVersion{Kind: VersionBlob, ObjectID: gitcli.ObjectID("abcdef0")}}}, "abbreviated-sha"},
-		{[]EntityExpectation{{Path: "a.md", Version: ExpectedVersion{Kind: VersionBlob, ObjectID: ""}}}, "blob-empty-id"},
-		{[]EntityExpectation{{Path: "a.md", Version: ExpectedVersion{Kind: VersionAbsent, ObjectID: fullHex}}}, "absent-with-id"},
-		{[]EntityExpectation{{Path: "a.md", Version: ExpectedVersion{Kind: "", ObjectID: fullHex}}}, "unknown-kind"},
+		{[]EntityExpectation{{Path: "", Revision: ExpectedRevision{Kind: RevisionBlob, ObjectID: fullHex}}}, "empty-path"},
+		{[]EntityExpectation{{Path: "a.md", Revision: ExpectedRevision{Kind: RevisionBlob, ObjectID: gitcli.ObjectID("abcdef0")}}}, "abbreviated-sha"},
+		{[]EntityExpectation{{Path: "a.md", Revision: ExpectedRevision{Kind: RevisionBlob, ObjectID: ""}}}, "blob-empty-id"},
+		{[]EntityExpectation{{Path: "a.md", Revision: ExpectedRevision{Kind: RevisionAbsent, ObjectID: fullHex}}}, "absent-with-id"},
+		{[]EntityExpectation{{Path: "a.md", Revision: ExpectedRevision{Kind: "", ObjectID: fullHex}}}, "unknown-kind"},
 		{[]EntityExpectation{
-			{Path: "a.md", Version: ExpectedVersion{Kind: VersionAbsent}},
-			{Path: "a.md", Version: ExpectedVersion{Kind: VersionAbsent}},
+			{Path: "a.md", Revision: ExpectedRevision{Kind: RevisionAbsent}},
+			{Path: "a.md", Revision: ExpectedRevision{Kind: RevisionAbsent}},
 		}, "duplicate-path"},
 	}
 	for _, c := range cases {

@@ -32,7 +32,7 @@ func finalizeBlob(id int, slug, status, priority, prRef, extra string) StatusBlo
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     fmt.Sprintf("docs/changes/active/%04d-%s.md", id, slug),
-		Version:  fmt.Sprintf("blobfin%04d", id),
+		Revision: fmt.Sprintf("blobfin%04d", id),
 		Data:     []byte(fm),
 	}
 }
@@ -79,7 +79,7 @@ func withHead(f domain.PRFacts, head string) domain.PRFacts {
 func openFacts(number int, mergeable string, files, lines int) domain.PRFacts {
 	return domain.PRFacts{
 		Number:       fmt.Sprintf("%d", number),
-		Version:      fmt.Sprintf("v%d", number),
+		Revision:     fmt.Sprintf("v%d", number),
 		State:        "open",
 		Approved:     true,
 		Mergeable:    mergeable,
@@ -141,7 +141,7 @@ func TestContextFinalizeSelection(t *testing.T) {
 		finalizeBlob(30, "alpha", "implemented", "high", prRefFor(30), ""), // merged (recovery)
 	}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
-		prRefFor(30): {Number: "30", Version: "v30", State: "merged", HeadBranch: "feat/alpha", HeadOID: "h30", BaseRef: "main", MergedAtUTC: "2026-01-03T00:00:00Z", MergeCommit: "m30"},
+		prRefFor(30): {Number: "30", Revision: "v30", State: "merged", HeadBranch: "feat/alpha", HeadOID: "h30", BaseRef: "main", MergedAtUTC: "2026-01-03T00:00:00Z", MergeCommit: "m30"},
 		prRefFor(31): withHead(openFacts(31, "MERGEABLE", 2, 20), "feat/beta"),
 		prRefFor(32): withHead(openFacts(32, "CONFLICTING", 2, 20), "feat/gamma"),
 	}}
@@ -257,7 +257,7 @@ func TestContextFinalizeExplicitID(t *testing.T) {
 		finalizeBlob(41, "one", "implemented", "high", prRefFor(41), ""),
 		finalizeBlob(42, "two", "implemented", "low", prRefFor(42), ""),
 	}
-	unapproved := domain.PRFacts{Number: "41", Version: "v41", State: "open", Approved: false, Mergeable: "MERGEABLE", HeadOID: "h41", BaseRef: "main"}
+	unapproved := domain.PRFacts{Number: "41", Revision: "v41", State: "open", Approved: false, Mergeable: "MERGEABLE", HeadOID: "h41", BaseRef: "main"}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(41): unapproved,
 		prRefFor(42): openFacts(42, "MERGEABLE", 1, 5),
@@ -325,8 +325,8 @@ func TestContextFinalizeStackFacts(t *testing.T) {
 	}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(60): openFacts(60, "MERGEABLE", 1, 5),
-		prRefFor(61): {Number: "61", Version: "v61", State: "open", Approved: true, Mergeable: "MERGEABLE", HeadOID: "h61", BaseRef: "feat/root"},
-		prRefFor(62): {Number: "62", Version: "v62", State: "open", Approved: true, Mergeable: "MERGEABLE", HeadOID: "h62", BaseRef: "feat/mid"},
+		prRefFor(61): {Number: "61", Revision: "v61", State: "open", Approved: true, Mergeable: "MERGEABLE", HeadOID: "h61", BaseRef: "feat/root"},
+		prRefFor(62): {Number: "62", Revision: "v62", State: "open", Approved: true, Mergeable: "MERGEABLE", HeadOID: "h62", BaseRef: "feat/mid"},
 	}}
 	fake := &fakeReader{pin: pin, corpus: corpus}
 
@@ -368,7 +368,7 @@ func TestContextFinalizeTypedReasons(t *testing.T) {
 	}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(70): openFacts(70, "MERGEABLE", 1, 1),
-		prRefFor(71): {Number: "71", Version: "v71", State: "open", Draft: true, Approved: true, Mergeable: "MERGEABLE", HeadOID: "h71", BaseRef: "main"},
+		prRefFor(71): {Number: "71", Revision: "v71", State: "open", Draft: true, Approved: true, Mergeable: "MERGEABLE", HeadOID: "h71", BaseRef: "main"},
 		prRefFor(72): withHead(openFacts(72, "MERGEABLE", 1, 1), "feat/ok"),
 	}}
 	fake := &fakeReader{pin: pin, corpus: corpus}
@@ -426,7 +426,7 @@ func TestContextFinalizeURLFormPRRef(t *testing.T) {
 		repo: githubcli.Repository{Host: "github.com", Owner: "acme", Name: "widgets"},
 		merged: map[int]closeoutProbe{
 			235: {outcome: githubcli.MergeAlreadyMerged, facts: githubcli.MergedFacts{
-				Version: "v235", HeadBranch: "feat/urlform", HeadOID: "h235", BaseRef: "main",
+				Revision: "v235", HeadBranch: "feat/urlform", HeadOID: "h235", BaseRef: "main",
 				MergedAtUTC: "2026-08-24T00:00:00Z", MergeCommit: "m235",
 			}},
 		},
@@ -508,7 +508,7 @@ func TestProbePRReadsExactNumber(t *testing.T) {
 	gh := &fakeProberGitHub{
 		repo: proberRepo(),
 		views: map[int]githubcli.PullRequest{
-			7: {Number: 7, State: githubcli.StateOpen, HeadBranch: "feature/renamed-head", HeadCommit: "h7", BaseBranch: "main", Version: "v7"},
+			7: {Number: 7, State: githubcli.StateOpen, HeadBranch: "feature/renamed-head", HeadCommit: "h7", BaseBranch: "main", Revision: "v7"},
 		},
 	}
 	facts, err := NewGitHubFinalizeProber(gh).ProbePR(context.Background(), "", prRefFor(7))
@@ -538,7 +538,7 @@ func TestProbePRPropagatesApproval(t *testing.T) {
 		gh := &fakeProberGitHub{
 			repo: proberRepo(),
 			views: map[int]githubcli.PullRequest{
-				7: {Number: 7, State: githubcli.StateOpen, Approved: approved, HeadBranch: "feature/head", HeadCommit: "h7", BaseBranch: "main", Version: "v7"},
+				7: {Number: 7, State: githubcli.StateOpen, Approved: approved, HeadBranch: "feature/head", HeadCommit: "h7", BaseBranch: "main", Revision: "v7"},
 			},
 		}
 		facts, err := NewGitHubFinalizeProber(gh).ProbePR(context.Background(), "", prRefFor(7))
@@ -557,7 +557,7 @@ func TestProbePRClosedOnlyFromCleanExactRead(t *testing.T) {
 	gh := &fakeProberGitHub{
 		repo: proberRepo(),
 		views: map[int]githubcli.PullRequest{
-			7: {Number: 7, State: githubcli.StateClosed, HeadBranch: "feature/renamed-head", HeadCommit: "h7", BaseBranch: "main", Version: "v7"},
+			7: {Number: 7, State: githubcli.StateClosed, HeadBranch: "feature/renamed-head", HeadCommit: "h7", BaseBranch: "main", Revision: "v7"},
 		},
 	}
 	facts, err := NewGitHubFinalizeProber(gh).ProbePR(context.Background(), "", prRefFor(7))
@@ -604,7 +604,7 @@ func TestProbePRMergedCarriesHeadBranch(t *testing.T) {
 		repo: proberRepo(),
 		merged: map[int]closeoutProbe{
 			7: {outcome: githubcli.MergeAlreadyMerged, facts: githubcli.MergedFacts{
-				Version: "v7", HeadBranch: "feature/merged-head", HeadOID: "h7", BaseRef: "main",
+				Revision: "v7", HeadBranch: "feature/merged-head", HeadOID: "h7", BaseRef: "main",
 				MergedAtUTC: "2026-08-24T00:00:00Z", MergeCommit: "m7",
 			}},
 		},

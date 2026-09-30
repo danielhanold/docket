@@ -73,11 +73,11 @@ const (
 )
 
 // ChangeClaimRequest is the closed, caller-supplied request for one claim or
-// refresh-claim. ID names the change; Version pins the exact submitted record
+// refresh-claim. ID names the change; Revision pins the exact submitted record
 // blob (the version the authoritative context read reported).
 type ChangeClaimRequest struct {
-	ID      int    `json:"id" docket:"required"`
-	Version string `json:"version" docket:"required"`
+	ID       int    `json:"id" docket:"required"`
+	Revision string `json:"version" docket:"required"`
 	// RunContext is the run-tracker run context token from run.start. It
 	// is optional — an ungated claim omits it. When present it is hashed at this
 	// boundary (runTrackerHashToken), so the raw token never enters the transaction, the
@@ -91,8 +91,8 @@ type ChangeClaimRequest struct {
 // payload, so a lost-response retry of the same request replays rather than
 // re-allocates.
 type claimDigestPayload struct {
-	ID      int    `json:"id"`
-	Version string `json:"version"`
+	ID       int    `json:"id"`
+	Revision string `json:"version"`
 	// RunContextHash folds the hashed run context into the idempotency
 	// identity so two dispatches submitting the same (id, version) under different
 	// contexts do not share the replay path (change 0407). An ungated claim leaves
@@ -169,7 +169,7 @@ type changeClaimReceipt struct {
 // (bad request shape, a github board surface, a facts-read failure) returns
 // without an engine call.
 func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeClaimRequest) ChangeClaimResult {
-	findings := validateLifecycleShape("id", req.ID, "", req.Version)
+	findings := validateLifecycleShape("id", req.ID, "", req.Revision)
 	// The claim request carries no path; validateLifecycleShape flags an empty
 	// path, which is irrelevant here — drop that one finding.
 	findings = dropFindingCode(findings, FCEmptyPath)
@@ -233,7 +233,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		}
 	}
 
-	digest, derr := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: req.ID, Version: req.Version, RunContextHash: gateHash})
+	digest, derr := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: req.ID, Revision: req.Revision, RunContextHash: gateHash})
 	if derr != nil {
 		return newChangeClaimResult(OperationChangeClaim, ResultInternalError,
 			ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(ReasonStatusInternalError), derr.Error())}})
@@ -257,8 +257,8 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Idempotency: &transaction.IdempotencyKey{RequestID: claimRequestID(req), Digest: digest},
 		Loader:      newPlanningLoader(eff),
@@ -300,7 +300,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 // submitted version; a mismatch is `contended`, which stops the run rather than
 // overwriting a newer record.
 func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeClaimRequest) ChangeClaimResult {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	if len(findings) > 0 {
 		return newChangeClaimResult(OperationChangeRefreshClaim, ResultInvalidInput, ChangeClaimResult{Findings: findings})
 	}
@@ -335,8 +335,8 @@ func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, 
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Scope:     changeScope(req.ID, recPath, false),
@@ -442,10 +442,10 @@ func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, e
 
 // claimRequestID derives the idempotency request id for a claim from its own
 // (id, version) content, so a lost-response retry of the same request reuses the
-// key and replays the original receipt. Version is a full-hex blob id, so the
+// key and replays the original receipt. Revision is a full-hex blob id, so the
 // composed id satisfies the engine's request-id grammar.
 func claimRequestID(req ChangeClaimRequest) string {
-	return fmt.Sprintf("claim-%d-%s", req.ID, req.Version)
+	return fmt.Sprintf("claim-%d-%s", req.ID, req.Revision)
 }
 
 // claimResultFromOutcome folds a transaction outcome into the claim result. On

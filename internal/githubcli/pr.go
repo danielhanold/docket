@@ -18,8 +18,8 @@ const (
 	StateMerged State = "merged"
 )
 
-// PullRequest is the typed snapshot the adapter returns. Version is a local
-// optimistic-concurrency token over the mutable snapshot (see computeVersion);
+// PullRequest is the typed snapshot the adapter returns. Revision is a local
+// optimistic-concurrency token over the mutable snapshot (see computeRevision);
 // it contains no body bytes and is recomputed only from the latest
 // authoritative response.
 type PullRequest struct {
@@ -33,7 +33,7 @@ type PullRequest struct {
 	Title      string
 	Body       string
 	Approved   bool   // reviewDecision == APPROVED on an enriched exact view; always false from standard-field reads
-	Version    string // "sha256:" + 64 hex over the exact mutable snapshot
+	Revision   string // "sha256:" + 64 hex over the exact mutable snapshot
 }
 
 // prViewJSON is the documented nested shape `gh pr view/create --json ...`
@@ -126,7 +126,7 @@ func (raw prViewJSON) toPullRequest(op string) (PullRequest, error) {
 		Body:       raw.Body,
 		Approved:   approved,
 	}
-	pr.Version = computeVersion(pr)
+	pr.Revision = computeRevision(pr)
 	return pr, nil
 }
 
@@ -190,7 +190,7 @@ func validateFullObjectID(id string) error {
 	return nil
 }
 
-// computeVersion is the local optimistic-concurrency token: sha256 over a
+// computeRevision is the local optimistic-concurrency token: sha256 over a
 // length-prefixed canonical concatenation of the mutable snapshot fields
 // (Number, State, draft flag, HeadBranch, HeadCommit, BaseBranch, Title, Body).
 // URL is server-assigned and excluded. Each field is preceded by its 8-byte big
@@ -203,7 +203,7 @@ func validateFullObjectID(id string) error {
 // including it would give the same PR incompatible tokens depending on which
 // read shape produced the snapshot. Finalize reloads review state directly
 // before effects rather than authorizing a review mutation through this token.
-func computeVersion(pr PullRequest) string {
+func computeRevision(pr PullRequest) string {
 	fields := []string{
 		strconv.Itoa(pr.Number),
 		string(pr.State),

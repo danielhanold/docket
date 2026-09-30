@@ -32,7 +32,7 @@ func TestIntegrationMergeRetargetProbeActVerify(t *testing.T) {
 	// The PR as first probed: open, at the old base.
 	atOld := ensPRJSON(7, "OPEN", false, ensHead, ensHeadOid, oldBase, ensTitle, ensBody)
 	atNew := ensPRJSON(7, "OPEN", false, ensHead, ensHeadOid, newBase, ensTitle, ensBody)
-	oldVersion := mustDecodeOne(t, atOld).Version
+	oldVersion := mustDecodeOne(t, atOld).Revision
 
 	t.Run("retargeted", func(t *testing.T) {
 		c, log := newFakeClient(t, fakeScenario{
@@ -77,7 +77,7 @@ func TestIntegrationMergeRetargetProbeActVerify(t *testing.T) {
 	})
 
 	t.Run("contended-version-drift", func(t *testing.T) {
-		// The live PR version differs from ExpectedVersion: refuse, no edit.
+		// The live PR version differs from ExpectedRevision: refuse, no edit.
 		c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{retViewArm(atOld, 0)}})
 		out, _, err := c.RetargetPullRequest(context.Background(), retRepo(), 7, "sha256:stale-token-differs", newBase)
 		if err != nil {

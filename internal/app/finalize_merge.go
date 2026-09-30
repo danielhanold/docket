@@ -156,14 +156,14 @@ const (
 )
 
 // FinalizeMergeRequest is the closed request for `finalize merge`. ID names the
-// change; Version is the exact record blob version from the authoritative
+// change; Revision is the exact record blob version from the authoritative
 // context read; Head is the exact feature head the merge must match; Admin
 // requests an admin-override merge (honored only with ExplicitID); ExplicitID is
 // true when a human explicitly named this change (an attended run), which
 // supplies the approval and finalize-blocked authorization.
 type FinalizeMergeRequest struct {
 	ID         int    `json:"id" docket:"required"`
-	Version    string `json:"version" docket:"required"`
+	Revision   string `json:"version" docket:"required"`
 	Head       string `json:"head" docket:"required"`
 	Admin      bool   `json:"admin"`
 	ExplicitID bool   `json:"explicit_id"`
@@ -176,7 +176,7 @@ type FinalizeMergeRequest struct {
 // closeout may proceed.
 type VerifiedMerge struct {
 	PRNumber    int    `json:"pr_number"`
-	PRVersion   string `json:"pr_version,omitempty"`
+	PRRevision  string `json:"pr_version,omitempty"`
 	HeadOID     string `json:"head_oid"`
 	BaseRef     string `json:"base_ref"`
 	MergedAtUTC string `json:"merged_at_utc"`
@@ -260,7 +260,7 @@ type mergeConjunctInputs struct {
 	// unretargetedOpenChildren is the count of direct stack children whose live PR
 	// is open and still targets the parent's feature branch.
 	unretargetedOpenChildren int
-	versionMatches           bool
+	revisionMatches          bool
 	finalizeBlocked          bool
 }
 
@@ -279,7 +279,7 @@ func mergeConjuncts(in mergeConjunctInputs) domain.MergeConjuncts {
 		GateSatisfied:       in.gateOff || (in.evidenceGreen && in.evidenceHead == in.reqHead),
 		ApprovalSatisfied:   in.explicitID || !in.requireApproval,
 		NoOpenChildren:      in.unretargetedOpenChildren == 0,
-		NotSuperseded:       in.versionMatches && (in.explicitID || !in.finalizeBlocked),
+		NotSuperseded:       in.revisionMatches && (in.explicitID || !in.finalizeBlocked),
 	}
 }
 
@@ -302,14 +302,14 @@ func mergeConjunctOutcome(token string) (Result, string) {
 // base and validated target, the discovered Git repository, and the effective
 // config (for the gate/approval policy).
 type mergeContext struct {
-	snap    domain.Snapshot
-	change  domain.Change
-	version string
-	body    []byte
-	base    domain.EffectiveBase
-	target  workspace.Target
-	repo    gitcli.Repository
-	eff     config.Effective
+	snap     domain.Snapshot
+	change   domain.Change
+	revision string
+	body     []byte
+	base     domain.EffectiveBase
+	target   workspace.Target
+	repo     gitcli.Repository
+	eff      config.Effective
 }
 
 // loadMergeContext performs the fresh reload every merge decision reads from,
@@ -374,10 +374,10 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 		return nil, &r
 	}
 
-	version, body := "", []byte(nil)
+	revision, body := "", []byte(nil)
 	for _, b := range blobs {
 		if b.Path == c.Path() {
-			version = b.Version
+			revision = b.Revision
 			body = b.Data
 			break
 		}
@@ -415,7 +415,7 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 	}
 
 	return &mergeContext{
-		snap: snap, change: c, version: version, body: body,
+		snap: snap, change: c, revision: revision, body: body,
 		base: base, target: target, repo: repo, eff: eff,
 	}, nil
 }
@@ -533,7 +533,7 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		explicitID:               req.ExplicitID,
 		requireApproval:          mc.eff.Finalize.RequirePRApproval.Value,
 		unretargetedOpenChildren: len(openChildren),
-		versionMatches:           mc.version == req.Version,
+		revisionMatches:          mc.revision == req.Revision,
 		finalizeBlocked:          changeHasFinalizeBlockedMarker(mc.body),
 	})
 	if token := conj.FirstFailure(); token != "" {
@@ -663,7 +663,7 @@ func verifyMerge(ctx context.Context, deps FinalizeDeps, mc *mergeContext, repo 
 		Method:      method,
 		Merge: &VerifiedMerge{
 			PRNumber:    number,
-			PRVersion:   facts.Version,
+			PRRevision:  facts.Revision,
 			HeadOID:     facts.HeadOID,
 			BaseRef:     facts.BaseRef,
 			MergedAtUTC: facts.MergedAtUTC,
@@ -766,7 +766,7 @@ func mergeConjunctMessage(token string, id int) string {
 // `finalize merge`: a positive id, a non-empty pinned version, and a valid
 // full-length object id for the expected head.
 func validateMergeShape(req FinalizeMergeRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	if !validFullObjectID(req.Head) {
 		findings = append(findings, lifecycleFinding(FCInvalidHead,
 			"head must be a full 40- or 64-character lowercase hex object id"))
