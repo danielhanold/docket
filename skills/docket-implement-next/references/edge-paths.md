@@ -45,11 +45,11 @@ non-interactive).
 
 **A change carrying a `## Run halted` marker** — the `run.verify` operation reads it back as the closed
 `run-halted` verdict — resumes only through the `change.resume-halted` operation with `--id <id>
---version <entity-version> --acknowledge-quiescent`, never a fresh claim or a hand-deleted section.
+--revision <revision> --acknowledge-quiescent`, never a fresh claim or a hand-deleted section.
 The operation requires the exact marked record and the explicit acknowledgement that the prior
 worker is quiescent, reprobes the branch/workspace/live gate, refreshes the claim, and removes
 exactly the marker section while preserving every other byte and checkpoint. It refuses (writing
-nothing) without the acknowledgement, on version drift (`contended`), or on a live gate lock — it
+nothing) without the acknowledgement, on revision drift (`contended`), or on a live gate lock — it
 never resets or adopts a workspace whose writer may still be live. Once resumed, the change re-enters
 this resume path with its marker gone.
 
