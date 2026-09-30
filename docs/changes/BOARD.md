@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-30-replace-opaque-docket-terms-with-clearer-names-design.md) | `refactor/replace-opaque-docket-terms-with-clearer-names` |  |
+| [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-30-replace-opaque-docket-terms-with-clearer-names-design.md) | `refactor/replace-opaque-docket-terms-with-clearer-names` | run halted — needs you |
 
 ## 🔴 Blocked (1)
 
