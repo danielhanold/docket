@@ -62,9 +62,9 @@ This ADR records the vocabulary settled by change 0468. It is the single referen
 10. **No human-readable old→new mapping in the glossary.** The mapping lives in (i) this change's ADR, as the decision record, and (ii) a code-level **retired-vocabulary table** in `internal/repoguard`. That table maps each retired wire token to its replacement, drives the family absence seals, and names the replacement in every seal failure. The first family to land creates the table, and each later family appends its rows. The umbrella does not create an empty table, because a seal over an empty list cannot be mutation-tested.
 11. **Retired features go to an "Obsolete terms" section of the glossary**, separate from renames: runner delegation, the runner shim / `runners` block, `runtime.bash`, terminal publish. The config-decode warnings for those keys stay.
 
-### Rename table (rows 1-66, plus 28a, 38a-38h, 40a, 41a-41b, 43a, 44a, 46a and 47a)
+### Rename table (rows 1-66, plus 28a, 38a-38h, 40a, 41a-41b, 43a, 44a, 46a, 47a and 59a-59c)
 
-Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45, 40a, 41a-41b, 43a and 44a -> change 0472; rows 46-52, 46a and 47a -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
+Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45, 40a, 41a-41b, 43a and 44a -> change 0472; rows 46-52, 46a and 47a -> change 0473; rows 53-59 and 59a-59c -> change 0474; rows 60-66 -> change 0468.
 
 Kinds:
 - **concept**: a word in docs, skills and agent text.
@@ -72,6 +72,7 @@ Kinds:
 - **label**: a fixed line format one docket skill writes and another reads (no Go code parses it). Hard-cut like a wire surface, but not sealed by the retired-vocabulary table.
 - **stage**: the `failure.stage` label and the `run epoch <stage>: <kind>` error-text prefix.
 - **disk**: persisted state (Decision 3).
+- **path**: a maintained file path that other maintained files reference by name. Hard-cut and sealed like a token, because a stale reference fails only when an agent follows it.
 
 Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `reviewRung` → `reviewTier`). Each family derives them with a whole-repo grep, never from a hand list.
 
@@ -176,7 +177,10 @@ Agent names (`docket-build-economy` … `docket-review-deep`) are unchanged.
 | 56 | code | `fenced-setting-ignored` | `shared-setting-ignored` |
 | 57 | code | `terminal-backlink-pending`, `terminal-notes-frozen` | `final-backlink-pending`, `final-notes-frozen` |
 | 58 | code | `change-terminal-claim-stamp`, `drop-terminal-claimed-at` | `change-final-claim-stamp`, `drop-final-claimed-at` |
-| 59 | code | `not-terminal` (finalize cleanup), `skipped-terminal` (retarget), `adr-update-after-terminal` | `not-final`, `skipped-final`, `adr-update-after-final` |
+| 59 | code | `not-terminal` (finalize cleanup), `skipped-terminal` (retarget), `adr-update-after-terminal` | `not-final`, `skipped-final` (also emitted for stacked-merged children, which are non-final: the child no longer needs its PR retargeted), `adr-update-after-final` |
+| 59a | path | `skills/docket-convention/references/terminal-close-out.md` | `skills/docket-convention/references/close-out.md` |
+| 59b | concept | change- or ADR-lifecycle "terminal" beyond row 64's four phrases: Go identifiers (`Status.Terminal()`, `boardTerminalStatuses`, `isTerminalADRStatus`, …), messages ("change 0412 is terminal"), commit subjects ("terminal backlinks …"), skill text and comments | "final" ("terminal record" -> "archived record", per row 64); "terminal half" -> **closing half**, because that half leads to an end state and is not one |
+| 59c | concept | "fence" for internal checks other than the run fence: the board-surface check (`fenceBoardSurface`), the learnings check (`fenceLearningsEnabled`), `haltPinAndFence`, the deferred-capability, owned-section and owned-ref checks, and the config guard's Go names (`applyFence`, `scopeRepoFenced`, `CodeFencedIgnored`, …) | check / refuse wording (`resolveBoardSurface`, `requireLearningsEnabled`, `haltPreflight`); the config guard's names follow row 56 (`applySharedSettingGuard`, `scopeRepoOnly`, `CodeSharedSettingIgnored`) |
 
 ### 0468 itself — prose only
 
@@ -194,7 +198,11 @@ Agent names (`docket-build-economy` … `docket-review-deep`) are unchanged.
 
 - The `docket gate …` CLI noun, the gate drive, the gate run, `gatedrive-*`, `idempotent-suite-gate`.
 - Config keys, including `finalize.gate`, `build.gate`, `terminal_publish`, `gate_observation_budget` (Decision 9).
-- Process-level "terminal" (Decision 6).
+- Process-level "terminal" (Decision 6): gate-run, supervisor, participant and drive terminals, `terminal_receipt`, the JSON `terminal`, `terminal_status`, `terminal_turn` and `terminal_observed_at` keys, a run's "Terminal disposition", a command's terminal result or envelope. Also a GitHub pull request's "terminal state" (closed or merged).
+- The obsolete "terminal publish" / "terminal publication" feature name, which matches the kept config key `terminal_publish`.
+- Markdown code fences and `---` frontmatter fences, which are standard Markdown terms, not docket mechanisms.
+- The frozen fixture directory `testdata/repositories/v0.9.2/fenced-machine-keys/` and ADR-0019's filename.
+- The `internal/suiterunner` signal-handler "re-arm", and "re-enabling" in its generic sense (learnings, recursive self-dispatch).
 - Agent names, the tier names inside each tier, frontmatter fields.
 - "tier" in its generic senses (model and effort cost tiers, the harness validation Tier 1/2/3, the learnings "tiering criterion"), the "ladder" metaphor for the ordered tiers, and "profile" in its unrelated senses (verification profile, remote-call profile, budget profile, codex's `--profile`).
 - `cmd/releasepkg --source-epoch`, which is a real Unix epoch (`SOURCE_DATE_EPOCH`).
