@@ -204,7 +204,7 @@ func Unblock(c Change) (ActionResult, *PolicyFailure) {
 }
 
 // Defer parks a proposed or in-progress change. It touches status only: a
-// deferred change is not terminal, so its recorded branch and claim stamp stay
+// deferred change is not final, so its recorded branch and claim stamp stay
 // readable for whoever revives it.
 func Defer(c Change) (ActionResult, *PolicyFailure) {
 	if fail := requireStatus(c, "defer", StatusProposed, StatusInProgress); fail != nil {
@@ -327,7 +327,7 @@ type StackKillResult struct {
 // the retained re-scope, re-parent, or kill reason. It is a distinct graph
 // action rather than a widening of Block: a descendant is blocked from any
 // non-final status, an already-blocked one is a semantic no-op, and a
-// terminal (done or killed) descendant is not touched and not reported.
+// final (done or killed) descendant is not touched and not reported.
 func KillStackParent(s Snapshot, id ChangeID) (StackKillResult, *PolicyFailure) {
 	parent, out := s.Change(id)
 	switch out {

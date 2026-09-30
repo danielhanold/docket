@@ -215,7 +215,7 @@ func trafficRepo(t *testing.T, docketYML string, records map[string]string) *git
 	return newDocketModeRepo(t, map[string]string{".docket.yml": docketYML}, recs)
 }
 
-// trafficDoneRecord is a valid terminal (done) record: a coherent identity
+// trafficDoneRecord is a valid final (done) record: a coherent identity
 // (recorded branch, canonical PR ref, resolvable base, workspace target) whose
 // integration artifacts are absent and whose feature workspace has no manifest —
 // so its every destructive leg resolves LOCALLY to a non-actionable verdict at the
@@ -288,7 +288,7 @@ func TestIntegrationSweepDiscoveryTrafficAccounting(t *testing.T) {
 		id := 200 + i
 		records[fmt.Sprintf("docs/changes/active/%04d-pop.md", id)] = trafficImplementedOpen(id, fmt.Sprintf("pop%02d", i))
 	}
-	// Three terminal done records the assessment resolves from shared snapshots.
+	// Three final done records the assessment resolves from shared snapshots.
 	doneIDs := []int{41, 42, 43}
 	for _, id := range doneIDs {
 		records[fmt.Sprintf("docs/changes/active/%04d-hist.md", id)] = trafficDoneRecord(id, fmt.Sprintf("hist%02d", id))
@@ -364,7 +364,7 @@ func TestIntegrationSweepDiscoveryTrafficAccounting(t *testing.T) {
 }
 
 // TestIntegrationSweepZeroPRsNoGitHubTraffic: a corpus whose only records are
-// terminal (done) — hence outside the PR-bearing finalize population — issues ZERO
+// final (done) — hence outside the PR-bearing finalize population — issues ZERO
 // gh processes. An empty number set never resolves the identity and never opens a
 // batch.
 func TestIntegrationSweepZeroPRsNoGitHubTraffic(t *testing.T) {
@@ -448,7 +448,7 @@ func sweepRemoteCounts(t *testing.T, gitLog, ghLog string) remoteCounts {
 }
 
 // TestIntegrationSweepAssessmentTrafficConstantAcrossHistory is the scaling proof:
-// growing the terminal (done) population 1 -> 25 -> 250 at fixed active/pending
+// growing the final (done) population 1 -> 25 -> 250 at fixed active/pending
 // work must NOT change any remote-call count. The assessment reasons from ONE
 // shared advertisement and ONE worktree list plus local per-record inspection, so
 // its remote footprint is history-independent; a reintroduced per-history refresh

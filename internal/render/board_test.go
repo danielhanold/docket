@@ -251,7 +251,7 @@ func TestBoardClassifyEveryBucket(t *testing.T) {
 }
 
 // TestBoardClassifyNonActiveStatusErrors pins the fail-closed posture: a
-// terminal (archive) status has no rendered section and classify errors.
+// final (archive) status has no rendered section and classify errors.
 func TestBoardClassifyNonActiveStatusErrors(t *testing.T) {
 	done := domain.NewChange(domain.ChangeSpec{
 		ID: 14, Slug: "done", Title: "Done", Status: domain.StatusDone,
@@ -895,7 +895,7 @@ func TestBoardCountSummaryParity(t *testing.T) {
 		}
 	}
 
-	// Archive terminal counts match the archive fixtures.
+	// Archive final counts match the archive fixtures.
 	if counts["done"] != 1 {
 		t.Fatalf("done count = %d, want 1", counts["done"])
 	}
@@ -1238,7 +1238,7 @@ func TestBoardCallerUnrenderableSortedDeduped(t *testing.T) {
 }
 
 // TestBoardRepairNoticeFollowsArchive pins the notice's position after the
-// terminal <details> archive block.
+// final <details> archive block.
 func TestBoardRepairNoticeFollowsArchive(t *testing.T) {
 	b := domain.NewChange(proposedChange(3, "widget", "Widget B"))
 	done := domain.NewChange(domain.ChangeSpec{

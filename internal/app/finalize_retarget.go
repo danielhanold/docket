@@ -376,7 +376,7 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 
 // childBlocksNothing reports whether a child in the given lifecycle neither gates
 // the parent merge nor is a retarget target: a stacked-merged child's code has
-// already landed in the parent, and a done or killed child is terminal (spec
+// already landed in the parent, and a done or killed child is final (spec
 // "a child already stacked-merged or done does not block").
 func childBlocksNothing(s domain.Status) bool {
 	return s == domain.StatusStackedMerged || s == domain.StatusDone || s == domain.StatusKilled

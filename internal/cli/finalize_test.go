@@ -87,7 +87,7 @@ func TestFinalizeRetargetChildrenUnknownFieldRejected(t *testing.T) {
 
 // TestFinalizeGroupRegistered: the top-level `finalize` command group is
 // registered and reports a missing command when invoked bare, so the
-// terminal-half mutation subcommands added in later tasks have a tree to attach
+// closing-half mutation subcommands added in later tasks have a tree to attach
 // to.
 func TestFinalizeGroupRegistered(t *testing.T) {
 	root := captureTree(t)

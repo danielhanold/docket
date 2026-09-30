@@ -12,7 +12,7 @@ import (
 )
 
 // This file drives `maintenance sweep` — the batch driver that reclaims
-// docket's terminal half — over a fake corpus reader, a scriptable PR prober,
+// docket's closing half — over a fake corpus reader, a scriptable PR prober,
 // and RECORDING operation seams. The three verified operations (closeout,
 // cleanup, reclaim) are heavy real-git effects proved in their own tasks; here
 // they are injected fakes so the sweep's orchestration is proved in isolation:
@@ -261,7 +261,7 @@ func TestSweepFindsMergedImplemented(t *testing.T) {
 }
 
 // TestSweepRetriesSuffixes: archived/done records and completed stacks get the
-// terminal backlink repair + ownership-safe cleanup retried (a cleanup dispatch)
+// final backlink repair + ownership-safe cleanup retried (a cleanup dispatch)
 // even though they need no closeout.
 func TestSweepRetriesSuffixes(t *testing.T) {
 	corpus := []StatusBlob{

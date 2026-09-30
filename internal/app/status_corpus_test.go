@@ -152,7 +152,7 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 	}
 
 	// --- summary counts, derived by hand from the frozen records --------------
-	// 9 archived changes captured; all terminal (status: done); 0 active.
+	// 9 archived changes captured; all final (status: done); 0 active.
 	if got.Summary.TotalChanges != 9 {
 		t.Errorf("TotalChanges = %d, want 9 (archived changes 1,2,3,4,5,6,12,13,36)", got.Summary.TotalChanges)
 	}

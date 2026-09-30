@@ -20,14 +20,14 @@ import (
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
-// This file is `finalize closeout`: the atomic terminal metadata transaction
+// This file is `finalize closeout`: the atomic closing metadata transaction
 // that turns a verified merge into a done, archived change. It takes no
 // caller-supplied `done` boolean and no archive date — it reloads the metadata,
 // reprobes the recorded pull request and its merge destination, and derives the
 // UTC archive date from the verified GitHub mergedAt, so a false `done` cannot be
 // asserted from a stale request.
 //
-// Three verified terminal shapes:
+// Three verified closeout shapes:
 //
 //   1. Ordinary: the merge destination is the integration branch. One metadata
 //      transaction applies domain.MarkDone AFTER a merge-commit reachability proof
@@ -87,7 +87,7 @@ const (
 	// CloseoutDispRootArchived: a stack root plus its proven carried descendants
 	// were marked done and archived in one transaction.
 	CloseoutDispRootArchived = "root-archived"
-	// CloseoutDispAlready: the promised terminal state already exists (a response-
+	// CloseoutDispAlready: the promised final state already exists (a response-
 	// lost replay); a verified no-op.
 	CloseoutDispAlready = "already"
 	// CloseoutDispChildrenRetargetRequired: a descendant is not yet stacked-merged,
@@ -101,7 +101,7 @@ const (
 	// nor a live parent branch).
 	CloseoutDispBlocked = "blocked"
 	// CloseoutDispUnknown: an external effect could not be established (a probe or
-	// reachability error). Retained; never permits a terminal write.
+	// reachability error). Retained; never permits a final write.
 	CloseoutDispUnknown = "unknown"
 	// CloseoutDispFailed: a transaction failure; the cause is in the envelope's
 	// failure field.
@@ -163,7 +163,7 @@ var closeoutBlockedHeadingSet = []string{finalizeBlockedSectionHeading}
 
 // CloseoutResult is the protocol-v1 document `finalize closeout` returns. It
 // names identity, the closed disposition, the root archive path and any carried
-// descendant ids on a terminal archive, and — on a refusal — a stable reason and
+// descendant ids on a final archive, and — on a refusal — a stable reason and
 // message. Findings carries validation diagnostics and the retryable
 // final-backlink-pending finding. It leaks no authored artifact bytes.
 type CloseoutResult struct {
@@ -242,7 +242,7 @@ type closeoutTarget struct {
 }
 
 // FinalizeCloseout reloads the metadata, reprobes the recorded PR and its merge
-// destination, and applies the one verified terminal shape the destination
+// destination, and applies the one verified closeout shape the destination
 // selects. It never asserts done without a merge-commit reachability proof, never
 // leaves a remotely partial metadata outcome, and (in docket mode) retargets the
 // merged plan/results backlinks in an isolated retryable follow-up leg.
@@ -337,7 +337,7 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 
 // closeoutNotesMatchArchived reports whether the archived record already
 // carries exactly the promise this request makes: splicing the request's notes
-// into the terminal bytes is a byte-level no-op. Empty notes match any
+// into the archived bytes is a byte-level no-op. Empty notes match any
 // archived record (the pre-notes replay). The comparison uses the same splice
 // that writes, so reader and writer can never disagree.
 func closeoutNotesMatchArchived(body []byte, notes CloseoutNotes) (bool, error) {
@@ -687,7 +687,7 @@ func probeDescendantFacts(ctx context.Context, deps FinalizeDeps, ghRepo githubc
 // stacked-merged marking and the already-stacked-merged replay: a historical PR
 // destination is a relationship, not evidence the parent still carries the work
 // (spec "Stacked and root closeout" ¶1). A fetch or preservation-observation
-// error is unknown (retained, never a terminal write); an unproven verdict is a
+// error is unknown (retained, never a final write); an unproven verdict is a
 // blocked refusal. `reprobeMerged` already refused any facts whose merge commit
 // fails validFullObjectID (its "no usable merge commit or merge date" guard runs
 // before this on every path), so a usable merge id is a precondition here rather
@@ -734,7 +734,7 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 	}
 
 	if cc.change.Status() == domain.StatusStackedMerged {
-		// Replay against the terminal in-place record's own bytes: identical notes
+		// Replay against the archived in-place record's own bytes: identical notes
 		// (or none) are a byte-level no-op; different notes cannot rewrite it.
 		if match, err := closeoutNotesMatchArchived(cc.body, notes); err != nil {
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen, err.Error(), id)
@@ -1236,7 +1236,7 @@ func (o closeoutBacklinkOp) Plan(ctx context.Context, st transaction.AttemptStat
 				// The merged artifact is not on the integration ref; nothing to patch.
 				continue
 			}
-			// The "would the terminal backlink block's bytes change" computation is
+			// The "would the final backlink block's bytes change" computation is
 			// the shared backlinkLegRetarget: a missing block is never conjured, and
 			// already-retargeted bytes are a no-op (the promised state).
 			updated, hasBlock, changed, err := backlinkLegRetarget(original, tg.interior)
@@ -1263,8 +1263,8 @@ func (o closeoutBacklinkOp) Plan(ctx context.Context, st transaction.AttemptStat
 	}, transaction.OperationResult{}, nil
 }
 
-// backlinkLegRetarget is the single source of the per-artifact "would the terminal
-// backlink block's bytes change" computation the terminal backlink legs share: the
+// backlinkLegRetarget is the single source of the per-artifact "would the final
+// backlink block's bytes change" computation the final backlink legs share: the
 // cleanup transaction (cleanupBacklinkOp.Plan), the closeout follow-up leg
 // (closeoutBacklinkOp.Plan), and the maintenance sweep's snapshot assessment
 // (backlinkLegHasWork) all read it, so no copy of the byte comparison drifts. It

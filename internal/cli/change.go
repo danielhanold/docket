@@ -202,7 +202,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 // contradictory flag combination is refused as invalid-request there. It
 // composes the finalize seams — the read-only planning seams, the GitHub adapter
 // (the exact PR read), and the workspace service (the ownership gate) — the same
-// wiring the other terminal-half operations use.
+// wiring the other closing-half operations use.
 func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "repair-identity",

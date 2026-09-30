@@ -33,11 +33,11 @@ import (
 //     RENDERED change record (active + archive; records in the repair notice
 //     are excluded) and <seg> joins "<emoji> <n> <label>"
 //     with " · ", iterating the configured section order over the six rendered
-//     groups (count = classified membership) then the terminal done/killed
+//     groups (count = classified membership) then the final done/killed
 //     archive counts, skipping any group with a zero count. Group labels:
 //     in-progress→"in progress", built→"built", blocked→"blocked",
 //     groomed→"groomed", proposed→"proposed", deferred→"deferred";
-//     terminal labels are the stored "done"/"killed" tokens.
+//     final labels are the stored "done"/"killed" tokens.
 //  3. Active sections, one per rendered group in the configured section order,
 //     each emitted only when non-empty:
 //     "\n## <emoji> <Title> (<n>)\n\n" then a group-specific table. Rows sort
@@ -259,7 +259,7 @@ func boardDirectionValid(d BoardDirection) bool {
 
 // boardClassify maps one ACTIVE change to exactly one rendered section, per the
 // spec's precedence: Blocked → In progress → Built → Groomed → Proposed →
-// Deferred. Pure; mutates nothing. A non-active (terminal) status is a caller
+// Deferred. Pure; mutates nothing. A non-active (final) status is a caller
 // error — the board classifies only active records.
 func boardClassify(in BoardInput, c domain.Change) (BoardSection, error) {
 	switch c.Status() {
@@ -862,7 +862,7 @@ func boardSectionHeading(s BoardSection) string {
 	return ""
 }
 
-// boardEmoji is the terminal (archive) status's board emoji, used by the counts
+// boardEmoji is the final (archive) status's board emoji, used by the counts
 // line and the archive summary; the active groups use boardSectionEmoji.
 func boardEmoji(s domain.Status) string {
 	switch s {

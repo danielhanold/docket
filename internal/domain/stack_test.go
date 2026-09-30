@@ -209,7 +209,7 @@ func TestResolveEffectiveBaseDoneParentAboveKilledGrandparent(t *testing.T) {
 
 	want := EffectiveBase{Kind: BaseResolved, Branch: "main"}
 	if got != want {
-		t.Fatalf("ResolveEffectiveBase = %+v; want %+v (ADR-0092: done is terminal)", got, want)
+		t.Fatalf("ResolveEffectiveBase = %+v; want %+v (ADR-0092: done is final)", got, want)
 	}
 }
 

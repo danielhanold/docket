@@ -17,7 +17,7 @@ import (
 // pull request, gated on a fresh recheck of every merge conjunct, followed by an
 // authoritative post-merge verification that never permits a false closeout.
 //
-// It is the highest-consequence external effect in the terminal path — a merge
+// It is the highest-consequence external effect in the closing path — a merge
 // is never rolled back — so its discipline is severe:
 //
 //   1. Every merge conjunct (domain.MergeConjuncts) is recomputed from a FRESH

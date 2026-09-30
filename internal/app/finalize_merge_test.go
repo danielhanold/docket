@@ -16,7 +16,7 @@ import (
 // recording fake FinalizeGitHub that scripts the merge/reprobe outcomes a
 // hermetic suite cannot reach. The expected-head GitHub merge, the authoritative
 // reprobe, and the Git reachability proof are the highest-consequence external
-// effect in the terminal path, so every conjunct is rechecked from a fresh
+// effect in the closing path, so every conjunct is rechecked from a fresh
 // reload immediately before the effect and no merge call is issued once any
 // conjunct is falsified.
 

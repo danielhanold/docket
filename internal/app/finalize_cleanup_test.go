@@ -24,7 +24,7 @@ import (
 // --- fake GitHub for cleanup ----------------------------------------------
 
 // fakeCleanupGitHub answers the GitHub calls `finalize cleanup` makes:
-// DiscoverRepository, ProbeMerged (the terminal reprobe), and
+// DiscoverRepository, ProbeMerged (the closing reprobe), and
 // FindOpenPullRequestsByHead (the fresh no-open-child probe). Every other
 // finalize-half method panics so an accidental call is loud.
 type fakeCleanupGitHub struct {
@@ -136,7 +136,7 @@ func (w *faultyCleanupWorkspace) Cleanup(ctx context.Context, req workspace.Clea
 // --- fixture helpers ------------------------------------------------------
 
 // archiveClosed drives a real merge into main and a FinalizeCloseout so the
-// change reaches done+archived — exactly the terminal state cleanup consumes.
+// change reaches done+archived — exactly the final state cleanup consumes.
 // It returns the merged head and merge commit.
 func (f *closeoutFixture) archiveClosed(t *testing.T) (head, mergeCommit string) {
 	t.Helper()
@@ -233,7 +233,7 @@ func (f *closeoutFixture) seedStackChildBranch(t *testing.T, id int, slug, branc
 // --- TestFinalizeCleanupStackedRetained -----------------------------------
 
 // setupStackedMergedCleanupFixture builds a closeout fixture whose record is
-// stacked-merged (a terminal-but-retained state).
+// stacked-merged (a merged-but-retained state).
 func setupStackedMergedCleanupFixture(t *testing.T) *closeoutFixture {
 	t.Helper()
 	f := setupCloseoutFixture(t, planRepoModeDocket())
