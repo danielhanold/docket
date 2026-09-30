@@ -21,7 +21,7 @@ notes` section, never the frozen merged `results:` file.
 
 ## Convention (load first — blocking)
 
-Invoke `docket-convention` first (unless already loaded this session) and follow its **Step-0 preamble (every operating skill)**: load the convention, run the capability bootstrap, then run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call and validate the protocol-v1 envelope, carrying its typed context values forward as literals (it resolves config, enforces the bootstrap verdict fail-closed, and ensures + syncs the metadata working tree). Everything below uses its vocabulary — build-ready, record revision, effective base, integration branch, final transition — without redefinition.
+Invoke `docket-convention` first (unless already loaded this session) and follow its **Startup check (every operating skill)**: load the convention, run the capability bootstrap, then run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call and validate the protocol-v1 envelope, carrying its typed context values forward as literals (it resolves config, enforces the bootstrap guard fail-closed, and ensures + syncs the metadata working tree). Everything below uses its vocabulary — build-ready, record revision, effective base, integration branch, final transition — without redefinition.
 
 ## How every operation is invoked
 

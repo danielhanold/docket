@@ -62,21 +62,12 @@ stays on the metadata branch; the integration branch gets code, plans, and resul
 ### Bootstrap guard
 
 The first-run check that probes whether the `docket` branch exists and whether the planning
-surface still sits on the integration branch, and then proceeds, creates the orphan branch, or
-stops with a migrate prompt.
+surface still sits on the integration branch, and reports the result as `repository.prepare`'s
+disposition: `applied`/`no-op` when the repository is migrated, otherwise `refused` with a remedy
+naming the human-typed `docket repository init` or `docket repository migrate`.
 
-**Used for:** making sure no skill ever writes into a half-migrated repository. It surfaces as the
-disposition of `repository.prepare`; see [Bootstrap verdict](#bootstrap-verdict-proceed--stop_migrate--create_orphan).
-
-### Bootstrap verdict: `PROCEED` / `STOP_MIGRATE` / `CREATE_ORPHAN`
-
-The bootstrap guard's three outcomes. `PROCEED` means the repo is already migrated. `STOP_MIGRATE`
-means a legacy single-branch or half-migrated layout was found. `CREATE_ORPHAN` means a fresh repo
-that needs an empty `docket` branch.
-
-**Used for:** deciding whether a skill may touch metadata at all. `repository.prepare` enforces the
-verdict fail-closed and reports it as a disposition: `applied`/`no-op` when it proceeds, otherwise
-`refused` with a remedy naming the human-typed `docket repository migrate` or `docket repository init`.
+**Used for:** making sure no skill ever writes into a half-migrated repository. The check is
+fail-closed, and `repository.prepare` never creates the metadata branch or migrates on its own.
 
 ```sh
 docket repository prepare --repo-dir . --json   # the verdict surfaces as this envelope's disposition
@@ -156,10 +147,11 @@ docket repository prepare --repo-dir . --json   # create/sync .docket/ and print
 git -C .docket log --oneline -3                  # inspect it without cd-ing into it
 ```
 
-### Step-0 preamble
+### Startup check
 
-The fixed startup every operating skill runs before anything else: load `docket-convention`, fetch
-and validate the capability catalog, run `repository.prepare`, then act on its disposition.
+The fixed startup check every operating skill runs before anything else: load
+`docket-convention`, fetch and validate the capability catalog, run `repository.prepare`, then act
+on its disposition.
 
 **Used for:** making every skill start from synced metadata and a validated command surface. A
 `refused` or `error` disposition stops the skill. Every mid-run re-sync, including a push-retry, is
@@ -2091,12 +2083,10 @@ Bash, config, or harnesses; use `diagnostic config` for config.
 docket diagnostic runtime --json
 ```
 
-### Digest / digest-only read
+### Backlog digest
 
 The **backlog digest** is the structured `status` payload: `summary` counts, one `changes` entry per
-displayed change, and the ordered `ready` queue. A **digest-only read** is a read that produces the
-digest without any write. ADR-0047 introduced it as the Bash-era `docket-status --digest-only` flag;
-in the Go binary, plain `docket status` is that read.
+displayed change, and the ordered `ready` queue. `docket status` is always a write-free read.
 
 **Used for:** selecting work without side effects: a selection read must never also be a write.
 Summarize backlog state from the digest, never by opening `BOARD.md`.
@@ -2231,8 +2221,19 @@ docket development install --source ~/dev/docket
 
 ## Obsolete terms
 
-Retired features. Their config keys are still recognised, so a stale file gets a warning or a refusal
-instead of being silently accepted; nothing in current docket uses them.
+Retired features and names. A retired feature's config key is still recognised, so a stale file gets
+a warning or a refusal instead of being silently accepted; nothing in current docket uses any of
+these.
+
+### Bootstrap verdicts (`BOOTSTRAP=`)
+
+The Bash-era bootstrap guard printed a `BOOTSTRAP=` line whose value was `PROCEED`, `STOP_MIGRATE`
+or `CREATE_ORPHAN`. The Go binary has no such line; see [Bootstrap guard](#bootstrap-guard).
+
+### Digest-only read (`docket status --digest-only`)
+
+A Bash-era `docket-status --digest-only` flag (ADR-0047) that produced the digest without writing.
+The Go `docket status` never writes, so the flag does not exist. See [Backlog digest](#backlog-digest).
 
 ### Runner delegation
 
@@ -2290,11 +2291,12 @@ and `true` blocks every repository mutation until you remove it.
 - [Auto-capture / discovered work](#auto-capture--discovered-work)
 - [Auto-groom / auto-groomable](#auto-groom--auto-groomable)
 - [Backlog](#backlog)
+- [Backlog digest](#backlog-digest)
 - [Block / unblock, defer / revive, kill](#block--unblock-defer--revive-kill)
 - [Board](#board)
 - [board.section_order / board.sorting](#boardsection_order--boardsorting)
 - [Bootstrap guard](#bootstrap-guard)
-- [Bootstrap verdict: PROCEED / STOP_MIGRATE / CREATE_ORPHAN](#bootstrap-verdict-proceed--stop_migrate--create_orphan)
+- [Bootstrap verdicts (BOOTSTRAP=)](#bootstrap-verdicts-bootstrap)
 - [Brainstorm / consultant](#brainstorm--consultant)
 - [Budget watch / serially confirmed breach](#budget-watch--serially-confirmed-breach)
 - [Build evidence](#build-evidence)
@@ -2322,7 +2324,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Derived view / generated block / backlink](#derived-view--generated-block--backlink)
 - [Development test (docket development test)](#development-test-docket-development-test)
 - [Diagnostic runtime](#diagnostic-runtime)
-- [Digest / digest-only read](#digest--digest-only-read)
+- [Digest-only read (docket status --digest-only)](#digest-only-read-docket-status---digest-only)
 - [DIRECTED to: marker](#directed-to-marker)
 - [Dispatch](#dispatch)
 - [Dispatch fallbacks](#dispatch-fallbacks)
@@ -2450,9 +2452,9 @@ and `true` blocks every repository mutation until you remove it.
 - [Spec](#spec)
 - [Stacked change / effective base](#stacked-change--effective-base)
 - [Start / run key / run id / run context](#start--run-key--run-id--run-context)
+- [Startup check](#startup-check)
 - [Status](#status)
 - [Status vs the merged-PR sweep](#status-vs-the-merged-pr-sweep)
-- [Step-0 preamble](#step-0-preamble)
 - [Stub](#stub)
 - [Suite command (build.test_command / finalize.test_command) / configure-tests](#suite-command-buildtest_command--finalizetest_command--configure-tests)
 - [Suite gate](#suite-gate)

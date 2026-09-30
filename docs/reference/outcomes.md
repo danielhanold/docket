@@ -8,7 +8,7 @@ longer emits.
 ## Dispositions
 
 A disposition is the one-word outcome an operation reports: applied, no-op, refused, or error. This
-set of allowed values is owned by the `docket-convention` skill's Step-0 preamble
+set of allowed values is owned by the `docket-convention` skill's startup check
 ([`../../skills/docket-convention/SKILL.md`](../../skills/docket-convention/SKILL.md)), which states
 that it **"takes the allowed values `applied` | `no-op` | `refused` | `error`"** and defines what each
 one obliges a caller to do. The exact closed set the binary emits is also machine-readable via

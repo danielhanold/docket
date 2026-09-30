@@ -192,7 +192,7 @@ through independent chains, and each layer only has to be internally consistent.
 
 Every active board row carries a **Type** cell, and the status and board tools both take
 report-only `--type` / `--priority` filters: `--type untyped` finds changes carrying no type at
-all, and `--type all` (the default) selects everything. These narrow the **digest only** — never
+all, and `--type all` (the default) selects everything. These narrow only the **digest** — never
 the board itself, the merge sweep, archiving, harvesting, health checks, or any write.
 
 ### Migrating to typed changes
@@ -215,10 +215,8 @@ Then categorize the active backlog once. Archived changes are never reclassified
 creation path writes a type from here on, so the untyped set can only shrink.
 
 ```bash
-# 1. the exact inventory. --digest-only keeps this a WRITE-FREE read: a bare `docket status`
-#    run commits and pushes the board, sweeps merged changes, archives, and harvests before it
-#    prints the digest — not what you want from a command you are running only to *look*.
-docket status --digest-only --type untyped
+# 1. the exact inventory. `docket status` is a read-only read: it writes nothing.
+docket status --type untyped
 
 # 2. an agent proposes a complete id -> type mapping; you approve it as one decision
 
