@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0474 — Rename re-arm to re-enable and retire the lifecycle 'terminal' and non-run 'fence' names](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md)**
+> ↩ **[Change 0474 — Rename re-arm to re-enable and retire the lifecycle 'terminal' and non-run 'fence' names](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-30-0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md)**
 <!-- docket:backlink:end -->
 # Rename re-arm to re-enable and retire the lifecycle 'terminal' and non-run 'fence' names — Results
 
