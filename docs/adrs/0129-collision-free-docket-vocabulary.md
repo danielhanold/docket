@@ -47,7 +47,7 @@ This decision is produced by change 0468 (spec: `docs/superpowers/specs/2026-09-
 
 ## Decision
 
-This ADR records the vocabulary settled by change 0468. It is the single reference a family implementer, reviewer or reconcile pass checks a name against. Delivery: 0468 (umbrella) settles every name and does the prose-only renames; four family changes, each `depends_on: [468]`, hard-cut the wire tokens: (a) run tracker 0471, (b) revision 0472, (c) tiers 0473, (d) groom and lifecycle codes 0474.
+This ADR records the vocabulary settled by change 0468. It is the single reference a family implementer, reviewer or reconcile pass checks a name against. Delivery: 0468 (umbrella) settles every name and does the prose-only renames; four family changes, each `depends_on: [468]`, hard-cut the wire tokens: (a) run tracker 0471, (b) revision 0472, (c) tiers 0473, (d) groom and lifecycle codes 0474. Change 0469 adds family (e), readability renames of terms that do not collide but are hard to read cold (rows 67-86), under the same naming rules.
 
 ### Naming rules
 
@@ -62,9 +62,9 @@ This ADR records the vocabulary settled by change 0468. It is the single referen
 10. **No human-readable old→new mapping in the glossary.** The mapping lives in (i) this change's ADR, as the decision record, and (ii) a code-level **retired-vocabulary table** in `internal/repoguard`. That table maps each retired wire token to its replacement, drives the family absence seals, and names the replacement in every seal failure. The first family to land creates the table, and each later family appends its rows. The umbrella does not create an empty table, because a seal over an empty list cannot be mutation-tested.
 11. **Retired features go to an "Obsolete terms" section of the glossary**, separate from renames: runner delegation, the runner shim / `runners` block, `runtime.bash`, terminal publish. The config-decode warnings for those keys stay.
 
-### Rename table (rows 1-66, plus 28a, 38a-38h, 40a, 41a-41b, 43a, 44a, 46a, 47a and 59a-59c)
+### Rename table (rows 1-66, plus 28a, 38a-38h, 40a, 41a-41b, 43a, 44a, 46a, 47a and 59a-59c; family (e) rows 67-86)
 
-Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45, 40a, 41a-41b, 43a and 44a -> change 0472; rows 46-52, 46a and 47a -> change 0473; rows 53-59 and 59a-59c -> change 0474; rows 60-66 -> change 0468.
+Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45, 40a, 41a-41b, 43a and 44a -> change 0472; rows 46-52, 46a and 47a -> change 0473; rows 53-59 and 59a-59c -> change 0474; rows 60-66 -> change 0468; rows 67-86 -> change 0469.
 
 Kinds:
 - **concept**: a word in docs, skills and agent text.
@@ -194,6 +194,46 @@ Agent names (`docket-build-economy` … `docket-review-deep`) are unchanged.
 | 65 | concept | autonomous-eligible | folded into auto-groomable |
 | 66 | glossary | runner delegation, runner shim / `runners` block, `runtime.bash`, terminal publish | moved to the glossary's "Obsolete terms" section (Decision 11) |
 
+### Family (e) — readability renames (change 0469)
+
+These terms do not collide; they are hard to read without the glossary entry. The wire rows (67-73) are hard-cut and sealed through the retired-vocabulary table (Decisions 2 and 10). Rows 74-84 are prose only. Rows 85-86 retire names that no longer match any code (Decision 11). After this family, "identity" names only *which* record, scope or process something is, never a thing that changed.
+
+| # | Kind | Old | New |
+|---|---|---|---|
+| 67 | token | readiness `needs-brainstorm` (`ReadyNeedsBrainstorm`; the board cell and the `status` readiness value): proposed, no spec, not trivial | `needs-grooming` |
+| 68 | code | gate-drive halt cause `identity-mismatch`: the worktree fingerprint (HEAD, index, status, live file bytes) moved since the drive started | `worktree-changed` |
+| 69 | code | `unresolved-execution` (gate-drive halt cause and ownership error kind): nothing proved whether a launch happened (a lost launch response, a crash between reserving the worktree and attaching the process) | `launch-unconfirmed` |
+| 70 | op + CLI | `change.repair-identity` / `docket change repair-identity`: re-points a record's `branch:` at the PR's head, or its `pr:` at a PR the human supplies | `change.relink` / `docket change relink` |
+| 71 | token | row 70's result tokens `repaired-branch` / `repaired-pr` | `relinked-branch` / `relinked-pr` |
+| 72 | code | finalize merge condition `pr-identity-mismatch`: the record's PR does not match the real PR (row 70 fixes it) | `pr-link-mismatch` |
+| 73 | code | `evidence.recertify` reason `identity-drift`: the PR head or the build command moved after the gate passed | `certified-input-changed` |
+| 74 | concept | unmet conjuncts / conjunct / conjunction (CLAUDE.md and AGENTS.md dispatch rules, generated dispatch material, comments; Go `MergeConjuncts`) | unmet conditions / condition (`MergeConditions`) |
+| 75 | concept | admission slot / worktree admission slot | worktree slot |
+| 76 | concept | liveness transition (a harness moving a still-running command into the background) | moved to background (liveness probe unchanged) |
+| 77 | concept | native supervisor | gate supervisor ("run supervisor" rejected: "run" names a tracked implement-next run, rows 1-3) |
+| 78 | concept | gate execution | gate run (the same concept) |
+| 79 | concept | presence-encoded section / marker | marker section |
+| 80 | concept | Step-0 preamble | startup check |
+| 81 | concept | closed vocabulary | allowed values |
+| 82 | concept | compare-and-swap (prose) | conflict-checked write (the `contended` token is unchanged) |
+| 83 | concept | pay per relevance | read on demand |
+| 84 | concept | identity repair; finalize's identity checkpoint | relink; finalize's link check |
+| 85 | glossary | bootstrap verdicts `BOOTSTRAP=` / `PROCEED` / `STOP_MIGRATE` / `CREATE_ORPHAN` (Bash-era; no Go sites) | prose describes `repository.prepare`'s dispositions; the names move to "Obsolete terms" |
+| 86 | glossary | `docket status --digest-only` / digest-only read (the flag does not exist) | `docket status`; the name moves to "Obsolete terms" |
+
+Kept in family (e): the worktree slot state `unresolved` and the stage `mark-worktree-execution-unresolved`; the `--adopt-pr-head`, `--adopt-pr` and `--expect-*` flags and the other repair result tokens (`stale-evidence`, `workspace-conflict`, `candidate-branch-absent`, `pr-unknown`, `invalid-request`); "identity" in its which-record sense (`scope-identity-mismatch`, `results-identity-broken`, `identity-reused`, `identity-mutated`, the `status` JSON `identity` key, the process-lock `identity` stage); the `skills.brainstorm` key and the `docket-brainstorm` / `docket-brainstorm-consultant` names (Decision 9).
+
+Considered for family (e) and not renamed:
+
+- **abstain** ("hand back"): Decision 8 and row 50 chose it.
+- **dummy mode / persona**, **metadata branch**, **reconcile**: they are the config keys `dummy_mode` and `metadata_branch` and the frontmatter field `reconciled:` (Decision 9); renaming only the prose would split it from the key.
+- **inert**: the config classification `inert` and code `inert-setting`, and plain English.
+- **disposition** ("outcome"): the protocol-v1 envelope key of every operation (about 2,500 Go sites and every skill).
+- **owner generation / `--owner-gen`**: an opaque fencing token, not a counter; "generation" is the standard term.
+- **continuation id**: settled by row 9 (`run.continue <key> <continuation-id>`).
+- **sync integration** ("fast-forward main"): the operation id `repository.sync-integration`, and the integration branch is not always `main`.
+- **coordination key**: already row 60. **scope tag**: clear and consistent in `docs/reference/config-keys.md`.
+
 ### Explicitly not renamed
 
 - The `docket gate …` CLI noun, the gate drive, the gate run, `gatedrive-*`, `idempotent-suite-gate`.
@@ -223,6 +263,7 @@ A family change that has to deviate from a row records the deviation through the
 - **Family (a) (0471) must land with no dispatched run in flight** (drain or cancel first), and the post-merge binary rebuild must run immediately. Between merge and rebuild, CLAUDE.md names `run.start` while the installed binary only knows `run.gate-before`; catalog resolution stops the coordinator loudly (safe, but blocking until the rebuild). Every machine must also switch to the new binary with no implement-next or finalize run in flight in any docket repo, because the new binary starts the run tracker's local stores empty (Decision 3).
 - **Family (c) (0473) must land with no change mid-build or holding a committed-but-unbuilt plan** (drain first). A plan written before the upgrade may carry the retired `**Build profile:**` override (row 46a), which the new docket-build does not read, so a risky task could silently route to a cheaper tier.
 - **Change 0469 must drop rows 5, 6 and 48-52** (gate key, dispatch context, dispatch tiers), which this ADR now owns; its remaining run-tracker items touch family (a)'s files, so its grooming should consider `depends_on: [471]`.
+- **Family (e) (0469)** needs a consumer `docket install` rerun like the other families, and must land with no gate drive in flight, because rows 68 and 69 rename halt causes that drive records carry. The committed `BOARD.md` shows `needs-brainstorm` cells until its next re-render; 0469's own close-out commit re-renders it.
 - Config keys, agent names, frontmatter fields, committed claim-receipt keys and row 45 stay, so `.docket.yml` files and metadata history remain readable. The run tracker's local stores restart empty at upgrade under their new names (row 38), and their old roots are left inert.
 - A code-level retired-vocabulary table in `internal/repoguard`, created by the first family to land and appended by later ones, drives the absence seals and names each replacement; the glossary carries no old->new mapping.
 - Cost: four family PRs touching many files (e.g. `run-epoch` in 594 Go sites), golden output churn, and a one-time consumer reinstall per family.
