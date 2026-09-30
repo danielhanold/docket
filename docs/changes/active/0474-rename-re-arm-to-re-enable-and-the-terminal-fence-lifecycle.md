@@ -13,7 +13,7 @@ related: [468, 471, 472, 473, 477]
 discovered_from: []
 adrs: [129]
 spec: 'docs/superpowers/specs/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-30T14:04:44Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md) |
+| Plan | [2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md](https://github.com/danielhanold/docket/blob/refactor/rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle/docs/superpowers/plans/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
