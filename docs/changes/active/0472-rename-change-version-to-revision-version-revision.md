@@ -2,11 +2,11 @@
 id: 472
 slug: 'rename-change-version-to-revision-version-revision'
 title: 'Rename change version to revision (--version → --revision)'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
-updated: '2026-09-29'
+updated: '2026-09-30'
 depends_on: [468]
 stacked_on:
 related: [468, 471, 474, 477]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/rename-change-version-to-revision-version-revision'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-30T05:43:03Z'
 ---
 
 ## Artifacts
