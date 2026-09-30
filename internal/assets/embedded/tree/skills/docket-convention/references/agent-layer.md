@@ -98,7 +98,7 @@ file.
 ## Harness-portable model IDs
 
 **Harness-portable model IDs (ADR-0015).** Agent `model:` values are **direct model IDs, harness-neutral and passed
-through verbatim** — no tier layer. The running harness interprets the string (a Claude alias/ID under Claude Code; a
+through verbatim** — no model-alias layer. The running harness interprets the string (a Claude alias/ID under Claude Code; a
 Cursor model ID like `gpt-5.5-medium-fast` under Cursor). This unvalidated **passthrough** is what lets docket drive
 non-Claude harnesses.
 

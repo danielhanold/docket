@@ -75,7 +75,7 @@ Two outcomes look abort-shaped and are not: a `waiting` (`reason: gate-waiting`)
   the `finalize.merge` operation returns the conjunct's token or `merge-denied`; a standing denial is
   `halted`, never a retry loop;
 - an **open unauthorized child** on an autonomous run, or a `children-retarget-required` closeout;
-- the **dispatch mechanism being unavailable** for either gate agent — the carve-out below,
+- the **dispatch mechanism being unavailable** for either gate agent — the `no-fallback` posture,
   established only per the convention's *Dispatch-capability resolution*, never from a tool name,
   and never substituted inline;
 - a **deferred capability requested by config** — any mutating operation returns `unsupported-config`
