@@ -67,3 +67,20 @@ Apply the spec's rename map across maintained source, in one PR:
 ### 2026-09-30
 
 Reconciled against origin/main c38ca3bed, the same commit grooming traced (2026-09-30); no main commits since, so the spec site list and budgets stand. Dependency 0468 is done. No other change is in-progress or implemented, so the drain precondition holds at claim time; merge must still wait for a drain. Scope unchanged.
+
+## Run halted
+
+### 2026-09-30
+
+Build halted at plan Task 4 (config comments). The economy worker returned BLOCKED. The plan's requirements contradict each other.
+
+- The plan (and spec section 2) asks for comment-only edits to `agents/harness-defaults.yml`, and it lists `testdata/repositories/` as frozen.
+- `internal/config` `TestBuiltinAgentsParityWithFrozenSidecar` (`assertFrozenCopyMatchesLive` in `defaults_test.go`) requires `agents/harness-defaults.yml` to be byte-identical to the frozen `testdata/repositories/v0.9.3/agents-harness-defaults.yml`. Any comment edit fails it (drive dd6f03aeb60bbc2dc79256e6c60d5fe4, FAILED).
+
+State: Tasks 1-3 are committed on `refactor/rename-build-profile-and-review-rung-to-tiers-and-dispatch-t` (cf021ed1d, 3e392053c, 1da12a572). Task 4's edits are left UNCOMMITTED in the feature worktree (`.docket.example.yml`, `agents/harness-defaults.yml`, and their embedded copies plus `manifest.json`). Task 5 has not run. The branch is not pushed.
+
+Human decision needed. Choose one:
+(a) drop the `harness-defaults.yml` half of Task 4 (keep its old comment wording as a frozen-parity exception, and add it to the closing grep's allowed leftovers). Revert that file and its embedded copy, then commit only the `.docket.example.yml` edits.
+(b) authorize a new versioned fixture tree plus the matching Go table change, which the spec's frozen-path rule currently forbids.
+
+Then resume with `change.resume-halted --acknowledge-quiescent` and re-dispatch implement-next for 473.
