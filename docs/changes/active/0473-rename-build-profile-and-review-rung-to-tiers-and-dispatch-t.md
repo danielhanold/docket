@@ -2,7 +2,7 @@
 id: 473
 slug: 'rename-build-profile-and-review-rung-to-tiers-and-dispatch-t'
 title: 'Rename build profile and review rung to tiers, and dispatch tiers to dispatch fallbacks'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/rename-build-profile-and-review-rung-to-tiers-and-dispatch-t'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/355'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-30T12:06:41Z'
