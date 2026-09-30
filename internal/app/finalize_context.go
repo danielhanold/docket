@@ -61,7 +61,7 @@ type FinalizeGitHub interface {
 	ProbeMerged(ctx context.Context, repo githubcli.Repository, number int) (githubcli.MergeOutcome, githubcli.MergedFacts, error)
 	ViewPullRequest(ctx context.Context, repo githubcli.Repository, number int) (githubcli.PullRequest, error)
 	FindOpenPullRequestsByHead(ctx context.Context, repo githubcli.Repository, headBranch string) ([]githubcli.PullRequest, error)
-	RetargetPullRequest(ctx context.Context, repo githubcli.Repository, number int, expectedVersion, newBase string) (githubcli.RetargetOutcome, githubcli.PullRequest, error)
+	RetargetPullRequest(ctx context.Context, repo githubcli.Repository, number int, expectedRevision, newBase string) (githubcli.RetargetOutcome, githubcli.PullRequest, error)
 	EnsureComment(ctx context.Context, repo githubcli.Repository, number int, marker, body string) (githubcli.CommentOutcome, string, error)
 	FindComment(ctx context.Context, repo githubcli.Repository, number int, marker string) (bool, string, error)
 	MergePullRequest(ctx context.Context, repo githubcli.Repository, number int, expectedHead githubcli.ObjectRef, admin bool) (githubcli.MergeResult, error)
@@ -195,7 +195,7 @@ type FinalizePRReport struct {
 	Ref          string `json:"ref"`
 	Verdict      string `json:"verdict"` // "probed" | "unknown"
 	Number       string `json:"number,omitempty"`
-	Version      string `json:"version,omitempty"`
+	Revision     string `json:"version,omitempty"`
 	State        string `json:"state,omitempty"`
 	Draft        bool   `json:"draft,omitempty"`
 	Approved     bool   `json:"approved,omitempty"`
@@ -244,7 +244,7 @@ type FinalizeCandidateReport struct {
 	ID            int                  `json:"id"`
 	Slug          string               `json:"slug"`
 	Path          string               `json:"path"`
-	Version       string               `json:"version"`
+	Revision      string               `json:"version"`
 	Status        string               `json:"status"`
 	Branch        string               `json:"branch"`
 	Band          string               `json:"band,omitempty"`
@@ -451,7 +451,7 @@ func buildCandidateReport(snap domain.Snapshot, c domain.Change, cand domain.Fin
 		ID:            int(c.ID()),
 		Slug:          c.Slug(),
 		Path:          c.Path(),
-		Version:       blobByPath[c.Path()].Version,
+		Revision:      blobByPath[c.Path()].Revision,
 		Status:        c.RawStatus(),
 		Branch:        recorded,
 		Band:          cand.Band,
@@ -488,7 +488,7 @@ func finalizePRReport(c domain.Change, f domain.PRFacts, wasProbed bool) Finaliz
 		Ref:          ref,
 		Verdict:      finalizeVerdictProbed,
 		Number:       f.Number,
-		Version:      f.Version,
+		Revision:     f.Revision,
 		State:        f.State,
 		Draft:        f.Draft,
 		Approved:     f.Approved,
@@ -679,7 +679,7 @@ func (p *githubFinalizeProber) ProbePR(ctx context.Context, repoDir, prRef strin
 	if outcome == githubcli.MergeMerged || outcome == githubcli.MergeAlreadyMerged {
 		return domain.PRFacts{
 			Number:      strconv.Itoa(number),
-			Version:     mf.Version,
+			Revision:    mf.Revision,
 			State:       "merged",
 			HeadBranch:  mf.HeadBranch,
 			HeadOID:     mf.HeadOID,
@@ -694,7 +694,7 @@ func (p *githubFinalizeProber) ProbePR(ctx context.Context, repoDir, prRef strin
 	}
 	return domain.PRFacts{
 		Number:     strconv.Itoa(number),
-		Version:    pr.Version,
+		Revision:   pr.Revision,
 		State:      string(pr.State),
 		Draft:      pr.Draft,
 		Approved:   pr.Approved,

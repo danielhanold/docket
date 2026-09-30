@@ -87,20 +87,20 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		if !ctxRes.Context.ClaimEligible {
 			t.Fatalf("context reports the build-ready change not claim-eligible: %q", ctxRes.Context.ClaimRefusal)
 		}
-		v := ctxRes.Context.Change.Version
+		v := ctxRes.Context.Change.Revision
 		if v != ver() {
 			t.Fatalf("context version %q disagrees with the origin oracle %q", v, ver())
 		}
 
 		// (2) Claim.
-		claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: v, RunContext: runContext})
+		claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: v, RunContext: runContext})
 		if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
 			t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
 		}
 
 		// (3) Reconcile: sets reconciled:true and refreshes the claim.
 		rec := ChangeReconcile(ctx, node.deps, node.dir, ChangeReconcileRequest{
-			ID: id, Version: ver(),
+			ID: id, Revision: ver(),
 			ReconcileLogEntry: "Reconciled against current reality.\n",
 		})
 		if rec.Result != ResultApplied {
@@ -108,7 +108,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		}
 
 		// (4) Prepare the feature workspace at the resolved base.
-		prep := WorkspacePrepare(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id, Version: ver()})
+		prep := WorkspacePrepare(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id, Revision: ver()})
 		if prep.Result != ResultApplied {
 			t.Fatalf("workspace prepare = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
 		}
@@ -129,7 +129,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 
 		// (6) Attach the verified plan.
 		attach := ChangeAttachPlan(ctx, node.deps, wdeps, node.dir,
-			ChangeAttachRequest{ID: id, Version: ver(), Path: planPath, Commit: planHead})
+			ChangeAttachRequest{ID: id, Revision: ver(), Path: planPath, Commit: planHead})
 		if attach.Result != ResultApplied {
 			t.Fatalf("attach plan = %q (reason %q msg %q findings %v)", attach.Result, attach.Reason, attach.Message, attach.Findings)
 		}
@@ -151,7 +151,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		// (7b) Attach the results artifact so the record carries results: — the
 		// mark-implemented results conjunct (change 0410) requires it.
 		attachR := ChangeAttachResults(ctx, node.deps, wdeps, node.dir,
-			ChangeAttachRequest{ID: id, Version: ver(), Path: resultsPath, Commit: head})
+			ChangeAttachRequest{ID: id, Revision: ver(), Path: resultsPath, Commit: head})
 		if attachR.Result != ResultApplied {
 			t.Fatalf("attach results = %q (reason %q msg %q findings %v)", attachR.Result, attachR.Reason, attachR.Message, attachR.Findings)
 		}
@@ -230,7 +230,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		// (13) Mark implemented after reprobing every published effect.
 		mi := ChangeMarkImplemented(ctx, node.deps, wdeps, gdeps, node.dir, MarkImplementedRequest{
 			ID:             id,
-			Version:        ver(),
+			Revision:       ver(),
 			Head:           head,
 			PR:             pr.Reference,
 			EvidenceRecord: evidenceBytes,
@@ -298,7 +298,7 @@ func assertDeferredCapabilityBlocksClaim(t *testing.T) {
 	before := originTip(t, repo.origin, "docket")
 	version := blobVersionAt(t, repo.origin, "docket", recPath)
 
-	res := ChangeClaim(context.Background(), node.deps, node.dir, ChangeClaimRequest{ID: id, Version: version})
+	res := ChangeClaim(context.Background(), node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: version})
 	if res.Result != ResultUnsupportedConfig {
 		t.Fatalf("claim under a deferred-capability request = %q, want unsupported-config (findings %v)", res.Result, res.Findings)
 	}

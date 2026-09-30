@@ -85,7 +85,7 @@ func TestRaceIntegrationTxnConcurrencySameEntityContends(t *testing.T) {
 			// X2; the loser's retry sees X2 != X1 and contends.
 			op1 := &recordOp{id: 1, slug: "first-change", path: rec, kind: MutationReplace}
 			op2 := &recordOp{id: 1, slug: "first-change", path: rec, kind: MutationReplace}
-			exp := []EntityExpectation{{Path: rec, Version: ExpectedVersion{Kind: VersionBlob, ObjectID: x1}}}
+			exp := []EntityExpectation{{Path: rec, Revision: ExpectedRevision{Kind: RevisionBlob, ObjectID: x1}}}
 
 			res1, res2, err1, err2 := h.contendingWriters(t, exp, exp, op1, op2)
 			if err1 != nil || res1.Disposition != DispositionApplied {

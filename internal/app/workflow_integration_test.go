@@ -44,14 +44,14 @@ func TestIntegrationWorkflowRepoAttachPlanBoardLinkAtomicity(t *testing.T) {
 			wdeps := WorkspaceDeps{Service: svc}
 			ctx := context.Background()
 
-			prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: id, Version: version})
+			prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: id, Revision: version})
 			if prep.Result != ResultApplied {
 				t.Fatalf("prepare workspace = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
 			}
 			head := commitPlanFile(t, prep.Path, planPath, attachHappyPlan(id, "A change", recPath), planPath)
 
 			res := ChangeAttachPlan(ctx, node.deps, wdeps, repo.invocation,
-				ChangeAttachRequest{ID: id, Version: version, Path: planPath, Commit: head})
+				ChangeAttachRequest{ID: id, Revision: version, Path: planPath, Commit: head})
 			if res.Result != ResultApplied {
 				t.Fatalf("attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
 			}
@@ -91,7 +91,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 			build: func(t *testing.T) ChangeAttachRequest {
 				f.reset(t)
 				head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: "docs/notes/outside.md", Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: "docs/notes/outside.md", Commit: head}
 			},
 			reason: ReasonAttachPathOutsideRoot,
 		},
@@ -101,7 +101,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 				f.reset(t)
 				_ = f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
 				// The base is a real commit that is not the head.
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: f.base}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: f.base}
 			},
 			reason: ReasonAttachCommitNotHead,
 		},
@@ -118,7 +118,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 				orphan := runGit(t, f.wp, "rev-parse", "HEAD")
 				runGit(t, f.wp, "branch", "-qf", "feat/"+f.slug, "_orphan")
 				runGit(t, f.wp, "checkout", "-q", "feat/"+f.slug)
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: orphan}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: orphan}
 			},
 			reason: ReasonAttachCommitNotDescendant,
 		},
@@ -128,7 +128,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 				f.reset(t)
 				// The commit adds a DIFFERENT file; the requested plan path is absent.
 				head := f.commitPlan(t, map[string]string{otherPlan: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: head}
 			},
 			reason: ReasonAttachUntrackedFile,
 		},
@@ -140,7 +140,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 				runGit(t, f.wp, "add", "-A")
 				runGit(t, f.wp, "commit", "-q", "-m", "symlink plan", "--trailer", "Docket-Plan-Path: "+f.planPath)
 				head := runGit(t, f.wp, "rev-parse", "HEAD")
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: head}
 			},
 			reason: ReasonAttachSymlinkedPlan,
 		},
@@ -152,7 +152,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 					f.planPath: attachHappyPlan(f.id, "A change", f.recPath),
 					"docs/superpowers/plans/2026-08-17-extra.md": "# extra\n",
 				}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: head}
 			},
 			reason: ReasonAttachMultiArtifactDelta,
 		},
@@ -167,7 +167,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 				runGit(t, f.wp, "mv", old, f.planPath)
 				runGit(t, f.wp, "commit", "-q", "-m", "rename plan", "--trailer", "Docket-Plan-Path: "+f.planPath)
 				head := runGit(t, f.wp, "rev-parse", "HEAD")
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: head}
 			},
 			reason: ReasonAttachMultiArtifactDelta,
 		},
@@ -176,7 +176,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 			build: func(t *testing.T) ChangeAttachRequest {
 				f.reset(t)
 				head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, "")
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: head}
 			},
 			reason: ReasonAttachMissingTrailer,
 		},
@@ -188,7 +188,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 				// validation fails the parse.
 				bad := "<!-- docket:backlink:start (generated — do not hand-edit) -->\n> ↩ dangling\n\n# Plan\n\nSteps.\n"
 				head := f.commitPlan(t, map[string]string{f.planPath: bad}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: head}
 			},
 			reason: ReasonAttachUnbalancedBacklink,
 		},
@@ -199,7 +199,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 				// A balanced backlink pointing at a different change.
 				bad := attachBacklinkBlock(9, "Another change", "docs/changes/active/0009-other.md") + "\n# Plan\n\nSteps.\n"
 				head := f.commitPlan(t, map[string]string{f.planPath: bad}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: head}
 			},
 			reason: ReasonAttachBacklinkMismatch,
 		},
@@ -213,7 +213,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerification(t *testing.T) {
 				withFillerSlot := attachBacklinkBlock(f.id, "A change", f.recPath) +
 					"\n# Plan\n\n## Error handling\n\n" + tok("tbd") + "\n"
 				head := f.commitPlan(t, map[string]string{f.planPath: withFillerSlot}, f.planPath)
-				return ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head}
+				return ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: head}
 			},
 			reason: ReasonAttachPlaceholderToken,
 		},
@@ -249,7 +249,7 @@ func TestIntegrationWorkflowRepoChangeAttachPlanGitVerificationHappyPath(t *test
 	}, f.planPath)
 
 	res := ChangeAttachPlan(f.ctx, f.deps, f.wdeps, f.invocation,
-		ChangeAttachRequest{ID: f.id, Version: f.version, Path: f.planPath, Commit: head})
+		ChangeAttachRequest{ID: f.id, Revision: f.version, Path: f.planPath, Commit: head})
 	if res.Result != ResultApplied {
 		t.Fatalf("happy attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
 	}
@@ -284,7 +284,7 @@ func TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent(t *testing.
 			"\n# <Change title> — Results\n\n## Outcome\n\n<The original problem, the delivered behavior, and any material departure from the\nagreed design — lead with observable effects. Explain unfamiliar Docket concepts when\nnecessary; include method names, stored fields, or internal identifiers only when they\nhelp the reader understand a consequence or take action.>\n"
 		head := f.commitPlan(t, map[string]string{resultsPath: scaffold}, "")
 		res := ChangeAttachResults(f.ctx, f.deps, f.wdeps, f.invocation,
-			ChangeAttachRequest{ID: f.id, Version: f.version, Path: resultsPath, Commit: head})
+			ChangeAttachRequest{ID: f.id, Revision: f.version, Path: resultsPath, Commit: head})
 		if res.Result == ResultApplied {
 			t.Fatalf("scaffold attach applied, want a refusal")
 		}
@@ -306,7 +306,7 @@ func TestIntegrationWorkflowRepoChangeAttachResultsCheckpointContent(t *testing.
 			"\n# Widget — Results\n\n## Outcome\n\nDelivered the in-progress slice; behavior X now refuses Y.\n"
 		head := f.commitPlan(t, map[string]string{resultsPath: artifact}, "")
 		res := ChangeAttachResults(f.ctx, f.deps, f.wdeps, f.invocation,
-			ChangeAttachRequest{ID: f.id, Version: f.version, Path: resultsPath, Commit: head})
+			ChangeAttachRequest{ID: f.id, Revision: f.version, Path: resultsPath, Commit: head})
 		if res.Result != ResultApplied {
 			t.Fatalf("checkpoint attach = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
 		}
@@ -358,7 +358,7 @@ func TestIntegrationWorkflowRepoClaimRaceLosesCleanly(t *testing.T) {
 			if !loserCtx.Context.ClaimEligible {
 				t.Fatalf("context read reports the build-ready change not claim-eligible: %q", loserCtx.Context.ClaimRefusal)
 			}
-			staleVersion := loserCtx.Context.Change.Version
+			staleVersion := loserCtx.Context.Change.Revision
 			if staleVersion == "" {
 				t.Fatalf("context bundle carried no change version")
 			}
@@ -379,7 +379,7 @@ func TestIntegrationWorkflowRepoClaimRaceLosesCleanly(t *testing.T) {
 				t.Fatalf("winner context read = %q (reason %q)", winnerCtx.Result, winnerCtx.Reason)
 			}
 			beforeTip := originTip(t, repo.origin, m.branch)
-			resB := ChangeClaim(ctx, nodeB.deps, nodeB.dir, ChangeClaimRequest{ID: id, Version: winnerCtx.Context.Change.Version})
+			resB := ChangeClaim(ctx, nodeB.deps, nodeB.dir, ChangeClaimRequest{ID: id, Revision: winnerCtx.Context.Change.Revision})
 			if resB.Result != ResultApplied || resB.Disposition != ClaimDispositionApplied {
 				t.Fatalf("winning claim = (%q, %q), want applied/applied (findings %v)", resB.Result, resB.Disposition, resB.Findings)
 			}
@@ -391,7 +391,7 @@ func TestIntegrationWorkflowRepoClaimRaceLosesCleanly(t *testing.T) {
 			// A loses: it submits its now-stale context version. The engine's own
 			// fresh-origin re-read discovers the record moved, and A's version keyed no
 			// committed claim receipt, so this is a genuine contention — not a replay.
-			resA := ChangeClaim(ctx, nodeA.deps, nodeA.dir, ChangeClaimRequest{ID: id, Version: staleVersion})
+			resA := ChangeClaim(ctx, nodeA.deps, nodeA.dir, ChangeClaimRequest{ID: id, Revision: staleVersion})
 			if resA.Result != ResultContended || resA.Disposition != ClaimDispositionContended {
 				t.Fatalf("losing claim = (%q, %q), want contended/contended (findings %v)", resA.Result, resA.Disposition, resA.Findings)
 			}
@@ -444,10 +444,10 @@ func TestIntegrationWorkflowRepoClaimRetryAfterLostResponse(t *testing.T) {
 			if shared.Result != ResultApplied || shared.Context == nil {
 				t.Fatalf("context read = %q (reason %q); want a bundle", shared.Result, shared.Reason)
 			}
-			version := shared.Context.Change.Version
+			version := shared.Context.Change.Revision
 			beforeTip := originTip(t, repo.origin, m.branch)
 
-			first := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: version})
+			first := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: version})
 			if first.Result != ResultApplied || first.Disposition != ClaimDispositionApplied {
 				t.Fatalf("first claim = (%q, %q), want applied/applied (findings %v)", first.Result, first.Disposition, first.Findings)
 			}
@@ -460,7 +460,7 @@ func TestIntegrationWorkflowRepoClaimRetryAfterLostResponse(t *testing.T) {
 			// no longer matches the (now-claimed) record blob, so only the idempotency
 			// key — not the exact-version CAS — can make this a replay rather than a
 			// contention.
-			replay := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: version})
+			replay := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: version})
 			if replay.Result != ResultApplied || replay.Disposition != ClaimDispositionAlreadyClaimed {
 				t.Fatalf("replay = (%q, %q), want applied/already-claimed (findings %v)", replay.Result, replay.Disposition, replay.Findings)
 			}
@@ -558,7 +558,7 @@ func TestIntegrationWorkflowRepoEffectiveBaseConsumedFromDomain(t *testing.T) {
 			ctx := context.Background()
 
 			// The workspace is prepared at the DOMAIN-resolved parent base, not main.
-			prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: childID, Version: version})
+			prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: childID, Revision: version})
 			if prep.Result != ResultApplied {
 				t.Fatalf("prepare stacked workspace = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
 			}
@@ -574,7 +574,7 @@ func TestIntegrationWorkflowRepoEffectiveBaseConsumedFromDomain(t *testing.T) {
 			// passes.
 			head := commitPlanFile(t, prep.Path, childPlan, attachHappyPlan(childID, "A change", childRec), childPlan)
 			res := ChangeAttachPlan(ctx, node.deps, wdeps, repo.invocation,
-				ChangeAttachRequest{ID: childID, Version: version, Path: childPlan, Commit: head})
+				ChangeAttachRequest{ID: childID, Revision: version, Path: childPlan, Commit: head})
 			if res.Result != ResultApplied {
 				t.Fatalf("attach on the stacked workspace = %q (reason %q msg %q findings %v)", res.Result, res.Reason, res.Message, res.Findings)
 			}
@@ -637,8 +637,8 @@ func TestIntegrationWorkflowRepoGitStatusReaderConcurrentRemoteMovement(t *testi
 		byPath[b.Path] = b
 	}
 	got := byPath["docs/changes/active/0001-alpha.md"]
-	if got.Version != wantID {
-		t.Errorf("corpus read the advanced revision: version=%q want pinned %q", got.Version, wantID)
+	if got.Revision != wantID {
+		t.Errorf("corpus read the advanced revision: version=%q want pinned %q", got.Revision, wantID)
 	}
 	if strings.Contains(string(got.Data), "REWRITTEN") {
 		t.Errorf("corpus content came from the advanced remote, not the pinned revision:\n%s", got.Data)
@@ -743,8 +743,8 @@ func TestIntegrationWorkflowRepoGitStatusReaderFullCorpusFromMetadataBranch(t *t
 		t.Fatalf("corpus missing the active change; got paths %v", pathsOf(blobs))
 	}
 	wantID := repo.blobID(t, repo.invocation, pin.MetadataRevision, "docs/changes/active/0001-alpha.md")
-	if got.Version != wantID {
-		t.Errorf("blob version = %q, want the pinned revision's blob id %q", got.Version, wantID)
+	if got.Revision != wantID {
+		t.Errorf("blob version = %q, want the pinned revision's blob id %q", got.Revision, wantID)
 	}
 	if string(got.Data) != changeRecord(1, "alpha", "Alpha") {
 		t.Errorf("blob bytes did not match the record content:\n%s", got.Data)
@@ -969,7 +969,7 @@ func TestIntegrationWorkflowLifecyclePlanningKillEndToEnd(t *testing.T) {
 			node := planningDepsFor(t, repo.invocation)
 
 			res := ChangeKill(context.Background(), node.deps, node.dir, ChangeKillRequest{
-				ChangeID: 3, Path: widgetPath, Version: ver, WhyKilled: "Superseded by a better plan.\n",
+				ChangeID: 3, Path: widgetPath, Revision: ver, WhyKilled: "Superseded by a better plan.\n",
 			})
 			if res.Result != ResultApplied {
 				t.Fatalf("kill did not apply: %q (findings %v)", res.Result, res.Findings)
@@ -1113,7 +1113,7 @@ func TestIntegrationWorkflowRepoReconcileIndependentWriterWins(t *testing.T) {
 
 			res := ChangeReconcile(ctx, node.deps, node.dir, ChangeReconcileRequest{
 				ID:                id,
-				Version:           version,
+				Revision:          version,
 				ReconcileLogEntry: "Reconciled against current reality.\n",
 			})
 			if res.Result != ResultContended || res.Disposition != ReconcileDispositionContended {
@@ -1171,7 +1171,7 @@ func TestIntegrationWorkflowRepoRefreshClaimAppliesWhenBoardReRenderIsUnchanged(
 			if claimCtx.Result != ResultApplied || claimCtx.Context == nil || !claimCtx.Context.ClaimEligible {
 				t.Fatalf("claim context read = %q (reason %q)", claimCtx.Result, claimCtx.Reason)
 			}
-			claim := ChangeClaim(ctx, claimNode.deps, claimNode.dir, ChangeClaimRequest{ID: id, Version: claimCtx.Context.Change.Version})
+			claim := ChangeClaim(ctx, claimNode.deps, claimNode.dir, ChangeClaimRequest{ID: id, Revision: claimCtx.Context.Change.Revision})
 			if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
 				t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
 			}
@@ -1182,7 +1182,7 @@ func TestIntegrationWorkflowRepoRefreshClaimAppliesWhenBoardReRenderIsUnchanged(
 			// Refresh a day later: claimed_at/updated genuinely change on the
 			// record while the board re-renders byte-identical.
 			refreshNode := planningDepsForClock(t, cloneOrigin(t, repo.origin), advanced)
-			res := ChangeRefreshClaim(ctx, refreshNode.deps, refreshNode.dir, ChangeClaimRequest{ID: id, Version: claimedVersion})
+			res := ChangeRefreshClaim(ctx, refreshNode.deps, refreshNode.dir, ChangeClaimRequest{ID: id, Revision: claimedVersion})
 			if res.Result != ResultApplied || res.Disposition != ClaimDispositionApplied {
 				t.Fatalf("refresh = (%q, %q), want applied/applied (failure %+v, findings %v)",
 					res.Result, res.Disposition, res.Failure, res.Findings)
@@ -1296,7 +1296,7 @@ func TestIntegrationWorkflowRepoStackedContextClaimWorkspaceFromParentBranch(t *
 			if bundle.Result != ResultApplied || bundle.Context == nil {
 				t.Fatalf("claim context read = %q (reason %q)", bundle.Result, bundle.Reason)
 			}
-			claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: childID, Version: bundle.Context.Change.Version})
+			claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: childID, Revision: bundle.Context.Change.Revision})
 			if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
 				t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
 			}
@@ -1310,7 +1310,7 @@ func TestIntegrationWorkflowRepoStackedContextClaimWorkspaceFromParentBranch(t *
 				t.Fatalf("workspace.NewService: %v", err)
 			}
 			wdeps := WorkspaceDeps{Service: svc}
-			prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: childID, Version: version})
+			prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: childID, Revision: version})
 			if prep.Result != ResultApplied {
 				t.Fatalf("prepare workspace = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
 			}
@@ -1355,7 +1355,7 @@ func TestIntegrationWorkflowLifecycleWorkspaceOpsGitLifecycle(t *testing.T) {
 			ctx := context.Background()
 
 			// --- prepare a fresh workspace at the resolved base ----------------
-			prep := WorkspacePrepare(ctx, deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: id, Version: version})
+			prep := WorkspacePrepare(ctx, deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: id, Revision: version})
 			if prep.Result != ResultApplied || prep.Disposition != string(workspace.PrepareCreated) {
 				t.Fatalf("fresh prepare = (%q, %q), want applied/created (reason %q msg %q)", prep.Result, prep.Disposition, prep.Reason, prep.Message)
 			}
@@ -1378,7 +1378,7 @@ func TestIntegrationWorkflowLifecycleWorkspaceOpsGitLifecycle(t *testing.T) {
 			}
 
 			// --- resuming yields the existing disposition ---------------------
-			resume := WorkspacePrepare(ctx, deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: id, Version: version})
+			resume := WorkspacePrepare(ctx, deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: id, Revision: version})
 			if resume.Disposition != string(workspace.PrepareExisting) {
 				t.Fatalf("second prepare disposition = %q, want existing", resume.Disposition)
 			}
@@ -1446,7 +1446,7 @@ func TestIntegrationWorkflowLifecycleWorkspacePrepareHonorsRecordedBranch(t *tes
 	repoDir := newWorkingRepo(t, nil).invocation
 
 	res := WorkspacePrepare(context.Background(), workspaceDepsFor(t, reader), WorkspaceDeps{Service: svc},
-		repoDir, WorkspaceIDRequest{ID: 30, Version: ver})
+		repoDir, WorkspaceIDRequest{ID: 30, Revision: ver})
 
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied (reason %q msg %q)", res.Result, res.Reason, res.Message)
@@ -1475,14 +1475,14 @@ func TestIntegrationWorkflowLifecycleWorkspacePrepareRefusesMissingBranch(t *tes
 		pin: mainPin(t),
 		corpus: []StatusBlob{{
 			Kind: repository.KindChange, Location: repository.LocationActive,
-			Path: groomPath(31, "widget"), Version: ver, Data: []byte(src),
+			Path: groomPath(31, "widget"), Revision: ver, Data: []byte(src),
 		}},
 	}
 	svc := &fakeWorkspaceService{}
 	repoDir := newWorkingRepo(t, nil).invocation
 
 	res := WorkspacePrepare(context.Background(), workspaceDepsFor(t, reader), WorkspaceDeps{Service: svc},
-		repoDir, WorkspaceIDRequest{ID: 31, Version: ver})
+		repoDir, WorkspaceIDRequest{ID: 31, Revision: ver})
 
 	if res.Result != ResultInvalidState || res.Reason != errBranchMissing.Error() {
 		t.Fatalf("result=%q reason=%q, want invalid-state/branch-missing (msg %q)", res.Result, res.Reason, res.Message)
@@ -1501,7 +1501,7 @@ func TestIntegrationWorkflowLifecycleWorkspacePrepareRequiresClaimedVersion(t *t
 		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{proposedChangeBlob(7, "widget", "v7")}}
 		svc := &fakeWorkspaceService{}
 		res := WorkspacePrepare(context.Background(), workspaceDepsFor(t, reader), WorkspaceDeps{Service: svc},
-			repoDir, WorkspaceIDRequest{ID: 7, Version: "v7"})
+			repoDir, WorkspaceIDRequest{ID: 7, Revision: "v7"})
 		if res.Result != ResultInvalidState || res.Reason != ReasonWorkspaceNotInProgress {
 			t.Fatalf("result=%q reason=%q, want invalid-state/not-in-progress", res.Result, res.Reason)
 		}
@@ -1514,7 +1514,7 @@ func TestIntegrationWorkflowLifecycleWorkspacePrepareRequiresClaimedVersion(t *t
 		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "current-v", "")}}
 		svc := &fakeWorkspaceService{}
 		res := WorkspacePrepare(context.Background(), workspaceDepsFor(t, reader), WorkspaceDeps{Service: svc},
-			repoDir, WorkspaceIDRequest{ID: 7, Version: "stale-v"})
+			repoDir, WorkspaceIDRequest{ID: 7, Revision: "stale-v"})
 		if res.Result != ResultContended || res.Reason != ReasonWorkspaceVersionMismatch {
 			t.Fatalf("result=%q reason=%q, want contended/version-mismatch", res.Result, res.Reason)
 		}
@@ -1543,7 +1543,7 @@ func TestIntegrationWorkflowLifecycleWorkspacePrepareResolvesBaseFromDomain(t *t
 	repoDir := newWorkingRepo(t, nil).invocation
 
 	res := WorkspacePrepare(context.Background(), deps, WorkspaceDeps{Service: svc},
-		repoDir, WorkspaceIDRequest{ID: 21, Version: childVer})
+		repoDir, WorkspaceIDRequest{ID: 21, Revision: childVer})
 
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied (reason %q msg %q)", res.Result, res.Reason, res.Message)

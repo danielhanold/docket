@@ -106,7 +106,7 @@ const (
 	ReasonResumeUnknownState = "workspace-state-unknown"
 )
 
-// HaltRequest is the closed request for `change halt`. ID and Version pin the
+// HaltRequest is the closed request for `change halt`. ID and Revision pin the
 // exact submitted record; Report is the authored bounded halt report recorded
 // in the marker — the section BODY only, starting with prose, a list, or a
 // "###"-or-deeper subsection. The operation alone owns the "## Run halted"
@@ -116,18 +116,18 @@ const (
 // The authored report rides inside the JSON and never reaches a shell or Git
 // argument.
 type HaltRequest struct {
-	ID      int    `json:"id" docket:"required"`
-	Version string `json:"version" docket:"required"`
-	Report  string `json:"report" docket:"required"`
+	ID       int    `json:"id" docket:"required"`
+	Revision string `json:"version" docket:"required"`
+	Report   string `json:"report" docket:"required"`
 }
 
-// ResumeRequest is the closed request for `change resume-halted`. ID and Version
+// ResumeRequest is the closed request for `change resume-halted`. ID and Revision
 // pin the exact marked record; AcknowledgeQuiescent is the explicit human
 // acknowledgement that the prior worker is quiescent — without it the operation
 // refuses before any effect.
 type ResumeRequest struct {
 	ID                   int    `json:"id" docket:"required"`
-	Version              string `json:"version" docket:"required"`
+	Revision             string `json:"version" docket:"required"`
 	AcknowledgeQuiescent bool   `json:"acknowledge_quiescent"`
 }
 
@@ -210,8 +210,8 @@ func ChangeHalt(ctx context.Context, deps PlanningDeps, repoDir string, req Halt
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Scope:     changeScope(req.ID, recPath, false),
@@ -323,8 +323,8 @@ func ChangeResumeHalted(ctx context.Context, deps PlanningDeps, wdeps WorkspaceD
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Scope:     changeScope(req.ID, recPath, false),
@@ -503,7 +503,7 @@ func classifyResumeAdmission(state string) (resumeAdmission, string, string) {
 // unterminated code fence is refused here — before repository preparation,
 // the transaction engine, or any metadata effect (change 0354).
 func validateHaltShape(req HaltRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	if strings.TrimSpace(req.Report) == "" {
 		findings = append(findings, lifecycleFinding(FCEmptyReport, "report must be a non-empty authored bounded halt report"))
 	}
@@ -529,7 +529,7 @@ func haltReportBodyDiagnostic(err error) string {
 // validateResumeShape runs the configuration-independent request checks for
 // `change resume-halted`.
 func validateResumeShape(req ResumeRequest) []StatusFinding {
-	return dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	return dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 }
 
 // changeHaltOp is the SemanticOperation the engine drives for `change halt`. It

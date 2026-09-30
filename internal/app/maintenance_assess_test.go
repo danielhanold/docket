@@ -127,7 +127,7 @@ func assessArtifactWithBacklink(interior string) StatusArtifact {
 		"<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
 		interior + "\n" +
 		"<!-- docket:backlink:end -->\n"
-	return StatusArtifact{Found: true, Version: "artv1", Data: []byte(body)}
+	return StatusArtifact{Found: true, Revision: "artv1", Data: []byte(body)}
 }
 
 // artifactDanglingMarker is a plan artifact whose backlink block has a start
@@ -136,7 +136,7 @@ func artifactDanglingMarker() StatusArtifact {
 	body := "## Plan\n\n" +
 		"<!-- docket:backlink:start (generated — do not hand-edit) -->\n" +
 		"> ↩ dangling with no end marker\n"
-	return StatusArtifact{Found: true, Version: "artbad", Data: []byte(body)}
+	return StatusArtifact{Found: true, Revision: "artbad", Data: []byte(body)}
 }
 
 func integrationArtifactKey(path string) string { return sourceIntegration + "|" + path }

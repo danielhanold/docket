@@ -17,26 +17,26 @@ import (
 // it can serve as a stable, greppable trailer value and directory-safe token.
 type OperationKey string
 
-// VersionKind distinguishes the two states an entity expectation can pin.
-type VersionKind string
+// RevisionKind distinguishes the two states an entity expectation can pin.
+type RevisionKind string
 
 // The closed set of version kinds.
 const (
-	VersionBlob   VersionKind = "blob"
-	VersionAbsent VersionKind = "absent"
+	RevisionBlob   RevisionKind = "blob"
+	RevisionAbsent RevisionKind = "absent"
 )
 
-// ExpectedVersion pins one entity's expected state on the fetched base tree: a
+// ExpectedRevision pins one entity's expected state on the fetched base tree: a
 // full-hex blob id, or provable absence.
-type ExpectedVersion struct {
-	Kind     VersionKind
+type ExpectedRevision struct {
+	Kind     RevisionKind
 	ObjectID gitcli.ObjectID // required for blob (full hex, exact); must be empty for absent
 }
 
 // EntityExpectation binds a repo-relative path to its expected version.
 type EntityExpectation struct {
-	Path    gitcli.RepoPath
-	Version ExpectedVersion
+	Path     gitcli.RepoPath
+	Revision ExpectedRevision
 }
 
 // RequestDigest is "sha256:" followed by 64 lowercase hex characters.
@@ -143,13 +143,13 @@ func validateExpectations(exps []EntityExpectation) error {
 		if err := validateRepoPathValue(e.Path); err != nil {
 			return err
 		}
-		switch e.Version.Kind {
-		case VersionBlob:
-			if err := validateFullObjectID(e.Version.ObjectID); err != nil {
+		switch e.Revision.Kind {
+		case RevisionBlob:
+			if err := validateFullObjectID(e.Revision.ObjectID); err != nil {
 				return err
 			}
-		case VersionAbsent:
-			if e.Version.ObjectID != "" {
+		case RevisionAbsent:
+			if e.Revision.ObjectID != "" {
 				return errors.New("transaction: absent expectation must have empty object id")
 			}
 		default:

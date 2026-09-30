@@ -26,7 +26,7 @@ import (
 // is discarded after the operation returns.
 type sweepObservation struct {
 	pin   StatusPin      // captured setup + this attempt's fresh MetadataRevision
-	inv   sweepInventory // snapshot + versionByPath at that revision
+	inv   sweepInventory // snapshot + revisionByPath at that revision
 	blobs []StatusBlob   // the exact corpus bytes, for the bound reader
 }
 

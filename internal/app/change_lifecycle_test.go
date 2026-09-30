@@ -63,13 +63,13 @@ func lifecycleChange(id int, slug, status string) string {
 
 func validBlockRequest() ChangeBlockRequest {
 	return ChangeBlockRequest{
-		ChangeID: 3, Path: groomPath(3, "widget"), Version: blobV, Reason: "waiting on upstream",
+		ChangeID: 3, Path: groomPath(3, "widget"), Revision: blobV, Reason: "waiting on upstream",
 	}
 }
 
 func validDeferRequest() ChangeDeferRequest {
 	return ChangeDeferRequest{
-		ChangeID: 3, Path: groomPath(3, "widget"), Version: blobV, WhyDeferred: "Parked pending a decision.\n",
+		ChangeID: 3, Path: groomPath(3, "widget"), Revision: blobV, WhyDeferred: "Parked pending a decision.\n",
 	}
 }
 
@@ -97,7 +97,7 @@ func TestChangeBlockRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}{
 		{"non-positive change id", func(r *ChangeBlockRequest) { r.ChangeID = 0 }, "invalid-change_id"},
 		{"empty path", func(r *ChangeBlockRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeBlockRequest) { r.Version = "" }, "empty-version"},
+		{"empty version", func(r *ChangeBlockRequest) { r.Revision = "" }, "empty-version"},
 		{"empty reason", func(r *ChangeBlockRequest) { r.Reason = "  " }, "empty-reason"},
 	}
 	for _, c := range cases {
@@ -131,7 +131,7 @@ func TestChangeDeferRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}{
 		{"non-positive change id", func(r *ChangeDeferRequest) { r.ChangeID = 0 }, "invalid-change_id"},
 		{"empty path", func(r *ChangeDeferRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeDeferRequest) { r.Version = "" }, "empty-version"},
+		{"empty version", func(r *ChangeDeferRequest) { r.Revision = "" }, "empty-version"},
 		{"empty why_deferred", func(r *ChangeDeferRequest) { r.WhyDeferred = "\n" }, "empty-why_deferred"},
 	}
 	for _, c := range cases {
@@ -407,11 +407,11 @@ func TestChangeBlockPlanToleratesMissingUpdatedField(t *testing.T) {
 // --- change unblock / change revive ------------------------------------------
 
 func validUnblockRequest() ChangeUnblockRequest {
-	return ChangeUnblockRequest{ChangeID: 3, Path: groomPath(3, "widget"), Version: blobV}
+	return ChangeUnblockRequest{ChangeID: 3, Path: groomPath(3, "widget"), Revision: blobV}
 }
 
 func validReviveRequest() ChangeReviveRequest {
-	return ChangeReviveRequest{ChangeID: 3, Path: groomPath(3, "widget"), Version: blobV}
+	return ChangeReviveRequest{ChangeID: 3, Path: groomPath(3, "widget"), Revision: blobV}
 }
 
 func unblockOp(surfaces []string, id int, recPath string) changeLifecycleOp {
@@ -441,7 +441,7 @@ func TestChangeUnblockRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	for _, c := range pinnedShapeCases {
 		t.Run(c.name, func(t *testing.T) {
 			req := validUnblockRequest()
-			c.mut(&req.ChangeID, &req.Path, &req.Version)
+			c.mut(&req.ChangeID, &req.Path, &req.Revision)
 			engine := &recordingEngine{}
 			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
 			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
@@ -468,7 +468,7 @@ func TestChangeReviveRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	for _, c := range pinnedShapeCases {
 		t.Run(c.name, func(t *testing.T) {
 			req := validReviveRequest()
-			c.mut(&req.ChangeID, &req.Path, &req.Version)
+			c.mut(&req.ChangeID, &req.Path, &req.Revision)
 			engine := &recordingEngine{}
 			reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
 			deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}

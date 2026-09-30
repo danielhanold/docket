@@ -114,7 +114,7 @@ func changeBlob(id int, slug, ctype, priority string, extra string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     fmt.Sprintf("docs/changes/active/%04d-%s.md", id, slug),
-		Version:  fmt.Sprintf("blobchange%04d", id),
+		Revision: fmt.Sprintf("blobchange%04d", id),
 		Data:     []byte(fm),
 	}
 }
@@ -125,7 +125,7 @@ func adrBlob(id int, slug string) StatusBlob {
 		Kind:     repository.KindADR,
 		Location: repository.LocationLedger,
 		Path:     fmt.Sprintf("docs/adrs/%04d-%s.md", id, slug),
-		Version:  fmt.Sprintf("blobadr%04d", id),
+		Revision: fmt.Sprintf("blobadr%04d", id),
 		Data:     []byte(fm),
 	}
 }
@@ -192,9 +192,9 @@ func TestStatusRecordsOptIn(t *testing.T) {
 	active := string(repository.LocationActive)
 	ledger := string(repository.LocationLedger)
 	want := []StatusRecord{
-		{Kind: "change", Identity: "0003", Location: active, Path: "docs/changes/active/0003-three.md", Version: "blobchange0003"},
-		{Kind: "change", Identity: "0009", Location: active, Path: "docs/changes/active/0009-nine.md", Version: "blobchange0009"},
-		{Kind: "adr", Identity: "0071", Location: ledger, Path: "docs/adrs/0071-z-adr.md", Version: "blobadr0071"},
+		{Kind: "change", Identity: "0003", Location: active, Path: "docs/changes/active/0003-three.md", Revision: "blobchange0003"},
+		{Kind: "change", Identity: "0009", Location: active, Path: "docs/changes/active/0009-nine.md", Revision: "blobchange0009"},
+		{Kind: "adr", Identity: "0071", Location: ledger, Path: "docs/adrs/0071-z-adr.md", Revision: "blobadr0071"},
 	}
 	if !reflect.DeepEqual(*res.Records, want) {
 		t.Fatalf("records content/order mismatch:\n got: %+v\nwant: %+v", *res.Records, want)
@@ -315,7 +315,7 @@ func TestStatusPartialDamage(t *testing.T) {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     "docs/changes/active/0030-broken.md",
-		Version:  "blobbroken",
+		Revision: "blobbroken",
 		Data:     []byte("---\nid: 30\n: not valid yaml :\n---\n"),
 	}
 	corpus := []StatusBlob{

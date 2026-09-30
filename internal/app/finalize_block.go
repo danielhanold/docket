@@ -133,7 +133,7 @@ const (
 	ReasonClearEvidenceUnverified = "evidence-unverified"
 )
 
-// BlockRequest is the closed request for `finalize block`. ID and Version pin
+// BlockRequest is the closed request for `finalize block`. ID and Revision pin
 // the exact submitted record; PRNumber is the pull request the owned comment is
 // ensured on; Attempt is the opaque owned attempt token that keys both the
 // comment marker and the section's idempotency; Reason is the stable machine
@@ -143,7 +143,7 @@ const (
 // ride inside the JSON and never reach a shell or Git/gh argument.
 type BlockRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Version  string `json:"version" docket:"required"`
+	Revision string `json:"version" docket:"required"`
 	PRNumber int    `json:"pr_number" docket:"required"`
 	Attempt  string `json:"attempt" docket:"required"`
 	Reason   string `json:"reason" docket:"required"`
@@ -153,12 +153,12 @@ type BlockRequest struct {
 }
 
 // ClearBlockRequest is the closed request for `finalize clear-block`. ID and
-// Version pin the exact submitted record; Head is the exact current feature head
+// Revision pin the exact submitted record; Head is the exact current feature head
 // the reprobe must confirm; PRNumber is the canonical PR whose open state is
 // reprobed.
 type ClearBlockRequest struct {
 	ID       int    `json:"id" docket:"required"`
-	Version  string `json:"version" docket:"required"`
+	Revision string `json:"version" docket:"required"`
 	Head     string `json:"head" docket:"required"`
 	PRNumber int    `json:"pr_number" docket:"required"`
 }
@@ -303,8 +303,8 @@ func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req B
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Scope:     changeScope(req.ID, recPath, false),
@@ -458,8 +458,8 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Scope:     changeScope(req.ID, recPath, false),
@@ -585,7 +585,7 @@ func decodeBlockReceipt(b []byte) (blockReceipt, bool) {
 // validateBlockShape runs the configuration-independent request checks for
 // `finalize block` that never reach the engine.
 func validateBlockShape(req BlockRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	addShape := func(code FindingCode, msg string) { findings = append(findings, lifecycleFinding(code, msg)) }
 	if req.PRNumber <= 0 {
 		addShape(FCInvalidPRNumber, "pr_number must be a positive pull-request number")
@@ -610,7 +610,7 @@ func validateBlockShape(req BlockRequest) []StatusFinding {
 // validateClearBlockShape runs the configuration-independent request checks for
 // `finalize clear-block`.
 func validateClearBlockShape(req ClearBlockRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	addShape := func(code FindingCode, msg string) { findings = append(findings, lifecycleFinding(code, msg)) }
 	if strings.TrimSpace(req.Head) == "" {
 		addShape(FCEmptyHead, "head must name the exact current feature head to reprobe")

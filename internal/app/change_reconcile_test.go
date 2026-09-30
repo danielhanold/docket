@@ -33,7 +33,7 @@ func reconcileFixture() string {
 func validReconcileRequest() ChangeReconcileRequest {
 	return ChangeReconcileRequest{
 		ID:                3,
-		Version:           blobV,
+		Revision:          blobV,
 		Sections:          map[string]string{"## Why": "Refined why.\n"},
 		Relations:         &DesiredRelations{DependsOn: []int{1}},
 		ReconcileLogEntry: "Fresh reconcile.\n",
@@ -332,7 +332,7 @@ func TestChangeReconcileRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		code string
 	}{
 		{"non-positive id", func(r *ChangeReconcileRequest) { r.ID = 0 }, "invalid-id"},
-		{"empty version", func(r *ChangeReconcileRequest) { r.Version = "" }, "empty-version"},
+		{"empty version", func(r *ChangeReconcileRequest) { r.Revision = "" }, "empty-version"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

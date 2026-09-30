@@ -76,7 +76,7 @@ func TestIntegrationFinalizeOpsFinalizePublishAfterCheckpointResume(t *testing.T
 	// then the publish is denied: no push happens, the remote and PR still hold
 	// the original head.
 	first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
 	if first.Disposition != RebaseDispRebased || gate.calls != 1 {
 		t.Fatalf("setup rebase = disp %q calls %d, want rebased/1", first.Disposition, gate.calls)
 	}
@@ -85,7 +85,7 @@ func TestIntegrationFinalizeOpsFinalizePublishAfterCheckpointResume(t *testing.T
 	// The resume reuses the checkpoint: skipped compose, evidence returned, no
 	// second suite run.
 	resume := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
 	if resume.Gate == nil || resume.Gate.Compose != gateComposeSkipped || gate.calls != 1 {
 		t.Fatalf("resume gate = %+v calls %d, want skipped with no re-run", resume.Gate, gate.calls)
 	}
@@ -95,7 +95,7 @@ func TestIntegrationFinalizeOpsFinalizePublishAfterCheckpointResume(t *testing.T
 	pubGH := &fakePublishGitHub{repo: retargetRepo(), pr: githubcli.PullRequest{
 		Number: 1, URL: "https://example.test/pr/1", State: githubcli.StateOpen,
 		HeadBranch: "feat/" + f.slug, HeadCommit: rewritten, BaseBranch: "main",
-		Title: "Add the widget", Body: authored, Version: "sha256:" + strings.Repeat("d", 64),
+		Title: "Add the widget", Body: authored, Revision: "sha256:" + strings.Repeat("d", 64),
 	}}
 	pres := FinalizePublish(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: pubGH, Workspace: f.svc},
 		f.repo.invocation, FinalizePublishRequest{

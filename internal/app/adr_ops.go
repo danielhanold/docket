@@ -53,9 +53,9 @@ type ADRRecordRequest struct {
 // current canonical path, and the exact full blob object id the transaction
 // expects that record to carry.
 type ADRProducingChange struct {
-	ID      int    `json:"id"`
-	Path    string `json:"path"`
-	Version string `json:"version"`
+	ID       int    `json:"id"`
+	Path     string `json:"path"`
+	Revision string `json:"version"`
 }
 
 // adrProducingChangePaths returns the producing change's record path as an ADR
@@ -118,7 +118,7 @@ type adrRecordReceipt struct {
 
 // adrRecordPayload is the request's semantic content — every input that governs
 // the produced records — minus the caller-chosen RequestID and the producing
-// change's concurrency Version pin (a pin, not semantic content). It is the
+// change's concurrency Revision pin (a pin, not semantic content). It is the
 // digest payload.
 type adrRecordPayload struct {
 	Title        string  `json:"title"`
@@ -206,8 +206,8 @@ func ADRRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, req ADR
 	// a concurrently moved change contends rather than being silently clobbered.
 	if req.Change != nil {
 		txReq.Expected = []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(req.Change.Path),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Change.Version)},
+			Path:     gitcli.RepoPath(req.Change.Path),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Change.Revision)},
 		}}
 	}
 
@@ -294,7 +294,7 @@ func validateADRContent(req ADRRecordRequest) []StatusFinding {
 		if strings.TrimSpace(req.Change.Path) == "" {
 			addShape(FCEmptyChangePath, "change.path must name the producing change's current canonical record path")
 		}
-		if strings.TrimSpace(req.Change.Version) == "" {
+		if strings.TrimSpace(req.Change.Revision) == "" {
 			addShape(FCEmptyChangeVersion, "change.version must be the exact full blob object id of the producing change")
 		}
 	}
@@ -604,9 +604,9 @@ const adrNotAcceptedReason = "adr-not-accepted"
 // current canonical path, and the exact full blob object id the transaction
 // expects that record to carry.
 type ADRTarget struct {
-	ID      int    `json:"id"`
-	Path    string `json:"path"`
-	Version string `json:"version"`
+	ID       int    `json:"id"`
+	Path     string `json:"path"`
+	Revision string `json:"version"`
 }
 
 // ADRReplaceRequest is the closed, caller-supplied request for one supersede or
@@ -621,7 +621,7 @@ type ADRReplaceRequest struct {
 
 // adrReplacePayload is the semantic content of a supersede/reverse — the verb,
 // the target identity, and the successor's authored content — minus the
-// caller-chosen RequestID and every concurrency Version pin. It is the digest
+// caller-chosen RequestID and every concurrency Revision pin. It is the digest
 // payload.
 type adrReplacePayload struct {
 	Op         string           `json:"op"`
@@ -701,13 +701,13 @@ func adrReplace(ctx context.Context, deps PlanningDeps, repoDir, opKey string, r
 	// supplied producing change adds a second one, so a concurrently moved record
 	// contends rather than being silently clobbered.
 	expected := []transaction.EntityExpectation{{
-		Path:    gitcli.RepoPath(req.Target.Path),
-		Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Target.Version)},
+		Path:     gitcli.RepoPath(req.Target.Path),
+		Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Target.Revision)},
 	}}
 	if req.Successor.Change != nil {
 		expected = append(expected, transaction.EntityExpectation{
-			Path:    gitcli.RepoPath(req.Successor.Change.Path),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Successor.Change.Version)},
+			Path:     gitcli.RepoPath(req.Successor.Change.Path),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Successor.Change.Revision)},
 		})
 	}
 
@@ -766,7 +766,7 @@ func validateADRReplaceShape(req ADRReplaceRequest) []StatusFinding {
 	if strings.TrimSpace(req.Target.Path) == "" {
 		findings = append(findings, adrFinding(FCEmptyTargetPath, "target.path must name the target ADR's current canonical record path"))
 	}
-	if strings.TrimSpace(req.Target.Version) == "" {
+	if strings.TrimSpace(req.Target.Revision) == "" {
 		findings = append(findings, adrFinding(FCEmptyTargetVersion, "target.version must be the exact full blob object id of the Accepted target"))
 	}
 	return append(findings, validateADRContent(req.Successor)...)

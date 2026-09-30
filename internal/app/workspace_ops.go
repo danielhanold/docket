@@ -63,12 +63,12 @@ const (
 	ReasonWorkspaceHeadMismatch = "head-mismatch"
 )
 
-// WorkspaceIDRequest is the closed request for prepare and inspect. Version is
+// WorkspaceIDRequest is the closed request for prepare and inspect. Revision is
 // required by prepare (the exact record blob the claim receipt reported) and is
 // ignored by inspect.
 type WorkspaceIDRequest struct {
-	ID      int    `json:"id"`
-	Version string `json:"version,omitempty"`
+	ID       int    `json:"id"`
+	Revision string `json:"version,omitempty"`
 }
 
 // WorkspacePublishRequest is the closed request for publish: the change and the
@@ -165,10 +165,10 @@ func newWorkspaceResult(opKey string, result Result, out WorkspaceOpResult) Work
 // a target and delegate: the resolved change, its exact record version, the
 // effective base, and the discovered repository.
 type workspaceContext struct {
-	change  domain.Change
-	version string
-	base    domain.EffectiveBase
-	repo    gitcli.Repository
+	change   domain.Change
+	revision string
+	base     domain.EffectiveBase
+	repo     gitcli.Repository
 	// snap is the authoritative corpus snapshot the context was resolved from. The
 	// carried-descendant preservation gate (proveCarriedOnHead) reads the live
 	// stacked_on graph from it, so a caller need not rebuild the snapshot.
@@ -217,10 +217,10 @@ func loadWorkspaceContext(ctx context.Context, deps PlanningDeps, repoDir string
 		return workspaceContext{}, &r
 	}
 
-	version := ""
+	revision := ""
 	for _, b := range blobs {
 		if b.Path == c.Path() {
-			version = b.Version
+			revision = b.Revision
 			break
 		}
 	}
@@ -240,11 +240,11 @@ func loadWorkspaceContext(ctx context.Context, deps PlanningDeps, repoDir string
 	}
 
 	return workspaceContext{
-		change:  c,
-		version: version,
-		base:    domain.ResolveEffectiveBase(snap, c, facts),
-		repo:    repo,
-		snap:    snap,
+		change:   c,
+		revision: revision,
+		base:     domain.ResolveEffectiveBase(snap, c, facts),
+		repo:     repo,
+		snap:     snap,
 	}, nil
 }
 
@@ -301,7 +301,7 @@ func WorkspacePrepare(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 			Message: fmt.Sprintf("change %04d is %q, not in-progress; claim it before preparing a workspace", req.ID, wc.change.RawStatus()),
 		})
 	}
-	if wc.version != req.Version {
+	if wc.revision != req.Revision {
 		return newWorkspaceResult(OperationWorkspacePrepare, ResultContended, WorkspaceOpResult{
 			ID:          req.ID,
 			Disposition: string(workspace.PrepareContended),

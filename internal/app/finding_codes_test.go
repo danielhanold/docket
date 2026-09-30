@@ -219,7 +219,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	}
 
 	zero := 0
-	badChange := ADRProducingChange{ID: 0, Path: "", Version: ""}
+	badChange := ADRProducingChange{ID: 0, Path: "", Revision: ""}
 	adrContent := ADRRecordRequest{Change: &badChange} // authored fields empty + a bad producing change
 
 	var emitted []StatusFinding
@@ -233,7 +233,7 @@ func TestShapeValidatorCodesAreRegistered(t *testing.T) {
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomRevise, SpecMarkdown: "# x\n"})...)
-	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial, SpecVersion: "a"})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial, SpecRevision: "a"})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomOutcome("bogus")})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomAbstain, Sections: []SectionEditRequest{{Heading: "## Why", Intent: "remove"}}})...)
 	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial, BlockedNote: "x"})...)

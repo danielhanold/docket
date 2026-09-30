@@ -70,7 +70,7 @@ func matrixRebaseCompletion(t *testing.T, m planRepoMode) {
 	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 	deps := f.finalizeDeps(gh, gate)
-	req := FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head}
+	req := FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head}
 
 	first := FinalizeRebase(context.Background(), deps, f.repo.invocation, req)
 	if first.Disposition != RebaseDispRebased || first.Attempt == "" {
@@ -291,8 +291,8 @@ func matrixChildRetarget(t *testing.T) {
 	}
 	engine := &recordingEngine{}
 	req := RetargetChildrenRequest{
-		ID: 80, Version: "blobfin0080",
-		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}},
+		ID: 80, Revision: "blobfin0080",
+		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}},
 	}
 
 	first := FinalizeRetargetChildren(context.Background(), retargetDeps(&fakeReader{pin: pin, corpus: corpus}, gh, engine), "", req)

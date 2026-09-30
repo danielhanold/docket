@@ -36,7 +36,7 @@ const batchMaxNumbers = 25
 // — a missing or null alias, a server number that disagrees with the request, or
 // a malformed required field — NEVER a closed/absent verdict. PR is normalized
 // exactly as ViewPullRequest normalizes (the shared toPullRequest path), so its
-// Version is byte-identical to a single view of the same snapshot. MergedAtUTC
+// Revision is byte-identical to a single view of the same snapshot. MergedAtUTC
 // and MergeCommit are populated only for a merged PR.
 type BatchPRResult struct {
 	Found       bool

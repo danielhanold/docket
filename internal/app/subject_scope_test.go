@@ -24,7 +24,7 @@ func scopeArchivedBlob(id int, slug, extra string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationArchive,
 		Path:     fmt.Sprintf("docs/changes/archive/2026-08-16-%04d-%s.md", id, slug),
-		Version:  fmt.Sprintf("blobarchive%04d", id),
+		Revision: fmt.Sprintf("blobarchive%04d", id),
 		Data:     []byte(fm),
 	}
 }

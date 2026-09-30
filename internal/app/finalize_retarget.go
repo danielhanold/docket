@@ -100,18 +100,18 @@ const (
 // from the context read: the child change id, its live PR number, and the PR's
 // opaque version the authorization was granted against.
 type AuthorizedChild struct {
-	ID        int    `json:"id"`
-	PRNumber  int    `json:"pr_number"`
-	PRVersion string `json:"pr_version"`
+	ID         int    `json:"id"`
+	PRNumber   int    `json:"pr_number"`
+	PRRevision string `json:"pr_version"`
 }
 
-// RetargetChildrenRequest is the closed request. ID and Version pin the parent
+// RetargetChildrenRequest is the closed request. ID and Revision pin the parent
 // record the authorization was based on (its exact entity version); Children is
 // the exact authorized set the human approved from the context read. The scalar
 // identities ride on flags; the authorized set rides in a bounded request file.
 type RetargetChildrenRequest struct {
 	ID       int               `json:"id" docket:"required"`
-	Version  string            `json:"version" docket:"required"`
+	Revision string            `json:"version" docket:"required"`
 	Children []AuthorizedChild `json:"children"`
 }
 
@@ -219,7 +219,7 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 	for _, b := range blobs {
 		blobByPath[b.Path] = b
 	}
-	if blobByPath[parent.Path()].Version != req.Version {
+	if blobByPath[parent.Path()].Revision != req.Revision {
 		return retargetRefusal(ResultContended, ReasonRetargetVersionDrift,
 			fmt.Sprintf("change %04d record version moved under the authorization; re-read context finalize", req.ID), req.ID)
 	}
@@ -324,7 +324,7 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 	var blockReason, blockMessage string
 	blockResult := ResultApplied
 	for _, auth := range queue {
-		outcome, _, rerr := deps.GitHub.RetargetPullRequest(ctx, repo, auth.PRNumber, auth.PRVersion, newBase)
+		outcome, _, rerr := deps.GitHub.RetargetPullRequest(ctx, repo, auth.PRNumber, auth.PRRevision, newBase)
 		switch outcome {
 		case githubcli.RetargetRetargeted:
 			edited = true
@@ -386,7 +386,7 @@ func childBlocksNothing(s domain.Status) bool {
 // never reach any external seam: the pinned parent id/version, and each authorized
 // child's id/pr_number/pr_version, with no duplicate child ids.
 func validateRetargetShape(req RetargetChildrenRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	seen := make(map[int]bool, len(req.Children))
 	for i, ch := range req.Children {
 		if ch.ID <= 0 {
@@ -397,7 +397,7 @@ func validateRetargetShape(req RetargetChildrenRequest) []StatusFinding {
 			findings = append(findings, lifecycleFinding(FCInvalidChildPRNumber,
 				fmt.Sprintf("children[%d].pr_number must be a positive pull-request number", i)))
 		}
-		if ch.PRVersion == "" {
+		if ch.PRRevision == "" {
 			findings = append(findings, lifecycleFinding(FCEmptyChildPRVersion,
 				fmt.Sprintf("children[%d].pr_version must be the exact PR version from context finalize", i)))
 		}

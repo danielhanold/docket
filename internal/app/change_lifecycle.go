@@ -45,42 +45,42 @@ const (
 const whyDeferredHeading = "## Why deferred"
 
 // ChangeBlockRequest is the closed, caller-supplied request for one block. Path
-// and Version pin the exact submitted record; Reason is the non-empty
+// and Revision pin the exact submitted record; Reason is the non-empty
 // blocked_by reason the domain records. Authored text rides inside the string
 // fields and is never interpolated into any shell command.
 type ChangeBlockRequest struct {
 	ChangeID int    `json:"change_id" docket:"required"`
 	Path     string `json:"path" docket:"required"`
-	Version  string `json:"version" docket:"required"`
+	Revision string `json:"version" docket:"required"`
 	Reason   string `json:"reason" docket:"required"`
 }
 
 // ChangeDeferRequest is the closed, caller-supplied request for one defer. Path
-// and Version pin the exact submitted record; WhyDeferred is the non-empty
+// and Revision pin the exact submitted record; WhyDeferred is the non-empty
 // authored ## Why deferred section body.
 type ChangeDeferRequest struct {
 	ChangeID    int    `json:"change_id" docket:"required"`
 	Path        string `json:"path" docket:"required"`
-	Version     string `json:"version" docket:"required"`
+	Revision    string `json:"version" docket:"required"`
 	WhyDeferred string `json:"why_deferred" docket:"required"`
 }
 
 // ChangeUnblockRequest is the closed, caller-supplied request for one unblock.
-// Path and Version pin the exact submitted record. No reason field: the commit
+// Path and Revision pin the exact submitted record. No reason field: the commit
 // subject records the transition and the cleared blocked_by text stays in git
 // history.
 type ChangeUnblockRequest struct {
 	ChangeID int    `json:"change_id" docket:"required"`
 	Path     string `json:"path" docket:"required"`
-	Version  string `json:"version" docket:"required"`
+	Revision string `json:"version" docket:"required"`
 }
 
 // ChangeReviveRequest is the closed, caller-supplied request for one revive.
-// Path and Version pin the exact submitted record.
+// Path and Revision pin the exact submitted record.
 type ChangeReviveRequest struct {
 	ChangeID int    `json:"change_id" docket:"required"`
 	Path     string `json:"path" docket:"required"`
-	Version  string `json:"version" docket:"required"`
+	Revision string `json:"version" docket:"required"`
 }
 
 // ChangeLifecycleResult is the protocol-v1 document every change lifecycle
@@ -131,7 +131,7 @@ type changeLifecycleReceipt struct {
 // transaction (bad request shape, an empty reason, a github board surface)
 // returns without an engine call.
 func ChangeBlock(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeBlockRequest) ChangeLifecycleResult {
-	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Revision)
 	if strings.TrimSpace(req.Reason) == "" {
 		findings = append(findings, lifecycleFinding(FCEmptyReason, "reason must be non-empty for a block"))
 	}
@@ -143,7 +143,7 @@ func ChangeBlock(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	action := func(c domain.Change) (domain.ActionResult, *domain.PolicyFailure) {
 		return domain.Block(c, reason)
 	}
-	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeBlock, req.ChangeID, req.Path, req.Version, action, nil)
+	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeBlock, req.ChangeID, req.Path, req.Revision, action, nil)
 }
 
 // ChangeDefer validates the request, pins authoritative context, and drives one
@@ -152,7 +152,7 @@ func ChangeBlock(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 // Every failure that predates the transaction (bad request shape, an empty
 // rationale, a github board surface) returns without an engine call.
 func ChangeDefer(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeDeferRequest) ChangeLifecycleResult {
-	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Revision)
 	if strings.TrimSpace(req.WhyDeferred) == "" {
 		findings = append(findings, lifecycleFinding(FCEmptyWhyDeferred, "why_deferred must be a non-empty authored section body"))
 	}
@@ -166,7 +166,7 @@ func ChangeDefer(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	sections := []render.SectionEdit{
 		{Heading: whyDeferredHeading, Intent: render.SectionReplace, Markdown: req.WhyDeferred},
 	}
-	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeDefer, req.ChangeID, req.Path, req.Version, action, sections)
+	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeDefer, req.ChangeID, req.Path, req.Revision, action, sections)
 }
 
 // ChangeUnblock validates the request, pins authoritative context, and drives
@@ -175,14 +175,14 @@ func ChangeDefer(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 // Every failure that predates the transaction (bad request shape, a github
 // board surface) returns without an engine call.
 func ChangeUnblock(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeUnblockRequest) ChangeLifecycleResult {
-	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Revision)
 	if len(findings) > 0 {
 		return newChangeLifecycleResult(OperationChangeUnblock, ResultInvalidInput, ChangeLifecycleResult{Findings: findings})
 	}
 	action := func(c domain.Change) (domain.ActionResult, *domain.PolicyFailure) {
 		return domain.Unblock(c)
 	}
-	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeUnblock, req.ChangeID, req.Path, req.Version, action, nil)
+	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeUnblock, req.ChangeID, req.Path, req.Revision, action, nil)
 }
 
 // ChangeRevive validates the request, pins authoritative context, and drives
@@ -191,14 +191,14 @@ func ChangeUnblock(ctx context.Context, deps PlanningDeps, repoDir string, req C
 // domain.Revive's contract. Every failure that predates the transaction (bad
 // request shape, a github board surface) returns without an engine call.
 func ChangeRevive(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeReviveRequest) ChangeLifecycleResult {
-	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Revision)
 	if len(findings) > 0 {
 		return newChangeLifecycleResult(OperationChangeRevive, ResultInvalidInput, ChangeLifecycleResult{Findings: findings})
 	}
 	action := func(c domain.Change) (domain.ActionResult, *domain.PolicyFailure) {
 		return domain.Revive(c)
 	}
-	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeRevive, req.ChangeID, req.Path, req.Version, action, nil)
+	return executeChangeLifecycle(ctx, deps, repoDir, OperationChangeRevive, req.ChangeID, req.Path, req.Revision, action, nil)
 }
 
 // executeChangeLifecycle is the shared driver every transition composes after
@@ -206,7 +206,7 @@ func ChangeRevive(ctx context.Context, deps PlanningDeps, repoDir string, req Ch
 // surface, discovers the repository, and submits one exact-version transaction
 // carrying the supplied domain action and section edits.
 func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opKey string,
-	id int, recPath, version string,
+	id int, recPath, revision string,
 	action func(domain.Change) (domain.ActionResult, *domain.PolicyFailure), sections []render.SectionEdit) ChangeLifecycleResult {
 
 	// Pin authoritative context: the metadata mode, branches, and resolved
@@ -253,8 +253,8 @@ func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opK
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Scope:     changeScope(id, recPath, false),
@@ -289,7 +289,7 @@ func lifecycleResultFromOutcome(opKey string, res transaction.Result, execErr er
 // "change_id"), so the id-shape finding names the real key in its message; its
 // code is the registered FindingCode invalidIDCode selects for that key by a
 // fail-closed lookup over invalidIDCodeByKey.
-func validateLifecycleShape(idKey string, id int, recPath, version string) []StatusFinding {
+func validateLifecycleShape(idKey string, id int, recPath, revision string) []StatusFinding {
 	var findings []StatusFinding
 	if id <= 0 {
 		findings = append(findings, lifecycleFinding(invalidIDCode(idKey), idKey+" must be a positive change id"))
@@ -297,7 +297,7 @@ func validateLifecycleShape(idKey string, id int, recPath, version string) []Sta
 	if strings.TrimSpace(recPath) == "" {
 		findings = append(findings, lifecycleFinding(FCEmptyPath, "path must name the change's current canonical record path"))
 	}
-	if strings.TrimSpace(version) == "" {
+	if strings.TrimSpace(revision) == "" {
 		findings = append(findings, lifecycleFinding(FCEmptyVersion, "version must be the exact full blob object id of the submitted record"))
 	}
 	return findings

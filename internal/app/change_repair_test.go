@@ -117,7 +117,7 @@ func repairBlob(id int, slug, branch, version string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Version:  version,
+		Revision: version,
 		Data:     []byte(repairRecord(id, slug, branch)),
 	}
 }
@@ -160,12 +160,12 @@ func assertRepairRefused(t *testing.T, res RepairIdentityResult, wantResult Resu
 // --- clause 1: stale version ------------------------------------------------
 
 // TestRepairStaleVersionRefused proves clause 1: a change record whose current
-// version no longer equals the approved ExpectVersion lost the race and is
+// version no longer equals the approved ExpectRevision lost the race and is
 // refused as stale-evidence, opening no transaction.
 func TestRepairStaleVersionRefused(t *testing.T) {
 	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", "differentversion0000000000000000000000000"), repairGitHub("feat/widget"))
 	res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
+		ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
 	})
 	assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
 }
@@ -178,7 +178,7 @@ func TestRepairStaleVersionRefused(t *testing.T) {
 func TestRepairStaleHeadRefused(t *testing.T) {
 	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/actual"))
 	res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/approved",
+		ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/approved",
 	})
 	assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
 }
@@ -190,7 +190,7 @@ func TestRepairViewErrorIsUnknownNotApplied(t *testing.T) {
 	gh.viewErr = errors.New("gh pr view: network boom")
 	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairVersion), gh)
 	res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
+		ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
 	})
 	assertRepairRefused(t, res, ResultExternalFailed, RepairPRUnknown, engine)
 	if len(gh.viewCalls) != 1 || gh.viewCalls[0] != 7 {
@@ -208,7 +208,7 @@ func TestRepairAdoptPRRequiresHeadEqualsRecorded(t *testing.T) {
 	t.Run("unparseable-ref-is-invalid-request", func(t *testing.T) {
 		deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/widget"))
 		res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
-			ID: 3, ExpectVersion: repairVersion, AdoptPR: "not-a-pr-reference", ExpectBranch: "feat/widget",
+			ID: 3, ExpectRevision: repairVersion, AdoptPR: "not-a-pr-reference", ExpectBranch: "feat/widget",
 		})
 		assertRepairRefused(t, res, ResultInvalidInput, RepairInvalidRequest, engine)
 	})
@@ -217,7 +217,7 @@ func TestRepairAdoptPRRequiresHeadEqualsRecorded(t *testing.T) {
 		// The record carries feat/widget, but the human approved feat/other.
 		deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/widget"))
 		res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
-			ID: 3, ExpectVersion: repairVersion, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/other",
+			ID: 3, ExpectRevision: repairVersion, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/other",
 		})
 		assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
 	})
@@ -227,7 +227,7 @@ func TestRepairAdoptPRRequiresHeadEqualsRecorded(t *testing.T) {
 		// the supplied PR does not prove identity.
 		deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/elsewhere"))
 		res := RepairIdentity(context.Background(), deps, "/repo", RepairIdentityRequest{
-			ID: 3, ExpectVersion: repairVersion, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/widget",
+			ID: 3, ExpectRevision: repairVersion, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/widget",
 		})
 		assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
 	})
@@ -243,11 +243,11 @@ func TestRepairInvalidRequestShape(t *testing.T) {
 		name string
 		req  RepairIdentityRequest
 	}{
-		{"neither-mode", RepairIdentityRequest{ID: 3, ExpectVersion: repairVersion}},
-		{"both-modes", RepairIdentityRequest{ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget", AdoptPR: "x#1", ExpectBranch: "feat/widget"}},
-		{"head-mode-missing-head", RepairIdentityRequest{ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7}},
-		{"head-mode-missing-number", RepairIdentityRequest{ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectHead: "feat/widget"}},
-		{"pr-mode-missing-branch", RepairIdentityRequest{ID: 3, ExpectVersion: repairVersion, AdoptPR: "x#1"}},
+		{"neither-mode", RepairIdentityRequest{ID: 3, ExpectRevision: repairVersion}},
+		{"both-modes", RepairIdentityRequest{ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget", AdoptPR: "x#1", ExpectBranch: "feat/widget"}},
+		{"head-mode-missing-head", RepairIdentityRequest{ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7}},
+		{"head-mode-missing-number", RepairIdentityRequest{ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectHead: "feat/widget"}},
+		{"pr-mode-missing-branch", RepairIdentityRequest{ID: 3, ExpectRevision: repairVersion, AdoptPR: "x#1"}},
 		{"empty-version", RepairIdentityRequest{ID: 3, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -426,7 +426,7 @@ func repairRealRun(t *testing.T, repo *gitRepo, recPath string) RepairIdentityRe
 		Workspace: &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}},
 	}
 	return RepairIdentity(context.Background(), deps, node.dir, RepairIdentityRequest{
-		ID: 3, ExpectVersion: blobVersionAt(t, repo.origin, "docket", recPath),
+		ID: 3, ExpectRevision: blobVersionAt(t, repo.origin, "docket", recPath),
 		AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 }

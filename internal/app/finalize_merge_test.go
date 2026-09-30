@@ -176,7 +176,7 @@ func (f *mergeFixture) parentPR(head string, body string) githubcli.PullRequest 
 	return githubcli.PullRequest{
 		Number: mergeCanonicalPRNumber, URL: "https://example.test/pr/7", State: githubcli.StateOpen,
 		HeadBranch: "feat/" + f.slug, HeadCommit: head, BaseBranch: "main",
-		Title: "Add the widget", Body: body, Version: "sha256:" + strings.Repeat("d", 64),
+		Title: "Add the widget", Body: body, Revision: "sha256:" + strings.Repeat("d", 64),
 	}
 }
 
@@ -207,12 +207,12 @@ func (f *mergeFixture) mergeFeatureIntoBase(t *testing.T) string {
 func mergedFactsFor(head, base, mergeCommit string) githubcli.MergedFacts {
 	return githubcli.MergedFacts{
 		HeadOID: head, BaseRef: base, MergedAtUTC: "2026-08-18T12:00:00Z",
-		MergeCommit: mergeCommit, Version: "sha256:" + strings.Repeat("d", 64),
+		MergeCommit: mergeCommit, Revision: "sha256:" + strings.Repeat("d", 64),
 	}
 }
 
 func mergeReq(f *mergeFixture, head string, explicit, admin bool) FinalizeMergeRequest {
-	return FinalizeMergeRequest{ID: f.id, Version: f.version, Head: head, Admin: admin, ExplicitID: explicit}
+	return FinalizeMergeRequest{ID: f.id, Revision: f.version, Head: head, Admin: admin, ExplicitID: explicit}
 }
 
 // --- TestMergeConjuncts (pure) --------------------------------------------

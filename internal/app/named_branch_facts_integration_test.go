@@ -46,7 +46,7 @@ func TestIntegrationContextProbeChangeClaimProbesOnlyOwnStack(t *testing.T) {
 		node := planningDepsFor(t, repo.invocation)
 		node.deps.Reader = poisoned(node.deps.Reader, "feat/a-parent")
 		res := ChangeClaim(context.Background(), node.deps, node.dir,
-			ChangeClaimRequest{ID: 3, Version: blobVersionAt(t, repo.origin, "docket", groomPath(3, "widget"))})
+			ChangeClaimRequest{ID: 3, Revision: blobVersionAt(t, repo.origin, "docket", groomPath(3, "widget"))})
 		if res.Result != ResultApplied {
 			t.Fatalf("claim beside an unprobeable unrelated stack = %q (disposition %q findings %v), want applied", res.Result, res.Disposition, res.Findings)
 		}
@@ -56,7 +56,7 @@ func TestIntegrationContextProbeChangeClaimProbesOnlyOwnStack(t *testing.T) {
 		node := planningDepsFor(t, repo.invocation)
 		node.deps.Reader = poisoned(node.deps.Reader, "feat/b-parent")
 		res := ChangeClaim(context.Background(), node.deps, node.dir,
-			ChangeClaimRequest{ID: 3, Version: blobVersionAt(t, repo.origin, "docket", groomPath(3, "widget"))})
+			ChangeClaimRequest{ID: 3, Revision: blobVersionAt(t, repo.origin, "docket", groomPath(3, "widget"))})
 		msg := ""
 		for _, f := range res.Findings {
 			msg += f.Message
@@ -125,7 +125,7 @@ func TestIntegrationContextProbeFinalizeClearBlockProbesOnlyOwnStack(t *testing.
 			Workspace: &fakeRepairWorkspace{inspectErr: probeErr},
 		}
 		return FinalizeClearBlock(context.Background(), deps, node.dir, ClearBlockRequest{
-			ID: 3, Version: blobVersionAt(t, repo.origin, "docket", groomPath(3, "widget")), Head: prHead, PRNumber: 7,
+			ID: 3, Revision: blobVersionAt(t, repo.origin, "docket", groomPath(3, "widget")), Head: prHead, PRNumber: 7,
 		})
 	}
 	t.Run("unrelated-poison-does-not-block", func(t *testing.T) {

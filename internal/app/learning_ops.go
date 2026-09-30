@@ -56,14 +56,14 @@ type LearningRecordRequest struct {
 }
 
 // LearningUpdateRequest is the closed, caller-supplied request for one update.
-// Path and Version pin the exact submitted record. Hook (when non-empty),
+// Path and Revision pin the exact submitted record. Hook (when non-empty),
 // Topics (when non-nil), and Changes (when non-nil) are the complete desired
 // values; Sections carries the owned ## Apply / ## War story edits. A request
 // whose planned bytes match the current record commits nothing (the engine's
 // no-op).
 type LearningUpdateRequest struct {
 	Path     string               `json:"path" docket:"required"`
-	Version  string               `json:"version" docket:"required"`
+	Revision string               `json:"version" docket:"required"`
 	Hook     string               `json:"hook"`
 	Topics   []string             `json:"topics"`
 	Changes  []int                `json:"changes"`
@@ -258,8 +258,8 @@ func LearningUpdate(ctx context.Context, deps PlanningDeps, repoDir string, req 
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(req.Path),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(req.Path),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Operation: op,
@@ -348,7 +348,7 @@ func validateLearningUpdateShape(req LearningUpdateRequest) []StatusFinding {
 	if strings.TrimSpace(req.Path) == "" {
 		findings = append(findings, learningFinding(FCEmptyPath, "path must name the finding's current canonical record path"))
 	}
-	if strings.TrimSpace(req.Version) == "" {
+	if strings.TrimSpace(req.Revision) == "" {
 		findings = append(findings, learningFinding(FCEmptyVersion, "version must be the exact full blob object id of the submitted record"))
 	}
 	findings = append(findings, validateLearningSections(req.Sections)...)

@@ -125,7 +125,7 @@ func TestIntegrationChangeAuthoringADRRecordWithProducingChangeCarriesExpectatio
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
 
 	req := validADRRecordRequest()
-	req.Change = &ADRProducingChange{ID: 1, Path: "docs/changes/active/0001-first.md", Version: blobV}
+	req.Change = &ADRProducingChange{ID: 1, Path: "docs/changes/active/0001-first.md", Revision: blobV}
 
 	res := ADRRecordOp(context.Background(), deps, repoDir, req)
 
@@ -143,8 +143,8 @@ func TestIntegrationChangeAuthoringADRRecordWithProducingChangeCarriesExpectatio
 	if string(exp.Path) != "docs/changes/active/0001-first.md" {
 		t.Errorf("expectation path = %q", exp.Path)
 	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("expectation version = %+v", exp.Version)
+	if exp.Revision.Kind != transaction.RevisionBlob || string(exp.Revision.ObjectID) != blobV {
+		t.Errorf("expectation version = %+v", exp.Revision)
 	}
 }
 
@@ -206,8 +206,8 @@ func TestIntegrationChangeAuthoringADRSupersedeAppliedResult(t *testing.T) {
 	if string(exp.Path) != "docs/adrs/0001-one.md" {
 		t.Errorf("target expectation path = %q", exp.Path)
 	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("target expectation version = %+v", exp.Version)
+	if exp.Revision.Kind != transaction.RevisionBlob || string(exp.Revision.ObjectID) != blobV {
+		t.Errorf("target expectation version = %+v", exp.Revision)
 	}
 }
 
@@ -269,7 +269,7 @@ func TestIntegrationChangeAuthoringADRSupersedeWithProducingChangeCarriesTwoExpe
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
 
 	req := validADRReplaceRequest()
-	req.Successor.Change = &ADRProducingChange{ID: 3, Path: "docs/changes/active/0003-third.md", Version: blobV}
+	req.Successor.Change = &ADRProducingChange{ID: 3, Path: "docs/changes/active/0003-third.md", Revision: blobV}
 
 	res := ADRSupersede(context.Background(), deps, repoDir, req)
 	if res.Result != ResultContended {
@@ -336,8 +336,8 @@ func TestIntegrationChangeAuthoringBlockAppliedResult(t *testing.T) {
 	if string(exp.Path) != groomPath(3, "widget") {
 		t.Errorf("expectation path = %q", exp.Path)
 	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("expectation version = %+v", exp.Version)
+	if exp.Revision.Kind != transaction.RevisionBlob || string(exp.Revision.ObjectID) != blobV {
+		t.Errorf("expectation version = %+v", exp.Revision)
 	}
 }
 
@@ -362,7 +362,7 @@ func TestIntegrationChangeAuthoringClaimApplies(t *testing.T) {
 		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
 		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
 
-		res := ChangeClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Version: version})
+		res := ChangeClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Revision: version})
 
 		if res.Result != ResultApplied {
 			t.Fatalf("result = %q, want applied (findings %v)", res.Result, res.Findings)
@@ -397,8 +397,8 @@ func TestIntegrationChangeAuthoringClaimApplies(t *testing.T) {
 		if string(exp.Path) != "docs/changes/active/0003-widget.md" {
 			t.Errorf("expectation path = %q", exp.Path)
 		}
-		if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != version {
-			t.Errorf("expectation version = %+v, want the request's exact version", exp.Version)
+		if exp.Revision.Kind != transaction.RevisionBlob || string(exp.Revision.ObjectID) != version {
+			t.Errorf("expectation version = %+v, want the request's exact version", exp.Revision)
 		}
 		if req.Idempotency == nil || req.Idempotency.RequestID != "claim-3-"+version {
 			t.Errorf("idempotency key = %+v, want a stable per-request id", req.Idempotency)
@@ -501,7 +501,7 @@ func TestIntegrationChangeAuthoringClaimRefusals(t *testing.T) {
 		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
 		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
 
-		res := ChangeClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Version: "9999999999999999999999999999999999999999"})
+		res := ChangeClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Revision: "9999999999999999999999999999999999999999"})
 
 		if res.Result != ResultContended || res.Disposition != ClaimDispositionContended {
 			t.Fatalf("result=%q disposition=%q, want contended/contended", res.Result, res.Disposition)
@@ -522,7 +522,7 @@ func TestIntegrationChangeAuthoringClaimRefusals(t *testing.T) {
 		}}
 		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
 
-		res := ChangeClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Version: "1234123412341234123412341234123412341234"})
+		res := ChangeClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Revision: "1234123412341234123412341234123412341234"})
 
 		if res.Result != ResultInvalidState || res.Disposition != "ambiguous-change" {
 			t.Fatalf("result=%q disposition=%q, want invalid-state/ambiguous-change", res.Result, res.Disposition)
@@ -542,7 +542,7 @@ func TestIntegrationChangeAuthoringClaimRetryConvergence(t *testing.T) {
 		engine := &recordingEngine{result: res}
 		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
 		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-		return ChangeClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Version: "1234123412341234123412341234123412341234"})
+		return ChangeClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Revision: "1234123412341234123412341234123412341234"})
 	}
 
 	t.Run("matching identity replays as already-claimed", func(t *testing.T) {
@@ -799,8 +799,8 @@ func assertSingleLifecycleEngineCall(t *testing.T, engine *recordingEngine, op s
 	if string(exp.Path) != groomPath(3, "widget") {
 		t.Errorf("expectation path = %q", exp.Path)
 	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("expectation version = %+v, want blob %s", exp.Version, blobV)
+	if exp.Revision.Kind != transaction.RevisionBlob || string(exp.Revision.ObjectID) != blobV {
+		t.Errorf("expectation version = %+v, want blob %s", exp.Revision, blobV)
 	}
 }
 
@@ -1540,9 +1540,9 @@ func TestIntegrationChangeAuthoringGroomAppliedResult(t *testing.T) {
 	if string(exp.Path) != groomPath(2, "add-a-widget") {
 		t.Errorf("expectation path = %q", exp.Path)
 	}
-	if exp.Version.Kind != transaction.VersionBlob ||
-		string(exp.Version.ObjectID) != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
-		t.Errorf("expectation version = %+v", exp.Version)
+	if exp.Revision.Kind != transaction.RevisionBlob ||
+		string(exp.Revision.ObjectID) != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Errorf("expectation version = %+v", exp.Revision)
 	}
 }
 
@@ -1627,8 +1627,8 @@ func TestIntegrationChangeAuthoringKillAppliedResult(t *testing.T) {
 	if string(exp.Path) != groomPath(3, "widget") {
 		t.Errorf("expectation path = %q", exp.Path)
 	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("expectation version = %+v", exp.Version)
+	if exp.Revision.Kind != transaction.RevisionBlob || string(exp.Revision.ObjectID) != blobV {
+		t.Errorf("expectation version = %+v", exp.Revision)
 	}
 }
 
@@ -1784,8 +1784,8 @@ func TestIntegrationChangeAuthoringLearningUpdateAppliedResultCarriesExactVersio
 	if string(exp.Path) != learningPath("a-lesson") {
 		t.Errorf("expectation path = %q", exp.Path)
 	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("expectation version = %+v", exp.Version)
+	if exp.Revision.Kind != transaction.RevisionBlob || string(exp.Revision.ObjectID) != blobV {
+		t.Errorf("expectation version = %+v", exp.Revision)
 	}
 }
 
@@ -1860,7 +1860,7 @@ func TestIntegrationChangeRuntimeMarkImplementedAppliesEndToEnd(t *testing.T) {
 		t.Fatalf("engine calls = %d, want exactly 1", len(engine.calls))
 	}
 	exp := engine.calls[0].Expected
-	if len(exp) != 1 || string(exp[0].Version.ObjectID) != miVersion {
+	if len(exp) != 1 || string(exp[0].Revision.ObjectID) != miVersion {
 		t.Errorf("transaction did not pin the exact version: %+v", exp)
 	}
 	if engine.calls[0].Operation.Key() != transaction.OperationKey(OperationChangeMarkImplemented) {
@@ -2097,7 +2097,7 @@ func TestIntegrationChangeRuntimeMarkImplementedRetry(t *testing.T) {
 	src = strings.Replace(src, "status: in-progress", "status: implemented", 1)
 	src = strings.Replace(src, "plan:\n", "plan: '"+miPlanPath()+"'\n", 1)
 	src = strings.Replace(src, "blocked_by:\n", "pr: '"+pr+"'\nblocked_by:\n", 1)
-	blob := StatusBlob{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, miSlug), Version: miVersion, Data: []byte(src)}
+	blob := StatusBlob{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, miSlug), Revision: miVersion, Data: []byte(src)}
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{blob}, facts: domain.NewBranchFacts(nil)}
 	engine := &recordingEngine{}
 	deps := PlanningDeps{Client: client, Engine: engine, Reader: reader, Clock: testClock()}
@@ -2105,7 +2105,7 @@ func TestIntegrationChangeRuntimeMarkImplementedRetry(t *testing.T) {
 	gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{happyPR(head)}}}
 
 	res := ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, repo.invocation,
-		MarkImplementedRequest{ID: 3, Version: miVersion, Head: head, PR: pr, EvidenceRecord: prEvidenceBytes(t, head)})
+		MarkImplementedRequest{ID: 3, Revision: miVersion, Head: head, PR: pr, EvidenceRecord: prEvidenceBytes(t, head)})
 
 	if res.Result != ResultNoOp {
 		t.Fatalf("retry result = %q, want no-op (findings %v)", res.Result, res.Findings)
@@ -2137,7 +2137,7 @@ func TestIntegrationChangeRuntimeMarkImplementedRetryCrossForm(t *testing.T) {
 	src = strings.Replace(src, "blocked_by:\n", "pr: '"+miPRURL()+"'\nblocked_by:\n", 1)
 
 	newDeps := func() (PlanningDeps, WorkspaceDeps, GitHubDeps, *recordingEngine) {
-		blob := StatusBlob{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, miSlug), Version: miVersion, Data: []byte(src)}
+		blob := StatusBlob{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, miSlug), Revision: miVersion, Data: []byte(src)}
 		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{blob}, facts: domain.NewBranchFacts(nil)}
 		engine := &recordingEngine{}
 		deps := PlanningDeps{Client: client, Engine: engine, Reader: reader, Clock: testClock()}
@@ -2149,7 +2149,7 @@ func TestIntegrationChangeRuntimeMarkImplementedRetryCrossForm(t *testing.T) {
 	// Same PR asserted in the shorthand form: response-loss replay ⇒ no-op.
 	deps, wdeps, gdeps, engine := newDeps()
 	res := ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, repo.invocation,
-		MarkImplementedRequest{ID: 3, Version: miVersion, Head: head, PR: prRepo().Spec() + "#42", EvidenceRecord: prEvidenceBytes(t, head)})
+		MarkImplementedRequest{ID: 3, Revision: miVersion, Head: head, PR: prRepo().Spec() + "#42", EvidenceRecord: prEvidenceBytes(t, head)})
 	if res.Result != ResultNoOp {
 		t.Fatalf("cross-form replay result = %q, want no-op (findings %v)", res.Result, res.Findings)
 	}
@@ -2160,7 +2160,7 @@ func TestIntegrationChangeRuntimeMarkImplementedRetryCrossForm(t *testing.T) {
 	// A different PR number: genuine conflict ⇒ contended.
 	deps, wdeps, gdeps, engine = newDeps()
 	res = ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, repo.invocation,
-		MarkImplementedRequest{ID: 3, Version: miVersion, Head: head, PR: prRepo().Spec() + "#99", EvidenceRecord: prEvidenceBytes(t, head)})
+		MarkImplementedRequest{ID: 3, Revision: miVersion, Head: head, PR: prRepo().Spec() + "#99", EvidenceRecord: prEvidenceBytes(t, head)})
 	if res.Result != ResultContended {
 		t.Fatalf("different-PR replay result = %q, want contended (findings %v)", res.Result, res.Findings)
 	}
@@ -2415,7 +2415,7 @@ func TestIntegrationChangeRuntimeReclaimIndependentOfAutoPolicy(t *testing.T) {
 	node := planningDepsFor(t, repo.invocation)
 	ver := blobVersionAt(t, repo.origin, "docket", recPath)
 	res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
-		ChangeReclaimRequest{ID: 3, Version: ver})
+		ChangeReclaimRequest{ID: 3, Revision: ver})
 	if res.Result != ResultApplied || res.Disposition != ReclaimDispReclaimed {
 		t.Fatalf("explicit reclaim under reclaim.auto:false = (%q, %q) findings=%v", res.Result, res.Disposition, res.Findings)
 	}
@@ -2434,7 +2434,7 @@ func TestIntegrationChangeRuntimeReclaimMalformedLeaseSkips(t *testing.T) {
 	ver := blobVersionAt(t, repo.origin, "docket", recPath)
 	before, _ := originFile(t, repo.origin, "docket", recPath)
 	res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
-		ChangeReclaimRequest{ID: 3, Version: ver})
+		ChangeReclaimRequest{ID: 3, Revision: ver})
 	if res.Result == ResultApplied {
 		t.Fatalf("a malformed lease was reclaimed: %q", res.Result)
 	}
@@ -2464,7 +2464,7 @@ func TestIntegrationChangeRuntimeReclaimRequiresProvenAbsence(t *testing.T) {
 				ver := blobVersionAt(t, repo.origin, m.branch, recPath)
 				before, _ := originFile(t, repo.origin, m.branch, recPath)
 				res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
-					ChangeReclaimRequest{ID: 3, Version: ver})
+					ChangeReclaimRequest{ID: 3, Revision: ver})
 				assertReclaimSkipped(t, res, ReasonReclaimBranchPresent)
 				assertOriginRecordUnchanged(t, repo.origin, m.branch, recPath, before)
 			})
@@ -2481,7 +2481,7 @@ func TestIntegrationChangeRuntimeReclaimRequiresProvenAbsence(t *testing.T) {
 				ver := blobVersionAt(t, repo.origin, m.branch, recPath)
 				before, _ := originFile(t, repo.origin, m.branch, recPath)
 				res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
-					ChangeReclaimRequest{ID: 3, Version: ver})
+					ChangeReclaimRequest{ID: 3, Revision: ver})
 				assertReclaimSkipped(t, res, ReasonReclaimBranchPresent)
 				assertOriginRecordUnchanged(t, repo.origin, m.branch, recPath, before)
 			})
@@ -2494,7 +2494,7 @@ func TestIntegrationChangeRuntimeReclaimRequiresProvenAbsence(t *testing.T) {
 				ver := blobVersionAt(t, repo.origin, m.branch, recPath)
 				before, _ := originFile(t, repo.origin, m.branch, recPath)
 				res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
-					ChangeReclaimRequest{ID: 3, Version: ver})
+					ChangeReclaimRequest{ID: 3, Revision: ver})
 				assertReclaimSkipped(t, res, ReasonReclaimBranchPresent)
 				assertOriginRecordUnchanged(t, repo.origin, m.branch, recPath, before)
 			})
@@ -2508,7 +2508,7 @@ func TestIntegrationChangeRuntimeReclaimRequiresProvenAbsence(t *testing.T) {
 					before, _ := originFile(t, repo.origin, m.branch, recPath)
 					res := ChangeReclaim(context.Background(), node.deps,
 						WorkspaceDeps{Service: fakeReclaimWorkspace{kind: kind}}, node.dir,
-						ChangeReclaimRequest{ID: 3, Version: ver})
+						ChangeReclaimRequest{ID: 3, Revision: ver})
 					assertReclaimSkipped(t, res, ReasonReclaimWorkspaceActive)
 					assertOriginRecordUnchanged(t, repo.origin, m.branch, recPath, before)
 				}
@@ -2524,7 +2524,7 @@ func TestIntegrationChangeRuntimeReclaimRequiresProvenAbsence(t *testing.T) {
 				ver := blobVersionAt(t, repo.origin, m.branch, recPath)
 				res := ChangeReclaim(context.Background(), node.deps,
 					WorkspaceDeps{Service: fakeReclaimWorkspace{kind: workspace.StateAbsent}}, node.dir,
-					ChangeReclaimRequest{ID: 3, Version: ver})
+					ChangeReclaimRequest{ID: 3, Revision: ver})
 				if res.Reason == ReasonReclaimWorkspaceActive {
 					t.Fatalf("an absent workspace raised the workspace-active refusal; reason=%q", res.Reason)
 				}
@@ -2538,7 +2538,7 @@ func TestIntegrationChangeRuntimeReclaimRequiresProvenAbsence(t *testing.T) {
 				before, _ := originFile(t, repo.origin, m.branch, recPath)
 				res := ChangeReclaim(context.Background(), node.deps,
 					WorkspaceDeps{Service: fakeReclaimWorkspace{err: errors.New("inspect boom")}}, node.dir,
-					ChangeReclaimRequest{ID: 3, Version: ver})
+					ChangeReclaimRequest{ID: 3, Revision: ver})
 				assertReclaimSkipped(t, res, ReasonReclaimWorkspaceProbe)
 				assertOriginRecordUnchanged(t, repo.origin, m.branch, recPath, before)
 			})
@@ -2562,7 +2562,7 @@ func TestIntegrationChangeRuntimeReclaimTransaction(t *testing.T) {
 				node := planningDepsFor(t, repo.invocation)
 				ver := blobVersionAt(t, repo.origin, m.branch, recPath)
 				res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
-					ChangeReclaimRequest{ID: 3, Version: ver})
+					ChangeReclaimRequest{ID: 3, Revision: ver})
 				if res.Result != ResultApplied || res.Disposition != ReclaimDispReclaimed {
 					t.Fatalf("reclaim = (%q, %q) reason=%q findings=%v", res.Result, res.Disposition, res.Reason, res.Findings)
 				}
@@ -2593,7 +2593,7 @@ func TestIntegrationChangeRuntimeReclaimTransaction(t *testing.T) {
 				node := planningDepsFor(t, repo.invocation)
 				before, _ := originFile(t, repo.origin, m.branch, recPath)
 				res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
-					ChangeReclaimRequest{ID: 3, Version: strings.Repeat("b", 40)})
+					ChangeReclaimRequest{ID: 3, Revision: strings.Repeat("b", 40)})
 				if res.Result != ResultContended {
 					t.Fatalf("version drift = %q, want contended", res.Result)
 				}
@@ -2621,7 +2621,7 @@ func TestIntegrationChangeRuntimeReclaimUnreachableRemoteFailsClosed(t *testing.
 	// Break the remote so no origin state can be authoritatively read or probed.
 	runGit(t, repo.invocation, "remote", "set-url", "origin", testsupport.TempDir(t)+"/nonexistent.git")
 	res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
-		ChangeReclaimRequest{ID: 3, Version: ver})
+		ChangeReclaimRequest{ID: 3, Revision: ver})
 	if res.Result == ResultApplied {
 		t.Fatalf("an unreachable remote was reclaimed: %q", res.Result)
 	}
@@ -2676,8 +2676,8 @@ func TestIntegrationChangeAuthoringReconcileAppliedResult(t *testing.T) {
 	if string(exp.Path) != groomPath(3, "widget") {
 		t.Errorf("expectation path = %q", exp.Path)
 	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("expectation version = %+v, want the request's exact version", exp.Version)
+	if exp.Revision.Kind != transaction.RevisionBlob || string(exp.Revision.ObjectID) != blobV {
+		t.Errorf("expectation version = %+v, want the request's exact version", exp.Revision)
 	}
 }
 
@@ -2788,7 +2788,7 @@ func TestIntegrationChangeAuthoringRefreshClaimStampsOnly(t *testing.T) {
 		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
 		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
 
-		res := ChangeRefreshClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Version: "9999999999999999999999999999999999999999"})
+		res := ChangeRefreshClaim(context.Background(), deps, repoDir, ChangeClaimRequest{ID: 3, Revision: "9999999999999999999999999999999999999999"})
 
 		if res.Result != ResultContended || res.Disposition != ClaimDispositionContended {
 			t.Fatalf("result=%q disposition=%q, want contended/contended", res.Result, res.Disposition)
@@ -2807,7 +2807,7 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadPinsExactVersion(t *testing.T)
 	engine.result = transaction.Result{Disposition: transaction.DispositionApplied, AppliedCommit: gitcli.ObjectID(strings.Repeat("c", 40))}
 
 	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	if res.Result != ResultApplied || res.Reason != RepairRepairedBranch {
 		t.Fatalf("repair = (%q, %q)", res.Result, res.Reason)
@@ -2816,7 +2816,7 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadPinsExactVersion(t *testing.T)
 		t.Fatalf("engine calls = %d, want exactly 1", len(engine.calls))
 	}
 	exp := engine.calls[0].Expected
-	if len(exp) != 1 || string(exp[0].Version.ObjectID) != repairVersion {
+	if len(exp) != 1 || string(exp[0].Revision.ObjectID) != repairVersion {
 		t.Errorf("transaction did not pin the exact approved version: %+v", exp)
 	}
 	if engine.calls[0].Operation.Key() != transaction.OperationKey(OperationChangeRepairIdentity) {
@@ -2839,7 +2839,7 @@ func TestIntegrationChangeRuntimeRepairAbsentWorkspaceNoConflict(t *testing.T) {
 	engine.result = transaction.Result{Disposition: transaction.DispositionApplied, AppliedCommit: gitcli.ObjectID(strings.Repeat("c", 40))}
 
 	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	if res.Result != ResultApplied || res.Reason != RepairRepairedBranch {
 		t.Fatalf("an absent workspace must not conflict: result=%q reason=%q msg=%q", res.Result, res.Reason, res.Message)
@@ -2865,7 +2865,7 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadWritesBranch(t *testing.T) {
 	deps := FinalizeDeps{Planning: node.deps, GitHub: gh, Workspace: ws}
 
 	res := RepairIdentity(context.Background(), deps, node.dir, RepairIdentityRequest{
-		ID: 3, ExpectVersion: ver, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: ver, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	if res.Result != ResultApplied || res.Reason != RepairRepairedBranch {
 		t.Fatalf("repair = (%q, %q) msg=%q findings=%v", res.Result, res.Reason, res.Message, res.Findings)
@@ -2896,7 +2896,7 @@ func TestIntegrationChangeRuntimeRepairCandidateBranchAbsent(t *testing.T) {
 	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
 	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	assertRepairRefused(t, res, ResultInvalidState, RepairCandidateBranchAbsent, engine)
 	if len(ws.inspectCalls) != 0 {
@@ -2914,7 +2914,7 @@ func TestIntegrationChangeRuntimeRepairInspectErrorIsConflict(t *testing.T) {
 	ws := &fakeRepairWorkspace{inspectErr: errors.New("inspect boom")}
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
 	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	assertRepairRefused(t, res, ResultInvalidState, RepairWorkspaceConflict, engine)
 }
@@ -2935,7 +2935,7 @@ func TestIntegrationChangeRuntimeRepairWorkspaceConflictBlocks(t *testing.T) {
 	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateReady}}
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
 	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
 	assertRepairRefused(t, res, ResultInvalidState, RepairWorkspaceConflict, engine)
 	if len(ws.inspectCalls) != 1 {
@@ -2958,7 +2958,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 				f := setupHaltedFixture(t, m)
 				got := ChangeResumeHalted(context.Background(), f.deps,
 					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateResumable, head: f.head}}, f.repo.invocation,
-					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+					ResumeRequest{ID: f.id, Revision: f.version, AcknowledgeQuiescent: true})
 				if got.Reason != ReasonResumeWorkspaceActive {
 					t.Fatalf("reason=%q, want %q", got.Reason, ReasonResumeWorkspaceActive)
 				}
@@ -2973,7 +2973,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 				f := setupHaltedFixture(t, m)
 				got := ChangeResumeHalted(context.Background(), f.deps,
 					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
-					ResumeRequest{ID: f.id, Version: strings.Repeat("b", 40), AcknowledgeQuiescent: true})
+					ResumeRequest{ID: f.id, Revision: strings.Repeat("b", 40), AcknowledgeQuiescent: true})
 				if got.Result != ResultContended {
 					t.Fatalf("result=%q disp=%q, want contended", got.Result, got.Disposition)
 				}
@@ -2985,7 +2985,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 				f := setupHaltedFixture(t, m)
 				got := ChangeResumeHalted(context.Background(), f.deps,
 					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
-					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+					ResumeRequest{ID: f.id, Revision: f.version, AcknowledgeQuiescent: true})
 				if got.Result != ResultApplied || got.Disposition != HaltDispResumed {
 					t.Fatalf("result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
 				}
@@ -3016,7 +3016,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 				runGit(t, f.repo.origin, "update-ref", "-d", "refs/heads/feat/widget")
 				got := ChangeResumeHalted(context.Background(), f.deps,
 					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateAbsent, head: f.head}}, f.repo.invocation,
-					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+					ResumeRequest{ID: f.id, Revision: f.version, AcknowledgeQuiescent: true})
 				if got.Result != ResultApplied || got.Disposition != HaltDispResumed {
 					t.Fatalf("result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
 				}
@@ -3039,7 +3039,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 				runGit(t, f.wp, "push", "origin", "feat/widget")
 				got := ChangeResumeHalted(context.Background(), f.deps,
 					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateAbsent, head: f.head}}, f.repo.invocation,
-					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+					ResumeRequest{ID: f.id, Revision: f.version, AcknowledgeQuiescent: true})
 				if got.Result != ResultBlocked || got.Reason != ReasonResumeRemoteBranchPresent {
 					t.Fatalf("result=%q reason=%q, want blocked/%s", got.Result, got.Reason, ReasonResumeRemoteBranchPresent)
 				}
@@ -3056,7 +3056,7 @@ func TestIntegrationChangeRuntimeResumeHalted(t *testing.T) {
 				f := setupHaltedFixture(t, m)
 				got := ChangeResumeHalted(context.Background(), f.deps,
 					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateKind("weird-new-state"), head: f.head}}, f.repo.invocation,
-					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+					ResumeRequest{ID: f.id, Revision: f.version, AcknowledgeQuiescent: true})
 				if got.Result != ResultBlocked || got.Reason != ReasonResumeUnknownState {
 					t.Fatalf("result=%q reason=%q, want blocked/%s", got.Result, got.Reason, ReasonResumeUnknownState)
 				}
@@ -3081,7 +3081,7 @@ func TestIntegrationChangeRuntimeUnblockThenResumeHalted(t *testing.T) {
 
 			// 1. Block the halted change through the real engine.
 			blocked := ChangeBlock(context.Background(), f.deps, f.repo.invocation, ChangeBlockRequest{
-				ChangeID: f.id, Path: recPath, Version: f.version, Reason: "waiting on 0446",
+				ChangeID: f.id, Path: recPath, Revision: f.version, Reason: "waiting on 0446",
 			})
 			if blocked.Result != ResultApplied || blocked.Status != "blocked" {
 				t.Fatalf("block = %q status %q (findings %v), want applied blocked",
@@ -3101,7 +3101,7 @@ func TestIntegrationChangeRuntimeUnblockThenResumeHalted(t *testing.T) {
 
 			// 3. Unblock with the post-block version.
 			unblocked := ChangeUnblock(context.Background(), f.deps, f.repo.invocation, ChangeUnblockRequest{
-				ChangeID: f.id, Path: recPath, Version: blobVersionAt(t, f.repo.origin, f.branch, recPath),
+				ChangeID: f.id, Path: recPath, Revision: blobVersionAt(t, f.repo.origin, f.branch, recPath),
 			})
 			if unblocked.Result != ResultApplied || unblocked.Status != "in-progress" {
 				t.Fatalf("unblock = %q status %q (findings %v), want applied in-progress",
@@ -3127,7 +3127,7 @@ func TestIntegrationChangeRuntimeUnblockThenResumeHalted(t *testing.T) {
 			// version recovers the change and removes exactly the marker.
 			resumed := ChangeResumeHalted(context.Background(), f.deps,
 				WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
-				ResumeRequest{ID: f.id, Version: blobVersionAt(t, f.repo.origin, f.branch, recPath), AcknowledgeQuiescent: true})
+				ResumeRequest{ID: f.id, Revision: blobVersionAt(t, f.repo.origin, f.branch, recPath), AcknowledgeQuiescent: true})
 			if resumed.Result != ResultApplied || resumed.Disposition != HaltDispResumed {
 				t.Fatalf("resume = %q disp %q reason %q", resumed.Result, resumed.Disposition, resumed.Reason)
 			}
@@ -3165,7 +3165,7 @@ func TestIntegrationChangeRuntimeDeferThenRevive(t *testing.T) {
 
 			// 1. Defer the proposed change through the real engine.
 			deferred := ChangeDefer(ctx, node.deps, node.dir, ChangeDeferRequest{
-				ChangeID: id, Path: recPath, Version: blobVersionAt(t, repo.origin, m.branch, recPath),
+				ChangeID: id, Path: recPath, Revision: blobVersionAt(t, repo.origin, m.branch, recPath),
 				WhyDeferred: "Parked pending a decision.\n",
 			})
 			if deferred.Result != ResultApplied || deferred.Status != "deferred" {
@@ -3176,7 +3176,7 @@ func TestIntegrationChangeRuntimeDeferThenRevive(t *testing.T) {
 
 			// 2. Revive with the post-defer version.
 			revived := ChangeRevive(ctx, node.deps, node.dir, ChangeReviveRequest{
-				ChangeID: id, Path: recPath, Version: blobVersionAt(t, repo.origin, m.branch, recPath),
+				ChangeID: id, Path: recPath, Revision: blobVersionAt(t, repo.origin, m.branch, recPath),
 			})
 			if revived.Result != ResultApplied || revived.Status != "proposed" {
 				t.Fatalf("revive = %q status %q (findings %v), want applied proposed",
@@ -3284,7 +3284,7 @@ func TestIntegrationChangeRuntimeResumeHaltedRemoteProbeErrors(t *testing.T) {
 					Kind:     repository.KindChange,
 					Location: repository.LocationActive,
 					Path:     groomPath(f.id, f.slug),
-					Version:  f.version,
+					Revision: f.version,
 					Data:     []byte(halted),
 				}},
 				facts: domain.NewBranchFacts(nil),
@@ -3292,7 +3292,7 @@ func TestIntegrationChangeRuntimeResumeHaltedRemoteProbeErrors(t *testing.T) {
 
 			got := ChangeResumeHalted(context.Background(), deps,
 				WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateAbsent, head: f.head}}, f.repo.invocation,
-				ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+				ResumeRequest{ID: f.id, Revision: f.version, AcknowledgeQuiescent: true})
 			if got.Result != ResultBlocked || got.Reason != ReasonResumeWorkspaceProbe {
 				t.Fatalf("result=%q reason=%q, want blocked/%s", got.Result, got.Reason, ReasonResumeWorkspaceProbe)
 			}
@@ -3348,7 +3348,7 @@ func TestIntegrationChangeRuntimeResumeHaltedPreallocation(t *testing.T) {
 			// service. Under the pre-0368 conflation the real service reports the
 			// absent slot as foreign and this refuses with workspace-writer-active.
 			got := ChangeResumeHalted(context.Background(), f.deps, wdeps, f.repo.invocation,
-				ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
+				ResumeRequest{ID: f.id, Revision: f.version, AcknowledgeQuiescent: true})
 			if got.Result != ResultApplied || got.Disposition != HaltDispResumed {
 				t.Fatalf("resume through the real service: result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
 			}
@@ -3389,7 +3389,7 @@ func TestIntegrationChangeRuntimeResumeHaltedPreallocation(t *testing.T) {
 			// normal later step. Re-read the fresh record version first.
 			version := blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
 			prep := WorkspacePrepare(context.Background(), f.deps, wdeps, f.repo.invocation,
-				WorkspaceIDRequest{ID: f.id, Version: version})
+				WorkspaceIDRequest{ID: f.id, Revision: version})
 			if prep.Result != ResultApplied {
 				t.Fatalf("post-resume prepare: result=%q reason=%q message=%q", prep.Result, prep.Reason, prep.Message)
 			}
@@ -3421,7 +3421,7 @@ func TestIntegrationChangeRuntimeHaltResumeCycle(t *testing.T) {
 			// Re-halt with a valid body carrying a fenced heading example.
 			report := "Wedged on resume.\n\n```\n## Run halted\n```\n"
 			halted := ChangeHalt(context.Background(), f.deps, f.repo.invocation,
-				HaltRequest{ID: f.id, Version: f.version, Report: report})
+				HaltRequest{ID: f.id, Revision: f.version, Report: report})
 			if halted.Result != ResultApplied || halted.Disposition != HaltDispHalted {
 				t.Fatalf("halt: result=%q disp=%q reason=%q", halted.Result, halted.Disposition, halted.Reason)
 			}
@@ -3447,7 +3447,7 @@ func TestIntegrationChangeRuntimeHaltResumeCycle(t *testing.T) {
 			version := blobVersionAt(t, f.repo.origin, f.branch, recPath)
 			resumed := ChangeResumeHalted(context.Background(), f.deps,
 				WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
-				ResumeRequest{ID: f.id, Version: version, AcknowledgeQuiescent: true})
+				ResumeRequest{ID: f.id, Revision: version, AcknowledgeQuiescent: true})
 			if resumed.Result != ResultApplied || resumed.Disposition != HaltDispResumed {
 				t.Fatalf("resume: result=%q disp=%q reason=%q", resumed.Result, resumed.Disposition, resumed.Reason)
 			}
@@ -3476,7 +3476,7 @@ func TestIntegrationChangeRuntimeHaltMalformedReportHasNoEffects(t *testing.T) {
 			recPath := groomPath(f.id, f.slug)
 			before, _ := originFile(t, f.repo.origin, f.branch, recPath)
 			got := ChangeHalt(context.Background(), f.deps, f.repo.invocation,
-				HaltRequest{ID: f.id, Version: f.version, Report: "## Run halted\n\ndoubled\n"})
+				HaltRequest{ID: f.id, Revision: f.version, Report: "## Run halted\n\ndoubled\n"})
 			if got.Result != ResultInvalidInput {
 				t.Fatalf("result=%q, want %q", got.Result, ResultInvalidInput)
 			}
@@ -3506,7 +3506,7 @@ func TestIntegrationChangeRuntimeHaltCorruptedRecordStillRefused(t *testing.T) {
 			f.version = blobVersionAt(t, f.repo.origin, f.branch, recPath)
 
 			got := ChangeHalt(context.Background(), f.deps, f.repo.invocation,
-				HaltRequest{ID: f.id, Version: f.version, Report: "A valid body.\n"})
+				HaltRequest{ID: f.id, Revision: f.version, Report: "A valid body.\n"})
 			if got.Result == ResultApplied || got.Disposition == HaltDispHalted {
 				t.Fatalf("halt applied over a corrupted record: result=%q disp=%q", got.Result, got.Disposition)
 			}
@@ -3904,7 +3904,7 @@ func TestIntegrationChangeRuntimeRunVerdictRunHalted(t *testing.T) {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(3, "widget"),
-		Version:  miVersion,
+		Revision: miVersion,
 		Data:     []byte(src),
 	}}
 	deps := runTrackerLightDeps(t, corpus)
@@ -4359,7 +4359,7 @@ func TestIntegrationChangeAuthoringReviseAppliedResult(t *testing.T) {
 	// Plan against the path the record links (no caller-supplied spec path).
 	exp := engine.calls[0].Expected
 	if len(exp) != 1 ||
-		string(exp[0].Path) != validReviseRequest().Path || string(exp[0].Version.ObjectID) != validReviseRequest().Version {
+		string(exp[0].Path) != validReviseRequest().Path || string(exp[0].Revision.ObjectID) != validReviseRequest().Revision {
 		t.Errorf("revise did not pin exactly the submitted record version: %+v", exp)
 	}
 }

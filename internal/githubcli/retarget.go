@@ -13,7 +13,7 @@ package githubcli
 //	2. if the PR is ALREADY at newBase the promised end-state holds — `already`,
 //	   no edit (idempotency keyed on the promised remote state, never on the CAS
 //	   version, which a completed retarget has already changed);
-//	3. otherwise an edit is authorized only when the caller's ExpectedVersion
+//	3. otherwise an edit is authorized only when the caller's ExpectedRevision
 //	   equals the live version — an empty or mismatched version is `contended` and
 //	   leaves the PR untouched;
 //	4. `gh pr edit <n> --base <newBase>` carries the base as an explicit argv flag,
@@ -44,7 +44,7 @@ const (
 	RetargetRetargeted RetargetOutcome = "retargeted"
 	// RetargetAlready: the PR already sat at newBase; no edit was issued.
 	RetargetAlready RetargetOutcome = "already"
-	// RetargetContended: the live version diverged from ExpectedVersion, or a
+	// RetargetContended: the live version diverged from ExpectedRevision, or a
 	// verified snapshot still showed a different base; the PR is left untouched.
 	RetargetContended RetargetOutcome = "contended"
 	// RetargetUnknown: an external probe could not establish the truth; nothing
@@ -57,7 +57,7 @@ const (
 // unknown (including invalid input) carries a typed *Failure so the caller has a
 // diagnostic. The PR snapshot is populated on retargeted/already and is the zero
 // value otherwise.
-func (c *Client) RetargetPullRequest(ctx context.Context, repo Repository, number int, expectedVersion, newBase string) (RetargetOutcome, PullRequest, error) {
+func (c *Client) RetargetPullRequest(ctx context.Context, repo Repository, number int, expectedRevision, newBase string) (RetargetOutcome, PullRequest, error) {
 	if err := validateRepository(repo); err != nil {
 		return RetargetUnknown, PullRequest{}, newFailure(retargetOp, StageValidate, KindInvalidInput, "repository identity invalid: "+err.Error(), err)
 	}
@@ -82,7 +82,7 @@ func (c *Client) RetargetPullRequest(ctx context.Context, repo Repository, numbe
 	}
 
 	// An edit is authorized only by the exact live version.
-	if expectedVersion == "" || expectedVersion != pr.Version {
+	if expectedRevision == "" || expectedRevision != pr.Revision {
 		return RetargetContended, PullRequest{}, nil
 	}
 

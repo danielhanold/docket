@@ -490,12 +490,12 @@ func checkExpectations(ctx context.Context, tree Tree, exps []EntityExpectation)
 	var mismatched []gitcli.RepoPath
 	for _, e := range exps {
 		entry, present := byPath[e.Path]
-		switch e.Version.Kind {
-		case VersionBlob:
-			if !present || entry.ObjectID != e.Version.ObjectID {
+		switch e.Revision.Kind {
+		case RevisionBlob:
+			if !present || entry.ObjectID != e.Revision.ObjectID {
 				mismatched = append(mismatched, e.Path)
 			}
-		case VersionAbsent:
+		case RevisionAbsent:
 			if present {
 				mismatched = append(mismatched, e.Path)
 			}

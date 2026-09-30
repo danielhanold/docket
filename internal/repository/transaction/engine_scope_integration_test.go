@@ -115,7 +115,7 @@ func TestIntegrationTxnApplyEngineScopeRefusesRelevantBeforeErrors(t *testing.T)
 			var exp []EntityExpectation
 			if c.pinA {
 				exp = []EntityExpectation{{Path: scopeUnrelatedPath,
-					Version: ExpectedVersion{Kind: VersionBlob, ObjectID: r.blobID(t, scopeUnrelatedPath)}}}
+					Revision: ExpectedRevision{Kind: RevisionBlob, ObjectID: r.blobID(t, scopeUnrelatedPath)}}}
 			}
 
 			op := editSubjectOp()

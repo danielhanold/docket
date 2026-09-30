@@ -132,12 +132,12 @@ const (
 )
 
 // FinalizeRebaseRequest is the closed request for `finalize rebase`. ID and
-// Version pin the exact implemented record; Head is the expected local feature
+// Revision pin the exact implemented record; Head is the expected local feature
 // head the rebase begins from (the authorization was computed against it).
 type FinalizeRebaseRequest struct {
-	ID      int    `json:"id" docket:"required"`
-	Version string `json:"version" docket:"required"`
-	Head    string `json:"head" docket:"required"`
+	ID       int    `json:"id" docket:"required"`
+	Revision string `json:"version" docket:"required"`
+	Head     string `json:"head" docket:"required"`
 }
 
 // ResolverReport is the versioned, bounded JSON envelope a conflict-resolver
@@ -591,14 +591,14 @@ func admitPublishedRefresh(pr githubcli.PullRequest, rec workspace.RebaseReceipt
 // change and its exact record version, the validated workspace target, the
 // read-only inspection, and the derived checkout and metadata directories.
 type rebaseContext struct {
-	repo    gitcli.Repository
-	change  domain.Change
-	version string
-	base    domain.EffectiveBase
-	target  workspace.Target
-	insp    workspace.Inspection
-	wsDir   string
-	metaDir string
+	repo     gitcli.Repository
+	change   domain.Change
+	revision string
+	base     domain.EffectiveBase
+	target   workspace.Target
+	insp     workspace.Inspection
+	wsDir    string
+	metaDir  string
 	// snap is the corpus snapshot the context was resolved from; the carried-
 	// descendant preservation gate reads the live stacked_on graph from it.
 	snap domain.Snapshot
@@ -624,15 +624,15 @@ func loadRebaseContext(ctx context.Context, deps FinalizeDeps, repoDir string, o
 		return nil, &r
 	}
 	return &rebaseContext{
-		repo:    wc.repo,
-		change:  wc.change,
-		version: wc.version,
-		base:    wc.base,
-		target:  target,
-		insp:    insp,
-		wsDir:   insp.Path,
-		metaDir: workspace.MetaDir(wc.repo.CommonDir, target.FeatureRef),
-		snap:    wc.snap,
+		repo:     wc.repo,
+		change:   wc.change,
+		revision: wc.revision,
+		base:     wc.base,
+		target:   target,
+		insp:     insp,
+		wsDir:    insp.Path,
+		metaDir:  workspace.MetaDir(wc.repo.CommonDir, target.FeatureRef),
+		snap:     wc.snap,
 	}, nil
 }
 
@@ -723,7 +723,7 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseNotImplemented,
 			fmt.Sprintf("change %04d is %q, not implemented; there is nothing to rebase", id, rc.change.RawStatus()), id)
 	}
-	if rc.version != req.Version {
+	if rc.revision != req.Revision {
 		return rebaseRefusal(op, ResultContended, RebaseDispContended, ReasonRebaseVersionDrift,
 			"the change record moved since the submitted version; re-read context finalize", id)
 	}
@@ -1941,7 +1941,7 @@ func newRebaseAttempt(deps FinalizeDeps, baseHead gitcli.ObjectID) string {
 // `finalize rebase`: a positive id, a non-empty pinned version, and a valid
 // full-length object id for the expected head.
 func validateRebaseShape(req FinalizeRebaseRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	if !validFullObjectID(req.Head) {
 		findings = append(findings, lifecycleFinding(FCInvalidHead,
 			"head must be a full 40- or 64-character lowercase hex object id"))

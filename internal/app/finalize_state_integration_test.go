@@ -22,7 +22,7 @@ func TestIntegrationFinalizeStateBlockCommentThenMarker(t *testing.T) {
 			t.Run("created-writes-marker", func(t *testing.T) {
 				f := setupRebaseFixtureStatus(t, m, "in-progress")
 				gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
-				req := BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
+				req := BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
 					Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix and retry.\n"}
 				got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, req)
 				if got.Result != ResultApplied || got.Disposition != BlockDispRecorded {
@@ -48,7 +48,7 @@ func TestIntegrationFinalizeStateBlockCommentThenMarker(t *testing.T) {
 			t.Run("already-comment-replays-marker", func(t *testing.T) {
 				f := setupRebaseFixtureStatus(t, m, "in-progress")
 				gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentAlready, commentURL: "https://example.test/c/9"}
-				req := BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
+				req := BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
 					Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix.\n"}
 				got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, req)
 				if got.Result != ResultApplied || got.Disposition != BlockDispRecorded {
@@ -64,7 +64,7 @@ func TestIntegrationFinalizeStateBlockCommentThenMarker(t *testing.T) {
 				f := setupRebaseFixtureStatus(t, m, "in-progress")
 				before := originTip(t, f.repo.origin, f.branch)
 				gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentUnknown}
-				req := BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
+				req := BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
 					Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix.\n"}
 				got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, req)
 				if got.Disposition != BlockDispUnknown || got.Reason != ReasonBlockCommentUnknown {
@@ -151,7 +151,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
 					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
+					ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
 				if got.Result != ResultApplied || got.Disposition != BlockDispCleared {
 					t.Fatalf("result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
 				}
@@ -167,7 +167,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
 					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Version: f.version, Head: strings.Repeat("b", 40), PRNumber: 1})
+					ClearBlockRequest{ID: f.id, Revision: f.version, Head: strings.Repeat("b", 40), PRNumber: 1})
 				if got.Reason != ReasonClearHeadMismatch {
 					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearHeadMismatch)
 				}
@@ -182,7 +182,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 				f := setupBlockedFixture(t, m)
 				gh := &fakeBlockGitHub{repo: retargetRepo(), openByHead: map[string][]githubcli.PullRequest{}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
+					ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
 				if got.Reason != ReasonClearPRNotOpen {
 					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearPRNotOpen)
 				}
@@ -194,7 +194,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
 					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, "")}}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
+					ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
 				if got.Reason != ReasonClearEvidenceUnverified {
 					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearEvidenceUnverified)
 				}
@@ -271,8 +271,8 @@ func TestIntegrationFinalizeStateConcurrentMovement(t *testing.T) {
 		}
 		engine := &recordingEngine{}
 		req := RetargetChildrenRequest{
-			ID: 80, Version: "blobfin0080",
-			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}},
+			ID: 80, Revision: "blobfin0080",
+			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}},
 		}
 		res := FinalizeRetargetChildren(context.Background(), retargetDeps(&fakeReader{pin: pin, corpus: corpus}, gh, engine), "", req)
 		if res.Result == ResultApplied {
@@ -768,7 +768,7 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 		staleVersion := f.version
 		gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
 		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}
-		req := BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
+		req := BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
 			Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix.\n"}
 
 		// 1. First block records the marker in a metadata commit.
@@ -784,7 +784,7 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 
 		// 2. Repeat the SAME attempt against the current (post-commit) version: a
 		//    real no-op, not invalid-input.
-		req.Version = blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+		req.Revision = blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
 		second := FinalizeBlock(context.Background(), deps, f.repo.invocation, req)
 		if second.Result != ResultNoOp || second.Disposition != BlockDispAlready {
 			t.Fatalf("repeated block: result=%q disp=%q reason=%q msg=%q, want no-op/already",
@@ -806,7 +806,7 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 
 		// 4. Stale-version refusal is unchanged — the no-op repair did not weaken
 		//    the engine's exact-version expectation checking.
-		req.Version = staleVersion
+		req.Revision = staleVersion
 		stale := FinalizeBlock(context.Background(), deps, f.repo.invocation, req)
 		if stale.Result != ResultContended || stale.Disposition != BlockDispContended {
 			t.Fatalf("stale-version block: result=%q disp=%q reason=%q, want contended/contended", stale.Result, stale.Disposition, stale.Reason)
@@ -823,7 +823,7 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}
 		before := originTip(t, f.repo.origin, f.branch)
 		got := FinalizeClearBlock(context.Background(), deps, f.repo.invocation,
-			ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
+			ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
 		if got.Result != ResultNoOp || got.Disposition != BlockDispNothingToClear {
 			t.Fatalf("absent-marker clear-block: result=%q disp=%q reason=%q msg=%q, want no-op/nothing-to-clear",
 				got.Result, got.Disposition, got.Reason, got.Message)

@@ -79,7 +79,7 @@ func TestIntegrationRecordOpsRepairAdoptPRHeadAppliesOnMalformedRecordedBranch(t
 			}
 			deps := FinalizeDeps{Planning: node.deps, GitHub: repairGitHub("feat/renamed"), Workspace: svc}
 			res := RepairIdentity(context.Background(), deps, node.dir, RepairIdentityRequest{
-				ID: 3, ExpectVersion: blobVersionAt(t, repo.origin, "docket", recPath),
+				ID: 3, ExpectRevision: blobVersionAt(t, repo.origin, "docket", recPath),
 				AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 			})
 			if res.Result != ResultApplied || res.Branch != "feat/renamed" {

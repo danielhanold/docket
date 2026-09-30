@@ -124,14 +124,14 @@ const (
 )
 
 // MarkImplementedRequest is the closed request for `change mark-implemented`. ID
-// and Version pin the exact record blob; Head is the exact tested feature head;
+// and Revision pin the exact record blob; Head is the exact tested feature head;
 // PR is the canonical reference `pr publish` returned; EvidenceRecord is the
 // canonical build-evidence bytes, reparsed here — never a prior result.
 type MarkImplementedRequest struct {
-	ID      int    `json:"id" docket:"required"`
-	Version string `json:"version" docket:"required"`
-	Head    string `json:"head" docket:"required"`
-	PR      string `json:"pr" docket:"required"`
+	ID       int    `json:"id" docket:"required"`
+	Revision string `json:"version" docket:"required"`
+	Head     string `json:"head" docket:"required"`
+	PR       string `json:"pr" docket:"required"`
 	// EvidenceRecord is read from the --evidence request file at the CLI boundary,
 	// never a JSON key of this request, so it is excluded from the emitted schema
 	// (mirroring EvidenceVerifyRequest.RecordFile).
@@ -148,7 +148,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 
 	// (0) Request shape: a positive id, a non-empty version, a full-hex head, a
 	// non-empty PR reference, and non-empty evidence bytes.
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	if !validFullOID(req.Head) {
 		findings = append(findings, lifecycleFinding(FindingCode(ReasonImplementedHeadInvalid), "head must be a full lowercase-hex object id"))
 	}
@@ -190,8 +190,8 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		return implementedRefusal(result, reason, err.Error(), req.ID)
 	}
 
-	// Resolve the change record and its current entity version from one corpus read.
-	c, recPath, version, refusal := resolveImplementedChange(ctx, deps, pin, eff, req.ID)
+	// Resolve the change record and its current entity revision from one corpus read.
+	c, recPath, revision, refusal := resolveImplementedChange(ctx, deps, pin, eff, req.ID)
 	if refusal != nil {
 		return *refusal
 	}
@@ -216,7 +216,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		return implementedRefusal(ResultInvalidState, ReasonImplementedNotInProgress,
 			fmt.Sprintf("change %04d is %q, not in-progress", req.ID, c.RawStatus()), req.ID)
 	}
-	if version != req.Version {
+	if revision != req.Revision {
 		return implementedRefusal(ResultContended, ReasonImplementedVersionMismatch,
 			"the change record moved since the submitted version; re-read authoritative context", req.ID)
 	}
@@ -332,8 +332,8 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+			Path:     gitcli.RepoPath(recPath),
+			Revision: transaction.ExpectedRevision{Kind: transaction.RevisionBlob, ObjectID: gitcli.ObjectID(req.Revision)},
 		}},
 		Loader:    newPlanningLoader(eff),
 		Scope:     changeScope(req.ID, recPath, false),
@@ -385,14 +385,14 @@ func resolveImplementedChange(ctx context.Context, deps PlanningDeps, pin Status
 		r := implementedRefusal(result, reason, msg, id)
 		return domain.Change{}, "", "", &r
 	}
-	version := ""
+	revision := ""
 	for _, b := range blobs {
 		if b.Path == c.Path() {
-			version = b.Version
+			revision = b.Revision
 			break
 		}
 	}
-	return c, c.Path(), version, nil
+	return c, c.Path(), revision, nil
 }
 
 // verifyImplementedResults reprobes the attached results artifact at the supplied

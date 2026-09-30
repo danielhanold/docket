@@ -11,7 +11,7 @@ import (
 // each drawn from a closed vocabulary; "unknown"/"UNKNOWN" carry a failed or
 // indeterminate probe and are never laundered into a clean absence.
 type PRFacts struct {
-	Number, Version         string
+	Number, Revision        string
 	State                   string // "open" | "closed" | "merged" | "unknown"
 	Draft, Approved         bool
 	Mergeable               string // "MERGEABLE" | "CONFLICTING" | "UNKNOWN"

@@ -65,7 +65,7 @@ func (f *fakeRetargetGitHub) FindOpenPullRequestsByHead(_ context.Context, _ git
 		if pr.head == headBranch {
 			out = append(out, githubcli.PullRequest{
 				Number: pr.number, State: githubcli.StateOpen,
-				HeadBranch: pr.head, BaseBranch: pr.base, Version: pr.version,
+				HeadBranch: pr.head, BaseBranch: pr.base, Revision: pr.version,
 			})
 		}
 	}
@@ -108,7 +108,7 @@ func (f *fakeRetargetGitHub) RetargetPullRequest(_ context.Context, _ githubcli.
 func snapshotPR(pr *fakePR) githubcli.PullRequest {
 	return githubcli.PullRequest{
 		Number: pr.number, State: githubcli.StateOpen,
-		HeadBranch: pr.head, BaseBranch: pr.base, Version: pr.version,
+		HeadBranch: pr.head, BaseBranch: pr.base, Revision: pr.version,
 	}
 }
 
@@ -173,10 +173,10 @@ func TestRetargetChildrenHappy(t *testing.T) {
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: corpus}
 	req := RetargetChildrenRequest{
-		ID: 80, Version: "blobfin0080",
+		ID: 80, Revision: "blobfin0080",
 		Children: []AuthorizedChild{
-			{ID: 81, PRNumber: 810, PRVersion: "cv810"},
-			{ID: 82, PRNumber: 820, PRVersion: "cv820"},
+			{ID: 81, PRNumber: 810, PRRevision: "cv810"},
+			{ID: 82, PRNumber: 820, PRRevision: "cv820"},
 		},
 	}
 
@@ -254,7 +254,7 @@ func TestRetargetChildBranchIdentity(t *testing.T) {
 			prs:  []*fakePR{{number: 810, head: "feature/child-head", base: "feat/root", version: "cv810"}},
 		}
 		fake := &fakeReader{pin: pin, corpus: []StatusBlob{root, child}}
-		req := RetargetChildrenRequest{ID: 80, Version: "blobfin0080", Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}}}
+		req := RetargetChildrenRequest{ID: 80, Revision: "blobfin0080", Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}}
 
 		got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, &recordingEngine{}), "", req)
 		if got.Result != ResultApplied || got.Disposition != RetargetDispositionRetargeted {
@@ -278,7 +278,7 @@ func TestRetargetChildBranchIdentity(t *testing.T) {
 			prs:  []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"}},
 		}
 		fake := &fakeReader{pin: pin, corpus: []StatusBlob{root, child}}
-		req := RetargetChildrenRequest{ID: 80, Version: "blobfin0080", Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}}}
+		req := RetargetChildrenRequest{ID: 80, Revision: "blobfin0080", Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}}
 
 		got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, &recordingEngine{}), "", req)
 		if got.Result != ResultInvalidState {
@@ -312,8 +312,8 @@ func TestRetargetChildrenNewChildBlocks(t *testing.T) {
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: corpus}
 	req := RetargetChildrenRequest{
-		ID: 80, Version: "blobfin0080",
-		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}}, // 83 not authorized
+		ID: 80, Revision: "blobfin0080",
+		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}, // 83 not authorized
 	}
 
 	got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
@@ -350,8 +350,8 @@ func TestRetargetChildrenVersionDrift(t *testing.T) {
 		}}
 		engine := &recordingEngine{}
 		fake := &fakeReader{pin: pin, corpus: base}
-		req := RetargetChildrenRequest{ID: 80, Version: "blobfin0080",
-			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810-STALE"}}}
+		req := RetargetChildrenRequest{ID: 80, Revision: "blobfin0080",
+			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810-STALE"}}}
 		got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
 		if got.Result == ResultApplied || got.Result == ResultNoOp {
 			t.Fatalf("stale PR version produced a merge-enabling success: %q", got.Result)
@@ -371,8 +371,8 @@ func TestRetargetChildrenVersionDrift(t *testing.T) {
 		}}
 		engine := &recordingEngine{}
 		fake := &fakeReader{pin: pin, corpus: base}
-		req := RetargetChildrenRequest{ID: 80, Version: "blobfin0080",
-			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}}}
+		req := RetargetChildrenRequest{ID: 80, Revision: "blobfin0080",
+			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}}
 		got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
 		if got.Result != ResultContended || got.Disposition != RetargetDispositionContended {
 			t.Fatalf("result=%q disposition=%q, want contended", got.Result, got.Disposition)
@@ -392,8 +392,8 @@ func TestRetargetChildrenVersionDrift(t *testing.T) {
 		}
 		engine := &recordingEngine{}
 		fake := &fakeReader{pin: pin, corpus: base}
-		req := RetargetChildrenRequest{ID: 80, Version: "blobfin0080",
-			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}}}
+		req := RetargetChildrenRequest{ID: 80, Revision: "blobfin0080",
+			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}}
 		got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
 		if got.Result != ResultExternalFailed || got.Disposition != RetargetDispositionUnknown {
 			t.Fatalf("result=%q disposition=%q, want external-failed/unknown", got.Result, got.Disposition)
@@ -418,8 +418,8 @@ func TestRetargetChildrenParentVersionDrift(t *testing.T) {
 	}}
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: corpus}
-	req := RetargetChildrenRequest{ID: 80, Version: "blobfin-STALE",
-		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}}}
+	req := RetargetChildrenRequest{ID: 80, Revision: "blobfin-STALE",
+		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}}
 
 	got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
 	if got.Result != ResultContended || got.Reason != ReasonRetargetVersionDrift {
@@ -444,8 +444,8 @@ func TestRetargetChildrenLeavesStackedOn(t *testing.T) {
 	}}
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: corpus}
-	req := RetargetChildrenRequest{ID: 80, Version: "blobfin0080",
-		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}}}
+	req := RetargetChildrenRequest{ID: 80, Revision: "blobfin0080",
+		Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}}
 
 	got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
 	if got.Result != ResultApplied {
@@ -475,8 +475,8 @@ func TestRetargetChildrenSkipsTerminalChildren(t *testing.T) {
 	}}
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: corpus}
-	req := RetargetChildrenRequest{ID: 80, Version: "blobfin0080",
-		Children: []AuthorizedChild{{ID: 83, PRNumber: 830, PRVersion: "cv830"}}}
+	req := RetargetChildrenRequest{ID: 80, Revision: "blobfin0080",
+		Children: []AuthorizedChild{{ID: 83, PRNumber: 830, PRRevision: "cv830"}}}
 
 	got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
 	if got.Result != ResultApplied || got.Disposition != RetargetDispositionRetargeted {
@@ -514,11 +514,11 @@ func TestRetargetChildrenShapeRefusals(t *testing.T) {
 
 	// Missing version + a malformed child (id<=0, pr_number<=0, empty version) +
 	// duplicate child id.
-	req := RetargetChildrenRequest{ID: 80, Version: "",
+	req := RetargetChildrenRequest{ID: 80, Revision: "",
 		Children: []AuthorizedChild{
-			{ID: 0, PRNumber: 0, PRVersion: ""},
-			{ID: 81, PRNumber: 810, PRVersion: "cv810"},
-			{ID: 81, PRNumber: 811, PRVersion: "cv811"},
+			{ID: 0, PRNumber: 0, PRRevision: ""},
+			{ID: 81, PRNumber: 810, PRRevision: "cv810"},
+			{ID: 81, PRNumber: 811, PRRevision: "cv811"},
 		}}
 	got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
 	if got.Result != ResultInvalidInput {

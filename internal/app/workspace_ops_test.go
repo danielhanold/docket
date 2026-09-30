@@ -55,7 +55,7 @@ func inProgressChangeBlob(id int, slug, version, stackedOn string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Version:  version,
+		Revision: version,
 		Data:     []byte(src),
 	}
 }
@@ -66,7 +66,7 @@ func proposedChangeBlob(id int, slug, version string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Version:  version,
+		Revision: version,
 		Data:     []byte(lifecycleChange(id, slug, "proposed")),
 	}
 }
@@ -98,7 +98,7 @@ func renamedBranchBlob(id int, slug, version, branch string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Version:  version,
+		Revision: version,
 		Data:     []byte(src),
 	}
 }

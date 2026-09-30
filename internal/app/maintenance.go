@@ -128,7 +128,7 @@ type sweepOps struct {
 	// corpus; operation-specific proofs stay live).
 	closeout func(ctx context.Context, id int, obs *sweepObservation) CloseoutResult
 	cleanup  func(ctx context.Context, id int, obs *sweepObservation) CleanupOpResult
-	reclaim  func(ctx context.Context, id int, version string, obs *sweepObservation) ChangeReclaimResult
+	reclaim  func(ctx context.Context, id int, revision string, obs *sweepObservation) ChangeReclaimResult
 	// assessHistorical, when set, resolves FULL-scope historical (done/stacked-
 	// merged) cleanup candidates from the pinned inventory and shared read-only
 	// inventories BEFORE they are dispatched, returning the non-actionable
@@ -320,13 +320,13 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, sc
 		cleanup: func(ctx context.Context, id int, obs *sweepObservation) CleanupOpResult {
 			return FinalizeCleanup(ctx, depsFor(obs), repoDir, id)
 		},
-		reclaim: func(ctx context.Context, id int, version string, obs *sweepObservation) ChangeReclaimResult {
+		reclaim: func(ctx context.Context, id int, revision string, obs *sweepObservation) ChangeReclaimResult {
 			if wsErr != nil {
 				return newChangeReclaimResult(ResultInternalError, ChangeReclaimResult{
 					ID: id, Findings: []StatusFinding{lifecycleFinding(FCWorkspaceServiceUnavailable, wsErr.Error())},
 				})
 			}
-			return ChangeReclaim(ctx, depsFor(obs).Planning, wdeps, repoDir, ChangeReclaimRequest{ID: id, Version: version})
+			return ChangeReclaim(ctx, depsFor(obs).Planning, wdeps, repoDir, ChangeReclaimRequest{ID: id, Revision: revision})
 		},
 		probeFacts: func(ctx context.Context, snap domain.Snapshot) (map[domain.ChangeID]domain.PRFacts, []StatusFinding) {
 			// One shared GitHub identity, batched exact-number reads over the whole
@@ -503,8 +503,8 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 // sweepInventory is one authoritative read: the built snapshot plus the exact
 // blob version of every change record, keyed by active path.
 type sweepInventory struct {
-	snap          domain.Snapshot
-	versionByPath map[string]string
+	snap           domain.Snapshot
+	revisionByPath map[string]string
 }
 
 // sweepBuildSnapshot reads the corpus for pin and builds the snapshot. A read or
@@ -522,11 +522,11 @@ func sweepBuildSnapshot(ctx context.Context, reader StatusReader, pin StatusPin,
 		r := maintenanceRefusal(ResultInternalError, ReasonStatusInternalError, err.Error())
 		return sweepInventory{}, &r
 	}
-	versions := make(map[string]string, len(blobs))
+	revisions := make(map[string]string, len(blobs))
 	for _, b := range blobs {
-		versions[b.Path] = b.Version
+		revisions[b.Path] = b.Revision
 	}
-	return sweepInventory{snap: build.Snapshot, versionByPath: versions}, nil
+	return sweepInventory{snap: build.Snapshot, revisionByPath: revisions}, nil
 }
 
 // gatherSweepSharedFacts reads the invocation-shared read-only inventories the
@@ -645,7 +645,7 @@ func sweepRunCloseout(ctx context.Context, ops sweepOps, id int) []MaintenanceEn
 	if err != nil {
 		return []MaintenanceEntry{sweepEntry(id, sweepKindCloseout, SweepDispSkipped, "", ReasonSweepReloadFailed, err.Error())}
 	}
-	if _, present := sweepObservedVersion(obs, id); !present {
+	if _, present := sweepObservedRevision(obs, id); !present {
 		// A successful fetch with a missing record is vanished, never a fetch failure.
 		return []MaintenanceEntry{sweepEntry(id, sweepKindCloseout, SweepDispSkipped, "", ReasonSweepItemVanished, "record absent or ambiguous on reload")}
 	}
@@ -675,7 +675,7 @@ func sweepRunCleanup(ctx context.Context, ops sweepOps, id int) MaintenanceEntry
 	if err != nil {
 		return sweepEntry(id, sweepKindCleanup, SweepDispSkipped, "", ReasonSweepReloadFailed, err.Error())
 	}
-	if _, present := sweepObservedVersion(obs, id); !present {
+	if _, present := sweepObservedRevision(obs, id); !present {
 		// A successful fetch with a missing record is vanished, never a fetch failure.
 		return sweepEntry(id, sweepKindCleanup, SweepDispSkipped, "", ReasonSweepItemVanished, "record absent or ambiguous on reload")
 	}
@@ -699,32 +699,32 @@ func sweepRunReclaim(ctx context.Context, eff config.Effective, ops sweepOps, id
 	if err != nil {
 		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepReloadFailed, err.Error())
 	}
-	version, present := sweepObservedVersion(obs, id)
+	revision, present := sweepObservedRevision(obs, id)
 	if !present {
 		// A successful fetch with a missing record is vanished, never a fetch failure.
 		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepItemVanished, "record absent or ambiguous on reload")
 	}
-	if version == "" {
+	if revision == "" {
 		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepReclaimVersionMissing, "reloaded record carried no blob version")
 	}
-	res := ops.reclaim(ctx, id, version, obs)
+	res := ops.reclaim(ctx, id, revision, obs)
 	return MaintenanceEntry{
 		ID: id, Kind: sweepKindReclaim, Disposition: sweepDispositionForResult(res.Env().Result),
 		Operation: res.Env().Operation, Reason: res.Reason, Message: res.Message,
 	}
 }
 
-// sweepObservedVersion reads the record's presence and exact blob version from
+// sweepObservedRevision reads the record's presence and exact blob version from
 // one prepared observation — the shared authority the attempt already fetched,
 // never a fresh re-pin. present is false when the record is absent or ambiguous
 // in that observation; a successful fetch with a missing record is a vanished
 // item, distinct from a fetch failure (which surfaces from ops.prepare itself).
-func sweepObservedVersion(obs *sweepObservation, id int) (version string, present bool) {
+func sweepObservedRevision(obs *sweepObservation, id int) (revision string, present bool) {
 	c, out := obs.inv.snap.Change(domain.ChangeID(id))
 	if out != domain.LookupFound {
 		return "", false
 	}
-	return obs.inv.versionByPath[c.Path()], true
+	return obs.inv.revisionByPath[c.Path()], true
 }
 
 // sweepEntry builds one MaintenanceEntry.

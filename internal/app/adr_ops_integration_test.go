@@ -25,12 +25,12 @@ func TestIntegrationRecordOpsADRUnrelatedInvalidRecordProgress(t *testing.T) {
 		}},
 		{name: "record with producing change", run: func(t *testing.T, repo *gitRepo, node realNode) ADRResult {
 			req := validADRRecordRequest()
-			req.Change = &ADRProducingChange{ID: 3, Path: producerPath, Version: blobVersionAt(t, repo.origin, "docket", producerPath)}
+			req.Change = &ADRProducingChange{ID: 3, Path: producerPath, Revision: blobVersionAt(t, repo.origin, "docket", producerPath)}
 			return ADRRecordOp(context.Background(), node.deps, node.dir, req)
 		}},
 		{name: "supersede", run: func(t *testing.T, repo *gitRepo, node realNode) ADRResult {
 			req := validADRReplaceRequest()
-			req.Target.Version = blobVersionAt(t, repo.origin, "docket", targetPath)
+			req.Target.Revision = blobVersionAt(t, repo.origin, "docket", targetPath)
 			return ADRSupersede(context.Background(), node.deps, node.dir, req)
 		}},
 	}
@@ -87,7 +87,7 @@ func TestIntegrationRecordOpsADRUnrelatedInvalidRecordRefusals(t *testing.T) {
 			tip := originTip(t, repo.origin, "docket")
 
 			req := validADRRecordRequest()
-			req.Change = &ADRProducingChange{ID: 3, Path: producerPath, Version: blobVersionAt(t, repo.origin, "docket", producerPath)}
+			req.Change = &ADRProducingChange{ID: 3, Path: producerPath, Revision: blobVersionAt(t, repo.origin, "docket", producerPath)}
 			res := ADRRecordOp(context.Background(), node.deps, node.dir, req)
 			if res.Result == ResultApplied {
 				t.Fatalf("adr record applied despite %s on its producing change; want a refusal", c.name)

@@ -23,12 +23,12 @@ func TestDecodePullRequestFull(t *testing.T) {
 		Title:      "Add widget",
 		Body:       "Body text",
 	}
-	want.Version = pr.Version // compared separately below
+	want.Revision = pr.Revision // compared separately below
 	if pr != want {
 		t.Fatalf("decoded = %+v, want %+v", pr, want)
 	}
-	if !strings.HasPrefix(pr.Version, "sha256:") || len(pr.Version) != len("sha256:")+64 {
-		t.Fatalf("version malformed: %q", pr.Version)
+	if !strings.HasPrefix(pr.Revision, "sha256:") || len(pr.Revision) != len("sha256:")+64 {
+		t.Fatalf("version malformed: %q", pr.Revision)
 	}
 }
 
@@ -119,7 +119,7 @@ func TestComputeVersionSensitivity(t *testing.T) {
 		HeadBranch: "feat/x", HeadCommit: "1111111111111111111111111111111111111111",
 		BaseBranch: "main", Title: "t", Body: "b",
 	}
-	baseV := computeVersion(base)
+	baseV := computeRevision(base)
 
 	mutate := []func(*PullRequest){
 		func(p *PullRequest) { p.Number = 8 },
@@ -134,7 +134,7 @@ func TestComputeVersionSensitivity(t *testing.T) {
 	for i, m := range mutate {
 		pr := base
 		m(&pr)
-		if computeVersion(pr) == baseV {
+		if computeRevision(pr) == baseV {
 			t.Fatalf("mutation %d did not change the version", i)
 		}
 	}
@@ -142,7 +142,7 @@ func TestComputeVersionSensitivity(t *testing.T) {
 	// mutable field the caller approved); changing it must NOT change the token.
 	urlChanged := base
 	urlChanged.URL = "different"
-	if computeVersion(urlChanged) != baseV {
+	if computeRevision(urlChanged) != baseV {
 		t.Fatal("URL is not part of the version snapshot but changed the token")
 	}
 }
@@ -160,7 +160,7 @@ func TestComputeVersionLengthPrefixCollision(t *testing.T) {
 	a.Title, a.Body = "ab", "c"
 	b := base
 	b.Title, b.Body = "a", "bc"
-	if computeVersion(a) == computeVersion(b) {
+	if computeRevision(a) == computeRevision(b) {
 		t.Fatal("field-boundary collision: length prefix not applied")
 	}
 }

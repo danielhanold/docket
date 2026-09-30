@@ -122,7 +122,7 @@ func sweepBatchResultToFacts(number int, br githubcli.BatchPRResult) domain.PRFa
 	if br.PR.State == githubcli.StateMerged {
 		return domain.PRFacts{
 			Number:      strconv.Itoa(number),
-			Version:     br.PR.Version,
+			Revision:    br.PR.Revision,
 			State:       "merged",
 			HeadBranch:  br.PR.HeadBranch,
 			HeadOID:     br.PR.HeadCommit,
@@ -133,7 +133,7 @@ func sweepBatchResultToFacts(number int, br githubcli.BatchPRResult) domain.PRFa
 	}
 	return domain.PRFacts{
 		Number:     strconv.Itoa(number),
-		Version:    br.PR.Version,
+		Revision:   br.PR.Revision,
 		State:      string(br.PR.State),
 		Draft:      br.PR.Draft,
 		Approved:   br.PR.Approved,

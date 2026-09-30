@@ -83,7 +83,7 @@ func attachSetupWith(t *testing.T, extra map[string]string) *attachFixture {
 	wdeps := WorkspaceDeps{Service: svc}
 	ctx := context.Background()
 
-	prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: id, Version: version})
+	prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: id, Revision: version})
 	if prep.Result != ResultApplied {
 		t.Fatalf("prepare workspace = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
 	}
@@ -143,7 +143,7 @@ func TestIntegrationRecordOpsChangeAttachUnrelatedInvalidRecordProgress(t *testi
 	head := f.commitPlan(t, map[string]string{f.planPath: attachHappyPlan(f.id, "A change", f.recPath)}, f.planPath)
 
 	res := ChangeAttachPlan(f.ctx, f.deps, f.wdeps, f.invocation, ChangeAttachRequest{
-		ID: f.id, Version: blobVersionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath, Commit: head,
+		ID: f.id, Revision: blobVersionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath, Commit: head,
 	})
 	if res.Result != ResultApplied {
 		t.Fatalf("attach-plan beside an unrelated unparseable record = %q (reason %q findings %v), want applied",
@@ -168,7 +168,7 @@ func TestIntegrationRecordOpsChangeAttachUnrelatedInvalidRecordRefusals(t *testi
 			tip := originTip(t, f.repo.origin, "docket")
 
 			res := ChangeAttachPlan(f.ctx, f.deps, f.wdeps, f.invocation, ChangeAttachRequest{
-				ID: f.id, Version: blobVersionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath, Commit: head,
+				ID: f.id, Revision: blobVersionAt(t, f.repo.origin, "docket", f.recPath), Path: f.planPath, Commit: head,
 			})
 			if res.Result == ResultApplied {
 				t.Fatalf("attach-plan applied despite %s; want a refusal", c.name)

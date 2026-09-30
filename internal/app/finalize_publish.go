@@ -371,13 +371,13 @@ func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req
 			"the wired GitHub seam does not provide the pull-request edit face", id)
 	}
 	eres, eerr := ensurer.EnsurePullRequest(ctx, githubcli.EnsurePullRequestRequest{
-		Repository:      repo,
-		HeadBranch:      featureBranch,
-		ExpectedHead:    req.Head,
-		BaseBranch:      pr.BaseBranch,
-		Title:           pr.Title,
-		Body:            string(newBody),
-		ExpectedVersion: pr.Version,
+		Repository:       repo,
+		HeadBranch:       featureBranch,
+		ExpectedHead:     req.Head,
+		BaseBranch:       pr.BaseBranch,
+		Title:            pr.Title,
+		Body:             string(newBody),
+		ExpectedRevision: pr.Revision,
 	})
 	if eerr != nil {
 		return mapPublishEnsureFailure(id, req.Head, string(rout), eerr)

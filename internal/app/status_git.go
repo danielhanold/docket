@@ -125,7 +125,7 @@ func (r *gitStatusReader) ReadCorpus(ctx context.Context, pin StatusPin) ([]Stat
 			Kind:     meta[i].kind,
 			Location: meta[i].location,
 			Path:     string(br.Path),
-			Version:  string(br.Blob.ObjectID),
+			Revision: string(br.Blob.ObjectID),
 			Data:     br.Blob.Bytes,
 		})
 	}
@@ -201,7 +201,7 @@ func (r *gitStatusReader) ReadArtifact(ctx context.Context, pin StatusPin, sourc
 	if !br.Found {
 		return StatusArtifact{Found: false}, nil
 	}
-	return StatusArtifact{Found: true, Version: string(br.Blob.ObjectID), Data: br.Blob.Bytes}, nil
+	return StatusArtifact{Found: true, Revision: string(br.Blob.ObjectID), Data: br.Blob.Bytes}, nil
 }
 
 // openSource opens the immutable object source pinned at rev.

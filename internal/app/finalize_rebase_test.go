@@ -262,7 +262,7 @@ func (f *rebaseFixture) freshFinalizeDeps(t *testing.T) FinalizeDeps {
 func (f *rebaseFixture) prForHead(head, body string) githubcli.PullRequest {
 	return githubcli.PullRequest{
 		Number: 1, State: githubcli.StateOpen, HeadBranch: "feat/" + f.slug,
-		HeadCommit: head, BaseBranch: "main", Version: "sha256:" + strings.Repeat("a", 64), Body: body,
+		HeadCommit: head, BaseBranch: "main", Revision: "sha256:" + strings.Repeat("a", 64), Body: body,
 	}
 }
 
@@ -439,7 +439,7 @@ func setupConflictedRebase(t *testing.T, m planRepoMode) (*rebaseFixture, Finali
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 	deps := f.finalizeDeps(gh, gate)
 	res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
 	if res.Disposition != RebaseDispConflicted || res.Attempt == "" {
 		t.Fatalf("expected a conflicted rebase with an attempt token, got disp %q reason %q msg %q", res.Disposition, res.Reason, res.Message)
 	}
@@ -535,7 +535,7 @@ func beginConflictedWithLimit(t *testing.T, limit int) (*rebaseFixture, Finalize
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 	deps := f.finalizeDeps(gh, gate)
 	res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
 	if res.Disposition != RebaseDispConflicted {
 		t.Fatalf("fresh rebase = disp %q (reason %q msg %q), want conflicted", res.Disposition, res.Reason, res.Message)
 	}
@@ -592,7 +592,7 @@ func completedBudgetedReceipt(t *testing.T, seed func(*workspace.RebaseReceipt))
 	ctx := context.Background()
 	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 	first := FinalizeRebase(ctx, f.finalizeDeps(gh, &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}),
-		f.repo.invocation, FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		f.repo.invocation, FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
 	if first.Disposition != RebaseDispRebased {
 		t.Fatalf("first rebase = %q, want rebased", first.Disposition)
 	}

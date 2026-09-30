@@ -59,19 +59,19 @@ func (f *fakePublishGitHub) EnsurePullRequest(_ context.Context, req githubcli.E
 	}
 	// Already in the desired end state — no mutation.
 	if f.pr.Body == req.Body && f.pr.Title == req.Title && f.pr.BaseBranch == req.BaseBranch {
-		if req.ExpectedVersion == "" {
+		if req.ExpectedRevision == "" {
 			return githubcli.EnsureResult{Disposition: githubcli.EnsureAdopted, PR: f.pr}, nil
 		}
 		return githubcli.EnsureResult{Disposition: githubcli.EnsureUnchanged, PR: f.pr}, nil
 	}
 	// An edit is authorized only by the exact live version.
-	if req.ExpectedVersion == "" || req.ExpectedVersion != f.pr.Version {
+	if req.ExpectedRevision == "" || req.ExpectedRevision != f.pr.Revision {
 		return githubcli.EnsureResult{Disposition: githubcli.EnsureContended}, nil
 	}
 	f.pr.Body = req.Body
 	f.pr.Title = req.Title
 	f.pr.BaseBranch = req.BaseBranch
-	f.pr.Version = "sha256:" + strings.Repeat("e", 64)
+	f.pr.Revision = "sha256:" + strings.Repeat("e", 64)
 	return githubcli.EnsureResult{Disposition: githubcli.EnsureUpdated, PR: f.pr}, nil
 }
 
@@ -120,7 +120,7 @@ func setupPublishFixture(t *testing.T, m planRepoMode) *publishFixture {
 	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
 	if res.Disposition != RebaseDispRebased || res.Attempt == "" {
 		t.Fatalf("rebase setup = disp %q attempt %q (reason %q), want rebased with an attempt", res.Disposition, res.Attempt, res.Reason)
 	}
@@ -181,7 +181,7 @@ func (f *publishFixture) openPRForPublish(head, body string) githubcli.PullReque
 	return githubcli.PullRequest{
 		Number: 7, URL: "https://example.test/pr/7", State: githubcli.StateOpen,
 		HeadBranch: "feat/" + f.slug, HeadCommit: head, BaseBranch: "main",
-		Title: publishPRTitle, Body: body, Version: "sha256:" + strings.Repeat("d", 64),
+		Title: publishPRTitle, Body: body, Revision: "sha256:" + strings.Repeat("d", 64),
 	}
 }
 

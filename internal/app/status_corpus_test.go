@@ -52,7 +52,7 @@ func loadCorpusBlobs(t *testing.T) (blobs []StatusBlob, docketYML []byte) {
 				Kind:     repository.KindChange,
 				Location: repository.LocationArchive,
 				Path:     rel,
-				Version:  rel, // deterministic, non-empty; not asserted in this fake-reader test
+				Revision: rel, // deterministic, non-empty; not asserted in this fake-reader test
 				Data:     data,
 			})
 		case strings.HasPrefix(rel, "docs/adrs/"):
@@ -60,7 +60,7 @@ func loadCorpusBlobs(t *testing.T) (blobs []StatusBlob, docketYML []byte) {
 				Kind:     repository.KindADR,
 				Location: repository.LocationLedger,
 				Path:     rel,
-				Version:  rel,
+				Revision: rel,
 				Data:     data,
 			})
 		default:

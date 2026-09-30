@@ -72,7 +72,7 @@ func validGroomSpecRequest() ChangeGroomRequest {
 	return ChangeGroomRequest{
 		ChangeID:     2,
 		Path:         groomPath(2, "add-a-widget"),
-		Version:      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Revision:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Outcome:      GroomSpec,
 		SpecMarkdown: "# Design\n\nThe design body.\n",
 		Sections: []SectionEditRequest{
@@ -92,7 +92,7 @@ func TestChangeGroomRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}{
 		{"non-positive change id", func(r *ChangeGroomRequest) { r.ChangeID = 0 }, "invalid-change_id"},
 		{"empty path", func(r *ChangeGroomRequest) { r.Path = "" }, "empty-path"},
-		{"empty version", func(r *ChangeGroomRequest) { r.Version = "" }, "empty-version"},
+		{"empty version", func(r *ChangeGroomRequest) { r.Revision = "" }, "empty-version"},
 		{"unknown outcome", func(r *ChangeGroomRequest) { r.Outcome = "maybe" }, "invalid-outcome"},
 		{"spec outcome empty markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "" }, "empty-spec_markdown"},
 		{"spec outcome unparseable markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "---\nid: 1\n" }, "invalid-spec_markdown"},
@@ -138,7 +138,7 @@ func TestChangeGroomTrivialRequiresRationale(t *testing.T) {
 	req := ChangeGroomRequest{
 		ChangeID: 2,
 		Path:     groomPath(2, "add-a-widget"),
-		Version:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Outcome:  GroomTrivial,
 		// No section carrying an authored rationale.
 	}
@@ -277,7 +277,7 @@ func TestChangeGroomPlanTrivialOutcomeFileSet(t *testing.T) {
 	req := ChangeGroomRequest{
 		ChangeID: 2,
 		Path:     groomPath(2, "add-a-widget"),
-		Version:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Outcome:  GroomTrivial,
 		Sections: []SectionEditRequest{
 			{Heading: "## Why", Intent: "replace", Markdown: "Too small to design.\n"},
@@ -423,10 +423,10 @@ func validReviseRequest() ChangeGroomRequest {
 	return ChangeGroomRequest{
 		ChangeID:     2,
 		Path:         groomPath(2, "add-a-widget"),
-		Version:      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Revision:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Outcome:      GroomRevise,
 		SpecMarkdown: "# Design\n\nThe revised design body.\n",
-		SpecVersion:  fakeTreeBlobID,
+		SpecRevision: fakeTreeBlobID,
 		Sections: []SectionEditRequest{
 			{Heading: "## What changes", Intent: "replace", Markdown: "Narrowed what.\n"},
 		},
@@ -440,7 +440,7 @@ func TestChangeGroomReviseShapeValidation(t *testing.T) {
 		code string // "" means the request must pass shape validation
 	}{
 		{"valid revise passes", func(r *ChangeGroomRequest) {}, ""},
-		{"sections-only revise passes", func(r *ChangeGroomRequest) { r.SpecMarkdown, r.SpecVersion = "", "" }, ""},
+		{"sections-only revise passes", func(r *ChangeGroomRequest) { r.SpecMarkdown, r.SpecRevision = "", "" }, ""},
 		{"spec-only revise passes", func(r *ChangeGroomRequest) { r.Sections = nil }, ""},
 		{"empty revise refused", func(r *ChangeGroomRequest) {
 			r.SpecMarkdown = ""
@@ -466,10 +466,10 @@ func TestChangeGroomReviseShapeValidation(t *testing.T) {
 		}, "invalid-spec_markdown"},
 		// A spec-body revise overwrites the spec file, so it must pin its version.
 		{"spec revise without spec_version refused", func(r *ChangeGroomRequest) {
-			r.SpecVersion = ""
+			r.SpecRevision = ""
 		}, "empty-spec_version"},
 		{"sections-only revise without spec_version passes", func(r *ChangeGroomRequest) {
-			r.SpecMarkdown, r.SpecVersion = "", ""
+			r.SpecMarkdown, r.SpecRevision = "", ""
 		}, ""},
 		// spec_version pins only a spec-body revise; anywhere else it would be
 		// silently unchecked, so it is refused.
@@ -524,7 +524,7 @@ func TestChangeGroomEmptyReviseRefusedWithoutEngineCall(t *testing.T) {
 // version is a shape refusal, never an unpinned whole-body replace.
 func TestChangeGroomSpecReviseWithoutSpecVersionRefusedWithoutEngineCall(t *testing.T) {
 	req := validReviseRequest()
-	req.SpecVersion = ""
+	req.SpecRevision = ""
 	engine := &recordingEngine{}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
 	deps := PlanningDeps{Engine: engine, Reader: reader, Clock: testClock()}
@@ -717,7 +717,7 @@ func TestChangeGroomPlanReviseTrivialRationale(t *testing.T) {
 	}
 	req := validReviseRequest()
 	// A trivial change links no spec, so there is no spec file to pin.
-	req.SpecMarkdown, req.SpecVersion = "", ""
+	req.SpecMarkdown, req.SpecRevision = "", ""
 	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
 	if opRes.Refused {
 		t.Fatalf("unexpected refusal: %v", opRes.Findings)
@@ -773,7 +773,7 @@ func TestChangeGroomPlanReviseRefusals(t *testing.T) {
 		// The spec file is pinned at the path the record links: a stale
 		// spec_version refuses rather than overwriting a newer spec body.
 		{"spec-version-mismatch", reviseFixtureFiles(), func(r *ChangeGroomRequest) {
-			r.SpecVersion = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+			r.SpecRevision = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 		}, "spec-version-mismatch"},
 	}
 	for _, c := range cases {
@@ -913,7 +913,7 @@ func abstainRequest() ChangeGroomRequest {
 	return ChangeGroomRequest{
 		ChangeID:    2,
 		Path:        groomPath(2, "add-a-widget"),
-		Version:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Revision:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Outcome:     GroomAbstain,
 		BlockedNote: "The storage decision needs a human.\n\n### What to supply\n\nPick the backend.\n",
 	}
@@ -945,7 +945,7 @@ func TestChangeGroomAbstainShapeValidation(t *testing.T) {
 			r.Sections = []SectionEditRequest{{Heading: "## Why", Intent: "replace", Markdown: "rewrite\n"}}
 		}, "invalid-sections"},
 		{"abstain with spec_markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "# Design\n" }, "invalid-spec_markdown"},
-		{"abstain with spec_version", func(r *ChangeGroomRequest) { r.SpecVersion = "a" }, "invalid-spec_version"},
+		{"abstain with spec_version", func(r *ChangeGroomRequest) { r.SpecRevision = "a" }, "invalid-spec_version"},
 		{"abstain with depends_on", func(r *ChangeGroomRequest) { r.DependsOn = []int{1} }, "invalid-depends_on"},
 		{"abstain with an explicit empty related", func(r *ChangeGroomRequest) { r.Related = []int{} }, "invalid-related"},
 		{"abstain with discovered_from", func(r *ChangeGroomRequest) { r.DiscoveredFrom = []int{1} }, "invalid-discovered_from"},
@@ -1102,7 +1102,7 @@ func rearmRequest() ChangeGroomRequest {
 	return ChangeGroomRequest{
 		ChangeID: 2,
 		Path:     groomPath(2, "add-a-widget"),
-		Version:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Outcome:  GroomRearm,
 	}
 }
@@ -1119,7 +1119,7 @@ func TestChangeGroomRearmShapeValidation(t *testing.T) {
 		}, ""},
 		{"rearm with blocked_note", func(r *ChangeGroomRequest) { r.BlockedNote = "x\n" }, "invalid-blocked_note"},
 		{"rearm with spec_markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "# Design\n" }, "invalid-spec_markdown"},
-		{"rearm with spec_version", func(r *ChangeGroomRequest) { r.SpecVersion = "a" }, "invalid-spec_version"},
+		{"rearm with spec_version", func(r *ChangeGroomRequest) { r.SpecRevision = "a" }, "invalid-spec_version"},
 		// Review Focus 5: the op removes this section itself.
 		{"rearm editing ## Auto-groom blocked", func(r *ChangeGroomRequest) {
 			r.Sections = []SectionEditRequest{{Heading: "## Auto-groom blocked", Intent: "replace", Markdown: "x\n"}}
@@ -1311,7 +1311,7 @@ func TestChangeGroomPlanRearmRemovesSectionBeforeFollowingSection(t *testing.T) 
 // body, no spec_version, no section edits (change 0461).
 func titleOnlyReviseRequest(title string) ChangeGroomRequest {
 	r := validReviseRequest()
-	r.SpecMarkdown, r.SpecVersion, r.Sections = "", "", nil
+	r.SpecMarkdown, r.SpecRevision, r.Sections = "", "", nil
 	r.Title = title
 	return r
 }
@@ -1322,7 +1322,7 @@ func titledTrivialRequest(title string) ChangeGroomRequest {
 	return ChangeGroomRequest{
 		ChangeID: 2,
 		Path:     groomPath(2, "add-a-widget"),
-		Version:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Outcome:  GroomTrivial,
 		Title:    title,
 		Sections: []SectionEditRequest{

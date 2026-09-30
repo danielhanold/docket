@@ -71,10 +71,10 @@ type ContextEntitySummary struct {
 // summary. A zero ContextEntity (empty Path) means the bundle carries no such
 // document (e.g. a trivial change with no spec).
 type ContextEntity struct {
-	Path    string                `json:"path,omitempty"`
-	Source  []byte                `json:"source,omitempty"`
-	Version string                `json:"version,omitempty"`
-	Summary *ContextEntitySummary `json:"summary,omitempty"`
+	Path     string                `json:"path,omitempty"`
+	Source   []byte                `json:"source,omitempty"`
+	Revision string                `json:"version,omitempty"`
+	Summary  *ContextEntitySummary `json:"summary,omitempty"`
 }
 
 // ContextChangeSummary is a related change's identity plus how it relates to the
@@ -297,7 +297,7 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 			return newContextResult(ResultInvalidState, ReasonContextMissingArtifact,
 				fmt.Sprintf("change %04d links a spec that does not exist at the pinned revision: %s", int(selected.ID()), spec.Value), nil)
 		}
-		specEntity = ContextEntity{Path: spec.Value, Source: cloneBytes(art.Data), Version: art.Version}
+		specEntity = ContextEntity{Path: spec.Value, Source: cloneBytes(art.Data), Revision: art.Revision}
 	}
 
 	changeBlob := blobByPath[selected.Path()]
@@ -305,9 +305,9 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 		MetadataRef:    reposetup.MetadataBranchName,
 		MetadataCommit: metadataRevision(pin),
 		Change: ContextEntity{
-			Path:    selected.Path(),
-			Source:  cloneBytes(changeBlob.Data),
-			Version: changeBlob.Version,
+			Path:     selected.Path(),
+			Source:   cloneBytes(changeBlob.Data),
+			Revision: changeBlob.Revision,
 			Summary: &ContextEntitySummary{
 				ID:       int(selected.ID()),
 				Slug:     selected.Slug(),

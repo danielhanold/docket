@@ -88,7 +88,7 @@ func ensViewArm(stdout string) fakeArm {
 }
 
 // mustDecodeOne decodes a single PR object so a test can obtain its canonical
-// Version for an ExpectedVersion CAS assertion.
+// Revision for an ExpectedRevision CAS assertion.
 func mustDecodeOne(t *testing.T, obj string) PullRequest {
 	t.Helper()
 	prs, err := decodePullRequestList("test", []byte(ensList(obj)))
@@ -207,7 +207,7 @@ func TestIntegrationEnsureAdoptsExistingExactMatch(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(existing), 0, ""),
 	}})
-	req := ensRequest() // ExpectedVersion empty -> create-or-adopt face
+	req := ensRequest() // ExpectedRevision empty -> create-or-adopt face
 	res, err := c.EnsurePullRequest(context.Background(), req)
 	if err != nil {
 		t.Fatalf("EnsurePullRequest: %v", err)
@@ -236,7 +236,7 @@ func TestIntegrationEnsureUnchangedWithMatchingVersion(t *testing.T) {
 		ensListAllArm(ensList(existing), 0, ""),
 	}})
 	req := ensRequest()
-	req.ExpectedVersion = pr.Version
+	req.ExpectedRevision = pr.Revision
 	res, err := c.EnsurePullRequest(context.Background(), req)
 	if err != nil {
 		t.Fatalf("EnsurePullRequest: %v", err)
@@ -283,7 +283,7 @@ func TestIntegrationEnsureContendedMismatchedVersionOnDifferingPR(t *testing.T) 
 		ensListAllArm(ensList(ensDifferingPR(7)), 0, ""),
 	}})
 	req := ensRequest()
-	req.ExpectedVersion = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+	req.ExpectedRevision = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 	res, err := c.EnsurePullRequest(context.Background(), req)
 	if err != nil {
 		t.Fatalf("EnsurePullRequest: %v", err)
@@ -307,7 +307,7 @@ func TestIntegrationEnsureUpdatesWithMatchingVersion(t *testing.T) {
 		ensViewArm(updated),
 	}})
 	req := ensRequest()
-	req.ExpectedVersion = pr.Version
+	req.ExpectedRevision = pr.Revision
 	res, err := c.EnsurePullRequest(context.Background(), req)
 	if err != nil {
 		t.Fatalf("EnsurePullRequest: %v", err)
@@ -361,7 +361,7 @@ func TestIntegrationEnsureConcurrentChangeContended(t *testing.T) {
 		ensViewArm(raced),
 	}})
 	req := ensRequest()
-	req.ExpectedVersion = pr.Version
+	req.ExpectedRevision = pr.Revision
 	res, err := c.EnsurePullRequest(context.Background(), req)
 	if err != nil {
 		t.Fatalf("EnsurePullRequest: %v", err)
@@ -388,7 +388,7 @@ func TestIntegrationEnsureEditResponseLostRecovered(t *testing.T) {
 		ensViewArm(updated),
 	}})
 	req := ensRequest()
-	req.ExpectedVersion = pr.Version
+	req.ExpectedRevision = pr.Revision
 	res, err := c.EnsurePullRequest(context.Background(), req)
 	if err != nil {
 		t.Fatalf("EnsurePullRequest: %v", err)
@@ -530,7 +530,7 @@ func TestIntegrationEnsureEveryPostDiscoveryCallHasRepo(t *testing.T) {
 		ensViewArm(updated),
 	}})
 	req := ensRequest()
-	req.ExpectedVersion = pr.Version
+	req.ExpectedRevision = pr.Revision
 	if _, err := c.EnsurePullRequest(context.Background(), req); err != nil {
 		t.Fatalf("EnsurePullRequest: %v", err)
 	}

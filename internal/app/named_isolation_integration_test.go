@@ -224,7 +224,7 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 	}
 
 	// (2) Claim.
-	claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Version: ctxRes.Context.Change.Version})
+	claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: ctxRes.Context.Change.Revision})
 	if claim.Result != ResultApplied {
 		t.Fatalf("claim = %q (disposition %q findings %v), want applied", claim.Result, claim.Disposition, claim.Findings)
 	}
@@ -232,7 +232,7 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 
 	// (3) Reconcile.
 	rec := ChangeReconcile(ctx, node.deps, node.dir, ChangeReconcileRequest{
-		ID: id, Version: ver(), ReconcileLogEntry: "Reconciled against current reality.\n",
+		ID: id, Revision: ver(), ReconcileLogEntry: "Reconciled against current reality.\n",
 	})
 	if rec.Result != ResultApplied {
 		t.Fatalf("reconcile = %q (disposition %q findings %v), want applied", rec.Result, rec.Disposition, rec.Findings)
@@ -240,7 +240,7 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 	namedIsolationCheck(t, "reconcile", repo, "docket", brokenBlob, inProgress, recLink)
 
 	// (4) Workspace prepare (a named branch-fact read).
-	prep := WorkspacePrepare(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id, Version: ver()})
+	prep := WorkspacePrepare(ctx, node.deps, wdeps, node.dir, WorkspaceIDRequest{ID: id, Revision: ver()})
 	if prep.Result != ResultApplied {
 		t.Fatalf("workspace prepare = %q (reason %q msg %q), want applied", prep.Result, prep.Reason, prep.Message)
 	}
@@ -252,7 +252,7 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 		t.Fatalf("plan backlink = %q (reason %q msg %q)", bl.Result, bl.Reason, bl.Message)
 	}
 	planHead := commitPlanFile(t, wp, planPath, string(mustReadFile(t, filepath.Join(wp, planPath))), planPath)
-	attach := ChangeAttachPlan(ctx, node.deps, wdeps, node.dir, ChangeAttachRequest{ID: id, Version: ver(), Path: planPath, Commit: planHead})
+	attach := ChangeAttachPlan(ctx, node.deps, wdeps, node.dir, ChangeAttachRequest{ID: id, Revision: ver(), Path: planPath, Commit: planHead})
 	if attach.Result != ResultApplied {
 		t.Fatalf("attach plan = %q (reason %q msg %q findings %v), want applied", attach.Result, attach.Reason, attach.Message, attach.Findings)
 	}
@@ -267,7 +267,7 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 	runGit(t, wp, "add", "-A")
 	runGit(t, wp, "commit", "-q", "-m", "implement the widget")
 	head := runGit(t, wp, "rev-parse", "HEAD")
-	attachR := ChangeAttachResults(ctx, node.deps, wdeps, node.dir, ChangeAttachRequest{ID: id, Version: ver(), Path: resultsPath, Commit: head})
+	attachR := ChangeAttachResults(ctx, node.deps, wdeps, node.dir, ChangeAttachRequest{ID: id, Revision: ver(), Path: resultsPath, Commit: head})
 	if attachR.Result != ResultApplied {
 		t.Fatalf("attach results = %q (reason %q msg %q findings %v), want applied", attachR.Result, attachR.Reason, attachR.Message, attachR.Findings)
 	}
@@ -280,7 +280,7 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 	}
 	gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{happyPR(head)}}}
 	mi := ChangeMarkImplemented(ctx, node.deps, wdeps, gdeps, node.dir, MarkImplementedRequest{
-		ID: id, Version: ver(), Head: head, PR: prRepo().Spec() + "#42", EvidenceRecord: prEvidenceBytes(t, head),
+		ID: id, Revision: ver(), Head: head, PR: prRepo().Spec() + "#42", EvidenceRecord: prEvidenceBytes(t, head),
 	})
 	if mi.Result != ResultApplied || mi.Status != "implemented" {
 		t.Fatalf("mark implemented = %q status %q (findings %v), want applied implemented", mi.Result, mi.Status, mi.Findings)
@@ -320,7 +320,7 @@ func TestIntegrationNamedClaimRefusesDefectiveDependency(t *testing.T) {
 	tip := originTip(t, repo.origin, "docket")
 
 	res := ChangeClaim(context.Background(), node.deps, node.dir,
-		ChangeClaimRequest{ID: id, Version: blobVersionAt(t, repo.origin, "docket", recPath)})
+		ChangeClaimRequest{ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath)})
 	if res.Result == ResultApplied {
 		t.Fatalf("claim applied although B's dependency %s carries an error; want a refusal", depPath)
 	}
@@ -368,7 +368,7 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 
 		blockGH := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
 		block := FinalizeBlock(ctx, FinalizeDeps{Planning: f.deps, GitHub: blockGH, Workspace: f.svc}, f.repo.invocation, BlockRequest{
-			ID: f.id, Version: f.version, PRNumber: closeoutPR, Attempt: "att1", Reason: "gate-repair-required",
+			ID: f.id, Revision: f.version, PRNumber: closeoutPR, Attempt: "att1", Reason: "gate-repair-required",
 			Head: f.head, Report: "The gate failed.\n", Remedy: "Fix and retry.\n",
 		})
 		if block.Result != ResultApplied || block.Disposition != BlockDispRecorded {
@@ -380,7 +380,7 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 		pr.Number = closeoutPR
 		clearGH := &fakeBlockGitHub{repo: retargetRepo(), openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {pr}}}
 		clear := FinalizeClearBlock(ctx, FinalizeDeps{Planning: f.deps, GitHub: clearGH, Workspace: f.svc}, f.repo.invocation, ClearBlockRequest{
-			ID: f.id, Version: blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)), Head: f.head, PRNumber: closeoutPR,
+			ID: f.id, Revision: blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)), Head: f.head, PRNumber: closeoutPR,
 		})
 		if clear.Result != ResultApplied || clear.Disposition != BlockDispCleared {
 			t.Fatalf("finalize clear-block = %q disp %q reason %q msg %q (findings %v), want applied cleared",
@@ -462,7 +462,7 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 	mergeRequest := func(t *testing.T, f *closeoutFixture) FinalizeMergeRequest {
 		t.Helper()
 		return FinalizeMergeRequest{
-			ID: f.id, Version: blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)),
+			ID: f.id, Revision: blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)),
 			Head: f.head, ExplicitID: true,
 		}
 	}

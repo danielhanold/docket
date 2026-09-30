@@ -250,14 +250,14 @@ func TestRaceIntegrationAppConcurrencyPlanningConcurrentUnrelatedMutationsBothLa
 				defer wg.Done()
 				<-start
 				resA = ChangeBlock(context.Background(), nodeA.deps, nodeA.dir, ChangeBlockRequest{
-					ChangeID: 3, Path: widgetPath, Version: widgetVer, Reason: "waiting on upstream",
+					ChangeID: 3, Path: widgetPath, Revision: widgetVer, Reason: "waiting on upstream",
 				})
 			}()
 			go func() {
 				defer wg.Done()
 				<-start
 				resB = ChangeDefer(context.Background(), nodeB.deps, nodeB.dir, ChangeDeferRequest{
-					ChangeID: 4, Path: gadgetPath, Version: gadgetVer, WhyDeferred: "Parked pending a decision.\n",
+					ChangeID: 4, Path: gadgetPath, Revision: gadgetVer, WhyDeferred: "Parked pending a decision.\n",
 				})
 			}()
 			close(start)
@@ -327,7 +327,7 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneCont
 					defer wg.Done()
 					<-start
 					results[i] = ChangeBlock(context.Background(), node.deps, node.dir, ChangeBlockRequest{
-						ChangeID: 3, Path: recPath, Version: ver, Reason: reason,
+						ChangeID: 3, Path: recPath, Revision: ver, Reason: reason,
 					})
 				}()
 			}
