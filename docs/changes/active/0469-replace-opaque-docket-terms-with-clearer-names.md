@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [129]
 spec: 'docs/superpowers/specs/2026-09-30-replace-opaque-docket-terms-with-clearer-names-design.md'
 plan: 'docs/superpowers/plans/2026-09-30-replace-opaque-docket-terms-with-clearer-names.md'
-results:
+results: 'docs/results/2026-09-30-replace-opaque-docket-terms-with-clearer-names-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-30T22:05:17Z'
 |---|---|
 | Spec | [2026-09-30-replace-opaque-docket-terms-with-clearer-names-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-30-replace-opaque-docket-terms-with-clearer-names-design.md) |
 | Plan | [2026-09-30-replace-opaque-docket-terms-with-clearer-names.md](https://github.com/danielhanold/docket/blob/refactor/replace-opaque-docket-terms-with-clearer-names/docs/superpowers/plans/2026-09-30-replace-opaque-docket-terms-with-clearer-names.md) |
+| Results | [2026-09-30-replace-opaque-docket-terms-with-clearer-names-results.md](https://github.com/danielhanold/docket/blob/refactor/replace-opaque-docket-terms-with-clearer-names/docs/results/2026-09-30-replace-opaque-docket-terms-with-clearer-names-results.md) |
 | ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
