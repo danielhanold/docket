@@ -9,12 +9,12 @@ package githubcli
 //
 // The sequence mirrors ensure.go's fixed shape:
 //
-//	1. probe the PR by number for its current base and opaque version;
+//	1. probe the PR by number for its current base and opaque revision;
 //	2. if the PR is ALREADY at newBase the promised end-state holds — `already`,
 //	   no edit (idempotency keyed on the promised remote state, never on the CAS
-//	   version, which a completed retarget has already changed);
+//	   revision, which a completed retarget has already changed);
 //	3. otherwise an edit is authorized only when the caller's ExpectedRevision
-//	   equals the live version — an empty or mismatched version is `contended` and
+//	   equals the live revision — an empty or mismatched revision is `contended` and
 //	   leaves the PR untouched;
 //	4. `gh pr edit <n> --base <newBase>` carries the base as an explicit argv flag,
 //	   no authored bytes; and
@@ -44,7 +44,7 @@ const (
 	RetargetRetargeted RetargetOutcome = "retargeted"
 	// RetargetAlready: the PR already sat at newBase; no edit was issued.
 	RetargetAlready RetargetOutcome = "already"
-	// RetargetContended: the live version diverged from ExpectedRevision, or a
+	// RetargetContended: the live revision diverged from ExpectedRevision, or a
 	// verified snapshot still showed a different base; the PR is left untouched.
 	RetargetContended RetargetOutcome = "contended"
 	// RetargetUnknown: an external probe could not establish the truth; nothing
@@ -74,14 +74,14 @@ func (c *Client) RetargetPullRequest(ctx context.Context, repo Repository, numbe
 	}
 
 	// The promised end-state — the PR at newBase — is the idempotency key, checked
-	// before the version gate: a completed retarget has already changed the CAS
-	// version, so keying idempotency on the version would misread a success as
+	// before the revision gate: a completed retarget has already changed the CAS
+	// revision, so keying idempotency on the revision would misread a success as
 	// contention.
 	if pr.BaseBranch == newBase {
 		return RetargetAlready, pr, nil
 	}
 
-	// An edit is authorized only by the exact live version.
+	// An edit is authorized only by the exact live revision.
 	if expectedRevision == "" || expectedRevision != pr.Revision {
 		return RetargetContended, PullRequest{}, nil
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 // mergedInto builds PRFacts for a merged pull request whose destination branch
-// is base. The exact number/version are irrelevant to closeout derivation,
+// is base. The exact number/revision are irrelevant to closeout derivation,
 // which reads only state and base.
 func mergedInto(base string) PRFacts {
 	return PRFacts{

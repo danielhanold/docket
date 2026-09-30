@@ -191,7 +191,7 @@ func setupBlockedFixture(t *testing.T, m planRepoMode) *rebaseFixture {
 	blocked := strings.TrimRight(lifecycleChange(f.id, f.slug, "in-progress"), "\n") +
 		"\n\n## Finalize blocked\n\n### 2026-08-01 — attempt att0\n\n<!-- attempt:att0 -->\n\n- Reason: prior\n"
 	f.repo.writerAdvance(t, f.branch, map[string]string{groomPath(f.id, f.slug): blocked})
-	f.version = blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+	f.revision = blobRevisionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
 	return f
 }
 
@@ -206,6 +206,6 @@ func setupBlockedFixture(t *testing.T, m planRepoMode) *rebaseFixture {
 // on that progress row with the before-gate refusal the bug produced.
 
 func blockTestRequest(f *rebaseFixture) BlockRequest {
-	return BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
+	return BlockRequest{ID: f.id, Revision: f.revision, PRNumber: 7, Attempt: "att1",
 		Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix and retry.\n"}
 }

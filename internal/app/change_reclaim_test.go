@@ -13,7 +13,7 @@ import (
 // This file drives `change reclaim`: the proof-gated return of a strictly-expired
 // in-progress claim to proposed. The lease gate and the applied mutation run over
 // the in-memory fakeTree Plan harness (blockPlanFor); the destructive branch and
-// workspace gates, the atomic transaction, and the exact-version contention run
+// workspace gates, the atomic transaction, and the exact-revision contention run
 // end-to-end over real bare-remote repositories in both metadata modes with a
 // fake WorkspaceService scripting the inspected state.
 

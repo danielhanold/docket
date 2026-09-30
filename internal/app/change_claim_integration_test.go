@@ -26,7 +26,7 @@ func TestIntegrationRecordOpsClaimRunContextInvalidRefusesBeforeTransaction(t *t
 	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
 
 	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Revision: gateClaimVersion, RunContext: "tok"})
+		ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tok"})
 
 	if res.Result != ResultInvalidState {
 		t.Fatalf("result = %q, want invalid-state (findings %v)", res.Result, res.Findings)
@@ -69,7 +69,7 @@ func TestIntegrationRecordOpsClaimRunContextReservesAndConfirms(t *testing.T) {
 	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
 
 	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Revision: gateClaimVersion, RunContext: "tok"})
+		ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tok"})
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied (findings %v)", res.Result, res.Findings)
 	}
@@ -88,11 +88,11 @@ func TestIntegrationRecordOpsClaimRunContextReservesAndConfirms(t *testing.T) {
 		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
 	}
 	gotDigest := engine.calls[0].Idempotency.Digest
-	withHash, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimVersion, RunContextHash: hash})
+	withHash, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimRevision, RunContextHash: hash})
 	if err != nil {
 		t.Fatalf("canonicalDigest (hash): %v", err)
 	}
-	ungated, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimVersion, RunContextHash: ""})
+	ungated, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimRevision, RunContextHash: ""})
 	if err != nil {
 		t.Fatalf("canonicalDigest (ungated): %v", err)
 	}
@@ -136,14 +136,14 @@ func TestIntegrationRecordOpsClaimRunContextConflictRefused(t *testing.T) {
 
 	engine1 := &claimGateEngine{result: appliedGateResult(t, 3)}
 	first := ChangeClaim(context.Background(), gateClaimDeps(t, engine1, corpus), repoDir,
-		ChangeClaimRequest{ID: 3, Revision: gateClaimVersion, RunContext: "tok"})
+		ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tok"})
 	if first.Result != ResultApplied {
 		t.Fatalf("first claim result = %q, want applied (%v)", first.Result, first.Findings)
 	}
 
 	engine2 := &claimGateEngine{result: appliedGateResult(t, 4)}
 	second := ChangeClaim(context.Background(), gateClaimDeps(t, engine2, corpus), repoDir,
-		ChangeClaimRequest{ID: 4, Revision: gateClaimVersion, RunContext: "tok"})
+		ChangeClaimRequest{ID: 4, Revision: gateClaimRevision, RunContext: "tok"})
 
 	if second.Result != ResultInvalidState {
 		t.Errorf("second result = %q, want invalid-state", second.Result)
@@ -164,14 +164,14 @@ func TestIntegrationRecordOpsClaimUngatedUnchanged(t *testing.T) {
 	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
 
 	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Revision: gateClaimVersion}) // no RunContext
+		ChangeClaimRequest{ID: 3, Revision: gateClaimRevision}) // no RunContext
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied (%v)", res.Result, res.Findings)
 	}
 	if len(engine.calls) != 1 {
 		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
 	}
-	want, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimVersion, RunContextHash: ""})
+	want, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimRevision, RunContextHash: ""})
 	if err != nil {
 		t.Fatalf("canonicalDigest: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestIntegrationRecordOpsClaimTerminalGateRefused(t *testing.T) {
 	deps := gateClaimDeps(t, engine, []StatusBlob{changeBlob(3, "widget", "feat", "high", "")})
 
 	res := ChangeClaim(context.Background(), deps, repoDir,
-		ChangeClaimRequest{ID: 3, Revision: gateClaimVersion, RunContext: "tok"})
+		ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tok"})
 	if res.Disposition != ClaimDispositionRunContextInvalid {
 		t.Errorf("disposition = %q, want %q", res.Disposition, ClaimDispositionRunContextInvalid)
 	}
@@ -221,7 +221,7 @@ func TestIntegrationRecordOpsChangeClaimUnrelatedInvalidRecordProgress(t *testin
 	later := planningDepsForClock(t, repo.invocation, fixedClock{t: time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)})
 	ctx := context.Background()
 
-	claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath)})
+	claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
 	if claim.Result != ResultApplied {
 		t.Fatalf("claim beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
 			claim.Result, claim.Disposition, claim.Findings)
@@ -246,7 +246,7 @@ func TestIntegrationRecordOpsChangeClaimUnrelatedInvalidRecordProgress(t *testin
 		t.Errorf("board lacks the repair notice naming the unrelated record:\n%s", board)
 	}
 
-	refresh := ChangeRefreshClaim(ctx, later.deps, later.dir, ChangeClaimRequest{ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath)})
+	refresh := ChangeRefreshClaim(ctx, later.deps, later.dir, ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
 	if refresh.Result != ResultApplied {
 		t.Fatalf("refresh-claim beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
 			refresh.Result, refresh.Disposition, refresh.Findings)
@@ -284,7 +284,7 @@ func TestIntegrationRecordOpsChangeClaimUnrelatedDependentsOfBrokenProgress(t *t
 	})
 	node := planningDepsFor(t, repo.invocation)
 
-	claim := ChangeClaim(context.Background(), node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath)})
+	claim := ChangeClaim(context.Background(), node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
 	if claim.Result != ResultApplied {
 		t.Fatalf("claim beside unrelated dependents of an unparseable record = %q (disposition %q findings %v), want applied",
 			claim.Result, claim.Disposition, claim.Findings)
@@ -316,7 +316,7 @@ func TestIntegrationRecordOpsChangeClaimUnrelatedShapesProgress(t *testing.T) {
 			repo := newWorkingRepo(t, files)
 			node := planningDepsFor(t, repo.invocation)
 			res := ChangeClaim(context.Background(), node.deps, node.dir,
-				ChangeClaimRequest{ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath)})
+				ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
 			if res.Result != ResultApplied {
 				t.Fatalf("claim beside %s = %q (disposition %q findings %v), want applied", shape.name, res.Result, res.Disposition, res.Findings)
 			}
@@ -339,7 +339,7 @@ func TestIntegrationRecordOpsChangeClaimUnrelatedInvalidRecordRefusals(t *testin
 			tip := originTip(t, repo.origin, "docket")
 
 			res := ChangeClaim(context.Background(), node.deps, node.dir,
-				ChangeClaimRequest{ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath)})
+				ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
 			if res.Result == ResultApplied {
 				t.Fatalf("claim applied despite %s; want a refusal", c.name)
 			}
@@ -363,7 +363,7 @@ func TestIntegrationRecordOpsChangeRefreshClaimUnrelatedInvalidRecordRefusals(t 
 			tip := originTip(t, repo.origin, "docket")
 
 			res := ChangeRefreshClaim(context.Background(), node.deps, node.dir,
-				ChangeClaimRequest{ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath)})
+				ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
 			if res.Result == ResultApplied {
 				t.Fatalf("refresh-claim applied despite %s; want a refusal", c.name)
 			}
@@ -400,7 +400,7 @@ func TestIntegrationRecordOpsClaimResumeContextRefusedBeforeReserve(t *testing.T
 			engine := &claimGateEngine{result: appliedGateResult(t, id)}
 
 			res := ChangeClaim(context.Background(), gateClaimDeps(t, engine, corpus), repoDir,
-				ChangeClaimRequest{ID: id, Revision: gateClaimVersion, RunContext: "tok"})
+				ChangeClaimRequest{ID: id, Revision: gateClaimRevision, RunContext: "tok"})
 
 			if res.Result != ResultInvalidState || res.Disposition != ClaimDispositionRunContextConflict {
 				t.Fatalf("result = %q disposition = %q, want invalid-state %q (findings %v)",
@@ -428,7 +428,7 @@ func TestIntegrationRecordOpsClaimRunContextRetryAfterConfirmAdmitted(t *testing
 	for i := 0; i < 2; i++ {
 		engine := &claimGateEngine{result: appliedGateResult(t, 3)}
 		res := ChangeClaim(context.Background(), gateClaimDeps(t, engine, corpus), repoDir,
-			ChangeClaimRequest{ID: 3, Revision: gateClaimVersion, RunContext: "tok"})
+			ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tok"})
 		if res.Result != ResultApplied {
 			t.Fatalf("attempt %d result = %q disposition = %q, want applied (%v)", i+1, res.Result, res.Disposition, res.Findings)
 		}

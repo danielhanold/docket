@@ -223,7 +223,7 @@ func setupStackedMergedCleanupFixture(t *testing.T) *closeoutFixture {
 	recPath := groomPath(f.id, f.slug)
 	src := closeoutRecord(f.id, f.slug, "stacked-merged", closeoutRef, f.specPath, f.planPath, f.resultsPath)
 	f.repo.writerAdvance(t, f.branch, map[string]string{recPath: src})
-	f.version = blobVersionAt(t, f.repo.origin, f.branch, recPath)
+	f.revision = blobRevisionAt(t, f.repo.origin, f.branch, recPath)
 	return f
 }
 

@@ -28,7 +28,7 @@ import (
 // take the transition and yields the field changes — including the cleared
 // claim stamp and branch a killed record must not carry — so this layer decides
 // no lifecycle policy of its own. Killing edits an existing record, so it pins
-// the submitted record version with an exact-blob entity expectation rather than
+// the submitted record revision with an exact-blob entity expectation rather than
 // an idempotency key. It inspects no process, branch, worktree, or PR state.
 //
 // Kill is a rename, not a reuse: the archive move is one MutationCreate at the

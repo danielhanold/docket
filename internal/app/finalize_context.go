@@ -235,7 +235,7 @@ type FinalizeDescendant struct {
 }
 
 // FinalizeCandidateReport is one change's authoritative finalize disposition:
-// its identity and source version, resolved branch and effective base, live PR
+// its identity and source revision, resolved branch and effective base, live PR
 // facts, dependency and stack relations, the set of open child PRs that must be
 // retargeted before a stacked merge, and the typed candidate band or skip
 // reason. OverrideNote is set when a skip reason (approval-required or

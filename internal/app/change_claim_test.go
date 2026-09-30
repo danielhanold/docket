@@ -183,7 +183,7 @@ func TestClaimResultFromOutcomeFailedCarriesCause(t *testing.T) {
 // real metadata commit; the receipt bytes are proven by driving the captured
 // operation's Plan closure (claimPlanFor).
 
-const gateClaimVersion = "1234123412341234123412341234123412341234"
+const gateClaimRevision = "1234123412341234123412341234123412341234"
 const gateClaimCommit = "cafebabecafebabecafebabecafebabecafebabe"
 
 // claimGateEngine records every Execute call, optionally runs onExecute during
@@ -229,26 +229,26 @@ func gateClaimDeps(t *testing.T, engine *claimGateEngine, corpus []StatusBlob) P
 }
 
 // TestClaimSameIDDifferentContextDigestDiffers: two dispatches submitting the
-// SAME (id, version) under different contexts must not share the idempotency
+// SAME (id, revision) under different contexts must not share the idempotency
 // path — their digests differ while their request ids match, so the engine's
 // replay scan refuses the second as id-reuse rather than replaying the first's
 // receipt (criterion 3).
 func TestClaimSameIDDifferentContextDigestDiffers(t *testing.T) {
 	h1 := runTrackerHashToken("tokA")
 	h2 := runTrackerHashToken("tokB")
-	d1, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimVersion, RunContextHash: h1})
+	d1, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimRevision, RunContextHash: h1})
 	if err != nil {
 		t.Fatalf("digest 1: %v", err)
 	}
-	d2, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimVersion, RunContextHash: h2})
+	d2, err := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: 3, Revision: gateClaimRevision, RunContextHash: h2})
 	if err != nil {
 		t.Fatalf("digest 2: %v", err)
 	}
 	if d1 == d2 {
-		t.Errorf("digests match across differing contexts (%q); the same (id,version) would share the idempotency path", d1)
+		t.Errorf("digests match across differing contexts (%q); the same (id, revision) would share the idempotency path", d1)
 	}
-	reqA := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimVersion, RunContext: "tokA"})
-	reqB := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimVersion, RunContext: "tokB"})
+	reqA := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tokA"})
+	reqB := claimRequestID(ChangeClaimRequest{ID: 3, Revision: gateClaimRevision, RunContext: "tokB"})
 	if reqA != reqB {
 		t.Errorf("request ids differ (%q vs %q); they must match so the engine's replay scan sees id-reuse", reqA, reqB)
 	}
@@ -270,13 +270,13 @@ type claimEngineClock struct{}
 
 func (claimEngineClock) Now() time.Time { return time.Unix(1758400000, 0).UTC() }
 
-// TestClaimResultRealEngineMalformedVersion is change 0350's end-to-end
+// TestClaimResultRealEngineMalformedRevision is change 0350's end-to-end
 // regression: a REAL transaction.Engine given a malformed (shortened)
-// expected-version object id returns its base result — empty disposition —
+// expected-revision object id returns its base result — empty disposition —
 // with a typed *Failure from StageValidateRequest, and claimResultFromOutcome
 // must surface that as invalid-input with a populated failure diagnosis, not
 // a bare internal-error.
-func TestClaimResultRealEngineMalformedVersion(t *testing.T) {
+func TestClaimResultRealEngineMalformedRevision(t *testing.T) {
 	client, err := gitcli.NewClient()
 	if err != nil {
 		t.Fatalf("gitcli.NewClient: %v", err)

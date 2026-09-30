@@ -183,7 +183,7 @@ func TestRetargetProbesOnlyParentStack(t *testing.T) {
 	}
 	gh := &fakeRetargetGitHub{
 		repo: retargetRepo(),
-		prs:  []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"}},
+		prs:  []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810"}},
 	}
 	deps := retargetDeps(&fakeReader{pin: pin, corpus: corpus}, gh, &recordingEngine{})
 	deps.Planning.Reader = poisoned(deps.Planning.Reader, "feat/a-parent")

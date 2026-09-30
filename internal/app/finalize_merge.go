@@ -25,7 +25,7 @@ import (
 //      effect. The first falsified conjunct refuses with its closed token and
 //      issues NO merge call. An explicit id (attended, human-named) satisfies
 //      the approval and finalize-blocked skips but never a wrong PR identity, an
-//      unsafe stack, the repair sign-off (gate), or a superseding version.
+//      unsafe stack, the repair sign-off (gate), or a superseding revision.
 //
 //   2. `--admin` is honored ONLY on an explicitly-named run and is never
 //      inferred — not from an approval absence and not from a permission error.
@@ -70,7 +70,7 @@ const (
 	// response, a prior run, or a human); a verified no-op, never a second merge.
 	MergeDispAlreadyMerged = "already-merged"
 	// MergeDispContended: a lost race the caller resolves by re-reading context —
-	// a moved head, a divergent merged head/base, or a superseding version.
+	// a moved head, a divergent merged head/base, or a superseding revision.
 	MergeDispContended = "contended"
 	// MergeDispNotMergeable: the PR cannot be merged (conflicting or closed
 	// unmerged); no merge landed.
@@ -156,7 +156,7 @@ const (
 )
 
 // FinalizeMergeRequest is the closed request for `finalize merge`. ID names the
-// change; Revision is the exact record blob version from the authoritative
+// change; Revision is the exact record blob revision from the authoritative
 // context read; Head is the exact feature head the merge must match; Admin
 // requests an admin-override merge (honored only with ExplicitID); ExplicitID is
 // true when a human explicitly named this change (an attended run), which
@@ -170,7 +170,7 @@ type FinalizeMergeRequest struct {
 }
 
 // VerifiedMerge is the authoritative post-merge evidence a successful merge (or
-// verified already-merged no-op) carries: the exact PR number/version, the head
+// verified already-merged no-op) carries: the exact PR number/revision, the head
 // and base at merge, the GitHub mergedAt in UTC, and the merge commit object id
 // proven reachable from the destination. Its presence is the ONLY signal that a
 // closeout may proceed.
@@ -267,7 +267,7 @@ type mergeConjunctInputs struct {
 // mergeConjuncts assembles the domain merge conjuncts from the live inputs. The
 // two human-overridable conjuncts read the explicit-id flag: an explicit id
 // supplies approval and satisfies a finalize-blocked marker. A superseding
-// version is NEVER overridable — NotSuperseded requires an exact version match
+// revision is NEVER overridable — NotSuperseded requires an exact revision match
 // regardless of authorization.
 func mergeConjuncts(in mergeConjunctInputs) domain.MergeConjuncts {
 	return domain.MergeConjuncts{
@@ -284,7 +284,7 @@ func mergeConjuncts(in mergeConjunctInputs) domain.MergeConjuncts {
 }
 
 // mergeConjunctOutcome maps a falsified-conjunct token to its result class and
-// disposition. A moved head, a wrong PR identity, and a superseding version are
+// disposition. A moved head, a wrong PR identity, and a superseding revision are
 // lost races the caller resolves by re-reading context (contended); every other
 // conjunct is a retained block a human resolves.
 func mergeConjunctOutcome(token string) (Result, string) {
@@ -298,7 +298,7 @@ func mergeConjunctOutcome(token string) (Result, string) {
 
 // mergeContext is everything `finalize merge` resolves once from a fresh pin: the
 // snapshot (for the stack graph), the resolved change and its exact record
-// version and raw body (for the finalize-blocked marker), the resolved effective
+// revision and raw body (for the finalize-blocked marker), the resolved effective
 // base and validated target, the discovered Git repository, and the effective
 // config (for the gate/approval policy).
 type mergeContext struct {
@@ -316,7 +316,7 @@ type mergeContext struct {
 // running the capability preflight before any external effect and refusing with
 // a typed merge result for every pre-effect condition — including a validation
 // error relevant to the change (namedPreEffectErrors, change 0449). It pins
-// once, reads the corpus once, and resolves the change/version/body/base/
+// once, reads the corpus once, and resolves the change/revision/body/base/
 // target/repo from that one authoritative copy (decide-and-act-on-the-same-copy).
 func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id int) (*mergeContext, *FinalizeMergeResult) {
 	reader := deps.Planning.Reader
@@ -763,7 +763,7 @@ func mergeConjunctMessage(token string, id int) string {
 }
 
 // validateMergeShape runs the configuration-independent request checks for
-// `finalize merge`: a positive id, a non-empty pinned version, and a valid
+// `finalize merge`: a positive id, a non-empty pinned revision, and a valid
 // full-length object id for the expected head.
 func validateMergeShape(req FinalizeMergeRequest) []StatusFinding {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)

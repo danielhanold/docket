@@ -49,7 +49,7 @@ func TestADRRecordRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		{"producing change empty path", func(r *ADRRecordRequest) {
 			r.Change = &ADRProducingChange{ID: 1, Path: "", Revision: blobV}
 		}, "empty-change-path"},
-		{"producing change empty version", func(r *ADRRecordRequest) {
+		{"producing change empty revision", func(r *ADRRecordRequest) {
 			r.Change = &ADRProducingChange{ID: 1, Path: "docs/changes/active/0001-first.md", Revision: ""}
 		}, "empty-change-revision"},
 		{"producing change non-positive id", func(r *ADRRecordRequest) {

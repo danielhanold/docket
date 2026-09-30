@@ -74,9 +74,9 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 	// engine transaction.
 	baseTip := originTip(t, repo.origin, m.branch)
 
-	// ver reads the change record's current entity version from the bare origin —
-	// the independent oracle each exact-version request submits.
-	ver := func() string { return blobVersionAt(t, repo.origin, m.branch, recPath) }
+	// ver reads the change record's current record revision from the bare origin —
+	// the independent oracle each exact-revision request submits.
+	ver := func() string { return blobRevisionAt(t, repo.origin, m.branch, recPath) }
 
 	complete := func(runContext string) GitHubDeps {
 		// (1) Authoritative implementation context.
@@ -89,7 +89,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string, entries .
 		}
 		v := ctxRes.Context.Change.Revision
 		if v != ver() {
-			t.Fatalf("context version %q disagrees with the origin oracle %q", v, ver())
+			t.Fatalf("context revision %q disagrees with the origin oracle %q", v, ver())
 		}
 
 		// (2) Claim.
@@ -296,9 +296,9 @@ func assertDeferredCapabilityBlocksClaim(t *testing.T) {
 	})
 	node := planningDepsFor(t, repo.invocation)
 	before := originTip(t, repo.origin, "docket")
-	version := blobVersionAt(t, repo.origin, "docket", recPath)
+	revision := blobRevisionAt(t, repo.origin, "docket", recPath)
 
-	res := ChangeClaim(context.Background(), node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: version})
+	res := ChangeClaim(context.Background(), node.deps, node.dir, ChangeClaimRequest{ID: id, Revision: revision})
 	if res.Result != ResultUnsupportedConfig {
 		t.Fatalf("claim under a deferred-capability request = %q, want unsupported-config (findings %v)", res.Result, res.Findings)
 	}

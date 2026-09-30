@@ -22,7 +22,7 @@ import (
 
 // sweepObservation is one immutable metadata observation: the captured setup
 // combined with exactly one fresh metadata fetch, plus the corpus/snapshot/blob
-// versions read at that revision. It serves ONE dispatched operation attempt and
+// revisions read at that fetched commit. It serves ONE dispatched operation attempt and
 // is discarded after the operation returns.
 type sweepObservation struct {
 	pin   StatusPin      // captured setup + this attempt's fresh MetadataRevision

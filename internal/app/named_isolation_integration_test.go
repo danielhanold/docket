@@ -200,7 +200,7 @@ func TestIntegrationNamedImplementationFlowIsolation(t *testing.T) {
 		t.Fatalf("workspace.NewService: %v", err)
 	}
 	wdeps := WorkspaceDeps{Service: svc}
-	ver := func() string { return blobVersionAt(t, repo.origin, "docket", recPath) }
+	ver := func() string { return blobRevisionAt(t, repo.origin, "docket", recPath) }
 	recLink := "(active/" + path.Base(recPath) + ")"
 	inProgress := "In progress ("
 
@@ -320,7 +320,7 @@ func TestIntegrationNamedClaimRefusesDefectiveDependency(t *testing.T) {
 	tip := originTip(t, repo.origin, "docket")
 
 	res := ChangeClaim(context.Background(), node.deps, node.dir,
-		ChangeClaimRequest{ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath)})
+		ChangeClaimRequest{ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath)})
 	if res.Result == ResultApplied {
 		t.Fatalf("claim applied although B's dependency %s carries an error; want a refusal", depPath)
 	}
@@ -368,7 +368,7 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 
 		blockGH := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
 		block := FinalizeBlock(ctx, FinalizeDeps{Planning: f.deps, GitHub: blockGH, Workspace: f.svc}, f.repo.invocation, BlockRequest{
-			ID: f.id, Revision: f.version, PRNumber: closeoutPR, Attempt: "att1", Reason: "gate-repair-required",
+			ID: f.id, Revision: f.revision, PRNumber: closeoutPR, Attempt: "att1", Reason: "gate-repair-required",
 			Head: f.head, Report: "The gate failed.\n", Remedy: "Fix and retry.\n",
 		})
 		if block.Result != ResultApplied || block.Disposition != BlockDispRecorded {
@@ -380,7 +380,7 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 		pr.Number = closeoutPR
 		clearGH := &fakeBlockGitHub{repo: retargetRepo(), openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {pr}}}
 		clear := FinalizeClearBlock(ctx, FinalizeDeps{Planning: f.deps, GitHub: clearGH, Workspace: f.svc}, f.repo.invocation, ClearBlockRequest{
-			ID: f.id, Revision: blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)), Head: f.head, PRNumber: closeoutPR,
+			ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)), Head: f.head, PRNumber: closeoutPR,
 		})
 		if clear.Result != ResultApplied || clear.Disposition != BlockDispCleared {
 			t.Fatalf("finalize clear-block = %q disp %q reason %q msg %q (findings %v), want applied cleared",
@@ -462,7 +462,7 @@ func TestIntegrationNamedFinalizeFlowIsolation(t *testing.T) {
 	mergeRequest := func(t *testing.T, f *closeoutFixture) FinalizeMergeRequest {
 		t.Helper()
 		return FinalizeMergeRequest{
-			ID: f.id, Revision: blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)),
+			ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug)),
 			Head: f.head, ExplicitID: true,
 		}
 	}

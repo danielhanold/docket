@@ -320,7 +320,7 @@ func (c *Client) probeMergeSnapshot(ctx context.Context, repo Repository, number
 }
 
 // decodeMergeSnapshot decodes the standard PR fields (reusing the package's
-// validated PR decode, which computes the version) and the merge vocabulary from
+// validated PR decode, which computes the revision) and the merge vocabulary from
 // the same bytes. An UNKNOWN mergeability is preserved verbatim, never coerced.
 func decodeMergeSnapshot(op string, data []byte) (mergeSnapshot, error) {
 	pr, err := decodePullRequest(op, data)

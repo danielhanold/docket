@@ -13,13 +13,13 @@ import (
 	"testing"
 )
 
-// TestIntegrationRecordOpsChangeGroomReviseSpecVersionContendsRealGit drives the finding's exact
+// TestIntegrationRecordOpsChangeGroomReviseSpecRevisionContendsRealGit drives the finding's exact
 // race through a real engine and a bare origin: two revises pinned to the SAME
-// record version (a same-day spec-only revise leaves the record bytes
-// unchanged) and the same spec version. The first applies; the second's spec
+// record revision (a same-day spec-only revise leaves the record bytes
+// unchanged) and the same spec revision. The first applies; the second's spec
 // pin is stale, so it contends and writes nothing instead of clobbering the
 // first revise's spec body.
-func TestIntegrationRecordOpsChangeGroomReviseSpecVersionContendsRealGit(t *testing.T) {
+func TestIntegrationRecordOpsChangeGroomReviseSpecRevisionContendsRealGit(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(2, "add-a-widget")
 	repo := newWorkingRepo(t, reviseFixtureFiles())
@@ -34,19 +34,19 @@ func TestIntegrationRecordOpsChangeGroomReviseSpecVersionContendsRealGit(t *test
 	}
 
 	// Settle the record (updated: today, artifacts rendered) with a matching
-	// pin — the matching-version apply path.
-	if res := revise("Settling body.", blobVersionAt(t, repo.origin, "docket", recPath),
-		blobVersionAt(t, repo.origin, "docket", reviseSpecPath)); res.Result != ResultApplied {
+	// pin — the matching-revision apply path.
+	if res := revise("Settling body.", blobRevisionAt(t, repo.origin, "docket", recPath),
+		blobRevisionAt(t, repo.origin, "docket", reviseSpecPath)); res.Result != ResultApplied {
 		t.Fatalf("settling revise = %q (findings %v), want applied", res.Result, res.Findings)
 	}
-	recV := blobVersionAt(t, repo.origin, "docket", recPath)
-	specV := blobVersionAt(t, repo.origin, "docket", reviseSpecPath)
+	recV := blobRevisionAt(t, repo.origin, "docket", recPath)
+	specV := blobRevisionAt(t, repo.origin, "docket", reviseSpecPath)
 
 	if res := revise("Body A.", recV, specV); res.Result != ResultApplied {
 		t.Fatalf("revise A = %q (findings %v), want applied", res.Result, res.Findings)
 	}
-	if got := blobVersionAt(t, repo.origin, "docket", recPath); got != recV {
-		t.Fatalf("precondition: a same-day spec-only revise must leave the record version unchanged (%s -> %s)", recV, got)
+	if got := blobRevisionAt(t, repo.origin, "docket", recPath); got != recV {
+		t.Fatalf("precondition: a same-day spec-only revise must leave the record revision unchanged (%s -> %s)", recV, got)
 	}
 	tip := originTip(t, repo.origin, "docket")
 
@@ -68,8 +68,8 @@ func TestIntegrationRecordOpsChangeGroomReviseSpecVersionContendsRealGit(t *test
 
 // TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit drives both outcomes through the real
 // engine and a bare origin: the abstain lands the record and BOARD.md in ONE
-// commit; a re-arm pinned to the pre-abstain version contends and writes
-// nothing; a re-arm at the current version restores needs-brainstorm.
+// commit; a re-arm pinned to the pre-abstain revision contends and writes
+// nothing; a re-arm at the current revision restores needs-brainstorm.
 func TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(2, "add-a-widget")
@@ -77,7 +77,7 @@ func TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit(t *testing.T) {
 	node := planningDepsFor(t, repo.invocation)
 
 	ab := abstainRequest()
-	ab.Revision = blobVersionAt(t, repo.origin, "docket", recPath)
+	ab.Revision = blobRevisionAt(t, repo.origin, "docket", recPath)
 	if res := ChangeGroom(context.Background(), node.deps, node.dir, ab); res.Result != ResultApplied {
 		t.Fatalf("abstain = %q (findings %v), want applied", res.Result, res.Findings)
 	}
@@ -100,7 +100,7 @@ func TestIntegrationRecordOpsChangeGroomAbstainThenRearmRealGit(t *testing.T) {
 	}
 
 	fresh := rearmRequest()
-	fresh.Revision = blobVersionAt(t, repo.origin, "docket", recPath)
+	fresh.Revision = blobRevisionAt(t, repo.origin, "docket", recPath)
 	if res := ChangeGroom(context.Background(), node.deps, node.dir, fresh); res.Result != ResultApplied {
 		t.Fatalf("re-arm = %q (findings %v), want applied", res.Result, res.Findings)
 	}

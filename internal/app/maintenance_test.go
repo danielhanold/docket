@@ -25,10 +25,10 @@ import (
 // --- recording ops seam ---------------------------------------------------
 
 type sweepCall struct {
-	kind    string
-	id      int
-	version string
-	obs     *sweepObservation // the shared observation this dispatch received
+	kind     string
+	id       int
+	revision string
+	obs      *sweepObservation // the shared observation this dispatch received
 }
 
 // recordingSweepOps records every dispatch and answers from scripted results,
@@ -115,8 +115,8 @@ func (r *recordingSweepOps) seam(reader StatusReader, prober FinalizePRProber) s
 			}
 			return newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{ID: id, Disposition: CleanupDispCleaned})
 		},
-		reclaim: func(_ context.Context, id int, version string, obs *sweepObservation) ChangeReclaimResult {
-			r.calls = append(r.calls, sweepCall{kind: sweepKindReclaim, id: id, version: version, obs: obs})
+		reclaim: func(_ context.Context, id int, revision string, obs *sweepObservation) ChangeReclaimResult {
+			r.calls = append(r.calls, sweepCall{kind: sweepKindReclaim, id: id, revision: revision, obs: obs})
 			if res, ok := r.reclaim[id]; ok {
 				return res
 			}
@@ -621,10 +621,10 @@ func TestVanishedOnObservationSkipsAfterThatPrepare(t *testing.T) {
 	}
 }
 
-// TestReclaimVersionFromObservation: the exact blob version the reclaim is pinned
+// TestReclaimRevisionFromObservation: the exact blob revision the reclaim is pinned
 // to comes from the SHARED observation the attempt prepared — obs.inv
 // .revisionByPath[path] — not a separate re-pin.
-func TestReclaimVersionFromObservation(t *testing.T) {
+func TestReclaimRevisionFromObservation(t *testing.T) {
 	corpus := []StatusBlob{sweepInProgressBlob(50, "stale")}
 	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
@@ -642,20 +642,20 @@ func TestReclaimVersionFromObservation(t *testing.T) {
 	}
 	want := obs.inv.revisionByPath[c.Path()]
 	if want == "" {
-		t.Fatalf("observation carried no blob version for 50")
+		t.Fatalf("observation carried no blob revision for 50")
 	}
 	var got string
 	found := false
 	for _, cl := range ops.calls {
 		if cl.kind == sweepKindReclaim && cl.id == 50 {
-			got, found = cl.version, true
+			got, found = cl.revision, true
 		}
 	}
 	if !found {
 		t.Fatalf("reclaim was not dispatched for 50; calls=%v", ops.calls)
 	}
 	if got != want {
-		t.Fatalf("reclaim version = %q, want %q (from obs.inv.revisionByPath)", got, want)
+		t.Fatalf("reclaim revision = %q, want %q (from obs.inv.revisionByPath)", got, want)
 	}
 }
 

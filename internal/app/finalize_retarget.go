@@ -13,7 +13,7 @@ import (
 // merges, it moves each authorized open child PR off the parent's branch and onto
 // the parent's own effective base, so the children never silently re-target
 // themselves to the integration branch when the parent's branch is deleted. The
-// GitHub mechanics (probe/act/verify each PR, the exact-version gate, the
+// GitHub mechanics (probe/act/verify each PR, the exact-revision gate, the
 // idempotent adoption of an already-retargeted PR) live in
 // githubcli.RetargetPullRequest; this layer only WIRES them, adds no second
 // PR-lookup policy, and executes NO metadata transaction.
@@ -26,7 +26,7 @@ import (
 //     snapshot — never the parent's rendered artifact table — and every open child
 //     found in the live graph must be named in the authorized set. A child open in
 //     the live graph but absent from the authorization (a concurrently added
-//     child), an ambiguous head (two open PRs), or a changed PR version is
+//     child), an ambiguous head (two open PRs), or a changed PR revision is
 //     `contended` and issues NO edit; a probe that cannot be established is
 //     `unknown` (retain). None of those permit a parent merge to start.
 //   - stacked_on is never touched. The operation opens no transaction and writes
@@ -54,7 +54,7 @@ const (
 const (
 	childOutcomeRetargeted     = "retargeted"       // moved onto the effective base and verified
 	childOutcomeAlready        = "already"          // already at the effective base; no edit issued
-	childOutcomeContended      = "contended"        // unauthorized-open, ambiguous head, or version drift
+	childOutcomeContended      = "contended"        // unauthorized-open, ambiguous head, or revision drift
 	childOutcomeUnknown        = "unknown"          // a probe could not establish the truth
 	childOutcomeSkippedDone    = "skipped-terminal" // stacked-merged/done/killed: does not block, not edited
 	childOutcomeSkippedNotOpen = "skipped-not-open" // non-final child with no open PR: does not block
@@ -67,7 +67,7 @@ const (
 	// more than one; the operation never chooses.
 	ReasonRetargetUnknownChange = "unknown-change"
 	ReasonRetargetAmbiguousID   = "ambiguous-change"
-	// ReasonRetargetRevisionDrift: the pinned parent record version no longer matches
+	// ReasonRetargetRevisionDrift: the pinned parent record revision no longer matches
 	// the live record — the authorization was computed against a stale context;
 	// maps to contended.
 	ReasonRetargetRevisionDrift = "revision-drift"
@@ -98,7 +98,7 @@ const (
 
 // AuthorizedChild is one entry of the exact human-authorized child set carried in
 // from the context read: the child change id, its live PR number, and the PR's
-// opaque version the authorization was granted against.
+// opaque revision the authorization was granted against.
 type AuthorizedChild struct {
 	ID         int    `json:"id"`
 	PRNumber   int    `json:"pr_number"`
@@ -106,7 +106,7 @@ type AuthorizedChild struct {
 }
 
 // RetargetChildrenRequest is the closed request. ID and Revision pin the parent
-// record the authorization was based on (its exact entity version); Children is
+// record the authorization was based on (its exact entity revision); Children is
 // the exact authorized set the human approved from the context read. The scalar
 // identities ride on flags; the authorized set rides in a bounded request file.
 type RetargetChildrenRequest struct {
@@ -203,8 +203,8 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 	}
 	snap := build.Snapshot
 
-	// Resolve the parent record and gate on its exact pinned version: an id that
-	// names no single record, or a record whose live version drifted from the
+	// Resolve the parent record and gate on its exact pinned revision: an id that
+	// names no single record, or a record whose live revision drifted from the
 	// authorization, refuses before any external effect.
 	parent, out := snap.Change(domain.ChangeID(req.ID))
 	if out != domain.LookupFound {
@@ -317,8 +317,8 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 
 	// Phase 2 — probe/act/verify each queued authorized child onto the effective
 	// base. RetargetPullRequest is idempotent (an already-retargeted exact PR is
-	// adopted as a no-op) and gates every edit on the exact PR version, so a changed
-	// PR version comes back contended without an edit.
+	// adopted as a no-op) and gates every edit on the exact PR revision, so a changed
+	// PR revision comes back contended without an edit.
 	worst := RetargetDispositionRetargeted
 	edited := false
 	var blockReason, blockMessage string
@@ -383,7 +383,7 @@ func childBlocksNothing(s domain.Status) bool {
 }
 
 // validateRetargetShape runs the configuration-independent request checks that
-// never reach any external seam: the pinned parent id/version, and each authorized
+// never reach any external seam: the pinned parent id/revision, and each authorized
 // child's id/pr_number/pr_revision, with no duplicate child ids.
 func validateRetargetShape(req RetargetChildrenRequest) []StatusFinding {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)

@@ -227,9 +227,9 @@ func TestIntegrationEnsureAdoptsExistingExactMatch(t *testing.T) {
 	}
 }
 
-// --- (c) exact open PR + supplied matching version -> unchanged, no mutation ---
+// --- (c) exact open PR + supplied matching revision -> unchanged, no mutation ---
 
-func TestIntegrationEnsureUnchangedWithMatchingVersion(t *testing.T) {
+func TestIntegrationEnsureUnchangedWithMatchingRevision(t *testing.T) {
 	existing := ensMatchPR(42)
 	pr := mustDecodeOne(t, existing)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
@@ -253,7 +253,7 @@ func TestIntegrationEnsureUnchangedWithMatchingVersion(t *testing.T) {
 	}
 }
 
-// --- (d) one differing open PR: version CAS gate ---
+// --- (d) one differing open PR: revision CAS gate ---
 
 func ensDifferingPR(number int) string {
 	// Same head oid (so the wrong-head refusal does not fire first); differs in
@@ -261,11 +261,11 @@ func ensDifferingPR(number int) string {
 	return ensPRJSON(number, "OPEN", false, ensHead, ensHeadOid, ensBase, "Old title", "old body")
 }
 
-func TestIntegrationEnsureContendedEmptyVersionOnDifferingPR(t *testing.T) {
+func TestIntegrationEnsureContendedEmptyRevisionOnDifferingPR(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(ensDifferingPR(7)), 0, ""),
 	}})
-	req := ensRequest() // empty version cannot authorize an edit
+	req := ensRequest() // empty revision cannot authorize an edit
 	res, err := c.EnsurePullRequest(context.Background(), req)
 	if err != nil {
 		t.Fatalf("EnsurePullRequest: %v", err)
@@ -278,7 +278,7 @@ func TestIntegrationEnsureContendedEmptyVersionOnDifferingPR(t *testing.T) {
 	}
 }
 
-func TestIntegrationEnsureContendedMismatchedVersionOnDifferingPR(t *testing.T) {
+func TestIntegrationEnsureContendedMismatchedRevisionOnDifferingPR(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(ensDifferingPR(7)), 0, ""),
 	}})
@@ -296,7 +296,7 @@ func TestIntegrationEnsureContendedMismatchedVersionOnDifferingPR(t *testing.T) 
 	}
 }
 
-func TestIntegrationEnsureUpdatesWithMatchingVersion(t *testing.T) {
+func TestIntegrationEnsureUpdatesWithMatchingRevision(t *testing.T) {
 	differing := ensDifferingPR(7)
 	updated := ensMatchPR(7)
 	pr := mustDecodeOne(t, differing)

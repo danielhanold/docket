@@ -189,8 +189,8 @@ func (s *e2eState) writeInput(t *testing.T, name, body string) string {
 	return p
 }
 
-// ver reads the change record's current entity version from the bare origin —
-// the independent oracle each exact-version request submits.
+// ver reads the change record's current record revision from the bare origin —
+// the independent oracle each exact-revision request submits.
 func (s *e2eState) ver(t *testing.T) string {
 	t.Helper()
 	return runGit(t, s.repo.origin, "rev-parse", s.mode.branch+":"+s.recPath)
@@ -358,10 +358,10 @@ func newImplEnv(t *testing.T, m planRepoMode, docketBin, ghBin string, records m
 func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) implementedChange {
 	t.Helper()
 	recPath := groomPath(id, slug)
-	ver := func() string { return blobVersionAt(t, e.repo.origin, e.m.branch, recPath) }
+	ver := func() string { return blobRevisionAt(t, e.repo.origin, e.m.branch, recPath) }
 
 	// A stacked child's effective base resolves only inside the claim transaction
-	// (ContextImplementation reads with empty branch facts), so the version comes
+	// (ContextImplementation reads with empty branch facts), so the revision comes
 	// from the origin oracle and eligibility is proven by the claim itself.
 	claim := ChangeClaim(e.ctx, e.node.deps, e.node.dir, ChangeClaimRequest{ID: id, Revision: ver()})
 	if claim.Result != ResultApplied {
@@ -570,12 +570,12 @@ func TestE2EOrdinaryFinalize(t *testing.T) {
 
 func runOrdinaryFinalize(t *testing.T, s *e2eState) {
 	t.Helper()
-	head, version := rebaseAndPublish(t, s)
+	head, revision := rebaseAndPublish(t, s)
 
 	// (5) Merge: the attended --id invocation supplies approval; the gate is
 	// satisfied by the exact-head evidence now in the PR body. A REAL merge
 	// commit lands on the origin base branch and is proven reachable.
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", head)
 	if mg.result() != "applied" {
 		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
 	}
@@ -603,12 +603,12 @@ func runOrdinaryFinalize(t *testing.T, s *e2eState) {
 
 // rebaseAndPublish drives the shared context->rebase->publish preamble and
 // returns the (possibly rewritten) head the merge must match and the current
-// record version.
-func rebaseAndPublish(t *testing.T, s *e2eState) (head, version string) {
+// record revision.
+func rebaseAndPublish(t *testing.T, s *e2eState) (head, revision string) {
 	t.Helper()
 
 	// (1) Authoritative finalize context: exactly one candidate, our change,
-	// actionable (no skip reason), at the exact version the oracle reports.
+	// actionable (no skip reason), at the exact revision the oracle reports.
 	cx := s.dk(t, "", "context", "finalize", "--id", strconv.Itoa(s.id))
 	if cx.result() != "applied" {
 		t.Fatalf("context finalize = %q\n%s", cx.result(), cx.stdout)
@@ -627,9 +627,9 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, version string) {
 			t.Fatalf("approval-required candidate carried no explicit-id override note: %v", cand)
 		}
 	}
-	version, _ = cand["revision"].(string)
-	if version != s.ver(t) {
-		t.Fatalf("context version %q disagrees with origin oracle %q", version, s.ver(t))
+	revision, _ = cand["revision"].(string)
+	if revision != s.ver(t) {
+		t.Fatalf("context revision %q disagrees with origin oracle %q", revision, s.ver(t))
 	}
 
 	// (2) No children to retarget for an ordinary change (descendants empty).
@@ -639,7 +639,7 @@ func rebaseAndPublish(t *testing.T, s *e2eState) (head, version string) {
 	// head PR evidence; in main mode the metadata transactions advanced the base,
 	// so a real rewrite happens and the local gate genuinely runs and passes. Both
 	// are valid ordinary outcomes; the subsequent steps thread the resulting head.
-	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head)
+	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", s.head)
 	if rb.result() != "applied" && rb.result() != "no-op" {
 		t.Fatalf("finalize rebase = %q\n%s", rb.result(), rb.stdout)
 	}
@@ -696,10 +696,10 @@ func TestE2EConflictAndRepair(t *testing.T) {
 		"marker-driven gate")
 	commitToOriginDefault(t, s.repo.origin, "widget.go", "package widget\n// upstream edit\n", "conflicting upstream change")
 
-	version := s.ver(t)
+	revision := s.ver(t)
 
 	// (1) Rebase stops CONFLICTED on widget.go.
-	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head)
+	rb := s.dk(t, "", "finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", s.head)
 	if rb.str("disposition") != "conflicted" {
 		t.Fatalf("rebase disposition = %q, want conflicted\n%s", rb.str("disposition"), rb.stdout)
 	}
@@ -929,10 +929,10 @@ func stackedBuildReadyChange(id int, slug string, parent int) string {
 	return strings.Replace(buildReadyChange(id, slug), "stacked_on:\n", "stacked_on: "+strconv.Itoa(parent)+"\n", 1)
 }
 
-// verStack reads the current record version for a stack member.
+// verStack reads the current record revision for a stack member.
 func verStack(t *testing.T, s *e2eState, id int, slug string) string {
 	t.Helper()
-	return blobVersionAt(t, s.repo.origin, s.mode.branch, groomPath(id, slug))
+	return blobRevisionAt(t, s.repo.origin, s.mode.branch, groomPath(id, slug))
 }
 
 // rootEvidence returns the gate's fresh evidence when the root rebase ran, else
@@ -1050,14 +1050,14 @@ func TestE2EResponseLossConvergence(t *testing.T) {
 	m := planRepoModes()[0] // docket mode: deterministic no-op rebase preamble.
 	s := reachImplemented(t, m, docketBin, ghBin)
 
-	head, version := rebaseAndPublish(t, s)
+	head, revision := rebaseAndPublish(t, s)
 
 	// Merge with a lost response: the fake gh lands the merge commit on the origin
 	// and then exits non-zero as if the response were lost. The adapter's
 	// authoritative reprobe discovers the landed merge and converges to a verified
 	// success rather than fabricating a failure.
 	s.env = withFault(s.env, "merge", "loss")
-	mg1 := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
+	mg1 := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", head)
 	if mg1.result() != "applied" {
 		t.Fatalf("merge under lost response = %q (want applied via reprobe convergence)\n%s", mg1.result(), mg1.stdout)
 	}
@@ -1165,8 +1165,8 @@ func TestE2EMergeSelectsRebaseShape(t *testing.T) {
 	m := planRepoModes()[0] // docket mode: deterministic no-op rebase preamble.
 	s := reachImplemented(t, m, docketBin, ghBin)
 
-	head, version := rebaseAndPublish(t, s)
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
+	head, revision := rebaseAndPublish(t, s)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", head)
 	if mg.result() != "applied" {
 		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
 	}
@@ -1190,8 +1190,8 @@ func TestE2EMergeCommitShape(t *testing.T) {
 	s := reachImplemented(t, m, docketBin, ghBin)
 	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":true,"allow_squash_merge":true}`)
 
-	head, version := rebaseAndPublish(t, s)
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
+	head, revision := rebaseAndPublish(t, s)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", head)
 	if mg.result() != "applied" {
 		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
 	}
@@ -1215,8 +1215,8 @@ func TestE2ESquashOnlyShape(t *testing.T) {
 	s := reachImplemented(t, m, docketBin, ghBin)
 	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":false,"allow_squash_merge":true}`)
 
-	head, version := rebaseAndPublish(t, s)
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
+	head, revision := rebaseAndPublish(t, s)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", head)
 	if mg.result() != "applied" {
 		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
 	}
@@ -1245,10 +1245,10 @@ func TestE2EMergeMethodUnavailable(t *testing.T) {
 	s := reachImplemented(t, m, docketBin, ghBin)
 	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":false,"allow_squash_merge":false}`)
 
-	head, version := rebaseAndPublish(t, s)
+	head, revision := rebaseAndPublish(t, s)
 	baseBefore := runGit(t, s.repo.origin, "rev-parse", "refs/heads/main")
 
-	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", head)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", head)
 	if mg.result() != "blocked" {
 		t.Fatalf("finalize merge under empty policy = %q, want blocked\n%s", mg.result(), mg.stdout)
 	}
@@ -1318,11 +1318,11 @@ func TestE2EHaltResumeAndReclaim(t *testing.T) {
 	}
 }
 
-// verOf reads the current record version for one id from the origin oracle.
+// verOf reads the current record revision for one id from the origin oracle.
 func verOf(t *testing.T, s *e2eState, id int) string {
 	t.Helper()
 	slug := map[int]string{3: "widget", 4: "gadget"}[id]
-	return blobVersionAt(t, s.repo.origin, s.mode.branch, groomPath(id, slug))
+	return blobRevisionAt(t, s.repo.origin, s.mode.branch, groomPath(id, slug))
 }
 
 // reachInProgress builds a main-mode repo with two claimed (in-progress) changes
@@ -1348,7 +1348,7 @@ func reachInProgress(t *testing.T, docketBin, ghBin string) *e2eState {
 	}
 	wdeps := WorkspaceDeps{Service: svc}
 	ctx := context.Background()
-	ver := func(id int, slug string) string { return blobVersionAt(t, repo.origin, m.branch, groomPath(id, slug)) }
+	ver := func(id int, slug string) string { return blobRevisionAt(t, repo.origin, m.branch, groomPath(id, slug)) }
 	for _, id := range []int{3, 4} {
 		cx := ContextImplementation(ctx, node.deps, node.dir, ImplementationContextRequest{ID: id})
 		if cx.Result != ResultApplied || cx.Context == nil {
@@ -1407,7 +1407,7 @@ func TestE2EUnsupportedConfigFence(t *testing.T) {
 
 	// Global layer: model + effort pins remain supported (never a blocker).
 	writeGlobalConfig(t, s.xdgHome, "agents:\n  claude:\n    adr:\n      model: m1\n      effort: high\n")
-	version := s.ver(t)
+	revision := s.ver(t)
 
 	// Repository layer: request five deferred capabilities in the .docket.yml the
 	// pin reads — the origin default branch's blob (config is read from git, never
@@ -1438,15 +1438,15 @@ func TestE2EUnsupportedConfigFence(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"rebase", []string{"finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head}},
+		{"rebase", []string{"finalize", "rebase", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", s.head}},
 		{"publish", []string{"finalize", "publish", "--id", strconv.Itoa(s.id), "--attempt", "x", "--head", s.head, "--evidence", evPath}},
-		{"block", []string{"finalize", "block", "--id", strconv.Itoa(s.id), "--revision", version, "--pr-number", strconv.Itoa(s.prNumber), "--attempt", "x", "--reason", "wedged", "--head", s.head, "--input", reportPath}},
-		{"clear-block", []string{"finalize", "clear-block", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head, "--pr-number", strconv.Itoa(s.prNumber)}},
-		{"merge", []string{"finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", version, "--head", s.head}},
+		{"block", []string{"finalize", "block", "--id", strconv.Itoa(s.id), "--revision", revision, "--pr-number", strconv.Itoa(s.prNumber), "--attempt", "x", "--reason", "wedged", "--head", s.head, "--input", reportPath}},
+		{"clear-block", []string{"finalize", "clear-block", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", s.head, "--pr-number", strconv.Itoa(s.prNumber)}},
+		{"merge", []string{"finalize", "merge", "--id", strconv.Itoa(s.id), "--revision", revision, "--head", s.head}},
 		{"closeout", []string{"finalize", "closeout", "--id", strconv.Itoa(s.id)}},
-		{"halt", []string{"change", "halt", "--id", strconv.Itoa(s.id), "--revision", version, "--input", reportPath}},
-		{"resume-halted", []string{"change", "resume-halted", "--id", strconv.Itoa(s.id), "--revision", version, "--acknowledge-quiescent"}},
-		{"reclaim", []string{"change", "reclaim", "--id", strconv.Itoa(s.id), "--revision", version}},
+		{"halt", []string{"change", "halt", "--id", strconv.Itoa(s.id), "--revision", revision, "--input", reportPath}},
+		{"resume-halted", []string{"change", "resume-halted", "--id", strconv.Itoa(s.id), "--revision", revision, "--acknowledge-quiescent"}},
+		{"reclaim", []string{"change", "reclaim", "--id", strconv.Itoa(s.id), "--revision", revision}},
 		{"maintenance-sweep", []string{"maintenance", "sweep"}},
 	}
 	for _, op := range fenced {

@@ -44,9 +44,9 @@ func (f *fakeWorkspaceService) PublishHead(_ context.Context, req workspace.Publ
 
 // inProgressChangeBlob builds an in-progress change record StatusBlob (carrying
 // the branch/claimed_at/reconciled fields a claimed record holds) at the given
-// version, optionally with extra frontmatter lines spliced in after the
+// revision, optionally with extra frontmatter lines spliced in after the
 // stacked_on field (e.g. a stacked_on value).
-func inProgressChangeBlob(id int, slug, version, stackedOn string) StatusBlob {
+func inProgressChangeBlob(id int, slug, revision, stackedOn string) StatusBlob {
 	src := lifecycleChange(id, slug, "in-progress")
 	if stackedOn != "" {
 		src = strings.Replace(src, "stacked_on:\n", "stacked_on: "+stackedOn+"\n", 1)
@@ -55,18 +55,18 @@ func inProgressChangeBlob(id int, slug, version, stackedOn string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Revision: version,
+		Revision: revision,
 		Data:     []byte(src),
 	}
 }
 
 // proposedChangeBlob builds a proposed (unclaimed) change record StatusBlob.
-func proposedChangeBlob(id int, slug, version string) StatusBlob {
+func proposedChangeBlob(id int, slug, revision string) StatusBlob {
 	return StatusBlob{
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Revision: version,
+		Revision: revision,
 		Data:     []byte(lifecycleChange(id, slug, "proposed")),
 	}
 }
@@ -91,19 +91,19 @@ func workspaceDepsFor(t *testing.T, reader StatusReader) PlanningDeps {
 // deliberately non-derived name — feature/renamed-head, NOT feat/<slug> — so a
 // test can prove the operation consumes the recorded branch rather than
 // reconstructing it from the slug.
-func renamedBranchBlob(id int, slug, version, branch string) StatusBlob {
+func renamedBranchBlob(id int, slug, revision, branch string) StatusBlob {
 	src := lifecycleChange(id, slug, "in-progress")
 	src = strings.Replace(src, "branch: feat/"+slug+"\n", "branch: "+branch+"\n", 1)
 	return StatusBlob{
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Revision: version,
+		Revision: revision,
 		Data:     []byte(src),
 	}
 }
 
-// --- prepare: requires the claimed version ---------------------------------
+// --- prepare: requires the claimed revision ---------------------------------
 
 // --- publish: head mismatch refuses without publishing ---------------------
 

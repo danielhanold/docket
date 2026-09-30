@@ -21,7 +21,7 @@ import (
 // the two manual-authoring mutations over the learnings ledger. `learning
 // record` allocates a brand-new canonical finding under an idempotency key;
 // `learning update` is a non-allocating edit of an existing finding pinned by
-// its exact submitted blob version. Both refuse with unsupported-config at
+// its exact submitted blob revision. Both refuse with unsupported-config at
 // preflight when learnings.enabled is not true, and neither touches the
 // learnings README/index: the plan file set is exactly the one finding record.
 // Neither operation renders or reads the inline board — learnings are not a
@@ -342,7 +342,7 @@ func validateLearningRecordShape(req LearningRecordRequest) []StatusFinding {
 }
 
 // validateLearningUpdateShape runs the pinned-entity request checks: a non-empty
-// path and version, the owned-section edits, and the collection shapes.
+// path and revision, the owned-section edits, and the collection shapes.
 func validateLearningUpdateShape(req LearningUpdateRequest) []StatusFinding {
 	var findings []StatusFinding
 	if strings.TrimSpace(req.Path) == "" {

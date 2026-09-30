@@ -25,7 +25,7 @@ func TestIntegrationRecordOpsMarkImplementedAcceptsSkippedEvidence(t *testing.T)
 	pr := prRepo().Spec() + "#42"
 
 	deps, wdeps, gdeps, inv, req, _ := buildMI(t, client, repo.invocation, miKit{
-		reconciled: true, plan: miPlanPath(), results: miResultsPath, version: miVersion, reqVersion: miVersion,
+		reconciled: true, plan: miPlanPath(), results: miResultsPath, revision: miRevision, reqRevision: miRevision,
 		reqHead: head, localHead: head, evidence: prSkippedEvidenceBytes(t, head),
 		probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: pr,
 	})

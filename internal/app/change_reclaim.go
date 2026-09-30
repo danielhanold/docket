@@ -18,7 +18,7 @@ import (
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
-// This file is `change reclaim`: the proof-gated, exact-version return of one
+// This file is `change reclaim`: the proof-gated, exact-revision return of one
 // strictly-expired `in-progress` claim to `proposed`. Reclaim is destructive
 // metadata surgery — it clears the branch and the claim stamp and marks the
 // record unreconciled — so its destructive leg FAILS CLOSED on any probe it
@@ -37,7 +37,7 @@ import (
 // the same reading `change resume-halted` and `finalize clear-block` take of a
 // workspace whose writer may still be live.
 //
-// Only when every conjunct holds does the exact-version transaction apply the
+// Only when every conjunct holds does the exact-revision transaction apply the
 // landed `domain.Reclaim` action, append ONE dated `## Reclaim log` entry (the
 // previous claim plus a proof summary), return the record to `proposed`, clear
 // branch/claim, set `reconciled: false`, rerender the artifact block and inline
@@ -46,7 +46,7 @@ import (
 // the transaction's own fresh state (decide-and-act-on-the-same-copy): the
 // pre-transaction probes are the destructive gate, the in-transaction action is
 // the authority. A record whose fresh status moved out from under the exact
-// version maps to `contended`; every retained refusal is `skipped` and touches
+// revision maps to `contended`; every retained refusal is `skipped` and touches
 // nothing (no cleanup, delete, reset, or marker removal).
 //
 // Explicit reclaim is available regardless of `reclaim.auto`: the auto policy
@@ -67,8 +67,8 @@ const (
 	// strictly expired, a branch/workspace still holds the work, or a probe could
 	// not be answered. Nothing was cleaned, deleted, reset, or removed.
 	ReclaimDispSkipped = "skipped"
-	// ReclaimDispContended: the exact-version transaction lost to a fresh
-	// incompatible state (the record moved out from under the submitted version).
+	// ReclaimDispContended: the exact-revision transaction lost to a fresh
+	// incompatible state (the record moved out from under the submitted revision).
 	ReclaimDispContended = "contended"
 	// ReclaimDispFailed: a transaction failure; the cause is in the envelope's
 	// failure field.
@@ -173,7 +173,7 @@ type changeReclaimReceipt struct {
 }
 
 // ChangeReclaim proof-gates a reclaim and, when every conjunct holds, drives one
-// atomic exact-version transaction that returns the record to proposed. The
+// atomic exact-revision transaction that returns the record to proposed. The
 // branch and workspace probes run first, before any effect: any present branch,
 // any live workspace, or any unanswerable probe is a retained skip that mutates
 // nothing. The authoritative lease and branch-fact decision re-runs inside the
@@ -366,7 +366,7 @@ func reclaimProofSummary(ttlHours int) string {
 
 // reclaimResultFromOutcome folds a transaction outcome into the result document.
 // A plan refusal carrying the illegal-source-status reason is remapped onto
-// `contended` — the record's fresh status moved out from under the exact version.
+// `contended` — the record's fresh status moved out from under the exact revision.
 // Every other in-transaction refusal (a lease re-evaluation that no longer
 // strictly expires, a branch fact that reappeared) is a retained skip.
 func reclaimResultFromOutcome(res transaction.Result, execErr error) ChangeReclaimResult {
@@ -413,7 +413,7 @@ func decodeChangeReclaimReceipt(b []byte) (changeReclaimReceipt, bool) {
 }
 
 // validateReclaimShape runs the configuration-independent request checks that
-// never reach the engine: the pinned-entity fields (id and version).
+// never reach the engine: the pinned-entity fields (id and revision).
 func validateReclaimShape(req ChangeReclaimRequest) []StatusFinding {
 	return dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 }

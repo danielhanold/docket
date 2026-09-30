@@ -111,7 +111,7 @@ func newRunVerifyFixture(t *testing.T, publish bool) *rvFixture {
 func (f *rvFixture) deps(record []byte, pr githubcli.PullRequest) (PlanningDeps, WorkspaceDeps, GitHubDeps) {
 	reader := &fakeReader{
 		pin:    f.pin,
-		corpus: []StatusBlob{{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, rvSlug), Revision: miVersion, Data: record}},
+		corpus: []StatusBlob{{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, rvSlug), Revision: miRevision, Data: record}},
 		facts:  domain.NewBranchFacts(nil),
 	}
 	deps := PlanningDeps{Client: f.client, Reader: reader, Clock: testClock()}
@@ -136,7 +136,7 @@ func rvProposedDeps(t *testing.T) PlanningDeps {
 	t.Helper()
 	reader := &fakeReader{
 		pin:    mainPin(t),
-		corpus: []StatusBlob{{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, rvSlug), Revision: miVersion, Data: []byte(lifecycleChange(3, rvSlug, "proposed"))}},
+		corpus: []StatusBlob{{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, rvSlug), Revision: miRevision, Data: []byte(lifecycleChange(3, rvSlug, "proposed"))}},
 		facts:  domain.NewBranchFacts(nil),
 	}
 	return PlanningDeps{Reader: reader, Clock: testClock()}

@@ -20,7 +20,7 @@ import (
 )
 
 // This file is the `change attach-plan` and `change attach-results` operations:
-// two exact-version metadata transitions that link a verified authored artifact
+// two exact-revision metadata transitions that link a verified authored artifact
 // (a plan, or an optional results record) to its change and re-render every
 // affected v1-owned derived view (the change record's plan:/results: field, its
 // refreshed updated date, its artifact block, and the inline board) as one
@@ -34,7 +34,7 @@ import (
 // ADR-0094 single-artifact delta (exactly the plan file, rename detection off —
 // learning diff-derived-allowlist-needs-no-renames), carry the plan-path commit
 // trailer, and carry no placeholder-only plan slot (change 0414). Only after
-// every check passes does the exact-version transaction open.
+// every check passes does the exact-revision transaction open.
 //
 // Idempotency is keyed on the PROMISED state — the (id, path, blob-at-commit)
 // triple — so a lost-response retry replays the original applied receipt rather
@@ -196,7 +196,7 @@ func ChangeAttachPlan(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 // ChangeAttachResults verifies an authored results record (required at
 // completion since change 0410) from Git and links it to the change. It applies
 // the canonical-path, containment, tracked-file, backlink, exact-head, and
-// version rules — a results document is never gate evidence, so it carries no
+// revision rules — a results document is never gate evidence, so it carries no
 // single-artifact/trailer/descent proof; checkpoint attaches validate
 // checkpoint-phase content.
 func ChangeAttachResults(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req ChangeAttachRequest) ChangeAttachResult {
@@ -205,7 +205,7 @@ func ChangeAttachResults(ctx context.Context, deps PlanningDeps, wdeps Workspace
 
 // changeAttach is the shared driver. It validates the request shape, pins
 // context, verifies the artifact from Git under the kind's verification profile,
-// then drives one atomic, idempotency-keyed exact-version transaction.
+// then drives one atomic, idempotency-keyed exact-revision transaction.
 func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req ChangeAttachRequest, kind string) ChangeAttachResult {
 	opKey := attachOpKey(kind)
 
@@ -319,7 +319,7 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 		}
 	}
 
-	// (12) Every verification passed: open the exact-version, idempotency-keyed
+	// (12) Every verification passed: open the exact-revision, idempotency-keyed
 	// transaction that stores the artifact path and re-renders the derived views.
 	digest, derr := canonicalDigest(opKey, attachDigestPayload{Blob: string(blob.Blob.ObjectID), ID: req.ID, Path: req.Path})
 	if derr != nil {
@@ -602,7 +602,7 @@ type changeAttachReceipt struct {
 }
 
 // attachResultFromOutcome folds a transaction outcome into the attach result. A
-// refusal from the transaction is state-shaped (an exact-version CAS miss or an
+// refusal from the transaction is state-shaped (an exact-revision CAS miss or an
 // internal-consistency refusal), so it maps onto invalid-state.
 func attachResultFromOutcome(opKey, kind, artifactPath string, res transaction.Result, execErr error) ChangeAttachResult {
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)

@@ -84,7 +84,7 @@ const (
 // The stable machine reasons the rebase operations report. Message text is
 // explanatory and must not be parsed.
 const (
-	// Identity / version refusals.
+	// Identity / revision refusals.
 	ReasonRebaseNotImplemented = "not-implemented" // the change is not `implemented`
 	ReasonRebaseRevisionDrift  = "revision-drift"  // the record revision moved (contended)
 	// Precondition refusals resolved before any Git mutation.
@@ -588,7 +588,7 @@ func admitPublishedRefresh(pr githubcli.PullRequest, rec workspace.RebaseReceipt
 
 // rebaseContext bundles the authoritative facts a rebase operation resolves once
 // from the pinned metadata and the live workspace: the discovered repository, the
-// change and its exact record version, the validated workspace target, the
+// change and its exact record revision, the validated workspace target, the
 // read-only inspection, and the derived checkout and metadata directories.
 type rebaseContext struct {
 	repo     gitcli.Repository
@@ -718,7 +718,7 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 	}
 	id := int(rc.change.ID())
 
-	// Identity and version: exactly the implemented record at the pinned version.
+	// Identity and revision: exactly the implemented record at the pinned revision.
 	if rc.change.Status() != domain.StatusImplemented {
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseNotImplemented,
 			fmt.Sprintf("change %04d is %q, not implemented; there is nothing to rebase", id, rc.change.RawStatus()), id)
@@ -1938,7 +1938,7 @@ func newRebaseAttempt(deps FinalizeDeps, baseHead gitcli.ObjectID) string {
 }
 
 // validateRebaseShape runs the configuration-independent request checks for
-// `finalize rebase`: a positive id, a non-empty pinned version, and a valid
+// `finalize rebase`: a positive id, a non-empty pinned revision, and a valid
 // full-length object id for the expected head.
 func validateRebaseShape(req FinalizeRebaseRequest) []StatusFinding {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)

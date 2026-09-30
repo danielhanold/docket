@@ -29,7 +29,7 @@ type PlanningDeps struct {
 	Engine interface {
 		Execute(ctx context.Context, req transaction.Request) (transaction.Result, error)
 	}
-	Reader StatusReader      // 0310 pin/read seams for preflight + entity versions
+	Reader StatusReader      // 0310 pin/read seams for preflight + record revisions
 	Clock  transaction.Clock // sole time source; operations never call time.Now
 }
 

@@ -464,7 +464,7 @@ func TestChangeGroomReviseShapeValidation(t *testing.T) {
 		{"revise spec_markdown carrying a backlink block refused", func(r *ChangeGroomRequest) {
 			r.SpecMarkdown = groomBacklinkedSpecMarkdown
 		}, "invalid-spec_markdown"},
-		// A spec-body revise overwrites the spec file, so it must pin its version.
+		// A spec-body revise overwrites the spec file, so it must pin its revision.
 		{"spec revise without spec_revision refused", func(r *ChangeGroomRequest) {
 			r.SpecRevision = ""
 		}, "empty-spec_revision"},
@@ -519,10 +519,10 @@ func TestChangeGroomEmptyReviseRefusedWithoutEngineCall(t *testing.T) {
 	}
 }
 
-// TestChangeGroomSpecReviseWithoutSpecVersionRefusedWithoutEngineCall pins the
+// TestChangeGroomSpecReviseWithoutSpecRevisionRefusedWithoutEngineCall pins the
 // review finding: a spec-body revise that does not pin the spec file's blob
-// version is a shape refusal, never an unpinned whole-body replace.
-func TestChangeGroomSpecReviseWithoutSpecVersionRefusedWithoutEngineCall(t *testing.T) {
+// revision is a shape refusal, never an unpinned whole-body replace.
+func TestChangeGroomSpecReviseWithoutSpecRevisionRefusedWithoutEngineCall(t *testing.T) {
 	req := validReviseRequest()
 	req.SpecRevision = ""
 	engine := &recordingEngine{}
@@ -542,10 +542,10 @@ func TestChangeGroomSpecReviseWithoutSpecVersionRefusedWithoutEngineCall(t *test
 	}
 }
 
-// TestChangeGroomSpecVersionMismatchMapsToContended pins the result mapping: a
+// TestChangeGroomSpecRevisionMismatchMapsToContended pins the result mapping: a
 // plan refused with spec-revision-mismatch is the spec analogue of a stale record
 // pin, so the caller sees contended (re-read and retry), not invalid-state.
-func TestChangeGroomSpecVersionMismatchMapsToContended(t *testing.T) {
+func TestChangeGroomSpecRevisionMismatchMapsToContended(t *testing.T) {
 	_, opRes := groomPlanFor(t, reviseFixtureFiles(), baseGroomOp([]string{}, validReviseRequest()))
 	if opRes.Refused {
 		t.Fatalf("precondition: a matching spec_revision must plan; got %v", opRes.Findings)

@@ -20,7 +20,7 @@ import (
 
 // This file is `finalize block` and `finalize clear-block`: the durable,
 // human-needed finalize-blocked state around an external PR comment plus an
-// exact-version metadata transaction.
+// exact-revision metadata transaction.
 //
 // `finalize block` records that a finalize attempt was blocked and a human must
 // intervene. Its discipline is comment-first-then-marker:
@@ -31,7 +31,7 @@ import (
 //     established is `unknown`: the operation returns without writing any marker,
 //     never a marker claiming a comment that may not exist (Global Constraints:
 //     unknown never shares a branch with a destructive/creative absence).
-//  2. Only after the comment is present does it open ONE exact-version metadata
+//  2. Only after the comment is present does it open ONE exact-revision metadata
 //     transaction that upserts a single "## Finalize blocked" section recording
 //     the UTC date, the stable reason, the attempt identity, the verified
 //     Git/GitHub facts, the comment URL, and the concrete remedy. A re-mark
@@ -85,7 +85,7 @@ const (
 	// BlockDispUnknown: an external comment/PR/head probe could not be
 	// established; retained, no marker written or removed.
 	BlockDispUnknown = "unknown"
-	// BlockDispContended: the exact-version transaction lost to a fresh
+	// BlockDispContended: the exact-revision transaction lost to a fresh
 	// incompatible state.
 	BlockDispContended = "contended"
 	// BlockDispRefused: a retained precondition refusal (a clear-block conjunct
@@ -221,7 +221,7 @@ type blockReceipt struct {
 }
 
 // FinalizeBlock ensures the owned PR comment first, then upserts the single
-// durable "## Finalize blocked" section in one exact-version transaction. A
+// durable "## Finalize blocked" section in one exact-revision transaction. A
 // comment that cannot be established is unknown and writes no marker.
 func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req BlockRequest) BlockResult {
 	if findings := validateBlockShape(req); len(findings) > 0 {
@@ -282,7 +282,7 @@ func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req B
 		})
 	}
 
-	// The comment is present. Open the exact-version transaction that upserts the
+	// The comment is present. Open the exact-revision transaction that upserts the
 	// single marker section.
 	repo, err := deps.Planning.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
@@ -315,7 +315,7 @@ func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req B
 
 // FinalizeClearBlock reprobes an exact current head, valid gate evidence (unless
 // the gate is off), a published remote feature ref, and a matching open PR, then
-// removes the single "## Finalize blocked" section in one exact-version
+// removes the single "## Finalize blocked" section in one exact-revision
 // transaction. Any missing conjunct refuses; the marker stays.
 func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req ClearBlockRequest) BlockResult {
 	if findings := validateClearBlockShape(req); len(findings) > 0 {

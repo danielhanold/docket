@@ -24,7 +24,7 @@ func TestIntegrationRecordOpsChangeHaltUnrelatedInvalidRecordProgress(t *testing
 	node := planningDepsFor(t, repo.invocation)
 
 	res := ChangeHalt(context.Background(), node.deps, node.dir, HaltRequest{
-		ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath), Report: "Blocked on infra; see run 7.\n",
+		ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath), Report: "Blocked on infra; see run 7.\n",
 	})
 	if res.Result != ResultApplied || res.Disposition != HaltDispHalted {
 		t.Fatalf("halt beside an unrelated unparseable record = %q disp %q reason %q (findings %v), want applied halted",
@@ -48,7 +48,7 @@ func TestIntegrationRecordOpsChangeHaltUnrelatedInvalidRecordRefusals(t *testing
 			tip := originTip(t, repo.origin, "docket")
 
 			res := ChangeHalt(context.Background(), node.deps, node.dir, HaltRequest{
-				ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath), Report: "Paused.\n",
+				ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath), Report: "Paused.\n",
 			})
 			if res.Result == ResultApplied {
 				t.Fatalf("halt applied despite %s; want a refusal", c.name)
@@ -68,7 +68,7 @@ func TestIntegrationRecordOpsChangeResumeHaltedUnrelatedInvalidRecordProgress(t 
 
 	got := ChangeResumeHalted(context.Background(), f.deps,
 		WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
-		ResumeRequest{ID: f.id, Revision: blobVersionAt(t, f.repo.origin, "docket", recPath), AcknowledgeQuiescent: true})
+		ResumeRequest{ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, "docket", recPath), AcknowledgeQuiescent: true})
 	if got.Result != ResultApplied || got.Disposition != HaltDispResumed {
 		t.Fatalf("resume-halted beside an unrelated unparseable record = %q disp %q reason %q (findings %v), want applied resumed",
 			got.Result, got.Disposition, got.Reason, got.Findings)
@@ -92,7 +92,7 @@ func TestIntegrationRecordOpsChangeResumeHaltedUnrelatedInvalidRecordRefusals(t 
 
 			got := ChangeResumeHalted(context.Background(), f.deps,
 				WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
-				ResumeRequest{ID: f.id, Revision: blobVersionAt(t, f.repo.origin, "docket", recPath), AcknowledgeQuiescent: true})
+				ResumeRequest{ID: f.id, Revision: blobRevisionAt(t, f.repo.origin, "docket", recPath), AcknowledgeQuiescent: true})
 			if got.Result == ResultApplied {
 				t.Fatalf("resume-halted applied despite %s; want a refusal", c.name)
 			}

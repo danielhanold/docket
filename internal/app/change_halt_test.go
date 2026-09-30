@@ -203,7 +203,7 @@ func setupHaltedFixture(t *testing.T, m planRepoMode) *rebaseFixture {
 	t.Helper()
 	f := setupRebaseFixtureStatus(t, m, "in-progress")
 	f.repo.writerAdvance(t, f.branch, map[string]string{groomPath(f.id, f.slug): haltedRecord(f.id, f.slug)})
-	f.version = blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+	f.revision = blobRevisionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
 	return f
 }
 

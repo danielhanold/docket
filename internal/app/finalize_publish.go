@@ -37,13 +37,13 @@ import (
 //     remote is contended (untouched) and an unobservable remote is unknown
 //     (retain — never a second, forced push);
 //  4. only a published-or-noop rewrite proceeds — the PR is reprobed for the
-//     feature head, its version captured, and its head required to equal the
+//     feature head, its revision captured, and its head required to equal the
 //     requested head;
 //  5. the current PR body's build-evidence block is loss-preservingly replaced
 //     with the exact current-head green record (every authored byte, the title,
 //     and every other block preserved); and
 //  6. EnsurePullRequest converges the PR onto that body under the exact expected
-//     head and version, never creating a second PR.
+//     head and revision, never creating a second PR.
 //
 // Crash replay is ordinary. A crash after the push but before the PR update is a
 // no-op rewrite (the remote already holds the head) that resumes the PR update. A
@@ -64,7 +64,7 @@ const (
 	// the exact current-head evidence — a full idempotent replay.
 	PublishDispNoop = "noop"
 	// PublishDispContended: a lost race the caller resolves by re-reading context —
-	// a diverged remote, or a PR at an unexpected head/version. Nothing was forced.
+	// a diverged remote, or a PR at an unexpected head/revision. Nothing was forced.
 	PublishDispContended = "contended"
 	// PublishDispUnknown: an external effect could not be established (a remote or
 	// PR probe error). Retained; never a second mutation and never a merge-enabling

@@ -12,8 +12,8 @@ package githubcli
 //	3. one open PR already equal to the request (head commit, base, title, body,
 //	   ready state) is adopted (empty ExpectedRevision — the lost-create-response
 //	   recovery face) or unchanged (a supplied ExpectedRevision) with NO mutation;
-//	4. one open PR that differs requires its current opaque version to equal
-//	   ExpectedRevision before an edit; an empty or mismatched version is contended
+//	4. one open PR that differs requires its current opaque revision to equal
+//	   ExpectedRevision before an edit; an empty or mismatched revision is contended
 //	   and leaves the PR untouched;
 //	5. no PR is created with explicit head/base/repository/title and the body on
 //	   stdin;
@@ -53,7 +53,7 @@ const prJSONFields = "number,url,state,isDraft,headRefName,headRefOid,baseRefNam
 // prViewJSONFields is the exact-number view's field set: the standard
 // prJSONFields plus GitHub's nullable reviewDecision. Only ViewPullRequest
 // requests review state — the list/create/edit paths keep the standard set, so
-// their snapshots and write-CAS versions are untouched by review activity.
+// their snapshots and write-CAS revisions are untouched by review activity.
 const prViewJSONFields = prJSONFields + ",reviewDecision"
 
 // EnsureDisposition is the closed set of idempotent publication outcomes.
@@ -73,7 +73,7 @@ const (
 // is the full object id from a successful workspace.PublishHead; BaseBranch is
 // the resolved effective-base branch, never guessed. An empty ExpectedRevision
 // permits create-or-adopt only; updating a differing open PR requires the exact
-// current version.
+// current revision.
 type EnsurePullRequestRequest struct {
 	Repository       Repository
 	HeadBranch       string
@@ -144,7 +144,7 @@ func (c *Client) EnsurePullRequest(ctx context.Context, req EnsurePullRequestReq
 		}
 		if matchesRequest(pr, req) {
 			// Step 3: already in the desired end state — no mutation. adopted is the
-			// lost-create-response recovery face (empty version); a supplied version
+			// lost-create-response recovery face (empty revision); a supplied revision
 			// is unchanged.
 			if req.ExpectedRevision == "" {
 				return EnsureResult{Disposition: EnsureAdopted, PR: pr}, nil
@@ -152,7 +152,7 @@ func (c *Client) EnsurePullRequest(ctx context.Context, req EnsurePullRequestReq
 			return EnsureResult{Disposition: EnsureUnchanged, PR: pr}, nil
 		}
 		// Step 4: the open PR differs. Only an ExpectedRevision equal to its exact
-		// current version authorizes an edit; empty or mismatched is contended and
+		// current revision authorizes an edit; empty or mismatched is contended and
 		// leaves the PR untouched.
 		if req.ExpectedRevision == "" || req.ExpectedRevision != pr.Revision {
 			return EnsureResult{Disposition: EnsureContended}, nil
@@ -275,7 +275,7 @@ func (c *Client) verifyViewByNumber(ctx context.Context, req EnsurePullRequestRe
 
 // matchesRequest reports whether an observed PR is exactly the requested
 // ready-for-review end state: open, not a draft, at the expected head commit,
-// and equal in base, title, and body. The opaque version is deliberately not
+// and equal in base, title, and body. The opaque revision is deliberately not
 // part of this comparison — it is the CAS token for authorizing an edit, not the
 // definition of the desired content.
 func matchesRequest(pr PullRequest, req EnsurePullRequestRequest) bool {

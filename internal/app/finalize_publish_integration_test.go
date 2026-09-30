@@ -76,7 +76,7 @@ func TestIntegrationFinalizeOpsFinalizePublishAfterCheckpointResume(t *testing.T
 	// then the publish is denied: no push happens, the remote and PR still hold
 	// the original head.
 	first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if first.Disposition != RebaseDispRebased || gate.calls != 1 {
 		t.Fatalf("setup rebase = disp %q calls %d, want rebased/1", first.Disposition, gate.calls)
 	}
@@ -85,7 +85,7 @@ func TestIntegrationFinalizeOpsFinalizePublishAfterCheckpointResume(t *testing.T
 	// The resume reuses the checkpoint: skipped compose, evidence returned, no
 	// second suite run.
 	resume := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if resume.Gate == nil || resume.Gate.Compose != gateComposeSkipped || gate.calls != 1 {
 		t.Fatalf("resume gate = %+v calls %d, want skipped with no re-run", resume.Gate, gate.calls)
 	}

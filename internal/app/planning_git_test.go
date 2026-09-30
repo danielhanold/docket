@@ -22,7 +22,7 @@ import (
 // idempotency, refusal, and atomicity properties the unit tests can only fake.
 // Every operation resolves its own authoritative context from repoDir through
 // the production StatusReader, so a test only builds a repository topology, reads
-// the current entity versions with an independent git oracle, and calls the
+// the current record revisions with an independent git oracle, and calls the
 // operation with repoDir pointed at an invocation clone.
 //
 // The matrix runs on the one supported topology: records live on the orphan
@@ -106,9 +106,9 @@ func cloneOrigin(t *testing.T, origin string) string {
 	return dir
 }
 
-// blobVersionAt reads the blob object id of a repo-relative path at branch on the
-// bare origin — the independent oracle an exact-version request submits.
-func blobVersionAt(t *testing.T, origin, branch, p string) string {
+// blobRevisionAt reads the blob object id of a repo-relative path at branch on the
+// bare origin — the independent oracle an exact-revision request submits.
+func blobRevisionAt(t *testing.T, origin, branch, p string) string {
 	t.Helper()
 	return runGit(t, origin, "rev-parse", branch+":"+p)
 }
@@ -283,7 +283,7 @@ func specWithBacklink(activePath string) string {
 
 // --- bullet 1: unrelated concurrent mutations both land --------------------
 
-// --- bullet 2: same submitted version → one applied, one contended ---------
+// --- bullet 2: same submitted revision → one applied, one contended ---------
 
 // --- bullet 3: concurrent allocation never duplicates an id ----------------
 

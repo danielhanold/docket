@@ -33,7 +33,7 @@ func TestIntegrationFinalizeOpsFinalizeClearBlockUnrelatedInvalidRecordProgress(
 		openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
 
 	got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-		ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
+		ClearBlockRequest{ID: f.id, Revision: f.revision, Head: f.head, PRNumber: 1})
 	if got.Result != ResultApplied || got.Disposition != BlockDispCleared {
 		t.Fatalf("finalize clear-block beside an unrelated unparseable record = %q disp %q reason %q (findings %v), want applied cleared",
 			got.Result, got.Disposition, got.Reason, got.Findings)
@@ -49,7 +49,7 @@ func TestIntegrationFinalizeOpsFinalizeBlockUnrelatedInvalidRecordRefusals(t *te
 		t.Run(c.name, func(t *testing.T) {
 			f := setupRebaseFixtureStatus(t, planRepoModeDocket(), "in-progress")
 			f.repo.writerAdvance(t, f.branch, c.files)
-			f.version = blobVersionAt(t, f.repo.origin, f.branch, recPath)
+			f.revision = blobRevisionAt(t, f.repo.origin, f.branch, recPath)
 			tip := originTip(t, f.repo.origin, f.branch)
 			gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
 

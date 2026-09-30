@@ -87,7 +87,7 @@ func TestContextImplementationSelectsByPolicy(t *testing.T) {
 		t.Errorf("change source bytes not byte-identical:\n got %q\nwant %q", b.Change.Source, corpus[0].Data)
 	}
 	if b.Change.Revision != corpus[0].Revision {
-		t.Errorf("change version = %q, want %q", b.Change.Revision, corpus[0].Revision)
+		t.Errorf("change revision = %q, want %q", b.Change.Revision, corpus[0].Revision)
 	}
 	if b.Change.Path != corpus[0].Path {
 		t.Errorf("change path = %q, want %q", b.Change.Path, corpus[0].Path)

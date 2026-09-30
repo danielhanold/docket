@@ -24,7 +24,7 @@ type fakeReader struct {
 	facts        domain.BranchFacts
 	factsErr     error
 	artifacts    map[string]bool           // "source|path" -> exists
-	artifactData map[string]StatusArtifact // "source|path" -> read bytes/version
+	artifactData map[string]StatusArtifact // "source|path" -> read bytes/revision
 	artifactErr  error
 
 	pinCount     int         // records PinContext calls

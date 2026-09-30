@@ -22,7 +22,7 @@ func TestIntegrationFinalizeStateBlockCommentThenMarker(t *testing.T) {
 			t.Run("created-writes-marker", func(t *testing.T) {
 				f := setupRebaseFixtureStatus(t, m, "in-progress")
 				gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
-				req := BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
+				req := BlockRequest{ID: f.id, Revision: f.revision, PRNumber: 7, Attempt: "att1",
 					Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix and retry.\n"}
 				got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, req)
 				if got.Result != ResultApplied || got.Disposition != BlockDispRecorded {
@@ -48,7 +48,7 @@ func TestIntegrationFinalizeStateBlockCommentThenMarker(t *testing.T) {
 			t.Run("already-comment-replays-marker", func(t *testing.T) {
 				f := setupRebaseFixtureStatus(t, m, "in-progress")
 				gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentAlready, commentURL: "https://example.test/c/9"}
-				req := BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
+				req := BlockRequest{ID: f.id, Revision: f.revision, PRNumber: 7, Attempt: "att1",
 					Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix.\n"}
 				got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, req)
 				if got.Result != ResultApplied || got.Disposition != BlockDispRecorded {
@@ -64,7 +64,7 @@ func TestIntegrationFinalizeStateBlockCommentThenMarker(t *testing.T) {
 				f := setupRebaseFixtureStatus(t, m, "in-progress")
 				before := originTip(t, f.repo.origin, f.branch)
 				gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentUnknown}
-				req := BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
+				req := BlockRequest{ID: f.id, Revision: f.revision, PRNumber: 7, Attempt: "att1",
 					Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix.\n"}
 				got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, req)
 				if got.Disposition != BlockDispUnknown || got.Reason != ReasonBlockCommentUnknown {
@@ -151,7 +151,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
 					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
+					ClearBlockRequest{ID: f.id, Revision: f.revision, Head: f.head, PRNumber: 1})
 				if got.Result != ResultApplied || got.Disposition != BlockDispCleared {
 					t.Fatalf("result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
 				}
@@ -167,7 +167,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
 					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Revision: f.version, Head: strings.Repeat("b", 40), PRNumber: 1})
+					ClearBlockRequest{ID: f.id, Revision: f.revision, Head: strings.Repeat("b", 40), PRNumber: 1})
 				if got.Reason != ReasonClearHeadMismatch {
 					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearHeadMismatch)
 				}
@@ -182,7 +182,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 				f := setupBlockedFixture(t, m)
 				gh := &fakeBlockGitHub{repo: retargetRepo(), openByHead: map[string][]githubcli.PullRequest{}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
+					ClearBlockRequest{ID: f.id, Revision: f.revision, Head: f.head, PRNumber: 1})
 				if got.Reason != ReasonClearPRNotOpen {
 					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearPRNotOpen)
 				}
@@ -194,7 +194,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
 					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, "")}}}
 				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
+					ClearBlockRequest{ID: f.id, Revision: f.revision, Head: f.head, PRNumber: 1})
 				if got.Reason != ReasonClearEvidenceUnverified {
 					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearEvidenceUnverified)
 				}
@@ -204,7 +204,7 @@ func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 }
 
 // TestFinalizeConcurrentMovement proves that a concurrent base move, a remote
-// feature-head move, and a same-entity version contention each produce a
+// feature-head move, and a same-record revision contention each produce a
 // contended/refused outcome — never a text-merge, a silent overwrite, or a merge —
 // because every effect is fenced by the exact old-value it read.
 func TestIntegrationFinalizeStateConcurrentMovement(t *testing.T) {
@@ -257,7 +257,7 @@ func TestIntegrationFinalizeStateConcurrentMovement(t *testing.T) {
 		}
 	})
 
-	t.Run("same-entity-version-contends-retarget", func(t *testing.T) {
+	t.Run("same-entity-revision-contends-retarget", func(t *testing.T) {
 		pin := docketPin(t)
 		corpus := []StatusBlob{
 			finalizeBlob(80, "root", "implemented", "high", prRefFor(800), ""),
@@ -267,7 +267,7 @@ func TestIntegrationFinalizeStateConcurrentMovement(t *testing.T) {
 		// same-entity contention. The retarget must refuse the edit, never force it.
 		gh := &fakeRetargetGitHub{
 			repo: retargetRepo(),
-			prs:  []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810-new"}},
+			prs:  []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810-new"}},
 		}
 		engine := &recordingEngine{}
 		req := RetargetChildrenRequest{
@@ -276,14 +276,14 @@ func TestIntegrationFinalizeStateConcurrentMovement(t *testing.T) {
 		}
 		res := FinalizeRetargetChildren(context.Background(), retargetDeps(&fakeReader{pin: pin, corpus: corpus}, gh, engine), "", req)
 		if res.Result == ResultApplied {
-			t.Fatalf("a version-contended child was retargeted: %q disp %q", res.Result, res.Disposition)
+			t.Fatalf("a revision-contended child was retargeted: %q disp %q", res.Result, res.Disposition)
 		}
 		if c := childOutcomeByID(t, res, 81); c.Outcome != childOutcomeContended {
 			t.Fatalf("child 81 outcome = %q, want contended", c.Outcome)
 		}
-		// The rival version stands: no forced edit.
-		if gh.prs[0].base != "feat/root" || gh.prs[0].version != "cv810-new" {
-			t.Fatalf("the contended retarget overwrote the rival PR: base %q version %q", gh.prs[0].base, gh.prs[0].version)
+		// The rival revision stands: no forced edit.
+		if gh.prs[0].base != "feat/root" || gh.prs[0].revision != "cv810-new" {
+			t.Fatalf("the contended retarget overwrote the rival PR: base %q revision %q", gh.prs[0].base, gh.prs[0].revision)
 		}
 	})
 }
@@ -463,7 +463,7 @@ func TestIntegrationFinalizeStatePublishOrder(t *testing.T) {
 			if gh.ensNext != 1 {
 				t.Fatalf("EnsurePullRequest called %d time(s), want exactly 1", gh.ensNext)
 			}
-			// The edit converged the exact expected head and version.
+			// The edit converged the exact expected head and revision.
 			if gh.ensLast.ExpectedHead != f.rewritten {
 				t.Errorf("edit expected head = %q, want the rewritten head %q", gh.ensLast.ExpectedHead, f.rewritten)
 			}
@@ -757,7 +757,7 @@ func TestIntegrationFinalizeStatePublishCarriedDescendant(t *testing.T) {
 // same-attempt block and an absent-marker clear-block are REAL transaction
 // no-ops through the engine (not planning-only): a no-op disposition carrying
 // the requested change id, byte-stable metadata and an unmoved remote metadata
-// revision, no duplicate marker, and an unchanged stale-version refusal
+// revision, no duplicate marker, and an unchanged stale-revision refusal
 // (spec §5, acceptance §6). Before change 0438 the zero-valued no-op plans
 // failed validatePlan ("empty commit subject") and surfaced as invalid-input.
 func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
@@ -765,10 +765,10 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 
 	t.Run("repeated-block-is-a-no-op", func(t *testing.T) {
 		f := setupRebaseFixtureStatus(t, m, "in-progress")
-		staleVersion := f.version
+		staleRevision := f.revision
 		gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
 		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}
-		req := BlockRequest{ID: f.id, Revision: f.version, PRNumber: 7, Attempt: "att1",
+		req := BlockRequest{ID: f.id, Revision: f.revision, PRNumber: 7, Attempt: "att1",
 			Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix.\n"}
 
 		// 1. First block records the marker in a metadata commit.
@@ -782,9 +782,9 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 			t.Fatal("record vanished after the first block")
 		}
 
-		// 2. Repeat the SAME attempt against the current (post-commit) version: a
+		// 2. Repeat the SAME attempt against the current (post-commit) revision: a
 		//    real no-op, not invalid-input.
-		req.Revision = blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+		req.Revision = blobRevisionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
 		second := FinalizeBlock(context.Background(), deps, f.repo.invocation, req)
 		if second.Result != ResultNoOp || second.Disposition != BlockDispAlready {
 			t.Fatalf("repeated block: result=%q disp=%q reason=%q msg=%q, want no-op/already",
@@ -804,12 +804,12 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 			t.Errorf("attempt marker appears %d time(s), want exactly 1 (the no-op wrote no duplicate)", n)
 		}
 
-		// 4. Stale-version refusal is unchanged — the no-op repair did not weaken
-		//    the engine's exact-version expectation checking.
-		req.Revision = staleVersion
+		// 4. Stale-revision refusal is unchanged — the no-op repair did not weaken
+		//    the engine's exact-revision expectation checking.
+		req.Revision = staleRevision
 		stale := FinalizeBlock(context.Background(), deps, f.repo.invocation, req)
 		if stale.Result != ResultContended || stale.Disposition != BlockDispContended {
-			t.Fatalf("stale-version block: result=%q disp=%q reason=%q, want contended/contended", stale.Result, stale.Disposition, stale.Reason)
+			t.Fatalf("stale-revision block: result=%q disp=%q reason=%q, want contended/contended", stale.Result, stale.Disposition, stale.Reason)
 		}
 	})
 
@@ -823,7 +823,7 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 		deps := FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}
 		before := originTip(t, f.repo.origin, f.branch)
 		got := FinalizeClearBlock(context.Background(), deps, f.repo.invocation,
-			ClearBlockRequest{ID: f.id, Revision: f.version, Head: f.head, PRNumber: 1})
+			ClearBlockRequest{ID: f.id, Revision: f.revision, Head: f.head, PRNumber: 1})
 		if got.Result != ResultNoOp || got.Disposition != BlockDispNothingToClear {
 			t.Fatalf("absent-marker clear-block: result=%q disp=%q reason=%q msg=%q, want no-op/nothing-to-clear",
 				got.Result, got.Disposition, got.Reason, got.Message)

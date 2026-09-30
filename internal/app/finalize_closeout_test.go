@@ -89,7 +89,7 @@ type closeoutFixture struct {
 	specPath    string
 	planPath    string
 	resultsPath string
-	version     string
+	revision    string
 }
 
 func closeoutRecord(id int, slug, status, pr, specPath, planPath, resultsPath string) string {
@@ -150,7 +150,7 @@ func setupCloseoutFixture(t *testing.T, m planRepoMode) *closeoutFixture {
 	}
 	f.repo.writerAdvance(t, "main", integrationFiles)
 
-	cf.version = blobVersionAt(t, f.repo.origin, f.branch, recPath)
+	cf.revision = blobRevisionAt(t, f.repo.origin, f.branch, recPath)
 	return cf
 }
 
