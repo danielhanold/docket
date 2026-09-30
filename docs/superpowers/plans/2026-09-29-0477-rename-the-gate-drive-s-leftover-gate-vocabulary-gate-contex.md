@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0477 — Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context)](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md)**
+> ↩ **[Change 0477 — Finish the run-tracker rename (--gate-context, DOCKET_AGENT_GUARDIAN_GATE_KEY, dispatch_context)](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-30-0477-rename-the-gate-drive-s-leftover-gate-vocabulary-gate-contex.md)**
 <!-- docket:backlink:end -->
 # Finish the run-tracker rename Implementation Plan
 
