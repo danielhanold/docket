@@ -39,7 +39,7 @@ const (
 	// State-shape refusals built by refuseLifecycle inside a Plan closure.
 	FCArtifactRenderFailed FindingCode = "artifact-render-failed"
 	FCNotFound             FindingCode = "not-found"
-	FCNothingToRearm       FindingCode = "nothing-to-rearm"
+	FCNothingToReEnable    FindingCode = "nothing-to-re-enable"
 	FCPathMismatch         FindingCode = "path-mismatch"
 	FCSectionEditFailed    FindingCode = "section-edit-failed"
 
@@ -283,7 +283,7 @@ var AllFindingCodes = []FindingCode{
 	FCMissingRationale,
 	FCNotFound,
 	FCNotRetitleable,
-	FCNothingToRearm,
+	FCNothingToReEnable,
 	FCParseFailed,
 	FCPathMismatch,
 	FCPrepareLocalStateUnknown,

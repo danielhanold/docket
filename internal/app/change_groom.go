@@ -27,7 +27,7 @@ import (
 // linked spec and/or owned proposal-section edits, never touching spec: or
 // trivial:. The abstain outcome records an autonomous groom's abstain on a
 // needs-design change — auto_groomable: false plus one dated
-// "## Auto-groom blocked" entry — under the same groom gate; the rearm outcome
+// "## Auto-groom blocked" entry — under the same groom gate; the re-enable outcome
 // clears it — auto_groomable: true, the section removed — under that gate too,
 // optionally with owned-section edits in the same commit. Every outcome
 // lands the change's source mutation and every affected v1-owned derived view (the change record's owned proposal sections,
@@ -65,11 +65,11 @@ const (
 	// accepts no section, spec, or relationship edits — an autonomous caller
 	// cannot rewrite the proposal through it.
 	GroomAbstain GroomOutcome = "abstain"
-	// GroomRearm re-arms a needs-brainstorm change for autonomous grooming: it
-	// sets auto_groomable: true, removes the ## Auto-groom blocked section when
+	// GroomReEnable re-enables a needs-brainstorm change for autonomous grooming:
+	// it sets auto_groomable: true, removes the ## Auto-groom blocked section when
 	// present, and applies any owned-section edits (typically the context the
 	// abstain asked for) in the same commit. Human-typed or human-attended only.
-	GroomRearm GroomOutcome = "rearm"
+	GroomReEnable GroomOutcome = "re-enable"
 )
 
 // reasonSpecRevisionMismatch is the Plan refusal for a stale spec_revision on a
@@ -113,7 +113,7 @@ type ChangeGroomRequest struct {
 	BlockedNote string `json:"blocked_note,omitempty"`
 
 	// Title, when non-empty, retitles the change (change 0461). The spec,
-	// trivial, revise, and rearm outcomes accept it; abstain refuses it, since an
+	// trivial, revise, and re-enable outcomes accept it; abstain refuses it, since an
 	// abstain cannot rewrite the proposal. Empty leaves the title unchanged. A
 	// retitle renames nothing: the slug, record path, spec path, and branch stay put.
 	Title string `json:"title,omitempty"`
@@ -154,8 +154,8 @@ func (r ChangeGroomResult) HumanText() string {
 		if r.Outcome == string(GroomAbstain) {
 			return fmt.Sprintf("change %04d auto-groom abstained — %s", r.ID, r.Revision)
 		}
-		if r.Outcome == string(GroomRearm) {
-			return fmt.Sprintf("change %04d re-armed for auto-groom — %s", r.ID, r.Revision)
+		if r.Outcome == string(GroomReEnable) {
+			return fmt.Sprintf("change %04d re-enabled for auto-groom — %s", r.ID, r.Revision)
 		}
 		if r.Outcome == string(GroomRevise) {
 			return fmt.Sprintf("change %04d revised — %s", r.ID, r.Revision)
@@ -361,17 +361,17 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 				addShape(rel.code, rel.name+" is not accepted by the abstain outcome")
 			}
 		}
-	case GroomRearm:
+	case GroomReEnable:
 		if strings.TrimSpace(req.SpecMarkdown) != "" {
-			addShape(FCInvalidSpecMarkdown, "spec_markdown is not accepted by the rearm outcome")
+			addShape(FCInvalidSpecMarkdown, "spec_markdown is not accepted by the re-enable outcome")
 		}
 		for _, s := range req.Sections {
 			if s.Heading == autoGroomBlockedHeading {
-				addShape(FCInvalidSectionHeading, "the rearm outcome removes \"## Auto-groom blocked\" itself; a section edit may not name it")
+				addShape(FCInvalidSectionHeading, "the re-enable outcome removes \"## Auto-groom blocked\" itself; a section edit may not name it")
 			}
 		}
 	default:
-		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial, revise, abstain, rearm", req.Outcome))
+		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial, revise, abstain, re-enable", req.Outcome))
 	}
 
 	// A title retitles the change on every other outcome (change 0461); an empty
@@ -627,14 +627,14 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 			Markdown: autoGroomBlockedMarkdown(oldBody, present, o.clock.Now().UTC().Format("2006-01-02"), o.req.BlockedNote),
 		})
 	}
-	if o.req.Outcome == GroomRearm {
+	if o.req.Outcome == GroomReEnable {
 		// Every transition out of the abstained state removes the marker whose
 		// presence encodes it (the board keys on it). With no marker and the flag
-		// already true there is nothing to re-arm.
+		// already true there is nothing to re-enable.
 		blocked := namedSectionPresent(src, autoGroomBlockedHeading)
 		if ag := c.AutoGroomable(); !blocked && ag.State == domain.FieldPresent && ag.Value {
-			return refuseGroom(string(FCNothingToRearm),
-				fmt.Sprintf("change %04d has no %s section and is already auto_groomable: true; there is nothing to re-arm", o.req.ChangeID, autoGroomBlockedHeading))
+			return refuseGroom(string(FCNothingToReEnable),
+				fmt.Sprintf("change %04d has no %s section and is already auto_groomable: true; there is nothing to re-enable", o.req.ChangeID, autoGroomBlockedHeading))
 		}
 		if blocked {
 			edits = append(edits, render.SectionEdit{Heading: autoGroomBlockedHeading, Intent: render.SectionRemove})
@@ -675,7 +675,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		// gets it inserted rather than failing on a missing patch target.
 		upsertField(&ps, doc1, "auto_groomable", document.Bool(false))
 	}
-	if o.req.Outcome == GroomRearm {
+	if o.req.Outcome == GroomReEnable {
 		upsertField(&ps, doc1, "auto_groomable", document.Bool(true))
 	}
 	// upsertField (not bare SetField): the updated: field is inserted when a record

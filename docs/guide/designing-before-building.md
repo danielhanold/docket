@@ -41,7 +41,7 @@ critic rejects (or that comes out genuinely trivial) is handled accordingly, and
 loop cannot settle confidently is handed back to your interactive queue rather than forced
 through.
 Such a stub shows as **auto-groom blocked — needs you** on the board. Once you have supplied the
-missing context you can groom it yourself, or re-arm it so the autonomous groomer picks it up
+missing context you can groom it yourself, or re-enable it so the autonomous groomer picks it up
 again — the interactive groom skill offers both.
 
 Two things are deliberately never autonomous: killing a change and deferring one. Those are

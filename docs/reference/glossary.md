@@ -553,7 +553,7 @@ and `remove` must carry empty Markdown.
 
 **Used for:** rewriting a proposal's body during grooming without hand edits. Any other heading is
 refused with `invalid-section-heading`. A `revise` needs at least one `replace` or `remove`, and
-`rearm` may not name `## Auto-groom blocked` because it removes that section itself.
+`re-enable` may not name `## Auto-groom blocked` because it removes that section itself.
 
 ```sh
 docket schema --operation change.groom   # the sections[] shape
@@ -634,14 +634,14 @@ docket status --json | jq '.changes[] | select(.id==413) | .effective_base'
 
 ## Grooming
 
-### Abstain / re-arm
+### Abstain / re-enable
 
 **Abstain** is auto-groom declining to design a stub it cannot safely default: it flips
-`auto_groomable: false` and writes `## Auto-groom blocked`. **Re-arm** is the human supplying the
+`auto_groomable: false` and writes `## Auto-groom blocked`. **Re-enable** is the human supplying the
 missing context and flipping it back, which removes that section in the same commit.
 
 ```sh
-# groom.json: {"change_id": 412, "revision": "<v>", "outcome": "rearm", ...}
+# groom.json: {"change_id": 412, "revision": "<v>", "outcome": "re-enable", ...}
 docket change groom --request groom.json
 ```
 
@@ -687,7 +687,7 @@ defer, a revise of an already-groomed change, or (autonomous only) an abstain.
 
 **Used for:** the step between capturing and building. Interactive grooming is
 `docket-groom-next`; the typed write underneath is `change.groom` with an `outcome` of `spec`,
-`trivial`, `revise`, `abstain`, or `rearm`.
+`trivial`, `revise`, `abstain`, or `re-enable`.
 
 ```sh
 docket schema --operation change.groom
@@ -1658,7 +1658,7 @@ real prompts. Naming ids authorizes a headless drive and overrides the `approval
 
 The interactive groomer. It selects the next needs-brainstorm stub (or the id you name), opens with a
 cold-start recap, and brainstorms it with you. It exits with spec, trivial, kill, defer, revise, or
-re-arm. It never takes a claim and never mints ids.
+re-enable. It never takes a claim and never mints ids.
 
 **Used for:** designing stubs with a human in the loop. Naming an already-groomed id routes to
 `revise`. It runs inline at the session model, and the model it recommends is advisory.
@@ -2040,7 +2040,7 @@ below.
 | `claim_dispositions` | `applied` `already-claimed` `contended` `failed` `run-context-invalid` `run-context-conflict` | `change claim`, `change refresh-claim` |
 | `cleanup_dispositions` | `cleaned` `already-clean` `pending` `retained` `children-retarget-required` `rebase-scratch-cleared` | `finalize cleanup`, `gate cleanup` |
 | `closeout_dispositions` | `done-archived` `stacked-merged` `root-archived` `already` `children-retarget-required` `contended` `blocked` `unknown` `failed` | `finalize closeout` |
-| `groom_outcomes` | `spec` `trivial` `revise` `abstain` `rearm` | `change groom` (request `outcome`) |
+| `groom_outcomes` | `spec` `trivial` `revise` `abstain` `re-enable` | `change groom` (request `outcome`) |
 | `halt_dispositions` | `halted` `resumed` `contended` `refused` `failed` | `change halt`, `change resume-halted` |
 | `merge_dispositions` | `merged` `already-merged` `contended` `not-mergeable` `denied` `blocked` `unknown` | `finalize merge` |
 | `publish_dispositions` | `published` `noop` `contended` `unknown` `blocked` | `finalize publish` |
@@ -2272,7 +2272,7 @@ and `true` blocks every repository mutation until you remove it.
 - [## Artifacts block](#-artifacts-block)
 - [## Why deferred / ## Why killed](#-why-deferred---why-killed)
 - [Abort-and-report](#abort-and-report)
-- [Abstain / re-arm](#abstain--re-arm)
+- [Abstain / re-enable](#abstain--re-enable)
 - [Admission slot](#admission-slot)
 - [Adopting docket in a repository](#adopting-docket-in-a-repository)
 - [ADR](#adr)

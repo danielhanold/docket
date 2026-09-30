@@ -1097,37 +1097,37 @@ func TestChangeGroomResultHumanTextAbstain(t *testing.T) {
 	}
 }
 
-// rearmRequest is a well-formed rearm request against the fixture at id 2.
-func rearmRequest() ChangeGroomRequest {
+// reEnableRequest is a well-formed re-enable request against the fixture at id 2.
+func reEnableRequest() ChangeGroomRequest {
 	return ChangeGroomRequest{
 		ChangeID: 2,
 		Path:     groomPath(2, "add-a-widget"),
 		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Outcome:  GroomRearm,
+		Outcome:  GroomReEnable,
 	}
 }
 
-func TestChangeGroomRearmShapeValidation(t *testing.T) {
+func TestChangeGroomReEnableShapeValidation(t *testing.T) {
 	cases := []struct {
 		name string
 		mut  func(*ChangeGroomRequest)
 		code string
 	}{
-		{"bare rearm passes", func(r *ChangeGroomRequest) {}, ""},
-		{"rearm with owned-section edits passes", func(r *ChangeGroomRequest) {
+		{"bare re-enable passes", func(r *ChangeGroomRequest) {}, ""},
+		{"re-enable with owned-section edits passes", func(r *ChangeGroomRequest) {
 			r.Sections = []SectionEditRequest{{Heading: "## Open questions", Intent: "replace", Markdown: "Resolved.\n"}}
 		}, ""},
-		{"rearm with blocked_note", func(r *ChangeGroomRequest) { r.BlockedNote = "x\n" }, "invalid-blocked_note"},
-		{"rearm with spec_markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "# Design\n" }, "invalid-spec_markdown"},
-		{"rearm with spec_revision", func(r *ChangeGroomRequest) { r.SpecRevision = "a" }, "invalid-spec_revision"},
+		{"re-enable with blocked_note", func(r *ChangeGroomRequest) { r.BlockedNote = "x\n" }, "invalid-blocked_note"},
+		{"re-enable with spec_markdown", func(r *ChangeGroomRequest) { r.SpecMarkdown = "# Design\n" }, "invalid-spec_markdown"},
+		{"re-enable with spec_revision", func(r *ChangeGroomRequest) { r.SpecRevision = "a" }, "invalid-spec_revision"},
 		// Review Focus 5: the op removes this section itself.
-		{"rearm editing ## Auto-groom blocked", func(r *ChangeGroomRequest) {
+		{"re-enable editing ## Auto-groom blocked", func(r *ChangeGroomRequest) {
 			r.Sections = []SectionEditRequest{{Heading: "## Auto-groom blocked", Intent: "replace", Markdown: "x\n"}}
 		}, "invalid-section-heading"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			req := rearmRequest()
+			req := reEnableRequest()
 			c.mut(&req)
 			findings := validateChangeGroomShape(req)
 			if c.code == "" {
@@ -1143,34 +1143,57 @@ func TestChangeGroomRearmShapeValidation(t *testing.T) {
 	}
 }
 
-func TestChangeGroomPlanRearmClearsSectionSetsFlagAndBoard(t *testing.T) {
+// TestChangeGroomRetiredRearmOutcomeRefused pins the hard cut (ADR-0129
+// Decision 2, row 54): the retired spelling is not an alias of re-enable, and
+// the refusal names only the live outcome set.
+func TestChangeGroomRetiredRearmOutcomeRefused(t *testing.T) {
+	req := reEnableRequest()
+	req.Outcome = GroomOutcome("rearm")
+	findings := validateChangeGroomShape(req)
+	var msg string
+	for _, f := range findings {
+		if f.Code == "invalid-outcome" {
+			msg = f.Message
+		}
+	}
+	if msg == "" {
+		t.Fatalf("outcome rearm: want invalid-outcome, got %v", findings)
+	}
+	// The message echoes the offending value via %q ("rearm"), so assert on the
+	// listed outcome set only: it must end with the live spelling.
+	if !strings.HasSuffix(msg, "must be one of spec, trivial, revise, abstain, re-enable") {
+		t.Errorf("invalid-outcome message %q must list exactly the live outcomes ending in re-enable", msg)
+	}
+}
+
+func TestChangeGroomPlanReEnableClearsSectionSetsFlagAndBoard(t *testing.T) {
 	files := map[string]string{
 		groomPath(2, "add-a-widget"): abstainedChange(2, "add-a-widget"),
 		"docs/changes/BOARD.md":      "# Backlog\n\nold\n",
 	}
-	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, rearmRequest()))
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{"inline"}, reEnableRequest()))
 	if opRes.Refused {
 		t.Fatalf("unexpected refusal: %v", opRes.Findings)
 	}
 	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
 	if strings.Contains(rec, "## Auto-groom blocked") || strings.Contains(rec, "First note.") {
-		t.Errorf("re-arm left the presence-encoded section behind:\n%s", rec)
+		t.Errorf("re-enable left the presence-encoded section behind:\n%s", rec)
 	}
 	if !strings.Contains(rec, "\nauto_groomable: true\n") || strings.Contains(rec, "auto_groomable: false") {
-		t.Errorf("re-arm did not set auto_groomable: true:\n%s", rec)
+		t.Errorf("re-enable did not set auto_groomable: true:\n%s", rec)
 	}
 	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
 	if strings.Contains(board, "auto-groom blocked — needs you") || !strings.Contains(board, "needs-brainstorm") {
 		t.Errorf("board row did not return to needs-brainstorm in the same plan:\n%s", board)
 	}
 	var receipt changeGroomReceipt
-	if err := json.Unmarshal(plan.Receipt, &receipt); err != nil || receipt.Outcome != "rearm" {
-		t.Errorf("receipt = %s (%v), want outcome rearm", plan.Receipt, err)
+	if err := json.Unmarshal(plan.Receipt, &receipt); err != nil || receipt.Outcome != "re-enable" {
+		t.Errorf("receipt = %s (%v), want outcome re-enable", plan.Receipt, err)
 	}
 }
 
-func TestChangeGroomPlanRearmAppliesSectionEditsInOneRecord(t *testing.T) {
-	req := rearmRequest()
+func TestChangeGroomPlanReEnableAppliesSectionEditsInOneRecord(t *testing.T) {
+	req := reEnableRequest()
 	req.Sections = []SectionEditRequest{{Heading: "## Open questions", Intent: "replace", Markdown: "Resolved: use SQLite.\n"}}
 	files := map[string]string{groomPath(2, "add-a-widget"): abstainedChange(2, "add-a-widget")}
 	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, req))
@@ -1184,7 +1207,7 @@ func TestChangeGroomPlanRearmAppliesSectionEditsInOneRecord(t *testing.T) {
 	}
 }
 
-func TestChangeGroomPlanRearmArmsWithoutABlockedSection(t *testing.T) {
+func TestChangeGroomPlanReEnableEnablesWithoutABlockedSection(t *testing.T) {
 	cases := []struct {
 		name string
 		rec  string
@@ -1195,7 +1218,7 @@ func TestChangeGroomPlanRearmArmsWithoutABlockedSection(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			plan, opRes := groomPlanFor(t, map[string]string{groomPath(2, "add-a-widget"): c.rec}, baseGroomOp([]string{}, rearmRequest()))
+			plan, opRes := groomPlanFor(t, map[string]string{groomPath(2, "add-a-widget"): c.rec}, baseGroomOp([]string{}, reEnableRequest()))
 			if opRes.Refused {
 				t.Fatalf("unexpected refusal: %v", opRes.Findings)
 			}
@@ -1206,20 +1229,20 @@ func TestChangeGroomPlanRearmArmsWithoutABlockedSection(t *testing.T) {
 	}
 }
 
-func TestChangeGroomPlanRearmRefusals(t *testing.T) {
+func TestChangeGroomPlanReEnableRefusals(t *testing.T) {
 	armed := strings.Replace(groomableChange(2, "add-a-widget"), "trivial: false\n", "trivial: false\nauto_groomable: true\n", 1)
 	cases := []struct {
 		name  string
 		files map[string]string
 		code  string
 	}{
-		{"nothing to re-arm", map[string]string{groomPath(2, "add-a-widget"): armed}, "nothing-to-rearm"},
+		{"nothing to re-enable", map[string]string{groomPath(2, "add-a-widget"): armed}, "nothing-to-re-enable"},
 		{"trivial", map[string]string{groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget")}, "not-groomable"},
 		{"spec'd", reviseFixtureFiles(), "not-groomable"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			plan, opRes := groomPlanFor(t, c.files, baseGroomOp([]string{}, rearmRequest()))
+			plan, opRes := groomPlanFor(t, c.files, baseGroomOp([]string{}, reEnableRequest()))
 			if !opRes.Refused || len(plan.Files) != 0 {
 				t.Fatalf("want a refusal writing nothing, got refused=%v files=%v", opRes.Refused, planPaths(plan))
 			}
@@ -1234,12 +1257,12 @@ func TestChangeGroomPlanRearmRefusals(t *testing.T) {
 	}
 }
 
-// TestChangeGroomRearmFencedMarkerAgreesWithBoard — a heading-shaped
+// TestChangeGroomReEnableFencedMarkerAgreesWithBoard — a heading-shaped
 // "## Auto-groom blocked" line inside fenced code is not the abstain section:
-// the decoded record (which the board's cell keys on) and rearm's section scan
-// must agree, so the board never shows "needs you" on a record rearm reports
-// as having nothing to re-arm.
-func TestChangeGroomRearmFencedMarkerAgreesWithBoard(t *testing.T) {
+// the decoded record (which the board's cell keys on) and re-enable's section scan
+// must agree, so the board never shows "needs you" on a record re-enable reports
+// as having nothing to re-enable.
+func TestChangeGroomReEnableFencedMarkerAgreesWithBoard(t *testing.T) {
 	rec := strings.Replace(groomableChange(2, "add-a-widget"), "trivial: false\n", "trivial: false\nauto_groomable: true\n", 1) +
 		"\n## Notes\n\n```md\n## Auto-groom blocked\n```\n"
 	files := map[string]string{groomPath(2, "add-a-widget"): rec}
@@ -1254,25 +1277,25 @@ func TestChangeGroomRearmFencedMarkerAgreesWithBoard(t *testing.T) {
 	if c.HasAutoGroomBlocked() {
 		t.Errorf("decoded record reports a fenced heading as the abstain marker; the board would show it blocked")
 	}
-	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, rearmRequest()))
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, reEnableRequest()))
 	found := false
 	for _, f := range opRes.Findings {
-		found = found || f.Code == "nothing-to-rearm"
+		found = found || f.Code == "nothing-to-re-enable"
 	}
 	if !opRes.Refused || len(plan.Files) != 0 || !found {
-		t.Errorf("rearm over a fenced marker: refused=%v files=%v findings=%v, want nothing-to-rearm", opRes.Refused, planPaths(plan), opRes.Findings)
+		t.Errorf("re-enable over a fenced marker: refused=%v files=%v findings=%v, want nothing-to-re-enable", opRes.Refused, planPaths(plan), opRes.Findings)
 	}
 }
 
-func TestChangeGroomResultHumanTextRearm(t *testing.T) {
-	r := newChangeGroomResult(ResultApplied, ChangeGroomResult{ID: 7, Outcome: string(GroomRearm), Revision: "cafe"})
-	if got, want := r.HumanText(), "change 0007 re-armed for auto-groom — cafe"; got != want {
+func TestChangeGroomResultHumanTextReEnable(t *testing.T) {
+	r := newChangeGroomResult(ResultApplied, ChangeGroomResult{ID: 7, Outcome: string(GroomReEnable), Revision: "cafe"})
+	if got, want := r.HumanText(), "change 0007 re-enabled for auto-groom — cafe"; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 }
 
 // followedSection is a non-final section placed after ## Auto-groom blocked so
-// abstain-append and rearm-removal are proven not to consume what follows.
+// abstain-append and re-enable-removal are proven not to consume what follows.
 const followedSection = "## Reconcile log\n\nKept entry.\n"
 
 func TestChangeGroomPlanAbstainAppendsBeforeFollowingSection(t *testing.T) {
@@ -1292,15 +1315,15 @@ func TestChangeGroomPlanAbstainAppendsBeforeFollowingSection(t *testing.T) {
 	}
 }
 
-func TestChangeGroomPlanRearmRemovesSectionBeforeFollowingSection(t *testing.T) {
+func TestChangeGroomPlanReEnableRemovesSectionBeforeFollowingSection(t *testing.T) {
 	files := map[string]string{groomPath(2, "add-a-widget"): abstainedChange(2, "add-a-widget") + "\n" + followedSection}
-	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, rearmRequest()))
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, reEnableRequest()))
 	if opRes.Refused {
 		t.Fatalf("unexpected refusal: %v", opRes.Findings)
 	}
 	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
 	if strings.Contains(rec, "## Auto-groom blocked") || strings.Contains(rec, "First note.") {
-		t.Errorf("re-arm left the blocked section behind:\n%s", rec)
+		t.Errorf("re-enable left the blocked section behind:\n%s", rec)
 	}
 	if strings.Count(rec, followedSection) != 1 || !strings.HasSuffix(rec, followedSection) {
 		t.Errorf("following section not preserved byte-identically:\n%s", rec)
@@ -1343,7 +1366,7 @@ func TestChangeGroomTitleShapeValidation(t *testing.T) {
 	}{
 		{"spec accepts title", withTitle(validGroomSpecRequest(), "Renamed widget"), ""},
 		{"trivial accepts title", titledTrivialRequest("Renamed widget"), ""},
-		{"rearm accepts title", withTitle(rearmRequest(), "Renamed widget"), ""},
+		{"re-enable accepts title", withTitle(reEnableRequest(), "Renamed widget"), ""},
 		{"revise accepts a title alone", titleOnlyReviseRequest("Renamed widget"), ""},
 		{"revise accepts title with sections", withTitle(validReviseRequest(), "Renamed widget"), ""},
 		{"abstain refuses title", withTitle(abstainRequest(), "Renamed widget"), "invalid-title"},
