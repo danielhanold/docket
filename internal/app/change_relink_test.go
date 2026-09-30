@@ -19,14 +19,14 @@ import (
 // workspace gate, and the applied write run end-to-end over real bare-remote
 // repositories with a fake GitHub seam scripting the viewed PR.
 
-const repairRevision = "1234123412341234123412341234123412341234"
+const relinkRevision = "1234123412341234123412341234123412341234"
 
 // --- fake FinalizeGitHub for repair ----------------------------------------
 
-// fakeRepairGitHub scripts DiscoverRepository and the exact-number
+// fakeRelinkGitHub scripts DiscoverRepository and the exact-number
 // ViewPullRequest the repair reads; every other finalize-half GitHub method
 // panics so an accidental call is loud.
-type fakeRepairGitHub struct {
+type fakeRelinkGitHub struct {
 	repo    githubcli.Repository
 	repoErr error
 	pr      githubcli.PullRequest
@@ -35,75 +35,75 @@ type fakeRepairGitHub struct {
 	viewCalls []int
 }
 
-func (f *fakeRepairGitHub) DiscoverRepository(_ context.Context, _ string) (githubcli.Repository, error) {
+func (f *fakeRelinkGitHub) DiscoverRepository(_ context.Context, _ string) (githubcli.Repository, error) {
 	return f.repo, f.repoErr
 }
-func (f *fakeRepairGitHub) ViewPullRequest(_ context.Context, _ githubcli.Repository, number int) (githubcli.PullRequest, error) {
+func (f *fakeRelinkGitHub) ViewPullRequest(_ context.Context, _ githubcli.Repository, number int) (githubcli.PullRequest, error) {
 	f.viewCalls = append(f.viewCalls, number)
 	return f.pr, f.viewErr
 }
-func (f *fakeRepairGitHub) ProbeMerged(context.Context, githubcli.Repository, int) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+func (f *fakeRelinkGitHub) ProbeMerged(context.Context, githubcli.Repository, int) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
 	panic("ProbeMerged: repair must not call this")
 }
-func (f *fakeRepairGitHub) FindOpenPullRequestsByHead(context.Context, githubcli.Repository, string) ([]githubcli.PullRequest, error) {
+func (f *fakeRelinkGitHub) FindOpenPullRequestsByHead(context.Context, githubcli.Repository, string) ([]githubcli.PullRequest, error) {
 	panic("FindOpenPullRequestsByHead: repair must not call this")
 }
-func (f *fakeRepairGitHub) RetargetPullRequest(context.Context, githubcli.Repository, int, string, string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {
+func (f *fakeRelinkGitHub) RetargetPullRequest(context.Context, githubcli.Repository, int, string, string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {
 	panic("RetargetPullRequest: repair must not call this")
 }
-func (f *fakeRepairGitHub) EnsureComment(context.Context, githubcli.Repository, int, string, string) (githubcli.CommentOutcome, string, error) {
+func (f *fakeRelinkGitHub) EnsureComment(context.Context, githubcli.Repository, int, string, string) (githubcli.CommentOutcome, string, error) {
 	panic("EnsureComment: repair must not call this")
 }
-func (f *fakeRepairGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
+func (f *fakeRelinkGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
 	panic("FindComment: repair must not call this")
 }
-func (f *fakeRepairGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
+func (f *fakeRelinkGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
 	panic("MergePullRequest: repair must not call this")
 }
 
 // --- fake FinalizeWorkspace for the ownership gate -------------------------
 
-// fakeRepairWorkspace scripts the inspected workspace state (or a probe error)
+// fakeRelinkWorkspace scripts the inspected workspace state (or a probe error)
 // and records every Inspect call — the sentinel that proves the conflicting-
 // workspace check actually executed. Every non-Inspect method panics: repair
 // only inspects.
-type fakeRepairWorkspace struct {
+type fakeRelinkWorkspace struct {
 	inspection   workspace.Inspection
 	inspectErr   error
 	inspectCalls []workspace.InspectRequest
 }
 
-func (f *fakeRepairWorkspace) Inspect(_ context.Context, req workspace.InspectRequest) (workspace.Inspection, error) {
+func (f *fakeRelinkWorkspace) Inspect(_ context.Context, req workspace.InspectRequest) (workspace.Inspection, error) {
 	f.inspectCalls = append(f.inspectCalls, req)
 	return f.inspection, f.inspectErr
 }
-func (f *fakeRepairWorkspace) ReadRebaseReceipt(context.Context, string) (workspace.RebaseReceipt, bool, error) {
+func (f *fakeRelinkWorkspace) ReadRebaseReceipt(context.Context, string) (workspace.RebaseReceipt, bool, error) {
 	panic("ReadRebaseReceipt: repair must not call this")
 }
-func (f *fakeRepairWorkspace) WriteRebaseReceipt(context.Context, string, workspace.RebaseReceipt) error {
+func (f *fakeRelinkWorkspace) WriteRebaseReceipt(context.Context, string, workspace.RebaseReceipt) error {
 	panic("WriteRebaseReceipt: repair must not call this")
 }
-func (f *fakeRepairWorkspace) ClearRebaseReceipt(context.Context, string) error {
+func (f *fakeRelinkWorkspace) ClearRebaseReceipt(context.Context, string) error {
 	panic("ClearRebaseReceipt: repair must not call this")
 }
-func (f *fakeRepairWorkspace) PublishRewrite(context.Context, workspace.RewriteRequest) (workspace.RewriteOutcome, error) {
+func (f *fakeRelinkWorkspace) PublishRewrite(context.Context, workspace.RewriteRequest) (workspace.RewriteOutcome, error) {
 	panic("PublishRewrite: repair must not call this")
 }
-func (f *fakeRepairWorkspace) PublishHead(context.Context, workspace.PublishRequest) (workspace.PublishResult, error) {
+func (f *fakeRelinkWorkspace) PublishHead(context.Context, workspace.PublishRequest) (workspace.PublishResult, error) {
 	panic("PublishHead: repair must not call this")
 }
-func (f *fakeRepairWorkspace) Cleanup(context.Context, workspace.CleanupRequest) (workspace.CleanupResult, error) {
+func (f *fakeRelinkWorkspace) Cleanup(context.Context, workspace.CleanupRequest) (workspace.CleanupResult, error) {
 	panic("Cleanup: repair must not call this")
 }
-func (f *fakeRepairWorkspace) AcquireOperationLock(string) (func(), error) {
+func (f *fakeRelinkWorkspace) AcquireOperationLock(string) (func(), error) {
 	panic("AcquireOperationLock: repair must not call this")
 }
 
 // --- fixtures --------------------------------------------------------------
 
-// repairRecord renders an in-progress change record whose recorded branch is
+// relinkRecord renders an in-progress change record whose recorded branch is
 // overridden to branch (empty leaves the canonical feat/<slug>).
-func repairRecord(id int, slug, branch string) string {
+func relinkRecord(id int, slug, branch string) string {
 	src := lifecycleChange(id, slug, "in-progress")
 	if branch != "" {
 		src = strings.Replace(src, "branch: feat/"+slug, "branch: "+branch, 1)
@@ -111,21 +111,21 @@ func repairRecord(id int, slug, branch string) string {
 	return src
 }
 
-// repairBlob wraps repairRecord as a corpus StatusBlob at revision.
-func repairBlob(id int, slug, branch, revision string) StatusBlob {
+// relinkBlob wraps relinkRecord as a corpus StatusBlob at revision.
+func relinkBlob(id int, slug, branch, revision string) StatusBlob {
 	return StatusBlob{
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
 		Revision: revision,
-		Data:     []byte(repairRecord(id, slug, branch)),
+		Data:     []byte(relinkRecord(id, slug, branch)),
 	}
 }
 
-// repairFakeDeps wires a fake reader over a single change blob, a recording
+// relinkFakeDeps wires a fake reader over a single change blob, a recording
 // engine that must never fire on a refusal, and a scripted GitHub seam. The Git
 // client is nil: every fake-driven refusal predates the first gitcli call.
-func repairFakeDeps(t *testing.T, blob StatusBlob, gh *fakeRepairGitHub) (FinalizeDeps, *recordingEngine) {
+func relinkFakeDeps(t *testing.T, blob StatusBlob, gh *fakeRelinkGitHub) (FinalizeDeps, *recordingEngine) {
 	t.Helper()
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{blob}}
 	engine := &recordingEngine{}
@@ -136,15 +136,15 @@ func repairFakeDeps(t *testing.T, blob StatusBlob, gh *fakeRepairGitHub) (Finali
 	return deps, engine
 }
 
-// repairGitHub builds the scripted GitHub seam returning one PR by head branch.
-func repairGitHub(headBranch string) *fakeRepairGitHub {
-	return &fakeRepairGitHub{
+// relinkGitHub builds the scripted GitHub seam returning one PR by head branch.
+func relinkGitHub(headBranch string) *fakeRelinkGitHub {
+	return &fakeRelinkGitHub{
 		repo: githubcli.Repository{Host: "github.com", Owner: "acme", Name: "widget"},
 		pr:   githubcli.PullRequest{Number: 7, State: githubcli.StateOpen, HeadBranch: headBranch, HeadCommit: prHead, BaseBranch: "main"},
 	}
 }
 
-func assertRepairRefused(t *testing.T, res RelinkResult, wantResult Result, wantReason string, engine *recordingEngine) {
+func assertRelinkRefused(t *testing.T, res RelinkResult, wantResult Result, wantReason string, engine *recordingEngine) {
 	t.Helper()
 	if res.Result != wantResult {
 		t.Fatalf("result = %q, want %q (reason %q, msg %q)", res.Result, wantResult, res.Reason, res.Message)
@@ -159,40 +159,40 @@ func assertRepairRefused(t *testing.T, res RelinkResult, wantResult Result, want
 
 // --- clause 1: stale revision ------------------------------------------------
 
-// TestRepairStaleRevisionRefused proves clause 1: a change record whose current
+// TestRelinkStaleRevisionRefused proves clause 1: a change record whose current
 // revision no longer equals the approved ExpectRevision lost the race and is
 // refused as stale-evidence, opening no transaction.
-func TestRepairStaleRevisionRefused(t *testing.T) {
-	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", "differentrevision000000000000000000000000"), repairGitHub("feat/widget"))
+func TestRelinkStaleRevisionRefused(t *testing.T) {
+	deps, engine := relinkFakeDeps(t, relinkBlob(3, "widget", "", "differentrevision000000000000000000000000"), relinkGitHub("feat/widget"))
 	res := Relink(context.Background(), deps, "/repo", RelinkRequest{
-		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
+		ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
 	})
-	assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
+	assertRelinkRefused(t, res, ResultContended, RelinkStaleEvidence, engine)
 }
 
 // --- clause 2: adopt-pr-head evidence drift ---------------------------------
 
-// TestRepairStaleHeadRefused proves clause 2: when the PR's reported head branch
+// TestRelinkStaleHeadRefused proves clause 2: when the PR's reported head branch
 // no longer matches the approved ExpectHead, the repair refuses as
 // stale-evidence before any Git work.
-func TestRepairStaleHeadRefused(t *testing.T) {
-	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/actual"))
+func TestRelinkStaleHeadRefused(t *testing.T) {
+	deps, engine := relinkFakeDeps(t, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/actual"))
 	res := Relink(context.Background(), deps, "/repo", RelinkRequest{
-		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/approved",
+		ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/approved",
 	})
-	assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
+	assertRelinkRefused(t, res, ResultContended, RelinkStaleEvidence, engine)
 }
 
-// TestRepairViewErrorIsUnknownNotApplied proves a PR view error is pr-unknown —
+// TestRelinkViewErrorIsUnknownNotApplied proves a PR view error is pr-unknown —
 // an errored read is never laundered into a clean absence or a write.
-func TestRepairViewErrorIsUnknownNotApplied(t *testing.T) {
-	gh := repairGitHub("feat/widget")
+func TestRelinkViewErrorIsUnknownNotApplied(t *testing.T) {
+	gh := relinkGitHub("feat/widget")
 	gh.viewErr = errors.New("gh pr view: network boom")
-	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), gh)
+	deps, engine := relinkFakeDeps(t, relinkBlob(3, "widget", "", relinkRevision), gh)
 	res := Relink(context.Background(), deps, "/repo", RelinkRequest{
-		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
+		ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget",
 	})
-	assertRepairRefused(t, res, ResultExternalFailed, RepairPRUnknown, engine)
+	assertRelinkRefused(t, res, ResultExternalFailed, RelinkPRUnknown, engine)
 	if len(gh.viewCalls) != 1 || gh.viewCalls[0] != 7 {
 		t.Errorf("view calls = %v, want exactly the recorded number 7", gh.viewCalls)
 	}
@@ -200,68 +200,68 @@ func TestRepairViewErrorIsUnknownNotApplied(t *testing.T) {
 
 // --- clause 3: adopt-pr proof-of-identity -----------------------------------
 
-// TestRepairAdoptPRRequiresHeadEqualsRecorded proves clause 3: the supplied PR
+// TestRelinkAdoptPRRequiresHeadEqualsRecorded proves clause 3: the supplied PR
 // only proves identity when its head equals the recorded branch. A parse
 // failure is invalid-request; a recorded branch that drifted from the approved
 // one, or a PR head that does not equal the recorded branch, is stale-evidence.
-func TestRepairAdoptPRRequiresHeadEqualsRecorded(t *testing.T) {
+func TestRelinkAdoptPRRequiresHeadEqualsRecorded(t *testing.T) {
 	t.Run("unparseable-ref-is-invalid-request", func(t *testing.T) {
-		deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/widget"))
+		deps, engine := relinkFakeDeps(t, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/widget"))
 		res := Relink(context.Background(), deps, "/repo", RelinkRequest{
-			ID: 3, ExpectRevision: repairRevision, AdoptPR: "not-a-pr-reference", ExpectBranch: "feat/widget",
+			ID: 3, ExpectRevision: relinkRevision, AdoptPR: "not-a-pr-reference", ExpectBranch: "feat/widget",
 		})
-		assertRepairRefused(t, res, ResultInvalidInput, RepairInvalidRequest, engine)
+		assertRelinkRefused(t, res, ResultInvalidInput, RelinkInvalidRequest, engine)
 	})
 
 	t.Run("recorded-branch-drifted", func(t *testing.T) {
 		// The record carries feat/widget, but the human approved feat/other.
-		deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/widget"))
+		deps, engine := relinkFakeDeps(t, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/widget"))
 		res := Relink(context.Background(), deps, "/repo", RelinkRequest{
-			ID: 3, ExpectRevision: repairRevision, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/other",
+			ID: 3, ExpectRevision: relinkRevision, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/other",
 		})
-		assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
+		assertRelinkRefused(t, res, ResultContended, RelinkStaleEvidence, engine)
 	})
 
 	t.Run("pr-head-not-recorded-branch", func(t *testing.T) {
 		// Recorded/approved branch feat/widget, but the PR's head is feat/elsewhere:
 		// the supplied PR does not prove identity.
-		deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/elsewhere"))
+		deps, engine := relinkFakeDeps(t, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/elsewhere"))
 		res := Relink(context.Background(), deps, "/repo", RelinkRequest{
-			ID: 3, ExpectRevision: repairRevision, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/widget",
+			ID: 3, ExpectRevision: relinkRevision, AdoptPR: "https://github.com/acme/widget/pull/7", ExpectBranch: "feat/widget",
 		})
-		assertRepairRefused(t, res, ResultContended, RepairStaleEvidence, engine)
+		assertRelinkRefused(t, res, ResultContended, RelinkStaleEvidence, engine)
 	})
 }
 
 // --- request shape ----------------------------------------------------------
 
-// TestRepairInvalidRequestShape proves the request-shape gate: not exactly one
+// TestRelinkInvalidRequestShape proves the request-shape gate: not exactly one
 // mode, or a mode missing its evidence, is invalid-request with no work done.
-func TestRepairInvalidRequestShape(t *testing.T) {
-	deps, engine := repairFakeDeps(t, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/widget"))
+func TestRelinkInvalidRequestShape(t *testing.T) {
+	deps, engine := relinkFakeDeps(t, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/widget"))
 	for _, tc := range []struct {
 		name string
 		req  RelinkRequest
 	}{
-		{"neither-mode", RelinkRequest{ID: 3, ExpectRevision: repairRevision}},
-		{"both-modes", RelinkRequest{ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget", AdoptPR: "x#1", ExpectBranch: "feat/widget"}},
-		{"head-mode-missing-head", RelinkRequest{ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7}},
-		{"head-mode-missing-number", RelinkRequest{ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectHead: "feat/widget"}},
-		{"pr-mode-missing-branch", RelinkRequest{ID: 3, ExpectRevision: repairRevision, AdoptPR: "x#1"}},
+		{"neither-mode", RelinkRequest{ID: 3, ExpectRevision: relinkRevision}},
+		{"both-modes", RelinkRequest{ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget", AdoptPR: "x#1", ExpectBranch: "feat/widget"}},
+		{"head-mode-missing-head", RelinkRequest{ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7}},
+		{"head-mode-missing-number", RelinkRequest{ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectHead: "feat/widget"}},
+		{"pr-mode-missing-branch", RelinkRequest{ID: 3, ExpectRevision: relinkRevision, AdoptPR: "x#1"}},
 		{"empty-revision", RelinkRequest{ID: 3, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/widget"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			res := Relink(context.Background(), deps, "/repo", tc.req)
-			assertRepairRefused(t, res, ResultInvalidInput, RepairInvalidRequest, engine)
+			assertRelinkRefused(t, res, ResultInvalidInput, RelinkInvalidRequest, engine)
 		})
 	}
 }
 
 // --- clause 5: writes exactly the approved field ----------------------------
 
-// repairPlanFor runs the repair op's Plan closure over a fake tree so a test can
+// relinkPlanFor runs the repair op's Plan closure over a fake tree so a test can
 // inspect the patched record bytes directly (mirrors implementedPlanFor).
-func repairPlanFor(t *testing.T, files map[string]string, op changeRepairOp) transaction.MutationPlan {
+func relinkPlanFor(t *testing.T, files map[string]string, op changeRelinkOp) transaction.MutationPlan {
 	t.Helper()
 	tree := newFakeTree(files)
 	loader := newPlanningLoader(op.eff)
@@ -282,8 +282,8 @@ func repairPlanFor(t *testing.T, files map[string]string, op changeRepairOp) tra
 	return plan
 }
 
-func repairOp(field, value string) changeRepairOp {
-	return changeRepairOp{
+func relinkOp(field, value string) changeRelinkOp {
+	return changeRelinkOp{
 		changeID:   3,
 		field:      field,
 		value:      value,
@@ -321,15 +321,15 @@ func changedFrontmatterLines(t *testing.T, before, after string) []string {
 	return changed
 }
 
-// TestRepairWritesOnlyTheApprovedField proves clause 5: the write touches
+// TestRelinkWritesOnlyTheApprovedField proves clause 5: the write touches
 // exactly one identity field plus the updated stamp, in either mode — diffed
 // frontmatter line-for-line against the before-state.
-func TestRepairWritesOnlyTheApprovedField(t *testing.T) {
+func TestRelinkWritesOnlyTheApprovedField(t *testing.T) {
 	recPath := groomPath(3, "widget")
-	before := repairRecord(3, "widget", "")
+	before := relinkRecord(3, "widget", "")
 
 	t.Run("branch", func(t *testing.T) {
-		plan := repairPlanFor(t, map[string]string{recPath: before}, repairOp("branch", "feat/renamed"))
+		plan := relinkPlanFor(t, map[string]string{recPath: before}, relinkOp("branch", "feat/renamed"))
 		after := lifecycleRecordBytes(t, plan, recPath)
 		changed := changedFrontmatterLines(t, before, after)
 		wantChanged := map[string]bool{"branch: 'feat/renamed'": true, "updated: '2026-08-16'": true}
@@ -344,7 +344,7 @@ func TestRepairWritesOnlyTheApprovedField(t *testing.T) {
 	})
 
 	t.Run("pr", func(t *testing.T) {
-		plan := repairPlanFor(t, map[string]string{recPath: before}, repairOp("pr", "https://github.com/acme/widget/pull/7"))
+		plan := relinkPlanFor(t, map[string]string{recPath: before}, relinkOp("pr", "https://github.com/acme/widget/pull/7"))
 		after := lifecycleRecordBytes(t, plan, recPath)
 		changed := changedFrontmatterLines(t, before, after)
 		wantChanged := map[string]bool{"pr: 'https://github.com/acme/widget/pull/7'": true, "updated: '2026-08-16'": true}
@@ -361,11 +361,11 @@ func TestRepairWritesOnlyTheApprovedField(t *testing.T) {
 
 // --- real-git gates ---------------------------------------------------------
 
-// repairRealDeps wires the real planning client over dir with a fake reader
+// relinkRealDeps wires the real planning client over dir with a fake reader
 // (scripting the corpus/revision) and recording engine, plus the scripted GitHub
 // and workspace seams — so the candidate-branch probe and workspace inspect hit
 // real Git while the transaction is observed, never fired.
-func repairRealDeps(t *testing.T, dir string, blob StatusBlob, gh *fakeRepairGitHub, ws FinalizeWorkspace) (FinalizeDeps, *recordingEngine) {
+func relinkRealDeps(t *testing.T, dir string, blob StatusBlob, gh *fakeRelinkGitHub, ws FinalizeWorkspace) (FinalizeDeps, *recordingEngine) {
 	t.Helper()
 	client := newGitClient(t)
 	engine := &recordingEngine{}
@@ -377,19 +377,19 @@ func repairRealDeps(t *testing.T, dir string, blob StatusBlob, gh *fakeRepairGit
 	return deps, engine
 }
 
-// TestRepairEarlyEngineErrorCarriesFailure pins change 0350's propagation for
+// TestRelinkEarlyEngineErrorCarriesFailure pins change 0350's propagation for
 // the repair envelope: an engine call-shape validation error (empty
 // disposition + typed *Failure) must reach the caller as the mapped result
 // AND a populated failure diagnosis via the default mapping arm — not only
 // via the explicit DispositionFailed arm.
-func TestRepairEarlyEngineErrorCarriesFailure(t *testing.T) {
+func TestRelinkEarlyEngineErrorCarriesFailure(t *testing.T) {
 	execErr := &transaction.Failure{
 		Stage:  transaction.StageValidateRequest,
 		Kind:   transaction.KindInvalidInput,
 		Detail: "invalid expectations",
 		Err:    errors.New("short object id"),
 	}
-	r := repairResultFromOutcome("branch", "fix/x", transaction.Result{}, execErr, 350)
+	r := relinkResultFromOutcome("branch", "fix/x", transaction.Result{}, execErr, 350)
 	if r.Result != ResultInvalidInput {
 		t.Fatalf("Result = %q, want %q", r.Result, ResultInvalidInput)
 	}
@@ -411,19 +411,19 @@ func TestRepairEarlyEngineErrorCarriesFailure(t *testing.T) {
 
 // --- 0449: unrelated invalid records never block a named relink ----
 // Shares the unrelated-broken-record fixtures with change_claim_test.go. These
-// rows drive the production engine and status reader (repairRealDeps above
+// rows drive the production engine and status reader (relinkRealDeps above
 // records the transaction instead) over a corpus that also carries an
 // unrelated unparseable record, adopting the PR head feat/renamed.
 
-// repairRealRun runs an AdoptPRHead repair through the production planning
+// relinkRealRun runs an AdoptPRHead repair through the production planning
 // seams over repo, with the candidate branch present and no owned workspace.
-func repairRealRun(t *testing.T, repo *gitRepo, recPath string) RelinkResult {
+func relinkRealRun(t *testing.T, repo *gitRepo, recPath string) RelinkResult {
 	t.Helper()
 	node := planningDepsFor(t, repo.invocation)
 	deps := FinalizeDeps{
 		Planning:  node.deps,
-		GitHub:    repairGitHub("feat/renamed"),
-		Workspace: &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}},
+		GitHub:    relinkGitHub("feat/renamed"),
+		Workspace: &fakeRelinkWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}},
 	}
 	return Relink(context.Background(), deps, node.dir, RelinkRequest{
 		ID: 3, ExpectRevision: blobRevisionAt(t, repo.origin, "docket", recPath),

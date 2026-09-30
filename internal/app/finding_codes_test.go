@@ -91,7 +91,7 @@ func appPackageDir(t *testing.T) string {
 func TestNoInlineFindingCodeLiterals(t *testing.T) {
 	codeLit := regexp.MustCompile(`Code:\s*"[^"]*"`)
 	convLit := regexp.MustCompile(`FindingCode\(\s*"`)
-	ctorLit := regexp.MustCompile(`(?:lifecycleFinding|refuseLifecycle|attachRefusal|haltRefusal|implementedRefusal|reclaimSkip|repairRefusal|closeoutRefusal|mergeRefusal|maintenanceRefusal|prRefusal|backlinkRefusal|addShape|adrFinding|learningFinding)\(\s*"`)
+	ctorLit := regexp.MustCompile(`(?:lifecycleFinding|refuseLifecycle|attachRefusal|haltRefusal|implementedRefusal|reclaimSkip|relinkRefusal|closeoutRefusal|mergeRefusal|maintenanceRefusal|prRefusal|backlinkRefusal|addShape|adrFinding|learningFinding)\(\s*"`)
 	root := appPackageDir(t)
 	var violations []string
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {

@@ -1028,7 +1028,7 @@ func testRetiredNegativeControls(t *testing.T) {
 		{"internal/gatedrive/ownership.go", "package p\nconst k = \"scope-identity-mismatch\"\n"},
 		{"internal/gatedrive/ownership.go", "package p\nconst k = \"launch-unconfirmed\"\n"},
 		{"internal/gatedrive/driver.go", "package p\nvar c = \"worktree-changed\"\n"},
-		{"internal/app/change_repair.go", "package p\nconst o = \"change.relink\"\n"},
+		{"internal/app/change_relink.go", "package p\nconst o = \"change.relink\"\n"},
 		{"internal/domain/finalize.go", "package p\nconst c = \"pr-link-mismatch\"\n"},
 	}
 	for _, c := range cleanGo {
