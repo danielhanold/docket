@@ -492,7 +492,7 @@ func TestIntegrationRepoOwnedRefRefusesForeignRef(t *testing.T) {
 		t.Errorf("SetOwnedRef error is not a *Failure: %T %v", err, err)
 	}
 	if !refAbsent(t, r.Invocation, "refs/heads/evil") {
-		t.Error("SetOwnedRef created refs/heads/evil despite the fence")
+		t.Error("SetOwnedRef created refs/heads/evil despite the guard")
 	}
 	if err := c.DeleteOwnedRef(ctx, repo, RefName("refs/heads/main")); err == nil {
 		t.Error("DeleteOwnedRef on refs/heads/main returned nil, want refusal")
