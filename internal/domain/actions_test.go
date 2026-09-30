@@ -693,7 +693,7 @@ func TestClaimEligibility(t *testing.T) {
 			},
 			subject:    2,
 			wantKind:   FailBlocked,
-			wantReason: "not-ready-needs-brainstorm",
+			wantReason: "not-ready-needs-grooming",
 		},
 		{
 			name: "an auto-groom-blocked change refuses the claim under its own token",

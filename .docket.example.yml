@@ -368,7 +368,7 @@ github_project: auto
 terminal_publish: false
 
 # auto_groom — the repo-wide default for autonomous grooming (docket-auto-groom). false
-# (default) keeps every needs-brainstorm stub in the interactive queue. A per-change
+# (default) keeps every needs-grooming stub in the interactive queue. A per-change
 # `auto_groomable:` field overrides this either way; unset on a change means "inherit this knob".
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 auto_groom: false

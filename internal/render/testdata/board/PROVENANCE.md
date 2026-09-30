@@ -53,7 +53,7 @@ Sections and rows:
 - **Proposed** — two readiness bands, sorted `updated desc`:
   - id 4 (updated 2026-08-04) waiting `⏳ waiting on #3 — not yet built` (dep on a
     non-built change);
-  - id 3 (updated 2026-08-03) `needs-brainstorm` (no spec, not trivial).
+  - id 3 (updated 2026-08-03) `needs-grooming` (no spec, not trivial).
 - **Deferred** — id 6.
 - **Archive `<details>`** — id 9 (`done`) and id 10 (`killed`); summary emoji +
   `done + killed` label; Merged date from the archive filename prefix.

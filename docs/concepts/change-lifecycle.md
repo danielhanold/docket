@@ -25,7 +25,7 @@ human has to memorize a flowchart to file a piece of work.
 ```
    proposed
       │
-      ├──────────────► needs-brainstorm ──(design a spec)──┐
+      ├──────────────► needs-grooming ────(design a spec)──┐
       │  (no spec yet)                                      │
       │                                                     ▼
       └──(has a spec or trivial mark, deps merged)────► build-ready
@@ -44,7 +44,7 @@ human has to memorize a flowchart to file a piece of work.
 ```
 
 - **proposed** is the raw entry. A proposed change with neither a spec nor a
-  trivial mark is **needs-brainstorm** — it needs a design conversation first. A
+  trivial mark is **needs-grooming** — it needs a design conversation first. A
   proposed change that has a **spec** (the design document a change links to,
   written before building) or is marked trivial, and whose dependencies are all
   merged, is **build-ready**.

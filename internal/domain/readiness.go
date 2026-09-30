@@ -9,7 +9,7 @@ type ReadinessKind string
 // The closed set of readiness outcomes.
 const (
 	ReadyBuildReady          ReadinessKind = "build-ready"
-	ReadyNeedsBrainstorm     ReadinessKind = "needs-brainstorm"
+	ReadyNeedsGrooming       ReadinessKind = "needs-grooming"
 	ReadyAutoGroomBlocked    ReadinessKind = "auto-groom-blocked"
 	ReadyWaitingDependency   ReadinessKind = "waiting-dependency"
 	ReadyStackBaseUnresolved ReadinessKind = "stack-base-unresolved"
@@ -42,7 +42,7 @@ type Readiness struct {
 //     not a usable branch component;
 //  3. an unmet dependency reports waiting-dependency BEFORE missing design is
 //     considered;
-//  4. missing design reports needs-brainstorm, or auto-groom-blocked when the
+//  4. missing design reports needs-grooming, or auto-groom-blocked when the
 //     record carries the retained historical marker;
 //  5. stack resolution is consulted ONLY for a change that would otherwise be
 //     build-ready, and an unresolved effective base reports
@@ -68,7 +68,7 @@ func EvaluateReadiness(s Snapshot, c Change, facts BranchFacts) Readiness {
 	}
 
 	if !hasDesign(c) {
-		kind := ReadyNeedsBrainstorm
+		kind := ReadyNeedsGrooming
 		if c.HasAutoGroomBlocked() {
 			kind = ReadyAutoGroomBlocked
 		}

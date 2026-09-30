@@ -69,7 +69,7 @@ func TestIntegrationRecordOpsChangeGroomReviseSpecRevisionContendsRealGit(t *tes
 // TestIntegrationRecordOpsChangeGroomAbstainThenReEnableRealGit drives both outcomes through the real
 // engine and a bare origin: the abstain lands the record and BOARD.md in ONE
 // commit; a re-enable pinned to the pre-abstain revision contends and writes
-// nothing; a re-enable at the current revision restores needs-brainstorm.
+// nothing; a re-enable at the current revision restores needs-grooming.
 func TestIntegrationRecordOpsChangeGroomAbstainThenReEnableRealGit(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(2, "add-a-widget")

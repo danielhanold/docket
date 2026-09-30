@@ -204,7 +204,7 @@ func TestBoardClassifyEveryBucket(t *testing.T) {
 	trivialSpec.Trivial = true
 	trivial := domain.NewChange(trivialSpec)
 
-	needsBrainstorm := domain.NewChange(proposedChange(11, "needs", "Needs brainstorm"))
+	needsGrooming := domain.NewChange(proposedChange(11, "needs", "Needs grooming"))
 
 	agBlockedSpec := proposedChange(12, "agb", "AG blocked")
 	agBlockedSpec.HasAutoGroomBlocked = true
@@ -230,7 +230,7 @@ func TestBoardClassifyEveryBucket(t *testing.T) {
 		{"proposed spec unmet dependency", waiter, []domain.Change{depTarget}, render.BoardSectionProposed},
 		{"proposed spec unresolved stack base", stackChild, []domain.Change{parent}, render.BoardSectionProposed},
 		{"proposed trivial no spec", trivial, nil, render.BoardSectionProposed},
-		{"proposed needs-brainstorm", needsBrainstorm, nil, render.BoardSectionProposed},
+		{"proposed needs-grooming", needsGrooming, nil, render.BoardSectionProposed},
 		{"proposed auto-groom-blocked", agBlocked, nil, render.BoardSectionProposed},
 		{"deferred lifecycle", deferred, nil, render.BoardSectionDeferred},
 	}
@@ -292,12 +292,12 @@ func TestBoardDefaultPresentation(t *testing.T) {
 
 // TestBoardProposedDefaultSortAndEmptyCells re-targets the retired numeric-id
 // ordering test (change 0367): under the DEFAULT presentation a section sorts
-// updated desc with a numeric id-desc tie-break, so two undated needs-brainstorm
+// updated desc with a numeric id-desc tie-break, so two undated needs-grooming
 // proposals render higher-id-first (id 10 before id 2 — numeric, not string
 // collation). It also pins that unset priority/type still render
 // deterministically (empty backticks / `untyped`) without perturbing that order.
 func TestBoardProposedDefaultSortAndEmptyCells(t *testing.T) {
-	// Both proposed with no spec (needs-brainstorm) and no dates: the
+	// Both proposed with no spec (needs-grooming) and no dates: the
 	// updated-desc primary key is unknown for both, so the id-desc tie-break
 	// decides. id 10 has a stored priority/type; id 2 has neither.
 	two := proposedChange(2, "two", "Two")
@@ -318,7 +318,7 @@ func TestBoardProposedDefaultSortAndEmptyCells(t *testing.T) {
 		t.Fatalf("default sort violated: id 10 rendered after id 2:\n%s", out)
 	}
 	// id 2 carries no priority and no type: empty backticks and `untyped`.
-	if !strings.Contains(out, "| [0002](active/0002-two.md) | Two | `` | `untyped` | needs-brainstorm |") {
+	if !strings.Contains(out, "| [0002](active/0002-two.md) | Two | `` | `untyped` | needs-grooming |") {
 		t.Fatalf("unset priority/type not rendered deterministically:\n%s", out)
 	}
 }
@@ -772,7 +772,7 @@ func TestBoardConfiguredSectionOrderAndOmission(t *testing.T) {
 		Branch:   domain.OptionalString{State: domain.FieldPresent, Value: "feat/wip"},
 		Location: domain.LocationActive, Path: "docs/changes/active/0001-wip.md",
 	})
-	proposed := domain.NewChange(proposedChange(3, "brainstorm", "Needs brainstorm"))
+	proposed := domain.NewChange(proposedChange(3, "brainstorm", "Needs grooming"))
 	deferred := domain.NewChange(domain.ChangeSpec{
 		ID: 6, Slug: "def", Title: "Deferred", Status: domain.StatusDeferred,
 		Location: domain.LocationActive, Path: "docs/changes/active/0006-def.md",
@@ -830,7 +830,7 @@ func TestBoardCountSummaryParity(t *testing.T) {
 	groomedSpec := proposedChange(2, "groomed", "Groomed")
 	groomedSpec.Spec = optString("docs/superpowers/specs/groomed-design.md")
 	groomed := domain.NewChange(groomedSpec)
-	proposed := domain.NewChange(proposedChange(3, "brainstorm", "Needs brainstorm"))
+	proposed := domain.NewChange(proposedChange(3, "brainstorm", "Needs grooming"))
 	deferred := domain.NewChange(domain.ChangeSpec{
 		ID: 6, Slug: "def", Title: "Deferred", Status: domain.StatusDeferred,
 		Location: domain.LocationActive, Path: "docs/changes/active/0006-def.md",

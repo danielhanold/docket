@@ -61,7 +61,7 @@ func TestContextImplementationSelectsByPolicy(t *testing.T) {
 	specBytes := []byte("# Spec Alpha\n\nAuthoritative design body.\n")
 	corpus := []StatusBlob{
 		changeBlob(11, "alpha", "feat", "high", "spec: "+specPath+"\n"),
-		changeBlob(12, "beta", "fix", "low", ""), // no spec: needs-brainstorm, not build-ready
+		changeBlob(12, "beta", "fix", "low", ""), // no spec: needs-grooming, not build-ready
 	}
 	fake := &fakeReader{
 		pin:    pin,
@@ -299,7 +299,7 @@ func TestContextImplementationTypedAbsence(t *testing.T) {
 			corpus:     []StatusBlob{changeBlob(15, "no-design", "feat", "high", "")}, // no spec, not trivial
 			req:        ImplementationContextRequest{ID: 15},
 			wantResult: ResultInvalidState,
-			wantReason: "not-ready-" + string(domain.ReadyNeedsBrainstorm),
+			wantReason: "not-ready-" + string(domain.ReadyNeedsGrooming),
 		},
 		{
 			name: "unresolved effective base",

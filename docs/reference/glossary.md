@@ -438,7 +438,7 @@ metadata branch and linked from the `spec:` field; produced by a brainstorm or b
 ### Stub
 
 A change captured without a design — `proposed`, no spec, not trivial. In lifecycle terms it is
-**needs-brainstorm**.
+**needs-grooming**.
 
 **Used for:** capturing an idea quickly and designing it later with grooming.
 
@@ -567,15 +567,15 @@ finalize run they start) takes the change the rest of the way. It is a handoff t
 
 **Used for:** keeping merge a human decision. After review, the next step is `docket-finalize-change`.
 
-### Readiness: build-ready / needs-brainstorm / not-proposed
+### Readiness: build-ready / needs-grooming / not-proposed
 
 **Build-ready** is a proposed change that has a spec or is marked trivial and whose dependencies
-are all merged. **Needs-brainstorm** is a proposed change with neither a spec nor a trivial mark; it
+are all merged. **Needs-grooming** is a proposed change with neither a spec nor a trivial mark; it
 needs a design conversation first. Anything not `proposed` reads `not-proposed`. Status reports
 four more kinds: `auto-groom-blocked`, `waiting-dependency`, `stack-base-unresolved`, and `invalid`
 (see [Readiness reason](#readiness-reason--waiting-on-n--needs-you-cells)).
 
-**Used for:** selection. Only build-ready changes can be implemented; only needs-brainstorm changes
+**Used for:** selection. Only build-ready changes can be implemented; only needs-grooming changes
 can be groomed. Selection order is priority → age (`created`) → lowest id.
 
 ```sh
@@ -649,7 +649,7 @@ docket change groom --request groom.json
 
 **Auto-groom** grooms stubs with no human, gated by an adversarial **critic**. A stub's **effective
 auto-groomable** value is its `auto_groomable:` override when set, or else the repo's `auto_groom`
-knob. A stub is **auto-groomable** (selectable by auto-groom) when it is needs-brainstorm *and* that
+knob. A stub is **auto-groomable** (selectable by auto-groom) when it is needs-grooming *and* that
 effective value is `true`.
 
 **Used for:** draining design work unattended. Arm a stub by committing `auto_groomable: true`
@@ -666,7 +666,7 @@ the parent holds the dialogue with you, then dispatches the **consultant**
 ### Capture modes: designed / rough stub / trivial / scan
 
 The ways work enters the backlog. **Designed**: brainstorm with `docket-new-change` into a spec, so
-the change is build-ready. **Rough stub**: capture without a design; it waits at needs-brainstorm.
+the change is build-ready. **Rough stub**: capture without a design; it waits at needs-grooming.
 **Trivial**: mark it `trivial` and skip design. **Scan mode**: point `docket-new-change` at the
 project to mint several stubs in one pass.
 
@@ -1656,7 +1656,7 @@ real prompts. Naming ids authorizes a headless drive and overrides the `approval
 
 ### docket-groom-next
 
-The interactive groomer. It selects the next needs-brainstorm stub (or the id you name), opens with a
+The interactive groomer. It selects the next needs-grooming stub (or the id you name), opens with a
 cold-start recap, and brainstorms it with you. It exits with spec, trivial, kill, defer, revise, or
 re-enable. It never takes a claim and never mints ids.
 
@@ -2412,7 +2412,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Process recovery / gate history cleanup](#process-recovery--gate-history-cleanup)
 - [Protocol-v1 envelope](#protocol-v1-envelope)
 - [Quiescent](#halt--resume-halted) — see Halt / resume-halted
-- [Readiness: build-ready / needs-brainstorm / not-proposed](#readiness-build-ready--needs-brainstorm--not-proposed)
+- [Readiness: build-ready / needs-grooming / not-proposed](#readiness-build-ready--needs-grooming--not-proposed)
 - [Readiness reason / "waiting on #N" / "needs you" cells](#readiness-reason--waiting-on-n--needs-you-cells)
 - [Rebase continue / rebase abort](#rebase-continue--rebase-abort)
 - [Rebase receipt / attempt token (--attempt)](#rebase-receipt--attempt-token---attempt)

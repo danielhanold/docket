@@ -127,16 +127,16 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 			want:    ReadyWaitingDependency,
 		},
 		{
-			name:    "proposed, no spec, not trivial is needs-brainstorm",
+			name:    "proposed, no spec, not trivial is needs-grooming",
 			specs:   []readySpec{{id: 2, status: StatusProposed}},
 			subject: 2,
-			want:    ReadyNeedsBrainstorm,
+			want:    ReadyNeedsGrooming,
 		},
 		{
 			name:    "an empty spec field counts as no spec",
 			specs:   []readySpec{{id: 2, status: StatusProposed, spec: OptionalString{State: FieldEmpty}}},
 			subject: 2,
-			want:    ReadyNeedsBrainstorm,
+			want:    ReadyNeedsGrooming,
 		},
 		{
 			name:    "the auto-groom-blocked marker distinguishes the missing-design case",
@@ -183,7 +183,7 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 				{id: 2, status: StatusProposed, parent: parentEdge(1)},
 			},
 			subject: 2,
-			want:    ReadyNeedsBrainstorm,
+			want:    ReadyNeedsGrooming,
 		},
 		{
 			name: "a resolved stack base leaves the change build-ready",

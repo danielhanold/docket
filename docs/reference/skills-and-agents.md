@@ -13,13 +13,13 @@ Cursor, Codex, or opencode): the harness's own agent registry, not this page, de
 Each line names one skill directory under `skills/` and its job.
 
 - **docket-adr** — record, supersede, reverse, and index architecture decisions.
-- **docket-auto-groom** — drain the auto-groomable needs-brainstorm queue with no human, gated by an adversarial critic.
+- **docket-auto-groom** — drain the auto-groomable needs-grooming queue with no human, gated by an adversarial critic.
 - **docket-brainstorm** — the consultant-author brainstorm flow that produces or critiques a spec.
 - **docket-build** — the build role: route each plan task to a tier worker and run one full-suite gate at the end.
 - **docket-build-task** — the per-task worker contract: one plan task from focused test through one commit.
 - **docket-convention** — the shared contract: config, layout, manifest and ADR format, lifecycle, branch model (pure reference).
 - **docket-finalize-change** — close a change out: merge if approved, verify, archive, clean up, refresh the board.
-- **docket-groom-next** — groom the next needs-brainstorm change to build-ready through an interactive brainstorm.
+- **docket-groom-next** — groom the next needs-grooming change to build-ready through an interactive brainstorm.
 - **docket-implement-next** — implement the next build-ready change end to end to an open PR with no human interaction.
 - **docket-new-change** — capture a new unit of planned work into the backlog through up-front design.
 - **docket-review** — the bounded read-only whole-branch reviewer role.
