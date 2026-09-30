@@ -33,7 +33,8 @@ Departures from the spec:
 
 - **Extra sites.** The build renamed more than the grooming trace listed: the `repoFenced`/`wantRepoFenced` locals, "repo-fenced" in `edge-paths.md`, a comment in `install.go`, owned-ref comments in `gitcli/rebase.go`, the `allowTerminal` parameter, a learnings preflight test separator, and an owned-ref integration test message.
 - **Kept as run sense.** "a durable terminal record" in `finalize_cleanup.go` and "its terminal write" in `finalize_rebase.go` describe gate-run and receipt records, not the change lifecycle.
-- **Diagnostic order.** Warnings are sorted alphabetically by code. `TestDiagnosticOrdering` now expects `obsolete-setting` before `shared-setting-ignored` on the same path, because the renamed code sorts later than `fenced-…` did. The sort rule itself did not change.
+- **Output order where a renamed code sorts differently.** Validation findings are sorted by `Code` first, so in any report that contains `change-final-claim-stamp`, that finding now appears before `change-filename-mismatch`, `change-id-*`, `change-placement-invalid` and `change-state-incoherent`. The old `change-terminal-claim-stamp` sorted after them. The sort keys themselves are unchanged, and no consumer depends on position.
+- **Diagnostic order (test only).** Warnings are sorted alphabetically by code. Real config resolution cannot produce this reorder, because obsolete settings are dropped at decode, before the shared-setting guard runs. `TestDiagnosticOrdering` now expects `obsolete-setting` before `shared-setting-ignored` on the same path, because the renamed code sorts later than `fenced-…` did. The sort rule itself did not change.
 
 ## Human actions and testing
 
@@ -67,6 +68,10 @@ Departures from the spec:
   - A `rearm` alias added to the groom switch: the hard-cut test went red.
 - Shards: all three renamed integration tests keep their shard prefixes. The test population went from 3658 to 3662.
 - Unchanged: no frozen path under `testdata/` or in point-in-time records was touched, and no harness golden changed.
+- Installed skill tree: the regenerated embedded `manifest.json` lists only `docket-convention/references/close-out.md`. The Claude harness links whole skill directories into a freshly extracted version tree, so a reinstall cannot leave a stale `terminal-close-out.md` behind. The live `ls` check stays as the human action above, to run after the post-merge rebuild.
+- Review: a whole-branch review at the deep tier (routed there because the diff is more than 1500 lines) returned 7 minor findings, no blocker and no important. All are fixed:
+  - findings 1, 2, 4, 5 and 7 (comment and glossary wording, plus the `docket-new-change` path to `../docket-convention/references/close-out.md`) in commit 3f05754ee;
+  - findings 3 and 6 (these results: the output-order disclosure and the install-tree evidence) in the results commit.
 - The closing whole-repo grep over maintained source classified every remaining hit:
   - `rearm`/`re-arm`: only the hard-cut test, the frozen "0382: +typed rearm exit" budget history comment, the seal rows, and the `suiterunner` signal re-arm (kept).
   - `fence`: Markdown code fences and frontmatter fences, the run fence, the frozen `fenced-machine-keys` fixture name, the ADR-0019 filename link, and "defence".
