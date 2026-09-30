@@ -26,7 +26,7 @@ copy):
 | `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. A scope-bound start passes the complete identity the scope pinned — `--repo-dir <worktree> --change-id <id> --task-id <id> --phase <name> --branch <name> --scope-id <id> --child-cap <token>`, plus `--run-context <token>` if dispatched with one — and the driver rejects a start whose identity does not match the prepared scope. A scope-bound start takes its run id from the scope: it passes none, and a presented `--run-id` that differs from the pinned one is refused `scope-identity-mismatch`. A **successor** start in the same scope additionally presents `--predecessor-drive-id <id> --predecessor-owner-gen <gen>` — the previous drive's captured receipt, both together — acknowledging exactly that durable `PASSED`/`FAILED` predecessor and reusing the scope's single slot; a scope's first start omits the pair, and a `WAITING`/`HALTED` or pending predecessor is refused. |
 | `advance` | Resume the current attempt of a drive (by opaque drive id + owner generation) through one more slice. |
 | `handoff` | Prove current ownership, revalidate repository + process identity, invalidate the current owner, and mint a **single-use** handoff token — the only way a departing owner transfers a live drive. |
-| `claim` | Recompute identity, consume a handoff token with a compare-and-swap, and return a **fresh** owner generation the claimant advances with. |
+| `claim` | Recompute identity, consume a handoff token (conflict-checked), and return a **fresh** owner generation the claimant advances with. |
 | `prepare-scope` | `gate.drive.prepare-scope --change-id <id> --task-id <id> --phase <name> --branch <name> --worktree <dir> [--run-context <token>] [--run-id <id>]`: mint a recovery scope per parent/child dispatch boundary with **separated** parent and child capabilities. The preparing parent keeps the parent capability; the child receives only the scope id and child capability. A run id given here is pinned on the scope and inherited by every scoped start under it. Effects: local-write. |
 | `takeover` | `--scope-id <id> --parent-cap <token> [--drive-id <id>]`: the event-authorized exceptional transfer — prove the parent capability and scope identity, atomically supersede the child's owner generation, and return a fresh generation. Effects: local-write. |
 | `acknowledge` | `--scope-id <id> --child-cap <token> --drive-id <id> --owner-gen <gen>`: consume the scope's final durable `PASSED`/`FAILED` result and close the task scope — the last drive's "successor". Idempotent on an exact repeat; refuses a live, `HALTED`, unrelated, or superseded drive. Effects: local-write. |
@@ -92,7 +92,7 @@ Every successful `start` or `advance` returns exactly one of four dispositions. 
 
 ## Worktree admission — one live gate per worktree, and what `worktree-busy` means
 
-A canonical feature worktree carries **at most one** running (or reserved) gate execution at a
+A canonical feature worktree carries **at most one** running (or reserved) gate run at a
 time. Before `gate.drive.start` launches anything, the driver reserves that worktree's execution
 slot; a second start against a worktree whose slot is already taken is **refused** — never queued,
 never silently joined to the running one. Two refusal reasons ride this boundary:
@@ -116,7 +116,7 @@ unresolved worktree is the operator's act (finish, recover, or `run.cancel`), ne
 Before an owner returns control while a drive is still live, it MUST call `handoff` and then perform
 no further work on that drive. `handoff` recomputes the repository fingerprint, records the workflow
 phase, invalidates the old owner token, and writes a single-use receipt. A fresh owner calls `claim`
-with the drive id and the handoff token; exact-fingerprint validation and compare-and-swap
+with the drive id and the handoff token; exact-fingerprint validation and conflict-checked
 consumption make **only one** claimant authoritative. A claimant that loses the race or no longer
 fingerprint-matches acquires **no** partial authority. Dirty pre-commit task work is a supported
 handoff state — staged, unstaged, untracked, mode, rename, deletion, and symlink differences are all

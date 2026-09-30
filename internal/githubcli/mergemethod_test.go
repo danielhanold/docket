@@ -46,7 +46,7 @@ func TestMethodSetIntersect(t *testing.T) {
 	}
 }
 
-// TestMergeFlag: the closed vocabulary renders exactly one gh flag per method;
+// TestMergeFlag: the allowed values render exactly one gh flag per method;
 // anything outside the vocabulary renders NOTHING (the act path guards on it).
 func TestMergeFlag(t *testing.T) {
 	for m, want := range map[MergeMethod]string{

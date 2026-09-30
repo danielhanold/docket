@@ -75,4 +75,4 @@ The Step-4 typed op is the whole write: it re-checks the pinned exact `revision`
 
 ## Concurrency — no claim
 
-Grooming is human-attended and minutes-long, so concurrent-groomer collisions are improbable; the Step-4 transaction's exact-revision check plus exact-lease push (and the mandatory re-read when a `contended` refusal shows the record moved) is the compare-and-swap that protects the write. A `grooming:` marker field and a status-based claim were considered and rejected — both add machinery (new field or new status, plus stale-state cleanup) for a race that the transaction CAS already resolves safely.
+Grooming is human-attended and minutes-long, so concurrent-groomer collisions are improbable; the Step-4 transaction's exact-revision check plus exact-lease push (and the mandatory re-read when a `contended` refusal shows the record moved) makes the write conflict-checked. A `grooming:` marker field and a status-based claim were considered and rejected — both add machinery (new field or new status, plus stale-state cleanup) for a race that the transaction's conflict check already resolves safely.

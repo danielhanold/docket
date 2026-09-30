@@ -1,6 +1,6 @@
 // Ownership generations and the single-use handoff receipt for the gate driver.
 //
-// The store layer (store.go) owns a lower-level compare-and-swap: a physical
+// The store layer (store.go) owns a lower-level conflict-checked write: a physical
 // generation token, rotated on every accepted write, that lets one writer prove
 // it is mutating the state it last read. This file builds the OWNERSHIP layer on
 // top of it. Ownership is a separate, logical notion from that physical token:
@@ -117,9 +117,9 @@ const (
 	// closed").
 	ErrUnresolvedLaunchTransition OwnershipErrorKind = "unresolved-launch-transition"
 	// ErrWorktreeBusy: a worktree execution slot (admission.go) already holds a
-	// reserved, executing, or stopping top-level gate execution, so a second
+	// reserved, executing, or stopping top-level gate run, so a second
 	// reservation for the same canonical worktree is refused. One canonical
-	// worktree carries at most one reserved-or-running gate execution across scopes,
+	// worktree carries at most one reserved-or-running gate run across scopes,
 	// scopeless starts, and raw launches (spec "at most one reserved-or-running
 	// top-level Docket gate execution per worktree"). It confers no admission and
 	// never stops the incumbent.
@@ -144,7 +144,7 @@ const (
 )
 
 // IncumbentSnapshot is a bounded, credential-free projection of the execution
-// that occupied a worktree admission slot at the moment a reservation was
+// that occupied a worktree slot at the moment a reservation was
 // refused. It is captured under the slot's flock from the exact record the
 // refusal was decided on, so a later-changed slot is never represented as the
 // cause. It carries identity and route facts only — never a reservation token,
@@ -175,7 +175,7 @@ type OwnershipError struct {
 	// on those compiles and behaves identically. Bounded ids and reasons only.
 	Legacy *LegacyHistorySummary
 	// Incumbent is the credential-free projection of the execution occupying a
-	// worktree admission slot, populated ONLY on the worktree-admission refusal
+	// worktree slot, populated ONLY on the worktree-admission refusal
 	// legs (worktree-busy, launch-unconfirmed, stale-run-id) from the exact
 	// record read under the slot's flock. Nil for every other OwnershipError.
 	// Kind/Op/Legacy are unchanged by its presence.
@@ -337,7 +337,7 @@ func (s *Store) consumeHandoffCAS(id, handoffID string, current Fingerprint) (st
 const ownerCASMaxAttempts = 64
 
 // ownerCAS runs a logical ownership transition under the store's physical
-// compare-and-swap. It reads the current physical generation, then performs
+// conflict-checked write. It reads the current physical generation, then performs
 // Store.CAS with mutate. A physical generation mismatch means a concurrent
 // writer rotated the record first; ownerCAS re-reads and retries so physical
 // contention never surfaces as a logical failure. Any error mutate itself

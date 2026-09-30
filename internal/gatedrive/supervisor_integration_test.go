@@ -29,7 +29,7 @@
 // process-name matching as its oracle.").
 //
 // This file also owns the package's TestMain, which routes the test binary's
-// three re-exec roles: the native supervisor (env-driven, via
+// three re-exec roles: the gate supervisor (env-driven, via
 // process.RunSupervisorFromEnv), the purpose-built child command (argv marker
 // "gatedrive-int-child"), and — falling through — the ordinary test run. It
 // mirrors internal/process's own main_test.go, which is the established pattern
@@ -188,7 +188,7 @@ const (
 
 var intRunIDRe = regexp.MustCompile("^[0-9a-f]{32}$")
 
-// skipUnlessSupported skips on a platform where the native supervisor is not
+// skipUnlessSupported skips on a platform where the gate supervisor is not
 // built (internal/process gates Launch on darwin/linux only). It is the one
 // platform guard this file uses; the process package itself carries no
 // testing.Short guard, and neither does this suite.
@@ -326,7 +326,7 @@ func pidAlive(pid int) bool {
 	return err == syscall.EPERM
 }
 
-// observeState returns the native supervisor's read-only verdict for a run — the
+// observeState returns the gate supervisor's read-only verdict for a run — the
 // durable-receipt oracle for "the tree is stopped / dead", independent of any
 // process-name match and of reaping timing (Observe reads the terminal record
 // and the live-lock probe, never a command line).

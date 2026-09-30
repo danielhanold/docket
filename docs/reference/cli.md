@@ -43,7 +43,7 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   head. Verbs: `docket pr --help`.
 - **`docket repository`** — initialize, migrate, and check the docket repository topology. Verbs: `docket repository --help`.
 - **`docket run`** — report on a change's claim-to-implemented run (read-only). Verbs: `docket run --help`.
-- **`docket schema`** — emit request/result payload schemas and closed vocabularies (read-only,
+- **`docket schema`** — emit request/result payload schemas and allowed values (read-only,
   repository-independent). Verbs: `docket schema --help`.
 - **`docket status`** — report backlog status, readiness, selection, and repository health
   (read-only). Verbs: `docket status --help`.

@@ -241,7 +241,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 // newWaitingReader composes the production run-waiting receipt reader for repoDir,
 // rooting the durable drive store at the repository's Git common directory and
-// binding the native supervisor at this binary's path. Every resolution step is
+// binding the gate supervisor at this binary's path. Every resolution step is
 // best-effort: any failure returns a nil reader, and run verify then reports its
 // ordinary postcondition verdict without deriving run-waiting. internal/cli never
 // imports internal/process — it reaches the supervisor only through the app
@@ -268,7 +268,7 @@ func newWaitingReader(ctx context.Context, repoDir string) app.WaitingReceiptRea
 
 // newContinuationSeam composes the production continuation seam for repoDir,
 // rooting the durable drive store at the repository's Git common directory and
-// binding the native supervisor at this binary's path — through the app boundary,
+// binding the gate supervisor at this binary's path — through the app boundary,
 // so internal/cli never imports internal/process (gateDriveRepoContext resolves
 // both via gitcli + os.Executable). Every resolution step is best-effort: any
 // failure returns a nil seam and run verdict takes its ordinary retry/stop path
@@ -287,7 +287,7 @@ func newContinuationSeam(ctx context.Context, repoDir string) app.ContinuationSe
 
 // newClaimSeam composes the production continuation-claim seam for repoDir,
 // rooting the durable drive store at the repository's Git common directory and
-// binding the native supervisor at this binary's path — through the app boundary,
+// binding the gate supervisor at this binary's path — through the app boundary,
 // so internal/cli never imports internal/process. Every resolution step is
 // best-effort: any failure returns a nil seam and run continue fails closed to
 // claim-unavailable without clearing the record's continuation triple.

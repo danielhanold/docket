@@ -71,7 +71,7 @@ func TestRaceIntegrationGatedriveTakeoverKeepsRunIdentity(t *testing.T) {
 	}
 
 	// Same run throughout: one run slot, identical raw run dir + raw ownership +
-	// attempt, identical native supervisor identity. The takeover CONTINUED the run.
+	// attempt, identical gate supervisor identity. The takeover CONTINUED the run.
 	recAfter, err := store.Load(started.DriveID)
 	if err != nil {
 		t.Fatalf("load after: %v", err)

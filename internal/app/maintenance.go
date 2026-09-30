@@ -59,7 +59,7 @@ const (
 	SweepScopeImplementation SweepScope = "implementation"
 )
 
-// The closed vocabulary of per-item sweep dispositions. applied/noop/contended/
+// The allowed values of per-item sweep dispositions. applied/noop/contended/
 // blocked/unknown/failed map one dispatched operation's protocol result; skipped
 // is the sweep's own pre-dispatch decision (policy declined, item vanished on
 // reload, or a destructive suffix withheld after a non-successful prerequisite).
@@ -93,8 +93,8 @@ const (
 	// ReasonSweepReclaimRevisionMissing: the reloaded record carried no usable
 	// blob revision to pin the exact-revision reclaim; nothing was dispatched.
 	ReasonSweepReclaimRevisionMissing = "reclaim-revision-missing"
-	// ReasonSweepScopeInvalid: the typed scope was outside the closed
-	// vocabulary; the sweep read nothing and dispatched nothing.
+	// ReasonSweepScopeInvalid: the typed scope was outside the allowed
+	// values; the sweep read nothing and dispatched nothing.
 	ReasonSweepScopeInvalid = "sweep-scope-invalid"
 )
 

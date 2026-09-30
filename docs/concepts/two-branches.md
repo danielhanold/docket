@@ -91,10 +91,10 @@ directory you happen to be standing in when you invoke a command.
   directory.
 - [ADR-0046](../adrs/0046-cas-reset-hard-shared-worktree-tracked-clean-tree-precondition.md)
   — required a tracked-files-only clean-tree precondition before a
-  compare-and-swap reset in the shared metadata worktree.
+  conflict-checked reset in the shared metadata worktree.
 - [ADR-0089](../adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md)
   — made concurrent contention on the shared metadata worktree survivable and
   made a wedged tree halt rather than corrupt state.
 - [ADR-0051](../adrs/0051-publish-deferred-marker-not-branch-diff-detector.md) —
-  marked a deferred terminal publish with a presence-encoded marker instead of a
+  marked a deferred terminal publish with a marker section instead of a
   branch-diff detector.

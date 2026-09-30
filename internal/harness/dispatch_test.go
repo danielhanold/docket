@@ -145,3 +145,15 @@ func TestDispatchInteriorCarriesGate(t *testing.T) {
 		t.Errorf("the interior dropped the run tracker")
 	}
 }
+
+// TestCodexRootEntryClauseSaysMovedToBackground pins ADR-0129 row 76 in the
+// generator: a yielded live task is a command moved to background, and the
+// retired "liveness transition" wording is gone.
+func TestCodexRootEntryClauseSaysMovedToBackground(t *testing.T) {
+	if !strings.Contains(CodexRootEntryClause, "means the command moved to background, not that it completed") {
+		t.Errorf("CodexRootEntryClause lost the moved-to-background clause")
+	}
+	if strings.Contains(CodexRootEntryClause, "liveness transition") {
+		t.Errorf("CodexRootEntryClause still says liveness transition")
+	}
+}

@@ -1189,7 +1189,7 @@ func continueGit(deps FinalizeDeps) FinalizeContinueGit {
 // 0349): it empties the reservation token, its bound stopped commit, and the
 // continuation-started marker, preserving the used count and the rest of the budget
 // group. Every transition out of "reservation outstanding" runs through here so the
-// presence-encoded reservation state is always reconciled (never orphaned).
+// marker-section reservation state is always reconciled (never orphaned).
 func clearResolverReservation(rec workspace.RebaseReceipt) workspace.RebaseReceipt {
 	rec.ResolverReservationToken = ""
 	rec.ResolverReservationStopped = ""
@@ -1654,7 +1654,7 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	// A recorded live continuation means a drive is already running for this
 	// attempt: it must be advanced to a terminal, never skipped past — a skip
 	// here would strand the drive and wedge the receipt's pair (the pair is
-	// presence-encoded state; every transition out must clear it).
+	// marker-section state; every transition out must clear it).
 	base := FinalizeRebaseResult{
 		ID: id, Disposition: disposition, Head: string(head), OrigHead: string(origHead),
 		Base: rc.base.Branch, BaseHead: string(baseHead), Attempt: attempt,

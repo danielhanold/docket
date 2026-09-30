@@ -786,7 +786,7 @@ func ownershipNextAction(kind gatedrive.OwnershipErrorKind) string {
 	case gatedrive.ErrUnresolvedLaunchTransition:
 		return "a prior launch transition is unresolved; recover via the parent, not a retry"
 	case gatedrive.ErrWorktreeBusy:
-		return "this worktree's gate execution slot is occupied by an execution admission could not prove finished (a proven-finished occupant is settled automatically); wait for the incumbent or settle its slot through its own stop/cancel route — do not start a second gate in the same worktree"
+		return "this worktree's slot is occupied by a gate run admission could not prove finished (a proven-finished occupant is settled automatically); wait for the incumbent or settle its slot through its own stop/cancel route — do not start a second gate in the same worktree"
 	case gatedrive.ErrLaunchUnconfirmed:
 		return "a prior execution in this worktree is unresolved; recover it through the parent or run.cancel, never a blind re-start"
 	case gatedrive.ErrStaleRunID:
@@ -813,7 +813,7 @@ func appendReconciliationFinding(message, finding string) string {
 }
 
 // stageWorktreeAdmission is the typed refusal site for a CURRENT worktree
-// admission-slot refusal, distinct from the legacy-inventory stage.
+// worktree-slot refusal, distinct from the legacy-inventory stage.
 const stageWorktreeAdmission = "worktree-admission"
 
 // rawRunIDShape matches the supervisor's run-id shape (32 lowercase hex); the
@@ -854,7 +854,7 @@ func quoteOperand(path string) string {
 // stop guidance only when a confirmed RawRunDir + valid RawRunID exist, and never
 // projects a reservation token, owner generation, capability, or run id.
 //
-// There is deliberately no drive-id branch: no production writer sets the admission
+// There is deliberately no drive-id branch: no production writer sets the worktree
 // slot's DriveID (TestAdmissionSlotDriveIDHasNoProductionWriter), so a snapshot's
 // DriveID is historical evidence at most and never selects guidance (change 0446).
 func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.IncumbentSnapshot) string {
@@ -874,7 +874,7 @@ func incumbentRemedyMessage(kind gatedrive.OwnershipErrorKind, inc *gatedrive.In
 	case kind == gatedrive.ErrLaunchUnconfirmed:
 		return ownershipNextAction(gatedrive.ErrLaunchUnconfirmed)
 	default:
-		return "an execution occupies this worktree's admission slot but its identity could not be established; do not start a second gate here and do not guess a stop target — resolve the incumbent first"
+		return "an execution occupies this worktree's slot but its identity could not be established; do not start a second gate here and do not guess a stop target — resolve the incumbent first"
 	}
 }
 

@@ -294,7 +294,7 @@ The exact id of a pinned state. Docket uses the word in one sense only:
 - **Commit revision:** the commit ids a mutation reports, spelled `committed_revision`,
   `metadata_revision` and `*_branch_revision`.
 
-**Used for:** compare-and-swap. A mutating operation takes the record revision you read and refuses
+**Used for:** conflict-checked writes. A mutating operation takes the record revision you read and refuses
 if the record moved under you, so two sessions can never silently overwrite each other.
 
 ```sh
@@ -351,10 +351,10 @@ docket learning record --request finding.json
 docket learning update --request finding-update.json
 ```
 
-### Learnings index / pay per relevance
+### Learnings index / read on demand
 
 The **index** is `learnings/README.md`, a small grouped list of one line per finding (hook plus
-topics). **Pay per relevance** is the read rule: always load the index, then open only the findings
+topics). **Read on demand** is the read rule: always load the index, then open only the findings
 whose index line bears on the change at hand.
 
 **Used for:** a memory that grows without growing every run's context. Readers are implement-next
@@ -398,7 +398,7 @@ hand-edited afterwards.
 docket change attach-plan --id 412 --revision <v> --path docs/superpowers/plans/<file>.md --commit <sha>
 ```
 
-### Presence-encoded section
+### Marker section
 
 A body section whose mere presence is state: `## Run halted`, `## Finalize blocked`,
 `## Auto-groom blocked`, `## Publish deferred`, `## Reclaim log`.
@@ -454,7 +454,7 @@ build-ready without a spec.
 ## Change lifecycle and statuses
 
 Statuses: `proposed` · `in-progress` · `blocked` · `deferred` · `implemented` · `stacked-merged` ·
-`done` · `killed` (closed vocabulary `statuses` in `docket schema`).
+`done` · `killed` (allowed values `statuses` in `docket schema`).
 
 `done` and `killed` are the two **final statuses**; every other status is non-final.
 
@@ -591,7 +591,7 @@ not a parseable code; key on `readiness`. The board renders the same state as ce
 (**auto-groom blocked**, **run halted**, **finalize blocked**).
 
 **Used for:** seeing why a change is not moving. A "needs you" cell always comes from a
-presence-encoded section, so it is backed by a commit.
+marker section, so it is backed by a commit.
 
 ```sh
 docket status --json | jq '.changes[] | {id, readiness, readiness_reason, unmet_dependencies}'
@@ -785,7 +785,7 @@ stops it for repair, or halts it for a human. It never guesses a pass from a wor
 - [Run tracker](#run-tracker) — bookkeeping that decides whether a dispatched run may be retried.
 - [Policy gate](#policy-gate-require_pr_approval) — `require_pr_approval`, which asks whether a merge was authorised.
 - Adversarial gate — the [critic](#critic) that must pass an auto-groom draft.
-- [Admission slot](#admission-slot) — one gate execution per worktree at a time.
+- [Worktree slot](#worktree-slot) — one gate run per worktree at a time.
 
 The build and finalize gates both run the whole suite. The page that covers them is
 [Suite gate](#suite-gate). The `implemented` stop where a person merges is the
@@ -1051,9 +1051,9 @@ are never reimplemented by hand. If the `docket` binary is missing, the install 
 
 ## Supervised gate runs
 
-### Admission slot
+### Worktree slot
 
-The per-worktree slot that lets only one gate execution run at a time. A busy-slot refusal means
+The per-worktree slot that lets only one gate run proceed at a time. A busy-slot refusal means
 the slot is **occupied** by a run admission could not prove finished — not necessarily a live
 process. Inspect with `gate observe`, settle with `gate stop`; history cleanup and `gate recover`
 do not free it.
@@ -1098,7 +1098,13 @@ docket gate drive acknowledge   --scope-id <id> --child-cap <token> --drive-id <
 ### Gate run / run dir
 
 A **gate run** is a supervised local execution of a command (usually the test suite) launched
-under docket's native supervisor, with a durable **run dir** holding its record.
+under the gate supervisor, with a durable **run dir** holding its record. It is started so it stays alive past the call
+that started it. The **gate supervisor** is the `docket` binary re-run as a per-run supervisor. It starts the suite in a
+new session with every stream sent to the run dir, and it writes an exact terminal record (the true exit code, or the
+signal).
+
+**Used for:** making a gate survive the harness killing the call that launched it. The supervisor holds the run's live
+lock until the terminal record is written, so an observer sees either "still running" or "finished, here is how".
 
 ```sh
 docket gate launch  --cwd <worktree> --root <run-root> -- ./run-tests.sh
@@ -1130,23 +1136,14 @@ command returning.
 **Used for:** long suite runs and delegated runs on other harnesses. A quiet run, or a stale "still running" report, is
 not evidence that it crashed. The caller must never background a run and walk away.
 
-### Liveness probe / liveness transition
+### Liveness probe / moved to background
 
 A **liveness probe** checks whether a recorded process is still there. Only a failed existence check proves the process
-is gone. Any other non-zero answer means its liveness is *unprovable*, not that it died. A **liveness transition** is a
+is gone. Any other non-zero answer means its liveness is *unprovable*, not that it died. A command **moved to background** is a
 harness moving a still-running command into the background.
 
 **Used for:** not declaring a run dead or finished too early. When a shell tool yields with a live task or session id,
 keep that id and collect its real exit through the harness's own wait. Do not re-run the command or report completion.
-
-### Native supervisor / gate execution
-
-**Gate execution** means how a suite run is started and kept alive past the call that started it. The
-**native supervisor** is the `docket` binary re-run as a per-run supervisor. It starts the suite in a new session with
-every stream sent to a durable run dir, and it writes an exact terminal record (the true exit code, or the signal).
-
-**Used for:** making a gate survive the harness killing the call that launched it. The supervisor holds the run's live
-lock until the terminal record is written, so an observer sees either "still running" or "finished, here is how".
 
 ```sh
 docket gate launch  --cwd <worktree> --root <run-root> -- ./run-tests.sh   # primitive; workflows use gate drive
@@ -1171,10 +1168,10 @@ delegation_observation_budget: 60
 ### Process recovery / gate history cleanup
 
 **Process recovery** (`gate recover`) scans a run root and marks owned runs proven abandoned, keeping everything else.
-**Gate history cleanup** assesses the gate-drive history recorded before admission slots existed, and recovers the
+**Gate history cleanup** assesses the gate-drive history recorded before worktree slots existed, and recovers the
 records it safely can while keeping all evidence.
 
-**Used for:** tidying old run records. Neither one frees a current [admission slot](#admission-slot). A cleanup that
+**Used for:** tidying old run records. Neither one frees a current [worktree slot](#worktree-slot). A cleanup that
 reports zero blockers says nothing about whether the slot is free; inspect it with `gate observe` and settle it with
 `gate stop`.
 
@@ -1195,7 +1192,7 @@ comes from the run's recorded state, not from how the gate found out the run sto
 
 ### `worktree-busy` / `launch-unconfirmed`
 
-The two reasons a gate start is refused at a worktree's [admission slot](#admission-slot). `worktree-busy` means another
+The two reasons a gate start is refused at a worktree's [worktree slot](#worktree-slot). `worktree-busy` means another
 gate is live in that worktree. `launch-unconfirmed` means nothing proved whether an earlier launch happened.
 
 **Used for:** recognising a blocking diagnostic, which is neither a red suite nor a retry trigger. It charges no suite
@@ -1291,7 +1288,7 @@ re-runs the suite. `finalize.gate` is `local` (run
 Go v1 and block every repository mutation while set.
 
 **Used for:** never merging a stale branch untested. It shares the worktree's single
-[admission slot](#admission-slot), so it can be refused with `worktree-busy`.
+[worktree slot](#worktree-slot), so it can be refused with `worktree-busy`.
 
 ### Finalize publish
 
@@ -2030,7 +2027,7 @@ of hard-coding commands. Each entry carries its `argv`, signature, and **effects
 docket capabilities --json | jq -r '.commands[] | "\(.id)\t\(.argv|join(" "))"'
 ```
 
-### Closed vocabulary (operation dispositions)
+### Allowed values (operation dispositions)
 
 A fixed, schema-published set of allowed tokens. Automation keys on these tokens, never on prose or
 exit codes. `docket schema --json` lists them under `.vocabularies`; beside the general ones
@@ -2061,16 +2058,16 @@ unobservable; retain", which authorizes nothing destructive.
 docket schema --json | jq -c '.vocabularies.merge_dispositions'
 ```
 
-### Compare-and-swap (CAS) / push-retry
+### Conflict-checked write / push-retry
 
-A **compare-and-swap** is a write that succeeds only if the record still matches the record
+A **conflict-checked write** is a write that succeeds only if the record still matches the record
 revision you read. Docket pairs it with an exact-lease push to the metadata remote. **Push-retry** is
 the recovery when that race is lost: re-run `repository.prepare`, re-read the path and revision,
 then retry.
 
 **Used for:** letting several sessions and loops share one backlog without silent overwrites. A lost
-race returns `contended` and writes nothing. It is also why grooming needs no claim: the final-push
-CAS already protects it.
+race returns `contended` and writes nothing. It is also why grooming needs no claim: the conflict-checked
+final push already protects it.
 
 ```sh
 docket repository prepare --repo-dir . --json   # step 1 of every retry: re-sync
@@ -2079,7 +2076,7 @@ docket status --json | jq -r '.changes[] | select(.id==412) | .revision'   # ste
 
 ### Contended
 
-The outcome when a compare-and-swap lost a race with another writer (another session or loop). It
+The outcome when a conflict-checked write lost a race with another writer (another session or loop). It
 is not a failure of your input: re-read and retry.
 
 ### Diagnostic runtime
@@ -2198,7 +2195,7 @@ sets (`claim_dispositions`, `merge_dispositions`, `sync_dispositions`, …) list
 
 ### Schema / request file
 
-`docket schema` emits every operation's request and result fields plus the closed vocabularies.
+`docket schema` emits every operation's request and result fields plus the allowed values.
 A **request file** (`--request` / `--input`) is a JSON body built from that schema.
 
 ```sh
@@ -2277,7 +2274,6 @@ and `true` blocks every repository mutation until you remove it.
 - [## Why deferred / ## Why killed](#-why-deferred---why-killed)
 - [Abort-and-report](#abort-and-report)
 - [Abstain / re-enable](#abstain--re-enable)
-- [Admission slot](#admission-slot)
 - [Adopting docket in a repository](#adopting-docket-in-a-repository)
 - [ADR](#adr)
 - [ADR index / ## Update note](#adr-index---update-note)
@@ -2286,6 +2282,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Agent / wrapper](#agent--wrapper)
 - [Agent enter](#agent-enter)
 - [agent_harnesses](#agent_harnesses)
+- [Allowed values (operation dispositions)](#allowed-values-operation-dispositions)
 - [Archive](#archive)
 - [Archived record](#archived-record)
 - [Attempt budgets (run.max_attempts / build.max_attempts / finalize repair)](#attempt-budgets-runmax_attempts--buildmax_attempts--finalize-repair)
@@ -2311,11 +2308,10 @@ and `true` blocks every repository mutation until you remove it.
 - [Change types](#change-types)
 - [Change version / entity version](#revision---revision) — see Revision
 - [Claim / claim lease / reclaim](#claim--claim-lease--reclaim)
-- [Closed vocabulary (operation dispositions)](#closed-vocabulary-operation-dispositions)
 - [Close-out](#closeout--closeout-notes) — see Closeout / closeout notes
 - [Closeout / closeout notes](#closeout--closeout-notes)
-- [Compare-and-swap (CAS) / push-retry](#compare-and-swap-cas--push-retry)
 - [Config layers](#config-layers)
+- [Conflict-checked write / push-retry](#conflict-checked-write--push-retry)
 - [Contended](#contended)
 - [Continuation](#continuation)
 - [Coordination key / scope tag / shared-setting guard](#coordination-key--scope-tag--shared-setting-guard)
@@ -2367,6 +2363,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Gate drive / slice / owner generation / handoff / takeover](#gate-drive--slice--owner-generation--handoff--takeover)
 - [Gate driver](#gate-drive--slice--owner-generation--handoff--takeover) — see Gate drive / slice / owner generation / handoff / takeover
 - [Gate run / run dir](#gate-run--run-dir)
+- [Gate supervisor](#gate-run--run-dir) — see Gate run / run dir
 - [Git hooks in docket worktrees (pre-commit, husky, lefthook)](#git-hooks-in-docket-worktrees-pre-commit-husky-lefthook)
 - [GitHub board mirror / github_project](#github-board-mirror--github_project)
 - [Groom](#groom)
@@ -2386,19 +2383,19 @@ and `true` blocks every repository mutation until you remove it.
 - [Keeping docket current](#keeping-docket-current)
 - [Launch-then-observe / detached run](#launch-then-observe--detached-run)
 - [Learnings / finding / promotion](#learnings--finding--promotion)
-- [Learnings index / pay per relevance](#learnings-index--pay-per-relevance)
+- [Learnings index / read on demand](#learnings-index--read-on-demand)
 - [Learnings ledger / war story / promotion_state](#learnings-ledger--war-story--promotion_state)
 - [learnings.enabled / learnings.cap](#learningsenabled--learningscap)
-- [Liveness probe / liveness transition](#liveness-probe--liveness-transition)
+- [Liveness probe / moved to background](#liveness-probe--moved-to-background)
 - [Managed dispatch block (docket:dispatch)](#managed-dispatch-block-docketdispatch)
 - [Managed global config](#managed-global-config)
 - [Manifest](#manifest)
 - [Mark implemented](#mark-implemented)
+- [Marker section](#marker-section)
 - [Merge policy / branch protection](#merge-policy--branch-protection)
 - [Metadata branch](#metadata-branch)
 - [Metadata worktree](#metadata-worktree)
 - [Model / effort, pinned vs unpinned wrapper](#model--effort-pinned-vs-unpinned-wrapper)
-- [Native supervisor / gate execution](#native-supervisor--gate-execution)
 - [Observation budget (gate_observation_budget / delegation_observation_budget)](#observation-budget-gate_observation_budget--delegation_observation_budget)
 - [Operation / operation id](#operation--operation-id)
 - [Owned sections / section intents (preserve / replace / remove)](#owned-sections--section-intents-preserve--replace--remove)
@@ -2409,7 +2406,6 @@ and `true` blocks every repository mutation until you remove it.
 - [PR handoff](#pr-handoff)
 - [PR publish](#pr-publish)
 - [Preflight](#preflight)
-- [Presence-encoded section](#presence-encoded-section)
 - [Priority](#priority)
 - [Process recovery / gate history cleanup](#process-recovery--gate-history-cleanup)
 - [Protocol-v1 envelope](#protocol-v1-envelope)
@@ -2473,4 +2469,5 @@ and `true` blocks every repository mutation until you remove it.
 - [Workspace publish](#workspace-publish)
 - [Worktree / feature workspace](#worktree--feature-workspace)
 - [Worktree changed / certified input changed](#worktree-changed--certified-input-changed)
+- [Worktree slot](#worktree-slot)
 - [worktree-busy / launch-unconfirmed](#worktree-busy--launch-unconfirmed)

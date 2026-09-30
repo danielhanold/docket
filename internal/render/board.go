@@ -130,7 +130,7 @@ type BoardUnrenderable struct {
 	Reason string // one line: the finding code or the classify/readiness error text
 }
 
-// BoardSection is one rendered board group — a closed vocabulary deliberately
+// BoardSection is one rendered board group — a set of allowed values deliberately
 // distinct from the lifecycle statuses a change carries (change 0367). A change
 // is classified into exactly one section; the mapping is not one-to-one with
 // status (finalize-blocked implemented changes render Blocked, spec-backed

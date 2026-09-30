@@ -206,11 +206,11 @@ func (c *Client) MergePullRequest(ctx context.Context, repo Repository, number i
 	}
 
 	// Act: the selected method at the exact expected head. No --delete-branch. The
-	// closed vocabulary is guarded — a method outside it renders no flag.
+	// allowed values are guarded — a method outside them renders no flag.
 	flag := method.mergeFlag()
 	if flag == "" {
 		return MergeResult{Outcome: MergeUnknown}, newFailure(mergeOp, StageValidate, KindInvalidInput,
-			"selected merge method outside the closed vocabulary", nil)
+			"selected merge method outside the allowed values", nil)
 	}
 	args := []string{
 		"pr", "merge", strconv.Itoa(number),

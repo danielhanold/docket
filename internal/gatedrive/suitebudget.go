@@ -19,7 +19,7 @@
 // joined by NUL — path-safe by construction, mirroring capHash. The directory is
 // owner-only (0700) and its record is private (0600). Writes go through
 // writeAtomicJSON, and each reservation runs under a per-record blocking flock
-// plus a persisted physical-generation compare-and-swap, mirroring scopeCAS so
+// plus a persisted physical-generation conflict-checked write, mirroring scopeCAS so
 // concurrent reservations serialize and physical contention never surfaces as a
 // logical failure. Unknown schema versions and corrupt records fail closed with
 // a typed StoreError, exactly as the drive and scope stores do.
@@ -233,7 +233,7 @@ func (s *Store) reserveSuiteAttemptOnce(dir string, key SuiteBudgetKey, limit in
 }
 
 // writeSuiteBudget atomically persists rec in dir under a freshly rotated
-// physical generation, so a stale concurrent writer's compare-and-swap fails.
+// physical generation, so a stale concurrent writer's conflict-checked write fails.
 func (s *Store) writeSuiteBudget(dir string, rec suiteBudgetRecord) error {
 	gen, err := randomToken(genNBytes)
 	if err != nil {

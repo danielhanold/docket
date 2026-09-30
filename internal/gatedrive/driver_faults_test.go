@@ -693,7 +693,7 @@ func TestFaultFinalAckInterruptedThenRestart(t *testing.T) {
 
 // --- change 0446 Task 9: terminal-result and cleanup audit -------------------
 
-// slotDirFor returns the on-disk admission slot directory the store keys for
+// slotDirFor returns the on-disk worktree slot directory the store keys for
 // worktree, so a fault test can make the next slot write fail (read-only dir).
 func slotDirFor(t *testing.T, store *Store, worktree string) string {
 	t.Helper()

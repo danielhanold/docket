@@ -170,7 +170,7 @@ func noopJournalDone(string, bool) {}
 //     UNFENCED. This is the standalone contract — a mutation outside any workflow run
 //     is unchanged.
 //   - Owning run ACTIVE → journal an `admitted` entry under the run's
-//     compare-and-swap and return (done, nil). `done(completed|uncertain, verified)`
+//     conflict-checked write and return (done, nil). `done(completed|uncertain, verified)`
 //     updates exactly that entry after the mutation resolves.
 //   - Owning run CANCELLING/CANCELLED → (nil, ErrRunCancelled).
 //   - Owning run SUPERSEDED → (nil, ErrStaleRunID).

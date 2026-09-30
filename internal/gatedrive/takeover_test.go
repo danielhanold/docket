@@ -317,7 +317,7 @@ func TestTakeoverFailClosedTable(t *testing.T) {
 			setup: func(t *testing.T, d *Driver, store *Store, git *fakeGit) (string, string, string) {
 				grant := prepareOuterScope(t, store)
 				first := startNested(t, d, grant.ChildCapability)
-				// The worktree admission slot deliberately forbids constructing this
+				// The worktree slot deliberately forbids constructing this
 				// historical ambiguity through a second live launch. Seed the second
 				// durable recovery candidate directly so Takeover still proves that an
 				// outer scope fails closed when its candidate scan is ambiguous.

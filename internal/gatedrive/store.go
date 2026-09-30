@@ -1,4 +1,4 @@
-// Durable owner-private drive store with generation compare-and-swap.
+// Durable owner-private drive store with generation-based conflict-checked writes.
 //
 // A drive's state lives below the repository's Git common directory so it sits
 // outside every worktree yet stays reachable from any linked worktree of the
@@ -54,13 +54,13 @@ const (
 	// guess a different drive (spec "Location and privacy").
 	idNBytes = 16
 	// genNBytes is the entropy of an opaque generation token, rotated on every
-	// accepted write so a stale writer's compare-and-swap fails.
+	// accepted write so a stale writer's conflict-checked write fails.
 	genNBytes = 16
 )
 
 // StoreErrorKind is the typed category of a StoreError. Callers key on it to
 // separate a fail-closed HALT (unknown schema, corrupt record, invalid id) from
-// an ordinary lost compare-and-swap (generation mismatch) and from a missing
+// an ordinary lost conflict-checked write (generation mismatch) and from a missing
 // drive (not found).
 type StoreErrorKind string
 
@@ -117,7 +117,7 @@ func AsStoreError(err error) (*StoreError, bool) {
 // storedRecord is the on-disk envelope: the store-owned generation token beside
 // the driveRecord it guards. Keeping the generation out of driveRecord leaves
 // the record's own OwnerGeneration/HandoffGeneration fields entirely to the
-// ownership layer (Task 5); the store's compare-and-swap token is a separate,
+// ownership layer (Task 5); the store's conflict-check token is a separate,
 // lower-level concern.
 type storedRecord struct {
 	Generation string      `json:"generation"`
@@ -306,7 +306,7 @@ func (s *Store) Load(id string) (driveRecord, error) {
 	return stored.Record, nil
 }
 
-// CAS performs a compare-and-swap on the record for id. It serializes on the
+// CAS performs a conflict-checked write on the record for id. It serializes on the
 // drive's flock, reads the current record, and — only when the stored
 // generation equals expectGen — applies mutate to a copy and atomically writes
 // it back under a freshly rotated generation, which it returns. A stale
@@ -491,7 +491,7 @@ func writeAtomicJSON(path string, v any) error {
 // the create-time mode is umask-masked. Unlike internal/process/lock.go's
 // acquireFlock — which takes the lock non-blocking as a liveness probe and
 // reports contention — this one blocks so two racing CAS writers serialize and
-// the persisted generation, not lock contention, arbitrates the compare-and-swap
+// the persisted generation, not lock contention, arbitrates the conflict-checked write
 // (spec "A lock plus a persisted generation provides compare-and-swap
 // semantics"). Closing the returned file releases the lock.
 func acquireExclusiveLock(path string) (*os.File, error) {

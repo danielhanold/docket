@@ -103,7 +103,7 @@ type gatedriveContinuationSeam struct {
 
 // NewContinuationSeam composes the production continuation seam, rooting the
 // durable drive store at the repository's Git common directory and binding the
-// native supervisor at exePath. A supervisor construction failure is returned so
+// gate supervisor at exePath. A supervisor construction failure is returned so
 // the caller can leave the continuation path unwired (a nil seam) rather than
 // failing the whole verdict.
 func NewContinuationSeam(gitCommonDir, exePath string) (ContinuationSeam, error) {

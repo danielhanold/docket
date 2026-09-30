@@ -67,7 +67,7 @@ A single run of the autonomous loop walks a fixed path and then stops:
 1. **Pick.** It selects the next **build-ready** change (a proposed change that has a spec or is
    marked trivial and whose dependencies are all merged). It never touches work that is not ready.
 2. **Claim.** It takes a **claim** on that change (the moment a change is picked up for building; it
-   records which branch will carry the work and when it was taken) with a compare-and-swap on the
+   records which branch will carry the work and when it was taken) with a conflict-checked write on the
    change's status, so two runs in parallel can never grab the same change. The claim carries a
    **claim lease** (a timestamp on a claim; when it expires with no branch behind it, the change
    goes back to the queue), which is what lets a crashed run's change self-heal instead of sitting

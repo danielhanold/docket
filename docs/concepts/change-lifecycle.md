@@ -80,7 +80,7 @@ against the wrong branch.
 ## Decided in
 
 - [ADR-0004](../adrs/0004-grooming-takes-no-claim.md) — let grooming take no
-  claim, since a final-push compare-and-swap already protects a human-attended
+  claim, since a conflict-checked final push already protects a human-attended
   session.
 - [ADR-0005](../adrs/0005-close-out-only-harvest.md) — fixed the learnings
   harvest to a single writer at close-out, so the lifecycle has one moment that

@@ -1,7 +1,7 @@
 package repoguard
 
 // Computed launch-site admission guard (change 0375 Task 14). One canonical
-// worktree carries at most one reserved-or-running top-level gate execution, so
+// worktree carries at most one reserved-or-running top-level gate run, so
 // EVERY top-level gate launch must first reserve the worktree execution slot
 // (internal/gatedrive/admission.go). This guard proves that admission is composed
 // wherever a launch happens, and that whatever reserves the slot also releases it.

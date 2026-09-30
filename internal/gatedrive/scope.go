@@ -17,7 +17,7 @@
 // The directory is owner-only (0700) and its record is private (0600). Writes go
 // through the same writeAtomicJSON helper, and every mutating transition runs
 // under a per-scope blocking flock and a persisted physical-generation
-// compare-and-swap (scopeCAS), mirroring Store.CAS/ownerCAS so physical
+// conflict-checked write (scopeCAS), mirroring Store.CAS/ownerCAS so physical
 // contention never surfaces as a logical failure. Capabilities and RunContext
 // are persisted only as sha256 hashes (capHash) — never the raw tokens — so a
 // leaked record file discloses no authority. Unknown schema versions and corrupt
@@ -487,7 +487,7 @@ func (s *Store) readStoredScope(dir string) (storedScope, error) {
 	return stored, nil
 }
 
-// scopeCASOnce performs a single flock-serialized compare-and-swap on a scope
+// scopeCASOnce performs a single flock-serialized conflict-checked write on a scope
 // record, mirroring Store.CAS for drives: it reads the current record, and only
 // when the stored physical generation equals expectGen applies mutate to a copy
 // and atomically writes it back under a freshly rotated generation. A stale
@@ -528,7 +528,7 @@ func (s *Store) scopeCASOnce(id, expectGen string, mutate func(*scopeRecord) err
 	return newGen, nil
 }
 
-// scopeCAS runs a logical scope transition under the physical compare-and-swap,
+// scopeCAS runs a logical scope transition under the physical conflict-checked write,
 // mirroring ownerCAS: it re-reads the current physical generation and retries on
 // a physical generation mismatch so concurrent writers serialize and physical
 // contention never surfaces as a logical failure. Any error mutate itself

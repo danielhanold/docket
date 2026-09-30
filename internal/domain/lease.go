@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// LeaseState is a claim lease's evaluated condition. It is a closed vocabulary
+// LeaseState is a claim lease's evaluated condition. It takes a fixed set of allowed values
 // rather than a Boolean "stale" because the three non-fresh conditions are not
 // interchangeable: an expired lease is positive evidence that a claim aged out,
 // while a missing or malformed stamp is evidence of nothing at all — a record

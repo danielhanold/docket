@@ -44,7 +44,7 @@ changes are never harvested for lessons at all.
   is one file under the learnings directory on the **metadata branch** (the `docket` git branch
   where the backlog, specs, and decisions are stored, separate from the code), alongside a
   generated index that lists them all.
-- **Pay per relevance.** The design, planning, and review steps load only the *index* — a small
+- **Read on demand.** The design, planning, and review steps load only the *index* — a small
   hint surface — and pull the full text of just the findings that bear on the change at hand.
   Nobody pays to re-read the whole history on every run; the index is how a growing memory stays
   cheap to carry.

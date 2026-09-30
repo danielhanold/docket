@@ -921,7 +921,7 @@ var scopedAdmissionHook func(req StartRequest)
 //
 // The worktree execution slot (admission.go) is the OUTERMOST admission authority:
 // one canonical worktree carries at most one reserved-or-running top-level gate
-// execution across DIFFERENT scopes, scopeless starts, and raw launches. A start
+// run across DIFFERENT scopes, scopeless starts, and raw launches. A start
 // belonging to the SAME scope as the incumbent slot — a concurrent first-start peer,
 // or a successor continuing this scope's sequence — REUSES the slot the scope
 // already holds rather than reserving a second one, so same-scope arbitration stays

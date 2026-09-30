@@ -95,7 +95,7 @@ type gatedriveClaimSeam struct {
 }
 
 // NewClaimSeam composes the production ClaimSeam over the durable drive store at
-// the repository's Git common directory and the native supervisor at exePath. A
+// the repository's Git common directory and the gate supervisor at exePath. A
 // service-construction failure is returned so the caller can leave the claim path
 // unwired (a nil seam) and RunContinue fails closed to claim-unavailable rather
 // than panicking.

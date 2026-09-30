@@ -64,10 +64,10 @@ verdict, not the worker's report, says what may happen next.
   exit code, distinct from a plain pass or fail, because a runner that
   exits non-zero for its own reasons has not necessarily failed the work.
 
-## The worktree admission slot
+## The worktree slot
 
-A worktree runs one gate execution at a time, and the gate enforces that
-through a per-worktree **admission slot**. When a launch is refused because
+A worktree allows one gate run at a time, and the gate enforces that
+through its **worktree slot**. When a launch is refused because
 the slot is taken, the refusal means the slot is **occupied** by an
 execution the admission could not prove finished — not necessarily that
 the occupying process is still running. `reserveWorktreeExecution` is the
@@ -92,10 +92,10 @@ So a busy-slot refusal is diagnosed, never guessed around:
   whether teardown is proven — the caller does not assume it.
 - **History cleanup is not slot evidence.** Gate history cleanup assesses
   **historical drives** only. A cleanup that reports zero blockers says
-  nothing about whether the current worktree admission slot is free; a
+  nothing about whether the current worktree slot is free; a
   clean history and an occupied slot coexist.
 - **Recovery does not free the slot.** Process recovery (`gate recover`)
-  classifies process records; it does not release a current raw admission
+  classifies process records; it does not release a current raw worktree
   slot. Releasing that slot is the stop route's job (`releaseRawSlotForStop`)
   or, for an occupant proven finished, the next admission's — not
   recovery's.
@@ -142,6 +142,6 @@ So a busy-slot refusal is diagnosed, never guessed around:
   — fixed a halt's exit code as a property of the run's state, not of the
   path by which the tracker discovered it.
 - [ADR-0095](../adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md)
-  — replaced the per-platform detachment contract with a native
+  — replaced the per-platform detachment contract with a gate
   supervisor that delivers a genuine session and an exact terminal record
   (supersedes ADR-0081).

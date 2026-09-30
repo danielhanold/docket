@@ -32,7 +32,7 @@ func TestRaceIntegrationGatedriveSequenceConcurrentScopesResolveOwnWork(t *testi
 	store := OpenStore(common)
 	svc := mustService(t)
 
-	// Each scope launches under its OWN process run root: the native supervisor's
+	// Each scope launches under its OWN process run root: the gate supervisor's
 	// registry lock is a per-root non-blocking allocation probe (internal/process
 	// lock.go LOCK_EX|LOCK_NB), so two concurrent launches sharing one root would
 	// contend — and in production each parent picks its own scratch run root anyway.

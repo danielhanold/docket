@@ -63,4 +63,4 @@ Summarize the drain: groomed N (specs), trivial M, abstained K — each abstain 
 
 ## Termination & concurrency
 
-Every exit shrinks the queue (spec/trivial ⇒ no longer needs-grooming; abstain ⇒ no longer effective auto-groomable), so the drain visits each stub at most once and provably terminates. No claim is taken — ADR-0004's final-push CAS stance, adopted for the autonomous case: its human-attended rationale does not apply here, but the load-bearing half does — each stub's writes land in a single final commit, so a late collision wastes minutes, not hours, and the post-rebase re-read is the arbiter.
+Every exit shrinks the queue (spec/trivial ⇒ no longer needs-grooming; abstain ⇒ no longer effective auto-groomable), so the drain visits each stub at most once and provably terminates. No claim is taken — ADR-0004's conflict-checked final-push stance, adopted for the autonomous case: its human-attended rationale does not apply here, but the load-bearing half does — each stub's writes land in a single final commit, so a late collision wastes minutes, not hours, and the post-rebase re-read is the arbiter.

@@ -37,7 +37,7 @@
 //
 // ACCOUNTING (spec). Cancellation charges NO full-suite attempt and resets NO
 // deadline/relaunch/budget/retry state: RunCancel touches only the run record and
-// the worktree admission slot — never the change-owned suite budget or the run-tracker
+// the worktree slot — never the change-owned suite budget or the run-tracker
 // retry markers. The WAITING/PASSED/FAILED/HALTED outcome vocabulary is not widened;
 // cancellation is never a test failure or a retry permission.
 package app
@@ -685,7 +685,7 @@ func repairTerminalRun(seams cancelSeams, repoDir string, ep RunRecord) RunCance
 // reconcileRunTeardown performs the cancellation teardown accounting for an
 // already-FENCED run — the spec's flow steps (4)–(7): cancel registered native
 // tasks through the adapter hook (an absent adapter is a bounded FINDING, not
-// silence), stop each registered execution participant and the worktree admission
+// silence), stop each registered execution participant and the worktree
 // slot on proven teardown, RE-ENUMERATE the participants after stopping (a launch
 // admitted before the fence won and can register after the first snapshot), settle
 // uncertain publications a later verified identical retry proves (change 0444), and
@@ -736,7 +736,7 @@ func reconcileRunTeardown(seams cancelSeams, repoDir, runKey string, ep RunRecor
 		}
 	}
 
-	// (5b) Reconcile the worktree admission slot itself — the top-level execution the
+	// (5b) Reconcile the worktree slot itself — the top-level execution the
 	// run owns. Marking stopping, stopping its process, and releasing on proven
 	// teardown is the authoritative slot teardown; an unproven or unreadable slot
 	// keeps cancellation pending (fail closed).

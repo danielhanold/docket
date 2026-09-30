@@ -1,6 +1,6 @@
-# Gate execution — required capabilities and per-harness evidence
+# Gate run — required capabilities and per-harness evidence
 
-Reference for `docket-build` § *Gate execution posture*. The skill body states the posture by
+Reference for `docket-build` § *Gate run posture*. The skill body states the posture by
 capability and stays harness-neutral; every product-specific name, setting, and observed figure is
 quarantined here. That quarantine is what lets the rule stay actionable without the contract naming
 a tool.

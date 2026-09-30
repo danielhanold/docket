@@ -239,7 +239,7 @@ var proseContracts = []proseContract{
 	// to its terminal envelope, never declared done by proxy signals; and an
 	// applied envelope is never read as all-items-succeeded.
 	{sentinel: "change_0389_sweep_scope", file: "skills/docket-status/SKILL.md",
-		present: []string{"--scope implementation", "a liveness transition, not completion",
+		present: []string{"--scope implementation", "a move to background, not completion",
 			"never start a second shell watcher", "never that every item succeeded"}},
 	// change 0397 — Step 0 is one inline deterministic operation. The absent
 	// phrases are the retired step-0 dispatch instruction and the completion

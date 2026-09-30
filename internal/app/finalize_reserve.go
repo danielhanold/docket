@@ -206,7 +206,7 @@ func FinalizeResolverReserve(ctx context.Context, deps FinalizeDeps, repoDir str
 
 	// An outstanding reservation means a resolver dispatch is already out: echo it
 	// unchanged as `pending` and admit nothing new. The token is the authority
-	// (presence-encoded state), so no Git probe is needed to answer pending.
+	// (marker-section state), so no Git probe is needed to answer pending.
 	if rec.ResolverReservationToken != "" {
 		out := reserveOutcome(ResultNoOp, ReservePending, "",
 			"a resolver dispatch is already reserved for this attempt; feed its report to finalize.rebase-continue", cid)

@@ -15,7 +15,7 @@ import (
 // rules compose by intersection; unobservable or malformed policy fails closed
 // (three-outcome discipline; learnings: probe-error-is-not-clean-absence).
 
-// MergeMethod is the closed vocabulary of merge methods Docket can select.
+// MergeMethod is the set of allowed merge methods Docket can select.
 type MergeMethod string
 
 const (

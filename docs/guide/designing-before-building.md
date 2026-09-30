@@ -152,10 +152,10 @@ the axes they use.
 ```yaml
 dummy_mode:
   enabled: true
-  persona: "Comfortable with git, GitHub PRs, and YAML. Cannot read bash or awk — explain script behavior by outcome, never by code. Does not know docket's internal vocabulary (worktree, CAS push, claim lease, orphan branch) — use each term only with a one-clause gloss."
+  persona: "Comfortable with git, GitHub PRs, and YAML. Cannot read bash or awk — explain script behavior by outcome, never by code. Does not know docket's internal vocabulary (worktree, conflict-checked push, claim lease, orphan branch) — use each term only with a one-clause gloss."
 ```
 
-Effect: a design question like "should the CAS retry re-run preflight before the re-push?"
+Effect: a design question like "should the push retry re-run preflight before the re-push?"
 becomes "when two sessions save at the same time, one loses — should the loser automatically
 re-sync and retry, or stop and ask you?"
 
