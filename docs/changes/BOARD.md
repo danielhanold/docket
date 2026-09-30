@@ -1,6 +1,6 @@
 # Backlog
 
-**479 changes** — 🔴 1 blocked · 🟣 3 groomed · 🟡 16 proposed · ⚪ 12 deferred · ✅ 327 done · 🗑️ 120 killed
+**479 changes** — 🔴 1 blocked · 🟣 4 groomed · 🟡 15 proposed · ⚪ 12 deferred · ✅ 327 done · 🗑️ 120 killed
 
 ## 🔴 Blocked (1)
 
@@ -8,15 +8,16 @@
 |---|-------|----------|------|----|--------|
 | [0422](active/0422-bind-outer-run-gate-retry-consumption-to-a-dispatch-epoch-no.md) | Bind outer run-gate retry consumption to a dispatch epoch, not each observation | `medium` | `chore` |  | Halted at build Task 5 pending a human decision among 3 feasible paths for the AGENTS.md dispatch-budget overage (trim in-block coordinator prose, re-baseline dispatchBudget, or relocate guidance) — see the run-halted record on the change. |
 
-## 🟣 Groomed (3)
+## 🟣 Groomed (4)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0474](active/0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and retire the lifecycle 'terminal' and non-run 'fence' names | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-30-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle-design.md) |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | [spec](../superpowers/specs/2026-09-04-human-attended-v1-0-0-rc1-acceptance-and-publication-design.md) |
 | [0409](active/0409-document-remote-agent-session-setup-using-a-locally-built-do.md) | Document remote-agent session setup using a locally built Docket binary | `medium` | `docs` | [spec](../superpowers/specs/2026-09-07-document-remote-agent-session-setup-using-a-locally-built-do-design.md) |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | [spec](../superpowers/specs/2026-09-07-slash-command-implement-dispatch-attribution-gap-design.md) |
 
-## 🟡 Proposed (16)
+## 🟡 Proposed (15)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -24,7 +25,6 @@
 | [0478](active/0478-gofmt-internal-githubcli-comment-integration-test-go.md) | gofmt internal/githubcli/comment_integration_test.go | `low` | `chore` | needs-brainstorm |
 | [0476](active/0476-bring-test-go-integration-app-rebaserecovery-back-under-its.md) | Bring test_go_integration_app_rebaserecovery back under its runtime budget | `medium` | `chore` | needs-brainstorm |
 | [0475](active/0475-bring-test-go-integration-app-closeout-sh-back-under-its-bud.md) | Bring test_go_integration_app_closeout.sh back under its budget row | `low` | `chore` | needs-brainstorm |
-| [0474](active/0474-rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle.md) | Rename re-arm to re-enable and the terminal/fence lifecycle codes | `medium` | `refactor` | needs-brainstorm |
 | [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | needs-brainstorm |
 | [0464](active/0464-align-guide-install-docs-and-docket-example-yml-with-the-go.md) | Align guide, install docs, and .docket.example.yml with the Go v1 config and CLI | `medium` | `docs` | needs-brainstorm |
 | [0457](active/0457-a-freshly-reserved-successor-on-an-epoch-less-scope-can-stil.md) | A freshly reserved successor on an epoch-less scope can still release a slot a later drive adopted | `low` | `fix` | needs-brainstorm |
