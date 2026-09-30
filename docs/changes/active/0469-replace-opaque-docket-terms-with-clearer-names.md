@@ -6,13 +6,13 @@ status: 'proposed'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-28'
-updated: '2026-09-29'
+updated: '2026-09-30'
 depends_on: []
 stacked_on:
-related: [402, 468]
+related: [402, 468, 471, 474]
 discovered_from: []
-adrs: []
-spec:
+adrs: [129]
+spec: 'docs/superpowers/specs/2026-09-30-replace-opaque-docket-terms-with-clearer-names-design.md'
 plan:
 results:
 trivial: false
@@ -27,55 +27,33 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-30-replace-opaque-docket-terms-with-clearer-names-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-30-replace-opaque-docket-terms-with-clearer-names-design.md) |
+| ADRs | [ADR-0129](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0129-collision-free-docket-vocabulary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-A review of `docs/reference/glossary.md` (2026-09-28) found a set of docket terms that don't clash with anything but are hard for a newcomer (human or agent) to understand without reading the entry: "admission slot", "owner generation", "unmet conjuncts", "presence-encoded section", "Step-0 preamble", "CREATE_ORPHAN", dispatch tiers "A / B / C", "dummy mode", "disposition", and others. Each has a plainer name that says what the thing is or does. Renaming them lowers the reading cost of the docs, run logs, and verdict lines. "needs-brainstorm" also conflicts with the project's own vocabulary, which uses "groom" for this step and reserves "brainstorm" for net-new changes.
+A review of `docs/reference/glossary.md` (2026-09-28) found docket terms that don't collide with anything but are hard for a newcomer, human or agent, to understand without reading the entry: "admission slot", "unmet conjuncts", "presence-encoded section", "Step-0 preamble", `identity-mismatch`, `unresolved-execution`, `change repair-identity`, and others. Each has a plainer name that says what the thing is or does. Renaming them lowers the reading cost of the docs, run logs and verdict lines. "needs-brainstorm" also conflicts with the project's own vocabulary, which uses "groom" for this step.
+
+Two names no longer match any code at all: the Bash-era bootstrap verdicts (`STOP_MIGRATE`, `CREATE_ORPHAN`) and `docket status --digest-only`, which a guide still tells readers to run.
 
 ## What changes
 
-Rename the opaque terms (proposed names are hypotheses to settle at grooming):
+Deliver ADR-0129's family (e), rows 67-86, which this change's grooming added to that ADR. It is a hard cut with no aliases (ADR-0129 Decision 2):
 
-| Current | Suggested | Why |
-|---|---|---|
-| "unmet **conjuncts**" (`gate-retry-once`) | **unmet conditions** | Logic-textbook jargon |
-| **Admission slot** | **worktree lock** | That's exactly what it is |
-| `unresolved-execution` | `previous-run-unconfirmed` | Says what's wrong: nothing proved the last run shut down |
-| **Owner generation** (`--owner-gen`) | **owner number** (`--owner-seq`) | It's a counter |
-| **Identity mismatch / identity drift** | **head changed** / **checkout changed** | Names the thing that actually moved |
-| **Liveness transition** | **moved to background** | Plain description |
-| **Native supervisor / gate execution** | **run supervisor** / **launch mode** | "Native" says nothing to a newcomer |
-| **Presence-encoded section** | **marker section** | Its presence is the flag |
-| **Step-0 preamble** | **skill startup check** | Describes what it does |
-| **Bootstrap verdicts** `STOP_MIGRATE` / `CREATE_ORPHAN` | `NEEDS_MIGRATION` / `CREATE_METADATA_BRANCH` | "Orphan" is git plumbing jargon |
-| **needs-brainstorm** (readiness) | **needs-grooming** | The project uses "groom" for this step and reserves "brainstorm" for net-new changes |
-| **Abstain** (auto-groom) | **hand back** | The stub goes back to the human queue |
-| **Dummy mode** / persona | **plain-language mode** / **reader profile** | "Dummy" is mildly pejorative and hides what it does |
-| **Coordination key / scope tag** | **shared setting** / **where-settable tag** | Describes the rule |
-| **Inert / deferred setting** | **unused / not-yet-supported setting** | Plain meaning |
-| **Disposition** (everywhere) | **outcome** | Gate drives already use `.outcome`; keep "result" for the envelope's top level |
-| **Closed vocabulary** | **allowed values** | Plain meaning |
-| **Digest / digest-only read** | **status summary** | A Bash-era leftover; today it's just `docket status` |
-| **Compare-and-swap** (prose) / **contended** | **conflict-checked write** / **lost a race** | Keep `contended` as the token; use the plain phrase in human-facing text |
-| **Pay per relevance** | **read on demand** | Plain meaning |
-| **Sync integration** | **fast-forward main** | Says what it does |
-| **Metadata branch** | **backlog branch** | It holds the backlog, specs and ADRs; "metadata" is vague |
-| **Identity repair** (`change repair-identity`) | **relink branch/PR** (`change relink`) | Says what it fixes |
-| **Continuation** id | **continue token** | Pairs with `gate-continue`; avoids "resume", which `--resume` already uses |
-| **Reconcile** | **still-valid check** (optional) | Low priority; reconcile is known in git circles |
+- **Wire renames (rows 67-73):** readiness `needs-brainstorm` → `needs-grooming`; gate-drive halt causes `identity-mismatch` → `worktree-changed` and `unresolved-execution` → `launch-unconfirmed`; `change repair-identity` → `change relink` (result tokens `relinked-branch` / `relinked-pr`); finalize's `pr-identity-mismatch` → `pr-link-mismatch`; recertify's `identity-drift` → `certified-input-changed`. Each retired spelling is sealed through the `internal/repoguard` retired-vocabulary table.
+- **Prose renames (rows 74-84):** unmet conditions, worktree slot, moved to background, gate supervisor, gate run, marker section, startup check, allowed values, conflict-checked write, read on demand, relink / link check, across skills, agent wrappers, guide, concept and reference pages, comments, and the generated dispatch material.
+- **Retirements (rows 85-86):** rewrite the bootstrap guard around `repository.prepare`'s dispositions, fix the nonexistent `--digest-only` command, and move both names to the glossary's "Obsolete terms" section.
 
-Where a renamed term is also a wire token (operation id, CLI flag, config key, closed-vocabulary token, board cell), keep the old spelling as an accepted alias for a deprecation window so skills, agents, and scripts that match on it keep working. Update the glossary, guide, concept pages, skills, agent wrappers, and CLAUDE.md/AGENTS.md prose consistently.
+Consumer repos re-run `docket install`. The change lands with no gate drive in flight.
 
 ## Out of scope
 
-- The colliding-term renames and the obsolete-term retirement; those are tracked in the companion change.
-- Gate key, dispatch context, and dispatch tiers A / B / C + carve-out: ADR-0129 settles them (rows 5, 6 and 48–52) and assigns them to changes 0471 and 0473.
-- Terms that are already standard or plain English (harness, claim, stub, trivial, spec, plan, handoff, takeover, slice, fix loop, war story, sweep, stacked change, preflight, `gate-retry-once`, `gate-done`, `gate-stop`).
-- Rewriting frozen build records, archived changes, specs, or Accepted ADRs.
-- Removing the old wire-token spellings; alias removal is a later change after the deprecation window.
+- The stub's other rows (abstain, dummy mode, metadata branch, reconcile, inert, disposition, owner generation, continuation id, sync integration, coordination key, scope tag): dropped for the reasons ADR-0129 family (e) records.
+- Config keys, agent names and frontmatter fields (ADR-0129 Decision 9).
+- Alias or deprecation-window machinery (ADR-0129 Decision 2).
+- Rewriting frozen build records, archived changes, specs, or Accepted ADRs other than ADR-0129's table.
+- Migrating persisted gate-drive records that carry a renamed halt cause.
 
-## Open questions
-
-- **Aliases or a hard cut?** This stub plans to keep old wire-token spellings as accepted aliases for a deprecation window (see *What changes* and *Out of scope*). ADR-0129 (Decision 2) chose the opposite for its own renames: a hard cut with no aliases. Its reasons are that the CLI has no alias mechanism, and that docket's own consumers switch in one step via `docket install`. Grooming must decide whether 0469 follows ADR-0129 and drops the alias plan, or keeps aliases and records why this change differs.
-- **Depend on 0471?** ADR-0129 says the remaining run-tracker items here ("unmet conjuncts", admission slot, `unresolved-execution`, owner generation, continuation id) touch the same files as change 0471 (run tracker renames). Grooming should consider `depends_on: [471]`.
