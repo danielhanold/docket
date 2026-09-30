@@ -11,12 +11,12 @@ the reviewer stays a reviewer, and the fixing is the implementer's.
 
 ## Two orthogonal axes
 
-**Character picks the profile. Severity picks only the failure posture.** Keeping these apart is
+**Character picks the tier. Severity picks only the failure posture.** Keeping these apart is
 the design: a `minor` finding whose fix is genuinely subtle must not be handed to a cheap model for
 being minor, and a `blocker` whose fix is a one-word typo must not burn a premium dispatch for
 being a blocker.
 
-- **Character → profile.** A finding is a very small work item with the diagnosis pre-written.
+- **Character → tier.** A finding is a very small work item with the diagnosis pre-written.
   Route it with the shared rubric in
   [`../../docket-build/references/task-routing.md`](../../docket-build/references/task-routing.md)
   — the same file `docket-build` routes plan tasks with. **Never restate that rubric here or in
@@ -27,7 +27,7 @@ One deliberate exception to this orthogonality exists — the blocker floor, bel
 
 ## The ceiling — fix tasks stop at `premium`
 
-**No fix task dispatches the `max` profile, at any severity.** `premium` is
+**No fix task dispatches the `max` tier, at any severity.** `premium` is
 "consequential but correctable" — still walk-backable inside a reviewed diff. `max` is defined by
 irreversibility, and an irreversible act must never happen to a branch as an unplanned side-quest
 discovered at review time. The pre-0218 blocker ladder (`standard` → `premium` → halt) also
@@ -37,7 +37,7 @@ preserved separately, below.
 ## The floor — a blocker's fix starts no lower than `standard`
 
 This is the one deliberate exception to the character/severity orthogonality above, and the only
-place severity touches the profile: a blocker's fix task starts at `standard` even when its
+place severity touches the tier: a blocker's fix task starts at `standard` even when its
 character routes `economy`. A blocker is the gate that must not fail open — the run halts on it —
 so its fix may not start below the uncertainty sink. Without the floor, a blocker misclassified as
 mechanical would run `economy` → `standard` and halt with `premium` never tried, where the
@@ -56,7 +56,7 @@ becomes a line in the PR body for the human's merge-time judgment, **not** a fol
 |---|---|---|---|
 | `economy` | fix at `standard` — the blocker floor (→ 1 escalation) | fix (→ 1 escalation) | fix, batched (→ 1 escalation) |
 | `standard` | fix (→ 1 escalation) | fix (→ 1 escalation) | fix (→ 1 escalation) |
-| `premium` | fix (no retry — the next rung is `max`) | fix (no retry) | fix (no retry) |
+| `premium` | fix (no retry — the next tier is `max`) | fix (no retry) | fix (no retry) |
 | `max` | **halt** | PR-body record | PR-body record |
 
 Escalation is docket-build's one-bounded-escalation rule, **truncated at `premium`**: an `economy`
@@ -84,7 +84,7 @@ three** suite runs across Step 6; the bound below is scoped to the gate and is u
 ## Tasks, batching, commits
 
 Every fix runs the **`docket-build-task`** contract (focused test → implement → verify →
-self-review → one commit), dispatched by profile name, **foreground and sequential** — fixes share
+self-review → one commit), dispatched by tier name, **foreground and sequential** — fixes share
 one worktree, so two concurrent workers would collide.
 
 A fix worker that returns without a schema-valid outcome may still be **running**: never discard
@@ -93,13 +93,13 @@ instead — abort-and-report, the change staying `in-progress` with `claimed_at`
 reason recorded, the worktree left exactly as it stands. The trigger is the malformed return you
 observed, never elapsed time; a blocked foreground controller has no clock.
 
-**If profile dispatch is unavailable** — established only per the convention's
-*Dispatch-capability resolution*, **never from a tool name**; an unregistered profile wrapper is
-the same condition reached by a concrete rejection — the fix dispatch is **Tier C**, on the same
-authorized-or-halt terms Step 5's build role carries: an explicitly configured `skills.build: auto`
+**If tier dispatch is unavailable** — established only per the convention's
+*Dispatch-capability resolution*, **never from a tool name**; an unregistered tier wrapper is
+the same condition reached by a concrete rejection — the fix dispatch is **`auto-or-halt`**, on the same
+terms Step 5's build role carries: an explicitly configured `skills.build: auto`
 authorizes running the fix inline under this same contract, and any other resolved value is
 abort-and-report. That authorizer is **borrowed on purpose** — a fix worker runs the
-`docket-build-task` contract at `docket-build`'s own profiles, so the build role's switch is the
+`docket-build-task` contract at `docket-build`'s own tiers, so the build role's switch is the
 honest one and no `skills.fix` knob exists. Recording every finding instead is **not** the
 fallback — that fails the loop open silently, and a blocker would ride out to the PR unfixed.
 
@@ -109,8 +109,8 @@ fallback — that fails the loop open silently, and a blocker would ride out to 
 - **Blockers and importants: one task per finding**, one commit each, the message naming the
   finding and the reasoning. Per-finding tasks buy failure isolation and a bisectable narrative,
   and blockers are rare enough that the extra dispatches cost nothing.
-- **Minors: route each finding first, then batch** those sharing a profile into one task per
-  profile — in practice a single `economy` batch. The batch's tier is its members' shared tier, so
+- **Minors: route each finding first, then batch** those sharing a tier into one task per
+  tier — in practice a single `economy` batch. The batch's tier is its members' shared tier, so
   it is homogeneous by construction. One commit enumerating the findings it fixed; a failed batch
   falls back to recording its members.
 
