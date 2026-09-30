@@ -28,7 +28,7 @@ func TestDecodePullRequestFull(t *testing.T) {
 		t.Fatalf("decoded = %+v, want %+v", pr, want)
 	}
 	if !strings.HasPrefix(pr.Revision, "sha256:") || len(pr.Revision) != len("sha256:")+64 {
-		t.Fatalf("version malformed: %q", pr.Revision)
+		t.Fatalf("revision malformed: %q", pr.Revision)
 	}
 }
 
@@ -111,9 +111,9 @@ func TestDecodeSolePullRequestRejectsAmbiguity(t *testing.T) {
 	}
 }
 
-// TestComputeVersionSensitivity (j): the version changes when any single field
+// TestComputeRevisionSensitivity (j): the revision changes when any single field
 // changes and is stable across JSON map ordering.
-func TestComputeVersionSensitivity(t *testing.T) {
+func TestComputeRevisionSensitivity(t *testing.T) {
 	base := PullRequest{
 		Number: 7, URL: "u", State: StateOpen, Draft: false,
 		HeadBranch: "feat/x", HeadCommit: "1111111111111111111111111111111111111111",
@@ -135,22 +135,22 @@ func TestComputeVersionSensitivity(t *testing.T) {
 		pr := base
 		m(&pr)
 		if computeRevision(pr) == baseV {
-			t.Fatalf("mutation %d did not change the version", i)
+			t.Fatalf("mutation %d did not change the revision", i)
 		}
 	}
-	// URL is NOT part of the version snapshot (it is server-assigned, not a
+	// URL is NOT part of the revision snapshot (it is server-assigned, not a
 	// mutable field the caller approved); changing it must NOT change the token.
 	urlChanged := base
 	urlChanged.URL = "different"
 	if computeRevision(urlChanged) != baseV {
-		t.Fatal("URL is not part of the version snapshot but changed the token")
+		t.Fatal("URL is not part of the revision snapshot but changed the token")
 	}
 }
 
-// TestComputeVersionLengthPrefixCollision (j): two PRs differing only by
-// (Title="ab",Body="c") vs (Title="a",Body="bc") get DIFFERENT versions —
+// TestComputeRevisionLengthPrefixCollision (j): two PRs differing only by
+// (Title="ab",Body="c") vs (Title="a",Body="bc") get DIFFERENT revisions —
 // proving the length prefix prevents a field-boundary collision.
-func TestComputeVersionLengthPrefixCollision(t *testing.T) {
+func TestComputeRevisionLengthPrefixCollision(t *testing.T) {
 	base := PullRequest{
 		Number: 7, URL: "u", State: StateOpen, Draft: false,
 		HeadBranch: "feat/x", HeadCommit: "1111111111111111111111111111111111111111",

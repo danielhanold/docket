@@ -66,7 +66,7 @@ const (
 	HaltDispHalted = "halted"
 	// HaltDispResumed: the claim was refreshed and the marker removed.
 	HaltDispResumed = "resumed"
-	// HaltDispContended: the exact-version transaction lost to a fresh
+	// HaltDispContended: the exact-revision transaction lost to a fresh
 	// incompatible state.
 	HaltDispContended = "contended"
 	// HaltDispRefused: a retained precondition refusal.
@@ -182,7 +182,7 @@ type haltReceipt struct {
 }
 
 // ChangeHalt records one bounded authored halt report into the single "## Run
-// halted" section on an in-progress change, in one exact-version transaction.
+// halted" section on an in-progress change, in one exact-revision transaction.
 // The change's branch, claim lease, workspace, and build evidence are untouched.
 func ChangeHalt(ctx context.Context, deps PlanningDeps, repoDir string, req HaltRequest) HaltResult {
 	if findings := validateHaltShape(req); len(findings) > 0 {
@@ -223,7 +223,7 @@ func ChangeHalt(ctx context.Context, deps PlanningDeps, repoDir string, req Halt
 // ChangeResumeHalted is human-authorized recovery of a halted run. It requires
 // the explicit acknowledgement, reprobes the owned workspace (refusing when a
 // live writer may hold it), then refreshes the claim and removes the marker in
-// one exact-version transaction, preserving every other byte.
+// one exact-revision transaction, preserving every other byte.
 func ChangeResumeHalted(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req ResumeRequest) HaltResult {
 	if findings := validateResumeShape(req); len(findings) > 0 {
 		return newHaltResult(OperationChangeResumeHalted, ResultInvalidInput, HaltResult{ID: req.ID, Findings: findings})

@@ -12,7 +12,7 @@ import (
 // through a real transaction.Engine over real bare-remote temporary repositories,
 // in BOTH metadata modes (main and docket, via planRepoModes). The topology
 // builders, the git oracle helpers (originTip/originFile/originCommitPaths/
-// blobVersionAt/originFeatureBranches), and the invocation-clone node builder are
+// blobRevisionAt/originFeatureBranches), and the invocation-clone node builder are
 // reused from status_git_test.go / planning_git_test.go — this file invents no
 // third harness. The attach fixtures (attachHappyPlan/attachBacklinkBlock) are
 // reused from change_attach_git_helpers_test.go.
@@ -44,7 +44,7 @@ func commitPlanFile(t *testing.T, wp, planPath, content, trailerPath string) str
 	return runGit(t, wp, "rev-parse", "HEAD")
 }
 
-// --- claim race: two claimants, same context version, one loses cleanly -----
+// --- claim race: two claimants, same context revision, one loses cleanly -----
 
 // --- claim retry after a lost response: replay, never a second claim --------
 

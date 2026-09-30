@@ -21,7 +21,7 @@ import (
 // fakePublishGitHub answers the GitHub calls `finalize publish` makes
 // (DiscoverRepository, FindOpenPullRequestsByHead, EnsurePullRequest) from a
 // single in-memory PR. It models EnsurePullRequest's load-bearing behaviors — the
-// expected-head gate, the already-equal no-op, the version CAS, and the edit —
+// expected-head gate, the already-equal no-op, the revision CAS, and the edit —
 // so one fake serves the happy, replay, and no-op cases, and records every edit
 // so a test can assert the full body it received. Every other finalize-half
 // GitHub method panics so an accidental call is loud.
@@ -64,7 +64,7 @@ func (f *fakePublishGitHub) EnsurePullRequest(_ context.Context, req githubcli.E
 		}
 		return githubcli.EnsureResult{Disposition: githubcli.EnsureUnchanged, PR: f.pr}, nil
 	}
-	// An edit is authorized only by the exact live version.
+	// An edit is authorized only by the exact live revision.
 	if req.ExpectedRevision == "" || req.ExpectedRevision != f.pr.Revision {
 		return githubcli.EnsureResult{Disposition: githubcli.EnsureContended}, nil
 	}
@@ -120,7 +120,7 @@ func setupPublishFixture(t *testing.T, m planRepoMode) *publishFixture {
 	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if res.Disposition != RebaseDispRebased || res.Attempt == "" {
 		t.Fatalf("rebase setup = disp %q attempt %q (reason %q), want rebased with an attempt", res.Disposition, res.Attempt, res.Reason)
 	}

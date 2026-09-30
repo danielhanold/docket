@@ -100,7 +100,7 @@ func TestStatusStillFailsOnUnprobeableWellFormedBranch(t *testing.T) {
 // recorded branch: is not a valid git branch name gets exactly one error
 // finding, and its remedy is valid in the exact state that produced it
 // (printed-remedy-state-validity): a parseable pr: names the typed
-// repair-identity adopt-pr-head command with id, version, and PR number
+// repair-identity adopt-pr-head command with id, revision, and PR number
 // filled in; no pr: or an unparseable one (Review Focus 2) gets the hand-edit
 // plus repository migrate remedy, never a fabricated PR number.
 func TestStatusBranchMalformedFindings(t *testing.T) {

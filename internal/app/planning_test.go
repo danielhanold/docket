@@ -417,8 +417,8 @@ func TestFailureStatus(t *testing.T) {
 		// (change 0350).
 		{"empty-disposition-typed-failure",
 			transaction.Result{},
-			&transaction.Failure{Stage: transaction.StageValidateRequest, Kind: transaction.KindInvalidInput, Detail: "invalid expectations", Err: errors.New("transaction: expected version object id must be 40 lowercase hex characters")},
-			&FailureStatus{Stage: string(transaction.StageValidateRequest), Kind: string(transaction.KindInvalidInput), Detail: "invalid expectations: transaction: expected version object id must be 40 lowercase hex characters"}},
+			&transaction.Failure{Stage: transaction.StageValidateRequest, Kind: transaction.KindInvalidInput, Detail: "invalid expectations", Err: errors.New("transaction: expected revision object id must be 40 lowercase hex characters")},
+			&FailureStatus{Stage: string(transaction.StageValidateRequest), Kind: string(transaction.KindInvalidInput), Detail: "invalid expectations: transaction: expected revision object id must be 40 lowercase hex characters"}},
 		{"empty-disposition-untyped-error",
 			transaction.Result{}, errors.New("bare"),
 			&FailureStatus{Kind: "internal-error", Detail: "bare"}},

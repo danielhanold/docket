@@ -95,7 +95,7 @@ func assertMergedFacts(t *testing.T, f MergedFacts) {
 		t.Errorf("MergeCommit = %q, want %q", f.MergeCommit, mrgMergeCommit)
 	}
 	if f.Revision == "" {
-		t.Error("Version is empty")
+		t.Error("Revision is empty")
 	}
 }
 

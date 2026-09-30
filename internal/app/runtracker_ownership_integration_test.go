@@ -70,7 +70,7 @@ func mxBlob(id int, slug string, record []byte) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Revision: miVersion,
+		Revision: miRevision,
 		Data:     record,
 	}
 }

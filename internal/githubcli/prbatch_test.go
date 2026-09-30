@@ -16,7 +16,7 @@ import (
 // decision/mergedAt/mergeCommit is emitted as JSON null (gh's shape), so a
 // decoder that keys on the object shape round-trips it. The head/base/title/body
 // reuse the ens* constants so a batch alias and a single ViewPullRequest of the
-// same PR carry byte-identical version inputs.
+// same PR carry byte-identical revision inputs.
 func batchAliasObj(number int, state string, decision *string, mergedAt, mergeCommitOID string) map[string]any {
 	m := map[string]any{
 		"number":      number,
@@ -253,10 +253,10 @@ func TestBatchGraphQLErrorsFailWholeBatchEvenHTTP200(t *testing.T) {
 	}
 }
 
-// TestBatchVersionMatchesSingleViewFixture: a batch alias and a single
-// ViewPullRequest decode of the same snapshot produce a byte-identical version —
+// TestBatchRevisionMatchesSingleViewFixture: a batch alias and a single
+// ViewPullRequest decode of the same snapshot produce a byte-identical revision —
 // the batch reuses the package's one normalization, never a second.
-func TestBatchVersionMatchesSingleViewFixture(t *testing.T) {
+func TestBatchRevisionMatchesSingleViewFixture(t *testing.T) {
 	single, err := decodePullRequest(probeOp, []byte(probePRJSONWithDecision(7, "OPEN", strPtr("APPROVED"))))
 	if err != nil {
 		t.Fatalf("decode single view: %v", err)
@@ -270,7 +270,7 @@ func TestBatchVersionMatchesSingleViewFixture(t *testing.T) {
 		t.Fatalf("pr 7 not found: %+v", got[7])
 	}
 	if got[7].PR.Revision != single.Revision {
-		t.Errorf("version mismatch:\n batch  %s\n single %s", got[7].PR.Revision, single.Revision)
+		t.Errorf("revision mismatch:\n batch  %s\n single %s", got[7].PR.Revision, single.Revision)
 	}
 	if got[7].PR.Approved != single.Approved {
 		t.Errorf("approval mismatch: batch=%v single=%v", got[7].PR.Approved, single.Approved)

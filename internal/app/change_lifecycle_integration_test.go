@@ -17,15 +17,15 @@ func TestIntegrationRecordOpsChangeLifecycleUnrelatedInvalidRecordProgress(t *te
 	recPath := groomPath(id, "widget")
 	rows := []struct {
 		name, from, want string
-		run              func(node realNode, version string) ChangeLifecycleResult
+		run              func(node realNode, revision string) ChangeLifecycleResult
 	}{
-		{name: "block", from: "in-progress", want: "blocked", run: func(node realNode, version string) ChangeLifecycleResult {
+		{name: "block", from: "in-progress", want: "blocked", run: func(node realNode, revision string) ChangeLifecycleResult {
 			return ChangeBlock(context.Background(), node.deps, node.dir,
-				ChangeBlockRequest{ChangeID: id, Path: recPath, Revision: version, Reason: "waiting on upstream"})
+				ChangeBlockRequest{ChangeID: id, Path: recPath, Revision: revision, Reason: "waiting on upstream"})
 		}},
-		{name: "defer", from: "proposed", want: "deferred", run: func(node realNode, version string) ChangeLifecycleResult {
+		{name: "defer", from: "proposed", want: "deferred", run: func(node realNode, revision string) ChangeLifecycleResult {
 			return ChangeDefer(context.Background(), node.deps, node.dir,
-				ChangeDeferRequest{ChangeID: id, Path: recPath, Revision: version, WhyDeferred: "Parked pending a decision.\n"})
+				ChangeDeferRequest{ChangeID: id, Path: recPath, Revision: revision, WhyDeferred: "Parked pending a decision.\n"})
 		}},
 	}
 	for _, r := range rows {
@@ -35,7 +35,7 @@ func TestIntegrationRecordOpsChangeLifecycleUnrelatedInvalidRecordProgress(t *te
 				unrelatedBrokenPath: unrelatedBrokenBytes,
 			})
 			node := planningDepsFor(t, repo.invocation)
-			res := r.run(node, blobVersionAt(t, repo.origin, "docket", recPath))
+			res := r.run(node, blobRevisionAt(t, repo.origin, "docket", recPath))
 			if res.Result != ResultApplied || res.Status != r.want {
 				t.Fatalf("%s beside an unrelated unparseable record = %q status %q (findings %v), want applied %q",
 					r.name, res.Result, res.Status, res.Findings, r.want)
@@ -56,7 +56,7 @@ func TestIntegrationRecordOpsChangeLifecycleUnrelatedInvalidRecordRefusals(t *te
 			tip := originTip(t, repo.origin, "docket")
 
 			res := ChangeBlock(context.Background(), node.deps, node.dir, ChangeBlockRequest{
-				ChangeID: id, Path: recPath, Revision: blobVersionAt(t, repo.origin, "docket", recPath), Reason: "waiting on upstream",
+				ChangeID: id, Path: recPath, Revision: blobRevisionAt(t, repo.origin, "docket", recPath), Reason: "waiting on upstream",
 			})
 			if res.Result == ResultApplied {
 				t.Fatalf("block applied despite %s; want a refusal", c.name)

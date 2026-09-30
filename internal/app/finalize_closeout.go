@@ -94,7 +94,7 @@ const (
 	// so the root cannot be carried; retarget/finish the descendants first.
 	CloseoutDispChildrenRetargetRequired = "children-retarget-required"
 	// CloseoutDispContended: a lost race the caller resolves by re-reading context
-	// (an unreachable merge commit, a stale record version).
+	// (an unreachable merge commit, a stale record revision).
 	CloseoutDispContended = "contended"
 	// CloseoutDispBlocked: a retained precondition refusal (an unmerged PR, an
 	// illegal source status, a destination that is neither the integration branch
@@ -359,7 +359,7 @@ type closeoutContext struct {
 	change            domain.Change
 	revision          string
 	body              []byte
-	blobRevisions     map[string]string // record path -> exact blob version
+	blobRevisions     map[string]string // record path -> exact blob revision
 	sources           map[string][]byte // record path -> exact record bytes
 	repo              gitcli.Repository
 	integrationBranch string

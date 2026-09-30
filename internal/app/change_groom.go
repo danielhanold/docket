@@ -35,7 +35,7 @@ import (
 // replaced one for a spec-body revise; the inline board) as one validated
 // atomic transaction. Grooming is a
 // non-allocating edit of an existing record, so it pins the submitted record
-// version with an exact-blob entity expectation rather than an idempotency key
+// revision with an exact-blob entity expectation rather than an idempotency key
 // (a spec-body revise also checks the linked spec file's blob id in Plan), and
 // it never touches claim metadata. It decides no lifecycle policy beyond the
 // groom gate the spec fixes here (proposed, needs-design, not yet trivial) and
@@ -268,7 +268,7 @@ func ChangeGroom(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 // document. A refusal from this operation is state-shaped (the groom gate, a
 // taken spec path, or an evolution refusal), so it maps onto invalid-state —
 // except a stale spec_revision, the spec file's analogue of a stale record
-// version, which maps onto contended like the engine's own pin mismatch.
+// revision, which maps onto contended like the engine's own pin mismatch.
 func changeGroomResultFromOutcome(res transaction.Result, execErr error) ChangeGroomResult {
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
 	if res.Disposition == transaction.DispositionRefused {
@@ -391,7 +391,7 @@ func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 	boundAuthored(&findings, "blocked_note", req.BlockedNote)
 
 	// A spec-body revise overwrites the linked spec file, so it must pin that
-	// file's version exactly like the record. Nothing else checks spec_revision,
+	// file's revision exactly like the record. Nothing else checks spec_revision,
 	// so it is refused anywhere else rather than silently ignored.
 	specRevise := req.Outcome == GroomRevise && strings.TrimSpace(req.SpecMarkdown) != ""
 	hasSpecRevision := strings.TrimSpace(req.SpecRevision) != ""

@@ -426,10 +426,10 @@ func reviveOp(surfaces []string, id int, recPath string) changeLifecycleOp {
 
 // pinnedShapeCases are the request-shape failures common to every pinned-entity
 // lifecycle request without an authored payload (unblock, revive): each
-// mutates the valid (id, path, version) triple and names the expected finding.
+// mutates the valid (id, path, revision) triple and names the expected finding.
 var pinnedShapeCases = []struct {
 	name string
-	mut  func(id *int, path, version *string)
+	mut  func(id *int, path, revision *string)
 	code string
 }{
 	{"non-positive change id", func(id *int, _, _ *string) { *id = 0 }, "invalid-change_id"},

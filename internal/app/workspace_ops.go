@@ -20,7 +20,7 @@ import (
 // pass through verbatim (no force, no retry-with-force).
 //
 // Prepare additionally gates the delegation on the change being in-progress at
-// the exact submitted version — the claim happens first, so a losing claimant
+// the exact submitted revision — the claim happens first, so a losing claimant
 // creates no workspace. Publish reinspects the workspace's current head and
 // refuses when it differs from the caller's expected head, before any push.
 //
@@ -47,7 +47,7 @@ const (
 	// for an unclaimed change.
 	ReasonWorkspaceNotInProgress = "not-in-progress"
 	// ReasonWorkspaceRevisionMismatch is returned by prepare when the record no
-	// longer carries the submitted version — the caller lost a race and must not
+	// longer carries the submitted revision — the caller lost a race and must not
 	// overwrite; it maps to a contended outcome.
 	ReasonWorkspaceRevisionMismatch = "revision-mismatch"
 	// ReasonWorkspaceUnresolvedBase is returned when the change's effective base
@@ -162,7 +162,7 @@ func newWorkspaceResult(opKey string, result Result, out WorkspaceOpResult) Work
 }
 
 // workspaceContext is everything a workspace operation reads before it can build
-// a target and delegate: the resolved change, its exact record version, the
+// a target and delegate: the resolved change, its exact record revision, the
 // effective base, and the discovered repository.
 type workspaceContext struct {
 	change   domain.Change
@@ -283,7 +283,7 @@ func resolveWorkspaceTarget(opKey string, wc workspaceContext) (workspace.Target
 
 // WorkspacePrepare resolves the change's workspace target and delegates to the
 // service's ownership-safe, idempotent Prepare. It refuses before any Git work
-// unless the change is in-progress at the exact submitted version — the claim
+// unless the change is in-progress at the exact submitted revision — the claim
 // lands first, so a losing claimant never allocates a workspace.
 func WorkspacePrepare(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req WorkspaceIDRequest) WorkspaceOpResult {
 	wc, refusal := loadWorkspaceContext(ctx, deps, repoDir, req.ID, OperationWorkspacePrepare)
@@ -292,8 +292,8 @@ func WorkspacePrepare(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDep
 	}
 
 	// The claim must have landed first: the change is in-progress at the exact
-	// version the caller pinned. A non-in-progress change is a state refusal; a
-	// version drift is a lost race, reported as contended so the caller stops.
+	// revision the caller pinned. A non-in-progress change is a state refusal; a
+	// revision drift is a lost race, reported as contended so the caller stops.
 	if wc.change.Status() != domain.StatusInProgress {
 		return newWorkspaceResult(OperationWorkspacePrepare, ResultInvalidState, WorkspaceOpResult{
 			ID:      req.ID,

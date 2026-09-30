@@ -194,7 +194,7 @@ func decodeBatchResponse(op string, numbers []int, stdout []byte) (map[int]Batch
 
 // decodeBatchAlias resolves one non-null alias to a result. It reuses the
 // package's single normalization (toPullRequest) so approval, state, oid
-// validation, and the version token match a single view exactly. Any decode or
+// validation, and the revision token match a single view exactly. Any decode or
 // validation hazard — malformed JSON, a rejected required field, a server number
 // that disagrees with the request, or a merged PR missing its merge facts — is
 // Found=false for this slot, never an error that fails the batch.

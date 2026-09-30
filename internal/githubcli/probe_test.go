@@ -43,12 +43,12 @@ func probePRJSONWithDecision(number int, state string, decision *string) string 
 	return string(b)
 }
 
-// TestVersionExcludesReviewDecision: the write-CAS token must not depend on
+// TestRevisionExcludesReviewDecision: the write-CAS token must not depend on
 // review state — the same PR yields one token whether it arrived approved via
 // the exact view or decision-free via a standard read. The Approved inequality
 // assert keeps the fixture honest: if both documents decoded to the same
-// Approved, equal versions would prove nothing.
-func TestVersionExcludesReviewDecision(t *testing.T) {
+// Approved, equal revisions would prove nothing.
+func TestRevisionExcludesReviewDecision(t *testing.T) {
 	approved, err := decodePullRequest("probe", []byte(probePRJSONWithDecision(7, "OPEN", strPtr("APPROVED"))))
 	if err != nil {
 		t.Fatalf("decode approved: %v", err)
@@ -61,7 +61,7 @@ func TestVersionExcludesReviewDecision(t *testing.T) {
 		t.Fatalf("fixture vacuous: both documents decode to Approved=%v", approved.Approved)
 	}
 	if approved.Revision != plain.Revision {
-		t.Errorf("Version differs on review state alone:\n approved %s\n plain    %s", approved.Revision, plain.Revision)
+		t.Errorf("Revision differs on review state alone:\n approved %s\n plain    %s", approved.Revision, plain.Revision)
 	}
 }
 

@@ -157,7 +157,7 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 		{"gate-stale-evidence", func(in *mergeConjunctInputs) { in.evidenceHead = "other" }, "gate-unsatisfied"},
 		{"approval", func(in *mergeConjunctInputs) { in.explicitID = false; in.requireApproval = true }, "approval-required"},
 		{"open-children", func(in *mergeConjunctInputs) { in.unretargetedOpenChildren = 1 }, "open-children"},
-		{"superseded-version", func(in *mergeConjunctInputs) { in.revisionMatches = false }, "superseded"},
+		{"superseded-revision", func(in *mergeConjunctInputs) { in.revisionMatches = false }, "superseded"},
 		{"superseded-blocked", func(in *mergeConjunctInputs) { in.explicitID = false; in.finalizeBlocked = true }, "superseded"},
 	}
 	for _, tc := range cases {
@@ -171,7 +171,7 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 	}
 
 	// The overridable conjuncts: an explicit id satisfies approval and a
-	// finalize-blocked marker, but never a superseding version.
+	// finalize-blocked marker, but never a superseding revision.
 	t.Run("explicit-id-overrides-approval", func(t *testing.T) {
 		in := good
 		in.explicitID = true
@@ -188,12 +188,12 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 			t.Fatalf("explicit id did not satisfy the finalize-blocked marker: %q", got)
 		}
 	})
-	t.Run("explicit-id-never-overrides-version", func(t *testing.T) {
+	t.Run("explicit-id-never-overrides-revision", func(t *testing.T) {
 		in := good
 		in.explicitID = true
 		in.revisionMatches = false
 		if got := mergeConjuncts(in).FirstFailure(); got != "superseded" {
-			t.Fatalf("explicit id wrongly overrode a superseding version: %q", got)
+			t.Fatalf("explicit id wrongly overrode a superseding revision: %q", got)
 		}
 	})
 }
@@ -251,13 +251,13 @@ func TestIntegrationFinalizeMergeConjunctsRechecked(t *testing.T) {
 		assertMergeRefusal(t, res, gh, "gate-unsatisfied")
 	})
 
-	// Metadata-shaped cases: a stale version, a durable finalize-blocked marker,
+	// Metadata-shaped cases: a stale revision, a durable finalize-blocked marker,
 	// and a not-implemented status.
-	t.Run("superseded-version", func(t *testing.T) {
+	t.Run("superseded-revision", func(t *testing.T) {
 		f := setupMergeFixture(t, m)
 		gh := f.baselineFake(t)
 		req := mergeReq(f, f.head, true, false)
-		req.Revision = "sha256:" + strings.Repeat("f", 64) // stale; explicit id never overrides a version
+		req.Revision = "sha256:" + strings.Repeat("f", 64) // stale; explicit id never overrides a revision
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, req)
 		assertMergeRefusal(t, res, gh, "superseded")
 	})
@@ -336,7 +336,7 @@ func TestIntegrationFinalizeMergeDeniedCarriesMethod(t *testing.T) {
 
 // TestFinalizeMergeExplicitIDOverrides proves an explicit id satisfies the
 // finalize-blocked skip but never overrides wrong PR identity, an unsafe stack,
-// or the repair sign-off (gate), and never a superseding version.
+// or the repair sign-off (gate), and never a superseding revision.
 func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
@@ -382,7 +382,7 @@ func TestIntegrationFinalizeMergeExplicitIDOverrides(t *testing.T) {
 		assertMergeRefusal(t, res, gh, "gate-unsatisfied")
 	})
 
-	t.Run("explicit-id-does-not-override-superseding-version", func(t *testing.T) {
+	t.Run("explicit-id-does-not-override-superseding-revision", func(t *testing.T) {
 		f := setupMergeFixture(t, m)
 		gh := f.baselineFake(t)
 		req := mergeReq(f, f.head, true, false)

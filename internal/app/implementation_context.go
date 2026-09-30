@@ -67,7 +67,7 @@ type ContextEntitySummary struct {
 
 // ContextEntity is one document the bundle carries: its canonical repo-relative
 // path, exact loss-preserving source bytes (base64 in JSON, as a Go []byte),
-// opaque entity version (blob object id), and — for a record — its parsed
+// opaque record revision (blob object id), and — for a record — its parsed
 // summary. A zero ContextEntity (empty Path) means the bundle carries no such
 // document (e.g. a trivial change with no spec).
 type ContextEntity struct {

@@ -41,7 +41,7 @@ func runStartCorpus() []StatusBlob {
 			Kind:     repository.KindChange,
 			Location: repository.LocationActive,
 			Path:     groomPath(id, slug),
-			Revision: miVersion,
+			Revision: miRevision,
 			Data:     []byte(lifecycleChange(id, slug, status)),
 		}
 	}

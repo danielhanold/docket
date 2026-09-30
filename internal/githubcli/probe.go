@@ -23,7 +23,7 @@ const probeOp = "probe-pull-requests"
 
 // ViewPullRequest reads ONE pull request by repository identity and exact
 // positive number, returning the full normalized snapshot (state — open,
-// closed, or merged — head branch, head object id, base branch, version). It
+// closed, or merged — head branch, head object id, base branch, revision). It
 // reuses decodePullRequest: one JSON interpretation, never a second. It alone
 // requests reviewDecision (prViewJSONFields), so the snapshot's Approved
 // reflects GitHub's review decision. --repo is

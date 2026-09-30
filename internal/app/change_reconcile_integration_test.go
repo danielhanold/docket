@@ -23,7 +23,7 @@ func TestIntegrationRecordOpsChangeReconcileUnrelatedInvalidRecordProgress(t *te
 	node := planningDepsFor(t, repo.invocation)
 
 	res := ChangeReconcile(context.Background(), node.deps, node.dir, ChangeReconcileRequest{
-		ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath), ReconcileLogEntry: "Reconciled against current reality.\n",
+		ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath), ReconcileLogEntry: "Reconciled against current reality.\n",
 	})
 	if res.Result != ResultApplied {
 		t.Fatalf("reconcile beside an unrelated unparseable record = %q (disposition %q findings %v), want applied",
@@ -47,7 +47,7 @@ func TestIntegrationRecordOpsChangeReconcileUnrelatedInvalidRecordRefusals(t *te
 			tip := originTip(t, repo.origin, "docket")
 
 			res := ChangeReconcile(context.Background(), node.deps, node.dir, ChangeReconcileRequest{
-				ID: id, Revision: blobVersionAt(t, repo.origin, "docket", recPath), ReconcileLogEntry: "Reconciled.\n",
+				ID: id, Revision: blobRevisionAt(t, repo.origin, "docket", recPath), ReconcileLogEntry: "Reconciled.\n",
 			})
 			if res.Result == ResultApplied {
 				t.Fatalf("reconcile applied despite %s; want a refusal", c.name)

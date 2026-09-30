@@ -95,7 +95,7 @@ func runTrackerHaltedInProgressBlob(id int, slug string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Revision: miVersion,
+		Revision: miRevision,
 		Data:     []byte(src),
 	}
 }
@@ -107,7 +107,7 @@ func runTrackerProposedBlob(id int, slug string) StatusBlob {
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
 		Path:     groomPath(id, slug),
-		Revision: miVersion,
+		Revision: miRevision,
 		Data:     []byte(lifecycleChange(id, slug, "proposed")),
 	}
 }

@@ -335,7 +335,7 @@ func (r *gitRepo) writerAdvance(t *testing.T, branch string, files map[string]st
 }
 
 // blobID reads the object id of a repo-relative path at a revision from the
-// writer clone — the oracle every version assertion compares against.
+// writer clone — the oracle every revision assertion compares against.
 func (r *gitRepo) blobID(t *testing.T, dir, rev, path string) string {
 	t.Helper()
 	return runGit(t, dir, "rev-parse", rev+":"+path)

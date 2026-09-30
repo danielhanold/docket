@@ -20,7 +20,7 @@ type OperationKey string
 // RevisionKind distinguishes the two states an entity expectation can pin.
 type RevisionKind string
 
-// The closed set of version kinds.
+// The closed set of revision kinds.
 const (
 	RevisionBlob   RevisionKind = "blob"
 	RevisionAbsent RevisionKind = "absent"
@@ -33,7 +33,7 @@ type ExpectedRevision struct {
 	ObjectID gitcli.ObjectID // required for blob (full hex, exact); must be empty for absent
 }
 
-// EntityExpectation binds a repo-relative path to its expected version.
+// EntityExpectation binds a repo-relative path to its expected revision.
 type EntityExpectation struct {
 	Path     gitcli.RepoPath
 	Revision ExpectedRevision
@@ -135,7 +135,7 @@ func validateRepoPathValue(p gitcli.RepoPath) error {
 	return nil
 }
 
-// validateExpectations checks every expectation's path and version shape and
+// validateExpectations checks every expectation's path and revision shape and
 // rejects duplicate paths.
 func validateExpectations(exps []EntityExpectation) error {
 	seen := make(map[gitcli.RepoPath]struct{}, len(exps))
@@ -153,7 +153,7 @@ func validateExpectations(exps []EntityExpectation) error {
 				return errors.New("transaction: absent expectation must have empty object id")
 			}
 		default:
-			return errors.New("transaction: expectation has unknown version kind")
+			return errors.New("transaction: expectation has unknown revision kind")
 		}
 		if _, dup := seen[e.Path]; dup {
 			return errors.New("transaction: duplicate expectation path")

@@ -115,7 +115,7 @@ func mergePRRef() string { return "github.com/acme/widget#7" }
 // a canonical PR reference — the exact state `finalize merge` consumes.
 type mergeFixture struct {
 	*rebaseFixture
-	version string // the fresh record blob version after the pr-reference patch
+	revision string // the fresh record blob revision after the pr-reference patch
 }
 
 // mergeParentRecord is the parent lifecycle record carrying a canonical PR
@@ -146,12 +146,12 @@ func childRecord(id int, slug string, parent int, pr string) string {
 }
 
 // patchParent rewrites the parent record on the metadata branch and returns the
-// fresh blob version.
+// fresh blob revision.
 func (f *mergeFixture) patchParent(t *testing.T, status, pr, extraBody string) string {
 	t.Helper()
 	f.repo.writerAdvance(t, f.branch, map[string]string{groomPath(f.id, f.slug): mergeParentRecord(f.id, f.slug, status, pr, extraBody)})
-	f.version = blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
-	return f.version
+	f.revision = blobRevisionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
+	return f.revision
 }
 
 // setupMergeFixture builds the real published feature workspace and patches the
@@ -212,7 +212,7 @@ func mergedFactsFor(head, base, mergeCommit string) githubcli.MergedFacts {
 }
 
 func mergeReq(f *mergeFixture, head string, explicit, admin bool) FinalizeMergeRequest {
-	return FinalizeMergeRequest{ID: f.id, Revision: f.version, Head: head, Admin: admin, ExplicitID: explicit}
+	return FinalizeMergeRequest{ID: f.id, Revision: f.revision, Head: head, Admin: admin, ExplicitID: explicit}
 }
 
 // --- TestMergeConjuncts (pure) --------------------------------------------

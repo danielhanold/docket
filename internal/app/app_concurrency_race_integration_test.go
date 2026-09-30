@@ -232,8 +232,8 @@ func TestRaceIntegrationAppConcurrencyPlanningConcurrentUnrelatedMutationsBothLa
 				widgetPath: lifecycleChange(3, "widget", "in-progress"),
 				gadgetPath: lifecycleChange(4, "gadget", "proposed"),
 			})
-			widgetVer := blobVersionAt(t, repo.origin, m.branch, widgetPath)
-			gadgetVer := blobVersionAt(t, repo.origin, m.branch, gadgetPath)
+			widgetVer := blobRevisionAt(t, repo.origin, m.branch, widgetPath)
+			gadgetVer := blobRevisionAt(t, repo.origin, m.branch, gadgetPath)
 
 			// Two independent clones: block on A ∥ defer on B.
 			nodeA := planningDepsFor(t, cloneOrigin(t, repo.origin))
@@ -300,7 +300,7 @@ func TestRaceIntegrationAppConcurrencyPlanningConcurrentUnrelatedMutationsBothLa
 }
 
 // race shard (change 0333): two goroutines mutate the same entity concurrently; -race guards the shared adapter/transaction paths.
-func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneContends(t *testing.T) {
+func TestRaceIntegrationAppConcurrencyPlanningSameEntityRevisionOneAppliesOneContends(t *testing.T) {
 	requireRealGit(t)
 	for _, m := range planRepoModes() {
 		m := m
@@ -309,7 +309,7 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneCont
 			repo := m.build(t, map[string]string{
 				recPath: lifecycleChange(3, "widget", "in-progress"),
 			})
-			ver := blobVersionAt(t, repo.origin, m.branch, recPath)
+			ver := blobRevisionAt(t, repo.origin, m.branch, recPath)
 
 			nodeA := planningDepsFor(t, cloneOrigin(t, repo.origin))
 			nodeB := planningDepsFor(t, cloneOrigin(t, repo.origin))
@@ -346,7 +346,7 @@ func TestRaceIntegrationAppConcurrencyPlanningSameEntityVersionOneAppliesOneCont
 				}
 			}
 			if applied != 1 || contended != 1 {
-				t.Fatalf("same-version race: applied=%d contended=%d, want exactly one of each", applied, contended)
+				t.Fatalf("same-revision race: applied=%d contended=%d, want exactly one of each", applied, contended)
 			}
 		})
 	}

@@ -19,7 +19,7 @@ import (
 )
 
 // This file is the `change claim` and `change refresh-claim` planning
-// operations: two exact-version metadata transitions that land a change's claim
+// operations: two exact-revision metadata transitions that land a change's claim
 // fields and every affected v1-owned derived view (the change record's owned
 // lifecycle fields, its refreshed updated date, its re-rendered artifact block,
 // and the inline board) as one validated atomic transaction. The domain owns
@@ -33,11 +33,11 @@ import (
 // refused rather than applied on stale facts. That in-transaction re-proof is
 // the load-bearing guard the refusal table mutation-tests.
 //
-// Claim carries an idempotency key derived from its own (id, version) request so
+// Claim carries an idempotency key derived from its own (id, revision) request so
 // a lost response replays the original applied receipt as `already-claimed`
 // rather than allocating a second claim; a foreign edit that moved the record
-// fails the exact-version expectation as `contended`. Refresh is a small
-// non-keyed exact-version transaction — a version mismatch is `contended`, which
+// fails the exact-revision expectation as `contended`. Refresh is a small
+// non-keyed exact-revision transaction — a revision mismatch is `contended`, which
 // instructs the caller to stop, never to overwrite a newer record. Neither
 // operation clears or steals an expired claim; reclaim is 0316.
 
@@ -74,7 +74,7 @@ const (
 
 // ChangeClaimRequest is the closed, caller-supplied request for one claim or
 // refresh-claim. ID names the change; Revision pins the exact submitted record
-// blob (the version the authoritative context read reported).
+// blob (the revision the authoritative context read reported).
 type ChangeClaimRequest struct {
 	ID       int    `json:"id" docket:"required"`
 	Revision string `json:"revision" docket:"required"`
@@ -94,9 +94,9 @@ type claimDigestPayload struct {
 	ID       int    `json:"id"`
 	Revision string `json:"version"`
 	// RunContextHash folds the hashed run context into the idempotency
-	// identity so two dispatches submitting the same (id, version) under different
+	// identity so two dispatches submitting the same (id, revision) under different
 	// contexts do not share the replay path (change 0407). An ungated claim leaves
-	// it "", which is the pre-0407 identity for that (id, version).
+	// it "", which is the pre-0407 identity for that (id, revision).
 	RunContextHash string `json:"gate_context_hash"`
 }
 
@@ -184,7 +184,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 
 	// Resolve the record's current path and the branch facts the in-transaction
 	// eligibility re-proof consults, from one pre-read of the corpus. The request
-	// carries only (id, version); the path is derived here so the exact-version
+	// carries only (id, revision); the path is derived here so the exact-revision
 	// expectation can pin the record, and the facts feed effective-base
 	// resolution (an unstacked change resolves without them). This pre-read is a
 	// supporting observation; the authoritative record state is re-read fresh
@@ -294,10 +294,10 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 }
 
 // ChangeRefreshClaim validates the request, pins authoritative context, and
-// drives one small non-keyed exact-version transaction that re-stamps the
+// drives one small non-keyed exact-revision transaction that re-stamps the
 // change's claimed_at (plus its refreshed updated date and derived views) and
 // nothing else. It requires the change to still be in-progress at the exact
-// submitted version; a mismatch is `contended`, which stops the run rather than
+// submitted revision; a mismatch is `contended`, which stops the run rather than
 // overwriting a newer record.
 func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeClaimRequest) ChangeClaimResult {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
@@ -310,7 +310,7 @@ func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, 
 		return *pre
 	}
 
-	// Resolve the record's current path (the request carries only id + version).
+	// Resolve the record's current path (the request carries only id + revision).
 	// Refresh consults no branch facts — it re-proves nothing about readiness —
 	// so the resolved facts are discarded.
 	recPath, _, _, terr := resolveClaimTarget(ctx, deps, pin, eff, req.ID, OperationChangeRefreshClaim)
@@ -441,7 +441,7 @@ func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, e
 }
 
 // claimRequestID derives the idempotency request id for a claim from its own
-// (id, version) content, so a lost-response retry of the same request reuses the
+// (id, revision) content, so a lost-response retry of the same request reuses the
 // key and replays the original receipt. Revision is a full-hex blob id, so the
 // composed id satisfies the engine's request-id grammar.
 func claimRequestID(req ChangeClaimRequest) string {

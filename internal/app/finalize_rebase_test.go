@@ -146,7 +146,7 @@ type rebaseFixture struct {
 	wp           string
 	head         string
 	baseTip      string
-	version      string
+	revision     string
 	metaDir      string
 	id           int
 	slug         string
@@ -208,20 +208,20 @@ func setupRebaseFixtureStatus(t *testing.T, m planRepoMode, status string) *reba
 	}
 
 	return &rebaseFixture{
-		t:       t,
-		repo:    repo,
-		deps:    node.deps,
-		svc:     svc,
-		gitrepo: gitrepo,
-		target:  target,
-		wp:      wp,
-		head:    head,
-		baseTip: baseTip,
-		version: blobVersionAt(t, repo.origin, m.branch, recPath),
-		metaDir: workspace.MetaDir(gitrepo.CommonDir, target.FeatureRef),
-		id:      id,
-		slug:    slug,
-		branch:  m.branch,
+		t:        t,
+		repo:     repo,
+		deps:     node.deps,
+		svc:      svc,
+		gitrepo:  gitrepo,
+		target:   target,
+		wp:       wp,
+		head:     head,
+		baseTip:  baseTip,
+		revision: blobRevisionAt(t, repo.origin, m.branch, recPath),
+		metaDir:  workspace.MetaDir(gitrepo.CommonDir, target.FeatureRef),
+		id:       id,
+		slug:     slug,
+		branch:   m.branch,
 	}
 }
 
@@ -439,7 +439,7 @@ func setupConflictedRebase(t *testing.T, m planRepoMode) (*rebaseFixture, Finali
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 	deps := f.finalizeDeps(gh, gate)
 	res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if res.Disposition != RebaseDispConflicted || res.Attempt == "" {
 		t.Fatalf("expected a conflicted rebase with an attempt token, got disp %q reason %q msg %q", res.Disposition, res.Reason, res.Message)
 	}
@@ -535,7 +535,7 @@ func beginConflictedWithLimit(t *testing.T, limit int) (*rebaseFixture, Finalize
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 	deps := f.finalizeDeps(gh, gate)
 	res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if res.Disposition != RebaseDispConflicted {
 		t.Fatalf("fresh rebase = disp %q (reason %q msg %q), want conflicted", res.Disposition, res.Reason, res.Message)
 	}
@@ -592,7 +592,7 @@ func completedBudgetedReceipt(t *testing.T, seed func(*workspace.RebaseReceipt))
 	ctx := context.Background()
 	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 	first := FinalizeRebase(ctx, f.finalizeDeps(gh, &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}),
-		f.repo.invocation, FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		f.repo.invocation, FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if first.Disposition != RebaseDispRebased {
 		t.Fatalf("first rebase = %q, want rebased", first.Disposition)
 	}

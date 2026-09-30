@@ -87,7 +87,7 @@ func decodeSolePullRequest(op string, data []byte) (PullRequest, error) {
 	}
 }
 
-// toPullRequest validates the decoded fields and computes the version. Every
+// toPullRequest validates the decoded fields and computes the revision. Every
 // required field is checked; the state enum is mapped from GitHub's uppercase
 // form; the head object id is validated as full lowercase hex.
 func (raw prViewJSON) toPullRequest(op string) (PullRequest, error) {
@@ -224,7 +224,7 @@ func computeRevision(pr PullRequest) string {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
 
-// boolFlag renders a bool as the single-byte "t"/"f" token the version snapshot
+// boolFlag renders a bool as the single-byte "t"/"f" token the revision snapshot
 // uses.
 func boolFlag(b bool) string {
 	if b {

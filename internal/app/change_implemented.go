@@ -24,7 +24,7 @@ import (
 // source and proven to still agree. It composes the read-only planning seams,
 // the workspace engine (local head), the Git client (remote head), the GitHub
 // adapter (the ready PR), and the reparsed build-evidence bytes, then applies the
-// landed domain.MarkImplemented action through one atomic, exact-version
+// landed domain.MarkImplemented action through one atomic, exact-revision
 // transaction that records the PR reference, status, updated date, artifact
 // block, inline board, and an audit receipt. It does NOT clear the claim, delete
 // a branch or workspace, merge the PR, archive the change, or close descendants
@@ -33,7 +33,7 @@ import (
 // The load-bearing property is the FIVE-CONJUNCT reprobe, all done before the
 // transaction opens (so a refusal invokes no engine and writes nothing):
 //
-//	(1) the change is still the exact in-progress version, reconciled, and linked
+//	(1) the change is still the exact in-progress revision, reconciled, and linked
 //	    to the verified plan;
 //	(2) local and remote feature heads both equal the supplied head;
 //	(3) valid build evidence names that head and a passed gate;
@@ -73,7 +73,7 @@ const (
 	// be marked implemented (conjunct 1); maps to invalid-state.
 	ReasonImplementedNotInProgress = "not-in-progress"
 	// ReasonImplementedRevisionMismatch: the record moved since the submitted
-	// version (conjunct 1) — a lost race; maps to a contended outcome.
+	// revision (conjunct 1) — a lost race; maps to a contended outcome.
 	ReasonImplementedRevisionMismatch = "revision-mismatch"
 	// ReasonImplementedNotReconciled: the change is not reconciled (conjunct 1).
 	ReasonImplementedNotReconciled = "not-reconciled"
@@ -139,14 +139,14 @@ type MarkImplementedRequest struct {
 }
 
 // ChangeMarkImplemented reprobes the five implemented-transition conjuncts from
-// their authoritative sources and, only when all agree, applies the exact-version
+// their authoritative sources and, only when all agree, applies the exact-revision
 // transaction that records the implemented transition. It returns a
 // ChangeLifecycleResult; a pre-transaction refusal carries the offending
 // conjunct's stable reason as its finding code.
 func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps, repoDir string, req MarkImplementedRequest) ChangeLifecycleResult {
 	op := OperationChangeMarkImplemented
 
-	// (0) Request shape: a positive id, a non-empty version, a full-hex head, a
+	// (0) Request shape: a positive id, a non-empty revision, a full-hex head, a
 	// non-empty PR reference, and non-empty evidence bytes.
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Revision), FCEmptyPath)
 	if !validFullOID(req.Head) {
@@ -211,7 +211,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			fmt.Sprintf("change %04d is already implemented with a different PR reference", req.ID), req.ID)
 	}
 
-	// (Conjunct 1) exact in-progress version, reconciled, linked to a plan.
+	// (Conjunct 1) exact in-progress revision, reconciled, linked to a plan.
 	if c.Status() != domain.StatusInProgress {
 		return implementedRefusal(ResultInvalidState, ReasonImplementedNotInProgress,
 			fmt.Sprintf("change %04d is %q, not in-progress", req.ID, c.RawStatus()), req.ID)
@@ -306,7 +306,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		return *r
 	}
 
-	// Every conjunct holds: open the exact-version transaction that applies
+	// Every conjunct holds: open the exact-revision transaction that applies
 	// domain.MarkImplemented and re-renders the derived views.
 	// Record the verified PR's canonical URL (never the owner/repo#N shorthand):
 	// it is the only board-safe form — boardPRCell renders "[#N](url)" from a URL
@@ -360,7 +360,7 @@ func mapImplementedGitHubFailure(err error, id int) ChangeLifecycleResult {
 
 // resolveImplementedChange reads the corpus once, builds the snapshot, and
 // returns the change named by id together with its current record path and exact
-// entity version. An id that names no single record is a typed refusal.
+// record revision. An id that names no single record is a typed refusal.
 func resolveImplementedChange(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int) (domain.Change, string, string, *ChangeLifecycleResult) {
 	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
 	if err != nil {
@@ -404,7 +404,7 @@ func resolveImplementedChange(ctx context.Context, deps PlanningDeps, pin Status
 // satisfies the final results content contract (results-content-invalid, naming
 // the first finding). The tracked-file reprobe catches a later fix that deleted or
 // replaced the recorded artifact; the backlink and content reprobes catch a head
-// whose results were edited away from the version attach-results validated.
+// whose results were edited away from the revision attach-results validated.
 func verifyImplementedResults(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, head, resultsPath string, ch domain.Change, link render.LinkContext, id int) *ChangeLifecycleResult {
 	src, err := deps.Client.OpenObjectSource(ctx, repo, gitcli.Revision{Commit: gitcli.ObjectID(head)})
 	if err != nil {

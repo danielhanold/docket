@@ -91,7 +91,7 @@ const (
 	// the sweep dispatched no mutation for this item and moved on.
 	ReasonSweepReloadFailed = "reload-failed"
 	// ReasonSweepReclaimRevisionMissing: the reloaded record carried no usable
-	// blob version to pin the exact-version reclaim; nothing was dispatched.
+	// blob revision to pin the exact-revision reclaim; nothing was dispatched.
 	ReasonSweepReclaimRevisionMissing = "reclaim-revision-missing"
 	// ReasonSweepScopeInvalid: the typed scope was outside the closed
 	// vocabulary; the sweep read nothing and dispatched nothing.
@@ -501,7 +501,7 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 }
 
 // sweepInventory is one authoritative read: the built snapshot plus the exact
-// blob version of every change record, keyed by active path.
+// blob revision of every change record, keyed by active path.
 type sweepInventory struct {
 	snap           domain.Snapshot
 	revisionByPath map[string]string
@@ -689,7 +689,7 @@ func sweepRunCleanup(ctx context.Context, ops sweepOps, id int) MaintenanceEntry
 // sweepRunReclaim gates the reclaim on reclaim.auto: when it is off the eligible
 // record is surfaced as skipped and nothing is prepared or dispatched; when it
 // is on the sweep prepares ONE fresh metadata observation to pin the exact blob
-// version and dispatches the verified reclaim against it.
+// revision and dispatches the verified reclaim against it.
 func sweepRunReclaim(ctx context.Context, eff config.Effective, ops sweepOps, id int) MaintenanceEntry {
 	if !eff.Reclaim.Auto.Value {
 		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepReclaimAutoDisabled,
@@ -714,7 +714,7 @@ func sweepRunReclaim(ctx context.Context, eff config.Effective, ops sweepOps, id
 	}
 }
 
-// sweepObservedRevision reads the record's presence and exact blob version from
+// sweepObservedRevision reads the record's presence and exact blob revision from
 // one prepared observation — the shared authority the attempt already fetched,
 // never a fresh re-pin. present is false when the record is absent or ambiguous
 // in that observation; a successful fetch with a missing record is a vanished

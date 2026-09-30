@@ -28,11 +28,11 @@ import (
 // line endings, unrelated files — stays byte-identical.
 //
 // It is a non-allocating edit of an existing record, so it pins the submitted
-// record version with an exact-blob entity expectation rather than an
+// record revision with an exact-blob entity expectation rather than an
 // idempotency key. A record whose fresh status is no longer in-progress is an
 // incompatible fresh state: the operation refuses and writes nothing, and the
 // result maps that refusal onto `contended` — it never text-merges two authored
-// decisions (a stale version is the engine's own CAS contention).
+// decisions (a stale revision is the engine's own CAS contention).
 
 // OperationChangeReconcile is the operation key `change reconcile` records in
 // its result envelope and its transaction trailer.
@@ -138,7 +138,7 @@ type changeReconcileReceipt struct {
 }
 
 // ChangeReconcile validates the request, pins authoritative context, resolves
-// the record's canonical path, and drives one atomic exact-version transaction
+// the record's canonical path, and drives one atomic exact-revision transaction
 // that reconciles the change and — when inline is enabled — re-renders the
 // board. Every failure that predates the transaction (bad request shape, a
 // fenced board surface, a corpus-read failure) returns without an engine call.
@@ -169,7 +169,7 @@ func ChangeReconcile(ctx context.Context, deps PlanningDeps, repoDir string, req
 	}
 
 	// Resolve the record's current canonical path from one corpus pre-read; the
-	// request carries only (id, version). Reconcile consults no branch facts — it
+	// request carries only (id, revision). Reconcile consults no branch facts — it
 	// re-proves nothing about readiness — so the resolved facts are discarded.
 	// This pre-read is a supporting observation; the authoritative record state is
 	// re-read fresh inside the transaction.

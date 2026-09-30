@@ -459,7 +459,7 @@ func matchesFilter(c domain.Change, types []string, priorities []domain.Priority
 
 // statusChange translates one active change into its displayed row: stored
 // fields verbatim, plus the readiness, dependency, and stack facts the domain
-// derived, and the blob version keyed by path.
+// derived, and the blob revision keyed by path.
 func statusChange(snap domain.Snapshot, c domain.Change, facts domain.BranchFacts, readySet map[domain.ChangeID]bool, blobByPath map[string]StatusBlob) StatusChange {
 	readiness := domain.EvaluateReadiness(snap, c, facts)
 
@@ -559,7 +559,7 @@ func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c d
 // the same predicate the whole-corpus probe filters on — change 0454). The
 // remedy is branched on the same condition that decides which repair can work
 // in this exact state: a parseable pr: names the typed repair-identity
-// adopt-pr-head command with the id, record version, and PR number filled in
+// adopt-pr-head command with the id, record revision, and PR number filled in
 // (the head branch must be read from the PR itself — status stays offline);
 // otherwise no typed operation edits branch:, so the remedy is the hand edit
 // plus repository migrate to re-render the board. An absent or empty branch:

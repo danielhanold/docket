@@ -27,7 +27,7 @@ import (
 // whether the current status may take the transition and yield the exact
 // FieldChanges to apply, so this layer decides no lifecycle policy of its own.
 // Every operation edits an existing record, so each pins the submitted record
-// version with an exact-blob entity expectation rather than an idempotency key.
+// revision with an exact-blob entity expectation rather than an idempotency key.
 // None inspects any process, branch, worktree, or PR state.
 
 // OperationChangeBlock, OperationChangeDefer, OperationChangeUnblock, and
@@ -203,7 +203,7 @@ func ChangeRevive(ctx context.Context, deps PlanningDeps, repoDir string, req Ch
 
 // executeChangeLifecycle is the shared driver every transition composes after
 // their own request-shape validation: it pins context, fences the board
-// surface, discovers the repository, and submits one exact-version transaction
+// surface, discovers the repository, and submits one exact-revision transaction
 // carrying the supplied domain action and section edits.
 func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opKey string,
 	id int, recPath, revision string,
@@ -284,7 +284,7 @@ func lifecycleResultFromOutcome(opKey string, res transaction.Result, execErr er
 }
 
 // validateLifecycleShape runs the pinned-entity request checks common to every
-// transition: a positive change id and non-empty path and version. idKey is the
+// transition: a positive change id and non-empty path and revision. idKey is the
 // JSON key the caller's request actually decodes the id field under ("id" or
 // "change_id"), so the id-shape finding names the real key in its message; its
 // code is the registered FindingCode invalidIDCode selects for that key by a

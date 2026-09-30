@@ -32,7 +32,7 @@ func TestIntegrationMergeRetargetProbeActVerify(t *testing.T) {
 	// The PR as first probed: open, at the old base.
 	atOld := ensPRJSON(7, "OPEN", false, ensHead, ensHeadOid, oldBase, ensTitle, ensBody)
 	atNew := ensPRJSON(7, "OPEN", false, ensHead, ensHeadOid, newBase, ensTitle, ensBody)
-	oldVersion := mustDecodeOne(t, atOld).Revision
+	oldRevision := mustDecodeOne(t, atOld).Revision
 
 	t.Run("retargeted", func(t *testing.T) {
 		c, log := newFakeClient(t, fakeScenario{
@@ -43,7 +43,7 @@ func TestIntegrationMergeRetargetProbeActVerify(t *testing.T) {
 				retViewArm(atNew, 0), // verify: at new base
 			},
 		})
-		out, pr, err := c.RetargetPullRequest(context.Background(), retRepo(), 7, oldVersion, newBase)
+		out, pr, err := c.RetargetPullRequest(context.Background(), retRepo(), 7, oldRevision, newBase)
 		if err != nil {
 			t.Fatalf("RetargetPullRequest: %v", err)
 		}
@@ -61,7 +61,7 @@ func TestIntegrationMergeRetargetProbeActVerify(t *testing.T) {
 	t.Run("already", func(t *testing.T) {
 		// The promised end-state already holds: the PR is at newBase. No edit.
 		c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{retViewArm(atNew, 0)}})
-		out, pr, err := c.RetargetPullRequest(context.Background(), retRepo(), 7, oldVersion, newBase)
+		out, pr, err := c.RetargetPullRequest(context.Background(), retRepo(), 7, oldRevision, newBase)
 		if err != nil {
 			t.Fatalf("RetargetPullRequest: %v", err)
 		}
@@ -77,7 +77,7 @@ func TestIntegrationMergeRetargetProbeActVerify(t *testing.T) {
 	})
 
 	t.Run("contended-revision-drift", func(t *testing.T) {
-		// The live PR version differs from ExpectedRevision: refuse, no edit.
+		// The live PR revision differs from ExpectedRevision: refuse, no edit.
 		c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{retViewArm(atOld, 0)}})
 		out, _, err := c.RetargetPullRequest(context.Background(), retRepo(), 7, "sha256:stale-token-differs", newBase)
 		if err != nil {
@@ -87,14 +87,14 @@ func TestIntegrationMergeRetargetProbeActVerify(t *testing.T) {
 			t.Fatalf("outcome = %q, want %q", out, RetargetContended)
 		}
 		if n := countArgv(log.records(t), "pr", "edit"); n != 0 {
-			t.Fatalf("pr edit issued %d times on version drift, want 0", n)
+			t.Fatalf("pr edit issued %d times on revision drift, want 0", n)
 		}
 	})
 
 	t.Run("probe-error-unknown", func(t *testing.T) {
 		// A probe that errors is never read as clean absence — retain, unknown.
 		c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{retViewArm("", 1)}})
-		out, _, err := c.RetargetPullRequest(context.Background(), retRepo(), 7, oldVersion, newBase)
+		out, _, err := c.RetargetPullRequest(context.Background(), retRepo(), 7, oldRevision, newBase)
 		if out != RetargetUnknown {
 			t.Fatalf("outcome = %q, want %q", out, RetargetUnknown)
 		}

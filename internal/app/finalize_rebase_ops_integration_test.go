@@ -77,7 +77,7 @@ func TestIntegrationFinalizeRebaseOpsFinalizeRebaseResolverBudgetRecoveryNoResna
 	// The operator raises the cap mid-attempt; the owned attempt must ignore it.
 	setResolverConfig(t, f, 5)
 	second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if second.Disposition != RebaseDispConflicted {
 		t.Fatalf("recovery = disp %q (reason %q), want conflicted", second.Disposition, second.Reason)
 	}
@@ -108,7 +108,7 @@ func TestIntegrationFinalizeRebaseOpsFinalizeRebaseResolverBudgetWaitingReloadsF
 		Gate: &fakeGate{result: LocalGateResult{Outcome: FinalizeGateWaiting, Continuation: GateContinuation{DriveID: "drive-1", Generation: "gen-1"}}}}
 
 	res := FinalizeRebase(ctx, deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if res.Disposition != RebaseDispWaiting {
 		t.Fatalf("waiting slice = %q (reason %q msg %q), want waiting", res.Disposition, res.Reason, res.Message)
 	}
@@ -147,7 +147,7 @@ func TestIntegrationFinalizeRebaseOpsFinalizeRebaseResolverBudgetClearReloadsFor
 		Gate: &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}}
 
 	res := FinalizeRebase(ctx, deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if res.Result != ResultApplied || res.Gate == nil || res.Gate.Evidence == "" {
 		t.Fatalf("passed slice = %q gate %+v (reason %q), want applied with evidence", res.Result, res.Gate, res.Reason)
 	}
@@ -168,7 +168,7 @@ func TestIntegrationFinalizeRebaseOpsFinalizeRebaseGateOffCreatesNoReceipt(t *te
 	writeRepoFile(t, f.repo.invocation, ".docket.local.yml", "finalize:\n  gate: \"off\"\n")
 	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if res.Result != ResultNoOp || res.Reason != ReasonRebaseGateOff {
 		t.Fatalf("gate off = %q reason %q, want no-op/gate-off", res.Result, res.Reason)
 	}
@@ -658,7 +658,7 @@ func TestIntegrationFinalizeRebaseOpsFinalizeRebaseGateHaltCarriesAdmissionRefus
 		HaltLocator: "incumbent-run:0123456789abcdef0123456789abcdef",
 	}}
 	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if gate.calls != 1 {
 		t.Fatalf("gate ran %d time(s); want exactly 1 (the halt must come from a run)", gate.calls)
 	}
@@ -697,7 +697,7 @@ func TestIntegrationFinalizeRebaseOpsFinalizeRebaseGateHaltGenericUnchanged(t *t
 	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}}
 	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if res.Result != ResultBlocked || res.Reason != ReasonRebaseGateHalted {
 		t.Fatalf("result/reason = %q/%q, want blocked/%q", res.Result, res.Reason, ReasonRebaseGateHalted)
 	}

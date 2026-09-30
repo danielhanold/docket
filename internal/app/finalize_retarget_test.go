@@ -12,22 +12,22 @@ import (
 
 // --- fake GitHub seam -----------------------------------------------------
 
-// fakePR is one pull request the retarget fake tracks. Its base and version
+// fakePR is one pull request the retarget fake tracks. Its base and revision
 // mutate exactly as githubcli.RetargetPullRequest promises, so the fake is a
 // behavioral stand-in for that adapter rather than a fixed script.
 type fakePR struct {
-	number  int
-	head    string
-	base    string
-	version string
+	number   int
+	head     string
+	base     string
+	revision string
 }
 
 // retargetCall records one RetargetPullRequest invocation for assertions.
 type retargetCall struct {
-	number          int
-	expectedVersion string
-	newBase         string
-	edited          bool
+	number           int
+	expectedRevision string
+	newBase          string
+	edited           bool
 }
 
 // fakeRetargetGitHub is a recording, behavioral FinalizeGitHub over an in-memory
@@ -65,15 +65,15 @@ func (f *fakeRetargetGitHub) FindOpenPullRequestsByHead(_ context.Context, _ git
 		if pr.head == headBranch {
 			out = append(out, githubcli.PullRequest{
 				Number: pr.number, State: githubcli.StateOpen,
-				HeadBranch: pr.head, BaseBranch: pr.base, Revision: pr.version,
+				HeadBranch: pr.head, BaseBranch: pr.base, Revision: pr.revision,
 			})
 		}
 	}
 	return out, nil
 }
 
-func (f *fakeRetargetGitHub) RetargetPullRequest(_ context.Context, _ githubcli.Repository, number int, expectedVersion, newBase string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {
-	call := retargetCall{number: number, expectedVersion: expectedVersion, newBase: newBase}
+func (f *fakeRetargetGitHub) RetargetPullRequest(_ context.Context, _ githubcli.Repository, number int, expectedRevision, newBase string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {
+	call := retargetCall{number: number, expectedRevision: expectedRevision, newBase: newBase}
 	if e := f.retErr[number]; e != nil {
 		f.retargets = append(f.retargets, call)
 		return githubcli.RetargetUnknown, githubcli.PullRequest{}, e
@@ -89,17 +89,17 @@ func (f *fakeRetargetGitHub) RetargetPullRequest(_ context.Context, _ githubcli.
 		f.retargets = append(f.retargets, call)
 		return githubcli.RetargetUnknown, githubcli.PullRequest{}, fmt.Errorf("pr %d not found", number)
 	}
-	// Promised end-state is the idempotency key, checked before the version gate.
+	// Promised end-state is the idempotency key, checked before the revision gate.
 	if pr.base == newBase {
 		f.retargets = append(f.retargets, call)
 		return githubcli.RetargetAlready, snapshotPR(pr), nil
 	}
-	if expectedVersion == "" || expectedVersion != pr.version {
+	if expectedRevision == "" || expectedRevision != pr.revision {
 		f.retargets = append(f.retargets, call)
 		return githubcli.RetargetContended, githubcli.PullRequest{}, nil
 	}
 	pr.base = newBase
-	pr.version = pr.version + "+r"
+	pr.revision = pr.revision + "+r"
 	call.edited = true
 	f.retargets = append(f.retargets, call)
 	return githubcli.RetargetRetargeted, snapshotPR(pr), nil
@@ -108,7 +108,7 @@ func (f *fakeRetargetGitHub) RetargetPullRequest(_ context.Context, _ githubcli.
 func snapshotPR(pr *fakePR) githubcli.PullRequest {
 	return githubcli.PullRequest{
 		Number: pr.number, State: githubcli.StateOpen,
-		HeadBranch: pr.head, BaseBranch: pr.base, Revision: pr.version,
+		HeadBranch: pr.head, BaseBranch: pr.base, Revision: pr.revision,
 	}
 }
 
@@ -166,8 +166,8 @@ func TestRetargetChildrenHappy(t *testing.T) {
 	gh := &fakeRetargetGitHub{
 		repo: retargetRepo(),
 		prs: []*fakePR{
-			{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"},
-			{number: 820, head: "feat/child-b", base: "feat/root", version: "cv820"},
+			{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810"},
+			{number: 820, head: "feat/child-b", base: "feat/root", revision: "cv820"},
 		},
 	}
 	engine := &recordingEngine{}
@@ -251,7 +251,7 @@ func TestRetargetChildBranchIdentity(t *testing.T) {
 		child.Data = []byte(strings.Replace(string(child.Data), "branch: feat/child-a\n", "branch: feature/child-head\n", 1))
 		gh := &fakeRetargetGitHub{
 			repo: retargetRepo(),
-			prs:  []*fakePR{{number: 810, head: "feature/child-head", base: "feat/root", version: "cv810"}},
+			prs:  []*fakePR{{number: 810, head: "feature/child-head", base: "feat/root", revision: "cv810"}},
 		}
 		fake := &fakeReader{pin: pin, corpus: []StatusBlob{root, child}}
 		req := RetargetChildrenRequest{ID: 80, Revision: "blobfin0080", Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}}
@@ -275,7 +275,7 @@ func TestRetargetChildBranchIdentity(t *testing.T) {
 		child.Data = []byte(strings.Replace(string(child.Data), "branch: feat/child-a\n", "", 1))
 		gh := &fakeRetargetGitHub{
 			repo: retargetRepo(),
-			prs:  []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"}},
+			prs:  []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810"}},
 		}
 		fake := &fakeReader{pin: pin, corpus: []StatusBlob{root, child}}
 		req := RetargetChildrenRequest{ID: 80, Revision: "blobfin0080", Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810"}}}
@@ -305,8 +305,8 @@ func TestRetargetChildrenNewChildBlocks(t *testing.T) {
 	gh := &fakeRetargetGitHub{
 		repo: retargetRepo(),
 		prs: []*fakePR{
-			{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"},
-			{number: 830, head: "feat/child-c", base: "feat/root", version: "cv830"},
+			{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810"},
+			{number: 830, head: "feat/child-c", base: "feat/root", revision: "cv830"},
 		},
 	}
 	engine := &recordingEngine{}
@@ -334,19 +334,19 @@ func TestRetargetChildrenNewChildBlocks(t *testing.T) {
 	}
 }
 
-// TestRetargetChildrenVersionDrift: a changed PR version is contended; an ambiguous
+// TestRetargetChildrenRevisionDrift: a changed PR revision is contended; an ambiguous
 // child head (two open PRs) is contended; a probe error is unknown. In every case
 // there is no parent-merge-enabling success and no improper edit.
-func TestRetargetChildrenVersionDrift(t *testing.T) {
+func TestRetargetChildrenRevisionDrift(t *testing.T) {
 	pin := docketPin(t)
 	base := []StatusBlob{
 		finalizeBlob(80, "root", "implemented", "high", prRefFor(800), ""),
 		finalizeBlob(81, "child-a", "implemented", "high", prRefFor(810), "stacked_on: 80\n"),
 	}
 
-	t.Run("changed-pr-version", func(t *testing.T) {
+	t.Run("changed-pr-revision", func(t *testing.T) {
 		gh := &fakeRetargetGitHub{repo: retargetRepo(), prs: []*fakePR{
-			{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810-NEW"},
+			{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810-NEW"},
 		}}
 		engine := &recordingEngine{}
 		fake := &fakeReader{pin: pin, corpus: base}
@@ -354,20 +354,20 @@ func TestRetargetChildrenVersionDrift(t *testing.T) {
 			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRRevision: "cv810-STALE"}}}
 		got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, engine), "", req)
 		if got.Result == ResultApplied || got.Result == ResultNoOp {
-			t.Fatalf("stale PR version produced a merge-enabling success: %q", got.Result)
+			t.Fatalf("stale PR revision produced a merge-enabling success: %q", got.Result)
 		}
 		if got.Disposition != RetargetDispositionContended {
 			t.Fatalf("disposition=%q, want contended", got.Disposition)
 		}
 		if countEdits(gh.retargets) != 0 {
-			t.Errorf("stale PR version was edited; edits=%d", countEdits(gh.retargets))
+			t.Errorf("stale PR revision was edited; edits=%d", countEdits(gh.retargets))
 		}
 	})
 
 	t.Run("ambiguous-child-pr", func(t *testing.T) {
 		gh := &fakeRetargetGitHub{repo: retargetRepo(), prs: []*fakePR{
-			{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"},
-			{number: 811, head: "feat/child-a", base: "feat/root", version: "cv811"}, // second open PR, same head
+			{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810"},
+			{number: 811, head: "feat/child-a", base: "feat/root", revision: "cv811"}, // second open PR, same head
 		}}
 		engine := &recordingEngine{}
 		fake := &fakeReader{pin: pin, corpus: base}
@@ -387,7 +387,7 @@ func TestRetargetChildrenVersionDrift(t *testing.T) {
 
 	t.Run("probe-error-is-unknown", func(t *testing.T) {
 		gh := &fakeRetargetGitHub{repo: retargetRepo(),
-			prs:     []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"}},
+			prs:     []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810"}},
 			findErr: map[string]error{"feat/child-a": fmt.Errorf("gh probe timed out")},
 		}
 		engine := &recordingEngine{}
@@ -404,17 +404,17 @@ func TestRetargetChildrenVersionDrift(t *testing.T) {
 	})
 }
 
-// TestRetargetChildrenParentVersionDrift: a parent record whose live version no
-// longer matches the pinned authorization version is contended, before any
+// TestRetargetChildrenParentRevisionDrift: a parent record whose live revision no
+// longer matches the pinned authorization revision is contended, before any
 // external effect.
-func TestRetargetChildrenParentVersionDrift(t *testing.T) {
+func TestRetargetChildrenParentRevisionDrift(t *testing.T) {
 	pin := docketPin(t)
 	corpus := []StatusBlob{
 		finalizeBlob(80, "root", "implemented", "high", prRefFor(800), ""),
 		finalizeBlob(81, "child-a", "implemented", "high", prRefFor(810), "stacked_on: 80\n"),
 	}
 	gh := &fakeRetargetGitHub{repo: retargetRepo(), prs: []*fakePR{
-		{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"},
+		{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810"},
 	}}
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: corpus}
@@ -426,7 +426,7 @@ func TestRetargetChildrenParentVersionDrift(t *testing.T) {
 		t.Fatalf("result=%q reason=%q, want contended/%s", got.Result, got.Reason, ReasonRetargetRevisionDrift)
 	}
 	if len(gh.finds) != 0 || len(gh.retargets) != 0 {
-		t.Errorf("a stale parent version reached external probes: finds=%d retargets=%d", len(gh.finds), len(gh.retargets))
+		t.Errorf("a stale parent revision reached external probes: finds=%d retargets=%d", len(gh.finds), len(gh.retargets))
 	}
 }
 
@@ -440,7 +440,7 @@ func TestRetargetChildrenLeavesStackedOn(t *testing.T) {
 		finalizeBlob(81, "child-a", "implemented", "high", prRefFor(810), "stacked_on: 80\n"),
 	}
 	gh := &fakeRetargetGitHub{repo: retargetRepo(), prs: []*fakePR{
-		{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"},
+		{number: 810, head: "feat/child-a", base: "feat/root", revision: "cv810"},
 	}}
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: corpus}
@@ -471,7 +471,7 @@ func TestRetargetChildrenSkipsTerminalChildren(t *testing.T) {
 		finalizeBlob(83, "child-c", "implemented", "high", prRefFor(830), "stacked_on: 80\n"),
 	}
 	gh := &fakeRetargetGitHub{repo: retargetRepo(), prs: []*fakePR{
-		{number: 830, head: "feat/child-c", base: "feat/root", version: "cv830"},
+		{number: 830, head: "feat/child-c", base: "feat/root", revision: "cv830"},
 	}}
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: corpus}
@@ -512,7 +512,7 @@ func TestRetargetChildrenShapeRefusals(t *testing.T) {
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: nil}
 
-	// Missing version + a malformed child (id<=0, pr_number<=0, empty version) +
+	// Missing revision + a malformed child (id<=0, pr_number<=0, empty revision) +
 	// duplicate child id.
 	req := RetargetChildrenRequest{ID: 80, Revision: "",
 		Children: []AuthorizedChild{

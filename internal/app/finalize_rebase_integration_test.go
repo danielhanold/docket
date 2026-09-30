@@ -129,7 +129,7 @@ func TestIntegrationFinalizeRebaseGateForeignStateBlocked(t *testing.T) {
 		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 		deps := f.finalizeDeps(gh, gate)
 		first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if first.Disposition != RebaseDispRebased {
 			t.Fatalf("first call = %q, want rebased", first.Disposition)
 		}
@@ -143,7 +143,7 @@ func TestIntegrationFinalizeRebaseGateForeignStateBlocked(t *testing.T) {
 		runGit(t, f.repo.writer, "push", "-q", "-f", "origin", "main")
 
 		res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseMovedBase)
 		if f.localHead() != rewritten {
 			t.Errorf("a divergent-base refusal reset the head: %q -> %q", rewritten, f.localHead())
@@ -158,7 +158,7 @@ func TestIntegrationFinalizeRebaseGateForeignStateBlocked(t *testing.T) {
 		_, _ = tryGit(f.wp, "rebase", "origin/main") // conflicts, leaving a rebase in progress
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseForeignInProgress)
 		f.receiptAbsent(t)
 	})
@@ -177,7 +177,7 @@ func TestIntegrationFinalizeRebaseGateOutcomes(t *testing.T) {
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))}}
 		gate := &fakeGate{}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Disposition != RebaseDispUnchanged || res.Gate == nil || res.Gate.Compose != gateComposeSkipped {
 			t.Fatalf("noop+green = disp %q gate %+v, want unchanged/skipped", res.Disposition, res.Gate)
 		}
@@ -195,7 +195,7 @@ func TestIntegrationFinalizeRebaseGateOutcomes(t *testing.T) {
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Result != ResultApplied || res.Disposition != RebaseDispRebased || res.Gate.Evidence == "" {
 			t.Fatalf("passed = %q disp %q evidence?%v, want applied/rebased with evidence", res.Result, res.Disposition, res.Gate.Evidence != "")
 		}
@@ -207,7 +207,7 @@ func TestIntegrationFinalizeRebaseGateOutcomes(t *testing.T) {
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGateFailed, RunDir: "/run/x"}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Result != ResultGateFailed || res.Disposition != RebaseDispFailed || res.Reason != ReasonRebaseGateFailed {
 			t.Fatalf("failed = (%q, %q, %q), want gate-failed/failed/gate-failed", res.Result, res.Disposition, res.Reason)
 		}
@@ -222,7 +222,7 @@ func TestIntegrationFinalizeRebaseGateOutcomes(t *testing.T) {
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltRunningAtBudget, RunDir: "/run/x"}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Result != ResultBlocked || res.Disposition != RebaseDispBlocked || res.Reason != ReasonRebaseGateHalted {
 			t.Fatalf("halt = (%q, %q, %q), want blocked/blocked/gate-halted", res.Result, res.Disposition, res.Reason)
 		}
@@ -237,7 +237,7 @@ func TestIntegrationFinalizeRebaseGateOutcomes(t *testing.T) {
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		gate := &fakeGate{err: errRebaseGateSeam}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Result != ResultBlocked || res.Gate.HaltCause != GateHaltUnavailable {
 			t.Fatalf("seam error = %q halt %q, want blocked/unavailable", res.Result, res.Gate.HaltCause)
 		}
@@ -261,7 +261,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 		cont := GateContinuation{DriveID: "drive-1", Generation: "gen-1"}
 		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGateWaiting, Continuation: cont}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Disposition != RebaseDispWaiting {
 			t.Fatalf("waiting disposition = %q, want %q (result %q reason %q)", res.Disposition, RebaseDispWaiting, res.Result, res.Reason)
 		}
@@ -311,7 +311,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 		deps := f.finalizeDeps(gh, gate)
 
 		first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if first.Disposition != RebaseDispWaiting || first.Gate == nil || first.Gate.Continuation == nil {
 			t.Fatalf("first call = disp %q gate %+v, want waiting with a continuation", first.Disposition, first.Gate)
 		}
@@ -322,7 +322,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 		// owned receipt carries the drive, so the rebase must not be repeated; only
 		// the gate advances.
 		second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
 			t.Fatalf("resume = %q disp %q (reason %q msg %q), want applied/rebased", second.Result, second.Disposition, second.Reason, second.Message)
 		}
@@ -367,7 +367,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 			{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"},
 		}}
 		deps := f.finalizeDeps(gh, gate)
-		req := FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head}
+		req := FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head}
 		ctx := context.Background()
 
 		if r := FinalizeRebase(ctx, deps, f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
@@ -406,7 +406,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 					{Outcome: FinalizeGateWaiting, Continuation: GateContinuation{DriveID: "drive-8", Generation: "gen-8"}},
 				}}
 				deps := f.finalizeDeps(gh, gate)
-				req := FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head}
+				req := FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head}
 				ctx := context.Background()
 
 				if r := FinalizeRebase(ctx, deps, f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
@@ -443,7 +443,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 			{Outcome: FinalizeGateWaiting, Continuation: GateContinuation{DriveID: "drive-2", Generation: "gen-2"}},
 		}}
 		deps := f.finalizeDeps(gh, gate)
-		req := FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head}
+		req := FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head}
 		ctx := context.Background()
 		if r := FinalizeRebase(ctx, deps, f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
 			t.Fatalf("first = %q, want waiting", r.Disposition)
@@ -477,7 +477,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 		}}
 		// First call: no PR evidence -> the suite runs -> WAITING records the pair.
 		ghNone := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
-		req := FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head}
+		req := FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head}
 		ctx := context.Background()
 		if r := FinalizeRebase(ctx, f.finalizeDeps(ghNone, gate), f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
 			t.Fatalf("first = %q, want waiting", r.Disposition)
@@ -500,7 +500,7 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGateWaiting,
 			Continuation: GateContinuation{DriveID: "drive-4", Generation: "SECRET-gen-4"}}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Disposition != RebaseDispWaiting {
 			t.Fatalf("disposition = %q, want waiting", res.Disposition)
 		}
@@ -532,7 +532,7 @@ func TestIntegrationFinalizeRebaseRecoveryAttemptRoundTrip(t *testing.T) {
 	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
 	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if res.Result != ResultApplied {
 		t.Fatalf("rebase = %q (reason %q msg %q)", res.Result, res.Reason, res.Message)
 	}
@@ -571,7 +571,7 @@ func TestIntegrationFinalizeRebaseGateHappyAndReceipt(t *testing.T) {
 			deps := f.finalizeDeps(gh, gate)
 
 			res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-				FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+				FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 
 			if res.Result != ResultApplied || res.Disposition != RebaseDispRebased {
 				t.Fatalf("rebase = %q disp %q (reason %q msg %q), want applied/rebased", res.Result, res.Disposition, res.Reason, res.Message)
@@ -623,7 +623,7 @@ func TestIntegrationFinalizeRebaseGatePreconditions(t *testing.T) {
 		f := setupRebaseFixtureStatus(t, main, "in-progress")
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseNotImplemented)
 		f.receiptAbsent(t)
 		if f.localHead() != f.head {
@@ -646,7 +646,7 @@ func TestIntegrationFinalizeRebaseGatePreconditions(t *testing.T) {
 		badPR.BaseBranch = "some-other-branch"
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{badPR}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		assertRebaseRefused(t, res, ResultBlocked, ReasonRebasePRBaseMismatch)
 		f.receiptAbsent(t)
 	})
@@ -656,7 +656,7 @@ func TestIntegrationFinalizeRebaseGatePreconditions(t *testing.T) {
 		badPR := f.prForHead(strings.Repeat("c", 40), "")
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{badPR}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		assertRebaseRefused(t, res, ResultBlocked, ReasonRebasePRHeadMismatch)
 		f.receiptAbsent(t)
 	})
@@ -666,7 +666,7 @@ func TestIntegrationFinalizeRebaseGatePreconditions(t *testing.T) {
 		writeRepoFile(t, f.wp, "scratch.txt", "uncommitted\n")
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseWorkspaceDirty)
 		f.receiptAbsent(t)
 	})
@@ -680,7 +680,7 @@ func TestIntegrationFinalizeRebaseGatePreconditions(t *testing.T) {
 		runGit(t, f.wp, "commit", "-q", "-m", "extra")
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		assertRebaseRefused(t, res, ResultContended, ReasonRebaseLocalHeadMismatch)
 		f.receiptAbsent(t)
 	})
@@ -694,7 +694,7 @@ func TestIntegrationFinalizeRebaseGatePreconditions(t *testing.T) {
 		runGit(t, f.wp, "reset", "--hard", f.head)
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		assertRebaseRefused(t, res, ResultBlocked, ReasonRebaseRemoteHeadMismatch)
 		f.receiptAbsent(t)
 	})
@@ -713,7 +713,7 @@ func TestIntegrationFinalizeRebaseRecoveryResponseLossRecovery(t *testing.T) {
 	deps := f.finalizeDeps(gh, gate)
 
 	first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if first.Disposition != RebaseDispRebased {
 		t.Fatalf("first call = %q, want rebased", first.Disposition)
 	}
@@ -723,7 +723,7 @@ func TestIntegrationFinalizeRebaseRecoveryResponseLossRecovery(t *testing.T) {
 	// The response was lost; the same request is replayed. It must recover, not
 	// rebase again.
 	second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
 		t.Fatalf("replay = %q disp %q, want applied/rebased", second.Result, second.Disposition)
 	}
@@ -772,7 +772,7 @@ func beginSuccessiveConflicts(t *testing.T, limit int, extra []map[string]string
 	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, head), RunDir: "/run/x"}}
 	deps := f.finalizeDeps(gh, gate)
 	begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 	if begin.Disposition != RebaseDispConflicted {
 		t.Fatalf("begin = disp %q (reason %q msg %q), want conflicted", begin.Disposition, begin.Reason, begin.Message)
 	}
@@ -939,7 +939,7 @@ func TestIntegrationResolverBudgetSuccessiveConflicts(t *testing.T) {
 		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, head), RunDir: "/run/x"}}
 		deps := f.finalizeDeps(gh, gate)
 		begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		if begin.Disposition != RebaseDispConflicted {
 			t.Fatalf("begin = %q (reason %q), want conflicted", begin.Disposition, begin.Reason)
 		}
@@ -1011,7 +1011,7 @@ func TestIntegrationFinalizeRebaseGatePassedRecordsPublishCheckpoint(t *testing.
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		gate := &headEvidenceGate{t: t}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Result != ResultApplied || res.Disposition != RebaseDispRebased {
 			t.Fatalf("rebase = %q disp %q (reason %q msg %q), want applied/rebased", res.Result, res.Disposition, res.Reason, res.Message)
 		}
@@ -1050,7 +1050,7 @@ func TestIntegrationFinalizeRebaseGatePassedRecordsPublishCheckpoint(t *testing.
 		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
 		gate := &headEvidenceGate{t: t}
 		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Disposition != RebaseDispUnchanged {
 			t.Fatalf("disp = %q (reason %q), want unchanged", res.Disposition, res.Reason)
 		}
@@ -1076,7 +1076,7 @@ func setupPassedRebaseCheckpoint(t *testing.T) (*rebaseFixture, *headEvidenceGat
 	gate := &headEvidenceGate{t: t}
 	deps := f.finalizeDeps(gh, gate)
 	res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if res.Disposition != RebaseDispRebased || gate.calls != 1 {
 		t.Fatalf("setup rebase = disp %q gate calls %d (reason %q), want rebased with one gate run", res.Disposition, gate.calls, res.Reason)
 	}
@@ -1114,7 +1114,7 @@ func TestIntegrationFinalizeRebaseRecoveryCheckpointReuse(t *testing.T) {
 	f, gate, deps, rewritten := setupPassedRebaseCheckpoint(t)
 
 	res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 
 	if res.Result != ResultApplied || res.Disposition != RebaseDispRebased {
 		t.Fatalf("resume = %q disp %q (reason %q msg %q), want applied/rebased", res.Result, res.Disposition, res.Reason, res.Message)
@@ -1154,7 +1154,7 @@ func TestIntegrationFinalizeRebaseRecoveryCheckpointInvalidation(t *testing.T) {
 		runGit(t, f.wp, "commit", "-q", "-m", "extra work after the pass")
 		moved := f.localHead()
 		res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Disposition != RebaseDispRebased || gate.calls != 2 {
 			t.Fatalf("resume = disp %q gate calls %d, want rebased with the gate re-run", res.Disposition, gate.calls)
 		}
@@ -1179,7 +1179,7 @@ func TestIntegrationFinalizeRebaseRecoveryCheckpointInvalidation(t *testing.T) {
 			f, gate, deps, rewritten := setupPassedRebaseCheckpoint(t)
 			tamperCheckpoint(t, f, mut)
 			res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-				FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+				FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 			if res.Disposition != RebaseDispRebased || gate.calls != 2 {
 				t.Fatalf("resume = disp %q gate calls %d (reason %q), want rebased with the gate re-run", res.Disposition, gate.calls, res.Reason)
 			}
@@ -1198,7 +1198,7 @@ func TestIntegrationFinalizeRebaseRecoveryCheckpointInvalidation(t *testing.T) {
 		f, gate, deps, _ := setupPassedRebaseCheckpoint(t)
 		f.advanceBase(t)
 		res := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Result != ResultApplied || res.Disposition != RebaseDispRebased {
 			t.Fatalf("moved-base refresh = %q/%q (reason %q), want applied/rebased", res.Result, res.Disposition, res.Reason)
 		}
@@ -1324,7 +1324,7 @@ func TestIntegrationFinalizeRebaseRecoveryCarryPreservation(t *testing.T) {
 		}
 		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
 		res := FinalizeRebase(ctx, f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 
 		assertRebaseRefused(t, res, ResultBlocked, ReasonCarryUnproven)
 		if len(res.Findings) == 0 {
@@ -1353,7 +1353,7 @@ func TestIntegrationFinalizeRebaseRecoveryCarryPreservation(t *testing.T) {
 			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", f.baseTip)}},
 		}
 		res := FinalizeRebase(ctx, f.finalizeDeps(gh, &fakeGate{}), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		if res.Reason == ReasonCarryUnproven {
 			t.Fatalf("a preserved carry was refused: reason %q msg %q", res.Reason, res.Message)
 		}
@@ -1392,7 +1392,7 @@ func TestIntegrationFinalizeRebaseRecoveryCarryPreservation(t *testing.T) {
 			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}},
 		}
 		res := FinalizeRebase(ctx, f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 
 		assertRebaseRefused(t, res, ResultBlocked, ReasonCarryUnproven)
 		// The owned receipt and its orig head survive: the abort/repair flow stays
@@ -1438,7 +1438,7 @@ func TestIntegrationFinalizeRebaseRecoveryCarryPreservation(t *testing.T) {
 			merged: map[int]closeoutProbe{8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}},
 		}
 		res := FinalizeRebase(ctx, f.finalizeDeps(gh, gate), f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 		assertRebaseRefused(t, res, ResultBlocked, ReasonCarryUnproven)
 		if res.Gate != nil && res.Gate.Compose == gateComposeSkipped {
 			t.Errorf("green evidence substituted for the carry proof: the gate skipped instead of refusing")
@@ -1476,7 +1476,7 @@ func TestIntegrationFinalizeRebaseRecoveryPreStartResume(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if out.Disposition != RebaseDispRebased {
 		t.Fatalf("pre-start resume = %q (reason %q msg %q), want rebased", out.Disposition, out.Reason, out.Message)
 	}
@@ -1527,7 +1527,7 @@ func TestIntegrationFinalizeRebaseRecoveryPreStartResumeForeignHeadRetained(t *t
 	headBefore := f.localHead()
 
 	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 
 	// A mismatched recorded orig head is retained for abort, never resumed into a rebase.
 	if out.Disposition != RebaseDispBlocked || out.Reason != ReasonRebaseForeignInProgress {
@@ -1566,7 +1566,7 @@ func TestIntegrationFinalizeRebaseRecoveryNoEvidenceSkip(t *testing.T) {
 	deps := f.finalizeDeps(gh, gate)
 
 	first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if first.Gate == nil || first.Gate.Compose != gateComposeSkipped {
 		t.Fatalf("first call = %+v, want a fresh skip on exact-head green PR evidence", first.Gate)
 	}
@@ -1578,7 +1578,7 @@ func TestIntegrationFinalizeRebaseRecoveryNoEvidenceSkip(t *testing.T) {
 	// recorded, so recovery must RUN the gate — PR-body evidence cannot bypass the
 	// retest on recovery.
 	second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if second.Gate == nil || second.Gate.Compose != gateComposeRan {
 		t.Fatalf("replay recovery = %+v, want compose ran (no PR-evidence skip on recovery)", second.Gate)
 	}
@@ -1614,7 +1614,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefresh(t *testing.T) {
 	f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved again\n"})
 
 	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 	if out.Result != ResultApplied || out.Disposition != RebaseDispRebased {
 		t.Fatalf("forward refresh = %q/%q (reason %q msg %q), want applied/rebased", out.Result, out.Disposition, out.Reason, out.Message)
 	}
@@ -1727,7 +1727,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshContended(t *testing.T) 
 
 	remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
 	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 
 	// The guard refused: decide-and-act-on-same-copy caught the divergence under the lock.
 	if out.Result != ResultContended || out.Disposition != RebaseDispContended || out.Reason != ReasonRebaseRefreshContended {
@@ -1813,7 +1813,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals(t *testing.T) {
 		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
 		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
 		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		assertRebaseRefused(t, out, ResultBlocked, ReasonRebaseRemoteHeadMismatch)
 		assertRefreshRetained(t, f, before, rec, remoteBefore)
 	})
@@ -1830,7 +1830,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals(t *testing.T) {
 		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
 		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
 		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		assertRebaseRefused(t, out, ResultBlocked, ReasonRebaseMovedBase)
 		assertRefreshRetained(t, f, headBefore, rec, remoteBefore)
 	})
@@ -1843,7 +1843,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals(t *testing.T) {
 		rec, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
 		remoteBefore := originTip(t, f.repo.origin, "feat/"+f.slug)
 		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		assertRebaseRefused(t, out, ResultBlocked, ReasonRebaseWorkspaceDirty)
 		assertRefreshRetained(t, f, headBefore, rec, remoteBefore)
 	})
@@ -1863,7 +1863,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshRefusals(t *testing.T) {
 		// The base advances again under the conflicted attempt.
 		f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved during conflict\n"})
 		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		if out.Disposition != RebaseDispConflicted {
 			t.Fatalf("moved base under a conflicted attempt = %q (reason %q), want conflicted", out.Disposition, out.Reason)
 		}
@@ -1908,7 +1908,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing
 			t.Fatal(err)
 		}
 		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		if out.Disposition != RebaseDispRebased {
 			t.Fatalf("pre-start resume = %q (reason %q msg %q), want rebased", out.Disposition, out.Reason, out.Message)
 		}
@@ -1927,7 +1927,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing
 		f, deps, head, _ := completedThenAdvance(t)
 		f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved\n"})
 		first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		if first.Disposition != RebaseDispRebased {
 			t.Fatalf("first refresh = %q (reason %q), want rebased", first.Disposition, first.Reason)
 		}
@@ -1935,7 +1935,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing
 		recAfterFirst, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
 		// A lost response: the identical request is replayed. It must not rebase again.
 		second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
 			t.Fatalf("replay = %q/%q (reason %q), want applied/rebased", second.Result, second.Disposition, second.Reason)
 		}
@@ -1953,7 +1953,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing
 		gate := deps.Gate.(*fakeGate)
 		f.repo.writerAdvance(t, "main", map[string]string{"later.txt": "base moved once\n"})
 		first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		if first.Disposition != RebaseDispRebased {
 			t.Fatalf("first refresh = %q (reason %q), want rebased", first.Disposition, first.Reason)
 		}
@@ -1961,7 +1961,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshInterruptions(t *testing
 		callsAfterFirst := gate.calls
 		f.repo.writerAdvance(t, "main", map[string]string{"later2.txt": "base moved twice\n"})
 		second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 		if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
 			t.Fatalf("second refresh = %q/%q (reason %q), want applied/rebased", second.Result, second.Disposition, second.Reason)
 		}
@@ -2001,7 +2001,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshUnchangedRetests(t *test
 	// First finalize.rebase: a real rewrite onto B1; the gate PASSES and a publish
 	// checkpoint is recorded against B1.
 	first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if first.Disposition != RebaseDispRebased || gate.calls != 1 {
 		t.Fatalf("first rebase = disp %q gate calls %d (reason %q), want rebased with one gate run", first.Disposition, gate.calls, first.Reason)
 	}
@@ -2017,7 +2017,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshUnchangedRetests(t *test
 	// (spec §4) and records a checkpoint against the new base — even though the PR
 	// body carries green evidence.
 	second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
 		t.Fatalf("mechanically-unchanged refresh = %q/%q (reason %q msg %q), want applied/rebased", second.Result, second.Disposition, second.Reason, second.Message)
 	}
@@ -2044,7 +2044,7 @@ func TestIntegrationFinalizeRebaseRecoveryForwardRefreshUnchangedRetests(t *test
 	// recorded evidence is reused. Before change 0438 the reuse gate's !noop
 	// conjunct excluded this mechanically unchanged case, forcing a needless re-run.
 	third := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if third.Result != ResultApplied || third.Disposition != RebaseDispRebased {
 		t.Fatalf("replay = %q/%q (reason %q), want applied/rebased", third.Result, third.Disposition, third.Reason)
 	}
@@ -2081,7 +2081,7 @@ func setupPublishedRefresh(t *testing.T) (*rebaseFixture, FinalizeDeps, *headEvi
 	gate := &headEvidenceGate{t: t}
 	deps := f.finalizeDeps(gh, gate)
 	begin := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: f.head})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: f.head})
 	if begin.Disposition != RebaseDispConflicted {
 		t.Fatalf("begin = %q (reason %q msg %q), want conflicted", begin.Disposition, begin.Reason, begin.Message)
 	}
@@ -2145,7 +2145,7 @@ func TestIntegrationFinalizeRebasePublishedResultForwardRefresh(t *testing.T) {
 	recBefore, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
 
 	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: published})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: published})
 	if out.Result != ResultApplied || out.Disposition != RebaseDispRebased {
 		t.Fatalf("published refresh = %q/%q (reason %q msg %q), want applied/rebased",
 			out.Result, out.Disposition, out.Reason, out.Message)
@@ -2228,7 +2228,7 @@ func TestIntegrationFinalizeRebasePublishedRefreshRefusals(t *testing.T) {
 	requireRealGit(t)
 	reenter := func(f *rebaseFixture, deps FinalizeDeps, head string) FinalizeRebaseResult {
 		return FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: head})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: head})
 	}
 
 	t.Run("missing-checkpoint-refuses", func(t *testing.T) {
@@ -2410,7 +2410,7 @@ func TestIntegrationFinalizeRebasePublishedRefreshUnderLockReprobe(t *testing.T)
 			runGit(t, f.repo.origin, "update-ref", "refs/heads/feat/"+f.slug, f.head)
 		}}
 		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: published})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: published})
 		if out.Result != ResultContended || out.Reason != ReasonRebaseRefreshContended {
 			t.Fatalf("= %q/%q (msg %q), want contended/refresh-contended", out.Result, out.Reason, out.Message)
 		}
@@ -2424,7 +2424,7 @@ func TestIntegrationFinalizeRebasePublishedRefreshUnderLockReprobe(t *testing.T)
 			gh.prs = []githubcli.PullRequest{f.prForHead(f.head, "")} // PR now names A
 		}}
 		out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: published})
+			FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: published})
 		// The re-probe reuses probeRebasePR against the current local head, so a
 		// changed PR surfaces as its typed refusal; the receipt must be untouched.
 		if out.Result == ResultApplied {
@@ -2446,7 +2446,7 @@ func TestIntegrationFinalizeRebasePublishedRefreshContended(t *testing.T) {
 	diverged.Attempt = "20260922T000000Z-winner"
 	deps.Workspace = &divergeOnLockWorkspace{FinalizeWorkspace: deps.Workspace, diverged: diverged}
 	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: published})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: published})
 	if out.Result != ResultContended || out.Reason != ReasonRebaseRefreshContended {
 		t.Fatalf("= %q/%q, want contended/refresh-contended", out.Result, out.Reason)
 	}
@@ -2478,7 +2478,7 @@ func TestIntegrationFinalizeRebasePublishedRefreshInterruption(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: published})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: published})
 	if out.Disposition != RebaseDispRebased || out.Attempt != crashed.Attempt {
 		t.Fatalf("pre-start resume = %q attempt %q (reason %q), want rebased with the recorded attempt %q",
 			out.Disposition, out.Attempt, out.Reason, crashed.Attempt)
@@ -2490,7 +2490,7 @@ func TestIntegrationFinalizeRebasePublishedRefreshInterruption(t *testing.T) {
 	// Valid replay of the identical invocation: the completed rewrite's fresh
 	// checkpoint is reused — one refreshed attempt, no duplicate gate.
 	replay := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-		FinalizeRebaseRequest{ID: f.id, Revision: f.version, Head: published})
+		FinalizeRebaseRequest{ID: f.id, Revision: f.revision, Head: published})
 	if replay.Disposition != RebaseDispRebased || replay.Gate == nil || replay.Gate.Compose != gateComposeSkipped {
 		t.Fatalf("replay = %q gate %+v, want rebased with the checkpoint skip", replay.Disposition, replay.Gate)
 	}
