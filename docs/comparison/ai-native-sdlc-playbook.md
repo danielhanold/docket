@@ -27,7 +27,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
   tooling with tiered autonomy, production monitoring and incident channels, a measurement
   framework.
 - **docket only:** eight-state backlog with a board, atomic claims for parallel drains,
-  just-in-time reconcile, autonomous grooming with an adversarial critic, profile-routed build
+  just-in-time reconcile, autonomous grooming with an adversarial critic, tier-routed build
   workers with escalation, a supervised gate with build-evidence, an in-branch fix loop, a full
   finalize sequencer, stacked changes, an ADR ledger, four-layer config with a capability
   catalog, four harnesses and runner delegation.
@@ -84,7 +84,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 | Agent verifies before human review | Tests, builds, screenshots; quantifiable targets. | The build gate runs `build.test_command` once after all tasks; unconfigured halts. | Both |
 | Verification output as proof of done | Output pasted before "complete". | Build-evidence record (command, result, head SHA, time) minted from the run directory, written into the PR body, required by the reviewer, read by finalize. | Both |
 | Suite outlives one foreground call | Not described. | `docket gate drive` slices; `gate_observation_budget` fails closed; forked children block. | docket only |
-| Red suite repaired in-loop | Implied. | One synthetic integration-repair task, one rung above default. | Both |
+| Red suite repaired in-loop | Implied. | One synthetic integration-repair task, one tier above default. | Both |
 | Block test edits during a fix | A hook forbids editing tests in fix tasks. | Prose contract only. | Playbook only |
 | Visual comparison for UI work | Screenshot against mocks. | None. | Playbook only |
 | Continuous evals gating agent config | 20–50 tasks re-run on config changes; incidents become evals. | docket tests its own skills and config; a release-candidate workflow smokes four runners. Nothing evaluates a consuming repo. | Playbook only |
@@ -97,7 +97,7 @@ fail-closed operations. In return docket has depth the playbook never mentions.
 |---|---|---|---|
 | AI review with severity-ranked findings | `REVIEW.md` passes; ranked; humans on behaviour and risk. | `docket-review`: blocker / important / minor; anchored on symbol or quoted clause; never re-litigates what the green suite proves. | Both |
 | Review policy as a versioned file | `REVIEW.md` by the tech lead. | The review contract is docket's skill; `skills.review` is rebindable. | Playbook only (rebindable) |
-| Review rung chosen by rule | Not described. | Lean / standard / deep from the highest build profile; bumped above 1500 changed lines; refuses without green evidence at HEAD. | docket only |
+| Review tier chosen by rule | Not described. | Lean / standard / deep from the highest build tier; bumped above 1500 changed lines; refuses without green evidence at HEAD. | docket only |
 | Findings fixed by the agent | `@claude` on a PR comment pushes a fix. | Fixed before the PR opens by the fix loop (`review.min_fix_severity`, `review.max_fix_tasks`, blockers always); no PR-comment loop. | Both (pre-PR vs on-PR) |
 | Findings feed institutional memory | Into `CLAUDE.md`. | Learnings findings with promotion to `AGENTS.md`; harvest and index are human curation today. | docket · deferred |
 | PR handoff | Code owner approves. | The implementer never merges; finalize merges only when authorised; branch-protection recipe. | Both |
@@ -165,9 +165,9 @@ no-test-edits guard during repair; an intake path from production or scanner fin
 | README — what docket automates, and where you stay in control | Landing | Thesis in the playbook's vocabulary; artifact chain; reconcile; install; daily loop; map | Intro, How it works, Why docket, Quickstart |
 | Capturing work that outlives the session | 1 | Change file and manifest; lifecycle and board; priorities, types, dependencies, stacking; scan mode, trivial, discovered work | Lifecycle, convention manifest, auto_capture / change_types |
 | Designing before building | 2 | Interactive grooming; autonomous grooming and the critic; consultant specs | Quickstart step 2, consultant brainstorm |
-| Building without supervision | 3 | implement-next; reconcile; plan authoring; build profiles and escalation; worktrees, claims, /loop, dispositions | Why docket, docket-build, draining hands-free |
+| Building without supervision | 3 | implement-next; reconcile; plan authoring; build tiers and escalation; worktrees, claims, /loop, dispositions | Why docket, docket-build, draining hands-free |
 | Proving the build | 4 | Build gate and evidence; gate driver and budgets; integration repair; configuring the suite | docket-build gate paragraphs, gate references, tests/README |
-| Reviewing before the human does | 5 | Reviewer contract and rungs; fix loop and disposition table; why the suite runs in the build gate | docket-review section, fix-loop reference |
+| Reviewing before the human does | 5 | Reviewer contract and tiers; fix loop and disposition table; why the suite runs in the build gate | docket-review section, fix-loop reference |
 | Landing changes safely | 5 | Finalize end to end; blocked and identity repair; branch protection; /loop finalize | Closing out hands-free, hands-off finalize |
 | Keeping the backlog honest | 6 | Status vs sweep; health codes; reclaim; halted recovery | Reclaiming stale claims, docket-status |
 | Remembering why | 6 | ADRs; learnings and promotion; what is human-curated today | Learnings, docket-adr |

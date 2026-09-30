@@ -390,7 +390,7 @@ hand edit leaves the board stale.
 
 The task-by-task breakdown a build follows, written on the feature branch.
 
-**Used for:** routing each task to a build profile. The plan file lives on the feature branch; the
+**Used for:** routing each task to a build tier. The plan file lives on the feature branch; the
 `plan:` field is attached on the metadata branch. A merged plan is a frozen build record — never
 hand-edited afterwards.
 
@@ -743,14 +743,14 @@ cycles before a red suite halts for a human.
 (see [Tri-state verdict](#tri-state-verdict--halt-exit-code)); an empty suite command halts as a
 configuration gap (see [Suite command](#suite-command-buildtest_command--finalizetest_command--configure-tests)).
 
-### Build profile / escalation
+### Build tier / escalation
 
-A build profile is one of four worker tiers (economy, standard, premium, max) a plan task is
+A build tier is one of four workers (economy, standard, premium, max) a plan task is
 routed to by risk. Standard is the default and the "uncertainty sink". A worker that finds its
 task beyond its tier returns `NEEDS_ESCALATION` with a concrete reason, and the task **escalates** one
 tier — at most once. A return without a reason is malformed and halts the build.
 
-**Used for:** paying premium rates only where mistakes are expensive. Each profile is its own agent
+**Used for:** paying premium rates only where mistakes are expensive. Each tier is its own agent
 (`docket-build-economy`, `-standard`, `-premium`, `-max`) with its own model and effort pin.
 
 ### Development test (`docket development test`)
@@ -1204,18 +1204,18 @@ slot must be recovered or cancelled; restarting blind never clears it.
 
 ### Finding severity: blocker / important / minor
 
-The tiers a reviewer assigns. They decide which findings the fix loop routes and at what profile.
+The severity levels a reviewer assigns. They decide which findings the fix loop routes and at what tier.
 
 ### Fix loop
 
 The bounded in-branch repair that runs after review and before the PR opens: findings are routed
-to build profiles as fix tasks (`review.max_fix_tasks`, default 10), then one full-suite run
+to build tiers as fix tasks (`review.max_fix_tasks`, default 10), then one full-suite run
 confirms. Anything left unfixed becomes a line in the PR body.
 
-### Review rung
+### Review tier
 
 One of three pinned reviewer agents — `docket-review-lean`, `docket-review-standard`,
-`docket-review-deep` — all running the same read-only whole-branch contract. The rung is chosen
+`docket-review-deep` — all running the same read-only whole-branch contract. The tier is chosen
 deterministically one step above the build: economy → lean, standard → standard, premium/max →
 deep, bumped one step for a diff over 1500 changed lines.
 
@@ -1564,13 +1564,14 @@ parent actively blocks — it never backgrounds a child and yields.
 **Used for:** every workflow step that runs in its own agent. When a workflow has a registered
 same-name `docket-*` agent, dispatch it rather than running the workflow inline.
 
-### Dispatch tiers (A / B / C) and the carve-out
+### Dispatch fallbacks
 
-What a workflow does when dispatch is genuinely unavailable. **Tier A** (status, ADR): run inline as
-a first-class equivalent. **Tier B** (the critic): abstain. **Tier C** (plan writer, build, review):
-proceed inline only if the role is explicitly `auto`, otherwise halt (in Go v1 an explicit `skills.*`
-value blocks mutation, so in practice Tier C halts). The finalize resolver and
-repair agents are a **carve-out**: abort-and-report, never inline.
+What a workflow does when dispatch is genuinely unavailable; the fallback differs by kind.
+**`inline`** (status, ADR): run the same work inline as a first-class equivalent. **`abstain`**
+(the critic): abstain. **`auto-or-halt`** (plan writer, build, review, fix workers): proceed inline
+only if the role is explicitly `auto`, otherwise halt (in Go v1 an explicit `skills.*` value blocks
+mutation, so in practice it halts). **`no-fallback`** (the finalize rebase resolver and integration
+repair): abort-and-report, never inline.
 
 ### docket-adr
 
@@ -1579,7 +1580,7 @@ dispatches it once for each non-obvious decision made during a build, and it ret
 number.
 
 **Used for:** capturing *why* at the moment of decision. Invoke it directly for any decision nobody
-has recorded yet. It is Tier A, so without dispatch it runs inline with the same git-state contract.
+has recorded yet. Its dispatch fallback is `inline`: without dispatch it runs inline with the same git-state contract.
 
 ```sh
 /docket-adr        # in an agent session (forked into its pinned wrapper on Claude Code)
@@ -1613,16 +1614,16 @@ spec in either session uses it for that run, (A `skills.brainstorm` binding is d
 ### docket-build
 
 Docket's build role (`skills.build`, the default). It routes each plan task (`### Task N`) to one of
-the four build-profile agents, allows one bounded escalation per task, skips per-task review, and
+the four build-tier agents, allows one bounded escalation per task, skips per-task review, and
 ends with a single full-suite build gate.
 
 **Used for:** executing the plan inside implement-next's Step 5. A human does not invoke it
 directly. Worker outcomes are `COMPLETE`, `WAITING`, `NEEDS_ESCALATION`, or `BLOCKED`, and a
-malformed return halts the build. See *Build profile / escalation* and *Build gate*.
+malformed return halts the build. See *Build tier / escalation* and *Build gate*.
 
 ### docket-build-task
 
-The per-task worker contract preloaded into the four `docket-build-*` profile agents. It owns
+The per-task worker contract preloaded into the four `docket-build-*` tier agents. It owns
 exactly one plan task: focused test, implementation, verification, self-review, and one commit.
 
 **Used for:** the unit of work under docket-build. It returns `COMPLETE`, `NEEDS_ESCALATION`, or
@@ -1684,11 +1685,11 @@ re-running this.
 ### docket-review
 
 Docket's review role (`skills.review`, the default). A bounded, read-only reviewer reads the branch
-diff and the build-evidence record and returns findings tiered by severity. It never fixes,
+diff and the build-evidence record and returns findings ranked by severity. It never fixes,
 dispatches, or runs the suite.
 
 **Used for:** implement-next's Step 6 whole-branch review. It runs through one of the three review
-rung agents and is never invoked by a human. See *Review rung* and *Fix loop*.
+tier agents and is never invoked by a human. See *Review tier* and *Fix loop*.
 
 ### docket-status
 
@@ -1697,7 +1698,7 @@ refresh first runs `maintenance.sweep --scope full` (close out merged PRs, retry
 checks, sync the integration branch), then reads.
 
 **Used for:** knowing what is ready, stuck, or merged, and recovering a PR merged with the GitHub
-button. Health checks are warn-only: it never auto-fixes. It is Tier A, so without dispatch it runs
+button. Health checks are warn-only: it never auto-fixes. Its dispatch fallback is `inline`: without dispatch it runs
 inline.
 
 ```sh
@@ -2297,7 +2298,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Budget watch / serially confirmed breach](#budget-watch--serially-confirmed-breach)
 - [Build evidence](#build-evidence)
 - [Build gate](#build-gate)
-- [Build profile / escalation](#build-profile--escalation)
+- [Build tier / escalation](#build-tier--escalation)
 - [build.checkpoint](#buildcheckpoint)
 - [Cancel](#cancel)
 - [Capability catalog](#capability-catalog)
@@ -2324,7 +2325,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Digest / digest-only read](#digest--digest-only-read)
 - [DIRECTED to: marker](#directed-to-marker)
 - [Dispatch](#dispatch)
-- [Dispatch tiers (A / B / C) and the carve-out](#dispatch-tiers-a--b--c-and-the-carve-out)
+- [Dispatch fallbacks](#dispatch-fallbacks)
 - [docket-adr](#docket-adr)
 - [docket-auto-groom](#docket-auto-groom)
 - [docket-brainstorm](#docket-brainstorm)
@@ -2341,7 +2342,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Dummy mode / persona / "In plain terms"](#dummy-mode--persona--in-plain-terms)
 - [Effective auto-groomable](#auto-groom--auto-groomable) — see Auto-groom / auto-groomable
 - [Effects](#effects)
-- [Escalation (NEEDS_ESCALATION)](#build-profile--escalation) — see Build profile / escalation
+- [Escalation (NEEDS_ESCALATION)](#build-tier--escalation) — see Build tier / escalation
 - [Feature branch](#feature-branch)
 - [Final status](#change-lifecycle-and-statuses)
 - [Finalize](#finalize)
@@ -2431,7 +2432,7 @@ and `true` blocks every repository mutation until you remove it.
 - [Results **Human action:** line](#results-human-action-line)
 - [Resume dispositions](#resume-dispositions)
 - [Retarget children](#retarget-children)
-- [Review rung](#review-rung)
+- [Review tier](#review-tier)
 - [review.min_fix_severity](#reviewmin_fix_severity)
 - [Revision (--revision)](#revision---revision)
 - [Run-context refusal (run-context-invalid / run-context-conflict)](#run-context-refusal-run-context-invalid--run-context-conflict)

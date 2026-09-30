@@ -15,7 +15,7 @@ Each line names one skill directory under `skills/` and its job.
 - **docket-adr** — record, supersede, reverse, and index architecture decisions.
 - **docket-auto-groom** — drain the auto-groomable needs-brainstorm queue with no human, gated by an adversarial critic.
 - **docket-brainstorm** — the consultant-author brainstorm flow that produces or critiques a spec.
-- **docket-build** — the build role: route each plan task to a profile worker and run one full-suite gate at the end.
+- **docket-build** — the build role: route each plan task to a tier worker and run one full-suite gate at the end.
 - **docket-build-task** — the per-task worker contract: one plan task from focused test through one commit.
 - **docket-convention** — the shared contract: config, layout, manifest and ADR format, lifecycle, branch model (pure reference).
 - **docket-finalize-change** — close a change out: merge if approved, verify, archive, clean up, refresh the board.
@@ -33,18 +33,18 @@ Each line names one agent file under `agents/` and its job.
 - **docket-auto-groom-critic** — adversarially review an auto-groom draft and return one verdict.
 - **docket-auto-groom** — dispatch wrapper for autonomous grooming.
 - **docket-brainstorm-consultant** — pinned design consultant that authors a spec or returns critique concerns.
-- **docket-build-economy** — cheapest build profile: fully-specified, pattern-following plan tasks.
-- **docket-build-max** — strongest build profile: tasks whose mistakes cannot be walked back.
-- **docket-build-premium** — build profile for consequential but correctable named risk.
-- **docket-build-standard** — default build profile and uncertainty sink for normal tasks.
+- **docket-build-economy** — cheapest build tier: fully-specified, pattern-following plan tasks.
+- **docket-build-max** — strongest build tier: tasks whose mistakes cannot be walked back.
+- **docket-build-premium** — build tier for consequential but correctable named risk.
+- **docket-build-standard** — default build tier and uncertainty sink for normal tasks.
 - **docket-finalize-change** — dispatch wrapper for the finalize sequence.
 - **docket-implement-next** — dispatch wrapper for the autonomous backlog-drainer.
 - **docket-integration-repair** — re-green the suite after finalize's rebase within the configured repair-attempt budget (default 6).
 - **docket-plan-writer** — write and commit the implementation plan on the feature branch.
 - **docket-rebase-resolver** — resolve rebase conflicts during finalize's rebase gate.
-- **docket-review-deep** — the deep rung of the whole-branch reviewer.
-- **docket-review-lean** — the lean rung of the whole-branch reviewer.
-- **docket-review-standard** — the standard rung of the whole-branch reviewer.
+- **docket-review-deep** — the deep tier of the whole-branch reviewer.
+- **docket-review-lean** — the lean tier of the whole-branch reviewer.
+- **docket-review-standard** — the standard tier of the whole-branch reviewer.
 - **docket-status** — dispatch wrapper for the status refresh and health scan.
 
 (The `agents/` directory also holds `harness-defaults.yml`, the shipped default model/effort pins —

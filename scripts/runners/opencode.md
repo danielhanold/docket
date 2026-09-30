@@ -13,7 +13,7 @@ come from `runners.<name>.shim_model` / `shim_effort` (defaults `inherit` / `low
 something the parent harness can resolve.
 
 The motivating use is cost asymmetry: opencode reaches OpenRouter models, so docket's four
-build profile workers can be delegated to cheap models while the review rungs stay native on the
+build tier workers can be delegated to cheap models while the review tiers stay native on the
 parent's own subscription. Because build and review are already separate wrappered agents
 (ADR-0063), that split needs no new mechanism — just `runner:` on the rows you want to leave.
 
@@ -23,8 +23,8 @@ Delegating a build worker therefore turns on **where the child starts**. `runner
 The default suits the metadata-scoped agents delegation first shipped for; a build worker's
 contract requires the feature worktree on its branch, so the facade **requires** `--worktree` for
 any **feature-scoped** agent — one whose `agents/docket-<name>.md` source declares
-`worktree-scope: feature`, which covers the four build profiles, the rebase resolver, the
-integration repair worker and the three review rungs — and aborts loudly when its caller names none
+`worktree-scope: feature`, which covers the four build tiers, the rebase resolver, the
+integration repair worker and the three review tiers — and aborts loudly when its caller names none
 (changes 0206, 0208).
 
 ## Usage

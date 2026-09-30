@@ -91,12 +91,12 @@ lands on, usually `main`). Everything else cuts straight from the integration br
 The whole run is unattended between "pick" and "stop": your only required touch-point is reading and
 merging the pull request it opens.
 
-## Build profiles and the one escalation
+## Build tiers and the one escalation
 
 The build step does not treat every task the same. Each task in the plan is routed to one of four
-**build profiles** (one of four worker tiers — economy, standard, premium, max — a plan task is
+**build tiers** (economy, standard, premium, max — the worker a plan task is
 routed to by risk), which share one worker contract and differ only in the model and effort behind
-them. Each profile is a separately launched **agent** (a separately launched worker with its own
+them. Each tier is a separately launched **agent** (a separately launched worker with its own
 context, pinned to a model and effort), and the build **dispatches** one per task (launching a named
 agent to do a step and waiting for it to return).
 
@@ -106,10 +106,10 @@ risk, and needs no cross-file reasoning. Genuine uncertainty defaults to `standa
 up, rather than dropping to the cheaper one: when in doubt, docket spends more, not less. The top
 tier, `max`, is deliberately rare — reachable only for unresolved architecture or an irreversible
 data change, by an explicit override on the task, or by escalation — so the tier meant for extreme
-cases does not become normal. A plan task can override the routing outright with a build-profile
+cases does not become normal. A plan task can override the routing outright with a build-tier
 line on that task; an invalid value halts the build rather than silently falling back to a guess.
 
-Each task carries **at most one automatic escalation**, and only ever one rung up: an `economy`
+Each task carries **at most one automatic escalation**, and only ever one tier up: an `economy`
 worker that cannot finish retries once at `standard`, a `standard` worker once at `premium`, a
 `premium` worker once at `max`. There is never a second climb — a `max` worker that still cannot
 finish halts the build for a human rather than looping. The concrete payoff of this shape is that a
@@ -118,8 +118,8 @@ than it looked gets exactly one shot at more capability before a human is asked.
 
 Once every task has committed, the build runs the whole test suite once as its gate — that half of
 the story, and how the result is certified, is [Proving the build](./proving-the-build.md). The
-deeper mechanism behind profile routing and the gate verdict lives in
-[Build profiles and the suite gate](../concepts/build-profiles-and-gate.md).
+deeper mechanism behind tier routing and the gate verdict lives in
+[Build tiers and the suite gate](../concepts/build-tiers-and-gate.md).
 
 ## Draining the queue hands-free
 

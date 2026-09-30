@@ -19,8 +19,8 @@ The outcome forks two ways:
   bounded reviewer reads the branch trusting that record, exactly the way a human reviewer trusts a
   green status check on a pull request instead of re-running the suite themselves.
 - **Red** does not reach review. Instead it becomes one synthetic repair task, routed on the
-  `premium → max → halt` ladder — meaning it is handed to a strong worker (a **build profile** being
-  one of four worker tiers — economy, standard, premium, max — a plan task is routed to by risk),
+  `premium → max → halt` ladder — meaning it is handed to a strong worker (a **build tier** being
+  one of four workers — economy, standard, premium, max — a plan task is routed to by risk),
   escalated once to the strongest, and if that still cannot green the suite, the build halts for a
   human rather than merging a broken integration.
 
@@ -36,7 +36,7 @@ Two `build:` config keys shape this step, both settable in any config layer:
   `skipped` evidence is recorded instead of running anything (quote the value `off`).
 - `build.checkpoint` — `false` (the default) keeps only the per-task code commits as the durable
   record of progress, so a resumed run reconstructs where it was from the plan, commits, code, and
-  tests. `true` additionally writes a compact resume ledger recording each task's profile,
+  tests. `true` additionally writes a compact resume ledger recording each task's tier,
   escalation, and commit, so a resumed run can skip work already proven complete. Anything other
   than `true`/`false` is a config error, not a silent fallback.
 

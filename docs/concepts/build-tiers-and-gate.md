@@ -1,4 +1,4 @@
-# Build profiles and the suite gate
+# Build tiers and the suite gate
 
 ## The problem it solves
 
@@ -19,8 +19,8 @@ trusts a record rather than a claim.
 
 Docket answers both halves with routing and a gate. The **plan** — the
 task-by-task breakdown a build follows, written on the feature branch — is a
-list of tasks, and each is routed to a **build profile**: one of four worker
-tiers (economy, standard, premium, max) a plan task is routed to by risk. After
+list of tasks, and each is routed to a **build tier**: one of four workers
+(economy, standard, premium, max) chosen by risk. After
 the last task lands, the **build gate** — the full test-suite run at the end of a
 build that must be green before review — runs the whole suite once and records
 **build evidence**, the committed record of that gate run, read by the reviewer.
@@ -83,7 +83,7 @@ build that must be green before review — runs the whole suite once and records
 
 ## The invariants
 
-- Every plan task is routed to exactly one profile by its risk; standard is the
+- Every plan task is routed to exactly one tier by its risk; standard is the
   default and absorbs anything the router cannot confidently place.
 - A worker owns one task end to end and records it with exactly one commit; work
   outside that task belongs to another worker.
@@ -101,7 +101,7 @@ build that must be green before review — runs the whole suite once and records
 ## Decided in
 
 - [ADR-0063](../adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) —
-  had docket own the build role as profile-routed workers, with model and effort
+  had docket own the build role as tier-routed workers, with model and effort
   pinned on named agents (supersedes ADR-0023's per-role build-model surface).
 - [ADR-0064](../adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md)
   — moved the shipped model and effort defaults for those workers into a
@@ -110,7 +110,7 @@ build that must be green before review — runs the whole suite once and records
   — had docket own the review role and fixed that the suite runs in the build
   gate, before review, not inside the review.
 - [ADR-0070](../adrs/0070-fix-loop-profile-envelope-blocker-floor-and-max-ceiling.md)
-  — bounded the fix loop's profile envelope with a blocker floor at standard and
+  — bounded the fix loop's tier envelope with a blocker floor at standard and
   a ceiling below max.
 - [ADR-0074](../adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md)
   — made the build gate's verdict tri-state, so a runner-defined non-failure exit
