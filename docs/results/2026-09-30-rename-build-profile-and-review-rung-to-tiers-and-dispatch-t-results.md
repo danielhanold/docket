@@ -66,4 +66,19 @@ Generated agent descriptions and Cursor rules are loaded when a session starts. 
   - The repointed parity test went red when one comment byte in the `v0.9.9` copy was altered. It went green again once the byte was restored.
 - The whole-repo closing grep (plan Task 5 Step 6) found no rung words and no retired phrases. The "profile" and "carve" residue is only the permitted, unrelated senses listed above.
 - The frozen-path check found that the only frozen path added is `testdata/repositories/v0.9.9/`, as authorized. No existing tree changed. `internal/repoguard/budgets_test.go` is byte-identical to the base, so no size ceiling was raised.
-- The build gate runs the full suite at the final head, and its evidence is in the PR body.
+- The full suite (`go run ./cmd/docket development test`) passed at the build gate. It ran again after the review fixes, and the evidence for the final head is in the PR body.
+- A deep whole-branch review returned no blockers, no important findings and four minor findings. All four are fixed in commit `c55454602`:
+  1. The review guide said "model tier" where it now says "build tier".
+  2. "never restate literal tiers" in the convention and in the finalize gate-failure reference now names model IDs and efforts. This removes a clash with the new "tier" noun.
+  3. `testdata/repositories/v0.9.9/PROVENANCE.md` now records the source commit and "Redaction: none".
+  4. A comment in `internal/repoguard/absence_test.go` now names v0.9.9 as the parity copy.
+
+## Known issues and follow-ups
+
+### Stale header comment in `agents/harness-defaults.yml`
+
+The file's header says it is "enforced by scripts/lib/harness-defaults.sh", but that script no longer exists. Nothing breaks; a reader looking for the enforcing code would find the wrong pointer. This is confirmed and predates this change. Fixing it requires another frozen-sidecar copy, which is out of scope for a rename. Suggested next action: fix it at the next sidecar re-cut, or capture it with `docket change create`.
+
+### One integration test is over its time budget
+
+The suite runner confirmed, running serially, that `tests/test_go_integration_app_rebaserecovery.sh` takes 63s against a 60s solo budget. The suite still passes. This change is prose-only and does not touch that test. Suggested next action: triage the budget separately. It may overlap with the budget follow-up change 0472 recorded.
