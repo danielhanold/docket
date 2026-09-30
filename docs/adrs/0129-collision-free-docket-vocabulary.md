@@ -62,13 +62,14 @@ This ADR records the vocabulary settled by change 0468. It is the single referen
 10. **No human-readable old→new mapping in the glossary.** The mapping lives in (i) this change's ADR, as the decision record, and (ii) a code-level **retired-vocabulary table** in `internal/repoguard`. That table maps each retired wire token to its replacement, drives the family absence seals, and names the replacement in every seal failure. The first family to land creates the table, and each later family appends its rows. The umbrella does not create an empty table, because a seal over an empty list cannot be mutation-tested.
 11. **Retired features go to an "Obsolete terms" section of the glossary**, separate from renames: runner delegation, the runner shim / `runners` block, `runtime.bash`, terminal publish. The config-decode warnings for those keys stay.
 
-### Rename table (rows 1-66, plus 28a, 38a-38h, 40a, 41a-41b, 43a, 44a and 47a)
+### Rename table (rows 1-66, plus 28a, 38a-38h, 40a, 41a-41b, 43a, 44a, 46a and 47a)
 
-Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45, 40a, 41a-41b, 43a and 44a -> change 0472; rows 46-52 and 47a -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
+Row ownership: rows 1-38, 28a and 38a-38d -> change 0471; rows 38e-38h -> change 0477 (38h records a rename 0471 already made); rows 39-45, 40a, 41a-41b, 43a and 44a -> change 0472; rows 46-52, 46a and 47a -> change 0473; rows 53-59 -> change 0474; rows 60-66 -> change 0468.
 
 Kinds:
 - **concept**: a word in docs, skills and agent text.
 - **op / flag / token / key / code / env**: wire surfaces, hard-cut (`env` is an environment variable passed between docket processes).
+- **label**: a fixed line format one docket skill writes and another reads (no Go code parses it). Hard-cut like a wire surface, but not sealed by the retired-vocabulary table.
 - **stage**: the `failure.stage` label and the `run epoch <stage>: <kind>` error-text prefix.
 - **disk**: persisted state (Decision 3).
 
@@ -149,11 +150,12 @@ Go identifiers follow their row's term (e.g. `EpochRecord` → `RunRecord`, `rev
 
 "Revision" names the exact id of a pinned state: a record revision is a git blob id, a PR revision is a hash over the PR's mutable snapshot, and the existing `*_revision` keys (`committed_revision`, `metadata_revision`, `*_branch_revision`, the run tracker's `revision` / `bound_revision`) are commit ids. They share the word in that one sense and are not renamed.
 
-### Family (c) — tiers (change 0473; prose and test strings only: no wire tokens, no Go identifiers)
+### Family (c) — tiers (change 0473; prose, skill labels and test strings: no wire tokens, no Go identifiers)
 
 | # | Kind | Old | New |
 |---|---|---|---|
 | 46 | concept | build profile (economy / standard / premium / max) | build tier (the tier names are unchanged) |
+| 46a | label | plan-task override line `**Build profile:** <tier>` (plan writer → docket-build); worker return line `PROFILE: <tier> — <reason>` (docket-build-task → docket-build); dispatch prompt labels `Profile: <tier>` and `Rung: <tier>` | `**Build tier:** <tier>`; `TIER: <tier> — <reason>`; `Tier: <tier>` |
 | 47 | concept | review rung (lean / standard / deep) | review tier (the tier names are unchanged) |
 | 47a | concept | finding severity called "tiers": "severity-tiered findings", "the tiers a reviewer assigns", "tiered by severity" | severity levels: "severity-ranked findings", "the severity levels a reviewer assigns", "ranked by severity" |
 | 48 | concept | dispatch tiers A / B / C and the carve-out | dispatch fallbacks, rows 49–52 |
@@ -211,6 +213,7 @@ A family change that has to deviate from a row records the deviation through the
 - **Hard cut, no aliases.** When a family lands, the old spellings of its flags, operation ids, tokens and codes are refused outright; no alias, deprecation-window or dual-spelling machinery is built. Docket's own skills, agent wrappers and generated dispatch material ship with the binary and switch in one step.
 - **Consumer repos must re-run `docket install` per family.** Their generated dispatch material names the old tokens until reinstalled; each family's results `**Human action:**` says so.
 - **Family (a) (0471) must land with no dispatched run in flight** (drain or cancel first), and the post-merge binary rebuild must run immediately. Between merge and rebuild, CLAUDE.md names `run.start` while the installed binary only knows `run.gate-before`; catalog resolution stops the coordinator loudly (safe, but blocking until the rebuild). Every machine must also switch to the new binary with no implement-next or finalize run in flight in any docket repo, because the new binary starts the run tracker's local stores empty (Decision 3).
+- **Family (c) (0473) must land with no change mid-build or holding a committed-but-unbuilt plan** (drain first). A plan written before the upgrade may carry the retired `**Build profile:**` override (row 46a), which the new docket-build does not read, so a risky task could silently route to a cheaper tier.
 - **Change 0469 must drop rows 5, 6 and 48-52** (gate key, dispatch context, dispatch tiers), which this ADR now owns; its remaining run-tracker items touch family (a)'s files, so its grooming should consider `depends_on: [471]`.
 - Config keys, agent names, frontmatter fields, committed claim-receipt keys and row 45 stay, so `.docket.yml` files and metadata history remain readable. The run tracker's local stores restart empty at upgrade under their new names (row 38), and their old roots are left inert.
 - A code-level retired-vocabulary table in `internal/repoguard`, created by the first family to land and appended by later ones, drives the absence seals and names each replacement; the glossary carries no old->new mapping.
