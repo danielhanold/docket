@@ -156,7 +156,7 @@ func TestValidateSingleSnapshot(t *testing.T) {
 			absent: true,
 		},
 		{
-			name:     "terminal status left in active",
+			name:     "final status left in active",
 			docs:     []InputDocument{record(t, KindChange, LocationActive, activePath, minimalChange(42, "widget", "done"))},
 			code:     CodeChangePlacementInvalid,
 			severity: domain.SeverityError,
@@ -180,10 +180,10 @@ func TestValidateSingleSnapshot(t *testing.T) {
 			entity:   changeEntity(42, "widget", "docs/changes/archive/0042-widget.md"),
 		},
 		{
-			name: "archived terminal record still holding a claim stamp",
+			name: "archived final record still holding a claim stamp",
 			docs: []InputDocument{record(t, KindChange, LocationArchive, archivePath,
 				minimalChange(42, "widget", "done", "claimed_at: 2026-08-01T10:00:00Z"))},
-			code:     CodeChangeTerminalClaimStamp,
+			code:     CodeChangeFinalClaimStamp,
 			severity: domain.SeverityError,
 			field:    "claimed_at",
 			entity:   changeEntity(42, "widget", archivePath),
@@ -536,5 +536,15 @@ func TestValidateReportIsDeterministic(t *testing.T) {
 		if first[i].Code != second[i].Code || first[i].Entity != second[i].Entity {
 			t.Fatalf("report order differs at %d: %v vs %v", i, first[i], second[i])
 		}
+	}
+}
+
+// TestFinalLifecycleFindingSpellings pins ADR-0129 rows 58 and 59 (change 0474).
+func TestFinalLifecycleFindingSpellings(t *testing.T) {
+	if got := string(CodeChangeFinalClaimStamp); got != "change-final-claim-stamp" {
+		t.Errorf("CodeChangeFinalClaimStamp = %q", got)
+	}
+	if got := string(CodeADRUpdateAfterFinal); got != "adr-update-after-final" {
+		t.Errorf("CodeADRUpdateAfterFinal = %q", got)
 	}
 }

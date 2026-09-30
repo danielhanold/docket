@@ -22,7 +22,7 @@ package reposetup
 //	                      parses as an exact valid sequence of the item type —
 //	                      re-emitted as an UNQUOTED flow sequence, same items,
 //	                      same order.
-//	drop-terminal-claimed-at   claimed_at removed from an already-terminal
+//	drop-final-claimed-at      claimed_at removed from an already-final
 //	                      (done/killed) archived change.
 //
 // Byte edits are produced by internal/document's own PatchSet/serializer, so
@@ -49,7 +49,7 @@ type RepairCode string
 const (
 	RepairQuoteScalar   RepairCode = "quote-unsafe-scalar"
 	RepairScalarToList  RepairCode = "scalar-to-list"
-	RepairDropClaimedAt RepairCode = "drop-terminal-claimed-at"
+	RepairDropClaimedAt RepairCode = "drop-final-claimed-at"
 )
 
 // RepairFinding is one diagnosis about a single change record. A repairable
@@ -97,7 +97,7 @@ var changeStringFields = map[string]bool{
 // non-repairable findings for the shapes it can name but must not touch. An
 // undecodable frontmatter block (including a duplicate key, which document.Parse
 // rejects) yields a single non-repairable finding naming the whole record.
-// archived enables RepairDropClaimedAt, and only for a terminal-status record.
+// archived enables RepairDropClaimedAt, and only for a final-status record.
 func PlanRepairs(path string, src []byte, archived bool) ([]RepairFinding, error) {
 	doc, err := document.Parse(src)
 	if err != nil {
@@ -203,7 +203,7 @@ func planList(path string, src []byte, doc document.Document, f document.Field) 
 	}, true
 }
 
-// planClaimedAt decides the drop-terminal-claimed-at roster entry.
+// planClaimedAt decides the drop-final-claimed-at roster entry.
 func planClaimedAt(path string, src []byte, doc document.Document, archived bool) (RepairFinding, bool) {
 	f, ok := doc.Field("claimed_at")
 	if !ok {
@@ -213,7 +213,7 @@ func planClaimedAt(path string, src []byte, doc document.Document, archived bool
 		// An active record legitimately holds a claim lease; leave it alone.
 		return RepairFinding{}, false
 	}
-	if !terminalStatus(doc) {
+	if !finalStatus(doc) {
 		return RepairFinding{
 			Path:       path,
 			Field:      "claimed_at",
@@ -237,9 +237,9 @@ func planClaimedAt(path string, src []byte, doc document.Document, archived bool
 	}, true
 }
 
-// terminalStatus reports whether the record's decoded status is a terminal end
+// finalStatus reports whether the record's decoded status is a final end
 // state (done or killed).
-func terminalStatus(doc document.Document) bool {
+func finalStatus(doc document.Document) bool {
 	var head struct {
 		Status string `yaml:"status"`
 	}
@@ -247,7 +247,7 @@ func terminalStatus(doc document.Document) bool {
 		return false
 	}
 	st, ok := domain.ParseStatus(head.Status)
-	return ok && st.Terminal()
+	return ok && st.Final()
 }
 
 // booleanKeywords are the scalar spellings the house rule requires quoting

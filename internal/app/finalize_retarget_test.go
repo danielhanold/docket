@@ -459,10 +459,10 @@ func TestRetargetChildrenLeavesStackedOn(t *testing.T) {
 	}
 }
 
-// TestRetargetChildrenSkipsTerminalChildren: stacked-merged and done children do
+// TestRetargetChildrenSkipsFinalChildren: stacked-merged and done children do
 // not block the parent merge and are never probed or edited; only the open,
 // non-final authorized child is retargeted.
-func TestRetargetChildrenSkipsTerminalChildren(t *testing.T) {
+func TestRetargetChildrenSkipsFinalChildren(t *testing.T) {
 	pin := docketPin(t)
 	corpus := []StatusBlob{
 		finalizeBlob(80, "root", "implemented", "high", prRefFor(800), ""),
@@ -490,10 +490,10 @@ func TestRetargetChildrenSkipsTerminalChildren(t *testing.T) {
 	}
 	// The final children are surfaced as skipped, not omitted; only 830 edited.
 	if c := childOutcomeByID(t, got, 81); c.Outcome != childOutcomeSkippedDone {
-		t.Errorf("child 81 outcome=%q, want skipped-terminal", c.Outcome)
+		t.Errorf("child 81 outcome=%q, want skipped-final", c.Outcome)
 	}
 	if c := childOutcomeByID(t, got, 82); c.Outcome != childOutcomeSkippedDone {
-		t.Errorf("child 82 outcome=%q, want skipped-terminal", c.Outcome)
+		t.Errorf("child 82 outcome=%q, want skipped-final", c.Outcome)
 	}
 	if c := childOutcomeByID(t, got, 83); c.Outcome != childOutcomeRetargeted {
 		t.Errorf("child 83 outcome=%q, want retargeted", c.Outcome)

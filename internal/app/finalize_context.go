@@ -433,7 +433,7 @@ func finalizeExplicitGuard(snap domain.Snapshot, id int, policy FinalizePolicy) 
 	}
 	if !finalizeInPopulation(c) {
 		r := newFinalizeContextResult(ResultInvalidState, ReasonFinalizeNotFinalizable,
-			fmt.Sprintf("change %04d is not in finalize's population (terminal or without a PR reference)", id), policy, nil, nil)
+			fmt.Sprintf("change %04d is not in finalize's population (final or without a PR reference)", id), policy, nil, nil)
 		return &r
 	}
 	return nil
@@ -600,7 +600,7 @@ func finalizeHasPRRef(c domain.Change) bool {
 // PR selection all key on, so the population can never drift between the readers
 // (learning duplicated-gate-copies-the-whole-predicate).
 func finalizeInPopulation(c domain.Change) bool {
-	return !c.Status().Terminal() && finalizeHasPRRef(c)
+	return !c.Status().Final() && finalizeHasPRRef(c)
 }
 
 // allowlistIDs builds a membership set of change ids from a request allowlist,

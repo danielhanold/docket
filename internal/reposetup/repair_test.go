@@ -197,7 +197,7 @@ func TestRepairDropClaimedAtRefused(t *testing.T) {
 		archived bool
 	}{
 		// Mutation-probe target: the final-status check refuses this.
-		{"non-terminal archived record", "---\nid: 7\nstatus: in-progress\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n", true},
+		{"non-final archived record", "---\nid: 7\nstatus: in-progress\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n", true},
 		// An active (unarchived) record legitimately holds a claim lease.
 		{"active unarchived record", "---\nid: 7\nstatus: done\nclaimed_at: 2026-08-01T10:00:00Z\n---\nbody\n", false},
 	}
@@ -471,5 +471,12 @@ func assertParity(t *testing.T, path string, rec []byte, s string) {
 	}
 	if fs := planOne(t, path, string(rec), false); len(fs) != 0 {
 		t.Fatalf("checker disagrees with writer for %q: %+v\n%s", s, fs, rec)
+	}
+}
+
+// TestRepairDropClaimedAtSpelling pins ADR-0129 row 58 (change 0474).
+func TestRepairDropClaimedAtSpelling(t *testing.T) {
+	if got := string(RepairDropClaimedAt); got != "drop-final-claimed-at" {
+		t.Errorf("RepairDropClaimedAt = %q, want drop-final-claimed-at", got)
 	}
 }

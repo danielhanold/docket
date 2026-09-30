@@ -152,7 +152,7 @@ The `finalize.closeout` operation with `--id <id> [--input <request-file>]`. Whe
 verification outcomes or late findings, translate that prose into two structured lists — `verification_outcomes`
 and `late_findings`, each an array of strings — in a bounded JSON request file passed via `--input`; closeout
 renders them under `## Closeout notes` in the same transaction that archives the record, an identical-notes retry
-replays as `already`, and different notes against an archived record are refused (`terminal-notes-frozen`). With no
+replays as `already`, and different notes against an archived record are refused (`final-notes-frozen`). With no
 notes, call the unchanged no-input form and archive immediately — no post-merge pause or second user step. No
 caller-supplied done boolean or archive date: it reloads metadata, reprobes the PR and its destination, derives the
 UTC archive date from the verified `mergedAt`, and applies one atomic transaction. Route on `disposition`:
@@ -162,7 +162,7 @@ UTC archive date from the verified `mergedAt`, and applies one atomic transactio
 - `root-archived` — a stack root reached integration and every carried descendant is proven: its chain of merged PR destinations establishes the carry relationship AND its merged work is verified still present in Git — reachable in the pinned integration history, or exact-content at the root's merge result — since a merged destination alone is a relationship, never proof the content shipped. One transaction archives the root and every descendant using the root's merge date, one board render over the final population. One unproven descendant leaves the root recoverable, zero descendant writes.
 - `already` — the promised final state already exists (a response-lost success): a keyed no-op, never a duplicate transition.
 - `children-retarget-required` — a descendant is not yet stacked-merged; return to step 2 (attended) or `halted` (autonomous).
-- `contended` / `blocked` / `unknown` — a lost race, an illegal source status or destination mismatch, or an unobservable probe; re-read context (`contended`) or stop (`halted`). In `docket` mode the metadata transaction lands first and a separate integration-ref leg patches only the existing `docket:backlink` blocks; a failed leg leaves the change truthfully `done` with a `terminal-backlink-pending` finding that a retry recovers — cleanup (step 10) repairs it, never a reason to redo the merge.
+- `contended` / `blocked` / `unknown` — a lost race, an illegal source status or destination mismatch, or an unobservable probe; re-read context (`contended`) or stop (`halted`). In `docket` mode the metadata transaction lands first and a separate integration-ref leg patches only the existing `docket:backlink` blocks; a failed leg leaves the change truthfully `done` with a `final-backlink-pending` finding that a retry recovers — cleanup (step 10) repairs it, never a reason to redo the merge.
 
 ### 10. Cleanup — Docket-owned resources only
 

@@ -470,10 +470,10 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 
 // resolveBlockTarget resolves the change record's canonical path from the pinned
 // corpus, refusing an unknown/ambiguous id or a terminal (non-blockable) change.
-// allowTerminal is false for `finalize block`. The authoritative blockability
+// allowFinal is false for `finalize block`. The authoritative blockability
 // gate re-runs inside the transaction on fresh state; this pre-read is a
 // supporting observation that resolves the exact target path.
-func resolveBlockTarget(op string, eff config.Effective, blobs []StatusBlob, id int, allowTerminal bool) (string, *BlockResult) {
+func resolveBlockTarget(op string, eff config.Effective, blobs []StatusBlob, id int, allowFinal bool) (string, *BlockResult) {
 	inputs, _ := parseCorpus(blobs)
 	build, err := repository.BuildSnapshot(repository.BuildInput{Config: eff, Documents: inputs})
 	if err != nil {
@@ -485,9 +485,9 @@ func resolveBlockTarget(op string, eff config.Effective, blobs []StatusBlob, id 
 	if refusal := blockLookupRefusal(op, out, id); refusal != nil {
 		return "", refusal
 	}
-	if !allowTerminal && c.Status().Terminal() {
+	if !allowFinal && c.Status().Final() {
 		r := blockRefusal(op, ResultInvalidState, BlockDispRefused, ReasonBlockNotBlockable,
-			fmt.Sprintf("change %04d is terminal; there is no finalize attempt to block", id), id)
+			fmt.Sprintf("change %04d is final; there is no finalize attempt to block", id), id)
 		return "", &r
 	}
 	return c.Path(), nil
@@ -682,9 +682,9 @@ func (o finalizeBlockOp) Plan(ctx context.Context, st transaction.AttemptState) 
 	if out != domain.LookupFound {
 		return refuseBlock("not-found", fmt.Sprintf("change %04d is not present in the current corpus", o.req.ID))
 	}
-	if c.Status().Terminal() {
+	if c.Status().Final() {
 		return refuseBlock(ReasonBlockNotBlockable,
-			fmt.Sprintf("change %04d is terminal; there is no finalize attempt to block", o.req.ID))
+			fmt.Sprintf("change %04d is final; there is no finalize attempt to block", o.req.ID))
 	}
 	src, ok := st.State.Sources[c.Path()]
 	if !ok {

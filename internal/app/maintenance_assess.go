@@ -116,7 +116,7 @@ func sweepAssessHistorical(ctx context.Context, deps FinalizeDeps, wdeps Workspa
 			// The worklist only enqueues done/stacked-merged records as cleanups; any
 			// other status reaching here is an unusable identity, never a clean state.
 			entries = append(entries, sweepEntry(it.id, it.kind, SweepDispSkipped, "", ReasonSweepSnapshotInvalid,
-				"the record is not a terminal done/stacked-merged record"))
+				"the record is neither done nor stacked-merged"))
 			continue
 		}
 
@@ -230,7 +230,7 @@ func (a sweepLegAssessment) verdict() (disposition, reason, message string) {
 func sweepAssessBacklinkLeg(ctx context.Context, deps FinalizeDeps, pin StatusPin, c domain.Change, link render.LinkContext, a *sweepLegAssessment) {
 	block, err := render.BacklinkContent(c, link)
 	if err != nil {
-		a.markUnknown(sweepLegBacklink, "the record's terminal backlink could not be rendered")
+		a.markUnknown(sweepLegBacklink, "the record's final backlink could not be rendered")
 		return
 	}
 	interior := backlinkInterior(block)
@@ -249,7 +249,7 @@ func sweepAssessBacklinkLeg(ctx context.Context, deps FinalizeDeps, pin StatusPi
 		}
 		has, herr := backlinkLegHasWork(art.Data, interior)
 		if herr != nil {
-			a.markUnknown(sweepLegBacklink, "artifact "+p+" carries a malformed terminal backlink block")
+			a.markUnknown(sweepLegBacklink, "artifact "+p+" carries a malformed final backlink block")
 			return
 		}
 		if has {

@@ -52,8 +52,8 @@ func ParseStatus(s string) (Status, bool) {
 	return "", false
 }
 
-// Terminal reports whether the status is an end state — done or killed.
-func (s Status) Terminal() bool {
+// Final reports whether the status is a final state — done or killed.
+func (s Status) Final() bool {
 	return s == StatusDone || s == StatusKilled
 }
 

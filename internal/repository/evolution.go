@@ -18,10 +18,10 @@ const (
 	// changed: anything other than a legal status flip or an appended update
 	// section rewrites a record that is supposed to be immutable.
 	CodeADRFrozenContentModified = "adr-frozen-content-modified"
-	// CodeADRUpdateAfterTerminal marks an update section appended to an ADR
+	// CodeADRUpdateAfterFinal marks an update section appended to an ADR
 	// that is no longer Accepted. A superseded, reversed, or deprecated
 	// decision is closed: the successor carries the new thinking.
-	CodeADRUpdateAfterTerminal = "adr-update-after-terminal"
+	CodeADRUpdateAfterFinal = "adr-update-after-final"
 	// CodeADRStatusFlipIllegal marks a status value that changed in a way the
 	// lifecycle does not allow — a final status reopened or re-aimed, an
 	// Accepted status merely respelled, or a flip to an unparseable value.
@@ -100,8 +100,8 @@ func compareFrozenADR(before, after domain.ADR, beforeBytes, afterBytes []byte) 
 	}
 
 	if frozenPrefixIntact(beforeBytes, afterBytes) && appendedUpdateSections(beforeBytes, afterBytes) {
-		if isTerminalADRStatus(before.Status()) {
-			return []domain.Finding{evolutionFinding(CodeADRUpdateAfterTerminal, adrEntity(before), "", map[string]string{
+		if isFinalADRStatus(before.Status()) {
+			return []domain.Finding{evolutionFinding(CodeADRUpdateAfterFinal, adrEntity(before), "", map[string]string{
 				"status": before.RawStatus(),
 			})}
 		}
@@ -226,9 +226,9 @@ func spanWithin(span document.Span, length int) bool {
 	return span.Start >= 0 && span.End >= span.Start && span.End <= length
 }
 
-// isTerminalADRStatus reports whether a status closes the decision to further
+// isFinalADRStatus reports whether a status closes the decision to further
 // updates.
-func isTerminalADRStatus(status domain.ADRStatus) bool {
+func isFinalADRStatus(status domain.ADRStatus) bool {
 	switch status.Kind {
 	case domain.ADRSupersededBy, domain.ADRReversedBy, domain.ADRDeprecated:
 		return true
