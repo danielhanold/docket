@@ -146,7 +146,8 @@ const (
 	// done) but the follow-up integration-ref backlink leg did not; a retryable
 	// health/maintenance finding.
 	ReasonCloseoutBacklinkPending = "final-backlink-pending"
-	// ReasonCloseoutNotesFrozen: the change is already final and the request
+	// ReasonCloseoutNotesFrozen: the change is already final (or stacked-merged in
+	// place) and the request
 	// carries notes that differ from the archived record; refused — an archived
 	// record is never rewritten.
 	ReasonCloseoutNotesFrozen = "final-notes-frozen"
@@ -340,6 +341,8 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 // into the archived bytes is a byte-level no-op. Empty notes match any
 // archived record (the pre-notes replay). The comparison uses the same splice
 // that writes, so reader and writer can never disagree.
+// It also serves the stacked-merged in-place replay, where the record is not
+// yet archived.
 func closeoutNotesMatchArchived(body []byte, notes CloseoutNotes) (bool, error) {
 	if notes.Empty() {
 		return true, nil
@@ -734,8 +737,8 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 	}
 
 	if cc.change.Status() == domain.StatusStackedMerged {
-		// Replay against the archived in-place record's own bytes: identical notes
-		// (or none) are a byte-level no-op; different notes cannot rewrite it.
+		// Replay against the stacked-merged in-place record's own bytes: identical
+		// notes (or none) are a byte-level no-op; different notes cannot rewrite it.
 		if match, err := closeoutNotesMatchArchived(cc.body, notes); err != nil {
 			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen, err.Error(), id)
 		} else if !match {
