@@ -1,17 +1,24 @@
 package repoguard
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/scanner"
 	"go/token"
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/app"
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/buildinfo"
+	"github.com/danielhanold/docket/internal/cli"
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/harness/claude"
 	"github.com/danielhanold/docket/internal/harness/codex"
@@ -46,6 +53,19 @@ import (
 // mutation-tested (Decision 10). A later family that needs one brings it back
 // with its own mutation tests.
 //
+// Family (b), revision (change 0472), appends rows 40, 40a, 41-44 and 44a.
+// It brings the first two kinds whose match is not a bare spelling:
+// kindBoundFlag depends on CONTEXT (a --version is retired only where it is
+// bound to a change, finalize or workspace command, derived from the live
+// capability catalog), and kindSchemaKey depends on the WIRE CONTRACT (a
+// request/result key found by walking the schema registry, with an exact kept
+// set of software and format versions).
+//
+// LIMITATION (byte-pattern-guard-matches-a-spelling): a foreign tool's
+// --version whose nearest preceding operation reference in the same block is a
+// change, finalize or workspace operation reads as bound. No maintained surface
+// carries that shape; the negative controls pin the shapes that exist.
+//
 // LIMITATION: the match is a bounded spelling, not the property. A retired
 // token re-assembled at runtime from fragments (e.g. "gate-" + "armed") escapes
 // it; that is accepted, as for every repoguard spelling seal.
@@ -70,6 +90,16 @@ const (
 	// kindGoPrefix: a non-test Go string literal that starts with Old — the
 	// retired error-text prefix.
 	kindGoPrefix
+	// kindBoundFlag: the bare flag Old (row 40's --version), retired only where
+	// it is BOUND to a change, finalize or workspace command (see scanBoundFlags
+	// for markdown/shell and scanGoBoundFlag for Go). Unbound, it names a
+	// software version and stays: docket version, the release tools, foreign
+	// CLIs.
+	kindBoundFlag
+	// kindSchemaKey: a request/result key whose name ends in Old, found by
+	// walking the schema registry (the wire contract), never by grepping tags
+	// (see schemaVersionKeyHits). The exact kept set is schemaKeptVersionKeys.
+	kindSchemaKey
 )
 
 // retiredToken is one row of the retired-vocabulary table.
@@ -154,6 +184,23 @@ var retiredVocabulary = []retiredToken{
 	// read, a Go map-key literal), which the struct-tag entry above cannot see.
 	// No maintained namesake carries the spelling (change 0477 review Finding 3).
 	{Row: "38g", Kind: kindToken, Old: "dispatch_context", New: "run_context"},
+	// Family (b) — revision (change 0472): rows 40, 40a, 41-44, 44a. Row 39 is the
+	// concept itself; row 45 (resolver_budget_version) is kept.
+	{Row: "40", Kind: kindBoundFlag, Old: "--version", New: "--revision"},
+	{Row: "40a", Kind: kindToken, Old: "expect-version", New: "--expect-revision / expect-revision"},
+	{Row: "41-44", Kind: kindSchemaKey, Old: "version", New: "revision"},
+	{Row: "42", Kind: kindToken, Old: "spec_version", New: "spec_revision"},
+	{Row: "44", Kind: kindToken, Old: "pr_version", New: "pr_revision"},
+	{Row: "44a", Kind: kindToken, Old: "version-mismatch", New: "revision-mismatch"},
+	{Row: "44a", Kind: kindToken, Old: "version-drift", New: "revision-drift"},
+	{Row: "44a", Kind: kindToken, Old: "spec-version-mismatch", New: "spec-revision-mismatch"},
+	{Row: "44a", Kind: kindToken, Old: "reclaim-version-missing", New: "reclaim-revision-missing"},
+	{Row: "44a", Kind: kindToken, Old: "empty-version", New: "empty-revision"},
+	{Row: "44a", Kind: kindToken, Old: "empty-change-version", New: "empty-change-revision"},
+	{Row: "44a", Kind: kindToken, Old: "empty-target-version", New: "empty-target-revision"},
+	{Row: "44a", Kind: kindToken, Old: "empty-spec_version", New: "empty-spec_revision"},
+	{Row: "44a", Kind: kindToken, Old: "invalid-spec_version", New: "invalid-spec_revision"},
+	{Row: "44a", Kind: kindToken, Old: "empty-child_pr_version", New: "empty-child_pr_revision"},
 }
 
 // retiredHit is one seal violation.
@@ -211,9 +258,10 @@ func scanText(rel, content string, md bool) []retiredHit {
 		if !md {
 			line = stripHashComment(line)
 		}
+		lines[i] = line
 		hits = append(hits, scanTextLine(rel, i+1, line)...)
 	}
-	return hits
+	return append(hits, scanBoundFlags(rel, lines)...)
 }
 
 var jsonTagKeyRe = regexp.MustCompile(`json:"([^",]*)`)
@@ -257,6 +305,9 @@ func scanGoSource(rel string, src []byte) ([]retiredHit, error) {
 	var scanErr error
 	s.Init(file, src, func(pos token.Position, msg string) { scanErr = fmt.Errorf("%s: %s", pos, msg) }, 0)
 	var hits []retiredHit
+	// prev1..prev3 are the three tokens before this one, so a string literal
+	// that is a method call's first argument (x.M("…")) is recognisable.
+	var prev1, prev2, prev3 token.Token
 	for {
 		pos, tok, lit := s.Scan()
 		if tok == token.EOF {
@@ -264,9 +315,212 @@ func scanGoSource(rel string, src []byte) ([]retiredHit, error) {
 		}
 		if tok == token.STRING {
 			hits = append(hits, scanGoLiteral(rel, fset.Position(pos).Line, lit)...)
+			if prev1 == token.LPAREN && prev2 == token.IDENT && prev3 == token.PERIOD && strings.HasPrefix(rel, "internal/cli/") {
+				hits = append(hits, scanGoBoundFlag(rel, fset.Position(pos).Line, lit)...)
+			}
 		}
+		prev3, prev2, prev1 = prev2, prev1, tok
 	}
 	return hits, scanErr
+}
+
+// boundFlagFamilies are the command families whose bare --version pinned the
+// record revision (ADR-0129 row 40).
+var boundFlagFamilies = map[string]bool{"change": true, "finalize": true, "workspace": true}
+
+var (
+	opRefOnce sync.Once
+	opRefRe   *regexp.Regexp
+	opRefIDs  int
+	opRefErr  error
+)
+
+// catalogOpRefs compiles the operation-reference matcher from the live
+// capability catalog, read in-process through cli.Run, never hand-listed
+// (enumerated-floor): every dotted op id (change.claim) and every multi-word
+// command form (change claim, gate drive start). Single-word commands (status,
+// version, schema) are deliberately not references: they name no family a
+// --version binds to, and as English words they would shadow a real binding.
+func catalogOpRefs() (*regexp.Regexp, int, error) {
+	opRefOnce.Do(func() {
+		var out, errb bytes.Buffer
+		if code := cli.Run([]string{"capabilities", "--json"}, strings.NewReader(""), &out, &errb, buildinfo.Info{}, buildinfo.RuntimeFacts{}); code != 0 {
+			opRefErr = fmt.Errorf("capabilities exited %d: %s", code, errb.String())
+			return
+		}
+		var doc struct {
+			Commands []struct {
+				ID   string   `json:"id"`
+				Argv []string `json:"argv"`
+			} `json:"commands"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+			opRefErr = fmt.Errorf("parse capabilities: %w", err)
+			return
+		}
+		var alts []string
+		for _, c := range doc.Commands {
+			if strings.Contains(c.ID, ".") {
+				alts = append(alts, regexp.QuoteMeta(c.ID))
+				opRefIDs++
+			}
+			if len(c.Argv) >= 3 {
+				words := make([]string, 0, len(c.Argv)-1)
+				for _, w := range c.Argv[1:] {
+					words = append(words, regexp.QuoteMeta(w))
+				}
+				alts = append(alts, strings.Join(words, `[ \t]+`))
+			}
+		}
+		if len(alts) == 0 {
+			opRefErr = fmt.Errorf("capabilities listed no operation references")
+			return
+		}
+		// Longest first: Go's alternation is leftmost-first, so change.refresh-claim
+		// must be tried before any shorter reference it contains.
+		sort.Slice(alts, func(i, j int) bool { return len(alts[i]) > len(alts[j]) })
+		opRefRe = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.-])(` + strings.Join(alts, "|") + `)(?:[^A-Za-z0-9_-]|$)`)
+	})
+	return opRefRe, opRefIDs, opRefErr
+}
+
+// refFamily returns an operation reference's family: its text up to the first
+// '.' or blank.
+func refFamily(ref string) string {
+	if i := strings.IndexAny(ref, ". \t"); i >= 0 {
+		return ref[:i]
+	}
+	return ref
+}
+
+// scanBoundFlags reports each kindBoundFlag row's flag that is BOUND to a
+// change, finalize or workspace command. A block is a maximal run of non-blank
+// lines, so a flag wrapped onto the line after its operation still binds, and a
+// blank line ends the binding. The flag's binding is the NEAREST catalog
+// operation reference that precedes it in its block, so `docket version`, the
+// release tools' --version and a foreign CLI's (`codex --version`) never bind.
+//
+// LIMITATION (byte-pattern-guard-matches-a-spelling): a foreign tool's
+// --version whose nearest preceding reference in the same block is a change,
+// finalize or workspace operation reads as bound. No maintained surface carries
+// that shape; the negative controls pin the shapes that exist.
+func scanBoundFlags(rel string, lines []string) []retiredHit {
+	re, _, err := catalogOpRefs()
+	if err != nil {
+		panic(fmt.Sprintf("retired-vocabulary seal: catalog operation references unavailable (fail closed): %v", err))
+	}
+	var hits []retiredHit
+	for start := 0; start < len(lines); {
+		if strings.TrimSpace(lines[start]) == "" {
+			start++
+			continue
+		}
+		end := start
+		for end < len(lines) && strings.TrimSpace(lines[end]) != "" {
+			end++
+		}
+		block := strings.Join(lines[start:end], "\n")
+		refs := re.FindAllStringSubmatchIndex(block, -1)
+		for _, r := range retiredVocabulary {
+			if r.Kind != kindBoundFlag {
+				continue
+			}
+			for _, m := range tokenRe(r.Old).FindAllStringIndex(block, -1) {
+				pos := m[0] + strings.Index(block[m[0]:m[1]], r.Old)
+				family := ""
+				for _, ref := range refs {
+					if ref[2] >= pos {
+						break
+					}
+					family = refFamily(block[ref[2]:ref[3]])
+				}
+				if boundFlagFamilies[family] {
+					lineNo := start + 1 + strings.Count(block[:pos], "\n")
+					hits = append(hits, retiredHit{rel, lineNo, r, strings.TrimSpace(lines[lineNo-1])})
+				}
+			}
+		}
+		start = end
+	}
+	return hits
+}
+
+// scanGoBoundFlag: a kindBoundFlag row's flag name (Old without its leading
+// "--") passed as the FIRST argument of a method call in non-test internal/cli
+// source, which is a flag definition or lookup (Flags().String("version", …),
+// GetString("version"), MarkFlagRequired("version")). internal/cli builds every
+// change, finalize and workspace command, and none of its commands takes a
+// software --version (docket version is a subcommand with no such flag); the
+// release tools' --version lives outside it (cmd/releasepkg, the shell
+// downloader). A plain function call (capability("version", …)) and a struct
+// field (Use: "version") are not method calls and never bind.
+func scanGoBoundFlag(rel string, lineNo int, lit string) []retiredHit {
+	val, err := strconv.Unquote(lit)
+	if err != nil {
+		return nil
+	}
+	var hits []retiredHit
+	for _, r := range retiredVocabulary {
+		if r.Kind == kindBoundFlag && val == strings.TrimPrefix(r.Old, "--") {
+			hits = append(hits, retiredHit{rel, lineNo, r, lit})
+		}
+	}
+	return hits
+}
+
+// schemaKeptVersionKeys is the bounded kept set of spec Decision 4 as it appears
+// in the schema: software and format versions, the version operation's own key,
+// and capabilities' binary.version. Each entry is an exact "<scope> <path>", never
+// a bare name, so a record revision cannot hide behind a kept spelling elsewhere.
+// The claim digest payload is not a registered shape and is outside the walk.
+var schemaKeptVersionKeys = map[string]bool{
+	"envelope protocol_version":           true,
+	"capabilities RES capability_version": true,
+	"capabilities RES binary.version":     true,
+	"diagnostic.runtime RES go_version":   true,
+	"version RES version":                 true,
+}
+
+// schemaVersionKeyHits walks every key of doc (the envelope, then each
+// operation's request and result, recursively) and reports each key whose name
+// ends, case-insensitively, in a kindSchemaKey row's Old and is not in
+// schemaKeptVersionKeys, naming the replacement path. revisionKeys counts the keys
+// ending in "revision", the live population floor a truncated walk would miss.
+func schemaVersionKeyHits(doc app.SchemaResult) (hits []string, revisionKeys int, seen map[string]bool) {
+	seen = map[string]bool{}
+	var walk func(scope, prefix string, fs []app.FieldDescriptor)
+	walk = func(scope, prefix string, fs []app.FieldDescriptor) {
+		for _, f := range fs {
+			path := prefix + f.Key
+			key := scope + " " + path
+			seen[key] = true
+			lower := strings.ToLower(f.Key)
+			if strings.HasSuffix(lower, "revision") {
+				revisionKeys++
+			}
+			for _, r := range retiredVocabulary {
+				if r.Kind != kindSchemaKey || !strings.HasSuffix(lower, r.Old) || schemaKeptVersionKeys[key] {
+					continue
+				}
+				n := len(f.Key) - len(r.Old)
+				repl := f.Key[:n] + r.New
+				if f.Key[n] == 'V' {
+					repl = f.Key[:n] + strings.ToUpper(r.New[:1]) + r.New[1:]
+				}
+				hits = append(hits, fmt.Sprintf("schema %s: ADR-0129 rows %s: retired %q — use %s", key, r.Row, f.Key, prefix+repl))
+			}
+			walk(scope, path+".", f.Fields)
+		}
+	}
+	walk("envelope", "", doc.EnvelopeShape.Fields)
+	for _, op := range doc.Operations {
+		if op.Request != nil {
+			walk(op.ID+" REQ", "", op.Request.Fields)
+		}
+		walk(op.ID+" RES", "", op.Result.Fields)
+	}
+	sort.Strings(hits)
+	return hits, revisionKeys, seen
 }
 
 // goSourcePop returns the maintained non-test Go files.
@@ -283,17 +537,61 @@ func goSourcePop(t *testing.T, root string) []string {
 
 // TestRetiredVocabularySeal is the ADR-0129 absence seal.
 func TestRetiredVocabularySeal(t *testing.T) {
+	t.Run("catalog_vocabulary", testRetiredCatalogVocabulary)
 	t.Run("table_integrity", testRetiredTableIntegrity)
 	t.Run("non_vacuity", testRetiredNonVacuity)
 	t.Run("negative_controls", testRetiredNegativeControls)
 	t.Run("maintained_surfaces", testRetiredMaintainedSurfaces)
 	t.Run("generator_output", testRetiredGeneratorOutput)
+	t.Run("schema_walk", testRetiredSchemaWalk)
+}
+
+// testRetiredCatalogVocabulary derives the operation references the bound-flag
+// scan needs and fails closed if the catalog cannot be read or has collapsed.
+func testRetiredCatalogVocabulary(t *testing.T) {
+	re, ids, err := catalogOpRefs()
+	if err != nil {
+		t.Fatalf("catalog operation references: %v (fail closed)", err)
+	}
+	if ids < 70 {
+		t.Fatalf("population floor: %d dotted operation ids (expected >= 70)", ids)
+	}
+	for _, fam := range []string{"change.claim", "finalize.merge", "workspace.prepare", "docket change claim"} {
+		if !re.MatchString(" " + fam + " ") {
+			t.Errorf("operation reference matcher does not recognise %q", fam)
+		}
+	}
+}
+
+// testRetiredSchemaWalk seals the bare record-revision key over the live wire
+// contract.
+func testRetiredSchemaWalk(t *testing.T) {
+	doc, err := app.Schema(nil)
+	if err != nil {
+		t.Fatalf("app.Schema: %v (fail closed)", err)
+	}
+	if len(doc.Operations) < 75 {
+		t.Fatalf("population floor: schema walk saw %d operations (expected >= 75)", len(doc.Operations))
+	}
+	hits, revs, seen := schemaVersionKeyHits(doc)
+	if revs < 60 {
+		t.Fatalf("population floor: schema walk saw %d *revision keys (expected >= 60)", revs)
+	}
+	// A kept entry the live schema no longer carries is a stale exemption.
+	for k := range schemaKeptVersionKeys {
+		if !seen[k] {
+			t.Errorf("kept schema key %q is absent from the live schema: delete it from schemaKeptVersionKeys", k)
+		}
+	}
+	if len(hits) != 0 {
+		t.Errorf("retired ADR-0129 record-revision keys in the schema (%d):\n%s", len(hits), strings.Join(hits, "\n"))
+	}
 }
 
 // testRetiredTableIntegrity: a malformed row would seal nothing or name no
 // replacement. The floor stops a truncated table from passing vacuously.
 func testRetiredTableIntegrity(t *testing.T) {
-	const floor = 60
+	const floor = 78
 	if len(retiredVocabulary) < floor {
 		t.Fatalf("retired-vocabulary table has %d rows, expected >= %d", len(retiredVocabulary), floor)
 	}
@@ -345,6 +643,19 @@ func testRetiredNonVacuity(t *testing.T) {
 		case kindJSONKey:
 			hits = goHits("internal/p/p.go", "package p\ntype T struct {\n\tF string `json:\""+r.Old+",omitempty\"`\n}\n")
 			want = 1
+		case kindBoundFlag:
+			line := "the `change.claim` operation with `--id <id> " + r.Old + " <v>`"
+			hits = append(hits, scanTextContent("skills/x/SKILL.md", line)...)
+			hits = append(hits, scanTextContent("tests/test_x.sh", "docket change claim --id 1 "+r.Old+" v")...)
+			hits = append(hits, goHits("internal/cli/change.go", "package p\nfunc f(c *C) { c.Flags().String("+strconv.Quote(strings.TrimPrefix(r.Old, "--"))+", \"\", \"x\") }\n")...)
+			want = 3
+		case kindSchemaKey:
+			doc := app.SchemaResult{Operations: []app.OperationSchema{{ID: "change.x", Request: &app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: r.Old}}}}}}
+			sh, _, _ := schemaVersionKeyHits(doc)
+			if len(sh) != 1 || !strings.Contains(sh[0], r.New) {
+				t.Errorf("row %s: a planted %q key was not detected naming %q: %v", r.Row, r.Old, r.New, sh)
+			}
+			continue
 		}
 		own := 0
 		for _, h := range hits {
@@ -402,6 +713,27 @@ func testRetiredNonVacuity(t *testing.T) {
 	if !hasRetiredRow(goHits("internal/app/x.go", "package p\nvar c = m[\"dispatch_context\"]\n"), "38g") {
 		t.Errorf("row 38g: a dispatch_context Go map-key literal was not detected")
 	}
+	// Row 40 (change 0472): a --version bound to a change, finalize or workspace
+	// command, in each binding shape the tree carried.
+	for _, c := range []struct{ rel, text string }{
+		{"skills/x/SKILL.md", "docket finalize merge --id 1 --version v --head h"},
+		{"skills/x/SKILL.md", "workspace.prepare  --id <id> --version <v>   # resolve argv from the capability catalog"},
+		// The flag wrapped onto the line after its operation still binds (edge-paths shape).
+		{"skills/x/SKILL.md", "resume through the `change.resume-halted` operation with `--id <id>\n--version <v> --acknowledge-quiescent`"},
+		{"tests/test_x.sh", "docket change repair-identity --id 1 --version v   # a bare --version on repair-identity is bound too"},
+	} {
+		if !hasRetiredRow(scanTextContent(c.rel, c.text), "40") {
+			t.Errorf("row 40: a bound --version in %s was not detected: %q", c.rel, c.text)
+		}
+	}
+	for _, src := range []string{
+		"package p\nfunc f(c *C) { v, _ := c.Flags().GetString(\"version\"); _ = v }\n",
+		"package p\nfunc f(c *C) { _ = c.MarkFlagRequired(\"version\") }\n",
+	} {
+		if !hasRetiredRow(goHits("internal/cli/finalize.go", src), "40") {
+			t.Errorf("row 40: a bound Go flag call was not detected: %q", src)
+		}
+	}
 }
 
 // hasRetiredRow reports whether hits include one attributed to row.
@@ -436,6 +768,21 @@ func testRetiredNegativeControls(t *testing.T) {
 		"DOCKET_AGENT_GUARDIAN_RUN_KEY is set on the guardian",
 		"the run.start result carries run_context and the gate drive stores run_context_hash",
 		"the claim receipt's gate_context_hash is committed state",
+		// Change 0472 — kept namesakes and unbound --version (spec §3 shape boundaries).
+		"docket version --json",
+		"run `releasepkg --source <dir> --version v1.2.3 --commit <sha> --source-epoch 1 --out <dir>`",
+		"sh install.sh --version v1.2.3 --harness claude",
+		"`opencode run --version` prints the version, while `opencode run -- --version` sends it as the message",
+		"record `codex --version` alongside any finding",
+		// Nearest binding wins: run.start follows change.claim, so codex's --version is unbound.
+		"the `change.claim` operation, then `docket run start implement-next`, then record `codex --version`",
+		// A blank line ends the block, so the op cannot bind a --version below it.
+		"the `change.claim` operation with `--id <id> --revision <v>`\n\nthen record `cursor-agent --version`",
+		"the `change.claim` operation with `--id <id> --revision <v>`",
+		"docket change repair-identity --id 1 --expect-revision <v> --adopt-pr-head",
+		"the rebase receipt keeps resolver_budget_version",
+		"every mutation result carries committed_revision, metadata_revision and base_branch_revision",
+		"the claim digest payload keeps its version key",
 	}
 	for _, line := range cleanText {
 		for _, rel := range []string{"skills/x/SKILL.md", "tests/test_x.sh"} {
@@ -452,6 +799,13 @@ func testRetiredNegativeControls(t *testing.T) {
 		{"internal/app/runtracker_start.go", "package p\ntype R struct {\n\tC string `json:\"run_context,omitempty\"`\n}\n"},
 		{"internal/app/evidence_ops.go", "package p\nvar r = \"gate-stopped\"\n"},
 		{"internal/p/p.go", "package p\n// run epoch gate-armed in a comment is a passing mention\nvar x = 1\n"},
+		{"cmd/releasepkg/main.go", "package p\nvar v = fs.String(\"version\", \"\", \"safe release version\")\n"},
+		{"internal/cli/root.go", "package p\nvar c = capability(\"version\", EffectRead)\n"},
+		{"internal/cli/root.go", "package p\nvar c = &C{Use: \"version\"}\n"},
+		{"internal/cli/install.go", "package p\nvar m = map[string]bool{\"version\": true}\n"},
+		{"internal/cli/change.go", "package p\nfunc f(c *C) { c.Flags().String(\"revision\", \"\", \"x\") }\n"},
+		{"internal/app/change_claim.go", "package p\ntype P struct {\n\tRevision string `json:\"version\"`\n}\n"},
+		{"internal/workspace/rebasereceipt.go", "package p\ntype R struct {\n\tB string `json:\"resolver_budget_version,omitempty\"`\n}\n"},
 	}
 	for _, c := range cleanGo {
 		hits, err := scanGoSource(c.rel, []byte(c.src))
@@ -461,6 +815,26 @@ func testRetiredNegativeControls(t *testing.T) {
 		if len(hits) != 0 {
 			t.Errorf("negative control %s matched: %v", c.rel, hits)
 		}
+	}
+	// Kept schema keys are exact (scope, path) pairs: clean where kept, retired
+	// anywhere else.
+	kept := app.SchemaResult{
+		EnvelopeShape: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "protocol_version"}}},
+		Operations: []app.OperationSchema{
+			{ID: "capabilities", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "capability_version"}, {Key: "binary", Fields: []app.FieldDescriptor{{Key: "version"}}}}}},
+			{ID: "diagnostic.runtime", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "go_version"}}}},
+			{ID: "version", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "version"}}}},
+			{ID: "change.claim", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "committed_revision"}}}},
+		},
+	}
+	if hits, _, _ := schemaVersionKeyHits(kept); len(hits) != 0 {
+		t.Errorf("kept schema keys matched: %v", hits)
+	}
+	moved := app.SchemaResult{Operations: []app.OperationSchema{
+		{ID: "status", Result: app.TypeDescriptor{Fields: []app.FieldDescriptor{{Key: "binary", Fields: []app.FieldDescriptor{{Key: "version"}}}}}},
+	}}
+	if hits, _, _ := schemaVersionKeyHits(moved); len(hits) != 1 || !strings.Contains(hits[0], "binary.revision") {
+		t.Errorf("a kept spelling at an unkept path was not detected naming binary.revision: %v", hits)
 	}
 }
 
