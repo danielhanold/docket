@@ -2,7 +2,7 @@
 id: 469
 slug: 'replace-opaque-docket-terms-with-clearer-names'
 title: 'Replace opaque docket terms with clearer names'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-28'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/replace-opaque-docket-terms-with-clearer-names'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/358'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-30T22:05:17Z'

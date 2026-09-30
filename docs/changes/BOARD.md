@@ -1,12 +1,12 @@
 # Backlog
 
-**480 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 3 groomed · 🟡 15 proposed · ⚪ 12 deferred · ✅ 328 done · 🗑️ 120 killed
+**480 changes** — 🔵 1 built · 🔴 1 blocked · 🟣 3 groomed · 🟡 15 proposed · ⚪ 12 deferred · ✅ 328 done · 🗑️ 120 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | Readiness |
-|---|-------|----------|------|------|--------|-----------|
-| [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-30-replace-opaque-docket-terms-with-clearer-names-design.md) | `refactor/replace-opaque-docket-terms-with-clearer-names` |  |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0469](active/0469-replace-opaque-docket-terms-with-clearer-names.md) | Replace opaque docket terms with clearer names | `medium` | `refactor` | [#358](https://github.com/danielhanold/docket/pull/358) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
