@@ -68,6 +68,17 @@ import (
 // reference file (row 59a, the first path row). rearm also matches inside
 // nothing-to-rearm; the non-vacuity check counts only the planted row's own hits.
 //
+// Family (e), readability renames (change 0469), appends rows 67-73, the wire
+// rows: the readiness needs-brainstorm, the gate-drive halt causes
+// identity-mismatch and unresolved-execution, the change.repair-identity
+// operation and its repaired-branch / repaired-pr results, finalize's
+// pr-identity-mismatch and recertify's identity-drift. Rows 74-84 are prose and
+// rows 85-86 retire names with no Go sites, which the seal does not scan (the
+// results file records the closing grep). Row 68 is the first kindWord row:
+// scope-identity-mismatch (kept) and pr-identity-mismatch (row 72) end in its
+// spelling. LIMITATION: a composite such as halted-identity-mismatch is not a
+// kindWord hit; the cause literal it would be composed from is sealed.
+//
 // LIMITATION (byte-pattern-guard-matches-a-spelling): a foreign tool's
 // --version whose nearest preceding operation reference in the same block is a
 // change, finalize or workspace operation reads as bound. No maintained surface
@@ -107,6 +118,12 @@ const (
 	// walking the schema registry (the wire contract), never by grepping tags
 	// (see schemaVersionKeyHits). The exact kept set is schemaKeptVersionKeys.
 	kindSchemaKey
+	// kindWord: like kindToken, but the LEADING boundary also excludes '-', so a
+	// hyphenated compound that merely ends in Old is a different word. Family (e)
+	// row 68 needs it: identity-mismatch is retired, while the kept
+	// scope-identity-mismatch and row 72's own pr-identity-mismatch are other
+	// words (ADR-0129 "Kept in family (e)").
+	kindWord
 )
 
 // retiredToken is one row of the retired-vocabulary table.
@@ -223,6 +240,16 @@ var retiredVocabulary = []retiredToken{
 	{Row: "59", Kind: kindToken, Old: "skipped-terminal", New: "skipped-final"},
 	{Row: "59", Kind: kindToken, Old: "adr-update-after-terminal", New: "adr-update-after-final"},
 	{Row: "59a", Kind: kindToken, Old: "terminal-close-out.md", New: "close-out.md (skills/docket-convention/references/)"},
+	// Family (e) — readability renames (change 0469): rows 67-73, the wire rows.
+	// Rows 74-86 are prose or retire names with no Go sites.
+	{Row: "67", Kind: kindToken, Old: "needs-brainstorm", New: "needs-grooming"},
+	{Row: "68", Kind: kindWord, Old: "identity-mismatch", New: "worktree-changed"},
+	{Row: "69", Kind: kindToken, Old: "unresolved-execution", New: "launch-unconfirmed"},
+	{Row: "70", Kind: kindToken, Old: "repair-identity", New: "change.relink / docket change relink"},
+	{Row: "71", Kind: kindToken, Old: "repaired-branch", New: "relinked-branch"},
+	{Row: "71", Kind: kindToken, Old: "repaired-pr", New: "relinked-pr"},
+	{Row: "72", Kind: kindToken, Old: "pr-identity-mismatch", New: "pr-link-mismatch"},
+	{Row: "73", Kind: kindToken, Old: "identity-drift", New: "certified-input-changed"},
 }
 
 // retiredHit is one seal violation.
@@ -249,15 +276,40 @@ func tokenRe(old string) *regexp.Regexp {
 	return re
 }
 
+var wordReCache = map[string]*regexp.Regexp{}
+
+// wordRe is the bounded matcher for a kindWord row (see kindWord).
+func wordRe(old string) *regexp.Regexp {
+	if re, ok := wordReCache[old]; ok {
+		return re
+	}
+	re := regexp.MustCompile(`(^|[^A-Za-z0-9_-])` + regexp.QuoteMeta(old) + `([^A-Za-z0-9_-]|$)`)
+	wordReCache[old] = re
+	return re
+}
+
+// textMatcher returns the line matcher for a row scanned as text (kindToken,
+// kindWord), or nil for a kind scanned another way.
+func textMatcher(r retiredToken) *regexp.Regexp {
+	switch r.Kind {
+	case kindToken:
+		return tokenRe(r.Old)
+	case kindWord:
+		return wordRe(r.Old)
+	}
+	return nil
+}
+
 // scanTextLine checks one markdown/shell/generated line against every
-// kindToken row.
+// kindToken and kindWord row.
 func scanTextLine(rel string, lineNo int, line string) []retiredHit {
 	var hits []retiredHit
 	for _, r := range retiredVocabulary {
-		if r.Kind != kindToken {
+		re := textMatcher(r)
+		if re == nil {
 			continue
 		}
-		if tokenRe(r.Old).MatchString(line) {
+		if re.MatchString(line) {
 			hits = append(hits, retiredHit{rel, lineNo, r, strings.TrimSpace(line)})
 		}
 	}
@@ -300,6 +352,8 @@ func scanGoLiteral(rel string, lineNo int, lit string) []retiredHit {
 		switch r.Kind {
 		case kindToken:
 			hit = tokenRe(r.Old).MatchString(val)
+		case kindWord:
+			hit = wordRe(r.Old).MatchString(val)
 		case kindGoFlag:
 			hit = val == r.Old
 		case kindGoPrefix:
@@ -685,7 +739,7 @@ func testRetiredSchemaWalk(t *testing.T) {
 // testRetiredTableIntegrity: a malformed row would seal nothing or name no
 // replacement. The floor stops a truncated table from passing vacuously.
 func testRetiredTableIntegrity(t *testing.T) {
-	const floor = 89
+	const floor = 97
 	if len(retiredVocabulary) < floor {
 		t.Fatalf("retired-vocabulary table has %d rows, expected >= %d", len(retiredVocabulary), floor)
 	}
@@ -720,7 +774,7 @@ func testRetiredNonVacuity(t *testing.T) {
 		var hits []retiredHit
 		want := 0
 		switch r.Kind {
-		case kindToken:
+		case kindToken, kindWord:
 			line := "run `" + r.Old + "` now"
 			hits = append(hits, scanTextContent("skills/x/SKILL.md", line)...)
 			hits = append(hits, scanTextContent("tests/test_x.sh", "docket "+line)...)
@@ -852,6 +906,23 @@ func testRetiredNonVacuity(t *testing.T) {
 			t.Errorf("row 40: a bound Go flag call was not detected: %q", src)
 		}
 	}
+	// Family (e) (change 0469): row 68 is a kindWord row. The bare halt cause hits
+	// it in Go and markdown; the two hyphenated compounds ending in its spelling
+	// are other words — scope-identity-mismatch hits nothing (a negative control
+	// below), and pr-identity-mismatch hits row 72, never row 68. Row 67's
+	// composed refusal reason not-ready-needs-brainstorm hits row 67.
+	if !hasRetiredRow(goHits("internal/gatedrive/driver.go", "package p\nfunc f() { halt(&res, \"identity-mismatch\") }\n"), "68") {
+		t.Errorf("row 68: a bare identity-mismatch halt literal was not detected")
+	}
+	if !hasRetiredRow(scanTextContent("skills/x/SKILL.md", "the drive halts `identity-mismatch`"), "68") {
+		t.Errorf("row 68: a bare identity-mismatch in markdown was not detected")
+	}
+	if hits := scanTextContent("skills/x/SKILL.md", "finalize refuses `pr-identity-mismatch`"); hasRetiredRow(hits, "68") || !hasRetiredRow(hits, "72") {
+		t.Errorf("pr-identity-mismatch must hit row 72 and never row 68: %v", hits)
+	}
+	if !hasRetiredRow(goHits("internal/domain/actions.go", "package p\nvar r = \"not-ready-needs-brainstorm\"\n"), "67") {
+		t.Errorf("row 67: the composed not-ready-needs-brainstorm reason was not detected")
+	}
 }
 
 // hasRetiredRow reports whether hits include one attributed to row.
@@ -913,6 +984,16 @@ func testRetiredNegativeControls(t *testing.T) {
 		"the frozen fixture testdata/repositories/v0.9.2/fenced-machine-keys/ keeps its name",
 		"a signal re-arm escalation is drained and ignored",
 		"`skipped-not-open` for a non-final child with no open PR",
+		// Change 0469 — family (e): the new spellings and the kept namesakes
+		// (ADR-0129 "Kept in family (e)").
+		"readiness `needs-grooming`; the refusal reason `not-ready-needs-grooming`",
+		"refused `scope-identity-mismatch`: the scope pins another change",
+		"the drive halts `worktree-changed` or `launch-unconfirmed`; a `launch-unresolved` halt is different",
+		"the slot state `unresolved` and the stage `mark-worktree-execution-unresolved` stay",
+		"`relinked-branch` / `relinked-pr` / `stale-evidence` / `workspace-conflict` / `candidate-branch-absent` / `pr-unknown` / `invalid-request`",
+		"finalize refuses `pr-link-mismatch`; recertify refuses `certified-input-changed`",
+		"`results-identity-broken`, `identity-reused`, `identity-mutated`, `fingerprint-mismatch`",
+		"an identity-mismatched repository definition is refused",
 	}
 	for _, line := range cleanText {
 		for _, rel := range []string{"skills/x/SKILL.md", "tests/test_x.sh"} {
@@ -944,6 +1025,11 @@ func testRetiredNegativeControls(t *testing.T) {
 		{"internal/config/config.go", "package p\nconst c = \"shared-setting-ignored\"\n"},
 		{"internal/app/finalize_retarget.go", "package p\nconst c = \"skipped-final\"\n"},
 		{"internal/config/fixtures_test.go", "package p\nvar d = \"fenced-machine-keys\"\n"},
+		{"internal/gatedrive/ownership.go", "package p\nconst k = \"scope-identity-mismatch\"\n"},
+		{"internal/gatedrive/ownership.go", "package p\nconst k = \"launch-unconfirmed\"\n"},
+		{"internal/gatedrive/driver.go", "package p\nvar c = \"worktree-changed\"\n"},
+		{"internal/app/change_repair.go", "package p\nconst o = \"change.relink\"\n"},
+		{"internal/domain/finalize.go", "package p\nconst c = \"pr-link-mismatch\"\n"},
 	}
 	for _, c := range cleanGo {
 		hits, err := scanGoSource(c.rel, []byte(c.src))
