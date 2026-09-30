@@ -66,7 +66,7 @@ halts, an important or minor becomes a PR-body record naming the failure as the 
 
 ## The severity threshold
 
-`REVIEW_MIN_FIX_SEVERITY` (from the Step-0 config export; `minor` by default) is the lowest
+`REVIEW_MIN_FIX_SEVERITY` (from the startup-check config export; `minor` by default) is the lowest
 severity that enters this loop. `important` records minors instead of fixing them; `blocker` is the
 pre-0218 record-everything behavior, kept as a compat escape hatch.
 
@@ -114,7 +114,7 @@ fallback — that fails the loop open silently, and a blocker would ride out to 
   it is homogeneous by construction. One commit enumerating the findings it fixed; a failed batch
   falls back to recording its members.
 
-**The cap — at most `REVIEW_MAX_FIX_TASKS` non-blocker fix tasks per run** (from the Step-0 config
+**The cap — at most `REVIEW_MAX_FIX_TASKS` non-blocker fix tasks per run** (from the startup-check config
 export; `10` by default). Blockers are never counted against it: the run cannot proceed past an
 unfixed blocker, so a cap that counted them would disarm the gate the floor above exists to
 protect. The unit is the **task**, not the finding — a minor batch spends one slot. Fill the slots

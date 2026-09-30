@@ -1,6 +1,6 @@
 ---
 name: docket-convention
-description: Use when any docket skill runs — docket-new-change, docket-groom-next, docket-implement-next, docket-status, docket-finalize-change, and docket-adr load this first (their blocking Step 0) — or when you need to understand how docket tracks work. The shared contract — .docket.yml configuration, directory layout, the change manifest and lifecycle, ADR format, build-readiness and selection, the bootstrap guard, and the branch model. Pure reference — defines the convention; performs no reads, writes, or git operations.
+description: Use when any docket skill runs — docket-new-change, docket-groom-next, docket-implement-next, docket-status, docket-finalize-change, and docket-adr load this first (their blocking startup check) — or when you need to understand how docket tracks work. The shared contract — .docket.yml configuration, directory layout, the change manifest and lifecycle, ADR format, build-readiness and selection, the bootstrap guard, and the branch model. Pure reference — defines the convention; performs no reads, writes, or git operations.
 ---
 
 # docket-convention — the shared contract (pure reference)
@@ -9,7 +9,7 @@ This skill defines the docket convention and does nothing else: no procedure, no
 
 ## Convention
 
-docket tracks planned work as **changes** — one markdown file each, roughly one PR — and records architecture decisions as **ADRs**. This skill is the single source of the convention; the operating skills load it at startup as their blocking Step 0, use its vocabulary, and never restate it.
+docket tracks planned work as **changes** — one markdown file each, roughly one PR — and records architecture decisions as **ADRs**. This skill is the single source of the convention; the operating skills load it in their blocking startup check, use its vocabulary, and never restate it.
 
 ### Configuration — `.docket.yml` (optional, committed on the default branch)
 
@@ -86,7 +86,7 @@ All metadata reads and writes happen in the metadata working tree on `metadata_b
 
 ### Harness-native recovery after sandbox or permission denial
 
-On host **sandbox** or **permission** denial of a required `docket` command or direct Git command, retry the **exact command** once through the host harness's native approval mechanism — no changed arguments, no broadened sandbox, no shell-level elevation (`sudo` included). If approval is unavailable or the retry fails, preserve the diagnostic and follow the caller's **existing failure posture**. Ordinary Git failures do not qualify. In Step 0, retry the outer `repository.prepare`, never an inner fetch. Normative skill prose is **harness-neutral**: never name product-specific retry syntax.
+On host **sandbox** or **permission** denial of a required `docket` command or direct Git command, retry the **exact command** once through the host harness's native approval mechanism — no changed arguments, no broadened sandbox, no shell-level elevation (`sudo` included). If approval is unavailable or the retry fails, preserve the diagnostic and follow the caller's **existing failure posture**. Ordinary Git failures do not qualify. In the startup check, retry the outer `repository.prepare`, never an inner fetch. Normative skill prose is **harness-neutral**: never name product-specific retry syntax.
 
 ### Dispatch-capability resolution (change 0137)
 

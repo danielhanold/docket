@@ -1624,7 +1624,7 @@ exactly one plan task: focused test, implementation, verification, self-review, 
 
 ### docket-convention
 
-The shared contract every docket skill loads first, as the blocking Step 0. It defines
+The shared contract every docket skill loads first, in its blocking startup check. It defines
 configuration, directory layout, the change manifest and lifecycle, the ADR format, readiness and
 selection, the bootstrap guard, and the branch model.
 
