@@ -226,13 +226,18 @@ var codexRequestRunIDRe = regexp.MustCompile("Write a request file (?:[^.]|\\.\\
 
 // TestCodexRequestFileCarriesRunID: the generator source and the committed
 // AGENTS.md rendering both tell the Codex agent.enter route to carry the run
-// run id in the request file.
+// run id in the request file. The AGENTS.md rendering carries the Codex clause
+// only when the committed agent_harnesses enables codex; the generator source
+// is checked regardless.
 func TestCodexRequestFileCarriesRunID(t *testing.T) {
 	root := guardRoot(t)
-	for name, text := range map[string]string{
+	texts := map[string]string{
 		"harness.CodexRootEntryClause": harness.CodexRootEntryClause,
-		"AGENTS.md":                    readMaintained(t, root, "AGENTS.md"),
-	} {
+	}
+	if committedHarnesses(t)["codex"] {
+		texts["AGENTS.md"] = readMaintained(t, root, "AGENTS.md")
+	}
+	for name, text := range texts {
 		if !codexRequestRunIDRe.MatchString(collapseWS(text)) {
 			t.Errorf("%s: the Codex agent.enter request file does not carry the run id for `--run-id`", name)
 		}

@@ -210,12 +210,13 @@ func classifyClaudeMD(root string) reposeed.ClaudeMDState {
 			return reposeed.ClaudeMDOther
 		}
 		// A relative link that resolves to the sibling AGENTS.md is the shareable
-		// state; anything else (an absolute link, a foreign destination) is other.
+		// state; anything else (an absolute link, a foreign destination) is a
+		// foreign link, which the plan skips.
 		if !filepath.IsAbs(dest) &&
 			filepath.Clean(filepath.Join(root, dest)) == filepath.Join(root, "AGENTS.md") {
 			return reposeed.ClaudeMDLinkToAgents
 		}
-		return reposeed.ClaudeMDOther
+		return reposeed.ClaudeMDForeignLink
 	case info.Mode().IsRegular():
 		return reposeed.ClaudeMDRegularFile
 	default:

@@ -228,7 +228,7 @@ func TestPlanClaudeCodexRegularFileGetsBlock(t *testing.T) {
 }
 
 func TestPlanClaudeCodexOtherGetsBlock(t *testing.T) {
-	// `other` (e.g. an unowned link, or a foreign kind) is planned as a managed
+	// `other` (e.g. a foreign kind, or an unreadable path) is planned as a managed
 	// block so inspection surfaces the conflict with a remedy rather than
 	// silently overwriting.
 	targets, _ := mustPlan(t, PlanInput{
@@ -240,6 +240,36 @@ func TestPlanClaudeCodexOtherGetsBlock(t *testing.T) {
 	cl := byPath(targets)[claudeMD()]
 	if cl.Kind != install.KindManagedBlock {
 		t.Errorf("CLAUDE.md kind = %q for ClaudeMDOther, want managed block", cl.Kind)
+	}
+}
+
+func TestPlanClaudeSymlinkWithoutShareIsSkipped(t *testing.T) {
+	// A symlinked CLAUDE.md cannot carry a managed block. When Claude does not
+	// share AGENTS.md (it alone is in scope, or the link is foreign), the plan
+	// leaves CLAUDE.md untouched rather than planning a block into the link.
+	for _, tc := range []struct {
+		name      string
+		harnesses []string
+		state     ClaudeMDState
+	}{
+		{"link to AGENTS.md, claude alone", []string{"claude"}, ClaudeMDLinkToAgents},
+		{"foreign link, claude alone", []string{"claude"}, ClaudeMDForeignLink},
+		{"foreign link, shared surface", []string{"claude", "codex"}, ClaudeMDForeignLink},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			targets, owners := mustPlan(t, PlanInput{
+				WorktreeRoot:  worktreeRoot,
+				Harnesses:     tc.harnesses,
+				RunTracker:    runTracker,
+				ClaudeMDState: tc.state,
+			})
+			if cl, ok := byPath(targets)[claudeMD()]; ok {
+				t.Errorf("CLAUDE.md planned as %+v for a symlink, want no target", cl)
+			}
+			if got, ok := owners[claudeMD()]; ok {
+				t.Errorf("CLAUDE.md owners = %v for a skipped symlink, want none", got)
+			}
+		})
 	}
 }
 

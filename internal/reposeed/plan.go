@@ -60,10 +60,14 @@ const (
 	// ClaudeMDLinkToAgents — CLAUDE.md is already a proven relative link to
 	// AGENTS.md; a share re-plans the same link.
 	ClaudeMDLinkToAgents
-	// ClaudeMDOther — anything else (an unowned link, a foreign kind). Planned
-	// as a managed block so inspection reports the conflict with a remedy
-	// rather than silently overwriting.
+	// ClaudeMDOther — anything else (a foreign kind, an unreadable path).
+	// Planned as a managed block so inspection reports the conflict with a
+	// remedy rather than silently overwriting.
 	ClaudeMDOther
+	// ClaudeMDForeignLink — CLAUDE.md is a symlink that is not a proven
+	// relative link to AGENTS.md. A link cannot carry a managed block, so the
+	// plan skips it.
+	ClaudeMDForeignLink
 )
 
 // PlanInput is the pure input to Plan. WorktreeRoot is a canonical absolute
@@ -145,19 +149,24 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 		// Claude shares AGENTS.md only when that shared surface exists AND
 		// CLAUDE.md is absent or already a proven link — replacing a link
 		// loses no user content. A regular file keeps its content (own block),
-		// and `other` is a block so inspection reports the conflict.
+		// and `other` is a block so inspection reports the conflict. Any other
+		// symlinked CLAUDE.md is skipped: a link cannot carry a managed block.
 		share := sharedAgents &&
 			(in.ClaudeMDState == ClaudeMDAbsent || in.ClaudeMDState == ClaudeMDLinkToAgents)
+		isLink := in.ClaudeMDState == ClaudeMDLinkToAgents || in.ClaudeMDState == ClaudeMDForeignLink
 		claudePath := filepath.Join(root, claudeMDName)
 		var t install.Target
-		if share {
+		switch {
+		case share:
 			t = install.Target{
 				Path:       claudePath,
 				Kind:       install.KindSymlink,
 				LinkTarget: filepath.Join(root, agentsMDName),
 				Role:       roleDispatch,
 			}
-		} else {
+		case isLink:
+			// Skipped: no target, so t.Path stays empty.
+		default:
 			t = install.Target{
 				Path:       claudePath,
 				Kind:       install.KindManagedBlock,
@@ -167,8 +176,10 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 				Role:       roleDispatch,
 			}
 		}
-		if err := add(t, harnessClaude); err != nil {
-			return nil, nil, err
+		if t.Path != "" {
+			if err := add(t, harnessClaude); err != nil {
+				return nil, nil, err
+			}
 		}
 	}
 
