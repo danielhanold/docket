@@ -61,6 +61,13 @@ import (
 // request/result key found by walking the schema registry, with an exact kept
 // set of software and format versions).
 //
+// Family (d), re-enable / final / shared-setting guard (change 0474), appends
+// rows 54-59 and 59a, all kindToken: the change.groom outcome rearm and its
+// nothing-to-rearm refusal, the config guard's fenced-setting-ignored warning,
+// the seven lifecycle codes spelled with "terminal", and the renamed close-out
+// reference file (row 59a, the first path row). rearm also matches inside
+// nothing-to-rearm; the non-vacuity check counts only the planted row's own hits.
+//
 // LIMITATION (byte-pattern-guard-matches-a-spelling): a foreign tool's
 // --version whose nearest preceding operation reference in the same block is a
 // change, finalize or workspace operation reads as bound. No maintained surface
@@ -201,6 +208,21 @@ var retiredVocabulary = []retiredToken{
 	{Row: "44a", Kind: kindToken, Old: "empty-spec_version", New: "empty-spec_revision"},
 	{Row: "44a", Kind: kindToken, Old: "invalid-spec_version", New: "invalid-spec_revision"},
 	{Row: "44a", Kind: kindToken, Old: "empty-child_pr_version", New: "empty-child_pr_revision"},
+	// Family (d) — re-enable, final, shared-setting guard (change 0474): rows
+	// 54-59 and 59a. Row 53 is the concept; rows 59b and 59c are Go names and
+	// prose, which the seal does not scan (a guard keyed on passing mentions
+	// would violate the guard rule; the results file records the closing grep).
+	{Row: "54", Kind: kindToken, Old: "rearm", New: "re-enable"},
+	{Row: "55", Kind: kindToken, Old: "nothing-to-rearm", New: "nothing-to-re-enable"},
+	{Row: "56", Kind: kindToken, Old: "fenced-setting-ignored", New: "shared-setting-ignored"},
+	{Row: "57", Kind: kindToken, Old: "terminal-backlink-pending", New: "final-backlink-pending"},
+	{Row: "57", Kind: kindToken, Old: "terminal-notes-frozen", New: "final-notes-frozen"},
+	{Row: "58", Kind: kindToken, Old: "change-terminal-claim-stamp", New: "change-final-claim-stamp"},
+	{Row: "58", Kind: kindToken, Old: "drop-terminal-claimed-at", New: "drop-final-claimed-at"},
+	{Row: "59", Kind: kindToken, Old: "not-terminal", New: "not-final"},
+	{Row: "59", Kind: kindToken, Old: "skipped-terminal", New: "skipped-final"},
+	{Row: "59", Kind: kindToken, Old: "adr-update-after-terminal", New: "adr-update-after-final"},
+	{Row: "59a", Kind: kindToken, Old: "terminal-close-out.md", New: "close-out.md (skills/docket-convention/references/)"},
 }
 
 // retiredHit is one seal violation.
@@ -663,7 +685,7 @@ func testRetiredSchemaWalk(t *testing.T) {
 // testRetiredTableIntegrity: a malformed row would seal nothing or name no
 // replacement. The floor stops a truncated table from passing vacuously.
 func testRetiredTableIntegrity(t *testing.T) {
-	const floor = 78
+	const floor = 89
 	if len(retiredVocabulary) < floor {
 		t.Fatalf("retired-vocabulary table has %d rows, expected >= %d", len(retiredVocabulary), floor)
 	}
@@ -881,6 +903,16 @@ func testRetiredNegativeControls(t *testing.T) {
 		"the rebase receipt keeps resolver_budget_version",
 		"every mutation result carries committed_revision, metadata_revision and base_branch_revision",
 		"the claim digest payload keeps its version key",
+		// Change 0474 — the new spellings and the kept namesakes (spec §D).
+		"apply `change.groom` with `outcome: re-enable`; a `nothing-to-re-enable` refusal writes nothing",
+		"`final-backlink-pending`, `final-notes-frozen`, `not-final`, `skipped-final`, `adr-update-after-final`",
+		"`change-final-claim-stamp` and `drop-final-claimed-at`; the warning is `shared-setting-ignored`",
+		"read `../docket-convention/references/close-out.md` now — blocking",
+		"terminal_publish: false stays parseable; terminal publication is deferred from Go v1",
+		"a run-continue is nonterminal; incumbent-nonterminal; the run reached a terminal disposition",
+		"the frozen fixture testdata/repositories/v0.9.2/fenced-machine-keys/ keeps its name",
+		"a signal re-arm escalation is drained and ignored",
+		"`skipped-not-open` for a non-final child with no open PR",
 	}
 	for _, line := range cleanText {
 		for _, rel := range []string{"skills/x/SKILL.md", "tests/test_x.sh"} {
@@ -908,6 +940,10 @@ func testRetiredNegativeControls(t *testing.T) {
 		{"internal/cli/root.go", "package p\nfunc f() { x.Log(msg, \"version\") }\n"},
 		{"internal/app/change_claim.go", "package p\ntype P struct {\n\tRevision string `json:\"version\"`\n}\n"},
 		{"internal/workspace/rebasereceipt.go", "package p\ntype R struct {\n\tB string `json:\"resolver_budget_version,omitempty\"`\n}\n"},
+		{"internal/app/change_groom.go", "package p\nconst o = \"re-enable\"\n"},
+		{"internal/config/config.go", "package p\nconst c = \"shared-setting-ignored\"\n"},
+		{"internal/app/finalize_retarget.go", "package p\nconst c = \"skipped-final\"\n"},
+		{"internal/config/fixtures_test.go", "package p\nvar d = \"fenced-machine-keys\"\n"},
 	}
 	for _, c := range cleanGo {
 		hits, err := scanGoSource(c.rel, []byte(c.src))

@@ -149,7 +149,7 @@ func TestLearningUpdateRejectsBadShapeWithoutEngineCall(t *testing.T) {
 	}
 }
 
-// --- learnings-disabled preflight fence ------------------------------------
+// --- learnings-disabled preflight check ------------------------------------
 
 func TestLearningRecordRefusesWhenLearningsDisabled(t *testing.T) {
 	engine := &recordingEngine{}
