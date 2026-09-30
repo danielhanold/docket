@@ -745,8 +745,8 @@ func TestChangeGroomPlanReviseRefusals(t *testing.T) {
 		{"spec-not-linked", map[string]string{
 			groomPath(2, "add-a-widget"): trivialChange(2, "add-a-widget"),
 		}, func(r *ChangeGroomRequest) {}, "spec-not-linked"},
-		// Spec item 6: a needs-brainstorm change is groom's target, not revise's.
-		{"not-revisable needs-brainstorm", map[string]string{
+		// Spec item 6: a needs-grooming change is groom's target, not revise's.
+		{"not-revisable needs-grooming", map[string]string{
 			groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
 		}, func(r *ChangeGroomRequest) {}, "not-revisable"},
 		// Spec item 7: a non-proposed change.
@@ -1183,8 +1183,8 @@ func TestChangeGroomPlanReEnableClearsSectionSetsFlagAndBoard(t *testing.T) {
 		t.Errorf("re-enable did not set auto_groomable: true:\n%s", rec)
 	}
 	board := string(groomedRecordBytes(t, plan, "docs/changes/BOARD.md"))
-	if strings.Contains(board, "auto-groom blocked — needs you") || !strings.Contains(board, "needs-brainstorm") {
-		t.Errorf("board row did not return to needs-brainstorm in the same plan:\n%s", board)
+	if strings.Contains(board, "auto-groom blocked — needs you") || !strings.Contains(board, "needs-grooming") {
+		t.Errorf("board row did not return to needs-grooming in the same plan:\n%s", board)
 	}
 	var receipt changeGroomReceipt
 	if err := json.Unmarshal(plan.Receipt, &receipt); err != nil || receipt.Outcome != "re-enable" {

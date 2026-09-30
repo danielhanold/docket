@@ -44,7 +44,7 @@ proposed  →  in-progress  →  implemented  →  done
 ```
 
 - **proposed** — captured, waiting to be built. A proposed change that has not been designed
-  enough to build (no spec, not marked `trivial`) sits in a **needs-brainstorm** state (a
+  enough to build (no spec, not marked `trivial`) sits in a **needs-grooming** state (a
   proposed change with neither a spec nor a trivial mark; it needs a design conversation first)
   until it is groomed — see [Designing before building](./designing-before-building.md).
 - **in-progress** — a run has claimed it and is building.
@@ -110,13 +110,13 @@ backlog is durable, you can capture now and build later; the idea does not evapo
 session.
 
 **A rough stub.** When the idea is real but not yet designed, capture it as a stub and skip the
-design step — it lands at `needs-brainstorm` and waits. You groom it later, in a session at
+design step — it lands at `needs-grooming` and waits. You groom it later, in a session at
 whatever model you choose. Grooming is its own page: [Designing before
 building](./designing-before-building.md).
 
 **Small and mechanical.** When the work is so small and mechanical that a design conversation
 would be ceremony — a rename, a dependency bump — mark it `trivial`. A trivial change skips
-needs-brainstorm entirely and is build-ready the moment its dependencies are clear, without a
+needs-grooming entirely and is build-ready the moment its dependencies are clear, without a
 spec.
 
 **Scan mode.** Instead of describing one idea, you can point the new-change skill at the project
@@ -159,7 +159,7 @@ auto_capture:
   types: [feat, fix]                                     # a subset of change_types, or `all`
 ```
 
-Work you file with `docket change create` shows up on the board as ordinary `needs-brainstorm`
+Work you file with `docket change create` shows up on the board as ordinary `needs-grooming`
 work and flows into the grooming queue like anything else you filed by hand.
 
 ### The taxonomy (`change_types`)

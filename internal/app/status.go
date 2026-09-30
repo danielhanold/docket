@@ -498,8 +498,8 @@ func readinessReason(r domain.Readiness) string {
 	switch r.Kind {
 	case domain.ReadyBuildReady:
 		return "ready to build"
-	case domain.ReadyNeedsBrainstorm:
-		return "needs a design brainstorm before it can be built"
+	case domain.ReadyNeedsGrooming:
+		return "needs grooming before it can be built"
 	case domain.ReadyAutoGroomBlocked:
 		return "auto-groom blocked; needs a human design pass"
 	case domain.ReadyWaitingDependency:

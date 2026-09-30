@@ -32,7 +32,7 @@
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0004](active/0004-waiting-on-dependency.md) | A change waiting on a dependency | `medium` | `feat` | ⏳ waiting on #3 — not yet built |
-| [0003](active/0003-needs-brainstorm-change.md) | A change needing a brainstorm | `medium` | `chore` | needs-brainstorm |
+| [0003](active/0003-needs-brainstorm-change.md) | A change needing a brainstorm | `medium` | `chore` | needs-grooming |
 
 ## ⚪ Deferred (1)
 

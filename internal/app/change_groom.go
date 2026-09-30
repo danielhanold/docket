@@ -59,13 +59,13 @@ const (
 	// both. It never writes spec: or trivial:, so a change can never flip
 	// between spec'd and trivial through this outcome.
 	GroomRevise GroomOutcome = "revise"
-	// GroomAbstain records an autonomous groom's abstain on a needs-brainstorm
+	// GroomAbstain records an autonomous groom's abstain on a needs-grooming
 	// change: it sets auto_groomable: false and appends one dated entry to the
 	// ## Auto-groom blocked section. It never writes spec: or trivial:, and it
 	// accepts no section, spec, or relationship edits — an autonomous caller
 	// cannot rewrite the proposal through it.
 	GroomAbstain GroomOutcome = "abstain"
-	// GroomReEnable re-enables a needs-brainstorm change for autonomous grooming:
+	// GroomReEnable re-enables a needs-grooming change for autonomous grooming:
 	// it sets auto_groomable: true, removes the ## Auto-groom blocked section when
 	// present, and applies any owned-section edits (typically the context the
 	// abstain asked for) in the same commit. Human-typed or human-attended only.

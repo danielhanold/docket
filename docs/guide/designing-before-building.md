@@ -8,7 +8,7 @@ an adversarial check, have a high-tier consultant write the final design documen
 whole conversation to the reader you actually are.
 
 A **change** (one unit of planned work, roughly one pull request, tracked as one markdown file)
-that was captured as a rough stub lands in the **needs-brainstorm** state (a proposed change
+that was captured as a rough stub lands in the **needs-grooming** state (a proposed change
 with neither a spec nor a trivial mark; it needs a design conversation first). Grooming is what
 moves it out of that state and into **build-ready** (a proposed change that has a spec or is
 marked trivial and whose dependencies are all merged). The output of grooming is a **spec** (the
@@ -18,7 +18,7 @@ a `trivial` mark that skips the spec.
 ## Grooming a stub with a conversation
 
 The interactive way to groom is the groom-next skill — a **skill** being a named, reusable
-instruction set an agent loads for one job. It selects the next `needs-brainstorm`
+instruction set an agent loads for one job. It selects the next `needs-grooming`
 stub and designs it *with you*, in a back-and-forth, until the design is settled and a spec is
 written. Selection is automatic — it picks the next eligible stub deterministically — but the
 design conversation is not: it is a real dialogue, the same way capturing a fully-designed change
@@ -82,7 +82,7 @@ opted in.
 the dialogue and option generation still run at whatever model your session is on. To pin the
 *entire* design conversation to a stronger (or cheaper) model, no new machinery is needed:
 capture the idea as a stub in whichever session it strikes you (skip straight past the design
-step — the stub lands at needs-brainstorm), then run the groom skill from a session set to the
+step — the stub lands at needs-grooming), then run the groom skill from a session set to the
 model you want. That session does the full design conversation at its own model, and can still
 opt into consultant authorship on top.
 

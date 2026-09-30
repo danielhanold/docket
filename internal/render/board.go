@@ -65,7 +65,7 @@ import (
 //     else empty.
 //     The Proposed Readiness cell:
 //     build-ready                                    → "build-ready" / "build-ready (trivial)"
-//     needs-brainstorm                               → "needs-brainstorm"
+//     needs-grooming                                 → "needs-grooming"
 //     auto-groom-blocked                             → "auto-groom blocked — needs you"
 //     waiting-dependency                             → "⏳ waiting on #<dep> — not yet built"
 //     / "… — needs your merge"
@@ -715,8 +715,8 @@ func boardReadinessCell(in BoardInput, c domain.Change) (string, error) {
 			return "build-ready (trivial)", nil
 		}
 		return "build-ready", nil
-	case domain.ReadyNeedsBrainstorm:
-		return "needs-brainstorm", nil
+	case domain.ReadyNeedsGrooming:
+		return "needs-grooming", nil
 	case domain.ReadyAutoGroomBlocked:
 		return "auto-groom blocked — needs you", nil
 	case domain.ReadyWaitingDependency:
