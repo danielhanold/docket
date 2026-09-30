@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:50e967a1cee21c0782a48737ed332c1badf1255ea346d925901069d849a21da8",
+  "asset_set_id": "sha256:0b5bcfca6f80f8a7afb40d122b7a0119b390c7716f0d5305dd8f83da83877388",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -385,8 +385,8 @@
       "path": "skills/docket-finalize-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 39314,
-      "sha256": "1f65cc4922098213e5eeae632590f1a0036e9df5f5660319d5acd42496c19ce9"
+      "size": 39280,
+      "sha256": "3913b993280a39813d959a5393531eef863a7977c0c7008f3fd8e783d78eeef1"
     },
     {
       "path": "skills/docket-finalize-change/references/gate-failure.md",

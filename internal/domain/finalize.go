@@ -60,7 +60,7 @@ const (
 	skipPRUnknown          = "pr-unknown"
 	// The identity skip reasons, surfaced only against a cleanly observed open or
 	// merged PR (a closed/unknown PR classifies by the existing bands first —
-	// identity repair is meaningless against unknown evidence). The interactive
+	// a relink is meaningless against unknown evidence). The interactive
 	// skill and the CLI key on these exact tokens.
 	skipBranchMissing   = "branch-missing"          // recorded branch absent/empty; the exact PR's head is the only candidate
 	skipBranchMismatch  = "branch-pr-head-mismatch" // recorded branch and the exact PR's head differ

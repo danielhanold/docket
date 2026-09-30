@@ -168,7 +168,7 @@ no-test-edits guard during repair; an intake path from production or scanner fin
 | Building without supervision | 3 | implement-next; reconcile; plan authoring; build tiers and escalation; worktrees, claims, /loop, dispositions | Why docket, docket-build, draining hands-free |
 | Proving the build | 4 | Build gate and evidence; gate driver and budgets; integration repair; configuring the suite | docket-build gate paragraphs, gate references, tests/README |
 | Reviewing before the human does | 5 | Reviewer contract and tiers; fix loop and disposition table; why the suite runs in the build gate | docket-review section, fix-loop reference |
-| Landing changes safely | 5 | Finalize end to end; blocked and identity repair; branch protection; /loop finalize | Closing out hands-free, hands-off finalize |
+| Landing changes safely | 5 | Finalize end to end; blocked and relink; branch protection; /loop finalize | Closing out hands-free, hands-off finalize |
 | Keeping the backlog honest | 6 | Status vs sweep; health codes; reclaim; halted recovery | Reclaiming stale claims, docket-status |
 | Remembering why | 6 | ADRs; learnings and promotion; what is human-curated today | Learnings, docket-adr |
 | Governing through configuration | cross | Layers and the shared-setting guard; every config block by purpose; skills map; capability catalog; dummy_mode | Configuration, convention config |

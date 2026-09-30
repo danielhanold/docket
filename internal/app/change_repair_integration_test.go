@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func TestIntegrationRecordOpsRepairIdentityUnrelatedInvalidRecordProgress(t *testing.T) {
+func TestIntegrationRecordOpsRelinkUnrelatedInvalidRecordProgress(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
 	repo := newWorkingRepo(t, map[string]string{
@@ -24,7 +24,7 @@ func TestIntegrationRecordOpsRepairIdentityUnrelatedInvalidRecordProgress(t *tes
 
 	res := repairRealRun(t, repo, recPath)
 	if res.Result != ResultApplied || res.Branch != "feat/renamed" {
-		t.Fatalf("repair-identity beside an unrelated unparseable record = %q reason %q branch %q (findings %v), want applied feat/renamed",
+		t.Fatalf("relink beside an unrelated unparseable record = %q reason %q branch %q (findings %v), want applied feat/renamed",
 			res.Result, res.Reason, res.Branch, res.Findings)
 	}
 	rec, _ := originFile(t, repo.origin, "docket", recPath)
@@ -34,7 +34,7 @@ func TestIntegrationRecordOpsRepairIdentityUnrelatedInvalidRecordProgress(t *tes
 	assertUnrelatedBrokenIntact(t, repo)
 }
 
-func TestIntegrationRecordOpsRepairIdentityUnrelatedInvalidRecordRefusals(t *testing.T) {
+func TestIntegrationRecordOpsRelinkUnrelatedInvalidRecordRefusals(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
 	for _, c := range unrelatedRefusalCases(t, 3, recPath, repairRecord(3, "widget", ""), repairRecord(3, "dupe", "")) {
@@ -45,11 +45,11 @@ func TestIntegrationRecordOpsRepairIdentityUnrelatedInvalidRecordRefusals(t *tes
 
 			res := repairRealRun(t, repo, recPath)
 			if res.Result == ResultApplied {
-				t.Fatalf("repair-identity applied despite %s; want a refusal", c.name)
+				t.Fatalf("relink applied despite %s; want a refusal", c.name)
 			}
 			assertRefusalBeyondUnrelated(t, res.Reason, res.Findings)
 			if got := originTip(t, repo.origin, "docket"); got != tip {
-				t.Errorf("a refused repair-identity moved the metadata branch %s -> %s", tip, got)
+				t.Errorf("a refused relink moved the metadata branch %s -> %s", tip, got)
 			}
 		})
 	}
@@ -78,7 +78,7 @@ func TestIntegrationRecordOpsRepairAdoptPRHeadAppliesOnMalformedRecordedBranch(t
 				t.Fatalf("workspace.NewService: %v", err)
 			}
 			deps := FinalizeDeps{Planning: node.deps, GitHub: repairGitHub("feat/renamed"), Workspace: svc}
-			res := RepairIdentity(context.Background(), deps, node.dir, RepairIdentityRequest{
+			res := Relink(context.Background(), deps, node.dir, RelinkRequest{
 				ID: 3, ExpectRevision: blobRevisionAt(t, repo.origin, "docket", recPath),
 				AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 			})

@@ -18,12 +18,12 @@ import (
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
-// This file is `change repair-identity`: the revision-pinned identity repair the
-// finalize identity checkpoint hands a human's decision to. It writes exactly
+// This file is `change relink`: the revision-pinned relink that finalize's link
+// check hands a human's decision to. It writes exactly
 // ONE frontmatter field — either branch: (adopt the PR's reported head, the
 // missing-branch recovery) or pr: (adopt a PR reference the record's own branch
 // vouches for) — plus the standard updated: stamp, and nothing else. Re-probing
-// after the repair is the workflow's job (Task 9), not this op's.
+// after the relink is the workflow's job (Task 9), not this op's.
 //
 // Every Expect* field in the request is the exact evidence the human approved.
 // The op re-reads authority and refuses on any drift: a change-record revision
@@ -36,22 +36,22 @@ import (
 // must be proven present on the remote before it is adopted (an absent OR
 // unprovable branch is candidate-branch-absent). A workspace still owned by this
 // change that targets a branch OTHER than the one the record will carry after
-// the repair is a conflict the op stops before, in both directions; an inspect
+// the relink is a conflict the op stops before, in both directions; an inspect
 // error is ambiguity and takes the same fail-closed conflict path.
 
-// OperationChangeRepairIdentity is the operation key `change repair-identity`
+// OperationChangeRelink is the operation key `change relink`
 // records in its result envelope and its transaction trailer.
-const OperationChangeRepairIdentity = "change.repair-identity"
+const OperationChangeRelink = "change.relink"
 
-// The closed set of reason tokens `change repair-identity` reports (spec's
+// The closed set of reason tokens `change relink` reports (spec's
 // failure vocabulary; every prohibition maps to a return value per learning
 // prohibition-needs-a-return-value). Message text is explanatory and must not be
 // parsed.
 const (
-	// RepairRepairedBranch: the PR's reported head was adopted as branch:.
-	RepairRepairedBranch = "repaired-branch"
-	// RepairRepairedPR: the supplied PR reference was adopted as pr:.
-	RepairRepairedPR = "repaired-pr"
+	// RepairRelinkedBranch: the PR's reported head was adopted as branch:.
+	RepairRelinkedBranch = "relinked-branch"
+	// RepairRelinkedPR: the supplied PR reference was adopted as pr:.
+	RepairRelinkedPR = "relinked-pr"
 	// RepairStaleEvidence: the approved evidence lost the race — the change
 	// revision, the PR head, or the PR number no longer matches what the human saw.
 	RepairStaleEvidence = "stale-evidence"
@@ -70,12 +70,12 @@ const (
 	RepairInvalidRequest = "invalid-request"
 )
 
-// RepairIdentityRequest is the revision-pinned identity repair the finalize
-// checkpoint hands a human's decision to. Exactly one of AdoptPRHead / AdoptPR
+// RelinkRequest is the revision-pinned relink that finalize's link
+// check hands a human's decision to. Exactly one of AdoptPRHead / AdoptPR
 // is set. Every Expect* field is the exact evidence the human approved; any
 // drift (change revision, PR head, PR number) loses the race and is refused as
 // stale-evidence rather than applied.
-type RepairIdentityRequest struct {
+type RelinkRequest struct {
 	ID             int
 	ExpectRevision string // change-record revision token from the finalize report
 
@@ -91,11 +91,11 @@ type RepairIdentityRequest struct {
 	ExpectBranch string // the recorded branch the human saw
 }
 
-// RepairIdentityResult is the protocol-v1 document `change repair-identity`
-// returns. It names identity and the closed reason token; a successful repair
+// RelinkResult is the protocol-v1 document `change relink`
+// returns. It names identity and the closed reason token; a successful relink
 // additionally carries the field it wrote and the committed revision. Findings
 // marshals as [] on every path.
-type RepairIdentityResult struct {
+type RelinkResult struct {
 	Envelope
 	ID       int             `json:"id,omitempty"`
 	Reason   string          `json:"reason,omitempty"`
@@ -108,7 +108,7 @@ type RepairIdentityResult struct {
 
 // HumanText renders a one-line summary naming identity, the reason token, and —
 // on a repair — the field written and the committed revision.
-func (r RepairIdentityResult) HumanText() string {
+func (r RelinkResult) HumanText() string {
 	if r.Result == ResultApplied {
 		switch {
 		case r.Branch != "":
@@ -122,8 +122,8 @@ func (r RepairIdentityResult) HumanText() string {
 
 // newRepairResult stamps the envelope and normalizes Findings so the array
 // marshals as [] on every path.
-func newRepairResult(result Result, out RepairIdentityResult) RepairIdentityResult {
-	out.Envelope = NewEnvelope(OperationChangeRepairIdentity, result)
+func newRepairResult(result Result, out RelinkResult) RelinkResult {
+	out.Envelope = NewEnvelope(OperationChangeRelink, result)
 	if out.Findings == nil {
 		out.Findings = []StatusFinding{}
 	}
@@ -132,8 +132,8 @@ func newRepairResult(result Result, out RepairIdentityResult) RepairIdentityResu
 
 // repairRefusal builds a refusing result carrying the closed reason token and an
 // explanatory message. A refusal mutates nothing.
-func repairRefusal(result Result, reason, message string, id int) RepairIdentityResult {
-	return newRepairResult(result, RepairIdentityResult{ID: id, Reason: reason, Message: message})
+func repairRefusal(result Result, reason, message string, id int) RelinkResult {
+	return newRepairResult(result, RelinkResult{ID: id, Reason: reason, Message: message})
 }
 
 // changeRepairReceipt is the canonical receipt persisted with a repair commit.
@@ -144,13 +144,13 @@ type changeRepairReceipt struct {
 	Op    string `json:"op"`
 }
 
-// RepairIdentity re-reads the change record and, when every conjunct the human
+// Relink re-reads the change record and, when every conjunct the human
 // approved still holds, drives one exact-revision transaction that writes the one
 // approved identity field. Every refusal predates the transaction (so a refused
 // call runs no engine and leaves the metadata untouched); the write is gated on
 // the exact PR read, the candidate-branch-present proof (AdoptPRHead), and the
 // owned-workspace conflict check, all fail-closed.
-func RepairIdentity(ctx context.Context, deps FinalizeDeps, repoDir string, req RepairIdentityRequest) RepairIdentityResult {
+func Relink(ctx context.Context, deps FinalizeDeps, repoDir string, req RelinkRequest) RelinkResult {
 	// (0) Request shape: exactly one mode, all of that mode's evidence present.
 	if reason, msg := validateRepairRequest(req); reason != "" {
 		return repairRefusal(ResultInvalidInput, reason, msg, req.ID)
@@ -251,7 +251,7 @@ func RepairIdentity(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 // closed reason token and an explanatory message, or ("", "") when the shape is
 // well-formed. The unparseable-PR check for AdoptPR is deferred to the mode
 // resolver, which parses it with the ADR-0097 parser.
-func validateRepairRequest(req RepairIdentityRequest) (reason, message string) {
+func validateRepairRequest(req RelinkRequest) (reason, message string) {
 	if req.ID <= 0 {
 		return RepairInvalidRequest, "id must be a positive change id"
 	}
@@ -282,7 +282,7 @@ func validateRepairRequest(req RepairIdentityRequest) (reason, message string) {
 // the change named by id together with its record path, exact record revision,
 // and the built snapshot (the workspace gate resolves the effective base from
 // it). An id that names no single record is a request-shaped refusal.
-func resolveRepairChange(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int) (domain.Change, string, string, domain.Snapshot, *RepairIdentityResult) {
+func resolveRepairChange(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int) (domain.Change, string, string, domain.Snapshot, *RelinkResult) {
 	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
@@ -319,7 +319,7 @@ func resolveRepairChange(ctx context.Context, deps PlanningDeps, pin StatusPin, 
 // ("branch" or "pr"), the value to write, and the proposed branch the workspace
 // gate compares against. It refuses fail-closed on any drift or unreadable
 // authority before naming any write.
-func repairResolveMode(ctx context.Context, deps FinalizeDeps, repoDir string, c domain.Change, req RepairIdentityRequest) (field, value, proposedBranch string, refusal *RepairIdentityResult) {
+func repairResolveMode(ctx context.Context, deps FinalizeDeps, repoDir string, c domain.Change, req RelinkRequest) (field, value, proposedBranch string, refusal *RelinkResult) {
 	if req.AdoptPRHead {
 		// (2) Trust the PR: read the exact recorded number and adopt its reported
 		// head branch — but only if it still matches the approved evidence.
@@ -367,7 +367,7 @@ func repairResolveMode(ctx context.Context, deps FinalizeDeps, repoDir string, c
 // request by its number. Any repository-resolution or view failure is pr-unknown
 // — an errored read is never laundered into a clean absence
 // (probe-error-is-not-clean-absence).
-func repairViewPR(ctx context.Context, deps FinalizeDeps, repoDir string, number, id int) (githubPR, *RepairIdentityResult) {
+func repairViewPR(ctx context.Context, deps FinalizeDeps, repoDir string, number, id int) (githubPR, *RelinkResult) {
 	ghRepo, err := deps.GitHub.DiscoverRepository(ctx, repoDir)
 	if err != nil {
 		r := repairRefusal(ResultExternalFailed, RepairPRUnknown, err.Error(), id)
@@ -393,7 +393,7 @@ type githubPR struct {
 // on the remote (the same remote branch-facts probe reclaim gathers). An absent
 // branch, or a probe that cannot be answered, is candidate-branch-absent —
 // never adopted on an unknown (probe-error-is-not-clean-absence).
-func repairProveCandidateBranch(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, branch string, id int) *RepairIdentityResult {
+func repairProveCandidateBranch(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, branch string, id int) *RelinkResult {
 	ref := gitcli.RefName(branchRefPrefix + branch)
 	rref, err := deps.Client.ProbeRemoteBranch(ctx, repo, originRemote, ref)
 	if err != nil {
@@ -417,7 +417,7 @@ func repairProveCandidateBranch(ctx context.Context, deps PlanningDeps, repo git
 // be answered — an unresolved base, a malformed target, or a probe error — is
 // ambiguity and takes the fail-closed conflict path (unknown never authorizes a
 // write; probe-error-is-not-clean-absence).
-func repairProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin StatusPin, snap domain.Snapshot, repo gitcli.Repository, c domain.Change, proposedBranch string, id int) *RepairIdentityResult {
+func repairProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin StatusPin, snap domain.Snapshot, repo gitcli.Repository, c domain.Change, proposedBranch string, id int) *RelinkResult {
 	branch, berr := recordedBranch(c)
 	if berr != nil {
 		// No resolvable current branch: no branch-keyed owned workspace to conflict.
@@ -455,7 +455,7 @@ func repairProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin Statu
 
 // repairConflict builds the workspace-conflict refusal — the fail-closed return
 // shared by a proven conflict and every unanswerable inspection.
-func repairConflict(message string, id int) *RepairIdentityResult {
+func repairConflict(message string, id int) *RelinkResult {
 	r := repairRefusal(ResultInvalidState, RepairWorkspaceConflict, message, id)
 	return &r
 }
@@ -466,36 +466,36 @@ func repairConflict(message string, id int) *RepairIdentityResult {
 // (stale-evidence); a failure — mid-flight (failed disposition) or the engine's
 // early call-shape validation return (empty disposition with an error) — carries
 // its typed cause in the envelope's failure diagnosis.
-func repairResultFromOutcome(field, value string, res transaction.Result, execErr error, id int) RepairIdentityResult {
+func repairResultFromOutcome(field, value string, res transaction.Result, execErr error, id int) RelinkResult {
 	switch res.Disposition {
 	case transaction.DispositionApplied, transaction.DispositionAlreadyApplied:
 		// Unrelated grandfathered findings ride along (change 0449); the disposition
 		// stays keyed on the engine's, never on the presence of a finding.
-		out := RepairIdentityResult{ID: id, Revision: string(res.AppliedCommit), Findings: findingsToStatus(res.Findings)}
+		out := RelinkResult{ID: id, Revision: string(res.AppliedCommit), Findings: findingsToStatus(res.Findings)}
 		if field == "branch" {
-			out.Reason = RepairRepairedBranch
+			out.Reason = RepairRelinkedBranch
 			out.Branch = value
 		} else {
-			out.Reason = RepairRepairedPR
+			out.Reason = RepairRelinkedPR
 			out.PR = value
 		}
 		return newRepairResult(ResultApplied, out)
 	case transaction.DispositionContended:
-		return newRepairResult(ResultContended, RepairIdentityResult{
+		return newRepairResult(ResultContended, RelinkResult{
 			ID: id, Reason: RepairStaleEvidence,
 			Message: "the change record moved during the repair transaction; re-read authoritative context",
 		})
 	case transaction.DispositionFailed:
 		// A mid-flight transaction failure carries its typed cause in the envelope's
 		// failure diagnosis, not a repair reason token.
-		r := newRepairResult(mapFailure(execErr), RepairIdentityResult{
+		r := newRepairResult(mapFailure(execErr), RelinkResult{
 			ID: id, Findings: findingsToStatus(res.Findings),
 		})
 		r.Failure = failureStatus(res, execErr)
 		return r
 	default:
 		result, _ := mapOutcome(res, execErr, ResultInvalidState)
-		out := RepairIdentityResult{ID: id, Findings: findingsToStatus(res.Findings)}
+		out := RelinkResult{ID: id, Findings: findingsToStatus(res.Findings)}
 		// Only a refusal's findings name its reason: a no-op may carry unrelated
 		// grandfathered findings (change 0449) that are not a repair reason.
 		if res.Disposition == transaction.DispositionRefused {
@@ -511,7 +511,7 @@ func repairResultFromOutcome(field, value string, res transaction.Result, execEr
 // upserts the one approved identity field plus the refreshed updated stamp over
 // the attempt's own fresh source bytes, re-renders the artifact block against
 // the mutated candidate snapshot, and — when inline is enabled — the board. It
-// writes NO other frontmatter field: the identity repair is a single-field
+// writes NO other frontmatter field: the relink is a single-field
 // mutation, and re-probing after it is the workflow's job.
 type changeRepairOp struct {
 	changeID   int
@@ -525,7 +525,7 @@ type changeRepairOp struct {
 }
 
 func (o changeRepairOp) Key() transaction.OperationKey {
-	return transaction.OperationKey(OperationChangeRepairIdentity)
+	return transaction.OperationKey(OperationChangeRelink)
 }
 
 func (o changeRepairOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
@@ -547,11 +547,11 @@ func (o changeRepairOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	// never collides with the updated stamp at the pre-fence insertion point.
 	intermediate, err := upsertFieldBytes(src, o.field, document.String(o.value))
 	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("repair-identity: patching %s: %w", o.field, err)
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("relink: patching %s: %w", o.field, err)
 	}
 	intermediate, err = upsertFieldBytes(intermediate, "updated", document.String(o.clock.Now().UTC().Format("2006-01-02")))
 	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("repair-identity: stamping updated: %w", err)
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("relink: stamping updated: %w", err)
 	}
 
 	// The candidate snapshot is the before-state with this record replaced by its
@@ -562,7 +562,7 @@ func (o changeRepairOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	}
 	gc, gout := candidate.Change(domain.ChangeID(o.changeID))
 	if gout != domain.LookupFound {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("repair-identity: mutated record %04d absent from candidate snapshot", o.changeID)
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("relink: mutated record %04d absent from candidate snapshot", o.changeID)
 	}
 
 	body, err := render.ArtifactBlockContent(gc, candidate, o.link)
@@ -571,13 +571,13 @@ func (o changeRepairOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	}
 	doc2, err := document.Parse(intermediate)
 	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("repair-identity: reparsing patched record: %w", err)
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("relink: reparsing patched record: %w", err)
 	}
 	var ps2 document.PatchSet
 	ps2.ReplaceBlock("artifacts", body)
 	finalBytes, err := doc2.Apply(ps2)
 	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("repair-identity: writing artifact block: %w", err)
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("relink: writing artifact block: %w", err)
 	}
 
 	files := []transaction.FileMutation{
@@ -586,17 +586,17 @@ func (o changeRepairOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	if o.inline {
 		boardPath := path.Join(o.changesDir, "BOARD.md")
 		if err := includeBoard(ctx, st.Tree, boardPath, candidate, boardUnrenderable(st.State, o.changesDir), boardPresentation(o.eff), &files); err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("repair-identity: %w", err)
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("relink: %w", err)
 		}
 	}
 
-	receipt, err := json.Marshal(changeRepairReceipt{Field: o.field, ID: o.changeID, Op: OperationChangeRepairIdentity})
+	receipt, err := json.Marshal(changeRepairReceipt{Field: o.field, ID: o.changeID, Op: OperationChangeRelink})
 	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("repair-identity: encoding receipt: %w", err)
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("relink: encoding receipt: %w", err)
 	}
 	return transaction.MutationPlan{
 		Files:         files,
-		CommitSubject: fmt.Sprintf("change %04d identity repaired (%s)", o.changeID, o.field),
+		CommitSubject: fmt.Sprintf("change %04d relinked (%s)", o.changeID, o.field),
 		Receipt:       receipt,
 	}, transaction.OperationResult{}, nil
 }

@@ -814,7 +814,7 @@ func testRetiredNonVacuity(t *testing.T) {
 		{"skills/x/SKILL.md", "workspace.prepare  --id <id> --version <v>   # resolve argv from the capability catalog"},
 		// The flag wrapped onto the line after its operation still binds (edge-paths shape).
 		{"skills/x/SKILL.md", "resume through the `change.resume-halted` operation with `--id <id>\n--version <v> --acknowledge-quiescent`"},
-		{"tests/test_x.sh", "docket change repair-identity --id 1 --version v   # a bare --version on repair-identity is bound too"},
+		{"tests/test_x.sh", "docket change relink --id 1 --version v   # a bare --version on relink is bound too"},
 	} {
 		if !hasRetiredRow(scanTextContent(c.rel, c.text), "40") {
 			t.Errorf("row 40: a bound --version in %s was not detected: %q", c.rel, c.text)
@@ -897,7 +897,7 @@ func testRetiredNegativeControls(t *testing.T) {
 		// A blank line ends the block, so the op cannot bind a --version below it.
 		"the `change.claim` operation with `--id <id> --revision <v>`\n\nthen record `cursor-agent --version`",
 		"the `change.claim` operation with `--id <id> --revision <v>`",
-		"docket change repair-identity --id 1 --expect-revision <v> --adopt-pr-head",
+		"docket change relink --id 1 --expect-revision <v> --adopt-pr-head",
 		// A document titled by a foreign tool documents that tool (scripts/release-smoke.md).
 		"# release-smoke.sh — native per-tuple smoke driver\n\n| Argument | Required |\n|---|---|\n| `--version <v>` | yes |",
 		"the rebase receipt keeps resolver_budget_version",

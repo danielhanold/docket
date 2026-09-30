@@ -116,16 +116,16 @@ func TestRevisionFlagHardCut(t *testing.T) {
 			t.Errorf("%s registers --revision but is not a row-40 operation", k)
 		}
 	}
-	rep, _, err := root.Find([]string{"change", "repair-identity"})
+	rep, _, err := root.Find([]string{"change", "relink"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if f := rep.Flags().Lookup("expect-revision"); f == nil || !flagRequired(f) {
-		t.Errorf("change repair-identity lacks a required --expect-revision")
+		t.Errorf("change relink lacks a required --expect-revision")
 	}
-	for _, p := range append(append([][]string{}, revisionFlagOps...), []string{"change", "repair-identity"}) {
+	for _, p := range append(append([][]string{}, revisionFlagOps...), []string{"change", "relink"}) {
 		flag := "--version"
-		if p[1] == "repair-identity" {
+		if p[1] == "relink" {
 			flag = "--expect-version"
 		}
 		args := append(append([]string{}, p...), flag, "x")
@@ -182,16 +182,16 @@ func TestRevisionFlagReachesRequest(t *testing.T) {
 			t.Errorf("%s: --revision %s never reached the request: %s", name, rev, out)
 		}
 	}
-	// repair-identity validates its own request shape before any read.
+	// relink validates its own request shape before any read.
 	repair := func(value string) string {
-		out, _, _ := runCLI(t, "change", "repair-identity", "--id", "1", "--expect-revision", value,
+		out, _, _ := runCLI(t, "change", "relink", "--id", "1", "--expect-revision", value,
 			"--adopt-pr-head", "--expect-pr", "1", "--expect-head", "b", "--repo-dir", dir, "--json")
 		return out
 	}
 	if out := repair(""); !strings.Contains(out, "expect-revision must be") {
-		t.Fatalf("repair-identity control: an empty --expect-revision did not reach validation: %s", out)
+		t.Fatalf("relink control: an empty --expect-revision did not reach validation: %s", out)
 	}
 	if out := repair(rev); strings.Contains(out, "expect-revision must be") {
-		t.Errorf("repair-identity: --expect-revision %s never reached the request: %s", rev, out)
+		t.Errorf("relink: --expect-revision %s never reached the request: %s", rev, out)
 	}
 }

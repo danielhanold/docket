@@ -100,7 +100,7 @@ func TestStatusStillFailsOnUnprobeableWellFormedBranch(t *testing.T) {
 // recorded branch: is not a valid git branch name gets exactly one error
 // finding, and its remedy is valid in the exact state that produced it
 // (printed-remedy-state-validity): a parseable pr: names the typed
-// repair-identity adopt-pr-head command with id, revision, and PR number
+// relink adopt-pr-head command with id, revision, and PR number
 // filled in; no pr: or an unparseable one (Review Focus 2) gets the hand-edit
 // plus repository migrate remedy, never a fabricated PR number.
 func TestStatusBranchMalformedFindings(t *testing.T) {
@@ -135,14 +135,14 @@ func TestStatusBranchMalformedFindings(t *testing.T) {
 		t.Errorf("branch-malformed identities = %v, want exactly 0001 0002 0008", byIdentity)
 	}
 	prRemedy := byIdentity["0001"][0].Remedy
-	for _, want := range []string{"change repair-identity", "--id 1 ", "--expect-revision blobchange0001", "--adopt-pr-head", "--expect-pr 77", "PR #77"} {
+	for _, want := range []string{"change relink", "--id 1 ", "--expect-revision blobchange0001", "--adopt-pr-head", "--expect-pr 77", "PR #77"} {
 		if !strings.Contains(prRemedy, want) {
 			t.Errorf("PR-case remedy %q lacks %q", prRemedy, want)
 		}
 	}
 	for _, id := range []string{"0002", "0008"} {
 		r := byIdentity[id][0].Remedy
-		if strings.Contains(r, "repair-identity") || !strings.Contains(r, "repository migrate") {
+		if strings.Contains(r, "change relink") || !strings.Contains(r, "repository migrate") {
 			t.Errorf("change %s remedy = %q, want the hand-edit + repository migrate remedy", id, r)
 		}
 	}

@@ -248,7 +248,7 @@ func TestSelectFinalizeQueueIdentityClassification(t *testing.T) {
 // approval via the exact view's reviewDecision — and identity must still win
 // for an unapproved PR. Identity is more fundamental than approval and must be
 // reconciled before the approval gate; before the classify reorder this masked
-// the mismatch as approval-required and never routed to the repair checkpoint.
+// the mismatch as approval-required and never routed to the link check.
 // The head is observed (non-empty), so the facts are cleanly observed and
 // identity applies.
 func TestSelectFinalizeQueueIdentityBeforeApproval(t *testing.T) {

@@ -205,7 +205,7 @@ func TestRepairWorkspaceClearProbesOnlyOwnStack(t *testing.T) {
 		stackFixtureBlob(10, "a-parent", "in-progress", "feat/a-parent", ""),
 		stackFixtureBlob(11, "a-child", "proposed", "", "stacked_on: 10\n"),
 	}
-	run := func(t *testing.T, corpus []StatusBlob, poison string) *RepairIdentityResult {
+	run := func(t *testing.T, corpus []StatusBlob, poison string) *RelinkResult {
 		t.Helper()
 		snap := snapshotOf(t, corpus)
 		deps := FinalizeDeps{
