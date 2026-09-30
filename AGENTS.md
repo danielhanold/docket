@@ -1,10 +1,3 @@
-# AGENTS.md — always-in-context rules for this repo
-
-These rules must fire unprompted — they guide ad hoc agent actions before any repository test
-could catch a mistake. Promotion into this file is a human decision; detailed history lives in
-the learnings ledger on the `docket` branch, and the docket-convention skill's *Learnings
-ledger* section owns the promotion mechanics.
-
 <!-- docket:dispatch:start (managed by docket — do not hand-edit) -->
 ## Docket agents — dispatch, don't run inline
 
@@ -90,15 +83,14 @@ you what to do instead:
 Resume admits **exactly one** replacement, and only after cancellation is confirmed. `run-continue`
 is unchanged by any of this: it stays nonterminal, keeps the same key, spends no retry, and resumes
 the existing agent (or re-dispatches with the change id and continuation id) as in step 3 above.
-
-### Codex root-coordinator entry
-
-For Codex, description markers select the native launch over the general named-child wording. `[docket launch: root-coordinator]` takes precedence: foreground catalog-resolved `agent.enter` at the caller cwd. Otherwise `[docket worktree: feature]` requires foreground catalog-resolved `agent.enter` with the owning workflow's exact `--worktree`; an unmarked metadata child uses direct native named-agent dispatch.
-
-For any `agent.enter` route: Write a request file containing the user's request unchanged; for implement-next include the unchanged run-context token, labeled for `--run-context` on `change.claim` and the gate drive, and the unchanged run id, labeled for `--run-id` on prepare-scope and build-owned starts. Preserve resume/continuation ids and run keys. Pass `--request`, `--role`, the active absolute caller `--cwd`, approval policy, and sandbox; pass the owning workflow's exact `--worktree` explicitly for feature children. Never omit run context.
-
-A shell-tool yield carrying a live task/session identity is a liveness transition, not completion. You must retain that exact task/session identity and collect its terminal exit and final output through the harness-native observation/wait mechanism. Never re-run `agent.enter`, start a second watcher, or return a completion report while the original task remains live or unobserved. Only after terminal output is collected may implement-next run the parent's keyed `run.verdict` and obey its report. Coordinator prose, thread or turn ids, and process exit alone do not prove run ownership or completion. Do not substitute `codex exec`, another harness, a generic agent, or a parent relay.
 <!-- docket:dispatch:end -->
+# AGENTS.md — always-in-context rules for this repo
+
+These rules must fire unprompted — they guide ad hoc agent actions before any repository test
+could catch a mistake. Promotion into this file is a human decision; detailed history lives in
+the learnings ledger on the `docket` branch, and the docket-convention skill's *Learnings
+ledger* section owns the promotion mechanics.
+
 
 ## Guidelines for Grooming and Auto-Grooming
 - Follow the YAGNI principle.
