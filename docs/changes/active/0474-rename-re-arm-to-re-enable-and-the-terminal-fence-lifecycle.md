@@ -2,7 +2,7 @@
 id: 474
 slug: 'rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle'
 title: 'Rename re-arm to re-enable and retire the lifecycle ''terminal'' and non-run ''fence'' names'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-29'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-30T14:01:40Z'
 ---
 
 ## Artifacts
