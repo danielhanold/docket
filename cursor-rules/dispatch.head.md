@@ -6,7 +6,7 @@ alwaysApply: true
 # Docket agents — dispatch only
 
 Docket generates a subagent wrapper per Docket role into `.cursor/agents/docket-*.md`. It ships
-validated Cursor model IDs for **every** wrapper — including all four build-profile workers,
+validated Cursor model IDs for **every** wrapper — including all four build-tier workers,
 `docket-build-economy`, `docket-build-standard`, `docket-build-premium`, and `docket-build-max` — so each
 one is generated pinned unless a config layer overrides it.
 

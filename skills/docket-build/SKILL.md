@@ -1,12 +1,12 @@
 ---
 name: docket-build
-description: Use as docket's build role (skills.build) — executes an implementation plan task-by-task by routing each task to a named economy/standard/premium/max profile agent running the docket-build-task contract, with one bounded escalation per task, no per-task review, and a single full-suite gate at the end.
+description: Use as docket's build role (skills.build) — executes an implementation plan task-by-task by routing each task to a named economy/standard/premium/max tier agent running the docket-build-task contract, with one bounded escalation per task, no per-task review, and a single full-suite gate at the end.
 ---
 
-# docket-build — profile-routed plan execution
+# docket-build — tier-routed plan execution
 
 docket's build role, bound by `skills.build`. You run inside `docket-implement-next` Step 5 with
-the plan written and the worktree cut: read the plan, route each task to a profile, dispatch one
+the plan written and the worktree cut: read the plan, route each task to a tier, dispatch one
 fresh worker per task, apply the escalation protocol, run the build gate. Then you stop — review
 is not yours.
 
@@ -27,7 +27,7 @@ gets exactly one fresh worker dispatch unless that worker requests its single al
   commit; a plan whose tasks are not separable at that boundary is a planning defect, not
   something to re-cut here.
 
-## Profiles
+## Tiers
 
 Four named agents, all preloading the same `docket-build-task` worker skill and differing only in
 model and effort:
@@ -39,10 +39,10 @@ model and effort:
 | `docket-build-premium` | consequential but correctable risk, or a risk the plan names |
 | `docket-build-max` | unresolved architecture, or an irreversible data change |
 
-A higher rung means greater reasoning investment, **not** a stronger correctness guarantee — every
-profile carries identical testing and completion obligations. Model and effort resolve through
+A higher tier means greater reasoning investment, **not** a stronger correctness guarantee — every
+tier carries identical testing and completion obligations. Model and effort resolve through
 docket's ordinary generated-agent layer over the shipped `agents/harness-defaults.yml`; an
-unmapped harness/profile pair runs unpinned. Never restate literal model IDs or effort tiers in
+unmapped harness/tier pair runs unpinned. Never restate literal model IDs or effort tiers in
 your dispatch prose.
 
 ## Routing
@@ -50,14 +50,14 @@ your dispatch prose.
 **Explicit override wins.** A plan task may carry a line of the form:
 
 ```markdown
-**Build profile:** economy
+**Build tier:** economy
 ```
 
 A valid value (`economy`, `standard`, `premium`, `max`) is authoritative; record its use in that task's
 routing line. An **invalid** value is a plan contract error: **halt** per *Halting conditions* and
 surface it — never silently fall back to a default.
 
-**Otherwise classify** using the shared character→profile rubric in
+**Otherwise classify** using the shared character→tier rubric in
 [`references/task-routing.md`](references/task-routing.md) — the same rubric
 `docket-implement-next`'s Step 6 fix loop reads, which is why it lives in a file rather than here.
 **Read it now (blocking) before routing your first task.** It carries the deliberate asymmetry
@@ -68,7 +68,7 @@ prose.
 For docket-build specifically, `max` has exactly three doors: the rubric's two-item direct
 classification, an explicit plan override, and a `premium` escalation.
 
-Emit one concise routing line per task naming both the profile and its reason.
+Emit one concise routing line per task naming both the tier and its reason.
 
 ## Dispatching a task
 
@@ -79,13 +79,13 @@ operation with `--change-id <id> --task-id <task-N> --phase build --branch <bran
 the run id arrived in *your* prompt from the gated parent — pass each value through, omitting a
 flag only when your prompt carried no such value). Capture the scope id and **both** capabilities from the
 `--json` response before dispatching (the shared JSON-capture requirement); the parent capability
-stays in your notes. Then dispatch the selected profile agent **by name** — one of
+stays in your notes. Then dispatch the selected tier agent **by name** — one of
 `docket-build-economy`, `docket-build-standard`, `docket-build-premium`, or `docket-build-max` —
 foreground, one task at a time; later tasks build on earlier task commits and share the worktree, so
 workers are strictly sequential. Its dispatch payload contains:
 Feature worktree: <absolute canonical feature-worktree root>
 It also gives the worker the plan task text, applicable repository instructions, selected
-profile and routing reason, the completion schema, and one **complete start-ready scope bundle**:
+tier and routing reason, the completion schema, and one **complete start-ready scope bundle**:
 the change id, task id, phase (`build`), branch, scope id, child capability, and the run
 context when your prompt carried one — each value exactly as `prepare-scope` pinned it, for the
 worker to pass through to `gate.drive.start` unchanged. The bundle carries no run id: the scope
@@ -101,13 +101,13 @@ for a **named** agent the wrapper's own `skills:` frontmatter is the operative p
 forbids is bolting a review skill or instruction onto the dispatch prompt.
 <!-- docket:feature-dispatch:end -->
 
-If profile dispatch is genuinely unavailable — established only per the convention's
-*Dispatch-capability resolution*, **never from a tool name** — this role is **Tier C,
-authorized-or-halt**: only an explicitly configured `skills.build: auto` authorizes inline execution.
+If tier dispatch is genuinely unavailable — established only per the convention's
+*Dispatch-capability resolution*, **never from a tool name** — this role's fallback is
+**`auto-or-halt`**: only an explicitly configured `skills.build: auto` authorizes inline execution.
 Selecting `docket-build` is not implicit authorization to discard its isolation or its model/effort
 contract, so halt per *Halting conditions* instead.
 
-A profile agent **not registered on this machine** is the same authorized-or-halt condition reached
+A tier agent **not registered on this machine** is the same `auto-or-halt` condition reached
 differently: the harness rejected a dispatch naming `docket-build-economy` — a concrete rejection of a
 named agent, never an inference from a missing tool name, so the rule above stands. The cause is a
 stale install (`install.sh` generates the wrappers; a harness registers them only at session start):
@@ -180,7 +180,7 @@ The retry consumes that task's whole escalation allowance: a task that started a
 whose `standard` retry still cannot complete **halts** — it does not climb again to `premium`.
 
 Escalate only on a concrete reason that the task is materially more complex or riskier than the
-assigned profile. An expected RED test, ordinary debugging, or a single failed test run is not an
+assigned tier. An expected RED test, ordinary debugging, or a single failed test run is not an
 escalation condition; a `NEEDS_ESCALATION` without such a reason is a **malformed return**, and a
 malformed return halts — never a free escalation.
 
@@ -204,16 +204,16 @@ stays `in-progress` and the worktree is preserved for inspection or resume.
 continue to your own next step, `halted` in hand; only an agent whose entire assignment is this
 role ends its turn here.
 
-Report which condition below fired with its evidence (task, profile, SHA, command, or harness
+Report which condition below fired with its evidence (task, tier, SHA, command, or harness
 message). Never improvise past one, never substitute a weaker path, and never invoke review. The
 rules elsewhere in this file name their condition and point here rather than restating the
 disposition.
 
-- **Profile routing is un-dispatchable**, established per the convention's *Dispatch-capability
+- **Tier routing is un-dispatchable**, established per the convention's *Dispatch-capability
   resolution* and never from a tool name, and `skills.build: auto` was not explicitly configured.
-- **A profile agent is not registered on this machine** — the harness rejected a dispatch naming
+- **A tier agent is not registered on this machine** — the harness rejected a dispatch naming
   it. Remedy: re-run `install.sh`, then start a fresh session.
-- **An explicit plan `Build profile:` value is invalid** — a plan contract error; never fall back
+- **An explicit plan `Build tier:` value is invalid** — a plan contract error; never fall back
   to a default.
 - **A worker return is malformed or unverifiable** — a missing or unparsable outcome, a `COMPLETE`
   whose commit is absent, unresolvable, or not an ancestor of the branch tip, or a
@@ -303,7 +303,7 @@ the full suite; that post-fix re-run **is** the next budgeted attempt — starte
 the same driver so the facade charges it, no bypass. Its dispatch payload therefore also carries the
 run id from your prompt, outside the scope bundle, for that one start: the `gate.drive.start`
 operation with `--owner build --run-id <run-id> --json` (flag omitted when your prompt carried none).
-That ladder starts one rung above the default
+That ladder starts one tier above the default
 deliberately: repair is cross-task diagnosis, never routine work. **Green at any point ends the phase
 immediately; review is never invoked while red.** A refused start (`suite-attempts-exhausted`) or a
 red final permitted run halts per *Halting conditions* with the exhaustion reason naming
@@ -423,14 +423,14 @@ burned by.
 
 **`true`** — write a compact ledger to `.superpowers/docket-build/<change-id>/progress.md` (covered
 by the committed `.superpowers/` ignore rule) recording branch, plan path and blob hash, task
-identity and status, profile and reason, escalation, TDD evidence or exception, verification, and
+identity and status, tier and reason, escalation, TDD evidence or exception, verification, and
 commit SHA. It is a state ledger, not a prose task report. On resume, skip a task **only** when its
 ledger entry is `COMPLETE`, the plan hash still matches, and its commit is an **ancestor** of the
 current branch — missing, stale, malformed, or contradictory state never marks a task complete.
 
 ## Output
 
-Emit concise, stable lines and nothing more: task-to-profile selection and reason; escalation and
+Emit concise, stable lines and nothing more: task-to-tier selection and reason; escalation and
 reason; worker outcome and commit; focused verification; full-suite command and result; the
 build-evidence record on green; the terminal build disposition (**role-scoped** — a build
 disposition, never a run disposition). Write no verbose task artifact unless `BUILD_CHECKPOINT` is

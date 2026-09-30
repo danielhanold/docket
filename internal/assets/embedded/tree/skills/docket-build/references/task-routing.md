@@ -1,15 +1,15 @@
-# task-routing — the character→profile rubric
+# task-routing — the character→tier rubric
 
-The shared classification rubric behind docket's profile-routed work. **Two consumers read this
+The shared classification rubric behind docket's tier-routed work. **Two consumers read this
 file**, and it is written for both:
 
-- **`docket-build`** routes each plan task to a profile agent (`## Routing` in its `SKILL.md`).
+- **`docket-build`** routes each plan task to a tier agent (`## Routing` in its `SKILL.md`).
 - **`docket-implement-next`** routes each review finding in its Step 6 fix loop
   (`references/fix-loop.md`).
 
 Neither restates it. What is classified differs — a plan task, a review finding — but the question
 is identical: *how much reasoning investment does this piece of work need, and what happens if it
-is got wrong?* Consumer-specific rules (a plan's `**Build profile:**` override, the fix loop's
+is got wrong?* Consumer-specific rules (a plan's `**Build tier:**` override, the fix loop's
 `premium` ceiling, escalation ladders) belong to each consumer, not here.
 
 ## The rubric
@@ -33,7 +33,7 @@ below.
   this closed list, so uncertainty still sinks to `standard`.
 - **`standard`** — everything remaining; the default and the uncertainty sink. Deliberately includes
   hard-but-safe work: difficulty known ahead of time is handled by the consumer's own override
-  **where one exists** (docket-build's `**Build profile:**`; the fix loop has no override at all, so
+  **where one exists** (docket-build's `**Build tier:**`; the fix loop has no override at all, so
   a known-hard finding simply routes here), and difficulty discovered while working is handled by
   the `standard -> premium` escalation.
 - **`economy`** — *only when* the work is fully specified, follows an established pattern, carries no
