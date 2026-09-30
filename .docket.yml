@@ -42,3 +42,8 @@ build:
   test_command: go run ./cmd/docket development test
   # enable resume ledger
   checkpoint: false
+
+# Harnesses the per-repo agent pass generates wrapper files for (see .docket.example.yml).
+agent_harnesses:
+  - claude
+  - opencode
