@@ -17,12 +17,12 @@ func TestIntegrationRecordOpsRelinkUnrelatedInvalidRecordProgress(t *testing.T) 
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
 	repo := newWorkingRepo(t, map[string]string{
-		recPath:             repairRecord(3, "widget", ""),
+		recPath:             relinkRecord(3, "widget", ""),
 		unrelatedBrokenPath: unrelatedBrokenBytes,
 	})
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
 
-	res := repairRealRun(t, repo, recPath)
+	res := relinkRealRun(t, repo, recPath)
 	if res.Result != ResultApplied || res.Branch != "feat/renamed" {
 		t.Fatalf("relink beside an unrelated unparseable record = %q reason %q branch %q (findings %v), want applied feat/renamed",
 			res.Result, res.Reason, res.Branch, res.Findings)
@@ -37,13 +37,13 @@ func TestIntegrationRecordOpsRelinkUnrelatedInvalidRecordProgress(t *testing.T) 
 func TestIntegrationRecordOpsRelinkUnrelatedInvalidRecordRefusals(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
-	for _, c := range unrelatedRefusalCases(t, 3, recPath, repairRecord(3, "widget", ""), repairRecord(3, "dupe", "")) {
+	for _, c := range unrelatedRefusalCases(t, 3, recPath, relinkRecord(3, "widget", ""), relinkRecord(3, "dupe", "")) {
 		t.Run(c.name, func(t *testing.T) {
 			repo := newWorkingRepo(t, c.files)
 			repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
 			tip := originTip(t, repo.origin, "docket")
 
-			res := repairRealRun(t, repo, recPath)
+			res := relinkRealRun(t, repo, recPath)
 			if res.Result == ResultApplied {
 				t.Fatalf("relink applied despite %s; want a refusal", c.name)
 			}
@@ -55,7 +55,7 @@ func TestIntegrationRecordOpsRelinkUnrelatedInvalidRecordRefusals(t *testing.T) 
 	}
 }
 
-// TestIntegrationRecordOpsRepairAdoptPRHeadAppliesOnMalformedRecordedBranch proves the PR-case
+// TestIntegrationRecordOpsRelinkAdoptPRHeadAppliesOnMalformedRecordedBranch proves the PR-case
 // remedy status prints for a branch-malformed record (change 0454) actually
 // applies: adopting the PR head over a recorded branch: git would reject lands
 // applied, because recordedBranch refuses the malformed name and the workspace
@@ -64,12 +64,12 @@ func TestIntegrationRecordOpsRelinkUnrelatedInvalidRecordRefusals(t *testing.T) 
 // name would reach gitcli and fail there. feat/a:b is the discriminating row —
 // only the delegated gitcli predicate rejects it; without the delegation the
 // gate inspects it and refuses as workspace-conflict.
-func TestIntegrationRecordOpsRepairAdoptPRHeadAppliesOnMalformedRecordedBranch(t *testing.T) {
+func TestIntegrationRecordOpsRelinkAdoptPRHeadAppliesOnMalformedRecordedBranch(t *testing.T) {
 	requireRealGit(t)
 	for _, recorded := range []string{"feat/a..parent", "feat/a:b"} {
 		t.Run(recorded, func(t *testing.T) {
 			recPath := groomPath(3, "widget")
-			repo := newWorkingRepo(t, map[string]string{recPath: repairRecord(3, "widget", recorded)})
+			repo := newWorkingRepo(t, map[string]string{recPath: relinkRecord(3, "widget", recorded)})
 			repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
 
 			node := planningDepsFor(t, repo.invocation)
@@ -77,7 +77,7 @@ func TestIntegrationRecordOpsRepairAdoptPRHeadAppliesOnMalformedRecordedBranch(t
 			if err != nil {
 				t.Fatalf("workspace.NewService: %v", err)
 			}
-			deps := FinalizeDeps{Planning: node.deps, GitHub: repairGitHub("feat/renamed"), Workspace: svc}
+			deps := FinalizeDeps{Planning: node.deps, GitHub: relinkGitHub("feat/renamed"), Workspace: svc}
 			res := Relink(context.Background(), deps, node.dir, RelinkRequest{
 				ID: 3, ExpectRevision: blobRevisionAt(t, repo.origin, "docket", recPath),
 				AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",

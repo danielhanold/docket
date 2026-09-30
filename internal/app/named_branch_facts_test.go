@@ -199,7 +199,7 @@ func TestRetargetProbesOnlyParentStack(t *testing.T) {
 
 // --- repair workspace ownership gate (fake reader + fake workspace) ------
 
-func TestRepairWorkspaceClearProbesOnlyOwnStack(t *testing.T) {
+func TestRelinkWorkspaceClearProbesOnlyOwnStack(t *testing.T) {
 	pin := mainPin(t)
 	unrelated := []StatusBlob{
 		stackFixtureBlob(10, "a-parent", "in-progress", "feat/a-parent", ""),
@@ -210,9 +210,9 @@ func TestRepairWorkspaceClearProbesOnlyOwnStack(t *testing.T) {
 		snap := snapshotOf(t, corpus)
 		deps := FinalizeDeps{
 			Planning:  PlanningDeps{Reader: poisoned(&fakeReader{pin: pin, corpus: corpus, facts: domain.NewBranchFacts(map[string]bool{"feat/b-parent": true})}, poison), Clock: testClock()},
-			Workspace: &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateAbsent}},
+			Workspace: &fakeRelinkWorkspace{inspection: workspace.Inspection{Kind: workspace.StateAbsent}},
 		}
-		return repairProveWorkspaceClear(context.Background(), deps, pin, snap, gitcli.Repository{}, mustChange(t, snap, 30), "feat/b", 30)
+		return relinkProveWorkspaceClear(context.Background(), deps, pin, snap, gitcli.Repository{}, mustChange(t, snap, 30), "feat/b", 30)
 	}
 
 	t.Run("unrelated-poison-does-not-block", func(t *testing.T) {

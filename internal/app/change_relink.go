@@ -48,26 +48,26 @@ const OperationChangeRelink = "change.relink"
 // prohibition-needs-a-return-value). Message text is explanatory and must not be
 // parsed.
 const (
-	// RepairRelinkedBranch: the PR's reported head was adopted as branch:.
-	RepairRelinkedBranch = "relinked-branch"
-	// RepairRelinkedPR: the supplied PR reference was adopted as pr:.
-	RepairRelinkedPR = "relinked-pr"
-	// RepairStaleEvidence: the approved evidence lost the race — the change
+	// RelinkedBranch: the PR's reported head was adopted as branch:.
+	RelinkedBranch = "relinked-branch"
+	// RelinkedPR: the supplied PR reference was adopted as pr:.
+	RelinkedPR = "relinked-pr"
+	// RelinkStaleEvidence: the approved evidence lost the race — the change
 	// revision, the PR head, or the PR number no longer matches what the human saw.
-	RepairStaleEvidence = "stale-evidence"
-	// RepairWorkspaceConflict: an owned workspace targets a branch other than the
+	RelinkStaleEvidence = "stale-evidence"
+	// RelinkWorkspaceConflict: an owned workspace targets a branch other than the
 	// one the record will carry, or its inspection could not be answered.
-	RepairWorkspaceConflict = "workspace-conflict"
-	// RepairCandidateBranchAbsent: the branch the record will carry is not proven
+	RelinkWorkspaceConflict = "workspace-conflict"
+	// RelinkCandidateBranchAbsent: the branch the record will carry is not proven
 	// present on the remote (absent, or an unanswerable probe — never adopted on
 	// an unknown).
-	RepairCandidateBranchAbsent = "candidate-branch-absent"
-	// RepairPRUnknown: the exact PR read failed — the pull request could not be
+	RelinkCandidateBranchAbsent = "candidate-branch-absent"
+	// RelinkPRUnknown: the exact PR read failed — the pull request could not be
 	// authoritatively viewed, so nothing is adopted.
-	RepairPRUnknown = "pr-unknown"
-	// RepairInvalidRequest: the request shape is malformed — not exactly one mode,
+	RelinkPRUnknown = "pr-unknown"
+	// RelinkInvalidRequest: the request shape is malformed — not exactly one mode,
 	// missing evidence for the chosen mode, or an unparseable PR reference.
-	RepairInvalidRequest = "invalid-request"
+	RelinkInvalidRequest = "invalid-request"
 )
 
 // RelinkRequest is the revision-pinned relink that finalize's link
@@ -107,7 +107,7 @@ type RelinkResult struct {
 }
 
 // HumanText renders a one-line summary naming identity, the reason token, and —
-// on a repair — the field written and the committed revision.
+// on a relink — the field written and the committed revision.
 func (r RelinkResult) HumanText() string {
 	if r.Result == ResultApplied {
 		switch {
@@ -120,9 +120,9 @@ func (r RelinkResult) HumanText() string {
 	return fmt.Sprintf("%s: %s (%s)", r.Operation, r.Result, r.Reason)
 }
 
-// newRepairResult stamps the envelope and normalizes Findings so the array
+// newRelinkResult stamps the envelope and normalizes Findings so the array
 // marshals as [] on every path.
-func newRepairResult(result Result, out RelinkResult) RelinkResult {
+func newRelinkResult(result Result, out RelinkResult) RelinkResult {
 	out.Envelope = NewEnvelope(OperationChangeRelink, result)
 	if out.Findings == nil {
 		out.Findings = []StatusFinding{}
@@ -130,15 +130,15 @@ func newRepairResult(result Result, out RelinkResult) RelinkResult {
 	return out
 }
 
-// repairRefusal builds a refusing result carrying the closed reason token and an
+// relinkRefusal builds a refusing result carrying the closed reason token and an
 // explanatory message. A refusal mutates nothing.
-func repairRefusal(result Result, reason, message string, id int) RelinkResult {
-	return newRepairResult(result, RelinkResult{ID: id, Reason: reason, Message: message})
+func relinkRefusal(result Result, reason, message string, id int) RelinkResult {
+	return newRelinkResult(result, RelinkResult{ID: id, Reason: reason, Message: message})
 }
 
-// changeRepairReceipt is the canonical receipt persisted with a repair commit.
+// changeRelinkReceipt is the canonical receipt persisted with a relink commit.
 // Field order is alphabetical for the engine's canonical-form validator.
-type changeRepairReceipt struct {
+type changeRelinkReceipt struct {
 	Field string `json:"field"`
 	ID    int    `json:"id"`
 	Op    string `json:"op"`
@@ -152,17 +152,17 @@ type changeRepairReceipt struct {
 // owned-workspace conflict check, all fail-closed.
 func Relink(ctx context.Context, deps FinalizeDeps, repoDir string, req RelinkRequest) RelinkResult {
 	// (0) Request shape: exactly one mode, all of that mode's evidence present.
-	if reason, msg := validateRepairRequest(req); reason != "" {
-		return repairRefusal(ResultInvalidInput, reason, msg, req.ID)
+	if reason, msg := validateRelinkRequest(req); reason != "" {
+		return relinkRefusal(ResultInvalidInput, reason, msg, req.ID)
 	}
 
 	pin, err := deps.Planning.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		return repairRefusal(result, reason, err.Error(), req.ID)
+		return relinkRefusal(result, reason, err.Error(), req.ID)
 	}
 	if decision := config.PreflightMutation(&pin.Config); !decision.Allowed {
-		return repairRefusal(ResultUnsupportedConfig, ReasonDeferredCapRequested,
+		return relinkRefusal(ResultUnsupportedConfig, ReasonDeferredCapRequested,
 			"configuration actively requests a deferred capability docket does not ship in this version ("+
 				strings.Join(blockerPaths(decision.Blockers), ", ")+"); withdraw it before any mutation", req.ID)
 	}
@@ -170,26 +170,26 @@ func Relink(ctx context.Context, deps FinalizeDeps, repoDir string, req RelinkRe
 	inline, err := resolveBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
-			return repairRefusal(pe.Result, pe.Reason, pe.Message, req.ID)
+			return relinkRefusal(pe.Result, pe.Reason, pe.Message, req.ID)
 		}
-		return repairRefusal(ResultInternalError, ReasonStatusInternalError, err.Error(), req.ID)
+		return relinkRefusal(ResultInternalError, ReasonStatusInternalError, err.Error(), req.ID)
 	}
 
 	// (1) Re-read the change record. A revision that no longer equals the approved
 	// ExpectRevision lost the race — stale-evidence, no write.
-	c, recPath, revision, snap, refusal := resolveRepairChange(ctx, deps.Planning, pin, eff, req.ID)
+	c, recPath, revision, snap, refusal := resolveRelinkChange(ctx, deps.Planning, pin, eff, req.ID)
 	if refusal != nil {
 		return *refusal
 	}
 	if revision != req.ExpectRevision {
-		return repairRefusal(ResultContended, RepairStaleEvidence,
+		return relinkRefusal(ResultContended, RelinkStaleEvidence,
 			"the change record moved since the approved revision; re-read authoritative context before repairing", req.ID)
 	}
 
 	// Resolve the mode into the exact field the record will carry and the branch
 	// that field implies for the workspace gate. Each mode reads its own external
 	// authority and refuses fail-closed before naming a write.
-	field, value, proposedBranch, modeRefusal := repairResolveMode(ctx, deps, repoDir, c, req)
+	field, value, proposedBranch, modeRefusal := relinkResolveMode(ctx, deps, repoDir, c, req)
 	if modeRefusal != nil {
 		return *modeRefusal
 	}
@@ -199,14 +199,14 @@ func Relink(ctx context.Context, deps FinalizeDeps, repoDir string, req RelinkRe
 	repo, err := deps.Planning.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		return repairRefusal(result, reason, err.Error(), req.ID)
+		return relinkRefusal(result, reason, err.Error(), req.ID)
 	}
 
 	// (2, AdoptPRHead) The branch the record will carry must be proven present on
 	// the remote before it is adopted — an absent or unanswerable probe is
 	// candidate-branch-absent (never adopted on an unknown).
 	if field == "branch" {
-		if refusal := repairProveCandidateBranch(ctx, deps.Planning, repo, proposedBranch, req.ID); refusal != nil {
+		if refusal := relinkProveCandidateBranch(ctx, deps.Planning, repo, proposedBranch, req.ID); refusal != nil {
 			return *refusal
 		}
 	}
@@ -214,13 +214,13 @@ func Relink(ctx context.Context, deps FinalizeDeps, repoDir string, req RelinkRe
 	// (4) Workspace gate, both directions: an owned workspace targeting a branch
 	// other than the proposed one — or an inspection that cannot be answered — is
 	// a conflict the op stops before, writing nothing.
-	if refusal := repairProveWorkspaceClear(ctx, deps, pin, snap, repo, c, proposedBranch, req.ID); refusal != nil {
+	if refusal := relinkProveWorkspaceClear(ctx, deps, pin, snap, repo, c, proposedBranch, req.ID); refusal != nil {
 		return *refusal
 	}
 
 	// (5) Every condition holds: one exact-revision transaction writes the one
 	// approved field plus the refreshed updated stamp — nothing else.
-	op := changeRepairOp{
+	op := changeRelinkOp{
 		changeID:   req.ID,
 		field:      field,
 		value:      value,
@@ -242,57 +242,57 @@ func Relink(ctx context.Context, deps FinalizeDeps, repoDir string, req RelinkRe
 		Scope:     changeScope(req.ID, recPath, false),
 		Operation: op,
 	})
-	return repairResultFromOutcome(field, value, res, execErr, req.ID)
+	return relinkResultFromOutcome(field, value, res, execErr, req.ID)
 }
 
-// validateRepairRequest runs the configuration-independent request checks that
+// validateRelinkRequest runs the configuration-independent request checks that
 // never reach any authority: a positive id, a non-empty approved revision, and
 // exactly one mode with all of that mode's evidence present. It returns the
 // closed reason token and an explanatory message, or ("", "") when the shape is
 // well-formed. The unparseable-PR check for AdoptPR is deferred to the mode
 // resolver, which parses it with the ADR-0097 parser.
-func validateRepairRequest(req RelinkRequest) (reason, message string) {
+func validateRelinkRequest(req RelinkRequest) (reason, message string) {
 	if req.ID <= 0 {
-		return RepairInvalidRequest, "id must be a positive change id"
+		return RelinkInvalidRequest, "id must be a positive change id"
 	}
 	if strings.TrimSpace(req.ExpectRevision) == "" {
-		return RepairInvalidRequest, "expect-revision must be the change-record revision from the finalize report"
+		return RelinkInvalidRequest, "expect-revision must be the change-record revision from the finalize report"
 	}
 	headMode := req.AdoptPRHead
 	prMode := strings.TrimSpace(req.AdoptPR) != ""
 	if headMode == prMode {
-		return RepairInvalidRequest, "exactly one of adopt-pr-head or adopt-pr must be set"
+		return RelinkInvalidRequest, "exactly one of adopt-pr-head or adopt-pr must be set"
 	}
 	if headMode {
 		if req.ExpectPRNumber <= 0 {
-			return RepairInvalidRequest, "adopt-pr-head requires a positive expect-pr number"
+			return RelinkInvalidRequest, "adopt-pr-head requires a positive expect-pr number"
 		}
 		if strings.TrimSpace(req.ExpectHead) == "" {
-			return RepairInvalidRequest, "adopt-pr-head requires the approved expect-head branch"
+			return RelinkInvalidRequest, "adopt-pr-head requires the approved expect-head branch"
 		}
 		return "", ""
 	}
 	if strings.TrimSpace(req.ExpectBranch) == "" {
-		return RepairInvalidRequest, "adopt-pr requires the approved expect-branch"
+		return RelinkInvalidRequest, "adopt-pr requires the approved expect-branch"
 	}
 	return "", ""
 }
 
-// resolveRepairChange reads the corpus once, builds the snapshot, and returns
+// resolveRelinkChange reads the corpus once, builds the snapshot, and returns
 // the change named by id together with its record path, exact record revision,
 // and the built snapshot (the workspace gate resolves the effective base from
 // it). An id that names no single record is a request-shaped refusal.
-func resolveRepairChange(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int) (domain.Change, string, string, domain.Snapshot, *RelinkResult) {
+func resolveRelinkChange(ctx context.Context, deps PlanningDeps, pin StatusPin, eff config.Effective, id int) (domain.Change, string, string, domain.Snapshot, *RelinkResult) {
 	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		r := repairRefusal(result, reason, err.Error(), id)
+		r := relinkRefusal(result, reason, err.Error(), id)
 		return domain.Change{}, "", "", domain.Snapshot{}, &r
 	}
 	inputs, _ := parseCorpus(blobs)
 	build, err := repository.BuildSnapshot(repository.BuildInput{Config: eff, Documents: inputs})
 	if err != nil {
-		r := repairRefusal(ResultInternalError, ReasonStatusInternalError, err.Error(), id)
+		r := relinkRefusal(ResultInternalError, ReasonStatusInternalError, err.Error(), id)
 		return domain.Change{}, "", "", domain.Snapshot{}, &r
 	}
 	c, out := build.Snapshot.Change(domain.ChangeID(id))
@@ -301,7 +301,7 @@ func resolveRepairChange(ctx context.Context, deps PlanningDeps, pin StatusPin, 
 		if out == domain.LookupAmbiguous {
 			msg = fmt.Sprintf("more than one record claims change id %04d; refusing to choose", id)
 		}
-		r := repairRefusal(ResultInvalidInput, RepairInvalidRequest, msg, id)
+		r := relinkRefusal(ResultInvalidInput, RelinkInvalidRequest, msg, id)
 		return domain.Change{}, "", "", domain.Snapshot{}, &r
 	}
 	revision := ""
@@ -314,21 +314,21 @@ func resolveRepairChange(ctx context.Context, deps PlanningDeps, pin StatusPin, 
 	return c, c.Path(), revision, build.Snapshot, nil
 }
 
-// repairResolveMode reads the mode's external PR authority and, when the
+// relinkResolveMode reads the mode's external PR authority and, when the
 // approved evidence still holds, returns the field the record will carry
 // ("branch" or "pr"), the value to write, and the proposed branch the workspace
 // gate compares against. It refuses fail-closed on any drift or unreadable
 // authority before naming any write.
-func repairResolveMode(ctx context.Context, deps FinalizeDeps, repoDir string, c domain.Change, req RelinkRequest) (field, value, proposedBranch string, refusal *RelinkResult) {
+func relinkResolveMode(ctx context.Context, deps FinalizeDeps, repoDir string, c domain.Change, req RelinkRequest) (field, value, proposedBranch string, refusal *RelinkResult) {
 	if req.AdoptPRHead {
 		// (2) Trust the PR: read the exact recorded number and adopt its reported
 		// head branch — but only if it still matches the approved evidence.
-		pr, r := repairViewPR(ctx, deps, repoDir, req.ExpectPRNumber, req.ID)
+		pr, r := relinkViewPR(ctx, deps, repoDir, req.ExpectPRNumber, req.ID)
 		if r != nil {
 			return "", "", "", r
 		}
 		if pr.HeadBranch != req.ExpectHead {
-			r := repairRefusal(ResultContended, RepairStaleEvidence,
+			r := relinkRefusal(ResultContended, RelinkStaleEvidence,
 				"the PR's reported head branch no longer matches the approved head", req.ID)
 			return "", "", "", &r
 		}
@@ -341,47 +341,47 @@ func repairResolveMode(ctx context.Context, deps FinalizeDeps, repoDir string, c
 	// the reference as pr:.
 	number, ok := parsePRRef(req.AdoptPR)
 	if !ok {
-		r := repairRefusal(ResultInvalidInput, RepairInvalidRequest,
+		r := relinkRefusal(ResultInvalidInput, RelinkInvalidRequest,
 			fmt.Sprintf("adopt-pr reference %q carries no parseable pull-request number", req.AdoptPR), req.ID)
 		return "", "", "", &r
 	}
 	branch, berr := recordedBranch(c)
 	if berr != nil || branch != req.ExpectBranch {
-		r := repairRefusal(ResultContended, RepairStaleEvidence,
+		r := relinkRefusal(ResultContended, RelinkStaleEvidence,
 			"the record's feature branch no longer equals the approved branch", req.ID)
 		return "", "", "", &r
 	}
-	pr, r := repairViewPR(ctx, deps, repoDir, number, req.ID)
+	pr, r := relinkViewPR(ctx, deps, repoDir, number, req.ID)
 	if r != nil {
 		return "", "", "", r
 	}
 	if pr.HeadBranch != branch {
-		r := repairRefusal(ResultContended, RepairStaleEvidence,
+		r := relinkRefusal(ResultContended, RelinkStaleEvidence,
 			"the supplied PR's head does not equal the recorded branch; it does not prove identity", req.ID)
 		return "", "", "", &r
 	}
 	return "pr", req.AdoptPR, branch, nil
 }
 
-// repairViewPR discovers the GitHub repository and reads exactly one pull
+// relinkViewPR discovers the GitHub repository and reads exactly one pull
 // request by its number. Any repository-resolution or view failure is pr-unknown
 // — an errored read is never laundered into a clean absence
 // (probe-error-is-not-clean-absence).
-func repairViewPR(ctx context.Context, deps FinalizeDeps, repoDir string, number, id int) (githubPR, *RelinkResult) {
+func relinkViewPR(ctx context.Context, deps FinalizeDeps, repoDir string, number, id int) (githubPR, *RelinkResult) {
 	ghRepo, err := deps.GitHub.DiscoverRepository(ctx, repoDir)
 	if err != nil {
-		r := repairRefusal(ResultExternalFailed, RepairPRUnknown, err.Error(), id)
+		r := relinkRefusal(ResultExternalFailed, RelinkPRUnknown, err.Error(), id)
 		return githubPR{}, &r
 	}
 	pr, err := deps.GitHub.ViewPullRequest(ctx, ghRepo, number)
 	if err != nil {
-		r := repairRefusal(ResultExternalFailed, RepairPRUnknown, err.Error(), id)
+		r := relinkRefusal(ResultExternalFailed, RelinkPRUnknown, err.Error(), id)
 		return githubPR{}, &r
 	}
 	return githubPR{HeadBranch: pr.HeadBranch, HeadCommit: pr.HeadCommit}, nil
 }
 
-// githubPR is the narrow slice of a viewed pull request the repair reads: the
+// githubPR is the narrow slice of a viewed pull request the relink reads: the
 // reported head branch and commit. The op adopts the head BRANCH; the commit
 // rides for diagnostics only.
 type githubPR struct {
@@ -389,35 +389,35 @@ type githubPR struct {
 	HeadCommit string
 }
 
-// repairProveCandidateBranch proves the branch the record will carry is present
+// relinkProveCandidateBranch proves the branch the record will carry is present
 // on the remote (the same remote branch-facts probe reclaim gathers). An absent
 // branch, or a probe that cannot be answered, is candidate-branch-absent —
 // never adopted on an unknown (probe-error-is-not-clean-absence).
-func repairProveCandidateBranch(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, branch string, id int) *RelinkResult {
+func relinkProveCandidateBranch(ctx context.Context, deps PlanningDeps, repo gitcli.Repository, branch string, id int) *RelinkResult {
 	ref := gitcli.RefName(branchRefPrefix + branch)
 	rref, err := deps.Client.ProbeRemoteBranch(ctx, repo, originRemote, ref)
 	if err != nil {
-		r := repairRefusal(ResultInvalidState, RepairCandidateBranchAbsent,
+		r := relinkRefusal(ResultInvalidState, RelinkCandidateBranchAbsent,
 			fmt.Sprintf("could not probe remote branch %q; refusing to adopt a branch on an unknown probe", branch), id)
 		return &r
 	}
 	if rref.State != gitcli.RemoteRefFound {
-		r := repairRefusal(ResultInvalidState, RepairCandidateBranchAbsent,
+		r := relinkRefusal(ResultInvalidState, RelinkCandidateBranchAbsent,
 			fmt.Sprintf("remote branch %q is absent; refusing to adopt a branch the remote does not carry", branch), id)
 		return &r
 	}
 	return nil
 }
 
-// repairProveWorkspaceClear inspects the workspace owned by this change at its
+// relinkProveWorkspaceClear inspects the workspace owned by this change at its
 // currently-recorded branch and refuses when that owned workspace targets a
-// branch other than the one the record will carry after the repair. A recorded
+// branch other than the one the record will carry after the relink. A recorded
 // branch that is missing/malformed names no branch-keyed workspace to conflict
 // (the missing-branch recovery), so the gate passes. An inspection that cannot
 // be answered — an unresolved base, a malformed target, or a probe error — is
 // ambiguity and takes the fail-closed conflict path (unknown never authorizes a
 // write; probe-error-is-not-clean-absence).
-func repairProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin StatusPin, snap domain.Snapshot, repo gitcli.Repository, c domain.Change, proposedBranch string, id int) *RelinkResult {
+func relinkProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin StatusPin, snap domain.Snapshot, repo gitcli.Repository, c domain.Change, proposedBranch string, id int) *RelinkResult {
 	branch, berr := recordedBranch(c)
 	if berr != nil {
 		// No resolvable current branch: no branch-keyed owned workspace to conflict.
@@ -425,19 +425,19 @@ func repairProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin Statu
 	}
 	facts, err := deps.Planning.Reader.BranchFacts(ctx, pin, stackBranchesFor(snap, c))
 	if err != nil {
-		return repairConflict(fmt.Sprintf("could not resolve branch facts for change %04d's workspace check", id), id)
+		return relinkConflict(fmt.Sprintf("could not resolve branch facts for change %04d's workspace check", id), id)
 	}
 	base := domain.ResolveEffectiveBase(snap, c, facts)
 	if base.Kind != domain.BaseResolved {
-		return repairConflict(fmt.Sprintf("change %04d's effective base did not resolve to a branch; cannot prove the workspace is clear", id), id)
+		return relinkConflict(fmt.Sprintf("change %04d's effective base did not resolve to a branch; cannot prove the workspace is clear", id), id)
 	}
 	target, terr := workspace.NewTarget(c.ID(), c.Slug(), base, branch)
 	if terr != nil {
-		return repairConflict(terr.Error(), id)
+		return relinkConflict(terr.Error(), id)
 	}
 	insp, err := deps.Workspace.Inspect(ctx, workspace.InspectRequest{Repository: repo, Target: target})
 	if err != nil {
-		return repairConflict(err.Error(), id)
+		return relinkConflict(err.Error(), id)
 	}
 	if insp.Kind == workspace.StateForeign || insp.Kind == workspace.StateAbsent {
 		// No owned workspace at the recorded branch: nothing to conflict.
@@ -447,48 +447,48 @@ func repairProveWorkspaceClear(ctx context.Context, deps FinalizeDeps, pin Statu
 		return nil
 	}
 	if target.FeatureBranch() != proposedBranch {
-		return repairConflict(
+		return relinkConflict(
 			fmt.Sprintf("an owned workspace targets %q, not the proposed branch %q; the repair would orphan it", target.FeatureBranch(), proposedBranch), id)
 	}
 	return nil
 }
 
-// repairConflict builds the workspace-conflict refusal — the fail-closed return
+// relinkConflict builds the workspace-conflict refusal — the fail-closed return
 // shared by a proven conflict and every unanswerable inspection.
-func repairConflict(message string, id int) *RelinkResult {
-	r := repairRefusal(ResultInvalidState, RepairWorkspaceConflict, message, id)
+func relinkConflict(message string, id int) *RelinkResult {
+	r := relinkRefusal(ResultInvalidState, RelinkWorkspaceConflict, message, id)
 	return &r
 }
 
-// repairResultFromOutcome folds the transaction outcome into the result
-// document. An applied outcome is the repair keyed on the field written; a
+// relinkResultFromOutcome folds the transaction outcome into the result
+// document. An applied outcome is the relink keyed on the field written; a
 // contended outcome is the record moving out from under the exact revision
 // (stale-evidence); a failure — mid-flight (failed disposition) or the engine's
 // early call-shape validation return (empty disposition with an error) — carries
 // its typed cause in the envelope's failure diagnosis.
-func repairResultFromOutcome(field, value string, res transaction.Result, execErr error, id int) RelinkResult {
+func relinkResultFromOutcome(field, value string, res transaction.Result, execErr error, id int) RelinkResult {
 	switch res.Disposition {
 	case transaction.DispositionApplied, transaction.DispositionAlreadyApplied:
 		// Unrelated grandfathered findings ride along (change 0449); the disposition
 		// stays keyed on the engine's, never on the presence of a finding.
 		out := RelinkResult{ID: id, Revision: string(res.AppliedCommit), Findings: findingsToStatus(res.Findings)}
 		if field == "branch" {
-			out.Reason = RepairRelinkedBranch
+			out.Reason = RelinkedBranch
 			out.Branch = value
 		} else {
-			out.Reason = RepairRelinkedPR
+			out.Reason = RelinkedPR
 			out.PR = value
 		}
-		return newRepairResult(ResultApplied, out)
+		return newRelinkResult(ResultApplied, out)
 	case transaction.DispositionContended:
-		return newRepairResult(ResultContended, RelinkResult{
-			ID: id, Reason: RepairStaleEvidence,
+		return newRelinkResult(ResultContended, RelinkResult{
+			ID: id, Reason: RelinkStaleEvidence,
 			Message: "the change record moved during the repair transaction; re-read authoritative context",
 		})
 	case transaction.DispositionFailed:
 		// A mid-flight transaction failure carries its typed cause in the envelope's
-		// failure diagnosis, not a repair reason token.
-		r := newRepairResult(mapFailure(execErr), RelinkResult{
+		// failure diagnosis, not a relink reason token.
+		r := newRelinkResult(mapFailure(execErr), RelinkResult{
 			ID: id, Findings: findingsToStatus(res.Findings),
 		})
 		r.Failure = failureStatus(res, execErr)
@@ -497,23 +497,23 @@ func repairResultFromOutcome(field, value string, res transaction.Result, execEr
 		result, _ := mapOutcome(res, execErr, ResultInvalidState)
 		out := RelinkResult{ID: id, Findings: findingsToStatus(res.Findings)}
 		// Only a refusal's findings name its reason: a no-op may carry unrelated
-		// grandfathered findings (change 0449) that are not a repair reason.
+		// grandfathered findings (change 0449) that are not a relink reason.
 		if res.Disposition == transaction.DispositionRefused {
 			out.Reason = firstFindingCode(res.Findings)
 		}
-		r := newRepairResult(result, out)
+		r := newRelinkResult(result, out)
 		r.Failure = failureStatus(res, execErr)
 		return r
 	}
 }
 
-// changeRepairOp is the SemanticOperation the engine drives per attempt. It
+// changeRelinkOp is the SemanticOperation the engine drives per attempt. It
 // upserts the one approved identity field plus the refreshed updated stamp over
 // the attempt's own fresh source bytes, re-renders the artifact block against
 // the mutated candidate snapshot, and — when inline is enabled — the board. It
 // writes NO other frontmatter field: the relink is a single-field
 // mutation, and re-probing after it is the workflow's job.
-type changeRepairOp struct {
+type changeRelinkOp struct {
 	changeID   int
 	field      string // "branch" or "pr"
 	value      string
@@ -524,11 +524,11 @@ type changeRepairOp struct {
 	changesDir string
 }
 
-func (o changeRepairOp) Key() transaction.OperationKey {
+func (o changeRelinkOp) Key() transaction.OperationKey {
 	return transaction.OperationKey(OperationChangeRelink)
 }
 
-func (o changeRepairOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
+func (o changeRelinkOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
 	snap := st.State.Snapshot
 
 	c, out := snap.Change(domain.ChangeID(o.changeID))
@@ -590,7 +590,7 @@ func (o changeRepairOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		}
 	}
 
-	receipt, err := json.Marshal(changeRepairReceipt{Field: o.field, ID: o.changeID, Op: OperationChangeRelink})
+	receipt, err := json.Marshal(changeRelinkReceipt{Field: o.field, ID: o.changeID, Op: OperationChangeRelink})
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("relink: encoding receipt: %w", err)
 	}

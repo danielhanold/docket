@@ -121,8 +121,8 @@ func TestIntegrationContextProbeFinalizeClearBlockProbesOnlyOwnStack(t *testing.
 		node.deps.Reader = poisoned(node.deps.Reader, poison)
 		deps := FinalizeDeps{
 			Planning:  node.deps,
-			GitHub:    repairGitHub("feat/widget"),
-			Workspace: &fakeRepairWorkspace{inspectErr: probeErr},
+			GitHub:    relinkGitHub("feat/widget"),
+			Workspace: &fakeRelinkWorkspace{inspectErr: probeErr},
 		}
 		return FinalizeClearBlock(context.Background(), deps, node.dir, ClearBlockRequest{
 			ID: 3, Revision: blobRevisionAt(t, repo.origin, "docket", groomPath(3, "widget")), Head: prHead, PRNumber: 7,

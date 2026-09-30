@@ -2796,27 +2796,27 @@ func TestIntegrationChangeAuthoringRefreshClaimStampsOnly(t *testing.T) {
 	})
 }
 
-// TestRepairAdoptPRHeadPinsExactRevision proves the transaction pins the approved
+// TestRelinkAdoptPRHeadPinsExactRevision proves the transaction pins the approved
 // revision exactly, keying the repair op on the exact record blob.
-func TestIntegrationChangeRuntimeRepairAdoptPRHeadPinsExactRevision(t *testing.T) {
+func TestIntegrationChangeRuntimeRelinkAdoptPRHeadPinsExactRevision(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
-	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
-	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
+	ws := &fakeRelinkWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
+	deps, engine := relinkRealDeps(t, repo.invocation, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/renamed"), ws)
 	engine.result = transaction.Result{Disposition: transaction.DispositionApplied, AppliedCommit: gitcli.ObjectID(strings.Repeat("c", 40))}
 
 	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
-		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
-	if res.Result != ResultApplied || res.Reason != RepairRelinkedBranch {
+	if res.Result != ResultApplied || res.Reason != RelinkedBranch {
 		t.Fatalf("repair = (%q, %q)", res.Result, res.Reason)
 	}
 	if len(engine.calls) != 1 {
 		t.Fatalf("engine calls = %d, want exactly 1", len(engine.calls))
 	}
 	exp := engine.calls[0].Expected
-	if len(exp) != 1 || string(exp[0].Revision.ObjectID) != repairRevision {
+	if len(exp) != 1 || string(exp[0].Revision.ObjectID) != relinkRevision {
 		t.Errorf("transaction did not pin the exact approved revision: %+v", exp)
 	}
 	if engine.calls[0].Operation.Key() != transaction.OperationKey(OperationChangeRelink) {
@@ -2824,24 +2824,24 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadPinsExactRevision(t *testing.T
 	}
 }
 
-// TestIntegrationChangeRuntimeRepairAbsentWorkspaceNoConflict is change 0368's repair
+// TestIntegrationChangeRuntimeRelinkAbsentWorkspaceNoConflict is change 0368's repair
 // regression: a proven cleanly-absent workspace (StateAbsent) names no owned
 // checkout at the recorded branch, so it conflicts with nothing — exactly as
 // the foreign classification did pre-change — and the repair proceeds to its
-// write. It MUST fail if StateAbsent falls through repairProveWorkspaceClear to
-// the recorded-vs-proposed branch mismatch (RepairWorkspaceConflict).
-func TestIntegrationChangeRuntimeRepairAbsentWorkspaceNoConflict(t *testing.T) {
+// write. It MUST fail if StateAbsent falls through relinkProveWorkspaceClear to
+// the recorded-vs-proposed branch mismatch (RelinkWorkspaceConflict).
+func TestIntegrationChangeRuntimeRelinkAbsentWorkspaceNoConflict(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
-	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateAbsent}}
-	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
+	ws := &fakeRelinkWorkspace{inspection: workspace.Inspection{Kind: workspace.StateAbsent}}
+	deps, engine := relinkRealDeps(t, repo.invocation, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/renamed"), ws)
 	engine.result = transaction.Result{Disposition: transaction.DispositionApplied, AppliedCommit: gitcli.ObjectID(strings.Repeat("c", 40))}
 
 	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
-		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
-	if res.Result != ResultApplied || res.Reason != RepairRelinkedBranch {
+	if res.Result != ResultApplied || res.Reason != RelinkedBranch {
 		t.Fatalf("an absent workspace must not conflict: result=%q reason=%q msg=%q", res.Result, res.Reason, res.Message)
 	}
 	if len(ws.inspectCalls) != 1 {
@@ -2849,25 +2849,25 @@ func TestIntegrationChangeRuntimeRepairAbsentWorkspaceNoConflict(t *testing.T) {
 	}
 }
 
-// TestRepairAdoptPRHeadWritesBranch proves the applied path end-to-end: every
+// TestRelinkAdoptPRHeadWritesBranch proves the applied path end-to-end: every
 // condition holds, so the repair opens one exact-revision transaction that adopts
 // the PR's reported head as branch:, refreshes updated, and commits only that.
-func TestIntegrationChangeRuntimeRepairAdoptPRHeadWritesBranch(t *testing.T) {
+func TestIntegrationChangeRuntimeRelinkAdoptPRHeadWritesBranch(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
-	repo := newWorkingRepo(t, map[string]string{recPath: repairRecord(3, "widget", "")})
+	repo := newWorkingRepo(t, map[string]string{recPath: relinkRecord(3, "widget", "")})
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
 	node := planningDepsFor(t, repo.invocation)
 	ver := blobRevisionAt(t, repo.origin, "docket", recPath)
 
-	gh := repairGitHub("feat/renamed")
-	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
+	gh := relinkGitHub("feat/renamed")
+	ws := &fakeRelinkWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
 	deps := FinalizeDeps{Planning: node.deps, GitHub: gh, Workspace: ws}
 
 	res := Relink(context.Background(), deps, node.dir, RelinkRequest{
 		ID: 3, ExpectRevision: ver, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
-	if res.Result != ResultApplied || res.Reason != RepairRelinkedBranch {
+	if res.Result != ResultApplied || res.Reason != RelinkedBranch {
 		t.Fatalf("repair = (%q, %q) msg=%q findings=%v", res.Result, res.Reason, res.Message, res.Findings)
 	}
 	if res.Branch != "feat/renamed" || res.Revision == "" {
@@ -2887,57 +2887,57 @@ func TestIntegrationChangeRuntimeRepairAdoptPRHeadWritesBranch(t *testing.T) {
 	}
 }
 
-// TestRepairCandidateBranchAbsent proves clause 2's candidate-branch proof: the
+// TestRelinkCandidateBranchAbsent proves clause 2's candidate-branch proof: the
 // branch the record would carry must be present on the remote; an absent branch
 // is candidate-branch-absent with no write.
-func TestIntegrationChangeRuntimeRepairCandidateBranchAbsent(t *testing.T) {
+func TestIntegrationChangeRuntimeRelinkCandidateBranchAbsent(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil) // origin carries no feat/renamed branch
-	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
-	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
+	ws := &fakeRelinkWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
+	deps, engine := relinkRealDeps(t, repo.invocation, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/renamed"), ws)
 	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
-		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
-	assertRepairRefused(t, res, ResultInvalidState, RepairCandidateBranchAbsent, engine)
+	assertRelinkRefused(t, res, ResultInvalidState, RelinkCandidateBranchAbsent, engine)
 	if len(ws.inspectCalls) != 0 {
 		t.Errorf("the workspace was inspected before the candidate-branch proof failed")
 	}
 }
 
-// TestRepairInspectErrorIsConflict proves the fail-closed reading: an inspection
+// TestRelinkInspectErrorIsConflict proves the fail-closed reading: an inspection
 // that cannot be answered is ambiguity and takes the workspace-conflict path,
 // never a pass (probe-error-is-not-clean-absence).
-func TestIntegrationChangeRuntimeRepairInspectErrorIsConflict(t *testing.T) {
+func TestIntegrationChangeRuntimeRelinkInspectErrorIsConflict(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
-	ws := &fakeRepairWorkspace{inspectErr: errors.New("inspect boom")}
-	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
+	ws := &fakeRelinkWorkspace{inspectErr: errors.New("inspect boom")}
+	deps, engine := relinkRealDeps(t, repo.invocation, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/renamed"), ws)
 	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
-		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
-	assertRepairRefused(t, res, ResultInvalidState, RepairWorkspaceConflict, engine)
+	assertRelinkRefused(t, res, ResultInvalidState, RelinkWorkspaceConflict, engine)
 }
 
-// TestRepairWorkspaceConflictBlocks proves clause 4: an owned workspace that
+// TestRelinkWorkspaceConflictBlocks proves clause 4: an owned workspace that
 // targets a branch other than the one the record will carry blocks the repair.
 // The fixture's recorded branch (feat/widget) is owned and live while the repair
 // proposes feat/renamed; the fake Inspect's recorded call is the sentinel that
 // the conflicting-workspace check actually executed. Deleting the branch
-// comparison in repairProveWorkspaceClear lets the repair proceed to a write,
+// comparison in relinkProveWorkspaceClear lets the repair proceed to a write,
 // reddening this assertion.
-func TestIntegrationChangeRuntimeRepairWorkspaceConflictBlocks(t *testing.T) {
+func TestIntegrationChangeRuntimeRelinkWorkspaceConflictBlocks(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	// The candidate branch must be present on the remote so the probe passes and
 	// control reaches the workspace gate.
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
-	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateReady}}
-	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairRevision), repairGitHub("feat/renamed"), ws)
+	ws := &fakeRelinkWorkspace{inspection: workspace.Inspection{Kind: workspace.StateReady}}
+	deps, engine := relinkRealDeps(t, repo.invocation, relinkBlob(3, "widget", "", relinkRevision), relinkGitHub("feat/renamed"), ws)
 	res := Relink(context.Background(), deps, repo.invocation, RelinkRequest{
-		ID: 3, ExpectRevision: repairRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
+		ID: 3, ExpectRevision: relinkRevision, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
 	})
-	assertRepairRefused(t, res, ResultInvalidState, RepairWorkspaceConflict, engine)
+	assertRelinkRefused(t, res, ResultInvalidState, RelinkWorkspaceConflict, engine)
 	if len(ws.inspectCalls) != 1 {
 		t.Fatalf("conflicting-workspace check ran %d times, want exactly 1 (sentinel)", len(ws.inspectCalls))
 	}
