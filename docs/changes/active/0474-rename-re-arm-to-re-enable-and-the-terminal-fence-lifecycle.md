@@ -22,7 +22,7 @@ branch: 'refactor/rename-re-arm-to-re-enable-and-the-terminal-fence-lifecycle'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-30T14:03:27Z'
+claimed_at: '2026-09-30T14:04:44Z'
 ---
 
 ## Artifacts
