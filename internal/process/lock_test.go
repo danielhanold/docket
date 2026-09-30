@@ -34,7 +34,7 @@ func TestFlockLifecycle(t *testing.T) {
 	}
 }
 
-func TestIdentityConjunctionRejectsOwnGroup(t *testing.T) {
+func TestIdentityConditionsRejectOwnGroup(t *testing.T) {
 	// A manifest describing the OBSERVER's own group must never pass —
 	// clause 5 exists so stop cannot signal itself.
 	self := syscall_Getpid()
@@ -48,7 +48,7 @@ func TestIdentityConjunctionRejectsOwnGroup(t *testing.T) {
 	defer f.Close()
 	m := &manifestRecord{Schema: recordSchema, RunID: "aa", Token: "bb", RunDir: dir,
 		SupervisorPID: self, PGID: pgid, SID: sid}
-	if err := identityConjunction(m, pgid); err == nil {
-		t.Fatal("observer's own group passed the conjunction")
+	if err := identityConditions(m, pgid); err == nil {
+		t.Fatal("observer's own group passed the conditions")
 	}
 }

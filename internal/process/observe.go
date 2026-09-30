@@ -42,8 +42,8 @@ var observePostProbeHook func()
 //  2. Read terminal.json first. A valid terminal record decides the state
 //     (stop intent distinguishes a signalled death from a requested stop).
 //  3. With no terminal record, probe the live lock and — when held — require
-//     the full identity conjunction to decide running; an unprovable probe or
-//     conjunction is blocked, never running.
+//     the full identity conditions to decide running; an unprovable probe or
+//     condition is blocked, never running.
 //  4. A cleanly free lock means the supervisor is gone. Re-read terminal.json
 //     so a terminal write racing the first read wins rather than being
 //     misreported as disappearance.
@@ -97,7 +97,7 @@ func (s *Service) Observe(runDir string) (*Observation, error) {
 	}
 	if held {
 		self, _ := syscall.Getpgid(0)
-		if err := identityConjunction(m, self); err != nil {
+		if err := identityConditions(m, self); err != nil {
 			return nil, err // FailBlocked — a held lock without proven identity is not running
 		}
 		obs.State = StateRunning

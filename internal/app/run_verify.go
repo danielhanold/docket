@@ -64,7 +64,7 @@ const (
 // The stable machine reasons `run verify` records for each unmet postcondition.
 // Message/observed text is explanatory and must not be parsed. Each names the one
 // postcondition it maps to; a run-incomplete verdict carries one per broken
-// conjunct.
+// condition.
 const (
 	// ReasonRunNotImplemented: the change is claimed but has not reached the
 	// implemented status, so the run is not complete.
@@ -87,7 +87,7 @@ const (
 	// ReasonRunResultsUnlinked: the change carries no linked results artifact — a
 	// results record is REQUIRED at the implemented boundary (change 0410), so a
 	// green PR plus verified evidence can never certify a run with no durable
-	// results. This conjunct needs no blob read.
+	// results. This condition needs no blob read.
 	ReasonRunResultsUnlinked = "results-unlinked"
 	// ReasonRunResultsIdentity: an attached results path no longer resolves to a
 	// tracked regular file at the current feature head.
@@ -120,9 +120,9 @@ type RunVerifyRequest struct {
 	ID int `json:"id"`
 }
 
-// RunVerifyConjunct is one unmet postcondition: its stable machine reason and a
+// RunVerifyCondition is one unmet postcondition: its stable machine reason and a
 // short observed detail (never an authored document body or credential).
-type RunVerifyConjunct struct {
+type RunVerifyCondition struct {
 	Reason   string `json:"reason"`
 	Observed string `json:"observed,omitempty"`
 }
@@ -133,11 +133,11 @@ type RunVerifyConjunct struct {
 // Message and no verdict instead. It never carries authored document bodies.
 type RunVerifyResult struct {
 	Envelope
-	ID      int                 `json:"id,omitempty"`
-	Verdict string              `json:"verdict,omitempty"`
-	Head    string              `json:"head,omitempty"`
-	PR      string              `json:"pr,omitempty"`
-	Unmet   []RunVerifyConjunct `json:"unmet"`
+	ID      int                  `json:"id,omitempty"`
+	Verdict string               `json:"verdict,omitempty"`
+	Head    string               `json:"head,omitempty"`
+	PR      string               `json:"pr,omitempty"`
+	Unmet   []RunVerifyCondition `json:"unmet"`
 	// HandoffID and Phase are populated on a run-waiting verdict only: the opaque
 	// drive/handoff locator a fresh owner claims, and the workflow phase to resume.
 	// They are the ONLY fields the run-waiting line exposes beyond the change id;
@@ -231,7 +231,7 @@ func (r RunVerifyResult) HumanText() string {
 func newRunVerifyResult(result Result, out RunVerifyResult) RunVerifyResult {
 	out.Envelope = NewEnvelope(OperationRunVerify, result)
 	if out.Unmet == nil {
-		out.Unmet = []RunVerifyConjunct{}
+		out.Unmet = []RunVerifyCondition{}
 	}
 	return out
 }
@@ -244,7 +244,7 @@ func runOperationalRefusal(result Result, reason, message string, id int) RunVer
 
 // runVerdict builds a report result. All three verdicts are success-shaped
 // (applied) so they exit 0; the verdict field is what automation keys on.
-func runVerdict(verdict string, id int, head, pr string, unmet []RunVerifyConjunct) RunVerifyResult {
+func runVerdict(verdict string, id int, head, pr string, unmet []RunVerifyCondition) RunVerifyResult {
 	return newRunVerifyResult(ResultApplied, RunVerifyResult{
 		ID: id, Verdict: verdict, Head: head, PR: pr, Unmet: unmet,
 	})
@@ -302,9 +302,9 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	}
 
 	recordedPR := strings.TrimSpace(c.PR().Value)
-	var unmet []RunVerifyConjunct
+	var unmet []RunVerifyCondition
 	add := func(reason, observed string) {
-		unmet = append(unmet, RunVerifyConjunct{Reason: reason, Observed: observed})
+		unmet = append(unmet, RunVerifyCondition{Reason: reason, Observed: observed})
 	}
 
 	// A claimed but not-yet-implemented change cannot be a complete run.
@@ -344,7 +344,7 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		add(ReasonRunPlanUnlinked, "")
 	}
 	// A results artifact is REQUIRED at the implemented boundary (change 0410):
-	// an absent link is an unmet conjunct on its own. It needs no blob read, so it
+	// an absent link is an unmet condition on its own. It needs no blob read, so it
 	// is added OUTSIDE the object-source guard below — a run with neither a plan
 	// nor results still reports results-unlinked without opening the head source.
 	if resultsPath == "" {

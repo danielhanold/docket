@@ -14,15 +14,15 @@ import (
 )
 
 // This file is the `finalize merge`: the expected-head GitHub merge of one exact
-// pull request, gated on a fresh recheck of every merge conjunct, followed by an
+// pull request, gated on a fresh recheck of every merge condition, followed by an
 // authoritative post-merge verification that never permits a false closeout.
 //
 // It is the highest-consequence external effect in the closing path — a merge
 // is never rolled back — so its discipline is severe:
 //
-//   1. Every merge conjunct (domain.MergeConjuncts) is recomputed from a FRESH
+//   1. Every merge condition (domain.MergeConditions) is recomputed from a FRESH
 //      reload of the metadata and live GitHub/Git facts IMMEDIATELY before the
-//      effect. The first falsified conjunct refuses with its closed token and
+//      effect. The first falsified condition refuses with its closed token and
 //      issues NO merge call. An explicit id (attended, human-named) satisfies
 //      the approval and finalize-blocked skips but never a wrong PR identity, an
 //      unsafe stack, the repair sign-off (gate), or a superseding revision.
@@ -32,7 +32,7 @@ import (
 //      A merge the seam reports denied stays denied; it is never retried with
 //      admin.
 //
-//   3. An already-merged exact PR (probed BEFORE the conjunct recheck, keyed on
+//   3. An already-merged exact PR (probed BEFORE the condition recheck, keyed on
 //      the promised merged state) is a verified no-op regardless of who merged
 //      it — never a second merge.
 //
@@ -78,7 +78,7 @@ const (
 	// MergeDispDenied: the merge was issued and authoritatively rejected. It is
 	// never retried with admin.
 	MergeDispDenied = "denied"
-	// MergeDispBlocked: a retained precondition refusal (a falsified conjunct, an
+	// MergeDispBlocked: a retained precondition refusal (a falsified condition, an
 	// admin request without human authorization, an absent canonical PR).
 	MergeDispBlocked = "blocked"
 	// MergeDispUnknown: an external effect could not be established (a probe error
@@ -86,9 +86,9 @@ const (
 	MergeDispUnknown = "unknown"
 )
 
-// The stable machine reasons `finalize merge` reports for its non-conjunct
-// outcomes. A conjunct refusal reports the domain conjunct token verbatim
-// (domain.MergeConjuncts.FirstFailure). Message text is explanatory and must not
+// The stable machine reasons `finalize merge` reports for its non-condition
+// outcomes. A condition refusal reports the domain condition token verbatim
+// (domain.MergeConditions.FirstFailure). Message text is explanatory and must not
 // be parsed.
 const (
 	// ReasonMergeAdminNotAuthorized: --admin was requested without an explicit,
@@ -238,9 +238,9 @@ func mergeRefusal(result Result, disposition, reason, message string, id int) Fi
 	})
 }
 
-// mergeConjunctInputs is every fact the merge conjunct assembly reads. It is a
+// mergeConditionInputs is every fact the merge condition assembly reads. It is a
 // plain-value bundle so the assembly is pure and directly testable per field.
-type mergeConjunctInputs struct {
+type mergeConditionInputs struct {
 	status            domain.Status
 	canonicalPRNumber int
 	prNumber          int
@@ -264,13 +264,13 @@ type mergeConjunctInputs struct {
 	finalizeBlocked          bool
 }
 
-// mergeConjuncts assembles the domain merge conjuncts from the live inputs. The
-// two human-overridable conjuncts read the explicit-id flag: an explicit id
+// mergeConditions assembles the domain merge conditions from the live inputs. The
+// two human-overridable conditions read the explicit-id flag: an explicit id
 // supplies approval and satisfies a finalize-blocked marker. A superseding
 // revision is NEVER overridable — NotSuperseded requires an exact revision match
 // regardless of authorization.
-func mergeConjuncts(in mergeConjunctInputs) domain.MergeConjuncts {
-	return domain.MergeConjuncts{
+func mergeConditions(in mergeConditionInputs) domain.MergeConditions {
+	return domain.MergeConditions{
 		Implemented:         in.status == domain.StatusImplemented,
 		PRLinkMatch:         in.prNumber == in.canonicalPRNumber,
 		HeadsAgree:          in.reqHead == in.prHead && in.reqHead == in.remoteHead && in.reqHead == in.localHead,
@@ -283,11 +283,11 @@ func mergeConjuncts(in mergeConjunctInputs) domain.MergeConjuncts {
 	}
 }
 
-// mergeConjunctOutcome maps a falsified-conjunct token to its result class and
+// mergeConditionOutcome maps a falsified-condition token to its result class and
 // disposition. A moved head, a wrong PR identity, and a superseding revision are
 // lost races the caller resolves by re-reading context (contended); every other
-// conjunct is a retained block a human resolves.
-func mergeConjunctOutcome(token string) (Result, string) {
+// condition is a retained block a human resolves.
+func mergeConditionOutcome(token string) (Result, string) {
 	switch token {
 	case "head-moved", "pr-link-mismatch", "superseded":
 		return ResultContended, MergeDispContended
@@ -421,7 +421,7 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 }
 
 // FinalizeMerge merges one exact pull request at its authorized head after a
-// fresh recheck of every merge conjunct, then verifies the merge authoritatively
+// fresh recheck of every merge condition, then verifies the merge authoritatively
 // against the live PR and the destination Git history. It never rolls back, never
 // requests branch deletion (the seam does not), and produces a VerifiedMerge —
 // the sole closeout permit — only on a reachable, head/base-consistent merge.
@@ -474,8 +474,8 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, mfacts, false, MergeDispAlreadyMerged, ResultNoOp, "")
 	}
 
-	// Recheck every conjunct from the fresh reload plus live probes. No merge call
-	// is issued until every conjunct holds.
+	// Recheck every condition from the fresh reload plus live probes. No merge call
+	// is issued until every condition holds.
 	featureBranch := strings.TrimPrefix(string(mc.target.FeatureRef), branchRefPrefix)
 	prs, err := deps.GitHub.FindOpenPullRequestsByHead(ctx, repo, featureBranch)
 	if err != nil {
@@ -515,7 +515,7 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 	}
 
 	evHead, _, evGreen := prBodyEvidence(pr)
-	conj := mergeConjuncts(mergeConjunctInputs{
+	conj := mergeConditions(mergeConditionInputs{
 		status:                   mc.change.Status(),
 		canonicalPRNumber:        canonicalN,
 		prNumber:                 pr.Number,
@@ -537,16 +537,16 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		finalizeBlocked:          changeHasFinalizeBlockedMarker(mc.body),
 	})
 	if token := conj.FirstFailure(); token != "" {
-		result, disp := mergeConjunctOutcome(token)
-		return mergeRefusal(result, disp, token, mergeConjunctMessage(token, id), id)
+		result, disp := mergeConditionOutcome(token)
+		return mergeRefusal(result, disp, token, mergeConditionMessage(token, id), id)
 	}
 
-	// Every conjunct holds — including the exact-head/lease conjunct, so req.Head is
+	// Every condition holds — including the exact-head/lease condition, so req.Head is
 	// the verified PR head. Before the irreversible external merge, prove in Git that
 	// every descendant this branch promises to carry is still preserved at that head:
 	// a merged PR destination proves a relationship only, never that the content
 	// survived a stale-worktree rewrite. This gate COMPLEMENTS the head/lease
-	// conjunct (which already rejected any head movement above) and runs regardless
+	// condition (which already rejected any head movement above) and runs regardless
 	// of the gate mode. An observation error is unknown (retain, reprobe); an
 	// observed non-preservation is a retained block that issues no merge call.
 	proof, perr := proveCarriedOnHead(ctx, deps, repoDir, mc.repo, mc.snap, mc.change, gitcli.ObjectID(req.Head))
@@ -563,7 +563,7 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		return r
 	}
 
-	// Every conjunct holds. Issue the expected-head merge. Admin is honored only
+	// Every condition holds. Issue the expected-head merge. Admin is honored only
 	// with an explicit id (already gated above) — the AND is belt-and-braces so no
 	// path can pass admin without it.
 	admin := req.Admin && req.ExplicitID
@@ -735,9 +735,9 @@ func headingText(line string) string {
 	return strings.TrimSpace(trimmed[hashes:])
 }
 
-// mergeConjunctMessage renders the explanatory (non-parsed) message for a
-// falsified conjunct token.
-func mergeConjunctMessage(token string, id int) string {
+// mergeConditionMessage renders the explanatory (non-parsed) message for a
+// falsified condition token.
+func mergeConditionMessage(token string, id int) string {
 	switch token {
 	case "not-implemented":
 		return fmt.Sprintf("change %04d is not implemented; there is nothing to merge", id)

@@ -12,12 +12,12 @@ import (
 	"testing"
 )
 
-// TestIntegrationEvidenceRunVerifyMissingResultsIsUnmetConjunct: an otherwise-complete implemented
+// TestIntegrationEvidenceRunVerifyMissingResultsIsUnmetCondition: an otherwise-complete implemented
 // run whose change carries no linked results artifact is NOT complete — a green
 // PR plus verified evidence and a tracked plan can never certify a run with no
-// durable results (change 0410, criterion 1). The missing-results conjunct
+// durable results (change 0410, criterion 1). The missing-results condition
 // (results-unlinked) is enumerated on run-incomplete.
-func TestIntegrationEvidenceRunVerifyMissingResultsIsUnmetConjunct(t *testing.T) {
+func TestIntegrationEvidenceRunVerifyMissingResultsIsUnmetCondition(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, "", rvRecordedPR(), "feat/"+rvSlug),
@@ -32,11 +32,11 @@ func TestIntegrationEvidenceRunVerifyMissingResultsIsUnmetConjunct(t *testing.T)
 	}
 }
 
-// TestIntegrationEvidenceRunVerifyInvalidResultsContentIsUnmetConjunct: a linked results path that
+// TestIntegrationEvidenceRunVerifyInvalidResultsContentIsUnmetCondition: a linked results path that
 // resolves to a tracked regular file whose FINAL content contract fails (a
-// whole-section filler body) is an unmet results-content-invalid conjunct whose
+// whole-section filler body) is an unmet results-content-invalid condition whose
 // Observed detail names the offending path.
-func TestIntegrationEvidenceRunVerifyInvalidResultsContentIsUnmetConjunct(t *testing.T) {
+func TestIntegrationEvidenceRunVerifyInvalidResultsContentIsUnmetCondition(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
 		rvRecord(rvPlanPath, rvResultsInvalidPath, rvRecordedPR(), "feat/"+rvSlug),
@@ -60,7 +60,7 @@ func TestIntegrationEvidenceRunVerifyInvalidResultsContentIsUnmetConjunct(t *tes
 	}
 }
 
-// TestIntegrationEvidenceRunVerifyWaitingSurvivesMissingResults: the missing-results conjunct adds
+// TestIntegrationEvidenceRunVerifyWaitingSurvivesMissingResults: the missing-results condition adds
 // to unmet without suppressing a valid local waiting receipt. Waiting evaluation
 // runs precisely because unmet is nonempty, so an in-progress run with a
 // fully-agreeing handoff and NO results still reports run-waiting (change 0410
@@ -74,7 +74,7 @@ func TestIntegrationEvidenceRunVerifyWaitingSurvivesMissingResults(t *testing.T)
 	wdeps.Waiting = fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true}
 	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
 	if res.Verdict != VerdictRunWaiting {
-		t.Fatalf("verdict = %q, want %q (a valid waiting receipt outranks the missing-results conjunct; unmet %v)", res.Verdict, VerdictRunWaiting, unmetReasons(res))
+		t.Fatalf("verdict = %q, want %q (a valid waiting receipt outranks the missing-results condition; unmet %v)", res.Verdict, VerdictRunWaiting, unmetReasons(res))
 	}
 }
 

@@ -790,7 +790,7 @@ func TestClaimEligibilityDoesNotTransition(t *testing.T) {
 	if fail := ClaimEligibility(s, c, remotes()); fail == nil {
 		t.Fatal("ClaimEligibility accepted a change that needs design")
 	}
-	// Claim itself stays a pure status transition: the eligibility conjunct is
+	// Claim itself stays a pure status transition: the eligibility condition is
 	// the workflow layer's to call, so Claim still succeeds here.
 	if _, fail := Claim(c, actNow); fail != nil {
 		t.Fatalf("Claim failed: %v", fail)

@@ -1834,7 +1834,7 @@ func TestIntegrationChangeAuthoringLifecycleRefusedMapsInvalidState(t *testing.T
 	}
 }
 
-// TestMarkImplementedAppliesEndToEnd (real git): every conjunct holds, so the
+// TestMarkImplementedAppliesEndToEnd (real git): every condition holds, so the
 // operation opens exactly one exact-revision transaction and returns applied.
 func TestIntegrationChangeRuntimeMarkImplementedAppliesEndToEnd(t *testing.T) {
 	requireRealGit(t)
@@ -1868,11 +1868,11 @@ func TestIntegrationChangeRuntimeMarkImplementedAppliesEndToEnd(t *testing.T) {
 	}
 }
 
-// TestMarkImplementedConjuncts is the mutation test for the five-conjunct
-// reprobe: each row breaks exactly one conjunct and proves the operation refuses
-// with that conjunct's stable reason WITHOUT ever calling the engine. The happy
+// TestMarkImplementedConditions is the mutation test for the five-condition
+// reprobe: each row breaks exactly one condition and proves the operation refuses
+// with that condition's stable reason WITHOUT ever calling the engine. The happy
 // fixture (proven by TestMarkImplementedAppliesEndToEnd) satisfies all five.
-func TestIntegrationChangeRuntimeMarkImplementedConjuncts(t *testing.T) {
+func TestIntegrationChangeRuntimeMarkImplementedConditions(t *testing.T) {
 	requireRealGit(t)
 	repo := newWorkingRepo(t, nil)
 	head := miAdvanceHead(t, repo)
@@ -1894,34 +1894,34 @@ func TestIntegrationChangeRuntimeMarkImplementedConjuncts(t *testing.T) {
 		mutate func(k *miKit)
 		reason string
 	}{
-		{ // conjunct 3
+		{ // condition 3
 			name:   "evidence names another head",
 			mutate: func(k *miKit) { k.evidence = prEvidenceBytes(t, other) },
 			reason: ReasonImplementedEvidenceUnverified,
 		},
-		{ // conjunct 1
+		{ // condition 1
 			name:   "record not reconciled",
 			mutate: func(k *miKit) { k.reconciled = false },
 			reason: ReasonImplementedNotReconciled,
 		},
-		{ // conjunct 1
+		{ // condition 1
 			name:   "record not linked to a plan",
 			mutate: func(k *miKit) { k.plan = "" },
 			reason: ReasonImplementedPlanUnlinked,
 		},
-		{ // conjunct 1
+		{ // condition 1
 			name:   "record revision moved",
 			mutate: func(k *miKit) { k.reqRevision = "9999999999999999999999999999999999999999" },
 			reason: ReasonImplementedRevisionMismatch,
 		},
-		{ // conjunct 2a
+		{ // condition 2a
 			name: "local head differs from supplied head",
 			mutate: func(k *miKit) {
 				k.localHead = other
 			},
 			reason: ReasonImplementedLocalHeadMismatch,
 		},
-		{ // conjunct 2b
+		{ // condition 2b
 			name: "remote head differs from supplied head",
 			mutate: func(k *miKit) {
 				k.reqHead = other
@@ -1930,12 +1930,12 @@ func TestIntegrationChangeRuntimeMarkImplementedConjuncts(t *testing.T) {
 			},
 			reason: ReasonImplementedRemoteHeadMismatch,
 		},
-		{ // conjunct 4
+		{ // condition 4
 			name:   "no unique open PR for the feature branch",
 			mutate: func(k *miKit) { k.probePRs = nil },
 			reason: ReasonImplementedPRNotUnique,
 		},
-		{ // conjunct 4
+		{ // condition 4
 			name: "open PR is not the supplied reference",
 			mutate: func(k *miKit) {
 				odd := happyPR(head)
@@ -1944,13 +1944,13 @@ func TestIntegrationChangeRuntimeMarkImplementedConjuncts(t *testing.T) {
 			},
 			reason: ReasonImplementedPRReferenceMismatch,
 		},
-		{ // conjunct 5 — required (change 0410): an empty results field refuses,
+		{ // condition 5 — required (change 0410): an empty results field refuses,
 			// trivial changes included (there is no trivial exemption to remove).
 			name:   "no results artifact is attached",
 			mutate: func(k *miKit) { k.results = "" },
 			reason: ReasonImplementedResultsMissing,
 		},
-		{ // conjunct 5 — required for a trivial change too (pin, not a branch change).
+		{ // condition 5 — required for a trivial change too (pin, not a branch change).
 			name: "trivial change with no results artifact still refuses",
 			mutate: func(k *miKit) {
 				k.results = ""
@@ -1958,19 +1958,19 @@ func TestIntegrationChangeRuntimeMarkImplementedConjuncts(t *testing.T) {
 			},
 			reason: ReasonImplementedResultsMissing,
 		},
-		{ // conjunct 5 — the attached path is a tracked regular file with the correct
+		{ // condition 5 — the attached path is a tracked regular file with the correct
 			// backlink, but its FINAL content is filler (## Findings and limitations → None.).
 			name:   "attached results fail the final content contract",
 			mutate: func(k *miKit) { k.results = miResultsInvalidPath },
 			reason: ReasonImplementedResultsInvalid,
 		},
-		{ // conjunct 5 — the attached artifact's backlink targets a different change:
+		{ // condition 5 — the attached artifact's backlink targets a different change:
 			// broken results identity, distinct from a content-prose defect.
 			name:   "attached results backlink targets another change",
 			mutate: func(k *miKit) { k.results = miResultsMismatchPath },
 			reason: ReasonImplementedResultsIdentity,
 		},
-		{ // conjunct 5
+		{ // condition 5
 			name:   "attached results path no longer tracked at head",
 			mutate: func(k *miKit) { k.results = "docs/changes/results/0003-widget-ghost.md" },
 			reason: ReasonImplementedResultsIdentity,
@@ -1985,10 +1985,10 @@ func TestIntegrationChangeRuntimeMarkImplementedConjuncts(t *testing.T) {
 
 			res := ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, inv, req)
 			if res.Result == ResultApplied {
-				t.Fatalf("conjunct %q did not refuse (result applied)", row.name)
+				t.Fatalf("condition %q did not refuse (result applied)", row.name)
 			}
 			if len(engine.calls) != 0 {
-				t.Fatalf("engine was called %d times on a refusal; a broken conjunct must never open a transaction", len(engine.calls))
+				t.Fatalf("engine was called %d times on a refusal; a broken condition must never open a transaction", len(engine.calls))
 			}
 			code := firstStatusFindingCode(res.Findings)
 			if code != row.reason {
@@ -1999,7 +1999,7 @@ func TestIntegrationChangeRuntimeMarkImplementedConjuncts(t *testing.T) {
 }
 
 // TestMarkImplementedIdentityForms is the mutation test for the migrated identity
-// conjunct (parsePRRef number vs the verified pr.Number): the transition applies
+// condition (parsePRRef number vs the verified pr.Number): the transition applies
 // when the supplied --pr names the verified PR in EITHER accepted form and
 // refuses with pr-reference-mismatch when the number differs or the reference is
 // unparseable. Number 42 is the verified PR (happyPR).
@@ -2263,9 +2263,9 @@ func TestIntegrationChangeRuntimePRPublishAgreementChecks(t *testing.T) {
 				}
 				return
 			}
-			// Every broken conjunct must refuse BEFORE EnsurePullRequest.
+			// Every broken condition must refuse BEFORE EnsurePullRequest.
 			if len(tc.gh.ensureCalls) != 0 {
-				t.Fatalf("%s: EnsurePullRequest invoked on a broken conjunct (%d calls)", tc.name, len(tc.gh.ensureCalls))
+				t.Fatalf("%s: EnsurePullRequest invoked on a broken condition (%d calls)", tc.name, len(tc.gh.ensureCalls))
 			}
 		})
 	}
@@ -2850,7 +2850,7 @@ func TestIntegrationChangeRuntimeRepairAbsentWorkspaceNoConflict(t *testing.T) {
 }
 
 // TestRepairAdoptPRHeadWritesBranch proves the applied path end-to-end: every
-// conjunct holds, so the repair opens one exact-revision transaction that adopts
+// condition holds, so the repair opens one exact-revision transaction that adopts
 // the PR's reported head as branch:, refreshes updated, and commits only that.
 func TestIntegrationChangeRuntimeRepairAdoptPRHeadWritesBranch(t *testing.T) {
 	requireRealGit(t)
@@ -4043,7 +4043,7 @@ func TestIntegrationChangeRuntimeRunVerdictUnknownVerdictFailsClosed(t *testing.
 }
 
 // TestRunVerifyComplete: an implemented change satisfying every postcondition ⇒
-// run-complete with no unmet conjuncts.
+// run-complete with no unmet conditions.
 func TestIntegrationChangeRuntimeRunVerifyComplete(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := f.deps(
@@ -4055,7 +4055,7 @@ func TestIntegrationChangeRuntimeRunVerifyComplete(t *testing.T) {
 		t.Fatalf("verdict = %q, want %q (unmet %v)", res.Verdict, VerdictRunComplete, unmetReasons(res))
 	}
 	if len(res.Unmet) != 0 {
-		t.Errorf("run-complete carried unmet conjuncts: %v", unmetReasons(res))
+		t.Errorf("run-complete carried unmet conditions: %v", unmetReasons(res))
 	}
 	if res.Head != f.head {
 		t.Errorf("head = %q, want %q", res.Head, f.head)
@@ -4082,12 +4082,12 @@ func TestIntegrationChangeRuntimeRunVerifyCompletePrecedesStaleHandoff(t *testin
 	}
 }
 
-// TestRunVerifyIncompleteEnumeratesConjuncts is the spec's own testing rule: each
+// TestRunVerifyIncompleteEnumeratesConditions is the spec's own testing rule: each
 // row mutates or removes exactly one promised postcondition and expects
-// run-incomplete carrying that conjunct's stable reason — asserted as the FULL
+// run-incomplete carrying that condition's stable reason — asserted as the FULL
 // unmet list, not merely non-empty. The happy fixture (TestRunVerifyComplete)
 // satisfies all of them.
-func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConjuncts(t *testing.T) {
+func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConditions(t *testing.T) {
 	pub := newRunVerifyFixture(t, true)
 	ev := string(prEvidenceBytes(t, pub.head))
 	recordedPR := rvRecordedPR()
@@ -4136,7 +4136,7 @@ func TestIntegrationChangeRuntimeRunVerifyIncompleteEnumeratesConjuncts(t *testi
 			// feat/<slug>. Since only feat/<slug> was published, the recorded
 			// branch's remote head is absent — caught as remote-head-mismatch. Were
 			// the branch reconstructed from the slug, the remote probe would find the
-			// published head and this conjunct would wrongly pass.
+			// published head and this condition would wrongly pass.
 			name:   "recorded branch honored — its remote head is absent",
 			record: rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/other"),
 			pr:     rvPR(pub.head, ev),
@@ -4193,7 +4193,7 @@ func TestIntegrationChangeRuntimeRunVerifyOperationalError(t *testing.T) {
 }
 
 // TestRunVerifyPRIdentityForms is the mutation test for the migrated PR-identity
-// conjunct: run verify accepts a recorded pr: in EITHER form (canonical URL or
+// condition: run verify accepts a recorded pr: in EITHER form (canonical URL or
 // legacy owner/repo#N shorthand) when its parsed number equals the verified PR's
 // number, and flags pr-unverified when the number differs or the recorded value
 // is unparseable. The verified PR is number 42 (rvPR).
@@ -4231,7 +4231,7 @@ func TestIntegrationChangeRuntimeRunVerifyPRIdentityForms(t *testing.T) {
 					t.Fatalf("recorded %q: verdict = %q, want run-complete (unmet %v)", tc.recorded, res.Verdict, reasons)
 				}
 			} else if !hasPRUnverified {
-				t.Fatalf("recorded %q: expected a pr-unverified conjunct, got unmet %v (verdict %q)", tc.recorded, reasons, res.Verdict)
+				t.Fatalf("recorded %q: expected a pr-unverified condition, got unmet %v (verdict %q)", tc.recorded, reasons, res.Verdict)
 			}
 		})
 	}
@@ -4256,7 +4256,7 @@ func TestIntegrationChangeRuntimeRunVerifyWaitingAgreeingChain(t *testing.T) {
 		t.Errorf("phase = %q, want %q", res.Phase, "build")
 	}
 	if len(res.Unmet) != 0 {
-		t.Errorf("run-waiting carried unmet conjuncts: %v", unmetReasons(res))
+		t.Errorf("run-waiting carried unmet conditions: %v", unmetReasons(res))
 	}
 	if code := ExitCode(res.Env().Result); code != 0 {
 		t.Errorf("run-waiting exit code = %d, want 0", code)

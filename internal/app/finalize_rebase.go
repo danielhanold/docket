@@ -531,7 +531,7 @@ func publishCheckpointOf(rec workspace.RebaseReceipt) (publishCheckpoint, bool) 
 // is the current local head, the recorded base head is the live effective base
 // head, the recorded command is byte-equal to the currently resolved
 // finalize.test_command, the gate policy is unchanged, and the open PR is the
-// recorded one. Empty-vs-empty never matches (a vacuous conjunct must not
+// recorded one. Empty-vs-empty never matches (a vacuous condition must not
 // skip); any mismatch means the gate re-runs — "never rerun a green gate"
 // governs valid evidence, never stale evidence. Head comparisons are
 // full-length lowercase equality; the caller normalizes.

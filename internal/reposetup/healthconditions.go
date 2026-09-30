@@ -1,18 +1,18 @@
 package reposetup
 
-// healthconditions.go — the healthy conjunction as data. UnmetHealthConditions
-// is the ONE evaluation of the classifier's terminal healthy conjunction:
+// healthconditions.go — the healthy conditions as data. UnmetHealthConditions
+// is the ONE evaluation of the classifier's terminal healthy conditions:
 // Classify selects healthy exactly when it returns empty, and EvaluateHealth
 // uses the same result to supplement reports, so the diagnostic list can never
 // drift from the healthy decision (change 0418; learning
 // duplicated-gate-copies-the-whole-predicate). It is pure and adds no
 // conditions the classifier does not enforce.
 
-// HealthCondition is a stable identifier for one conjunct of the healthy
+// HealthCondition is a stable identifier for one condition of the healthy
 // postcondition set.
 type HealthCondition string
 
-// The full conjunct roster, in the fixed order the healthy conjunction
+// The full condition roster, in the fixed order the healthy conditions
 // checks them. UnmetHealthConditions reports unmet conditions in this order.
 const (
 	CondMetadataBranchPresent HealthCondition = "metadata-branch-present"
@@ -34,9 +34,9 @@ const (
 	CondNoPendingReviewPaths  HealthCondition = "no-pending-review-paths"
 )
 
-// UnmetHealthConditions returns the healthy-conjunction conjuncts f does not
-// satisfy, in fixed order. Empty means the conjunction holds. Unknown and
-// Absent are both non-satisfying — a conjunct is met only when PROVEN met —
+// UnmetHealthConditions returns the healthy conditions f does not
+// satisfy, in fixed order. Empty means the conditions hold. Unknown and
+// Absent are both non-satisfying — a condition is met only when PROVEN met —
 // but presentation (unknown vs proven-wrong) is EvaluateHealth's job, not
 // this evaluation's.
 func UnmetHealthConditions(f Facts) []HealthCondition {

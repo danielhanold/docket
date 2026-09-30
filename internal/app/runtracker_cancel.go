@@ -8,14 +8,14 @@
 // ONLY after full accounting of registered tasks, processes and admitted mutations.
 //
 // AUTHORITY. The run key LOCATES the run (the durable gate record + the run that
-// lives beside it); it does not authorize. Authorization is the conjunction the spec
+// lives beside it); it does not authorize. Authorization is the set of conditions the spec
 // pins: the record's repository must be the current repository (LoadRunTrackerRecord fails
 // closed on wrong-repo), the presented run id must equal the record's public
 // RunID, the record must carry a parent-held authority (a non-empty ParentCap),
 // and a CONFIRMED claim binding for the run's change must exist (LoadRunTrackerClaimBinding)
 // — or, for a record started by `run start --resume`, the resume-verified attribution
 // (AttributedID set, no claim binding at all), the shape resolveRunTrackerOwnership accepts.
-// Any missing/mismatched conjunct is a `refused` disposition with a bounded finding —
+// Any missing/mismatched condition is a `refused` disposition with a bounded finding —
 // never a fence, never a stop.
 //
 // ORDER (spec "Flow (exact order)"). validate key + load record + run; validate
@@ -305,7 +305,7 @@ func runCancel(seams cancelSeams, repoDir, key, expectRunID, reason string) RunC
 		return cancelRefused(cancelRunReason(err))
 	}
 
-	// (2) Validate the remaining authority conjuncts: the presented run id must be
+	// (2) Validate the remaining authority conditions: the presented run id must be
 	// the record's public RunID (a stale locator confers nothing); the record must
 	// carry a parent-held authority; a CONFIRMED claim binding for the run's change
 	// must exist.
@@ -696,7 +696,7 @@ func repairTerminalRun(seams cancelSeams, repoDir string, ep RunRecord) RunCance
 // It NEVER validates authority and NEVER transitions the run (its only run write
 // is settleUncertainPublications' uncertain→completed flip of retry-proven journal
 // entries, which leaves the run state untouched): the caller fences
-// first — run.cancel under the authority conjunction, or the detached death
+// first — run.cancel under the authority conditions, or the detached death
 // guardian on abrupt owner death — and finalizes cancelling→cancelled after. Both
 // callers share this one accounting so the two fencing authorities reconcile a run
 // identically.

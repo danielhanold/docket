@@ -25,7 +25,7 @@ type Classification struct {
 // it never reads disk and never conflates Unknown with Absent. The ladder is
 // deliberately ordered — unknown-checks first, then conflict, then partial,
 // then legacy/fresh, then needs-review, then healthy — and healthy is a
-// fall-through that re-verifies every conjunct rather than a default. The final
+// fall-through that re-verifies every condition rather than a default. The final
 // fall-through is a conflict, so no input can ever yield an empty State.
 func Classify(f Facts) Classification {
 	// 1. Unknown: any required probe not proven. An errored probe arrives here
@@ -110,9 +110,9 @@ func Classify(f Facts) Classification {
 	}
 
 	// 6. Healthy: re-verify EVERY postcondition. UnmetHealthConditions is the
-	// single evaluation of the conjunction (healthconditions.go); healthy is
+	// single evaluation of the conditions (healthconditions.go); healthy is
 	// selected exactly when it is empty. This is never a default — a single
-	// unmet conjunct falls through to the terminal conflict below.
+	// unmet condition falls through to the terminal conflict below.
 	if len(UnmetHealthConditions(f)) == 0 {
 		return Classification{State: StateHealthy}
 	}

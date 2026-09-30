@@ -43,7 +43,7 @@ func runTrackerInProgressBlob(id int, slug, claimedAt string) StatusBlob {
 // runTrackerIncompleteRecord renders an in-progress change 3 carrying a valid pr: and
 // linkage, so the ONLY unmet postcondition RunVerify reports is not-implemented
 // (the run is claimed but not yet marked implemented). It lets the retry-mapping
-// tests assert an exact single-conjunct report line.
+// tests assert an exact single-condition report line.
 func runTrackerIncompleteRecord() []byte {
 	src := string(rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug))
 	src = strings.Replace(src, "blocked_by:\n", "pr: '"+rvRecordedPR()+"'\nblocked_by:\n", 1)

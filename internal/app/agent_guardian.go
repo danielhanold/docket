@@ -26,7 +26,7 @@
 // run mutation fence keys on the run state the guardian drives, never on the
 // guardian's identity). It reaps the run's registered participants and worktree slot
 // through the SAME accounting run.cancel uses (reconcileRunTeardown), but WITHOUT
-// the authority conjunction — the guardian is a trusted re-exec the already-authorized
+// the authority conditions — the guardian is a trusted re-exec the already-authorized
 // owner spawned, located to exactly one run, which it verifies before fencing.
 package app
 
@@ -125,7 +125,7 @@ func RunAgentGuardianFromEnv() int {
 //
 // The guardian FENCES and reaps best-effort but deliberately does NOT finalize the
 // run to cancelled: reporting a run fully cancelled requires the authority
-// conjunction and the full accounting run.cancel owns. The guardian holds
+// conditions and the full accounting run.cancel owns. The guardian holds
 // cancel/observe authority only, so it leaves the run CANCELLING — a durable
 // exclusion that blocks any replacement until a human `run.cancel` re-runs the
 // accounting under authority and confirms cancellation. That is the authority split:

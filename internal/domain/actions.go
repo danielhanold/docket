@@ -90,7 +90,7 @@ type DoneFacts struct {
 // refusal naming why not. It is the OTHER half of the claim precondition —
 // build-readiness plus an unambiguous current snapshot — and is deliberately
 // separate from Claim, which takes no Snapshot: Claim is the pure status
-// transition, this is the policy conjunct the workflow layer evaluates FIRST.
+// transition, this is the policy condition the workflow layer evaluates FIRST.
 // A caller that claims without calling it claims a change with unmet
 // dependencies, no design, or an unresolved stack base.
 //
@@ -128,7 +128,7 @@ func ClaimEligibility(s Snapshot, c Change, facts BranchFacts) *PolicyFailure {
 // override, else the type) that is itself a usable branch component.
 // Build-readiness — met dependencies, existing design, a resolved stack base,
 // an unambiguous id — is NOT checked here, because it needs the Snapshot this
-// signature deliberately does not take; ClaimEligibility is that conjunct and
+// signature deliberately does not take; ClaimEligibility is that condition and
 // the workflow layer calls it first.
 func Claim(c Change, now time.Time) (ActionResult, *PolicyFailure) {
 	if fail := requireStatus(c, "claim", StatusProposed); fail != nil {

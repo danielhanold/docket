@@ -119,13 +119,13 @@ func TestIntegrationFinalizeMergeAlreadyMergedOmitsMethod(t *testing.T) {
 	}
 }
 
-// TestFinalizeMergeConjunctAssembly proves the pure conjunct assembly maps each
+// TestFinalizeMergeConditionAssembly proves the pure condition assembly maps each
 // falsified input to exactly its closed token and holds only when every input is
 // satisfied. This is the exhaustive per-field oracle; the operation-level test
 // proves the recheck-before-effect wiring.
-func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
+func TestIntegrationFinalizeMergeConditionAssembly(t *testing.T) {
 	const head = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
-	good := mergeConjunctInputs{
+	good := mergeConditionInputs{
 		status:            domain.StatusImplemented,
 		canonicalPRNumber: 7, prNumber: 7,
 		reqHead: head, prHead: head, remoteHead: head, localHead: head,
@@ -136,47 +136,47 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 		unretargetedOpenChildren: 0,
 		revisionMatches:          true, finalizeBlocked: false,
 	}
-	if got := mergeConjuncts(good).FirstFailure(); got != "" {
-		t.Fatalf("a fully-satisfied input failed conjunct %q", got)
+	if got := mergeConditions(good).FirstFailure(); got != "" {
+		t.Fatalf("a fully-satisfied input failed condition %q", got)
 	}
 
 	cases := []struct {
 		name  string
-		mut   func(in *mergeConjunctInputs)
+		mut   func(in *mergeConditionInputs)
 		token string
 	}{
-		{"not-implemented", func(in *mergeConjunctInputs) { in.status = domain.StatusInProgress }, "not-implemented"},
-		{"pr-link", func(in *mergeConjunctInputs) { in.prNumber = 9 }, "pr-link-mismatch"},
-		{"head-pr", func(in *mergeConjunctInputs) { in.prHead = "deadbeef" }, "head-moved"},
-		{"head-remote", func(in *mergeConjunctInputs) { in.remoteHead = "deadbeef" }, "head-moved"},
-		{"head-local", func(in *mergeConjunctInputs) { in.localHead = "deadbeef" }, "head-moved"},
-		{"closed", func(in *mergeConjunctInputs) { in.prState = githubcli.StateClosed }, "not-open-nondraft"},
-		{"draft", func(in *mergeConjunctInputs) { in.prDraft = true }, "not-open-nondraft"},
-		{"base", func(in *mergeConjunctInputs) { in.prBase = "develop" }, "base-mismatch"},
-		{"gate-no-evidence", func(in *mergeConjunctInputs) { in.evidenceGreen = false }, "gate-unsatisfied"},
-		{"gate-stale-evidence", func(in *mergeConjunctInputs) { in.evidenceHead = "other" }, "gate-unsatisfied"},
-		{"approval", func(in *mergeConjunctInputs) { in.explicitID = false; in.requireApproval = true }, "approval-required"},
-		{"open-children", func(in *mergeConjunctInputs) { in.unretargetedOpenChildren = 1 }, "open-children"},
-		{"superseded-revision", func(in *mergeConjunctInputs) { in.revisionMatches = false }, "superseded"},
-		{"superseded-blocked", func(in *mergeConjunctInputs) { in.explicitID = false; in.finalizeBlocked = true }, "superseded"},
+		{"not-implemented", func(in *mergeConditionInputs) { in.status = domain.StatusInProgress }, "not-implemented"},
+		{"pr-link", func(in *mergeConditionInputs) { in.prNumber = 9 }, "pr-link-mismatch"},
+		{"head-pr", func(in *mergeConditionInputs) { in.prHead = "deadbeef" }, "head-moved"},
+		{"head-remote", func(in *mergeConditionInputs) { in.remoteHead = "deadbeef" }, "head-moved"},
+		{"head-local", func(in *mergeConditionInputs) { in.localHead = "deadbeef" }, "head-moved"},
+		{"closed", func(in *mergeConditionInputs) { in.prState = githubcli.StateClosed }, "not-open-nondraft"},
+		{"draft", func(in *mergeConditionInputs) { in.prDraft = true }, "not-open-nondraft"},
+		{"base", func(in *mergeConditionInputs) { in.prBase = "develop" }, "base-mismatch"},
+		{"gate-no-evidence", func(in *mergeConditionInputs) { in.evidenceGreen = false }, "gate-unsatisfied"},
+		{"gate-stale-evidence", func(in *mergeConditionInputs) { in.evidenceHead = "other" }, "gate-unsatisfied"},
+		{"approval", func(in *mergeConditionInputs) { in.explicitID = false; in.requireApproval = true }, "approval-required"},
+		{"open-children", func(in *mergeConditionInputs) { in.unretargetedOpenChildren = 1 }, "open-children"},
+		{"superseded-revision", func(in *mergeConditionInputs) { in.revisionMatches = false }, "superseded"},
+		{"superseded-blocked", func(in *mergeConditionInputs) { in.explicitID = false; in.finalizeBlocked = true }, "superseded"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			in := good
 			tc.mut(&in)
-			if got := mergeConjuncts(in).FirstFailure(); got != tc.token {
+			if got := mergeConditions(in).FirstFailure(); got != tc.token {
 				t.Fatalf("FirstFailure = %q, want %q", got, tc.token)
 			}
 		})
 	}
 
-	// The overridable conjuncts: an explicit id satisfies approval and a
+	// The overridable conditions: an explicit id satisfies approval and a
 	// finalize-blocked marker, but never a superseding revision.
 	t.Run("explicit-id-overrides-approval", func(t *testing.T) {
 		in := good
 		in.explicitID = true
 		in.requireApproval = true
-		if got := mergeConjuncts(in).FirstFailure(); got != "" {
+		if got := mergeConditions(in).FirstFailure(); got != "" {
 			t.Fatalf("explicit id did not satisfy approval: %q", got)
 		}
 	})
@@ -184,7 +184,7 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 		in := good
 		in.explicitID = true
 		in.finalizeBlocked = true
-		if got := mergeConjuncts(in).FirstFailure(); got != "" {
+		if got := mergeConditions(in).FirstFailure(); got != "" {
 			t.Fatalf("explicit id did not satisfy the finalize-blocked marker: %q", got)
 		}
 	})
@@ -192,16 +192,16 @@ func TestIntegrationFinalizeMergeConjunctAssembly(t *testing.T) {
 		in := good
 		in.explicitID = true
 		in.revisionMatches = false
-		if got := mergeConjuncts(in).FirstFailure(); got != "superseded" {
+		if got := mergeConditions(in).FirstFailure(); got != "superseded" {
 			t.Fatalf("explicit id wrongly overrode a superseding revision: %q", got)
 		}
 	})
 }
 
-// TestFinalizeMergeConjunctsRechecked proves the operation rechecks each merge
-// conjunct from a FRESH reload immediately before the effect: a falsified field
+// TestFinalizeMergeConditionsRechecked proves the operation rechecks each merge
+// condition from a FRESH reload immediately before the effect: a falsified field
 // refuses with that field's closed token and issues zero merge calls.
-func TestIntegrationFinalizeMergeConjunctsRechecked(t *testing.T) {
+func TestIntegrationFinalizeMergeConditionsRechecked(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 
@@ -272,7 +272,7 @@ func TestIntegrationFinalizeMergeConjunctsRechecked(t *testing.T) {
 
 	t.Run("not-implemented", func(t *testing.T) {
 		// A claimed-but-not-yet-implemented record: it carries a recorded branch (so
-		// identity resolves), and the Implemented conjunct is what refuses.
+		// identity resolves), and the Implemented condition is what refuses.
 		f := setupMergeFixture(t, m)
 		f.patchParent(t, "in-progress", mergePRRef(), "")
 		gh := f.baselineFake(t)
@@ -602,7 +602,7 @@ func (f *fakeMergeCarryGitHub) FindComment(context.Context, githubcli.Repository
 }
 
 // carryFake builds a carry-gated fake whose parent PR (#7) carries prBody (green
-// evidence, or "" when the gate is off) and passes every non-carry conjunct;
+// evidence, or "" when the gate is off) and passes every non-carry condition;
 // tests seed the child #8 reprobe and the merge outcome onto it.
 func (f *mergeFixture) carryFake(prBody string) *fakeMergeCarryGitHub {
 	return &fakeMergeCarryGitHub{
@@ -614,15 +614,15 @@ func (f *mergeFixture) carryFake(prBody string) *fakeMergeCarryGitHub {
 
 // TestIntegrationFinalizeMergeCarryPreservation proves FinalizeMerge proves every
 // carried descendant's merged work is preserved at the verified PR head BEFORE
-// the external merge, and that the new gate COMPLEMENTS the existing conjuncts
-// (it never runs before the head/lease conjunct, and never displaces the
+// the external merge, and that the new gate COMPLEMENTS the existing conditions
+// (it never runs before the head/lease condition, and never displaces the
 // already-merged short circuit closeout owns the post-merge proof for).
 func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 	requireRealGit(t)
 	m := planRepoModes()[0]
 	ctx := context.Background()
 
-	t.Run("all-conjuncts-hold-but-carried-child-lost-refuses-zero-merge-calls", func(t *testing.T) {
+	t.Run("all-conditions-hold-but-carried-child-lost-refuses-zero-merge-calls", func(t *testing.T) {
 		f := setupMergeFixture(t, m)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "Y\n"})
@@ -675,13 +675,13 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		f := setupMergeFixture(t, m)
 		seedRebaseCarryChild(t, f.rebaseFixture)
 		dropped := carryDroppedCommit(t, f.rebaseFixture, map[string]string{"catalog.yaml": "G\n"})
-		// finalize.gate: off — the gate conjunct is satisfied by config, not by
+		// finalize.gate: off — the gate condition is satisfied by config, not by
 		// green PR evidence, so the merge reaches the proof through the gate-off
 		// route. The proof still runs and refuses: gate mode cannot disable it.
 		f.repo.writerAdvance(t, "main", map[string]string{
 			".docket.yml": "integration_branch: main\nbuild:\n  test_command: 'go test ./...'\nfinalize:\n  gate: \"off\"\n  test_command: 'go test ./...'\n",
 		})
-		gh := f.carryFake("") // NO green evidence: only gate-off lets the gate conjunct pass
+		gh := f.carryFake("") // NO green evidence: only gate-off lets the gate condition pass
 		gh.merged[8] = closeoutProbe{outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/widget", dropped)}
 		gh.mergeOutcome = githubcli.MergeMerged
 		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
@@ -711,9 +711,9 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		}
 	})
 
-	t.Run("concurrent-head-move-fails-the-existing-conjunct-first", func(t *testing.T) {
+	t.Run("concurrent-head-move-fails-the-existing-condition-first", func(t *testing.T) {
 		// The PR head no longer matches the requested head: the EXISTING
-		// exact-head/lease conjunct rejects the movement BEFORE the carry proof, so
+		// exact-head/lease condition rejects the movement BEFORE the carry proof, so
 		// the reason is the existing head-moved token, not the carry reason — proving
 		// the new gate complements, not replaces, the head/lease authorization.
 		f := setupMergeFixture(t, m)
@@ -725,10 +725,10 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 		other := strings.Repeat("b", 40)
 		res := FinalizeMerge(ctx, f.mergeDeps(gh), f.repo.invocation, mergeReq(f, other, true, false))
 		if res.Reason != "head-moved" {
-			t.Fatalf("concurrent head move = reason %q, want the existing head-moved conjunct (carry gate must not preempt it)", res.Reason)
+			t.Fatalf("concurrent head move = reason %q, want the existing head-moved condition (carry gate must not preempt it)", res.Reason)
 		}
 		if res.Reason == ReasonCarryUnproven {
-			t.Fatalf("the carry gate preempted the existing head/lease conjunct")
+			t.Fatalf("the carry gate preempted the existing head/lease condition")
 		}
 		if gh.mergeCalls != 0 {
 			t.Fatalf("a head-moved refusal issued %d merge call(s); want 0", gh.mergeCalls)
@@ -736,7 +736,7 @@ func TestIntegrationFinalizeMergeCarryPreservation(t *testing.T) {
 	})
 
 	t.Run("already-merged-short-circuit-unchanged-no-new-proof", func(t *testing.T) {
-		// An already-merged exact PR is a verified no-op probed BEFORE the conjunct
+		// An already-merged exact PR is a verified no-op probed BEFORE the condition
 		// recheck and the carry proof; closeout owns the post-merge proof, so a lost
 		// carried child does not turn the short circuit into a carry refusal.
 		f := setupMergeFixture(t, m)

@@ -18,7 +18,7 @@ never rebuild the run tracker by hand.
    with `<key>`; without a key, run it with `--unattributed` plus any change id the notification
    names. Obey the resulting `run-*` report line exactly, never its exit code or the child's prose.
 3. Only `run-retry-once` authorizes another dispatch: the same `docket-implement-next`, once, for
-   the id and unmet conjuncts it names, keeping the same key. `run-continue <key> run-waiting
+   the id and unmet conditions it names, keeping the same key. `run-continue <key> run-waiting
    <change-id> <continuation-id> <phase>` is **nonterminal**: the same attempt still owns tracked
    work, so it keeps the same key, spends no retry, and is distinct from `run-retry-once` (a
    continuation, not a second attempt). On it, resume the existing implement-next agent,

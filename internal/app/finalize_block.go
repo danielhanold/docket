@@ -48,7 +48,7 @@ import (
 // `finalize clear-block` is the only reader of the marker's removal: it reprobes
 // an exact current head, valid local-gate evidence (unless the gate is off), a
 // published remote feature ref, and a matching open PR before transactionally
-// removing the section. Any missing conjunct refuses; the marker stays.
+// removing the section. Any missing condition refuses; the marker stays.
 //
 // Task 10's `finalize merge` reads the "## Finalize blocked" marker through a
 // shape-keyed body check (changeHasFinalizeBlockedMarker / finalizeBlockedHeading
@@ -77,7 +77,7 @@ const (
 	// BlockDispAlready: the comment is present and the section already records
 	// this exact attempt; a verified no-op keyed on the promised state.
 	BlockDispAlready = "already"
-	// BlockDispCleared: `clear-block` reprobed every conjunct and removed the
+	// BlockDispCleared: `clear-block` reprobed every condition and removed the
 	// section.
 	BlockDispCleared = "cleared"
 	// BlockDispNothingToClear: `clear-block` found no marker to remove; a no-op.
@@ -88,7 +88,7 @@ const (
 	// BlockDispContended: the exact-revision transaction lost to a fresh
 	// incompatible state.
 	BlockDispContended = "contended"
-	// BlockDispRefused: a retained precondition refusal (a clear-block conjunct
+	// BlockDispRefused: a retained precondition refusal (a clear-block condition
 	// did not hold, or the change is not blockable).
 	BlockDispRefused = "refused"
 	// BlockDispFailed: a transaction failure; the cause is in the envelope's
@@ -316,7 +316,7 @@ func FinalizeBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req B
 // FinalizeClearBlock reprobes an exact current head, valid gate evidence (unless
 // the gate is off), a published remote feature ref, and a matching open PR, then
 // removes the single "## Finalize blocked" section in one exact-revision
-// transaction. Any missing conjunct refuses; the marker stays.
+// transaction. Any missing condition refuses; the marker stays.
 func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, req ClearBlockRequest) BlockResult {
 	if findings := validateClearBlockShape(req); len(findings) > 0 {
 		return newBlockResult(OperationFinalizeClearBlock, ResultInvalidInput, BlockResult{ID: req.ID, Findings: findings})
@@ -361,9 +361,9 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 	}
 	recPath := c.Path()
 
-	// Reprobe the four removal conjuncts against fresh live facts before any
+	// Reprobe the four removal conditions against fresh live facts before any
 	// mutation. Each unresolved external probe is unknown (retain); each cleanly
-	// missing conjunct refuses and leaves the marker.
+	// missing condition refuses and leaves the marker.
 	facts, err := reader.BranchFacts(ctx, pin, stackBranchesFor(snap, c))
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)

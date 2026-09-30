@@ -36,7 +36,7 @@ func effectiveForMigrateTest() config.Effective {
 // unauthorized preview always needs confirmation (even with --repair-frontmatter
 // alone), an authorized run with repairs present but not opted in needs
 // --repair-frontmatter, and only --yes (plus --repair-frontmatter when repairs
-// exist) proceeds. Dropping the RepairAuthorized conjunct is the mutation probe
+// exist) proceeds. Dropping the RepairAuthorized condition is the mutation probe
 // this matrix pins: the "--yes alone with repairs" row would then proceed.
 func TestDecideMigrateAuthorizationMatrix(t *testing.T) {
 	cases := []struct {

@@ -41,7 +41,7 @@ func (f fakeReclaimWorkspace) PublishHead(context.Context, workspace.PublishRequ
 }
 
 // reclaimClearWorkspace is the quiescent inspection (no owned live workspace) the
-// clear-path fixtures inject so the workspace conjunct passes.
+// clear-path fixtures inject so the workspace condition passes.
 var reclaimClearWorkspace = WorkspaceDeps{Service: fakeReclaimWorkspace{kind: workspace.StateForeign}}
 
 // reclaimOpFixture builds the reclaim Plan operation with proven-absent branch

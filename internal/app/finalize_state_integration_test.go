@@ -140,12 +140,12 @@ func TestIntegrationFinalizeStateBytePreservation(t *testing.T) {
 
 // TestFinalizeClearBlockReprobes proves clear-block requires an exact current
 // head, a published remote ref at that head, a matching open PR, and green body
-// evidence (gate on) before removing the marker; each missing conjunct refuses
-// and leaves the marker, and the full-conjunct case removes it.
+// evidence (gate on) before removing the marker; each missing condition refuses
+// and leaves the marker, and the full-condition case removes it.
 func TestIntegrationFinalizeStateClearBlockReprobes(t *testing.T) {
 	for _, m := range planRepoModes() {
 		t.Run(m.name, func(t *testing.T) {
-			// Full-conjunct success removes the marker.
+			// Full-condition success removes the marker.
 			t.Run("all-hold-clears", func(t *testing.T) {
 				f := setupBlockedFixture(t, m)
 				gh := &fakeBlockGitHub{repo: retargetRepo(),
@@ -814,7 +814,7 @@ func TestIntegrationFinalizeStateBlockAndClearNoOps(t *testing.T) {
 	})
 
 	// 3. Clear-block on a record with NO marker: a real no-op once the four
-	//    removal conjuncts hold (exact head, published remote ref at head, one
+	//    removal conditions hold (exact head, published remote ref at head, one
 	//    matching open PR, green body evidence).
 	t.Run("absent-marker-clear-block-is-a-no-op", func(t *testing.T) {
 		f := setupRebaseFixtureStatus(t, m, "in-progress")

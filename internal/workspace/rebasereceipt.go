@@ -120,7 +120,7 @@ func (r RebaseReceipt) ResolverBudget() (limit, used int, err error) {
 
 // validateResolverBudget enforces the whole-group rule: the six fields are either
 // all empty (a legacy receipt — valid, never budgeted) or a well-formed budget
-// group. It is a conjunct of validateRebaseReceipt, so the same rule gates both
+// group. It is a condition of validateRebaseReceipt, so the same rule gates both
 // the write and the read.
 func validateResolverBudget(r RebaseReceipt) error {
 	if r.ResolverBudgetVersion == "" && r.ResolverLimit == "" && r.ResolverUsed == "" &&

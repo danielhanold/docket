@@ -30,7 +30,7 @@ import (
 // a branch or workspace, merge the PR, archive the change, or close descendants
 // (those are 0316 effects).
 //
-// The load-bearing property is the FIVE-CONJUNCT reprobe, all done before the
+// The load-bearing property is the FIVE-CONDITION reprobe, all done before the
 // transaction opens (so a refusal invokes no engine and writes nothing):
 //
 //	(1) the change is still the exact in-progress revision, reconciled, and linked
@@ -51,7 +51,7 @@ import (
 // the same pull request as the request (by number, samePRRef) replays the prior
 // applied outcome as a no-op rather than a second transition. Child-agent returns
 // are never trusted;
-// every conjunct is verified from Git/GitHub/evidence/metadata.
+// every condition is verified from Git/GitHub/evidence/metadata.
 
 // OperationChangeMarkImplemented is the operation key the implemented transition
 // records in its envelope and transaction trailer.
@@ -70,23 +70,23 @@ const (
 	ReasonImplementedUnknownChange = "unknown-change"
 	ReasonImplementedAmbiguousID   = "ambiguous-change"
 	// ReasonImplementedNotInProgress: the change is not in-progress, so it cannot
-	// be marked implemented (conjunct 1); maps to invalid-state.
+	// be marked implemented (condition 1); maps to invalid-state.
 	ReasonImplementedNotInProgress = "not-in-progress"
 	// ReasonImplementedRevisionMismatch: the record moved since the submitted
-	// revision (conjunct 1) — a lost race; maps to a contended outcome.
+	// revision (condition 1) — a lost race; maps to a contended outcome.
 	ReasonImplementedRevisionMismatch = "revision-mismatch"
-	// ReasonImplementedNotReconciled: the change is not reconciled (conjunct 1).
+	// ReasonImplementedNotReconciled: the change is not reconciled (condition 1).
 	ReasonImplementedNotReconciled = "not-reconciled"
-	// ReasonImplementedPlanUnlinked: the change carries no linked plan (conjunct 1).
+	// ReasonImplementedPlanUnlinked: the change carries no linked plan (condition 1).
 	ReasonImplementedPlanUnlinked = "plan-unlinked"
 	// ReasonImplementedEvidenceUnverified: the reparsed evidence does not verify
-	// against the supplied head (conjunct 3); maps to invalid-state.
+	// against the supplied head (condition 3); maps to invalid-state.
 	ReasonImplementedEvidenceUnverified = "evidence-unverified"
 	// ReasonImplementedLocalHeadMismatch: the workspace's local head differs from
-	// the supplied head (conjunct 2); maps to invalid-state.
+	// the supplied head (condition 2); maps to invalid-state.
 	ReasonImplementedLocalHeadMismatch = "local-head-mismatch"
 	// ReasonImplementedRemoteHeadMismatch: the remote feature ref is absent or at a
-	// different commit than the supplied head (conjunct 2); maps to invalid-state.
+	// different commit than the supplied head (condition 2); maps to invalid-state.
 	ReasonImplementedRemoteHeadMismatch = "remote-head-mismatch"
 	// ReasonImplementedRemoteProbeFailed: the remote-ref probe itself errored — an
 	// errored probe is never clean absence; maps to external-failed.
@@ -94,31 +94,31 @@ const (
 	// ReasonImplementedRepositoryUnresolved: the GitHub repository identity could
 	// not be resolved from the checkout; maps to external-failed.
 	ReasonImplementedRepositoryUnresolved = "repository-unresolved"
-	// ReasonImplementedPRProbeFailed: the read-only PR probe errored (conjunct 4);
+	// ReasonImplementedPRProbeFailed: the read-only PR probe errored (condition 4);
 	// maps to external-failed.
 	ReasonImplementedPRProbeFailed = "pr-probe-failed"
 	// ReasonImplementedPRNotUnique: the feature branch has zero or more than one
-	// open PR (conjunct 4) — the operation never chooses; maps to invalid-state.
+	// open PR (condition 4) — the operation never chooses; maps to invalid-state.
 	ReasonImplementedPRNotUnique = "pr-not-unique"
 	// ReasonImplementedPRHeadMismatch: the open PR names a head other than the
-	// supplied head (conjunct 4); maps to invalid-state.
+	// supplied head (condition 4); maps to invalid-state.
 	ReasonImplementedPRHeadMismatch = "pr-head-mismatch"
 	// ReasonImplementedPRBaseMismatch: the open PR targets a base other than the
-	// resolved effective-base branch (conjunct 4); maps to invalid-state.
+	// resolved effective-base branch (condition 4); maps to invalid-state.
 	ReasonImplementedPRBaseMismatch = "pr-base-mismatch"
 	// ReasonImplementedPRReferenceMismatch: the verified open PR is not the one the
-	// caller supplied by reference (conjunct 4); maps to invalid-state.
+	// caller supplied by reference (condition 4); maps to invalid-state.
 	ReasonImplementedPRReferenceMismatch = "pr-reference-mismatch"
 	// ReasonImplementedResultsIdentity: the attached results path no longer resolves
 	// to a tracked regular file at the supplied head, or its docket:backlink no
-	// longer targets this change (conjunct 5); invalid-state.
+	// longer targets this change (condition 5); invalid-state.
 	ReasonImplementedResultsIdentity = "results-identity-broken"
 	// ReasonImplementedResultsMissing: the change carries no attached results path;
 	// a results artifact is REQUIRED at the implemented boundary — trivial changes
-	// included (change 0410, conjunct 5); maps to invalid-state.
+	// included (change 0410, condition 5); maps to invalid-state.
 	ReasonImplementedResultsMissing = "results-missing"
 	// ReasonImplementedResultsInvalid: the attached results artifact fails the FINAL
-	// results content contract at the supplied head (change 0410, conjunct 5);
+	// results content contract at the supplied head (change 0410, condition 5);
 	// invalid-state.
 	ReasonImplementedResultsInvalid = "results-content-invalid"
 )
@@ -138,11 +138,11 @@ type MarkImplementedRequest struct {
 	EvidenceRecord []byte `json:"-" docket:"required"`
 }
 
-// ChangeMarkImplemented reprobes the five implemented-transition conjuncts from
+// ChangeMarkImplemented reprobes the five implemented-transition conditions from
 // their authoritative sources and, only when all agree, applies the exact-revision
 // transaction that records the implemented transition. It returns a
 // ChangeLifecycleResult; a pre-transaction refusal carries the offending
-// conjunct's stable reason as its finding code.
+// condition's stable reason as its finding code.
 func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps, repoDir string, req MarkImplementedRequest) ChangeLifecycleResult {
 	op := OperationChangeMarkImplemented
 
@@ -162,7 +162,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		return newChangeLifecycleResult(op, ResultInvalidInput, ChangeLifecycleResult{ID: req.ID, Findings: findings})
 	}
 
-	// (Conjunct 3) Reparse the evidence bytes — never a prior command result — and
+	// (Condition 3) Reparse the evidence bytes — never a prior command result — and
 	// require them to verify against the supplied head: a missing, malformed, or
 	// stale-head record means the gate no longer certifies this commit.
 	if verdict := evidence.Verify(req.EvidenceRecord, req.Head); verdict != evidence.VerdictVerified && verdict != evidence.VerdictSkipped {
@@ -211,7 +211,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			fmt.Sprintf("change %04d is already implemented with a different PR reference", req.ID), req.ID)
 	}
 
-	// (Conjunct 1) exact in-progress revision, reconciled, linked to a plan.
+	// (Condition 1) exact in-progress revision, reconciled, linked to a plan.
 	if c.Status() != domain.StatusInProgress {
 		return implementedRefusal(ResultInvalidState, ReasonImplementedNotInProgress,
 			fmt.Sprintf("change %04d is %q, not in-progress", req.ID, c.RawStatus()), req.ID)
@@ -229,7 +229,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			fmt.Sprintf("change %04d carries no linked plan; attach the verified plan first", req.ID), req.ID)
 	}
 
-	// (Conjunct 2a) local feature head equals the supplied head; the inspection
+	// (Condition 2a) local feature head equals the supplied head; the inspection
 	// also yields the feature and effective-base branches the domain resolved.
 	insp := WorkspaceInspect(ctx, deps, wdeps, repoDir, WorkspaceIDRequest{ID: req.ID})
 	if insp.Result != ResultApplied {
@@ -243,7 +243,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 	featureBranch := strings.TrimPrefix(featureRef, branchRefPrefix)
 	baseBranch := strings.TrimPrefix(insp.BaseRef, branchRefPrefix)
 
-	// (Conjunct 2b) remote feature head equals the supplied head. An errored probe
+	// (Condition 2b) remote feature head equals the supplied head. An errored probe
 	// is never clean absence.
 	rref, err := deps.Client.ProbeRemoteBranch(ctx, repo, originRemote, gitcli.RefName(featureRef))
 	if err != nil {
@@ -258,7 +258,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			"the remote feature head is absent or differs from the supplied head", req.ID)
 	}
 
-	// (Conjunct 4) exactly one open PR for the feature branch, targeting the
+	// (Condition 4) exactly one open PR for the feature branch, targeting the
 	// resolved effective base, naming the supplied head, and naming the supplied
 	// PR number. The adapter's read-only probe mutates nothing.
 	ghRepo, err := gdeps.Service.DiscoverRepository(ctx, repoDir)
@@ -293,7 +293,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			"the verified open PR is not the one supplied by reference", req.ID)
 	}
 
-	// (Conjunct 5) a results artifact is REQUIRED at the implemented boundary
+	// (Condition 5) a results artifact is REQUIRED at the implemented boundary
 	// (change 0410) — for trivial changes too. The attached path must resolve to a
 	// tracked regular file at the supplied head, carry THIS change's backlink, and
 	// satisfy the FINAL results content contract.
@@ -306,7 +306,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		return *r
 	}
 
-	// Every conjunct holds: open the exact-revision transaction that applies
+	// Every condition holds: open the exact-revision transaction that applies
 	// domain.MarkImplemented and re-renders the derived views.
 	// Record the verified PR's canonical URL (never the owner/repo#N shorthand):
 	// it is the only board-safe form — boardPRCell renders "[#N](url)" from a URL
@@ -343,7 +343,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 }
 
 // implementedRefusal builds a refusing ChangeLifecycleResult carrying one
-// state-shaped finding whose code is the offending conjunct's stable reason.
+// state-shaped finding whose code is the offending condition's stable reason.
 func implementedRefusal(result Result, reason, message string, id int) ChangeLifecycleResult {
 	return newChangeLifecycleResult(OperationChangeMarkImplemented, result, ChangeLifecycleResult{
 		ID:       id,

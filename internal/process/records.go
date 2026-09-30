@@ -33,7 +33,7 @@ type manifestRecord struct {
 	// LaunchRequest.ReservationToken here when present, otherwise the
 	// independently minted NewRunIdentity token. Service.ResolveReservation
 	// reads it to map a lost launch response back to its exact run; it is not
-	// part of the ownership conjunction.
+	// part of the ownership conditions.
 	Token         string `json:"token"`
 	Root          string `json:"root"`
 	RunDir        string `json:"run_dir"`

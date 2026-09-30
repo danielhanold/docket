@@ -11,7 +11,7 @@ import (
 // Launch writes it into the manifest only when the caller supplies no
 // LaunchRequest.ReservationToken. Service.ResolveReservation reads the manifest
 // token to resolve a lost launch response, but no clause of the ownership
-// conjunction (filesystem capability, pid/pgid/sid identity, run-id/dirname
+// conditions (filesystem capability, pid/pgid/sid identity, run-id/dirname
 // agreement) consults it.
 func NewRunIdentity() (runID, token string, err error) {
 	buf := make([]byte, 32)

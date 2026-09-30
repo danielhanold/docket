@@ -14,7 +14,7 @@ import (
 
 // TestIntegrationRecordOpsMarkImplementedAcceptsSkippedEvidence: a build.gate: off repository marks a
 // change implemented on truthful skipped evidence certifying the exact head. The
-// evidence conjunct accepts VerdictSkipped exactly as VerdictVerified; the happy
+// evidence condition accepts VerdictSkipped exactly as VerdictVerified; the happy
 // fixture is TestIntegrationChangeRuntimeMarkImplementedAppliesEndToEnd with skipped
 // evidence substituted.
 func TestIntegrationRecordOpsMarkImplementedAcceptsSkippedEvidence(t *testing.T) {

@@ -318,7 +318,7 @@ func migrateUnknownProbes(f reposetup.Facts) []string {
 // outcomes are the whole authorization matrix: an unauthorized run needs
 // confirmation; an authorized run whose plan carries repairs the caller did not
 // opt into needs --repair-frontmatter; everything else proceeds. Dropping the
-// RepairAuthorized conjunct is the mutation probe the --yes-alone default test
+// RepairAuthorized condition is the mutation probe the --yes-alone default test
 // pins.
 type migrateAuthorization int
 

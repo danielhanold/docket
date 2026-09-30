@@ -293,13 +293,13 @@ func TestIntegrationWorkspaceLifecycleInspectAbsentBlockedByLeftovers(t *testing
 }
 
 // TestIntegrationWorkspaceLifecycleInspectForeignUnownedCommonDir isolates the manifest OWNERSHIP gate
-// (ownsManifest's CommonDir identity conjunct). It writes a structurally valid
+// (ownsManifest's CommonDir identity condition). It writes a structurally valid
 // manifest whose ONLY defect is a foreign CommonDir — every other field matches
 // this repository and target — and requires StateForeign with the identity
 // detail. Unlike Prepare and Cleanup (which re-verify live registration and so
 // backstop the ownership check), Inspect returns StateForeign directly on an
 // unowned manifest with no other gate behind it, so this is the case that
-// reddens when the CommonDir conjunct is dropped.
+// reddens when the CommonDir condition is dropped.
 func TestIntegrationWorkspaceLifecycleInspectForeignUnownedCommonDir(t *testing.T) {
 	r := mainModeRepo(t)
 	svc, repo := r.newService(t)

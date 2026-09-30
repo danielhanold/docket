@@ -644,7 +644,7 @@ func conditionFinding(cond HealthCondition, f Facts) *Finding {
 			Remedy:   "Re-run `docket repository check` once the local HEAD read succeeds.",
 		}
 	case CondSurfacesAgree:
-		// Only reached when SurfacesAuthorized (the conjunct is otherwise
+		// Only reached when SurfacesAuthorized (the condition is otherwise
 		// satisfied); Absent is explained by the surfaces-drift reason.
 		if f.SurfacesAgree != PresenceUnknown {
 			return nil

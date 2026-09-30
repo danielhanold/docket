@@ -37,7 +37,7 @@ import (
 // the same reading `change resume-halted` and `finalize clear-block` take of a
 // workspace whose writer may still be live.
 //
-// Only when every conjunct holds does the exact-revision transaction apply the
+// Only when every condition holds does the exact-revision transaction apply the
 // landed `domain.Reclaim` action, append ONE dated `## Reclaim log` entry (the
 // previous claim plus a proof summary), return the record to `proposed`, clear
 // branch/claim, set `reconciled: false`, rerender the artifact block and inline
@@ -172,7 +172,7 @@ type changeReclaimReceipt struct {
 	Op string `json:"op"`
 }
 
-// ChangeReclaim proof-gates a reclaim and, when every conjunct holds, drives one
+// ChangeReclaim proof-gates a reclaim and, when every condition holds, drives one
 // atomic exact-revision transaction that returns the record to proposed. The
 // branch and workspace probes run first, before any effect: any present branch,
 // any live workspace, or any unanswerable probe is a retained skip that mutates
@@ -233,7 +233,7 @@ func ChangeReclaim(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		return *refusal
 	}
 
-	// Every conjunct held. The transaction re-decides on fresh state: it applies
+	// Every condition held. The transaction re-decides on fresh state: it applies
 	// domain.Reclaim (which re-evaluates the strict-expiry lease and the proven
 	// branch facts), appends the reclaim log, and rerenders the derived views.
 	op := reclaimOp{

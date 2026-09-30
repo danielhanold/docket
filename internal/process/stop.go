@@ -25,7 +25,7 @@ type StopOutcome struct {
 //  1. Validate the run path, manifest, and run-ID agreement (as observe). A
 //     terminal record already present is an already-terminal no-op that
 //     preserves the child's own verdict — no signal, no intent written.
-//  2. With no terminal record, require the full ownership conjunction
+//  2. With no terminal record, require the full ownership conditions
 //     immediately before signalling. A free lock or any unprovable clause
 //     re-reads terminal (a race the supervisor may just have won) and, failing
 //     that, is blocked — Stop never signals a group it cannot prove it owns.
@@ -66,12 +66,12 @@ func (s *Service) Stop(runDir, reason string) (*StopOutcome, error) {
 		return out, err
 	}
 
-	// (2) No terminal: require the full ownership conjunction immediately before
+	// (2) No terminal: require the full ownership conditions immediately before
 	// signalling. A free lock or an unprovable clause never authorizes a signal;
 	// re-read terminal in case the supervisor just recorded its verdict, else
 	// this is blocked.
 	self, _ := syscall.Getpgid(0)
-	if err := identityConjunction(m, self); err != nil {
+	if err := identityConditions(m, self); err != nil {
 		if out, rerr := s.terminalNoOp(m, runDir); rerr != nil || out != nil {
 			return out, rerr
 		}
@@ -100,7 +100,7 @@ func (s *Service) Stop(runDir, reason string) (*StopOutcome, error) {
 	// (5) Still up: re-prove ownership immediately before escalating. A lock
 	// that freed (or any unprovable clause) means the group is no longer
 	// provably ours — blocked, never a blind SIGKILL, and no escalation.
-	if err := identityConjunction(m, self); err != nil {
+	if err := identityConditions(m, self); err != nil {
 		return nil, err
 	}
 	if serr := signalGroup(m.PGID, syscall.SIGKILL); serr != nil {

@@ -171,8 +171,8 @@ func TestLaunchEstablishesAddressableSession(t *testing.T) {
 		t.Fatalf("supervisor in the launcher's own group")
 	}
 	// Live facts agree with the record.
-	if err := identityConjunction(m, self); err != nil {
-		t.Fatalf("conjunction on a live run: %v", err)
+	if err := identityConditions(m, self); err != nil {
+		t.Fatalf("conditions on a live run: %v", err)
 	}
 	// Modes: run dir 0700, records 0600.
 	di, _ := os.Stat(out.RunDir)
@@ -212,7 +212,7 @@ func TestGateSurvivesLauncherExit(t *testing.T) {
 		t.Fatalf("supervised group not live after launcher exit: %v", got)
 	}
 	self, _ := syscall.Getpgid(0)
-	if err := identityConjunction(m, self); err != nil {
+	if err := identityConditions(m, self); err != nil {
 		t.Fatalf("survived run is not addressable: %v", err)
 	}
 	killRun(t, runDir)

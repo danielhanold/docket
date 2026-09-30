@@ -18,8 +18,8 @@ import (
 
 // TestIntegrationFinalizeOpsPRPublishAcceptsSkippedEvidenceAtExactHead: a build.gate: off repository's
 // truthful skipped evidence certifying the exact feature head passes PRPublish's
-// evidence conjunct — the operation proceeds PAST it (VerdictSkipped is accepted
-// exactly as VerdictVerified). Any later refusal is not the evidence conjunct;
+// evidence condition — the operation proceeds PAST it (VerdictSkipped is accepted
+// exactly as VerdictVerified). Any later refusal is not the evidence condition;
 // reverting the green-or-skipped acceptance would refuse here with
 // ReasonPREvidenceUnverified, so this pins the verify-site change. (PR-body
 // weaving of a skipped block is a separate concern: evidence.Upsert is green-only
@@ -33,7 +33,7 @@ func TestIntegrationFinalizeOpsPRPublishAcceptsSkippedEvidenceAtExactHead(t *tes
 	res := PRPublish(context.Background(), deps, WorkspaceDeps{Service: readyService(prHead)}, GitHubDeps{Service: gh},
 		repoDir, PRPublishRequest{ID: 7, Head: prHead, Title: "Add widget", Body: "Authored prose.\n", EvidenceRecord: prSkippedEvidenceBytes(t, prHead)})
 	if res.Reason == ReasonPREvidenceUnverified {
-		t.Fatalf("skipped evidence at the exact head was refused at the evidence conjunct: %q", res.Message)
+		t.Fatalf("skipped evidence at the exact head was refused at the evidence condition: %q", res.Message)
 	}
 }
 
